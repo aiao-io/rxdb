@@ -88,6 +88,7 @@ const KEYS = [
   'a11y.github.disabledMenuItems',
   'a11y.github.fileMenuAction',
   'a11y.github.addLocalRepositoryDialog',
+  'a11y.github.repositorySettingsDialog',
   'a11y.windows.dialogsNamedByTitle',
   'a11y.windows.backgroundHidden',
   'a11y.windows.menubarShowsFrontApp',
@@ -816,6 +817,47 @@ export const a11y = {
           wraps && returnsToPath ? [] : ['Tab 没有在 Add Local Repository 中循环'],
           closed && focusReturned ? [] : ['Esc 没有关闭 Add Local Repository 并还回焦点'],
           axe.violations.map(item => `Add Local Repository: ${item.id}`)
+        );
+
+        await focusDocumentStart(page);
+        await tabTo(info => is(info, 'menubar', 'File'));
+        await press('Enter');
+        await press('n');
+        await focusReaches(page, info => is(info, 'popover', 'New Repository…'));
+        await press('Enter');
+        const newRepository = githubWindow.locator('[data-github-new-repository]');
+        await newRepository.fill('Keyboard Repo');
+        await press('Enter');
+        await githubWindow.locator('[data-github-repository-name]').getByText('Keyboard Repo').waitFor();
+
+        await focusDocumentStart(page);
+        await tabTo(info => is(info, 'menubar', 'Repository'));
+        await press('ArrowUp');
+        await focusReaches(page, info => is(info, 'popover', 'Repository Settings…'));
+        await press('Enter');
+        const settings = githubWindow.getByRole('dialog', { name: 'Repository Settings', exact: true });
+        const url = settings.getByRole('textbox', { name: 'Primary Remote Repository (origin) URL' });
+        await url.waitFor({ timeout: 5_000 });
+        const settingsFocused = await url.evaluate(node => node === document.activeElement);
+        const settingsModal = (await settings.getAttribute('aria-modal')) === 'true';
+        await press('Shift+Tab');
+        const cancelFocused = await settings
+          .getByRole('button', { name: 'Cancel', exact: true })
+          .evaluate(node => node === document.activeElement);
+        await press('Tab');
+        const urlRefocused = await url.evaluate(node => node === document.activeElement);
+        const settingsAxe = await new AxeBuilder({ page }).include('.gh-settings-dialog').analyze();
+        await press('Escape');
+        const settingsClosed = await disappears(settings, 5_000);
+        const settingsFocusReturned = await focusReaches(
+          page,
+          info => is(info, 'menubar', 'Repository') || info.app === 'github'
+        );
+        github.repositorySettingsDialog = problems(
+          settingsModal && settingsFocused ? [] : ['Repository Settings 未声明模态或未聚焦远端 URL'],
+          cancelFocused && urlRefocused ? [] : ['Tab 没有在 Repository Settings 中循环'],
+          settingsClosed && settingsFocusReturned ? [] : ['Esc 没有关闭 Repository Settings 并还回焦点'],
+          settingsAxe.violations.map(item => `Repository Settings: ${item.id}`)
         );
       });
 

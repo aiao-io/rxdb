@@ -233,6 +233,63 @@ function terminalOutput(session) {
   };
 }
 
+async function verifyRepositorySettings(session, view) {
+  const { page } = session;
+  const menu = page.getByRole('menuitem', { name: 'Repository', exact: true });
+  const dialog = view.getByRole('dialog', { name: 'Repository Settings', exact: true });
+  const input = dialog.getByRole('textbox', { name: 'Primary Remote Repository (origin) URL' });
+  const save = dialog.getByRole('button', { name: 'Save', exact: true });
+  const first = 'https://github.com/octo/settings-first.git';
+  const second = 'https://github.com/octo/settings-second.git';
+  const open = async () => {
+    await menu.click();
+    await page.getByRole('menuitem', { name: 'Repository Settings…', exact: true }).click();
+    await expect(input).toBeFocused();
+  };
+
+  await open();
+  await expect(input).toHaveValue('');
+  await expect(save).toBeDisabled();
+  await input.fill('https://example.invalid/octo/repo.git');
+  await save.click();
+  await expect(dialog.getByRole('alert')).toContainText('GitHub HTTPS');
+  await input.fill(first);
+  await input.press('Enter');
+  await expect(dialog).toHaveCount(0);
+  await expect(view.locator('[data-github-fetch-origin]')).toContainText('Fetch origin');
+
+  await open();
+  await expect(input).toHaveValue(first);
+  await input.fill('octo/unsaved');
+  await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await open();
+  await expect(input).toHaveValue(first);
+  await input.fill(`  ${second}  `);
+  await save.click();
+  await expect(dialog).toHaveCount(0);
+
+  await menu.click();
+  await page.getByRole('menuitem', { name: 'Open in Terminal', exact: true }).click();
+  const terminal = session.helpers.win('terminal').last();
+  const output = terminalOutput(session);
+  expect(await output('git config --get remote.origin.url')).toBe(second);
+  expect(await output('git remote -v')).toContain(second);
+  await terminal.locator('.tl .c').click();
+
+  await open();
+  await expect(input).toHaveValue(second);
+  await dialog.getByRole('button', { name: 'Remove origin', exact: true }).click();
+  await expect(input).toHaveValue('');
+  await save.click();
+  await expect(dialog).toHaveCount(0);
+  await expect(view.locator('[data-github-fetch-origin]')).toContainText('Refresh status');
+  await open();
+  await expect(input).toHaveValue('');
+  await input.press('Escape');
+  await expect(dialog).toHaveCount(0);
+  return true;
+}
+
 async function droppedRepository(session, view) {
   const temporary = await mkdtemp(join(tmpdir(), 'aiao-github-drop-'));
   const folder = join(temporary, 'drop-fixture');
@@ -342,7 +399,7 @@ async function droppedRepository(session, view) {
       await openRepositoryMenu(view);
       await expect(view.locator('[data-project-id]').filter({ hasText: 'drop-fixture' })).toHaveCount(1);
       await openRepositoryMenu(view, 'local');
-      await expect(view.getByRole('button', { name: 'Add origin', exact: true })).toBeEnabled();
+      await expect(dialog.getByRole('textbox', { name: /Remote Repository/ })).toHaveCount(0);
       await path.fill('~/Documents/GitHub/drop-fixture');
       await path.press('Enter');
       await expect(view.locator('[data-github-repository-dialog]')).toHaveCount(0);
@@ -472,6 +529,7 @@ export const githubApp = {
     'github.menuActions',
     'github.emptyState',
     'github.localRepositoryCreated',
+    'github.repositorySettings',
     'github.editorSaveAndStage',
     'github.diffPanel',
     'github.unstageAndDiscard',
@@ -798,6 +856,7 @@ export const githubApp = {
       (await githubWindow.locator('.gh-empty').count()) === 0;
     await expect(githubWindow.locator('.gh-sidebar')).toBeVisible();
     await expect(githubWindow.locator('.gh-workspace')).toHaveCSS('grid-template-columns', /^250px [\d.]+px$/);
+    result.repositorySettings = await verifyRepositorySettings(session, githubWindow);
 
     await page.getByRole('menuitem', { name: 'View', exact: true }).click();
     const viewMenu = page.getByRole('menu', { name: 'View', exact: true });

@@ -42,7 +42,7 @@ capabilities: []
 | 1   | 在终端进入新目录，执行 `git init`、`add`、`commit -m`、`branch`、`checkout` 和 `status`                 | 子目录也能找到仓库。成功和失败通过退出码区分，重开可看到相同 HEAD 和分支                               | ✅   |
 | 2   | 用 Add Local Repository、拖入桌面 Finder 目录或 `open -a "GitHub Desktop" .` 打开已初始化目录，再次打开 | 显示原仓库的 HEAD、暂存与未暂存差异，列表只有一个对应条目。普通目录提示可初始化                        | ✅   |
 | 3   | 从系统选取或拖入有历史的目录，或拖入多个目录                                                            | 逐仓库显示导入结果和桌面位置。坏元数据、超限、取消和同名目标不会覆盖已有数据；键盘可用菜单完成同一操作 | ✅   |
-| 4   | 在仓库界面添加远端，从终端执行 `git remote -v`，再移除 `origin` 并重开                                  | 两端显示相同的持久化远端。重复添加、无效地址和缺少远端给出可操作的反馈                                 | ✅   |
+| 4   | 从 Repository → Repository Settings… 添加或更换 `origin`，从终端读回，再移除远端并重开                  | 两端读取同一持久化配置；取消不改配置，错误留在对话框，换仓库地址后不复用旧远端基线                     | ✅   |
 | 5   | 对受支持的 GitHub 分支执行 fetch、pull、push，模拟无权限、断网和远端领先                                | fetch 保留工作区和本地整合基线；成功 pull 后看到远端改动；成功 push 可在远端读回；冲突保留本地内容     | ✅   |
 | 6   | 在仓库根运行 `code .`，或从仓库选择 Open in Aiao Code，编辑并保存文本和二进制文件                       | 进入所选仓库。GitHub Desktop 和终端能看到相同字节与未提交差异。覆盖一个大于 Orbit 单消息限制的项目     | ✅   |
 | 7   | 两个窗口从同一版本编辑，先后保存；关闭编辑器后重开，并单独访问 Aiao Code                                | 过期保存被拒绝且可找回草稿；重开原仓库恢复成功版本。独立启动使用编辑器自己的项目                       | ✅   |
@@ -75,6 +75,8 @@ capabilities: []
 拖放确认补验：参照 [GitHub Desktop 3.6.11 的拖放处理](https://github.com/desktop/desktop/blob/release-3.6.11/app/src/ui/app.tsx#L1240)。[`github.droppedRepository`](../../../apps/e2e/src/groups/github-app.mjs) 覆盖确认前不切换、取消、同名拒绝、混合批量导入、Finder 去重及原位建仓后终端读回文件；[`a11y.github.addLocalRepositoryDialog`](../../../apps/e2e/src/groups/a11y.mjs) 覆盖对话框名称和键盘焦点。复验：`pnpm nx run aiao-desktop-e2e:e2e --group=github-app,a11y`。
 
 [`github.localRepositoryCreated`、`github.droppedRepository` 和 `github.remotePush`](../../../apps/e2e/src/groups/github-app.mjs) 验证打开 Finder、Aiao Code、本地仓库和已登记的远端仓库时不显示 `Opened …`。
+
+远端设置参照 [GitHub Desktop 3.6.11 的 Repository Settings](https://github.com/desktop/desktop/blob/release-3.6.11/app/src/ui/repository-settings/repository-settings.tsx)。本产品只提供 `Remote` 设置，支持添加、替换和移除 GitHub HTTPS `origin`。[`github.repositorySettings`](../../../apps/e2e/src/groups/github-app.mjs) 检查保存、取消、地址校验和终端读回；[`a11y.github.repositorySettingsDialog`](../../../apps/e2e/src/groups/a11y.mjs) 检查纯键盘打开、Tab 循环、Esc 和无障碍规则。
 
 ## References
 

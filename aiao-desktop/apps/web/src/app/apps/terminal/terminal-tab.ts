@@ -51,6 +51,7 @@ export class TerminalTab implements OnDestroy {
 
   readonly active = input(false);
   readonly cwd = input.required<string>();
+  readonly focusOnMount = input.required<boolean>();
 
   constructor() {
     this.terminal.parser.registerOscHandler(OPEN_OSC, async data => {
@@ -64,10 +65,12 @@ export class TerminalTab implements OnDestroy {
       this.terminal.open(this.panel().nativeElement);
       void this.start();
     });
+    let firstActivation = true;
     afterRenderEffect(() => {
       if (!this.active()) return;
       this.fit();
-      this.terminal.focus();
+      if (!firstActivation || this.focusOnMount()) this.terminal.focus();
+      firstActivation = false;
     });
   }
 

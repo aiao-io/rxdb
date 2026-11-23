@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: ADESK-EPIC-002
 created: 2026-11-13
-updated: 2026-11-14
+updated: 2026-11-23
 tags: [desktop, window, persistence]
 dependsOn: [ADESK-US-008, ADESK-US-102, ADESK-US-206]
 capabilities: []
@@ -28,7 +28,7 @@ capabilities: []
 - 刷新后按记录恢复：内置应用与集成应用一视同仁；几何经现有 keepOnScreen 修正；恢复失败的窗口跳过并给出可见反馈，不阻塞桌面启动。
 - 布局变化写回防抖；用户主动关闭的窗口不恢复；多窗口应用各自的窗口分别恢复。
 - 集成应用恢复等于重新开窗并走 Orbit 装载与就绪（[D-11](../../decisions.md#d-11集成应用经-orbit-隔离运行) 语义不变）；透明窗口按 [D-14](../../decisions.md#d-14透明窗口与窗口接口参考-tauri) 由应用在运行时收起桌面装饰。
-- **恢复顺序与加载策略**：先恢复恢复前的前台窗口并立即加载内容；其余未最小化的窗口随后按原层叠顺序逐个恢复并加载，不阻塞桌面交互；最小化的窗口只重建外框，内容在第一次还原时才加载。重型应用一律延后，优先于上面「前台窗口立即加载」，哪怕它就是恢复前的前台窗口：终端（会拉起虚拟机）与几猫3A大作（1.4 MB 的 3D 游戏）恢复时只重建窗口外框，窗口里显示未启动的占位，内容在用户第一次点击该窗口时才加载，与 [ADESK-US-206](../application/ADESK-US-206-lazy-app-runtime-and-host-capabilities.md) 的「启动不请求应用载荷」一致。
+- **恢复顺序与加载策略**：先恢复最上层的可见窗口；其余可见窗口按原层叠顺序逐个恢复，不等待应用装载。清单默认 `eager`（随窗口装载），Terminal 是 `foreground`（仅在恢复时位于可见窗口最上层，才自动启动新的 shell），几猫3A大作是 `deferred`（即使在前台也等用户启动）。延后的窗口显示「未启动」占位，最小化的窗口第一次还原才装载。自动启动不抢键盘焦点。
 - **前台与层叠**：恢复后的前台窗口就是恢复前的前台窗口，层叠顺序与恢复前一致。
 - **Finder 去重**：桌面启动时自动打开的默认 Finder 窗口，只在没有任何可恢复的窗口时才打开；有可恢复的布局时，不在恢复出来的窗口之外再多开一个。
 
@@ -49,7 +49,7 @@ capabilities: []
 | 4   | 打开窗口后主动关闭其中一个                                                  | 刷新                           | 已关闭的不恢复，其余恢复                                                                                                         | ✅   |
 | 5   | 保存的布局里有已下线的应用（清单移除）                                      | 刷新                           | 该窗口被跳过并有可见提示，桌面其余正常启动                                                                                       | ✅   |
 | 6   | 把窗口拖到屏幕边缘后视口变小                                                | 刷新                           | 恢复的窗口拉回屏幕内（复用 keepOnScreen）                                                                                        | ✅   |
-| 7   | 保存的布局里有终端与几猫3A大作的窗口                                        | 刷新页面                       | 窗口外框按原位置恢复，但启动阶段不拉起虚拟机、不请求 `saltline.html`；用户第一次点击窗口时才加载内容（哪怕它是恢复前的前台窗口） | ✅   |
+| 7   | 保存的布局里有 Terminal 与几猫3A大作                                      | 分别把 Terminal、游戏放到最前后刷新 | 前台 Terminal 无需点击即出现 shell 提示符，第一次 Tab 仍从菜单栏开始。后台 Terminal 和游戏不请求应用载荷，等用户启动               | ✅   |
 | 8   | 同一浏览器上下文里两个页面 A、B：A 摆 Finder 与 Notes，B 摆 Calculator      | 先刷新 A，再刷新 B             | A 只恢复自己的两个窗口，B 只恢复自己的窗口，互不出现对方的窗口，也不互相覆盖已保存的布局                                         | ✅   |
 | 9   | 保存的布局里有 Notes、Calculator 两个窗口（没有 Finder），Calculator 在前台 | 刷新页面                       | 不会多出一个默认的 Finder 窗口；Calculator 仍在前台，层叠顺序与刷新前一致                                                        | ✅   |
 | 10  | 保存的布局里有一个最小化的 Notes 窗口                                       | 刷新页面，再从 Dock 还原 Notes | 刷新后窗口外框仍是最小化，启动阶段不请求 Notes 的内容载荷；从 Dock 第一次还原时才加载内容                                        | ✅   |
@@ -57,6 +57,8 @@ capabilities: []
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
 验收证据：第 1～10 条由 `aiao-desktop-e2e:e2e` 的窗口恢复检查组覆盖（正式构建、中途刷新、外网拦截；第 8 条用 [ADESK-US-008](../platform/ADESK-US-008-smoke-suite.md) 的多页夹具）；布局写回的防抖与几何修正由窗口管理单测覆盖。集成应用的恢复在第 3 条里用替身应用验收，线上 Aiao Code 的组合在 `verify-aiao-code` 里补一轮。
+
+第 7 条对应 `window-layout` 组的 `frontTerminalStartsWithoutClick`、`restoredTerminalDoesNotStealFocus`、`backgroundTerminalStaysDeferred` 和 `gameStaysDeferredEvenInFront`；`window-layout.spec.ts` 另验多终端时只启动最上层可见窗口。
 
 ## 技术笔记
 

@@ -293,15 +293,25 @@ export class GithubWorkspace {
   importArchive(id: string, bytes: Uint8Array) {
     return this.lock(id, () => this.git.importArchive(id, bytes));
   }
-  async configureRemote(id: string, url: string | null) {
+  origin(id: string): Promise<string | null> {
+    return this.lock(id, async () => {
+      await this.registered(id);
+      return this.git.origin(id);
+    });
+  }
+
+  async configureRemote(id: string, url: string | null, expectedOrigin?: string | null) {
     return this.lock(id, async () => {
       const record = await this.registered(id);
       const origin = await this.git.origin(id);
-      if (url && origin) throw new Error('remote origin already exists');
+      if (expectedOrigin !== undefined && origin !== expectedOrigin)
+        throw new Error('The remote URL changed. Reopen Repository Settings and try again.');
+      if (expectedOrigin === undefined && url && origin) throw new Error('remote origin already exists');
       if (url === null && !origin && !record.owner) throw new Error('No such remote: origin');
       const address = url === null ? null : parseGithubRemote(url);
       if (url !== null && (!address || address.branch)) throw new Error('请输入 GitHub HTTPS 仓库地址');
-      await this.git.setOrigin(id, address ? `https://github.com/${address.owner}/${address.repo}.git` : null);
+      const nextUrl = address ? `https://github.com/${address.owner}/${address.repo}.git` : null;
+      if (origin === nextUrl && address?.owner === record.owner && address?.repo === record.repo) return record;
       const next = {
         ...record,
         fetched: undefined,
@@ -314,10 +324,11 @@ export class GithubWorkspace {
         remoteEntries: [],
         updatedAt: Date.now()
       };
+      await this.records.put(next);
       try {
-        await this.records.put(next);
+        await this.git.setOrigin(id, nextUrl);
       } catch (cause) {
-        await this.git.setOrigin(id, origin);
+        await this.records.put(record);
         throw cause;
       }
       this.changes.next(id);

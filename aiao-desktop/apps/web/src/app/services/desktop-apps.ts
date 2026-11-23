@@ -119,10 +119,10 @@ interface DesktopAppBase {
 }
 
 /**
- * 刷新后恢复窗口时应用内容的装载方式（ADESK-US-104）：`eager` 随窗口一起装载（最小化的窗口例外，第一次还原才装载）；
- * `deferred` 只重建窗口外框，窗口里显示「未启动」的占位，第一次点击窗口才装载——给装载代价很大的应用用。
+ * 恢复窗口时的装载方式（ADESK-US-104）：`eager` 随窗口装载，`foreground` 只自动装载最上层可见窗口，
+ * `deferred` 等用户启动。不论哪种策略，最小化的窗口第一次还原才装载。
  */
-export const APP_RESTORES = ['eager', 'deferred'] as const;
+export const APP_RESTORES = ['eager', 'foreground', 'deferred'] as const;
 
 export type AppRestore = (typeof APP_RESTORES)[number];
 
@@ -132,7 +132,7 @@ interface BundledAppBase extends DesktopAppBase {
   readonly bundleId: string;
   /** 安装来源。 */
   readonly installScope: InstallScope;
-  /** 刷新后恢复窗口时的装载方式，默认 `eager`。终端（会拉起虚拟机）与几猫3A大作（1.4 MB 的 3D 游戏）是 `deferred`。 */
+  /** 恢复窗口时的装载方式，默认 `eager`。 */
   readonly restore?: AppRestore;
   /**
    * 清单授予的系统能力（ADESK-US-206，D-18），逐项声明，**默认拒绝**：没写的能力一律 `CAPABILITY_DENIED`。

@@ -46,6 +46,7 @@ export interface GithubCommands {
   isBusy(): boolean;
   openRepositoryMenu(kind: GithubRepositoryMenu): void;
   openLocalRepository(): void;
+  openRepositorySettings(): void;
   openInEditor(): void;
   openInTerminal(): void;
   openBranchMenu(): void;
@@ -191,7 +192,9 @@ export class DesktopMenus {
           alternateKey: '⇧⌘.',
           checked: this.finderPreferences.showHiddenFiles(),
           run: () => {
-            void this.finderPreferences.toggleShowHiddenFiles().catch((error: unknown) => this.toast.show(String(error)));
+            void this.finderPreferences
+              .toggleShowHiddenFiles()
+              .catch((error: unknown) => this.toast.show(String(error)));
           }
         }
       ]),
@@ -349,6 +352,13 @@ export class DesktopMenus {
             key: '⌘I',
             disabled: remoteDisabled(),
             run: external('issue')
+          },
+          '-',
+          {
+            id: 'show-repository-settings',
+            label: 'Repository Settings…',
+            disabled: disabled(),
+            run: () => target.openRepositorySettings()
           }
         ],
         Branch: [

@@ -188,14 +188,14 @@ const record = (appId, name, overrides = {}) => ({
 /**
  * 窗口布局的持久化与恢复（ADESK-US-104）：每个标签页把自己的窗口布局存进系统偏好，刷新后据此恢复。
  * 对正式构建、中途刷新、外网拦截；Aiao Code 用替身应用（standard 与 transparent 各验一次），几猫3A大作用替身页
- * （启动阶段是否请求 `saltline.html` 看网络记录）；终端的虚拟机是否启动用 DOM 证据（占位还在、没有 `.xterm`）；
+ * （启动阶段是否请求 `saltline.html` 看网络记录）；前台终端要出现 shell 提示符，后台终端仍显示未启动的占位；
  * 启动阶段有没有装载应用内容，用构建里的组件 chunk 反查网络记录。每个场景用自己的标签页（独立的会话标识），互不影响。
  * 线上的 Aiao Code 组合在 `verify-aiao-code` 里补，不在这里。
  */
 export const windowLayout = {
   name: 'window-layout',
   description:
-    '窗口布局：刷新后恢复位置大小、最小化与缩放、Finder 路径、前台与层叠；重型应用延后；按标签页分开；清理遗留行',
+    '窗口布局：刷新后恢复位置大小、最小化与缩放、Finder 路径、前台与层叠；前台终端自动启动；按标签页分开；清理遗留行',
   standins: ['aiao-code', 'game'],
   timeout: 600_000,
   keys: [
@@ -223,13 +223,12 @@ export const windowLayout = {
     'windowLayout.noticeWaitsForUnlockedDesktop',
     'windowLayout.farWindowWasSaved',
     'windowLayout.restoredWindowPulledOnScreen',
-    'windowLayout.heavyWindowsRestoreAsFrames',
-    'windowLayout.heavyWindowsShowIdlePlaceholder',
-    'windowLayout.heavyFrontWindowStaysFront',
-    'windowLayout.startupBootsNoVirtualMachine',
-    'windowLayout.startupRequestsNoHeavyChunks',
+    'windowLayout.frontTerminalStartsWithoutClick',
+    'windowLayout.restoredTerminalDoesNotStealFocus',
+    'windowLayout.backgroundTerminalStaysDeferred',
+    'windowLayout.gameStaysDeferredEvenInFront',
+    'windowLayout.startupRequestsNoDeferredChunks',
     'windowLayout.startupRequestsNoSaltlineEntry',
-    'windowLayout.firstClickStartsTerminal',
     'windowLayout.firstClickStartsGame',
     'windowLayout.idlePlaceholderIsFocusableButton',
     'windowLayout.idlePlaceholderStartsFromKeyboard',
@@ -299,8 +298,8 @@ export const windowLayout = {
 
 /**
  * AC#1、AC#7、AC#10（刷新前的部分）：Finder 停在 Documents、Notes 最小化、几猫3A大作与终端（前台）。
- * 刷新后三个窗口回到原位原大小，Notes 仍是最小化，Finder 还在 Documents；终端与游戏只重建外框，
- * 启动阶段不拉起虚拟机、不请求 saltline.html，用户第一次点击窗口才装载（哪怕终端就是恢复前的前台窗口）。
+ * 刷新后窗口回到原位原大小，Notes 仍是最小化，Finder 还在 Documents；前台终端自动启动，
+ * 游戏延后装载。把游戏切到前台再刷新，游戏与后台终端都只重建外框。
  */
 async function mixedWindows({ session, result, requests, loadedSince, gameEntrySince }) {
   const { page, helpers } = await session.openDesktopPage();
@@ -332,6 +331,9 @@ async function mixedWindows({ session, result, requests, loadedSince, gameEntryS
   await page.waitForTimeout(500);
   await dragBy(page, await grabPoint(win('terminal')), 90, -20);
 
+  const terminalWin = win('terminal');
+  const gameWin = win('saltline');
+  const shellPrompt = terminalWin.locator('.xterm-rows').filter({ hasText: /~\$/ });
   const apps = ['finder', 'notes', 'saltline', 'terminal'];
   const expected = Object.fromEntries(await Promise.all(apps.map(async app => [app, await boxOf(win(app).last())])));
   const moved = !sameBox(expected.notes, notesBefore, 20);
@@ -363,8 +365,7 @@ async function mixedWindows({ session, result, requests, loadedSince, gameEntryS
   await win('finder').waitFor();
   await win('saltline').waitFor();
   await win('terminal').waitFor();
-  /* 给迟到的装载留点时间：启动阶段什么都不该多出来。 */
-  await page.waitForTimeout(2_000);
+  const shellStarted = await appears(shellPrompt, 30_000);
 
   const after = Object.fromEntries(await Promise.all(apps.map(async app => [app, await boxOf(win(app).last())])));
   result.restoresPositionAndSize =
@@ -379,28 +380,19 @@ async function mixedWindows({ session, result, requests, loadedSince, gameEntryS
     stack.filter(item => item.app !== 'notes').every(item => item.visible);
   result.finderKeepsPath = ((await titleOf(win('finder').last())) ?? '').trim() === 'Documents';
 
-  const terminalWin = win('terminal');
-  const gameWin = win('saltline');
-  result.heavyWindowsRestoreAsFrames =
-    sameBox(after.terminal, expected.terminal) && sameBox(after.saltline, expected.saltline);
-  result.heavyWindowsShowIdlePlaceholder =
-    (await shows(terminalWin.locator('[data-window-idle]'))) && (await shows(gameWin.locator('[data-window-idle]')));
-  result.heavyFrontWindowStaysFront = stack.at(-1)?.app === 'terminal' && stack.at(-1)?.front === true;
-  result.startupBootsNoVirtualMachine =
-    (await terminalWin.locator('.xterm').count()) === 0 &&
-    (await terminalWin.locator('.xterm-helper-textarea').count()) === 0;
-  result.startupRequestsNoHeavyChunks =
-    !loadedSince(mark, 'app-terminal') && !loadedSince(mark, 'app-saltline') && !loadedSince(mark, 'app-notes');
+  result.frontTerminalStartsWithoutClick =
+    shellStarted &&
+    loadedSince(mark, 'app-terminal') &&
+    stack.at(-1)?.app === 'terminal' &&
+    stack.at(-1)?.front === true;
+  await page.keyboard.press('Tab');
+  result.restoredTerminalDoesNotStealFocus = await page.evaluate(() =>
+    Boolean(document.activeElement?.closest('#menubar'))
+  );
+  result.startupRequestsNoDeferredChunks = !loadedSince(mark, 'app-saltline') && !loadedSince(mark, 'app-notes');
   result.startupRequestsNoSaltlineEntry =
-    gameEntrySince(mark) === 0 && (await page.locator('[data-saltline-frame]').count()) === 0;
+    gameEntrySince(mark) === 0 && (await shows(gameWin.locator('[data-window-idle]')));
 
-  /* 第一次点击才装载：先终端（恢复前的前台窗口），再游戏。 */
-  const clicked = requests.length;
-  await clickWindow(page, terminalWin);
-  result.firstClickStartsTerminal =
-    (await appears(terminalWin.locator('.xterm'), 30_000)) &&
-    loadedSince(clicked, 'app-terminal') &&
-    (await terminalWin.locator('[data-window-idle]').count()) === 0;
   const gameClicked = requests.length;
   await clickWindow(page, gameWin);
   result.firstClickStartsGame =
@@ -408,25 +400,32 @@ async function mixedWindows({ session, result, requests, loadedSince, gameEntryS
     gameEntrySince(gameClicked) === 1 &&
     gameEntrySince(mark) === 1;
 
-  /* 再刷新一次：占位是真正的按钮（可聚焦、有名称），键盘也能启动它；重型应用这一轮仍然只重建外框。 */
+  const gameInFront = await savedLayout(session, page, saved => appsIn(saved).at(-1) === 'saltline');
+  const backgroundMark = requests.length;
   await page.reload({ waitUntil: 'load' });
   await terminalWin.waitFor();
   await gameWin.waitFor();
-  await page.waitForTimeout(1_000);
   const idle = terminalWin.locator('[data-window-idle]');
+  result.backgroundTerminalStaysDeferred = (await shows(idle)) && !loadedSince(backgroundMark, 'app-terminal');
+  result.gameStaysDeferredEvenInFront =
+    gameInFront !== null &&
+    (await shows(gameWin.locator('[data-window-idle]'))) &&
+    (await gameWin.evaluate(node => node.classList.contains('front'))) &&
+    !loadedSince(backgroundMark, 'app-saltline') &&
+    gameEntrySince(backgroundMark) === 0;
   await idle.focus();
-  result.idlePlaceholderIsFocusableButton =
-    (await idle.evaluate(
-      node =>
-        node.tagName === 'BUTTON' &&
-        node.getAttribute('aria-label') === 'Start Terminal' &&
-        document.activeElement === node
-    )) && (await terminalWin.locator('.xterm').count()) === 0;
+  result.idlePlaceholderIsFocusableButton = await idle.evaluate(
+    node =>
+      node instanceof HTMLButtonElement &&
+      node.getAttribute('aria-label') === 'Start Terminal' &&
+      document.activeElement === node
+  );
   const typed = requests.length;
-  await gameWin.locator('[data-window-idle]').focus();
   await page.keyboard.press('Enter');
   result.idlePlaceholderStartsFromKeyboard =
-    (await appears(gameWin.locator('[data-saltline-frame]'), 15_000)) && gameEntrySince(typed) === 1;
+    (await appears(shellPrompt, 30_000)) &&
+    loadedSince(typed, 'app-terminal') &&
+    (await terminalWin.locator('.xterm-helper-textarea:focus').count()) === 1;
   await page.close();
 }
 

@@ -29,6 +29,7 @@ import {
   LucideMoreVertical as MoreVertical,
   LucideRefreshCw as RefreshCw,
   LucideSearch as Search,
+  LucideServer as Server,
   LucideSettings as Settings,
   LucideSettings2 as Settings2,
   LucideSquareDot as SquareDot,
@@ -380,6 +381,14 @@ export class GithubApp {
   protected readonly localRepositoryOpen = computed(
     () => this.repositoryMenuOpen() && this.repositoryPanel() === 'local'
   );
+  protected readonly repositorySettings = signal<{ readonly projectId: string; readonly origin: string | null } | null>(
+    null
+  );
+  protected readonly remoteDraft = signal<string | null>('');
+  protected readonly repositoryModalOpen = computed(() => this.localRepositoryOpen() || !!this.repositorySettings());
+  protected readonly repositorySettingsTitleId = `github-settings-title-${this.win.id}`;
+  protected readonly remoteUrlId = `github-settings-remote-${this.win.id}`;
+  protected readonly remoteErrorId = `github-settings-error-${this.win.id}`;
   protected readonly localRepositoryTitleId = `github-local-title-${this.win.id}`;
   protected readonly localRepositoryPathId = `github-local-path-${this.win.id}`;
   protected readonly localRepositoryErrorId = `github-local-error-${this.win.id}`;
@@ -496,6 +505,7 @@ export class GithubApp {
   protected readonly MoreVertical = MoreVertical;
   protected readonly RefreshCw = RefreshCw;
   protected readonly Search = Search;
+  protected readonly Server = Server;
   protected readonly Settings = Settings;
   protected readonly Settings2 = Settings2;
   protected readonly Trash2 = Trash2;
@@ -619,14 +629,52 @@ export class GithubApp {
     this.wm.open('finder', root ? { path: finderPathOf(root), force: true } : {});
   }
 
-  protected async configureOrigin(url: string | null): Promise<void> {
+  private async openRepositorySettings(): Promise<void> {
     const record = this.activeRecord();
-    if (!record) return;
+    if (!record || this.busy() || this.repositoryModalOpen()) return;
+    this.closeRepositoryMenu();
+    this.closeWorktreeMenu();
+    this.branchMenuOpen.set(false);
+    this.closeContextMenu();
     await this.run(async () => {
-      const next = await this.backend.configureRemote(record.projectId, url);
-      this.activeRecord.set(next);
-      this.repoValue.set(next.owner ? `${next.owner}/${next.repo}` : '');
-      this.notice.set(url ? 'Added remote origin' : 'Removed remote origin');
+      const origin = await this.backend.origin(record.projectId);
+      if (this.destroyRef.destroyed) return;
+      this.remoteDraft.set(origin ?? '');
+      this.repositorySettings.set({ projectId: record.projectId, origin });
+    });
+  }
+
+  protected setRemoteDraft(url: string | null): void {
+    this.remoteDraft.set(url);
+    this.fail(null);
+  }
+
+  protected cancelRepositorySettings(event?: Event): void {
+    event?.stopPropagation();
+    if (this.busy()) return;
+    this.fail(null);
+    this.repositorySettings.set(null);
+  }
+
+  protected async saveRepositorySettings(event: Event): Promise<void> {
+    event.preventDefault();
+    const settings = this.repositorySettings();
+    const url = this.remoteDraft()?.trim() ?? null;
+    if (!settings || this.busy() || url === '') return;
+    await this.run(async () => {
+      if (url !== settings.origin) {
+        const current = this.activeRecord();
+        const next = await this.backend.configureRemote(settings.projectId, url, settings.origin);
+        if (this.destroyRef.destroyed) return;
+        this.activeRecord.set(next);
+        this.repoValue.set(next.owner && next.repo ? `${next.owner}/${next.repo}` : '');
+        if (current?.owner !== next.owner || current?.repo !== next.repo) {
+          this.branchValue.set(next.owner ? this.currentBranch() : '');
+          this.remoteBranches.set([]);
+          this.lastFetchedAt.set(null);
+        }
+      }
+      this.repositorySettings.set(null);
     });
   }
 
@@ -1687,7 +1735,7 @@ export class GithubApp {
   }
 
   private canDropRepository(): boolean {
-    const hasDialog = this.repositoryMenuOpen() && this.repositoryPanel() !== 'list';
+    const hasDialog = this.repositorySettings() || (this.repositoryMenuOpen() && this.repositoryPanel() !== 'list');
     return !hasDialog && !this.busy() && !this.destroyRef.destroyed;
   }
 
@@ -1746,9 +1794,10 @@ export class GithubApp {
       hasRepository: () => this.activeRecord() !== null,
       hasRemote: () => Boolean(this.activeRecord()?.owner && this.activeRecord()?.repo),
       hasChanges: () => this.hasChanges(),
-      isBusy: () => this.busy(),
+      isBusy: () => this.busy() || this.repositorySettings() !== null,
       openRepositoryMenu: kind => this.openRepositoryMenu(kind),
       openLocalRepository: () => this.openLocalRepository(),
+      openRepositorySettings: () => void this.openRepositorySettings(),
       openInEditor: () => this.openRepositoryInEditor(),
       openInTerminal: () => void this.openRepositoryInTerminal(),
       openBranchMenu: () => this.openBranchMenu(),

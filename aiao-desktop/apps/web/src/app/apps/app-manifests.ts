@@ -15,12 +15,6 @@ const pinned = (dockOrder: number, dockRemovable = true) =>
 const shelf = { kind: 'builtin', w: 900, h: 600, minW: 520, minH: 340, ...preinstalled } as const;
 
 /**
- * 装载代价很大的应用（ADESK-US-104）：刷新后恢复窗口时只重建外框、显示「未启动」占位，用户第一次点击窗口才装载内容，
- * 哪怕它就是恢复前的前台窗口。终端会拉起虚拟机，几猫3A大作是 1.4 MB 的 3D 游戏。
- */
-const heavy = { restore: 'deferred' } as const;
-
-/**
  * 应用清单（D-10、D-17）：唯一的应用描述来源。系统入口、内置应用与集成应用都在这里，纯数据、不依赖 Angular，
  * 单测直接校验它；内置应用的组件在 `registry.ts` 里按 id 绑定。Applications、启动台、聚焦搜索、Dock 与菜单栏都
  * 从它派生，没有第二份手工维护的应用列表。顺序即原注册顺序。
@@ -28,7 +22,7 @@ const heavy = { restore: 'deferred' } as const;
  * - `bundleId`：稳定的包标识，写进 `.app` 包的 Info.plist，应用改名后不变；
  * - `showInApplications`：是否在 /Applications 里有一个 `.app` 包（Finder 在系统目录里，不算）；
  * - `defaultPinned` / `dockOrder` / `dockRemovable`：首次使用时的默认 Dock 与固定后能否移除；
- * - `restore`：刷新后恢复窗口时应用内容的装载方式，默认 `eager`；装载代价很大的应用声明 `deferred`（见 `heavy`）。
+ * - `restore`：恢复窗口时应用内容的装载方式，默认 `eager`；终端仅在前台自动装载，游戏等用户启动。
  */
 export const DESKTOP_APP_MANIFESTS = {
   finder: {
@@ -54,7 +48,7 @@ export const DESKTOP_APP_MANIFESTS = {
     bundleId: 'io.aiao.desktop.terminal',
     ...preinstalled,
     ...pinned(110),
-    ...heavy,
+    restore: 'foreground',
     w: 760,
     h: 470,
     minW: 420,
@@ -424,7 +418,7 @@ export const DESKTOP_APP_MANIFESTS = {
     entry: 'saltline.html',
     bundleId: 'io.aiao.desktop.saltline',
     ...preinstalled,
-    ...heavy,
+    restore: 'deferred',
     w: 1120,
     h: 700,
     minW: 640,

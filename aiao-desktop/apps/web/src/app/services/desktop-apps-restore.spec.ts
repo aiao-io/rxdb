@@ -22,18 +22,21 @@ const table = (entry: object): DesktopAppManifests => ({ notes: entry }) as unkn
 const manifests: DesktopAppManifests = DESKTOP_APP_MANIFESTS;
 
 describe('清单里的 restore 字段（刷新后窗口怎么恢复，ADESK-US-104）', () => {
-  it('取值只有 eager（默认）与 deferred', () => {
-    expect(APP_RESTORES).toEqual(['eager', 'deferred']);
+  it('取值只有 eager（默认）、foreground 与 deferred', () => {
+    expect(APP_RESTORES).toEqual(['eager', 'foreground', 'deferred']);
   });
 
-  it('不写 restore、写 eager 或 deferred 都合规', () => {
+  it('不写 restore、写 eager、foreground 或 deferred 都合规', () => {
     expect(validateManifests(table(base))).toEqual([]);
     expect(validateManifests(table({ ...base, restore: 'eager' }))).toEqual([]);
+    expect(validateManifests(table({ ...base, restore: 'foreground' }))).toEqual([]);
     expect(validateManifests(table({ ...base, restore: 'deferred' }))).toEqual([]);
   });
 
   it('写了别的值报出应用与字段', () => {
-    expect(validateManifests(table({ ...base, restore: 'lazy' }))).toEqual(['notes.restore：只能是 eager 或 deferred']);
+    expect(validateManifests(table({ ...base, restore: 'lazy' }))).toEqual([
+      'notes.restore：只能是 eager 或 foreground 或 deferred'
+    ]);
   });
 
   it('集成应用也可以声明 restore，同样要合法', () => {
@@ -43,15 +46,15 @@ describe('清单里的 restore 字段（刷新后窗口怎么恢复，ADESK-US-1
       web: { url: 'https://code.example.com/', version: 'online', allow: [], readyTimeout: 60_000 }
     };
     expect(validateManifests(table({ ...web, restore: 'deferred' }))).toEqual([]);
-    expect(validateManifests(table({ ...web, restore: 'later' }))).toEqual(['notes.restore：只能是 eager 或 deferred']);
+    expect(validateManifests(table({ ...web, restore: 'later' }))).toEqual([
+      'notes.restore：只能是 eager 或 foreground 或 deferred'
+    ]);
   });
 
-  it('当前登记表合规，只有终端（会拉起虚拟机）与几猫3A大作（1.4 MB 的 3D 游戏）声明 deferred', () => {
+  it('当前登记表合规：前台终端自动装载，几猫3A大作始终等用户启动', () => {
     expect(validateManifests(manifests)).toEqual([]);
-    const deferred = Object.values(manifests)
-      .filter(app => app.kind !== 'system' && app.restore === 'deferred')
-      .map(app => app.id);
-    expect(deferred.sort()).toEqual(['saltline', 'terminal']);
+    expect(DESKTOP_APP_MANIFESTS.terminal.restore).toBe('foreground');
+    expect(DESKTOP_APP_MANIFESTS.saltline.restore).toBe('deferred');
   });
 
   it('Aiao Code（集成应用）与 Finder、备忘录这类轻量应用是默认的 eager：恢复时随窗口装载', () => {

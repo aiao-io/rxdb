@@ -65,11 +65,13 @@ describe('ApplicationRuntime：应用实例的生命周期', () => {
     const runtime = new ApplicationRuntime();
     const load = vi.fn<AppLoader>().mockRejectedValueOnce(new Error('offline')).mockResolvedValue(StubApp);
     const win = windowWith(load);
+    win.quiet = true;
     runtime.start(win);
     await flush();
     const firstInstance = win.instanceId;
     runtime.retry(win);
     expect(win.state()).toBe('loading');
+    expect(win.quiet).toBe(false);
     expect(win.failure()).toBeNull();
     expect(win.instanceId).not.toBe(firstInstance);
     await flush();
@@ -161,9 +163,11 @@ describe('ApplicationRuntime：已登记但先不装载（ADESK-US-104）', () =
     const runtime = new ApplicationRuntime();
     const load = vi.fn<AppLoader>(async () => StubApp);
     const win = windowWith(load);
+    win.quiet = true;
     runtime.defer(win);
     runtime.activate(win);
     expect(win.state()).toBe('loading');
+    expect(win.quiet).toBe(false);
     expect(win.instanceId).toBe(`${win.id}#1`);
     await flush();
     expect(win.state()).toBe('ready');

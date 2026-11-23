@@ -34,12 +34,12 @@ export class ApplicationRuntime {
 
   /** 失败后重试：只对 `failed` 的窗口生效，创建新实例，不复用半初始化的组件。 */
   retry(win: DesktopWindow): void {
-    if (win.state() === 'failed') this.start(win);
+    if (win.state() === 'failed') this.startInteractively(win);
   }
 
   /**
    * 登记窗口但先不装载（ADESK-US-104）：窗口有意停在 `registered`，不请求应用载荷，等 {@link activate}。
-   * 刷新后恢复窗口用它：最小化的窗口第一次还原才装载，终端、几猫3A大作这类重型应用第一次被点击才装载。
+   * 恢复窗口时用它：最小化的窗口第一次还原才装载，按清单策略延后的窗口等用户启动才装载。
    * 只有刚登记、还没装载过的窗口能延后，其余状态是用法错误，直接抛出。
    */
   defer(win: DesktopWindow): void {
@@ -52,7 +52,7 @@ export class ApplicationRuntime {
    * 只对 `registered` 的窗口生效；已经在装载、已就绪、失败（要走 {@link retry}）或正在关闭的窗口不受影响。
    */
   activate(win: DesktopWindow): void {
-    if (win.state() === 'registered') this.start(win);
+    if (win.state() === 'registered') this.startInteractively(win);
   }
 
   /** 窗口开始关闭：实例进入 `closing`，还在装载的旧结果从此被丢弃。 */
@@ -104,6 +104,11 @@ export class ApplicationRuntime {
     win.failure.set(reason);
     win.state.set('failed');
     return true;
+  }
+
+  private startInteractively(win: DesktopWindow): void {
+    win.quiet = false;
+    this.start(win);
   }
 
   private ready(

@@ -89,6 +89,7 @@ describe('桌面共享 Git 仓库', () => {
     workspace = TestBed.inject(GithubWorkspace);
     git.snapshot.mockResolvedValue(snapshot);
     git.open.mockResolvedValue(snapshot);
+    git.origin.mockResolvedValue(null);
     git.status.mockResolvedValue({ head: 'abc', branch: 'main', raw: '', entries: [] });
     journal.read.mockResolvedValue(null);
   });
@@ -179,8 +180,9 @@ describe('桌面共享 Git 仓库', () => {
     git.origin.mockResolvedValue('https://github.com/octo/repo.git');
     await expect(workspace.configureRemote(id, 'octo/repo')).rejects.toThrow('exists');
     store.put.mockRejectedValueOnce(new Error('quota'));
+    git.setOrigin.mockClear();
     await expect(workspace.configureRemote(id, null)).rejects.toThrow('quota');
-    expect(git.setOrigin).toHaveBeenLastCalledWith(id, 'https://github.com/octo/repo.git');
+    expect(git.setOrigin).not.toHaveBeenCalled();
     remote.open.mockResolvedValue({
       record: { ...configured, remoteHead: 'r1', remoteTree: 'tree' },
       files: [githubFile('b', 'remote')]
@@ -215,6 +217,21 @@ describe('桌面共享 Git 仓库', () => {
     expect(rows.get(id)?.owner).toBeNull();
   });
 
+  it('读取实际 origin，拒绝过期草稿，不改动相同地址或在配置写入失败时留下新远端', async () => {
+    const url = 'https://github.com/octo/one.git';
+    const existing = { ...initial, owner: 'octo', repo: 'one', remoteHead: 'one-head' };
+    rows.set(id, existing);
+    git.origin.mockResolvedValue(url);
+    expect(await workspace.origin(id)).toBe(url);
+    await expect(workspace.configureRemote(id, 'octo/two', null)).rejects.toThrow('changed');
+    expect(await workspace.configureRemote(id, ' octo/one ', url)).toBe(existing);
+    expect(git.setOrigin).not.toHaveBeenCalled();
+    expect(store.put).not.toHaveBeenCalled();
+    git.setOrigin.mockRejectedValueOnce(new Error('write failed'));
+    await expect(workspace.configureRemote(id, 'octo/two', url)).rejects.toThrow('write failed');
+    expect(rows.get(id)).toBe(existing);
+  });
+
   it('切回已同步的分支复用它自己的远端基线，更换 origin 后清除所有旧基线', async () => {
     rows.set(id, { ...initial, owner: 'octo', repo: 'one', remoteHead: 'main-head', remoteTree: 'main-tree' });
     git.committed.mockResolvedValue(snapshot);
@@ -239,8 +256,11 @@ describe('桌面共享 Git 仓库', () => {
     expect(remote.pull).not.toHaveBeenCalled();
     expect(rows.get(id)).toMatchObject({ branch: 'topic', remoteHead: 'topic-head' });
 
-    await workspace.configureRemote(id, null);
-    await workspace.configureRemote(id, 'octo/two');
+    const origin = 'https://github.com/octo/one.git';
+    git.origin.mockResolvedValue(origin);
+    const replaced = await workspace.configureRemote(id, ' https://github.com/octo/two ', origin);
+    expect(git.setOrigin).toHaveBeenCalledExactlyOnceWith(id, 'https://github.com/octo/two.git');
+    expect(replaced).toMatchObject({ branchBases: [], remoteEntries: [], fetched: undefined });
     git.status.mockResolvedValue({ branch: 'main' });
     remote.push.mockResolvedValueOnce({ head: 'new', tree: 'new-tree' });
     await workspace.push(id, 'new origin');

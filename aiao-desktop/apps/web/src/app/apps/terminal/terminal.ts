@@ -19,6 +19,12 @@ import { TrafficLights } from '../../shared/traffic-lights';
 import { SHELL_HOME } from '../../vm/virtual-machine';
 import { TerminalTab } from './terminal-tab';
 
+interface ShellTab {
+  readonly id: number;
+  readonly cwd: string;
+  readonly focusOnMount: boolean;
+}
+
 /** 终端：xterm 接到浏览器内 Vivari 的真实 shell，看到的是同一块 Macintosh HD；支持多标签。 */
 @Component({
   selector: 'app-terminal',
@@ -45,7 +51,7 @@ import { TerminalTab } from './terminal-tab';
       </div>
       <div class="xterm-panels">
         @for (tab of tabs(); track tab.id; let i = $index) {
-          <app-terminal-tab [active]="i === activeIndex()" [cwd]="tab.cwd" />
+          <app-terminal-tab [active]="i === activeIndex()" [cwd]="tab.cwd" [focusOnMount]="tab.focusOnMount" />
         }
       </div>
     </div>
@@ -59,8 +65,8 @@ export class TerminalApp {
   private readonly destroyRef = inject(DestroyRef);
   private seq = 1;
 
-  protected readonly tabs = signal<readonly { id: number; cwd: string }[]>([
-    { id: 1, cwd: this.win.options.cwd ? toVmPath(this.win.options.cwd) : SHELL_HOME }
+  protected readonly tabs = signal<readonly ShellTab[]>([
+    { id: 1, cwd: this.win.options.cwd ? toVmPath(this.win.options.cwd) : SHELL_HOME, focusOnMount: !this.win.quiet }
   ]);
   protected readonly activeIndex = signal(0);
 
@@ -96,7 +102,7 @@ export class TerminalApp {
   }
 
   protected newTab(): void {
-    this.tabs.update(tabs => [...tabs, { id: ++this.seq, cwd: SHELL_HOME }]);
+    this.tabs.update(tabs => [...tabs, { id: ++this.seq, cwd: SHELL_HOME, focusOnMount: true }]);
     this.activeIndex.set(this.tabs().length - 1);
   }
 

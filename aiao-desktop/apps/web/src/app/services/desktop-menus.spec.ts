@@ -100,6 +100,7 @@ const githubTarget = (
     openInEditor: vi.fn(),
     openInTerminal: vi.fn(),
     openLocalRepository: vi.fn((): void => undefined),
+    openRepositorySettings: vi.fn(),
     openBranchMenu: vi.fn((): void => undefined),
     focusChangesFilter: vi.fn((): void => undefined),
     setTab: vi.fn((tab: GithubTab): void => {
@@ -379,11 +380,13 @@ describe('DesktopMenus GitHub Desktop 菜单', () => {
     click(sectionOf(sections, 'Repository'), 'fetch');
     click(sectionOf(sections, 'Repository'), 'pull');
     click(sectionOf(sections, 'Repository'), 'view-repository-on-github');
+    click(sectionOf(sections, 'Repository'), 'show-repository-settings');
     click(sectionOf(sections, 'Branch'), 'create-branch');
     click(sectionOf(sections, 'Branch'), 'discard-all-changes');
     click(sectionOf(sections, 'Help'), 'keyboard-shortcuts');
     expect(target.openRepositoryMenu.mock.calls).toEqual([['new'], ['clone'], ['list']]);
     expect(target.openLocalRepository).toHaveBeenCalledTimes(1);
+    expect(target.openRepositorySettings).toHaveBeenCalledOnce();
     expect(target.setTab).toHaveBeenCalledExactlyOnceWith('history');
     expect(target.focusChangesFilter).toHaveBeenCalledTimes(2);
     expect(target.openBranchMenu).toHaveBeenCalledTimes(2);
@@ -393,6 +396,14 @@ describe('DesktopMenus GitHub Desktop 菜单', () => {
     expect(target.openExternal).toHaveBeenCalledWith('repository');
     expect(target.discardAllChanges).toHaveBeenCalledTimes(1);
     expect(target.openExternal).toHaveBeenCalledWith('shortcuts');
+  });
+
+  it('未设置远端的本地仓库也可打开仓库设置', () => {
+    const { menus } = setup();
+    const target = githubTarget({ hasRemote: false });
+    expect(sectionOf(menus.github(target), 'Repository')).toContainEqual(
+      expect.objectContaining({ id: 'show-repository-settings', label: 'Repository Settings…', disabled: false })
+    );
   });
 
   it('没有仓库或正在执行任务时置灰依赖当前状态的命令', () => {
@@ -407,6 +418,7 @@ describe('DesktopMenus GitHub Desktop 菜单', () => {
       ['Repository', 'push'],
       ['Repository', 'pull'],
       ['Repository', 'fetch'],
+      ['Repository', 'show-repository-settings'],
       ['Branch', 'create-branch'],
       ['Branch', 'discard-all-changes'],
       ['Branch', 'create-pull-request']

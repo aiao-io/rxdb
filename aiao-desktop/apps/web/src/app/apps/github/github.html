@@ -10,7 +10,7 @@
 >
   <h1 class="sr-only">GitHub Desktop</h1>
 
-  <div class="gh-titlebar" [inert]="localRepositoryOpen()" data-drag>
+  <div class="gh-titlebar" [inert]="repositoryModalOpen()" data-drag>
     <div class="gh-titlebar-controls">
       <app-traffic-lights />
     </div>
@@ -18,7 +18,7 @@
 
   <div
     class="gd-toolbar gh-toolbar"
-    [inert]="localRepositoryOpen()"
+    [inert]="repositoryModalOpen()"
     aria-label="GitHub Desktop toolbar"
     data-drag
     role="toolbar"
@@ -500,7 +500,7 @@
   @if (activeRecord(); as record) {
     <div
       class="gh-workspace"
-      [inert]="localRepositoryOpen()"
+      [inert]="repositoryModalOpen()"
       [style.--gh-aside-width]="asideWidth() + 'px'"
       aria-label="Repository workspace"
     >
@@ -1222,7 +1222,7 @@
       </main>
     </div>
   } @else {
-    <div class="gh-empty" [inert]="localRepositoryOpen()" data-github-empty>
+    <div class="gh-empty" [inert]="repositoryModalOpen()" data-github-empty>
       <div class="gh-mark"><img alt="" data-github-system-icon src="icons/desktop/app-github.png" /></div>
       <h2>GitHub workbench</h2>
       <p>Create a local OPFS repository or open a GitHub repository to start working.</p>
@@ -1294,7 +1294,7 @@
     </div>
   }
 
-  @if (!localRepositoryOpen() && canDiscardBranch()) {
+  @if (!repositoryModalOpen() && canDiscardBranch()) {
     <div class="gh-conflict" role="alert">
       <span>Uncommitted changes prevent switching branches.</span>
       <button class="gd-btn-secondary" (click)="checkout(pendingBranch() ?? currentBranch(), true)" type="button">
@@ -1302,14 +1302,89 @@
       </button>
     </div>
   }
-  @if (!localRepositoryOpen() && error(); as failure) {
+  @if (!repositoryModalOpen() && error(); as failure) {
     <div class="gh-error" data-github-error role="alert">{{ failure }}</div>
   }
   @if (notice(); as message) {
     <div class="gh-notice" data-github-notice role="status">{{ message }}</div>
   }
+  @if (repositorySettings(); as settings) {
+    <div class="gh-modal-layer" data-nodrag>
+      <section
+        class="gh-settings-dialog"
+        [attr.aria-labelledby]="repositorySettingsTitleId"
+        (keydown.escape)="cancelRepositorySettings($event)"
+        appFocusTrap
+        aria-modal="true"
+        role="dialog"
+      >
+        <header class="gh-repository-dialog-header">
+          <h2 [id]="repositorySettingsTitleId">Repository Settings</h2>
+        </header>
+        <form (submit)="saveRepositorySettings($event)">
+          <div class="gh-settings-body">
+            <div class="gh-settings-sidebar">
+              <div class="gh-settings-section">
+                <svg [lucideIcon]="Server" aria-hidden="true" size="16"></svg>
+                Remote
+              </div>
+            </div>
+            <div class="gh-menu-section gh-settings-content">
+              <label [for]="remoteUrlId">Primary Remote Repository (origin) URL</label>
+              <input
+                #remoteInput
+                [attr.aria-describedby]="error() ? remoteErrorId : null"
+                [id]="remoteUrlId"
+                [readOnly]="busy()"
+                [value]="remoteDraft() ?? ''"
+                (input)="setRemoteDraft(remoteInput.value)"
+                autocomplete="off"
+                data-autofocus
+                placeholder="Remote URL"
+                spellcheck="false"
+                type="text"
+              />
+              @if (settings.origin) {
+                <button
+                  class="gd-btn-secondary gh-settings-remove"
+                  [disabled]="busy() || remoteDraft() === null"
+                  (click)="setRemoteDraft(null); remoteInput.focus()"
+                  tabindex="0"
+                  type="button"
+                >
+                  Remove origin
+                </button>
+              }
+              @if (error(); as failure) {
+                <p class="gh-local-repository-error" [id]="remoteErrorId" role="alert">{{ failure }}</p>
+              }
+            </div>
+          </div>
+          <footer class="gh-settings-footer">
+            <button
+              class="gd-btn-secondary"
+              [disabled]="busy()"
+              (click)="cancelRepositorySettings()"
+              tabindex="0"
+              type="button"
+            >
+              Cancel
+            </button>
+            <button
+              class="gd-btn-primary"
+              [disabled]="busy() || remoteDraft()?.trim() === ''"
+              tabindex="0"
+              type="submit"
+            >
+              Save
+            </button>
+          </footer>
+        </form>
+      </section>
+    </div>
+  }
   @if (localRepositoryOpen()) {
-    <div class="gh-local-repository-layer" data-nodrag>
+    <div class="gh-modal-layer" data-nodrag>
       <section
         class="gh-local-repository-dialog"
         [attr.aria-labelledby]="localRepositoryTitleId"
@@ -1414,27 +1489,6 @@
 
         @if (!localSystemFolder()) {
           <section class="gh-menu-section gh-local-options" aria-label="Local repository actions">
-            @if (activeRecord(); as current) {
-              <label [for]="localRepositoryPathId + '-origin'">Remote origin</label>
-              <div class="gh-local-path-row">
-                <input
-                  #originUrl
-                  [id]="localRepositoryPathId + '-origin'"
-                  [value]="current.owner ? 'https://github.com/' + current.owner + '/' + current.repo + '.git' : ''"
-                  placeholder="https://github.com/owner/repo.git"
-                  type="text"
-                />
-                <button
-                  class="gd-btn-secondary"
-                  [disabled]="busy()"
-                  (click)="configureOrigin(current.owner ? null : originUrl.value)"
-                  tabindex="0"
-                  type="button"
-                >
-                  {{ current.owner ? 'Remove origin' : 'Add origin' }}
-                </button>
-              </div>
-            }
             <div class="gh-local-archive-actions">
               <button
                 class="gd-btn-secondary"

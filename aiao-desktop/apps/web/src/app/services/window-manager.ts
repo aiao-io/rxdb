@@ -177,8 +177,8 @@ export class WindowManager {
 
   /**
    * 按布局里的一条记录重建窗口（ADESK-US-104，刷新后恢复）：不弹跳 Dock 图标、没有开窗动画，不走“单实例应用已打开就复用”，
-   * 层叠与几何取记录的（几何按当前视口拉回屏幕内）。最小化的窗口与清单声明 `restore: 'deferred'` 的应用只重建外框、
-   * 不请求应用载荷，等 {@link activate}（最小化的窗口第一次还原时自动触发）；其余窗口立即开始装载。
+   * 层叠与几何取记录的（几何按当前视口拉回屏幕内）。最小化的窗口、`deferred` 窗口和不在前台的 `foreground` 窗口
+   * 只重建外框，等 {@link activate}（最小化的窗口第一次还原时自动触发）；其余窗口立即装载。
    * 没有组件的系统入口、不认识的应用恢复不了，返回 `null`。
    */
   restore(spec: WindowRestoreSpec): DesktopWindow | null {
@@ -194,7 +194,9 @@ export class WindowManager {
     win.minimized.set(spec.minimized);
     win.hidden.set(spec.minimized);
     this.windowsState.update(list => insertByLayer(list, win));
-    if (spec.minimized || (app.kind !== 'system' && app.restore === 'deferred')) this.runtime.defer(win);
+    const restore = app.kind === 'system' ? undefined : app.restore;
+    if (spec.minimized || restore === 'deferred' || (restore === 'foreground' && !spec.foreground))
+      this.runtime.defer(win);
     else this.runtime.start(win);
     if (spec.foreground) this.focusedState.set(win);
     return win;

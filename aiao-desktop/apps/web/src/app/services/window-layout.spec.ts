@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { DESKTOP_APP_MANIFESTS } from '../apps/app-manifests';
 import { DesktopData } from '../data/desktop-data';
 import { Preferences } from '../data/preferences';
 import { SystemPreference } from '../data/system-preference.entity';
@@ -85,8 +86,6 @@ interface Options {
   readonly fsReady?: Promise<void>;
   readonly failLoad?: Error;
   readonly viewport?: readonly [number, number];
-  /** 把 terminal 登记为 restore: deferred（与真实清单一致）。 */
-  readonly deferTerminal?: boolean;
 }
 
 function setup(options: Options = {}) {
@@ -101,7 +100,7 @@ function setup(options: Options = {}) {
 
   /* 登记表里每个应用的装载函数都包成 spy，断言“恢复时没有请求载荷”。 */
   const loads = new Map<DesktopAppId, ReturnType<typeof vi.fn<AppLoader>>>();
-  const base = testApps(options.deferTerminal === false ? {} : { terminal: { restore: 'deferred' } });
+  const base = testApps({ terminal: { restore: DESKTOP_APP_MANIFESTS.terminal.restore } });
   const apps = Object.fromEntries(
     Object.entries(base).map(([id, app]) => {
       if (!app.load) return [id, app];
@@ -467,11 +466,28 @@ describe('WindowLayoutStore 恢复', () => {
     expect(notes.state()).toBe('ready');
   });
 
-  it('重型应用（清单声明 restore: deferred）只重建外框，哪怕它就是前台窗口；第一次点击才装载', async () => {
-    const ctx = await started({ own: layoutOf(rec('calculator'), rec('terminal')) });
+  it.each(['标签页布局', '浏览器会话'])(
+    '从%s只自动装载最上层可见的终端，后台和最小化的终端只重建外框',
+    async source => {
+      const records = [rec('terminal'), rec('terminal'), rec('terminal', { minimized: true })];
+      const ctx = await started(
+        source === '标签页布局' ? { own: layoutOf(...records) }
+        : { others: { [WINDOW_RESUME_KEY]: resumeOf(...records) } }
+      );
+      const [behind, front, minimized] = ctx.wm.byApp('terminal');
+      expect(ctx.wm.front()).toBe(front);
+      expect(ctx.wm.focused()).toBe(front);
+      expect(front.state()).toBe('ready');
+      expect(behind.state()).toBe('registered');
+      expect(minimized.state()).toBe('registered');
+      expect(ctx.loads.get('terminal')).toHaveBeenCalledTimes(1);
+    }
+  );
+
+  it('前台是其他应用时不装载后台终端，用户启动后才装载', async () => {
+    const ctx = await started({ own: layoutOf(rec('terminal'), rec('calculator')) });
     const terminal = ctx.win('terminal');
-    expect(ctx.wm.front()).toBe(terminal);
-    expect(ctx.wm.focused()).toBe(terminal);
+    expect(ctx.wm.front()?.appId).toBe('calculator');
     expect(terminal.state()).toBe('registered');
     expect(ctx.loads.get('terminal')).not.toHaveBeenCalled();
     expect(ctx.loads.get('calculator')).toHaveBeenCalledTimes(1);
@@ -479,12 +495,6 @@ describe('WindowLayoutStore 恢复', () => {
     ctx.wm.activate(terminal.id);
     await settle();
     expect(terminal.state()).toBe('ready');
-    expect(ctx.loads.get('terminal')).toHaveBeenCalledTimes(1);
-  });
-
-  it('是否延后只看清单的 restore 字段，不看应用 id：终端没声明延后时恢复就立即装载（集成应用同理）', async () => {
-    const ctx = await started({ own: layoutOf(rec('terminal')), deferTerminal: false });
-    expect(ctx.win('terminal').state()).toBe('ready');
     expect(ctx.loads.get('terminal')).toHaveBeenCalledTimes(1);
   });
 
