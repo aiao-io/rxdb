@@ -24,8 +24,10 @@ const expect = playwrightExpect.configure({ timeout: 20_000 });
 
 async function openAppSettings(page, view) {
   await page.getByRole('menuitem', { name: 'GitHub Desktop', exact: true }).click();
-  await page.getByRole('menu', { name: 'GitHub Desktop', exact: true })
-    .getByRole('menuitem', { name: 'Settings…', exact: true }).click();
+  await page
+    .getByRole('menu', { name: 'GitHub Desktop', exact: true })
+    .getByRole('menuitem', { name: 'Settings…', exact: true })
+    .click();
   const settings = view.getByRole('dialog', { name: 'Settings', exact: true });
   await expect(settings).toBeVisible();
   return settings;
@@ -551,7 +553,9 @@ async function terminalRoundTrip(session) {
     await github.locator('[data-github-save]').click();
     await expect(github.locator('[data-github-error]')).toContainText(/Expected revision \d+, current revision is \d+/);
     await expect(editor).toHaveValue('not yet saved\n');
-    await win('terminal').locator('.tb').click({ position: { x: 150, y: 10 } });
+    await win('terminal')
+      .locator('.tb')
+      .click({ position: { x: 150, y: 10 } });
     expect(await outputOf('cat note.txt')).toBe('terminal-write');
   } finally {
     await layout.evaluate(element => element.remove());
@@ -1014,8 +1018,12 @@ export const githubApp = {
     const restoredSettings = await openAppSettings(page, restoredGithub);
     await restoredSettings.getByRole('tab', { name: 'Appearance' }).click();
     for (const [name, value] of [
-      ['Diff Tab Size', '8'], ['Date Format', 'yyyy-MM-dd'], ['Time Format', 'HH:mm:ss'], ['Number Format', '.|,']
-    ]) await expect(restoredSettings.getByRole('combobox', { name })).toHaveValue(value);
+      ['Diff Tab Size', '8'],
+      ['Date Format', 'yyyy-MM-dd'],
+      ['Time Format', 'HH:mm:ss'],
+      ['Number Format', '.|,']
+    ])
+      await expect(restoredSettings.getByRole('combobox', { name })).toHaveValue(value);
     await expect(restoredSettings.getByRole('checkbox', { name: 'Always show worktree list' })).toBeChecked();
     await expect(restoredSettings.getByRole('checkbox', { name: 'Prefer absolute dates over relative' })).toBeChecked();
     await restoredSettings.getByRole('button', { name: 'Cancel' }).click();

@@ -4,15 +4,25 @@ import { LucideDynamicIcon, LucideHome, LucidePaintbrush, LucideUserRound } from
 import type { GitHubSession } from '../../services/github/github-types';
 import { FocusTrap } from '../../shared/focus-trap';
 import {
-  DATE_FORMATS, NUMBER_FORMATS, TAB_SIZES, THEMES, TIME_FORMATS,
-  formatGithubDate, formatGithubNumber, formatGithubTime, type GithubAppearance
+  DATE_FORMATS,
+  NUMBER_FORMATS,
+  TAB_SIZES,
+  THEMES,
+  TIME_FORMATS,
+  formatGithubDate,
+  formatGithubNumber,
+  formatGithubTime,
+  type GithubAppearance
 } from './github-appearance';
 
 type SettingsTab = 'accounts' | 'appearance';
 const preview = new Date(2017, 9, 19, 14, 30, 45);
 type SelectKey = 'tabSize' | 'dateFormat' | 'timeFormat' | 'numberFormat';
 const selectValues: { readonly [K in SelectKey]: readonly GithubAppearance[K][] } = {
-  tabSize: TAB_SIZES, dateFormat: DATE_FORMATS, timeFormat: TIME_FORMATS, numberFormat: NUMBER_FORMATS
+  tabSize: TAB_SIZES,
+  dateFormat: DATE_FORMATS,
+  timeFormat: TIME_FORMATS,
+  numberFormat: NUMBER_FORMATS
 };
 
 @Component({
@@ -31,9 +41,18 @@ export class GithubSettings {
   ] as const;
   protected readonly themes = THEMES;
   protected readonly tabSizes = TAB_SIZES;
-  protected readonly dateFormats = DATE_FORMATS.map(value => ({ value, label: `${formatGithubDate(preview, value)} (${value})` }));
-  protected readonly timeFormats = TIME_FORMATS.map(value => ({ value, label: `${formatGithubTime(preview, value)} (${value})` }));
-  protected readonly numberFormats = NUMBER_FORMATS.map(value => ({ value, label: formatGithubNumber(1234567.89, value) }));
+  protected readonly dateFormats = DATE_FORMATS.map(value => ({
+    value,
+    label: `${formatGithubDate(preview, value)} (${value})`
+  }));
+  protected readonly timeFormats = TIME_FORMATS.map(value => ({
+    value,
+    label: `${formatGithubTime(preview, value)} (${value})`
+  }));
+  protected readonly numberFormats = NUMBER_FORMATS.map(value => ({
+    value,
+    label: formatGithubNumber(1234567.89, value)
+  }));
 
   readonly idPrefix = input.required<string>();
   readonly appearance = model.required<GithubAppearance>();
@@ -56,7 +75,7 @@ export class GithubSettings {
     if (key === 'Home') this.tab.set('accounts');
     else if (key === 'End') this.tab.set('appearance');
     else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(key)) {
-      this.tab.update(tab => tab === 'accounts' ? 'appearance' : 'accounts');
+      this.tab.update(tab => (tab === 'accounts' ? 'appearance' : 'accounts'));
     } else return;
     event.preventDefault();
     list.querySelector<HTMLElement>(`[data-tab="${this.tab()}"]`)?.focus();
@@ -66,9 +85,7 @@ export class GithubSettings {
     this.appearance.update(current => ({ ...current, [key]: value }));
   }
 
-  protected changeSelect<K extends SelectKey>(
-    key: K, select: HTMLSelectElement
-  ): void {
+  protected changeSelect<K extends SelectKey>(key: K, select: HTMLSelectElement): void {
     const values: readonly GithubAppearance[K][] = selectValues[key];
     const value = values.find(item => String(item) === select.value);
     if (value !== undefined) this.update(key, value);

@@ -471,7 +471,8 @@ describe('WindowLayoutStore 恢复', () => {
     async source => {
       const records = [rec('terminal'), rec('terminal'), rec('terminal', { minimized: true })];
       const ctx = await started(
-        source === '标签页布局' ? { own: layoutOf(...records) }
+        source === '标签页布局' ?
+          { own: layoutOf(...records) }
         : { others: { [WINDOW_RESUME_KEY]: resumeOf(...records) } }
       );
       const [behind, front, minimized] = ctx.wm.byApp('terminal');

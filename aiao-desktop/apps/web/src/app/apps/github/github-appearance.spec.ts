@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  DATE_FORMATS, DEFAULT_APPEARANCE, TIME_FORMATS,
-  formatGithubDate, formatGithubNumber, formatGithubTime, isGithubAppearance
+  DATE_FORMATS,
+  DEFAULT_APPEARANCE,
+  TIME_FORMATS,
+  formatGithubDate,
+  formatGithubNumber,
+  formatGithubTime,
+  isGithubAppearance
 } from './github-appearance';
 
 describe('GitHub Appearance', () => {

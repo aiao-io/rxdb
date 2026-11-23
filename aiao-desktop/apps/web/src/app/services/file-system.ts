@@ -471,7 +471,11 @@ export class FileSystem {
       throw new DiskError('EACCES', path, violation.replace('can’t be moved', 'can’t be moved to the Trash'));
     const id = await this.mountedRawStore().idAt(path);
     if (!id)
-      throw new DiskError('ENOENT', path, `The item “${name}” can’t be moved to the Trash because it no longer exists.`);
+      throw new DiskError(
+        'ENOENT',
+        path,
+        `The item “${name}” can’t be moved to the Trash because it no longer exists.`
+      );
     await store.mkdir(TRASH);
     const names = (await store.list(TRASH)).map(entry => entry.name);
     const target = [...TRASH, uniqueName(names, name)];

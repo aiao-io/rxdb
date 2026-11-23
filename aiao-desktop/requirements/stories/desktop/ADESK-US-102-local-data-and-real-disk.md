@@ -43,32 +43,32 @@ capabilities: []
 
 ## 验收标准
 
-| #   | 前置条件                               | 操作                                                             | 预期结果                                                                                                       | 状态 |
-| --- | -------------------------------------- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 全新浏览器配置，正式构建               | 打开 `/?boot=0`                                                  | OPFS 里有 `aiao-desktop@…sqlite` 库文件，storage 插件的 `aiao-desktop-files/blobs/` 下有文件体                 | ✅   |
-| 2   | 桌面已打开                             | 看桌面图标                                                       | 除 Macintosh HD 外的图标就是 `~/Desktop` 里的条目                                                              | ✅   |
-| 3   | 桌面已打开                             | 双击桌面上的 `prasenx.txt`                                       | TextEdit 显示文件的真实内容                                                                                    | ✅   |
-| 4   | 桌面已打开                             | 双击桌面上的截图                                                 | 预览显示文件本身（1440 宽的 PNG）                                                                              | ✅   |
-| 5   | 打开终端                               | 依次执行 `pwd`、`cat Desktop/prasenx.txt`、`ls ~/Desktop`        | 从 `/Users/stevejobs` 开始，读到与 Finder 相同的文件与内容                                                     | ✅   |
-| 6   | 终端已打开                             | `echo … > ~/Desktop/terminal-note.txt`                           | 桌面上出现 `terminal-note.txt`                                                                                 | ✅   |
-| 7   | 终端已打开                             | 用 `touch`、`mv`、`cp` 在 `~/Desktop` 里建、改名、复制文件       | 改名后的文件与副本出现在桌面上，改名前的文件不在                                                               | ✅   |
-| 8   | 终端已打开                             | `open ~/Desktop/terminal-note.txt`                               | TextEdit 打开并显示终端写进去的内容                                                                            | ✅   |
-| 9   | 终端已打开                             | 在 Finder 的「桌面」里新建文件夹，再在终端 `ls ~/Desktop`        | 桌面出现 `untitled folder`，终端里也列得出来                                                                   | ✅   |
-| 10  | 完成 #6 与 #9                          | 刷新页面                                                         | `terminal-note.txt` 与 `untitled folder` 仍在桌面上                                                            | ✅   |
-| 11  | 桌面已打开                             | 用聚焦搜索切到深色外观，再刷新页面                               | 仍是深色外观（系统设置在库里）                                                                                 | ✅   |
-| 12  | 桌面已打开                             | 在备忘录里新建一条并输入文字、在提醒事项里新建一条，再刷新页面   | 两条都还在（内置应用的数据在库里）                                                                             | ✅   |
-| 13  | 磁盘上有改动                           | 在磁盘工具里抹掉 Macintosh HD                                    | 磁盘上的改动全部消失，内置内容恢复（「抹掉」只重置磁盘卷，系统设置与各应用的记录不在其中）                     | ✅   |
-| 14  | 外网请求全部拦截                       | 依次完成 #1～#13                                                 | 没有页面错误；控制台错误只有资源加载失败                                                                       | ✅   |
-| 15  | 全新浏览器存储，终端已启动             | 执行 npm/npx、pnpm、Corepack 的版本命令及 `yarn versions --json` | 各工具从同源 vendor 首次加载，输出固定版本，命令结束后 shell 继续可用                                          | ✅   |
-| 16  | npm 已加载，测试 registry 提供固定依赖 | `npm install` 后用 Node 加载安装的模块                           | 下载、校验、解包与模块执行成功，测试不访问真实外网 registry                                                    | ✅   |
-| 17  | 全新浏览器存储，外网阻断               | 首次执行 Python / python3，运行脚本并写入桌面文件                | 真实 CPython 执行成功，桌面出现同一文件，打开终端时未提前加载运行时                                            | ✅   |
-| 18  | 测试来源提供固定纯 Python wheel        | pip 安装后在新 Python 进程 import，再执行 pip freeze             | 项目内包存储恢复成功，版本和执行结果正确                                                                       | ✅   |
-| 19  | 外网阻断                               | import 科学计算库、Web 库与文件处理库                            | NumPy、pandas、SciPy、scikit-learn、FastAPI、Flask、httpx、requests、SQLAlchemy、openpyxl、Rich 与时区数据可用 | ✅   |
-| 20  | 外网阻断                               | 执行 pytest、Black、mypy 与 Ruff                                 | 真实测试通过，版本可查询，Ruff 检查与格式化可执行                                                              | ✅   |
-| 21  | 外网阻断                               | tsc 编译 TypeScript 后交给 Node 执行；执行 tsgo 与 Bun           | 编译结果、编译器版本与 Bun 表达式输出正确                                                                      | ✅   |
-| 22  | 外网阻断                               | node:sqlite 建表写入后重新打开；bun:sqlite 执行查询              | SQLite WASM 真正执行 SQL，数据与预期一致                                                                       | ✅   |
-| 23  | 终端在桌面目录建好项目                 | 执行 `init`、`add`、`commit`、`status`、`log`，再重开终端        | 暂存状态、提交哈希、退出码、管道与重定向正确；双标签暂存均保留                                                 | ✅   |
-| 24  | 终端已初始化 Git 仓库，Finder 打开项目 | 按 `⌃⇧.`、点 View 菜单的 Show Hidden Files，或在内置终端写入 Finder 偏好 | `.git` 默认隐藏。开启后四种视图均可见，目录可在分栏展开。刷新后保留，关闭后隐藏 | ✅   |
+| #   | 前置条件                               | 操作                                                                     | 预期结果                                                                                                       | 状态 |
+| --- | -------------------------------------- | ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- | ---- |
+| 1   | 全新浏览器配置，正式构建               | 打开 `/?boot=0`                                                          | OPFS 里有 `aiao-desktop@…sqlite` 库文件，storage 插件的 `aiao-desktop-files/blobs/` 下有文件体                 | ✅   |
+| 2   | 桌面已打开                             | 看桌面图标                                                               | 除 Macintosh HD 外的图标就是 `~/Desktop` 里的条目                                                              | ✅   |
+| 3   | 桌面已打开                             | 双击桌面上的 `prasenx.txt`                                               | TextEdit 显示文件的真实内容                                                                                    | ✅   |
+| 4   | 桌面已打开                             | 双击桌面上的截图                                                         | 预览显示文件本身（1440 宽的 PNG）                                                                              | ✅   |
+| 5   | 打开终端                               | 依次执行 `pwd`、`cat Desktop/prasenx.txt`、`ls ~/Desktop`                | 从 `/Users/stevejobs` 开始，读到与 Finder 相同的文件与内容                                                     | ✅   |
+| 6   | 终端已打开                             | `echo … > ~/Desktop/terminal-note.txt`                                   | 桌面上出现 `terminal-note.txt`                                                                                 | ✅   |
+| 7   | 终端已打开                             | 用 `touch`、`mv`、`cp` 在 `~/Desktop` 里建、改名、复制文件               | 改名后的文件与副本出现在桌面上，改名前的文件不在                                                               | ✅   |
+| 8   | 终端已打开                             | `open ~/Desktop/terminal-note.txt`                                       | TextEdit 打开并显示终端写进去的内容                                                                            | ✅   |
+| 9   | 终端已打开                             | 在 Finder 的「桌面」里新建文件夹，再在终端 `ls ~/Desktop`                | 桌面出现 `untitled folder`，终端里也列得出来                                                                   | ✅   |
+| 10  | 完成 #6 与 #9                          | 刷新页面                                                                 | `terminal-note.txt` 与 `untitled folder` 仍在桌面上                                                            | ✅   |
+| 11  | 桌面已打开                             | 用聚焦搜索切到深色外观，再刷新页面                                       | 仍是深色外观（系统设置在库里）                                                                                 | ✅   |
+| 12  | 桌面已打开                             | 在备忘录里新建一条并输入文字、在提醒事项里新建一条，再刷新页面           | 两条都还在（内置应用的数据在库里）                                                                             | ✅   |
+| 13  | 磁盘上有改动                           | 在磁盘工具里抹掉 Macintosh HD                                            | 磁盘上的改动全部消失，内置内容恢复（「抹掉」只重置磁盘卷，系统设置与各应用的记录不在其中）                     | ✅   |
+| 14  | 外网请求全部拦截                       | 依次完成 #1～#13                                                         | 没有页面错误；控制台错误只有资源加载失败                                                                       | ✅   |
+| 15  | 全新浏览器存储，终端已启动             | 执行 npm/npx、pnpm、Corepack 的版本命令及 `yarn versions --json`         | 各工具从同源 vendor 首次加载，输出固定版本，命令结束后 shell 继续可用                                          | ✅   |
+| 16  | npm 已加载，测试 registry 提供固定依赖 | `npm install` 后用 Node 加载安装的模块                                   | 下载、校验、解包与模块执行成功，测试不访问真实外网 registry                                                    | ✅   |
+| 17  | 全新浏览器存储，外网阻断               | 首次执行 Python / python3，运行脚本并写入桌面文件                        | 真实 CPython 执行成功，桌面出现同一文件，打开终端时未提前加载运行时                                            | ✅   |
+| 18  | 测试来源提供固定纯 Python wheel        | pip 安装后在新 Python 进程 import，再执行 pip freeze                     | 项目内包存储恢复成功，版本和执行结果正确                                                                       | ✅   |
+| 19  | 外网阻断                               | import 科学计算库、Web 库与文件处理库                                    | NumPy、pandas、SciPy、scikit-learn、FastAPI、Flask、httpx、requests、SQLAlchemy、openpyxl、Rich 与时区数据可用 | ✅   |
+| 20  | 外网阻断                               | 执行 pytest、Black、mypy 与 Ruff                                         | 真实测试通过，版本可查询，Ruff 检查与格式化可执行                                                              | ✅   |
+| 21  | 外网阻断                               | tsc 编译 TypeScript 后交给 Node 执行；执行 tsgo 与 Bun                   | 编译结果、编译器版本与 Bun 表达式输出正确                                                                      | ✅   |
+| 22  | 外网阻断                               | node:sqlite 建表写入后重新打开；bun:sqlite 执行查询                      | SQLite WASM 真正执行 SQL，数据与预期一致                                                                       | ✅   |
+| 23  | 终端在桌面目录建好项目                 | 执行 `init`、`add`、`commit`、`status`、`log`，再重开终端                | 暂存状态、提交哈希、退出码、管道与重定向正确；双标签暂存均保留                                                 | ✅   |
+| 24  | 终端已初始化 Git 仓库，Finder 打开项目 | 按 `⌃⇧.`、点 View 菜单的 Show Hidden Files，或在内置终端写入 Finder 偏好 | `.git` 默认隐藏。开启后四种视图均可见，目录可在分栏展开。刷新后保留，关闭后隐藏                                | ✅   |
 
 验收证据：[smoke.mjs](../../../apps/e2e/src/smoke.mjs)（`aiao-desktop-e2e:e2e`）。各 AC 对应输出 JSON 里的检查项：#1 `diskState.sqliteInOpfs` 与 `diskState.fileBodiesInOpfs`，#2 `diskState.desktopFromFolder`，#3 `diskState.textEditShowsFile`，#4 `diskState.previewShowsImage`，#5 `diskState.shellStartsAtHome`、`shellReadsFile` 与 `shellListsDesktop`，#6 `diskState.shellWritesDisk`，#7 `diskState.shellCommandsWork`，#8 `diskState.openCommandOpensTextEdit`，#9 `diskState.finderFolderOnDesktop` 与 `shellSeesFinderChange`，#10 `persistence.fileSurvivesReload` 与 `folderSurvivesReload`，#11 `persistence.settingsSurviveReload`，#12 `persistence.noteSurvivesReload` 与 `reminderSurvivesReload`，#13 `persistence.eraseRestoresDisk`，#14 脚本收集的页面错误与控制台错误；#10～#13 都在同一次运行里刷新页面后检查。磁盘、终端同步、shell 补丁、补充命令与各应用的数据转换另有 web 的单测（`aiao-desktop-web:test`）。结论见[验收台账](../../verification-report.md#浏览器冒烟)。
 

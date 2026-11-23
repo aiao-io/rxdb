@@ -327,7 +327,11 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
       const login = requiredString(json['login'], 'login');
       const name = json['name'];
       const avatar = json['avatar_url'];
-      return { login, ...(typeof name === 'string' && name.trim() ? { name } : {}), avatarUrl: typeof avatar === 'string' ? avatar : null };
+      return {
+        login,
+        ...(typeof name === 'string' && name.trim() ? { name } : {}),
+        avatarUrl: typeof avatar === 'string' ? avatar : null
+      };
     },
 
     async searchRepositories(queryValue: string, perPage = 30): Promise<readonly GitHubRepoSummary[]> {

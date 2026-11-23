@@ -1,7 +1,7 @@
 <div
   class="gd-workspace gh-app"
-  [class.has-repository]="activeRecord()"
   [attr.data-github-theme]="appTheme()"
+  [class.has-repository]="activeRecord()"
   [style.--gh-diff-tab-size]="diffTabSize()"
   [style.--gh-repository-width]="asideWidth() + 'px'"
   [style.--gh-worktree-width]="(showWorktree() ? worktreeWidth() : 0) + 'px'"
@@ -1085,7 +1085,8 @@
               <div class="gh-history-content">
                 <section class="gh-history-files" aria-label="Commit files">
                   <div class="gh-history-files-header">
-                    {{ numberText(historyChanges().length) }} changed {{ historyChanges().length === 1 ? 'file' : 'files' }}
+                    {{ numberText(historyChanges().length) }} changed
+                    {{ historyChanges().length === 1 ? 'file' : 'files' }}
                   </div>
                   <div class="gh-history-file-list">
                     @for (change of historyChanges(); track change.path) {

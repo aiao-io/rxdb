@@ -43,8 +43,8 @@ import {
   LucideUsersRound as UsersRound
 } from '@lucide/angular';
 
-import { finderPathOf, HOME, isWithin, resolveVmPath, samePath, toVmPath } from '../../disk/disk-path';
 import { Preferences } from '../../data/preferences';
+import { finderPathOf, HOME, isWithin, resolveVmPath, samePath, toVmPath } from '../../disk/disk-path';
 import { DesktopAppServices } from '../../services/desktop-app-services';
 import {
   DesktopMenus,
@@ -75,8 +75,13 @@ import { WindowManager } from '../../services/window-manager';
 import { FocusTrap } from '../../shared/focus-trap';
 import { TrafficLights } from '../../shared/traffic-lights';
 import {
-  APPEARANCE_KEY, DEFAULT_APPEARANCE, formatGithubDate, formatGithubNumber, formatGithubTime,
-  isGithubAppearance, type GithubAppearance
+  APPEARANCE_KEY,
+  DEFAULT_APPEARANCE,
+  formatGithubDate,
+  formatGithubNumber,
+  formatGithubTime,
+  isGithubAppearance,
+  type GithubAppearance
 } from './github-appearance';
 import { IMPORT_ARCHIVE_ERROR, importedRepositoryName } from './github-archive';
 import { diffHunksOf, diffLinesOf } from './github-diff';
@@ -177,7 +182,8 @@ async function waitForOAuthCode(popup: Window, request: GitHubOAuthRequest, sign
       channel.onmessage = ({ data }: MessageEvent<unknown>) => {
         if (!data || typeof data !== 'object') return;
         if ('code' in data && typeof data.code === 'string' && data.code) resolve(data.code);
-        else if ('error' in data) reject(new Error(data.error === 'access_denied' ? '已取消 GitHub 授权' : 'GitHub 授权失败'));
+        else if ('error' in data)
+          reject(new Error(data.error === 'access_denied' ? '已取消 GitHub 授权' : 'GitHub 授权失败'));
       };
       // COOP 会断开跨域窗口引用；导航后不能用 popup.closed 判断用户是否关闭了窗口。
       popup.location.replace(request.authorizeUrl);
@@ -208,7 +214,9 @@ export class GithubApp {
   private readonly wm = inject(WindowManager);
   private readonly menus = inject(DesktopMenus);
   private readonly preferences = inject(Preferences);
-  private readonly savedAppearance = computed(() => this.preferences.get(APPEARANCE_KEY, isGithubAppearance) ?? DEFAULT_APPEARANCE);
+  private readonly savedAppearance = computed(
+    () => this.preferences.get(APPEARANCE_KEY, isGithubAppearance) ?? DEFAULT_APPEARANCE
+  );
   private readonly system = inject(SystemState);
   private readonly applicationRef = inject(ApplicationRef);
   private readonly changeDetectorRef = inject(ChangeDetectorRef);
@@ -296,7 +304,9 @@ export class GithubApp {
     return theme === 'system' ? this.system.theme() : theme;
   });
   protected readonly diffTabSize = computed(() => (this.settingsDraft() ?? this.savedAppearance()).tabSize);
-  protected readonly showWorktree = computed(() => this.activeRecord() !== null && this.savedAppearance().alwaysShowWorktree);
+  protected readonly showWorktree = computed(
+    () => this.activeRecord() !== null && this.savedAppearance().alwaysShowWorktree
+  );
   protected readonly error = signal<string | null>(null);
   protected readonly errorCode = signal<string | null>(null);
   protected readonly notice = signal<string | null>(null);
@@ -319,7 +329,9 @@ export class GithubApp {
     null
   );
   protected readonly remoteDraft = signal<string | null>('');
-  protected readonly repositoryModalOpen = computed(() => !!this.settingsDraft() || this.localRepositoryOpen() || !!this.repositorySettings());
+  protected readonly repositoryModalOpen = computed(
+    () => !!this.settingsDraft() || this.localRepositoryOpen() || !!this.repositorySettings()
+  );
   protected readonly repositorySettingsTitleId = `github-settings-title-${this.win.id}`;
   protected readonly remoteUrlId = `github-settings-remote-${this.win.id}`;
   protected readonly remoteErrorId = `github-settings-error-${this.win.id}`;

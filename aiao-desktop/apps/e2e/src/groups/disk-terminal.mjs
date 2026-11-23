@@ -283,7 +283,9 @@ export const diskTerminal = {
       await finder.locator('[data-name="README.md"]').waitFor();
     };
     const writeHiddenFiles = shown =>
-      outputOf(`defaults write com.apple.finder AppleShowAllFiles -bool ${shown} && echo DEFAULTS_${shown ? 'TRUE' : 'FALSE'}`);
+      outputOf(
+        `defaults write com.apple.finder AppleShowAllFiles -bool ${shown} && echo DEFAULTS_${shown ? 'TRUE' : 'FALSE'}`
+      );
     await closeAll();
     await page.locator('#dock .di[data-app="finder"]').click();
     await openGitProject();

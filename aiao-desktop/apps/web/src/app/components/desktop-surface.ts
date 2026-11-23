@@ -247,11 +247,17 @@ export class DesktopSurface {
     }
     const icon = event.target as HTMLElement;
     icon.inert = true;
-    const animation = icon.animate([{ opacity: 1, scale: '1' }, { opacity: 0, scale: '.4' }], {
-      duration: 220,
-      easing: 'ease-in-out',
-      fill: 'forwards'
-    });
+    const animation = icon.animate(
+      [
+        { opacity: 1, scale: '1' },
+        { opacity: 0, scale: '.4' }
+      ],
+      {
+        duration: 220,
+        easing: 'ease-in-out',
+        fill: 'forwards'
+      }
+    );
     void animation.finished.then(event.animationComplete, event.animationComplete);
   }
 
