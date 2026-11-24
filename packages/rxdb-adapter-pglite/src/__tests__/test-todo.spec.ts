@@ -1,5 +1,5 @@
 import { RxDB, SyncType, getEntityStatus } from '@aiao/rxdb';
-import { Todo } from '@aiao/rxdb-test/entities';
+import { Todo, type TodoStaticTypes } from '@aiao/rxdb-test/entities';
 import { firstValueFrom } from 'rxjs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterPGlite } from '../index.js';
@@ -329,6 +329,20 @@ describe('Todo 实体 PGlite 适配器', () => {
       })
     );
     expect(count).toEqual(1);
+  });
+
+  it('count() 配合 groupBy 数的是分组个数，不是行数', async () => {
+    const prefix = `group-count-${Date.now()}`;
+    for (const title of [`${prefix}-a`, `${prefix}-a`, `${prefix}-b`]) {
+      await new Todo({ title }).save();
+    }
+    const where: TodoStaticTypes['countOptions']['where'] = {
+      combinator: 'and',
+      rules: [{ field: 'title', operator: 'in', value: [`${prefix}-a`, `${prefix}-b`] }]
+    };
+
+    expect(await firstValueFrom(Todo.count({ where }))).toBe(3);
+    expect(await firstValueFrom(Todo.count({ where, groupBy: ['title'] }))).toBe(2);
   });
 
   it('orderBy desc 实现 Todo 降序排序', async () => {

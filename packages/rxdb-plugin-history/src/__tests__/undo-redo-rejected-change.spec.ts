@@ -233,14 +233,19 @@ const createCountHarness = (lastPushedChangeId: number | null) => {
   return { count, host };
 };
 
+/** 待推数的计数查询外层是「那批待推变更 AND transactionId 条件」，取出那批待推变更的条件 */
+const pendingWhereOf = (count: ReturnType<typeof vi.fn>): { rules: unknown[] } =>
+  (count.mock.calls[0][0] as { where: { rules: { rules: unknown[] }[] } }).where.rules[0];
+
 describe('updatePushableCount 的计数查询与被拒变更', () => {
   it('有水位线时靠 repoRules 的 id > watermark 间接排除被拒变更，查询本身没有 rejectedAt 规则', async () => {
     const { count, host } = createCountHarness(7);
 
     await updatePushableCount(host);
 
-    expect(count).toHaveBeenCalledTimes(1);
-    const { where } = count.mock.calls[0][0] as { where: { rules: unknown[] } };
+    // 按记录数分两次数（不在事务里的变更、事务），两次数的是同一批待推变更
+    expect(count).toHaveBeenCalledTimes(2);
+    const where = pendingWhereOf(count);
     expect(where.rules).toContainEqual({ field: 'branchId', operator: '=', value: 'main' });
     expect(where.rules).toContainEqual({ field: 'revertChangeId', operator: '=', value: null });
     expect(where.rules).toContainEqual({ field: 'remoteId', operator: '=', value: null });
@@ -265,7 +270,7 @@ describe('updatePushableCount 的计数查询与被拒变更', () => {
 
     await updatePushableCount(host);
 
-    const { where } = count.mock.calls[0][0] as { where: { rules: unknown[] } };
+    const where = pendingWhereOf(count);
     const orGroup = where.rules.find(
       rule => typeof rule === 'object' && rule !== null && (rule as { combinator?: string }).combinator === 'or'
     );

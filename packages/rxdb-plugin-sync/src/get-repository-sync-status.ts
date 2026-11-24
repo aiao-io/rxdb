@@ -5,6 +5,7 @@
  */
 
 import {
+  countRxDBChangeRecords,
   getEntityMetadata,
   getSyncCapability,
   getSyncType,
@@ -71,7 +72,7 @@ export interface RepositorySyncStatus {
   lastPullRemoteChangeId: number | null;
 
   /**
-   * 待推送的变更数量
+   * 待推送的记录数：一个事务一条，不在事务里的变更各一条（与操作历史同口径）
    */
   pushableCount: number;
 
@@ -82,7 +83,7 @@ export interface RepositorySyncStatus {
 }
 
 /**
- * 计算仓库的待推送变更数量
+ * 计算仓库的待推送记录数
  *
  * 逻辑：
  * - 统计 RxDBChange 记录，满足以下条件：
@@ -91,13 +92,14 @@ export interface RepositorySyncStatus {
  *   3. 不是远端产生的（remoteId 为 null）
  *   4. 未被撤销（revertChangeId 为 null）
  *   5. 比 lastPushedChangeId 新（如果存在）
+ * - 同一事务的变更算一条记录（{@link countRxDBChangeRecords}）
  *
  * @param sm - 调用方持有的同步管理器实例
  * @param namespace - 实体命名空间
  * @param entity - 实体名称
  * @param branchId - 当前分支 ID
  * @param lastPushedChangeId - 最后一次推送的 changeId（若未推送则为 null）
- * @returns 待推送的变更数量
+ * @returns 待推送的记录数
  */
 async function calculatePushableCount(
   sm: SyncManager,
@@ -126,14 +128,7 @@ async function calculatePushableCount(
     rules.push({ field: 'id', operator: '>', value: lastPushedChangeId });
   }
 
-  const result = await changeRepo.find({
-    where: {
-      combinator: 'and',
-      rules
-    }
-  });
-
-  return result.length;
+  return countRxDBChangeRecords(options => changeRepo.count(options), { combinator: 'and', rules });
 }
 
 /**

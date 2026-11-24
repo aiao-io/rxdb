@@ -21,4 +21,14 @@ describe('RemoteSecurityNotice', () => {
     expect(alert?.textContent).toContain('按身份分区同步');
     expect(alert?.textContent).toContain('createdBy');
   });
+
+  // 连接自检不再查 todos（见 DEMO_RLS_CHECK），这条事实改由页面说清楚
+  it('写明本地栈的 todos 表没开 RLS', () => {
+    const fixture = TestBed.createComponent(RemoteSecurityNotice);
+    TestBed.inject(RemoteSyncState).markConnected(true);
+    fixture.detectChanges();
+
+    const alert = fixture.nativeElement.querySelector('[role="alert"]') as HTMLElement | null;
+    expect(alert?.textContent).toContain('todos 表没开 RLS');
+  });
 });

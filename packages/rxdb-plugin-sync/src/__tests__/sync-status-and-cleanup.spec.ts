@@ -77,7 +77,13 @@ interface StatusHarnessOptions {
 }
 
 type SyncFind = (options: QueryOptions) => Promise<RxDBSync[]>;
-type ChangeFind = (options: QueryOptions) => Promise<RxDBChange[]>;
+/** 待推数按记录数分两次数：外层是「那批待推变更 AND transactionId 条件」，分组计数带 `groupBy` */
+interface ChangeCountOptions {
+  where: { combinator: 'and'; rules: [NonNullable<QueryOptions['where']>, unknown] };
+  groupBy?: string[];
+}
+
+type ChangeCount = (options: ChangeCountOptions) => Promise<number>;
 type GetChangeCount = (sinceId: number, repositoryFilter?: string[], branchId?: string) => Promise<RemoteCount>;
 
 /** 实例覆盖：`[实体, 生效配置]`，以元数据为键传入，与 `RxDB` 构造时 `snapshotSyncOverrides` 产出的索引同口径 */
@@ -118,9 +124,8 @@ function createSyncRecord(entity: string, branchId: string, overrides: Partial<R
   });
 }
 
-function createChanges(count: number): RxDBChange[] {
-  return Array.from({ length: count }, () => Object.create(RxDBChange.prototype) as RxDBChange);
-}
+/** 两次计数查询共用的那批待推变更的条件 */
+const pendingQueryOf = (options: ChangeCountOptions): QueryOptions => ({ where: options.where.rules[0] });
 
 function getStringRuleValue(options: QueryOptions, field: string): string {
   const value = options.where?.rules.find(rule => rule.field === field)?.value;
@@ -138,16 +143,17 @@ function createStatusHarness(options: StatusHarnessOptions) {
     const record = options.syncRecords?.get(getStringRuleValue(query, 'id'));
     return record ? [record] : [];
   });
-  const changeFind = vi.fn<ChangeFind>(async query => {
-    const entity = getStringRuleValue(query, 'entity');
+  // 本套用例的待推变更都不在事务里：普通计数给条数，分组计数（事务数）为 0
+  const changeCount = vi.fn<ChangeCount>(async query => {
+    const entity = getStringRuleValue(pendingQueryOf(query), 'entity');
     const count = options.changeCounts?.get(entity);
     if (count === undefined) {
       throw new Error(`Missing change count for ${entity}`);
     }
-    return createChanges(count);
+    return query.groupBy ? 0 : count;
   });
   const syncRepository = { find: syncFind };
-  const changeRepository = { find: changeFind };
+  const changeRepository = { count: changeCount };
   // 远端计数覆盖整条祖先链，`getAncestorBranchIds` 会沿 parentId 上溯；本文件的分支都挂在 main 下
   const branchFind = vi.fn(async (): Promise<RxDBBranch[]> => [{ id: branchId, parentId: 'main' } as RxDBBranch]);
   const branchRepository = { find: branchFind };
@@ -192,7 +198,7 @@ function createStatusHarness(options: StatusHarnessOptions) {
   } as unknown as RxDB;
 
   return {
-    changeFind,
+    changeCount,
     getChangeCount,
     getCurrentBranch,
     getLocalRepositories,
@@ -401,13 +407,13 @@ describe('仓库同步状态查询', () => {
         pullableCount: 0
       }
     ]);
-    expect(harness.changeFind.mock.calls[0][0].where?.rules).toContainEqual({
+    expect(pendingQueryOf(harness.changeCount.mock.calls[0][0]).where?.rules).toContainEqual({
       field: 'id',
       operator: '>',
       value: 5
     });
-    // 原先的第二次扫描来自 local-only 实体；它已被认定为不可推，不再白扫一遍变更表
-    expect(harness.changeFind).toHaveBeenCalledTimes(1);
+    // 原先的第二次扫描来自 local-only 实体；它已被认定为不可推，不再白扫一遍变更表（可推的仓库按记录数数两次）
+    expect(harness.changeCount).toHaveBeenCalledTimes(2);
     // 每个仓库按自己的水位线问，且覆盖整条祖先链（当前分支 + main）——
     // 只问当前分支会漏掉父分支上的变更，`pullableCount` 归零而 pull 其实还有东西要拉
     expect(harness.getChangeCount).toHaveBeenCalledTimes(4);
@@ -530,7 +536,7 @@ describe('仓库同步状态查询', () => {
       pushableCount: 0,
       pullableCount: 1
     });
-    expect(harness.changeFind.mock.calls[0][0].where?.rules).not.toContainEqual(
+    expect(pendingQueryOf(harness.changeCount.mock.calls[0][0]).where?.rules).not.toContainEqual(
       expect.objectContaining({ field: 'id' })
     );
     expect(harness.getChangeCount).toHaveBeenCalledWith(0, ['public:InheritedSync'], 'main');

@@ -40,9 +40,42 @@ describe('count_sql', () => {
     expect(() => count_sql(adapter, metadata, { where: {} } as Options)).toThrow(/Invalid count query rule group/);
   });
 
-  it('groupBy 尚未支持应抛错', () => {
-    const options = { where: { combinator: 'and', rules: [] }, groupBy: ['status'] } as Options;
-    expect(() => count_sql(adapter, metadata, options)).toThrow(/groupBy not supported yet/);
+  describe('groupBy 分组计数', () => {
+    it('数分组个数：按属性列 GROUP BY 之后再 COUNT', () => {
+      const options = { where: { combinator: 'and', rules: [] }, groupBy: ['status'] } as Options;
+      const result = count_sql(adapter, metadata, options);
+      expect(result.sql).toBe('SELECT COUNT(*) AS count FROM (SELECT 1 FROM "shop$order" _ GROUP BY _."status")');
+    });
+
+    it('where 留在子查询里，先筛行再分组', () => {
+      const options = {
+        where: { combinator: 'and', rules: [{ field: 'number', operator: '=', value: 'N1' }] },
+        groupBy: ['status', 'ownerId']
+      } as Options;
+      const result = count_sql(adapter, metadata, options);
+      expect(result.sql).toBe(
+        'SELECT COUNT(*) AS count FROM (SELECT 1 FROM "shop$order" _' +
+          ` WHERE _."number" = 'N1' GROUP BY _."status", _."ownerId")`
+      );
+    });
+
+    it('关系条件的 JOIN 展开不影响组数：同一组的多行照样并成一组', () => {
+      const options = {
+        where: { combinator: 'and', rules: [{ field: 'owner.name', operator: '=', value: 'Tom' }] },
+        groupBy: ['status']
+      } as Options;
+      const result = count_sql(adapter, metadata, options);
+      expect(result.sql).toBe(
+        'SELECT COUNT(*) AS count FROM (SELECT 1 FROM "shop$order" _' +
+          ' LEFT JOIN "shop$user" "owner" ON "owner"."id" = _."ownerId"' +
+          ` WHERE "owner"."name" = 'Tom' GROUP BY _."status")`
+      );
+    });
+
+    it.each(['owner.name', 'missing'])('分组字段 %s 不是本实体的属性或外键时抛错', field => {
+      const options = { where: { combinator: 'and', rules: [] }, groupBy: [field] } as Options;
+      expect(() => count_sql(adapter, metadata, options)).toThrow(`Count groupBy field "${field}"`);
+    });
   });
 
   it('空条件应生成不带 WHERE 的 COUNT 查询', () => {

@@ -112,6 +112,15 @@ const createHistory = (...changes: RxDBChange[]): HistoryItem => convertChangesT
 
 const asQuery = (value: unknown): QueryOptions => value as QueryOptions;
 
+/** 待推数分两次数（`countRxDBChangeRecords`），两次查询外层都是「那批待推变更 AND transactionId 条件」 */
+const pendingOf = (value: unknown): QueryRule => asQuery(value).where.rules[0];
+
+/** 分组计数给事务数，普通计数给不在事务里的变更数；订阅自己那次触发查询也走普通计数 */
+const recordCounts =
+  (standalone: number, transactions: number) =>
+  (options: { groupBy?: string[] }): Observable<number> =>
+    of(options.groupBy ? transactions : standalone);
+
 const getRule = (query: QueryOptions, field: string): QueryRule | undefined =>
   query.where.rules.find(rule => rule.field === field);
 
@@ -953,7 +962,7 @@ describe('历史流、作用域与撤销重做执行', () => {
     // 有记录时又只按记录构造 OR 组，没记录的仓库整个被漏掉。两条分支的口径互相矛盾。
     // 正确的集合恒等于「当前配置里有推送资格的实体」，记录只提供水位线。
     it('counts every pushable repository even when no sync record exists yet', async () => {
-      countMock.mockReturnValueOnce(of(0)).mockReturnValue(of(7));
+      countMock.mockImplementation(recordCounts(0, 7));
       const harness = createHarness({ entities: [User, LocalOnlyNote] });
 
       harness.connected$.next(true);
@@ -961,14 +970,14 @@ describe('历史流、作用域与撤销重做执行', () => {
       await vi.waitFor(async () => {
         await expect(firstValueFrom(harness.historyManager.pushableCount$)).resolves.toBe(7);
       });
-      const query = asQuery(countMock.mock.calls.at(-1)?.[0]);
-      expect(query.where.rules.slice(0, 3)).toEqual([
+      const pending = pendingOf(countMock.mock.calls.at(-1)?.[0]);
+      expect(pending.rules?.slice(0, 3)).toEqual([
         { field: 'branchId', operator: '=', value: 'main' },
         { field: 'revertChangeId', operator: '=', value: null },
         { field: 'remoteId', operator: '=', value: null }
       ]);
       // 没有水位线 ⇒ 无上界，只按 namespace + entity 圈定；LocalOnlyNote 不可推送，不进 OR 组
-      expect(query.where.rules.at(-1)).toEqual({
+      expect(pending.rules?.at(-1)).toEqual({
         combinator: 'or',
         rules: [
           {
@@ -983,7 +992,7 @@ describe('历史流、作用域与撤销重做执行', () => {
     });
 
     it('keeps repositories without a sync record alongside those that have one', async () => {
-      countMock.mockReturnValueOnce(of(0)).mockReturnValue(of(4));
+      countMock.mockImplementation(recordCounts(0, 4));
       const harness = createHarness();
       // 只有 User 同步过；Post / Tag 一次都没推过，因此没有记录 —— 旧实现会把它们整体漏算
       harness.syncFind.mockResolvedValue([
@@ -995,7 +1004,7 @@ describe('历史流、作用域与撤销重做执行', () => {
       await vi.waitFor(async () => {
         await expect(firstValueFrom(harness.historyManager.pushableCount$)).resolves.toBe(4);
       });
-      const repositories = asQuery(countMock.mock.calls.at(-1)?.[0]).where.rules.at(-1);
+      const repositories = pendingOf(countMock.mock.calls.at(-1)?.[0]).rules?.at(-1);
       expect(repositories?.combinator).toBe('or');
       expect(repositories?.rules).toHaveLength(3);
       expect(repositories?.rules?.[0].rules).toContainEqual({ field: 'id', operator: '>', value: 12 });
@@ -1004,7 +1013,7 @@ describe('历史流、作用域与撤销重做执行', () => {
     });
 
     it('treats null and undefined watermarks as unbounded', async () => {
-      countMock.mockReturnValueOnce(of(0)).mockReturnValue(of(4));
+      countMock.mockImplementation(recordCounts(0, 4));
       const harness = createHarness();
       harness.syncFind.mockResolvedValue([
         { branchId: 'main', entity: 'User', lastPushedChangeId: 12, namespace: 'public' },
@@ -1017,7 +1026,7 @@ describe('历史流、作用域与撤销重做执行', () => {
       await vi.waitFor(async () => {
         await expect(firstValueFrom(harness.historyManager.pushableCount$)).resolves.toBe(4);
       });
-      const repositories = asQuery(countMock.mock.calls.at(-1)?.[0]).where.rules.at(-1);
+      const repositories = pendingOf(countMock.mock.calls.at(-1)?.[0]).rules?.at(-1);
       expect(repositories?.rules?.[0].rules).toContainEqual({ field: 'id', operator: '>', value: 12 });
       expect(repositories?.rules?.[1].rules).toHaveLength(2);
       expect(repositories?.rules?.[2].rules).toHaveLength(2);
@@ -1025,7 +1034,7 @@ describe('历史流、作用域与撤销重做执行', () => {
 
     // RXD-029 把 `enabled` 定成一票否决；计数得跟着走，否则界面报「有 N 条待推」而 push 一条都不会发。
     it('drops repositories whose sync record is disabled', async () => {
-      countMock.mockReturnValueOnce(of(0)).mockReturnValue(of(5));
+      countMock.mockImplementation(recordCounts(0, 5));
       const harness = createHarness({ entities: [User, Post] });
       harness.syncFind.mockResolvedValue([
         { branchId: 'main', enabled: false, entity: 'User', lastPushedChangeId: 12, namespace: 'public' }
@@ -1036,7 +1045,7 @@ describe('历史流、作用域与撤销重做执行', () => {
       await vi.waitFor(async () => {
         await expect(firstValueFrom(harness.historyManager.pushableCount$)).resolves.toBe(5);
       });
-      const repositories = asQuery(countMock.mock.calls.at(-1)?.[0]).where.rules.at(-1);
+      const repositories = pendingOf(countMock.mock.calls.at(-1)?.[0]).rules?.at(-1);
       expect(repositories?.rules).toHaveLength(1);
       expect(repositories?.rules?.[0].rules).toContainEqual({ field: 'entity', operator: '=', value: 'Post' });
     });
@@ -1059,9 +1068,11 @@ describe('历史流、作用域与撤销重做执行', () => {
     it('ignores a stale refresh that settles after a newer one', async () => {
       const slow = deferred<RxDBSync[]>();
       const fast = deferred<RxDBSync[]>();
+      // 每次刷新数两次（不在事务里的变更、事务），两次相加才是那次刷新的结果
       countMock
         .mockReturnValueOnce(of(0)) // 订阅自身那次
-        .mockReturnValueOnce(of(42)) // 后发起的那次刷新
+        .mockReturnValueOnce(of(42)) // 后发起的那次刷新：不在事务里的变更
+        .mockReturnValueOnce(of(0)) // 后发起的那次刷新：事务
         .mockReturnValue(of(7)); // 先发起、后落地的那次
       const harness = createHarness({ entities: [User] });
       harness.syncFind.mockReturnValueOnce(slow.promise).mockReturnValueOnce(fast.promise);
@@ -1088,7 +1099,7 @@ describe('历史流、作用域与撤销重做执行', () => {
       vi.spyOn(console, 'error').mockImplementation(() => undefined);
       const slow = deferred<RxDBSync[]>();
       const fast = deferred<RxDBSync[]>();
-      countMock.mockReturnValueOnce(of(0)).mockReturnValue(of(11));
+      countMock.mockReturnValueOnce(of(0)).mockImplementation(recordCounts(0, 11));
       const harness = createHarness({ entities: [User] });
       harness.syncFind.mockReturnValueOnce(slow.promise).mockReturnValueOnce(fast.promise);
 

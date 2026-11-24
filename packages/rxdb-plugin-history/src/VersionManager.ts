@@ -98,9 +98,10 @@ export class VersionManager {
   readonly syncBridge: SyncHistoryBridge = createSyncHistoryBridge(() => this.historyManager, this.pushInFlight);
 
   /**
-   * 可 push 的变更数量流
+   * 可 push 的记录数量流
    *
-   * 实时追踪本地未推送的有效变更数量：
+   * 实时追踪本地未推送的有效变更，按记录数计：同一事务的变更算一条（一次 `saveMany()` 批量添加 10 条是 1），
+   * 不在事务里的变更各算一条，与操作历史的条数一致：
    * - 排除已撤销的变更（revertChangeId != null）
    * - 排除从远程 pull 来的变更（remoteId != null）
    */

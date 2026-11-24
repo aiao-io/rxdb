@@ -1323,6 +1323,8 @@ describe('supabase review regressions', () => {
       ['no token at all', null]
     ])('does not subscribe or retry when realtime would join with %s', async (_label, token) => {
       vi.useFakeTimers();
+      // 访客（anon）是正式支持的身份，不是配置错误：只给一条 info 提示，不报 warning
+      const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
       const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
       const channel = vi.fn(subscribableChannel);
       const realtime = createRealtimeAuth(token);
@@ -1334,17 +1336,46 @@ describe('supabase review regressions', () => {
 
         expect(realtime.setAuth).toHaveBeenCalledOnce();
         expect(channel).not.toHaveBeenCalled();
-        expect(warn).toHaveBeenCalledOnce();
-        expect(warn).toHaveBeenCalledWith(expect.stringContaining('signed-in session'));
+        expect(info).toHaveBeenCalledOnce();
+        expect(info).toHaveBeenCalledWith(expect.stringContaining('signed-in session'));
+        expect(warn).not.toHaveBeenCalled();
       } finally {
         await adapter.disconnect();
+        info.mockRestore();
         warn.mockRestore();
         vi.useRealTimers();
       }
     });
 
+    // supabase-js 订阅 auth 事件后会异步补发一次 INITIAL_SESSION（只是报告当前会话，不是变化）。
+    // 它赶在 connect() 建频道之前到达时，曾被当成「身份变了」再建一遍：访客每次加载都打两条提示
+    it('ignores the INITIAL_SESSION report that races the first connect', async () => {
+      const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+      const auth = {
+        onAuthStateChange: vi.fn((callback: (event: string, session: { access_token: string } | null) => void) => {
+          queueMicrotask(() => callback('INITIAL_SESSION', null));
+          return { data: { subscription: { unsubscribe: vi.fn() } } };
+        })
+      };
+      const channel = vi.fn(subscribableChannel);
+      const realtime = createRealtimeAuth(testJwt({ role: 'anon' }));
+      const adapter = createAdapter({ auth, channel, realtime }, { rlsCheck: false });
+
+      try {
+        await adapter.connect();
+        await new Promise(resolve => setTimeout(resolve, 0));
+
+        expect(realtime.setAuth).toHaveBeenCalledOnce();
+        expect(info).toHaveBeenCalledOnce();
+        expect(channel).not.toHaveBeenCalled();
+      } finally {
+        await adapter.disconnect();
+        info.mockRestore();
+      }
+    });
+
     it('subscribes on the next connect once the client is signed in', async () => {
-      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
       const channel = vi.fn(subscribableChannel);
       const realtime = createRealtimeAuth(testJwt({ role: 'anon' }));
       const adapter = createAdapter(
@@ -1364,7 +1395,7 @@ describe('supabase review regressions', () => {
         expect(channel).toHaveBeenCalledWith(RXDB_CHANGES_TOPIC, { config: { private: true } });
       } finally {
         await adapter.disconnect();
-        warn.mockRestore();
+        info.mockRestore();
       }
     });
 

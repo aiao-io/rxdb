@@ -146,8 +146,8 @@ describe('查询编译错误码', () => {
     ['binary 属性不能排序', () => buildOrderBy([{ field: 'blob', sort: 'asc' }])],
     ['orderBy 带点的字段', () => buildOrderBy([{ field: 'payload.a', sort: 'asc' }])],
     [
-      'count 不支持 groupBy',
-      () => generate_count_sql(createAdapter(), metadata(), { where: EMPTY_WHERE, groupBy: ['name'] })
+      'count 的分组字段不是本实体的属性或外键',
+      () => generate_count_sql(createAdapter(), metadata(), { where: EMPTY_WHERE, groupBy: ['missing'] })
     ]
   ])('%s → INVALID_QUERY', (_label, run) => {
     const error = captureThrown(run);

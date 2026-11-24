@@ -1,5 +1,6 @@
 import {
   buildPushableRepositoryRules,
+  countRxDBChangeRecords,
   declareTrustedWrite,
   type FindOptions,
   type HistoryItem,
@@ -309,6 +310,10 @@ export async function applyUndoRedoHistories(
  * 按 repository 水位线异步刷新 pushableCount。
  *
  * 只有仍是最新那次刷新才有资格改写计数。失败字符串 `'[#updatePushableCount] error'` 不得改。
+ *
+ * @remarks
+ * 数的是记录，不是变更行（{@link countRxDBChangeRecords}）：一次 `saveMany()` 是一个事务、一条记录，
+ * 与操作历史的条数一致。
  */
 export async function updatePushableCount(host: UndoRedoApplyHost): Promise<void> {
   const generation = ++host.pushableGeneration;
@@ -356,22 +361,18 @@ export async function updatePushableCount(host: UndoRedoApplyHost): Promise<void
       return;
     }
 
-    const count = await firstValueFrom(
-      changeRepository.count({
-        where: {
-          combinator: 'and',
-          rules: [
-            { field: 'branchId', operator: '=', value: branch.id },
-            { field: 'revertChangeId', operator: '=', value: null },
-            { field: 'remoteId', operator: '=', value: null },
-            {
-              combinator: 'or',
-              rules: repoRules
-            }
-          ]
+    const count = await countRxDBChangeRecords(options => firstValueFrom(changeRepository.count(options)), {
+      combinator: 'and',
+      rules: [
+        { field: 'branchId', operator: '=', value: branch.id },
+        { field: 'revertChangeId', operator: '=', value: null },
+        { field: 'remoteId', operator: '=', value: null },
+        {
+          combinator: 'or',
+          rules: repoRules
         }
-      })
-    );
+      ]
+    });
 
     publish(count);
   } catch (error) {

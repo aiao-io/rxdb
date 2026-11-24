@@ -1,6 +1,7 @@
 {
   "compilerOptions": {
     "outDir": "./out-tsc/vitest",
+    "emitDeclarationOnly": false,
     "types": ["vitest/globals", "vitest/importMeta", "vite/client", "node", "vitest"],
     "module": "preserve",
     "moduleResolution": "bundler"

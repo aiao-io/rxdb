@@ -17,6 +17,7 @@ import { checkOPFSAvailable } from '@aiao/utils';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { catalogSyncRule, FollowedCategories } from './catalog/catalog-sync-rule';
 import { getOrCreateUserId, readSupabaseConfig, resolveDatabaseName } from './runtime-config';
+import { DEMO_RLS_CHECK } from './supabase-rls-check';
 import { readSessionIdentity, type DemoSessionIdentity } from './supabase-session';
 import { buildWaSqliteOptions, isSharedWorkerSupported } from './wa-sqlite-options';
 
@@ -135,7 +136,8 @@ export default () => {
       // 访客的客户端没有会话，适配器以 anon 身份读公开区；登录之后是 authenticated。
       // 应用与适配器各自解析到 supabase-js 的 ESM / CJS 两份类型声明，结构相同却被当作无关类型（与 dev-rxdb-p2p 同样处理）
       return new RxDBAdapterSupabase(db, {
-        client: prepared.client as unknown as SupabaseAdapterOptions['client']
+        client: prepared.client as unknown as SupabaseAdapterOptions['client'],
+        rlsCheck: DEMO_RLS_CHECK
       });
     })
     .adapter('wa-sqlite', async db => {

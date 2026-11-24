@@ -25,7 +25,13 @@ interface QueryOptions {
 }
 
 type SyncFind = (options: QueryOptions) => Promise<RxDBSync[]>;
-type ChangeFind = (options: QueryOptions) => Promise<RxDBChange[]>;
+/** 待推数按记录数分两次数：外层是「那批待推变更 AND transactionId 条件」，分组计数带 `groupBy` */
+interface ChangeCountOptions {
+  where: { combinator: 'and'; rules: [{ rules: QueryRule[] }, unknown] };
+  groupBy?: string[];
+}
+
+type ChangeCount = (options: ChangeCountOptions) => Promise<number>;
 type GetChangeCount = (
   sinceId: number,
   repositoryFilter?: string[],
@@ -98,10 +104,6 @@ function getRuleValue(options: QueryOptions, field: string): unknown {
   return options.where?.rules.find(rule => rule.field === field)?.value;
 }
 
-function createChanges(count: number): RxDBChange[] {
-  return Array.from({ length: count }, () => Object.create(RxDBChange.prototype) as RxDBChange);
-}
-
 function createAllStatusHarness() {
   const syncRecords = new Map<string, RxDBSync>([
     ['public:AllFull:main', createSyncRecord('AllFull', true, 10)],
@@ -121,12 +123,14 @@ function createAllStatusHarness() {
     const record = typeof id === 'string' ? syncRecords.get(id) : undefined;
     return record ? [record] : [];
   });
-  const changeFind = vi.fn<ChangeFind>(async options => {
-    const entity = getRuleValue(options, 'entity');
-    return createChanges(typeof entity === 'string' ? (pushableCounts.get(entity) ?? 0) : 0);
+  // 本套用例的待推变更都不在事务里：普通计数给条数，分组计数（事务数）为 0
+  const changeCount = vi.fn<ChangeCount>(async options => {
+    if (options.groupBy) return 0;
+    const entity = getRuleValue({ where: options.where.rules[0] }, 'entity');
+    return typeof entity === 'string' ? (pushableCounts.get(entity) ?? 0) : 0;
   });
   const syncRepository = { find: syncFind } as unknown as IRepository<typeof RxDBSync>;
-  const changeRepository = { find: changeFind } as unknown as IRepository<typeof RxDBChange>;
+  const changeRepository = { count: changeCount } as unknown as IRepository<typeof RxDBChange>;
   const localAdapter = {
     getRepository: vi.fn((EntityClass: unknown) => {
       if (EntityClass === RxDBSync) return syncRepository;
@@ -151,7 +155,7 @@ function createAllStatusHarness() {
     }
   } as unknown as RxDB;
 
-  return { rxdb, syncFind, changeFind, getChangeCount };
+  return { rxdb, syncFind, changeCount, getChangeCount };
 }
 
 function entityNames(statuses: Awaited<ReturnType<typeof getAllRepositorySyncStatus>>): string[] {
@@ -180,8 +184,8 @@ describe('getAllRepositorySyncStatus', () => {
       { entity: 'AllNone', syncType: 'none', enabled: false, pushableCount: 0, pullableCount: 0 }
     ]);
     expect(harness.syncFind).toHaveBeenCalled();
-    // 只有 AllFull 需要算 pushableCount；AllLocal 是 local-only（不可推），不再白扫一遍变更表
-    expect(harness.changeFind).toHaveBeenCalledTimes(1);
+    // 只有 AllFull 需要算 pushableCount（按记录数数两次）；AllLocal 是 local-only（不可推），不再白扫一遍变更表
+    expect(harness.changeCount).toHaveBeenCalledTimes(2);
     expect(harness.getChangeCount).toHaveBeenCalledTimes(2);
   });
 

@@ -392,14 +392,14 @@ interface SupabaseAdapterOptions extends IRxDBAdapterOptions {
 
 - 通知由参考 SQL 的语句级触发器 `rxdb_change_broadcast` 在日志落库后经 `realtime.send` 发出，同一 bucket 每 200 条变更聚合成一条。载荷只有元数据（`namespace`、`entity`、`entityId`、`type`、`branchId`、`clientId`、`createdAt`、`bucket`），**不带** `patch`、`inversePatch`、`beforeData`、`afterData`。
 - 频道是私有的：Realtime 加入时按 `realtime.messages` 的 RLS 策略以当前登录身份放行。旧日志频道只对 `authenticated` 开放，分区频道还要匹配 `rxdb_caller_buckets()`，任何频道都不开放客户端发送。适配器订阅前先调用 `client.realtime.setAuth()`，否则 Realtime 客户端带着 apikey（anon 的令牌）加入，会被拒绝。
-- 没登录时不订阅：令牌是 anon key、不是 JWT（如 `sb_publishable_` 开头的新式 key）或干脆没有时，`connect()` 只打一条提示、不发起订阅，也就不会反复重试。拉取与推送按每次请求的令牌鉴权，登录后立即可用；实时通知要在登录后再调一次 `rxdb.connect('supabase')` 开启。
+- 没登录时不订阅：令牌是 anon key、不是 JWT（如 `sb_publishable_` 开头的新式 key）或干脆没有时，`connect()` 只打一条 `console.info` 提示（访客是正式支持的身份，不算配置错误）、不发起订阅，也就不会反复重试；supabase-js 订阅后补报的 `INITIAL_SESSION` 不算身份变化，不会再建一遍。拉取与推送按每次请求的令牌鉴权，登录后立即可用；实时通知要在登录后再调一次 `rxdb.connect('supabase')` 开启。
 - 认不出调用者时也不订阅：令牌声称是已登录角色（如 `authenticated`）却没有 `sub`，多见于自行签发的令牌。适配器不知道该按谁的分区订阅，打一条警告后跳过；`callerIdentity()` 对这样的令牌同样拒绝回答，声明了 `identity` 的实例因此不会与远端交换数据。
 - 换了账号按新身份重建频道：用会话登录的客户端听 auth 事件；用 `accessToken` 回调的客户端没有 auth 事件，适配器在下一次同步问调用者身份、或再调 `rxdb.connect('supabase')` 时发现令牌换了主人，随即重建。
 - 库里没有 `realtime.send`（没有 Realtime 服务的部署）时通知触发器什么都不发，推送与业务写照常提交。
 - 派发的 Remote 事件 `data` 只有 `id`，不是整行。同步插件只用它累计可拉取条数（按当前分支过滤），活查询不监听远端事件。
 - 当订阅状态变成 `CHANNEL_ERROR`、`TIMED_OUT` 或 `CLOSED` 时，适配器会自动以指数退避重连。成功重新订阅后，退避计数清零，并按各仓库的水位线重算一次可拉取条数。
 
-```
+```text
 客户端 A 推送（rxdb_mutations RPC）或直接写业务表
     │
     ▼
@@ -749,7 +749,7 @@ CREATE POLICY todos_delete ON public.todos
 
 ### RPC 函数不存在
 
-```
+```text
 ERROR: function rxdb_mutations does not exist
 ```
 

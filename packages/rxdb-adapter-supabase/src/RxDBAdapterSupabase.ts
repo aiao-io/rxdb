@@ -1182,8 +1182,9 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     await this.#client.realtime.setAuth();
     const accessToken = this.#client.realtime.accessTokenValue;
     this.#realtimeIdentityKey = this.#identityKeyForToken(accessToken);
+    // 访客（anon）是正式支持的身份（epic-015 公开数据给 anon），不是配置错误：给 info 提示，不报 warning
     if (!canReceiveChangeNotifications(accessToken)) {
-      console.warn(
+      console.info(
         '[RxDB Supabase] Change notifications need a signed-in session; skipping the realtime subscription. ' +
           "Call rxdb.connect('supabase') again after sign-in to receive them."
       );
@@ -1332,7 +1333,10 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     }
 
     try {
-      const { data } = onAuthStateChange.call(auth, (_event, session) => {
+      const { data } = onAuthStateChange.call(auth, (event, session) => {
+        // INITIAL_SESSION 是订阅后补报的当前会话，不是变化：频道由 connect() 按当时的令牌建。
+        // 它赶在首次 connect() 建频道之前到达时，曾被当成「身份变了」再建一遍
+        if (event === 'INITIAL_SESSION') return;
         const changed = this.#updateRealtimeIdentity(session?.access_token ?? null);
         if (!changed) return;
         void this.#enqueueRealtime(() => this.#rotateRealtimeChannels()).catch(error => {
