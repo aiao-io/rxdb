@@ -26,7 +26,9 @@ export interface DesktopItem {
 const DRIVE_ID = 'hd';
 /** 拖过的图标位置存在系统偏好里，刷新后图标还在原处。 */
 const CELLS_KEY = 'desktop:cells';
-const itemId = (name: string): string => `file:${name}`;
+/** 桌面图标 id：Macintosh HD 是 `hd`，~/Desktop 里的条目是 `file:<名字>`。 */
+export const desktopItemId = (name: string): string => `file:${name}`;
+const itemId = desktopItemId;
 
 const isCell = (value: unknown): value is DesktopCell =>
   Array.isArray(value) && value.length === 2 && value.every(part => Number.isInteger(part) && part >= 0);
@@ -142,6 +144,12 @@ export class DesktopItems {
     this.preferences
       .set(CELLS_KEY, Object.fromEntries(this.cells()))
       .catch((error: unknown) => this.errors.handleError(error));
+  }
+
+  /** 桌面图标改名：成功返回新路径，调用方据此选中新名字。 */
+  async rename(item: DesktopItem, name: string): Promise<DiskPath> {
+    if (!item.node?.path) throw new Error(`“${item.name}” can’t be renamed.`);
+    return this.fs.rename(item.node.path, name);
   }
 
   async transferToDirectory(ids: readonly string[], dir: DiskPath, copy: boolean): Promise<readonly DiskPath[]> {

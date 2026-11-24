@@ -1,7 +1,7 @@
-import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
+import { Component, DestroyRef, ElementRef, afterRenderEffect, computed, inject, signal, viewChild } from '@angular/core';
+import { GlobalWorkerOptions } from 'pdfjs-dist';
 
 import { extensionOf, fileKind } from '../../disk/disk-kinds';
-import { PdfDocument, readPdfText } from '../../disk/formats/pdf';
 import { ContentActions } from '../../services/content-actions';
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
@@ -15,11 +15,15 @@ import { imageDataUrl } from '../../shared/image-url';
 import { TrafficLights } from '../../shared/traffic-lights';
 import { MailComposer } from '../mail/mail-composer';
 import { markMatches } from './preview-find';
+import { OpenedPdf, openPdf } from './pdf-viewer';
 
-/** 预览窗口里显示什么：读取中、文本 PDF、图片、视频占位，或打不开的原因。 */
+/** pdf.js 的 worker 由构建配置随应用发布（`pdfjs/pdf.worker.min.mjs`）。 */
+GlobalWorkerOptions.workerSrc = new URL('pdfjs/pdf.worker.min.mjs', document.baseURI).href;
+
+/** 预览窗口里显示什么：读取中、按页渲染的 PDF、图片、视频占位，或打不开的原因。 */
 type PreviewView =
   | { readonly kind: 'loading' }
-  | { readonly kind: 'sheet'; readonly doc: PdfDocument }
+  | { readonly kind: 'pdf' }
   | { readonly kind: 'image'; readonly url: string }
   | { readonly kind: 'video' }
   | { readonly kind: 'failed'; readonly reason: string };
@@ -34,7 +38,10 @@ const IMAGE_TYPES: Readonly<Record<string, string>> = {
   heic: 'image/heic'
 };
 
-/** 预览：按文件类型显示指南页、视频占位或图片，标题栏带分享菜单和会高亮匹配的查找框。 */
+/** 放大上限：超大页面按宽度适配时也要限制内存。 */
+const MAX_SCALE = 2.5;
+
+/** 预览：PDF 按页渲染（D-28），图片直接显示，影片是占位，标题栏带分享菜单和会高亮匹配的查找框。 */
 @Component({
   selector: 'app-preview',
   imports: [Icon, TrafficLights],
@@ -51,28 +58,39 @@ export class PreviewApp {
   private readonly mail = inject(MailComposer);
   private readonly body = viewChild.required<ElementRef<HTMLElement>>('body');
   private readonly field = viewChild.required<ElementRef<HTMLInputElement>>('field');
+  private readonly pdfCanvas = viewChild<ElementRef<HTMLCanvasElement>>('pdfCanvas');
+  private readonly pdfBox = viewChild<ElementRef<HTMLElement>>('pdfBox');
+  private opened: OpenedPdf | null = null;
+  private renderToken = 0;
 
   protected readonly actions = inject(ContentActions);
   protected readonly content = computed<PrintableContent | null>(() => {
     const view = this.view();
     if (view.kind === 'image') return { title: this.name, paragraphs: [], image: { url: view.url, alt: this.name } };
-    if (view.kind !== 'sheet') return null;
-    return {
-      title: view.doc.title,
-      paragraphs: [
-        ...(view.doc.subtitle ? [view.doc.subtitle] : []),
-        ...view.doc.sections.flatMap(section => [section.title, section.text])
-      ]
-    };
+    if (view.kind === 'pdf') return { title: this.name, paragraphs: this.pdfText() ? [this.pdfText()] : [] };
+    return null;
   });
 
   protected readonly name = fileName(this.win.options.file);
   protected readonly view = signal<PreviewView>({ kind: 'loading' });
   protected readonly finding = signal(false);
+  protected readonly page = signal(1);
+  protected readonly pageCount = signal(0);
+  protected readonly pdfText = signal('');
 
   constructor() {
     const menus = inject(DesktopMenus);
+    const destroyRef = inject(DestroyRef);
     this.win.setMenus(computed(() => menus.standard('preview')));
+    this.win.beforeClose.subscribe(() => void this.opened?.destroy());
+    destroyRef.onDestroy(() => void this.opened?.destroy());
+    afterRenderEffect(() => {
+      if (this.view().kind !== 'pdf') return;
+      this.page();
+      const canvas = this.pdfCanvas()?.nativeElement;
+      const box = this.pdfBox()?.nativeElement;
+      if (canvas && box) void this.renderInto(canvas, box);
+    });
     void this.load();
   }
 
@@ -93,9 +111,9 @@ export class PreviewApp {
         '-',
         {
           id: 'c',
-          label: this.view().kind === 'sheet' ? 'Copy Text' : 'Copy File Name',
+          label: this.view().kind === 'pdf' ? 'Copy Text' : 'Copy File Name',
           disabled,
-          run: () => content && this.actions.copy(this.view().kind === 'sheet' ? printableText(content) : this.name)
+          run: () => content && this.actions.copy(this.view().kind === 'pdf' ? printableText(content) : this.name)
         },
         { id: 'p', label: 'Print…', disabled, run: () => content && this.actions.print(content) }
       ],
@@ -127,7 +145,15 @@ export class PreviewApp {
     this.view.set({ kind: 'failed', reason: 'The image data could not be decoded.' });
   }
 
-  /** 图片显示文件本身（由 storage 插件读出的字节），文本 PDF 读回标题与各节；读不了的说明原因。 */
+  protected prevPage(): void {
+    if (this.page() > 1) this.page.update(number => number - 1);
+  }
+
+  protected nextPage(): void {
+    if (this.page() < this.pageCount()) this.page.update(number => number + 1);
+  }
+
+  /** 图片显示文件本身（由 storage 插件读出的字节）；PDF 交给 pdf.js；读不了的说明原因。 */
   private async load(): Promise<void> {
     const extension = extensionOf(this.name);
     if (extension === 'mp4' || extension === 'mov') {
@@ -140,17 +166,58 @@ export class PreviewApp {
       return;
     }
     try {
-      this.view.set(this.describe(extension, await this.fs.read(path)));
+      const bytes = await this.fs.read(path);
+      if (extension === 'pdf') await this.loadPdf(bytes);
+      else this.view.set(this.describe(extension, bytes));
     } catch (error) {
       this.view.set({ kind: 'failed', reason: describeDiskError(error) });
     }
   }
 
-  private describe(extension: string, bytes: Uint8Array): PreviewView {
-    if (extension === 'pdf') {
-      const doc = readPdfText(bytes);
-      return doc ? { kind: 'sheet', doc } : { kind: 'failed', reason: 'Preview can only show text PDFs.' };
+  private async loadPdf(bytes: Uint8Array): Promise<void> {
+    try {
+      const doc = await openPdf(bytes);
+      this.opened = doc;
+      this.pageCount.set(doc.pageCount);
+      this.page.set(1);
+      this.pdfText.set(await this.collectText(doc));
+      this.view.set({ kind: 'pdf' });
+    } catch {
+      this.view.set({ kind: 'failed', reason: 'The PDF data could not be read.' });
     }
+  }
+
+  /** 全篇文本按页拼起来，分享与打印用它（不是页面截图）。 */
+  private async collectText(doc: OpenedPdf): Promise<string> {
+    const pages: string[] = [];
+    for (let number = 1; number <= doc.pageCount; number++) {
+      const text = await doc.textOf(number);
+      if (text) pages.push(text);
+    }
+    return pages.join('\n');
+  }
+
+  /** 把当前页画进画布：按容器宽度适配（有放大上限），翻页后旧渲染的结果不覆盖新页。 */
+  private async renderInto(canvas: HTMLCanvasElement, box: HTMLElement): Promise<void> {
+    const doc = this.opened;
+    if (!doc) return;
+    const token = ++this.renderToken;
+    const size = await doc.pageSize(this.page(), 1);
+    const scale = Math.min(box.clientWidth / size.width, MAX_SCALE);
+    if (token !== this.renderToken) return;
+    const dpr = devicePixelRatio || 1;
+    canvas.width = Math.round(size.width * scale * dpr);
+    canvas.height = Math.round(size.height * scale * dpr);
+    canvas.style.width = `${Math.round(size.width * scale)}px`;
+    canvas.style.height = `${Math.round(size.height * scale)}px`;
+    try {
+      await doc.renderPage(this.page(), canvas, scale);
+    } catch {
+      if (token === this.renderToken) this.view.set({ kind: 'failed', reason: 'The PDF page could not be rendered.' });
+    }
+  }
+
+  private describe(extension: string, bytes: Uint8Array): PreviewView {
     const type = IMAGE_TYPES[extension];
     if (type) return { kind: 'image', url: imageDataUrl(bytes, type) };
     return { kind: 'failed', reason: `Preview can’t open ${fileKind(this.name).kind} files.` };

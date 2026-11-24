@@ -5,6 +5,8 @@ import {
   DestroyRef,
   ElementRef,
   ViewEncapsulation,
+  afterRenderEffect,
+  computed,
   effect,
   inject,
   signal,
@@ -13,8 +15,9 @@ import {
 
 import { FinderClipboard } from '../apps/finder/finder-clipboard';
 import { DESKTOP, DiskPath, samePath } from '../disk/disk-path';
-import { DesktopItem, DesktopItems } from '../services/desktop-items';
+import { DesktopItem, DesktopItems, desktopItemId } from '../services/desktop-items';
 import { DockState } from '../services/dock-state';
+import { describeDiskError } from '../services/file-system';
 import { isMenuKey } from '../services/focus-order';
 import { MenuEntry } from '../services/menu';
 import { PopoverService } from '../services/popover';
@@ -35,8 +38,8 @@ interface Point {
 
 /**
  * 桌面：右上角起排的图标网格、拖动吸附、框选、右键菜单与左侧小组件。
- * 无障碍（ADESK-US-108）：每个图标是能 Tab 到的按钮（名称是文件名），Enter 或空格打开，Menu 键 / Shift+F10 弹出右键菜单；
- * 获得焦点就是选中它。桌面在 Tab 顺序里排在 Dock 之后。
+ * 无障碍（ADESK-US-108）：每个图标是能 Tab 到的按钮（名称是文件名），空格打开，文件夹上 Enter 就地改名，
+ * ⌘↓ 或 ⌘O 打开，Menu 键 / Shift+F10 弹出右键菜单；获得焦点就是选中它。桌面在 Tab 顺序里排在 Dock 之后。
  */
 @Component({
   selector: 'app-desktop-surface',
@@ -70,6 +73,11 @@ export class DesktopSurface {
   protected readonly desktopPath = DESKTOP;
   protected readonly viewport = signal<readonly [number, number]>([innerWidth, innerHeight]);
   protected readonly selected = signal<ReadonlySet<string>>(new Set());
+  protected readonly renaming = signal<{ readonly id: string; readonly value: string } | null>(null);
+  protected readonly renameValue = computed(() => this.renaming()?.value ?? '');
+  protected readonly renameBox = signal<{ readonly left: number; readonly top: number; readonly width: number } | null>(
+    null
+  );
   protected readonly dragging = signal<{ readonly id: string; readonly at: Point } | null>(null);
   protected readonly settling = signal<string | null>(null);
   protected readonly movingToDirectory = signal<ReadonlySet<string>>(new Set());
@@ -79,13 +87,28 @@ export class DesktopSurface {
     this.destroyRef.onDestroy(() => this.clearDropTargets());
     effect(() => {
       const created = this.desktop.created();
-      if (created) this.selected.set(new Set([created]));
+      if (!created) return;
+      this.selected.set(new Set([created]));
+      this.renameBox.set(null);
+      this.renaming.set({ id: created, value: created.slice('file:'.length) });
     });
     effect(() => {
       const visible = new Set(this.desktop.items().map(item => item.id));
       const moving = this.movingToDirectory();
       const stale = [...moving].filter(id => !visible.has(id));
       if (stale.length) this.clearMoving(stale);
+    });
+    /* 新建的文件夹要等磁盘树刷出来才有图标：图标一出现就把改名框摆到它的标签上并全选名字。 */
+    afterRenderEffect(() => {
+      this.desktop.items();
+      const renaming = this.renaming();
+      if (!renaming) return;
+      if (!this.renameBox()) this.updateRenameBox(renaming.id);
+      const input = this.surface().nativeElement.querySelector<HTMLInputElement>('[data-rename-input]');
+      if (!input || input === this.document.activeElement) return;
+      input.focus();
+      input.select();
+      input.scrollLeft = 0;
     });
   }
 
@@ -211,6 +234,19 @@ export class DesktopSurface {
       if (!event.repeat) this.trash(item);
       return;
     }
+    if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey) {
+      if (event.key === 'ArrowDown' || event.key.toLowerCase() === 'o') {
+        event.preventDefault();
+        item.open();
+        return;
+      }
+    }
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      if (item.node?.kind === 'folder') this.startRename(item);
+      else item.open();
+      return;
+    }
     if (!isMenuKey(event)) return;
     event.preventDefault();
     const anchor = event.currentTarget as HTMLElement;
@@ -229,6 +265,36 @@ export class DesktopSurface {
   protected openByKey(event: Event, item: DesktopItem): void {
     event.preventDefault();
     item.open();
+  }
+
+  protected startRename(item: DesktopItem): void {
+    if (!item.node?.path || !item.id.startsWith('file:')) return;
+    this.select(item.id);
+    this.renameBox.set(null);
+    this.renaming.set({ id: item.id, value: item.node.name });
+    this.updateRenameBox(item.id);
+  }
+
+  protected updateRename(event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    this.renaming.update(current => (current ? { ...current, value } : null));
+  }
+
+  /** 改名输入框里的按键：Enter 提交、Esc 取消；其余按键留给输入框，不交给桌面。 */
+  protected renameKey(event: KeyboardEvent): void {
+    if (event.isComposing) return;
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      this.commitRename();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      this.cancelRename();
+    }
+  }
+
+  /** 改名输入框失焦即提交（像 Finder），但不把焦点抢回来。 */
+  protected blurRename(): void {
+    this.commitRename(false);
   }
 
   protected select(id: string | null): void {
@@ -263,13 +329,13 @@ export class DesktopSurface {
 
   /** 空白处按下：取消选择并开始框选。 */
   protected pressSurface(event: PointerEvent): void {
-    if ((event.target as Element).closest('.dicon, .wgt') || event.button !== 0) return;
+    if ((event.target as Element).closest('.dicon, .wgt, input') || event.button !== 0) return;
     this.select(null);
     this.marquee(event);
   }
 
   protected surfaceMenu(event: MouseEvent): void {
-    if ((event.target as Element).closest('.dicon, .wgt')) return;
+    if ((event.target as Element).closest('.dicon, .wgt, input')) return;
     this.popover.contextMenu(event, [
       { id: 'nf', label: 'New Folder', run: () => this.desktop.newFolder() },
       {
@@ -296,7 +362,12 @@ export class DesktopSurface {
       { id: 'w', label: 'Open With', key: '▸' },
       '-',
       { id: 'i', label: 'Get Info', key: '⌘I', run: () => this.toast.show(this.info(item)) },
-      { id: 'r', label: 'Rename', run: () => this.toast.show('Renaming is left as an exercise.') },
+      {
+        id: 'r',
+        label: 'Rename',
+        disabled: !item.id.startsWith('file:'),
+        run: () => this.startRename(item)
+      },
       { id: 'd', label: 'Duplicate', key: '⌘D', run: () => this.toast.show('Duplicated') },
       '-',
       { id: 't', label: 'Move to Trash', key: '⌘⌫', run: () => this.trash(item) },
@@ -348,6 +419,62 @@ export class DesktopSurface {
     const node = item.node;
     if (!node) return item.name;
     return node.kind === 'folder' ? `${node.name} — Folder` : `${node.name} — ${node.k}, ${node.size}`;
+  }
+
+  private commitRename(restore = true): void {
+    const editing = this.renaming();
+    if (!editing) return;
+    const item = this.desktop.items().find(entry => entry.id === editing.id);
+    this.renaming.set(null);
+    this.renameBox.set(null);
+    const name = editing.value.trim();
+    if (!item?.node?.path || !name || name === item.node.name) {
+      if (restore) this.focusIcon(editing.id);
+      return;
+    }
+    this.desktop.rename(item, name).then(
+      path => {
+        const id = desktopItemId(path.at(-1) ?? name);
+        this.selected.set(new Set([id]));
+        if (restore) this.focusIcon(id);
+      },
+      (error: unknown) => {
+        this.toast.show(describeDiskError(error));
+        if (restore) this.renaming.set({ ...editing });
+      }
+    );
+  }
+
+  private cancelRename(): void {
+    const editing = this.renaming();
+    if (!editing) return;
+    this.renaming.set(null);
+    this.renameBox.set(null);
+    this.focusIcon(editing.id);
+  }
+
+  /** 改名输入框摆到图标标签的位置上（桌面坐标）。 */
+  private updateRenameBox(id: string): void {
+    const label = this.surface().nativeElement.querySelector<HTMLElement>(`.dicon[data-id="${CSS.escape(id)}"] .lbl`);
+    if (!label) return;
+    const surface = this.surface().nativeElement.getBoundingClientRect();
+    const rect = label.getBoundingClientRect();
+    const width = 112;
+    this.renameBox.set({
+      left: rect.left - surface.left + rect.width / 2 - width / 2,
+      top: rect.top - surface.top,
+      width
+    });
+  }
+
+  /** 改名结束后焦点回到图标；改名成功时新图标要等磁盘树刷出来，所以连续几帧里找。 */
+  private focusIcon(id: string, left = 20): void {
+    const icon = this.surface().nativeElement.querySelector<HTMLElement>(`.dicon[data-id="${CSS.escape(id)}"]`);
+    if (icon) {
+      icon.focus();
+      return;
+    }
+    if (left > 0) requestAnimationFrame(() => this.focusIcon(id, left - 1));
   }
 
   private trash(item: DesktopItem): void {

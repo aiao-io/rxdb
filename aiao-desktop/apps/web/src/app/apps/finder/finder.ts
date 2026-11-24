@@ -11,7 +11,7 @@ import {
   CdkDropList,
   CdkDropListGroup
 } from '@angular/cdk/drag-drop';
-import { ScrollingModule } from '@angular/cdk/scrolling';
+import { CdkVirtualScrollViewport, ScrollingModule } from '@angular/cdk/scrolling';
 import { NgTemplateOutlet } from '@angular/common';
 import {
   Component,
@@ -24,7 +24,8 @@ import {
   effect,
   inject,
   signal,
-  viewChild
+  viewChild,
+  viewChildren
 } from '@angular/core';
 
 import { EmptyTrashDialog } from '../../components/empty-trash-dialog';
@@ -90,13 +91,29 @@ const SIDEBAR_SNAP_DISTANCE = 24;
 const SIDEBAR_KEY_STEP = 16;
 const MIN_CONTENT_WIDTH = 400;
 
+/** 正在就地改名的条目：路径固定，编辑框里的文字随输入更新。 */
+interface RenameState {
+  readonly path: DiskPath;
+  readonly value: string;
+}
+
+/** 改名输入框浮在条目原名标签的位置上（内容区坐标）。 */
+interface RenameBox {
+  readonly left: number;
+  readonly top: number;
+  readonly width: number;
+  readonly fontSize: number;
+  readonly align: string;
+}
+
 /**
  * Finder：图标、列表、分栏、画廊四种视图，侧栏、路径栏、搜索、排序与历史。
  *
  * 无障碍与键盘（ADESK-US-108）：窗口标题跟着目录名走（读屏念出「Documents，对话框」）；内容区是 `listbox`，
  * 条目是 `option`（名称加种类），整个内容区只占一个 Tab 位置（roving tabindex：选中项，没有就是第一项，`data-autofocus`
  * 标出它，窗口还原焦点时用）。焦点在条目上：方向键移动选择（图标视图按几何找上下左右、分栏视图左右进出栏），
- * Enter 打开，Backspace 或 ⌘↑ 回上一级，Menu 键 / Shift+F10 弹出右键菜单。侧栏、工具栏、路径栏都是原生按钮。
+ * 文件夹上 Enter 就地改名（像 Finder 一样，⌘↓ 或 ⌘O 打开，双击也能打开），Backspace 或 ⌘↑ 回上一级，
+ * Menu 键 / Shift+F10 弹出右键菜单。侧栏、工具栏、路径栏都是原生按钮。
  */
 @Component({
   selector: 'app-finder',
@@ -141,6 +158,8 @@ export class FinderApp implements FinderCommands {
   private readonly body = viewChild.required<ElementRef<HTMLElement>>('body');
   private readonly marqueeBox = viewChild.required<ElementRef<HTMLElement>>('marquee');
   private readonly importInput = viewChild.required<ElementRef<HTMLInputElement>>('importInput');
+  private readonly listViewport = viewChild<CdkVirtualScrollViewport>('listViewport');
+  private readonly columnViewports = viewChildren<CdkVirtualScrollViewport>('columnViewport');
   private readonly history = signal<{ readonly entries: readonly (readonly string[])[]; readonly index: number }>({
     entries: [],
     index: 0
@@ -154,6 +173,9 @@ export class FinderApp implements FinderCommands {
   private columnDrag: { pointerId: number; x: number; width: number } | null = null;
   private springFolderTimer: ReturnType<typeof setTimeout> | null = null;
   private dropHandled = false;
+  /** 新建的条目要等磁盘树刷出来才在列表里；记住它，下一帧把它滚进视野。 */
+  private pendingReveal: DiskPath | null = null;
+  private renameFocusToken = 0;
   private readonly displayPath = computed(() => {
     const path = this.path();
     return path[0] === VOLUME_NAME ? [VOLUME_NAME, ...displayDiskPath(path.slice(1))] : path;
@@ -162,6 +184,9 @@ export class FinderApp implements FinderCommands {
   private refocus = false;
 
   protected readonly fileOperation = signal<FileOperationRequest | null>(null);
+  protected readonly renaming = signal<RenameState | null>(null);
+  protected readonly renameValue = computed(() => this.renaming()?.value ?? '');
+  protected readonly renameBox = signal<RenameBox | null>(null);
 
   protected readonly favouritesGroup = FAVOURITES_GROUP;
   protected readonly sidebarGroups = this.sidebarOrder.groups;
@@ -309,6 +334,15 @@ export class FinderApp implements FinderCommands {
       this.refocus = false;
       this.focusTabStop();
     });
+    afterRenderEffect(() => {
+      this.items();
+      this.columns();
+      const renaming = this.renaming();
+      const reveal = this.pendingReveal;
+      if (reveal) this.revealPending(reveal);
+      if (renaming && !this.renameBox()) this.updateRenameBox(this.renameAnchorForPath(renaming.path));
+      this.focusRenameInput();
+    });
 
     const destroyRef = inject(DestroyRef);
     destroyRef.onDestroy(() => this.clearSpringFolder());
@@ -363,7 +397,13 @@ export class FinderApp implements FinderCommands {
       return;
     }
     this.fs.newFolder(dir).then(
-      name => this.setSelection([name]),
+      name => {
+        this.setSelection([name]);
+        /* 分栏视图里当前目录那一栏可能被更深的选择挤到左边看不见，名字就没法就地改。 */
+        if (this.view() === 'column' && this.firstColumn() > 0) return;
+        this.pendingReveal = [...dir, name];
+        this.renaming.set({ path: [...dir, name], value: name });
+      },
       (error: unknown) => this.toast.show(describeDiskError(error))
     );
   }
@@ -594,7 +634,7 @@ export class FinderApp implements FinderCommands {
     else this.selected.set(name);
   }
 
-  /** 内容区条目上的按键：方向键移动选择、Enter 打开、Backspace 或 ⌘↑ 上一级、Menu 键弹出菜单；`column` 是分栏视图里条目所在的栏。 */
+  /** 内容区条目上的按键：方向键移动选择、文件夹上 Enter 就地改名、⌘↓ 或 ⌘O 打开、Backspace 或 ⌘↑ 上一级、Menu 键弹出菜单；`column` 是分栏视图里条目所在的栏。 */
   protected itemKey(event: KeyboardEvent, name: string, column = -1): void {
     const node = (column < 0 ? this.items() : this.columns().chain[column]?.items)?.find(item => item.name === name);
     if (node?.path && isMoveToTrash(event) && !isWithin(node.path, TRASH)) {
@@ -605,7 +645,7 @@ export class FinderApp implements FinderCommands {
     }
     if (node && event.key === 'F2') {
       event.preventDefault();
-      this.requestFileOperation('rename', node);
+      this.startRename(node);
       return;
     }
     if (node && (event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === 'd') {
@@ -614,15 +654,23 @@ export class FinderApp implements FinderCommands {
       if (node.path && !isWithin(node.path, TRASH)) this.duplicate(node);
       return;
     }
+    if (node && (event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey) {
+      if (event.key === 'ArrowDown' || event.key.toLowerCase() === 'o') {
+        event.preventDefault();
+        this.activate(name, column);
+        return;
+      }
+    }
     if (event.key === 'Enter') {
       event.preventDefault();
-      this.activate(name, column);
+      if (node?.kind === 'folder' && node.path) this.startRename(node);
+      else this.activate(name, column);
     } else if (isGoUp(event)) {
       event.preventDefault();
       this.goUp();
     } else if (isMenuKey(event)) {
       event.preventDefault();
-      if (node) this.itemMenuByKey(event.currentTarget as HTMLElement, node);
+      if (node) this.itemMenuByKey(event.currentTarget as HTMLElement, node, column);
     } else if (this.view() === 'column') this.moveInColumns(event, name, column);
     else this.moveInView(event, name);
   }
@@ -665,6 +713,33 @@ export class FinderApp implements FinderCommands {
 
   protected openColumnFile(node: FsNode): void {
     if (node.kind === 'file') this.enter(node.name);
+  }
+
+  /** 改名输入框失焦即提交（像 Finder），但不把焦点抢回来。 */
+  protected blurRename(): void {
+    this.commitRename(false);
+  }
+
+  protected isRenaming(node: FsNode): boolean {
+    const renaming = this.renaming();
+    return Boolean(node.path && renaming && samePath(node.path, renaming.path));
+  }
+
+  protected updateRename(event: Event): void {
+    const value = (event.target as HTMLInputElement).value;
+    this.renaming.update(current => (current ? { ...current, value } : null));
+  }
+
+  /** 就地改名输入框里的按键：Enter 提交、Esc 取消；其余按键留给输入框，不交给列表导航。 */
+  protected renameKey(event: KeyboardEvent): void {
+    if (event.isComposing) return;
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      this.commitRename();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      this.cancelRename();
+    }
   }
 
   protected jump(index: number | null): void {
@@ -746,7 +821,13 @@ export class FinderApp implements FinderCommands {
 
   protected itemMenu(event: MouseEvent, node: FsNode): void {
     const current = this.menuNode(event, node);
-    if (!this.isSelected(current.name)) this.setSelection([current.name]);
+    const column = (event.currentTarget as HTMLElement | null)?.dataset['ci'];
+    /* 分栏视图要按栏选中，别用 setSelection 清掉选择链，否则菜单一开后面的栏就没了。 */
+    if (column === undefined) {
+      if (!this.isSelected(current.name)) this.setSelection([current.name]);
+    } else if (!this.isColumnSelected(Number(column), current.name)) {
+      this.pickColumn(Number(column), current.name);
+    }
     this.popover.contextMenu(event, this.itemMenuItems(current), current.name);
   }
 
@@ -766,7 +847,7 @@ export class FinderApp implements FinderCommands {
   }
 
   protected bodyMenu(event: MouseEvent): void {
-    if ((event.target as Element).closest('[role="option"]')) return;
+    if ((event.target as Element).closest('[role="option"], input')) return;
     if (this.isTrash()) {
       this.popover.contextMenu(event, [
         { id: 'empty', label: 'Empty Trash', disabled: !this.fs.trashFull(), run: () => this.emptyTrash() },
@@ -1175,7 +1256,7 @@ export class FinderApp implements FinderCommands {
       },
       '-',
       { id: 'i', label: 'Get Info', key: '⌘I', run: () => this.info(node) },
-      { id: 'r', label: 'Rename…', run: () => this.requestFileOperation('rename', node) },
+      { id: 'r', label: 'Rename', disabled: !node?.path, run: () => this.startRename(node) },
       { id: 'd', label: 'Duplicate', key: '⌘D', disabled: inTrash, run: () => this.duplicate(node) },
       {
         id: 'download',
@@ -1213,6 +1294,134 @@ export class FinderApp implements FinderCommands {
 
   private requestFileOperation(kind: FileOperationRequest['kind'], node: FsNode): void {
     if (node?.path) this.fileOperation.set({ kind, node });
+  }
+
+  private startRename(node: FsNode): void {
+    if (!node?.path) return;
+    this.renameBox.set(null);
+    this.renaming.set({ path: node.path, value: node.name });
+    this.updateRenameBox(this.renameAnchorForPath(node.path));
+  }
+
+  /** 改名标签在哪个元素上：图标 / 列表 / 分栏在条目行里，画廊在下方说明里。 */
+  private renameAnchorForPath(path: DiskPath): HTMLElement | null {
+    const body = this.body().nativeElement;
+    const name = CSS.escape(path.at(-1) ?? '');
+    if (this.view() === 'column') {
+      const parent = parentOf(path);
+      const index = this.columns().chain.findIndex(column => column.node.path && samePath(column.node.path, parent));
+      return body.querySelector<HTMLElement>(`.ci[data-ci="${index}"][data-name="${name}"] [data-rename-anchor]`);
+    }
+    return (
+      body.querySelector<HTMLElement>(`[data-name="${name}"] [data-rename-anchor]`) ??
+      (this.view() === 'gallery' ? body.querySelector<HTMLElement>('.fv-gal .cap [data-rename-anchor]') : null)
+    );
+  }
+
+  private updateRenameBox(anchor: HTMLElement | null): void {
+    if (!anchor) return;
+    const body = this.body().nativeElement;
+    const bodyRect = body.getBoundingClientRect();
+    const rect = anchor.getBoundingClientRect();
+    const style = getComputedStyle(anchor);
+    this.renameBox.set({
+      left: rect.left - bodyRect.left - 6,
+      top: rect.top - bodyRect.top + body.scrollTop - 1,
+      width: Math.min(Math.max(rect.width + 12, 72), 320),
+      fontSize: parseFloat(style.fontSize) || 12.5,
+      align: style.textAlign === 'center' ? 'center' : 'left'
+    });
+  }
+
+  private commitRename(restore = true): void {
+    const editing = this.renaming();
+    if (!editing) return;
+    this.renaming.set(null);
+    this.renameBox.set(null);
+    const name = editing.value.trim();
+    const oldName = editing.path.at(-1) ?? '';
+    if (!name || name === oldName) {
+      if (restore) this.restoreItemFocus();
+      return;
+    }
+    this.fs.rename(editing.path, name).then(
+      path => {
+        const current = diskPathOf(this.path());
+        const stillSelected = this.selectedNames().includes(oldName) || this.columnSelection().includes(oldName);
+        if (stillSelected && current && isWithin(path, current)) this.selectPath(path);
+        this.refocus = restore && stillSelected;
+      },
+      (error: unknown) => {
+        this.toast.show(describeDiskError(error));
+        if (restore) this.renaming.set({ ...editing });
+      }
+    );
+  }
+
+  private cancelRename(): void {
+    if (!this.renaming()) return;
+    this.renaming.set(null);
+    this.renameBox.set(null);
+    this.focusTabStop();
+  }
+
+  private restoreItemFocus(): void {
+    afterNextRender(
+      {
+        write: () => {
+          if (!this.renaming()) this.focusTabStop();
+        }
+      },
+      { injector: this.injector }
+    );
+  }
+
+  /** 输入框要等条目渲染出来（虚拟列表还要先滚到它）才有得聚焦：连续几帧里找到就聚焦并全选。 */
+  private focusRenameInput(): void {
+    const renaming = this.renaming();
+    if (!renaming) return;
+    const token = ++this.renameFocusToken;
+    const attempt = (left: number): void => {
+      const current = this.renaming();
+      if (!current || !samePath(current.path, renaming.path) || this.renameFocusToken !== token) return;
+      if (!this.renameBox()) this.updateRenameBox(this.renameAnchorForPath(current.path));
+      const body = this.body().nativeElement;
+      const input = body.querySelector<HTMLInputElement>('[data-rename-input]');
+      if (input) {
+        if (input !== body.ownerDocument.activeElement) {
+          input.focus();
+          input.select();
+          input.scrollLeft = 0;
+        }
+        return;
+      }
+      if (left > 0) requestAnimationFrame(() => attempt(left - 1));
+    };
+    attempt(20);
+  }
+
+  private revealPending(path: DiskPath): void {
+    const name = path.at(-1);
+    if (!name) {
+      this.pendingReveal = null;
+      return;
+    }
+    if (this.view() === 'column') {
+      const index = (this.columns().chain[0]?.items ?? []).findIndex(item => item.name === name);
+      const viewport = this.columnViewports()[0 - this.firstColumn()];
+      if (!viewport || index < 0) return;
+      this.pendingReveal = null;
+      viewport.scrollToIndex(Math.max(0, index - 1));
+      return;
+    }
+    const index = this.items().findIndex(item => item.name === name);
+    if (index < 0) return;
+    this.pendingReveal = null;
+    if (this.view() === 'list') {
+      this.listViewport()?.scrollToIndex(Math.max(0, index - 1));
+      return;
+    }
+    this.option(`[data-name="${CSS.escape(name)}"]`)?.scrollIntoView({ block: 'nearest' });
   }
 
   private trashNode(node: FsNode): void {
@@ -1253,8 +1462,9 @@ export class FinderApp implements FinderCommands {
   }
 
   /** 键盘弹出的右键菜单：贴着条目，焦点交给第一项，关闭后焦点回到条目（条目没了就回到 Tab 停靠点）。 */
-  private itemMenuByKey(anchor: HTMLElement, node: FsNode): void {
-    this.setSelection([node.name]);
+  private itemMenuByKey(anchor: HTMLElement, node: FsNode, column = -1): void {
+    if (column < 0) this.setSelection([node.name]);
+    else if (!this.isColumnSelected(column, node.name)) this.pickColumn(column, node.name);
     const rect = anchor.getBoundingClientRect();
     this.popover.openMenu(this.itemMenuItems(node), {
       x: rect.left + rect.width / 2,
@@ -1368,6 +1578,8 @@ export class FinderApp implements FinderCommands {
 
   private nav(path: readonly string[]): void {
     this.clearSpringFolder();
+    this.renaming.set(null);
+    this.pendingReveal = null;
     this.keepFocus();
     this.query.set('');
     this.path.set(path);
@@ -1383,6 +1595,8 @@ export class FinderApp implements FinderCommands {
     const { entries, index } = this.history();
     const target = index + delta;
     if (target < 0 || target >= entries.length) return;
+    this.renaming.set(null);
+    this.pendingReveal = null;
     this.keepFocus();
     this.history.set({ entries, index: target });
     this.path.set(entries[target]);

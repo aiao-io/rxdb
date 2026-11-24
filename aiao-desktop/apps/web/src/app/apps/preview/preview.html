@@ -50,17 +50,47 @@
 <div class="pv" #body style="flex-direction: column">
   @let current = view();
   @switch (current.kind) {
-    @case ('sheet') {
-      @if (current.kind === 'sheet') {
-        <div class="sheet" data-pv-sheet>
-          <h1>{{ current.doc.title }}</h1>
-          @if (current.doc.subtitle) {
-            <p style="margin: 0 0 2px; font-size: 12.5px">{{ current.doc.subtitle }}</p>
-          }
-          @for (section of current.doc.sections; track $index) {
-            <h3>{{ section.title }}</h3>
-            <p>{{ section.text }}</p>
-          }
+    @case ('pdf') {
+      @if (current.kind === 'pdf') {
+        <div
+          #pdfBox
+          data-pv-pdf
+          style="
+            flex: 1;
+            min-height: 0;
+            overflow: auto;
+            display: grid;
+            place-items: start center;
+            padding: 18px;
+          "
+        >
+          <canvas #pdfCanvas data-pv-canvas style="box-shadow: 0 10px 40px -12px rgba(0, 0, 0, 0.55)"></canvas>
+        </div>
+        <div
+          data-pv-nav
+          style="display: flex; align-items: center; justify-content: center; gap: 14px; padding: 8px 0 14px"
+        >
+          <button
+            class="tbtn"
+            [disabled]="page() <= 1"
+            (click)="prevPage()"
+            data-pv-prev
+            tabindex="0"
+            title="Previous Page"
+          >
+            <svg appIcon="g-chev-l"></svg>
+          </button>
+          <span style="font-size: 12px; color: var(--txt-2)">{{ page() }} of {{ pageCount() }}</span>
+          <button
+            class="tbtn"
+            [disabled]="page() >= pageCount()"
+            (click)="nextPage()"
+            data-pv-next
+            tabindex="0"
+            title="Next Page"
+          >
+            <svg appIcon="g-chev-r"></svg>
+          </button>
         </div>
       }
     }

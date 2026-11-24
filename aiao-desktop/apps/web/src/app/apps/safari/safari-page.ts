@@ -35,7 +35,9 @@ export type SafariPage =
       readonly thumbnail: string;
       readonly lead: SafeHtml | null;
     }
-  | { readonly type: 'wiki-error' };
+  | { readonly type: 'wiki-error' }
+  | { readonly type: 'file'; readonly title: string; readonly html: SafeHtml; readonly path: string }
+  | { readonly type: 'file-error'; readonly reason: string };
 
 /** 顶部细进度条：每个阶段换一个新对象，模板按 `id` 重建元素，宽度才不会从上一阶段倒着动。 */
 export interface SafariProgress {

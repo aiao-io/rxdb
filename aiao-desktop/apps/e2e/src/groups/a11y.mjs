@@ -1250,7 +1250,26 @@ export const a11y = {
         (await selectionFollowsFocus()) ? [] : ['方向键移动之后，焦点所在的条目没有成为选中项（aria-selected）']
       );
       await press('ArrowRight');
+      /* 文件夹上 Enter 就地改名（像 Finder），⌘↓ 才是打开。 */
       await press('Enter');
+      const renaming = await until(
+        page,
+        () => document.querySelector('.win[data-app="finder"] [data-rename-input]') === document.activeElement
+      );
+      await press('Escape');
+      /* 取消改名后焦点才回到条目；全量并发跑时这一步要等，不能立刻按 ⌘↓。 */
+      await until(
+        page,
+        () => {
+          const active = document.activeElement;
+          return (
+            !document.querySelector('.win[data-app="finder"] [data-rename-input]') &&
+            active instanceof HTMLElement &&
+            active.getAttribute('data-name') === 'Documents'
+          );
+        }
+      );
+      await press('Meta+ArrowDown');
       const entered = await until(
         page,
         () =>
@@ -1258,7 +1277,8 @@ export const a11y = {
       );
       const optionFocus = await focusReaches(page, info => info.region === 'window' && info.role === 'option', 5_000);
       finder.enterOpensFolderKeepsFocus = problems(
-        entered ? [] : ['在 Documents 上按 Enter 没有进入这个文件夹'],
+        renaming ? [] : ['在文件夹上按 Enter 没有就地改名'],
+        entered ? [] : ['在 Documents 上按 ⌘↓ 没有进入这个文件夹'],
         optionFocus ? [] : [`进入文件夹之后焦点应留在内容区的条目上，实际 ${brief(await active())}`]
       );
       await press('Backspace');
@@ -1617,7 +1637,20 @@ export const a11y = {
       const names = [];
       const focus = [];
       const violations = [];
-      for (const label of ['Rename…', 'Open With…']) {
+      /* Rename 现在是就地改名：输入框要有可访问名称，Esc 取消后焦点回到条目。 */
+      await command('Rename');
+      const renameInput = page.locator('.win.front[data-app="finder"] [data-rename-input]');
+      await renameInput.waitFor();
+      if (!(await renameInput.getAttribute('aria-label'))) names.push('就地改名的输入框没有可访问名称');
+      focus.push(await renameInput.evaluate(node => node === document.activeElement));
+      const renameAxe = await new AxeBuilder({ page })
+        .include('.win.front[data-app="finder"] [data-name="prasenx.txt"]')
+        .analyze();
+      violations.push(...renameAxe.violations.map(item => item.id));
+      await press('Escape');
+      await renameInput.waitFor({ state: 'detached' });
+      focus.push(await entry().evaluate(node => node === document.activeElement));
+      for (const label of ['Open With…']) {
         await command(label);
         const dialog = page.locator('app-file-operation-dialog [role="dialog"]');
         await dialog.waitFor();

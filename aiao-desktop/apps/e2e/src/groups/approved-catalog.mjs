@@ -142,11 +142,11 @@ export const approvedCatalog = {
       await modal().getByRole('button', { name: 'Cancel', exact: true }).click();
       await helpers.launch('Finder');
       await finder.locator(`[role="option"][data-name="${name}.app"]`).click({ button: 'right' });
-      await page.getByRole('menuitem', { name: 'Rename…', exact: true }).click();
-      const rename = page.locator('app-file-operation-dialog');
-      await rename.getByRole('textbox', { name: 'New name' }).fill('catalog-conflict-kept.txt');
-      await rename.getByRole('button', { name: 'Rename', exact: true }).click();
-      await expect(rename).toHaveCount(0);
+      await page.getByRole('menuitem', { name: 'Rename', exact: true }).click();
+      const renameInput = finder.locator('[data-rename-input]');
+      await renameInput.fill('catalog-conflict-kept.txt');
+      await renameInput.press('Enter');
+      await expect(finder.locator('[data-name="catalog-conflict-kept.txt"]')).toBeVisible();
       await showStore();
       result.packageConflictKeepsFiles = true;
 

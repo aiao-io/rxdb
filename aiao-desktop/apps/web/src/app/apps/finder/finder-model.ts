@@ -4,7 +4,7 @@ import { FileSystem } from '../../services/file-system';
 import { USER_PROFILE } from '../../shared/user-profile';
 
 export interface FileOperationRequest {
-  readonly kind: 'rename' | 'restore' | 'open-with';
+  readonly kind: 'restore' | 'open-with';
   readonly node: FsNode;
 }
 

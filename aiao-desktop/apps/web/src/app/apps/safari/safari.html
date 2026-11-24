@@ -275,6 +275,23 @@
               <button class="btn pri" data-goto="">Start Page</button>
             </div>
           }
+          @case ('file') {
+            <iframe
+              class="sf-frame"
+              [srcdoc]="page.html"
+              [title]="page.title"
+              data-sf-file
+              sandbox="allow-scripts"
+            ></iframe>
+          }
+          @case ('file-error') {
+            <div class="sf-blocked" data-sf-file-error>
+              <div class="ico"><svg appIcon="f-txt"></svg></div>
+              <h3>Can't open this file</h3>
+              <p>{{ page.reason }}</p>
+              <button class="btn pri" data-goto="">Start Page</button>
+            </div>
+          }
         }
       }
     </div>

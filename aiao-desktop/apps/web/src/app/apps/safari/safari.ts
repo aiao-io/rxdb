@@ -15,6 +15,7 @@ import { DomSanitizer } from '@angular/platform-browser';
 
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
+import { FileSystem, describeDiskError } from '../../services/file-system';
 import { MenuEntry, MenuSection } from '../../services/menu';
 import { PopoverService } from '../../services/popover';
 import { SystemState } from '../../services/system-state';
@@ -32,6 +33,8 @@ import {
   externalUrl,
   favColor,
   faviconOf,
+  filePathOf,
+  fileUrlOf,
   hostOf,
   isSameOrigin,
   kindOf,
@@ -97,6 +100,7 @@ const OFFLINE_HITS: readonly SafariHit[] = [
 export class SafariApp {
   private readonly win = inject(DesktopWindow);
   private readonly wm = inject(WindowManager);
+  private readonly fs = inject(FileSystem);
   private readonly toast = inject(Toast);
   private readonly popover = inject(PopoverService);
   private readonly menus = inject(DesktopMenus);
@@ -168,6 +172,13 @@ export class SafariApp {
     this.win.beforeClose.subscribe(() => {
       this.closed = true;
     });
+
+    /* 带着磁盘文件打开的窗口（D-28）：首个标签直接指向它，不记入浏览历史。 */
+    const openedFile = this.win.options.node;
+    if (openedFile?.kind === 'file' && openedFile.path) {
+      const url = fileUrlOf(openedFile.path);
+      this.tabs.set([{ url, history: [url], index: 0 }]);
+    }
 
     afterRenderEffect(() => {
       this.revision();
@@ -397,11 +408,33 @@ export class SafariApp {
     const site = localKey(url);
     const video = kind === 'video' ? videoId(url) : undefined;
     if (kind === 'start') this.show(token, { type: 'start' });
+    else if (kind === 'file') await this.paintFile(url, token);
     else if (site) this.show(token, { type: 'local', site });
     else if (kind === 'wiki') await this.paintWiki(wikiTitle(url) || 'MacOS', token);
     else if (kind === 'search') await this.paintSearch(url, token);
     else if (video) this.paintVideo(video, token);
     else this.show(token, this.frame(url));
+  }
+
+  /** 磁盘文件：读出内容放进沙盒框渲染（脚本可以运行，但与桌面隔离，碰不到桌面数据）。 */
+  private async paintFile(url: string, token: number): Promise<void> {
+    const path = filePathOf(url);
+    if (!path) {
+      this.show(token, { type: 'file-error', reason: 'That address is not a file on Macintosh HD.' });
+      return;
+    }
+    const name = path.at(-1) ?? 'Untitled';
+    try {
+      const html = new TextDecoder().decode(await this.fs.read(path));
+      this.show(token, {
+        type: 'file',
+        title: name,
+        path: `/${path.join('/')}`,
+        html: this.sanitizer.bypassSecurityTrustHtml(html)
+      });
+    } catch (error) {
+      this.show(token, { type: 'file-error', reason: describeDiskError(error) });
+    }
   }
 
   /** YouTube 拒绝没有来源的嵌入方，而从磁盘直接打开的页面就是没有来源，所以如实说明处境。 */

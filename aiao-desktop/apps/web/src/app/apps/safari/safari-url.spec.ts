@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { isSameOrigin, resolveUrl } from './safari-url';
+import { filePathOf, fileUrlOf, isSameOrigin, kindOf, resolveUrl, titleFor } from './safari-url';
 
 const DESKTOP = 'https://desktop.example.com';
 
@@ -63,5 +63,28 @@ describe('isSameOrigin', () => {
   it('从磁盘打开的桌面来源是 "null"，不能拿它去匹配其他不透明来源', () => {
     expect(isSameOrigin('https://desktop.example.com/x', 'null')).toBe(false);
     expect(isSameOrigin('data:text/html,hi', 'null')).toBe(false);
+  });
+});
+
+describe('file 地址与卷内路径（D-28）', () => {
+  it('fileUrlOf 逐段编码路径，filePathOf 原样解回', () => {
+    const path = ['Projects', 'desktop-web', 'my page #1.html'];
+    expect(filePathOf(fileUrlOf(path))).toEqual(path);
+  });
+
+  it('地址栏里的 file 地址归类为 file，标题取文件名', () => {
+    const url = fileUrlOf(['Desktop', 'hello.html']);
+    expect(kindOf(url)).toBe('file');
+    expect(titleFor(url)).toBe('hello.html');
+  });
+
+  it('不是 file 地址、或解码不了的地址取不到路径', () => {
+    expect(filePathOf('https://example.com/a.html')).toBeUndefined();
+    expect(filePathOf('file:///bad%zz.html')).toBeUndefined();
+    expect(filePathOf('file:///')).toBeUndefined();
+  });
+
+  it('没有 file:// 前缀的普通文件名不进 file 分支，仍按既有规则归类', () => {
+    expect(kindOf('page.html')).toBe('web');
   });
 });

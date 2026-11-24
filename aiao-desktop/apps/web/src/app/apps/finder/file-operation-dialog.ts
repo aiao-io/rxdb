@@ -15,17 +15,6 @@ import type { FileOperationRequest } from './finder-model';
       <form (submit)="submit($event)">
         <h2>{{ title() }}</h2>
         @switch (request().kind) {
-          @case ('rename') {
-            <label
-              >New name<input
-                #nameInput
-                [disabled]="busy()"
-                [value]="name()"
-                (input)="name.set(nameInput.value)"
-                data-autofocus
-                maxlength="255"
-            /></label>
-          }
           @case ('restore') {
             <p>Restore “{{ request().node.name }}” to a folder in your home directory. Existing files will be kept.</p>
             <label
@@ -135,13 +124,10 @@ export class FileOperationDialog {
   private readonly opener = inject(FileOpener);
   protected readonly busy = signal(false);
   protected readonly error = signal('');
-  protected readonly name = linkedSignal(() => this.request().node.name);
   protected readonly destination = signal(JSON.stringify(DESKTOP));
   protected readonly applications = computed(() => this.opener.choices(this.request().node));
   protected readonly application = linkedSignal<string>(() => this.applications()[0]?.id ?? '');
-  protected readonly action = computed(
-    () => ({ rename: 'Rename', restore: 'Restore', 'open-with': 'Open' })[this.request().kind]
-  );
+  protected readonly action = computed(() => ({ restore: 'Restore', 'open-with': 'Open' })[this.request().kind]);
   protected readonly title = computed(
     () => `${this.request().kind === 'open-with' ? 'Open With' : this.action()} “${this.request().node.name}”`
   );
@@ -183,7 +169,6 @@ export class FileOperationDialog {
   }
 
   private async execute(request: FileOperationRequest, path: DiskPath): Promise<DiskPath> {
-    if (request.kind === 'rename') return this.fs.rename(path, this.name());
     if (request.kind === 'restore') {
       const destination = this.folders().find(folder => folder.value === this.destination());
       if (!destination) throw new Error('Choose an existing destination folder.');

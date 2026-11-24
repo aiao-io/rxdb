@@ -245,6 +245,24 @@
       data-body
     >
       <div class="finder-marquee" #marquee aria-hidden="true"></div>
+      @if (renaming() && renameBox(); as box) {
+        <input
+          class="finder-rename finder-rename-float"
+          [style.font-size.px]="box.fontSize"
+          [style.left.px]="box.left"
+          [style.text-align]="box.align"
+          [style.top.px]="box.top"
+          [style.width.px]="box.width"
+          [value]="renameValue()"
+          (blur)="blurRename()"
+          (input)="updateRename($event)"
+          (keydown)="renameKey($event)"
+          aria-label="Name"
+          data-rename-input
+          maxlength="255"
+          spellcheck="false"
+        />
+      }
       @if (applicationsNote(); as note) {
         <div class="fx-note" data-finder-note role="status">{{ note }}</div>
       }
@@ -289,7 +307,9 @@
                     <svg [appIcon]="displayIcon(item)"></svg>
                   }
                 </div>
-                <div class="nm">{{ displayName(item) }}</div>
+                <div class="nm" [style.visibility]="isRenaming(item) ? 'hidden' : null" data-rename-anchor>
+                  {{ displayName(item) }}
+                </div>
                 <ng-template cdkDragPreview>
                   <span class="finder-file-drag-preview">{{ displayName(item) }}</span>
                 </ng-template>
@@ -355,7 +375,9 @@
                       <svg [appIcon]="displayIcon(item)"></svg>
                     }
                   </span>
-                  <span>{{ displayName(item) }}</span>
+                  <span [style.visibility]="isRenaming(item) ? 'hidden' : null" data-rename-anchor>
+                    {{ displayName(item) }}
+                  </span>
                 </div>
                 <div class="c2">{{ finderDate(item.date) }}</div>
                 <div class="c3">{{ item.kind === 'folder' ? '--' : item.size || '--' }}</div>
@@ -381,6 +403,7 @@
               @if (!column.file && ci >= firstColumn()) {
                 <cdk-virtual-scroll-viewport
                   class="col"
+                  #columnViewport
                   [appFileDrop]="ci === 0 ? importDirectory() : column.node.path"
                   [attr.aria-label]="column.node.name"
                   [attr.data-ci]="ci"
@@ -435,7 +458,9 @@
                         <svg [appIcon]="displayIcon(item)"></svg>
                       }
                     </span>
-                    <span class="nm">{{ displayName(item) }}</span>
+                    <span class="nm" [style.visibility]="isRenaming(item) ? 'hidden' : null" data-rename-anchor>
+                      {{ displayName(item) }}
+                    </span>
                     @if (item.kind === 'folder') {
                       <svg class="ch" appIcon="g-chev-r"></svg>
                     }
@@ -518,7 +543,9 @@
             </div>
             @if (current) {
               <div class="cap" role="status">
-                <b>{{ displayName(current) }}</b>
+                <b [style.visibility]="isRenaming(current) ? 'hidden' : null" data-rename-anchor>
+                  {{ displayName(current) }}
+                </b>
                 <span>
                   {{ current.k || (current.kind === 'folder' ? 'Folder' : 'Document')
                   }}{{ current.size ? ' · ' + current.size : ''

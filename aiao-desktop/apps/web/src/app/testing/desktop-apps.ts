@@ -64,6 +64,7 @@ const TEST_APP_DEFINITIONS = [
   { id: 'notes', name: 'Notes', icon: 'app-notes', kind: 'builtin', bundleId: 'io.test.notes', ...common },
   { id: 'textedit', name: 'TextEdit', icon: 'app-textedit', kind: 'builtin', bundleId: 'io.test.textedit', ...common },
   { id: 'preview', name: 'Preview', icon: 'app-preview', kind: 'builtin', bundleId: 'io.test.preview', ...common },
+  { id: 'safari', name: 'Safari', icon: 'app-safari', kind: 'builtin', bundleId: 'io.test.safari', ...common },
   { id: 'music', name: 'Music', icon: 'app-music', kind: 'builtin', bundleId: 'io.test.music', ...common },
   {
     id: 'settings',

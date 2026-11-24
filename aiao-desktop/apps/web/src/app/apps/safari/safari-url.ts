@@ -5,7 +5,7 @@ export interface LocalSite {
 }
 
 /** 地址栏输入的归类，决定页面怎么画。 */
-export type PageKind = 'start' | 'local' | 'wiki' | 'video' | 'web' | 'search';
+export type PageKind = 'start' | 'local' | 'wiki' | 'video' | 'web' | 'search' | 'file';
 
 /** 文件内自带的页面，其余地址一律走网络。 */
 export const LOCAL_SITES: ReadonlyMap<string, LocalSite> = new Map([['apple.com', { title: 'Apple', fav: '#111' }]]);
@@ -50,15 +50,32 @@ export const externalUrl = (url: string): string => (/^https?:/.test(url) ? url 
 /** 地址若对应内置站点，返回站点登记的键（如 `apple.com`）。 */
 export const localKey = (url: string): string | undefined => (LOCAL_SITES.has(bare(url)) ? bare(url) : undefined);
 
-/** 归类地址栏输入：含点且无空格的当作网址，其余都是搜索，和真实的地址栏一致。 */
+/** 归类地址栏输入：含点且无空格的当作网址，`file://` 是磁盘文件，其余都是搜索，和真实的地址栏一致。 */
 export function kindOf(url: string): PageKind {
   const text = stripScheme(url);
   if (!text.trim()) return 'start';
+  if (text.startsWith('file://')) return 'file';
   if (LOCAL_SITES.has(text.replace(/\/$/, ''))) return 'local';
   if (/^en\.wikipedia\.org\/wiki\//.test(text)) return 'wiki';
   if (/(^|\.)youtube\.com\/watch\?v=|(^|\.)youtu\.be\//.test(text)) return 'video';
   if (/^[^\s/]+\.[a-z]{2,}(\/|$|\?)/i.test(text)) return 'web';
   return 'search';
+}
+
+/** 磁盘文件在地址栏里的写法：`file:///` 后跟逐段编码的卷内路径。 */
+export const fileUrlOf = (path: readonly string[]): string =>
+  `file:///${path.map(part => encodeURIComponent(part)).join('/')}`;
+
+/** 从地址栏里的 file 地址取回卷内路径；不是 file 地址或解码不了时为 undefined。 */
+export function filePathOf(url: string): readonly string[] | undefined {
+  if (!url.startsWith('file:///')) return undefined;
+  const parts = url.slice('file:///'.length).split('/');
+  if (!parts.length || !parts[0]) return undefined;
+  try {
+    return parts.map(part => decodeURIComponent(part));
+  } catch {
+    return undefined;
+  }
 }
 
 /** 维基条目名；地址里没有条目时为空串。 */
@@ -76,6 +93,7 @@ export function titleFor(url: string): string {
   if (site) return site.title;
   const kind = kindOf(url);
   if (kind === 'start') return 'Start Page';
+  if (kind === 'file') return filePathOf(url)?.at(-1) ?? 'File';
   if (kind === 'wiki') return `${wikiTitle(url).replace(/_/g, ' ')} — Wikipedia`;
   if (kind === 'search') return `${url} — Search`;
   return hostOf(url);
@@ -86,5 +104,5 @@ export function favColor(url: string): string | null {
   const site = LOCAL_SITES.get(bare(url));
   if (site) return site.fav;
   const kind = kindOf(url);
-  return kind === 'search' || kind === 'start' ? '#8e8e93' : null;
+  return kind === 'search' || kind === 'start' || kind === 'file' ? '#8e8e93' : null;
 }

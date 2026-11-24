@@ -15,6 +15,22 @@
     <app-stocks-widget />
   </div>
   <div id="marquee" #marquee aria-hidden="true"></div>
+  @if (renaming() && renameBox(); as box) {
+    <input
+      class="rename desktop-rename"
+      [style.left.px]="box.left"
+      [style.top.px]="box.top"
+      [style.width.px]="box.width"
+      [value]="renameValue()"
+      (blur)="blurRename()"
+      (input)="updateRename($event)"
+      (keydown)="renameKey($event)"
+      aria-label="Name"
+      data-rename-input
+      maxlength="255"
+      spellcheck="false"
+    />
+  }
   @for (item of desktop.items(); track item.node?.id ?? item.id) {
     @let at = position(item);
     @let moving = movingToDirectory().has(item.id);
@@ -33,7 +49,6 @@
       (contextmenu)="iconMenu($event, item)"
       (dblclick)="item.open()"
       (focus)="focusItem(item.id)"
-      (keydown.enter)="item.open()"
       (keydown.space)="openByKey($event, item)"
       (keydown)="iconKey($event, item)"
       (pointerdown)="grab($event, item)"
@@ -49,7 +64,7 @@
           <svg [appIcon]="item.icon"></svg>
         }
       </div>
-      <div class="lbl">{{ item.name }}</div>
+      <div class="lbl" [style.visibility]="renaming()?.id === item.id ? 'hidden' : null">{{ item.name }}</div>
     </div>
   }
 </div>

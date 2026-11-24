@@ -14,6 +14,7 @@ export const fileManagement = {
   description: 'Finder 改名、复制、导入下载、打开方式、持久废纸篓恢复与键盘路径',
   keys: [
     'fileManagement.dropsOnDesktop',
+    'fileManagement.desktopInlineRename',
     'fileManagement.desktopMoveToTrash',
     'fileManagement.desktopTrashAnimatesOnce',
     'fileManagement.desktopUndoMoveToTrash',
@@ -125,6 +126,15 @@ export const fileManagement = {
     const desktopFile = desktop.locator('[data-id="file:from-desktop.txt"]');
     await expect(desktopFile).toBeVisible();
     result.dropsOnDesktop = (await diskText(session, 'from-desktop.txt')) === text;
+    /* 桌面新建文件夹后直接打字（像 macOS）：输入框自动出现并全选「untitled folder」，回车落盘。 */
+    await desktop.click({ button: 'right', position: { x: 420, y: 420 } });
+    await page.getByRole('menuitem', { name: 'New Folder', exact: true }).click();
+    const desktopRename = desktop.locator('[data-rename-input]');
+    await expect(desktopRename).toBeFocused();
+    await desktopRename.fill('inline-renamed-folder');
+    await desktopRename.press('Enter');
+    await expect(desktop.locator('[data-id="file:inline-renamed-folder"]')).toBeVisible();
+    result.desktopInlineRename = true;
     const trashDesktopFile = async () => {
       await desktopFile.click({ button: 'right' });
       await page.getByRole('menuitem', { name: 'Move to Trash', exact: true }).click();
@@ -282,11 +292,13 @@ export const fileManagement = {
         .click();
     };
     const dialog = () => page.locator('app-file-operation-dialog [role="dialog"]');
+    const renameInput = () => finder().locator('[data-rename-input]');
     const rename = async (from, to) => {
-      await menu(from, 'Rename…', true);
-      await dialog().getByRole('textbox', { name: 'New name' }).fill(to);
-      await dialog().getByRole('button', { name: 'Rename', exact: true }).click();
-      await expect(dialog()).toHaveCount(0);
+      await menu(from, 'Rename', true);
+      const input = renameInput();
+      await expect(input).toBeFocused();
+      await input.fill(to);
+      await input.press('Enter');
       await expect(item(to)).toBeVisible();
     };
     const importFiles = async files => {
@@ -348,12 +360,12 @@ export const fileManagement = {
       (await item('FROM-SIDEBAR.txt').count()) === 0 &&
       (await diskText(session, 'from-sidebar.txt')) === text &&
       (await diskText(session, 'FROM-SIDEBAR 2.txt')) === 'cased';
-    await menu('FROM-SIDEBAR 2.txt', 'Rename…', true);
-    await dialog().getByRole('textbox', { name: 'New name' }).fill('From-Sidebar.TXT');
-    await dialog().getByRole('button', { name: 'Rename', exact: true }).click();
-    await expect(dialog().getByRole('alert')).toContainText('already exists');
-    await dialog().getByRole('button', { name: 'Cancel', exact: true }).click();
-    await expect(dialog()).toHaveCount(0);
+    await menu('FROM-SIDEBAR 2.txt', 'Rename', true);
+    await renameInput().fill('From-Sidebar.TXT');
+    await renameInput().press('Enter');
+    await expect(page.locator('#toast')).toContainText('already exists');
+    await renameInput().press('Escape');
+    await expect(renameInput()).toHaveCount(0);
     result.renameRejectsCaseVariantOfSibling =
       (await item('FROM-SIDEBAR 2.txt').count()) === 1 && (await diskText(session, 'from-sidebar.txt')) === text;
     await rename('FROM-SIDEBAR 2.txt', 'from-sidebar 2.txt');
@@ -410,24 +422,22 @@ export const fileManagement = {
     await second.helpers.launch('Finder');
     await second.helpers.win('finder').last().locator('[data-place="Desktop"]').click();
     await page.bringToFront();
-    await menu('roundtrip.txt', 'Rename…', true);
-    await dialog().getByRole('textbox', { name: 'New name' }).fill('bad/name');
-    await dialog().getByRole('button', { name: 'Rename', exact: true }).click();
-    await expect(dialog().getByRole('alert')).toContainText('name');
-    await dialog().getByRole('textbox', { name: 'New name' }).fill('renamed.txt');
-    await dialog().getByRole('button', { name: 'Rename', exact: true }).click();
+    await menu('roundtrip.txt', 'Rename', true);
+    await renameInput().fill('bad/name');
+    await renameInput().press('Enter');
+    await expect(page.locator('#toast')).toContainText('name');
+    await renameInput().fill('renamed.txt');
+    await renameInput().press('Enter');
     await expect(item('renamed.txt')).toBeVisible();
     result.renameValidatesAndPreservesContent =
       (await item('roundtrip.txt').count()) === 0 && (await diskText(session, 'renamed.txt')) === text;
     await expect(second.helpers.win('finder').locator('[data-name="renamed.txt"]')).toBeVisible();
     result.otherTabSeesChanges = true;
     await second.page.close();
-    await menu('renamed.txt', 'Rename…', true);
-    await expect(dialog().getByRole('textbox')).toBeFocused();
-    await page.keyboard.press('Shift+Tab');
-    expect(await page.evaluate(() => Boolean(document.activeElement?.closest('app-file-operation-dialog')))).toBe(true);
-    await page.keyboard.press('Escape');
-    await expect(dialog()).toHaveCount(0);
+    await menu('renamed.txt', 'Rename', true);
+    await expect(renameInput()).toBeFocused();
+    await renameInput().press('Escape');
+    await expect(renameInput()).toHaveCount(0);
     result.renameCancellationAndKeyboardFocus =
       (await item('renamed.txt').count()) === 1 &&
       (await item('renamed.txt').evaluate(node => node === document.activeElement));
@@ -445,7 +455,10 @@ export const fileManagement = {
 
     await finder().locator('[data-more]').click();
     await page.getByRole('menuitem', { name: /New Folder/ }).click();
-    await rename('untitled folder', 'nested');
+    await expect(renameInput()).toBeFocused();
+    await renameInput().fill('nested');
+    await renameInput().press('Enter');
+    await expect(item('nested')).toBeVisible();
     await item('nested').dblclick();
     await importFiles([
       payload('child.txt', Buffer.from(text)),
@@ -701,10 +714,9 @@ export const fileManagement = {
     await item('renamed.txt').focus();
     await page.keyboard.press('Meta+d');
     await expect(item('renamed copy 2.txt')).toBeVisible();
-    await menu('renamed copy 2.txt', 'Rename…');
-    await dialog().getByRole('textbox').fill('gallery-copy.txt');
-    await dialog().getByRole('button', { name: 'Rename', exact: true }).click();
-    await expect(dialog()).toHaveCount(0);
+    await menu('renamed copy 2.txt', 'Rename');
+    await renameInput().fill('gallery-copy.txt');
+    await renameInput().press('Enter');
     await expect(item('gallery-copy.txt')).toBeVisible();
     result.galleryActionsAndDuplicateShortcut = (await diskText(session, 'gallery-copy.txt')) === 'edited original';
     await finder().getByRole('button', { name: 'Icons', exact: true }).click();

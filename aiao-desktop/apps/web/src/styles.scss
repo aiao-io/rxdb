@@ -516,6 +516,8 @@ svg {
   cursor: var(--cur-hand);
 }
 .dicon .art {
+  position: relative;
+  isolation: isolate;
   width: 60px;
   height: 60px;
   display: grid;
@@ -547,10 +549,30 @@ svg {
   word-break: break-word;
   pointer-events: none;
 }
-.dicon.sel .art {
-  background: rgba(255, 255, 255, 0.22);
+/* 选中色块比图标宽一些，左右留出边距（Finder 的桌面图标选中效果）。 */
+.dicon.sel .art::before {
+  content: '';
+  position: absolute;
+  inset: 0 -9px;
+  z-index: -1;
   border-radius: 11px;
+  background: rgba(255, 255, 255, 0.22);
   box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12) inset;
+}
+.desktop-rename {
+  position: absolute;
+  z-index: 6;
+  height: 17px;
+  padding: 0 3px;
+  color: var(--txt);
+  background: var(--field);
+  border: 1px solid var(--blue);
+  border-radius: 4px;
+  font: inherit;
+  font-size: 12px;
+  text-align: center;
+  outline: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
 }
 .dicon.sel .lbl {
   background: var(--blue);
@@ -2163,6 +2185,8 @@ svg {
   border-radius: 8px;
 }
 .fitem .art {
+  position: relative;
+  isolation: isolate;
   width: 52px;
   height: 52px;
 }
@@ -2202,7 +2226,12 @@ svg {
 .fitem:hover .nm {
   background: var(--hover);
 }
-.fitem.sel .art {
+/* 选中色块比图标宽一些，左右留出边距（Finder 的图标选中效果）。 */
+.fitem.sel .art::before {
+  content: '';
+  position: absolute;
+  inset: 0 -8px;
+  z-index: -1;
   background: var(--sel-soft);
   border-radius: 9px;
 }
@@ -2225,6 +2254,21 @@ svg {
 .si:focus-visible {
   outline: 2px solid var(--blue);
   outline-offset: -2px;
+}
+
+/* 就地改名：输入框浮在条目标签的位置上，和 Finder 一样。 */
+.finder-rename {
+  position: absolute;
+  z-index: 6;
+  height: 18px;
+  padding: 0 3px;
+  color: var(--txt);
+  background: var(--field);
+  border: 1px solid var(--blue);
+  border-radius: 4px;
+  font-family: inherit;
+  outline: none;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.14);
 }
 
 /* list view */
