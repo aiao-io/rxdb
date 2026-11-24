@@ -199,6 +199,9 @@ if (isRemoteE2E) {
         await expect(pull).toBeEnabled({ timeout: 60_000 });
         await pull.click();
 
+        // 已完成的行按 completed 升序排在所有进行中的行之后：共用栈里进行中的行一多，它就落在
+        // 虚拟列表渲染的窗口之外。切到「已完成」再找，不依赖栈里攒了多少数据
+        await secondPage.getByTestId('todo-tab-completed').click();
         const pulledItem = secondPage.getByTestId('todo-item').filter({ hasText: title });
         await expect(pulledItem).toBeVisible({ timeout: 30_000 });
         await expect(pulledItem.getByRole('checkbox')).toBeChecked();
