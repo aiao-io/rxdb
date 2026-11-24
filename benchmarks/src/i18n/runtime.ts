@@ -56,5 +56,7 @@ export function getBenchmarksI18n(): I18n {
  * 切换语言并持久化；返回运行时刷新完成后的 Promise。
  */
 export function setBenchmarksLocale(locale: UiLocale): Promise<void> {
-  return getBenchmarksI18n().setLocale(locale).then(() => persistLocale(locale));
+  return getBenchmarksI18n()
+    .setLocale(locale)
+    .then(() => persistLocale(locale));
 }

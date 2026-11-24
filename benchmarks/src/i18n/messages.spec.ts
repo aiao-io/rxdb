@@ -1,7 +1,7 @@
 import { I18n } from '@aiao/rxdb-i18n';
 import { describe, expect, it } from 'vitest';
-import { benchmarkCatalogs } from './runtime';
 import { benchmarksEnMessages, benchmarksZhMessages } from './messages';
+import { benchmarkCatalogs } from './runtime';
 
 const zh = new I18n({ locale: 'zh-Hans', catalogs: benchmarkCatalogs, namespace: 'benchmarks' });
 const en = new I18n({ locale: 'en', catalogs: benchmarkCatalogs, namespace: 'benchmarks' });

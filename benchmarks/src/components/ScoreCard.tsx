@@ -1,7 +1,7 @@
 import { useI18n } from '@aiao/rxdb-i18n-react';
 import { computeScoreReport } from '../analysis/score-engine';
-import type { BenchmarksMessageKey } from '../i18n/messages';
 import type { BenchmarkSection } from '../hooks/useBenchmark';
+import type { BenchmarksMessageKey } from '../i18n/messages';
 
 interface ScoreCardProps {
   sections: BenchmarkSection[];

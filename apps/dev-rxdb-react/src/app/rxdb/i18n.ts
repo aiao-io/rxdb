@@ -2,7 +2,6 @@ import { getEntityMetadata, type RxDB } from '@aiao/rxdb';
 import { getDevToolsConnector } from '@aiao/rxdb-devtools';
 import { I18n, resolveUiLocale, type MessageCatalog, type UiLocale } from '@aiao/rxdb-i18n';
 import { modelEnMessages, modelMessages } from '@aiao/rxdb-model';
-import { getOrbitHost, parseHostLocale, type HostLocale } from '@modules/orbit';
 import { commonCatalogs } from '@modules/demo-i18n/common';
 import { encryptedCatalogs } from '@modules/demo-i18n/encrypted';
 import { entitiesCatalogs } from '@modules/demo-i18n/entities';
@@ -17,6 +16,7 @@ import { todoCatalogs } from '@modules/demo-i18n/todo';
 import { treeMenuCatalogs } from '@modules/demo-i18n/tree-menu';
 import { workingTreeCatalogs } from '@modules/demo-i18n/working-tree';
 import { workspaceEnMessages, workspaceZhMessages } from '@modules/demo-i18n/workspace';
+import { getOrbitHost, parseHostLocale, type HostLocale } from '@modules/orbit';
 
 export const demoMessages: readonly MessageCatalog[] = [
   {

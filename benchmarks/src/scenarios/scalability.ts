@@ -34,10 +34,7 @@ const COMPLEXITY_KEYS: Record<ComplexityType, BenchmarksMessageKey> = {
  * @param options - 结果回调与翻译函数
  * @returns 基准测试结果数组
  */
-export async function runScalabilityTests(
-  rxdb: RxDB,
-  options: ScenarioRunOptions
-): Promise<BenchmarkResult[]> {
+export async function runScalabilityTests(rxdb: RxDB, options: ScenarioRunOptions): Promise<BenchmarkResult[]> {
   const { t } = options;
   const results: BenchmarkResult[] = [];
   const push = (result: BenchmarkResult) => {
@@ -144,9 +141,7 @@ export async function runScalabilityTests(
       memoryAnalysis.supported ?
         t('scenario.scalability.memoryExtra', {
           pattern: t(
-            memoryAnalysis.isLinear ?
-              'scenario.scalability.memoryLinear'
-            : 'scenario.scalability.memoryNonLinear'
+            memoryAnalysis.isLinear ? 'scenario.scalability.memoryLinear' : 'scenario.scalability.memoryNonLinear'
           ),
           kb: (memoryAnalysis.bytesPerRecord / 1024).toFixed(2)
         })

@@ -469,9 +469,7 @@ export class I18n {
     for (const row of this.#remote) this.#messages.set(row.id, { ...row, source: 'remote' });
     for (const row of this.#local) this.#messages.set(row.id, { ...row, source: 'db' });
     this.#formats.clear();
-    this.locale$.next(
-      this.#hostLocale ?? this.#preferences.devicePreferredLocale ?? this.#preferences.deviceLocale
-    );
+    this.locale$.next(this.#hostLocale ?? this.#preferences.devicePreferredLocale ?? this.#preferences.deviceLocale);
     this.availableLocales$.next([...new Set([...this.#messages.values()].map(row => row.locale))].sort());
     this.changes$.next(this.changes$.value + 1);
   }

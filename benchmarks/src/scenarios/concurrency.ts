@@ -36,10 +36,7 @@ function buildMixedOperation(rxdb: RxDB, batch: number, index: number, readOpCou
  * @param options - 结果回调与翻译函数
  * @returns 基准测试结果数组
  */
-export async function runConcurrencyTests(
-  rxdb: RxDB,
-  options: ScenarioRunOptions
-): Promise<BenchmarkResult[]> {
+export async function runConcurrencyTests(rxdb: RxDB, options: ScenarioRunOptions): Promise<BenchmarkResult[]> {
   const { t } = options;
   const results: BenchmarkResult[] = [];
   const push = (result: BenchmarkResult) => {

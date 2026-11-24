@@ -109,8 +109,7 @@ export const benchmarksZhMessages = {
   'scenario.scalability.memoryLinear': '✓ 线性增长',
   'scenario.scalability.memoryNonLinear': '✗ 非线性增长',
   'scenario.scalability.memoryExtra': '{pattern} | 每条记录 {kb}KB',
-  'scenario.scalability.memoryUnavailable':
-    'performance.memory 不可用（仅 Chromium 且开启精确内存信息时可测）',
+  'scenario.scalability.memoryUnavailable': 'performance.memory 不可用（仅 Chromium 且开启精确内存信息时可测）',
   'scenario.scalability.memoryExpectation': '线性增长',
 
   'scenario.concurrency.concurrentWriteMeasure': '并发写入 ({count, number} 并发)',
@@ -156,8 +155,7 @@ export const benchmarksZhMessages = {
   'gitDemo.persistedNone': '尚未创建',
   'gitDemo.logTitle': '执行日志',
   'gitDemo.emptyHint': '点击「运行 Git 闭环」开始。',
-  'gitDemo.footnote':
-    'OPFS 按 origin 隔离，清理站点数据会删除仓库。导出、远端认证、依赖安装和隔离预览仍是后续验收项。',
+  'gitDemo.footnote': 'OPFS 按 origin 隔离，清理站点数据会删除仓库。导出、远端认证、依赖安装和隔离预览仍是后续验收项。',
   'gitDemo.workerTimeout': 'Worker 超时',
   'gitDemo.workerEmptyResult': 'Worker 返回空结果',
 
@@ -255,7 +253,8 @@ export const benchmarksEnMessages = {
   'scenario.throughput.singleWriteExtra': '{ops} ops/sec | avg {avg}ms | min {min}ms | max {max}ms',
   'scenario.throughput.batchWriteMeasure': 'Batch write throughput (batch={batchSize})',
   'scenario.throughput.batchWrite': 'Batch write batch={batchSize} ({count, number} items)',
-  'scenario.throughput.batchWriteExtra': '{ops} ops/sec ({speedup}x vs single write) | avg {avg}ms | min {min}ms | max {max}ms',
+  'scenario.throughput.batchWriteExtra':
+    '{ops} ops/sec ({speedup}x vs single write) | avg {avg}ms | min {min}ms | max {max}ms',
   'scenario.throughput.readMeasure': 'Read throughput',
   'scenario.throughput.read': 'Read throughput ({count, number} full-table queries)',
 
@@ -311,7 +310,8 @@ export const benchmarksEnMessages = {
   'scenario.concurrency.serialMeasure': 'Serial ({count, number} operations)',
   'scenario.concurrency.parallelMeasure': 'Parallel ({count, number} operations)',
   'scenario.concurrency.serialExtra': '{count, number} writes committed one by one | P50 of {samples, number} samples',
-  'scenario.concurrency.parallelExtra': '{count, number} writes committed in parallel | P50 of {samples, number} samples',
+  'scenario.concurrency.parallelExtra':
+    '{count, number} writes committed in parallel | P50 of {samples, number} samples',
   'scenario.concurrency.speedup': 'Serial vs parallel speedup ({count, number} operations)',
   'scenario.concurrency.speedupExtra': '{speedup}x | serial {serial}ms · parallel {parallel}ms (P50)',
   'scenario.concurrency.speedupExpectation': '≥1.5x speedup',

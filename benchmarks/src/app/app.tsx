@@ -1,6 +1,6 @@
+import type { UiLocale } from '@aiao/rxdb-i18n';
 import { useI18n } from '@aiao/rxdb-i18n-react';
 import { requestIdleCallbackPolyfill } from '@aiao/utils';
-import type { UiLocale } from '@aiao/rxdb-i18n';
 import { BarChart3, FileDown, Gauge, GitBranch, Play, TrendingUp } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { BenchmarkResults } from '../components/BenchmarkResults';

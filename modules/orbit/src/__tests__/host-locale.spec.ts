@@ -6,10 +6,7 @@ describe('parseHostLocale', () => {
     expect(parseHostLocale(locale)).toBe(locale);
   });
 
-  it.each([undefined, null, '', 'fr', 'en-US', 'EN', 42, { locale: 'en' }])(
-    'rejects unknown payload %s',
-    value => {
-      expect(parseHostLocale(value)).toBeUndefined();
-    }
-  );
+  it.each([undefined, null, '', 'fr', 'en-US', 'EN', 42, { locale: 'en' }])('rejects unknown payload %s', value => {
+    expect(parseHostLocale(value)).toBeUndefined();
+  });
 });

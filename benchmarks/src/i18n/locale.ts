@@ -37,8 +37,7 @@ export function resolveInitialLocaleOptions({
 }: InitialLocaleInput): InitialLocaleOptions {
   return {
     hostLocale: parseHostLocale(hostLocale),
-    locale:
-      typeof storedLocale === 'string' && storedLocale.trim() ? resolveUiLocale(storedLocale) : undefined,
+    locale: typeof storedLocale === 'string' && storedLocale.trim() ? resolveUiLocale(storedLocale) : undefined,
     deviceLocale: resolveUiLocale(deviceLocale)
   };
 }

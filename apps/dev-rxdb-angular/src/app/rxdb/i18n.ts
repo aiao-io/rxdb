@@ -2,7 +2,6 @@ import { getEntityMetadata, type RxDB } from '@aiao/rxdb';
 import { getDevToolsConnector } from '@aiao/rxdb-devtools';
 import { I18n, resolveUiLocale, type MessageCatalog, type UiLocale } from '@aiao/rxdb-i18n';
 import { modelEnMessages, modelMessages } from '@aiao/rxdb-model';
-import { getOrbitHost, parseHostLocale, type HostLocale } from '@modules/orbit';
 import { commonEnMessages, commonZhMessages } from '@modules/demo-i18n/common';
 import { encryptedEnMessages, encryptedZhMessages } from '@modules/demo-i18n/encrypted';
 import { entitiesEnMessages, entitiesZhMessages } from '@modules/demo-i18n/entities';
@@ -16,6 +15,7 @@ import { searchEnMessages, searchZhMessages } from '@modules/demo-i18n/search';
 import { treeMenuEnMessages, treeMenuZhMessages } from '@modules/demo-i18n/tree-menu';
 import { workingTreeEnMessages, workingTreeZhMessages } from '@modules/demo-i18n/working-tree';
 import { workspaceEnMessages, workspaceZhMessages } from '@modules/demo-i18n/workspace';
+import { getOrbitHost, parseHostLocale, type HostLocale } from '@modules/orbit';
 
 const zhMessages: Readonly<Record<string, string>> = {
   'shell.navbar': '主导航',
