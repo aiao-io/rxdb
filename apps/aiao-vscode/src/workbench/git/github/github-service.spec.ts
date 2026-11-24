@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { GITHUB_SESSION_UPDATED_KEY } from './github-auth.js';
 import { createGitHubService, PENDING_GITHUB_CLIENT_ID } from './github-service.js';
 import { createMemorySessionStore } from './github-session-store.js';
 
@@ -94,6 +95,19 @@ describe('GitHub service', () => {
     await github.api.getAuthenticatedUser();
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(init.headers).toMatchObject({ Authorization: 'Bearer ghp_abc' });
+  });
+
+  it('clears a session rejected by GitHub and notifies other tabs', async () => {
+    const storage = { setItem: vi.fn() };
+    vi.stubGlobal('localStorage', storage);
+    const github = service();
+    fetchMock.mockResolvedValueOnce(jsonResponse({ login: 'octo', avatar_url: null }));
+    await github.auth.loginWithPat('ghp_revoked');
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ message: 'Bad credentials' }, 401));
+    await expect(github.api.getBranchSha('octo', 'repo', 'main')).rejects.toMatchObject({ code: 'auth_required' });
+    await expect(github.getSession()).resolves.toBeNull();
+    expect(storage.setItem).toHaveBeenCalledWith(GITHUB_SESSION_UPDATED_KEY, expect.any(String));
   });
 
   it('exposes the session through getSession', async () => {

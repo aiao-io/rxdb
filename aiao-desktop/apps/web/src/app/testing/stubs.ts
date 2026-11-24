@@ -9,6 +9,7 @@ export interface WindowManagerStub {
   readonly focus: Mock;
   readonly unminimize: Mock;
   readonly minimizeFront: Mock;
+  readonly hideFront: Mock;
   readonly zoomFront: Mock;
   readonly quitFront: Mock;
   readonly closeFront: Mock;
@@ -32,6 +33,7 @@ export function createWindowManagerStub(): WindowManagerStub {
     focus: vi.fn(),
     unminimize: vi.fn(),
     minimizeFront: vi.fn(),
+    hideFront: vi.fn(),
     zoomFront: vi.fn(),
     quitFront: vi.fn(),
     closeFront: vi.fn(),

@@ -79,7 +79,10 @@ export const shellInteraction = {
     'shellInteraction.focusCycle.windowsOverlap',
     'shellInteraction.focusCycle.clickRaisesWindow',
     'shellInteraction.focusCycle.stackFollowsClicks',
-    'shellInteraction.focusCycle.cycleRaisesBottom'
+    'shellInteraction.focusCycle.cycleRaisesBottom',
+    'shellInteraction.shortcutRouting.hideMenuHidesAllWindows',
+    'shellInteraction.shortcutRouting.safariCloseTab',
+    'shellInteraction.shortcutRouting.lockShortcut'
   ],
   async run(session) {
     const { page, origin } = session;
@@ -358,8 +361,72 @@ export const shellInteraction = {
     await page.waitForTimeout(500);
     focusCycle.cycleRaisesBottom = (await isFront('finder')) && (await stack()).at(-1) === 'finder';
 
+    /*
+     * 菜单与快捷键分发：应用菜单的 Hide 收起整个应用（不是只最小化前台窗口）；
+     * Safari 的 ⌘W 先交给应用的 Close Tab，不关窗口；Apple 菜单的 ⌃⌘Q 锁屏，
+     * 不会因为硬编码的 q → quitFront 退出前台应用。
+     */
+    await closeAll();
+    const shortcutRouting = {};
+
+    await page.locator('#dock .di[data-app="finder"]').click();
+    await win('finder').waitFor();
+    await page.waitForTimeout(350);
+    await page.keyboard.press('Meta+N');
+    await page.waitForTimeout(450);
+    const finders = page.locator('.win[data-app="finder"]:not(.closing)');
+    const finderCount = await finders.count();
+    await page.locator('#menubar .mb-item.app').click();
+    await page.locator('.pop .mi', { hasText: 'Hide Finder' }).click();
+    await page.waitForTimeout(900);
+    const allFinderWindowsHidden = await finders.evaluateAll(nodes =>
+      nodes.every(
+        node => node.classList.contains('mini') && getComputedStyle(node).visibility === 'hidden'
+      )
+    );
+    shortcutRouting.hideMenuHidesAllWindows = finderCount === 2 && allFinderWindowsHidden;
+
+    await page.locator('#dock .di[data-app="safari"]').click();
+    await win('safari').waitFor();
+    await page.waitForTimeout(450);
+    await win('safari').locator('.sf-top').click();
+    await page.keyboard.press('Meta+T');
+    await page.waitForTimeout(250);
+    const tabsAfterNew = await win('safari').locator('.sf-tab').count();
+    await page.keyboard.press('Meta+W');
+    await page.waitForTimeout(400);
+    shortcutRouting.safariCloseTab =
+      tabsAfterNew === 2 &&
+      (await win('safari').locator('.sf-tab').count()) === 0 &&
+      (await win('safari').isVisible());
+
+    await page.locator('#dock .di[data-app="calculator"]').click();
+    await win('calculator').waitFor();
+    await page.waitForTimeout(350);
+    await page.keyboard.press('Control+Meta+Q');
+    const lockedByShortcut = await appears(page.locator('#lock'), 3_000);
+    const calculatorStillOpen = (await win('calculator').count()) === 1;
+    await page.locator('#lock').click();
+    const unlockedAfterShortcut = await page
+      .waitForFunction(() => document.querySelector('#lock')?.hasAttribute('hidden'), undefined, { timeout: 3_000 })
+      .then(
+        () => true,
+        () => false
+      );
+    shortcutRouting.lockShortcut = lockedByShortcut && calculatorStillOpen && unlockedAfterShortcut;
+
     return {
-      shellInteraction: { boot, lock, sleep, statusPanels, controlCentre, account, dragResizeZoom, focusCycle }
+      shellInteraction: {
+        boot,
+        lock,
+        sleep,
+        statusPanels,
+        controlCentre,
+        account,
+        dragResizeZoom,
+        focusCycle,
+        shortcutRouting
+      }
     };
   }
 };

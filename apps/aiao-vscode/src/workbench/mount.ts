@@ -25,11 +25,14 @@ import { createGitBackend } from './git-backend.js';
 import { decodeFileBytes, encodeFileBytes } from './git/file-encoding.js';
 import { assertGitPath, assertNoPathCollisions } from './git/git-paths.js';
 import type { GitHubApi } from './git/github/github-api.js';
+import { GitHubApiError } from './git/github/github-api.js';
 import type { GitHubAuth } from './git/github/github-auth.js';
+import { GITHUB_SESSION_UPDATED_KEY } from './git/github/github-auth.js';
 import type { GitHubDesktopOAuth } from './git/github/github-desktop-oauth.js';
 import { requestGitHubLogin } from './git/github/github-login.js';
 import { requestGitHubRepository } from './git/github/github-picker.js';
 import type { GitHubSession } from './git/github/github-types.js';
+import { GITHUB_SESSION_EXPIRED_MESSAGE } from './git/github/github-types.js';
 import { attachHostWindow, type WorkbenchHostWindow } from './host-window.js';
 import { mountPreview, type PreviewEvent } from './preview/preview-sandbox.js';
 import { projectArchiveInfo } from './project-archive.js';
@@ -409,8 +412,27 @@ export function mountWorkbench(
       if (disposed) return;
       githubSession = session;
       renderAccountState();
+      if (!session || !options.githubApi) return;
+      /* 启动时校验持久化会话：token 被 GitHub 拒绝时 API 层已经清除会话，这里补一条明确提示。 */
+      void options.githubApi.getAuthenticatedUser().catch(cause => {
+        if (disposed || !(cause instanceof GitHubApiError) || cause.code !== 'auth_required') return;
+        if (!githubSession) report(new Error(GITHUB_SESSION_EXPIRED_MESSAGE));
+      });
     });
   }
+  /** 其他标签页清除失效会话后，这里同步收起账户入口。 */
+  const onGitHubSessionStorage = (event: StorageEvent): void => {
+    if (event.key !== GITHUB_SESSION_UPDATED_KEY || !options.githubAuth) return;
+    void options.githubAuth
+      .refresh()
+      .then(session => {
+        if (disposed) return;
+        githubSession = session;
+        renderAccountState();
+      })
+      .catch(() => undefined);
+  };
+  if (options.githubAuth) window.addEventListener('storage', onGitHubSessionStorage);
   let markdownError = '';
   const extensionManagement = createExtensionManagement({
     storage: localStorage,
@@ -2885,6 +2907,7 @@ export function mountWorkbench(
       disposed = true;
       lifetime.abort();
       releaseGitHubAuth?.();
+      window.removeEventListener('storage', onGitHubSessionStorage);
       closeContextMenu();
       releaseState();
       extensionManagement.dispose();

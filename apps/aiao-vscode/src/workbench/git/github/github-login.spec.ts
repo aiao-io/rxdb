@@ -23,6 +23,7 @@ function fakeAuth() {
     beginOAuth: vi.fn<GitHubAuth['beginOAuth']>(),
     completeOAuth: vi.fn<GitHubAuth['completeOAuth']>(),
     refresh: vi.fn<GitHubAuth['refresh']>(async () => null),
+    invalidate: vi.fn<GitHubAuth['invalidate']>(async () => false),
     logout: vi.fn<GitHubAuth['logout']>(async () => undefined),
     subscribe: vi.fn<GitHubAuth['subscribe']>(() => () => undefined)
   };

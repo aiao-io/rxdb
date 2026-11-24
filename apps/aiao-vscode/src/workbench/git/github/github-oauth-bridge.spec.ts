@@ -42,6 +42,7 @@ function fakeAuth() {
     beginOAuth: vi.fn(),
     completeOAuth: vi.fn(async () => SESSION),
     refresh: vi.fn(async () => null),
+    invalidate: vi.fn(async () => false),
     logout: vi.fn(async () => undefined),
     subscribe: vi.fn(() => () => undefined)
   };

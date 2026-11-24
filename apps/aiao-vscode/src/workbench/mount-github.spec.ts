@@ -5,6 +5,8 @@ import { githubProjectInfo } from './catalog.js';
 import type { WorkbenchEditorMount } from './editor.js';
 import type { GitHubApi } from './git/github/github-api.js';
 import type { GitHubAuth } from './git/github/github-auth.js';
+import type { GitHubSession } from './git/github/github-types.js';
+import { GitHubApiError } from './git/github/github-types.js';
 import { mountWorkbench, type WorkbenchHandle } from './mount.js';
 import type { WorkbenchBackend } from './session.js';
 
@@ -24,7 +26,10 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-function fixture(withGithub = true): {
+function fixture(
+  withGithub = true,
+  session: GitHubSession | null = null
+): {
   host: HTMLElement;
   backend: WorkbenchBackend & Record<string, ReturnType<typeof vi.fn>>;
   catalog: WorkbenchCatalog & Record<string, ReturnType<typeof vi.fn>>;
@@ -32,6 +37,7 @@ function fixture(withGithub = true): {
   githubAuth: GitHubAuth;
   compiler: { compile: ReturnType<typeof vi.fn> };
   releaseGitHubAuth: ReturnType<typeof vi.fn>;
+  notifySession: (value: GitHubSession | null) => void;
 } {
   const backend = {
     open: vi.fn(async (projectId: string) => ({ projectId, revision: 'head-1', files: {} })),
@@ -77,9 +83,16 @@ function fixture(withGithub = true): {
   const compiler = { compile: vi.fn(async () => ({ js: '', css: '' })), dispose: vi.fn() };
   const githubApi = {} as GitHubApi;
   const releaseGitHubAuth = vi.fn();
+  const authListeners: ((value: GitHubSession | null) => void)[] = [];
+  const notifySession = (value: GitHubSession | null): void => {
+    for (const listener of authListeners) listener(value);
+  };
   const githubAuth = {
-    getSession: vi.fn(async () => null),
-    subscribe: vi.fn(() => releaseGitHubAuth),
+    getSession: vi.fn(async () => session),
+    subscribe: vi.fn((listener: (value: GitHubSession | null) => void) => {
+      authListeners.push(listener);
+      return releaseGitHubAuth;
+    }),
     logout: vi.fn(async () => undefined)
   } as unknown as GitHubAuth;
   const host = document.createElement('div');
@@ -95,7 +108,7 @@ function fixture(withGithub = true): {
     mountEditor
   );
   instances.push(handle);
-  return { host, backend, catalog, githubApi, githubAuth, compiler, releaseGitHubAuth };
+  return { host, backend, catalog, githubApi, githubAuth, compiler, releaseGitHubAuth, notifySession };
 }
 
 describe('GitHub welcome view entry', () => {
@@ -171,6 +184,18 @@ describe('GitHub welcome view entry', () => {
       githubApi,
       expect.any(Object)
     );
+  });
+
+  it('validates a restored session on startup and reports an expired login', async () => {
+    const session: GitHubSession = { token: 'ghp_old', login: 'octo', avatarUrl: null, provider: 'pat' };
+    const { host, githubApi, notifySession } = fixture(true, session);
+    githubApi.getAuthenticatedUser = vi.fn(async () => {
+      notifySession(null);
+      throw new GitHubApiError('auth_required', 'Bad credentials', 401);
+    });
+
+    await vi.waitFor(() => expect(host.textContent).toContain('GitHub 登录已失效，请重新登录'));
+    expect(host.querySelector('[data-action="github-account"]')?.getAttribute('title')).toBe('登录 GitHub');
   });
 
   it('releases the GitHub auth subscription when the workbench is disposed', () => {

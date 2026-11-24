@@ -2575,7 +2575,8 @@ describe('vscode.dev 起始页对齐', () => {
         avatarUrl: null,
         provider: 'oauth' as const
       })),
-      refresh: vi.fn(async () => null)
+      refresh: vi.fn(async () => null),
+      invalidate: vi.fn(async () => false)
     };
     return { auth };
   }

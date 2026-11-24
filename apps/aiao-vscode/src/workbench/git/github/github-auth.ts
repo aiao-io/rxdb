@@ -8,6 +8,9 @@ export type { GitHubSession } from './github-types.js';
 const DEFAULT_SCOPES = ['repo', 'workflow', 'user:email', 'read:user'] as const;
 const AUTHORIZE_URL = 'https://github.com/login/oauth/authorize';
 
+/** 登录会话变化的跨标签页通知键：失效清理后写入，其他工作台标签页据此重载会话。 */
+export const GITHUB_SESSION_UPDATED_KEY = 'aiao-vscode-github-session-updated';
+
 export interface GitHubAuthOptions {
   readonly clientId: string | (() => Promise<string>);
   /** 同源 Pages Function：POST 交换 code，POST /delete 撤销 token。 */
@@ -39,6 +42,11 @@ export interface GitHubAuth {
   completeOAuth(code: string, verifier: string, signal?: AbortSignal): Promise<GitHubSession>;
   /** 丢弃内存会话缓存并从持久化存储重载；用于其他标签页完成登录后的同步。 */
   refresh(): Promise<GitHubSession | null>;
+  /**
+   * 服务端拒绝当前 token 时清除本地会话，让界面回到登录入口。
+   * expectedToken 与当前会话 token 不一致（旧请求迟到的 401）时不做任何改动；返回是否清除了会话。
+   */
+  invalidate(expectedToken?: string | null): Promise<boolean>;
   logout(): Promise<void>;
   subscribe(listener: (session: GitHubSession | null) => void): () => void;
 }
@@ -195,6 +203,20 @@ export function createGitHubAuth(options: GitHubAuthOptions): GitHubAuth {
       session = null;
       restoring = null;
       return restoreSession();
+    },
+
+    async invalidate(expectedToken?: string | null): Promise<boolean> {
+      const current = await restoreSession();
+      if (!current) return false;
+      if (expectedToken !== undefined && expectedToken !== current.token) return false;
+      try {
+        await options.sessionStore.clear();
+      } finally {
+        api.clearCache();
+        session = null;
+        for (const listener of listeners) listener(null);
+      }
+      return true;
     },
 
     async logout(): Promise<void> {

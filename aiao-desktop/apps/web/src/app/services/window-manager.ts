@@ -280,6 +280,11 @@ export class WindowManager {
   unminimize(id: string): void {
     const win = this.get(id);
     if (!win?.frame) return;
+    /* 还原隐藏应用里的任一窗口等于把整个应用显示出来（macOS 的 Dock / 活动监视器入口）。 */
+    if (this.hiddenAppsState().has(win.appId)) {
+      this.unhideApp(win.appId);
+      return;
+    }
     const wasMinimized = win.minimized();
     win.frame.restore();
     if (wasMinimized && !win.minimized()) this.runtime.activate(win);

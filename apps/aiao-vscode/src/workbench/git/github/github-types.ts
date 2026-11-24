@@ -6,6 +6,9 @@ export interface GitHubSession {
   readonly provider: 'pat' | 'oauth';
 }
 
+/** 服务端拒绝本地会话时的统一提示：会话已经被清除，重新登录后即可继续。 */
+export const GITHUB_SESSION_EXPIRED_MESSAGE = 'GitHub 登录已失效，请重新登录';
+
 export interface GitHubUser {
   readonly login: string;
   readonly avatarUrl: string | null;

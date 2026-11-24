@@ -13,6 +13,7 @@ import { GIT_WORKBENCH_LIMITS, GitWorkbenchError } from '../git-protocol.js';
 import type { GitHubApi, GitHubTreeItem } from './github-api.js';
 import { GitHubApiError } from './github-api.js';
 import type { GitHubTreeEntry } from './github-types.js';
+import { GITHUB_SESSION_EXPIRED_MESSAGE } from './github-types.js';
 
 const DEFAULT_FETCH_CONCURRENCY = 8;
 /** 超过该大小的文本内容先上传 blob 再入树，避免单请求 payload 超限。 */
@@ -70,7 +71,7 @@ function mapError(cause: unknown, context: string): GitWorkbenchError {
   if (!(cause instanceof GitHubApiError)) throw cause;
   switch (cause.code) {
     case 'auth_required':
-      return new GitWorkbenchError('auth_required', '需要登录 GitHub 才能访问该仓库', { cause });
+      return new GitWorkbenchError('auth_required', GITHUB_SESSION_EXPIRED_MESSAGE, { cause });
     case 'not_found':
       return new GitWorkbenchError('remote_not_found', `仓库不存在或无权访问：${context}（私有仓库需要登录）`, {
         cause

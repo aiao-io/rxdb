@@ -2,7 +2,7 @@ import type { WorkbenchBackend } from '../../session.js';
 import type { GitHubApi } from './github-api.js';
 import { createGitHubApi } from './github-api.js';
 import type { GitHubAuth, GitHubOAuthRequest } from './github-auth.js';
-import { createGitHubAuth } from './github-auth.js';
+import { createGitHubAuth, GITHUB_SESSION_UPDATED_KEY } from './github-auth.js';
 import { createGitHubBackend } from './github-backend.js';
 import type { GitHubSessionStore } from './github-session-store.js';
 import { createIndexedDbSessionStore, createMemorySessionStore } from './github-session-store.js';
@@ -73,6 +73,15 @@ async function loadDeploymentClientId(exchangeUrl: string, fetchFn: typeof fetch
   return clientId;
 }
 
+/** 让同一来源的其他工作台标签页重新读取持久化会话；广播失败不影响本窗口已经完成的清理。 */
+function broadcastSessionUpdate(): void {
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.setItem(GITHUB_SESSION_UPDATED_KEY, String(Date.now()));
+  } catch {
+    // 存储被禁用时其他标签页只能等下一次刷新，本窗口的会话已经清除
+  }
+}
+
 /** 装配认证、API 客户端与虚拟仓库后端；token 自动注入所有 API 请求。 */
 export function createGitHubService(options: GitHubServiceOptions = {}): GitHubService {
   const config = resolveGitHubConfig(options.config);
@@ -94,7 +103,11 @@ export function createGitHubService(options: GitHubServiceOptions = {}): GitHubS
   });
   const api = createGitHubApi({
     getToken: async () => (await auth.getSession())?.token ?? null,
-    fetchFn
+    fetchFn,
+    // GitHub 拒绝了这个 token：持久化会话已经不能再用，清除它并让界面回到登录入口。
+    onUnauthorized: async token => {
+      if (await auth.invalidate(token)) broadcastSessionUpdate();
+    }
   });
   return {
     auth,
