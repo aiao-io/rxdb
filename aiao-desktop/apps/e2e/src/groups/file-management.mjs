@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { deflateSync } from 'node:zlib';
 import { expect as playwrightExpect } from 'playwright/test';
 
 import { surgery } from '../harness/database.mjs';
@@ -8,6 +9,32 @@ const expect = playwrightExpect.configure({ timeout: 15_000 });
 const text = '文件往返 🌏\nsecond line';
 const binary = Buffer.from([0, 255, 128, 1, 0, 42]);
 const payload = (name, buffer) => ({ name, mimeType: 'application/octet-stream', buffer });
+
+/** 一份压缩内容流的真实 PDF 1.4（种子里的文本 PDF 之外，验证 pdf.js 的通用解析）。 */
+const realPdf = () => {
+  const stream = 'BT /F1 18 Tf 72 720 Td (Real compressed PDF) Tj ET';
+  const compressed = deflateSync(Buffer.from(stream, 'latin1'));
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+    `<< /Length ${compressed.length} /Filter /FlateDecode >>\nstream\n`
+  ];
+  let body = '%PDF-1.4\n';
+  const offsets = [];
+  objects.forEach((object, i) => {
+    offsets.push(Buffer.byteLength(body, 'latin1'));
+    body += `${i + 1} 0 obj\n${object}`;
+    body += i === 4 ? `${compressed.toString('latin1')}\nendstream\nendobj\n` : 'endobj\n';
+  });
+  const xref = Buffer.byteLength(body, 'latin1');
+  body += `xref\n0 6\n0000000000 65535 f \n${offsets
+    .map(offset => `${String(offset).padStart(10, '0')} 00000 n \n`)
+    .join('')}`;
+  body += `trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return Buffer.from(body, 'latin1');
+};
 
 export const fileManagement = {
   name: 'file-management',
@@ -52,6 +79,11 @@ export const fileManagement = {
     'fileManagement.columnActionsUseExactPath',
     'fileManagement.galleryActionsAndDuplicateShortcut',
     'fileManagement.openWithOpensSelectedFile',
+    'fileManagement.getInfoShowsPanel',
+    'fileManagement.openWithAlwaysSetsDefault',
+    'fileManagement.getInfoChangeAllSetsDefault',
+    'fileManagement.safariOpensHtml',
+    'fileManagement.previewRendersPdf',
     'fileManagement.trashOpensInIconView',
     'fileManagement.finderOpensAlongsideTrash',
     'fileManagement.trashOriginSurvivesReloadAndRename',
@@ -452,6 +484,96 @@ export const fileManagement = {
     await expect(helpers.win('textedit').getByRole('status')).toContainText('Saved');
     await helpers.win('textedit').locator('.tl .c').click();
     result.duplicateIsIndependent = (await diskText(session, 'renamed copy.txt')) === text;
+
+    /* ADESK-US-212：显示简介、打开方式、Safari 打开 html、Preview 按页渲染 PDF。 */
+    const infoPanel = () => page.locator('app-info-panel [data-info-panel]');
+    const closeWin = async app => helpers.win(app).locator('.tl .c').click();
+    await place('Desktop');
+
+    /* html 默认交给 Safari：双击在沙盒框里渲染文件内容。 */
+    await item('Projects').dblclick();
+    await expect(item('desktop-web')).toBeVisible();
+    await item('desktop-web').dblclick();
+    await expect(item('index.html')).toBeVisible();
+    await item('index.html').dblclick();
+    const safari = helpers.win('safari');
+    await expect(safari.locator('iframe[data-sf-file]')).toBeVisible();
+    await expect(safari.locator('[data-url]')).toHaveValue(/index\.html$/);
+    const htmlFrame = safari.locator('iframe[data-sf-file]').contentFrame();
+    const htmlTitle = await htmlFrame.locator('title').evaluate(node => node.textContent);
+    expect(htmlTitle).toBe('desktop-web');
+    result.safariOpensHtml = true;
+    await closeWin('safari');
+    await expect(safari).toHaveCount(0);
+
+    /* Open With… 勾选 Always Open With：所选应用成为默认，另一个 html 双击即生效。 */
+    await menu('index.html', 'Open With…');
+    await dialog().locator('select').selectOption('textedit');
+    await dialog().getByRole('checkbox').check();
+    await dialog().getByRole('button', { name: 'Open', exact: true }).click();
+    await expect(helpers.win('textedit').locator('[data-te-doc]')).toContainText('desktop-web');
+    await closeWin('textedit');
+    await place('Desktop');
+    await item('Projects').dblclick();
+    await expect(item('aurora-synth')).toBeVisible();
+    await item('aurora-synth').dblclick();
+    await expect(item('index.html')).toBeVisible();
+    await item('index.html').dblclick();
+    await expect(helpers.win('textedit').locator('[data-te-doc]')).toContainText('aurora-synth');
+    await closeWin('textedit');
+    result.openWithAlwaysSetsDefault = true;
+
+    /* 简介面板的 Change All… 改回 Safari，双击验证默认已回。 */
+    await place('Desktop');
+    await item('Projects').dblclick();
+    await expect(item('desktop-web')).toBeVisible();
+    await item('desktop-web').dblclick();
+    await expect(item('index.html')).toBeVisible();
+    await item('index.html').click({ button: 'right' });
+    await page.getByRole('menuitem', { name: 'Get Info', exact: true }).click();
+    await expect(infoPanel()).toBeVisible();
+    await expect(infoPanel().locator('[data-ip-app]')).toHaveValue('textedit');
+    await infoPanel().locator('[data-ip-app]').selectOption('safari');
+    await infoPanel().locator('[data-ip-change-all]').click();
+    await expect(page.locator('#toast')).toContainText('will now open with Safari');
+    await expect(infoPanel()).toHaveCount(0);
+    await item('index.html').dblclick();
+    await expect(helpers.win('safari').locator('iframe[data-sf-file]')).toBeVisible();
+    await closeWin('safari');
+    result.getInfoChangeAllSetsDefault = true;
+
+    /* 菜单栏 ⌘I：选中条目后打开简介，面板显示元数据与打开方式，Esc 关闭。 */
+    await place('Desktop');
+    await expect(item('renamed.txt')).toBeVisible();
+    await item('renamed.txt').focus();
+    await page.keyboard.press('Meta+i');
+    await expect(infoPanel()).toBeVisible();
+    const renamedPanel = infoPanel();
+    await expect(renamedPanel).toContainText('renamed.txt');
+    await expect(renamedPanel).toContainText('Plain text');
+    await expect(renamedPanel).toContainText('/Desktop');
+    await expect(renamedPanel.locator('[data-ip-app]')).toHaveValue('textedit');
+    await page.keyboard.press('Escape');
+    await expect(infoPanel()).toHaveCount(0);
+    result.getInfoShowsPanel = true;
+
+    /* PDF：内置指南按页渲染；导入的真实 PDF（FlateDecode）同样能渲染。 */
+    await item('Interface Guidelines.pdf').dblclick();
+    const preview = helpers.win('preview');
+    await expect(preview.locator('[data-pv-canvas]')).toBeVisible();
+    await expect(preview.locator('[data-pv-nav]')).toContainText(/1 of \d+/);
+    const guidelinesWidth = await preview.locator('[data-pv-canvas]').evaluate(canvas => canvas.width);
+    await closeWin('preview');
+    await importFiles([payload('real.pdf', realPdf())]);
+    await item('real.pdf').dblclick();
+    await expect(helpers.win('preview').locator('[data-pv-canvas]')).toBeVisible();
+    await expect(helpers.win('preview').locator('[data-pv-failed]')).toHaveCount(0);
+    await expect(helpers.win('preview').locator('[data-pv-nav]')).toHaveText('1 of 1');
+    result.previewRendersPdf =
+      guidelinesWidth > 0 &&
+      (await helpers.win('preview').locator('[data-pv-canvas]').evaluate(canvas => canvas.width)) > 0;
+    await closeWin('preview');
+    await menu('real.pdf', 'Move to Trash');
 
     await finder().locator('[data-more]').click();
     await page.getByRole('menuitem', { name: /New Folder/ }).click();

@@ -3,14 +3,14 @@ import type { PDFDocumentProxy } from 'pdfjs-dist';
 
 /** 一次打开的 PDF：按页取文本或把一页画进画布；用完要 {@link destroy}。 */
 export class OpenedPdf {
+  get pageCount(): number {
+    return this.doc.numPages;
+  }
+
   constructor(
     private readonly doc: PDFDocumentProxy,
     private readonly destroyTask: () => Promise<void>
   ) {}
-
-  get pageCount(): number {
-    return this.doc.numPages;
-  }
 
   /** 一页按比例缩放的尺寸（CSS 像素）。 */
   async pageSize(pageNumber: number, scale: number): Promise<{ readonly width: number; readonly height: number }> {

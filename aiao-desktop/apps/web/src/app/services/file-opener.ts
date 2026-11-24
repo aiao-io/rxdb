@@ -48,15 +48,6 @@ export class FileOpener {
   private readonly preferences = inject(Preferences);
   private readonly associations = computed(() => this.preferences.get(OPEN_WITH_KEY, isAssociations) ?? {});
 
-  /** 能真正接收这类文件的应用：html 归 Safari 与 TextEdit，文本类归 TextEdit，图片/PDF/影片归预览。 */
-  private candidatesOf(node: FsNode): readonly DesktopAppId[] {
-    const extension = extensionOf(node.name);
-    if (extension === 'html') return ['safari', 'textedit'];
-    if (isTextName(node.name)) return ['textedit'];
-    if (PREVIEW.has(extension)) return ['preview'];
-    return [];
-  }
-
   /** 只显示已实现文档传入的应用，默认应用排第一；不把文件夹和程序包伪装成文档。 */
   choices(node: FsNode): readonly OpenWithChoice[] {
     if (node.kind !== 'file' || isPackageName(node.name)) return [];
@@ -115,6 +106,15 @@ export class FileOpener {
     }
     const extension = extensionOf(node.name);
     return this.preferences.update(OPEN_WITH_KEY, isAssociations, current => ({ ...current, [extension]: appId }));
+  }
+
+  /** 能真正接收这类文件的应用：html 归 Safari 与 TextEdit，文本类归 TextEdit，图片/PDF/影片归预览。 */
+  private candidatesOf(node: FsNode): readonly DesktopAppId[] {
+    const extension = extensionOf(node.name);
+    if (extension === 'html') return ['safari', 'textedit'];
+    if (isTextName(node.name)) return ['textedit'];
+    if (PREVIEW.has(extension)) return ['preview'];
+    return [];
   }
 
   private async launchPackage(node: FsNode): Promise<void> {

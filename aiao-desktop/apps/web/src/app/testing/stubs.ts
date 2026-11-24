@@ -15,6 +15,7 @@ export interface WindowManagerStub {
   readonly closeAll: Mock<() => boolean | Promise<boolean>>;
   readonly hideOthers: Mock;
   readonly showAll: Mock;
+  readonly unhideApp: Mock;
   readonly cycle: Mock;
   readonly byApp: Mock<() => unknown[]>;
 }
@@ -37,6 +38,7 @@ export function createWindowManagerStub(): WindowManagerStub {
     closeAll: vi.fn(() => true),
     hideOthers: vi.fn(),
     showAll: vi.fn(),
+    unhideApp: vi.fn(),
     cycle: vi.fn(),
     byApp: vi.fn((): unknown[] => [])
   };

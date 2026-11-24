@@ -93,7 +93,16 @@ export class MessagesApp {
 
   constructor() {
     const menus = inject(DesktopMenus);
-    this.win.setMenus(computed(() => menus.standard('messages')));
+    this.win.setMenus(
+      computed(() =>
+        menus.standard('messages', {
+          File: [
+            { id: 'n', label: 'New Message', key: '⌘N', run: () => void this.create() },
+            { id: 'w', label: 'Close Window', key: '⌘W', run: () => this.wm.closeFront() }
+          ]
+        })
+      )
+    );
     this.win.confirmClose = () => this.confirmClose();
     effect(() => {
       const first = this.store.chats()[0];

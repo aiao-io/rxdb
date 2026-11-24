@@ -27,6 +27,11 @@ export interface GitHubApiOptions {
   readonly apiBase?: string;
   readonly fetchFn?: typeof fetch;
   readonly userAgent?: string;
+  /**
+   * GitHub 以 401 拒绝本次请求时回调，参数是这次请求实际带上的 token（匿名为 null）。
+   * 调用方据此清除已经失效的登录会话；清理失败不影响原始 401 错误。
+   */
+  readonly onUnauthorized?: (token: string | null) => void | Promise<void>;
 }
 
 export interface GitHubApi {
@@ -255,7 +260,16 @@ export function createGitHubApi(options: GitHubApiOptions): GitHubApi {
       throw new GitHubApiError('network_failed', '无法连接 GitHub API', undefined, { cause });
     }
     trackQuota(response);
-    if (!response.ok && !(cacheable && response.status === 304)) throw await httpError(response);
+    if (!response.ok && !(cacheable && response.status === 304)) {
+      if (response.status === 401 && options.onUnauthorized) {
+        try {
+          await options.onUnauthorized(token);
+        } catch {
+          // 清除失效会话失败不能掩盖原始的 401
+        }
+      }
+      throw await httpError(response);
+    }
     return { response, cacheKey };
   }
 

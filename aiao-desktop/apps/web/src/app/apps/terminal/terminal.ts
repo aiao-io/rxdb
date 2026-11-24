@@ -81,7 +81,7 @@ export class TerminalApp {
               { id: 'nt', label: 'New Tab', key: '⌘T', run: () => this.newTab() },
               { id: 'nw', label: 'New Window', key: '⌘N', run: () => this.wm.open('terminal', { force: true }) },
               '-',
-              { id: 'cl', label: 'Clear Scrollback', key: '⌘K', run: () => this.active()?.run('clear') }
+              { id: 'cl', label: 'Clear Scrollback', key: '⌘K', run: () => this.active()?.clearScrollback() }
             ],
             Edit: [
               { id: 'c', label: 'Copy', key: '⌘C' },

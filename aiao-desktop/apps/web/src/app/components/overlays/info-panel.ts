@@ -156,18 +156,18 @@ export class InfoPanel {
   private readonly popover = inject(PopoverService);
   private readonly toast = inject(Toast);
 
-  readonly node = input.required<FsNode>();
-
   protected readonly finderDate = finderDate;
   protected readonly choices = computed(() => this.opener.choices(this.node()));
-  /** 下拉当前选中的应用：默认是第一个候选；候选变了就回到新的默认。 */
-  protected readonly selected = linkedSignal(() => this.choices()[0]?.id ?? '');
+  /** 下拉当前选中的应用：默认是第一个候选；候选变了就回到新的默认。值是 DOM 下拉的字符串值。 */
+  protected readonly selected = linkedSignal<string>(() => this.choices()[0]?.id ?? '');
   protected readonly where = computed(() => {
     const path = this.node().path;
     if (!path) return 'Not on Macintosh HD';
     const parent = parentOf(path);
     return parent.length ? `/${parent.join('/')}` : 'Macintosh HD';
   });
+
+  readonly node = input.required<FsNode>();
 
   protected close(): void {
     this.popover.close(true, 'escape');

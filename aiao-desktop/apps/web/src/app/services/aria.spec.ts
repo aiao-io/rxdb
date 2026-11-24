@@ -36,6 +36,14 @@ describe('ariaShortcut 菜单快捷键字形转 aria-keyshortcuts', () => {
     expect(ariaShortcut('␣')).toBe('Space');
   });
 
+  it('方向键与加号也能解析（音乐与地图菜单用到）', () => {
+    expect(ariaShortcut('⌘→')).toBe('Meta+ArrowRight');
+    expect(ariaShortcut('⌘←')).toBe('Meta+ArrowLeft');
+    expect(ariaShortcut('⌘↑')).toBe('Meta+ArrowUp');
+    expect(ariaShortcut('⌘↓')).toBe('Meta+ArrowDown');
+    expect(ariaShortcut('⌘+')).toBe('Meta++');
+  });
+
   it('不是快捷键的提示文字（子菜单箭头、更新计数）返回 null，不编一个出来', () => {
     expect(ariaShortcut('▸')).toBeNull();
     expect(ariaShortcut('1 update')).toBeNull();

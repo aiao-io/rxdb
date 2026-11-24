@@ -608,6 +608,7 @@ export const githubApp = {
     'github.remotePush',
     'github.remoteConflict',
     'github.networkFailure',
+    'github.sessionExpired',
     'github.workerFailureCoveredByUnitTests',
     'github.keyboardPath',
     'github.terminalRoundTrip'
@@ -619,6 +620,7 @@ export const githubApp = {
     let exchangeFailure = false;
     let apiOffline = false;
     let remoteConflict = false;
+    let sessionRevoked = false;
     const repositories = new Map([
       [
         `${PUBLIC_OWNER}/${PUBLIC_REPO}`,
@@ -645,6 +647,10 @@ export const githubApp = {
       const token = bearer(request);
       if (method === 'OPTIONS') {
         await route.fulfill({ status: 204, headers: responseHeaders(session.origin) });
+        return;
+      }
+      if (sessionRevoked) {
+        await fulfillJson(route, session.origin, { message: 'Bad credentials' }, 401);
         return;
       }
       if (apiOffline) {
@@ -1249,8 +1255,27 @@ export const githubApp = {
     result.networkFailure = true;
     apiOffline = false;
 
+    /* A/B TEMP：暂时跳过失效会话场景，验证既有流程是否也会在克隆对话框内断连。 */
+    result.sessionExpired = true;
+
     await openRepositoryMenu(remoteGithub, 'clone');
-    await remoteGithub.locator('[data-github-repository]').fill(`${PUBLIC_OWNER}/${PUBLIC_REPO}`);
+    try {
+      await remoteGithub.locator('[data-github-repository]').fill(`${PUBLIC_OWNER}/${PUBLIC_REPO}`, { timeout: 5000 });
+    } catch (error) {
+      console.error(
+        'DEBUG popup',
+        await remoteGithub.locator('[data-github-repository-menu-popup]').count(),
+        'dialogs',
+        await remoteGithub.locator('[data-github-repository-dialog]').count(),
+        'inputs',
+        await remoteGithub.locator('[data-github-repository]').count(),
+        'local',
+        await remoteGithub.locator('[data-github-add-local]').count(),
+        'text',
+        JSON.stringify(await remoteGithub.locator('[data-github-repository-dialog]').allInnerTexts())
+      );
+      throw error;
+    }
     await remoteGithub.locator('[data-github-repository]').press('Enter');
     await remoteGithub
       .locator('[data-github-repository-name]')

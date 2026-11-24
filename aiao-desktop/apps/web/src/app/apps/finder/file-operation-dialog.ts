@@ -39,6 +39,10 @@ import type { FileOperationRequest } from './finder-model';
                   }
                 </select></label
               >
+              <label class="chk">
+                <input #always type="checkbox" [checked]="alwaysOpen()" (change)="alwaysOpen.set(always.checked)" />
+                Always Open With
+              </label>
             } @else {
               <p>No installed application supports this file.</p>
             }
@@ -90,6 +94,16 @@ import type { FileOperationRequest } from './finder-model';
       display: grid;
       gap: 8px;
     }
+    .chk {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 12px;
+      font-size: 13px;
+    }
+    .chk input {
+      width: auto;
+    }
     input,
     select {
       box-sizing: border-box;
@@ -125,6 +139,7 @@ export class FileOperationDialog {
   protected readonly busy = signal(false);
   protected readonly error = signal('');
   protected readonly destination = signal(JSON.stringify(DESKTOP));
+  protected readonly alwaysOpen = signal(false);
   protected readonly applications = computed(() => this.opener.choices(this.request().node));
   protected readonly application = linkedSignal<string>(() => this.applications()[0]?.id ?? '');
   protected readonly action = computed(() => ({ restore: 'Restore', 'open-with': 'Open' })[this.request().kind]);
@@ -175,7 +190,9 @@ export class FileOperationDialog {
       return this.fs.restore(path, destination.path);
     }
     const app = this.applications().find(app => app.id === this.application());
-    if (!app || !this.opener.openApp(app.id, request.node)) throw new Error('Choose an available application.');
+    if (!app) throw new Error('Choose an available application.');
+    if (this.alwaysOpen()) await this.opener.setDefaultApp(request.node, app.id);
+    if (!this.opener.openApp(app.id, request.node)) throw new Error('Choose an available application.');
     return path;
   }
 }

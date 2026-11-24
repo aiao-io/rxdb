@@ -78,6 +78,15 @@ export class WindowManager {
 
   readonly runningApps = computed(() => new Set(this.windowsState().map(win => win.appId)));
 
+  /**
+   * 被「隐藏」的应用：Hide 是隐藏整个应用（窗口全部收起）而不是最小化一个窗口；这些应用仍在运行，
+   * 点击 Dock 图标或 Show All 时整组恢复。手动最小化的窗口不在恢复范围内。
+   */
+  private readonly hiddenAppsState = signal<ReadonlySet<DesktopAppId>>(new Set());
+  /** Hide / Hide Others 亲自收起的窗口 id；只还原这些，不碰用户自己最小化的窗口。 */
+  private readonly hiddenWindows = new Map<DesktopAppId, Set<string>>();
+  readonly hiddenApps = this.hiddenAppsState.asReadonly();
+
   constructor() {
     effect(() => {
       const apps = this.apps();
@@ -130,6 +139,8 @@ export class WindowManager {
       this.toast.show(`Unknown app: ${appId}`);
       return null;
     }
+    /* 隐藏的应用被再次打开时先整组恢复，再按单实例 / 多实例规则处理。 */
+    this.unhideApp(appId);
     const candidates = this.byApp(appId);
     const existing =
       options.force ? undefined
@@ -271,6 +282,7 @@ export class WindowManager {
     const wasMinimized = win.minimized();
     win.frame.restore();
     if (wasMinimized && !win.minimized()) this.runtime.activate(win);
+    this.forgetHiddenWindow(id);
   }
 
   zoom(id: string): void {
@@ -298,17 +310,52 @@ export class WindowManager {
     this.withFront(win => this.quitApp(win.appId));
   }
 
-  hideOthers(): void {
+  /** 隐藏前台应用的全部窗口（macOS 的 Hide）：应用仍在运行，Dock 图标保留运行态。 */
+  hideFront(): void {
     const front = this.front();
-    this.windowsState()
-      .filter(win => win !== front && !win.minimized() && !win.closing())
-      .forEach(win => this.minimize(win.id));
+    if (front) this.hideApp(front.appId);
   }
 
-  showAll(): void {
+  /** 隐藏一个应用的全部窗口；已经最小化的窗口保持原样，也不计入「隐藏时收起的窗口」。 */
+  hideApp(appId: DesktopAppId): void {
+    this.hiddenAppsState.update(hidden => (hidden.has(appId) ? hidden : new Set(hidden).add(appId)));
+    const ids = this.hiddenWindows.get(appId) ?? new Set<string>();
     this.windowsState()
-      .filter(win => win.minimized())
-      .forEach(win => this.unminimize(win.id));
+      .filter(win => win.appId === appId && !win.minimized() && !win.closing())
+      .forEach(win => {
+        ids.add(win.id);
+        this.minimize(win.id);
+      });
+    this.hiddenWindows.set(appId, ids);
+  }
+
+  /** 显示被隐藏的应用：只还原 Hide / Hide Others 收起的窗口；不在隐藏集合里时什么也不做。 */
+  unhideApp(appId: DesktopAppId): void {
+    if (!this.hiddenAppsState().has(appId)) return;
+    this.hiddenAppsState.update(hidden => {
+      const next = new Set(hidden);
+      next.delete(appId);
+      return next;
+    });
+    const ids = this.hiddenWindows.get(appId);
+    this.hiddenWindows.delete(appId);
+    for (const id of ids ?? []) {
+      const win = this.get(id);
+      if (win?.minimized()) this.unminimize(id);
+    }
+  }
+
+  hideOthers(): void {
+    const keep = this.front()?.appId;
+    const others = new Set(
+      this.windowsState().filter(win => win.appId !== keep && !win.closing()).map(win => win.appId)
+    );
+    others.forEach(appId => this.hideApp(appId));
+  }
+
+  /** 显示全部被隐藏的应用；用户自己最小化的窗口不在其中，保持最小化。 */
+  showAll(): void {
+    for (const appId of this.hiddenAppsState()) this.unhideApp(appId);
   }
 
   quitApp(appId: DesktopAppId): void {
@@ -323,6 +370,14 @@ export class WindowManager {
     if (visible.length > 1) this.focus(visible[0].id);
   }
 
+  /** 窗口关了或已经被单独还原：不再算作「隐藏时收起的窗口」。 */
+  private forgetHiddenWindow(id: string): void {
+    for (const [appId, ids] of this.hiddenWindows) {
+      if (!ids.delete(id)) continue;
+      if (!ids.size) this.hiddenWindows.delete(appId);
+    }
+  }
+
   private closeApproved(win: DesktopWindow): void {
     if (win.closing() || this.get(win.id) !== win) return;
     /* 关窗口的瞬间记下焦点在不在里面：窗口移除之后焦点就丢了。 */
@@ -335,6 +390,16 @@ export class WindowManager {
     setTimeout(() => {
       this.windowsState.update(list => list.filter(item => item !== win));
       this.runtime.closed(win);
+      this.forgetHiddenWindow(win.id);
+      if (!this.windowsState().some(item => item.appId === win.appId)) {
+        this.hiddenWindows.delete(win.appId);
+        this.hiddenAppsState.update(hidden => {
+          if (!hidden.has(win.appId)) return hidden;
+          const next = new Set(hidden);
+          next.delete(win.appId);
+          return next;
+        });
+      }
     }, 200);
   }
 

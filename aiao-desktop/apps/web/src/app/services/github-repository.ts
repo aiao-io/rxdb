@@ -302,11 +302,16 @@ function toTreeItem(file: GitFile, api: GitHubApi, owner: string, repo: string):
   return api.createBlob(owner, repo, bytes).then(sha => ({ path: file.path, mode: '100644', sha }));
 }
 
+/**
+ * 服务端拒绝本地会话时的统一提示：会话已经被清除，用户重新登录后即可继续。
+ */
+export const GITHUB_SESSION_EXPIRED_MESSAGE = 'GitHub 登录已失效，请重新登录';
+
 function remoteFailure(cause: unknown, context: string): Error {
   if (!(cause instanceof GitHubApiError)) return cause instanceof Error ? cause : new Error(String(cause));
   switch (cause.code) {
     case 'auth_required':
-      return new Error('需要登录 GitHub 才能访问该仓库', { cause });
+      return new Error(GITHUB_SESSION_EXPIRED_MESSAGE, { cause });
     case 'not_found':
       return new Error(`仓库不存在或无权访问：${context}`, { cause });
     case 'forbidden':

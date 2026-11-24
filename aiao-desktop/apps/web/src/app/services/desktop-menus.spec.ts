@@ -67,6 +67,7 @@ const sectionOf = (sections: readonly MenuSection[], label: string): readonly Me
 const finderTarget = (): FinderCommands => ({
   newFolder: vi.fn(),
   openSelected: vi.fn(),
+  getInfo: vi.fn(),
   trashSelected: vi.fn(),
   copySelected: vi.fn(),
   cutSelected: vi.fn(),
@@ -240,16 +241,16 @@ describe('DesktopMenus Finder 菜单', () => {
   });
 
   it('File：新建窗口交给窗口管理器，其余命令作用于传入的 Finder 目标', () => {
-    const { menus, wm, toast } = setup();
+    const { menus, wm } = setup();
     const target = finderTarget();
     const file = sectionOf(menus.finder(target), 'File');
     for (const id of ['nw', 'nf', 'op', 'cl', 'gi', 'tr']) click(file, id);
     expect(wm.open).toHaveBeenCalledExactlyOnceWith('finder');
     expect(target.newFolder).toHaveBeenCalledTimes(1);
     expect(target.openSelected).toHaveBeenCalledTimes(1);
+    expect(target.getInfo).toHaveBeenCalledTimes(1);
     expect(target.trashSelected).toHaveBeenCalledTimes(1);
     expect(wm.closeFront).toHaveBeenCalledTimes(1);
-    expect(toast.show).toHaveBeenCalledExactlyOnceWith('Get Info');
   });
 
   it('Edit：有移入废纸篓记录才启用撤销，重做仍不可用', () => {

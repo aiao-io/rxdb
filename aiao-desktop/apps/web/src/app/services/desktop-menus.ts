@@ -18,6 +18,7 @@ export type FinderView = 'icon' | 'list' | 'column' | 'gallery';
 export interface FinderCommands {
   newFolder(): void;
   openSelected(): void;
+  getInfo(): void;
   trashSelected(): void;
   copySelected(): void;
   cutSelected(): void;
@@ -153,7 +154,7 @@ export class DesktopMenus {
         { id: 'op', label: 'Open', key: '⌘O', run: () => target.openSelected() },
         { id: 'cl', label: 'Close Window', key: '⌘W', run: () => this.wm.closeFront() },
         '-',
-        { id: 'gi', label: 'Get Info', key: '⌘I', run: () => this.toast.show('Get Info') },
+        { id: 'gi', label: 'Get Info', key: '⌘I', run: () => target.getInfo() },
         { id: 'tr', label: 'Move to Trash', key: '⌘⌫', run: () => target.trashSelected() }
       ]),
       section('Edit', [
@@ -221,6 +222,7 @@ export class DesktopMenus {
     return this.finder({
       newFolder: () => this.desktopItems.newFolder(),
       openSelected: none,
+      getInfo: none,
       trashSelected: none,
       copySelected: none,
       cutSelected: none,

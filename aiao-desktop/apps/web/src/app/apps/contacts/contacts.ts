@@ -5,6 +5,7 @@ import { ALL_ROWS, liveQuery } from '../../data/live-query';
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
 import { Toast } from '../../services/toast';
+import { WindowManager } from '../../services/window-manager';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
 import {
@@ -223,6 +224,7 @@ type ContactField = readonly [label: string, value: string];
 export class ContactsApp {
   private readonly data = inject(DesktopData);
   private readonly toast = inject(Toast);
+  private readonly wm = inject(WindowManager);
   private readonly destroyRef = inject(DestroyRef);
   private readonly contacts = liveQuery(
     () => Contact.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
@@ -268,7 +270,7 @@ export class ContactsApp {
               run: () => this.remove()
             },
             '-',
-            { id: 'w', label: 'Close Window', key: '⌘W', run: () => undefined }
+            { id: 'w', label: 'Close Window', key: '⌘W', run: () => this.wm.closeFront() }
           ]
         })
       )

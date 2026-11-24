@@ -278,6 +278,13 @@ export class SafariApp {
     this.go(field.value.trim());
   }
 
+  /** ⌘L：聚焦地址栏并全选当前地址（macOS 的 Open Location）。 */
+  protected focusAddress(): void {
+    const field = this.urlField().nativeElement;
+    field.focus();
+    field.select();
+  }
+
   protected cancel(field: HTMLInputElement): void {
     field.blur();
     this.render();
@@ -315,6 +322,7 @@ export class SafariApp {
         File: [
           { id: 't', label: 'New Tab', key: '⌘T', run: () => this.newTab() },
           { id: 'w', label: 'New Window', key: '⌘N', run: () => this.wm.open('safari', { force: true }) },
+          { id: 'l', label: 'Open Location…', key: '⌘L', run: () => this.focusAddress() },
           '-',
           { id: 'c', label: 'Close Tab', key: '⌘W', run: () => this.closeTab() }
         ],

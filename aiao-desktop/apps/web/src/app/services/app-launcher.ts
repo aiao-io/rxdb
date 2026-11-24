@@ -22,6 +22,8 @@ export class AppLauncher {
       this.openTrash();
       return;
     }
+    /* 隐藏的应用从 Dock 再次打开时整组恢复（macOS 的 Show All Windows 语义）。 */
+    this.wm.unhideApp(appId);
     const existing = this.wm.byApp(appId).filter(win => appId !== 'finder' || !this.isTrashWindow(win));
     if (!existing.length) {
       this.dock.bounce(appId);
@@ -40,6 +42,7 @@ export class AppLauncher {
   }
 
   private openTrash(): void {
+    this.wm.unhideApp('finder');
     const existing = this.wm.byApp('finder').find(win => this.isTrashWindow(win));
     if (!existing) {
       this.wm.open('finder', { path: ['Trash'] });

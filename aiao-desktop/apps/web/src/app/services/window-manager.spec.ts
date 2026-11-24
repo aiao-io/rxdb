@@ -549,6 +549,42 @@ describe('WindowManager 针对最前窗口的命令', () => {
     expect(hidden.frame.minimize).toHaveBeenCalledTimes(1);
     expect(leaving.frame.minimize).not.toHaveBeenCalled();
   });
+
+  it('hideFront 收起前台应用的全部窗口并保留运行态；unhideApp 只还原它收起的窗口', () => {
+    const { wm } = setup();
+    const first = openFramed(wm, 'finder');
+    const second = openFramed(wm, 'finder', { force: true });
+    const notes = openFramed(wm, 'notes');
+    wm.focus(first.win.id);
+
+    wm.hideFront();
+    expect([first, second].map(item => item.win.minimized())).toEqual([true, true]);
+    expect(wm.hiddenApps().has('finder')).toBe(true);
+    expect(wm.runningApps().has('finder')).toBe(true);
+    expect(notes.win.minimized()).toBe(false);
+
+    wm.unhideApp('finder');
+    expect([first, second].map(item => item.win.minimized())).toEqual([false, false]);
+    expect(wm.hiddenApps().has('finder')).toBe(false);
+  });
+
+  it('Hide Others 不接管用户自己最小化的窗口：Show All 只还原隐藏时收起的那些', () => {
+    const { wm } = setup();
+    const manually = openFramed(wm, 'notes');
+    const hidden = openFramed(wm, 'calculator');
+    const front = openFramed(wm, 'terminal');
+    wm.minimize(manually.win.id);
+
+    wm.hideOthers();
+    expect(wm.hiddenApps().has('notes')).toBe(true);
+    expect(wm.hiddenApps().has('calculator')).toBe(true);
+    expect(front.win.minimized()).toBe(false);
+
+    wm.showAll();
+    expect(manually.win.minimized()).toBe(true);
+    expect(hidden.win.minimized()).toBe(false);
+    expect(wm.hiddenApps()).toEqual(new Set());
+  });
 });
 
 describe('WindowManager 切换窗口', () => {

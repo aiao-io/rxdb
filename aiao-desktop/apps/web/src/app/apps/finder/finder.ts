@@ -29,6 +29,7 @@ import {
 } from '@angular/core';
 
 import { EmptyTrashDialog } from '../../components/empty-trash-dialog';
+import { showInfoPanel } from '../../components/overlays/info-panel';
 import { isPackageName } from '../../disk/disk-kinds';
 import {
   DESKTOP,
@@ -176,6 +177,8 @@ export class FinderApp implements FinderCommands {
   /** 新建的条目要等磁盘树刷出来才在列表里；记住它，下一帧把它滚进视野。 */
   private pendingReveal: DiskPath | null = null;
   private renameFocusToken = 0;
+  /** 最近一次右键/键盘菜单的位置，简介面板贴着它开。 */
+  private menuPoint: { x: number; y: number } | null = null;
   private readonly displayPath = computed(() => {
     const path = this.path();
     return path[0] === VOLUME_NAME ? [VOLUME_NAME, ...displayDiskPath(path.slice(1))] : path;
@@ -411,6 +414,15 @@ export class FinderApp implements FinderCommands {
   openSelected(): void {
     const node = this.selectedNode();
     if (node) this.openNode(node);
+  }
+
+  getInfo(): void {
+    const node = this.selectedNode() ?? this.fs.get(this.path());
+    if (!node) {
+      this.toast.show('Select an item to see its information.');
+      return;
+    }
+    showInfoPanel(this.popover, node, this.menuPoint ?? undefined);
   }
 
   trashSelected(): void {
@@ -822,6 +834,7 @@ export class FinderApp implements FinderCommands {
   protected itemMenu(event: MouseEvent, node: FsNode): void {
     const current = this.menuNode(event, node);
     const column = (event.currentTarget as HTMLElement | null)?.dataset['ci'];
+    this.menuPoint = { x: event.clientX, y: event.clientY };
     /* 分栏视图要按栏选中，别用 setSelection 清掉选择链，否则菜单一开后面的栏就没了。 */
     if (column === undefined) {
       if (!this.isSelected(current.name)) this.setSelection([current.name]);
@@ -848,18 +861,19 @@ export class FinderApp implements FinderCommands {
 
   protected bodyMenu(event: MouseEvent): void {
     if ((event.target as Element).closest('[role="option"], input')) return;
+    this.menuPoint = { x: event.clientX, y: event.clientY };
     if (this.isTrash()) {
       this.popover.contextMenu(event, [
         { id: 'empty', label: 'Empty Trash', disabled: !this.fs.trashFull(), run: () => this.emptyTrash() },
         '-',
         { id: 'nf', label: 'New Folder', disabled: true },
-        { id: 'gi', label: 'Get Info' }
+        { id: 'gi', label: 'Get Info', run: () => this.showFolderInfo() }
       ]);
       return;
     }
     this.popover.contextMenu(event, [
       { id: 'nf', label: 'New Folder', run: () => this.newFolder() },
-      { id: 'gi', label: 'Get Info' },
+      { id: 'gi', label: 'Get Info', run: () => this.showFolderInfo() },
       '-',
       { id: 'v', label: 'View', key: '▸' },
       { id: 's', label: 'Sort By', key: '▸' }
@@ -1255,7 +1269,7 @@ export class FinderApp implements FinderCommands {
         run: () => this.requestFileOperation('open-with', node)
       },
       '-',
-      { id: 'i', label: 'Get Info', key: '⌘I', run: () => this.info(node) },
+      { id: 'i', label: 'Get Info', key: '⌘I', run: () => showInfoPanel(this.popover, node, this.menuPoint ?? undefined) },
       { id: 'r', label: 'Rename', disabled: !node?.path, run: () => this.startRename(node) },
       { id: 'd', label: 'Duplicate', key: '⌘D', disabled: inTrash, run: () => this.duplicate(node) },
       {
@@ -1466,6 +1480,7 @@ export class FinderApp implements FinderCommands {
     if (column < 0) this.setSelection([node.name]);
     else if (!this.isColumnSelected(column, node.name)) this.pickColumn(column, node.name);
     const rect = anchor.getBoundingClientRect();
+    this.menuPoint = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
     this.popover.openMenu(this.itemMenuItems(node), {
       x: rect.left + rect.width / 2,
       y: rect.top + rect.height / 2,
@@ -1574,6 +1589,11 @@ export class FinderApp implements FinderCommands {
 
   private info(node: FsNode): void {
     this.toast.show(`${node.name} — ${node.k}${node.size ? `, ${node.size}` : ''}`);
+  }
+
+  private showFolderInfo(): void {
+    const node = this.fs.get(this.path());
+    if (node) showInfoPanel(this.popover, node, this.menuPoint ?? undefined);
   }
 
   private nav(path: readonly string[]): void {

@@ -249,6 +249,28 @@ describe('GitHub authentication', () => {
     expect(seen).toEqual([null, 'octo', null]);
   });
 
+  it('clears the session only when the rejected token is still current', async () => {
+    fetchMock.mockResolvedValue(jsonResponse({ login: 'octo' }));
+    await auth.loginWithPat('ghp_old');
+    const seen: (string | null)[] = [];
+    auth.subscribe(session => seen.push(session?.login ?? null));
+    await vi.waitFor(() => expect(seen).toEqual(['octo']));
+
+    await expect(auth.invalidate('ghp_new')).resolves.toBe(false);
+    await expect(auth.getSession()).resolves.toMatchObject({ token: 'ghp_old' });
+
+    await expect(auth.invalidate('ghp_old')).resolves.toBe(true);
+    await expect(auth.getSession()).resolves.toBeNull();
+    await expect(store.load()).resolves.toBeNull();
+    expect(seen).toEqual(['octo', null]);
+  });
+
+  it('does not clear anything when no session is signed in', async () => {
+    await expect(auth.invalidate('ghp_any')).resolves.toBe(false);
+    await expect(store.load()).resolves.toBeNull();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('restores the persisted session on a fresh instance', async () => {
     fetchMock.mockResolvedValue(jsonResponse({ login: 'octo' }));
     await auth.loginWithPat('ghp_abc');

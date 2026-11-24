@@ -4,6 +4,7 @@ import { StatusKey, StatusSnapshot, statusLabel } from '../services/aria';
 import { Clock } from '../services/clock';
 import { DesktopMenus } from '../services/desktop-menus';
 import { barIndex, isKeyboardClick } from '../services/focus-order';
+import { MenuBarMenus } from '../services/menu-bar-menus';
 import { MenuEntry, section } from '../services/menu';
 import { Overlays } from '../services/overlays';
 import { PopoverCloseReason, PopoverComponent, PopoverService } from '../services/popover';
@@ -49,6 +50,7 @@ const PANELS: Readonly<Partial<Record<StatusKey, PopoverComponent>>> = {
 })
 export class Menubar {
   private readonly menus = inject(DesktopMenus);
+  private readonly menuBarMenus = inject(MenuBarMenus);
   private readonly popover = inject(PopoverService);
   private readonly clock = inject(Clock);
   private readonly sections = computed(() => {
@@ -60,6 +62,11 @@ export class Menubar {
     const application = win.appId === 'github' ? this.menus.githubApplication() : this.menus.about(name);
     return [section(name, application), ...sections];
   });
+  /**
+   * 菜单栏上能点到的全部命令：Apple 菜单 + 当前展示的菜单。
+   * 快捷键分发只认「用户看得见的菜单」，应用菜单与 Apple 菜单不在窗口注册的菜单里，所以由这里登记一份。
+   */
+  private readonly shortcutSections = computed(() => [section('Apple', this.menus.apple()), ...this.sections()]);
   private readonly menuItems = viewChildren<ElementRef<HTMLElement>>('menuItem');
   private readonly statusItems = viewChildren<ElementRef<HTMLElement>>('statusItem');
   /** 最近一次鼠标按下（读屏的「按下」也会发 mousedown）：随后到达的 click 是它的尾声，不再处理一遍。 */
@@ -71,6 +78,10 @@ export class Menubar {
 
   protected readonly openMenu = signal<string | null>(null);
   protected readonly openStatus = signal<StatusKey | null>(null);
+
+  constructor() {
+    this.menuBarMenus.set(this.shortcutSections);
+  }
 
   protected readonly titles = computed(() => this.sections().map(menu => menu.label));
 

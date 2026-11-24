@@ -14,10 +14,11 @@ import {
 } from '@angular/core';
 
 import { FinderClipboard } from '../apps/finder/finder-clipboard';
-import { DESKTOP, DiskPath, samePath } from '../disk/disk-path';
+import { showInfoPanel } from './overlays/info-panel';
+import { DESKTOP, DiskPath, finderPathOf, samePath } from '../disk/disk-path';
 import { DesktopItem, DesktopItems, desktopItemId } from '../services/desktop-items';
 import { DockState } from '../services/dock-state';
-import { describeDiskError } from '../services/file-system';
+import { describeDiskError, FileSystem } from '../services/file-system';
 import { isMenuKey } from '../services/focus-order';
 import { MenuEntry } from '../services/menu';
 import { PopoverService } from '../services/popover';
@@ -59,6 +60,7 @@ export class DesktopSurface {
   private readonly wm = inject(WindowManager);
   private readonly popover = inject(PopoverService);
   private readonly toast = inject(Toast);
+  private readonly fs = inject(FileSystem);
   private readonly clipboard = inject(FinderClipboard);
   private readonly dock = inject(DockState);
   private readonly destroyRef = inject(DestroyRef);
@@ -68,6 +70,8 @@ export class DesktopSurface {
   private readonly marqueeBox = viewChild.required<ElementRef<HTMLElement>>('marquee');
   private dockDragHover = false;
   private folderHoverTimer: ReturnType<typeof setTimeout> | null = null;
+  /** 最近一次右键/键盘菜单的位置，简介面板贴着它开。 */
+  private menuPoint: { x: number; y: number } | null = null;
 
   protected readonly desktop = inject(DesktopItems);
   protected readonly desktopPath = DESKTOP;
@@ -224,6 +228,7 @@ export class DesktopSurface {
 
   protected iconMenu(event: MouseEvent, item: DesktopItem): void {
     if (!this.selected().has(item.id)) this.select(item.id);
+    this.menuPoint = { x: event.clientX, y: event.clientY };
     this.popover.contextMenu(event, this.iconItems(item), item.name);
   }
 
@@ -251,6 +256,7 @@ export class DesktopSurface {
     event.preventDefault();
     const anchor = event.currentTarget as HTMLElement;
     const rect = anchor.getBoundingClientRect();
+    this.menuPoint = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
     this.popover.openMenu(this.iconItems(item), {
       x: rect.left + rect.width / 2,
       y: rect.top + rect.height / 2,
@@ -336,6 +342,7 @@ export class DesktopSurface {
 
   protected surfaceMenu(event: MouseEvent): void {
     if ((event.target as Element).closest('.dicon, .wgt, input')) return;
+    this.menuPoint = { x: event.clientX, y: event.clientY };
     this.popover.contextMenu(event, [
       { id: 'nf', label: 'New Folder', run: () => this.desktop.newFolder() },
       {
@@ -345,7 +352,7 @@ export class DesktopSurface {
         disabled: !this.clipboard.snapshot(),
         run: () => this.desktop.paste()
       },
-      { id: 'gi', label: 'Get Info', run: () => this.wm.open('about') },
+      { id: 'gi', label: 'Get Info', run: () => this.showDesktopInfo() },
       '-',
       { id: 'cw', label: 'Change Wallpaper…', run: () => this.wm.open('settings', { section: 'wallpaper' }) },
       { id: 'ew', label: 'Edit Widgets…', run: () => this.toast.show('Widgets are already on the desktop.') },
@@ -361,7 +368,16 @@ export class DesktopSurface {
       { id: 'o', label: 'Open', run: () => item.open() },
       { id: 'w', label: 'Open With', key: '▸' },
       '-',
-      { id: 'i', label: 'Get Info', key: '⌘I', run: () => this.toast.show(this.info(item)) },
+      {
+        id: 'i',
+        label: 'Get Info',
+        key: '⌘I',
+        run: () => {
+          const node = item.node;
+          if (node) showInfoPanel(this.popover, node, this.menuPoint ?? undefined);
+          else this.toast.show(this.info(item));
+        }
+      },
       {
         id: 'r',
         label: 'Rename',
@@ -419,6 +435,11 @@ export class DesktopSurface {
     const node = item.node;
     if (!node) return item.name;
     return node.kind === 'folder' ? `${node.name} — Folder` : `${node.name} — ${node.k}, ${node.size}`;
+  }
+
+  private showDesktopInfo(): void {
+    const node = this.fs.get(finderPathOf(DESKTOP));
+    if (node) showInfoPanel(this.popover, node, this.menuPoint ?? undefined);
   }
 
   private commitRename(restore = true): void {

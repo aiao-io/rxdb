@@ -190,10 +190,10 @@ export class PhotosApp {
       computed(() =>
         menus.standard('photos', {
           View: [
-            { id: 'y', label: 'Years', run: () => this.setGroup('Years') },
-            { id: 'm', label: 'Months', run: () => this.setGroup('Months') },
-            { id: 'd', label: 'Days', run: () => this.setGroup('Days') },
-            { id: 'a', label: 'All Photos', checked: true, run: () => this.setGroup('All') }
+            { id: 'y', label: 'Years', run: () => this.setGroup('Years'), checked: this.group() === 'Years' },
+            { id: 'm', label: 'Months', run: () => this.setGroup('Months'), checked: this.group() === 'Months' },
+            { id: 'd', label: 'Days', run: () => this.setGroup('Days'), checked: this.group() === 'Days' },
+            { id: 'a', label: 'All Photos', checked: this.group() === 'All', run: () => this.setGroup('All') }
           ]
         })
       )

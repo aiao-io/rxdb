@@ -56,6 +56,7 @@ import { DesktopWindow } from '../../services/desktop-window';
 import { FileSystem } from '../../services/file-system';
 import { archiveOfDirectory, archiveOfUploadedDirectory, type SourceDirectory } from '../../services/git/git-directory';
 import type { GitHistoryComparison } from '../../services/git/git-protocol';
+import { GITHUB_SESSION_UPDATED_KEY } from '../../services/github-connection';
 import {
   type GitBranch,
   type GitCommit,
@@ -65,7 +66,12 @@ import {
   type GitStatus,
   type GitStatusEntry
 } from '../../services/github-git-backend';
-import { branchBaseOf, parseGithubRemote, type GithubRepositoryRecord } from '../../services/github-repository';
+import {
+  branchBaseOf,
+  GITHUB_SESSION_EXPIRED_MESSAGE,
+  parseGithubRemote,
+  type GithubRepositoryRecord
+} from '../../services/github-repository';
 import { GithubWorkspace } from '../../services/github-workspace';
 import type { GitHubOAuthRequest } from '../../services/github/github-auth';
 import type { GitHubBranch, GitHubRepoSummary, GitHubSession } from '../../services/github/github-types';
@@ -519,7 +525,7 @@ export class GithubApp {
       }
     });
     this.storageListener = event => {
-      if (event.key === 'aiao-desktop-github-session-updated') void this.auth.refresh();
+      if (event.key === GITHUB_SESSION_UPDATED_KEY) void this.auth.refresh();
     };
     this.unsubscribeAuth = this.auth.subscribe(session => this.session.set(session));
     addEventListener('storage', this.storageListener);
@@ -528,6 +534,7 @@ export class GithubApp {
       removeEventListener('storage', this.storageListener);
       this.cancelOAuth();
     });
+    void this.validateStoredSession();
     void this.restoreLastRepository().catch(error => this.fail(error));
   }
 
@@ -1668,7 +1675,7 @@ export class GithubApp {
     this.fail(null);
     try {
       await action();
-      localStorage.setItem('aiao-desktop-github-session-updated', String(Date.now()));
+      localStorage.setItem(GITHUB_SESSION_UPDATED_KEY, String(Date.now()));
       this.notice.set(notice);
     } catch (error) {
       this.authError.set(messageOf(error));
@@ -1872,6 +1879,21 @@ export class GithubApp {
       await pending;
     } finally {
       if (this.restorePromise === pending) this.restorePromise = null;
+    }
+  }
+
+  /**
+   * 启动时校验持久化会话：token 被 GitHub 拒绝（过期、撤销或因同一 OAuth App 的令牌数上限被清掉）时，
+   * API 层已清除失效会话，这里只补一条明确提示，避免界面继续显示已登录却无法访问私有仓库。
+   */
+  private async validateStoredSession(): Promise<void> {
+    const stored = await this.auth.getSession();
+    if (!stored || this.destroyRef.destroyed) return;
+    try {
+      await this.api.getAuthenticatedUser();
+    } catch (error) {
+      if (this.destroyRef.destroyed || errorCodeOf(error) !== 'auth_required') return;
+      if (!(await this.auth.getSession())) this.authError.set(GITHUB_SESSION_EXPIRED_MESSAGE);
     }
   }
 

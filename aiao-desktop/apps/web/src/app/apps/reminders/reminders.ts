@@ -16,6 +16,7 @@ import { DesktopData } from '../../data/desktop-data';
 import { ALL_ROWS, liveQuery } from '../../data/live-query';
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
+import { WindowManager } from '../../services/window-manager';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
 import { ReminderDrafts, ReminderWrite, reminderFailureMessage } from './reminder-drafts';
@@ -42,6 +43,7 @@ import { Reminder } from './reminders.entities';
 export class RemindersApp {
   private readonly injector = inject(Injector);
   private readonly data = inject(DesktopData);
+  private readonly wm = inject(WindowManager);
   private readonly fields = viewChildren<ElementRef<HTMLInputElement>>('draft');
   private readonly writes = new Map<string, Promise<void>>();
   private readonly reminders = liveQuery(
@@ -80,7 +82,16 @@ export class RemindersApp {
 
   constructor() {
     const menus = inject(DesktopMenus);
-    this.win.setMenus(computed(() => menus.standard('reminders')));
+    this.win.setMenus(
+      computed(() =>
+        menus.standard('reminders', {
+          File: [
+            { id: 'n', label: 'New Reminder', key: '⌘N', run: () => this.add() },
+            { id: 'w', label: 'Close Window', key: '⌘W', run: () => this.wm.closeFront() }
+          ]
+        })
+      )
+    );
     this.win.confirmClose = async () => {
       await Promise.all(this.writes.values());
       return this.drafts.saveAll();

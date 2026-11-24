@@ -88,6 +88,13 @@ describe('AppLauncher', () => {
     expect(dock.bounce).not.toHaveBeenCalled();
   });
 
+  it('被隐藏的应用从 Dock 打开时先整组恢复，再聚焦最后的窗口', () => {
+    const { launcher, wm } = setup();
+    wm.byApp.mockReturnValue([windowOf('w1'), windowOf('w2')]);
+    launcher.activate('finder');
+    expect(wm.unhideApp).toHaveBeenCalledExactlyOnceWith('finder');
+  });
+
   it('应用已经打开：同时激活这个窗口，刷新后延后装载的窗口（终端、游戏）此刻装载', () => {
     const { launcher, wm } = setup();
     wm.byApp.mockReturnValue([windowOf('w1'), windowOf('w2')]);

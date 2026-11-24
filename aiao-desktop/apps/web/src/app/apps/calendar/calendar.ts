@@ -16,6 +16,7 @@ import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
 import { PopoverService } from '../../services/popover';
 import { Toast } from '../../services/toast';
+import { WindowManager } from '../../services/window-manager';
 import { DAYS, DAYS3, MONS, MONS3, clamp } from '../../shared/format';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
@@ -112,6 +113,7 @@ export class CalendarApp {
   private readonly win = inject(DesktopWindow);
   private readonly popover = inject(PopoverService);
   private readonly toast = inject(Toast);
+  private readonly wm = inject(WindowManager);
   private readonly injector = inject(Injector);
   private readonly destroyRef = inject(DestroyRef);
   private readonly frame = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -224,11 +226,15 @@ export class CalendarApp {
     this.win.setMenus(
       computed(() =>
         menus.standard('calendar', {
+          File: [
+            { id: 'n', label: 'New Event', key: '⌘N', run: () => this.newEvent() },
+            { id: 'w', label: 'Close Window', key: '⌘W', run: () => this.wm.closeFront() }
+          ],
           View: [
-            { id: 'd', label: 'Day', key: '⌘1' },
-            { id: 'w', label: 'Week', key: '⌘2' },
-            { id: 'm', label: 'Month', key: '⌘3', checked: true },
-            { id: 'y', label: 'Year', key: '⌘4' },
+            { id: 'd', label: 'Day', key: '⌘1', checked: this.view() === 'day', run: () => this.setView('day') },
+            { id: 'w', label: 'Week', key: '⌘2', checked: this.view() === 'week', run: () => this.setView('week') },
+            { id: 'm', label: 'Month', key: '⌘3', checked: this.view() === 'month', run: () => this.setView('month') },
+            { id: 'y', label: 'Year', key: '⌘4', checked: this.view() === 'year', run: () => this.setView('year') },
             '-',
             { id: 't', label: 'Go to Today', key: '⌘T', run: () => this.goToday() }
           ]

@@ -143,8 +143,8 @@ export class MusicApp {
               { id: 'n', label: 'Next', key: '⌘→', run: () => this.skip(1) },
               { id: 'b', label: 'Previous', key: '⌘←', run: () => this.skip(-1) },
               '-',
-              { id: 's', label: 'Shuffle', key: '⌘S' },
-              { id: 'r', label: 'Repeat', key: '⌘R' }
+              { id: 's', label: 'Shuffle', key: '⌘S', checked: this.shuffle(), run: () => this.shuffle.update(on => !on) },
+              { id: 'r', label: 'Repeat', key: '⌘R', checked: this.repeat(), run: () => this.repeat.update(on => !on) }
             ]
           },
           MENU_ORDER

@@ -14,7 +14,6 @@ import { ApplicationCatalog } from '../services/application-catalog';
 import { ApplicationRegistry } from '../services/application-registry';
 import { ApplicationRuntime } from '../services/application-runtime';
 import { ApplicationTransitions } from '../services/application-transitions';
-import { menuShortcuts } from '../services/aria';
 import { BrowserSessionRestore } from '../services/browser-session-restore';
 import { CalendarStore } from '../services/calendar-store';
 import { Clock } from '../services/clock';
@@ -34,10 +33,18 @@ import { FinderPreferences } from '../services/finder-preferences';
 import { ImageThumbnailCache } from '../services/image-thumbnail-cache';
 import { InstalledApplications } from '../services/installed-applications';
 import { isMenuCommand } from '../services/menu';
+import { MenuBarMenus } from '../services/menu-bar-menus';
 import { Overlays } from '../services/overlays';
 import { PopoverService } from '../services/popover';
 import { RuntimeActivity } from '../services/runtime-activity';
 import { Session } from '../services/session';
+import {
+  hasPrimaryModifier,
+  isBrowserShortcut,
+  isPlainSpace,
+  isTextEditingShortcut,
+  matchesShortcut
+} from '../services/shortcuts';
 import { SystemSettingsStore } from '../services/system-settings';
 import { SystemState } from '../services/system-state';
 import { ThemeService } from '../services/theme';
@@ -86,6 +93,7 @@ const NATIVE_MENU = 'input,textarea,[contenteditable="true"],.tm-body';
     ApplicationTransitions,
     ApplicationCatalog,
     ApplicationRuntime,
+    MenuBarMenus,
     FileSystem,
     ImageThumbnailCache,
     FileImport,
@@ -126,6 +134,7 @@ export class DesktopPage {
   private readonly toast = inject(Toast);
   private readonly desktopItems = inject(DesktopItems);
   private readonly session = inject(Session);
+  private readonly menuBarMenus = inject(MenuBarMenus);
 
   protected readonly wm = inject(WindowManager);
   protected readonly layout = inject(WindowLayoutStore);
@@ -151,20 +160,57 @@ export class DesktopPage {
   protected shortcut(event: KeyboardEvent): void {
     /* Tab 按下期间焦点落进后台窗口，说明用户用 Tab 走进了它：窗口随之成为前台（见 WindowFrame）。 */
     this.wm.tabbing = event.key === 'Tab';
-    const meta = event.metaKey || event.ctrlKey;
+    /* 锁屏、开机与睡眠期间桌面不响应快捷键；跳过开机与解锁由各自的界面处理。 */
+    if (this.session.locked() || this.session.boot() || this.session.sleep() !== 'awake') return;
     if (event.key === 'Escape' && this.dismissOverlay()) return;
-    if (meta && (event.key === 'k' || event.key === 'K' || event.code === 'Space')) {
-      event.preventDefault();
-      this.overlays.toggleSpotlight();
-      return;
-    }
     if (event.key === 'F4') {
       event.preventDefault();
       this.overlays.toggleLaunchpad();
       return;
     }
-    if (!meta || this.typing()) return;
-    this.windowShortcut(event);
+    const meta = event.metaKey || event.ctrlKey;
+    if (!meta) {
+      /* 菜单里没有修饰键的命令（音乐的空格播放）：焦点不在可交互控件上时才生效。 */
+      if (isPlainSpace(event) && !this.typing() && !this.interactiveTarget(event) && this.runMenuShortcut(event)) {
+        event.preventDefault();
+      }
+      return;
+    }
+    /* ⌘Space 始终打开聚焦搜索，不归输入框或应用菜单。 */
+    if (event.code === 'Space') {
+      event.preventDefault();
+      this.overlays.toggleSpotlight();
+      return;
+    }
+    /* 聚焦搜索（或别的全屏浮层）打开时，⌘K 先处理浮层，不交给底下的应用菜单（例如终端的清屏）。 */
+    const key = event.key.toLowerCase();
+    if (
+      key === 'k' &&
+      (this.overlays.spotlight() !== 'closed' ||
+        this.overlays.launchpad() !== 'closed' ||
+        this.overlays.notifications() === 'open')
+    ) {
+      event.preventDefault();
+      this.overlays.toggleSpotlight();
+      return;
+    }
+    /* 输入框里先让浏览器完成文本编辑（⌘A/C/X/V/Z），其余命令照常交给桌面。 */
+    if (this.typing() && isTextEditingShortcut(event)) return;
+    /* 应用自己已经在编辑区处理过这个键（例如 TextEdit 的 ⌘S）：不重复执行，也不抢着 preventDefault。 */
+    if (event.defaultPrevented) return;
+    /* 先看菜单栏上真实展示的命令：应用菜单、Apple 菜单与应用自己的菜单都能按键触发。 */
+    if (this.runMenuShortcut(event)) {
+      event.preventDefault();
+      return;
+    }
+    /* ⌘K 是桌面的聚焦搜索；终端菜单声明了 ⌘K（清屏）时已在上面被菜单认领。 */
+    if (key === 'k') {
+      event.preventDefault();
+      this.overlays.toggleSpotlight();
+      return;
+    }
+    /* 窗口动作是菜单没认领时的兜底；仍要拦下 Chrome 自己的查找/刷新/标签等快捷键。 */
+    if (this.windowShortcut(event) || isBrowserShortcut(event)) event.preventDefault();
   }
 
   /**
@@ -194,7 +240,8 @@ export class DesktopPage {
     return true;
   }
 
-  private windowShortcut(event: KeyboardEvent): void {
+  private windowShortcut(event: KeyboardEvent): boolean {
+    if (!hasPrimaryModifier(event) || event.altKey || event.shiftKey) return false;
     const key = event.key.toLowerCase();
     const actions: Readonly<Record<string, () => void>> = {
       w: () => this.wm.closeFront(),
@@ -204,17 +251,18 @@ export class DesktopPage {
     };
     const action = actions[key];
     if (action) {
-      event.preventDefault();
-      action();
-      return;
+      if (!event.repeat) action();
+      return true;
     }
     const front = this.wm.front();
-    if (this.undoTrashShortcut(event, front?.appId)) return;
-    if (front && this.runMenuShortcut(event, front)) return;
-    if (key === 'n' && front) {
-      event.preventDefault();
-      this.wm.open(front.appId, { force: true });
+    if (this.undoTrashShortcut(event, front?.appId)) return true;
+    if (key === 'n') {
+      /* 没有前台窗口时 Finder 就是前台应用，与菜单栏显示保持一致。 */
+      if (front) this.wm.open(front.appId, { force: true });
+      else this.wm.open('finder', { path: HOME_PATH });
+      return true;
     }
+    return false;
   }
 
   private undoTrashShortcut(event: KeyboardEvent, frontApp: string | undefined): boolean {
@@ -232,32 +280,30 @@ export class DesktopPage {
     return true;
   }
 
-  private runMenuShortcut(event: KeyboardEvent, front: ReturnType<WindowManager['front']>): boolean {
-    if (!front) return false;
-    // Shift 会把句点的 event.key 变成 >，但菜单快捷键仍写成句点。
-    const shiftedPeriod = event.shiftKey && event.code === 'Period';
-    const key =
-      shiftedPeriod ? '.'
-      : event.key === ' ' ? 'Space'
-      : event.key.length === 1 ? event.key.toUpperCase()
-      : event.key;
-    const shortcut = [
-      event.ctrlKey ? 'Control' : null,
-      event.altKey ? 'Alt' : null,
-      event.shiftKey ? 'Shift' : null,
-      event.metaKey ? 'Meta' : null,
-      key
-    ]
-      .filter((part): part is string => part !== null)
-      .join('+');
-    const command = front
-      .menus()?.()
+  /**
+   * 菜单栏上此刻能点到的命令：前台窗口注册的菜单 + 菜单栏合成的应用菜单与 Apple 菜单。
+   * 命中即视为已处理（包括禁用与没有 `run` 的占位项）：不能让同一个组合落到浏览器上，
+   * 例如 Calendar 的 ⌘1-4 与 Music 的 ⌘R。
+   */
+  private runMenuShortcut(event: KeyboardEvent): boolean {
+    const front = this.wm.front();
+    const sections = [...(front?.menus()?.() ?? []), ...this.menuBarMenus.sections()];
+    const command = sections
       .flatMap(section => section.items)
-      .find(item => isMenuCommand(item) && !item.disabled && item.run && menuShortcuts(item).includes(shortcut));
-    if (!command || !isMenuCommand(command) || !command.run) return false;
-    event.preventDefault();
-    if (!shiftedPeriod || !event.repeat) command.run();
+      .find(item => isMenuCommand(item) && matchesShortcut(item, event));
+    if (!command || !isMenuCommand(command)) return false;
+    if (!event.repeat && !command.disabled) command.run?.();
     return true;
+  }
+
+  /** Space 这类无修饰键的快捷键不能从按钮、输入框或列表项手里抢走。 */
+  private interactiveTarget(event: KeyboardEvent): boolean {
+    const target = event.target as Element | null;
+    return Boolean(
+      target?.closest(
+        'button, a, input, textarea, select, [contenteditable="true"], [role="button"], [role="option"], [role="menuitem"], [role="menuitemcheckbox"], [role="tab"], [role="switch"], [role="slider"]'
+      )
+    );
   }
 
   /**

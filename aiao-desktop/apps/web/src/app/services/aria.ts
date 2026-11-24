@@ -9,11 +9,15 @@ const NAMED_KEYS: Readonly<Record<string, string>> = {
   '⎋': 'Escape',
   '⏎': 'Enter',
   '␣': 'Space',
-  '⇥': 'Tab'
+  '⇥': 'Tab',
+  '←': 'ArrowLeft',
+  '→': 'ArrowRight',
+  '↑': 'ArrowUp',
+  '↓': 'ArrowDown'
 };
 
 /** 菜单快捷键里出现的单字符按键：字母、数字与标点。 */
-const PLAIN_KEY = /^[A-Za-z0-9`,.?/;'[\]\\=-]$/;
+const PLAIN_KEY = /^[A-Za-z0-9`,.?/;'[\]\\=+-]$/;
 
 /**
  * 把菜单里显示的快捷键字形（`⇧⌘N`）转成 `aria-keyshortcuts` 的写法（`Shift+Meta+N`），读屏据此报出快捷键，

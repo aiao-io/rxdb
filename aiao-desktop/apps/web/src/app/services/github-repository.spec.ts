@@ -94,6 +94,9 @@ describe('GitHub repository parsing and remote workflow', () => {
 
     api.getBranchSha.mockRejectedValueOnce(new GitHubApiError('network_failed', 'offline'));
     await expect(remote.fetchHead('octo', 'repo', 'topic')).rejects.toThrow('无法连接 GitHub API');
+
+    api.getBranchSha.mockRejectedValueOnce(new GitHubApiError('auth_required', 'Bad credentials', 401));
+    await expect(remote.fetchHead('octo', 'repo', 'topic')).rejects.toThrow('GitHub 登录已失效，请重新登录');
     expect(api.listBranches).toHaveBeenCalledTimes(3);
   });
 

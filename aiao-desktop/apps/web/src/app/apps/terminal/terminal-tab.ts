@@ -83,6 +83,12 @@ export class TerminalTab implements OnDestroy {
     this.terminal.focus();
   }
 
+  /** 清掉滚动缓冲，不向 shell 写入任何命令。 */
+  clearScrollback(): void {
+    this.terminal.clear();
+    this.terminal.focus();
+  }
+
   ngOnDestroy(): void {
     this.disposed = true;
     this.process?.kill();

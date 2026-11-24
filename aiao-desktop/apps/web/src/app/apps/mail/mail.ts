@@ -9,6 +9,7 @@ import { DesktopWindow } from '../../services/desktop-window';
 import { PopoverService } from '../../services/popover';
 import { PrintableContent, printableText } from '../../services/print-document';
 import { Toast } from '../../services/toast';
+import { WindowManager } from '../../services/window-manager';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
 import { MailComposer } from './mail-composer';
@@ -26,6 +27,7 @@ import { MailMailbox, MailMessage } from './mail.entities';
 export class MailApp {
   private readonly data = inject(DesktopData);
   private readonly toast = inject(Toast);
+  private readonly wm = inject(WindowManager);
   private readonly popover = inject(PopoverService);
 
   protected readonly composer = inject(MailComposer);
@@ -60,7 +62,16 @@ export class MailApp {
   constructor() {
     const menus = inject(DesktopMenus);
     const win = inject(DesktopWindow);
-    win.setMenus(computed(() => menus.standard('mail')));
+    win.setMenus(
+      computed(() =>
+        menus.standard('mail', {
+          File: [
+            { id: 'n', label: 'New Message', key: '⌘N', run: () => this.compose() },
+            { id: 'w', label: 'Close Window', key: '⌘W', run: () => this.wm.closeFront() }
+          ]
+        })
+      )
+    );
     this.composer.bindWindow(win);
   }
 

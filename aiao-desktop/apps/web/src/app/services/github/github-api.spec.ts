@@ -101,6 +101,32 @@ describe('GitHub API client', () => {
     await expect(api.getAuthenticatedUser()).rejects.toMatchObject({ code: 'network_failed' });
   });
 
+  it('reports the rejected token when GitHub answers 401', async () => {
+    const onUnauthorized = vi.fn();
+    const tokenApi = createGitHubApi({ getToken: async () => 'token-1', fetchFn: fetchMock, onUnauthorized });
+    fetchMock.mockResolvedValueOnce(jsonResponse({ message: 'Bad credentials' }, { status: 401 }));
+
+    await expect(tokenApi.getAuthenticatedUser()).rejects.toMatchObject({ code: 'auth_required' });
+    expect(onUnauthorized).toHaveBeenCalledTimes(1);
+    expect(onUnauthorized).toHaveBeenCalledWith('token-1');
+  });
+
+  it('does not report other failures and keeps the original 401 when cleanup throws', async () => {
+    const onUnauthorized = vi.fn();
+    const tokenApi = createGitHubApi({ getToken: async () => 'token-1', fetchFn: fetchMock, onUnauthorized });
+    fetchMock.mockResolvedValueOnce(jsonResponse({ message: 'Not Found' }, { status: 404 }));
+    await expect(tokenApi.getRepository('octo', 'missing')).rejects.toMatchObject({ code: 'not_found' });
+    expect(onUnauthorized).not.toHaveBeenCalled();
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ message: 'Bad credentials' }, { status: 401 }));
+    const failing = createGitHubApi({
+      getToken: async () => 'token-1',
+      fetchFn: fetchMock,
+      onUnauthorized: () => Promise.reject(new Error('storage failed'))
+    });
+    await expect(failing.getAuthenticatedUser()).rejects.toMatchObject({ code: 'auth_required' });
+  });
+
   it('treats 403 with exhausted quota as rate_limited and tracks quota headers', async () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse(
