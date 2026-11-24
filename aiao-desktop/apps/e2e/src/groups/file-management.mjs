@@ -308,8 +308,19 @@ export const fileManagement = {
     await helpers.launch('Finder');
     const finder = () => page.locator('.win.front[data-app="finder"]:not(.closing)');
     const item = name => finder().locator(`[role="option"][data-name=${JSON.stringify(name)}]`);
+    /* 多窗口下前台会漂：废纸篓窗不能当工作窗、刚开的窗带开窗动画。导航/打开/导入前，
+       把普通 Finder 窗口显式置前，别赌「前台恰好是哪个」。 */
+    const frontFinder = async () => {
+      const normal = page.locator('.win[data-app="finder"]:not(.closing):not([aria-label="Trash"])').first();
+      await expect(normal).toBeVisible();
+      /* 标题点击在窗口贴边时会被 resize 手柄拦住：窗口框架在捕获阶段监听 pointerdown 置前，
+         直接派发指针按下即可（不经命中测试）。 */
+      await normal.dispatchEvent('pointerdown', { button: 0, pointerId: 1, isPrimary: true });
+      await sidebarReady();
+    };
     /* 条目也是 cdk-drag：真实双击的首次 mousedown 在窗口动画期间同样会越过拖动阈值。用合成 dblclick（无 mousedown）。 */
     const openItem = async name => {
+      await frontFinder();
       await expect(item(name)).toBeVisible();
       await item(name).dispatchEvent('dblclick');
     };
@@ -319,10 +330,7 @@ export const fileManagement = {
       await expect(page.locator('.win[data-app="finder"]:not(.closing).opening')).toHaveCount(0);
     };
     const place = async name => {
-      /* 侧栏条目是 cdk-drag：开窗动画期间按下，条目会在指针下移动、越过 CDK 的拖动阈值，把点击变成拖拽。
-         等前台窗口存在且开窗动画结束（opening 类清除）再点，点击才是点击。 */
-      await expect(finder()).toBeVisible();
-      await sidebarReady();
+      await frontFinder();
       /* 用合成 click（无 mousedown）：侧栏条目是 cdk-drag，真实按下会越过拖动阈值把点击变成拖拽，
          与仓库 harness 对关窗按钮的 dispatchEvent('click') 同一手法。 */
       await finder()
@@ -355,6 +363,10 @@ export const fileManagement = {
       await expect(item(to)).toBeVisible();
     };
     const importFiles = async files => {
+      await frontFinder();
+      /* 开窗动画期间窗口几何还在动：落点会被侧栏/行覆盖。等全部 Finder 窗口的 opening 清零再放。 */
+      await sidebarReady();
+      await expect(finder()).not.toHaveClass(/opening/);
       await finder().locator('[data-body]').drop({ files });
       await expect(item(files[0].name)).toBeVisible();
     };
@@ -400,6 +412,9 @@ export const fileManagement = {
     result.dropsOnDesktopFolder = (await diskText(session, 'from-desktop-folder.txt')) === text;
     result.dropsOnFolder = (await diskText(session, 'from-folder.txt')) === text;
 
+    /* 多窗口下前台会漂（刚开的窗、正在还原的窗都会抢）：把刚导航过的废纸篓窗（已是普通目录视图，
+       后续 Downloads 落点、弹簧与导入都作用在它上面）显式置前，别赌「前台恰好是哪个」。 */
+    await trashWin.locator('[data-title]').click();
     await sidebarReady();
     await finder()
       .locator('[data-place="Downloads"]')
@@ -410,6 +425,7 @@ export const fileManagement = {
     result.dropsOnSidebar = (await diskText(session, 'from-sidebar.txt')) === text;
 
     /* 同级只差大小写的名字算同名，与库里归一化的唯一索引同口径（像 macOS）：拖入追加序号，改名被拒，原文件不动。 */
+    await frontFinder();
     await finder()
       .locator('[data-body]')
       .drop({ files: payload('FROM-SIDEBAR.txt', Buffer.from('cased')) });
@@ -421,7 +437,11 @@ export const fileManagement = {
     await menu('FROM-SIDEBAR 2.txt', 'Rename', true);
     await renameInput().fill('From-Sidebar.TXT');
     await renameInput().press('Enter');
-    await expect(page.locator('#toast')).toContainText('already exists');
+    /* 同名冲突弹 Replace / Keep Both / Cancel（macOS 语义）：Cancel 拒绝改名、回到编辑，原文件不动。 */
+    const conflictDialog = page.getByRole('alertdialog', { name: 'Rename Conflict' });
+    await expect(conflictDialog).toBeVisible();
+    await conflictDialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await expect(renameInput()).toBeFocused();
     await renameInput().press('Escape');
     await expect(renameInput()).toHaveCount(0);
     result.renameRejectsCaseVariantOfSibling =
@@ -783,11 +803,11 @@ export const fileManagement = {
 
     const trashItem = trashFinderWindow.locator('[data-name="finder-window-trash.txt"]');
     const trashTitle = trashFinderWindow.locator('[data-title]');
-    const targetBody = sourceFinder.locator('[data-body]');
     const trashTitleBeforeReverseDrag = await trashTitle.boundingBox();
     const trashItemBox = await trashItem.boundingBox();
-    const targetBodyBox = await targetBody.boundingBox();
-    if (!trashTitleBeforeReverseDrag || !trashItemBox || !targetBodyBox)
+    /* 弹簧目标必须悬停在 nested 文件夹条目上：悬在 body 的固定角落依赖图标布局，窗口尺寸一变就落空。 */
+    const nestedItemBox = await sourceFinder.locator('[data-name="nested"]').boundingBox();
+    if (!trashTitleBeforeReverseDrag || !trashItemBox || !nestedItemBox)
       throw new Error('Reverse Finder drag targets are not measurable');
     await page.mouse.click(
       trashTitleBeforeReverseDrag.x + trashTitleBeforeReverseDrag.width / 2,
@@ -797,7 +817,9 @@ export const fileManagement = {
     await page.mouse.move(trashItemBox.x + trashItemBox.width / 2, trashItemBox.y + trashItemBox.height / 2);
     await page.mouse.down();
     await page.mouse.move(trashItemBox.x + 20, trashItemBox.y + 20, { steps: 4 });
-    await page.mouse.move(targetBodyBox.x + 40, targetBodyBox.y + targetBodyBox.height - 40, { steps: 16 });
+    await page.mouse.move(nestedItemBox.x + nestedItemBox.width / 2, nestedItemBox.y + nestedItemBox.height / 2, {
+      steps: 16
+    });
     await page.waitForTimeout(800);
     await expect(trashTitle).toHaveText('Trash');
     await expect(sourceFinder.locator('[data-title]')).toHaveText('nested');
@@ -877,6 +899,11 @@ export const fileManagement = {
         springSourceBox.y + springSourceBox.height / 2
       );
       await page.mouse.up();
+    }
+    /* 700ms 弹簧定时器可能在松手前抢先触发、把窗口导航进 nested：后退一步恢复，后续步骤的窗口状态才确定。 */
+    if ((await item('drag-copy.txt').count()) === 0) {
+      await finder().getByRole('button', { name: 'Back' }).click();
+      await expect(item('drag-copy.txt')).toBeVisible();
     }
 
     await item('clipboard-source.txt').click();
