@@ -317,9 +317,11 @@ export const fileManagement = {
          等前台窗口存在且开窗动画结束（opening 类清除）再点，点击才是点击。 */
       await expect(finder()).toBeVisible();
       await sidebarReady();
+      /* 用合成 click（无 mousedown）：侧栏条目是 cdk-drag，真实按下会越过拖动阈值把点击变成拖拽，
+         与仓库 harness 对关窗按钮的 dispatchEvent('click') 同一手法。 */
       await finder()
         .locator(`[data-place=${JSON.stringify(name)}]`)
-        .click();
+        .dispatchEvent('click');
     };
     const menu = async (name, command, keyboard = false) => {
       await expect(item(name)).toBeVisible();
@@ -381,7 +383,7 @@ export const fileManagement = {
     await expect(trashWin.locator('[data-trash-header]')).toBeVisible();
     await expect(trashWin.getByRole('button', { name: 'Empty Trash', exact: true })).toHaveText('Empty');
     await expect(trashWin.locator('[role="option"][data-name="from-desktop.txt"]')).toBeVisible();
-    await trashWin.locator('[data-place="Desktop"]').click();
+    await trashWin.locator('[data-place="Desktop"]').dispatchEvent('click');
     await expect(trashWin.getByRole('button', { name: /^Import/ })).toHaveCount(0);
     await trashWin
       .locator('[role="option"][data-name="Projects"]')
