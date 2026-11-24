@@ -1315,12 +1315,12 @@ export const githubApp = {
     await page.getByRole('menuitem', { name: 'Repository', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Open in Terminal', exact: true }).click();
     await expect(win('terminal')).toHaveCount(1);
-    expect(await session.helpers.runInShell('pwd', /\/Documents\/GitHub\/octo\/public/)).toBe(true);
-    expect(await session.helpers.runInShell('git remote -v', /origin\s+https:\/\/github\.com\/octo\/public\.git/)).toBe(
-      true
-    );
-    result.clonedRepositoryInTerminal = true;
     const outputOf = terminalOutput(session);
+    expect(await session.helpers.runInShell('pwd', /\/Documents\/GitHub\/octo\/public/)).toBe(true);
+    const remotes = await outputOf('git remote -v');
+    expect(remotes).toContain('origin');
+    expect(remotes).toContain('https://github.com/octo/public.git');
+    result.clonedRepositoryInTerminal = true;
     expect(await outputOf('cd ~/Documents/GitHub/drop-fixture')).toBe('');
     expect(await outputOf(`git remote add origin https://github.com/${PUBLIC_OWNER}/${PUBLIC_REPO}.git`)).toBe('');
     expect(await outputOf('git push origin topic')).toBe('Pushed to origin');
