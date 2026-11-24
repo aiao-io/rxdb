@@ -79,10 +79,6 @@ export class Menubar {
   protected readonly openMenu = signal<string | null>(null);
   protected readonly openStatus = signal<StatusKey | null>(null);
 
-  constructor() {
-    this.menuBarMenus.set(this.shortcutSections);
-  }
-
   protected readonly titles = computed(() => this.sections().map(menu => menu.label));
 
   /** 菜单的键：Apple 菜单是 `apple`，其余是标题的下标；顺序即屏幕上从左到右。 */
@@ -119,6 +115,10 @@ export class Menubar {
     const d = this.clock.now();
     return `${DAYS3[d.getDay()]}${NBSP}${MONS3[d.getMonth()]}${NBSP}${d.getDate()}${NBSP}${NBSP}${time12(d)}`;
   });
+
+  constructor() {
+    this.menuBarMenus.set(this.shortcutSections);
+  }
 
   /** 鼠标按下：展开；再按同一个标题收起。没有按键信息的 mousedown（读屏的「按下」、脚本派发）按键盘打开处理。 */
   protected toggleMenu(event: MouseEvent, key: string): void {

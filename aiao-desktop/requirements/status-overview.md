@@ -90,6 +90,7 @@ US-119 Calendar、US-120 Contacts、US-122 Reminders、US-123 Notes 文件夹、
 - ✅ [ADESK-US-128 浏览器关闭后恢复工作区](stories/desktop/ADESK-US-128-browser-session-restore.md)
 - ✅ [ADESK-US-129 Finder 仿真文件操作、虚拟列表与本地邮件分享](stories/desktop/ADESK-US-129-finder-parity-and-mail.md)
 - ✅ [ADESK-US-130 桌面冷启动与首次使用时加载](stories/desktop/ADESK-US-130-desktop-on-demand.md)
+- ⬜ [ADESK-US-212 文件简介与打开方式](stories/desktop/ADESK-US-212-file-info-and-open-with.md)
 
 ### ADESK-EPIC-003 应用体系与集成应用
 

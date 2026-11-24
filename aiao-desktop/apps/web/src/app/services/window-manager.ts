@@ -45,6 +45,13 @@ export class WindowManager {
 
   private readonly windowsState = signal<readonly DesktopWindow[]>([]);
   private readonly focusedState = signal<DesktopWindow | null>(null);
+  /**
+   * 被「隐藏」的应用：Hide 是隐藏整个应用（窗口全部收起）而不是最小化一个窗口；这些应用仍在运行，
+   * 点击 Dock 图标或 Show All 时整组恢复。手动最小化的窗口不在恢复范围内。
+   */
+  private readonly hiddenAppsState = signal<ReadonlySet<DesktopAppId>>(new Set());
+  /** Hide / Hide Others 亲自收起的窗口 id；只还原这些，不碰用户自己最小化的窗口。 */
+  private readonly hiddenWindows = new Map<DesktopAppId, Set<string>>();
   private z = 10;
   private seq = 0;
   private cascade = 0;
@@ -78,13 +85,7 @@ export class WindowManager {
 
   readonly runningApps = computed(() => new Set(this.windowsState().map(win => win.appId)));
 
-  /**
-   * 被「隐藏」的应用：Hide 是隐藏整个应用（窗口全部收起）而不是最小化一个窗口；这些应用仍在运行，
-   * 点击 Dock 图标或 Show All 时整组恢复。手动最小化的窗口不在恢复范围内。
-   */
-  private readonly hiddenAppsState = signal<ReadonlySet<DesktopAppId>>(new Set());
-  /** Hide / Hide Others 亲自收起的窗口 id；只还原这些，不碰用户自己最小化的窗口。 */
-  private readonly hiddenWindows = new Map<DesktopAppId, Set<string>>();
+  /** 被隐藏的应用；Hide / Hide Others 维护，Show All 与 Dock 激活据此整组恢复。 */
   readonly hiddenApps = this.hiddenAppsState.asReadonly();
 
   constructor() {
