@@ -30,6 +30,7 @@ import { SafariOverview } from './safari-overview';
 import { SafariHit, SafariPage, SafariProgress, SafariTile } from './safari-page';
 import {
   LOCAL_SITES,
+  decodeHtmlFile,
   externalUrl,
   favColor,
   faviconOf,
@@ -221,7 +222,9 @@ export class SafariApp {
 
   protected share(): void {
     const url = this.tab().url;
-    if (navigator.clipboard && url) void navigator.clipboard.writeText(externalUrl(url)).catch(() => undefined);
+    /* 本地文件的地址本身就是 file:// 链接，照原样复制，不补 https 前缀。 */
+    const target = kindOf(url) === 'file' ? url : externalUrl(url);
+    if (navigator.clipboard && url) void navigator.clipboard.writeText(target).catch(() => undefined);
     this.toast.show(url ? 'Copied link to clipboard' : 'Nothing to share');
   }
 
@@ -424,7 +427,7 @@ export class SafariApp {
     else this.show(token, this.frame(url));
   }
 
-  /** 磁盘文件：读出内容放进沙盒框渲染（脚本可以运行，但与桌面隔离，碰不到桌面数据）。 */
+  /** 磁盘文件：按文件声明的字符集解码，读出内容放进沙盒框渲染（脚本可以运行，但与桌面隔离，碰不到桌面数据）。 */
   private async paintFile(url: string, token: number): Promise<void> {
     const path = filePathOf(url);
     if (!path) {
@@ -433,12 +436,17 @@ export class SafariApp {
     }
     const name = path.at(-1) ?? 'Untitled';
     try {
-      const html = new TextDecoder().decode(await this.fs.read(path));
+      const html = decodeHtmlFile(await this.fs.read(path));
+      /* 相对地址钉到 about:blank：文件里的相对资源没有磁盘来源可解析，不能落到桌面自己的 origin 上。 */
+      const withBase =
+        /<head[^>]*>/i.test(html) ?
+          html.replace(/<head[^>]*>/i, match => `${match}<base href="about:blank">`)
+        : `<base href="about:blank">${html}`;
       this.show(token, {
         type: 'file',
         title: name,
         path: `/${path.join('/')}`,
-        html: this.sanitizer.bypassSecurityTrustHtml(html)
+        html: this.sanitizer.bypassSecurityTrustHtml(withBase)
       });
     } catch (error) {
       this.show(token, { type: 'file-error', reason: describeDiskError(error) });

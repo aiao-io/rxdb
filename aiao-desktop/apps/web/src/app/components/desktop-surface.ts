@@ -13,12 +13,14 @@ import {
   viewChild
 } from '@angular/core';
 
+import { FileOperationDialog } from '../apps/finder/file-operation-dialog';
 import { FinderClipboard } from '../apps/finder/finder-clipboard';
-import { showInfoPanel } from './overlays/info-panel';
+import type { FileOperationRequest } from '../apps/finder/finder-model';
+import { isPackageName } from '../disk/disk-kinds';
 import { DESKTOP, DiskPath, finderPathOf, samePath } from '../disk/disk-path';
 import { DesktopItem, DesktopItems, desktopItemId } from '../services/desktop-items';
 import { DockState } from '../services/dock-state';
-import { describeDiskError, FileSystem } from '../services/file-system';
+import { FileSystem, describeDiskError } from '../services/file-system';
 import { isMenuKey } from '../services/focus-order';
 import { MenuEntry } from '../services/menu';
 import { PopoverService } from '../services/popover';
@@ -28,6 +30,7 @@ import { FileDrop } from '../shared/file-drop';
 import { FileThumbnail } from '../shared/file-thumbnail';
 import { clamp } from '../shared/format';
 import { Icon } from '../shared/icon';
+import { showInfoPanel } from './overlays/info-panel';
 import { CalendarWidget, StocksWidget, WeatherWidget } from './widgets/widgets';
 
 const GRID = { w: 92, h: 98, padTop: 8, padRight: 12 } as const;
@@ -44,7 +47,7 @@ interface Point {
  */
 @Component({
   selector: 'app-desktop-surface',
-  imports: [Icon, FileThumbnail, CalendarWidget, WeatherWidget, StocksWidget, FileDrop],
+  imports: [Icon, FileThumbnail, CalendarWidget, WeatherWidget, StocksWidget, FileDrop, FileOperationDialog],
   templateUrl: './desktop-surface.html',
   styleUrl: './desktop-surface.scss',
   encapsulation: ViewEncapsulation.None,
@@ -70,11 +73,13 @@ export class DesktopSurface {
   private readonly marqueeBox = viewChild.required<ElementRef<HTMLElement>>('marquee');
   private dockDragHover = false;
   private folderHoverTimer: ReturnType<typeof setTimeout> | null = null;
-  /** 最近一次右键/键盘菜单的位置，简介面板贴着它开。 */
+  /** 最近一次右键/键盘菜单的位置与触发方式，简介面板贴着它开、按触发方式决定焦点去向。 */
   private menuPoint: { x: number; y: number } | null = null;
+  private menuKeyboard = false;
 
   protected readonly desktop = inject(DesktopItems);
   protected readonly desktopPath = DESKTOP;
+  protected readonly fileOperation = signal<FileOperationRequest | null>(null);
   protected readonly viewport = signal<readonly [number, number]>([innerWidth, innerHeight]);
   protected readonly selected = signal<ReadonlySet<string>>(new Set());
   protected readonly renaming = signal<{ readonly id: string; readonly value: string } | null>(null);
@@ -229,6 +234,7 @@ export class DesktopSurface {
   protected iconMenu(event: MouseEvent, item: DesktopItem): void {
     if (!this.selected().has(item.id)) this.select(item.id);
     this.menuPoint = { x: event.clientX, y: event.clientY };
+    this.menuKeyboard = false;
     this.popover.contextMenu(event, this.iconItems(item), item.name);
   }
 
@@ -257,6 +263,7 @@ export class DesktopSurface {
     const anchor = event.currentTarget as HTMLElement;
     const rect = anchor.getBoundingClientRect();
     this.menuPoint = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    this.menuKeyboard = true;
     this.popover.openMenu(this.iconItems(item), {
       x: rect.left + rect.width / 2,
       y: rect.top + rect.height / 2,
@@ -343,6 +350,7 @@ export class DesktopSurface {
   protected surfaceMenu(event: MouseEvent): void {
     if ((event.target as Element).closest('.dicon, .wgt, input')) return;
     this.menuPoint = { x: event.clientX, y: event.clientY };
+    this.menuKeyboard = false;
     this.popover.contextMenu(event, [
       { id: 'nf', label: 'New Folder', run: () => this.desktop.newFolder() },
       {
@@ -363,19 +371,36 @@ export class DesktopSurface {
     ]);
   }
 
+  protected finishFileOperation(): void {
+    this.fileOperation.set(null);
+  }
+
   private iconItems(item: DesktopItem): MenuEntry[] {
+    const node = item.node;
     return [
       { id: 'o', label: 'Open', run: () => item.open() },
-      { id: 'w', label: 'Open With', key: '▸' },
+      {
+        id: 'w',
+        label: 'Open With…',
+        disabled: !node || node.kind !== 'file' || isPackageName(node.name),
+        run: () => {
+          if (node?.path) this.fileOperation.set({ kind: 'open-with', node });
+        }
+      },
       '-',
       {
         id: 'i',
         label: 'Get Info',
         key: '⌘I',
         run: () => {
-          const node = item.node;
-          if (node) showInfoPanel(this.popover, node, this.menuPoint ?? undefined);
-          else this.toast.show(this.info(item));
+          if (!node) {
+            this.toast.show(this.info(item));
+            return;
+          }
+          const { menuPoint, menuKeyboard } = this;
+          this.menuPoint = null;
+          this.menuKeyboard = false;
+          showInfoPanel(this.popover, node, menuPoint ?? undefined, menuKeyboard);
         }
       },
       {
@@ -439,7 +464,11 @@ export class DesktopSurface {
 
   private showDesktopInfo(): void {
     const node = this.fs.get(finderPathOf(DESKTOP));
-    if (node) showInfoPanel(this.popover, node, this.menuPoint ?? undefined);
+    if (!node) return;
+    const point = this.menuPoint;
+    this.menuPoint = null;
+    this.menuKeyboard = false;
+    showInfoPanel(this.popover, node, point ?? undefined);
   }
 
   private commitRename(restore = true): void {

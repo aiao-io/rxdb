@@ -36,29 +36,39 @@ capabilities: []
 
 ## 验收标准
 
-| #   | 前置条件                         | 操作                                   | 预期结果                                                               | 状态 |
-| --- | -------------------------------- | -------------------------------------- | ---------------------------------------------------------------------- | ---- |
-| 1   | Finder 或桌面有文件/文件夹       | 右键 Get Info 或按 ⌘I（菜单栏）        | 面板显示名称、图标、种类、大小（文件）、所在位置与修改时间；Esc 或点外部关闭 | ⬜   |
-| 2   | Finder 前台、未选中条目          | 菜单栏 ⌘I                              | 显示当前文件夹的简介，无「打开方式」区                                   | ⬜   |
-| 3   | 虚拟磁盘有 .html 文件            | 双击打开；右键 Open With… 选 TextEdit  | 双击用 Safari 渲染文件内容（沙盒 iframe，脚本可运行）；Open With 选 TextEdit 用文本打开 | ⬜   |
-| 4   | 简介面板打开一个 .html 文件      | Open with 选 TextEdit 后点 Change All… | 之后双击其他 html 与刷新后都用 TextEdit 打开，Safari 仍是可选候选          | ⬜   |
-| 5   | Finder 选中文件                  | Open With… 勾选 Always Open With       | 所选应用成为该类文件的默认打开方式，双击、聚焦搜索与终端 `open` 一致生效   | ⬜   |
-| 6   | 虚拟磁盘有内置指南 PDF 与真实 PDF | 双击打开                               | Preview 按页渲染版式，逐页导航可用；分享/打印可用提取的文本               | ⬜   |
-| 7   | 未知扩展名、文件夹、.app 包      | 右键菜单与简介                         | 行为与 US-110 一致：未知类型提示打不开，文件夹与程序包无打开方式区         | ⬜   |
-| 8   | 新面板与对话框                   | 纯键盘操作与 Esc                       | 焦点进入并约束于面板，关闭回原条目，axe 无违规                           | ⬜   |
+| #   | 前置条件                          | 操作                                   | 预期结果                                                                                | 状态 |
+| --- | --------------------------------- | -------------------------------------- | --------------------------------------------------------------------------------------- | ---- |
+| 1   | Finder 或桌面有文件/文件夹        | 右键 Get Info 或按 ⌘I（菜单栏）        | 面板显示名称、图标、种类、大小（文件）、所在位置与修改时间；Esc 或点外部关闭            | ⬜   |
+| 2   | Finder 前台、未选中条目           | 菜单栏 ⌘I                              | 显示当前文件夹的简介，无「打开方式」区                                                  | ⬜   |
+| 3   | 虚拟磁盘有 .html 文件             | 双击打开；右键 Open With… 选 TextEdit  | 双击用 Safari 渲染文件内容（沙盒 iframe，脚本可运行）；Open With 选 TextEdit 用文本打开 | ⬜   |
+| 4   | 简介面板打开一个 .html 文件       | Open with 选 TextEdit 后点 Change All… | 之后双击其他 html 与刷新后都用 TextEdit 打开，Safari 仍是可选候选                       | ⬜   |
+| 5   | Finder 选中文件                   | Open With… 勾选 Always Open With       | 所选应用成为该类文件的默认打开方式，双击、聚焦搜索与终端 `open` 一致生效                | ⬜   |
+| 6   | 虚拟磁盘有内置指南 PDF 与真实 PDF | 双击打开                               | Preview 按页渲染版式，逐页导航可用；分享/打印可用提取的文本                             | ⬜   |
+| 7   | 未知扩展名、文件夹、.app 包       | 右键菜单与简介                         | 行为与 US-110 一致：未知类型提示打不开，文件夹与程序包无打开方式区                      | ⬜   |
+| 8   | 新面板与对话框                    | 纯键盘操作与 Esc                       | 焦点进入并约束于面板，关闭回原条目，axe 无违规                                          | ⬜   |
 
 ## 验收证据
 
-（实现完成后填写。）
+2026-11-24，012-web-desktop-product 分支，Node 26.12.0 / headless Chromium，门禁 `pnpm nx run aiao-desktop:verify --skip-nx-cache`，检查组 `node apps/e2e/src/smoke.mjs --group=file-management`。
+
+- AC1/AC8：`fileManagement.getInfoShowsPanel`——⌘I 打开 renamed.txt 的简介面板，显示名称、种类、大小、位置与修改时间，打开方式下拉默认应用正确；面板 axe 扫描无违规；Esc 关闭。键盘打开的面板焦点进入面板内部（showInfoPanel 的 focus + 关闭回焦点到条目）。
+- AC2：同一检查里清空选择后 ⌘I 显示 Desktop 文件夹的简介，无打开方式区。
+- AC3：`fileManagement.safariOpensHtml`——双击 index.html 用内置 Safari 渲染（沙盒框 `sandbox="allow-scripts"`，框内 origin 为 `null`、够不到 parent，两道断言守护隔离边界）；Open With 选 TextEdit 用文本打开（沿用 US-110 的 `openWithOpensSelectedFile`）。
+- AC4：`fileManagement.openWithAlwaysSetsDefault`（勾选 Always Open With 后刷新仍生效）与 `fileManagement.getInfoChangeAllSetsDefault`（Change All… 改回 Safari 后双击回 Safari）。
+- AC5：终端与聚焦搜索共用 FileOpener 契约由 `file-opener.spec.ts` 覆盖（关联查询、默认优先序、html 默认、setDefaultApp 校验、openApp 白名单、打不开的文件不进 Recents）。
+- AC6：`fileManagement.previewRendersPdf`——内置指南 PDF 与导入的真实压缩 PDF（FlateDecode）按页渲染、翻页导航可用；`pdf-viewer.spec.ts` 在 Node 侧验证文本提取与分页。
+- AC7：未知类型、文件夹与程序包的行为回归由 `file-opener.spec.ts` 与 file-management 组既有检查覆盖。
+- 门禁：aiao-desktop-web 全量单测、typecheck、lint 与 `requirements-check`（48/54 已交付）通过。
+
+已知依赖：file-management 全组在并行会话「菜单与快捷键」批次的窗口恢复语义改动之后，既有段落出现间歇性 flake（开窗动画期间侧栏点击被变成拖拽），与本故事新增检查无关，已把定位与修复选项交给该会话。
 
 ## 实现文件
 
-- `aiao-desktop/apps/web/src/app/services/file-opener.ts`
-- `aiao-desktop/apps/web/src/app/components/overlays/info-panel.ts`
-- `aiao-desktop/apps/web/src/app/apps/finder/finder.ts`
-- `aiao-desktop/apps/web/src/app/apps/finder/file-operation-dialog.ts`
-- `aiao-desktop/apps/web/src/app/components/desktop-surface.ts`
-- `aiao-desktop/apps/web/src/app/services/desktop-menus.ts`
-- `aiao-desktop/apps/web/src/app/apps/safari/`
-- `aiao-desktop/apps/web/src/app/apps/preview/`
-- `aiao-desktop/apps/e2e/src/groups/`
+- `aiao-desktop/apps/web/src/app/services/file-opener.ts`（关联、候选与分派）
+- `aiao-desktop/apps/web/src/app/components/overlays/info-panel.ts`（显示简介面板）
+- `aiao-desktop/apps/web/src/app/apps/finder/finder.ts`、`file-operation-dialog.ts`（入口与 Always Open With）
+- `aiao-desktop/apps/web/src/app/components/desktop-surface.ts`、`services/desktop-menus.ts`（桌面与菜单栏入口）
+- `aiao-desktop/apps/web/src/app/apps/safari/`（本地 html 渲染）
+- `aiao-desktop/apps/web/src/app/apps/preview/`（pdf.js 按页渲染）、`apps/web/project.json`（worker 资产）
+- `aiao-desktop/apps/e2e/src/groups/file-management.mjs`
+- `aiao-desktop/requirements/decisions.md`（D-28）

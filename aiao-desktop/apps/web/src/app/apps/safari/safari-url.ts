@@ -78,6 +78,24 @@ export function filePathOf(url: string): readonly string[] | undefined {
   }
 }
 
+/** 本地 html 的字节解码：先认 BOM，再看文件头部声明的 `meta charset`，都没有按 UTF-8。 */
+export function decodeHtmlFile(bytes: Uint8Array): string {
+  if (bytes[0] === 0xef && bytes[1] === 0xbb && bytes[2] === 0xbf)
+    return new TextDecoder('utf-8').decode(bytes.subarray(3));
+  if (bytes[0] === 0xfe && bytes[1] === 0xff) return new TextDecoder('utf-16be').decode(bytes.subarray(2));
+  if (bytes[0] === 0xff && bytes[1] === 0xfe) return new TextDecoder('utf-16le').decode(bytes.subarray(2));
+  const head = Array.from(bytes.subarray(0, 1024), byte => String.fromCharCode(byte)).join('');
+  const charset = head.match(/<meta[^>]+charset\s*=\s*["']?\s*([a-zA-Z0-9_-]+)/i)?.[1];
+  if (charset) {
+    try {
+      return new TextDecoder(charset).decode(bytes);
+    } catch {
+      /* 浏览器对不认识的标签也退回默认解码，这里同样按 UTF-8。 */
+    }
+  }
+  return new TextDecoder().decode(bytes);
+}
+
 /** 维基条目名；地址里没有条目时为空串。 */
 export const wikiTitle = (url: string): string => decode(bare(url).split('/wiki/')[1] || '');
 

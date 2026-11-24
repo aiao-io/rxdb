@@ -70,17 +70,19 @@ describe('FileOpener 按扩展名打开文件', () => {
     expect(wm.open.mock.calls.map(call => call[0])).toEqual(['preview', 'preview', 'preview', 'preview', 'preview']);
   });
 
-  it('音频文件交给音乐，不带文件参数', () => {
-    const { opener, wm } = setup();
+  it('音频文件交给音乐，不带文件参数，也不进「最近使用」（音乐不播放文件）', () => {
+    const { opener, wm, fs } = setup();
     opener.open(fileNode('song.mp3'));
     expect(wm.open).toHaveBeenCalledExactlyOnceWith('music');
+    expect(fs.noteOpened).not.toHaveBeenCalled();
   });
 
-  it('没有应用能打开的文件：提示原因，不开窗口', () => {
-    const { opener, wm, toast } = setup();
+  it('没有应用能打开的文件：提示原因，不开窗口，也不进「最近使用」', () => {
+    const { opener, wm, toast, fs } = setup();
     opener.open(fileNode('archive.zip'));
     expect(toast.show).toHaveBeenCalledExactlyOnceWith('No application can open “archive.zip”');
     expect(wm.open).not.toHaveBeenCalled();
+    expect(fs.noteOpened).not.toHaveBeenCalled();
   });
 
   it('没有磁盘路径的虚拟条目不记入最近使用，但照样打开', () => {

@@ -1,5 +1,5 @@
+import type { PDFDocumentProxy, RenderTask } from 'pdfjs-dist';
 import { getDocument } from 'pdfjs-dist';
-import type { PDFDocumentProxy } from 'pdfjs-dist';
 
 /** 一次打开的 PDF：按页取文本或把一页画进画布；用完要 {@link destroy}。 */
 export class OpenedPdf {
@@ -30,16 +30,19 @@ export class OpenedPdf {
       .trim();
   }
 
-  /** 把一页画进画布：画布尺寸要已经按设备像素设好，`scale` 是 CSS 像素比例。 */
-  async renderPage(pageNumber: number, canvas: HTMLCanvasElement, scale: number): Promise<void> {
+  /**
+   * 把一页画进画布（尺寸要已按设备像素设好），返回进行中的渲染任务；
+   * 调用方开始下一次渲染前要先 cancel 掉旧任务，两次渲染不能并发写同一块画布。
+   */
+  async renderPage(pageNumber: number, canvas: HTMLCanvasElement, scale: number): Promise<RenderTask> {
     const page = await this.doc.getPage(pageNumber);
     const viewport = page.getViewport({ scale });
     const dpr = devicePixelRatio || 1;
-    await page.render({
+    return page.render({
       canvas,
       viewport,
       ...(dpr === 1 ? {} : { transform: [dpr, 0, 0, dpr, 0, 0] })
-    }).promise;
+    });
   }
 
   destroy(): Promise<void> {
@@ -50,5 +53,10 @@ export class OpenedPdf {
 /** 用 pdf.js 打开一份 PDF 字节；随预览组件懒加载，只在第一次打开 PDF 时才进包。 */
 export async function openPdf(bytes: Uint8Array): Promise<OpenedPdf> {
   const task = getDocument({ data: bytes.slice() });
-  return new OpenedPdf(await task.promise, () => task.destroy());
+  try {
+    return new OpenedPdf(await task.promise, () => task.destroy());
+  } catch (error) {
+    void task.destroy();
+    throw error;
+  }
 }

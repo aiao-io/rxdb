@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { deflateSync } from 'node:zlib';
+import AxeBuilder from '@axe-core/playwright';
 import { expect as playwrightExpect } from 'playwright/test';
 
 import { surgery } from '../harness/database.mjs';
@@ -290,6 +291,8 @@ export const fileManagement = {
       page.locator('.win.front[data-app="finder"]:not(.closing) [data-name="desktop-to-finder.txt"]')
     ).toBeVisible();
     result.desktopFileDragToFinderFolder = true;
+    /* 双击桌面文件夹会新开 Finder 窗口；等开窗动画与首屏内容落定再点它自己的侧栏，避免点到动画中的坐标。 */
+    await page.waitForTimeout(1_200);
     await page.locator('.win.front[data-app="finder"]:not(.closing) [data-place="Desktop"]').click();
     await dragDesktopIcon(targetFolder, trashDockIcon);
     await expect(desktop.locator(`[data-id="file:${targetFolder}"]`)).toHaveCount(0);
@@ -348,6 +351,7 @@ export const fileManagement = {
       await menu(name, 'Move to Trash');
       await expect(item(name)).toHaveCount(0);
     };
+    const trashWin = () => page.locator('.win[data-app="finder"]:not(.closing)[aria-label="Trash"]');
     const openTrash = async () => {
       if ((await finder().locator('[data-title]').textContent()) === 'Trash') {
         const current = await finder().getAttribute('id');
@@ -498,11 +502,21 @@ export const fileManagement = {
     await item('index.html').dblclick();
     const safari = helpers.win('safari');
     await expect(safari.locator('iframe[data-sf-file]')).toBeVisible();
+    await expect(safari.locator('iframe[data-sf-file]')).toHaveAttribute('sandbox', 'allow-scripts');
     await expect(safari.locator('[data-url]')).toHaveValue(/index\.html$/);
     const htmlFrame = safari.locator('iframe[data-sf-file]').contentFrame();
     const htmlTitle = await htmlFrame.locator('title').evaluate(node => node.textContent);
-    expect(htmlTitle).toBe('desktop-web');
-    result.safariOpensHtml = true;
+    /* 沙盒边界：框内脚本运行在不透明来源，够不到桌面（D-28 的唯一防线，回归守护）。 */
+    const frameOrigin = await htmlFrame.locator('html').evaluate(() => window.origin);
+    const parentReach = await htmlFrame.locator('html').evaluate(() => {
+      try {
+        void parent.document.title;
+        return 'reachable';
+      } catch {
+        return 'blocked';
+      }
+    });
+    result.safariOpensHtml = htmlTitle === 'desktop-web' && frameOrigin === 'null' && parentReach === 'blocked';
     await closeWin('safari');
     await expect(safari).toHaveCount(0);
 
@@ -521,6 +535,19 @@ export const fileManagement = {
     await item('index.html').dblclick();
     await expect(helpers.win('textedit').locator('[data-te-doc]')).toContainText('aurora-synth');
     await closeWin('textedit');
+    /* 刷新后关联仍在：再开一个 html 依旧走 TextEdit（AC4）。 */
+    await page.reload({ waitUntil: 'load' });
+    await helpers.restored();
+    /* 恢复出的 Finder 还在开窗动画，等它落定再点侧栏（与首次启动后的等待同理）。 */
+    await page.waitForTimeout(1_200);
+    await place('Desktop');
+    await item('Projects').dblclick();
+    await expect(item('desktop-web')).toBeVisible();
+    await item('desktop-web').dblclick();
+    await expect(item('index.html')).toBeVisible();
+    await item('index.html').dblclick();
+    await expect(helpers.win('textedit').locator('[data-te-doc]')).toContainText('desktop-web');
+    await closeWin('textedit');
     result.openWithAlwaysSetsDefault = true;
 
     /* 简介面板的 Change All… 改回 Safari，双击验证默认已回。 */
@@ -534,6 +561,8 @@ export const fileManagement = {
     await expect(infoPanel()).toBeVisible();
     await expect(infoPanel().locator('[data-ip-app]')).toHaveValue('textedit');
     await infoPanel().locator('[data-ip-app]').selectOption('safari');
+    /* 无 Zone 应用：变更检测下一帧才刷新下拉的信号，等值落定再点 Change All。 */
+    await expect(infoPanel().locator('[data-ip-app]')).toHaveValue('safari');
     await infoPanel().locator('[data-ip-change-all]').click();
     await expect(page.locator('#toast')).toContainText('will now open with Safari');
     await expect(infoPanel()).toHaveCount(0);
@@ -542,7 +571,7 @@ export const fileManagement = {
     await closeWin('safari');
     result.getInfoChangeAllSetsDefault = true;
 
-    /* 菜单栏 ⌘I：选中条目后打开简介，面板显示元数据与打开方式，Esc 关闭。 */
+    /* 菜单栏 ⌘I：选中条目后打开简介，面板显示元数据与打开方式，axe 无违规，Esc 关闭。 */
     await place('Desktop');
     await expect(item('renamed.txt')).toBeVisible();
     await item('renamed.txt').focus();
@@ -553,9 +582,20 @@ export const fileManagement = {
     await expect(renamedPanel).toContainText('Plain text');
     await expect(renamedPanel).toContainText('/Desktop');
     await expect(renamedPanel.locator('[data-ip-app]')).toHaveValue('textedit');
+    const panelAxe = await new AxeBuilder({ page }).include('app-info-panel').analyze();
     await page.keyboard.press('Escape');
     await expect(infoPanel()).toHaveCount(0);
-    result.getInfoShowsPanel = true;
+    /* 未选中条目时 ⌘I 显示当前文件夹（Desktop）的简介，没有打开方式区（AC2）。 */
+    await finder().locator('[data-body]').click({ position: { x: 10, y: 240 } });
+    await page.keyboard.press('Meta+i');
+    await expect(infoPanel()).toBeVisible();
+    const desktopPanel = infoPanel();
+    await expect(desktopPanel).toContainText('Desktop');
+    await expect(desktopPanel).toContainText('Folder');
+    await expect(desktopPanel.locator('[data-ip-open-with]')).toHaveCount(0);
+    await page.keyboard.press('Escape');
+    await expect(infoPanel()).toHaveCount(0);
+    result.getInfoShowsPanel = panelAxe.violations.length === 0;
 
     /* PDF：内置指南按页渲染；导入的真实 PDF（FlateDecode）同样能渲染。 */
     await item('Interface Guidelines.pdf').dblclick();

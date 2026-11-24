@@ -19,7 +19,7 @@ import {
   type GithubRepositoryMenu,
   type GithubTab
 } from './desktop-menus';
-import { HOME_PATH, PLACES } from './file-system';
+import { FileSystem, HOME_PATH, PLACES } from './file-system';
 import { FinderPreferences } from './finder-preferences';
 import { MenuEntry, MenuSection, isMenuCommand } from './menu';
 import { PopoverService } from './popover';
@@ -35,6 +35,7 @@ function setup() {
   const session = { sleepNow: vi.fn(), restart: vi.fn(), shutDown: vi.fn(), lock: vi.fn() };
   const popover = { openComponent: vi.fn() };
   const desktopItems = { newFolder: vi.fn(), canUndoTrash: vi.fn(() => false), undoTrash: vi.fn() };
+  const fs = { get: vi.fn(() => null) };
   configureServices([
     DesktopMenus,
     SystemState,
@@ -46,7 +47,8 @@ function setup() {
     { provide: Toast, useValue: toast },
     { provide: Session, useValue: session },
     { provide: PopoverService, useValue: popover },
-    { provide: DesktopItems, useValue: desktopItems }
+    { provide: DesktopItems, useValue: desktopItems },
+    { provide: FileSystem, useValue: fs }
   ]);
   return { menus: TestBed.inject(DesktopMenus), wm, toast, session, popover, desktopItems };
 }
@@ -176,7 +178,7 @@ describe('DesktopMenus 应用菜单与窗口菜单', () => {
     ]);
     for (const id of ['a', 'p', 'h', 'o', 's', 'q']) click(about, id);
     expect(wm.open.mock.calls).toEqual([['about'], ['settings']]);
-    expect(wm.minimizeFront).toHaveBeenCalledTimes(1);
+    expect(wm.hideFront).toHaveBeenCalledTimes(1);
     expect(wm.hideOthers).toHaveBeenCalledTimes(1);
     expect(wm.showAll).toHaveBeenCalledTimes(1);
     expect(wm.quitFront).toHaveBeenCalledTimes(1);
@@ -210,7 +212,7 @@ describe('DesktopMenus 应用菜单与窗口菜单', () => {
     click(about, 'q');
     expect(target.openSettings).toHaveBeenCalledOnce();
     expect(wm.open.mock.calls).toEqual([['about']]);
-    expect(wm.minimizeFront).toHaveBeenCalledTimes(1);
+    expect(wm.hideFront).toHaveBeenCalledTimes(1);
     expect(wm.hideOthers).toHaveBeenCalledTimes(1);
     expect(wm.showAll).toHaveBeenCalledTimes(1);
     expect(wm.quitFront).toHaveBeenCalledTimes(1);

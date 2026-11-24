@@ -68,3 +68,9 @@
     </div>
   }
 </div>
+
+@defer (when fileOperation()) {
+  @if (fileOperation(); as operation) {
+    <app-file-operation-dialog [request]="operation" (finished)="finishFileOperation()" />
+  }
+}

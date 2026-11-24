@@ -1,6 +1,6 @@
 # Aiao Desktop 状态总览
 
-2026-11-23 更新。状态真相源是故事 YAML；AC验收、依赖关闭与生产发布分别记录。当前48条Done、0条In Progress、1条In Review、4条Backlog。浏览器范围按[D-19](decisions.md#d-19只验收桌面-chrome)只验收桌面Chrome；[D-20](decisions.md#d-20接受两项回溯基线例外并批准本次正式发布)已接受两项回溯基线例外并批准正式发布。本次正式发布及95个公开文件的后续对账已完成；物理键盘已逐项记录并关闭 US-107，当前仅剩 US-108 的 VoiceOver AC，按用户 2026-11-15 指示延期至后续验收。
+2026-11-23 更新。状态真相源是故事 YAML；AC验收、依赖关闭与生产发布分别记录。当前48条Done、1条In Progress、1条In Review、4条Backlog。浏览器范围按[D-19](decisions.md#d-19只验收桌面-chrome)只验收桌面Chrome；[D-20](decisions.md#d-20接受两项回溯基线例外并批准本次正式发布)已接受两项回溯基线例外并批准正式发布。本次正式发布及95个公开文件的后续对账已完成；物理键盘已逐项记录并关闭 US-107，当前仅剩 US-108 的 VoiceOver AC，按用户 2026-11-15 指示延期至后续验收。
 
 2026-11-16 新增 PWA 安装、离线桌面与版本更新的本地正式构建验收已完成（US-009），[证据](evidence/2026-11-16/pwa.md)与既有线上发布分开记录；本次没有生产发布。
 
@@ -9,11 +9,11 @@
 | 状态           | 数量 |
 | -------------- | ---- |
 | ✅ Done        | 48   |
-| 🚧 In Progress | 0    |
+| 🚧 In Progress | 1    |
 | 👀 In Review   | 1    |
 | 📝 Backlog     | 4    |
 | 🚫 Blocked     | 0    |
-| **合计**       | 53   |
+| **合计**       | 54   |
 
 ## 自动完成计划
 
@@ -21,7 +21,9 @@ A01～A05 已完成并归档，包括 US-112、US-113 与 US-208；A06 已完成
 
 US-119 Calendar、US-120 Contacts、US-122 Reminders、US-123 Notes 文件夹、US-124 Freeform、US-125 Stocks、US-126 Font Book 和 US-127 Settings 已完成，A06 台账仍保留媒体、书架、其他搜索筛选和主要操作等未核查应用流程。
 
-## 进行中（0 条）
+## 进行中（1 条）
+
+- [ADESK-US-212 文件简介与打开方式](stories/desktop/ADESK-US-212-file-info-and-open-with.md)：显示简介面板、扩展名级默认打开方式、Safari 打开本地 html 与 Preview 按页渲染 PDF（决策 D-28）。
 
 ## 待评审（1 条）
 
@@ -90,7 +92,7 @@ US-119 Calendar、US-120 Contacts、US-122 Reminders、US-123 Notes 文件夹、
 - ✅ [ADESK-US-128 浏览器关闭后恢复工作区](stories/desktop/ADESK-US-128-browser-session-restore.md)
 - ✅ [ADESK-US-129 Finder 仿真文件操作、虚拟列表与本地邮件分享](stories/desktop/ADESK-US-129-finder-parity-and-mail.md)
 - ✅ [ADESK-US-130 桌面冷启动与首次使用时加载](stories/desktop/ADESK-US-130-desktop-on-demand.md)
-- ⬜ [ADESK-US-212 文件简介与打开方式](stories/desktop/ADESK-US-212-file-info-and-open-with.md)
+- 🚧 [ADESK-US-212 文件简介与打开方式](stories/desktop/ADESK-US-212-file-info-and-open-with.md)
 
 ### ADESK-EPIC-003 应用体系与集成应用
 

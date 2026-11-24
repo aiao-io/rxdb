@@ -41,6 +41,10 @@
 
 应用按需运行（US-206）之后，验证桌面冷启动、浮层首次打开与同页重开。见[ADESK-US-130 桌面冷启动与首次使用时加载](stories/desktop/ADESK-US-130-desktop-on-demand.md)。
 
+## 文件简介与打开方式（2026-11-24）
+
+[ADESK-US-212 文件简介与打开方式](stories/desktop/ADESK-US-212-file-info-and-open-with.md) 已立项：右键与 ⌘I 的「显示简介」面板、扩展名级默认打开方式（Change All 与 Always Open With）、Safari 打开本地 html（沙盒框）与 Preview 按页渲染 PDF（pdf.js）。决策见 D-28。
+
 ## GitHub 开发工作台（2026-11-21）
 
 [ADESK-US-209 GitHub 应用与 OPFS Git 工作区](stories/application/ADESK-US-209-github-opfs-workbench.md) 已完成范围评审和阶段 A～C 验收。实现包括 GitHub Desktop 形态入口、独立 OPFS Git 工作区、Git Worker、OAuth / PAT、GitHub API 远端操作、冲突处理和正式 Chromium 冒烟。本故事不与 Finder 虚拟磁盘自动同步，也不承诺跨设备恢复。证据见 [US-209-evidence.md](stories/application/ADESK-US-209-evidence.md)。

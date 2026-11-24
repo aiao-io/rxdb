@@ -40,7 +40,7 @@ import type { FileOperationRequest } from './finder-model';
                 </select></label
               >
               <label class="chk">
-                <input #always type="checkbox" [checked]="alwaysOpen()" (change)="alwaysOpen.set(always.checked)" />
+                <input #always [checked]="alwaysOpen()" (change)="alwaysOpen.set(always.checked)" type="checkbox" />
                 Always Open With
               </label>
             } @else {

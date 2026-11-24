@@ -4,23 +4,36 @@ import { extensionOf } from '../../disk/disk-kinds';
 import { parentOf } from '../../disk/disk-path';
 import { FileOpener } from '../../services/file-opener';
 import { FsNode } from '../../services/file-system';
-import { PopoverService } from '../../services/popover';
+import { PopoverCloseReason, PopoverService, RETURNS_FOCUS } from '../../services/popover';
 import { Toast } from '../../services/toast';
 import { finderDate } from '../../shared/format';
 import { Icon } from '../../shared/icon';
 
-/** 打开「显示简介」面板；没有给坐标时放在窗口中央偏上。 */
+/**
+ * 打开「显示简介」面板；没有给坐标时放在窗口中央偏上。
+ * 键盘打开的（菜单栏 ⌘I、条目上按菜单键选 Get Info）焦点进入面板，关闭时回到打开前聚焦的元素。
+ */
 export function showInfoPanel(
   popover: PopoverService,
   node: FsNode,
-  point?: Readonly<{ x: number; y: number }>
+  point?: Readonly<{ x: number; y: number }>,
+  keyboard = false
 ): void {
+  const anchor = keyboard && document.activeElement instanceof HTMLElement ? document.activeElement : null;
   popover.openComponent(
     InfoPanel,
     {
       x: point?.x ?? Math.max(8, Math.round(innerWidth / 2 - 170)),
       y: point?.y ?? Math.round(innerHeight / 2.6),
-      origin: 'top left'
+      origin: 'top left',
+      ...(keyboard ?
+        {
+          focus: true,
+          onClose: (reason: PopoverCloseReason) => {
+            if (RETURNS_FOCUS.has(reason)) anchor?.focus();
+          }
+        }
+      : {})
     },
     { node }
   );
@@ -43,26 +56,37 @@ export function showInfoPanel(
         </button>
       </div>
       <dl class="meta">
-        <div><dt>Kind</dt><dd>{{ node().k }}</dd></div>
+        <div>
+          <dt>Kind</dt>
+          <dd>{{ node().k }}</dd>
+        </div>
         @if (node().kind === 'file' && node().size) {
-          <div><dt>Size</dt><dd>{{ node().size }}</dd></div>
+          <div>
+            <dt>Size</dt>
+            <dd>{{ node().size }}</dd>
+          </div>
         }
-        <div><dt>Where</dt><dd>{{ where() }}</dd></div>
+        <div>
+          <dt>Where</dt>
+          <dd>{{ where() }}</dd>
+        </div>
         @if (node().date) {
-          <div><dt>Modified</dt><dd>{{ finderDate(node().date) }}</dd></div>
+          <div>
+            <dt>Modified</dt>
+            <dd>{{ finderDate(node().date) }}</dd>
+          </div>
         }
       </dl>
       @if (choices().length) {
         <div class="ow" data-ip-open-with>
-          <div class="t">Open with:</div>
-          <div class="row">
-            <select #app [value]="selected()" (change)="selected.set(app.value)" data-ip-app>
+          <label class="ow-label"
+            >Open with:<select #app [value]="selected()" (change)="selected.set(app.value)" data-ip-app>
               @for (choice of choices(); track choice.id) {
                 <option [value]="choice.id">{{ choice.name }}</option>
               }
-            </select>
-            <button class="btn" (click)="changeAll()" data-ip-change-all tabindex="0">Change All…</button>
-          </div>
+            </select></label
+          >
+          <button class="btn" (click)="changeAll()" data-ip-change-all tabindex="0">Change All…</button>
         </div>
       }
     </div>
@@ -124,14 +148,13 @@ export function showInfoPanel(
     .ow {
       border-top: 1px solid #8888;
       padding-top: 12px;
+      display: grid;
+      gap: 10px;
     }
-    .t {
-      color: var(--txt-2);
-      margin-bottom: 8px;
-    }
-    .row {
-      display: flex;
+    .ow-label {
+      display: grid;
       gap: 8px;
+      color: var(--txt-2);
     }
     select {
       flex: 1;

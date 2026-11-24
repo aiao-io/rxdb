@@ -1,9 +1,11 @@
 import { Service, inject } from '@angular/core';
 import { ApplicationRegistry } from './application-registry';
 
+import { showInfoPanel } from '../components/overlays/info-panel';
+import { DESKTOP, finderPathOf } from '../disk/disk-path';
 import { DesktopAppId } from './desktop-apps';
 import { DesktopItems } from './desktop-items';
-import { HOME_PATH, PLACES } from './file-system';
+import { FileSystem, HOME_PATH, PLACES } from './file-system';
 import { FinderPreferences } from './finder-preferences';
 import { MenuEntry, MenuSection, section } from './menu';
 import { PopoverService } from './popover';
@@ -75,6 +77,7 @@ export class DesktopMenus {
   private readonly system = inject(SystemState);
   private readonly finderPreferences = inject(FinderPreferences);
   private readonly popover = inject(PopoverService);
+  private readonly fs = inject(FileSystem);
   private readonly desktopItems = inject(DesktopItems);
 
   apple(): MenuEntry[] {
@@ -109,7 +112,7 @@ export class DesktopMenus {
       '-',
       { id: 'p', label: 'Settings…', key: '⌘,', run: () => this.wm.open('settings') },
       '-',
-      { id: 'h', label: `Hide ${name}`, key: '⌘H', run: () => this.wm.minimizeFront() },
+      { id: 'h', label: `Hide ${name}`, key: '⌘H', run: () => this.wm.hideFront() },
       { id: 'o', label: 'Hide Others', key: '⌥⌘H', run: () => this.wm.hideOthers() },
       { id: 's', label: 'Show All', run: () => this.wm.showAll() },
       '-',
@@ -126,7 +129,7 @@ export class DesktopMenus {
       { id: 'cli', label: 'Install Command Line Tool', disabled: true },
       { id: 'services', label: 'Services', key: '▸', disabled: true },
       '-',
-      { id: 'h', label: 'Hide GitHub Desktop', key: '⌘H', run: () => this.wm.minimizeFront() },
+      { id: 'h', label: 'Hide GitHub Desktop', key: '⌘H', run: () => this.wm.hideFront() },
       { id: 'o', label: 'Hide Others', key: '⌥⌘H', run: () => this.wm.hideOthers() },
       { id: 's', label: 'Show All', run: () => this.wm.showAll() },
       '-',
@@ -222,7 +225,11 @@ export class DesktopMenus {
     return this.finder({
       newFolder: () => this.desktopItems.newFolder(),
       openSelected: none,
-      getInfo: none,
+      getInfo: () => {
+        /* 没有 Finder 窗口时的 ⌘I：显示桌面（Desktop 文件夹）的简介，与桌面空白处右键一致。 */
+        const node = this.fs.get(finderPathOf(DESKTOP));
+        if (node) showInfoPanel(this.popover, node);
+      },
       trashSelected: none,
       copySelected: none,
       cutSelected: none,

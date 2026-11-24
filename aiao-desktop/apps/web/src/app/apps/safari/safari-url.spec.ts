@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { filePathOf, fileUrlOf, isSameOrigin, kindOf, resolveUrl, titleFor } from './safari-url';
+import { decodeHtmlFile, filePathOf, fileUrlOf, isSameOrigin, kindOf, resolveUrl, titleFor } from './safari-url';
 
 const DESKTOP = 'https://desktop.example.com';
 
@@ -86,5 +86,30 @@ describe('file 地址与卷内路径（D-28）', () => {
 
   it('没有 file:// 前缀的普通文件名不进 file 分支，仍按既有规则归类', () => {
     expect(kindOf('page.html')).toBe('web');
+  });
+});
+
+describe('decodeHtmlFile 本地 html 的字节解码（D-28）', () => {
+  it('UTF-8 BOM 去掉再解码，内容不乱码', () => {
+    const bytes = new Uint8Array([0xef, 0xbb, 0xbf, ...new TextEncoder().encode('<p>你好</p>')]);
+    expect(decodeHtmlFile(bytes)).toBe('<p>你好</p>');
+  });
+
+  it('UTF-16LE BOM 按 UTF-16 解码', () => {
+    const encoded = Buffer.from('<p>你好</p>', 'utf16le');
+    const bytes = new Uint8Array([0xff, 0xfe, ...encoded]);
+    expect(decodeHtmlFile(bytes)).toBe('<p>你好</p>');
+  });
+
+  it('文件头部声明的 meta charset 生效', () => {
+    const html = '<meta charset="windows-1252"><p>café</p>';
+    const bytes = Uint8Array.from([...Buffer.from(html, 'latin1')]);
+    expect(decodeHtmlFile(bytes)).toContain('café');
+  });
+
+  it('没有 BOM 与 meta 时按 UTF-8；不认识的标签退回 UTF-8', () => {
+    expect(decodeHtmlFile(new TextEncoder().encode('<p>你好</p>'))).toBe('<p>你好</p>');
+    const unknown = new TextEncoder().encode('<meta charset="x-unknown"><p>ok</p>');
+    expect(decodeHtmlFile(unknown)).toBe('<meta charset="x-unknown"><p>ok</p>');
   });
 });

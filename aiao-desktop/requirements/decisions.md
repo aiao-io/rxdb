@@ -275,3 +275,13 @@ Aiao Desktop 的首个原生安装版使用 Tauri 2 作为桌面宿主，首版�
 - Tauri 工作区使用应用管理的数据目录和 SQLite 宿主能力，文件体、数据库和设置的切换遵守临时工作区校验与原子切换规则。
 - 首版不承诺 Linux、移动端、Electron、账号同步、实时数据合并、任意网址安装和完整操作系统原生集成。
 - 安装包、真实设备启动、迁移、升级、卸载和恢复分别留下对应证据，浏览器构建与 e2e 只能证明共享前端行为。
+
+## D-28：文件类型关联与打开方式
+
+2026-11-24，新增 [ADESK-US-212 文件简介与打开方式](stories/desktop/ADESK-US-212-file-info-and-open-with.md)。
+
+- 「打开方式」关联按扩展名存进 `SystemPreference` 键 `open-with:associations`（扩展名 → 应用 id），FileOpener 是唯一读取点：Finder 双击/回车、桌面图标、聚焦搜索与终端 `open` 共用一条契约。关联只在候选应用里生效，指向不支持该文件的应用时忽略，回到内置默认。
+- html 的内置默认改为 Safari（与 macOS 一致），TextEdit 仍是候选；Safari 在沙盒框（`allow-scripts`、不带 `allow-same-origin`）里渲染本地 html——脚本可以运行，但与桌面隔离，碰不到桌面数据。
+- Preview 用 pdf.js 按页渲染 PDF（随预览组件懒加载，worker 由构建配置发布到 `pdfjs/`），分享、打印与复制用从页面提取出的文本。
+- 「显示简介」面板与 Open With 对话框的 Always Open With 落同一条关联；不提供按文件覆盖，语义与 macOS 的「全部更改」一致。
+- 唤起系统 Safari/Preview 不属于纯 Web 范围，归 Tauri 版（D-27）；Music（合成器）与 Photos 不进候选集，不伪装支持文件传入。

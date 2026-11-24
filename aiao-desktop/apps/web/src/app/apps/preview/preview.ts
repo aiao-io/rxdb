@@ -1,5 +1,15 @@
-import { Component, DestroyRef, ElementRef, afterRenderEffect, computed, inject, signal, viewChild } from '@angular/core';
-import { GlobalWorkerOptions } from 'pdfjs-dist';
+import {
+  Component,
+  DestroyRef,
+  ElementRef,
+  afterRenderEffect,
+  computed,
+  inject,
+  signal,
+  viewChild
+} from '@angular/core';
+import type { RenderTask } from 'pdfjs-dist';
+import { GlobalWorkerOptions, RenderingCancelledException } from 'pdfjs-dist';
 
 import { extensionOf, fileKind } from '../../disk/disk-kinds';
 import { ContentActions } from '../../services/content-actions';
@@ -14,8 +24,8 @@ import { Icon } from '../../shared/icon';
 import { imageDataUrl } from '../../shared/image-url';
 import { TrafficLights } from '../../shared/traffic-lights';
 import { MailComposer } from '../mail/mail-composer';
-import { markMatches } from './preview-find';
 import { OpenedPdf, openPdf } from './pdf-viewer';
+import { markMatches } from './preview-find';
 
 /** pdf.js 的 worker 由构建配置随应用发布（`pdfjs/pdf.worker.min.mjs`）。 */
 GlobalWorkerOptions.workerSrc = new URL('pdfjs/pdf.worker.min.mjs', document.baseURI).href;
@@ -61,7 +71,9 @@ export class PreviewApp {
   private readonly pdfCanvas = viewChild<ElementRef<HTMLCanvasElement>>('pdfCanvas');
   private readonly pdfBox = viewChild<ElementRef<HTMLElement>>('pdfBox');
   private opened: OpenedPdf | null = null;
+  private renderTask: RenderTask | null = null;
   private renderToken = 0;
+  private closed = false;
 
   protected readonly actions = inject(ContentActions);
   protected readonly content = computed<PrintableContent | null>(() => {
@@ -82,8 +94,14 @@ export class PreviewApp {
     const menus = inject(DesktopMenus);
     const destroyRef = inject(DestroyRef);
     this.win.setMenus(computed(() => menus.standard('preview')));
-    this.win.beforeClose.subscribe(() => void this.opened?.destroy());
-    destroyRef.onDestroy(() => void this.opened?.destroy());
+    this.win.beforeClose.subscribe(() => {
+      this.closed = true;
+      void this.opened?.destroy();
+    });
+    destroyRef.onDestroy(() => {
+      this.closed = true;
+      void this.opened?.destroy();
+    });
     afterRenderEffect(() => {
       if (this.view().kind !== 'pdf') return;
       this.page();
@@ -177,13 +195,18 @@ export class PreviewApp {
   private async loadPdf(bytes: Uint8Array): Promise<void> {
     try {
       const doc = await openPdf(bytes);
+      if (this.closed) {
+        void doc.destroy();
+        return;
+      }
       this.opened = doc;
       this.pageCount.set(doc.pageCount);
       this.page.set(1);
-      this.pdfText.set(await this.collectText(doc));
       this.view.set({ kind: 'pdf' });
+      /* 分享与打印用的全篇文本在后台提取，不挡第一页渲染。 */
+      void this.collectText(doc).then(text => this.pdfText.set(text));
     } catch {
-      this.view.set({ kind: 'failed', reason: 'The PDF data could not be read.' });
+      if (!this.closed) this.view.set({ kind: 'failed', reason: 'The PDF data could not be read.' });
     }
   }
 
@@ -197,23 +220,32 @@ export class PreviewApp {
     return pages.join('\n');
   }
 
-  /** 把当前页画进画布：按容器宽度适配（有放大上限），翻页后旧渲染的结果不覆盖新页。 */
+  /** 把当前页画进画布：按容器宽度适配（有放大上限）；开始新的渲染前取消旧任务，旧页的画块不会落到新页上。 */
   private async renderInto(canvas: HTMLCanvasElement, box: HTMLElement): Promise<void> {
     const doc = this.opened;
     if (!doc) return;
     const token = ++this.renderToken;
-    const size = await doc.pageSize(this.page(), 1);
-    const scale = Math.min(box.clientWidth / size.width, MAX_SCALE);
-    if (token !== this.renderToken) return;
-    const dpr = devicePixelRatio || 1;
-    canvas.width = Math.round(size.width * scale * dpr);
-    canvas.height = Math.round(size.height * scale * dpr);
-    canvas.style.width = `${Math.round(size.width * scale)}px`;
-    canvas.style.height = `${Math.round(size.height * scale)}px`;
+    this.renderTask?.cancel();
+    this.renderTask = null;
     try {
-      await doc.renderPage(this.page(), canvas, scale);
-    } catch {
-      if (token === this.renderToken) this.view.set({ kind: 'failed', reason: 'The PDF page could not be rendered.' });
+      const size = await doc.pageSize(this.page(), 1);
+      if (token !== this.renderToken) return;
+      const scale = Math.min(box.clientWidth / size.width, MAX_SCALE);
+      const dpr = devicePixelRatio || 1;
+      canvas.width = Math.round(size.width * scale * dpr);
+      canvas.height = Math.round(size.height * scale * dpr);
+      canvas.style.width = `${Math.round(size.width * scale)}px`;
+      canvas.style.height = `${Math.round(size.height * scale)}px`;
+      const task = await doc.renderPage(this.page(), canvas, scale);
+      if (token !== this.renderToken) {
+        task.cancel();
+        return;
+      }
+      this.renderTask = task;
+      await task.promise;
+    } catch (error) {
+      if (token === this.renderToken && !this.closed && !(error instanceof RenderingCancelledException))
+        this.view.set({ kind: 'failed', reason: 'The PDF page could not be rendered.' });
     }
   }
 

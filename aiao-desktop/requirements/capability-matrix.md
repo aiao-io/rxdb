@@ -63,6 +63,8 @@
 
 文件管理补充：Finder 的改名、递归复制、Open With、每批 256 MiB 本机文件导入、单文件下载和废纸篓生命周期已按 [US-110](stories/desktop/ADESK-US-110-file-management.md) 验收。删除先进入 `~/.Trash`，Empty Trash 经过确认后永久删除；原目录失效时用户明确选位置，重名自动保留两份；下载保持原始字节。
 
+US-212 补充：右键与菜单栏 ⌘I 的「显示简介」打开信息面板（种类、大小、位置、修改时间与打开方式区），Change All 与 Open With 的 Always Open With 把默认应用按扩展名存进本地偏好，跨刷新与标签页生效；html 默认交给内置 Safari 在沙盒框里渲染，Preview 用 pdf.js 按页渲染 PDF（含导入的真实压缩 PDF）。未知类型、文件夹与程序包不受影响；唤起系统 Safari/Preview 需 Tauri 版（D-27）。
+
 US-129 补充：Finder 的拖动移动/复制、剪切粘贴、多选、列表与分栏虚拟滚动、分栏列宽调整和 Finder Share 已按 [US-129](stories/desktop/ADESK-US-129-finder-parity-and-mail.md) 验收。Mail Share 只创建本地草稿，真实邮件收发仍未接入。
 
 US-114：Preview 的文本 PDF 全文/图片文件名、Mail 邮件文本、Photos 图片地址已支持真实复制；Preview/Mail 支持所选内容浏览器打印及可见失败。成功请求不代表纸张输出，邮件传输与视频播放等未由此完成；见 [A06 台账](plans/2026-11-17-builtin-workflows.md)。

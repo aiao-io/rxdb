@@ -65,18 +65,20 @@ export class FileOpener {
       void this.launchPackage(node);
       return;
     }
-    if (node.path) this.fs.noteOpened(node.path);
     const candidates = this.candidatesOf(node);
     const associated = this.associations()[extensionOf(node.name)];
     if (associated && candidates.includes(associated as DesktopAppId)) {
+      if (node.path) this.fs.noteOpened(node.path);
       this.wm.open(associated as DesktopAppId, { file: node.name, node });
       return;
     }
     const [preferred] = candidates;
     if (preferred) {
+      if (node.path) this.fs.noteOpened(node.path);
       this.wm.open(preferred, { file: node.name, node });
       return;
     }
+    /* 打不开的文件不进「最近使用」：像 macOS 一样，只有真正交给应用打开的才记。 */
     if (MUSIC.has(extensionOf(node.name))) this.wm.open('music');
     else this.toast.show(`No application can open “${node.name}”`);
   }

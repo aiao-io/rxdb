@@ -82,6 +82,7 @@ owner: jimmy
 - [ADESK-US-128 浏览器关闭后恢复工作区](../stories/desktop/ADESK-US-128-browser-session-restore.md) (High)
 - [ADESK-US-129 Finder 仿真文件操作、虚拟列表与本地邮件分享](../stories/desktop/ADESK-US-129-finder-parity-and-mail.md) (High)
 - [ADESK-US-130 桌面冷启动与首次使用时加载](../stories/desktop/ADESK-US-130-desktop-on-demand.md) (High)
+- [ADESK-US-212 文件简介与打开方式](../stories/desktop/ADESK-US-212-file-info-and-open-with.md) (High)
 
 ## 非目标
 
