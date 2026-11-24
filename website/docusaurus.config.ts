@@ -4,9 +4,19 @@ import { themes as prismThemes } from 'prism-react-renderer';
 
 // 这在 Node.js 中运行 - 请勿在此处使用客户端代码（浏览器 API、JSX...）
 
+// 站点配置的 title / tagline 没有官方的 code.json 翻译机制：Docusaurus 3.10 的
+// write-translations 不提取 site.* 键，@docusaurus/core 与 theme-classic 源码里也没有
+// 消费 site.tagline 的代码（siteConfig 原样序列化给客户端）。官方给出的工作区是
+// buildLocale 按 locale 设置的 process.env.DOCUSAURUS_CURRENT_LOCALE（issue #4542），
+// 与 sidebars.ts 的做法一致。
+const tagline =
+  process.env.DOCUSAURUS_CURRENT_LOCALE === 'en'
+    ? 'An in-browser database, reactive queries, and a unified entity model for Angular, React, and Vue'
+    : '面向 Angular、React、Vue 的浏览器内数据库、响应式查询与统一实体模型';
+
 const config: Config = {
   title: 'RxDB',
-  tagline: '面向 Angular、React、Vue 的浏览器内数据库、响应式查询与统一实体模型',
+  tagline,
   favicon: '/favicon.ico',
   // 未来标志，详见 https://docusaurus.io/docs/api/docusaurus-config#future
   future: {
@@ -77,6 +87,7 @@ const config: Config = {
   plugins: [
     ['./src/plugins/tailwind-config.js', {}],
     ['./src/plugins/demo-routes.js', {}],
+    ['./src/plugins/site-meta.js', {}],
     ['./src/plugins/llms-txt.js', {}],
     [
       'ideal-image',
@@ -118,11 +129,9 @@ const config: Config = {
       {
         name: 'keywords',
         content: 'Aiao, Local-first, RxDB, RxJS, WebAssembly, SQLite, PGlite, Angular, React, Vue, TypeScript'
-      },
-      {
-        name: 'description',
-        content: 'RxDB 为 Angular、React、Vue 提供浏览器内数据库、响应式查询与类型安全的统一实体模型。'
       }
+      // 描述从静态元数据移除：由 src/plugins/site-meta.js 按当前 locale 注入，
+      // zh 页面渲染的文案与这里移除的条目逐字节一致。
     ],
     colorMode: {
       defaultMode: 'dark',

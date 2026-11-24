@@ -392,5 +392,9 @@
   "theme.tags.tagsPageTitle": {
     "message": "Tags",
     "description": "The title of the tag list page"
+  },
+  "site.tagline": {
+    "message": "An in-browser database, reactive queries, and a unified entity model for Angular, React, and Vue",
+    "description": "The site tagline shown in site metadata"
   }
 }
