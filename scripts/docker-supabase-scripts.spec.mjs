@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { promisify } from 'node:util';
+import { parseEnv, promisify } from 'node:util';
 
 // docker/ 下的 Supabase 栈脚本用假的 docker / curl 驱动：假命令只记下每次调用的 cwd 与参数，
 // 不起任何容器。断言的是「初始化发给了哪套 Compose 栈」这类调用身份，与真实 Docker 无关。
@@ -19,15 +19,18 @@ const DOCKER_FILES = [
   'reset.sh',
   'supabase-ci-up.sh',
   'supabase-ci-down.sh',
+  'supabase-ci-compose.sh',
   'supabase-ci-identity.sh',
   'supabase-ci-isolation-regression.sh',
-  'docker-compose.ci.yml'
+  'docker-compose.ci.yml',
+  'docker-compose.ci-studio.yml'
 ];
 
 const FAKE_DOCKER = String.raw`#!/usr/bin/env node
 const { appendFileSync, readFileSync } = require('node:fs');
 const args = process.argv.slice(2);
-appendFileSync(process.env.FAKE_DOCKER_LOG, JSON.stringify({ cwd: process.cwd(), args }) + '\n');
+const publicUrl = process.env.SUPABASE_PUBLIC_URL ?? null;
+appendFileSync(process.env.FAKE_DOCKER_LOG, JSON.stringify({ cwd: process.cwd(), args, publicUrl }) + '\n');
 const missing = (process.env.FAKE_DOCKER_MISSING || '').split(',').filter(Boolean);
 const valueAfter = flag => args[args.indexOf(flag) + 1];
 const isHealthInspect = args[0] === 'inspect' && String(valueAfter('-f')).includes('.State.Health.Status');
@@ -66,7 +69,13 @@ if (process.argv.includes('-w')) process.stdout.write('200');
 `;
 
 /** 调用方环境里可能残留的栈身份变量，一律去掉，免得测到开发机的配置。 */
-const INHERITED_IDENTITY = ['SUPABASE_CI_ID', 'SUPABASE_CI_PROJECT_NAME', 'COMPOSE_PROJECT_NAME', 'COMPOSE_FILE'];
+const INHERITED_IDENTITY = [
+  'SUPABASE_CI_ID',
+  'SUPABASE_CI_PROJECT_NAME',
+  'SUPABASE_PUBLIC_URL',
+  'COMPOSE_PROJECT_NAME',
+  'COMPOSE_FILE'
+];
 
 async function createHarness(t) {
   const root = await mkdtemp(join(tmpdir(), 'docker-supabase-scripts-'));
@@ -89,11 +98,11 @@ async function createHarness(t) {
   await writeFile(join(bin, 'curl'), FAKE_CURL, { mode: 0o755 });
   const log = join(root, 'docker-calls.jsonl');
 
-  const run = async (script, env = {}) => {
+  const run = async (script, env = {}, args = []) => {
     await writeFile(log, '');
     const childEnv = { ...process.env, PATH: `${bin}:${process.env.PATH}`, FAKE_DOCKER_LOG: log, ...env };
     for (const key of INHERITED_IDENTITY) if (!(key in env)) delete childEnv[key];
-    const result = await execFileAsync('bash', [join(dockerDir, script)], {
+    const result = await execFileAsync('bash', [join(dockerDir, script), ...args], {
       cwd: root,
       env: childEnv,
       timeout: 60_000
@@ -189,6 +198,39 @@ test('supabase-ci-up.sh 起的隔离栈，初始化仍发给这个隔离项目',
   const inits = initStacks(calls);
   assert.ok(inits.length > 0, 'supabase-ci-up.sh 应当执行 init-db.sh');
   for (const stack of inits) assert.deepEqual(stack, started);
+});
+
+test('supabase-ci-compose.sh 发给 test-env 起的同一个隔离项目，叠加 Studio 配置并原样转发参数', async t => {
+  const harness = await createHarness(t);
+  const env = { SUPABASE_CI_ID: 'spec-isolated' };
+  const started = stackStarted((await harness.run('supabase-ci-up.sh', env)).calls);
+  const { calls } = await harness.run('supabase-ci-compose.sh', env, ['exec', 'db', 'psql', '-U', 'postgres']);
+
+  const [call, ...others] = composeCalls(calls);
+  assert.equal(others.length, 0);
+  assert.deepEqual(call.stack, {
+    project: started.project,
+    files: [...started.files, join(dirname(started.files[0]), 'docker-compose.ci-studio.yml')],
+    cwd: null
+  });
+  assert.deepEqual(call.subcommand, ['exec', 'db', 'psql', '-U', 'postgres']);
+});
+
+test('supabase-ci-compose.sh 把 test-env 落盘的 Kong 端口交给 Studio 作浏览器可达的 API 地址', async t => {
+  const harness = await createHarness(t);
+  const env = { SUPABASE_CI_ID: 'spec-isolated' };
+  await harness.run('supabase-ci-up.sh', env);
+  const state = parseEnv(await readFile(join(harness.dockerDir, '.supabase-ci-state.spec-isolated.env'), 'utf8'));
+  const { calls } = await harness.run('supabase-ci-compose.sh', env, ['up', '-d', '--no-deps', 'studio']);
+
+  assert.equal(calls[0].publicUrl, `http://localhost:${state.SUPABASE_CI_KONG_PORT}`);
+});
+
+test('还没起过栈时 supabase-ci-compose.sh 不编造 Studio 的 API 地址', async t => {
+  const harness = await createHarness(t);
+  const { calls } = await harness.run('supabase-ci-compose.sh', { SUPABASE_CI_ID: 'spec-never-started' }, ['ps']);
+
+  assert.equal(calls[0].publicUrl, null);
 });
 
 for (const [label, missing] of [
