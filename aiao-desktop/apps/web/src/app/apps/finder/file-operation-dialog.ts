@@ -142,7 +142,14 @@ export class FileOperationDialog {
   protected readonly destination = signal(JSON.stringify(DESKTOP));
   protected readonly alwaysOpen = signal(false);
   protected readonly applications = computed(() => this.opener.choices(this.request().node));
-  protected readonly application = linkedSignal<string>(() => this.applications()[0]?.id ?? '');
+  /** 下拉当前值：候选重算时若当前选择仍是候选就保留，否则回到第一个（linkedSignal 简写会无条件覆盖）。 */
+  protected readonly application = linkedSignal({
+    source: this.applications,
+    computation: (applications, previous) =>
+      previous && applications.some(app => app.id === previous.value) ?
+        previous.value
+      : applications[0]?.id ?? ''
+  });
   protected readonly action = computed(() => ({ restore: 'Restore', 'open-with': 'Open' })[this.request().kind]);
   protected readonly title = computed(
     () => `${this.request().kind === 'open-with' ? 'Open With' : this.action()} “${this.request().node.name}”`

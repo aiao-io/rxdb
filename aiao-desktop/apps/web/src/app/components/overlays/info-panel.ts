@@ -182,8 +182,17 @@ export class InfoPanel {
 
   protected readonly finderDate = finderDate;
   protected readonly choices = computed(() => this.opener.choices(this.node()));
-  /** 下拉当前选中的应用：默认是第一个候选；候选变了就回到新的默认。值是 DOM 下拉的字符串值。 */
-  protected readonly selected = linkedSignal<string>(() => this.choices()[0]?.id ?? '');
+  /**
+   * 下拉当前选中的应用：默认是第一个候选。linkedSignal 的简写形式在源信号重算时会无条件用源值覆盖用户选择
+   * （任何偏好写入都会连锁重算 choices），这里只在当前值已不在候选中时才回到默认。
+   */
+  protected readonly selected = linkedSignal({
+    source: this.choices,
+    computation: (choices, previous) =>
+      previous && choices.some(choice => choice.id === previous.value) ?
+        previous.value
+      : choices[0]?.id ?? ''
+  });
   protected readonly where = computed(() => {
     const path = this.node().path;
     if (!path) return 'Not on Macintosh HD';

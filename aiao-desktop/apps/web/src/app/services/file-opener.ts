@@ -22,6 +22,9 @@ const isAssociations = (value: unknown): value is Record<string, string> =>
   !Array.isArray(value) &&
   Object.values(value).every(appId => typeof appId === 'string');
 
+/** 没有关联键时的固定空对象：别在 computed 里现造（每次重算换新引用会拖累下游重算）。 */
+const NO_ASSOCIATIONS: Readonly<Record<string, string>> = Object.freeze({});
+
 /** 「打开方式」候选：能真正接收这类文件的应用，id 加显示名。 */
 export interface OpenWithChoice {
   readonly id: DesktopAppId;
@@ -46,7 +49,7 @@ export class FileOpener {
   private readonly catalog = inject(ApplicationCatalog);
   private readonly launcher = inject(AppLauncher);
   private readonly preferences = inject(Preferences);
-  private readonly associations = computed(() => this.preferences.get(OPEN_WITH_KEY, isAssociations) ?? {});
+  private readonly associations = computed(() => this.preferences.get(OPEN_WITH_KEY, isAssociations) ?? NO_ASSOCIATIONS);
 
   /** 只显示已实现文档传入的应用，默认应用排第一；不把文件夹和程序包伪装成文档。 */
   choices(node: FsNode): readonly OpenWithChoice[] {

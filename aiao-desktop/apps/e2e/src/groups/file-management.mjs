@@ -307,11 +307,16 @@ export const fileManagement = {
     await helpers.launch('Finder');
     const finder = () => page.locator('.win.front[data-app="finder"]:not(.closing)');
     const item = name => finder().locator(`[role="option"][data-name=${JSON.stringify(name)}]`);
+    /* 侧栏条目是 cdk-drag：任何窗口的开窗动画期间按下，条目都会在指针下移动、越过 CDK 的拖动阈值，
+       把点击变成拖拽并让行位错乱。等全部 Finder 窗口的 opening 类都清零再碰侧栏。 */
+    const sidebarReady = async () => {
+      await expect(page.locator('.win[data-app="finder"]:not(.closing).opening')).toHaveCount(0);
+    };
     const place = async name => {
       /* 侧栏条目是 cdk-drag：开窗动画期间按下，条目会在指针下移动、越过 CDK 的拖动阈值，把点击变成拖拽。
          等前台窗口存在且开窗动画结束（opening 类清除）再点，点击才是点击。 */
       await expect(finder()).toBeVisible();
-      await expect(finder()).not.toHaveClass(/opening/);
+      await sidebarReady();
       await finder()
         .locator(`[data-place=${JSON.stringify(name)}]`)
         .click();
@@ -387,6 +392,7 @@ export const fileManagement = {
     result.dropsOnDesktopFolder = (await diskText(session, 'from-desktop-folder.txt')) === text;
     result.dropsOnFolder = (await diskText(session, 'from-folder.txt')) === text;
 
+    await sidebarReady();
     await finder()
       .locator('[data-place="Downloads"]')
       .drop({ files: payload('from-sidebar.txt', Buffer.from(text)) });
