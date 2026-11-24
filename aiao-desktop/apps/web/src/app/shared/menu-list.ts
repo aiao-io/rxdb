@@ -281,6 +281,9 @@ export class MenuList {
 
     const active = this.host.ownerDocument.activeElement as HTMLElement | null;
     const command = this.commandAt(active);
+    /* Enter/空格在带子菜单的项上由条目自己的处理器展开（activateByKey）：事件随后冒泡到这里，
+       不要再把它当普通按键、把刚展开的那层关掉。 */
+    if ((event.key === 'Enter' || event.key === ' ') && command?.submenu?.length && active) return;
     if (event.key === 'ArrowRight' && command?.submenu?.length && active) {
       event.preventDefault();
       this.openSubmenu(command, active, true);
