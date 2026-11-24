@@ -91,7 +91,7 @@ export async function completeOAuthCallback(auth: GitHubAuth, code: string, stat
 }
 
 /** GitHub 带回授权失败：state 与 pending 请求一致时通知等待中的标签页；与成功路径一样，任何尝试都作废 pending。 */
-async function failOAuthCallback(state: string, error: string): Promise<void> {
+async function recordCallbackFailure(state: string, error: string): Promise<void> {
   const pending = await loadPendingOAuth();
   if (!pending) {
     throw new GitWorkbenchError('auth_invalid', 'OAuth 会话不存在或已过期，请重新发起登录');
@@ -108,19 +108,25 @@ async function failOAuthCallback(state: string, error: string): Promise<void> {
 
 /**
  * 回调路由（/github-callback）的落地处理：带 code 时换取会话，带 error（用户取消或授权失败）时作废 pending 并通知
- * 等待中的标签页。两者必须恰有其一且带 state，否则拒绝。
+ * 等待中的标签页。先校验回调参数（非法组合直接拒绝），通过后不再让用户输入充当敏感操作的守卫：
+ * 失败路径只做记录与通知，成功路径的敏感操作落在所有守卫之外。
  */
 export async function settleOAuthCallback(auth: GitHubAuth, params: URLSearchParams): Promise<void> {
   const state = params.get('state');
   const code = params.get('code');
   const error = params.get('error');
-  if (state && code && error === null) {
-    await completeOAuthCallback(auth, code, state);
+  if (!state) {
+    throw new GitWorkbenchError('auth_invalid', 'OAuth 回调缺少 state');
+  }
+  if (code === null) {
+    if (error === null) {
+      throw new GitWorkbenchError('auth_invalid', 'OAuth 回调缺少 code 或 state');
+    }
+    await recordCallbackFailure(state, error);
     return;
   }
-  if (state && code === null && error) {
-    await failOAuthCallback(state, error);
-    return;
+  if (error !== null) {
+    throw new GitWorkbenchError('auth_invalid', 'OAuth 回调不能同时携带 code 与 error');
   }
-  throw new GitWorkbenchError('auth_invalid', 'OAuth 回调缺少 code 或 state');
+  await completeOAuthCallback(auth, code, state);
 }
