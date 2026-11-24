@@ -12,9 +12,7 @@ import ts from 'typescript';
 const root = resolve(import.meta.dirname, '../..');
 const copyFile = join(root, 'website/src/lib/locale-copy.ts');
 const blogDir = join(root, 'website/i18n/en/docusaurus-plugin-content-blog');
-const componentDirs = ['website/src/pages', 'website/src/components', 'website/src/demos'].map(dir =>
-  join(root, dir)
-);
+const componentDirs = ['website/src/pages', 'website/src/components', 'website/src/demos'].map(dir => join(root, dir));
 const han = /\p{Script=Han}/u;
 
 function tsxFiles(dir) {
@@ -66,13 +64,7 @@ function englishCopyKeys() {
 
 // 用 TS AST 提取一个文件里所有含中文的字符串字面量
 function cjkLiterals(path) {
-  const source = ts.createSourceFile(
-    path,
-    readFileSync(path, 'utf8'),
-    ts.ScriptTarget.Latest,
-    true,
-    ts.ScriptKind.TSX
-  );
+  const source = ts.createSourceFile(path, readFileSync(path, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
   const found = [];
   const visit = node => {
     if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
@@ -110,11 +102,7 @@ test('英文站点的页面、组件与演示源码中的中文文案都登记�
     }
   }
   assert.ok(checked > 0, '未在页面、组件与演示源码中扫描到任何中文字面量，检查目录遍历是否正确');
-  assert.deepEqual(
-    violations,
-    [],
-    `以下中文字面量未登记到 englishCopy 字典：\n  ${violations.join('\n  ')}`
-  );
+  assert.deepEqual(violations, [], `以下中文字面量未登记到 englishCopy 字典：\n  ${violations.join('\n  ')}`);
 });
 
 test('英文博客包含初始化文章、作者与标签文件，且文章正文不含中文', () => {
@@ -122,10 +110,7 @@ test('英文博客包含初始化文章、作者与标签文件，且文章正�
   assert.ok(existsSync(post), '缺少英文博客文章 i18n/en/docusaurus-plugin-content-blog/2025-08-12-init.md');
   assert.ok(existsSync(join(blogDir, 'authors.yml')), '缺少英文博客 authors.yml');
   assert.ok(existsSync(join(blogDir, 'tags.yml')), '缺少英文博客 tags.yml');
-  assert.ok(
-    !han.test(postBody(readFileSync(post, 'utf8'))),
-    '英文博客文章 2025-08-12-init.md 的正文包含中文字符'
-  );
+  assert.ok(!han.test(postBody(readFileSync(post, 'utf8'))), '英文博客文章 2025-08-12-init.md 的正文包含中文字符');
 });
 
 test('英文 code.json 的译文与说明不含中文', () => {

@@ -10,9 +10,9 @@ import { themes as prismThemes } from 'prism-react-renderer';
 // buildLocale 按 locale 设置的 process.env.DOCUSAURUS_CURRENT_LOCALE（issue #4542），
 // 与 sidebars.ts 的做法一致。
 const tagline =
-  process.env.DOCUSAURUS_CURRENT_LOCALE === 'en'
-    ? 'An in-browser database, reactive queries, and a unified entity model for Angular, React, and Vue'
-    : '面向 Angular、React、Vue 的浏览器内数据库、响应式查询与统一实体模型';
+  process.env.DOCUSAURUS_CURRENT_LOCALE === 'en' ?
+    'An in-browser database, reactive queries, and a unified entity model for Angular, React, and Vue'
+  : '面向 Angular、React、Vue 的浏览器内数据库、响应式查询与统一实体模型';
 
 const config: Config = {
   title: 'RxDB',

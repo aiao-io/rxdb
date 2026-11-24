@@ -103,7 +103,10 @@ test('untranslated docs never use relative links to translated docs', async () =
     const content = await readFile(file, 'utf8');
     for (const match of content.matchAll(/\]\(((?:\.\.?\/)[^)\s]*\.md)(?:#[^)]*)?\)/g)) {
       const target = join(dirname(source), match[1]);
-      if (translated.has(target)) violations.push(`${source}: relative link ${match[1]} targets translated doc ${target}; use a rooted link /${target}`);
+      if (translated.has(target))
+        violations.push(
+          `${source}: relative link ${match[1]} targets translated doc ${target}; use a rooted link /${target}`
+        );
     }
   }
   assert.deepEqual(violations, []);

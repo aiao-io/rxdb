@@ -1,5 +1,5 @@
 import type { SidebarsConfig } from '@docusaurus/plugin-content-docs';
-import type { SidebarItemConfig } from '@docusaurus/plugin-content-docs/lib/sidebars/types';
+import type { SidebarItemConfig } from '@docusaurus/plugin-content-docs/lib/sidebars/types.js';
 
 // 英文侧边栏标签：键是中文原文，值沿用 website/i18n/en 英文文档的术语。
 const englishSidebarLabels: Readonly<Record<string, string>> = {
@@ -44,15 +44,13 @@ function localizeItem(item: SidebarItemConfig): SidebarItemConfig {
   if (currentLocale !== 'en' || typeof item === 'string') {
     return item;
   }
-  const localized =
-    'label' in item && typeof item.label === 'string' && englishSidebarLabels[item.label]
-      ? { ...item, label: englishSidebarLabels[item.label] }
-      : item;
   if (item.type === 'category') {
     return {
-      ...localized,
-      items: Array.isArray(item.items)
-        ? item.items.map(localizeItem)
+      ...item,
+      label: englishSidebarLabels[item.label] ?? item.label,
+      items:
+        Array.isArray(item.items) ?
+          item.items.map(localizeItem)
         : Object.fromEntries(
             Object.entries(item.items).map(([category, value]) => [
               category,
@@ -61,7 +59,10 @@ function localizeItem(item: SidebarItemConfig): SidebarItemConfig {
           )
     };
   }
-  return localized;
+  if ((item.type === 'doc' || item.type === 'ref' || item.type === 'link') && typeof item.label === 'string') {
+    return { ...item, label: englishSidebarLabels[item.label] ?? item.label };
+  }
+  return item;
 }
 
 const sidebars: SidebarsConfig = {
