@@ -52,6 +52,8 @@ export class WindowManager {
   private readonly hiddenAppsState = signal<ReadonlySet<DesktopAppId>>(new Set());
   /** Hide / Hide Others 亲自收起的窗口 id；只还原这些，不碰用户自己最小化的窗口。 */
   private readonly hiddenWindows = new Map<DesktopAppId, Set<string>>();
+  /** 本次会话最近打开过的应用（新的在前，应用去重，最多五个）；Apple 菜单的「最近项目」用它。 */
+  private readonly recentAppsState = signal<readonly DesktopAppId[]>([]);
   private z = 10;
   private seq = 0;
   private cascade = 0;
@@ -87,6 +89,9 @@ export class WindowManager {
 
   /** 被隐藏的应用；Hide / Hide Others 维护，Show All 与 Dock 激活据此整组恢复。 */
   readonly hiddenApps = this.hiddenAppsState.asReadonly();
+
+  /** 本次会话最近打开的应用，新的在前；Apple 菜单的「最近项目」据此生成子菜单。 */
+  readonly recentApps = this.recentAppsState.asReadonly();
 
   constructor() {
     effect(() => {
@@ -166,6 +171,7 @@ export class WindowManager {
     const top = Math.round(clamp(mb + 26 + step, mb + 6, innerHeight - height - 90));
     const win = new DesktopWindow(`w${++this.seq}`, app, options, { left, top, width, height });
     win.quiet = !this.started;
+    this.rememberApp(appId);
 
     this.windowsState.update(list => [...list, win]);
     this.runtime.start(win);
@@ -354,7 +360,9 @@ export class WindowManager {
   hideOthers(): void {
     const keep = this.front()?.appId;
     const others = new Set(
-      this.windowsState().filter(win => win.appId !== keep && !win.closing()).map(win => win.appId)
+      this.windowsState()
+        .filter(win => win.appId !== keep && !win.closing())
+        .map(win => win.appId)
     );
     others.forEach(appId => this.hideApp(appId));
   }
@@ -382,6 +390,11 @@ export class WindowManager {
       if (!ids.delete(id)) continue;
       if (!ids.size) this.hiddenWindows.delete(appId);
     }
+  }
+
+  /** 记下最近打开的应用：同一个应用只保留一条，最多五条。 */
+  private rememberApp(appId: DesktopAppId): void {
+    this.recentAppsState.update(list => [appId, ...list.filter(id => id !== appId)].slice(0, 5));
   }
 
   private closeApproved(win: DesktopWindow): void {

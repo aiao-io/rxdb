@@ -92,7 +92,7 @@ export class DesktopMenus {
         run: () => this.toast.show('App Store is not part of this build')
       },
       '-',
-      { id: 'recent', label: 'Recent Items', key: '▸' },
+      { id: 'recent', label: 'Recent Items', submenu: this.recentItems() },
       '-',
       { id: 'force', label: 'Force Quit…', key: '⌥⌘⎋', run: () => this.forceQuitPanel() },
       '-',
@@ -103,6 +103,17 @@ export class DesktopMenus {
       { id: 'lock', label: 'Lock Screen', key: '⌃⌘Q', run: () => this.session.lock() },
       { id: 'logout', label: `Log Out ${this.system.user}…`, key: '⇧⌘Q', run: () => this.session.lock() }
     ];
+  }
+
+  /** 「最近项目」子菜单：本次会话打开过的应用，新的在前；没有记录时给一个置灰项。 */
+  private recentItems(): readonly MenuEntry[] {
+    const items = this.wm.recentApps().flatMap(appId => {
+      const app = this.apps()[appId];
+      return app ?
+          [{ id: `recent-${appId}`, label: app.name, icon: app.icon, run: () => void this.wm.open(appId) }]
+        : [];
+    });
+    return items.length ? items : [{ id: 'recent-none', label: 'No Recent Items', disabled: true }];
   }
 
   /** 菜单栏上应用名下的那份菜单。 */

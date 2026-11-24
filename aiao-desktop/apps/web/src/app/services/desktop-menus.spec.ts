@@ -21,7 +21,7 @@ import {
 } from './desktop-menus';
 import { FileSystem, HOME_PATH, PLACES } from './file-system';
 import { FinderPreferences } from './finder-preferences';
-import { MenuEntry, MenuSection, isMenuCommand } from './menu';
+import { MenuCommand, MenuEntry, MenuSection, isMenuCommand } from './menu';
 import { PopoverService } from './popover';
 import { Session } from './session';
 import { SystemState } from './system-state';
@@ -156,11 +156,16 @@ describe('DesktopMenus 苹果菜单', () => {
     expect(options).toEqual({ x: 360, y: 160, origin: 'center' });
   });
 
-  it('「最近项目」只是占位，点它什么也不发生', () => {
-    const { menus, wm, toast } = setup();
-    click(menus.apple(), 'recent');
-    expect(wm.open).not.toHaveBeenCalled();
-    expect(toast.show).not.toHaveBeenCalled();
+  it('「最近项目」按最近打开的应用生成子菜单；没有记录时置灰', () => {
+    const { menus, wm } = setup();
+    const recent = () => menus.apple().find((item): item is MenuCommand => isMenuCommand(item) && item.id === 'recent');
+    expect(recent()?.submenu).toEqual([{ id: 'recent-none', label: 'No Recent Items', disabled: true }]);
+
+    wm.recentApps.set(['notes', 'calculator']);
+    const items = recent()?.submenu ?? [];
+    expect(items.filter(isMenuCommand).map(item => item.label)).toEqual(['Notes', 'Calculator']);
+    click(items, 'recent-notes');
+    expect(wm.open).toHaveBeenCalledWith('notes');
   });
 });
 

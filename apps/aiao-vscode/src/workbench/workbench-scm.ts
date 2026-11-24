@@ -1,5 +1,5 @@
-import type { WorkbenchBackend, WorkbenchSession, WorkbenchSnapshot, WorkbenchStatus } from './session.js';
 import { GitWorkbenchError } from './git/git-protocol.js';
+import type { WorkbenchBackend, WorkbenchSession, WorkbenchSnapshot, WorkbenchStatus } from './session.js';
 import { confirmWorkbenchAction } from './workbench-dialog.js';
 import { createCodicon } from './workbench-icons.js';
 import {
@@ -290,12 +290,8 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
       return await operation();
     } catch (cause) {
       if (!authRequired(cause) || !options.onAuthRequired) throw cause;
-      let signedIn = false;
-      try {
-        signedIn = await options.onAuthRequired();
-      } catch {
-        signedIn = false;
-      }
+      // 登录入口不可用时保留原始 401
+      const signedIn = await options.onAuthRequired().catch(() => false);
       if (!signedIn) throw cause;
       return operation();
     }

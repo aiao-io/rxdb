@@ -122,6 +122,16 @@ describe('WindowManager 打开窗口', () => {
     expect(wm.get('nope')).toBeUndefined();
   });
 
+  it('记住最近打开的应用：新的在前、去重、最多五个', () => {
+    const { wm } = setup();
+    const apps: readonly DesktopAppId[] = ['notes', 'calculator', 'terminal', 'finder', 'textedit', 'preview'];
+    apps.forEach(appId => open(wm, appId));
+    expect(wm.recentApps()).toEqual(['preview', 'textedit', 'finder', 'terminal', 'calculator']);
+
+    open(wm, 'notes');
+    expect(wm.recentApps()).toEqual(['notes', 'preview', 'textedit', 'finder', 'terminal']);
+  });
+
   it('没有组件的系统入口打不开：提示 Unknown app，不新增窗口也不让 Dock 弹跳', () => {
     const { wm, toast, dock } = setup();
     expect(wm.open('launchpad')).toBeNull();

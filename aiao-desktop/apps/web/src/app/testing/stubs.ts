@@ -1,9 +1,12 @@
 import { WritableSignal, signal } from '@angular/core';
 import { Mock, vi } from 'vitest';
 
+import { DesktopAppId } from '../services/desktop-apps';
+
 /** {@link createWindowManagerStub} 的形状：窗口列表加其他服务会调用的方法，全是 spy。 */
 export interface WindowManagerStub {
   readonly windows: WritableSignal<never[]>;
+  readonly recentApps: WritableSignal<readonly DesktopAppId[]>;
   readonly open: Mock;
   readonly activate: Mock;
   readonly focus: Mock;
@@ -28,6 +31,7 @@ export interface WindowManagerStub {
 export function createWindowManagerStub(): WindowManagerStub {
   return {
     windows: signal([]),
+    recentApps: signal([]),
     open: vi.fn(),
     activate: vi.fn(),
     focus: vi.fn(),

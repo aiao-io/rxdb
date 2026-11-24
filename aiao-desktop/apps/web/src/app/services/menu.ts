@@ -9,6 +9,11 @@ export interface MenuCommand {
   readonly disabled?: boolean;
   readonly checked?: boolean;
   readonly run?: () => void;
+  /**
+   * 子菜单：有它时这一项是「展开下一层」而不是执行命令，鼠标悬停或右方向键打开。
+   * 条目结构与普通菜单相同；目前界面只支持一层子菜单。
+   */
+  readonly submenu?: readonly MenuEntry[];
 }
 
 /** 菜单里的小标题。 */

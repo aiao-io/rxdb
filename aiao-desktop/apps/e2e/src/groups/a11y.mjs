@@ -1258,17 +1258,14 @@ export const a11y = {
       );
       await press('Escape');
       /* 取消改名后焦点才回到条目；全量并发跑时这一步要等，不能立刻按 ⌘↓。 */
-      await until(
-        page,
-        () => {
-          const active = document.activeElement;
-          return (
-            !document.querySelector('.win[data-app="finder"] [data-rename-input]') &&
-            active instanceof HTMLElement &&
-            active.getAttribute('data-name') === 'Documents'
-          );
-        }
-      );
+      await until(page, () => {
+        const active = document.activeElement;
+        return (
+          !document.querySelector('.win[data-app="finder"] [data-rename-input]') &&
+          active instanceof HTMLElement &&
+          active.getAttribute('data-name') === 'Documents'
+        );
+      });
       await press('Meta+ArrowDown');
       const entered = await until(
         page,

@@ -11,13 +11,14 @@ import {
   shortcutKey
 } from './shortcuts';
 
-const at = (init: Partial<KeyboardEvent> & { key: string }): KeyboardEvent => ({
-  metaKey: false,
-  ctrlKey: false,
-  altKey: false,
-  shiftKey: false,
-  ...init
-}) as KeyboardEvent;
+const at = (init: Partial<KeyboardEvent> & { key: string }): KeyboardEvent =>
+  ({
+    metaKey: false,
+    ctrlKey: false,
+    altKey: false,
+    shiftKey: false,
+    ...init
+  }) as KeyboardEvent;
 
 const command = (key: string): MenuCommand => ({ id: 'x', label: 'X', key });
 
@@ -60,10 +61,7 @@ describe('eventShortcuts 生成与 aria-keyshortcuts 一致的组合', () => {
 
   it('方向键与 + / ? 都能表达', () => {
     expect(eventShortcuts(at({ key: 'ArrowRight', metaKey: true }))).toEqual(['Meta+ArrowRight']);
-    expect(eventShortcuts(at({ key: '+', metaKey: true, shiftKey: true }))).toEqual([
-      'Shift+Meta++',
-      'Meta++'
-    ]);
+    expect(eventShortcuts(at({ key: '+', metaKey: true, shiftKey: true }))).toEqual(['Shift+Meta++', 'Meta++']);
     expect(eventShortcuts(at({ key: '?', metaKey: true, shiftKey: true }))).toEqual(['Shift+Meta+?', 'Meta+?']);
   });
 });

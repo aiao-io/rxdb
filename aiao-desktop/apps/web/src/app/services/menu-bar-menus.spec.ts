@@ -1,10 +1,10 @@
-import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
 import { describe, expect, it } from 'vitest';
 
 import { configureServices } from '../testing/angular';
-import { MenuBarMenus } from './menu-bar-menus';
 import { section } from './menu';
+import { MenuBarMenus } from './menu-bar-menus';
 
 function setup(): MenuBarMenus {
   configureServices([MenuBarMenus]);
@@ -30,8 +30,9 @@ describe('MenuBarMenus', () => {
       section('Apple', [{ id: 'lock', label: 'Lock Screen', key: '⌃⌘Q' }]),
       section('Finder', [{ id: 'n', label: 'New Finder Window', key: '⌘N' }])
     ]);
-    expect(
-      menus.entries().map(entry => (typeof entry === 'object' && 'id' in entry ? entry.id : null))
-    ).toEqual(['lock', 'n']);
+    expect(menus.entries().map(entry => (typeof entry === 'object' && 'id' in entry ? entry.id : null))).toEqual([
+      'lock',
+      'n'
+    ]);
   });
 });

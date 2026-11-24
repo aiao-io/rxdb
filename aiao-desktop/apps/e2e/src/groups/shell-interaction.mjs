@@ -82,7 +82,8 @@ export const shellInteraction = {
     'shellInteraction.focusCycle.cycleRaisesBottom',
     'shellInteraction.shortcutRouting.hideMenuHidesAllWindows',
     'shellInteraction.shortcutRouting.safariCloseTab',
-    'shellInteraction.shortcutRouting.lockShortcut'
+    'shellInteraction.shortcutRouting.lockShortcut',
+    'shellInteraction.shortcutRouting.recentItemsSubmenu'
   ],
   async run(session) {
     const { page, origin } = session;
@@ -380,9 +381,7 @@ export const shellInteraction = {
     await page.locator('.pop .mi', { hasText: 'Hide Finder' }).click();
     await page.waitForTimeout(900);
     const allFinderWindowsHidden = await finders.evaluateAll(nodes =>
-      nodes.every(
-        node => node.classList.contains('mini') && getComputedStyle(node).visibility === 'hidden'
-      )
+      nodes.every(node => node.classList.contains('mini') && getComputedStyle(node).visibility === 'hidden')
     );
     shortcutRouting.hideMenuHidesAllWindows = finderCount === 2 && allFinderWindowsHidden;
 
@@ -396,9 +395,7 @@ export const shellInteraction = {
     await page.keyboard.press('Meta+W');
     await page.waitForTimeout(400);
     shortcutRouting.safariCloseTab =
-      tabsAfterNew === 2 &&
-      (await win('safari').locator('.sf-tab').count()) === 0 &&
-      (await win('safari').isVisible());
+      tabsAfterNew === 2 && (await win('safari').locator('.sf-tab').count()) === 0 && (await win('safari').isVisible());
 
     await page.locator('#dock .di[data-app="calculator"]').click();
     await win('calculator').waitFor();
@@ -414,6 +411,16 @@ export const shellInteraction = {
         () => false
       );
     shortcutRouting.lockShortcut = lockedByShortcut && calculatorStillOpen && unlockedAfterShortcut;
+
+    /* Apple 菜单「最近项目」是真正的子菜单：展开后能看到刚打开过的 Calculator，点它回到该应用。 */
+    await page.locator('#menubar .mb-item.apple').click();
+    await page.locator('#layer-menu .pop > .mi[data-act="recent"]').click();
+    const recentFlyout = page.locator('#layer-menu .mfly[role="menu"]');
+    const recentCalculator = recentFlyout.locator('.mi[data-act="recent-calculator"]');
+    shortcutRouting.recentItemsSubmenu = (await recentFlyout.isVisible()) && (await recentCalculator.isVisible());
+    await recentCalculator.click();
+    await page.waitForTimeout(350);
+    shortcutRouting.recentItemsSubmenu &&= await win('calculator').evaluate(node => node.classList.contains('front'));
 
     return {
       shellInteraction: {

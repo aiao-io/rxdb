@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { GitWorkbenchError } from './git/git-protocol.js';
 import { WorkbenchSession, type WorkbenchBackend, type WorkbenchSnapshot, type WorkbenchStatus } from './session.js';
 import { confirmWorkbenchAction } from './workbench-dialog.js';
 import { createWorkbenchScm, type WorkbenchScm, type WorkbenchScmOptions } from './workbench-scm.js';
@@ -52,7 +53,8 @@ async function fixture() {
     onDidChange: vi.fn<WorkbenchScmOptions['onDidChange']>(async () => undefined),
     onRefresh: vi.fn(async () => undefined),
     onCommitMessage: vi.fn(),
-    getSavedMessage: vi.fn(() => undefined)
+    getSavedMessage: vi.fn(() => undefined),
+    onAuthRequired: vi.fn(async () => true)
   };
   const scm = createWorkbenchScm(host, { backend, session, ...callbacks });
   handles.push(scm);
@@ -171,6 +173,60 @@ describe('VSCode式源代码管理', () => {
     vi.mocked(backend.pull!).mockRejectedValueOnce(new Error('network failed'));
     await expect(scm.pull()).rejects.toThrow('network failed');
     expect(callbacks.onBusyChange.mock.calls).toEqual([[true], [false]]);
+  });
+
+  it('远端操作被 401 拒绝时先重新登录再重试一次', async () => {
+    const { scm, backend, callbacks } = await remoteFixture();
+    const denied = new GitWorkbenchError('auth_required', 'GitHub 登录已失效，请重新登录');
+    vi.mocked(backend.pull!).mockRejectedValueOnce(denied);
+
+    await scm.pull();
+
+    expect(callbacks.onAuthRequired).toHaveBeenCalledOnce();
+    expect(backend.pull).toHaveBeenCalledTimes(2);
+    expect(callbacks.onDidChange).toHaveBeenCalledOnce();
+    expect(callbacks.onError).not.toHaveBeenCalled();
+  });
+
+  it('取消重新登录时保留原始失效错误且不重试', async () => {
+    const { scm, backend, callbacks } = await remoteFixture();
+    callbacks.onAuthRequired.mockResolvedValueOnce(false);
+    const denied = new GitWorkbenchError('auth_required', 'GitHub 登录已失效，请重新登录');
+    vi.mocked(backend.pull!).mockRejectedValueOnce(denied);
+
+    await expect(scm.pull()).rejects.toBe(denied);
+    expect(backend.pull).toHaveBeenCalledOnce();
+  });
+
+  it('按钮路径在取消登录后把失效错误交给宿主', async () => {
+    const { host, backend, callbacks } = await remoteFixture();
+    callbacks.onAuthRequired.mockResolvedValueOnce(false);
+    const denied = new GitWorkbenchError('auth_required', 'GitHub 登录已失效，请重新登录');
+    vi.mocked(backend.pull!).mockRejectedValueOnce(denied);
+
+    host.querySelector<HTMLButtonElement>('[data-scm-action="pull"]')?.click();
+
+    await vi.waitFor(() => expect(callbacks.onError).toHaveBeenCalledWith(denied));
+    expect(backend.pull).toHaveBeenCalledOnce();
+  });
+
+  it('重新登录后再次被拒绝就停止重试并保留错误', async () => {
+    const { scm, backend, callbacks } = await remoteFixture();
+    const denied = new GitWorkbenchError('auth_required', 'GitHub 登录已失效，请重新登录');
+    vi.mocked(backend.pull!).mockRejectedValue(denied);
+
+    await expect(scm.pull()).rejects.toBe(denied);
+    expect(callbacks.onAuthRequired).toHaveBeenCalledOnce();
+    expect(backend.pull).toHaveBeenCalledTimes(2);
+  });
+
+  it('非 401 的失败不触发重新登录', async () => {
+    const { scm, backend, callbacks } = await remoteFixture();
+    vi.mocked(backend.pull!).mockRejectedValueOnce(new Error('network failed'));
+
+    await expect(scm.pull()).rejects.toThrow('network failed');
+    expect(callbacks.onAuthRequired).not.toHaveBeenCalled();
+    expect(backend.pull).toHaveBeenCalledOnce();
   });
 
   it('同步先拉取并应用快照，再提交推送暂存区，成功后清空说明并记录历史', async () => {

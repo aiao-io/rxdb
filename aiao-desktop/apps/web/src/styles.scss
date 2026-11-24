@@ -815,6 +815,28 @@ svg {
 .pop.wide {
   min-width: 230px;
 }
+/* 带子菜单的面板不能裁掉展开的那一层；子菜单在面板内部绝对定位。 */
+.pop.has-sub {
+  overflow: visible;
+}
+.mfly {
+  position: absolute;
+  z-index: 2;
+  min-width: 180px;
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+  padding: 4px;
+  background: var(--menu);
+  -webkit-backdrop-filter: blur(42px) var(--vib);
+  backdrop-filter: blur(42px) var(--vib);
+  border: 0.5px solid var(--menu-border);
+  border-radius: 9px;
+  box-shadow: var(--shadow-pop);
+  color: var(--txt);
+  font-size: 13.5px;
+  transform-origin: top left;
+  animation: popIn 0.1s var(--e-out) both;
+}
 @keyframes popIn {
   from {
     opacity: 0;
@@ -851,6 +873,18 @@ svg {
   color: var(--txt-2);
   font-size: 13px;
   letter-spacing: 0.02em;
+}
+/* 子菜单展开标记；和快捷键一样靠右，展开后随 hover 变成白色。 */
+.mi .subarr {
+  margin-left: auto;
+  padding-left: 22px;
+  color: var(--txt-2);
+  font-size: 15px;
+  line-height: 1;
+}
+.mi:not(.dis):hover .subarr,
+.mi:not(.dis):focus-visible .subarr {
+  color: #fff;
 }
 .mi .ck {
   width: 13px;

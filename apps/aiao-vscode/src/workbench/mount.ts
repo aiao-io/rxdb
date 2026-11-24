@@ -580,6 +580,7 @@ export function mountWorkbench(
       savedCommitMessages.set(id, message);
       persistState();
     },
+    onAuthRequired: reauthenticateGitHub,
     async onDidChange(snapshot, paths) {
       if (snapshot && snapshot.projectId === session.state.projectId) {
         cancelCompilation();
@@ -1203,6 +1204,14 @@ export function mountWorkbench(
       ...(options.embedded ? { signal: lifetime.signal } : {}),
       ...(options.githubDesktopOAuth ? { desktopOAuth: options.githubDesktopOAuth } : {})
     });
+  }
+
+  /** 远端操作被 401 拒绝后引导重新登录；返回是否已有新会话，SCM 据此重试原操作。 */
+  async function reauthenticateGitHub(): Promise<boolean> {
+    const auth = options.githubAuth;
+    if (!auth) return false;
+    if (!(await auth.getSession())) await openGitHubLogin();
+    return (await auth.getSession()) !== null;
   }
 
   /** 打开本地文件夹：目录选择器读取后登记为受控模板项目并打开，取消选择静默。 */

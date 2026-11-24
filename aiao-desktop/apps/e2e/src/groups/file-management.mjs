@@ -1,6 +1,6 @@
+import AxeBuilder from '@axe-core/playwright';
 import { readFile } from 'node:fs/promises';
 import { deflateSync } from 'node:zlib';
-import AxeBuilder from '@axe-core/playwright';
 import { expect as playwrightExpect } from 'playwright/test';
 
 import { surgery } from '../harness/database.mjs';
@@ -586,7 +586,9 @@ export const fileManagement = {
     await page.keyboard.press('Escape');
     await expect(infoPanel()).toHaveCount(0);
     /* 未选中条目时 ⌘I 显示当前文件夹（Desktop）的简介，没有打开方式区（AC2）。 */
-    await finder().locator('[data-body]').click({ position: { x: 10, y: 240 } });
+    await finder()
+      .locator('[data-body]')
+      .click({ position: { x: 10, y: 240 } });
     await page.keyboard.press('Meta+i');
     await expect(infoPanel()).toBeVisible();
     const desktopPanel = infoPanel();
@@ -611,7 +613,10 @@ export const fileManagement = {
     await expect(helpers.win('preview').locator('[data-pv-nav]')).toHaveText('1 of 1');
     result.previewRendersPdf =
       guidelinesWidth > 0 &&
-      (await helpers.win('preview').locator('[data-pv-canvas]').evaluate(canvas => canvas.width)) > 0;
+      (await helpers
+        .win('preview')
+        .locator('[data-pv-canvas]')
+        .evaluate(canvas => canvas.width)) > 0;
     await closeWin('preview');
     await menu('real.pdf', 'Move to Trash');
 
