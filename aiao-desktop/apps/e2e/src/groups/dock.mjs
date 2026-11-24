@@ -328,8 +328,7 @@ export const dock = {
     await dockPage.openOptions();
     const optionsFlyout = page.locator('#layer-menu .mfly[role="menu"]');
     result.optionsSubmenu =
-      (await optionsFlyout.isVisible()) &&
-      (await optionsFlyout.locator('.mi[data-act="show"]').count()) === 1;
+      (await optionsFlyout.isVisible()) && (await optionsFlyout.locator('.mi[data-act="show"]').count()) === 1;
     const removable = await dockPage.menuItems();
     result.removableOffersRemove = removable.some(item => item.act === 'remove-from-dock' && !item.disabled);
     await dockPage.choose('remove-from-dock');
@@ -628,8 +627,7 @@ export const dock = {
     }
     await page.keyboard.press('ArrowRight');
     await page.waitForTimeout(120);
-    const removeFocused =
-      (await page.evaluate(() => document.activeElement?.dataset?.act)) === 'remove-from-dock';
+    const removeFocused = (await page.evaluate(() => document.activeElement?.dataset?.act)) === 'remove-from-dock';
     await page.keyboard.press('Enter');
     await page.waitForTimeout(500);
     result.keyboardRemoveFromDock =

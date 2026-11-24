@@ -308,9 +308,22 @@ export const fileManagement = {
     const finder = () => page.locator('.win.front[data-app="finder"]:not(.closing)');
     const item = name => finder().locator(`[role="option"][data-name=${JSON.stringify(name)}]`);
     const place = async name => {
+      console.log('PLACE-CALL', name);
       /* 侧栏条目是 cdk-drag：开窗动画期间按下，条目会在指针下移动、越过 CDK 的拖动阈值，把点击变成拖拽。
          等前台窗口存在且开窗动画结束（opening 类清除）再点，点击才是点击。 */
-      await expect(finder()).toBeVisible();
+      try {
+        await expect(finder()).toBeVisible();
+      } catch (error) {
+        console.log(
+          'PLACE-FAIL-DUMP',
+          await page.evaluate(() => ({
+            wins: [...document.querySelectorAll('.win')].map(w => `${w.id}|${w.dataset.app}|${w.className}`),
+            dock: document.querySelector('#dock')?.innerText.slice(0, 120),
+            toast: document.querySelector('#toast')?.textContent
+          }))
+        );
+        throw error;
+      }
       await expect(finder()).not.toHaveClass(/opening/);
       await finder()
         .locator(`[data-place=${JSON.stringify(name)}]`)
