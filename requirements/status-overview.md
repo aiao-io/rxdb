@@ -11,9 +11,9 @@
 | ✅ Done        | 100  |
 | 🚧 In Progress | 13   |
 | 👀 In Review   | 3    |
-| 📝 Backlog     | 27   |
+| 📝 Backlog     | 28   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 143  |
+| **合计**       | 144  |
 
 统计只包含带 story frontmatter 的文件。辅助证据和无故事文件的候选不计数；同编号的辅助文件不算另一条故事。
 Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关闭而自动通过。当前可开工条件见 roadmap 与各故事的阶段表。
@@ -120,6 +120,7 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 - ✅ [US-223 Supabase 直写路径的 UPDATE 落库语义](stories/adapter/US-223-supabase-mutations-update-semantics.md)
 - ✅ [US-224 Supabase 推送路径上级联删除的子行不写变更日志](stories/adapter/US-224-supabase-cascade-delete-change-log.md)
 - ✅ [US-225 Supabase 日志同步只对已登录身份开放，非 main 分支按所有者写入](stories/adapter/US-225-supabase-sync-protocol-access-baseline.md)
+- ⬜ [US-226 Supabase 待拉数按记录计：一个事务一条](stories/adapter/US-226-supabase-pull-count-records.md)
 - ✅ [US-504 Electron 本地文件存储](stories/plugin/US-504-electron-local-file-storage.md)
 - ✅ [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md)
 - ✅ [US-506 website 插件文档补齐（history / sync / querycache）](stories/plugin/US-506-website-plugin-docs.md)

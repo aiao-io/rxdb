@@ -54,6 +54,8 @@ export default class TodoPage implements AfterViewInit {
   readonly #scrollDispatcher = inject(ScrollDispatcher);
   readonly #destroyRef = inject(DestroyRef);
   readonly #editingTodoId = signal<Todo['id'] | null>(null);
+  /** 宽屏（≥ 768px，与 dev-rxdb-angular 同口径）：操作历史侧栏常驻；窄屏上它是盖住列表的浮层 */
+  readonly #wideViewport = window.matchMedia('(min-width: 768px)');
 
   /** P1-2：远端是否真的连上；纯本地模式下 pull / push 必须不可点。 */
   readonly remoteSync = inject(RemoteSyncState);
@@ -88,12 +90,10 @@ export default class TodoPage implements AfterViewInit {
   /** 批量添加的档位 */
   readonly batchSizes = [1, 10, 100, 1000, 10000] as const;
 
-  readonly #wideViewport = window.matchMedia('(min-width: 768px)');
-
   readonly title = signal<string>('');
   readonly $current_tab = signal<TodoTab>('all');
   readonly $completed_sort = signal<'asc' | 'desc'>('asc');
-  /** 操作历史侧栏：宽屏默认展开；窄屏上它是浮层、打开就挡住列表，默认收起（与 dev-rxdb-angular 同口径 768px） */
+  /** 操作历史侧栏：宽屏默认展开；窄屏上打开就挡住列表，默认收起 */
   readonly $show_history = signal(this.#wideViewport.matches);
   readonly $show_sticky_header = signal(false);
   readonly $syncError = signal<string | null>(null);
@@ -152,14 +152,14 @@ export default class TodoPage implements AfterViewInit {
   fullHeaderRef = viewChild<ElementRef<HTMLElement>>('fullHeader');
   mainContainerRef = viewChild<ElementRef<HTMLElement>>('mainContainer');
 
-  trackByFn = (_index: number, todo: Todo) => todo.id;
-
   constructor() {
     // 断点跨越（旋转 / 窗口缩放）时同步历史侧栏开合
     const onViewportChange = (event: MediaQueryListEvent) => this.$show_history.set(event.matches);
     this.#wideViewport.addEventListener('change', onViewportChange);
     this.#destroyRef.onDestroy(() => this.#wideViewport.removeEventListener('change', onViewportChange));
   }
+
+  trackByFn = (_index: number, todo: Todo) => todo.id;
 
   ngAfterViewInit() {
     const fullHeader = this.fullHeaderRef();
