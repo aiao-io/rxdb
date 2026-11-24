@@ -7,9 +7,17 @@ const docs = 'https://rxdb.aiao.io/';
 
 test('GitHub Issue 入口分别提供英文与中文文档链接', () => {
   const chooser = readFileSync(new URL('config.yml', templates), 'utf8');
-  const destinations = [...chooser.matchAll(/^\s+url: (\S+)$/gm)].map(([, url]) => url);
-  assert.ok(destinations.includes(`${docs}en/`), '缺少英文文档入口');
-  assert.ok(destinations.includes(docs), '缺少中文文档入口');
+  const docsSite = [...chooser.matchAll(/^\s+url: (\S+)$/gm)]
+    .map(([, url]) => new URL(url))
+    .filter(url => url.origin === 'https://rxdb.aiao.io');
+  assert.ok(
+    docsSite.some(url => url.pathname === '/en/'),
+    '缺少英文文档入口'
+  );
+  assert.ok(
+    docsSite.some(url => url.pathname === '/'),
+    '缺少中文文档入口'
+  );
 });
 
 test('英文提问表单的文档链接打开英文站点', () => {
