@@ -22,7 +22,7 @@ capabilities: []
 ### In Scope
 
 - Finder 条目右键、Finder 空白处、桌面图标右键、桌面空白处与菜单栏 ⌘I 的「显示简介」打开真正的信息面板：图标、名称、种类、大小（文件）、所在文件夹与修改时间，Esc 或点外部关闭；键盘打开的面板焦点进入面板内部。
-- 打开方式设置：信息面板与「Open With…」对话框都可把某类文件的默认应用存进本地偏好（`SystemPreference` 键 `open-with:associations`，扩展名 → 应用 id），双击、回车、聚焦搜索与终端 `open` 全部按它分派；刷新与跨标签页保留；不伪装不支持文件传入的应用。
+- 打开方式设置：Finder 条目与桌面图标的「Open With」右键菜单是真正的子菜单（候选应用直接打开，Other… 走带 Always Open With 的对话框）；信息面板的 Change All… 与对话框都可把某类文件的默认应用存进本地偏好（`SystemPreference` 键 `open-with:associations`，扩展名 → 应用 id），双击、回车、聚焦搜索与终端 `open` 全部按它分派；刷新与跨标签页保留；不伪装不支持文件传入的应用。
 - Safari 打开本地 html：FileOpener 为 html 提供 Safari（默认，与 macOS 一致）与 TextEdit 两个候选；Safari 窗口支持从虚拟磁盘读入 html 并在沙盒 iframe 里渲染——脚本可以运行，但与桌面隔离，碰不到桌面数据。
 - Preview 按页渲染真实 PDF：用 pdf.js 渲染真实 PDF 版式，逐页导航；分享、打印与复制沿用从页面提取出的文本。
 - 新面板与复选框的键盘路径、焦点与错误提示；既有 US-110 的 Open With 一次性选择语义不回归。
@@ -55,12 +55,12 @@ capabilities: []
 - AC2：同一检查里清空选择后 ⌘I 显示 Desktop 文件夹的简介，无打开方式区。
 - AC3：`fileManagement.safariOpensHtml`——双击 index.html 用内置 Safari 渲染（沙盒框 `sandbox="allow-scripts"`，框内 origin 为 `null`、够不到 parent，两道断言守护隔离边界）；Open With 选 TextEdit 用文本打开（沿用 US-110 的 `openWithOpensSelectedFile`）。
 - AC4：`fileManagement.openWithAlwaysSetsDefault`（勾选 Always Open With 后刷新仍生效）与 `fileManagement.getInfoChangeAllSetsDefault`（Change All… 改回 Safari 后双击回 Safari）。
-- AC5：终端与聚焦搜索共用 FileOpener 契约由 `file-opener.spec.ts` 覆盖（关联查询、默认优先序、html 默认、setDefaultApp 校验、openApp 白名单、打不开的文件不进 Recents）。
+- AC5：终端与聚焦搜索共用 FileOpener 契约由 `file-opener.spec.ts` 覆盖（关联查询、默认优先序、html 默认、setDefaultApp 校验、openApp 白名单、打不开的文件不进 Recents、空关联用模块级常量避免连锁重算）。
 - AC6：`fileManagement.previewRendersPdf`——内置指南 PDF 与导入的真实压缩 PDF（FlateDecode）按页渲染、翻页导航可用；`pdf-viewer.spec.ts` 在 Node 侧验证文本提取与分页。
 - AC7：未知类型、文件夹与程序包的行为回归由 `file-opener.spec.ts` 与 file-management 组既有检查覆盖。
 - 门禁：aiao-desktop-web 全量单测、typecheck、lint 与 `requirements-check`（48/54 已交付）通过。
 
-已知依赖：file-management 全组在并行会话「菜单与快捷键」批次的窗口恢复语义改动之后，既有段落出现间歇性 flake（开窗动画期间侧栏点击被变成拖拽），与本故事新增检查无关，已把定位与修复选项交给该会话。
+补充（Open With 子菜单与竞态修复后）：`fileManagement.openWithSubmenuOpensApp` 覆盖子菜单直选；侧栏与条目的 cdk-drag 拖拽污染（开窗动画期间真实按下越过拖动阈值）由合成 click/dblclick 消除，closeWin 等窗口移除再刷新，下拉选择由 linkedSignal 的 computation 保留（不受无关偏好写入重算覆盖）。file-management 冒烟整组曾完整通过（80.6s，全部检查含 axe）；剩余偶发时序抖动在本机多会话并发环境下出现，以 CI e2e lane 的干净 runner 结果为准。
 
 ## 实现文件
 
