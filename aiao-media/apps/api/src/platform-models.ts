@@ -7,9 +7,9 @@ import {
   type PlatformModel
 } from '@aiao-media/api-contracts';
 import { officialImagePresets } from './image-presets.ts';
+import { platformConfigurationEnvironment, readPlatformConfiguration } from './platform-config.ts';
 import { runtimePolicy } from './product-content.ts';
 import { body, fields, reject } from './product-http.ts';
-import { platformConfigurationEnvironment, readPlatformConfiguration } from './platform-config.ts';
 import { base, providerAllowlist } from './relay-input.ts';
 import type { WorkerEnv } from './worker-env.ts';
 

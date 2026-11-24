@@ -258,7 +258,9 @@ async function main() {
       const output = await liveCommand(['deploy', '--message', 'Aiao Media reviewed static compatibility baseline']);
       const version = /Current Version ID:\s*([a-f0-9-]{36})/i.exec(output)?.[1];
       requireCheck(uuid(version), 'BASELINE_RECEIPT_MISSING');
-      console.log(JSON.stringify({ phase: 'baseline-deployed', version, platformConfiguration: prepared.platformConfiguration }));
+      console.log(
+        JSON.stringify({ phase: 'baseline-deployed', version, platformConfiguration: prepared.platformConfiguration })
+      );
       return version;
     },
     rollback: version =>

@@ -18,6 +18,7 @@
 - 图片模型的 `sizes/aspectRatios/qualities/complexities/counts`、Gemini 的 `imageOptions/thinkingLevels`，以及 ASR、TTS、音乐、视频的输入输出限制都由后台目录声明。未配置或停用能力时，接口明确返回不可用。
 - Cloudflare 配置 `RELAY_TASKS` Durable Object 与私有 `RELAY_RESULTS` R2 bucket。不开公开访问，配置 1 天生命周期规则；应用 24 小时清理前先确认账本终态，账本故障保留任务与密文并重试释放。国内 Node 使用持久 SQLite 与加密文件目录，启动时恢复 alarm。
 - 浏览器接单带平台会话、公开模型 ID、提示词、单张模型参数、可选的短暂参考图片和设备任务令牌；后续查询、结果、确认与删除只用设备令牌。数量拆成独立单图任务顺序接单和结算。结果以 AES-GCM 密文暂存，成功保存本机后删除；保存失败保留原结果供续接。正式部署步骤见 [Cloudflare 发布](../cloudflare/local-first-pages.md#正式发布)与[国内部署](../../requirements/plans/dual-region-deployment.md)。
+
 ## 账号与跨设备同步
 
 首次启用同步仍需确认本机数据范围，原图上传另行确认。草稿、作品信息与旧版公开配置继续兼容；账号会话、设备任务令牌、本机路径和文件句柄不进入同步或备份。

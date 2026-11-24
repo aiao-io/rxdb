@@ -16,7 +16,8 @@ export type PrivateMediaCapability = MediaCapability & {
   secret: string;
   path?: string;
 };
-type ConfiguredMediaCapability = PrivateMediaCapability & { credential: string };
+/** 已注入上游凭据值的私有能力配置，只允许服务端内部使用。 */
+export type ConfiguredMediaCapability = PrivateMediaCapability & { credential: string };
 interface MediaCapabilityConfig {
   revision: number;
   capabilities: PrivateMediaCapability[];

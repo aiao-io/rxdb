@@ -12,7 +12,10 @@ function rig(context, upstream = async () => Response.json({ data: [{ b64_json: 
   const fixture = platformFixture(),
     calls = [];
   context.mock.method(globalThis, 'fetch', fixture.backendFetch);
-  const env = Object.assign(fixture.env, { RELAY_RESULTS: r2Bucket(), ASSETS: { fetch: () => new Response('assets') } });
+  const env = Object.assign(fixture.env, {
+    RELAY_RESULTS: r2Bucket(),
+    ASSETS: { fetch: () => new Response('assets') }
+  });
   env.RELAY_TASKS = durableObjectNamespace(
     ctx =>
       new RelayTask(ctx, env, async (url, init) => {

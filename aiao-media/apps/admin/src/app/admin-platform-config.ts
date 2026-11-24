@@ -14,7 +14,12 @@ function record(value: unknown): Record<string, unknown> | null {
 
 function response(value: unknown): PlatformConfigurationResponse {
   const row = record(value);
-  if (!row || !Number.isSafeInteger(row['revision']) || !Array.isArray(row['models']) || !Array.isArray(row['capabilities']))
+  if (
+    !row ||
+    !Number.isSafeInteger(row['revision']) ||
+    !Array.isArray(row['models']) ||
+    !Array.isArray(row['capabilities'])
+  )
     throw new Error('平台配置回执无效。');
   const models = row['models'].map(record);
   const capabilities = row['capabilities'].map(record);
@@ -93,9 +98,16 @@ const capabilityExample = JSON.stringify(
 
       @if (!loading()) {
         <section class="summary" aria-label="当前配置摘要">
-          <div><strong>{{ models().length }}</strong><span>个图片模型</span></div>
-          <div><strong>{{ capabilities().length }}</strong><span>项媒体能力</span></div>
-          <div><strong>r{{ revision() }}</strong><span>当前修订</span></div>
+          <div>
+            <strong>{{ models().length }}</strong><span>个图片模型</span>
+          </div>
+          <div>
+            <strong>{{ capabilities().length }}</strong><span>项媒体能力</span>
+          </div>
+          <div>
+            <strong>r{{ revision() }}</strong
+            ><span>当前修订</span>
+          </div>
         </section>
 
         <section class="catalog" aria-labelledby="catalog-title">
@@ -109,20 +121,34 @@ const capabilityExample = JSON.stringify(
           @if (models().length || capabilities().length) {
             <div class="table-scroll">
               <table class="table-zebra table">
-                <thead><tr><th>类型</th><th>标识</th><th>能力</th><th>凭据</th></tr></thead>
+                <thead>
+                  <tr>
+                    <th>类型</th>
+                    <th>标识</th>
+                    <th>能力</th>
+                    <th>凭据</th>
+                  </tr>
+                </thead>
                 <tbody>
                   @for (model of models(); track model['id']) {
                     <tr>
                       <td>图片模型</td>
-                      <td>{{ model['id'] }}<small>{{ model['name'] }}</small></td>
+                      <td>
+                        {{ model['id'] }}<small>{{ model['name'] }}</small>
+                      </td>
                       <td>{{ model['protocol'] }} · {{ model['credits'] }} 积分</td>
                       <td>{{ model['credentialsConfigured'] ? '已配置' : '未配置' }}</td>
                     </tr>
                   }
-                  @for (capability of capabilities(); track capability['providerInstanceId'] + ':' + capability['operation']) {
+                  @for (
+                    capability of capabilities();
+                    track capability['providerInstanceId'] + ':' + capability['operation']
+                  ) {
                     <tr>
                       <td>{{ capability['operation'] }}</td>
-                      <td>{{ capability['modelId'] }}<small>{{ capability['label'] }}</small></td>
+                      <td>
+                        {{ capability['modelId'] }}<small>{{ capability['label'] }}</small>
+                      </td>
                       <td>{{ capability['kind'] }} · {{ capability['credits'] }} 积分</td>
                       <td>{{ capability['credentialsConfigured'] ? '已配置' : '未配置' }}</td>
                     </tr>
@@ -143,25 +169,27 @@ const capabilityExample = JSON.stringify(
             </div>
             <span class="revision">保存基于 r{{ revision() }}</span>
           </div>
-          <p class="hint">保存时会整体替换两份目录。读取接口不会回显私密字段，更新已有供应商时请再次填写完整 JSON 和 API Key。</p>
+          <p class="hint">
+            保存时会整体替换两份目录。读取接口不会回显私密字段，更新已有供应商时请再次填写完整 JSON 和 API Key。
+          </p>
           <label>
             图片模型 JSON
             <textarea
               [(ngModel)]="modelsJson"
+              [placeholder]="modelExample"
               name="modelsJson"
               rows="14"
               spellcheck="false"
-              [placeholder]="modelExample"
             ></textarea>
           </label>
           <label>
             ASR / TTS / 音乐 / 视频 JSON
             <textarea
               [(ngModel)]="capabilitiesJson"
+              [placeholder]="capabilityExample"
               name="capabilitiesJson"
               rows="18"
               spellcheck="false"
-              [placeholder]="capabilityExample"
             ></textarea>
           </label>
           <div class="actions">
@@ -173,30 +201,123 @@ const capabilityExample = JSON.stringify(
     </section>
   `,
   styles: `
-    :host { display: block; min-width: 0; }
-    .platform-config { width: min(1440px, 100%); margin: 0 auto; padding: clamp(1.25rem, 3vw, 2.75rem); }
-    .page-header { margin-bottom: 1.25rem; }
-    h2, h3 { margin: 0; }
-    h2 { font-size: 1.35rem; }
-    h3 { font-size: 1rem; }
-    p { margin: 0.4rem 0 0; }
-    .section-kicker { margin: 0 0 0.45rem; color: var(--color-primary); font-size: 0.7rem; font-weight: 750; }
-    .message, .error, .loading { margin: 0.75rem 0; }
-    .message { color: var(--color-success); }
-    .error { color: var(--color-error); }
-    .summary { display: flex; flex-wrap: wrap; gap: 0.75rem; margin: 1rem 0; }
-    .summary div { display: grid; gap: 0.1rem; min-width: 9rem; border: 1px solid var(--color-base-300); border-radius: 0.75rem; padding: 0.85rem 1rem; background: var(--color-base-100); }
-    .summary strong { font-size: 1.3rem; }
-    .summary span, small, .hint, .revision, .empty { opacity: 0.75; }
-    .catalog, .editor { margin-top: 1rem; border: 1px solid var(--color-base-300); border-radius: 0.85rem; padding: 1rem; background: var(--color-base-100); }
-    .section-heading, .actions { display: flex; flex-wrap: wrap; gap: 0.65rem; align-items: center; justify-content: space-between; }
-    .table-scroll { overflow-x: auto; margin-top: 0.75rem; }
-    table { width: 100%; }
-    td small { display: block; margin-top: 0.2rem; }
-    .editor { display: grid; gap: 0.9rem; }
-    .editor label { display: grid; gap: 0.4rem; font-weight: 650; }
-    textarea { width: 100%; box-sizing: border-box; border: 1px solid var(--color-base-300); border-radius: 0.55rem; padding: 0.75rem; background: var(--color-base-100); color: inherit; font: 0.78rem/1.45 var(--font-mono, ui-monospace); resize: vertical; }
-    .actions { justify-content: flex-start; }
+    :host {
+      display: block;
+      min-width: 0;
+    }
+    .platform-config {
+      width: min(1440px, 100%);
+      margin: 0 auto;
+      padding: clamp(1.25rem, 3vw, 2.75rem);
+    }
+    .page-header {
+      margin-bottom: 1.25rem;
+    }
+    h2,
+    h3 {
+      margin: 0;
+    }
+    h2 {
+      font-size: 1.35rem;
+    }
+    h3 {
+      font-size: 1rem;
+    }
+    p {
+      margin: 0.4rem 0 0;
+    }
+    .section-kicker {
+      margin: 0 0 0.45rem;
+      color: var(--color-primary);
+      font-size: 0.7rem;
+      font-weight: 750;
+    }
+    .message,
+    .error,
+    .loading {
+      margin: 0.75rem 0;
+    }
+    .message {
+      color: var(--color-success);
+    }
+    .error {
+      color: var(--color-error);
+    }
+    .summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin: 1rem 0;
+    }
+    .summary div {
+      display: grid;
+      gap: 0.1rem;
+      min-width: 9rem;
+      border: 1px solid var(--color-base-300);
+      border-radius: 0.75rem;
+      padding: 0.85rem 1rem;
+      background: var(--color-base-100);
+    }
+    .summary strong {
+      font-size: 1.3rem;
+    }
+    .summary span,
+    small,
+    .hint,
+    .revision,
+    .empty {
+      opacity: 0.75;
+    }
+    .catalog,
+    .editor {
+      margin-top: 1rem;
+      border: 1px solid var(--color-base-300);
+      border-radius: 0.85rem;
+      padding: 1rem;
+      background: var(--color-base-100);
+    }
+    .section-heading,
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.65rem;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .table-scroll {
+      overflow-x: auto;
+      margin-top: 0.75rem;
+    }
+    table {
+      width: 100%;
+    }
+    td small {
+      display: block;
+      margin-top: 0.2rem;
+    }
+    .editor {
+      display: grid;
+      gap: 0.9rem;
+    }
+    .editor label {
+      display: grid;
+      gap: 0.4rem;
+      font-weight: 650;
+    }
+    textarea {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid var(--color-base-300);
+      border-radius: 0.55rem;
+      padding: 0.75rem;
+      background: var(--color-base-100);
+      color: inherit;
+      font: 0.78rem/1.45 var(--font-mono, ui-monospace);
+      resize: vertical;
+    }
+    .actions {
+      justify-content: flex-start;
+    }
   `
 })
 export class AdminPlatformConfigComponent {
@@ -277,8 +398,7 @@ export class AdminPlatformConfigComponent {
       }
     } catch (error) {
       this.error.set(
-        error instanceof ProductRequestError && error.status === 409 ?
-          '配置版本已变化，请重新读取后再保存。'
+        error instanceof ProductRequestError && error.status === 409 ? '配置版本已变化，请重新读取后再保存。'
         : error instanceof Error ? error.message
         : '平台配置保存失败。'
       );
@@ -296,5 +416,4 @@ export class AdminPlatformConfigComponent {
   private async read(client: ProductClient): Promise<PlatformConfigurationResponse> {
     return response(await client.admin('platform-config'));
   }
-
 }

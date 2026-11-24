@@ -39,14 +39,17 @@ export function platformFixture() {
           value = [];
         }
         if (!Array.isArray(value)) {
-          const row = value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+          const row =
+            value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
           value = row[key];
         }
-        return Array.isArray(value) ? value.map(entry => {
-          if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return entry;
-          const row = entry as Record<string, unknown>;
-          return typeof row['secret'] === 'string' ? { ...row, apiKey: env[row['secret']] } : row;
-        }) : [];
+        return Array.isArray(value) ?
+            value.map(entry => {
+              if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return entry;
+              const row = entry as Record<string, unknown>;
+              return typeof row['secret'] === 'string' ? { ...row, apiKey: env[row['secret']] } : row;
+            })
+          : [];
       };
       return Response.json([
         {

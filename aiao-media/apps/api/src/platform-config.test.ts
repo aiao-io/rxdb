@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { manageAdminPlatformConfiguration } from './admin-platform-config.ts';
-import type { BackendClient } from './product-http.ts';
 import {
   platformConfigurationEnvironment,
   publicPlatformConfiguration,
   readPlatformConfiguration,
   type PlatformConfigurationDocument
 } from './platform-config.ts';
+import type { BackendClient, BackendOptions } from './product-http.ts';
 import type { WorkerEnv } from './worker-env.ts';
 
 const document: PlatformConfigurationDocument = {
@@ -65,7 +65,14 @@ test('公开平台摘要移除地址、上游型号、路径和凭据', () => {
   assert.equal(value.revision, 7);
   assert.equal(value.models[0].credentialsConfigured, true);
   assert.equal(value.capabilities[0].credentialsConfigured, true);
-  for (const privateValue of ['images.example.test', 'audio.example.test', 'image-upstream', 'tts-upstream', 'image-secret', 'tts-secret'])
+  for (const privateValue of [
+    'images.example.test',
+    'audio.example.test',
+    'image-upstream',
+    'tts-upstream',
+    'image-secret',
+    'tts-secret'
+  ])
     assert.equal(text.includes(privateValue), false, privateValue);
 });
 
@@ -79,9 +86,11 @@ test('Supabase 已配置时缺少 service role 不回退本地平台环境', asy
 });
 
 test('从 Supabase 服务端表读取平台配置', async context => {
-  context.mock.method(globalThis, 'fetch', async input => {
+  context.mock.method(globalThis, 'fetch', async (input: string | URL) => {
     assert.equal(new URL(input).pathname, '/rest/v1/media_platform_configuration');
-    return Response.json([{ revision: document.revision, models: document.models, capabilities: document.capabilities }]);
+    return Response.json([
+      { revision: document.revision, models: document.models, capabilities: document.capabilities }
+    ]);
   });
   const value = await readPlatformConfiguration({
     MEDIA_SUPABASE_URL: 'https://account.example.test',
@@ -92,10 +101,10 @@ test('从 Supabase 服务端表读取平台配置', async context => {
 });
 
 test('后台保存通过 Supabase REST RPC 路径提交', async () => {
-  let call: { path: string; options: Record<string, unknown> } | undefined;
+  let call: { path: string; options: BackendOptions } | undefined;
   const client: BackendClient = {
-    call: async <T>(path, options = {}) => {
-      call = { path, options: options as Record<string, unknown> };
+    call: async <T>(path: string, options: BackendOptions = {}) => {
+      call = { path, options };
       return { revision: 1, modelCount: 0, capabilityCount: 0 } as T;
     }
   };

@@ -62,10 +62,7 @@ function baseUrls(document: PlatformConfigurationDocument): string[] {
 }
 
 /** 将后台保存的私密配置转换为仅供 Worker 内部使用的兼容环境形状。 */
-export function platformConfigurationEnvironment(
-  env: WorkerEnv,
-  document: PlatformConfigurationDocument
-): WorkerEnv {
+export function platformConfigurationEnvironment(env: WorkerEnv, document: PlatformConfigurationDocument): WorkerEnv {
   const modelEntries = document.models.map((value, index) => runtimeRow(value, index, 'model'));
   const capabilityEntries = document.capabilities.map((value, index) => runtimeRow(value, index, 'capability'));
   const models = modelEntries.map(entry => entry.value);
@@ -75,8 +72,9 @@ export function platformConfigurationEnvironment(
     ...env,
     ...Object.fromEntries(
       [...modelEntries, ...capabilityEntries]
-        .filter((entry): entry is typeof entry & { secret: string; apiKey: string } =>
-          typeof entry.secret === 'string' && typeof entry.apiKey === 'string'
+        .filter(
+          (entry): entry is typeof entry & { secret: string; apiKey: string } =>
+            typeof entry.secret === 'string' && typeof entry.apiKey === 'string'
         )
         .map(entry => [entry.secret, entry.apiKey])
     ),
@@ -101,7 +99,8 @@ export async function readPlatformConfiguration(env: WorkerEnv): Promise<Platfor
   return {
     revision: 1,
     models: array(json(env.MEDIA_PLATFORM_MODELS, []), 'models'),
-    capabilities: Array.isArray(capabilities) ? capabilities : array(record(capabilities)?.['capabilities'], 'capabilities')
+    capabilities:
+      Array.isArray(capabilities) ? capabilities : array(record(capabilities)?.['capabilities'], 'capabilities')
   };
 }
 
@@ -117,11 +116,13 @@ export function publicPlatformConfiguration(document: PlatformConfigurationDocum
     revision: document.revision,
     models: document.models.map(value => ({
       ...removeKeys(value, privateModelKeys),
-      credentialsConfigured: typeof record(value)?.['apiKey'] === 'string' || typeof record(value)?.['secret'] === 'string'
+      credentialsConfigured:
+        typeof record(value)?.['apiKey'] === 'string' || typeof record(value)?.['secret'] === 'string'
     })),
     capabilities: document.capabilities.map(value => ({
       ...removeKeys(value, privateCapabilityKeys),
-      credentialsConfigured: typeof record(value)?.['apiKey'] === 'string' || typeof record(value)?.['secret'] === 'string'
+      credentialsConfigured:
+        typeof record(value)?.['apiKey'] === 'string' || typeof record(value)?.['secret'] === 'string'
     }))
   };
 }

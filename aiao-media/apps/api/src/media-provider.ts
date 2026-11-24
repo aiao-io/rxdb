@@ -19,7 +19,11 @@ import {
   type TranscriptResult,
   type VideoResultManifest
 } from '@aiao-media/api-contracts';
-import { configuredMediaCapability, type PrivateMediaCapability } from './media-capabilities.ts';
+import {
+  configuredMediaCapability,
+  type ConfiguredMediaCapability,
+  type PrivateMediaCapability
+} from './media-capabilities.ts';
 import { readMediaInput } from './media-input-api.ts';
 import { bounded, reject } from './product-http.ts';
 import type { WorkerEnv } from './worker-env.ts';
@@ -83,7 +87,7 @@ const resultPath: Record<GenerationJobRequest['operation'], string> = {
   'text-to-image': '/images/generations',
   'reference-image': '/images/generations'
 };
-async function capabilityFor(env: WorkerEnv, request: GenerationJobRequest): Promise<PrivateMediaCapability> {
+async function capabilityFor(env: WorkerEnv, request: GenerationJobRequest): Promise<ConfiguredMediaCapability> {
   return configuredMediaCapability(env, {
     providerInstanceId: request.providerInstanceId,
     providerRevision: request.providerRevision,
