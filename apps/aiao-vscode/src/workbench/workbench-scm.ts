@@ -1,4 +1,5 @@
 import type { WorkbenchBackend, WorkbenchSession, WorkbenchSnapshot, WorkbenchStatus } from './session.js';
+import { GitWorkbenchError } from './git/git-protocol.js';
 import { confirmWorkbenchAction } from './workbench-dialog.js';
 import { createCodicon } from './workbench-icons.js';
 import {
@@ -42,6 +43,11 @@ export interface WorkbenchScmOptions {
   onContextMenu?(position: { x: number; y: number }, entries: readonly WorkbenchScmMenuEntry[]): void;
   getSavedMessage?(projectId: string): string | undefined;
   onCommitMessage?(projectId: string, message: string): void;
+  /**
+   * GitHub 拒绝当前登录（auth_required）时调用：宿主应引导重新登录，返回是否已建立新会话。
+   * 返回 true 时把本次操作重试一次；返回 false 或抛错时保留原始错误（US-406 #15）。
+   */
+  onAuthRequired?(): Promise<boolean>;
 }
 
 /** 宿主统一刷新状态，视图负责明确的文件、提交和展示操作。 */
@@ -272,6 +278,29 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
     });
   }
 
+  const authRequired = (cause: unknown): boolean =>
+    cause instanceof GitWorkbenchError && cause.code === 'auth_required';
+
+  /**
+   * 远端写操作被 GitHub 拒绝（401）时先让宿主重新登录，再重试一次；401 说明请求没有生效，重试不会重复提交。
+   * 登录被取消或失败时保留原始错误。
+   */
+  async function withReauth<T>(operation: () => Promise<T>): Promise<T> {
+    try {
+      return await operation();
+    } catch (cause) {
+      if (!authRequired(cause) || !options.onAuthRequired) throw cause;
+      let signedIn = false;
+      try {
+        signedIn = await options.onAuthRequired();
+      } catch {
+        signedIn = false;
+      }
+      if (!signedIn) throw cause;
+      return operation();
+    }
+  }
+
   async function mutate(operation: (id: string) => Promise<MutationResult>): Promise<void> {
     if (disposed) throw new Error('源代码管理已关闭');
     if (!projectId) throw new Error('请先打开项目');
@@ -282,7 +311,7 @@ export function createWorkbenchScm(host: HTMLElement, options: WorkbenchScmOptio
     syncControls();
     options.onBusyChange?.(true);
     try {
-      const result = await operation(id);
+      const result = await withReauth(() => operation(id));
       if (disposed || generation !== expected || result?.changed === false) return;
       if (result?.snapshot) await options.onDidChange(result.snapshot, result.paths);
       else await options.onDidChange();
