@@ -46,6 +46,27 @@ VALUES
   ('bucket-b', 'private', '00000000-0000-4000-8000-0000000000b2', 'b-value'),
   ('bucket-moved', 'public', NULL, 'moved-value');
 
+-- 文档给业务表的分区 SELECT 策略（bucketed-documented-policy）：USING 表达式与
+-- website/docs/adapters/supabase.md「配置 caller buckets」的示例逐字一致，两处一起改。
+-- 不登记同步：只验证用户照抄的这条策略建得出来、按 caller buckets 放行
+CREATE TABLE rxdb_sql_regression.documented_bucket_rows (
+  id text PRIMARY KEY,
+  owner_id uuid,
+  rxdb_bucket text GENERATED ALWAYS AS (
+    CASE WHEN owner_id IS NULL THEN 'public' ELSE 'user:' || owner_id::text END
+  ) STORED
+);
+ALTER TABLE rxdb_sql_regression.documented_bucket_rows ENABLE ROW LEVEL SECURITY;
+CREATE POLICY documented_bucket_rows_select
+ON rxdb_sql_regression.documented_bucket_rows
+FOR SELECT
+USING (rxdb_bucket = ANY((SELECT public.rxdb_caller_buckets())::text[]));
+INSERT INTO rxdb_sql_regression.documented_bucket_rows (id, owner_id)
+VALUES
+  ('documented-public', NULL),
+  ('documented-a', '00000000-0000-4000-8000-0000000000a1'),
+  ('documented-b', '00000000-0000-4000-8000-0000000000b2');
+
 -- 分区实体的推送（bucketed-push）：表不在 public schema，只有所有者能读写自己的行；公开的行在 public 区
 CREATE TABLE rxdb_sql_regression.bucket_push_rows (
   id text PRIMARY KEY,
@@ -3435,6 +3456,8 @@ DECLARE
   helper_definer boolean;
   helper_search_path_pinned boolean;
   backend_update_denied boolean := false;
+  v_unprotected text[];
+  v_rls_disabled text[];
 BEGIN
   -- 1. 客户端直接 INSERT 日志表 → 42501（AC#17）
   BEGIN
@@ -3518,6 +3541,50 @@ BEGIN
   PERFORM rxdb_sql_regression.assert_true(
     public.rxdb_backend_id() IS NOT NULL,
     'production-change-grants: rxdb_backend_id() must stay callable'
+  );
+
+  -- 8. 客户端能读的 rxdb_ 表都以 RLS 为边界，且只有读取策略（Supabase Advisor 的 rls_disabled_in_public）：
+  --    整库 GRANT 把写权限放宽回去之后，客户端照样改不了一行。rxdb_sql_ 是本套件自己的夹具
+  SELECT pg_catalog.array_agg(c.relname::text ORDER BY c.relname)
+  INTO v_unprotected
+  FROM pg_catalog.pg_class AS c
+  WHERE c.relnamespace = 'public'::regnamespace
+    AND c.relkind = 'r'
+    AND c.relname LIKE 'rxdb\_%'
+    AND c.relname NOT LIKE 'rxdb\_sql\_%'
+    AND (
+      pg_catalog.has_table_privilege('anon', c.oid, 'SELECT')
+      OR pg_catalog.has_table_privilege('authenticated', c.oid, 'SELECT')
+    )
+    AND (
+      NOT c.relrowsecurity
+      OR EXISTS (SELECT 1 FROM pg_catalog.pg_policy AS p WHERE p.polrelid = c.oid AND p.polcmd <> 'r')
+    );
+  PERFORM rxdb_sql_regression.assert_true(
+    v_unprotected IS NULL,
+    pg_catalog.format('production-change-grants: client-readable rxdb_ tables must enable RLS with read-only policies: %s', v_unprotected)
+  );
+
+  -- 9. 适配器 connect() 的 RLS 自检默认检查日志表与分支表（resolveRlsCheckTables），参考部署要能通过
+  SELECT pg_catalog.array_agg(item->>'table' ORDER BY item->>'table')
+  INTO v_rls_disabled
+  FROM pg_catalog.jsonb_array_elements(public.rxdb_check_rls(
+    '[{"schema":"public","table":"rxdb_change"},{"schema":"public","table":"rxdb_branch"}]'::jsonb
+  )) AS item
+  WHERE (item->>'rlsEnabled')::boolean IS NOT TRUE;
+  PERFORM rxdb_sql_regression.assert_true(
+    v_rls_disabled IS NULL,
+    pg_catalog.format('production-change-grants: the adapter RLS self-check must pass on RxDB tables: %s', v_rls_disabled)
+  );
+
+  -- 10. 开 RLS 之后读取照旧
+  PERFORM rxdb_sql_regression.assert_true(
+    EXISTS (SELECT 1 FROM public.rxdb_branch WHERE id = 'main'),
+    'production-change-grants: authenticated must still read rxdb_branch'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    (SELECT pg_catalog.count(*) FROM public.rxdb_backend) = 1,
+    'production-change-grants: authenticated must still read rxdb_backend'
   );
 
   -- 函数属性：两个写日志的函数都是 DEFINER，helper 固定 search_path
@@ -3649,6 +3716,10 @@ BEGIN
   PERFORM rxdb_sql_regression.assert_true(
     public.rxdb_backend_id() IS NOT NULL,
     'anon-sync-protocol: rxdb_backend_id must stay callable'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    (SELECT pg_catalog.count(*) FROM public.rxdb_backend) = 1,
+    'anon-sync-protocol: anon must still read rxdb_backend'
   );
   PERFORM rxdb_sql_regression.assert_true(
     public.rxdb_check_rls('[{"schema":"rxdb_sql_regression","table":"push_open_ids"}]'::jsonb) IS NOT NULL,
@@ -4212,6 +4283,37 @@ BEGIN
       'bucketed-read-sync: without branches the watermark covers every branch: %s <> %s',
       v_point, v_other_branch_change
     )
+  );
+END;
+$$;
+
+-- 文档给业务表的分区 SELECT 策略（bucketed-documented-policy）：anon 只看到 public 区，
+-- 用户 A 看到 public 区与自己的区，看不到用户 B 的区
+CREATE FUNCTION rxdb_sql_regression.test_bucketed_documented_policy()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  user_a constant uuid := '00000000-0000-4000-8000-0000000000a1';
+  v_ids text[];
+BEGIN
+  PERFORM pg_catalog.set_config('request.jwt.claims', '{"role":"anon"}', true);
+  SELECT pg_catalog.array_agg(id ORDER BY id) INTO v_ids FROM rxdb_sql_regression.documented_bucket_rows;
+  PERFORM rxdb_sql_regression.assert_true(
+    v_ids = ARRAY['documented-public'],
+    pg_catalog.format('bucketed-documented-policy: anon must only see the public row: %s', v_ids)
+  );
+
+  PERFORM pg_catalog.set_config(
+    'request.jwt.claims',
+    pg_catalog.format('{"sub":"%s","role":"authenticated"}', user_a),
+    true
+  );
+  SELECT pg_catalog.array_agg(id ORDER BY id) INTO v_ids FROM rxdb_sql_regression.documented_bucket_rows;
+  PERFORM rxdb_sql_regression.assert_true(
+    v_ids = ARRAY['documented-a', 'documented-public'],
+    pg_catalog.format('bucketed-documented-policy: user A must see the public row and own rows only: %s', v_ids)
   );
 END;
 $$;
@@ -5029,6 +5131,8 @@ SELECT rxdb_sql_regression.test_cascade_partition_keys()
 WHERE :'test_case' IN ('all', 'cascade-partition-keys');
 SELECT rxdb_sql_regression.test_bucketed_push()
 WHERE :'test_case' IN ('all', 'bucketed-push');
+SELECT rxdb_sql_regression.test_bucketed_documented_policy()
+WHERE :'test_case' IN ('all', 'bucketed-documented-policy');
 RESET ROLE;
 
 SELECT rxdb_sql_regression.test_delete_hidden_row_verify()

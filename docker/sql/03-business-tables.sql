@@ -747,3 +747,54 @@ GRANT ALL ON ALL SEQUENCES IN SCHEMA shop TO authenticated;
 
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO anon;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated;
+
+-- ============================================
+-- 13. US-036 规则之外的公开数据：商品目录夹具（catalog_items）与公开视图（catalog_items_public）
+-- ============================================
+-- 分区实体（US-033）：公开商品在 public 区，租户内部商品在 tenant:<tenantId> 区，区由生成列 rxdb_bucket 算，
+-- 能读哪些区由 RLS 按 rxdb_caller_buckets() 裁决。默认的 caller buckets 不含租户区，租户内部商品只有
+-- service_role 读得到；dev-rxdb-supabase 的演示 SQL 在此之上补租户、成员与成员的写权限。
+-- 公开视图（US-036）只含公开行、不含成本价，给只读浏览实体走 QueryCache。用 security_invoker：沿用业务表的
+-- RLS 与列权限；定义者权限的视图绕过这两层，Supabase Advisor 报 security_definer_view（ERROR）。
+-- 放在文件末尾：上面的整库 GRANT 每次初始化都会把表级权限放宽，anon 的列权限要在它之后收。
+CREATE TABLE IF NOT EXISTS public.catalog_items (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    name varchar NOT NULL,
+    category varchar NOT NULL,
+    price numeric(12, 2) NOT NULL DEFAULT 0,
+    cost numeric(12, 2),
+    visibility varchar NOT NULL DEFAULT 'public' CHECK (visibility IN ('public', 'tenant')),
+    "tenantId" varchar NOT NULL,
+    "createdAt" timestamptz(3) NOT NULL DEFAULT now(),
+    "updatedAt" timestamptz(3) NOT NULL DEFAULT now(),
+    "createdBy" varchar,
+    "updatedBy" varchar,
+    rxdb_bucket text GENERATED ALWAYS AS (
+        CASE WHEN visibility = 'public' THEN 'public' ELSE 'tenant:' || "tenantId" END
+    ) STORED
+);
+
+CREATE INDEX IF NOT EXISTS idx_catalog_items_bucket_id ON public.catalog_items (rxdb_bucket, id);
+CREATE INDEX IF NOT EXISTS idx_catalog_items_category_name ON public.catalog_items (category, name);
+
+ALTER TABLE public.catalog_items ENABLE ROW LEVEL SECURITY;
+
+-- 读：按区放行（与文档「配置 caller buckets」的业务表策略同一写法）。客户端没有写策略，写入只经 service_role
+DROP POLICY IF EXISTS catalog_items_select_by_bucket ON public.catalog_items;
+CREATE POLICY catalog_items_select_by_bucket ON public.catalog_items
+  FOR SELECT USING (rxdb_bucket = ANY((SELECT public.rxdb_caller_buckets())::text[]));
+
+SELECT public.rxdb_enable_sync_for_table('catalog_items', 'public', 'CatalogItem');
+
+CREATE OR REPLACE VIEW public.catalog_items_public WITH (security_invoker = true) AS
+  SELECT id, name, category, price, "tenantId", "createdAt", "updatedAt", "createdBy", "updatedBy"
+  FROM public.catalog_items
+  WHERE visibility = 'public';
+
+-- anon 读不到成本价：收回表级权限，按列授予。同步与浏览都只取有列权限的列
+REVOKE ALL ON public.catalog_items FROM anon;
+GRANT SELECT (
+  id, name, category, price, visibility, "tenantId", "createdAt", "updatedAt", "createdBy", "updatedBy", rxdb_bucket
+) ON public.catalog_items TO anon;
+REVOKE ALL ON public.catalog_items_public FROM anon, authenticated;
+GRANT SELECT ON public.catalog_items_public TO anon, authenticated;

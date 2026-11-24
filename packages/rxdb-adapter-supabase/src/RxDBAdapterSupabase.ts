@@ -1114,7 +1114,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     }
 
     const options = getRlsCheckOptions(this.options.rlsCheck);
-    const tables = resolveRlsCheckTables(options.tables, this.rxdb.config.entities);
+    const tables = resolveRlsCheckTables(options.tables, this.rxdb.config.entities, this.rxdb.entitySync);
     if (tables.length === 0) {
       this.#rlsCheckDone = true;
       return;

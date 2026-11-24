@@ -1,11 +1,13 @@
 import {
   compactChanges,
+  createEntitySyncResolver,
   Entity,
   EntityBase,
   getEntityMetadata,
   getRxDBEntityIdentityKey,
   PropertyType,
   SyncStateHub,
+  SyncType,
   type EntityMetadata,
   type EntityPropertyMetadata,
   type EntityType,
@@ -80,6 +82,12 @@ function createRxdb(entities: EntityType[] = []): RxDB {
   return {
     context: { userId: 'test-user', clientId: 'local-client' },
     config: { entities },
+    // 与真实实例一样带库级同步解析器：RLS 自检只查经远端同步的实体（系统表与只存本地的实体不查）
+    entitySync: createEntitySyncResolver({
+      type: SyncType.Full,
+      local: { adapter: 'local' },
+      remote: { adapter: 'supabase' }
+    }),
     schemaManager: {
       getEntityType: vi.fn(
         (name: string, namespace: string) =>

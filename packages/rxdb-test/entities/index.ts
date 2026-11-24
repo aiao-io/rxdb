@@ -20,6 +20,9 @@ import { TypeDemoNative } from './TypeDemoNative.js';
 export { Account } from './Account.js';
 export { Article } from './Article.js';
 export { AuditLog } from './AuditLog.js';
+// 按授权分区同步与规则之外的公开浏览（US-033 / US-036）：两者都要连 Supabase，不进 ENTITIES，
+// 免得纯本地的 demo 把 QueryCache 实体一起注册
+export { CatalogItem } from './CatalogItem.js';
 export { Comment } from './Comment.js';
 export { Contract } from './Contract.js';
 export { FileLarge } from './FileLarge.js';
@@ -27,6 +30,7 @@ export { FileNode } from './FileNode.js';
 export { Invoice } from './Invoice.js';
 export { MenuLarge } from './MenuLarge.js';
 export { MenuSimple } from './MenuSimple.js';
+export { PublicCatalogItem } from './PublicCatalogItem.js';
 export { SortableFileLarge } from './SortableFileLarge.js';
 export { SortableFileNode } from './SortableFileNode.js';
 export { SortableMenuLarge } from './SortableMenuLarge.js';

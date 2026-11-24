@@ -152,8 +152,10 @@ ALTER TABLE public.documents ENABLE ROW LEVEL SECURITY;
 CREATE POLICY documents_select_by_bucket
 ON public.documents
 FOR SELECT
-USING (rxdb_bucket = ANY((SELECT public.rxdb_caller_buckets())));
+USING (rxdb_bucket = ANY((SELECT public.rxdb_caller_buckets())::text[]));
 ```
+
+`::text[]` 不能省：`ANY((SELECT ...))` 的双层括号会被当成子查询，逐行拿 `text` 去比 `text[]`，建策略时报 `operator does not exist: text = text[]`。加上类型转换后整体是数组表达式，caller buckets 每条语句只求值一次。
 
 `SECURITY DEFINER` 成员函数的所有者需要能够读取成员表。不要把成员表直接授给客户端角色，也不要在函数里使用可被客户端角色覆盖的 `search_path`。成员关系发生变化而业务表没有写入时，下一轮同步会按新的 caller buckets 加入或退出整个租户区。
 
@@ -584,6 +586,8 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f docker/sql/production/rxdb-change-gra
 `anon` 仍可按业务表自己的 GRANT 与 RLS 直接读取公开业务行，也可以调用按区快照与按区变更 RPC。写入、通用日志拉取、分支登记和存在性探针仍然收回。推送之所以连同存在性探针一起收回：推送对「被 RLS 拒绝」与「已不存在」分别报 `42501` / `RX001`，本身就能判断某个 id 是否存在。
 
 远端身份只读的原因：客户端能改这一行，就能让所有客户端误判远端已重置而停止同步；读取经 `rxdb_backend_id()`，轮换只经 `TRUNCATE rxdb_change` 的触发器，两者都是 `SECURITY DEFINER`。
+
+分支表、远端身份表与日志表一样开着 RLS、只建读取策略。Supabase 上整库 `GRANT` 很常见，只收回写权限并不牢靠；没有写策略，客户端即便重新拿到写权限也改不了一行。这三张表因此不会被 Supabase Advisor 报成 `RLS Disabled in Public`，[RLS 自检](#rls-自检)默认检查的 `rxdb_branch` 也能通过。已有部署重新执行一次生产权限脚本即可生效。
 
 脚本可以重复执行。任何含 `GRANT ALL ON ALL TABLES IN SCHEMA public` 的脚本（如 `docker/sql/01-rxdb-system-tables.sql`）重跑后会把权限放宽回去，01～04 里先 DROP 再重建的函数也会重新带上默认权限，之后都要再执行一次本脚本，所以它总是最后执行。本脚本只收回 RxDB 自己的对象：01 的整库授权会把执行那一刻 public 下的业务表一并放宽，这部分它收不回来。所以从旧版本升级时不重跑 01，走增量脚本，见[从旧版本升级](#从旧版本升级)；在已有业务表的库上首次执行 01 之后，要核对并恢复业务表自己的权限。仓库的开发初始化脚本（`docker/init-db.sh`）与 CI 的 Supabase 环境都在 01～04 之后加载它，开发库与生产同口径；仓库的 Supabase 测试以 `authenticated` 测试用户身份运行，对 `rxdb_change` 的预置与清理经 `service_role` 身份。
 

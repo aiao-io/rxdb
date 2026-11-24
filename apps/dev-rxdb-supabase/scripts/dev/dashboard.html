@@ -260,7 +260,7 @@
       }
       .details {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 20px;
       }
       .row {
@@ -363,7 +363,7 @@
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
         .details {
-          grid-template-columns: 1fr;
+          grid-template-columns: minmax(0, 1fr);
         }
       }
       @media (max-width: 560px) {
@@ -383,7 +383,7 @@
           margin-top: 20px;
         }
         .cards {
-          grid-template-columns: 1fr;
+          grid-template-columns: minmax(0, 1fr);
         }
         .field {
           flex-wrap: wrap;

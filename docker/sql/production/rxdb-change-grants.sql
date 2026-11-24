@@ -9,6 +9,7 @@
 --      自己的 GRANT 与 RLS 直接读写。推送对「被 RLS 拒绝」与「已不存在」分别报错，本身就是存在性信号，
 --      所以推送与探针一并收回。authenticated 可读取自己被授权的分区以及未分区旧日志。
 --   3. 分支表与分支所有者表只经 SECURITY DEFINER 函数写入（rxdb_enable_sync_for_branch / rxdb_claim_branch）。
+--      分支表、远端身份表与日志表一样开着 RLS、只有读取策略，客户端即便重新拿到写权限也写不进去。
 --   4. 实时变更通知：未分区旧日志使用私有频道 rxdb:changes，分区日志使用带 bucket 的私有频道；旧日志只对 authenticated 开放，分区频道按 rxdb_caller_buckets() 开放接收，客户端不能往里发消息。
 -- 适用边界: 带 rxdb_bucket 的日志按 rxdb_caller_buckets() 做 RLS，未分区旧日志仍对 authenticated 可读。
 --       anon 默认只能读取 public 区。应用通过 SECURITY DEFINER 的 rxdb_caller_buckets() 扩展租户授权，
@@ -71,6 +72,30 @@ GRANT SELECT ON public.rxdb_branch TO authenticated;
 
 -- 分支所有者：客户端不读不写（表上还开着 RLS 且没有策略，见 01）
 REVOKE ALL ON public.rxdb_branch_owner FROM PUBLIC, anon, authenticated;
+
+-- 分支表与远端身份表也以 RLS 为边界，只建读取策略。Supabase 上整库 GRANT 很常见（01 / 03 自己就这么做），
+-- 只靠上面收回写权限不牢靠：没有写策略，客户端即便重新拿到写权限也改不了一行。写入只经 SECURITY DEFINER
+-- 函数与触发器，属主不受 RLS 约束。适配器 connect() 的 RLS 自检默认也检查 rxdb_branch
+DO $$
+DECLARE
+  v_table text;
+  v_roles text;
+BEGIN
+  FOR v_table, v_roles IN VALUES ('rxdb_branch', 'authenticated'), ('rxdb_backend', 'anon, authenticated')
+  LOOP
+    EXECUTE pg_catalog.format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', v_table);
+    IF EXISTS (
+      SELECT 1 FROM pg_catalog.pg_policies
+      WHERE schemaname = 'public' AND tablename = v_table AND policyname = v_table || '_read'
+    ) THEN
+      EXECUTE pg_catalog.format('ALTER POLICY %I ON public.%I TO %s USING (true)', v_table || '_read', v_table, v_roles);
+    ELSE
+      EXECUTE pg_catalog.format(
+        'CREATE POLICY %I ON public.%I FOR SELECT TO %s USING (true)', v_table || '_read', v_table, v_roles
+      );
+    END IF;
+  END LOOP;
+END $$;
 
 -- 3. 日志协议的函数：收回 PUBLIC 与 anon，显式授给 authenticated 与 service_role。
 -- PostgreSQL 建函数时默认授 EXECUTE 给 PUBLIC，Supabase 的默认权限还会授给 anon，两处都要收。
