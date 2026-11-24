@@ -10,10 +10,10 @@ import { RemoteSyncState } from './remote-sync-state';
       <div class="alert alert-warning rounded-none" role="alert">
         <svg [lucideIcon]="TriangleAlert" aria-hidden="true" size="18"></svg>
         <span>
-          远端同步已连接，但此 demo 只用匿名登录取得会话，没有正式的身份认证，也没有按用户隔离的行级安全策略（RLS）：
-          同步日志对所有登录者（包括匿名访客）可见。
-          <code>createdBy</code> 和 <code>updatedBy</code> 只是客户端生成的标识，不能证明用户身份；仅适用于本地演示。
-          生产环境请关闭匿名登录，启用正式的 Supabase Auth 与 RLS。
+          远端同步已连接，仅适用于本地演示。Todo 走未分区的日志同步：日志对所有登录身份（包括匿名用户）可见，
+          <code>createdBy</code> 和 <code>updatedBy</code> 只是客户端生成的标识，不能证明用户身份。
+          商品目录按身份分区同步：访客只读得到公开区，账号按所在租户读取。演示账号的口令写在前端，成员关系可以自助加入、退出；
+          生产环境请关闭匿名登录，由服务端维护成员关系与 RLS。
         </span>
       </div>
     }

@@ -6,9 +6,10 @@ import { AppHeader } from './app-header';
 import { AppSidebar } from './app-sidebar';
 import { AppService } from './app.service';
 import { RemoteSecurityNotice } from './remote-security-notice';
+import { SessionNotice } from './session-notice';
 
 @Component({
-  imports: [RouterOutlet, AppSidebar, AppHeader, RemoteSecurityNotice],
+  imports: [RouterOutlet, AppSidebar, AppHeader, RemoteSecurityNotice, SessionNotice],
   selector: 'app-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -16,6 +17,7 @@ import { RemoteSecurityNotice } from './remote-security-notice';
       <app-sidebar></app-sidebar>
       <div class="flex h-full min-w-0 grow flex-col overflow-auto" id="layout-container">
         <app-header></app-header>
+        <app-session-notice></app-session-notice>
         <app-remote-security-notice></app-remote-security-notice>
         <div id="layout-content">
           <router-outlet></router-outlet>

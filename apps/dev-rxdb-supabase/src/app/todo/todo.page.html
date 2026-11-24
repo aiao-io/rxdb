@@ -59,6 +59,21 @@
     <!-- Full Header -->
     <div class="border-base-300 flex-none border-b p-4" #fullHeader>
       <div class="mx-auto flex max-w-4xl flex-col gap-3">
+        @if (remoteSync.$connected() && !session.canSyncTodo) {
+          <div class="alert alert-info" role="status" data-testid="todo-visitor-notice">
+            <span>
+              访客的 Todo 只存在本机。Todo 演示的是日志同步与推送，只对登录身份开放；匿名登录之后就能在多个浏览器之间同步。
+            </span>
+            <button
+              class="btn btn-sm btn-primary"
+              [disabled]="session.$switching()"
+              (click)="session.switchTo('anonymous')"
+              type="button"
+            >
+              匿名登录
+            </button>
+          </div>
+        }
         <!-- Title Bar -->
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3">
@@ -120,8 +135,8 @@
             <div class="join">
               <button
                 class="btn btn-sm join-item"
-                [disabled]="!remoteSync.$connected() || $syncPending()"
-                [title]="remoteSync.$connected() ? 'Pull' : '未连接远端（纯本地模式）'"
+                [disabled]="!$todoSyncEnabled() || $syncPending()"
+                [title]="$todoSyncEnabled() ? 'Pull' : $todoSyncUnavailableReason()"
                 (click)="pull()"
                 aria-label="Pull"
               >
@@ -134,8 +149,8 @@
               </button>
               <button
                 class="btn btn-sm join-item"
-                [disabled]="!remoteSync.$connected() || push_disabled || $syncPending()"
-                [title]="remoteSync.$connected() ? 'Push' : '未连接远端（纯本地模式）'"
+                [disabled]="!$todoSyncEnabled() || push_disabled || $syncPending()"
+                [title]="$todoSyncEnabled() ? 'Push' : $todoSyncUnavailableReason()"
                 (click)="push()"
                 aria-label="Push"
               >

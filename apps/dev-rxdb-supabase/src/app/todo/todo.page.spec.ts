@@ -7,6 +7,7 @@ import { FormsModule } from '@angular/forms';
 import { LucideDynamicIcon } from '@lucide/angular';
 import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { DemoSession } from '../demo-session';
 import { RemoteSyncState } from '../remote-sync-state';
 import TodoPage from './todo.page';
 import todoPageTemplate from './todo.page.html?raw';
@@ -51,6 +52,8 @@ function getButton(fixture: ComponentFixture<TodoPage>, label: string): HTMLButt
 function renderTodoPage(
   options: {
     connected?: boolean;
+    /** 当前身份能不能同步 Todo：访客不能（日志同步只对登录身份开放） */
+    canSyncTodo?: boolean;
     pull?: () => Promise<unknown>;
     push?: () => Promise<unknown>;
   } = {}
@@ -95,15 +98,17 @@ function renderTodoPage(
       template: todoPageTemplate
     }
   });
+  const session = { canSyncTodo: options.canSyncTodo ?? true, $switching: signal(false), switchTo: vi.fn() };
   TestBed.configureTestingModule({
     providers: [
       { provide: RxDB, useValue: rxdb },
-      { provide: RemoteSyncState, useValue: remoteSync }
+      { provide: RemoteSyncState, useValue: remoteSync },
+      { provide: DemoSession, useValue: session }
     ]
   });
   const fixture = TestBed.createComponent(TodoPage);
   fixture.detectChanges();
-  return { fixture, pull, push };
+  return { fixture, pull, push, session };
 }
 
 describe('TodoPage remote sync controls', () => {
@@ -122,6 +127,22 @@ describe('TodoPage remote sync controls', () => {
     pushButton.click();
     expect(pull).not.toHaveBeenCalled();
     expect(push).not.toHaveBeenCalled();
+  });
+
+  it('访客：远端连着，但 Todo 的日志同步只对登录身份开放，Pull 与 Push 不可用，提示匿名登录', () => {
+    const { fixture, pull, session } = renderTodoPage({ connected: true, canSyncTodo: false });
+
+    const pullButton = getButton(fixture, 'Pull');
+    expect(pullButton.disabled).toBe(true);
+    expect(getButton(fixture, 'Push').disabled).toBe(true);
+    expect(pullButton.title).toContain('登录');
+    pullButton.click();
+    expect(pull).not.toHaveBeenCalled();
+
+    const notice = fixture.nativeElement.querySelector('[data-testid="todo-visitor-notice"]') as HTMLElement | null;
+    expect(notice?.textContent).toContain('只存在本机');
+    (notice?.querySelector('button') as HTMLButtonElement).click();
+    expect(session.switchTo).toHaveBeenCalledWith('anonymous');
   });
 
   it('disables both sync controls until a successful Push settles', async () => {

@@ -30,6 +30,7 @@ import {
   LucideX as X
 } from '@lucide/angular';
 import { HistorySidebarComponent } from '@modules/angular';
+import { DemoSession } from '../demo-session';
 import { getErrorMessage } from '../error-message';
 import { RemoteSyncState } from '../remote-sync-state';
 import { SyncRejectionsPanel } from '../sync-rejections-panel';
@@ -50,6 +51,14 @@ export default class TodoPage implements AfterViewInit {
 
   /** P1-2：远端是否真的连上；纯本地模式下 pull / push 必须不可点。 */
   readonly remoteSync = inject(RemoteSyncState);
+  /** 当前身份：Todo 走未分区的日志同步，只对登录身份开放（US-225），访客的 Todo 只存本地 */
+  readonly session = inject(DemoSession);
+  /** Pull / Push 可用：远端连着，且当前是登录身份 */
+  readonly $todoSyncEnabled = computed(() => this.remoteSync.$connected() && this.session.canSyncTodo);
+  /** Pull / Push 不可用时的说明 */
+  readonly $todoSyncUnavailableReason = computed(() =>
+    this.remoteSync.$connected() ? '访客的 Todo 只存本地：登录后才能同步' : '未连接远端（纯本地模式）'
+  );
   readonly itemSize = 48;
   readonly history = this.#rxdb.versionManager.history(Todo);
   readonly pushableCount$ = this.#rxdb.versionManager.pushableCount$;

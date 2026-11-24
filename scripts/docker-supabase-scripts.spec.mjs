@@ -88,9 +88,15 @@ async function createHarness(t) {
     await chmod(join(dockerDir, file), 0o755);
   }
   await cp(join(repoRoot, 'docker', 'sql'), join(dockerDir, 'sql'), { recursive: true });
-  const p2pSchema = join(root, 'apps', 'dev-rxdb-p2p', 'supabase', 'p2p-schema.sql');
-  await mkdir(dirname(p2pSchema), { recursive: true });
-  await copyFile(join(repoRoot, 'apps', 'dev-rxdb-p2p', 'supabase', 'p2p-schema.sql'), p2pSchema);
+  // init-db.sh 在 docker/sql 之外还加载两个 demo 自带的 SQL
+  for (const demoSql of [
+    ['apps', 'dev-rxdb-p2p', 'supabase', 'p2p-schema.sql'],
+    ['apps', 'dev-rxdb-supabase', 'supabase', 'catalog-demo.sql']
+  ]) {
+    const target = join(root, ...demoSql);
+    await mkdir(dirname(target), { recursive: true });
+    await copyFile(join(repoRoot, ...demoSql), target);
+  }
 
   const bin = join(root, 'bin');
   await mkdir(bin);

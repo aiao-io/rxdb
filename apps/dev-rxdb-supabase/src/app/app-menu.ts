@@ -1,6 +1,12 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
-import { LucideHouse as House, LucideListTodo as ListTodo, LucideDynamicIcon, type LucideIcon } from '@lucide/angular';
+import {
+  LucideHouse as House,
+  LucideListTodo as ListTodo,
+  LucideDynamicIcon,
+  LucideStore as Store,
+  type LucideIcon
+} from '@lucide/angular';
 
 interface LinkMenuItem {
   type: 'link';
@@ -90,6 +96,16 @@ export class AppMenu {
       title: 'Todo (cursor)',
       path: '/todo-cursor',
       icon: ListTodo
+    },
+    {
+      type: 'divider',
+      title: 'Identity-scoped Sync'
+    },
+    {
+      type: 'link',
+      title: '商品目录（按身份同步）',
+      path: '/catalog',
+      icon: Store
     }
   ] satisfies readonly MenuItem[];
 }

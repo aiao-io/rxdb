@@ -6,7 +6,7 @@ import { RemoteSyncState } from './remote-sync-state';
 describe('RemoteSecurityNotice', () => {
   beforeEach(() => TestBed.configureTestingModule({ imports: [RemoteSecurityNotice] }));
 
-  it('只在未认证的远端同步启用时显示安全告警', () => {
+  it('只在远端同步启用时显示安全告警：分清两种同步模型的可见范围', () => {
     const fixture = TestBed.createComponent(RemoteSecurityNotice);
     const state = TestBed.inject(RemoteSyncState);
 
@@ -17,7 +17,8 @@ describe('RemoteSecurityNotice', () => {
     fixture.detectChanges();
 
     const alert = fixture.nativeElement.querySelector('[role="alert"]') as HTMLElement | null;
-    expect(alert?.textContent).toContain('匿名登录');
+    expect(alert?.textContent).toContain('未分区的日志同步');
+    expect(alert?.textContent).toContain('按身份分区同步');
     expect(alert?.textContent).toContain('createdBy');
   });
 });
