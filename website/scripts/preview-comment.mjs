@@ -50,8 +50,9 @@ function commentBody(credentials, { number, state, sha, aliasUrl, deploymentUrl,
   }
   // wrangler 偶发不为部署绑定别名（pages-deployment-alias-url 为空）：此时固定预览仍指向
   // 上一成功部署，评论降级为只给本次部署快照链接，不让评论步骤拖垮整条 CI。
-  const previewLine = aliasUrl
-    ? `- [打开 PR #${number} 固定预览](${aliasUrl})\n- [本次部署快照](${deploymentUrl})`
+  const previewLine =
+    aliasUrl ?
+      `- [打开 PR #${number} 固定预览](${aliasUrl})\n- [本次部署快照](${deploymentUrl})`
     : `- [打开本次部署快照](${deploymentUrl})（固定预览本次未绑定别名，仍指向上一成功部署）`;
   return `${marker}\n\nWebsite 预览已发布。\n\n${previewLine}\n- 提交：\`${sha}\`\n- [构建与发布日志](${runUrl})\n\nPR 打开期间保留当前和上一次成功部署；关闭或合并时清理旧网站部署，仅保留一个极小的关闭提示页。`;
 }
