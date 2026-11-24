@@ -307,6 +307,11 @@ export const fileManagement = {
     await helpers.launch('Finder');
     const finder = () => page.locator('.win.front[data-app="finder"]:not(.closing)');
     const item = name => finder().locator(`[role="option"][data-name=${JSON.stringify(name)}]`);
+    /* 条目也是 cdk-drag：真实双击的首次 mousedown 在窗口动画期间同样会越过拖动阈值。用合成 dblclick（无 mousedown）。 */
+    const openItem = async name => {
+      await expect(item(name)).toBeVisible();
+      await item(name).dispatchEvent('dblclick');
+    };
     /* 侧栏条目是 cdk-drag：任何窗口的开窗动画期间按下，条目都会在指针下移动、越过 CDK 的拖动阈值，
        把点击变成拖拽并让行位错乱。等全部 Finder 窗口的 opening 类都清零再碰侧栏。 */
     const sidebarReady = async () => {
@@ -427,7 +432,7 @@ export const fileManagement = {
     await place('Macintosh HD');
     await item('System').drop({ files: payload('rejected.txt', Buffer.from(text)) });
     await expect(item('rejected.txt')).toHaveCount(0);
-    await item('System').dblclick();
+    await openItem('System');
     await expect(item('rejected.txt')).toHaveCount(0);
     result.rejectsReadOnlyDrops = (await diskText(session, 'rejected.txt')) === undefined;
 
@@ -517,11 +522,11 @@ export const fileManagement = {
     await place('Desktop');
 
     /* html 默认交给 Safari：双击在沙盒框里渲染文件内容。 */
-    await item('Projects').dblclick();
+    await openItem('Projects');
     await expect(item('desktop-web')).toBeVisible();
-    await item('desktop-web').dblclick();
+    await openItem('desktop-web');
     await expect(item('index.html')).toBeVisible();
-    await item('index.html').dblclick();
+    await openItem('index.html');
     const safari = helpers.win('safari');
     await expect(safari.locator('iframe[data-sf-file]')).toBeVisible();
     await expect(safari.locator('iframe[data-sf-file]')).toHaveAttribute('sandbox', 'allow-scripts');
@@ -558,33 +563,34 @@ export const fileManagement = {
     await expect(helpers.win('textedit').locator('[data-te-doc]')).toContainText('desktop-web');
     await closeWin('textedit');
     await place('Desktop');
-    await item('Projects').dblclick();
+    await openItem('Projects');
     await expect(item('aurora-synth')).toBeVisible();
-    await item('aurora-synth').dblclick();
+    await openItem('aurora-synth');
     await expect(item('index.html')).toBeVisible();
-    await item('index.html').dblclick();
+    await openItem('index.html');
     await expect(helpers.win('textedit').locator('[data-te-doc]')).toContainText('aurora-synth');
     await closeWin('textedit');
     /* 刷新后关联仍在：再开一个 html 依旧走 TextEdit（AC4）。 */
     await page.reload({ waitUntil: 'load' });
     await helpers.restored();
-    /* 恢复出的 Finder 还在开窗动画，等它落定再点侧栏（与首次启动后的等待同理）。 */
+    /* 刷新恢复出的前台可能是别的窗口（布局写回滞后于关窗的 DOM 移除）：显式把 Finder 调到前台再点侧栏。 */
+    await helpers.launch('Finder');
     await page.waitForTimeout(1_200);
     await place('Desktop');
-    await item('Projects').dblclick();
+    await openItem('Projects');
     await expect(item('desktop-web')).toBeVisible();
-    await item('desktop-web').dblclick();
+    await openItem('desktop-web');
     await expect(item('index.html')).toBeVisible();
-    await item('index.html').dblclick();
+    await openItem('index.html');
     await expect(helpers.win('textedit').locator('[data-te-doc]')).toContainText('desktop-web');
     await closeWin('textedit');
     result.openWithAlwaysSetsDefault = true;
 
     /* 简介面板的 Change All… 改回 Safari，双击验证默认已回。 */
     await place('Desktop');
-    await item('Projects').dblclick();
+    await openItem('Projects');
     await expect(item('desktop-web')).toBeVisible();
-    await item('desktop-web').dblclick();
+    await openItem('desktop-web');
     await expect(item('index.html')).toBeVisible();
     await item('index.html').click({ button: 'right' });
     await page.getByRole('menuitem', { name: 'Get Info', exact: true }).click();
@@ -596,7 +602,7 @@ export const fileManagement = {
     await infoPanel().locator('[data-ip-change-all]').click();
     await expect(page.locator('#toast')).toContainText('will now open with Safari');
     await expect(infoPanel()).toHaveCount(0);
-    await item('index.html').dblclick();
+    await openItem('index.html');
     await expect(helpers.win('safari').locator('iframe[data-sf-file]')).toBeVisible();
     await closeWin('safari');
     result.getInfoChangeAllSetsDefault = true;
@@ -630,14 +636,14 @@ export const fileManagement = {
     result.getInfoShowsPanel = panelAxe.violations.length === 0;
 
     /* PDF：内置指南按页渲染；导入的真实 PDF（FlateDecode）同样能渲染。 */
-    await item('Interface Guidelines.pdf').dblclick();
+    await openItem('Interface Guidelines.pdf');
     const preview = helpers.win('preview');
     await expect(preview.locator('[data-pv-canvas]')).toBeVisible();
     await expect(preview.locator('[data-pv-nav]')).toContainText(/1 of \d+/);
     const guidelinesWidth = await preview.locator('[data-pv-canvas]').evaluate(canvas => canvas.width);
     await closeWin('preview');
     await importFiles([payload('real.pdf', realPdf())]);
-    await item('real.pdf').dblclick();
+    await openItem('real.pdf');
     await expect(helpers.win('preview').locator('[data-pv-canvas]')).toBeVisible();
     await expect(helpers.win('preview').locator('[data-pv-failed]')).toHaveCount(0);
     await expect(helpers.win('preview').locator('[data-pv-nav]')).toHaveText('1 of 1');
@@ -656,7 +662,7 @@ export const fileManagement = {
     await renameInput().fill('nested');
     await renameInput().press('Enter');
     await expect(item('nested')).toBeVisible();
-    await item('nested').dblclick();
+    await openItem('nested');
     await importFiles([
       payload('child.txt', Buffer.from(text)),
       payload('empty', Buffer.alloc(0)),
@@ -674,9 +680,9 @@ export const fileManagement = {
     await page.keyboard.press('Meta+Shift+n');
     await place('Desktop');
     await menu('nested', 'Duplicate');
-    await item('nested copy').dblclick();
+    await openItem('nested copy');
     const nestedBytes = (await downloaded('bytes.bin')).equals(binary) && (await downloaded('empty')).length === 0;
-    await item('untitled folder').dblclick();
+    await openItem('untitled folder');
     await expect(finder().locator('[data-title]')).toHaveText('untitled folder');
     await expect(finder().getByRole('option')).toHaveCount(0);
     result.folderCopyKeepsNestedAndEmptyEntries = nestedBytes && (await finder().getByRole('option').count()) === 0;
@@ -684,7 +690,7 @@ export const fileManagement = {
     await place('Desktop');
     await page.keyboard.press('Meta+n');
     await place('Desktop');
-    await item('nested').dblclick();
+    await openItem('nested');
     await importFiles([payload('finder-window-trash.txt', Buffer.from(text))]);
     const sourceFinderId = await finder().getAttribute('id');
     const sourceFinder = page.locator(`#${sourceFinderId}`);
@@ -851,7 +857,7 @@ export const fileManagement = {
 
     await item('clipboard-source.txt').click();
     await edit('Copy');
-    await item('nested').dblclick();
+    await openItem('nested');
     await edit('Paste');
     await expect(item('clipboard-source.txt')).toBeVisible();
     const clipboardCopyKeptBytes = (await downloaded('clipboard-source.txt')).equals(Buffer.from(text));
@@ -860,7 +866,7 @@ export const fileManagement = {
     await place('Desktop');
     await edit('Paste');
     await expect(item('clipboard-source 2.txt')).toBeVisible();
-    await item('nested').dblclick();
+    await openItem('nested');
     await expect(item('clipboard-source.txt')).toHaveCount(0);
     await place('Desktop');
     await expect(item('clipboard-source 2.txt')).toBeVisible();
@@ -870,7 +876,7 @@ export const fileManagement = {
     await item('drag-copy.txt').dragTo(item('nested'));
     await page.keyboard.up('Alt');
     await expect(item('drag-copy.txt')).toBeVisible();
-    await item('nested').dblclick();
+    await openItem('nested');
     await expect(finder().locator('[data-title]')).toHaveText('nested');
     await expect(item('drag-copy.txt')).toBeVisible();
     await place('Desktop');
@@ -879,7 +885,7 @@ export const fileManagement = {
     await expect(item('drag-move.txt')).toBeVisible();
     await item('drag-move.txt').dragTo(item('nested'));
     await expect(item('drag-move.txt')).toHaveCount(0);
-    await item('nested').dblclick();
+    await openItem('nested');
     await expect(finder().locator('[data-title]')).toHaveText('nested');
     await expect(item('drag-move.txt')).toBeVisible();
     await place('Desktop');
@@ -939,7 +945,7 @@ export const fileManagement = {
       (await diskText(session, 'renamed.txt')) === 'collision' &&
       (await diskText(session, 'renamed 2.txt')) === 'edited original';
 
-    await item('nested').dblclick();
+    await openItem('nested');
     await trash('child.txt');
     await place('Desktop');
     await rename('nested', 'moved-parent');
