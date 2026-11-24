@@ -56,6 +56,11 @@ test('起始页给出连本栈的测试入口与命令', async () => {
   const html = await renderedTemplate();
   assert.ok(html.includes('href="http://localhost:4203/todo"'), 'Todo 入口');
   assert.ok(html.includes('href="http://localhost:4203/todo-cursor"'), 'Todo Cursor 入口');
+  assert.ok(html.includes('href="http://localhost:4203/catalog"'), '商品目录（按身份同步）入口');
+  for (const identity of ['访客', '匿名用户', 'Alice', 'Bob']) {
+    assert.ok(html.includes(identity), `测试身份：${identity}`);
+  }
+  assert.ok(html.includes('SELECT public.demo_catalog_reset()'), '可复制的演示数据重置命令');
   assert.ok(html.includes('href="http://127.0.0.1:63915"'), 'Studio 入口');
   assert.ok(html.includes('href="http://localhost:55001"'), 'Supabase API 网关');
   assert.ok(html.includes(`data-copy="${stack.anonKey}"`), '可复制的 anon key');

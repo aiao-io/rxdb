@@ -21,9 +21,19 @@ function rowsOf(ops: MutationTableOps[] | undefined): Record<string, unknown>[] 
   return (ops ?? []).flatMap(op => op.data ?? []);
 }
 
-/** 打开 Todo 页，等到能拉取：匿名会话已经建好，本地库已经按会话身份打开 */
-async function openTodoPage(target: Page): Promise<void> {
-  await target.goto('/todo', { timeout: 60_000, waitUntil: 'domcontentloaded' });
+/**
+ * 打开 Todo 页并匿名登录，等到能拉取：本地库已经按匿名会话的身份打开
+ *
+ * @param url - 手动新建的浏览器上下文不继承配置里的 `baseURL`，要传绝对地址
+ *
+ * @remarks
+ * 没有会话时应用是访客（epic-015：公开数据给 anon，不靠匿名账号），访客的 Todo 只存本地。
+ * Todo 的日志同步只对登录身份开放，所以先点页面上的「匿名登录」：登录之后页面重新加载，打开匿名用户自己的库。
+ */
+async function openTodoPage(target: Page, url = '/todo'): Promise<void> {
+  await target.goto(url, { timeout: 60_000, waitUntil: 'domcontentloaded' });
+  await target.getByTestId('todo-visitor-notice').getByRole('button', { name: '匿名登录' }).click({ timeout: 60_000 });
+  await expect(target.getByTestId('identity-title')).toHaveText('匿名用户', { timeout: 60_000 });
   await expect(target.getByRole('button', { name: 'Pull' })).toBeEnabled({ timeout: 60_000 });
 }
 
@@ -101,9 +111,9 @@ if (isRemoteE2E) {
         }
       });
 
-      await page.goto('/todo', { timeout: 60_000, waitUntil: 'domcontentloaded' });
+      await openTodoPage(page);
       const securityNotice = page.getByRole('alert');
-      await expect(securityNotice).toContainText('匿名登录', { timeout: 60_000 });
+      await expect(securityNotice).toContainText('未分区的日志同步');
       await expect(securityNotice).toContainText('createdBy');
 
       const title = uniqueTitle();
@@ -122,10 +132,7 @@ if (isRemoteE2E) {
       const secondContext = await browser.newContext();
       try {
         const secondPage = await secondContext.newPage();
-        await secondPage.goto(new URL('/todo', page.url()).href, {
-          timeout: 60_000,
-          waitUntil: 'domcontentloaded'
-        });
+        await openTodoPage(secondPage, new URL('/todo', page.url()).href);
         const pull = secondPage.getByRole('button', { name: 'Pull' });
         await expect(pull).toBeEnabled({ timeout: 60_000 });
         await pull.click();
@@ -154,8 +161,7 @@ if (isRemoteE2E) {
         }
       });
 
-      await page.goto('/todo', { timeout: 60_000, waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('alert')).toContainText('匿名登录', { timeout: 60_000 });
+      await openTodoPage(page);
 
       const title = uniqueTitle();
       await page.getByRole('textbox', { name: '添加新任务' }).fill(title);
@@ -188,10 +194,7 @@ if (isRemoteE2E) {
       const secondContext = await browser.newContext();
       try {
         const secondPage = await secondContext.newPage();
-        await secondPage.goto(new URL('/todo', page.url()).href, {
-          timeout: 60_000,
-          waitUntil: 'domcontentloaded'
-        });
+        await openTodoPage(secondPage, new URL('/todo', page.url()).href);
         const pull = secondPage.getByRole('button', { name: 'Pull' });
         await expect(pull).toBeEnabled({ timeout: 60_000 });
         await pull.click();
@@ -223,8 +226,7 @@ if (isRemoteE2E) {
         }
       });
 
-      await page.goto('/todo', { timeout: 60_000, waitUntil: 'domcontentloaded' });
-      await expect(page.getByRole('alert')).toContainText('匿名登录', { timeout: 60_000 });
+      await openTodoPage(page);
 
       const title = uniqueTitle();
       await page.getByRole('textbox', { name: '添加新任务' }).fill(title);
@@ -239,10 +241,7 @@ if (isRemoteE2E) {
       const secondContext = await browser.newContext();
       try {
         const secondPage = await secondContext.newPage();
-        await secondPage.goto(new URL('/todo', page.url()).href, {
-          timeout: 60_000,
-          waitUntil: 'domcontentloaded'
-        });
+        await openTodoPage(secondPage, new URL('/todo', page.url()).href);
         const pull = secondPage.getByRole('button', { name: 'Pull' });
         await expect(pull).toBeEnabled({ timeout: 60_000 });
         await pull.click();
@@ -283,9 +282,7 @@ if (isRemoteE2E) {
         }
       });
 
-      await page.goto('/todo', { timeout: 60_000, waitUntil: 'domcontentloaded' });
-      const securityNotice = page.getByRole('alert');
-      await expect(securityNotice).toContainText('匿名登录', { timeout: 60_000 });
+      await openTodoPage(page);
 
       const title = uniqueTitle();
       await page.getByRole('textbox', { name: '添加新任务' }).fill(title);
@@ -295,10 +292,7 @@ if (isRemoteE2E) {
       const secondContext = await browser.newContext();
       try {
         const secondPage = await secondContext.newPage();
-        await secondPage.goto(new URL('/todo', page.url()).href, {
-          timeout: 60_000,
-          waitUntil: 'domcontentloaded'
-        });
+        await openTodoPage(secondPage, new URL('/todo', page.url()).href);
         const pull = secondPage.getByRole('button', { name: 'Pull' });
         await expect(pull).toBeEnabled({ timeout: 60_000 });
         // 先等这次 Pull 真的结算再断言「没拉到」：点击之前目标行与错误提示本来就都不存在，

@@ -36,18 +36,18 @@ import { DemoSession } from './demo-session';
           <span class="text-sm font-semibold" data-testid="identity-title">{{ description.title }}</span>
           <span class="text-base-content/60 text-xs">{{ description.detail }}</span>
         </div>
+        <!-- 选中项绑在每个 option 上：select 的 [value] 先于 @for 渲染出选项，会落回第一项 -->
         <select
           class="select select-sm w-40"
           [disabled]="session.$switching()"
-          [value]="session.currentChoice ?? ''"
           (change)="switchTo($event)"
           aria-label="切换身份"
         >
           @if (session.currentChoice === null) {
-            <option value="" disabled>其他账号</option>
+            <option disabled selected value="">其他账号</option>
           }
           @for (choice of choices; track choice.key) {
-            <option [value]="choice.key">{{ choice.label }}</option>
+            <option [selected]="choice.key === session.currentChoice" [value]="choice.key">{{ choice.label }}</option>
           }
         </select>
       </div>

@@ -72,6 +72,16 @@ owner 明确了目标：不同用户同步到自己有权限的数据是关键�
 
 前置的访问底线 [US-225](../stories/adapter/US-225-supabase-sync-protocol-access-baseline.md) 归 epic-004。
 
+## 演示
+
+`dev-rxdb-supabase` 的 `/catalog`（商品目录）在同一个后端上走通第一批三个故事，说明见 [demo README](../../apps/dev-rxdb-supabase/README.md#商品目录按身份授权的同步)：
+
+- 访客（anon，不登录）只同步公开区里规则选中的分类，成本价没有列权限；Alice（星河零售）、Bob（极光百货）各自还同步所在租户的内部商品（US-033 AC#1、#2）。
+- 「模拟服务端变更」以当前身份直写业务表：公开改内部、删除、加入或退出租户之后同步，本机按区补快照或整块清理（US-033 AC#3～#7）。
+- 每个身份一个本地库，切换身份就是打开另一个库；别的标签页换了身份，本页同步被身份守卫拦下（US-035）。
+- 规则之外的公开商品在线浏览，一键把分类加进同步规则（US-036）。
+- 远端 e2e：[catalog-sync.spec.ts](../../apps/dev-rxdb-supabase-e2e/src/catalog-sync.spec.ts)。
+
 ## 现状核实（`258856694`）
 
 | 论断                             | 证据                                                                                                                                                                        |

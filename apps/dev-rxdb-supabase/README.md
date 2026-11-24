@@ -12,7 +12,7 @@ pnpm nx dev dev-rxdb-supabase
 
 1. 检查固定端口 4203（应用）与 4204（测试起始页）没有被占用；
 2. 起本 checkout 专属的隔离 Supabase 栈并初始化数据库（即 `rxdb-adapter-supabase:test-env`，与适配器测试、远端 e2e 共用），再叠加 Supabase Studio；
-3. 应用以远端同步模式热更新运行，连上这套栈，首次打开自动匿名登录；
+3. 应用以远端同步模式热更新运行，连上这套栈；首次打开是不登录的访客，右上角可切换身份；
 4. 应用与起始页都就绪后，浏览器打开测试起始页：测试入口、Studio、连接参数和常用测试命令都在页上，支持一键复制。
 
 | 服务              | 地址                                    |
@@ -73,13 +73,48 @@ pnpm nx run dev-rxdb-supabase:serve-remote
 
 `serve-remote` fails before starting Angular when either variable is missing or the configured Supabase URL is unreachable. Extra Angular dev-server options are forwarded, for example `--port 8312`.
 
-### 会话：匿名登录
+### 身份：访客、匿名用户与演示账号
 
-日志同步只对已登录身份开放，anon key 本身拉不到日志、推不了变更（US-225）。demo 连接远端前先检查
-Supabase 会话，没有就调用 `signInAnonymously()`，每个浏览器得到一个匿名用户，刷新后沿用同一个会话。
-匿名用户的数据库角色是 authenticated，因此远端项目必须开启匿名登录：仓库的 CI 栈
-（`docker/docker-compose.ci.yml`）已开启；`docker/.env` 里是 `ENABLE_ANONYMOUS_USERS=true`；
-Supabase 托管项目在 Authentication → Sign In / Providers 里打开 Anonymous Sign-Ins。
+启动时只读出浏览器里保存的会话，不替用户登录（epic-015：公开数据给 anon，不靠匿名账号）。右上角切换身份：
 
-开启匿名登录等于让任何访客都能读到同步日志——这个 demo 的数据本来公开，生产部署应关闭匿名登录，
-改用正式登录，并为业务表配置 RLS。
+| 身份       | 会话                         | 能做什么                                                              |
+| ---------- | ---------------------------- | --------------------------------------------------------------------- |
+| 访客       | 没有会话，以 anon 访问       | 商品目录只同步公开区里关注的分类，其余公开商品在线浏览；Todo 只存本机 |
+| 匿名用户   | `signInAnonymously()`        | 数据库角色 authenticated，演示 Todo 的日志推送与拉取                  |
+| Alice、Bob | 邮箱口令登录，第一次用时注册 | Alice 在星河零售、Bob 在极光百货，各自还同步所在租户的内部商品        |
+
+本地库按会话身份命名并绑定（US-035）：切换身份就是登录或退出之后重新加载，打开那个身份自己的库。
+会话按浏览器保存、所有标签页共用：在一个标签页换了身份，其他标签页会提示重新加载；它们还开着上一个身份的库，
+同步会被身份守卫拦下并报身份不匹配，本地数据不动。
+
+Todo 走未分区的日志同步，只对登录身份开放（US-225），所以访客的 Todo 只存本机，点 Todo 页上的「匿名登录」即可同步。
+匿名登录要求远端项目开启匿名用户：仓库的 CI 栈（`docker/docker-compose.ci.yml`）已开启；`docker/.env` 里是
+`ENABLE_ANONYMOUS_USERS=true`；Supabase 托管项目在 Authentication → Sign In / Providers 里打开 Anonymous Sign-Ins。
+开启匿名登录等于让任何访客都能读到未分区的同步日志，生产部署应关闭它，改用正式登录。
+
+演示账号的口令写在前端代码里（`src/app/supabase-session.ts`），注册依赖项目关闭邮箱确认（CI 栈是自动确认），只用于本地隔离栈。
+
+## 商品目录：按身份授权的同步
+
+`/catalog` 演示 epic-015 的第一批故事：按授权分区同步（US-033）、每个身份一个本地库（US-035）、规则之外的公开数据在线浏览（US-036）。
+
+数据模型：参考夹具 `catalog_items` 与公开视图 `catalog_items_public` 在 `docker/sql/03-business-tables.sql`；
+演示用的租户、成员关系、按成员关系扩展的 `rxdb_caller_buckets()`、成员的写权限与种子数据在
+[`supabase/catalog-demo.sql`](supabase/catalog-demo.sql)，由 `docker/init-db.sh` 与 CI 在初始化链里加载。
+公开商品在 `public` 区，租户内部商品在 `tenant:<租户>` 区；anon 对成本价没有列权限。
+
+可以这样试（开两个浏览器，或一个普通窗口加一个隐身窗口）：
+
+1. 访客点「同步」：只拿到关注分类（默认数码）的公开商品，成本价显示「无权读取」；在线浏览里能看到其他分类的公开商品。
+2. 浏览「家居」时点「关注」，再同步：规则放宽，家居的公开商品补进本机。
+3. 另一个窗口切到 Alice 同步：多出星河零售的内部商品。在「模拟服务端变更」里把一件公开商品收回为内部，
+   访客再同步时它从本机消失，Alice 再同步时它换到租户区。
+4. Alice 加入极光百货、退出星河零售，再同步：业务行一行没改，极光的区补快照，星河的区整块删掉。
+5. 在一个标签页切换身份，回到另一个标签页同步：被身份守卫拦下，提示重新加载。
+
+「模拟服务端变更」以当前身份直接写远端业务表（RLS 只放行所在租户的商品）；自助加入、退出租户只为演示方便，
+真实应用由管理员或服务端维护成员关系。恢复初始演示数据（成员关系不动）：
+
+```bash
+docker/supabase-ci-compose.sh exec -T db psql -U postgres -c 'SELECT public.demo_catalog_reset()'
+```

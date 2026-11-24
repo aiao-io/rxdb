@@ -12,7 +12,7 @@ import { DemoSession } from './demo-session';
   selector: 'app-session-notice',
   template: `
     @if (session.$sessionMoved()) {
-      <div class="alert alert-info rounded-none" role="alert" data-testid="session-moved">
+      <div class="alert alert-info rounded-none" data-testid="session-moved" role="alert">
         <span>
           浏览器里的会话已经换成另一个身份（可能是在别的标签页切换的）。本页还开着上一个身份的本地库，
           同步会被身份守卫拦下，本地数据不动。

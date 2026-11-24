@@ -419,7 +419,7 @@
           <h1>环境已就绪，开始联调。</h1>
           <p>
             应用以远端同步模式运行，连着本 checkout 专属的 Supabase
-            栈，首次打开自动匿名登录。测试入口、连接参数和常用命令都在这里。
+            栈，首次打开是不登录的访客，右上角可切换身份。测试入口、连接参数和常用命令都在这里。
           </p>
         </div>
         <a class="primary" href="{{ APP_URL }}/todo" rel="noreferrer" target="_blank">
@@ -432,7 +432,7 @@
         <section aria-labelledby="entries-title">
           <div class="section-heading">
             <h2 id="entries-title">测试入口</h2>
-            <span class="caption">06 个入口</span>
+            <span class="caption">07 个入口</span>
           </div>
           <div class="cards">
             <a class="card" href="{{ APP_URL }}/todo" rel="noreferrer" target="_blank">
@@ -456,6 +456,21 @@
               <p>按游标分页的无限滚动列表，验证批量数据下的分页查询与远端同步。</p>
               <div class="card-bottom">
                 <code>/todo-cursor</code>
+                <span class="arrow" aria-hidden="true">↗</span>
+              </div>
+            </a>
+            <a class="card" href="{{ APP_URL }}/catalog" rel="noreferrer" target="_blank">
+              <div class="card-top">
+                <span class="icon" aria-hidden="true">S</span>
+                <span class="port">:{{ APP_PORT }}</span>
+              </div>
+              <h3>商品目录 · 按身份同步</h3>
+              <p>
+                访客只读公开区，Alice、Bob
+                各读所在租户；改规则、改可见范围、换成员关系后同步，看本机数据怎么补齐与清理。
+              </p>
+              <div class="card-bottom">
+                <code>/catalog</code>
                 <span class="arrow" aria-hidden="true">↗</span>
               </div>
             </a>
@@ -500,8 +515,8 @@
                 <span class="icon amber" aria-hidden="true">@</span>
                 <span class="port">Studio</span>
               </div>
-              <h3>匿名用户</h3>
-              <p>每个浏览器会话对应一个匿名用户；可在这里确认会话身份，或删掉用户重新开始。</p>
+              <h3>认证用户</h3>
+              <p>匿名用户与 Alice、Bob 都在这里（访客没有会话）；可确认会话身份，或删掉用户重新开始。</p>
               <div class="card-bottom">
                 <code>/project/default/auth/users</code>
                 <span class="arrow" aria-hidden="true">↗</span>
@@ -514,29 +529,32 @@
           <section aria-labelledby="identity-title">
             <div class="section-heading">
               <h2 id="identity-title">测试身份</h2>
-              <span class="caption">无需账号</span>
+              <span class="caption">右上角切换，每个身份一个本地库</span>
             </div>
             <div class="panel">
               <div class="row">
                 <div class="row-title">
-                  匿名登录
-                  <span class="badge">AUTO</span>
+                  访客
+                  <span class="badge">DEFAULT</span>
                 </div>
-                <p>应用没有会话时自动匿名登录，刷新后沿用同一个会话；本地库按会话身份命名（US-035）。</p>
+                <p>不登录，以 anon 读公开区：商品目录只同步关注分类的公开商品，其余在线浏览；Todo 只存本机。</p>
               </div>
               <div class="row">
                 <div class="row-title">
-                  第二个用户
-                  <span class="badge">MULTI</span>
+                  匿名用户
+                  <span class="badge">TODO</span>
                 </div>
-                <p>用隐身窗口或另一个浏览器打开应用，就是另一个匿名用户、另一个本地库，可验证两端互相同步。</p>
+                <p>匿名登录，数据库角色 authenticated：用来演示 Todo 的日志推送与拉取，日志对所有登录身份可见。</p>
               </div>
               <div class="row">
                 <div class="row-title">
-                  可见范围
-                  <span class="badge">DEMO</span>
+                  Alice / Bob
+                  <span class="badge">TENANT</span>
                 </div>
-                <p>匿名用户的数据库角色是 authenticated，同步日志对所有登录者可见；应用顶部的告警条说明了这一点。</p>
+                <p>
+                  预置账号，第一次用时注册：Alice 在星河零售，Bob 在极光百货，各读所在租户的内部商品。
+                  并排对照用两个浏览器或一个隐身窗口：会话按浏览器保存，一个浏览器同一时间只有一个身份。
+                </p>
               </div>
             </div>
           </section>
@@ -611,6 +629,21 @@
                   复制
                 </button>
               </div>
+              <div class="field">
+                <span class="label">重置商品目录演示数据</span>
+                <code>
+                  docker/supabase-ci-compose.sh exec -T db psql -U postgres -c 'SELECT public.demo_catalog_reset()'
+                </code>
+                <button
+                  aria-label="复制重置演示数据命令"
+                  data-copy="docker/supabase-ci-compose.sh exec -T db psql -U postgres -c 'SELECT public.demo_catalog_reset()'"
+                  type="button"
+                >
+                  复制
+                </button>
+              </div>
+            </div>
+            <div class="row">
               <div class="field">
                 <span class="label">全部服务日志</span>
                 <code>docker/supabase-ci-compose.sh logs -f --tail 50</code>

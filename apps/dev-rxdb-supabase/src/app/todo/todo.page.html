@@ -60,9 +60,10 @@
     <div class="border-base-300 flex-none border-b p-4" #fullHeader>
       <div class="mx-auto flex max-w-4xl flex-col gap-3">
         @if (remoteSync.$connected() && !session.canSyncTodo) {
-          <div class="alert alert-info" role="status" data-testid="todo-visitor-notice">
+          <div class="alert alert-info" data-testid="todo-visitor-notice" role="status">
             <span>
-              访客的 Todo 只存在本机。Todo 演示的是日志同步与推送，只对登录身份开放；匿名登录之后就能在多个浏览器之间同步。
+              访客的 Todo 只存在本机。Todo
+              演示的是日志同步与推送，只对登录身份开放；匿名登录之后就能在多个浏览器之间同步。
             </span>
             <button
               class="btn btn-sm btn-primary"

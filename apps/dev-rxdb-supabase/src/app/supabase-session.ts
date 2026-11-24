@@ -119,7 +119,9 @@ export async function signInDemoAccount(
   const signedUp = await auth.signUp(credentials);
   if (signedUp.error) throw signedUp.error;
   if (!signedUp.data.session) {
-    throw new Error(`${account.email} 注册后没有拿到会话：Supabase 项目开启了邮箱确认，演示账号需要关闭它（或开启自动确认）`);
+    throw new Error(
+      `${account.email} 注册后没有拿到会话：Supabase 项目开启了邮箱确认，演示账号需要关闭它（或开启自动确认）`
+    );
   }
   await onSignedUp();
 }

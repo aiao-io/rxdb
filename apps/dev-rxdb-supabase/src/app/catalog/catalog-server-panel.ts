@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DemoSession } from '../demo-session';
 import { getErrorMessage } from '../error-message';
@@ -80,14 +80,21 @@ import { CATALOG_CATEGORIES } from './catalog-sync-rule';
                 <tbody>
                   @for (item of $items(); track item.id) {
                     <tr data-testid="server-item">
-                      <td>{{ item.name }} <span class="badge badge-ghost badge-sm">{{ item.category }}</span></td>
+                      <td>
+                        {{ item.name }} <span class="badge badge-ghost badge-sm">{{ item.category }}</span>
+                      </td>
                       <td>{{ remote.tenantName(item.tenantId) }}</td>
                       <td>{{ item.visibility === 'public' ? '公开' : '仅租户内部' }}</td>
                       <td class="flex justify-end gap-1">
                         <button class="btn btn-xs" [disabled]="$busy()" (click)="toggleVisibility(item)" type="button">
                           {{ item.visibility === 'public' ? '收回为内部' : '公开' }}
                         </button>
-                        <button class="btn btn-xs btn-error btn-outline" [disabled]="$busy()" (click)="remove(item)" type="button">
+                        <button
+                          class="btn btn-xs btn-error btn-outline"
+                          [disabled]="$busy()"
+                          (click)="remove(item)"
+                          type="button"
+                        >
                           删除
                         </button>
                       </td>
@@ -100,23 +107,50 @@ import { CATALOG_CATEGORIES } from './catalog-sync-rule';
             <form class="flex flex-wrap items-end gap-2" (ngSubmit)="create()">
               <label class="fieldset">
                 <span class="fieldset-legend">新增商品</span>
-                <input class="input input-sm" [(ngModel)]="draftName" name="name" placeholder="名称" required />
+                <input
+                  class="input input-sm"
+                  [ngModel]="draftName()"
+                  (ngModelChange)="draftName.set($event)"
+                  name="name"
+                  placeholder="名称"
+                  required
+                />
               </label>
-              <select class="select select-sm w-24" [(ngModel)]="draftCategory" name="category" aria-label="分类">
+              <select
+                class="select select-sm w-24"
+                [ngModel]="draftCategory()"
+                (ngModelChange)="draftCategory.set($event)"
+                aria-label="分类"
+                name="category"
+              >
                 @for (category of categories; track category) {
                   <option [value]="category">{{ category }}</option>
                 }
               </select>
-              <select class="select select-sm w-32" [(ngModel)]="draftTenantId" name="tenant" aria-label="所属租户">
+              <select
+                class="select select-sm w-32"
+                [ngModel]="draftTenantId()"
+                (ngModelChange)="draftTenantId.set($event)"
+                aria-label="所属租户"
+                name="tenant"
+              >
                 @for (tenantId of remote.$myTenantIds(); track tenantId) {
                   <option [value]="tenantId">{{ remote.tenantName(tenantId) }}</option>
                 }
               </select>
-              <select class="select select-sm w-28" [(ngModel)]="draftVisibility" name="visibility" aria-label="可见范围">
+              <select
+                class="select select-sm w-28"
+                [ngModel]="draftVisibility()"
+                (ngModelChange)="draftVisibility.set($event)"
+                aria-label="可见范围"
+                name="visibility"
+              >
                 <option value="public">公开</option>
                 <option value="tenant">仅租户内部</option>
               </select>
-              <button class="btn btn-sm btn-primary" [disabled]="$busy() || !draftName.trim()" type="submit">新增</button>
+              <button class="btn btn-sm btn-primary" [disabled]="$busy() || !draftName().trim()" type="submit">
+                新增
+              </button>
             </form>
           }
         }
@@ -139,16 +173,18 @@ export class CatalogServerPanel {
   readonly $error = this.#error.asReadonly();
   readonly $notice = this.#notice.asReadonly();
 
-  draftName = '';
-  draftCategory: string = CATALOG_CATEGORIES[0];
-  draftTenantId = '';
-  draftVisibility: CatalogRemoteItem['visibility'] = 'public';
+  // 新增表单的草稿：zoneless + OnPush 下用 signal，异步回调里清空也会重新渲染
+  readonly draftName = signal('');
+  readonly draftCategory = signal<string>(CATALOG_CATEGORIES[0]);
+  readonly draftTenantId = signal('');
+  readonly draftVisibility = signal<CatalogRemoteItem['visibility']>('public');
 
   constructor() {
     // 所在的租户变了：重新列出可以管理的商品，新增表单默认落在第一个租户
     effect(() => {
       const tenantIds = this.remote.$myTenantIds();
-      this.draftTenantId = tenantIds.includes(this.draftTenantId) ? this.draftTenantId : (tenantIds[0] ?? '');
+      const current = untracked(this.draftTenantId);
+      this.draftTenantId.set(tenantIds.includes(current) ? current : (tenantIds[0] ?? ''));
       void this.#loadItems(tenantIds);
     });
   }
@@ -183,17 +219,17 @@ export class CatalogServerPanel {
   }
 
   create(): Promise<void> {
-    const name = this.draftName.trim();
+    const name = this.draftName().trim();
     return this.#run(`「${name}」已新增`, async client => {
       await createItem(client, {
         name,
-        category: this.draftCategory,
+        category: this.draftCategory(),
         price: 99,
         cost: 40,
-        visibility: this.draftVisibility,
-        tenantId: this.draftTenantId
+        visibility: this.draftVisibility(),
+        tenantId: this.draftTenantId()
       });
-      this.draftName = '';
+      this.draftName.set('');
       await this.#loadItems(this.remote.$myTenantIds());
     });
   }

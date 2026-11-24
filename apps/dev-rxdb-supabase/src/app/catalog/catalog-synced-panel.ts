@@ -24,10 +24,11 @@ import { groupByBucket } from './catalog-view';
           <h2 class="card-title" id="synced-title">本机同步的商品（离线可用）</h2>
           <button
             class="btn btn-primary btn-sm"
+            [attr.data-sync-count]="$syncCount()"
             [disabled]="$syncing()"
             (click)="sync()"
-            type="button"
             data-testid="catalog-sync"
+            type="button"
           >
             @if ($syncing()) {
               <span class="loading loading-spinner loading-xs"></span>
@@ -57,7 +58,7 @@ import { groupByBucket } from './catalog-view';
         }
 
         @if ($result(); as result) {
-          <p class="text-sm" role="status" data-testid="catalog-sync-result">{{ result }}</p>
+          <p class="text-sm" data-testid="catalog-sync-result" role="status">{{ result }}</p>
         }
         @if ($error(); as error) {
           <div class="alert alert-error" role="alert">
@@ -99,6 +100,7 @@ export class CatalogSyncedPanel {
   readonly #result = signal<string | null>(null);
   readonly #error = signal<string | null>(null);
   readonly #identityMismatch = signal(false);
+  readonly #syncCount = signal(0);
   readonly session = inject(DemoSession);
   readonly remote = inject(CatalogRemoteState);
   readonly categories = CATALOG_CATEGORIES;
@@ -107,6 +109,8 @@ export class CatalogSyncedPanel {
   readonly $result = this.#result.asReadonly();
   readonly $error = this.#error.asReadonly();
   readonly $identityMismatch = this.#identityMismatch.asReadonly();
+  /** 已经结束的同步轮数（成功或失败） */
+  readonly $syncCount = this.#syncCount.asReadonly();
 
   readonly items = useFindAll(CatalogItem, {
     where: { combinator: 'and', rules: [] },
@@ -120,18 +124,22 @@ export class CatalogSyncedPanel {
   /** 拉取这个身份能读的每个区：加入的区补快照，退出的区整块删掉，区内按规则增量 */
   async sync(): Promise<void> {
     this.#syncing.set(true);
+    this.#result.set(null);
     this.#error.set(null);
     this.#identityMismatch.set(false);
     try {
       const result = await this.#rxdb.syncManager.pullRepository('public', 'CatalogItem', { fetchAll: true });
       if (result.error) throw result.error;
-      this.#result.set(`同步完成：拉取 ${result.pulled} 条变更，落库 ${result.applied} 条。`);
+      this.#result.set(
+        `第 ${this.#syncCount() + 1} 次同步完成：拉取 ${result.pulled} 条变更，落库 ${result.applied} 条。`
+      );
     } catch (error) {
       // 会话已经换成另一个身份（US-035）：一个远端请求都没发，本地数据不动，重新加载才会打开新身份的库
       this.#identityMismatch.set(error instanceof RxDBIdentityMismatchError);
       this.#error.set(getErrorMessage(error, '未知错误'));
     } finally {
       this.#syncing.set(false);
+      this.#syncCount.update(count => count + 1);
     }
   }
 }

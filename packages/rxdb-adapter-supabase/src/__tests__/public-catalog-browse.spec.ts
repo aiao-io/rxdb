@@ -155,7 +155,10 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('规则之外的公开数据在�
 
   /** 对照基准：以同一身份直接查业务表，按规则选中的分类筛（RLS 裁决能读哪些区） */
   async function baselineIds(client: SupabaseClient, categories: readonly string[]): Promise<string[]> {
-    const { data, error } = await client.from('catalog_items').select('id').in('category', [...categories]);
+    const { data, error } = await client
+      .from('catalog_items')
+      .select('id')
+      .in('category', [...categories]);
     expect(error).toBeNull();
     return (data ?? []).map(item => item.id as string).sort();
   }

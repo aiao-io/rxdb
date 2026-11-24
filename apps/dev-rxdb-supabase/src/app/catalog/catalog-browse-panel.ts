@@ -28,19 +28,30 @@ const PAGE_SIZE = 3;
           不受同步规则限制，也不落进同步子集；需要联网。想离线可用，就把分类加进同步规则。
         </p>
 
-        <div class="tabs tabs-box w-fit" role="tablist" aria-label="浏览的分类">
-          @for (category of categories; track category) {
-            <button
-              class="tab"
-              [class.tab-active]="category === $category()"
-              [attr.aria-selected]="category === $category()"
-              (click)="select(category)"
-              role="tab"
-              type="button"
-            >
-              {{ category }}
-            </button>
-          }
+        <div class="flex flex-wrap items-center gap-2">
+          <div class="tabs tabs-box w-fit" aria-label="浏览的分类" role="tablist">
+            @for (category of categories; track category) {
+              <button
+                class="tab"
+                [attr.aria-selected]="category === $category()"
+                [class.tab-active]="category === $category()"
+                (click)="select(category)"
+                role="tab"
+                type="button"
+              >
+                {{ category }}
+              </button>
+            }
+          </div>
+          <!-- 回车或离开输入框才查：QueryCache 每次查询都要向远端对账整个条件，不必每敲一个字就查一次 -->
+          <input
+            class="input input-sm w-48"
+            [value]="$keyword()"
+            (change)="search($event)"
+            aria-label="按名称筛选"
+            placeholder="名称包含…（回车查询）"
+            type="search"
+          />
         </div>
 
         @if (items.error(); as error) {
@@ -51,11 +62,13 @@ const PAGE_SIZE = 3;
           @for (item of $rows(); track item.id) {
             <li class="flex items-center justify-between gap-2 py-1" data-testid="browse-item">
               <span>{{ item.name }}</span>
-              <span class="text-base-content/70 text-sm">¥{{ item.price }} · {{ remote.tenantName(item.tenantId) }}</span>
+              <span class="text-base-content/70 text-sm"
+                >¥{{ item.price }} · {{ remote.tenantName(item.tenantId) }}</span
+              >
             </li>
           } @empty {
             @if (!items.isLoading()) {
-              <li class="text-base-content/60 py-1 text-sm">这个分类没有公开商品。</li>
+              <li class="text-base-content/60 py-1 text-sm">没有符合条件的公开商品。</li>
             }
           }
         </ul>
@@ -89,18 +102,27 @@ export class CatalogBrowsePanel {
   readonly #category = signal<string>(CATALOG_CATEGORIES[0]);
   readonly #page = signal(0);
   readonly #refresh = signal(0);
+  readonly #keyword = signal('');
   readonly session = inject(DemoSession);
   readonly remote = inject(CatalogRemoteState);
   readonly categories = CATALOG_CATEGORIES;
 
   readonly $category = this.#category.asReadonly();
   readonly $page = this.#page.asReadonly();
+  readonly $keyword = this.#keyword.asReadonly();
 
-  /** 多取一行，用来判断还有没有下一页 */
+  /** 按分类（再按名称）这类有界条件查；多取一行，用来判断还有没有下一页 */
   readonly items = useFind(PublicCatalogItem, (): PublicCatalogItemStaticTypes['findOptions'] => {
     this.#refresh();
+    const keyword = this.#keyword();
     return {
-      where: { combinator: 'and', rules: [{ field: 'category', operator: '=', value: this.#category() }] },
+      where: {
+        combinator: 'and',
+        rules: [
+          { field: 'category', operator: '=', value: this.#category() },
+          ...(keyword ? [{ field: 'name', operator: 'contains', value: keyword } as const] : [])
+        ]
+      },
       orderBy: [{ field: 'name', sort: 'asc' }],
       limit: PAGE_SIZE + 1,
       offset: this.#page() * PAGE_SIZE
@@ -108,12 +130,15 @@ export class CatalogBrowsePanel {
   });
   readonly $rows = computed(() => this.items.value().slice(0, PAGE_SIZE));
   readonly $hasNext = computed(() => this.items.value().length > PAGE_SIZE);
-  readonly $followed = computed(
-    () => this.session.prepared?.followed.value().includes(this.#category()) ?? false
-  );
+  readonly $followed = computed(() => this.session.prepared?.followed.value().includes(this.#category()) ?? false);
 
   select(category: string): void {
     this.#category.set(category);
+    this.#page.set(0);
+  }
+
+  search(event: Event): void {
+    this.#keyword.set((event.target as HTMLInputElement).value.trim());
     this.#page.set(0);
   }
 

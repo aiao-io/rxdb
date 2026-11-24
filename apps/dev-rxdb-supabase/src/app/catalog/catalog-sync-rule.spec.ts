@@ -1,6 +1,11 @@
 import { isEntityMatchWhere } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
-import { CATALOG_CATEGORIES, catalogSyncRule, DEFAULT_FOLLOWED_CATEGORIES, FollowedCategories } from './catalog-sync-rule';
+import {
+  CATALOG_CATEGORIES,
+  catalogSyncRule,
+  DEFAULT_FOLLOWED_CATEGORIES,
+  FollowedCategories
+} from './catalog-sync-rule';
 
 class MemoryStorage {
   readonly #values = new Map<string, string>();

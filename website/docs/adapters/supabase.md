@@ -186,6 +186,75 @@ export class Document extends EntityBase {}
 
 一个分区失败不会回滚其他分区的进度。失败分区保留自己的快照点和游标，下次从该分区继续拉取。分区权限被撤销时，本地会删除该分区的已同步行和进度记录。
 
+### 规则之外的公开数据：在线浏览
+
+同步规则只把选中的公开行落到本机。没登录的访客还要能看到其余的公开数据时，另声明一个**只读浏览实体**：它映射服务端的公开视图，走 `SyncType.QueryCache`，以调用者身份在线查询，anon 不需要登录，也不需要匿名账号。
+
+|            | 同步子集（分区同步的实体）                                                                                 | 浏览实体（QueryCache）               |
+| :--------- | :--------------------------------------------------------------------------------------------------------- | :----------------------------------- |
+| 适用的数据 | 要离线可用的：关注的分类、近期的、收藏的；所在租户的数据                                                   | 规则之外、只在线查看的公开数据       |
+| 本机       | 规则选中的完整子集，离线可读                                                                               | 只缓存查过的条件，每次查询向远端对账 |
+| 写入       | 本批只读                                                                                                   | 只读：三项写权限都声明为只许系统写   |
+| 相互关系   | 两个实体、两张本地表：同步的清理删不到浏览缓存，浏览也不改变同步子集；同一行可能两边各有一份，各自保持新鲜 |                                      |
+
+公开视图只选公开行、只给可以公开的列（这里不含成本价 `cost`），并带上 QueryCache 需要的 `id`、`createdAt`、`updatedAt`：
+
+```sql
+CREATE VIEW public.catalog_items_public WITH (security_invoker = true) AS
+  SELECT id, name, category, price, "tenantId", "createdAt", "updatedAt", "createdBy", "updatedBy"
+  FROM public.catalog_items
+  WHERE visibility = 'public';
+
+GRANT SELECT ON public.catalog_items_public TO anon, authenticated;
+```
+
+视图有两种写法：
+
+- **`security_invoker = true`（推荐）**：以查询者身份执行，业务表的 RLS 与列权限照常生效。anon 要对业务表有视图用到的那些列的 SELECT 权限，业务表的策略也要放行公开行（按区策略天然放行 `public` 区）；要藏起来的列用列权限收回，例如 `REVOKE ALL ON public.catalog_items FROM anon` 之后按列 `GRANT SELECT (...)`。
+- **定义者权限（不写 `security_invoker`）**：以视图属主身份执行，绕过业务表的 RLS 与列权限，业务表可以完全不授权给 anon，视图就是唯一入口。代价是视图里的 `WHERE` 成了唯一的防线，Supabase Advisor 会把它报成 `security_definer_view`（ERROR）。
+
+浏览实体与同步实体分开声明，同步类型用 `syncOverrides` 给出：
+
+```ts
+@Entity({
+  name: 'PublicCatalogItem',
+  tableName: 'catalog_items_public',
+  permissions: { create: 'system', update: 'system', delete: 'system' },
+  properties: [
+    { name: 'name', type: PropertyType.string },
+    { name: 'category', type: PropertyType.string },
+    { name: 'price', type: PropertyType.number }
+  ]
+})
+export class PublicCatalogItem extends EntityBase {}
+
+const rxdb = new RxDB({
+  // ...
+  entities: [CatalogItem, PublicCatalogItem],
+  syncOverrides: [
+    {
+      entity: CatalogItem,
+      sync: {
+        type: SyncType.Filter,
+        local: { adapter: 'wa-sqlite' },
+        remote: { adapter: 'supabase', filter: () => followedCategoriesRule() }
+      }
+    },
+    {
+      entity: PublicCatalogItem,
+      sync: { type: SyncType.QueryCache, local: { adapter: 'wa-sqlite' }, remote: { adapter: 'supabase' } }
+    }
+  ]
+});
+rxdb.use(rxDBPluginQueryCache);
+```
+
+浏览要按有界条件查，例如按分类、按名称关键字再分页。QueryCache 的同步粒度是整个 `where`：每次查询都要取该条件命中的全部 `{ id, updatedAt }` 来对账，`limit` 收窄不了这一步，无条件列出全部公开行就是每次拉回全部元数据。查过的行变成私有或被删除，下一次查同一个条件时从浏览缓存里消失。
+
+想把浏览到的内容变成离线可用，就把它加进同步规则（例如关注这个分类）：规则放宽后，下一次同步按新的条件指纹给每个授权区补快照，之后这些行在同步实体里离线可读。浏览实体本身不落进同步子集。
+
+浏览实体映射到视图时，连接期的 [RLS 自检](#rls-自检) 认得视图，不会把它报成缺表或未开 RLS。
+
 ### 为每个身份创建本地库
 
 用 `scopedDatabaseName()` 给每个 Supabase 项目和身份生成稳定、互不相同的数据库名。结果包含不透明的身份摘要，不包含用户 ID 原文。未登录时使用 `RXDB_ANONYMOUS_SUBJECT`，匿名登录用户仍使用 Supabase JWT 的 `sub`，因此不会与未登录访客共用本地库。
@@ -308,6 +377,8 @@ interface SupabaseAdapterOptions extends IRxDBAdapterOptions {
 ### RLS 自检
 
 `connect()` 默认会尝试调用 `rxdb_check_rls` RPC，检查当前 RxDB 业务表是否启用了 Row Level Security。
+
+默认检查日志表 `rxdb_change`、分支表 `rxdb_branch`，以及经远端同步的业务实体映射的表或视图。同步插件等贡献的系统表（`rxdb_migration`、`rxdb_sync`、`rxdb_sync_bucket_progress` 等）只存本地，只存本地的业务实体也没有远端表，都不检查。映射到视图的实体（例如[公开数据的浏览实体](#规则之外的公开数据在线浏览)）不会被报成缺表或未开 RLS；`rlsCheck.tables` 给出的表原样检查。
 
 - 如果 RPC 已安装且发现某张表未启用 RLS，会输出告警。
 - 如果你希望在开发或 CI 中直接阻断错误配置，可以设置 `rlsCheck: { failureMode: 'throw' }`。

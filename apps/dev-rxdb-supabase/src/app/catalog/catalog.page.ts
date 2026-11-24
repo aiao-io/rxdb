@@ -30,7 +30,7 @@ import { bucketLabel } from './catalog-view';
       </header>
 
       @if (!remoteSync.$connected() || !session.prepared) {
-        <div class="alert alert-warning" role="alert" data-testid="catalog-local-mode">
+        <div class="alert alert-warning" data-testid="catalog-local-mode" role="alert">
           商品目录演示按身份授权的远端同步，需要连接 Supabase（pnpm nx dev dev-rxdb-supabase）。
         </div>
       } @else {
@@ -39,9 +39,13 @@ import { bucketLabel } from './catalog-view';
             <h2 class="card-title" id="identity-title">身份与权限</h2>
             <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
               <dt class="text-base-content/60">当前身份</dt>
-              <dd data-testid="catalog-identity">{{ session.description?.title }} · {{ session.description?.detail }}</dd>
+              <dd data-testid="catalog-identity">
+                {{ session.description?.title }} · {{ session.description?.detail }}
+              </dd>
               <dt class="text-base-content/60">本地库</dt>
-              <dd><code data-testid="catalog-database">{{ session.prepared.databaseName }}</code></dd>
+              <dd>
+                <code data-testid="catalog-database">{{ session.prepared.databaseName }}</code>
+              </dd>
               <dt class="text-base-content/60">能读的区</dt>
               <dd class="flex flex-wrap gap-1" data-testid="catalog-buckets">
                 @for (bucket of remote.$callerBuckets(); track bucket) {
