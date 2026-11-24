@@ -15,6 +15,7 @@ const scopes = [
   { value: 'website',                     name: 'website:                        website 变更' },
   { value: 'utils',                       name: 'utils:                          utils 变更' },
   { value: 'code-editor',                 name: 'code-editor:                    code-editor 变更' },
+  { value: 'i18n',                        name: 'i18n:                            i18n 变更' },
   { value: 'rxdb',                        name: 'rxdb:                           rxdb 变更' },
   { value: 'rxdb-test',                   name: 'rxdb-test:                      rxdb-test 变更' },
   { value: 'rxdb-devtools',               name: 'rxdb-devtools:                  rxdb-devtools 变更' },
