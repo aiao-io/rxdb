@@ -500,7 +500,12 @@ export const fileManagement = {
 
     /* ADESK-US-212：显示简介、打开方式、Safari 打开 html、Preview 按页渲染 PDF。 */
     const infoPanel = () => page.locator('app-info-panel [data-info-panel]');
-    const closeWin = async app => helpers.win(app).locator('.tl .c').click();
+    const closeWin = async app => {
+      await helpers.win(app).locator('.tl .c').click();
+      /* 关窗有 200ms 淡出，之后才从窗口列表移除并写回布局：等它彻底没了再走下一步，
+         否则紧接着的刷新会按旧布局把刚关的窗口恢复出来。 */
+      await expect(helpers.win(app)).toHaveCount(0);
+    };
     await place('Desktop');
 
     /* html 默认交给 Safari：双击在沙盒框里渲染文件内容。 */

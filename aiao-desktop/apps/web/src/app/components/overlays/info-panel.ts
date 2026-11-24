@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, linkedSignal } from '@angular/core';
+import { Component, ElementRef, computed, inject, input, linkedSignal } from '@angular/core';
 
 import { extensionOf } from '../../disk/disk-kinds';
 import { parentOf } from '../../disk/disk-path';
@@ -178,6 +178,7 @@ export class InfoPanel {
   private readonly opener = inject(FileOpener);
   private readonly popover = inject(PopoverService);
   private readonly toast = inject(Toast);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
 
   protected readonly finderDate = finderDate;
   protected readonly choices = computed(() => this.opener.choices(this.node()));
@@ -196,8 +197,10 @@ export class InfoPanel {
     this.popover.close(true, 'escape');
   }
 
+  /** 用下拉当前显示的应用把这类文件的默认打开方式存进偏好；值取点击时刻的 DOM，不依赖信号的更新时序。 */
   protected changeAll(): void {
-    const app = this.choices().find(choice => choice.id === this.selected());
+    const value = this.host.querySelector<HTMLSelectElement>('[data-ip-app]')?.value;
+    const app = this.choices().find(choice => choice.id === value);
     if (!app) return;
     this.opener.setDefaultApp(this.node(), app.id).then(
       () => {

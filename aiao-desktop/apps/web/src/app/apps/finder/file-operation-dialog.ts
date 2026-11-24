@@ -1,4 +1,4 @@
-import { Component, computed, inject, input, linkedSignal, output, signal } from '@angular/core';
+import { Component, ElementRef, computed, inject, input, linkedSignal, output, signal } from '@angular/core';
 
 import { DESKTOP, DiskPath, HOME, TRASH, isWithin } from '../../disk/disk-path';
 import { FileOpener } from '../../services/file-opener';
@@ -136,6 +136,7 @@ import type { FileOperationRequest } from './finder-model';
 export class FileOperationDialog {
   private readonly fs = inject(FileSystem);
   private readonly opener = inject(FileOpener);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   protected readonly busy = signal(false);
   protected readonly error = signal('');
   protected readonly destination = signal(JSON.stringify(DESKTOP));
@@ -189,7 +190,9 @@ export class FileOperationDialog {
       if (!destination) throw new Error('Choose an existing destination folder.');
       return this.fs.restore(path, destination.path);
     }
-    const app = this.applications().find(app => app.id === this.application());
+    /* 下拉当前值取提交时刻的 DOM，不依赖信号的更新时序。 */
+    const value = this.host.querySelector<HTMLSelectElement>('select')?.value;
+    const app = this.applications().find(app => app.id === value);
     if (!app) throw new Error('Choose an available application.');
     if (this.alwaysOpen()) await this.opener.setDefaultApp(request.node, app.id);
     if (!this.opener.openApp(app.id, request.node)) throw new Error('Choose an available application.');
