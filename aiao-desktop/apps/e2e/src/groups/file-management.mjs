@@ -66,6 +66,7 @@ export const fileManagement = {
     'fileManagement.readFailureKeepsBatchAndExistingData',
     'fileManagement.renameValidatesAndPreservesContent',
     'fileManagement.renameCancellationAndKeyboardFocus',
+    'fileManagement.renameConfirmRestoresArrowNavigation',
     'fileManagement.duplicateIsIndependent',
     'fileManagement.folderCopyKeepsNestedAndEmptyEntries',
     'fileManagement.listVirtualScroll',
@@ -511,6 +512,27 @@ export const fileManagement = {
     await helpers.win('textedit').locator('.tl .c').click();
     result.duplicateIsIndependent = (await diskText(session, 'renamed copy.txt')) === text;
 
+    /* 回车确认改名后：焦点要回到改过名的条目上，方向键从它继续移动选择（曾经落到列表第一项/body，方向键失灵）。 */
+    const bodyBox = await finder().locator('[data-body]').boundingBox();
+    await finder()
+      .locator('[data-body]')
+      .click({ button: 'right', position: { x: bodyBox.width - 50, y: bodyBox.height - 50 } });
+    await page.getByRole('menuitem', { name: 'New Folder', exact: true }).click();
+    await expect(renameInput()).toBeFocused();
+    const generated = await renameInput().inputValue();
+    await renameInput().press('Escape');
+    await expect(renameInput()).toHaveCount(0);
+    await item(generated).focus();
+    await page.keyboard.press('Enter');
+    await expect(renameInput()).toBeFocused();
+    await renameInput().fill('keyboard-renamed');
+    await renameInput().press('Enter');
+    await expect(item('keyboard-renamed')).toBeVisible();
+    await expect(item('keyboard-renamed')).toBeFocused();
+    await page.keyboard.press('ArrowRight');
+    await expect(item('keyboard-renamed')).toHaveAttribute('aria-selected', 'false');
+    result.renameConfirmRestoresArrowNavigation = true;
+
     /* ADESK-US-212：显示简介、打开方式、Safari 打开 html、Preview 按页渲染 PDF。 */
     const infoPanel = () => page.locator('app-info-panel [data-info-panel]');
     const closeWin = async app => {
@@ -573,7 +595,9 @@ export const fileManagement = {
     /* 刷新后关联仍在：再开一个 html 依旧走 TextEdit（AC4）。 */
     await page.reload({ waitUntil: 'load' });
     await helpers.restored();
-    /* 刷新恢复出的前台可能是别的窗口（布局写回滞后于关窗的 DOM 移除）：显式把 Finder 调到前台再点侧栏。 */
+    /* 布局写回滞后于关窗的 DOM 移除：刷新可能把刚关的窗口恢复出来（例如一个空 TextEdit），
+       导致后面的定位 strict violation。清掉恢复出的全部窗口，再开一个全新的 Finder。 */
+    await helpers.closeAll();
     await helpers.launch('Finder');
     await page.waitForTimeout(1_200);
     await place('Desktop');
