@@ -570,7 +570,16 @@ const NAMING = {
     'RxDBIdentity',
     'RXDB_ANONYMOUS_SUBJECT',
     'getRxDBIdentityDatabaseName',
-    'RxDBIdentityMismatchError'
+    'RxDBIdentityMismatchError',
+    // US-226 待推数的计数口径：同一事务的变更算一条记录，不在事务里的各算一条。数的是核心的变更日志
+    // （`transactionId` 是 `RxDBChange` 的核心列），分组计数走适配器契约的 `count({ groupBy })`。
+    // 历史插件的 `pushableCount$` 与同步插件的仓库状态共用它，各数一套就会对不上。它是同步契约，
+    // 与工作树、提交能力都无关，叫 `Commit*` / `WorkingTree*` 等于宣称待推计数是提交能力的一部分。
+    // `RxDBChangeCounter` / `RxDBChangeWhere` 是它的入参形状，理由与 `EntityMutationsOptions` 同族：
+    // 包外要给它们起名，不导出就只能写 `Parameters<typeof countRxDBChangeRecords>[0]` 或照抄一份结构。
+    'countRxDBChangeRecords',
+    'RxDBChangeCounter',
+    'RxDBChangeWhere'
   ],
   /** 全部包都不许有的新前缀 */
   bannedPrefixes: ['Index', 'Workspace'],

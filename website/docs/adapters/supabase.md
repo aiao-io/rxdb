@@ -216,6 +216,10 @@ GRANT SELECT ON public.catalog_items_public TO anon, authenticated;
 浏览实体与同步实体分开声明，同步类型用 `syncOverrides` 给出：
 
 ```ts
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
+import { rxDBPluginQueryCache } from '@aiao/rxdb-plugin-querycache';
+import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
+
 @Entity({
   name: 'PublicCatalogItem',
   tableName: 'catalog_items_public',
@@ -246,6 +250,9 @@ const rxdb = new RxDB({
     }
   ]
 });
+// 传工厂函数本身，不要调用它。注册顺序随意，宿主按 `inject` 保证 history 先于 sync
+rxdb.use(rxDBPluginHistory);
+rxdb.use(rxDBPluginSync);
 rxdb.use(rxDBPluginQueryCache);
 ```
 

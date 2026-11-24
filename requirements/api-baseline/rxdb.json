@@ -306,6 +306,10 @@
         "kind": "type"
       },
       {
+        "name": "countRxDBChangeRecords",
+        "kind": "value"
+      },
+      {
         "name": "createEntitySyncResolver",
         "kind": "value"
       },
@@ -2022,6 +2026,10 @@
         "kind": "both"
       },
       {
+        "name": "RxDBChangeCounter",
+        "kind": "type"
+      },
+      {
         "name": "RxDBChangeEntityMetadataResolver",
         "kind": "type"
       },
@@ -2039,6 +2047,10 @@
       },
       {
         "name": "RxDBChangeStaticTypes",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBChangeWhere",
         "kind": "type"
       },
       {
