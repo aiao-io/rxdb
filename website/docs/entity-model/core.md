@@ -130,4 +130,4 @@ if (!result.valid) {
 
 ## 界面能力派生（US-027）
 
-`deriveEntityCapabilities(metadata)` 把实体的写操作权限（create / update / delete 各为 `both` 或 `system`）投影为界面能力 `{ canCreate, canEdit, canDelete }`：`EntityList` 据此隐藏「+ 新增」、把行降级为只读（详情以查看模式打开）、或隐藏操作列的删除入口。权限声明与运行时判定语义见[实体操作权限](../model-definition/permissions.md)。
+`deriveEntityCapabilities(metadata)` 把实体的写操作权限（create / update / delete 各为 `both` 或 `system`）投影为界面能力 `{ canCreate, canEdit, canDelete }`：`EntityList` 据此隐藏「+ 新增」、把行降级为只读（详情以查看模式打开）、或隐藏操作列的删除入口。权限声明与运行时判定语义见[实体操作权限](/model-definition/permissions.md)。

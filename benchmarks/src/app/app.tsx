@@ -1,10 +1,13 @@
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import { requestIdleCallbackPolyfill } from '@aiao/utils';
+import type { UiLocale } from '@aiao/rxdb-i18n';
 import { BarChart3, FileDown, Gauge, GitBranch, Play, TrendingUp } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { BenchmarkResults } from '../components/BenchmarkResults';
 import { ScoreCard } from '../components/ScoreCard';
 import { ThemeToggle } from '../components/ThemeToggle';
 import { useBenchmark } from '../hooks/useBenchmark';
+import { setBenchmarksLocale } from '../i18n/runtime';
 import { exportResultsAsCSV, exportResultsAsJSON } from '../utils/export-results';
 import {
   BENCHMARK_SQLITE_OPTIONS,
@@ -18,6 +21,7 @@ const BROWSER_GIT_OPFS_DEMO_URL = `${import.meta.env.BASE_URL}browser-git-opfs-d
 requestIdleCallbackPolyfill();
 
 export function App() {
+  const { t, locale } = useI18n();
   const [sqliteAdapter, setSqliteAdapter] = useState<BenchmarkSqliteAdapter>(DEFAULT_BENCHMARK_SQLITE_ADAPTER);
   const [exportError, setExportError] = useState<string | null>(null);
   const exportButtonRef = useRef<HTMLButtonElement>(null);
@@ -25,8 +29,9 @@ export function App() {
   const { state, sections, error, runBenchmarks, getAllResults, isRunning } = useBenchmark(sqliteAdapter);
 
   useEffect(() => {
-    document.title = `RxDB Benchmarks (${sqliteMeta.label})`;
-  }, [sqliteMeta.label]);
+    document.documentElement.lang = locale;
+    document.title = t('app.title', { adapter: sqliteMeta.label });
+  }, [locale, sqliteMeta.label, t]);
 
   // 关闭 daisyUI dropdown：在选项被激活后移除焦点
   const closeDropdown = useCallback(() => {
@@ -37,14 +42,14 @@ export function App() {
     (exporter: (results: ReturnType<typeof getAllResults>) => void) => {
       const results = getAllResults();
       if (results.length === 0) {
-        setExportError('请先运行测试');
+        setExportError(t('app.exportEmpty'));
         return;
       }
       setExportError(null);
       exporter(results);
       closeDropdown();
     },
-    [closeDropdown, getAllResults]
+    [closeDropdown, getAllResults, t]
   );
 
   const handleExportKeyDown = useCallback(
@@ -68,8 +73,22 @@ export function App() {
           <ThemeToggle />
         </div>
         <div className='flex flex-none flex-nowrap items-center gap-1.5'>
-          <label className='select select-xs' aria-label='选择数据库适配器'>
-            <span className='label'>适配器</span>
+          <label className='inline-flex items-center gap-2 text-sm'>
+            <span className='hidden md:inline'>{t('app.language')}</span>
+            <select
+              className='select select-xs w-auto'
+              data-testid='i18n-locale'
+              value={locale.startsWith('en') ? 'en' : 'zh-Hans'}
+              onChange={event => {
+                void setBenchmarksLocale(event.target.value as UiLocale);
+              }}
+            >
+              <option value='zh-Hans'>简体中文</option>
+              <option value='en'>English</option>
+            </select>
+          </label>
+          <label className='select select-xs' aria-label={t('app.selectAdapter')}>
+            <span className='label'>{t('app.adapter')}</span>
             <select
               value={sqliteAdapter}
               onChange={event => setSqliteAdapter(event.target.value as BenchmarkSqliteAdapter)}
@@ -87,12 +106,12 @@ export function App() {
               ref={exportButtonRef}
               type='button'
               className='btn btn-ghost btn-xs whitespace-nowrap'
-              aria-label='导出测试结果'
+              aria-label={t('app.exportResults')}
               aria-haspopup='menu'
               onKeyDown={handleExportKeyDown}
             >
               <FileDown size={14} aria-hidden />
-              导出
+              {t('app.export')}
             </button>
             <ul role='menu' className='dropdown-content menu z-[1] w-32 p-2'>
               <li role='none'>
@@ -101,7 +120,7 @@ export function App() {
                 </button>
               </li>
               <li role='none'>
-                <button role='menuitem' onClick={() => handleExport(exportResultsAsCSV)}>
+                <button role='menuitem' onClick={() => handleExport(results => exportResultsAsCSV(results, t))}>
                   CSV
                 </button>
               </li>
@@ -111,10 +130,10 @@ export function App() {
             className='btn btn-primary btn-sm shrink-0 whitespace-nowrap'
             onClick={runBenchmarks}
             disabled={isRunning}
-            aria-label='开始性能测试'
+            aria-label={t('app.startBenchmark')}
           >
             {!isRunning && <Play size={14} aria-hidden />}
-            {isRunning ? '运行中' : '开始测试'}
+            {isRunning ? t('app.running') : t('app.start')}
           </button>
         </div>
       </header>
@@ -127,12 +146,8 @@ export function App() {
       <main className='container mx-auto flex-1 px-6 py-8' role='main'>
         {/* Page heading */}
         <section className='mb-10 border-b border-[color:color-mix(in_oklab,var(--color-base-content)_10%,transparent)] pb-8'>
-          <h2 className='max-w-3xl text-3xl font-semibold tracking-tight sm:text-4xl'>
-            本地数据库性能 · 真实浏览器内测量
-          </h2>
-          <p className='mt-4 text-sm leading-6 opacity-70 sm:text-base sm:leading-7'>
-            在当前浏览器环境下，运行吞吐量、延迟、扩展性与并发四类场景，直接测量数据库引擎的真实开销，而非理论指标。
-          </p>
+          <h2 className='max-w-3xl text-3xl font-semibold tracking-tight sm:text-4xl'>{t('app.heading')}</h2>
+          <p className='mt-4 text-sm leading-6 opacity-70 sm:text-base sm:leading-7'>{t('app.headingDescription')}</p>
         </section>
 
         {/* Info Cards */}
@@ -142,9 +157,9 @@ export function App() {
               <div className='stat-figure text-primary'>
                 <TrendingUp size={24} strokeWidth={2} />
               </div>
-              <div className='stat-title'>测试场景</div>
+              <div className='stat-title'>{t('app.statScenarios')}</div>
               <div className='stat-value text-primary'>4</div>
-              <div className='stat-desc'>吞吐量 · 延迟 · 扩展性 · 并发</div>
+              <div className='stat-desc'>{t('app.statScenariosDescription')}</div>
             </div>
           </div>
 
@@ -153,9 +168,9 @@ export function App() {
               <div className='stat-figure text-primary'>
                 <BarChart3 size={24} strokeWidth={2} />
               </div>
-              <div className='stat-title'>数据规模</div>
+              <div className='stat-title'>{t('app.statScale')}</div>
               <div className='stat-value'>10K</div>
-              <div className='stat-desc'>基线测试数据量</div>
+              <div className='stat-desc'>{t('app.statScaleDescription')}</div>
             </div>
           </div>
 
@@ -164,7 +179,7 @@ export function App() {
               <div className='stat-figure text-primary'>
                 <Gauge size={24} strokeWidth={2} />
               </div>
-              <div className='stat-title'>数据库引擎</div>
+              <div className='stat-title'>{t('app.statEngine')}</div>
               <div className='stat-value text-xl'>{sqliteMeta.label}</div>
               <div className='stat-desc'>{sqliteMeta.description}</div>
             </div>
@@ -175,11 +190,8 @@ export function App() {
           <div className='card-body flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
             <div>
               <span className='eyebrow'>research demo</span>
-              <h3 className='mt-2 text-xl font-semibold'>浏览器 Git + OPFS</h3>
-              <p className='mt-2 max-w-2xl text-sm leading-6 opacity-70'>
-                在 dedicated Worker 中运行 wasm-git，把工作区和 .git 持久化到 OPFS，验证初始化、修改、提交、分支切换与
-                Worker 重开。
-              </p>
+              <h3 className='mt-2 text-xl font-semibold'>{t('app.gitDemoTitle')}</h3>
+              <p className='mt-2 max-w-2xl text-sm leading-6 opacity-70'>{t('app.gitDemoDescription')}</p>
             </div>
             <a
               className='btn btn-outline shrink-0 whitespace-nowrap'
@@ -188,7 +200,7 @@ export function App() {
               target='_blank'
             >
               <GitBranch size={16} aria-hidden />
-              打开 Git 演示
+              {t('app.gitDemoOpen')}
             </a>
           </div>
         </section>
@@ -219,7 +231,7 @@ export function App() {
         {error && (
           <div className='alert alert-error mt-6'>
             <span className='mono text-xs tracking-wider uppercase opacity-70'>ERROR</span>
-            <span>测试失败: {error}</span>
+            <span>{t('app.errorPrefix', { message: error })}</span>
           </div>
         )}
       </main>
@@ -229,7 +241,7 @@ export function App() {
           <p>
             RxDB Benchmarks · local-first data infrastructure · {sqliteMeta.label} ·
             <a className='link link-hover' href='/' target='_top'>
-              返回文档
+              {t('app.backToDocs')}
             </a>
           </p>
         </div>

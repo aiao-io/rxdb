@@ -1,3 +1,5 @@
+import type { BenchmarksMessageKey } from '../i18n/messages';
+
 type OpfsGit = {
   variant: string;
   module: { FS: { chdir(path: string): void }; opfsLoadTree(path: string): Promise<boolean> };
@@ -20,7 +22,19 @@ type Loader = {
   }): Promise<OpfsGit>;
 };
 
-type DemoStep = { name: string; detail: string; status: 'passed' | 'info' | 'failed' };
+/**
+ * 结构化步骤：文案由 UI 侧按目录键翻译；detail 是 git 原始输出等动态内容，
+ * 有值时直接展示，否则翻译 detailKey。
+ */
+type DemoStep = {
+  key: BenchmarksMessageKey;
+  params?: Record<string, unknown>;
+  detail?: string;
+  detailKey?: BenchmarksMessageKey;
+  detailParams?: Record<string, unknown>;
+  status: 'passed' | 'info' | 'failed';
+};
+
 type DemoResult = { steps: DemoStep[]; persisted: boolean; head: string; branch: string };
 
 let git: OpfsGit | undefined;
@@ -58,8 +72,12 @@ async function runCommand(command: string[]): Promise<string> {
   return stdout.join('\n').trim();
 }
 
-function step(name: string, detail: string, status: DemoStep['status'] = 'passed'): DemoStep {
-  return { name, detail, status };
+function step(
+  key: DemoStep['key'],
+  options: Omit<DemoStep, 'key' | 'status'> = {},
+  status: DemoStep['status'] = 'passed'
+): DemoStep {
+  return { key, status, ...options };
 }
 
 async function currentHead(): Promise<string> {
@@ -71,7 +89,7 @@ async function reopen(): Promise<DemoResult> {
   const restored = await instance.syncRepo(repo);
   if (!restored) {
     return {
-      steps: [step('Worker 重开', 'OPFS 中没有可恢复的 demo 仓库', 'failed')],
+      steps: [step('gitStep.workerReopen', { detailKey: 'gitStep.reopenNoRepo' }, 'failed')],
       persisted: false,
       head: '—',
       branch: '—'
@@ -82,10 +100,10 @@ async function reopen(): Promise<DemoResult> {
   const head = await currentHead();
   return {
     steps: [
-      step('Worker 重开', '从 OPFS 恢复仓库与 .git'),
-      step('重开 status', status || 'clean'),
-      step('HEAD', head.slice(0, 12)),
-      step('当前分支', demoBranch)
+      step('gitStep.workerReopen', { detailKey: 'gitStep.reopenRestored' }),
+      step('gitStep.reopenStatus', { detail: status || 'clean' }),
+      step('gitStep.head', { detail: head.slice(0, 12) }),
+      step('gitStep.currentBranch', { detail: demoBranch })
     ],
     persisted: true,
     head: head.slice(0, 12),
@@ -105,30 +123,38 @@ async function demo(): Promise<DemoResult> {
     await instance.writeFile(repo, 'README.md', initialFile);
     await runCommand(['add', 'README.md']);
     await runCommand(['commit', '-m', 'initial browser workspace']);
-    steps.push(step('初始化仓库', '在 OPFS 创建工作区和 .git'), step('初始 commit', 'README.md 已提交'));
+    steps.push(
+      step('gitStep.initRepo', { detailKey: 'gitStep.initRepoDetail' }),
+      step('gitStep.initialCommit', { detailKey: 'gitStep.initialCommitDetail' })
+    );
   } else {
     instance.module.FS.chdir(instance.repoDir(repo));
-    steps.push(step('打开仓库', '复用 OPFS 中已有的 demo 工作区'));
+    steps.push(step('gitStep.openRepo', { detailKey: 'gitStep.openRepoDetail' }));
   }
 
   const cleanStatus = await runCommand(['status', '--short']);
-  steps.push(step('clean status', cleanStatus || 'clean'));
+  steps.push(step('gitStep.cleanStatus', { detail: cleanStatus || 'clean' }));
   await instance.writeFile(repo, 'README.md', changedFile);
   const dirtyStatus = await runCommand(['status', '--short']);
-  steps.push(step('修改文件', 'README.md 写入 OPFS'));
-  steps.push(step('modified status', dirtyStatus || '没有检测到修改', dirtyStatus ? 'passed' : 'failed'));
+  steps.push(
+    step(
+      'gitStep.modifiedStatus',
+      dirtyStatus ? { detail: dirtyStatus } : { detailKey: 'gitStep.modifiedStatusMissing' },
+      dirtyStatus ? 'passed' : 'failed'
+    )
+  );
   await runCommand(['add', 'README.md']);
   await runCommand(['commit', '-m', 'persist browser workspace']);
   const modifiedHead = await currentHead();
-  steps.push(step('commit', `提交成功 ${modifiedHead.slice(0, 12)}`));
+  steps.push(step('gitStep.commit', { detailKey: 'gitStep.commitDetail', detailParams: { head: modifiedHead.slice(0, 12) } }));
   try {
     await runCommand(['checkout', '-b', demoBranch]);
   } catch {
     await runCommand(['checkout', demoBranch]);
   }
-  steps.push(step('branch', `创建并切换到 ${demoBranch}`));
+  steps.push(step('gitStep.branch', { detailKey: 'gitStep.branchDetail', detailParams: { branch: demoBranch } }));
   await runCommand(['checkout', modifiedHead]);
-  steps.push(step('checkout', `恢复提交 ${modifiedHead.slice(0, 12)}`));
+  steps.push(step('gitStep.checkout', { detailKey: 'gitStep.checkoutDetail', detailParams: { head: modifiedHead.slice(0, 12) } }));
   const reopened = await reopen();
   steps.push(...reopened.steps);
   return { steps, persisted: true, head: reopened.head, branch: reopened.branch };
@@ -138,7 +164,12 @@ async function clear(): Promise<DemoResult> {
   const instance = await load();
   await instance.removeRepo(repo);
   git = undefined;
-  return { steps: [step('清空 OPFS', 'demo 仓库已删除')], persisted: false, head: '—', branch: '—' };
+  return {
+    steps: [step('gitStep.clearOpfs', { detailKey: 'gitStep.clearOpfsDetail' })],
+    persisted: false,
+    head: '—',
+    branch: '—'
+  };
 }
 
 function describeError(cause: unknown): string {

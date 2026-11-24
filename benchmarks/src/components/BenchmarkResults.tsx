@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import { Award, BarChart3, ClipboardList, Clock, Database, Gauge, GitBranch, TrendingUp } from 'lucide-react';
 import { Fragment } from 'react';
 import type { BenchmarkSection } from '../hooks/useBenchmark';
@@ -15,31 +16,32 @@ const iconMap = {
 };
 
 function TableHeader() {
+  const { t } = useI18n();
   return (
     <thead>
       <tr>
         <th className='w-2/5' scope='col'>
           <div className='flex items-center gap-2'>
             <ClipboardList size={12} />
-            测试场景
+            {t('results.columnScenario')}
           </div>
         </th>
         <th className='text-right' scope='col'>
           <div className='flex items-center justify-end gap-2'>
             <Clock size={12} />
-            耗时 (ms)
+            {t('results.columnDuration')}
           </div>
         </th>
         <th className='text-right' scope='col'>
           <div className='flex items-center justify-end gap-2'>
             <Database size={12} />
-            内存 (MB)
+            {t('results.columnMemory')}
           </div>
         </th>
         <th scope='col'>
           <div className='flex items-center gap-2'>
             <Award size={12} />
-            详情备注
+            {t('results.columnNotes')}
           </div>
         </th>
       </tr>
@@ -48,10 +50,12 @@ function TableHeader() {
 }
 
 export function BenchmarkResults({ sections }: BenchmarkResultsProps) {
+  const { t } = useI18n();
+
   if (sections.length === 0) {
     return (
       <div className='overflow-x-auto'>
-        <table className='table' aria-label='性能测试结果'>
+        <table className='table' aria-label={t('results.tableLabel')}>
           <TableHeader />
           <tbody aria-atomic='true' aria-live='polite'>
             <tr>
@@ -59,7 +63,7 @@ export function BenchmarkResults({ sections }: BenchmarkResultsProps) {
                 <div className='flex flex-col items-center gap-4'>
                   <div className='data-cube' style={{ width: '2.25rem', height: '2.25rem' }} />
                   <div className='mono text-[10px] tracking-[0.22em] uppercase opacity-50'>awaiting run · idle</div>
-                  <span className='text-sm opacity-50'>点击右上角「开始测试」运行性能基准测试</span>
+                  <span className='text-sm opacity-50'>{t('results.emptyHint')}</span>
                 </div>
               </td>
             </tr>
@@ -71,7 +75,7 @@ export function BenchmarkResults({ sections }: BenchmarkResultsProps) {
 
   return (
     <div className='overflow-x-auto'>
-      <table className='table' aria-label='性能测试结果'>
+      <table className='table' aria-label={t('results.tableLabel')}>
         <TableHeader />
         <tbody>
           {sections.map((section, idx) => {

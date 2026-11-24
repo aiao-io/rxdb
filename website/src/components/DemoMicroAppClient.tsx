@@ -2,6 +2,7 @@ import { createOrbit, type OrbitInstance } from '@aiao/orbit';
 import { useHistory, useLocation } from '@docusaurus/router';
 import { useColorMode } from '@docusaurus/theme-common';
 import useBaseUrl from '@docusaurus/useBaseUrl';
+import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import {
   emitHostRoute,
   emitHostTheme,
@@ -58,9 +59,12 @@ export default function DemoMicroAppClient({
   const { setColorMode } = useColorMode();
   const { pathname } = useLocation();
   const history = useHistory();
+  const {
+    i18n: { currentLocale }
+  } = useDocusaurusContext();
   const subRoute = toSubRoute(pathname, basePath);
-  const current = useRef({ theme, route: subRoute });
-  current.current = { theme, route: subRoute };
+  const current = useRef({ theme, route: subRoute, locale: currentLocale });
+  current.current = { theme, route: subRoute, locale: currentLocale };
   const routeSync = useRef(new HostRouteSync());
   const agreedRoute = useRef(subRoute);
   const emittedTheme = useRef(theme);
@@ -116,8 +120,8 @@ export default function DemoMicroAppClient({
 
   useEffect(() => {
     const app = instance.current;
-    if (app && app.snapshot.state !== 'failed') app.setProps({ theme, route: subRoute });
-  }, [theme, subRoute]);
+    if (app && app.snapshot.state !== 'failed') app.setProps({ theme, route: subRoute, locale: currentLocale });
+  }, [theme, subRoute, currentLocale]);
   useEffect(() => subscribeThemeRequest(next => setColorMode(next), bus), [bus, setColorMode]);
 
   useEffect(() => {

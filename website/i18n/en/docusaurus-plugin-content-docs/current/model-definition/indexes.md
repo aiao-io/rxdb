@@ -5,7 +5,7 @@ Index configuration is simple and clear. The current code supports two ways to d
 - Single-field uniqueness: write `unique: true` directly on the property
 - Multi-field index or multi-field uniqueness: declare it in the entity's `indexes`
 
-## Single-Field Uniqueness
+## Single-field uniqueness
 
 Single-field uniqueness needs no separate `indexes` entry:
 
@@ -19,7 +19,7 @@ Single-field uniqueness needs no separate `indexes` entry:
 
 This is more concise than declaring a separate single-field `indexes` entry.
 
-## Composite Indexes
+## Composite indexes
 
 ```ts
 import { Entity, EntityBase, PropertyType } from '@aiao/rxdb';
@@ -46,7 +46,7 @@ import { Entity, EntityBase, PropertyType } from '@aiao/rxdb';
 export class Order extends EntityBase {}
 ```
 
-## Index Options
+## Index options
 
 The core fields that `EntityIndexMetadataOptions` currently supports are:
 
@@ -57,21 +57,21 @@ The core fields that `EntityIndexMetadataOptions` currently supports are:
 
 The most important part is the order of `properties`. A composite index is not a set; it is an ordered prefix of columns.
 
-A unique index can also take `where`, which applies it only to rows that satisfy the condition (partial uniqueness). See [Storage constraints](/model-definition/constraints.md#partial-unique).
+A unique index can also take `where`, which applies it only to rows that satisfy the condition (partial uniqueness). See [Storage constraints](/model-definition/constraints.md#partial-uniqueness).
 
-## When to Create an Index
+## When to create an index
 
 - When a field will be queried frequently with exact matches
-- When a group of fields is always used together as filter conditions
+- When a group of fields is used together as filter conditions
 - When a group of fields must be unique together
 
-## When Not to Create an Index
+## When not to create an index
 
 - Fields queried only occasionally
 - Fields written frequently but almost never queried
 - Defining a redundant composite index when single-field uniqueness is enough
 
-## Naming Conventions
+## Naming conventions
 
 The current code does not enforce a naming convention, but keeping one is recommended:
 

@@ -7,6 +7,13 @@ const ROOT = process.cwd();
 
 const checks = [
   {
+    name: 'benchmarks',
+    entries: [
+      ['benchmarks/src/i18n/messages.ts', 'benchmarksZhMessages'],
+      ['benchmarks/src/i18n/messages.ts', 'benchmarksEnMessages']
+    ]
+  },
+  {
     name: 'rxdb-admin',
     entries: [
       ['packages/rxdb-admin/src/i18n/zh-hans.ts', 'adminZhHansMessages'],

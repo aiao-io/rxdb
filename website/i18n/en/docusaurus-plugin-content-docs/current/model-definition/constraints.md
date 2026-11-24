@@ -62,7 +62,7 @@ export class BomLine extends EntityBase {}
 - Literals on a `uuid` column must use the canonical lowercase, hyphenated form (for example `'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'`). PG parses the literal as a uuid when creating the table, while SQLite only compares text, so uppercase or unhyphenated forms are inconsistent across the two and fail at declaration time.
 - A violation throws `RxDBCheckViolationError` with the entity name, the constraint name, and the conflicting column values of the write.
 
-## Partial uniqueness {#partial-unique}
+## Partial uniqueness
 
 Add `where` to a unique index so it applies only to the rows that satisfy the condition:
 

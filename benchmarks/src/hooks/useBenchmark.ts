@@ -1,6 +1,9 @@
+import type { RxDB } from '@aiao/rxdb';
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { clearDB } from '../clear-db';
-import type { BenchmarkResult } from '../constants';
+import type { BenchmarkResult, ScenarioRunOptions } from '../constants';
+import type { BenchmarksMessageKey } from '../i18n/messages';
 import { runConcurrencyTests } from '../scenarios/concurrency';
 import { runLatencyTests } from '../scenarios/latency';
 import { runScalabilityTests } from '../scenarios/scalability';
@@ -15,14 +18,22 @@ export interface BenchmarkSection {
   results: BenchmarkResult[];
 }
 
+interface BenchmarkSuite {
+  id: string;
+  titleKey: BenchmarksMessageKey;
+  icon: string;
+  runner: (rxdb: RxDB, options: ScenarioRunOptions) => Promise<BenchmarkResult[]>;
+}
+
 const BENCHMARK_SUITES = [
-  { id: 'throughput', title: '吞吐量测试', icon: 'throughput', runner: runThroughputTests },
-  { id: 'latency', title: '延迟分布测试', icon: 'latency', runner: runLatencyTests },
-  { id: 'scalability', title: '扩展性测试', icon: 'scalability', runner: runScalabilityTests },
-  { id: 'concurrency', title: '并发性能测试', icon: 'concurrency', runner: runConcurrencyTests }
-] as const;
+  { id: 'throughput', titleKey: 'suite.throughput', icon: 'throughput', runner: runThroughputTests },
+  { id: 'latency', titleKey: 'suite.latency', icon: 'latency', runner: runLatencyTests },
+  { id: 'scalability', titleKey: 'suite.scalability', icon: 'scalability', runner: runScalabilityTests },
+  { id: 'concurrency', titleKey: 'suite.concurrency', icon: 'concurrency', runner: runConcurrencyTests }
+] satisfies readonly BenchmarkSuite[];
 
 export function useBenchmark(sqliteAdapter: BenchmarkSqliteAdapter) {
+  const { t } = useI18n();
   const [state, setState] = useState<BenchmarkState>('idle');
   const [sections, setSections] = useState<BenchmarkSection[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -111,7 +122,7 @@ export function useBenchmark(sqliteAdapter: BenchmarkSqliteAdapter) {
           `benchmark-db-run-${benchmarkRunId}-${suite.id}`
         );
         const sectionIndex = newSections.length;
-        const section: BenchmarkSection = { title: suite.title, icon: suite.icon, results: [] };
+        const section: BenchmarkSection = { title: t(suite.titleKey), icon: suite.icon, results: [] };
         newSections.push(section);
         setSections(prev => [...prev, section]);
 
@@ -123,7 +134,7 @@ export function useBenchmark(sqliteAdapter: BenchmarkSqliteAdapter) {
           });
         };
 
-        await suite.runner(suiteRxdb, onResult);
+        await suite.runner(suiteRxdb, { onResult, t });
       }
 
       await disconnectCurrentDatabase();
@@ -135,10 +146,10 @@ export function useBenchmark(sqliteAdapter: BenchmarkSqliteAdapter) {
         console.error('Failed to disconnect benchmark database after error:', disconnectError);
       });
       await clearBenchmarkStorage('benchmark failure');
-      setError(err instanceof Error ? err.message : 'Unknown error');
+      setError(err instanceof Error ? err.message : t('benchmark.unknownError'));
       setState('error');
     }
-  }, [clearBenchmarkStorage, createFreshBenchmarkDatabase, disconnectCurrentDatabase, sqliteAdapter]);
+  }, [clearBenchmarkStorage, createFreshBenchmarkDatabase, disconnectCurrentDatabase, sqliteAdapter, t]);
 
   const sectionsRef = useRef(sections);
   sectionsRef.current = sections;

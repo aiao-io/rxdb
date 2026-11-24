@@ -7,7 +7,12 @@ export interface OrbitObject {
   [key: string]: OrbitValue;
 }
 
-/** 应用启动参数。 */
+/**
+ * 应用启动参数。
+ *
+ * 文档站宿主与演示子应用约定的标准字段：`theme`、`route`、`locale`（均为字符串），
+ * 经 {@link OrbitInstance.setProps} 与 {@link OrbitClientContext.props} 原样传递。
+ */
 export type OrbitProps = Readonly<OrbitObject>;
 
 /** 运行状态；隐藏不会暂停或销毁应用。 */

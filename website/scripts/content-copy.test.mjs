@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { readFile, readdir } from 'node:fs/promises';
+import { dirname, join, relative } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { getPackageNames } from './build-website.mjs';
@@ -73,3 +73,38 @@ for (const entry of ['README.md', 'getting-started/README.md']) {
     }
   });
 }
+
+async function walkMarkdown(dir) {
+  const files = [];
+  for (const entry of await readdir(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) files.push(...(await walkMarkdown(full)));
+    else if (entry.name.endsWith('.md')) files.push(full);
+  }
+  return files;
+}
+
+test('untranslated docs never use relative links to translated docs', async () => {
+  // Docusaurus resolves ./ and ../ links only inside the linking file's own
+  // content tree. In the English build an untranslated Chinese file renders as
+  // fallback, so a relative link to a page that HAS a translation no longer
+  // resolves and the strict English build fails. Rooted /path.md links resolve
+  // in both locales, so those targets must be linked rooted.
+  const docsRoot = join(websiteRoot, 'docs');
+  const enRoot = join(websiteRoot, 'i18n/en/docusaurus-plugin-content-docs/current');
+  const translated = new Set((await walkMarkdown(enRoot)).map(file => relative(enRoot, file)));
+  // Generated API docs are excluded: they are rebuilt from TypeDoc and never
+  // link to hand-written guides.
+  const zhFiles = (await walkMarkdown(docsRoot)).filter(file => !relative(docsRoot, file).startsWith('api/'));
+  const violations = [];
+  for (const file of zhFiles) {
+    const source = relative(docsRoot, file);
+    if (translated.has(source)) continue; // the English build renders the translation instead
+    const content = await readFile(file, 'utf8');
+    for (const match of content.matchAll(/\]\(((?:\.\.?\/)[^)\s]*\.md)(?:#[^)]*)?\)/g)) {
+      const target = join(dirname(source), match[1]);
+      if (translated.has(target)) violations.push(`${source}: relative link ${match[1]} targets translated doc ${target}; use a rooted link /${target}`);
+    }
+  }
+  assert.deepEqual(violations, []);
+});

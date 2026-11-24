@@ -1,4 +1,4 @@
-# Relationship cascade defaults
+# Relation cascade defaults
 
 This page explains how the framework fills in default values. It is not business design advice.
 

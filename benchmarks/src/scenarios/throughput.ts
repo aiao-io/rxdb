@@ -2,7 +2,7 @@ import type { RxDB } from '@aiao/rxdb';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { firstValueFrom } from 'rxjs';
 import { getExpectation } from '../analysis/benchmark-rating';
-import type { BenchmarkResult } from '../constants';
+import type { BenchmarkResult, ScenarioRunOptions } from '../constants';
 import { calculateThroughput, measurePerformance, measureWithSamples } from '../utils/performance';
 import { generateTodos } from '../utils/todo-factory';
 
@@ -32,22 +32,23 @@ async function clearAllTodos(rxdb: RxDB): Promise<void> {
 /**
  * 运行吞吐量测试
  * @param rxdb - RxDB 实例
- * @param onResult - 每条结果就绪时的回调
+ * @param options - 结果回调与翻译函数
  * @returns 基准测试结果数组
  */
 export async function runThroughputTests(
   rxdb: RxDB,
-  onResult?: (result: BenchmarkResult) => void
+  options: ScenarioRunOptions
 ): Promise<BenchmarkResult[]> {
+  const { t } = options;
   const results: BenchmarkResult[] = [];
   const push = (result: BenchmarkResult) => {
     results.push(result);
-    onResult?.(result);
+    options.onResult?.(result);
   };
 
   // Test 1: Single write throughput
   const { performance: singleWritePerf } = await measureWithSamples(
-    '单条写入吞吐量',
+    t('scenario.throughput.singleWriteMeasure'),
     async () => {
       const todo = new Todo();
       todo.title = `single-write-${Date.now()}`;
@@ -61,11 +62,16 @@ export async function runThroughputTests(
   const singleExpectation = getExpectation('single-write-throughput');
 
   push({
-    name: `单条写入 (${SINGLE_WRITE_COUNT} 次)`,
+    name: t('scenario.throughput.singleWrite', { count: SINGLE_WRITE_COUNT }),
     duration: singleWritePerf.totalDuration,
     memory: singleWritePerf.memoryGrowth > 0 ? singleWritePerf.memoryGrowth : undefined,
-    extra: `${singleWriteThroughput.toFixed(0)} ops/sec | 平均 ${singleWritePerf.avgDuration.toFixed(2)}ms | min ${singleWritePerf.percentiles.min.toFixed(2)}ms | max ${singleWritePerf.percentiles.max.toFixed(2)}ms`,
-    expectation: `≥${singleExpectation.excellent} ops/sec`,
+    extra: t('scenario.throughput.singleWriteExtra', {
+      ops: singleWriteThroughput.toFixed(0),
+      avg: singleWritePerf.avgDuration.toFixed(2),
+      min: singleWritePerf.percentiles.min.toFixed(2),
+      max: singleWritePerf.percentiles.max.toFixed(2)
+    }),
+    expectation: t('scenario.expectation.geOps', { value: String(singleExpectation.excellent) }),
     testId: 'single-write-throughput',
     rawValue: singleWriteThroughput
   });
@@ -76,7 +82,7 @@ export async function runThroughputTests(
   for (const batchSize of BATCH_SIZES) {
     const totalBatches = Math.ceil(BATCH_OPERATION_COUNT / batchSize);
     const { performance: batchWritePerf } = await measureWithSamples(
-      `批量写入吞吐量 (batch=${batchSize})`,
+      t('scenario.throughput.batchWriteMeasure', { batchSize }),
       async () => {
         const todos = generateTodos(batchSize, `batch-${batchSize}-${Date.now()}`);
         await rxdb.entityManager.saveMany(todos);
@@ -92,11 +98,17 @@ export async function runThroughputTests(
     const improvement = (batchThroughput / singleWriteThroughput).toFixed(1);
 
     push({
-      name: `批量写入 batch=${batchSize} (${BATCH_OPERATION_COUNT.toLocaleString()} 条)`,
+      name: t('scenario.throughput.batchWrite', { batchSize, count: BATCH_OPERATION_COUNT }),
       duration: batchWritePerf.totalDuration,
       memory: batchWritePerf.memoryGrowth > 0 ? batchWritePerf.memoryGrowth : undefined,
-      extra: `${batchThroughput.toFixed(0)} ops/sec (比单条快 ${improvement}x) | 平均 ${batchWritePerf.avgDuration.toFixed(2)}ms | min ${batchWritePerf.percentiles.min.toFixed(2)}ms | max ${batchWritePerf.percentiles.max.toFixed(2)}ms`,
-      expectation: `≥${batchExpectation.excellent} ops/sec`,
+      extra: t('scenario.throughput.batchWriteExtra', {
+        ops: batchThroughput.toFixed(0),
+        speedup: improvement,
+        avg: batchWritePerf.avgDuration.toFixed(2),
+        min: batchWritePerf.percentiles.min.toFixed(2),
+        max: batchWritePerf.percentiles.max.toFixed(2)
+      }),
+      expectation: t('scenario.expectation.geOps', { value: String(batchExpectation.excellent) }),
       testId: `batch-write-${batchSize}-throughput`,
       rawValue: batchThroughput
     });
@@ -109,7 +121,7 @@ export async function runThroughputTests(
   const readTestTodos = generateTodos(READ_PREP_SIZE, 'read-test');
   await rxdb.entityManager.saveMany(readTestTodos);
 
-  const { benchmark: readBench } = await measurePerformance('查询吞吐量', async () => {
+  const { benchmark: readBench } = await measurePerformance(t('scenario.throughput.readMeasure'), async () => {
     for (let i = 0; i < READ_THROUGHPUT_ITERATIONS; i++) {
       await firstValueFrom(Todo.findAll(ALL_TODOS_QUERY));
     }
@@ -120,11 +132,11 @@ export async function runThroughputTests(
   const readExpectation = getExpectation('read-throughput');
 
   push({
-    name: `查询吞吐量 (${READ_THROUGHPUT_ITERATIONS} 次全表查询)`,
+    name: t('scenario.throughput.read', { count: READ_THROUGHPUT_ITERATIONS }),
     duration: readBench.duration,
     memory: readBench.memory,
     extra: `${readThroughput.toFixed(0)} ops/sec`,
-    expectation: `≥${readExpectation.excellent} ops/sec`,
+    expectation: t('scenario.expectation.geOps', { value: String(readExpectation.excellent) }),
     testId: 'read-throughput',
     rawValue: readThroughput
   });

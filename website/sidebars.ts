@@ -1,4 +1,68 @@
 import type { SidebarsConfig } from '@docusaurus/plugin-content-docs';
+import type { SidebarItemConfig } from '@docusaurus/plugin-content-docs/lib/sidebars/types';
+
+// 英文侧边栏标签：键是中文原文，值沿用 website/i18n/en 英文文档的术语。
+const englishSidebarLabels: Readonly<Record<string, string>> = {
+  开始使用: 'Getting Started',
+  模型定义: 'Model Definition',
+  模型查询: 'Model Queries',
+  基础查询: 'Basic Queries',
+  树形结构查询: 'Tree Queries',
+  图结构查询: 'Graph Queries',
+  模型修改: 'Model Mutations',
+  框架集成: 'Framework Integration',
+  '实体模型（rxdb-model）': 'Entity Model (rxdb-model)',
+  '后台外壳（rxdb-admin）': 'Admin Shell (rxdb-admin)',
+  数据库适配器: 'Database Adapters',
+  数据协作: 'Collaboration',
+  插件: 'Plugins',
+  客户端生成: 'Client Generator',
+  代码编辑器组件: 'Code Editor Components',
+  'DevTools 调试工具': 'DevTools',
+  迁移指南: 'Migration Guides',
+  版本兼容矩阵: 'Compatibility Matrix',
+  '版本与 API 稳定性策略': 'Versioning and API Stability Policy',
+  'API 文档': 'API Reference',
+  核心模块: 'Core Modules',
+  适配器: 'Adapters',
+  国际化: 'Internationalization',
+  代码编辑器: 'Code Editor',
+  工具与开发者工具: 'Tools and DevTools',
+  编写插件: 'Plugin Authoring',
+  任务看板: 'Task Boards',
+  'P2P 会话与文件共享': 'P2P Sessions and File Sharing'
+};
+
+// Docusaurus 3.10 的 docs 插件只接受单一 sidebarPath 字符串（Joi.string()），侧边栏文件
+// 也不会以函数形式被调用并拿到 locale 上下文（loadSidebarsFileUnsafe 直接返回模块本身）。
+// 官方提供的工作区是 buildLocale 按 locale 设置的 process.env.DOCUSAURUS_CURRENT_LOCALE
+// （见 @docusaurus/core/lib/commands/build/buildLocale.js 的注释与 issue #4542）：
+// 每个 locale 构建前都会设置该变量并重新加载模块，因此这里按它选择标签语言。
+const currentLocale = process.env.DOCUSAURUS_CURRENT_LOCALE;
+
+function localizeItem(item: SidebarItemConfig): SidebarItemConfig {
+  if (currentLocale !== 'en' || typeof item === 'string') {
+    return item;
+  }
+  const localized =
+    'label' in item && typeof item.label === 'string' && englishSidebarLabels[item.label]
+      ? { ...item, label: englishSidebarLabels[item.label] }
+      : item;
+  if (item.type === 'category') {
+    return {
+      ...localized,
+      items: Array.isArray(item.items)
+        ? item.items.map(localizeItem)
+        : Object.fromEntries(
+            Object.entries(item.items).map(([category, value]) => [
+              category,
+              Array.isArray(value) ? value.map(localizeItem) : value
+            ])
+          )
+    };
+  }
+  return localized;
+}
 
 const sidebars: SidebarsConfig = {
   tutorialSidebar: [
@@ -476,4 +540,6 @@ const sidebars: SidebarsConfig = {
   ]
 };
 
-export default sidebars;
+export default {
+  tutorialSidebar: (sidebars.tutorialSidebar as SidebarItemConfig[]).map(localizeItem)
+} as SidebarsConfig;

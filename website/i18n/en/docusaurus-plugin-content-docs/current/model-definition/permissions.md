@@ -5,7 +5,7 @@ Every entity can declare, for each of the three write operations - create, updat
 - `'both'`: users and the system can both write (the default, same as the current behavior)
 - `'system'`: system writes only - a user write through a public write entry point is rejected on the spot, naming the entity and the operation
 
-The same declaration drives two things at once: fast failure at the write entry points (throwing `PermissionDeniedError`), and which create, edit, and delete entry points the entity management UI (the `EntityList` of Angular / React / Vue) shows. Permission declarations live in the `@aiao/rxdb` core package, so there is nothing extra to install.
+The same declaration drives two things at once: fast failure at the write entry points (throwing `PermissionDeniedError`), and which create, edit, and delete entry points the entity management UI (the `EntityList` of Angular / React / Vue) shows or hides. Permission declarations live in the `@aiao/rxdb` core package, so there is nothing extra to install.
 
 :::warning This is fast failure, not a defensive boundary
 Permission checks are only placed at the public write entry points (the `Repository` facade and `EntityManager`). Writes at the adapter / executor layer are not checked - sync pulls, migrations, history replay, and working-tree materialization all go through that layer. So "no error" does not mean "blocked"; true immutability needs SQL triggers as a backstop, which is beyond what this model means.
@@ -184,7 +184,7 @@ const { canCreate, canEdit, canDelete } = deriveEntityCapabilities(getEntityMeta
 | `canEdit`   | `update === 'both'` | Rows carry `_readonly`: cells, paste, drag, and keyboard switching are all non-writable; "View" opens the detail in view mode (no save entry point) |
 | `canDelete` | `delete === 'both'` | The action column has no "Delete"; "View" remains                                                                                                   |
 
-Delete capability and row read-only are **decoupled**: an entity with `update: 'system'` has read-only rows but can still be deleted when `delete: 'both'`; an entity with `delete: 'system'` has editable rows but no delete button. The action column's `actionsColumn()` takes a per-row predicate `(record) => boolean` as its third argument, which `buildEditableColumns()` derives from `canDelete` - applications that call `actionsColumn()` directly must pass it themselves; see [Action column delete predicate migration](/migration/actions-column-can-delete.md) (in Chinese).
+Delete capability and row read-only are **decoupled**: an entity with `update: 'system'` has read-only rows but can still be deleted when `delete: 'both'`; an entity with `delete: 'system'` has editable rows but no delete button. The action column's `actionsColumn()` takes a per-row predicate `(record) => boolean` as its third argument, which `buildEditableColumns()` derives from `canDelete` - applications that call `actionsColumn()` directly must pass it themselves; see [Action columns](/migration/actions-column-can-delete.md) (in Chinese).
 
 The `EntityList` of all three frameworks follows the same derivation path:
 
@@ -204,4 +204,4 @@ The Relations tab of the detail dialog embeds `EntityList` itself; the associate
 
 - [Defining an entity](/model-definition/README.md)
 - [Writing and deleting entities](/model-mutation/README.md)
-- [Action column delete predicate migration](/migration/actions-column-can-delete.md) (in Chinese)
+- [Action columns](/migration/actions-column-can-delete.md) (in Chinese)

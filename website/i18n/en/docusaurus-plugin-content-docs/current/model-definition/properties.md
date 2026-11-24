@@ -33,7 +33,7 @@ import { Entity, EntityBase, PropertyType } from '@aiao/rxdb';
 export class Product extends EntityBase {}
 ```
 
-## Fields Provided by EntityBase
+## Fields provided by EntityBase
 
 Inheriting `EntityBase` gives you these fields without declaring them again:
 
@@ -43,7 +43,7 @@ Inheriting `EntityBase` gives you these fields without declaring them again:
 - `createdBy`: a nullable string
 - `updatedBy`: a nullable string
 
-## Supported Property Types
+## Supported property types
 
 | Type          | Description           | Key notes                                                                     |
 | ------------- | --------------------- | ----------------------------------------------------------------------------- |
@@ -61,7 +61,7 @@ Inheriting `EntityBase` gives you these fields without declaring them again:
 | `keyValue`    | Flat key-value object | No nesting, no arrays                                                         |
 | `json`        | Arbitrary JSON        | Supports nested objects and arrays; not used for structured search by default |
 
-## Common Property Options
+## Common property options
 
 These options come from `IEntityObject`, `ISortable`, and the concrete property type definitions in the current code:
 
@@ -78,16 +78,16 @@ These options come from `IEntityObject`, `ISortable`, and the concrete property 
 | `default`     | Default value; supports a constant or a function                               |
 | `primary`     | Marks the primary key; supported only by some types                            |
 
-### The Difference Between `required` and `nullable`
+### The difference between `required` and `nullable`
 
 - `required: true`: leans toward form and input validation; an empty string or an empty array is also treated as invalid
 - `nullable: false`: leans toward storage constraints; it means the database column must not be `NULL`
 
-You can use both options together or just one of them; do not conflate the two.
+You can use both options together or just one of them; do not use them interchangeably.
 
-## Common Patterns
+## Common patterns
 
-### 1. Separating the Database Column Name From the Code Field Name
+### 1. Separating the database column name from the code field name
 
 ```ts
 {
@@ -98,7 +98,7 @@ You can use both options together or just one of them; do not conflate the two.
 }
 ```
 
-### 2. Enum Fields
+### 2. Enum fields
 
 ```ts
 {
@@ -109,7 +109,7 @@ You can use both options together or just one of them; do not conflate the two.
 }
 ```
 
-### 3. Function Default Values
+### 3. Function default values
 
 ```ts
 {
@@ -120,7 +120,7 @@ You can use both options together or just one of them; do not conflate the two.
 }
 ```
 
-### 4. The `keyValue` Type
+### 4. The `keyValue` type
 
 `keyValue` is a flat key-value object; its inner keys need their own structure declarations:
 
@@ -136,7 +136,7 @@ You can use both options together or just one of them; do not conflate the two.
 }
 ```
 
-If you need nested objects, arrays, or a looser structure, use `json` instead.
+If you need nested objects, arrays, or a more flexible structure, use `json` instead.
 
 ### 5. `bigint` and `binary`
 
@@ -172,7 +172,7 @@ await entity.save();
 
 `binary` does not support primary keys, relation foreign keys, range comparisons, `LIKE`, or sorting. When you need these capabilities, keep queryable scalar metadata separately.
 
-## Computed Properties
+## Computed properties
 
 The current code also supports `computedProperties`. These fields are:
 

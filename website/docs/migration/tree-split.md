@@ -202,6 +202,6 @@ repository.queryManager.registerMergeRemoveFn(taskType, mergeRemove);
 ## 参考
 
 - [树结构插件](../plugins/rxdb-plugin-tree/README.md)：完整用法与 API
-- [树结构建模](../model-definition/structure-tree.md)
+- [树结构建模](/model-definition/structure-tree.md)
 - [插件作用域契约迁移](./plugin-scope.md)：`install(scope)` 契约与本插件 `lifecycle: 'scoped'` 的含义
 - [版本与 API 稳定性策略](../versioning.md)
