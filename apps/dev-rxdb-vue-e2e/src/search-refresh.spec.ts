@@ -52,7 +52,7 @@ test.describe('Search Refresh', () => {
     const createdResult = page.locator(`[data-testid="search-result"][data-id="${created.id}"]`);
     await expect(createdResult).toBeVisible({ timeout: 15000 });
     await expect(state).toHaveText('success');
-    await expect(resultsCount).toContainText('1 results');
+    await expect(resultsCount).toContainText('1 条结果');
     await expect(input).toHaveValue(query);
 
     await callSearchApi(page, 'updateArticle', created.id, {

@@ -6,7 +6,7 @@ test.describe('Remote Cache Page (US-502 fetch + OPFS cache)', () => {
   test.beforeEach(async ({ page }) => {
     await stubPicsumFetch(page);
     await page.goto('/remote-cache');
-    await expect(page.getByRole('heading', { level: 2, name: 'Remote Cache' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 2, name: '远程缓存' })).toBeVisible();
   });
 
   test('should render preset resource buttons and start with no cached items', async ({ page }) => {
@@ -47,7 +47,7 @@ test.describe('Remote Cache Page (US-502 fetch + OPFS cache)', () => {
     await page.getByRole('button', { name: /Picsum #237/u }).click();
     await expect(page.getByTestId('remote-cache-count')).toHaveText('已缓存（1）', { timeout: 10000 });
 
-    await page.getByRole('button', { name: 'Clear all' }).click();
+    await page.getByRole('button', { name: '清空全部' }).click();
     await expect(page.getByTestId('remote-cache-count')).toHaveText('已缓存（0）', { timeout: 5000 });
     await expect(
       page.getByTestId('remote-cache-log-entry').filter({ hasText: 'Cleared cache directory' })
