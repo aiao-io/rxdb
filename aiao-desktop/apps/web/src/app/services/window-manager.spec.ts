@@ -600,6 +600,29 @@ describe('WindowManager 针对最前窗口的命令', () => {
     expect(wm.hiddenApps().has('finder')).toBe(false);
   });
 
+  it('keepHidden 打开新窗口：不还原同应用被 Hide 收起的窗口，只清掉隐藏标记', () => {
+    const { wm } = setup();
+    const first = openFramed(wm, 'finder');
+    wm.hideApp('finder');
+
+    const trash = open(wm, 'finder', { path: ['Trash'], keepHidden: true });
+    expect(first.win.minimized()).toBe(true);
+    expect(trash.minimized()).toBe(false);
+    expect(wm.hiddenApps().has('finder')).toBe(false);
+  });
+
+  it('keepHidden 还原单个窗口：只还原它，其他最小化窗口保持最小化', () => {
+    const { wm } = setup();
+    const first = openFramed(wm, 'finder');
+    const second = openFramed(wm, 'finder', { force: true });
+    wm.hideApp('finder');
+
+    wm.unminimize(second.win.id, { keepHidden: true });
+    expect(second.win.minimized()).toBe(false);
+    expect(first.win.minimized()).toBe(true);
+    expect(wm.hiddenApps().has('finder')).toBe(false);
+  });
+
   it('Hide Others 不接管用户自己最小化的窗口：Show All 只还原隐藏时收起的那些', () => {
     const { wm } = setup();
     const manually = openFramed(wm, 'notes');

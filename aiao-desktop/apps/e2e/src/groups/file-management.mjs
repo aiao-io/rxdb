@@ -80,6 +80,7 @@ export const fileManagement = {
     'fileManagement.columnActionsUseExactPath',
     'fileManagement.galleryActionsAndDuplicateShortcut',
     'fileManagement.openWithOpensSelectedFile',
+    'fileManagement.openWithSubmenuOpensApp',
     'fileManagement.getInfoShowsPanel',
     'fileManagement.openWithAlwaysSetsDefault',
     'fileManagement.getInfoChangeAllSetsDefault',
@@ -377,7 +378,9 @@ export const fileManagement = {
     await expect(trashWin.locator('[role="option"][data-name="from-desktop.txt"]')).toBeVisible();
     await trashWin.locator('[data-place="Desktop"]').click();
     await expect(trashWin.getByRole('button', { name: /^Import/ })).toHaveCount(0);
-    await trashWin.locator('[role="option"][data-name="Projects"]').drop({ files: payload('from-folder.txt', Buffer.from(text)) });
+    await trashWin
+      .locator('[role="option"][data-name="Projects"]')
+      .drop({ files: payload('from-folder.txt', Buffer.from(text)) });
     await trashWin.locator('[role="option"][data-name="Projects"]').dblclick();
     await expect(trashWin.locator('[role="option"][data-name="from-desktop-folder.txt"]')).toBeVisible();
     await expect(trashWin.locator('[role="option"][data-name="from-folder.txt"]')).toBeVisible();
@@ -484,7 +487,8 @@ export const fileManagement = {
       (await item('renamed.txt').evaluate(node => node === document.activeElement));
     await menu('renamed.txt', 'Duplicate');
     await expect(item('renamed copy.txt')).toBeVisible();
-    await menu('renamed.txt', 'Open With…');
+    await menu('renamed.txt', 'Open With');
+    await page.getByRole('menuitem', { name: 'Other…', exact: true }).click();
     await dialog().getByRole('button', { name: 'Open', exact: true }).click();
     await expect(helpers.win('textedit').locator('[data-te-doc]')).toHaveText(text);
     result.openWithOpensSelectedFile = true;
@@ -525,8 +529,16 @@ export const fileManagement = {
     await closeWin('safari');
     await expect(safari).toHaveCount(0);
 
-    /* Open With… 勾选 Always Open With：所选应用成为默认，另一个 html 双击即生效。 */
-    await menu('index.html', 'Open With…');
+    /* Open With 子菜单：直接选候选应用打开，不走对话框。 */
+    await menu('index.html', 'Open With');
+    await page.getByRole('menuitem', { name: 'TextEdit', exact: true }).click();
+    await expect(helpers.win('textedit').locator('[data-te-doc]')).toContainText('desktop-web');
+    await closeWin('textedit');
+    result.openWithSubmenuOpensApp = true;
+
+    /* Open With ▸ Other… 勾选 Always Open With：所选应用成为默认，另一个 html 双击即生效。 */
+    await menu('index.html', 'Open With');
+    await page.getByRole('menuitem', { name: 'Other…', exact: true }).click();
     await dialog().locator('select').selectOption('textedit');
     await dialog().getByRole('checkbox').check();
     await dialog().getByRole('button', { name: 'Open', exact: true }).click();

@@ -15,11 +15,13 @@ import {
 
 import { FileOperationDialog } from '../apps/finder/file-operation-dialog';
 import { FinderClipboard } from '../apps/finder/finder-clipboard';
+import { openWithCommands } from '../apps/finder/finder-menus';
 import type { FileOperationRequest } from '../apps/finder/finder-model';
 import { isPackageName } from '../disk/disk-kinds';
 import { DESKTOP, DiskPath, finderPathOf, samePath } from '../disk/disk-path';
 import { DesktopItem, DesktopItems, desktopItemId } from '../services/desktop-items';
 import { DockState } from '../services/dock-state';
+import { FileOpener } from '../services/file-opener';
 import { FileSystem, describeDiskError } from '../services/file-system';
 import { isMenuKey } from '../services/focus-order';
 import { MenuEntry } from '../services/menu';
@@ -64,6 +66,7 @@ export class DesktopSurface {
   private readonly popover = inject(PopoverService);
   private readonly toast = inject(Toast);
   private readonly fs = inject(FileSystem);
+  private readonly opener = inject(FileOpener);
   private readonly clipboard = inject(FinderClipboard);
   private readonly dock = inject(DockState);
   private readonly destroyRef = inject(DestroyRef);
@@ -381,11 +384,18 @@ export class DesktopSurface {
       { id: 'o', label: 'Open', run: () => item.open() },
       {
         id: 'w',
-        label: 'Open With…',
+        label: 'Open With',
         disabled: !node || node.kind !== 'file' || isPackageName(node.name),
-        run: () => {
-          if (node?.path) this.fileOperation.set({ kind: 'open-with', node });
-        }
+        submenu:
+          node && node.kind === 'file' && !isPackageName(node.name) ?
+            openWithCommands(
+              this.opener.choices(node),
+              appId => this.opener.openApp(appId, node),
+              () => {
+                if (node.path) this.fileOperation.set({ kind: 'open-with', node });
+              }
+            )
+          : undefined
       },
       '-',
       {

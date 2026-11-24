@@ -1,5 +1,7 @@
-import { MenuEntry } from '../../services/menu';
+import type { DesktopAppId } from '../../services/desktop-apps';
 import type { FinderView } from '../../services/desktop-menus';
+import { OpenWithChoice } from '../../services/file-opener';
+import { MenuEntry } from '../../services/menu';
 import { FinderSort } from './finder-model';
 
 /** Finder 的查看方式命令；工具栏与空白处右键的 View 子菜单共用。 */
@@ -32,5 +34,18 @@ export function finderSortCommands(sort: FinderSort, pick: (next: FinderSort) =>
     command('sort-date', 'Date Modified', 'date'),
     command('sort-size', 'Size', 'size'),
     command('sort-kind', 'Kind', 'kind')
+  ];
+}
+
+/** Open With 子菜单：候选应用直接打开，Other… 走「打开方式」对话框（含 Always Open With）。 */
+export function openWithCommands(
+  choices: readonly OpenWithChoice[],
+  openWith: (id: DesktopAppId) => void,
+  other: () => void
+): MenuEntry[] {
+  return [
+    ...choices.map(choice => ({ id: `open-with-${choice.id}`, label: choice.name, run: () => openWith(choice.id) })),
+    ...(choices.length ? (['-'] as const) : []),
+    { id: 'open-with-other', label: 'Other…', run: other }
   ];
 }

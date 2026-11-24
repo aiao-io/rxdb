@@ -36,10 +36,19 @@ describe('AppLauncher', () => {
     expect(wm.open).not.toHaveBeenCalled();
   });
 
-  it('废纸篓是系统入口：用 Finder 打开 Trash', () => {
+  it('废纸篓是系统入口：用 Finder 打开 Trash，但不还原其他隐藏的 Finder 窗口', () => {
     const { launcher, wm } = setup();
     launcher.activate('trash');
-    expect(wm.open).toHaveBeenCalledExactlyOnceWith('finder', { path: ['Trash'] });
+    expect(wm.open).toHaveBeenCalledExactlyOnceWith('finder', { path: ['Trash'], keepHidden: true });
+    expect(wm.unhideApp).not.toHaveBeenCalled();
+  });
+
+  it('废纸篓窗口已最小化：只还原它，不整组显示 Finder', () => {
+    const { launcher, wm } = setup();
+    wm.byApp.mockReturnValue([windowOf('w1', true, ['Trash'])]);
+    launcher.activate('trash');
+    expect(wm.unminimize).toHaveBeenCalledExactlyOnceWith('w1', { keepHidden: true });
+    expect(wm.unhideApp).not.toHaveBeenCalled();
   });
 
   it('废纸篓已有窗口时重复点击只复用同一个窗口', () => {

@@ -67,7 +67,7 @@ import { MailComposer } from '../mail/mail-composer';
 import { FileOperationDialog } from './file-operation-dialog';
 import { FinderClipboard } from './finder-clipboard';
 import { ItemRect, gridTarget, isGoUp, isMoveToTrash, itemLabel, linearTarget } from './finder-keys';
-import { finderSortCommands, finderViewItems } from './finder-menus';
+import { finderSortCommands, finderViewItems, openWithCommands } from './finder-menus';
 import {
   FAVOURITES_GROUP,
   type FileOperationRequest,
@@ -1264,9 +1264,16 @@ export class FinderApp implements FinderCommands {
       { id: 'o', label: 'Open', run: () => this.openNode(node) },
       {
         id: 'w',
-        label: 'Open With…',
+        label: 'Open With',
         disabled: node?.kind !== 'file' || isPackageName(name),
-        run: () => this.requestFileOperation('open-with', node)
+        submenu:
+          node.kind === 'file' && !isPackageName(name) ?
+            openWithCommands(
+              this.opener.choices(node),
+              appId => this.opener.openApp(appId, node),
+              () => this.requestFileOperation('open-with', node)
+            )
+          : undefined
       },
       '-',
       {

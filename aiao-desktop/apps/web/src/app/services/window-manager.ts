@@ -147,8 +147,12 @@ export class WindowManager {
     }
     /* 打开请求本身算一次「最近使用」，即使应用已经在运行、只是被调到前台。 */
     this.rememberApp(appId);
-    /* 隐藏的应用被再次打开时先整组恢复，再按单实例 / 多实例规则处理。 */
-    this.unhideApp(appId);
+    /*
+     * 隐藏的应用被再次打开时先整组恢复，再按单实例 / 多实例规则处理。
+     * 系统入口（废纸篓）只要自己的窗口：清掉隐藏标记但不还原其他窗口。
+     */
+    if (options.keepHidden) this.forgetHiddenApp(appId);
+    else this.unhideApp(appId);
     const candidates = this.byApp(appId);
     const existing =
       options.force ? undefined
@@ -283,14 +287,20 @@ export class WindowManager {
     this.get(id)?.frame?.minimize();
   }
 
-  /** 从 Dock 还原；刷新后恢复成最小化的窗口，第一次还原时才装载内容。 */
-  unminimize(id: string): void {
+  /**
+   * 从 Dock 还原；刷新后恢复成最小化的窗口，第一次还原时才装载内容。
+   * `keepHidden` 只还原这一个窗口，不把同一个应用里其他被 Hide 收起的窗口一起显示出来。
+   */
+  unminimize(id: string, { keepHidden = false }: { readonly keepHidden?: boolean } = {}): void {
     const win = this.get(id);
     if (!win?.frame) return;
-    /* 还原隐藏应用里的任一窗口等于把整个应用显示出来（macOS 的 Dock / 活动监视器入口）。 */
+    /* 还原隐藏应用里的任一窗口通常等于把整个应用显示出来（macOS 的 Dock / 活动监视器入口）。 */
     if (this.hiddenAppsState().has(win.appId)) {
-      this.unhideApp(win.appId);
-      return;
+      if (!keepHidden) {
+        this.unhideApp(win.appId);
+        return;
+      }
+      this.forgetHiddenApp(win.appId);
     }
     const wasMinimized = win.minimized();
     win.frame.restore();
@@ -383,6 +393,17 @@ export class WindowManager {
       .filter(win => !win.minimized() && !win.closing())
       .sort((a, b) => a.zIndex() - b.zIndex());
     if (visible.length > 1) this.focus(visible[0].id);
+  }
+
+  /** 清掉应用的隐藏标记与「Hide 收起的窗口」记录，但不还原窗口（系统入口只开自己的窗口时用）。 */
+  private forgetHiddenApp(appId: DesktopAppId): void {
+    this.hiddenWindows.delete(appId);
+    this.hiddenAppsState.update(hidden => {
+      if (!hidden.has(appId)) return hidden;
+      const next = new Set(hidden);
+      next.delete(appId);
+      return next;
+    });
   }
 
   /** 窗口关了或已经被单独还原：不再算作「隐藏时收起的窗口」。 */

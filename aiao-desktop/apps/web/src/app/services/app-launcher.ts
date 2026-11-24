@@ -42,14 +42,14 @@ export class AppLauncher {
   }
 
   private openTrash(): void {
-    this.wm.unhideApp('finder');
     const existing = this.wm.byApp('finder').find(win => this.isTrashWindow(win));
     if (!existing) {
-      this.wm.open('finder', { path: ['Trash'] });
+      /* 废纸篓是系统入口：只开 Trash，不把其他被隐藏的 Finder 窗口一起还原出来。 */
+      this.wm.open('finder', { path: ['Trash'], keepHidden: true });
       return;
     }
     if (existing.minimized()) {
-      this.wm.unminimize(existing.id);
+      this.wm.unminimize(existing.id, { keepHidden: true });
       return;
     }
     this.wm.focus(existing.id);

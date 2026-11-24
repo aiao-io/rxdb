@@ -1647,8 +1647,11 @@ export const a11y = {
       await press('Escape');
       await renameInput.waitFor({ state: 'detached' });
       focus.push(await entry().evaluate(node => node === document.activeElement));
-      for (const label of ['Open With…']) {
+      for (const label of ['Open With']) {
         await command(label);
+        /* Open With 是子菜单：经 Other… 进「打开方式」对话框。 */
+        await page.getByRole('menuitem', { name: 'Other…', exact: true }).focus();
+        await press('Enter');
         const dialog = page.locator('app-file-operation-dialog [role="dialog"]');
         await dialog.waitFor();
         names.push(...unnamedControls(await dialog.ariaSnapshot()));

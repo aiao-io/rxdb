@@ -196,6 +196,11 @@ export interface DesktopOpenOptions {
   readonly workspacePath?: DiskPath;
   /** 窗口工作区的显示名。 */
   readonly workspaceName?: string;
+  /**
+   * 只打开这个窗口，不把同一个应用里被 Hide 收起的其他窗口一起显示出来。
+   * 系统入口（例如 Dock 的废纸篓）用它：点废纸篓只开 Trash，不还原其他 Finder 窗口。
+   */
+  readonly keepHidden?: boolean;
 }
 
 /**
