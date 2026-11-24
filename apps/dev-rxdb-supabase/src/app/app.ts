@@ -15,6 +15,10 @@ import { SessionNotice } from './session-notice';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="flex size-full" id="layout-main">
+      @if (app.$sidebarPinned()) {
+        <!-- 窄屏上侧栏是抽屉：遮罩盖住页面，点一下收起（宽屏由 md:hidden 隐藏） -->
+        <div class="sidebar-overlay md:hidden" (click)="app.toggleSidebar()" aria-hidden="true"></div>
+      }
       <app-sidebar></app-sidebar>
       <div class="flex h-full min-w-0 grow flex-col overflow-auto" id="layout-container">
         <app-header></app-header>

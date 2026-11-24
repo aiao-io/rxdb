@@ -36,6 +36,25 @@ app-header {
   @apply relative grow;
 }
 
+#layout-main {
+  @apply relative;
+}
+
+// 窄屏侧栏抽屉的遮罩：只盖住 #layout-main 里的应用内容
+.sidebar-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 99;
+  background: oklch(from var(--color-base-content) l c h / 0.4);
+  animation: sidebar-overlay-in 0.3s ease-in-out;
+}
+
+@keyframes sidebar-overlay-in {
+  from {
+    opacity: 0;
+  }
+}
+
 .header-floating {
   #layout-container {
     @apply relative;

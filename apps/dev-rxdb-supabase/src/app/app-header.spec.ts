@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it, vi } from 'vitest';
 import { AppHeader } from './app-header';
+import { AppService } from './app.service';
 import { DemoSession } from './demo-session';
 
 function renderHeader(session: Partial<DemoSession>) {
@@ -40,5 +41,16 @@ describe('AppHeader', () => {
     const { select } = renderHeader({ description: undefined, currentChoice: null });
 
     expect(select).toBeNull();
+  });
+
+  // 窄屏上侧栏默认收起成抽屉，顶栏要有打开它的入口（宽屏由 md:hidden 隐藏）
+  it('菜单按钮开合侧栏', () => {
+    const { fixture } = renderHeader({ description: undefined, currentChoice: null });
+    const app = TestBed.inject(AppService);
+    const before = app.$sidebarPinned();
+
+    (fixture.nativeElement.querySelector('button[aria-label="菜单"]') as HTMLButtonElement).click();
+
+    expect(app.$sidebarPinned()).toBe(!before);
   });
 });

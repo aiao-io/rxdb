@@ -36,6 +36,12 @@ import { RemoteSyncState } from '../remote-sync-state';
 import { SyncRejectionsPanel } from '../sync-rejections-panel';
 import { createTodoBatchTitles, persistCompleted, persistCompletedBatch } from '../todo-interactions';
 
+/** 列表筛选：全部、进行中、已完成 */
+type TodoTab = 'all' | 'active' | 'completed';
+
+/** 正在跑的那个同步方向；`null` 表示没在同步 */
+type SyncOperation = 'pull' | 'push';
+
 @Component({
   selector: 'app-todo-page',
   imports: [AsyncPipe, FormsModule, LucideDynamicIcon, ScrollingModule, HistorySidebarComponent, SyncRejectionsPanel],
@@ -74,13 +80,25 @@ export default class TodoPage implements AfterViewInit {
   readonly ArrowDown = ArrowDown;
   readonly History = History;
 
+  readonly tabs: readonly { key: TodoTab; label: string }[] = [
+    { key: 'all', label: '全部' },
+    { key: 'active', label: '进行中' },
+    { key: 'completed', label: '已完成' }
+  ];
+  /** 批量添加的档位 */
+  readonly batchSizes = [1, 10, 100, 1000, 10000] as const;
+
+  readonly #wideViewport = window.matchMedia('(min-width: 768px)');
+
   readonly title = signal<string>('');
-  readonly $current_tab = signal<string>('all');
+  readonly $current_tab = signal<TodoTab>('all');
   readonly $completed_sort = signal<'asc' | 'desc'>('asc');
-  readonly $show_history = signal(true);
+  /** 操作历史侧栏：宽屏默认展开；窄屏上它是浮层、打开就挡住列表，默认收起（与 dev-rxdb-angular 同口径 768px） */
+  readonly $show_history = signal(this.#wideViewport.matches);
   readonly $show_sticky_header = signal(false);
   readonly $syncError = signal<string | null>(null);
-  readonly $syncPending = signal(false);
+  readonly $syncing = signal<SyncOperation | null>(null);
+  readonly $syncPending = computed(() => this.$syncing() !== null);
   readonly $crudError = signal<string | null>(null);
 
   // 查询条件
@@ -128,16 +146,20 @@ export default class TodoPage implements AfterViewInit {
   readonly $disabled_toggle_all_btn = computed(() => this.todo_resource.value().length === 0);
 
   readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
-  readonly add_1 = useAction<number>(options => this.add_many_todo(options));
-  readonly add_2 = useAction<number>(options => this.add_many_todo(options));
-  readonly add_3 = useAction<number>(options => this.add_many_todo(options));
-  readonly add_4 = useAction<number>(options => this.add_many_todo(options));
-  readonly add_5 = useAction<number>(options => this.add_many_todo(options));
+  /** 批量添加：一批在写时其余档位都不可点，菜单按钮显示进度 */
+  readonly add_many = useAction<number>(total => this.add_many_todo(total));
 
   fullHeaderRef = viewChild<ElementRef<HTMLElement>>('fullHeader');
   mainContainerRef = viewChild<ElementRef<HTMLElement>>('mainContainer');
 
   trackByFn = (_index: number, todo: Todo) => todo.id;
+
+  constructor() {
+    // 断点跨越（旋转 / 窗口缩放）时同步历史侧栏开合
+    const onViewportChange = (event: MediaQueryListEvent) => this.$show_history.set(event.matches);
+    this.#wideViewport.addEventListener('change', onViewportChange);
+    this.#destroyRef.onDestroy(() => this.#wideViewport.removeEventListener('change', onViewportChange));
+  }
 
   ngAfterViewInit() {
     const fullHeader = this.fullHeaderRef();
@@ -243,8 +265,14 @@ export default class TodoPage implements AfterViewInit {
     this.$show_history.update(show => !show);
   }
 
-  set_current_tab(tab: string) {
+  set_current_tab(tab: TodoTab) {
     this.$current_tab.set(tab);
+  }
+
+  /** 焦点离开批量添加菜单（点了别处）就收起 */
+  close_on_focus_out(event: FocusEvent, dropdown: HTMLDetailsElement) {
+    if (dropdown.contains(event.relatedTarget as Node | null)) return;
+    dropdown.removeAttribute('open');
   }
 
   /**
@@ -260,7 +288,7 @@ export default class TodoPage implements AfterViewInit {
    * `scrollTimeout` 原先声明为 `let scrollTimeout: number;` 且首次就 `clearTimeout(undefined)` ——
    * 无害但说明这段没人验证过。
    */
-  sticky_tab_click(tab: string) {
+  sticky_tab_click(tab: TodoTab) {
     const mainContainer = this.mainContainerRef();
     if (!mainContainer) return;
 
@@ -326,31 +354,32 @@ export default class TodoPage implements AfterViewInit {
     }
   }
 
+  // 与计数、侧栏同一份 Todo 作用域：无参 history() 是整库作用域，会撤销页面外的实体（商品目录）
   undo() {
-    void this.#rxdb.versionManager.history().undo();
+    void this.history.undo();
   }
 
   redo() {
-    void this.#rxdb.versionManager.history().redo();
+    void this.history.redo();
   }
 
   async pull(): Promise<void> {
-    await this.#sync(() => this.#rxdb.syncManager.pull());
+    await this.#sync('pull', () => this.#rxdb.syncManager.pull());
   }
 
   async push(): Promise<void> {
-    await this.#sync(() => this.#rxdb.syncManager.push());
+    await this.#sync('push', () => this.#rxdb.syncManager.push());
   }
 
-  async #sync(operation: () => Promise<unknown>): Promise<void> {
-    this.$syncPending.set(true);
+  async #sync(direction: SyncOperation, operation: () => Promise<unknown>): Promise<void> {
+    this.$syncing.set(direction);
     this.$syncError.set(null);
     try {
       await operation();
     } catch (error) {
       this.$syncError.set(`同步失败：${getErrorMessage(error, '未知错误')}`);
     } finally {
-      this.$syncPending.set(false);
+      this.$syncing.set(null);
     }
   }
 }

@@ -1,4 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { LucideDynamicIcon, LucideMenu as Menu } from '@lucide/angular';
+import { AppService } from './app.service';
 import { IDENTITY_CHOICES } from './demo-identity';
 import { DemoSession } from './demo-session';
 
@@ -10,6 +12,7 @@ import { DemoSession } from './demo-session';
  */
 @Component({
   selector: 'app-header',
+  imports: [LucideDynamicIcon],
   styles: [
     `
       :host {
@@ -29,7 +32,12 @@ import { DemoSession } from './demo-session';
     aria-label="Navbar"
     role="navigation"
   >
-    <div class="inline-flex items-center gap-3"></div>
+    <div class="inline-flex items-center gap-3">
+      <!-- 窄屏上侧栏收起成抽屉，从这里打开；宽屏侧栏常驻，不需要 -->
+      <button class="btn btn-ghost btn-sm md:hidden" (click)="app.toggleSidebar()" aria-label="菜单" type="button">
+        <svg [lucideIcon]="Menu" size="20"></svg>
+      </button>
+    </div>
     @if (session.description; as description) {
       <div class="identity bg-base-100 rounded-box flex items-center gap-2 px-2 py-1 shadow-sm">
         <div class="flex flex-col text-right leading-tight">
@@ -56,8 +64,10 @@ import { DemoSession } from './demo-session';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AppHeader {
+  readonly app = inject(AppService);
   readonly session = inject(DemoSession);
   readonly choices = IDENTITY_CHOICES;
+  readonly Menu = Menu;
 
   switchTo(event: Event): void {
     void this.session.switchTo((event.target as HTMLSelectElement).value);

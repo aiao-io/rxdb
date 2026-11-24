@@ -14,6 +14,7 @@ import {
   type RxDBChangeRuleGroup,
   RxDBError,
   RxDBSync,
+  type RuleGroup,
   type RxDBSyncOrderByField,
   type RxDBSyncRuleGroup,
   type SwitchBranchPrepareContext,
@@ -361,7 +362,7 @@ export async function updatePushableCount(host: UndoRedoApplyHost): Promise<void
       return;
     }
 
-    const count = await countRxDBChangeRecords(options => firstValueFrom(changeRepository.count(options)), {
+    const pending: RuleGroup<RxDBChange> = {
       combinator: 'and',
       rules: [
         { field: 'branchId', operator: '=', value: branch.id },
@@ -372,7 +373,8 @@ export async function updatePushableCount(host: UndoRedoApplyHost): Promise<void
           rules: repoRules
         }
       ]
-    });
+    };
+    const count = await countRxDBChangeRecords(options => firstValueFrom(changeRepository.count(options)), pending);
 
     publish(count);
   } catch (error) {

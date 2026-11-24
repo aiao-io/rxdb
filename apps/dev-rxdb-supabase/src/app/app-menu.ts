@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import {
   LucideHouse as House,
@@ -7,6 +7,7 @@ import {
   LucideStore as Store,
   type LucideIcon
 } from '@lucide/angular';
+import { AppService } from './app.service';
 
 interface LinkMenuItem {
   type: 'link';
@@ -34,7 +35,7 @@ type MenuItem = LinkMenuItem | DividerMenuItem;
           </li>
         } @else {
           <li>
-            <a [routerLink]="item.path" routerLinkActive="menu-active">
+            <a [routerLink]="item.path" (click)="app.closeOverlaySidebar()" routerLinkActive="menu-active">
               <svg [lucideIcon]="item.icon" size="16"></svg>
               <span class="rxdb-menu-item">{{ item.title }}</span>
             </a>
@@ -74,6 +75,7 @@ type MenuItem = LinkMenuItem | DividerMenuItem;
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AppMenu {
+  readonly app = inject(AppService);
   readonly menus = [
     {
       type: 'link',

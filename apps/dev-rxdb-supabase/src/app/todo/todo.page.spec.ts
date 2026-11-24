@@ -1,4 +1,5 @@
 import { RxDB } from '@aiao/rxdb';
+import { Todo } from '@aiao/rxdb-test/entities';
 import { ScrollingModule } from '@angular/cdk/scrolling';
 import { AsyncPipe } from '@angular/common';
 import { NO_ERRORS_SCHEMA, signal } from '@angular/core';
@@ -6,7 +7,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FormsModule } from '@angular/forms';
 import { LucideDynamicIcon } from '@lucide/angular';
 import { of } from 'rxjs';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DemoSession } from '../demo-session';
 import { RemoteSyncState } from '../remote-sync-state';
 import TodoPage from './todo.page';
@@ -108,7 +109,17 @@ function renderTodoPage(
   });
   const fixture = TestBed.createComponent(TodoPage);
   fixture.detectChanges();
-  return { fixture, pull, push, session };
+  return { fixture, history, pull, push, rxdb, session };
+}
+
+/** 视口宽度断点的替身：`matches` 为真表示 ≥ 768px */
+function stubViewport(wide: boolean) {
+  const mediaQuery = {
+    matches: wide,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn()
+  } as unknown as MediaQueryList;
+  vi.spyOn(window, 'matchMedia').mockReturnValue(mediaQuery);
 }
 
 describe('TodoPage remote sync controls', () => {
@@ -179,5 +190,92 @@ describe('TodoPage remote sync controls', () => {
     expect(alert?.textContent).toContain('同步失败：remote unavailable');
     expect(getButton(fixture, 'Pull').disabled).toBe(false);
     expect(getButton(fixture, 'Push').disabled).toBe(false);
+  });
+});
+
+describe('TodoPage 交互', () => {
+  beforeEach(() => angularMocks.useFindAll.mockReset());
+  afterEach(() => vi.restoreAllMocks());
+
+  // 无参 history() 是整库作用域：撤销会撤到页面外的实体（比如商品目录），与侧栏、计数对不上
+  it('撤销 / 重做走 Todo 作用域的历史，与计数、侧栏同一份', () => {
+    const { fixture, history, rxdb } = renderTodoPage();
+
+    fixture.componentInstance.undo();
+    fixture.componentInstance.redo();
+
+    expect(history.undo).toHaveBeenCalledOnce();
+    expect(history.redo).toHaveBeenCalledOnce();
+    expect(rxdb.versionManager.history.mock.calls).toEqual([[Todo]]);
+  });
+
+  it('批量添加：点选一项之后收起菜单，避免停在打开状态挡住列表', () => {
+    const { fixture } = renderTodoPage();
+    const addMany = vi
+      .spyOn(fixture.componentInstance, 'add_many_todo')
+      .mockReturnValue(new Promise<void>(() => undefined));
+    const dropdown = fixture.nativeElement.querySelector('[data-testid="todo-batch-dropdown"]') as HTMLDetailsElement;
+    dropdown.open = true;
+
+    (fixture.nativeElement.querySelector('[data-testid="todo-batch-option-10"]') as HTMLButtonElement).click();
+
+    expect(dropdown.open).toBe(false);
+    expect(addMany).toHaveBeenCalledWith(10);
+    expect(fixture.componentInstance.add_many.isPending()).toBe(true);
+  });
+
+  it('Todo 同步不可用时（本地模式、访客）不显示被拒推送面板', () => {
+    const { fixture } = renderTodoPage({ connected: true, canSyncTodo: false });
+
+    expect(fixture.nativeElement.querySelector('app-sync-rejections-panel')).toBeNull();
+  });
+
+  it('登录身份连着远端时显示被拒推送面板', () => {
+    const { fixture } = renderTodoPage({ connected: true });
+
+    expect(fixture.nativeElement.querySelector('app-sync-rejections-panel')).not.toBeNull();
+  });
+
+  it('窄屏默认收起操作历史侧栏：它是浮层，打开就挡住列表', () => {
+    stubViewport(false);
+
+    const { fixture } = renderTodoPage();
+
+    expect(fixture.componentInstance.$show_history()).toBe(false);
+  });
+
+  it('宽屏默认展开操作历史侧栏', () => {
+    stubViewport(true);
+
+    const { fixture } = renderTodoPage();
+
+    expect(fixture.componentInstance.$show_history()).toBe(true);
+  });
+
+  it('推送进行中只在 Push 上显示加载指示，结束后收起', async () => {
+    const operation = createDeferred();
+    const { fixture } = renderTodoPage({ connected: true, push: () => operation.promise });
+
+    const pending = fixture.componentInstance.push();
+    fixture.detectChanges();
+
+    expect(getButton(fixture, 'Push').querySelector('.loading')).not.toBeNull();
+    expect(getButton(fixture, 'Pull').querySelector('.loading')).toBeNull();
+
+    operation.resolve();
+    await pending;
+    fixture.detectChanges();
+
+    expect(getButton(fixture, 'Push').querySelector('.loading')).toBeNull();
+  });
+
+  it('标签页标出当前选中的那个（aria-selected）', () => {
+    const { fixture } = renderTodoPage();
+
+    fixture.componentInstance.set_current_tab('active');
+    fixture.detectChanges();
+
+    const selected = fixture.nativeElement.querySelectorAll('[role="tab"][aria-selected="true"]');
+    expect(Array.from(selected, (tab: Element) => tab.textContent?.trim())).toEqual(['进行中']);
   });
 });

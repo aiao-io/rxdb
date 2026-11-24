@@ -284,7 +284,11 @@ export {
   buildPushableRepositoryRules
 } from './sync-contract/pushable-repository-rules.js';
 // 待推数的计数口径：一个事务一条记录。历史插件的 `pushableCount$` 与同步插件的仓库状态共用，各数一套就会对不上。
-export { countRxDBChangeRecords, type RxDBChangeCounter } from './sync-contract/change-records.js';
+export {
+  countRxDBChangeRecords,
+  type RxDBChangeCounter,
+  type RxDBChangeWhere
+} from './sync-contract/change-records.js';
 // metadata-only 分支首次物化的来源契约：同步插件实现、工作树插件消费，两者互不依赖，
 // 接口、登记槽与两端都要算出同一个值的分页指纹只能留在核心。
 export * from './sync-contract/branch-materialization-source.js';
