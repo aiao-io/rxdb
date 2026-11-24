@@ -58,11 +58,14 @@ export async function checkGameLifecycle(page, { hiddenTab = false, synthetic = 
     return true;
   };
   /* 键盘打开 Apple 菜单（焦点 + Enter）：与 a11y 组验证过的菜单路径一致。
-     合成 mousedown 在慢机（CI）上会带着 hover/回声状态竞态，菜单有时弹不出来。 */
+     合成 mousedown 在慢机（CI）上会带着 hover/回声状态竞态，菜单有时弹不出来。
+     菜单项同样用键盘激活（聚焦 + Enter）：合成 click 在键盘打开的菜单里在慢机上可能不触发命令。 */
   const apple = async label => {
     await page.locator('#menubar .mb-item.apple').focus();
     await page.keyboard.press('Enter');
-    await activate(page.locator('#layer-menu .pop .mi', { hasText: label }));
+    const item = page.locator('#layer-menu .pop .mi', { hasText: label });
+    await item.focus();
+    await page.keyboard.press('Enter');
   };
   const before = await state();
   await observePause();

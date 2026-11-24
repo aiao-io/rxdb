@@ -873,8 +873,10 @@ export const a11y = {
         await focusReaches(page, info => is(info, 'popover', 'Repository Settings…'));
         await press('Enter');
         const settings = githubWindow.getByRole('dialog', { name: 'Repository Settings', exact: true });
+        /* 慢机（CI）上对话框与远端 URL 的加载更慢：先等对话框可见，URL 文本框给足时间。 */
+        await settings.waitFor({ state: 'visible', timeout: 10_000 });
         const url = settings.getByRole('textbox', { name: 'Primary Remote Repository (origin) URL' });
-        await url.waitFor({ timeout: 5_000 });
+        await url.waitFor({ timeout: 15_000 });
         const settingsFocused = await url.evaluate(node => node === document.activeElement);
         const settingsModal = (await settings.getAttribute('aria-modal')) === 'true';
         await press('Shift+Tab');
