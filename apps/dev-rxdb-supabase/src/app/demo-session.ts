@@ -1,8 +1,10 @@
-import { RXDB_ANONYMOUS_SUBJECT } from '@aiao/rxdb';
+import { RxDB, RXDB_ANONYMOUS_SUBJECT } from '@aiao/rxdb';
 import { DOCUMENT, inject, Injectable, signal } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
 import { joinTenant } from './catalog/catalog-remote';
 import { currentIdentityChoice, describeIdentity } from './demo-identity';
 import { getErrorMessage } from './error-message';
+import { switchIdentity } from './identity-switch';
 import { getPreparedSession, type PreparedSession } from './setup_rxdb_wa-sqlite';
 import { DEMO_ACCOUNTS, signInAnonymousUser, signInDemoAccount, signOutToVisitor } from './supabase-session';
 
@@ -17,6 +19,7 @@ import { DEMO_ACCOUNTS, signInAnonymousUser, signInDemoAccount, signOutToVisitor
 @Injectable({ providedIn: 'root' })
 export class DemoSession {
   readonly #document = inject(DOCUMENT);
+  readonly #rxdb = inject(RxDB);
   readonly #switching = signal(false);
   readonly #error = signal<string | null>(null);
   readonly #sessionMoved = signal(false);
@@ -59,8 +62,13 @@ export class DemoSession {
     this.#switching.set(true);
     this.#error.set(null);
     try {
-      await signInAs(prepared, choice);
-      this.reload();
+      await switchIdentity({
+        remoteConnected: () => firstValueFrom(this.#rxdb.adapterConnected$('supabase')),
+        disconnectRemote: () => this.#rxdb.disconnect('supabase'),
+        connectRemote: () => this.#rxdb.connect('supabase'),
+        signIn: () => signInAs(prepared, choice),
+        reload: () => this.reload()
+      });
     } catch (error) {
       this.#error.set(getErrorMessage(error, '切换身份失败'));
       this.#switching.set(false);
