@@ -15,9 +15,7 @@ export type MetricTab = (typeof METRIC_TABS)[number];
 export const filterActivityRows = <T extends ActivityRow>(rows: readonly T[], query: string): readonly T[] => {
   const normalized = query.trim().toLocaleLowerCase();
   if (!normalized) return rows;
-  return rows.filter(row =>
-    `${row.title} ${row.source} ${row.appId}`.toLocaleLowerCase().includes(normalized)
-  );
+  return rows.filter(row => `${row.title} ${row.source} ${row.appId}`.toLocaleLowerCase().includes(normalized));
 };
 
 /** 字符串的稳定散列：同一行在同一个标签下永远显示同一个演示读数。 */

@@ -13,11 +13,11 @@ import { FocusTrap } from '../../shared/focus-trap';
   host: { class: 'pop', style: 'width: 300px; padding: 14px' },
   template: `
     <div
+      (keydown.escape)="popover.close()"
       appFocusTrap
       aria-label="Delete reminder"
       aria-modal="true"
       role="dialog"
-      (keydown.escape)="popover.close()"
       style="display: flex; flex-direction: column; gap: 12px"
     >
       <h2 style="font-size: 14px; margin: 0">

@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
-import { CUPERTINO, PAN_STEP, TILE, arrowDelta, latAt, lonAt, pointLatLon, worldX, worldY, zoomForBox } from './maps-geo';
+import {
+  CUPERTINO,
+  PAN_STEP,
+  TILE,
+  arrowDelta,
+  latAt,
+  lonAt,
+  pointLatLon,
+  worldX,
+  worldY,
+  zoomForBox
+} from './maps-geo';
 
 describe('arrowDelta', () => {
   it('四个方向键各平移一块瓦片的距离', () => {

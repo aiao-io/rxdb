@@ -87,7 +87,12 @@ describe('compressToZip', () => {
     const archive = await compressToZip(disk, [dir], { now: clock });
     expect(archive.name).toBe('project.zip');
     const entries = central(archive);
-    expect(entries.map(entry => entry.name)).toEqual(['project/', 'project/blank/', 'project/sub/', 'project/sub/a.bin']);
+    expect(entries.map(entry => entry.name)).toEqual([
+      'project/',
+      'project/blank/',
+      'project/sub/',
+      'project/sub/a.bin'
+    ]);
     expect(entries.filter(entry => entry.directory)).toHaveLength(3);
     const file = entries.find(entry => !entry.directory)!;
     expect(local(archive, file)).toEqual(new Uint8Array([0, 255]));
@@ -120,7 +125,9 @@ describe('compressToZip', () => {
     );
     expect(central(nested).map(entry => entry.name)).toEqual(['x.txt', 'b/x.txt', 'b/x 2.txt']);
     await expect(compressToZip(disk, [], { now: clock })).rejects.toThrow('Select items');
-    await expect(compressToZip(disk, [[...DESKTOP, 'missing']], { now: clock })).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(compressToZip(disk, [[...DESKTOP, 'missing']], { now: clock })).rejects.toMatchObject({
+      code: 'ENOENT'
+    });
   });
 
   it('修改时间写进 DOS 日期与时间字段', async () => {

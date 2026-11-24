@@ -69,9 +69,7 @@ describe('isFinderViewSettings 视图设置的类型守卫', () => {
 
 describe('viewSettingsKey 目录视图设置键', () => {
   it('按 Finder 路径拼出偏好键', () => {
-    expect(viewSettingsKey(['Macintosh HD', 'Users', 'stevejobs'])).toBe(
-      'finder:view:Macintosh HD/Users/stevejobs'
-    );
+    expect(viewSettingsKey(['Macintosh HD', 'Users', 'stevejobs'])).toBe('finder:view:Macintosh HD/Users/stevejobs');
   });
 });
 

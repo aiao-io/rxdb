@@ -13,8 +13,8 @@ export const parseAliasRecord = (bytes: Uint8Array): AliasRecord | null => {
   try {
     const value = JSON.parse(new TextDecoder().decode(bytes)) as { readonly target?: unknown };
     const target = value?.['target'];
-    return Array.isArray(target) && target.length && target.every(part => typeof part === 'string')
-      ? { target: target as string[] }
+    return Array.isArray(target) && target.length && target.every(part => typeof part === 'string') ?
+        { target: target as string[] }
       : null;
   } catch {
     return null;

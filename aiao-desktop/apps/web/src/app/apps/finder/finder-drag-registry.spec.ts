@@ -8,11 +8,20 @@ describe('finder-drag-registry 拖拽路径登记', () => {
   });
 
   it('拖拽开始写入路径，防御性拷贝（改原数组不影响登记值）', () => {
-    const paths: string[][] = [['Users', 'a'], ['Users', 'b']];
+    const paths: string[][] = [
+      ['Users', 'a'],
+      ['Users', 'b']
+    ];
     setFinderDrag(paths);
-    expect(finderDragPaths()).toEqual([['Users', 'a'], ['Users', 'b']]);
+    expect(finderDragPaths()).toEqual([
+      ['Users', 'a'],
+      ['Users', 'b']
+    ]);
     paths[0] = ['changed'];
-    expect(finderDragPaths()).toEqual([['Users', 'a'], ['Users', 'b']]);
+    expect(finderDragPaths()).toEqual([
+      ['Users', 'a'],
+      ['Users', 'b']
+    ]);
   });
 
   it('拖拽结束传 null 清空', () => {

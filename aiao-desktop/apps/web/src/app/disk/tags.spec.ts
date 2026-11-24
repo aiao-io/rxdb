@@ -38,9 +38,11 @@ describe('withTags 与 tagsOf', () => {
 
 describe('migrateTags', () => {
   it('改名/移动把条目与全部后代的键迁到新路径', () => {
-    const tagged = withTags(withTags(withTags({}, ['a'], ['red']), ['a', 'b'], ['blue']), ['a', 'b', 'c.txt'], [
-      'green'
-    ]);
+    const tagged = withTags(
+      withTags(withTags({}, ['a'], ['red']), ['a', 'b'], ['blue']),
+      ['a', 'b', 'c.txt'],
+      ['green']
+    );
     const migrated = migrateTags(withTags(tagged, ['other'], ['gray']), ['a'], ['x', 'y']);
     expect(migrated).toEqual({
       'x/y': ['red'],

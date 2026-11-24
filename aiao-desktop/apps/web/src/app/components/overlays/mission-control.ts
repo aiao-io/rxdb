@@ -1,13 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import {
-  Component,
-  ElementRef,
-  afterNextRender,
-  computed,
-  inject,
-  viewChild,
-  viewChildren
-} from '@angular/core';
+import { Component, ElementRef, afterNextRender, computed, inject, viewChild, viewChildren } from '@angular/core';
 
 import { ApplicationRegistry } from '../../services/application-registry';
 import { DesktopWindow } from '../../services/desktop-window';
@@ -157,18 +149,18 @@ export function missionMoveIndex(current: number, columns: number, count: number
     }
   `,
   template: `
-    <div class="cards" #grid role="group" aria-label="Windows">
+    <div class="cards" #grid aria-label="Windows" role="group">
       @for (win of windows(); track win.id) {
         <div
           class="card"
           #card
-          [class.mini]="win.minimized()"
           [attr.aria-label]="win.title()"
-          role="button"
-          tabindex="0"
+          [class.mini]="win.minimized()"
           (click)="activate(win)"
           (keydown.enter)="activate(win)"
           (keydown.space)="activateByKey($event, win)"
+          role="button"
+          tabindex="0"
         >
           <div class="thumb" [style.aspect-ratio]="ratio(win)">
             <svg [appIcon]="apps()[win.appId].icon"></svg>

@@ -23,25 +23,25 @@ export const BANNER_AUTO_DISMISS_MS = 5_000;
       <div
         class="nb"
         [attr.data-banner-id]="banner.id"
-        data-nb-banner
         (pointerenter)="pause(banner.id)"
         (pointerleave)="resume(banner.id)"
+        data-nb-banner
       >
         <button
           class="nb-x"
-          type="button"
-          tabindex="0"
           [attr.aria-label]="'Dismiss notification from ' + banner.app.name"
           (click)="notes.dismissBanner(banner.id)"
+          tabindex="0"
+          type="button"
         >
           ×
         </button>
         <button
           class="nb-main"
-          type="button"
-          tabindex="0"
           [attr.aria-label]="'Open ' + banner.app.name + ': ' + banner.title"
           (click)="notes.bannerOpen(banner.id)"
+          tabindex="0"
+          type="button"
         >
           <svg class="nb-icon" [appIcon]="banner.app.icon"></svg>
           <span class="nb-txt">
@@ -186,6 +186,9 @@ export class NotificationBanner {
   }
 
   private arm(id: string): void {
-    this.timers.set(id, setTimeout(() => this.notes.dismissBanner(id), BANNER_AUTO_DISMISS_MS));
+    this.timers.set(
+      id,
+      setTimeout(() => this.notes.dismissBanner(id), BANNER_AUTO_DISMISS_MS)
+    );
   }
 }

@@ -14,17 +14,17 @@ import { dueLabel, dueOptions } from './reminders-model';
   host: { class: 'pop', style: 'width: 250px; padding: 12px' },
   template: `
     <div
+      (keydown.escape)="popover.close()"
       appFocusTrap
       aria-label="Set due date"
       aria-modal="true"
       role="dialog"
-      (keydown.escape)="popover.close()"
       style="display: flex; flex-direction: column; gap: 10px"
     >
       <h2 style="font-size: 13px; margin: 0">Due date</h2>
       <div style="display: flex; flex-direction: column; gap: 2px">
         @for (option of options; track option.id) {
-          <button class="btn" (click)="choose(option.due)" tabindex="0" type="button" style="text-align: left">
+          <button class="btn" (click)="choose(option.due)" style="text-align: left" tabindex="0" type="button">
             {{ option.label }}
           </button>
         }
@@ -32,7 +32,6 @@ import { dueLabel, dueOptions } from './reminders-model';
       <div style="display: flex; align-items: center; gap: 8px">
         <input
           #day
-          type="date"
           aria-label="Pick a date"
           data-rdue-date
           style="
@@ -46,8 +45,9 @@ import { dueLabel, dueOptions } from './reminders-model';
             background: var(--win-2);
             color: var(--txt);
           "
+          type="date"
         />
-        <button class="btn" (click)="chooseDate(day.value)" [disabled]="!day.value" tabindex="0" type="button">
+        <button class="btn" [disabled]="!day.value" (click)="chooseDate(day.value)" tabindex="0" type="button">
           Set
         </button>
       </div>

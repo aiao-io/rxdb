@@ -26,10 +26,7 @@ describe('suggestRecent', () => {
 
 describe('recordRecent', () => {
   it('同地点去重并移到最前', () => {
-    expect(recordRecent(RECENT, spot('Apple Park')).map(item => item.title)).toEqual([
-      'Apple Park',
-      'Ferry Building'
-    ]);
+    expect(recordRecent(RECENT, spot('Apple Park')).map(item => item.title)).toEqual(['Apple Park', 'Ferry Building']);
   });
 
   it('超过上限丢最旧的', () => {

@@ -32,17 +32,13 @@ export const promoteCityPositions = (cities: readonly CityRow[], id: string): Re
 export const appendCityPositions = (cities: readonly CityRow[], newId: string): ReadonlyMap<string, number> => {
   const sorted = [...cities].sort((left, right) => left.position - right.position);
   return new Map(
-    sorted
-      .map((city, position) => [city.id, position] as const)
-      .concat([[newId, sorted.length]] as const)
+    sorted.map((city, position) => [city.id, position] as const).concat([[newId, sorted.length]] as const)
   );
 };
 
 /** 移除一座城市后其余重新连续编号。 */
 export const removeCityPositions = (cities: readonly CityRow[], id: string): ReadonlyMap<string, number> => {
-  const kept = [...cities]
-    .sort((left, right) => left.position - right.position)
-    .filter(city => city.id !== id);
+  const kept = [...cities].sort((left, right) => left.position - right.position).filter(city => city.id !== id);
   return new Map(kept.map((city, position) => [city.id, position]));
 };
 

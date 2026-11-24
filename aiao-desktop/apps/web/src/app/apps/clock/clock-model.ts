@@ -78,8 +78,7 @@ export const isAlarm = (value: unknown): value is Alarm => {
   );
 };
 
-export const isAlarmList = (value: unknown): value is readonly Alarm[] =>
-  Array.isArray(value) && value.every(isAlarm);
+export const isAlarmList = (value: unknown): value is readonly Alarm[] => Array.isArray(value) && value.every(isAlarm);
 
 /** 秒表读数：累计值加上这段还没停的耗时。 */
 export const stopwatchElapsed = (startedAt: number | null, accumulated: number, now: number): number =>
