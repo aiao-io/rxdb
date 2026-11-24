@@ -67,6 +67,7 @@ import { MailComposer } from '../mail/mail-composer';
 import { FileOperationDialog } from './file-operation-dialog';
 import { FinderClipboard } from './finder-clipboard';
 import { ItemRect, gridTarget, isGoUp, isMoveToTrash, itemLabel, linearTarget } from './finder-keys';
+import { finderSortCommands, finderViewItems } from './finder-menus';
 import {
   FAVOURITES_GROUP,
   type FileOperationRequest,
@@ -764,17 +765,9 @@ export class FinderApp implements FinderCommands {
   }
 
   protected sortMenu(anchor: HTMLElement, event: MouseEvent): void {
-    const sort = this.sort();
-    const pick = (next: FinderSort) => () => this.sort.set(next);
     this.popover.menuUnder(
       anchor,
-      [
-        { head: 'Sort By' },
-        { id: 'n', label: 'Name', checked: sort !== 'date' && sort !== 'size', run: pick('name') },
-        { id: 'd', label: 'Date Modified', checked: sort === 'date', run: pick('date') },
-        { id: 's', label: 'Size', checked: sort === 'size', run: pick('size') },
-        { id: 'k', label: 'Kind', checked: sort === 'kind', run: pick('kind') }
-      ],
+      [{ head: 'Sort By' }, ...finderSortCommands(this.sort(), next => this.sort.set(next))],
       { keyboard: isKeyboardClick(event), label: 'Sort By' }
     );
   }
@@ -882,8 +875,8 @@ export class FinderApp implements FinderCommands {
       { id: 'nf', label: 'New Folder', run: () => this.newFolder() },
       { id: 'gi', label: 'Get Info', run: () => this.showFolderInfo() },
       '-',
-      { id: 'v', label: 'View', key: '▸' },
-      { id: 's', label: 'Sort By', key: '▸' }
+      { id: 'v', label: 'View', submenu: finderViewItems(this.view(), next => this.setView(next)) },
+      { id: 's', label: 'Sort By', submenu: finderSortCommands(this.sort(), next => this.sort.set(next)) }
     ]);
   }
 

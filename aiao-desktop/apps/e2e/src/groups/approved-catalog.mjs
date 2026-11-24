@@ -174,7 +174,8 @@ export const approvedCatalog = {
       await expect(page.locator(`#dock .di[data-app="${id}"]`)).toBeVisible();
       await showStore();
       await page.locator(`#dock .di[data-app="${id}"]`).click({ button: 'right' });
-      await page.locator('#layer-menu [data-act="add-to-dock"]').click();
+      await page.locator('#layer-menu .pop .mroot > .mi[data-act="options"]').click();
+      await page.locator('#layer-menu .mfly .mi[data-act="add-to-dock"]').click();
       await helpers.spotlight(name);
       await expect(page.locator('#spot')).toContainText(name);
       await page.keyboard.press('Escape');

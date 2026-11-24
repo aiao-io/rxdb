@@ -105,17 +105,6 @@ export class DesktopMenus {
     ];
   }
 
-  /** 「最近项目」子菜单：本次会话打开过的应用，新的在前；没有记录时给一个置灰项。 */
-  private recentItems(): readonly MenuEntry[] {
-    const items = this.wm.recentApps().flatMap(appId => {
-      const app = this.apps()[appId];
-      return app ?
-          [{ id: `recent-${appId}`, label: app.name, icon: app.icon, run: () => void this.wm.open(appId) }]
-        : [];
-    });
-    return items.length ? items : [{ id: 'recent-none', label: 'No Recent Items', disabled: true }];
-  }
-
   /** 菜单栏上应用名下的那份菜单。 */
   about(name: string): MenuEntry[] {
     return [
@@ -489,5 +478,16 @@ export class DesktopMenus {
       { load: () => import('../components/menubar/force-quit-panel').then(module => module.ForceQuitPanel) },
       { x: innerWidth / 2 - 140, y: innerHeight / 2 - 140, origin: 'center' }
     );
+  }
+
+  /** 「最近项目」子菜单：本次会话打开过的应用，新的在前；没有记录时给一个置灰项。 */
+  private recentItems(): readonly MenuEntry[] {
+    const items = this.wm.recentApps().flatMap(appId => {
+      const app = this.apps()[appId];
+      return app ?
+          [{ id: `recent-${appId}`, label: app.name, icon: app.icon, run: () => void this.wm.open(appId) }]
+        : [];
+    });
+    return items.length ? items : [{ id: 'recent-none', label: 'No Recent Items', disabled: true }];
   }
 }

@@ -198,12 +198,25 @@ function dockOf(page, helpers) {
   }
 
   async function closeMenu() {
-    await page.keyboard.press('Escape');
+    /* 展开过子菜单时 Esc 只关一层：多按一次，直到整份菜单关闭。 */
+    for (let step = 0; step < 3; step++) {
+      if ((await page.locator('#layer-menu .pop').count()) === 0) break;
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(60);
+    }
     await disappears(page.locator('#layer-menu .pop'), 3_000);
   }
 
+  /** 展开 Dock 菜单里的 Options 子菜单（macOS 把 Keep in Dock / Show in Finder 收在里面）。 */
+  async function openOptions() {
+    await page.locator('#layer-menu .pop .mroot > .mi[data-act="options"]').click();
+    await page.locator('#layer-menu .mfly .mi').first().waitFor();
+  }
+
   async function choose(act) {
-    await page.locator(`#layer-menu .pop .mi[data-act="${act}"]`).click();
+    const item = page.locator(`#layer-menu .pop .mi[data-act="${act}"]`);
+    if ((await item.count()) === 0) await openOptions();
+    await item.click();
     await page.waitForTimeout(300);
   }
 
@@ -234,6 +247,7 @@ function dockOf(page, helpers) {
     closeLaunchpad,
     menuItems,
     openMenu,
+    openOptions,
     closeMenu,
     choose,
     listedInApplications,
@@ -248,6 +262,7 @@ export const dock = {
   keys: [
     'dock.defaultOrder',
     'dock.defaultDivider',
+    'dock.optionsSubmenu',
     'dock.removableOffersRemove',
     'dock.removableUnpinned',
     'dock.removeKeepsApplication',
@@ -307,8 +322,15 @@ export const dock = {
       initial.divider.right < dockPage.at(initial, 'trash').x &&
       (await page.locator('#dock .divider').count()) === 1;
 
-    /* AC#10：可移除的固定项 Remove from Dock 后取消固定，应用本体仍在 Applications。 */
-    const removable = await dockPage.openMenu(icon('music'));
+    /* AC#10：可移除的固定项 Remove from Dock 后取消固定，应用本体仍在 Applications。
+       Keep in Dock / Show in Finder 收在 Options 子菜单里，先展开再断言。 */
+    await dockPage.openMenu(icon('music'));
+    await dockPage.openOptions();
+    const optionsFlyout = page.locator('#layer-menu .mfly[role="menu"]');
+    result.optionsSubmenu =
+      (await optionsFlyout.isVisible()) &&
+      (await optionsFlyout.locator('.mi[data-act="show"]').count()) === 1;
+    const removable = await dockPage.menuItems();
     result.removableOffersRemove = removable.some(item => item.act === 'remove-from-dock' && !item.disabled);
     await dockPage.choose('remove-from-dock');
     result.removableUnpinned = !(await dockEntries(page)).includes('music');
@@ -317,7 +339,12 @@ export const dock = {
     /* 系统项（启动台、废纸篓）与受保护项（Finder）：菜单里的 Remove from Dock 置灰，点了也不会取消固定。 */
     const refusals = [];
     for (const id of ['finder', 'launchpad', 'trash']) {
-      const items = await dockPage.openMenu(icon(id));
+      await dockPage.openMenu(icon(id));
+      let items = await dockPage.menuItems();
+      if (!items.some(item => item.act === 'remove-from-dock')) {
+        await dockPage.openOptions();
+        items = await dockPage.menuItems();
+      }
       const remove = items.find(item => item.act === 'remove-from-dock');
       await page.locator('#layer-menu .pop .mi[data-act="remove-from-dock"]').click({ force: true });
       await page.waitForTimeout(250);
@@ -595,14 +622,19 @@ export const dock = {
       throw new Error(`Dock 键盘菜单未打开：${JSON.stringify(state)}`, { cause: error });
     }
     const firstFocused = await page.evaluate(() => document.activeElement?.matches('#layer-menu .pop .mi') === true);
-    for (let step = 0; step < 6; step++) {
-      if ((await page.evaluate(() => document.activeElement?.dataset?.act)) === 'remove-from-dock') break;
+    for (let step = 0; step < 8; step++) {
+      if ((await page.evaluate(() => document.activeElement?.dataset?.act)) === 'options') break;
       await page.keyboard.press('ArrowDown');
     }
+    await page.keyboard.press('ArrowRight');
+    await page.waitForTimeout(120);
+    const removeFocused =
+      (await page.evaluate(() => document.activeElement?.dataset?.act)) === 'remove-from-dock';
     await page.keyboard.press('Enter');
     await page.waitForTimeout(500);
     result.keyboardRemoveFromDock =
       firstFocused &&
+      removeFocused &&
       sameJson(
         await dockPage.pinned(),
         beforeKeyboard.filter(id => id !== 'mail')
@@ -652,14 +684,18 @@ export const dock = {
     await icon('contacts').focus();
     await page.keyboard.press('Shift+F10');
     await page.locator('#layer-menu .pop .mi').first().waitFor();
-    for (let step = 0; step < 6; step++) {
-      if ((await page.evaluate(() => document.activeElement?.dataset?.act)) === 'add-to-dock') break;
+    for (let step = 0; step < 8; step++) {
+      if ((await page.evaluate(() => document.activeElement?.dataset?.act)) === 'options') break;
       await page.keyboard.press('ArrowDown');
     }
+    await page.keyboard.press('ArrowRight');
+    await page.waitForTimeout(120);
+    const addFocused = (await page.evaluate(() => document.activeElement?.dataset?.act)) === 'add-to-dock';
     await page.keyboard.press('Enter');
     await page.waitForTimeout(600);
     result.keyboardAddFromTemporaryIcon =
       temporaryIsTemp &&
+      addFocused &&
       sameJson(await dockPage.pinned(), [...beforeTemporary.filter(id => id !== 'trash'), 'contacts', 'trash']) &&
       (await icon('contacts').evaluate(node => !node.classList.contains('temp'))) &&
       (await dockPage.activeApp()) === 'contacts';

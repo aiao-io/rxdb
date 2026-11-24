@@ -815,6 +815,10 @@ svg {
 .pop.wide {
   min-width: 230px;
 }
+/* 根菜单的行包一层，只为把根菜单和子菜单放进同一份模板；布局上与直接挂在面板里一样。 */
+.mroot {
+  display: contents;
+}
 /* 带子菜单的面板不能裁掉展开的那一层；子菜单在面板内部绝对定位。 */
 .pop.has-sub {
   overflow: visible;

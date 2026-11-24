@@ -1,4 +1,3 @@
-import { NgTemplateOutlet } from '@angular/common';
 import { Component, ElementRef, computed, inject, input, signal } from '@angular/core';
 
 import { MenuItemAria, menuItemAria } from '../services/aria';
@@ -65,6 +64,17 @@ interface Flyout {
   readonly top: number;
 }
 
+/** 菜单面板里的一组行：根菜单或展开的那一层子菜单。 */
+interface MenuGroup {
+  readonly key: 'root' | 'fly';
+  readonly rows: readonly MenuRow[];
+  readonly checks: boolean;
+  readonly command: MenuCommand | null;
+  readonly left: number | null;
+  readonly right: number | null;
+  readonly top: number | null;
+}
+
 /**
  * 标准下拉菜单（原 `Pop.menu`）：宿主元素就是 `.pop` 玻璃面板，`role="menu"`，项是 `menuitem`（带勾选的是
  * `menuitemcheckbox`），快捷键走 `aria-keyshortcuts` 而不是念进名称。
@@ -77,7 +87,7 @@ interface Flyout {
  */
 @Component({
   selector: 'app-menu-list',
-  imports: [Icon, NgTemplateOutlet],
+  imports: [Icon],
   host: {
     class: 'pop',
     role: 'menu',
@@ -88,64 +98,59 @@ interface Flyout {
     '(pointerleave)': 'closeSubmenu()'
   },
   template: `
-    <ng-template #menuRow let-checks="checks" let-inSubmenu="inSubmenu" let-row>
-      @if (row.type === 'sep') {
-        <div class="msep" role="separator"></div>
-      } @else if (row.type === 'head') {
-        <div class="mhead" role="presentation">{{ row.text }}</div>
-      } @else if (row.type === 'field') {
-        <div class="mfield sfield">
-          <svg appIcon="g-search"></svg
-          ><input [attr.aria-label]="row.placeholder" [placeholder]="row.placeholder" spellcheck="false" />
-        </div>
-      } @else {
-        <div
-          class="mi"
-          [attr.aria-checked]="row.aria.checked"
-          [attr.aria-disabled]="row.command.disabled ? 'true' : null"
-          [attr.aria-expanded]="isOpen(row.command) ? 'true' : null"
-          [attr.aria-haspopup]="row.command.submenu ? 'menu' : null"
-          [attr.aria-keyshortcuts]="row.aria.shortcut"
-          [attr.data-act]="row.command.id"
-          [attr.role]="row.aria.role"
-          [class.dis]="row.command.disabled"
-          [class.on]="row.command.checked"
-          (click)="activate(row.command, $event)"
-          (keydown.enter)="activateByKey($event, row.command)"
-          (keydown.space)="activateByKey($event, row.command)"
-          (mousedown)="hold($event, row.command)"
-          (pointerenter)="hover(row.command, inSubmenu, $event)"
-          tabindex="-1"
-        >
-          @if (checks) {
-            <span class="ck" aria-hidden="true"><svg appIcon="g-check"></svg></span>
-          }
-          @if (row.command.icon; as icon) {
-            <svg class="ico" [appIcon]="icon"></svg>
-          }
-          <span>{{ row.command.label }}</span>
-          @if (row.command.submenu) {
-            <span class="subarr" aria-hidden="true">›</span>
-          } @else if (row.command.key; as key) {
-            <span class="k" aria-hidden="true">{{ key }}</span>
-          }
-        </div>
-      }
-    </ng-template>
-    @for (row of rows(); track $index) {
-      <ng-container *ngTemplateOutlet="menuRow; context: { $implicit: row, inSubmenu: false, checks: checks() }" />
-    }
-    @if (flyout(); as fly) {
+    @for (group of lists(); track group.key) {
       <div
-        class="mfly"
-        [attr.aria-label]="fly.command.label"
-        [style.left.px]="fly.left"
-        [style.right.px]="fly.right"
-        [style.top.px]="fly.top"
-        role="menu"
+        [attr.aria-label]="group.command?.label ?? null"
+        [attr.role]="group.key === 'fly' ? 'menu' : 'presentation'"
+        [class.mfly]="group.key === 'fly'"
+        [class.mroot]="group.key === 'root'"
+        [style.left.px]="group.left"
+        [style.right.px]="group.right"
+        [style.top.px]="group.top"
       >
-        @for (row of fly.rows; track $index) {
-          <ng-container *ngTemplateOutlet="menuRow; context: { $implicit: row, inSubmenu: true, checks: fly.checks }" />
+        @for (row of group.rows; track $index) {
+          @if (row.type === 'sep') {
+            <div class="msep" role="separator"></div>
+          } @else if (row.type === 'head') {
+            <div class="mhead" role="presentation">{{ row.text }}</div>
+          } @else if (row.type === 'field') {
+            <div class="mfield sfield">
+              <svg appIcon="g-search"></svg
+              ><input [attr.aria-label]="row.placeholder" [placeholder]="row.placeholder" spellcheck="false" />
+            </div>
+          } @else {
+            <div
+              class="mi"
+              [attr.aria-checked]="row.aria.checked"
+              [attr.aria-disabled]="row.command.disabled ? 'true' : null"
+              [attr.aria-expanded]="isOpen(row.command) ? 'true' : null"
+              [attr.aria-haspopup]="row.command.submenu ? 'menu' : null"
+              [attr.aria-keyshortcuts]="row.aria.shortcut"
+              [attr.data-act]="row.command.id"
+              [attr.role]="row.aria.role"
+              [class.dis]="row.command.disabled"
+              [class.on]="row.command.checked"
+              (click)="activate(row.command, $event)"
+              (keydown.enter)="activateByKey($event, row.command)"
+              (keydown.space)="activateByKey($event, row.command)"
+              (mousedown)="hold($event, row.command)"
+              (pointerenter)="hover(row.command, group.key === 'fly', $event)"
+              tabindex="-1"
+            >
+              @if (group.checks) {
+                <span class="ck" aria-hidden="true"><svg appIcon="g-check"></svg></span>
+              }
+              @if (row.command.icon; as icon) {
+                <svg class="ico" [appIcon]="icon"></svg>
+              }
+              <span>{{ row.command.label }}</span>
+              @if (row.command.submenu) {
+                <span class="subarr" aria-hidden="true">›</span>
+              } @else if (row.command.key; as key) {
+                <span class="k" aria-hidden="true">{{ key }}</span>
+              }
+            </div>
+          }
         }
       </div>
     }
@@ -166,6 +171,33 @@ export class MenuList {
     this.items().some(entry => isMenuCommand(entry) && Boolean(entry.submenu?.length))
   );
   protected readonly flyout = this.flyoutState.asReadonly();
+  /** 根菜单 +（可选）展开的子菜单；模板按组循环，避免两套行模板。 */
+  protected readonly lists = computed<readonly MenuGroup[]>(() => {
+    const root: MenuGroup = {
+      key: 'root',
+      rows: this.rows(),
+      checks: this.checks(),
+      command: null,
+      left: null,
+      right: null,
+      top: null
+    };
+    const fly = this.flyout();
+    return fly ?
+        [
+          root,
+          {
+            key: 'fly',
+            rows: fly.rows,
+            checks: fly.checks,
+            command: fly.command,
+            left: fly.left,
+            right: fly.right,
+            top: fly.top
+          }
+        ]
+      : [root];
+  });
 
   readonly items = input.required<readonly MenuEntry[]>();
   readonly cls = input('');
@@ -269,7 +301,7 @@ export class MenuList {
       return;
     }
     if (this.flyout()) this.closeSubmenu();
-    this.moveFocus(event, ':scope > .mi:not(.dis)');
+    this.moveFocus(event, '.mroot > .mi:not(.dis)');
   }
 
   private run(command: MenuCommand): void {
@@ -331,6 +363,6 @@ export class MenuList {
   }
 
   private rootRow(id: string): HTMLElement | null {
-    return this.host.querySelector<HTMLElement>(`:scope > .mi[data-act="${CSS.escape(id)}"]`);
+    return this.host.querySelector<HTMLElement>(`.mroot .mi[data-act="${CSS.escape(id)}"]`);
   }
 }

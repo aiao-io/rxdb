@@ -398,16 +398,26 @@ export class Dock implements DockView, DockDropTarget {
           '-'
         ]
       : [];
+    /* macOS 把「保留在 Dock / 在访达中显示」收在 Options 子菜单里；运行中的应用另有 Hide。 */
+    const options: MenuEntry = {
+      id: 'options',
+      label: 'Options',
+      submenu: [
+        dockEntry,
+        {
+          id: 'show',
+          label: 'Show in Finder',
+          run: () => this.wm.open('finder', { path: ['Macintosh HD', 'Applications'], select: `${app.name}.app` })
+        }
+      ]
+    };
+    const hide: MenuEntry[] = open.length ? [{ id: 'hide', label: 'Hide', run: () => this.wm.hideApp(appId) }] : [];
     return [
       ...windows,
       { id: 'new', label: 'New Window', run: () => this.wm.open(appId, { force: true }) },
-      dockEntry,
-      {
-        id: 'show',
-        label: 'Show in Finder',
-        run: () => this.wm.open('finder', { path: ['Macintosh HD', 'Applications'], select: `${app.name}.app` })
-      },
       '-',
+      options,
+      ...hide,
       toggle
     ];
   }

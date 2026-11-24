@@ -145,6 +145,8 @@ export class WindowManager {
       this.toast.show(`Unknown app: ${appId}`);
       return null;
     }
+    /* 打开请求本身算一次「最近使用」，即使应用已经在运行、只是被调到前台。 */
+    this.rememberApp(appId);
     /* 隐藏的应用被再次打开时先整组恢复，再按单实例 / 多实例规则处理。 */
     this.unhideApp(appId);
     const candidates = this.byApp(appId);
@@ -171,7 +173,6 @@ export class WindowManager {
     const top = Math.round(clamp(mb + 26 + step, mb + 6, innerHeight - height - 90));
     const win = new DesktopWindow(`w${++this.seq}`, app, options, { left, top, width, height });
     win.quiet = !this.started;
-    this.rememberApp(appId);
 
     this.windowsState.update(list => [...list, win]);
     this.runtime.start(win);

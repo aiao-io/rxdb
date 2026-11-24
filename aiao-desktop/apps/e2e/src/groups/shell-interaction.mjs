@@ -83,7 +83,8 @@ export const shellInteraction = {
     'shellInteraction.shortcutRouting.hideMenuHidesAllWindows',
     'shellInteraction.shortcutRouting.safariCloseTab',
     'shellInteraction.shortcutRouting.lockShortcut',
-    'shellInteraction.shortcutRouting.recentItemsSubmenu'
+    'shellInteraction.shortcutRouting.recentItemsSubmenu',
+    'shellInteraction.shortcutRouting.recentItemsKeyboard'
   ],
   async run(session) {
     const { page, origin } = session;
@@ -414,13 +415,55 @@ export const shellInteraction = {
 
     /* Apple 菜单「最近项目」是真正的子菜单：展开后能看到刚打开过的 Calculator，点它回到该应用。 */
     await page.locator('#menubar .mb-item.apple').click();
-    await page.locator('#layer-menu .pop > .mi[data-act="recent"]').click();
+    await page.locator('#layer-menu .pop .mroot > .mi[data-act="recent"]').click();
     const recentFlyout = page.locator('#layer-menu .mfly[role="menu"]');
     const recentCalculator = recentFlyout.locator('.mi[data-act="recent-calculator"]');
+    await recentFlyout.waitFor({ state: 'visible', timeout: 3_000 }).catch(() => undefined);
     shortcutRouting.recentItemsSubmenu = (await recentFlyout.isVisible()) && (await recentCalculator.isVisible());
     await recentCalculator.click();
     await page.waitForTimeout(350);
     shortcutRouting.recentItemsSubmenu &&= await win('calculator').evaluate(node => node.classList.contains('front'));
+
+    /*
+     * 键盘路径：Apple 菜单向下到 Recent Items，右方向键展开并把焦点交给第一项；
+     * Esc 只关闭子菜单并回到父项，再按一次 Esc 才关掉整份菜单。
+     */
+    await page.locator('#menubar .mb-item.apple').focus();
+    await page.keyboard.press('ArrowDown');
+    /* 展开菜单的焦点在第一帧之后才进入菜单；等它进去了再按方向键，否则每次都会重开菜单。 */
+    await page.waitForFunction(() => Boolean(document.activeElement?.closest('#layer-menu .pop')), undefined, {
+      timeout: 3_000
+    });
+    /* 焦点可能先落在菜单第一项，也可能还在标题上：按到 Recent Items 为止，不数步数。 */
+    for (let step = 0; step < 10; step++) {
+      const act = await page.evaluate(() => document.activeElement?.dataset?.act ?? null);
+      if (act === 'recent') break;
+      await page.keyboard.press('ArrowDown');
+    }
+    await page.keyboard.press('ArrowRight');
+    const keyboardFlyout = page.locator('#layer-menu .mfly[role="menu"]');
+    const keyboardOpened = await keyboardFlyout.waitFor({ state: 'visible', timeout: 3_000 }).then(
+      () => true,
+      () => false
+    );
+    await page.waitForTimeout(100);
+    const focusInFlyout = await page.evaluate(() => Boolean(document.activeElement?.closest('.mfly')));
+    await page.keyboard.press('Escape');
+    const submenuClosed = await keyboardFlyout.waitFor({ state: 'detached', timeout: 2_000 }).then(
+      () => true,
+      () => false
+    );
+    const rootStillOpen = await page.locator('#layer-menu .pop').isVisible();
+    await page.keyboard.press('Escape');
+    const rootClosed = await page
+      .locator('#layer-menu .pop')
+      .waitFor({ state: 'detached', timeout: 2_000 })
+      .then(
+        () => true,
+        () => false
+      );
+    shortcutRouting.recentItemsKeyboard =
+      keyboardOpened && focusInFlyout && submenuClosed && rootStillOpen && rootClosed;
 
     return {
       shellInteraction: {

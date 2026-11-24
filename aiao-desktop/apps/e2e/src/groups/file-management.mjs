@@ -307,6 +307,10 @@ export const fileManagement = {
     const finder = () => page.locator('.win.front[data-app="finder"]:not(.closing)');
     const item = name => finder().locator(`[role="option"][data-name=${JSON.stringify(name)}]`);
     const place = async name => {
+      /* 侧栏条目是 cdk-drag：开窗动画期间按下，条目会在指针下移动、越过 CDK 的拖动阈值，把点击变成拖拽。
+         等前台窗口存在且开窗动画结束（opening 类清除）再点，点击才是点击。 */
+      await expect(finder()).toBeVisible();
+      await expect(finder()).not.toHaveClass(/opening/);
       await finder()
         .locator(`[data-place=${JSON.stringify(name)}]`)
         .click();
@@ -351,31 +355,32 @@ export const fileManagement = {
       await menu(name, 'Move to Trash');
       await expect(item(name)).toHaveCount(0);
     };
-    const trashWin = () => page.locator('.win[data-app="finder"]:not(.closing)[aria-label="Trash"]');
+    /** 废纸篓窗口的定位器：打开后按窗口 id 绑定（aria-label 跟着标题走，导航后就不再是 Trash）。 */
+    let trashWin = null;
     const openTrash = async () => {
-      if ((await finder().locator('[data-title]').textContent()) === 'Trash') {
-        const current = await finder().getAttribute('id');
-        await page.locator('#dock .di[data-app="trash"]').click();
-        await expect(finder()).toHaveAttribute('id', current);
-        return;
-      }
-      const previous = await finder().getAttribute('id');
       await page.locator('#dock .di[data-app="trash"]').click();
-      await expect(finder()).not.toHaveAttribute('id', previous);
-      await expect(finder().locator('[data-title]')).toHaveText('Trash');
+      const byTitle = page.locator('.win[data-app="finder"]:not(.closing)[aria-label="Trash"]');
+      await expect(byTitle).toBeVisible();
+      /* 两个 Finder 窗口并存时，另一个窗口可能正被还原抢前台：等废纸篓窗自己的开窗动画结束，
+         点它的标题确定它是前台，本段后续操作都按窗口 id 定位，不依赖 .win.front。 */
+      await expect(byTitle).not.toHaveClass(/opening/);
+      const id = await byTitle.getAttribute('id');
+      trashWin = page.locator(`#${id}`);
+      await trashWin.locator('[data-title]').click();
+      await expect(finder()).toHaveAttribute('id', id);
     };
     await openTrash();
     result.trashOpensInIconView =
-      (await finder().getByRole('button', { name: 'Icons', exact: true }).getAttribute('aria-pressed')) === 'true';
-    await expect(finder().locator('[data-trash-header]')).toBeVisible();
-    await expect(finder().getByRole('button', { name: 'Empty Trash', exact: true })).toHaveText('Empty');
-    await expect(item('from-desktop.txt')).toBeVisible();
-    await place('Desktop');
-    await expect(finder().getByRole('button', { name: /^Import/ })).toHaveCount(0);
-    await item('Projects').drop({ files: payload('from-folder.txt', Buffer.from(text)) });
-    await item('Projects').dblclick();
-    await expect(item('from-desktop-folder.txt')).toBeVisible();
-    await expect(item('from-folder.txt')).toBeVisible();
+      (await trashWin.getByRole('button', { name: 'Icons', exact: true }).getAttribute('aria-pressed')) === 'true';
+    await expect(trashWin.locator('[data-trash-header]')).toBeVisible();
+    await expect(trashWin.getByRole('button', { name: 'Empty Trash', exact: true })).toHaveText('Empty');
+    await expect(trashWin.locator('[role="option"][data-name="from-desktop.txt"]')).toBeVisible();
+    await trashWin.locator('[data-place="Desktop"]').click();
+    await expect(trashWin.getByRole('button', { name: /^Import/ })).toHaveCount(0);
+    await trashWin.locator('[role="option"][data-name="Projects"]').drop({ files: payload('from-folder.txt', Buffer.from(text)) });
+    await trashWin.locator('[role="option"][data-name="Projects"]').dblclick();
+    await expect(trashWin.locator('[role="option"][data-name="from-desktop-folder.txt"]')).toBeVisible();
+    await expect(trashWin.locator('[role="option"][data-name="from-folder.txt"]')).toBeVisible();
     result.dropsOnDesktopFolder = (await diskText(session, 'from-desktop-folder.txt')) === text;
     result.dropsOnFolder = (await diskText(session, 'from-folder.txt')) === text;
 
