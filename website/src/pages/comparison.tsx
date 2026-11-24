@@ -5,6 +5,7 @@ import { ArrowRight, CircleSlash, Code, Database, GitBranch, RefreshCw, ShieldCh
 import type { ReactNode } from 'react';
 
 import { Button } from '@site/src/components/button';
+import { useSiteCopy } from '@site/src/lib/locale-copy';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -93,7 +94,11 @@ function Section({ index, eyebrow, title, description, children }: SectionProps)
   );
 }
 
-function ComparisonContent(): ReactNode {
+interface ComparisonContentProps {
+  copy: (value: string) => string;
+}
+
+function ComparisonContent({ copy }: ComparisonContentProps): ReactNode {
   return (
     <div className='home-shell min-h-screen'>
       <section className='relative px-4 pt-20 pb-12 sm:px-6 sm:pt-28'>
@@ -103,20 +108,20 @@ function ComparisonContent(): ReactNode {
               variants={itemVariants}
               className='text-foreground mt-4 max-w-4xl text-4xl leading-[1.05] font-semibold tracking-tight sm:text-5xl lg:text-6xl'
             >
-              RxDB 是否适合你的项目
+              {copy('RxDB 是否适合你的项目')}
             </motion.h1>
             <motion.p
               variants={itemVariants}
               className='text-muted-foreground mt-8 max-w-3xl text-base leading-7 sm:text-lg sm:leading-8'
             >
-              先核对本地执行、响应式查询和跨框架模型是否对应你的真实需求，再评估引入数据库与 RxJS 的成本。
+              {copy('先核对本地执行、响应式查询和跨框架模型是否对应你的真实需求，再评估引入数据库与 RxJS 的成本。')}
             </motion.p>
             <motion.div variants={itemVariants} className='mt-10 flex flex-wrap gap-3'>
               <Button asChild>
-                <Link to='/docs/getting-started/'>快速开始</Link>
+                <Link to='/docs/getting-started/'>{copy('快速开始')}</Link>
               </Button>
               <Button asChild variant='outline'>
-                <Link to='/architecture'>了解架构</Link>
+                <Link to='/architecture'>{copy('了解架构')}</Link>
               </Button>
             </motion.div>
           </motion.div>
@@ -126,8 +131,8 @@ function ComparisonContent(): ReactNode {
       <Section
         index='01'
         eyebrow='signals'
-        title='先确认三个关键需求'
-        description='这三个条件越明确，RxDB 带来的收益越容易验证。'
+        title={copy('先确认三个关键需求')}
+        description={copy('这三个条件越明确，RxDB 带来的收益越容易验证。')}
       >
         <div className='grid gap-0 md:grid-cols-3'>
           {reasons.map((reason, idx) => (
@@ -142,15 +147,15 @@ function ComparisonContent(): ReactNode {
                 {reason.tag}
               </div>
               <reason.icon className='text-primary mb-5 size-6' />
-              <h3 className='text-foreground mb-3 text-xl font-semibold tracking-tight'>{reason.title}</h3>
-              <p className='text-muted-foreground text-sm leading-6'>{reason.description}</p>
+              <h3 className='text-foreground mb-3 text-xl font-semibold tracking-tight'>{copy(reason.title)}</h3>
+              <p className='text-muted-foreground text-sm leading-6'>{copy(reason.description)}</p>
             </motion.div>
           ))}
         </div>
         <div className='border-border border-r border-b border-l' />
       </Section>
 
-      <Section index='02' eyebrow='fit / non-fit' title='适用场景与不适用场景'>
+      <Section index='02' eyebrow='fit / non-fit' title={copy('适用场景与不适用场景')}>
         <div className='grid gap-6 lg:grid-cols-2'>
           <motion.div variants={itemVariants}>
             <div className='surface-card relative h-full overflow-hidden p-8'>
@@ -158,13 +163,13 @@ function ComparisonContent(): ReactNode {
                 <Users className='text-primary size-6' />
                 <span className='mono-chip mono-chip--primary'>FIT</span>
               </div>
-              <h3 className='text-foreground mb-2 text-2xl font-semibold tracking-tight'>适合的场景</h3>
-              <p className='text-muted-foreground mb-6 text-sm leading-6'>符合的条件越多，接入收益越清晰。</p>
+              <h3 className='text-foreground mb-2 text-2xl font-semibold tracking-tight'>{copy('适合的场景')}</h3>
+              <p className='text-muted-foreground mb-6 text-sm leading-6'>{copy('符合的条件越多，接入收益越清晰。')}</p>
               <div className='divide-border/50 -mx-2 divide-y'>
                 {fitTeams.map(item => (
                   <div key={item} className='flex items-start gap-3 px-2 py-4 first:pt-0 last:pb-0'>
                     <ShieldCheck className='text-primary mt-0.5 size-4 shrink-0' />
-                    <p className='text-sm leading-6'>{item}</p>
+                    <p className='text-sm leading-6'>{copy(item)}</p>
                   </div>
                 ))}
               </div>
@@ -177,13 +182,15 @@ function ComparisonContent(): ReactNode {
                 <Code className='text-muted-foreground size-6' />
                 <span className='mono-chip'>NOT FIT</span>
               </div>
-              <h3 className='text-foreground mb-2 text-2xl font-semibold tracking-tight'>不适合的情况</h3>
-              <p className='text-muted-foreground mb-6 text-sm leading-6'>以下场景通常有更轻量或更成熟的方案。</p>
+              <h3 className='text-foreground mb-2 text-2xl font-semibold tracking-tight'>{copy('不适合的情况')}</h3>
+              <p className='text-muted-foreground mb-6 text-sm leading-6'>
+                {copy('以下场景通常有更轻量或更成熟的方案。')}
+              </p>
               <div className='divide-border/50 -mx-2 divide-y'>
                 {nonFitTeams.map(item => (
                   <div key={item} className='flex items-start gap-3 px-2 py-4 first:pt-0 last:pb-0'>
                     <CircleSlash className='text-muted-foreground mt-0.5 size-4 shrink-0' />
-                    <p className='text-sm leading-6'>{item}</p>
+                    <p className='text-sm leading-6'>{copy(item)}</p>
                   </div>
                 ))}
               </div>
@@ -192,7 +199,7 @@ function ComparisonContent(): ReactNode {
         </div>
       </Section>
 
-      <Section index='03' eyebrow='scope' title='当前协作能力边界'>
+      <Section index='03' eyebrow='scope' title={copy('当前协作能力边界')}>
         <motion.div variants={itemVariants}>
           <div className='surface-card p-8 sm:p-10'>
             <div className='mb-4 flex items-center gap-3'>
@@ -200,8 +207,10 @@ function ComparisonContent(): ReactNode {
               <span className='eyebrow eyebrow--plain'>collaboration scope</span>
             </div>
             <p className='text-muted-foreground text-base leading-7 sm:text-lg sm:leading-8'>
-              当前已提供版本分支、撤销重做、条件同步、跨 Tab 通知，以及独立的 P2P 认证会话与文件共享。
-              实体操作权限可由应用上下文控制；服务端认证、授权与托管同步仍需应用接入，CRDT 多人实时协同尚未提供。
+              {copy('当前已提供版本分支、撤销重做、条件同步、跨 Tab 通知，以及独立的 P2P 认证会话与文件共享。')}{' '}
+              {copy(
+                '实体操作权限可由应用上下文控制；服务端认证、授权与托管同步仍需应用接入，CRDT 多人实时协同尚未提供。'
+              )}
             </p>
             <div className='mt-6 flex flex-wrap gap-2'>
               {['Version branching', 'Undo / redo', 'Conditional sync', 'Cross-tab sync'].map(tag => (
@@ -227,16 +236,16 @@ function ComparisonContent(): ReactNode {
                 <div className='flex flex-col gap-8 md:flex-row md:items-center md:justify-between'>
                   <div>
                     <h2 className='text-foreground mt-4 text-3xl font-semibold tracking-tight sm:text-4xl'>
-                      用在线演示验证关键场景
+                      {copy('用在线演示验证关键场景')}
                     </h2>
                     <p className='text-muted-foreground mt-4 text-base leading-7'>
-                      重点观察查询结果如何更新、关系数据如何组织，以及同一模型在三套框架中的绑定差异。
+                      {copy('重点观察查询结果如何更新、关系数据如何组织，以及同一模型在三套框架中的绑定差异。')}
                     </p>
                   </div>
                 </div>
                 <Button asChild size='lg'>
                   <Link to='/demos'>
-                    打开在线演示
+                    {copy('打开在线演示')}
                     <ArrowRight />
                   </Link>
                 </Button>
@@ -250,9 +259,14 @@ function ComparisonContent(): ReactNode {
 }
 
 export default function ComparisonPage(): ReactNode {
+  const copy = useSiteCopy();
+
   return (
-    <Layout title='适用场景' description='根据本地数据库、响应式查询与跨框架模型需求，判断 RxDB 是否适合当前项目'>
-      <ComparisonContent />
+    <Layout
+      title={copy('适用场景')}
+      description={copy('根据本地数据库、响应式查询与跨框架模型需求，判断 RxDB 是否适合当前项目')}
+    >
+      <ComparisonContent copy={copy} />
     </Layout>
   );
 }

@@ -158,7 +158,186 @@ const englishCopy: Readonly<Record<string, string>> = {
   '在独立运行的基准测试应用中查看 RxDB 的实时测试结果': 'Run the RxDB benchmarks and inspect their results.',
   演示运行失败: 'The demo stopped running.',
   重新加载演示: 'Reload demo',
-  '界面与源码 1:1 对照': 'Compare UI and source 1:1'
+  '界面与源码 1:1 对照': 'Compare UI and source 1:1',
+  技术架构: 'Architecture',
+  'RxDB 如何把数据库、响应式查询、模型驱动开发与同步协作在浏览器内组织成清晰层次':
+    'How RxDB organizes the database, reactive queries, model-driven development, and sync collaboration into clear layers inside the browser',
+  'RxDB 如何组织浏览器内数据链路': 'How RxDB organizes the in-browser data path',
+  '存储、响应式查询、实体模型与 UI 绑定分别承担明确职责，远端同步作为可选协作层接入。':
+    'Storage, reactive queries, the entity model, and UI binding each carry a clear responsibility, with remote sync joining as an optional collaboration layer.',
+  存储层: 'Storage layer',
+  'SQLite 负责落盘、索引、事务与查询执行。': 'SQLite handles persistence, indexes, transactions, and query execution.',
+  响应式层: 'Reactive layer',
+  'RxJS 把查询结果、实体变更和副作用汇成同一条数据流。':
+    'RxJS merges query results, entity changes, and side effects into a single stream.',
+  模型层: 'Model layer',
+  '实体元数据统一定义字段、关系、查询构造与生成代码的边界。':
+    'Entity metadata defines the boundaries of fields, relations, query construction, and generated code in one place.',
+  协作层: 'Collaboration layer',
+  '分支、同步与撤销重做建立在本地数据版本之上，按需启用。':
+    'Branching, sync, and undo/redo build on local data versions and are enabled as needed.',
+  '四个层次，按执行职责划分': 'Four layers, split by execution responsibility',
+  浏览器就是主执行面: 'The browser is the primary execution plane',
+  'UI、业务规则、查询与持久化在浏览器内执行；远端负责交换变更，不接管每一次本地读写。':
+    'UI, business rules, queries, and persistence execute in the browser; the remote side only exchanges changes instead of taking over every local read and write.',
+  读写查询先在本地完成: 'Reads, writes, and queries finish locally first',
+  '界面、领域逻辑、查询与事务在浏览器内运行。离线时继续读写，联网后再按需同步。':
+    'The interface, domain logic, queries, and transactions run in the browser. Reads and writes continue offline, and sync happens when connectivity returns.',
+  'UI 与交互层': 'UI and interaction layer',
+  '页面、表单与详情视图直接消费本地查询结果，常用读写无需等待网络往返。':
+    'Pages, forms, and detail views consume local query results directly, so common reads and writes never wait for a network round trip.',
+  本地业务与模型层: 'Local business and model layer',
+  '实体规则、关系约束、查询构造与副作用在浏览器里闭环执行。':
+    'Entity rules, relation constraints, query construction, and side effects run in a closed loop inside the browser.',
+  本地数据库层: 'Local database layer',
+  'SQLite 或 PGlite 负责事务、索引与查询，持久化按适配器选择 IndexedDB 或 OPFS。':
+    'SQLite or PGlite handles transactions, indexes, and queries, persisting through IndexedDB or OPFS depending on the adapter.',
+  '把本地提交、分支状态和需要共享的数据推到远端。':
+    'Push local commits, branch state, and the data that needs to be shared to the remote.',
+  '拉取远端变更，并合并到本地数据流。': 'Pull remote changes and merge them into the local data stream.',
+  交互优先本地执行: 'Local-first interaction',
+  '体验不被网络往返拖慢。': 'The experience never waits on a network round trip.',
+  版本按分支流转: 'Versions flow through branches',
+  '撤销、重做、分支与历史围绕数据版本组织。': 'Undo, redo, branching, and history are organized around data versions.',
+  同步按需触发: 'Sync triggers on demand',
+  '联网后再 pull / push，本地读写不依赖服务端往返。':
+    'Pull / push once back online; local reads and writes do not depend on server round trips.',
+  远端同步仓库: 'Remote sync repository',
+  '远端充当共享存储或同步中继点，负责交换版本与变更，不替浏览器执行业务主流程。':
+    "The remote acts as shared storage or a sync relay that exchanges versions and changes without running the browser's main business flow.",
+  保存可共享的版本历史与同步状态: 'Keep shareable version history and sync state',
+  为多设备或多成员提供交换点: 'Provide an exchange point for multiple devices or members',
+  '通过 pull / push 交换变更，不接管本地业务执行':
+    'Exchange changes via pull / push without taking over local business execution',
+  核心技术选型: 'Core technology choices',
+  '每一层都服务于同一个目标——让数据应用真正跑在浏览器里':
+    'Every layer serves one goal: making data applications truly run in the browser',
+  本地存储执行层: 'Local storage and execution',
+  '提供事务、索引与 SQL 查询，适合多数浏览器端结构化数据场景。':
+    'Provides transactions, indexes, and SQL queries for most structured-data scenarios in the browser.',
+  '推荐 SQLite 运行时': 'Recommended SQLite runtime',
+  '浏览器端 WebAssembly SQLite 实现；默认使用受支持的 IDB 后端，OPFS VFS 需按实验性能力评估。':
+    'A WebAssembly SQLite implementation for the browser. It defaults to the supported IDB backend, while the OPFS VFS should be evaluated as an experimental capability.',
+  高级查询执行层: 'Advanced query execution',
+  '在浏览器内提供 PostgreSQL 兼容能力，适合复杂查询与扩展需求。':
+    'Brings PostgreSQL compatibility into the browser for complex queries and extended requirements.',
+  模型与类型约束: 'Model and type constraints',
+  '约束模型定义、生成代码与消费端 API，在编译期暴露类型错误。':
+    'Constrains the model definition, generated code, and consumer APIs, surfacing type errors at compile time.',
+  核心响应式主线: 'Core reactive backbone',
+  '用 Observable 连接查询结果、变更事件与副作用，构成统一的响应式数据流。':
+    'Uses Observables to connect query results, change events, and side effects into one reactive data stream.',
+  可选持久化增强: 'Optional persistence upgrade',
+  '按适配器和 VFS 的支持等级选择 OPFS；wa-sqlite 默认使用 IDB，不能只凭 API 可用自动切换。':
+    'Choose OPFS by adapter and VFS support level. wa-sqlite defaults to IDB and must not switch automatically just because an API is available.',
+  代码生成引擎: 'Code generation engine',
+  '基于 TypeScript AST，将实体元数据转换为类型、查询构建器与框架适配代码。':
+    'Turns entity metadata into types, query builders, and framework adapter code using the TypeScript AST.',
+  已落地的能力: 'Capabilities in place',
+  '以下能力都可以在文档、demo 和源码里直接验证':
+    'Every capability below can be verified directly in the docs, demos, and source code',
+  模型驱动开发: 'Model-driven development',
+  已实现: 'Implemented',
+  '用元数据描述实体，并从模型推导查询、表单与类型约束。':
+    'Describe entities with metadata and derive queries, forms, and type constraints from the model.',
+  实体元数据: 'Entity metadata',
+  关系建模: 'Relation modeling',
+  '类型安全 CRUD': 'Type-safe CRUD',
+  响应式查询自动更新: 'Reactive query auto-updates',
+  '跨框架统一 API': 'One API across frameworks',
+  '三个框架共享模型与查询语义，各自保留符合框架习惯的 UI 绑定 API。':
+    'All three frameworks share model and query semantics while keeping UI binding APIs that feel native to each framework.',
+  'RxJS Observable 通用支持': 'Universal RxJS Observable support',
+  代码生成链路: 'Code generation pipeline',
+  '从模型定义生成类型与辅助代码，减少重复实现。':
+    'Generate types and helper code from the model definition to cut duplicated implementation.',
+  完整类型推断: 'Complete type inference',
+  查询构建器: 'Query builder',
+  实体辅助代码: 'Entity helper code',
+  框架封装输出: 'Framework wrapper output',
+  性能基础设施: 'Performance infrastructure',
+  '通过浏览器内数据库、Worker 与查询缓存划分计算和持久化职责。':
+    'Split computation and persistence across the in-browser database, Workers, and query caching.',
+  'Worker 支持': 'Worker support',
+  'IDB / OPFS 持久化': 'IDB / OPFS persistence',
+  查询缓存: 'Query caching',
+  'WASM 数据库执行': 'WASM database execution',
+  版本与同步基础: 'Versioning and sync foundations',
+  'MVP 已验证': 'MVP verified',
+  '当前已验证版本分支、撤销重做、条件同步与跨 Tab 同步。':
+    'Version branching, undo/redo, conditional sync, and cross-Tab sync have been verified.',
+  'Branch 管理': 'Branch management',
+  撤销重做: 'Undo / redo',
+  '跨 Tab 同步': 'Cross-Tab sync',
+  多种同步策略: 'Multiple sync strategies',
+  关键代码路径: 'Key code paths',
+  '从模型定义到界面订阅，每一步都有明确输入与输出':
+    'From model definition to UI subscription, every step has clear inputs and outputs',
+  '1. 定义模型边界': '1. Define the model boundary',
+  '2. 生成稳定接口': '2. Generate stable interfaces',
+  '3. 把查询接入界面': '3. Connect queries to the UI',
+  '4. 复用同一套查询语义': '4. Reuse one set of query semantics',
+  '三个框架共享模型与查询语义，差异集中在各自的 UI 绑定 API。':
+    'All three frameworks share model and query semantics; the differences stay in their UI binding APIs.',
+  '# rxdb.config.ts 声明实体文件（entities）与输出目录（outDir），见「客户端生成」文档':
+    '# rxdb.config.ts declares the entity files (entities) and the output directory (outDir); see the "Client Generation" docs',
+  '# 输出内容包括：': '# Generated output includes:',
+  '# - 实体类型与静态类型映射': '# - Entity types and static type mappings',
+  '# - Repository 查询方法签名': '# - Repository query method signatures',
+  '# - 关系字段的规则类型（支持点语法关系查询）':
+    '# - Rule types for relation fields (supports dot-path relation queries)',
+  '未完成任务：': 'Incomplete todos:',
+  从模型定义开始验证数据链路: 'Verify the data path starting from the model definition',
+  '先通过在线演示观察查询、关系与写入如何落地，再结合文档评估存储、框架绑定与同步边界。':
+    'Watch how queries, relations, and writes come together in the live demos, then use the docs to evaluate storage, framework binding, and sync boundaries.',
+  查看在线演示: 'View live demos',
+  'RxDB 是否适合你的项目': 'Is RxDB right for your project?',
+  '先核对本地执行、响应式查询和跨框架模型是否对应你的真实需求，再评估引入数据库与 RxJS 的成本。':
+    'Check whether local execution, reactive queries, and a cross-framework model match your real needs before weighing the cost of introducing a database and RxJS.',
+  '需要浏览器内 SQL 与事务': 'You need in-browser SQL and transactions',
+  '数据量、关系和离线编辑已超出接口缓存的承载范围，需要稳定的本地执行层。':
+    'Data volume, relations, and offline editing have outgrown API-level caching and need a stable local execution layer.',
+  需要订阅查询结果: 'You need to subscribe to query results',
+  '查询、数据变更与界面更新需要通过一条响应式链路保持一致。':
+    'Queries, data changes, and UI updates must stay consistent through one reactive path.',
+  需要统一实体模型: 'You need one unified entity model',
+  '类型、查询、关系与生成代码需要围绕实体模型组织，而不是分散在页面中。':
+    'Types, queries, relations, and generated code should be organized around the entity model instead of scattered across pages.',
+  先确认三个关键需求: 'Confirm three key requirements first',
+  '这三个条件越明确，RxDB 带来的收益越容易验证。':
+    'The clearer these three conditions are, the easier the benefits of RxDB are to verify.',
+  '前端承担复杂业务规则，需要事务、关系查询和可持续演进的本地数据层。':
+    'The frontend carries complex business rules and needs transactions, relation queries, and a local data layer that can keep evolving.',
+  '多个 Angular、React 或 Vue 应用需要共享模型、查询与写入语义。':
+    'Multiple Angular, React, or Vue apps need to share model, query, and write semantics.',
+  '应用需要在浏览器内完成复杂查询、离线编辑与关系数据展示。':
+    'The app must run complex queries, offline editing, and relation views inside the browser.',
+  '只需缓存少量 REST 数据并渲染简单表单，引入数据库与模型层的成本高于收益。':
+    'You only cache a little REST data and render simple forms; a database and model layer would cost more than they return.',
+  '团队不使用 RxJS，也不接受模型驱动约束，接入成本会明显上升。':
+    'The team does not use RxJS and does not accept model-driven constraints, so integration costs would rise sharply.',
+  '应用需要开箱即用的托管同步服务、CRDT 多人实时协同或完整的服务端身份与权限体系。':
+    'The app needs out-of-the-box hosted sync, CRDT multiplayer collaboration, or a complete server-side identity and permission system.',
+  适用场景与不适用场景: 'Where it fits and where it does not',
+  适合的场景: 'Where RxDB fits',
+  '符合的条件越多，接入收益越清晰。': 'The more conditions you match, the clearer the integration payoff.',
+  不适合的情况: 'Where it does not fit',
+  '以下场景通常有更轻量或更成熟的方案。': 'These cases usually have lighter or more mature alternatives.',
+  当前协作能力边界: 'Current collaboration boundaries',
+  '当前已提供版本分支、撤销重做、条件同步、跨 Tab 通知，以及独立的 P2P 认证会话与文件共享。':
+    'Version branching, undo/redo, conditional sync, cross-Tab notifications, plus standalone P2P authenticated sessions and file sharing are available today.',
+  '实体操作权限可由应用上下文控制；服务端认证、授权与托管同步仍需应用接入，CRDT 多人实时协同尚未提供。':
+    'Entity-level permissions can be controlled from the application context; server-side authentication, authorization, and hosted sync still require integration, and CRDT multiplayer collaboration is not provided yet.',
+  用在线演示验证关键场景: 'Verify the key scenarios in the live demos',
+  '重点观察查询结果如何更新、关系数据如何组织，以及同一模型在三套框架中的绑定差异。':
+    'Focus on how query results update, how relation data is organized, and how the same model binds differently across the three frameworks.',
+  '根据本地数据库、响应式查询与跨框架模型需求，判断 RxDB 是否适合当前项目':
+    'Decide whether RxDB fits your project based on your needs for a local database, reactive queries, and a cross-framework model',
+  '执行 SQL': 'Run SQL',
+  执行结果: 'Results',
+  '正在启动浏览器内 SQLite…': 'Starting in-browser SQLite…',
+  '语句执行成功，未返回结果集。': 'The statement ran successfully and returned no result set.',
+  '输入 SQL 语句，然后点击执行。': 'Enter a SQL statement, then click Run.'
 };
 
 export function siteCopy(value: string, locale: string): string {
