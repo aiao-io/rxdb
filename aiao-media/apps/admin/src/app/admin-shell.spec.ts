@@ -3,7 +3,14 @@ import { ADMIN_MENU, adminShell, tabFromUrl } from './admin-shell';
 
 describe('Aiao Media 管理后台外壳', () => {
   it('菜单直接展示功能页并保持路由一致', () => {
-    expect(ADMIN_MENU.map(item => item.route)).toEqual(['/users', '/templates', '/policies', '/tasks', '/audit']);
+    expect(ADMIN_MENU.map(item => item.route)).toEqual([
+      '/users',
+      '/templates',
+      '/policies',
+      '/platforms',
+      '/tasks',
+      '/audit'
+    ]);
   });
 
   it.each([
