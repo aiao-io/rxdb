@@ -15,7 +15,7 @@ function examples(path) {
   const blocks = [...markdown.matchAll(/^```(ts|typescript|tsx|vue)\n([\s\S]*?)^```$/gm)];
   assert.ok(blocks.length, `Missing TypeScript examples in ${path}`);
   return blocks.map(([, language, body]) =>
-    language === 'vue' ? /<script\b[^>]*>([\s\S]*?)<\/script\s*>/i.exec(body)[1] : body
+    language === 'vue' ? /<script\b[^>]*>([\s\S]*?)<\/script\s*[^>]*>/i.exec(body)[1] : body
   );
 }
 
