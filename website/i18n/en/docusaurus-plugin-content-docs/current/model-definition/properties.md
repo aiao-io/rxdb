@@ -1,6 +1,6 @@
 # Entity properties
 
-A property definition describes what a column stores, whether it can be null, whether it is unique, whether it has a default value, and what the database column is named.
+A property definition describes what a column stores, whether it can be null, whether it is unique, whether it has a default value, and what the database column is called.
 
 ```ts
 import { Entity, EntityBase, PropertyType } from '@aiao/rxdb';
@@ -26,68 +26,68 @@ import { Entity, EntityBase, PropertyType } from '@aiao/rxdb';
       name: 'productName',
       columnName: 'product_name',
       type: PropertyType.string,
-      displayName: 'Database snake_case column example'
+      displayName: 'Example of a snake_case database column name'
     }
   ]
 })
 export class Product extends EntityBase {}
 ```
 
-## Fields supplied by EntityBase
+## Fields Provided by EntityBase
 
-After extending `EntityBase`, you do not need to declare these fields again:
+Inheriting `EntityBase` gives you these fields without declaring them again:
 
-- `id`: `uuid` primary key, generated automatically by default
-- `createdAt`: `date`, default `() => new Date()`
-- `updatedAt`: `date`, default `() => new Date()`
-- `createdBy`: nullable string
-- `updatedBy`: nullable string
+- `id`: a `uuid` primary key, generated automatically by default
+- `createdAt`: a `date`, defaulting to `() => new Date()`
+- `updatedAt`: a `date`, defaulting to `() => new Date()`
+- `createdBy`: a nullable string
+- `updatedBy`: a nullable string
 
-## Supported property types
+## Supported Property Types
 
-| Type           | Description               | Key notes                                                        |
-| -------------- | ------------------------- | ---------------------------------------------------------------- |
-| `uuid`         | UUID string               | Can set `primary: true`                                          |
-| `string`       | String                    | Can set `primary: true`                                          |
-| `enum`         | Enum string               | Must also provide `enum: readonly string[]`                      |
-| `number`       | Number                    | Supports a default value                                         |
-| `integer`      | Integer                   | Can set `primary: true`                                          |
-| `bigint`       | 64-bit signed integer     | Uses `bigint` at runtime, can set `primary: true`                |
-| `boolean`      | Boolean                   | Supports a default value                                         |
-| `date`         | Date                      | The default can be `Date`, `() => Date`, or `CURRENT_TIMESTAMP`  |
-| `binary`       | Binary bytes              | Uses `Uint8Array` at runtime                                     |
-| `stringArray`  | Array of strings          | Good for tags and similar cases                                  |
-| `numberArray`  | Array of numbers          | Good for simple numeric collections                              |
-| `keyValue`     | Flat key-value object     | No nesting, no arrays                                            |
-| `json`         | Arbitrary JSON            | Supports nested objects and arrays; not used for structured search by default |
+| Type          | Description           | Key notes                                                                     |
+| ------------- | --------------------- | ----------------------------------------------------------------------------- |
+| `uuid`        | UUID string           | Can set `primary: true`                                                       |
+| `string`      | String                | Can set `primary: true`                                                       |
+| `enum`        | Enum string           | Must also provide `enum: readonly string[]`                                   |
+| `number`      | Number                | Supports default values                                                       |
+| `integer`     | Integer               | Can set `primary: true`                                                       |
+| `bigint`      | 64-bit signed integer | Uses `bigint` at runtime; can set `primary: true`                             |
+| `boolean`     | Boolean               | Supports default values                                                       |
+| `date`        | Date                  | The default can be a `Date`, `() => Date`, or `CURRENT_TIMESTAMP`             |
+| `binary`      | Binary bytes          | Uses `Uint8Array` at runtime                                                  |
+| `stringArray` | Array of strings      | Good for tags and similar cases                                               |
+| `numberArray` | Array of numbers      | Good for simple numeric collections                                           |
+| `keyValue`    | Flat key-value object | No nesting, no arrays                                                         |
+| `json`        | Arbitrary JSON        | Supports nested objects and arrays; not used for structured search by default |
 
-## Common property options
+## Common Property Options
 
 These options come from `IEntityObject`, `ISortable`, and the concrete property type definitions in the current code:
 
-| Option        | Description                                                             |
-| ------------- | ----------------------------------------------------------------------- |
-| `name`        | Field name, the runtime property name                                   |
-| `columnName`  | Database column name, defaults to `name` when omitted                   |
-| `displayName` | Display name                                                            |
-| `unique`      | Unique constraint, prefer it for single-field uniqueness                |
-| `readonly`    | Ignore this field on update                                             |
-| `nullable`    | Allow `NULL` at the database layer                                      |
-| `required`    | Required at the frontend validation layer, not the same as `NOT NULL`   |
-| `sortable`    | Allow sorting at the query layer                                        |
-| `default`     | Default value, accepts a constant or a function                         |
-| `primary`     | Marks a primary key, only supported by some types                       |
+| Option        | Description                                                                    |
+| ------------- | ------------------------------------------------------------------------------ |
+| `name`        | Field name; the runtime property name                                          |
+| `columnName`  | Database column name; defaults to `name` when omitted                          |
+| `displayName` | Display name                                                                   |
+| `unique`      | Unique constraint; prefer it for single-field uniqueness                       |
+| `readonly`    | Skip this field on updates                                                     |
+| `nullable`    | Allow `NULL` at the database layer                                             |
+| `required`    | Required at the frontend validation layer; not the same as database `NOT NULL` |
+| `sortable`    | Allow sorting at the query layer                                               |
+| `default`     | Default value; supports a constant or a function                               |
+| `primary`     | Marks the primary key; supported only by some types                            |
 
-### The difference between `required` and `nullable`
+### The Difference Between `required` and `nullable`
 
-- `required: true`: leans toward form/input validation, empty strings and empty arrays are also treated as invalid
-- `nullable: false`: leans toward the storage constraint, means the database column does not allow `NULL`
+- `required: true`: leans toward form and input validation; an empty string or an empty array is also treated as invalid
+- `nullable: false`: leans toward storage constraints; it means the database column must not be `NULL`
 
-You can use both options together or either one alone. Do not use them interchangeably.
+You can use both options together or just one of them; do not conflate the two.
 
-## Common patterns
+## Common Patterns
 
-### 1. Separate the database column name from the code field name
+### 1. Separating the Database Column Name From the Code Field Name
 
 ```ts
 {
@@ -98,7 +98,7 @@ You can use both options together or either one alone. Do not use them interchan
 }
 ```
 
-### 2. Enum fields
+### 2. Enum Fields
 
 ```ts
 {
@@ -109,7 +109,7 @@ You can use both options together or either one alone. Do not use them interchan
 }
 ```
 
-### 3. Function default values
+### 3. Function Default Values
 
 ```ts
 {
@@ -120,9 +120,9 @@ You can use both options together or either one alone. Do not use them interchan
 }
 ```
 
-### 4. The `keyValue` type
+### 4. The `keyValue` Type
 
-`keyValue` is a flat key-value object. Declare the structure of its inner keys separately:
+`keyValue` is a flat key-value object; its inner keys need their own structure declarations:
 
 ```ts
 {
@@ -136,11 +136,11 @@ You can use both options together or either one alone. Do not use them interchan
 }
 ```
 
-If you need nested objects, arrays, or a freer structure, use `json` instead.
+If you need nested objects, arrays, or a looser structure, use `json` instead.
 
 ### 5. `bigint` and `binary`
 
-`bigint` accepts only JavaScript `bigint` values. The stored range is `-2^63` to `2^63 - 1`. Do not pass a `number` or a string; even when the value looks the same, the adapter rejects the implicit conversion before executing SQL.
+`bigint` accepts only JavaScript `bigint`, with a stored range from `-2^63` to `2^63 - 1`. Do not pass a `number` or a string; even if the value looks the same, the adapter rejects the implicit conversion before running the SQL.
 
 ```ts
 {
@@ -151,7 +151,7 @@ If you need nested objects, arrays, or a freer structure, use `json` instead.
 }
 ```
 
-`binary` accepts only `Uint8Array`. Saving `source.subarray(start, end)` processes only the bytes within the current view; it does not expand to the entire backing buffer. Default values and persistence boundaries also copy the bytes, so multiple entities or callers do not share the same mutable array.
+`binary` accepts only `Uint8Array`. Saving `source.subarray(start, end)` processes only the bytes inside that view; it does not expand to the whole backing buffer. Default values and persistence boundaries also copy the bytes, so multiple entities or callers never share the same mutable array.
 
 ```ts
 {
@@ -161,7 +161,7 @@ If you need nested objects, arrays, or a freer structure, use `json` instead.
 }
 ```
 
-In-place modification of a `Uint8Array` does not trigger entity change tracking. After modifying the bytes, reassign the value and then call `save()`:
+In-place mutation of a `Uint8Array` does not trigger entity change tracking. After changing the bytes, reassign the value and then call `save()`:
 
 ```ts
 const nextPayload = new Uint8Array(entity.payload);
@@ -170,15 +170,15 @@ entity.payload = nextPayload;
 await entity.save();
 ```
 
-`binary` does not support primary keys, relation foreign keys, range comparison, LIKE, or sorting. When you need these capabilities, store queryable scalar metadata separately.
+`binary` does not support primary keys, relation foreign keys, range comparisons, `LIKE`, or sorting. When you need these capabilities, keep queryable scalar metadata separately.
 
-## Computed properties
+## Computed Properties
 
 The current code also supports `computedProperties`. These fields are:
 
-- read-only
-- not persisted to the database directly
-- supplied by features or runtime logic
+- Read-only
+- Not written to the database directly
+- Provided by a feature or by runtime logic
 
 `hasChildren` in the tree structure base class is a real example.
 
@@ -197,5 +197,5 @@ computedProperties: [
 
 - Use `unique: true` directly for single-field uniqueness
 - Use `columnName` when you need to stay compatible with legacy database column names
-- For dynamic structures, distinguish `keyValue` from `json`, do not mix them
-- Enable `sortable` only for fields you need to sort by
+- For dynamic structures, decide between `keyValue` and `json` first; do not mix them
+- Enable `sortable` only on fields that need sorting
