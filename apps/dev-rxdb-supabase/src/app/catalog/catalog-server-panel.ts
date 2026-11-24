@@ -126,14 +126,14 @@ import { CATALOG_CATEGORIES } from './catalog-sync-rule';
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CatalogServerPanel {
-  readonly session = inject(DemoSession);
-  readonly remote = inject(CatalogRemoteState);
-  readonly categories = CATALOG_CATEGORIES;
-
   readonly #items = signal<readonly CatalogRemoteItem[]>([]);
   readonly #busy = signal(false);
   readonly #error = signal<string | null>(null);
   readonly #notice = signal<string | null>(null);
+  readonly session = inject(DemoSession);
+  readonly remote = inject(CatalogRemoteState);
+  readonly categories = CATALOG_CATEGORIES;
+
   readonly $items = this.#items.asReadonly();
   readonly $busy = this.#busy.asReadonly();
   readonly $error = this.#error.asReadonly();

@@ -1,5 +1,5 @@
 import { useFind } from '@aiao/rxdb-angular';
-import { PublicCatalogItem } from '@aiao/rxdb-test/entities';
+import { PublicCatalogItem, type PublicCatalogItemStaticTypes } from '@aiao/rxdb-test/entities';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { DemoSession } from '../demo-session';
 import { CatalogRemoteState } from './catalog-remote-state';
@@ -86,18 +86,18 @@ const PAGE_SIZE = 3;
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class CatalogBrowsePanel {
+  readonly #category = signal<string>(CATALOG_CATEGORIES[0]);
+  readonly #page = signal(0);
+  readonly #refresh = signal(0);
   readonly session = inject(DemoSession);
   readonly remote = inject(CatalogRemoteState);
   readonly categories = CATALOG_CATEGORIES;
 
-  readonly #category = signal<string>(CATALOG_CATEGORIES[0]);
-  readonly #page = signal(0);
-  readonly #refresh = signal(0);
   readonly $category = this.#category.asReadonly();
   readonly $page = this.#page.asReadonly();
 
   /** 多取一行，用来判断还有没有下一页 */
-  readonly items = useFind(PublicCatalogItem, () => {
+  readonly items = useFind(PublicCatalogItem, (): PublicCatalogItemStaticTypes['findOptions'] => {
     this.#refresh();
     return {
       where: { combinator: 'and', rules: [{ field: 'category', operator: '=', value: this.#category() }] },

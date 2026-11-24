@@ -95,14 +95,14 @@ import { groupByBucket } from './catalog-view';
 })
 export class CatalogSyncedPanel {
   readonly #rxdb = inject(RxDB);
-  readonly session = inject(DemoSession);
-  readonly remote = inject(CatalogRemoteState);
-  readonly categories = CATALOG_CATEGORIES;
-
   readonly #syncing = signal(false);
   readonly #result = signal<string | null>(null);
   readonly #error = signal<string | null>(null);
   readonly #identityMismatch = signal(false);
+  readonly session = inject(DemoSession);
+  readonly remote = inject(CatalogRemoteState);
+  readonly categories = CATALOG_CATEGORIES;
+
   readonly $syncing = this.#syncing.asReadonly();
   readonly $result = this.#result.asReadonly();
   readonly $error = this.#error.asReadonly();
