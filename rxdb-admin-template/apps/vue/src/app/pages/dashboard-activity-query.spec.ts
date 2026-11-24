@@ -39,20 +39,21 @@ function query(changes: readonly Change[], branchId = 'branch-a') {
     );
   }
   const statement = db.prepare(dashboardActivitySql('changes'));
-  const columns = ['changeId', 'namespace', 'entity', 'type', 'count', 'createdAt', 'reverted', 'redoInvalidated', 'ids'];
+  const columns = [
+    'changeId',
+    'namespace',
+    'entity',
+    'type',
+    'count',
+    'createdAt',
+    'reverted',
+    'redoInvalidated',
+    'ids'
+  ];
   return decodeDashboardActivities({
     columns,
     rows: statement
-      .all(
-        branchId,
-        'assets',
-        'AssetCategory',
-        'Asset',
-        'AssetEvent',
-        'AssetCategory',
-        'Asset',
-        'AssetEvent'
-      )
+      .all(branchId, 'assets', 'AssetCategory', 'Asset', 'AssetEvent', 'AssetCategory', 'Asset', 'AssetEvent')
       .map(row => columns.map(column => row[column])),
     rowsAffected: 0
   });
