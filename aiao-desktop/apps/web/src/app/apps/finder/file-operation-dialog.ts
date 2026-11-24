@@ -146,9 +146,7 @@ export class FileOperationDialog {
   protected readonly application = linkedSignal({
     source: this.applications,
     computation: (applications, previous) =>
-      previous && applications.some(app => app.id === previous.value) ?
-        previous.value
-      : applications[0]?.id ?? ''
+      previous && applications.some(app => app.id === previous.value) ? previous.value : (applications[0]?.id ?? '')
   });
   protected readonly action = computed(() => ({ restore: 'Restore', 'open-with': 'Open' })[this.request().kind]);
   protected readonly title = computed(

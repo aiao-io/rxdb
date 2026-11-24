@@ -189,9 +189,7 @@ export class InfoPanel {
   protected readonly selected = linkedSignal({
     source: this.choices,
     computation: (choices, previous) =>
-      previous && choices.some(choice => choice.id === previous.value) ?
-        previous.value
-      : choices[0]?.id ?? ''
+      previous && choices.some(choice => choice.id === previous.value) ? previous.value : (choices[0]?.id ?? '')
   });
   protected readonly where = computed(() => {
     const path = this.node().path;

@@ -49,7 +49,9 @@ export class FileOpener {
   private readonly catalog = inject(ApplicationCatalog);
   private readonly launcher = inject(AppLauncher);
   private readonly preferences = inject(Preferences);
-  private readonly associations = computed(() => this.preferences.get(OPEN_WITH_KEY, isAssociations) ?? NO_ASSOCIATIONS);
+  private readonly associations = computed(
+    () => this.preferences.get(OPEN_WITH_KEY, isAssociations) ?? NO_ASSOCIATIONS
+  );
 
   /** 只显示已实现文档传入的应用，默认应用排第一；不把文件夹和程序包伪装成文档。 */
   choices(node: FsNode): readonly OpenWithChoice[] {
