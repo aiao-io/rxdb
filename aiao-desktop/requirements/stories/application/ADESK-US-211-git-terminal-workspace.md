@@ -66,11 +66,11 @@ capabilities: []
 
 ## 验收证据
 
-2026-11-23，桌面与 Aiao Code 的正式构建通过 Chromium 验收。系统 Git 目录导入保留原提交 SHA 和暂存区，远端夹具读回已发布分支的文件。两个跨源编辑窗口验证了版本冲突和 1,100,000 字节二进制文件往返。[逐项证据与复验命令](../../evidence/2026-11-23/git-workspace.md)
+`2026-11-23`，桌面与 Aiao Code 的正式构建通过 Chromium 验收。系统 Git 目录导入保留原提交 SHA 和暂存区，远端夹具读回已发布分支的文件。两个跨源编辑窗口验证了版本冲突和 1,100,000 字节二进制文件往返。[逐项证据与复验命令](../../evidence/2026-11-23/git-workspace.md)
 
 另用同一份临时仓库对照官方 GitHub Desktop 3.6.11，补验三个全高下拉、History 详情，以及终端修改、暂存、提交、切分支后的界面更新。[界面对照、联动与复验命令](../../evidence/2026-11-23/github-desktop-parity.md)
 
-2026-11-23 补验 `code .`：`pnpm nx run aiao-desktop-e2e:e2e-aiao-code-files` 使用两个应用的本地正式构建，保留不同来源。在已有最近项目的情况下，从终端打开带空格的普通目录，在实际编辑器中编辑并保存；磁盘、`cat` 与重开读到同一内容，没有生成 `.git`。另从 Git 根打开，在保存后核对 `git diff` 和 GitHub Desktop 的改动列表。[冒烟检查 `terminalFolderRoundTrip` / `terminalRepositoryRoundTrip`](../../../apps/e2e/src/groups/aiao-code-files.mjs)。未做线上部署。
+`2026-11-23` 补验 `code .`：`pnpm nx run aiao-desktop-e2e:e2e-aiao-code-files` 使用两个应用的本地正式构建，保留不同来源。在已有最近项目的情况下，从终端打开带空格的普通目录，在实际编辑器中编辑并保存；磁盘、`cat` 与重开读到同一内容，没有生成 `.git`。另从 Git 根打开，在保存后核对 `git diff` 和 GitHub Desktop 的改动列表。[冒烟检查 `terminalFolderRoundTrip` / `terminalRepositoryRoundTrip`](../../../apps/e2e/src/groups/aiao-code-files.mjs)。未做线上部署。
 
 拖放确认补验：参照 [GitHub Desktop 3.6.11 的拖放处理](https://github.com/desktop/desktop/blob/release-3.6.11/app/src/ui/app.tsx#L1240)。[`github.droppedRepository`](../../../apps/e2e/src/groups/github-app.mjs) 覆盖确认前不切换、取消、同名拒绝、混合批量导入、Finder 去重及原位建仓后终端读回文件；[`a11y.github.addLocalRepositoryDialog`](../../../apps/e2e/src/groups/a11y.mjs) 覆盖对话框名称和键盘焦点。复验：`pnpm nx run aiao-desktop-e2e:e2e --group=github-app,a11y`。
 

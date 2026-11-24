@@ -49,7 +49,7 @@ capabilities: []
 
 ## 验收证据
 
-2026-11-24，012-web-desktop-product 分支，Node 26.12.0 / headless Chromium，门禁 `pnpm nx run aiao-desktop:verify --skip-nx-cache`，检查组 `node apps/e2e/src/smoke.mjs --group=file-management`。
+`2026-11-24`，012-web-desktop-product 分支，Node 26.12.0 / headless Chromium，门禁 `pnpm nx run aiao-desktop:verify --skip-nx-cache`，检查组 `node apps/e2e/src/smoke.mjs --group=file-management`。
 
 - AC1/AC8：`fileManagement.getInfoShowsPanel`——⌘I 打开 renamed.txt 的简介面板，显示名称、种类、大小、位置与修改时间，打开方式下拉默认应用正确；面板 axe 扫描无违规；Esc 关闭。键盘打开的面板焦点进入面板内部（showInfoPanel 的 focus + 关闭回焦点到条目）。
 - AC2：同一检查里清空选择后 ⌘I 显示 Desktop 文件夹的简介，无打开方式区。

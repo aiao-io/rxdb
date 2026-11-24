@@ -79,7 +79,7 @@ AC11 由 `imageThumbnails.showsActualImage`、`allFinderViews`、`keepsOriginalR
 
 AC12 由 `finderSidebar.favouritesDragOut` 验收，覆盖出界提示、拖回取消、移除持久化和原目录完整性。`a11y.finder.sidebarKeyboardRemove` 验证快捷键和移除后的焦点。
 
-2026-11-24 分支评审修复：同级名称不区分大小写、保留大小写（像 macOS），与库里 `desktop_file_parent_name` 的归一化唯一索引同口径，不再把原始 `UNIQUE constraint failed` 报给用户。`file-management` 检查组新增 `importCaseVariantGetsNewName`（拖入只差大小写的同名文件时追加序号，原文件不动）、`renameRejectsCaseVariantOfSibling`（改成同级文件的大小写变体时报「已存在」）与 `caseOnlyRenameKeepsContent`（纯大小写改名保留内容），覆盖 AC1–3。保存面板的覆盖确认、复制、移动、恢复与终端写回的同口径判定由 `rxdb-disk-store`、`memory-disk-store`、`file-panel-model`、`file-system` 与 `disk-vm-sync` 单测覆盖；终端里写出只差大小写的文件时只提示一次，不再每轮扫描重试。
+`2026-11-24` 分支评审修复：同级名称不区分大小写、保留大小写（像 macOS），与库里 `desktop_file_parent_name` 的归一化唯一索引同口径，不再把原始 `UNIQUE constraint failed` 报给用户。`file-management` 检查组新增 `importCaseVariantGetsNewName`（拖入只差大小写的同名文件时追加序号，原文件不动）、`renameRejectsCaseVariantOfSibling`（改成同级文件的大小写变体时报「已存在」）与 `caseOnlyRenameKeepsContent`（纯大小写改名保留内容），覆盖 AC1–3。保存面板的覆盖确认、复制、移动、恢复与终端写回的同口径判定由 `rxdb-disk-store`、`memory-disk-store`、`file-panel-model`、`file-system` 与 `disk-vm-sync` 单测覆盖；终端里写出只差大小写的文件时只提示一次，不再每轮扫描重试。
 
 新 schema 版本为 `2026111701`；之前的构建不能直接打开升级后的库，沿用既有降级保护。本次尚未发布。
 
