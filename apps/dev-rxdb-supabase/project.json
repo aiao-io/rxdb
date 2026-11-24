@@ -144,8 +144,7 @@
         {
           "target": "dev-dashboard",
           "waitFor": "ready"
-        },
-        "dev-logs"
+        }
       ],
       "options": {
         "command": "node apps/dev-rxdb-supabase/scripts/dev/supervise.mjs node apps/dev-rxdb-supabase/scripts/dev/open-dashboard.mjs"
@@ -202,20 +201,6 @@
       },
       "options": {
         "command": "node apps/dev-rxdb-supabase/scripts/dev/supervise.mjs node apps/dev-rxdb-supabase/scripts/dev/dashboard.mjs"
-      }
-    },
-    "dev-logs": {
-      "continuous": true,
-      "cache": false,
-      "executor": "nx:run-commands",
-      "dependsOn": [
-        {
-          "projects": ["rxdb-adapter-supabase"],
-          "target": "test-env"
-        }
-      ],
-      "options": {
-        "command": "node apps/dev-rxdb-supabase/scripts/dev/supervise.mjs docker/supabase-ci-compose.sh logs --follow --tail 0 db rest auth realtime"
       }
     },
     "dev-test": {

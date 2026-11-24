@@ -18,9 +18,21 @@ const unsupervised = projectTargets =>
 test('dev 链上每个常驻进程都经 supervise 启动，Nx 被强杀也不留孤儿占住固定端口', () => {
   assert.deepEqual(
     longRunning(targets).map(([name]) => name),
-    ['dev', 'dev-serve', 'dev-dashboard', 'dev-logs']
+    ['dev', 'dev-serve', 'dev-dashboard']
   );
   assert.deepEqual(unsupervised(targets), []);
+});
+
+// 工作区关了 TUI，所有常驻任务的输出交织在同一个终端里：init-db 每跑一次（比如另开终端跑适配器测试），
+// Postgres 的 DDL 语句日志与 PostgREST 的 schema 重载会刷出上千行，把编译错误冲掉。日志改由起始页给出的命令另开终端看。
+test('dev 不把 Supabase 容器日志混进应用的终端输出', () => {
+  const commands = Object.values(targets)
+    .filter(target => target.continuous)
+    .map(target => target.options.command);
+  assert.deepEqual(
+    commands.filter(command => / logs /.test(command)),
+    []
+  );
 });
 
 test('绕过 supervise 的常驻命令会被查出来', () => {

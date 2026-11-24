@@ -645,14 +645,14 @@
             </div>
           </div>
           <p class="note">
-            适配器测试与远端 E2E 和应用共用这套栈，只清理各自写入的行；终端里的 dev-logs 持续输出
-            db、rest、auth、realtime 的日志。
+            适配器测试与远端 E2E 和应用共用这套栈，只清理各自写入的行。Supabase 日志不混进 nx dev
+            的终端，需要时另开终端执行「全部服务日志」。
           </p>
         </section>
       </div>
 
       <footer>
-        <p>Ctrl-C 停止应用、起始页与日志；Supabase 容器继续运行并保留数据。本页只监听 127.0.0.1。</p>
+        <p>Ctrl-C 停止应用与起始页；Supabase 容器继续运行并保留数据。本页只监听 127.0.0.1。</p>
         <p id="copy-status" aria-live="polite" role="status"></p>
       </footer>
     </main>
