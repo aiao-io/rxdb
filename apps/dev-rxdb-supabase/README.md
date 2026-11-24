@@ -1,5 +1,40 @@
 # Supabase RxDB demo
 
+## 一键本地开发
+
+在仓库根目录执行（需要 Node.js 26+、pnpm 与已启动的 Docker）：
+
+```bash
+pnpm nx dev dev-rxdb-supabase
+```
+
+一条命令依次完成：
+
+1. 检查固定端口 4203（应用）与 4204（测试起始页）没有被占用；
+2. 起本 checkout 专属的隔离 Supabase 栈并初始化数据库（即 `rxdb-adapter-supabase:test-env`，与适配器测试、远端 e2e 共用），再叠加 Supabase Studio；
+3. 应用以远端同步模式热更新运行，连上这套栈，首次打开自动匿名登录；
+4. 应用与起始页都就绪后，浏览器打开测试起始页：测试入口、Studio、连接参数和常用测试命令都在页上，支持一键复制。
+
+| 服务              | 地址                                    |
+| ----------------- | --------------------------------------- |
+| 测试起始页        | <http://127.0.0.1:4204/>                |
+| 应用              | <http://localhost:4203>                 |
+| Supabase API 网关 | `http://localhost:<端口>`，见测试起始页 |
+| Supabase Studio   | `http://127.0.0.1:<端口>`，见测试起始页 |
+
+Supabase 与 Studio 的宿主端口由 docker 按 checkout 分配（RV-036），多个检出目录可以各起一套；起始页显示本次的实际地址。
+Studio 无需登录即可读写整个库，只发布在 127.0.0.1。
+
+- 不需要自动打开浏览器：`AIAO_DEV_OPEN=false pnpm nx dev dev-rxdb-supabase`。
+- 固定端口被占时直接失败，并列出占用进程的 pid、命令与目录，不自动换号。
+- Ctrl-C 停止应用与起始页；Supabase 容器继续运行并保留数据。Nx 被强制终止时，各常驻进程经
+  `scripts/dev/supervise.mjs` 在数秒内自行退出，不会留下孤儿进程占住固定端口。
+- Supabase 日志不混进这个终端（工作区关了 Nx TUI，init-db 的 DDL 日志会刷屏），需要时另开终端：
+  `docker/supabase-ci-compose.sh logs -f --tail 50`。
+- 停止容器并保留数据：`docker/supabase-ci-compose.sh stop`；删除容器与数据：`pnpm nx run rxdb-adapter-supabase:test-env-down`。
+
+开发链脚本的测试：`pnpm nx run dev-rxdb-supabase:dev-test`（`test` 依赖它，CI 一并执行）。
+
 ## 配置来源
 
 远端同步是 **dev-server 独有能力**：`import.meta.env` 只有 Vite dev server 会注入。

@@ -162,6 +162,20 @@ rm -rf volumes/db/data
 
 库数据在绑定挂载的 `volumes/db/data` 里，`docker compose down -v` 只删命名 volume，删不掉它。本地测试数据会随之丢失。
 
+## 本地开发：隔离栈 + Studio
+
+`pnpm nx dev dev-rxdb-supabase` 复用 `rxdb-adapter-supabase:test-env` 起的隔离 CI 栈（RV-036），再叠加 `docker-compose.ci-studio.yml` 里的 Studio，详见 [dev-rxdb-supabase](../apps/dev-rxdb-supabase/README.md#一键本地开发)。
+
+对这套栈执行 compose 子命令一律经 `supabase-ci-compose.sh`，它按 checkout 派生项目名与容器名，并把 test-env 落盘的 Kong 端口交给 Studio：
+
+```bash
+docker/supabase-ci-compose.sh ps
+docker/supabase-ci-compose.sh exec db psql -U postgres
+docker/supabase-ci-compose.sh logs -f --tail 50
+```
+
+直接跑 `docker compose -f docker-compose.ci.yml ...` 会按默认值（`supabase-db` / 54331）解析出另一套项目，操作不到这套栈。`test-env-down` 的 `--remove-orphans` 会把 Studio 一并清掉。
+
 ## 目录说明
 
 ```text
@@ -171,6 +185,7 @@ docker/
 ├── docker-compose.yml
 ├── docker-compose.caddy.yml
 ├── docker-compose.ci.yml          # CI 精简版（仅测试必需服务）
+├── docker-compose.ci-studio.yml   # 开发：叠加在隔离 CI 栈上的 Studio（CI 不加载）
 ├── docker-compose.envoy.yml       # Envoy API 网关覆盖
 ├── docker-compose.kong.yml        # Kong API 网关覆盖
 ├── docker-compose.logs.yml        # 日志/分析服务
@@ -188,6 +203,7 @@ docker/
 ├── stop.sh
 ├── reset.sh
 ├── init-db.sh
+├── supabase-ci-compose.sh              # 开发：对本 checkout 的隔离栈（含 Studio）执行任意 compose 子命令
 ├── supabase-ci-down.sh                 # CI：清理本 checkout 专属隔离环境（RV-036）
 ├── supabase-ci-identity.sh             # CI：按 checkout 路径派生确定性隔离标识（RV-036）
 ├── supabase-ci-isolation-regression.sh # CI：RV-036 隔离回归，两个 checkout 并行互不干扰
