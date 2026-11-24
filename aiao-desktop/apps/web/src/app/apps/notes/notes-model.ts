@@ -51,6 +51,37 @@ export function visibleNotes<T extends NoteLike>(notes: readonly T[], folder: st
     .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.date.getTime() - a.date.getTime());
 }
 
+/** 列表的排序方式。 */
+export type NoteSort = 'edited' | 'created' | 'title';
+
+/**
+ * 列表排序：置顶优先，其余按所选方式。
+ * 备忘实体只存创建日期（`date`），「编辑日期」暂时按同一字段新到旧排；等编辑器记录修改时间后再区分。
+ */
+export function sortNotes<T extends NoteLike>(notes: readonly T[], sort: NoteSort): T[] {
+  return [...notes].sort((a, b) => {
+    const pinned = Number(b.pinned) - Number(a.pinned);
+    if (pinned) return pinned;
+    if (sort === 'title') return a.title.localeCompare(b.title) || b.date.getTime() - a.date.getTime();
+    return sort === 'created' ? a.date.getTime() - b.date.getTime() : b.date.getTime() - a.date.getTime();
+  });
+}
+
+/**
+ * 列表方向键：返回按步数移动后的笔记 id。
+ * 还没选中时按第一行算（列表高亮的就是第一行），到头不再移动，返回 `null`。
+ */
+export const stepNote = (
+  notes: readonly { readonly id: string }[],
+  currentId: string | null,
+  step: number
+): string | null => {
+  if (!notes.length) return null;
+  const index = currentId === null ? 0 : notes.findIndex(note => note.id === currentId);
+  if (index < 0) return null;
+  return notes[index + step]?.id ?? null;
+};
+
 /** 列表里的时间标签：今天显示时刻，一周内显示星期，更早的显示 dd/mm/yy。 */
 export function noteWhen(date: Date, now: Date): string {
   if (date.toDateString() === now.toDateString()) return time12Plain(date);

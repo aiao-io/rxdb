@@ -1,11 +1,16 @@
 import { DestroyRef, Service, computed, effect, inject, signal, untracked } from '@angular/core';
 
+import { TemperatureUnit, isTemperatureUnit } from '../apps/weather/weather-cities';
 import { WeatherCity } from '../apps/weather/weather.entities';
 import { DesktopData } from '../data/desktop-data';
 import { ALL_ROWS, liveQuery } from '../data/live-query';
+import { Preferences } from '../data/preferences';
 import { DAYS3 } from '../shared/format';
 
 import { ForecastPayload, parseForecast } from './weather-forecast';
+
+/** 温度单位的偏好键。 */
+const UNIT_KEY = 'weather:unit';
 
 export interface WeatherNow {
   readonly t: number;
@@ -59,18 +64,19 @@ export function weatherCode(code: number, day: boolean | number = true): readonl
   return [entry[0], !day && entry[2] ? entry[2] : entry[1]];
 }
 
-/** Open-Meteo 的预报请求地址：某个坐标的当前读数、逐小时与七天预报（华氏度）。 */
-function forecastUrl(latitude: number, longitude: number): string {
+/** Open-Meteo 的预报请求地址：某个坐标的当前读数、逐小时与七天预报，温度按所选单位。 */
+function forecastUrl(latitude: number, longitude: number, unit: TemperatureUnit): string {
   return (
     `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}` +
     '&current=temperature_2m,weather_code,is_day&hourly=temperature_2m,weather_code' +
     '&daily=weather_code,temperature_2m_max,temperature_2m_min' +
-    '&temperature_unit=fahrenheit&timezone=auto&forecast_days=7'
+    `&temperature_unit=${unit}&timezone=auto&forecast_days=7`
   );
 }
 
 interface WeatherReading {
   readonly city: string;
+  readonly unit: TemperatureUnit;
   readonly payload: ForecastPayload;
   readonly receivedAt: string;
 }
@@ -88,6 +94,8 @@ const cityKey = (city: WeatherCity | undefined): string =>
 @Service({ autoProvided: false })
 export class WeatherStore {
   private readonly desktop = inject(DesktopData);
+  /** 可选注入：没有偏好服务（如纯单元测试）时单位持久化静默关闭。 */
+  private readonly preferences = inject(Preferences, { optional: true });
   private readonly cities = liveQuery(
     () => WeatherCity.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
     [],
@@ -95,7 +103,10 @@ export class WeatherStore {
   );
   private readonly city = computed(() => cityKey(this.cities().at(0)));
   private readonly forecast = signal<WeatherReading | null>(null);
-  private readonly reading = computed(() => (this.forecast()?.city === this.city() ? this.forecast() : null));
+  private readonly reading = computed(() => {
+    const forecast = this.forecast();
+    return forecast?.city === this.city() && forecast.unit === this.unit() ? forecast : null;
+  });
   private readonly loadingState = signal(false);
   private readonly errorState = signal<string | null>(null);
   private pending: WeatherRequest | null = null;
@@ -103,7 +114,12 @@ export class WeatherStore {
   private revision = 0;
   private started = false;
   private destroyed = false;
+  /** 偏好恢复完成的标记：之前的单位改动不写库，避免启动时用默认值覆盖已存的选择。 */
+  private persistedUnit: TemperatureUnit | null = null;
+  private restoredUnit = false;
 
+  /** 温度单位（°C/°F），切换后按新单位重新拉取，选择持久化到偏好。 */
+  readonly unit = signal<TemperatureUnit>('fahrenheit');
   readonly place = computed(() => this.cities().at(0)?.name ?? '');
   readonly loading = this.loadingState.asReadonly();
   readonly error = this.errorState.asReadonly();
@@ -121,6 +137,38 @@ export class WeatherStore {
         this.forecast.set(null);
         this.errorState.set(null);
         if (this.started) void this.load();
+      });
+    });
+    /* 单位切换：作废旧读数并按新单位重新拉取。 */
+    effect(() => {
+      const unit = this.unit();
+      if (this.reading() && this.reading()?.unit === unit) return;
+      untracked(() => {
+        this.cancel();
+        this.forecast.set(null);
+        this.errorState.set(null);
+        if (this.started) void this.load();
+      });
+    });
+    /* 启动时恢复已存的单位；之后每次切换写回偏好。 */
+    this.preferences?.ready.then(
+      () => {
+        const saved = this.preferences?.get(UNIT_KEY, isTemperatureUnit) ?? 'fahrenheit';
+        this.persistedUnit = saved;
+        this.restoredUnit = true;
+        if (saved !== this.unit()) this.unit.set(saved);
+      },
+      () => {
+        this.restoredUnit = true;
+      }
+    );
+    effect(() => {
+      const unit = this.unit();
+      if (!this.restoredUnit) return;
+      untracked(() => {
+        if (this.persistedUnit === unit) return;
+        this.persistedUnit = unit;
+        void this.preferences?.set(UNIT_KEY, unit).catch(() => undefined);
       });
     });
     inject(DestroyRef).onDestroy(() => {
@@ -212,6 +260,7 @@ export class WeatherStore {
     let failure = 'Weather settings are unavailable.';
     let timeout: ReturnType<typeof setTimeout> | undefined;
     let timedOut = false;
+    const unit = this.unit();
     try {
       if (!(await this.desktop.available())) throw new Error(failure);
       const repository = await this.desktop.repository(WeatherCity);
@@ -229,11 +278,12 @@ export class WeatherStore {
         timedOut = true;
         controller.abort();
       }, 10_000);
-      const response = await fetch(forecastUrl(city.latitude, city.longitude), { signal: controller.signal });
+      const response = await fetch(forecastUrl(city.latitude, city.longitude, unit), { signal: controller.signal });
       if (!response.ok) throw new Error(failure);
       const payload = parseForecast(await response.json());
-      if (revision !== this.revision || key !== this.city() || controller.signal.aborted) return null;
-      this.forecast.set({ city: key, payload, receivedAt: new Date().toISOString() });
+      if (revision !== this.revision || key !== this.city() || unit !== this.unit() || controller.signal.aborted)
+        return null;
+      this.forecast.set({ city: key, unit, payload, receivedAt: new Date().toISOString() });
       this.errorState.set(null);
       return payload;
     } catch {

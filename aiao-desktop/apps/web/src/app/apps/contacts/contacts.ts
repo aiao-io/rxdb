@@ -1,9 +1,10 @@
-import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
+import { Component, DestroyRef, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 
 import { DesktopData } from '../../data/desktop-data';
 import { ALL_ROWS, liveQuery } from '../../data/live-query';
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
+import { PopoverService } from '../../services/popover';
 import { Toast } from '../../services/toast';
 import { WindowManager } from '../../services/window-manager';
 import { Icon } from '../../shared/icon';
@@ -16,7 +17,8 @@ import {
   filterContacts,
   newDraft,
   normalizeDraft,
-  sameContact
+  sameContact,
+  stepContact
 } from './contacts-model';
 import { Contact } from './contacts.entities';
 
@@ -52,7 +54,9 @@ type ContactField = readonly [label: string, value: string];
               [attr.data-contact-id]="contact.id"
               [class.on]="contact.id === current()?.id"
               (click)="select(contact.id)"
+              (contextmenu)="menu($event, contact.id)"
               (keydown.enter)="select(contact.id)"
+              (keydown)="rowKey($event)"
               style="height: 30px"
               tabindex="0"
             >
@@ -80,7 +84,7 @@ type ContactField = readonly [label: string, value: string];
             </button>
           </div>
         </div>
-        <div class="scroll" data-cbody2 style="flex: 1; padding: 26px">
+        <div class="scroll" (contextmenu)="cardMenu($event)" data-cbody2 style="flex: 1; padding: 26px">
           @if (editor(); as editing) {
             <form (submit)="save($event)" style="max-width: 460px">
               <div style="display: flex; gap: 18px; align-items: center">
@@ -225,7 +229,9 @@ export class ContactsApp {
   private readonly data = inject(DesktopData);
   private readonly toast = inject(Toast);
   private readonly wm = inject(WindowManager);
+  private readonly popover = inject(PopoverService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly searchField = viewChild.required<ElementRef<HTMLInputElement>>('search');
   private readonly contacts = liveQuery(
     () => Contact.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
     [],
@@ -269,6 +275,7 @@ export class ContactsApp {
               disabled: !this.current() || !!this.editor(),
               run: () => this.remove()
             },
+            { id: 'f', label: 'Find', key: '⌘F', disabled: !!this.editor(), run: () => this.focusSearch() },
             '-',
             { id: 'w', label: 'Close Window', key: '⌘W', run: () => this.wm.closeFront() }
           ]
@@ -311,6 +318,49 @@ export class ContactsApp {
       this.selected.set(id);
       this.error.set(null);
     }
+  }
+
+  /** ⌘F：焦点交给搜索框。 */
+  protected focusSearch(): void {
+    if (this.editor()) return;
+    this.searchField().nativeElement.focus();
+  }
+
+  /** 列表方向键：上下移动选中项并把焦点带过去。 */
+  protected rowKey(event: KeyboardEvent): void {
+    const step =
+      event.key === 'ArrowDown' ? 1
+      : event.key === 'ArrowUp' ? -1
+      : 0;
+    if (!step) return;
+    event.preventDefault();
+    const target = stepContact(this.filteredContacts(), this.current()?.id ?? null, step);
+    if (!target) return;
+    this.select(target);
+    const rows = (event.currentTarget as HTMLElement).parentElement;
+    rows?.querySelector<HTMLElement>(`[data-contact-id="${CSS.escape(target)}"]`)?.focus();
+  }
+
+  /** 列表行的右键菜单。 */
+  protected menu(event: MouseEvent, id: string): void {
+    this.select(id);
+    this.contextFor(event, id);
+  }
+
+  /** 卡片区的右键菜单：对当前选中的联系人。 */
+  protected cardMenu(event: MouseEvent): void {
+    const person = this.current();
+    if (!person || this.editor()) return;
+    this.contextFor(event, person.id);
+  }
+
+  /** 复制一张联系人卡片：带着同样的字段进编辑表单，保存后成为新联系人。 */
+  protected duplicate(person: Contact): void {
+    if (this.busy() || this.win.closePending()) return;
+    const position = this.contacts().reduce((highest, contact) => Math.max(highest, contact.position), -1) + 1;
+    const draft = { ...draftOf(person), id: null, name: `${person.name} Copy`, position };
+    this.error.set(null);
+    this.editor.set({ draft, base: null });
   }
 
   protected create(): void {
@@ -429,5 +479,20 @@ export class ContactsApp {
     } finally {
       this.busy.set(false);
     }
+  }
+
+  private contextFor(event: MouseEvent, id: string): void {
+    const person = this.contacts().find(contact => contact.id === id);
+    if (!person) return;
+    this.popover.contextMenu(
+      event,
+      [
+        { id: 'e', label: 'Edit', run: () => this.edit() },
+        { id: 'd', label: 'Duplicate', run: () => this.duplicate(person) },
+        '-',
+        { id: 'x', label: 'Delete', disabled: !!this.editor(), run: () => this.remove() }
+      ],
+      'contact'
+    );
   }
 }

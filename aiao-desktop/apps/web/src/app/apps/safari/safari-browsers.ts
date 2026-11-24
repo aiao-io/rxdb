@@ -4,6 +4,7 @@ import { DesktopData } from '../../data/desktop-data';
 import { ALL_ROWS, liveQuery } from '../../data/live-query';
 import { SystemState } from '../../services/system-state';
 import { Toast } from '../../services/toast';
+import { favColor, kindOf, titleFor } from './safari-url';
 import { SafariBookmark, SafariHistoryEntry, SafariReadingItem } from './safari.entities';
 
 /** 一个 Safari 窗口对外暴露的导航入口。 */
@@ -70,6 +71,34 @@ export class SafariBrowsers {
   toggleFavouritesBar(): void {
     this.system.safariFavs.update(on => !on);
     this.toast.show(this.system.safariFavs() ? 'Favourites bar shown' : 'Favourites bar hidden');
+  }
+
+  /** ⌘D：把当前地址加进收藏夹；起始页与空地址不收藏，已在收藏夹里就只提示。 */
+  addBookmark(url: string): void {
+    if (!url.trim() || kindOf(url) === 'start') {
+      this.toast.show('Nothing to bookmark');
+      return;
+    }
+    if (this.favourites().some(fav => fav.url === url)) {
+      this.toast.show('Already in Favourites');
+      return;
+    }
+    void this.createBookmark(url);
+  }
+
+  private async createBookmark(url: string): Promise<void> {
+    await this.data.transaction(async executor => {
+      const bookmarks = executor.getRepository(SafariBookmark);
+      await bookmarks.create(
+        this.data.instantiate(SafariBookmark, {
+          name: titleFor(url),
+          color: favColor(url) ?? '#8e8e93',
+          url,
+          position: this.favourites().length
+        })
+      );
+    });
+    this.toast.show('Added to Favourites');
   }
 
   private async remember(url: string): Promise<void> {

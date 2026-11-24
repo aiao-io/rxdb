@@ -5,9 +5,9 @@ import { PopoverService } from './popover';
 /** 浮层的三个阶段：关闭动画期间节点仍在，因此不能立即再次打开。 */
 export type OverlayPhase = 'closed' | 'open' | 'closing';
 
-const CLOSE_MS = { launchpad: 200, spotlight: 150 } as const;
+const CLOSE_MS = { launchpad: 200, spotlight: 150, mission: 150 } as const;
 
-/** 启动台、聚焦搜索与通知中心的开关状态。 */
+/** 启动台、聚焦搜索、通知中心与 Mission Control 的开关状态。 */
 @Service({ autoProvided: false })
 export class Overlays {
   private readonly popover = inject(PopoverService);
@@ -16,6 +16,8 @@ export class Overlays {
   readonly spotlight = signal<OverlayPhase>('closed');
   /** 通知中心的关闭动画由组件自己播放，播完再回到 `closed`。 */
   readonly notifications = signal<OverlayPhase>('closed');
+  /** 全屏窗口总览（Mission Control，⌃↑）的开关状态。 */
+  readonly mission = signal<OverlayPhase>('closed');
 
   openLaunchpad(): void {
     this.openPhase(this.launchpad);
@@ -57,6 +59,19 @@ export class Overlays {
   toggleNotifications(): void {
     if (this.notifications() === 'open') this.closeNotifications();
     else this.openNotifications();
+  }
+
+  openMission(): void {
+    this.openPhase(this.mission);
+  }
+
+  closeMission(): void {
+    this.closePhase(this.mission, CLOSE_MS.mission);
+  }
+
+  toggleMission(): void {
+    if (this.mission() === 'closed') this.openMission();
+    else this.closeMission();
   }
 
   private openPhase(phase: WritableSignal<OverlayPhase>): void {

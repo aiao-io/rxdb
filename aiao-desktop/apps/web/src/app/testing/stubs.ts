@@ -2,6 +2,7 @@ import { WritableSignal, signal } from '@angular/core';
 import { Mock, vi } from 'vitest';
 
 import { DesktopAppId } from '../services/desktop-apps';
+import { MenuEntry } from '../services/menu';
 
 /** {@link createWindowManagerStub} 的形状：窗口列表加其他服务会调用的方法，全是 spy。 */
 export interface WindowManagerStub {
@@ -22,6 +23,11 @@ export interface WindowManagerStub {
   readonly unhideApp: Mock;
   readonly cycle: Mock;
   readonly byApp: Mock<() => unknown[]>;
+  /** 前台窗口；替身默认返回 `null`。 */
+  readonly front: Mock<() => unknown>;
+  /** Window 菜单里前台应用的窗口条目；替身默认返回空数组。 */
+  readonly windowMenuEntries: Mock<() => MenuEntry[]>;
+  readonly showAppWindows: Mock<(appId: DesktopAppId) => void>;
 }
 
 /**
@@ -46,6 +52,9 @@ export function createWindowManagerStub(): WindowManagerStub {
     showAll: vi.fn(),
     unhideApp: vi.fn(),
     cycle: vi.fn(),
-    byApp: vi.fn((): unknown[] => [])
+    byApp: vi.fn((): unknown[] => []),
+    front: vi.fn(() => null),
+    windowMenuEntries: vi.fn((): MenuEntry[] => []),
+    showAppWindows: vi.fn()
   };
 }

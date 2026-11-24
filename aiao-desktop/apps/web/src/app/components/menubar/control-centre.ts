@@ -1,12 +1,26 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, ErrorHandler, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { filter } from 'rxjs';
 
+import { Preferences } from '../../data/preferences';
+import { AppNotifications } from '../../services/app-notifications';
 import { SystemState } from '../../services/system-state';
 import { ThemeService } from '../../services/theme';
 import { Icon } from '../../shared/icon';
 import { Slider } from '../../shared/slider';
 
+/** 隔空投送状态的持久化键（偏好表）：`contacts`（仅限联系人）/ `on`（所有人）/ `off`。 */
+const AIRDROP_KEY = 'airdrop:mode';
+
+type AirDropMode = 'contacts' | 'on' | 'off';
+
+const isAirDropMode = (value: unknown): value is AirDropMode =>
+  value === 'contacts' || value === 'on' || value === 'off';
+
 /**
- * 控制中心：Wi‑Fi、蓝牙、深色模式开关与亮度、音量滑块。
+ * 控制中心：Wi‑Fi、蓝牙、深色模式开关与亮度、音量滑块。AirDrop、Focus（专注模式）、Stage Manager
+ * 与前三者同一行。AirDrop 与 Focus 是真实持久化：AirDrop 存偏好表键 `airdrop:mode`，Focus 由通知中心服务
+ * 存 `focus:dnd`（开启时新通知静音横幅、通知中心显示「专注模式开启」）；Stage Manager 是本会话的展示开关（演示）。
  * 无障碍（ADESK-US-108）：面板是 `dialog`；每个开关是原生按钮（`role="switch"`、`aria-checked`，副标题作描述），
  * 滑块能用方向键调节。
  */
@@ -59,7 +73,7 @@ import { Slider } from '../../shared/slider';
         <button
           class="cc-row"
           [attr.aria-checked]="airdrop() !== 'off'"
-          (click)="airdrop.set(airdrop() === 'off' ? 'on' : 'off')"
+          (click)="cycleAirdrop()"
           aria-describedby="cc-ad-sub"
           aria-label="AirDrop"
           data-t="ad"
@@ -84,7 +98,7 @@ import { Slider } from '../../shared/slider';
         <button
           class="cc-row"
           [attr.aria-checked]="focus()"
-          (click)="focus.set(!focus())"
+          (click)="appNotes.setFocusMode(!focus())"
           aria-describedby="cc-focus-sub"
           aria-label="Focus"
           data-t="focus"
@@ -133,7 +147,7 @@ import { Slider } from '../../shared/slider';
         >
           <i class="cc-b" [class.on]="stage()"><svg appIcon="g-grid" style="width: 15px; height: 15px"></svg></i>
           <div>
-            <b aria-hidden="true">Stage Mgr</b><span id="cc-stage-sub">{{ stage() ? 'On' : 'Off' }}</span>
+            <b aria-hidden="true">Stage Mgr</b><span id="cc-stage-sub">{{ stage() ? 'On' : 'Off' }} · 演示</span>
           </div>
         </button>
       </div>
@@ -163,10 +177,40 @@ import { Slider } from '../../shared/slider';
   `
 })
 export class ControlCentre {
+  private readonly preferences = inject(Preferences);
+  private readonly errors = inject(ErrorHandler);
   protected readonly system = inject(SystemState);
   protected readonly theme = inject(ThemeService);
-  /** 隔空投送初始显示「仅限联系人」，点一次关，再点显示「On」。 */
-  protected readonly airdrop = signal<'contacts' | 'on' | 'off'>('contacts');
-  protected readonly focus = signal(false);
+  protected readonly appNotes = inject(AppNotifications);
+  /** 隔空投送初始显示「仅限联系人」，点一次关，再点显示「On」；状态持久化，重开面板不重置。 */
+  protected readonly airdrop = signal<AirDropMode>(this.preferences.get(AIRDROP_KEY, isAirDropMode) ?? 'contacts');
+  /** 专注模式（勿扰）与通知中心共享同一状态（偏好键 `focus:dnd`）。 */
+  protected readonly focus = this.appNotes.focusMode;
+  /** Stage Manager 是本会话的展示开关：不持久化，副标题注明「演示」。 */
   protected readonly stage = signal(false);
+
+  constructor() {
+    /* 库读完之前面板先开了：读到的还是默认值，就绪后补读一次。 */
+    this.preferences.ready.then(
+      () => this.adoptAirdrop(),
+      () => undefined
+    );
+    this.preferences.external$
+      .pipe(
+        filter(keys => keys.includes(AIRDROP_KEY)),
+        takeUntilDestroyed()
+      )
+      .subscribe(() => this.adoptAirdrop());
+  }
+
+  protected cycleAirdrop(): void {
+    const next = this.airdrop() === 'off' ? 'on' : 'off';
+    this.airdrop.set(next);
+    this.preferences.set(AIRDROP_KEY, next).catch((error: unknown) => this.errors.handleError(error));
+  }
+
+  private adoptAirdrop(): void {
+    const saved = this.preferences.get(AIRDROP_KEY, isAirDropMode);
+    if (saved) this.airdrop.set(saved);
+  }
 }

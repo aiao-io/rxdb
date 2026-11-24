@@ -90,6 +90,7 @@
             [disabled]="busy() || win.closePending()"
             (click)="pick(row.id)"
             (contextmenu)="menu($event, row.id)"
+            (keydown)="rowKey($event, row.id)"
             style="width: 100%; text-align: left; border: 0"
             tabindex="0"
             type="button"
@@ -198,6 +199,13 @@
             : 'Saved'
           }}
         </div>
+        @if (folder() === trashFolder && current()) {
+          <div style="margin-top: 6px">
+            <button class="btn" [disabled]="busy() || win.closePending()" (click)="recover()" tabindex="0">
+              Recover Note
+            </button>
+          </div>
+        }
         @if (failure(); as problem) {
           <p role="alert" style="margin: 6px 0; overflow-wrap: anywhere">{{ problem }}</p>
         }

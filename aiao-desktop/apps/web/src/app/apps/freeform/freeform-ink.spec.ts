@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { Ink, Stroke, isStroke, unsettled, visibleStrokes } from './freeform-ink';
+import { Ink, Stroke, StrokeUndo, isStroke, unsettled, visibleStrokes } from './freeform-ink';
 
 const ink = (id: string, color = '#1d1d1f'): Ink => ({
   id,
@@ -59,5 +59,49 @@ describe('visibleStrokes', () => {
 
   it('什么都没有时是空画板', () => {
     expect(visibleStrokes([], [], null)).toEqual([]);
+  });
+});
+
+describe('StrokeUndo', () => {
+  const entry = (id: string): { id: string; color: string; points: readonly (readonly [number, number])[] } => ({
+    id,
+    color: '#1d1d1f',
+    points: [
+      [0, 0],
+      [4, 4]
+    ]
+  });
+
+  it('undo 弹出最后一笔并放进重做栈，redo 取回', () => {
+    const stack = new StrokeUndo();
+    stack.push(entry('a'));
+    stack.push(entry('b'));
+    expect(stack.undoSize()).toBe(2);
+    expect(stack.undoTop()?.id).toBe('b');
+    expect(stack.undoSize()).toBe(1);
+    expect(stack.redoSize()).toBe(1);
+    expect(stack.redoTop()?.id).toBe('b');
+    expect(stack.redoSize()).toBe(0);
+    expect(stack.undoTop()?.id).toBe('a');
+  });
+
+  it('新的一笔清空重做栈', () => {
+    const stack = new StrokeUndo();
+    stack.push(entry('a'));
+    stack.undoTop();
+    expect(stack.redoSize()).toBe(1);
+    stack.push(entry('b'));
+    expect(stack.redoSize()).toBe(0);
+  });
+
+  it('空栈弹出 null，清空后两个栈都归零', () => {
+    const stack = new StrokeUndo();
+    expect(stack.undoTop()).toBeNull();
+    expect(stack.redoTop()).toBeNull();
+    stack.push(entry('a'));
+    stack.undoTop();
+    stack.forgetAll();
+    expect(stack.undoSize()).toBe(0);
+    expect(stack.redoSize()).toBe(0);
   });
 });

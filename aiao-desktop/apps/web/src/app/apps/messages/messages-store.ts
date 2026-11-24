@@ -86,4 +86,20 @@ export class MessagesStore {
       return thread.id;
     });
   }
+
+  /** 删除一段会话和它的全部消息；找不到这个会话就抛错。 */
+  remove(threadId: string): Promise<void> {
+    return this.data.transaction(async executor => {
+      const threads = executor.getRepository(ChatThread);
+      const [thread] = await threads.find({
+        where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: threadId }] },
+        limit: 1
+      });
+      if (!thread) throw new Error(`Conversation not found: ${threadId}`);
+      const messages = executor.getRepository(ChatMessage);
+      const lines = await messages.find({ where: inThread(threadId) });
+      for (const line of lines) await messages.remove(line);
+      await threads.remove(thread);
+    });
+  }
 }

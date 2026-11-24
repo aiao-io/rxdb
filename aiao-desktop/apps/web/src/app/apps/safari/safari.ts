@@ -24,10 +24,13 @@ import { WindowManager } from '../../services/window-manager';
 import { clamp } from '../../shared/format';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
+import { markMatches } from '../preview/preview-find';
 import { SafariBrowsers } from './safari-browsers';
 import { WikiHit, fetchWikiArticle, fetchWikiSearch } from './safari-network';
 import { SafariOverview } from './safari-overview';
 import { SafariHit, SafariPage, SafariProgress, SafariTile } from './safari-page';
+import { AddressSuggestion, suggestAddresses } from './safari-suggest';
+import { SafariTab, blankTab, moveTab, setTabPinned } from './safari-tabs';
 import {
   LOCAL_SITES,
   decodeHtmlFile,
@@ -46,16 +49,6 @@ import {
   wikiTitle
 } from './safari-url';
 
-/** 一个标签：当前地址加自己的前进后退栈。 */
-interface SafariTab {
-  readonly url: string;
-  readonly history: readonly string[];
-  readonly index: number;
-}
-
-/** 每个标签一个新对象：模板按对象身份区分标签，共用同一个对象会撞键。 */
-const blankTab = (): SafariTab => ({ url: '', history: [''], index: 0 });
-
 /** 页面区的一次内容；`id` 每次递增，模板据此整块重建（iframe 重新加载）。 */
 interface SafariView {
   readonly id: number;
@@ -63,6 +56,15 @@ interface SafariView {
 }
 
 const MENU_ORDER = ['File', 'Edit', 'View', 'History', 'Bookmarks', 'Window', 'Help'];
+
+/** 最近关闭的标签与它当时的位置；⇧⌘T 按顺序重开。 */
+interface ClosedTab {
+  readonly tab: SafariTab;
+  readonly at: number;
+}
+
+/** 重开栈最多留几个。 */
+const CLOSED_LIMIT = 8;
 
 /** 搜索接口不可用时显示的本地结果。 */
 const OFFLINE_HITS: readonly SafariHit[] = [
@@ -88,6 +90,10 @@ const OFFLINE_HITS: readonly SafariHit[] = [
   }
 ].map(hit => ({ ...hit, goto: hit.url, html: null }));
 
+const exec = (command: string): void => {
+  document.execCommand(command);
+};
+
 /**
  * Safari：多标签、前进后退、侧栏、收藏栏，内容按地址在本地页、iframe 与维基之间切换。
  * 收藏夹、阅读列表与浏览历史来自本地库，所有 Safari 窗口共用。
@@ -111,15 +117,23 @@ export class SafariApp {
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   private readonly urlField = viewChild.required<ElementRef<HTMLInputElement>>('urlField');
   private readonly pageBox = viewChild.required<ElementRef<HTMLElement>>('pageBox');
+  private readonly findFieldRef = viewChild<ElementRef<HTMLInputElement>>('findField');
   /** 每次重绘加一，让地址栏文字回到当前标签的地址。 */
   private readonly revision = signal(0);
   private readonly bar = signal<SafariProgress>({ id: 0, on: false, width: '' });
   private readonly view = signal<SafariView>({ id: 0, page: { type: 'blank' } });
+  private readonly closedTabs = signal<readonly ClosedTab[]>([]);
+  private readonly findTotal = signal(0);
+  private readonly findAt = signal(0);
   /** 每次导航发一个号；慢请求回来时号已过期，就不能盖掉更新的页面。 */
   private navigation = 0;
   private barSeq = 0;
   private viewSeq = 0;
   private closed = false;
+  /** 本窗口查找条是否已经提示过「只支持起始页与本地页」。 */
+  private findHint = false;
+  /** 正在拖动的标签下标；没有拖动时为 null。 */
+  private dragFrom: number | null = null;
 
   protected readonly system = inject(SystemState);
   protected readonly favourites = this.browsers.favourites;
@@ -134,6 +148,16 @@ export class SafariApp {
   protected readonly sidebar = signal(false);
   /** 起始页图标加载失败的地址，改画首字母；缩略图失败则整块撤掉。 */
   protected readonly failed = signal<ReadonlySet<string>>(new Set());
+  /** 页面缩放：对页面区整体用 CSS zoom（含 iframe）。 */
+  protected readonly zoom = signal(1);
+  protected readonly finding = signal(false);
+  protected readonly suggestions = signal<readonly AddressSuggestion[]>([]);
+  protected readonly suggestOpen = signal(false);
+  /** 高亮的建议下标；-1 表示没有高亮（回车使用地址栏原文）。 */
+  protected readonly suggestAt = signal(-1);
+  protected readonly findCount = computed(() =>
+    this.findTotal() ? `${this.findAt() + 1} of ${this.findTotal()}` : ''
+  );
 
   /** 起始页的收藏夹格子；只有内置站点用色块，其余取站点图标。 */
   protected readonly favouriteTiles = computed((): readonly SafariTile[] =>
@@ -178,7 +202,7 @@ export class SafariApp {
     const openedFile = this.win.options.node;
     if (openedFile?.kind === 'file' && openedFile.path) {
       const url = fileUrlOf(openedFile.path);
-      this.tabs.set([{ url, history: [url], index: 0 }]);
+      this.tabs.set([{ url, history: [url], index: 0, pinned: false }]);
     }
 
     afterRenderEffect(() => {
@@ -240,20 +264,104 @@ export class SafariApp {
     this.render();
   }
 
-  /** 关掉最后一个标签就关窗口。 */
+  /** 关掉最后一个标签就关窗口；固定标签没有关闭钮，也关不掉。 */
   protected closeTab(index = this.current()): void {
-    if (this.tabs().length === 1) {
+    const tabs = this.tabs();
+    const tab = tabs[index];
+    if (!tab || tab.pinned) return;
+    if (tabs.length === 1) {
       this.wm.close(this.win.id);
       return;
     }
-    this.tabs.update(tabs => tabs.filter((_, i) => i !== index));
+    this.closedTabs.update(list => [...list.slice(1 - CLOSED_LIMIT), { tab, at: index }]);
+    this.tabs.set(tabs.filter((_, i) => i !== index));
     this.current.update(i => clamp(i, 0, this.tabs().length - 1));
+    this.render();
+  }
+
+  /** ⇧⌘T：重开最近关掉的标签，回到它原来的位置。 */
+  protected reopenTab(): void {
+    const last = this.closedTabs().at(-1);
+    if (!last) return;
+    this.closedTabs.update(list => list.slice(0, -1));
+    const at = Math.min(last.at, this.tabs().length);
+    this.tabs.update(tabs => [...tabs.slice(0, at), last.tab, ...tabs.slice(at)]);
+    this.current.set(at);
     this.render();
   }
 
   protected closeTabButton(event: Event, index: number): void {
     event.stopPropagation();
     this.closeTab(index);
+  }
+
+  /** 标签右键菜单：新标签、固定与关闭。 */
+  protected tabMenu(event: MouseEvent, index: number): void {
+    const tab = this.tabs()[index];
+    if (!tab) return;
+    this.popover.contextMenu(
+      event,
+      [
+        { id: 'nt', label: 'New Tab', run: () => this.newTab() },
+        '-',
+        { id: 'pin', label: tab.pinned ? 'Unpin Tab' : 'Pin Tab', run: () => this.togglePin(index) },
+        { id: 'cl', label: 'Close Tab', disabled: tab.pinned, run: () => this.closeTab(index) }
+      ],
+      'tab menu'
+    );
+  }
+
+  /** 固定/取消固定：固定标签排到最前，当前标签跟随移动。 */
+  protected togglePin(index: number): void {
+    const tabs = this.tabs();
+    const tab = tabs[index];
+    if (!tab) return;
+    const active = tabs[this.current()];
+    const next = setTabPinned(tabs, index, !tab.pinned);
+    if (next === tabs) return;
+    this.tabs.set(next);
+    const pinnedCount = next.filter(item => item.pinned).length;
+    const at = next.indexOf(active);
+    this.current.set(
+      at >= 0 ? at
+      : tab.pinned ? pinnedCount
+      : pinnedCount - 1
+    );
+  }
+
+  protected tabDragStart(event: DragEvent, index: number): void {
+    event.stopPropagation();
+    this.dragFrom = index;
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', String(index));
+    }
+  }
+
+  protected tabDragOver(event: DragEvent): void {
+    if (this.dragFrom === null) return;
+    /* 允许放下即可；落地位置由 drop 时指针相对目标的中点重新计算。 */
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+  }
+
+  protected tabDrop(event: DragEvent, index: number): void {
+    event.preventDefault();
+    const from = this.dragFrom;
+    this.dragFrom = null;
+    if (from === null) return;
+    const box = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    const to = event.clientX >= box.left + box.width / 2 ? index + 1 : index;
+    const tabs = this.tabs();
+    const active = tabs[this.current()];
+    const next = moveTab(tabs, from, to);
+    if (next === tabs) return;
+    this.tabs.set(next);
+    this.current.set(next.indexOf(active));
+  }
+
+  protected tabDragEnd(): void {
+    this.dragFrom = null;
   }
 
   protected overview(): void {
@@ -278,6 +386,13 @@ export class SafariApp {
   protected submit(event: Event, field: HTMLInputElement): void {
     event.preventDefault();
     field.blur();
+    const at = this.suggestOpen() ? this.suggestAt() : -1;
+    const pick = at >= 0 ? this.suggestions()[at] : undefined;
+    this.closeSuggest();
+    if (pick) {
+      this.go(pick.url);
+      return;
+    }
     this.go(field.value.trim());
   }
 
@@ -288,9 +403,129 @@ export class SafariApp {
     field.select();
   }
 
-  protected cancel(field: HTMLInputElement): void {
+  /** 聚焦地址栏：全选当前地址，并按当前值给建议。 */
+  protected focusField(field: HTMLInputElement): void {
+    field.select();
+    this.suggest(field.value);
+  }
+
+  protected cancelSuggest(event: Event, field: HTMLInputElement): void {
+    if (this.suggestOpen()) {
+      event.preventDefault();
+      this.closeSuggest();
+      return;
+    }
     field.blur();
     this.render();
+  }
+
+  protected suggest(value: string): void {
+    this.suggestions.set(suggestAddresses(value, this.browsers.history(), this.favourites()));
+    this.suggestAt.set(-1);
+    this.suggestOpen.set(true);
+  }
+
+  protected suggestDown(event: Event): void {
+    const length = this.suggestions().length;
+    if (!length) return;
+    event.preventDefault();
+    this.suggestAt.update(at => (at + 1) % length);
+    this.suggestOpen.set(true);
+  }
+
+  protected suggestUp(event: Event): void {
+    const length = this.suggestions().length;
+    if (!length) return;
+    event.preventDefault();
+    this.suggestAt.update(at => (at <= 0 ? length - 1 : at - 1));
+    this.suggestOpen.set(true);
+  }
+
+  protected closeSuggest(): void {
+    this.suggestOpen.set(false);
+  }
+
+  protected pickSuggest(url: string): void {
+    this.closeSuggest();
+    const field = this.urlField().nativeElement;
+    field.blur();
+    this.go(url);
+  }
+
+  /** ⌘F：打开查找条并聚焦；已打开时只聚焦。 */
+  protected focusFind(): void {
+    if (!this.finding()) this.toggleFind();
+    else setTimeout(() => this.findFieldRef()?.nativeElement.focus(), 0);
+  }
+
+  protected toggleFind(): void {
+    const opening = !this.finding();
+    this.finding.set(opening);
+    this.findHint = false;
+    if (opening) {
+      setTimeout(() => this.findFieldRef()?.nativeElement.focus(), 0);
+      return;
+    }
+    this.findTotal.set(0);
+    this.findAt.set(0);
+    markMatches(this.pageBox().nativeElement, '');
+  }
+
+  protected closeFind(): void {
+    this.finding.set(false);
+    this.findTotal.set(0);
+    this.findAt.set(0);
+    markMatches(this.pageBox().nativeElement, '');
+  }
+
+  /** 查找条输入：起始页与本地页可搜，其余页面给一次提示。 */
+  protected findOnPage(value: string): void {
+    const kind = this.kind();
+    if (kind !== 'start' && kind !== 'local') {
+      if (!this.findHint) this.toast.show('Find works on the Start Page and local pages only.');
+      this.findHint = true;
+      this.findTotal.set(0);
+      this.findAt.set(0);
+      markMatches(this.pageBox().nativeElement, '');
+      return;
+    }
+    this.findHint = false;
+    const count = markMatches(this.pageBox().nativeElement, value.trim().toLowerCase());
+    this.findTotal.set(count);
+    this.findAt.set(0);
+    if (count) this.focusMatch(0);
+  }
+
+  protected findStep(delta: 1 | -1): void {
+    if (delta === 1) this.findNextMatch();
+    else this.findPrevMatch();
+  }
+
+  /** 模板绑定用：`$event` 在 Angular 模板类型检查里是 `Event`，这里收窄成 `KeyboardEvent` 再读 `shiftKey`。 */
+  protected findStepDirection(event: Event): void {
+    this.findStep((event as KeyboardEvent).shiftKey ? -1 : 1);
+  }
+
+  protected findNextMatch(): void {
+    if (!this.finding()) this.toggleFind();
+    this.stepMatch(1);
+  }
+
+  protected findPrevMatch(): void {
+    if (!this.finding()) this.toggleFind();
+    this.stepMatch(-1);
+  }
+
+  protected zoomIn(): void {
+    this.zoom.update(value => Math.min(3, Math.round(value * 10 + 1) / 10));
+  }
+
+  protected zoomOut(): void {
+    this.zoom.update(value => Math.max(0.5, Math.round(value * 10 - 1) / 10));
+  }
+
+  protected actualSize(): void {
+    this.zoom.set(1);
   }
 
   protected markFailed(src: string): void {
@@ -303,6 +538,22 @@ export class SafariApp {
 
   protected hideBox(event: Event): void {
     (event.target as HTMLElement).style.display = 'none';
+  }
+
+  private stepMatch(delta: 1 | -1): void {
+    const total = this.findTotal();
+    if (!total) return;
+    this.findAt.update(at => (at + delta + total) % total);
+    this.focusMatch(this.findAt());
+  }
+
+  private focusMatch(at: number): void {
+    const marks = this.pageBox().nativeElement.querySelectorAll<HTMLElement>('mark');
+    const mark = marks[at];
+    if (!mark) return;
+    marks.forEach(item => (item.style.outline = ''));
+    mark.style.outline = '2px solid var(--blue)';
+    mark.scrollIntoView({ block: 'center' });
   }
 
   private patch(patch: Partial<SafariTab>): void {
@@ -329,6 +580,19 @@ export class SafariApp {
           '-',
           { id: 'c', label: 'Close Tab', key: '⌘W', run: () => this.closeTab() }
         ],
+        Edit: [
+          { id: 'u', label: 'Undo', key: '⌘Z', run: () => exec('undo') },
+          { id: 'r', label: 'Redo', key: '⇧⌘Z', run: () => exec('redo') },
+          '-',
+          { id: 'x', label: 'Cut', key: '⌘X', run: () => exec('cut') },
+          { id: 'c2', label: 'Copy', key: '⌘C', run: () => exec('copy') },
+          { id: 'v', label: 'Paste', key: '⌘V', run: () => exec('paste') },
+          '-',
+          { id: 'a', label: 'Select All', key: '⌘A', run: () => exec('selectAll') },
+          '-',
+          { id: 'fd', label: 'Find…', key: '⌘F', run: () => this.focusFind() },
+          { id: 'fn', label: 'Find Next', key: '⌘G', run: () => this.findNextMatch() }
+        ],
         View: [
           {
             id: 'sb',
@@ -343,15 +607,37 @@ export class SafariApp {
             run: () => this.browsers.toggleFavouritesBar()
           },
           '-',
-          { id: 'r', label: 'Reload Page', key: '⌘R', run: () => this.reload() }
+          { id: 'r', label: 'Reload Page', key: '⌘R', run: () => this.reload() },
+          '-',
+          { id: 'zi', label: 'Zoom In', key: '⌘+', run: () => this.zoomIn() },
+          { id: 'zo', label: 'Zoom Out', key: '⌘-', run: () => this.zoomOut() },
+          { id: 'as', label: 'Actual Size', key: '⌘0', run: () => this.actualSize() }
         ],
         History: [
           { id: 'b', label: 'Back', key: '⌘[', run: () => this.back() },
           { id: 'f', label: 'Forward', key: '⌘]', run: () => this.forward() },
           '-',
+          {
+            id: 'rt',
+            label: 'Reopen Last Closed Tab',
+            key: '⇧⌘T',
+            disabled: !this.closedTabs().length,
+            run: () => this.reopenTab()
+          },
+          '-',
           ...this.historyItems()
         ],
-        Bookmarks: this.favourites().map(fav => ({ id: fav.name, label: fav.name, run: () => this.go(fav.url) }))
+        Bookmarks: [
+          {
+            id: 'ab',
+            label: 'Add Bookmark',
+            key: '⌘D',
+            disabled: this.kind() === 'start',
+            run: () => this.browsers.addBookmark(this.tab().url)
+          },
+          '-',
+          ...this.favourites().map(fav => ({ id: fav.name, label: fav.name, run: () => this.go(fav.url) }))
+        ]
       },
       MENU_ORDER
     );
@@ -363,13 +649,18 @@ export class SafariApp {
     return history.slice(0, 8).map((url, i) => ({ id: `h${i}`, label: titleFor(url), run: () => this.go(url) }));
   }
 
-  /** 页面里 `data-goto` 在本窗口导航、`data-openext` 交给真正的浏览器、`data-tryframe` 强行内嵌。 */
+  /** 页面里 `data-goto` 在本窗口导航、`data-openext` 交给真正的浏览器、`data-tryframe` 强行内嵌；⌘-点击在新标签打开。 */
   private pageClick(event: MouseEvent): void {
     const target = event.target as Element;
     const goto = target.closest<HTMLElement>('[data-goto]');
     if (goto) {
       event.preventDefault();
-      this.go(goto.dataset['goto'] ?? '');
+      const url = goto.dataset['goto'] ?? '';
+      if ((event.metaKey || event.ctrlKey) && !event.altKey) {
+        this.openInTab(url, !event.shiftKey);
+        return;
+      }
+      this.go(url);
       return;
     }
     const external = target.closest<HTMLElement>('[data-openext]');
@@ -380,6 +671,15 @@ export class SafariApp {
     }
     const embed = target.closest<HTMLElement>('[data-tryframe]');
     if (embed) this.tryFrame(embed.dataset['tryframe'] ?? '');
+  }
+
+  /** ⌘-点击在新标签打开：默认后台（原标签不动），⇧⌘-点击前台。 */
+  private openInTab(url: string, background: boolean): void {
+    this.tabs.update(tabs => [...tabs, { url, history: [url], index: 0, pinned: false }]);
+    this.browsers.record(url);
+    if (background) return;
+    this.current.set(this.tabs().length - 1);
+    this.render();
   }
 
   private tryFrame(url: string): void {

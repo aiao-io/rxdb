@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 
 import { Icon } from '../../../shared/icon';
 
-/** 隐私与安全：每个权限一行，图标色块各有各的颜色。 */
+/** 隐私与安全：每个权限一行（静态信息），图标色块各有各的颜色。 */
 @Component({
   selector: 'app-privacy-pane',
   imports: [Icon],
@@ -18,16 +18,13 @@ import { Icon } from '../../../shared/icon';
             ><svg [appIcon]="item[1]" style="width: 13px; height: 13px"></svg
           ></span>
           <div class="lb" style="min-width: 0; flex: 1">{{ item[0] }}</div>
-          <div class="rt"><svg appIcon="g-chev-r"></svg></div>
         </div>
       }
     </div>
     <div class="st-group">
       <div class="st-item">
         <div class="lb">Allow applications from</div>
-        <div class="rt">
-          <button class="btn">App Store &amp; known developers <svg appIcon="g-chev-d"></svg></button>
-        </div>
+        <div class="rt"><span style="font-size: 12px; color: var(--txt-2)">App Store &amp; known developers</span></div>
       </div>
     </div>
   `

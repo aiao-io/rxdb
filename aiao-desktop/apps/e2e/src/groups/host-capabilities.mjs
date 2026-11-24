@@ -57,7 +57,7 @@ export const hostCapabilities = {
     'hostCapabilities.notificationClearAll',
     'hostCapabilities.notificationRateLimited',
     'hostCapabilities.notificationIconsShown',
-    'hostCapabilities.notificationNotKeptAcrossReload'
+    'hostCapabilities.notificationPersistsAcrossReload'
   ],
   async run(session) {
     const { page, context, origin } = session;
@@ -303,11 +303,12 @@ export const hostCapabilities = {
     hostCapabilities.notificationIconsShown = shapes.images === 1 && shapes.symbols === 1;
     await centre.close();
 
-    /* 状态只在内存里（每个标签页自己的）：刷新后不保留。 */
+    /* 通知持久化到本地偏好：刷新后条目仍在（去重/限额由服务单测覆盖）。 */
     await session.reloadDesktop();
     await centre.open();
-    hostCapabilities.notificationNotKeptAcrossReload =
-      (await centre.count()) === 0 && (await page.locator('[data-nc-clear-all]').count()) === 0;
+    hostCapabilities.notificationPersistsAcrossReload =
+      (await centre.count()) === accepted.length && (await page.locator('[data-nc-clear-all]').count()) === 1;
+    await page.locator('[data-nc-clear-all]').click();
     await centre.close();
 
     return { hostCapabilities };

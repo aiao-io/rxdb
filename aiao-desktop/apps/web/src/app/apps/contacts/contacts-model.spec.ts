@@ -7,7 +7,8 @@ import {
   filterContacts,
   newDraft,
   normalizeDraft,
-  sameContact
+  sameContact,
+  stepContact
 } from './contacts-model';
 import { Contact } from './contacts.entities';
 
@@ -68,5 +69,26 @@ describe('contact drafts', () => {
     expect(contactValidationMessage(value)).toBeNull();
     expect(contactValidationMessage({ ...value, email: 'bad' })).toBe('Enter a valid email address.');
     expect(contactValidationMessage({ ...value, name: '' })).toBe('Name is required.');
+  });
+});
+
+describe('stepContact', () => {
+  const ids = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+
+  it('上下移动选中项', () => {
+    expect(stepContact(ids, 'b', 1)).toBe('c');
+    expect(stepContact(ids, 'b', -1)).toBe('a');
+  });
+
+  it('还没选中时从第一行起算，到头不再移动', () => {
+    expect(stepContact(ids, null, 1)).toBe('b');
+    expect(stepContact(ids, null, -1)).toBeNull();
+    expect(stepContact(ids, 'c', 1)).toBeNull();
+    expect(stepContact(ids, 'a', -1)).toBeNull();
+  });
+
+  it('空列表与找不到的 id 返回 null', () => {
+    expect(stepContact([], null, 1)).toBeNull();
+    expect(stepContact(ids, 'gone', 1)).toBeNull();
   });
 });

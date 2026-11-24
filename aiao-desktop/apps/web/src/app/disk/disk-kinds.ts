@@ -6,6 +6,13 @@ export interface KindInfo {
 
 export const FOLDER_KIND: KindInfo = { kind: 'Folder', icon: 'f-folder' };
 const DOCUMENT_KIND: KindInfo = { kind: 'Document', icon: 'f-txt' };
+const ALIAS_KIND: KindInfo = { kind: 'Alias', icon: 'f-alias' };
+
+/** 别名文件名的后缀：`note.txt alias`。 */
+export const ALIAS_SUFFIX = ' alias';
+
+/** 按名字判断是不是别名文件；内容是否有效由 `disk/alias` 再验。 */
+export const isAliasName = (name: string): boolean => name.endsWith(ALIAS_SUFFIX);
 
 const code = (kind: string): KindInfo => ({ kind, icon: 'f-code' });
 
@@ -70,7 +77,8 @@ export function extensionOf(name: string): string {
   return dot > 0 ? name.slice(dot + 1).toLowerCase() : '';
 }
 
-export const fileKind = (name: string): KindInfo => BY_EXTENSION[extensionOf(name)] ?? DOCUMENT_KIND;
+export const fileKind = (name: string): KindInfo =>
+  isAliasName(name) ? ALIAS_KIND : (BY_EXTENSION[extensionOf(name)] ?? DOCUMENT_KIND);
 
 /** `.app` 目录在 Finder 里是一个程序包：按文件显示，双击启动应用。 */
 export const isPackageName = (name: string): boolean => extensionOf(name) === 'app';

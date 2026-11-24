@@ -45,7 +45,7 @@ export const apps = {
   name: 'apps',
   description: '启动台里的每个应用都能打开；启动台条目与冒烟声明的应用逐项核对',
   standins: ['game'],
-  keys: ['everyAppOpens', 'unopened', 'searchEnterUsesCurrentQuery'],
+  keys: ['everyAppOpens', 'unopened', 'searchEnterUsesCurrentQuery', 'pageTurnAnimates'],
   async run(session) {
     const { page } = session;
     const { win, closeAll, launch } = session.helpers;
@@ -55,6 +55,55 @@ export const apps = {
     await page.locator('#dock .di[data-app="launchpad"]').click();
     await page.waitForFunction(() => document.activeElement?.matches('#lpad [data-lq]'));
     const entries = await readLaunchpadEntries(page);
+    /* 翻页动画：方向键翻页时网格有进行中的滑入动画（方向与行进方向一致），结束后不留 transform。
+       #lpad .grid 的入场动画是 fill:both，结束后仍留在 getAnimations() 里，因此按关键帧精确匹配翻页动画。 */
+    const pageTurnAnimates = await (async () => {
+      const pages = await page.evaluate(() => document.querySelectorAll('#lpad [data-ldots] i').length);
+      if (pages < 2) return false;
+      const before = await page.evaluate(() =>
+        [...document.querySelectorAll('#lpad [data-ldots] i')].findIndex(dot => dot.classList.contains('on'))
+      );
+      await page.keyboard.press('ArrowLeft');
+      const running = await page.evaluate(() => {
+        const grid = document.querySelector('#lpad .grid');
+        if (!(grid instanceof HTMLElement)) return { on: false, from: null };
+        const turn = grid
+          .getAnimations()
+          .find(anim => anim.effect?.getKeyframes?.()[0]?.transform === 'translateX(-56px)');
+        return { on: turn?.playState === 'running', from: turn?.effect?.getKeyframes?.()[0]?.transform ?? null };
+      });
+      await page.waitForTimeout(50);
+      /* 翻页渲染（整屏 backdrop 模糊）可能把动画起步推迟几十毫秒，轮询到它结束，而不是固定等待。 */
+      const settled = await page
+        .waitForFunction(
+          () => {
+            const grid = document.querySelector('#lpad .grid');
+            if (!(grid instanceof HTMLElement)) return false;
+            return !grid
+              .getAnimations()
+              .some(
+                anim =>
+                  anim.effect?.getKeyframes?.()[0]?.transform === 'translateX(-56px)' && anim.playState === 'running'
+              );
+          },
+          undefined,
+          { timeout: 2_000 }
+        )
+        .then(
+          () => true,
+          () => false
+        );
+      const after = await page.evaluate(() =>
+        [...document.querySelectorAll('#lpad [data-ldots] i')].findIndex(dot => dot.classList.contains('on'))
+      );
+      if (!running.on || running.from !== 'translateX(-56px)' || !settled || after === before) {
+        console.error(
+          `启动台翻页动画异常：${JSON.stringify({ pages, before, after, running: running.on, from: running.from, settled })}`
+        );
+        return false;
+      }
+      return true;
+    })();
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => !document.querySelector('#lpad'));
 
@@ -116,6 +165,6 @@ export const apps = {
       }
     }
     await closeAll();
-    return { everyAppOpens: unopened.length === 0, unopened, searchEnterUsesCurrentQuery };
+    return { everyAppOpens: unopened.length === 0, unopened, searchEnterUsesCurrentQuery, pageTurnAnimates };
   }
 };

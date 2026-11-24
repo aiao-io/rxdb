@@ -31,41 +31,65 @@
       spellcheck="false"
     />
   }
-  @for (item of desktop.items(); track item.node?.id ?? item.id) {
-    @let at = position(item);
-    @let moving = movingToDirectory().has(item.id);
-    <div
-      class="dicon"
-      [appFileDrop]="item.node?.kind === 'folder' ? item.node.path : undefined"
-      [attr.data-id]="item.id"
-      [class.drag]="dragging()?.id === item.id"
-      [class.drop-target]="folderHover() === item.id"
-      [class.moving]="moving"
-      [class.sel]="selected().has(item.id)"
-      [class.settle]="settling() === item.id"
-      [style.left.px]="at.left"
-      [style.top.px]="at.top"
-      (animate.leave)="leaveIcon($event, item)"
-      (contextmenu)="iconMenu($event, item)"
-      (dblclick)="item.open()"
-      (focus)="focusItem(item.id)"
-      (keydown.space)="openByKey($event, item)"
-      (keydown)="iconKey($event, item)"
-      (pointerdown)="grab($event, item)"
-      role="button"
-      tabindex="0"
-    >
-      <div class="art">
-        @if (item.node?.kind === 'folder' && folderHover() === item.id) {
-          <svg appIcon="g-folder-open"></svg>
-        } @else if (item.node?.icon === 'f-img') {
-          <app-file-thumbnail [contentId]="item.node.contentId" />
-        } @else {
-          <svg [appIcon]="item.icon"></svg>
-        }
+  @if (desktop.stacksEnabled()) {
+    @for (stack of desktop.stacks(); track stack.kind) {
+      @let at = stackPosition(stack);
+      <div
+        class="dicon dstack"
+        [attr.aria-label]="stackLabel(stack)"
+        [attr.data-stack]="stack.kind"
+        [style.left.px]="at.left"
+        [style.top.px]="at.top"
+        (click)="openStack($event, stack)"
+        (keydown.space)="openStackByKey($event, stack)"
+        (keydown)="stackKey($event, stack)"
+        role="button"
+        tabindex="0"
+      >
+        <div class="art">
+          <svg [appIcon]="stackIcon(stack)"></svg>
+          <div class="cnt" aria-hidden="true">{{ stack.ids.length }}</div>
+        </div>
+        <div class="lbl">{{ stack.kind }}</div>
       </div>
-      <div class="lbl" [style.visibility]="renaming()?.id === item.id ? 'hidden' : null">{{ item.name }}</div>
-    </div>
+    }
+  } @else {
+    @for (item of desktop.items(); track item.node?.id ?? item.id) {
+      @let at = position(item);
+      @let moving = movingToDirectory().has(item.id);
+      <div
+        class="dicon"
+        [appFileDrop]="item.node?.kind === 'folder' ? item.node.path : undefined"
+        [attr.data-id]="item.id"
+        [class.drag]="dragging()?.id === item.id"
+        [class.drop-target]="folderHover() === item.id"
+        [class.moving]="moving"
+        [class.sel]="selected().has(item.id)"
+        [class.settle]="settling() === item.id"
+        [style.left.px]="at.left"
+        [style.top.px]="at.top"
+        (animate.leave)="leaveIcon($event, item)"
+        (contextmenu)="iconMenu($event, item)"
+        (dblclick)="item.open()"
+        (focus)="focusItem(item.id)"
+        (keydown.space)="quickLookByKey($event, item)"
+        (keydown)="iconKey($event, item)"
+        (pointerdown)="grab($event, item)"
+        role="button"
+        tabindex="0"
+      >
+        <div class="art">
+          @if (item.node?.kind === 'folder' && folderHover() === item.id) {
+            <svg appIcon="g-folder-open"></svg>
+          } @else if (item.node?.icon === 'f-img') {
+            <app-file-thumbnail [contentId]="item.node.contentId" />
+          } @else {
+            <svg [appIcon]="item.icon"></svg>
+          }
+        </div>
+        <div class="lbl" [style.visibility]="renaming()?.id === item.id ? 'hidden' : null">{{ item.name }}</div>
+      </div>
+    }
   }
 </div>
 

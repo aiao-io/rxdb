@@ -80,6 +80,8 @@ export const noteDrafts = {
     await expect(win()).not.toHaveClass(/closing/);
     await page.getByRole('menuitem', { name: 'Apple', exact: true }).click();
     await page.getByRole('menuitem', { name: 'Restart…', exact: true }).click();
+    /* 重启现在是两步式（macOS 语义）：确认面板里点 Restart 才拆会话。 */
+    await page.getByRole('button', { name: 'Restart', exact: true }).click();
     await expect(win().getByRole('alert')).toBeVisible();
     expect(await doc().innerHTML()).toBe(failedBody);
     result.failedNavigationAndClose = true;

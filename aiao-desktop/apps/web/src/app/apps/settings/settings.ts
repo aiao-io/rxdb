@@ -14,6 +14,7 @@ import { DisplaysPane } from './panes/displays-pane';
 import { DockPane } from './panes/dock-pane';
 import { GeneralPane } from './panes/general-pane';
 import { NetworkPane } from './panes/network-pane';
+import { NotificationsPane } from './panes/notifications-pane';
 import { PrivacyPane } from './panes/privacy-pane';
 import { SoundPane } from './panes/sound-pane';
 import { WallpaperPane } from './panes/wallpaper-pane';
@@ -33,6 +34,7 @@ import { filterSettingsGroups, findSection, SETTINGS_GROUPS } from './settings-d
     Icon,
     NetworkPane,
     NgOptimizedImage,
+    NotificationsPane,
     PrivacyPane,
     SoundPane,
     TrafficLights,

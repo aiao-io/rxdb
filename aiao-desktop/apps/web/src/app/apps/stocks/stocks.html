@@ -12,17 +12,42 @@
           placeholder="Search"
         />
       </div>
+      <div class="sfield" data-nodrag style="margin-top: 6px">
+        <input
+          #add
+          (keydown.enter)="addSymbol(add)"
+          aria-label="Add symbol"
+          data-sadd
+          placeholder="Add symbol, e.g. AAPL"
+          spellcheck="false"
+        />
+        <button
+          class="tbtn"
+          (click)="addSymbol(add)"
+          aria-label="Add symbol to watchlist"
+          data-nodrag
+          style="padding: 0 6px"
+          tabindex="0"
+          title="Add symbol"
+          type="button"
+        >
+          <svg appIcon="g-plus" style="width: 14px; height: 14px"></svg>
+        </button>
+      </div>
     </div>
-    <div style="overflow: auto; padding: 0 8px">
+    <div #listBox style="overflow: auto; padding: 0 8px">
       @for (ticker of visibleTickers(); track ticker.s; let i = $index) {
         <div
           class="si"
           [attr.data-ti]="i"
           [class.on]="ticker.s === current()?.s"
           (click)="selected.set(ticker.s)"
+          (contextmenu)="rowMenu($event, ticker)"
           (keydown.enter)="selected.set(ticker.s)"
+          (keydown)="rowKey($event, i)"
+          (pointerdown)="dragStart($event, i)"
           style="height: 52px; align-items: center"
-          tabindex="-1"
+          tabindex="0"
         >
           <span style="flex: 1; min-width: 0; display: flex; flex-direction: column">
             <b style="font-size: 14px; font-weight: 650; letter-spacing: -0.01em">{{ ticker.s }}</b>

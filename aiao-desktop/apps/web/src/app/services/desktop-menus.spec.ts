@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it, vi } from 'vitest';
 
+import { FinderClipboard } from '../apps/finder/finder-clipboard';
 import { ForceQuitPanel } from '../components/menubar/force-quit-panel';
 import { DesktopData } from '../data/desktop-data';
 import { Preferences } from '../data/preferences';
@@ -31,15 +32,29 @@ import { WindowManager } from './window-manager';
 function setup() {
   stubViewport(1000, 600);
   const wm = createWindowManagerStub();
+  /* 窗口菜单新增的两项能力（WINDOWMENU 契约由窗口管理器提供）：替身里补上 spy。 */
+  Object.assign(wm, {
+    front: vi.fn(() => null),
+    windowMenuEntries: vi.fn((): MenuEntry[] => []),
+    showAppWindows: vi.fn()
+  });
   const toast = { show: vi.fn() };
   const session = { sleepNow: vi.fn(), restart: vi.fn(), shutDown: vi.fn(), lock: vi.fn() };
   const popover = { openComponent: vi.fn() };
   const desktopItems = { newFolder: vi.fn(), canUndoTrash: vi.fn(() => false), undoTrash: vi.fn() };
-  const fs = { get: vi.fn(() => null) };
+  const fs = {
+    get: vi.fn(() => null),
+    canUndo: vi.fn(() => false),
+    canRedo: vi.fn(() => false),
+    undo: vi.fn(),
+    redo: vi.fn(),
+    undoLabel: vi.fn(() => 'Undo')
+  };
   configureServices([
     DesktopMenus,
     SystemState,
     FinderPreferences,
+    FinderClipboard,
     Preferences,
     { provide: DesktopData, useValue: new FakeDesktopData() },
     { provide: DESKTOP_APPS, useValue: testApps() },
@@ -50,7 +65,7 @@ function setup() {
     { provide: DesktopItems, useValue: desktopItems },
     { provide: FileSystem, useValue: fs }
   ]);
-  return { menus: TestBed.inject(DesktopMenus), wm, toast, session, popover, desktopItems };
+  return { menus: TestBed.inject(DesktopMenus), wm, toast, session, popover, desktopItems, fs };
 }
 
 /** 按 id 点击菜单项。 */
@@ -66,7 +81,7 @@ const sectionOf = (sections: readonly MenuSection[], label: string): readonly Me
   return found.items;
 };
 
-const finderTarget = (): FinderCommands => ({
+const finderTarget = (overrides: Partial<{ inTrash: boolean }> = {}): FinderCommands => ({
   newFolder: vi.fn(),
   openSelected: vi.fn(),
   getInfo: vi.fn(),
@@ -79,7 +94,12 @@ const finderTarget = (): FinderCommands => ({
   sidebarVisible: vi.fn(() => true),
   toggleSidebar: vi.fn(),
   togglePathBar: vi.fn(),
-  goto: vi.fn()
+  goto: vi.fn(),
+  inTrash: vi.fn(() => overrides.inTrash ?? false),
+  emptyTrash: vi.fn(),
+  focusSearch: vi.fn(),
+  gotoFolder: vi.fn(),
+  showViewOptions: vi.fn()
 });
 
 const githubTarget = (
@@ -223,14 +243,21 @@ describe('DesktopMenus 应用菜单与窗口菜单', () => {
     expect(wm.quitFront).toHaveBeenCalledTimes(1);
   });
 
-  it('窗口菜单：最小化、缩放、填充、切换窗口、全部前置', () => {
+  it('窗口菜单：最小化、缩放、填充、切换窗口，前台应用的窗口列表与整组前置', () => {
     const { menus, wm } = setup();
     const windowMenu = menus.window();
-    for (const id of ['min', 'zoo', 'fil', 'cyc', 'brf']) click(windowMenu, id);
+    for (const id of ['min', 'zoo', 'fil', 'cyc']) click(windowMenu, id);
     expect(wm.minimizeFront).toHaveBeenCalledTimes(1);
     expect(wm.zoomFront).toHaveBeenCalledTimes(2);
     expect(wm.cycle).toHaveBeenCalledTimes(1);
-    expect(wm.showAll).toHaveBeenCalledTimes(1);
+
+    /* 窗口列表插在缩放之后；Bring All to Front 把前台应用整组还原抬升。 */
+    wm.windowMenuEntries.mockReturnValue([{ id: 'w1', label: 'Notes' }]);
+    expect(menus.window().map(item => (isMenuCommand(item) ? item.id : item))).toContain('w1');
+    wm.front.mockReturnValue({ appId: 'notes' });
+    click(menus.window(), 'brf');
+    expect(wm.showAppWindows).toHaveBeenCalledExactlyOnceWith('notes');
+    expect(wm.showAll).not.toHaveBeenCalled();
   });
 });
 
@@ -260,18 +287,88 @@ describe('DesktopMenus Finder 菜单', () => {
     expect(wm.closeFront).toHaveBeenCalledTimes(1);
   });
 
-  it('Edit：有移入废纸篓记录才启用撤销，重做仍不可用', () => {
-    const { menus, desktopItems } = setup();
-    const edit = sectionOf(menus.finder(finderTarget()), 'Edit').filter(isMenuCommand);
-    expect(edit.filter(item => item.disabled).map(item => item.label)).toEqual(['Undo', 'Redo']);
-    desktopItems.canUndoTrash.mockReturnValue(true);
-    const undoEdit = sectionOf(menus.finderFallback(), 'Edit');
-    expect(undoEdit.filter(isMenuCommand).find(item => item.id === 'u')).toMatchObject({
+  it('Edit：撤销与重做按文件系统命令栈启用，标签跟着 undoLabel 走', () => {
+    const { menus, fs } = setup();
+    const edit = () => sectionOf(menus.finder(finderTarget()), 'Edit').filter(isMenuCommand);
+    expect(
+      edit()
+        .filter(item => item.disabled)
+        .map(item => item.label)
+    ).toEqual(['Undo', 'Redo', 'Move Item Here']);
+    fs.canUndo.mockReturnValue(true);
+    fs.canRedo.mockReturnValue(true);
+    fs.undoLabel.mockReturnValue('Undo Move to Trash');
+    const enabled = sectionOf(menus.finder(finderTarget()), 'Edit');
+    expect(enabled.filter(isMenuCommand).find(item => item.id === 'u')).toMatchObject({
       label: 'Undo Move to Trash',
       disabled: false
     });
-    click(undoEdit, 'u');
-    expect(desktopItems.undoTrash).toHaveBeenCalledOnce();
+    expect(enabled.filter(isMenuCommand).find(item => item.id === 'r')?.disabled).toBe(false);
+    click(enabled, 'u');
+    click(enabled, 'r');
+    expect(fs.undo).toHaveBeenCalledTimes(1);
+    expect(fs.redo).toHaveBeenCalledTimes(1);
+  });
+
+  it('Edit：剪贴板是剪切时 Move Item Here（⌥⌘V）才可用，执行同一个粘贴', async () => {
+    const { menus } = setup();
+    const clipboard = TestBed.inject(FinderClipboard);
+    const target = finderTarget();
+    const move = () =>
+      sectionOf(menus.finder(target), 'Edit')
+        .filter(isMenuCommand)
+        .find(item => item.id === 'mv');
+    expect(move()).toMatchObject({ label: 'Move Item Here', key: '⌥⌘V', disabled: true });
+
+    clipboard.set('cut', [{ path: ['Users', 'a'], name: 'a.txt' }]);
+    expect(move()?.disabled).toBe(false);
+    click(sectionOf(menus.finder(target), 'Edit'), 'mv');
+    expect(target.paste).toHaveBeenCalledTimes(1);
+
+    clipboard.set('copy', [{ path: ['Users', 'a'], name: 'a.txt' }]);
+    expect(move()?.disabled).toBe(true);
+  });
+
+  it('File：废纸篓里显示 Empty Trash…（⇧⌘⌫），平时是 Move to Trash；Find 聚焦搜索', () => {
+    const { menus } = setup();
+    const ids = (target: FinderCommands) =>
+      sectionOf(menus.finder(target), 'File')
+        .filter(isMenuCommand)
+        .map(item => item.id);
+    expect(ids(finderTarget())).toContain('tr');
+    expect(ids(finderTarget())).not.toContain('et');
+    expect(ids(finderTarget({ inTrash: true }))).toContain('et');
+
+    const target = finderTarget({ inTrash: true });
+    const file = sectionOf(menus.finder(target), 'File');
+    expect(file.filter(isMenuCommand).find(item => item.id === 'et')).toMatchObject({
+      label: 'Empty Trash…',
+      key: '⇧⌘⌫'
+    });
+    click(file, 'et');
+    expect(target.emptyTrash).toHaveBeenCalledTimes(1);
+    click(file, 'find');
+    expect(target.focusSearch).toHaveBeenCalledTimes(1);
+  });
+
+  it('View：Show View Options（⌘J）；Go：Go to Folder…（⇧⌘G）', () => {
+    const { menus } = setup();
+    const target = finderTarget();
+    const view = sectionOf(menus.finder(target), 'View');
+    expect(view.filter(isMenuCommand).find(item => item.id === 'vo')).toMatchObject({
+      label: 'Show View Options',
+      key: '⌘J'
+    });
+    click(view, 'vo');
+    expect(target.showViewOptions).toHaveBeenCalledTimes(1);
+
+    const go = sectionOf(menus.finder(target), 'Go');
+    expect(go.filter(isMenuCommand).find(item => item.id === 'gf')).toMatchObject({
+      label: 'Go to Folder…',
+      key: '⇧⌘G'
+    });
+    click(go, 'gf');
+    expect(target.gotoFolder).toHaveBeenCalledTimes(1);
   });
 
   it('View：切换四种视图，显示或隐藏侧栏与路径栏', () => {

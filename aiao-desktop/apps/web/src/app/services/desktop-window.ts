@@ -61,6 +61,11 @@ export class DesktopWindow {
   /** 窗口完全收进 Dock（最小化动画结束）时为 true，还原动画开始前变回 false。 */
   readonly hidden = signal(false);
   readonly zoomed = signal(false);
+  /**
+   * 窗口在全屏空间（macOS 全屏：绿键进入、菜单栏与 Dock 让位）。与 `zoomed`（AppKit Zoom，填满菜单栏下方）正交，
+   * 由窗口框架在 fullscreenchange 时置位，`WindowManager.hasFullscreen` 据此隐藏桌面部件。
+   */
+  readonly fullscreen = signal(false);
   /** 用户拖动缩放把手松手后触发。 */
   readonly afterResize = new Subject<void>();
   /** 关闭动画开始前触发，应用在这里释放资源。 */

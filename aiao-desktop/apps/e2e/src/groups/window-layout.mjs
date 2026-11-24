@@ -450,7 +450,7 @@ async function twoFindersAndZoom({ session, result }) {
     await first.getAttribute('id')
   );
   const zoomedBefore = await boxOf(first);
-  await first.locator('.tl .f').click();
+  await first.locator('.tl .f').click({ modifiers: ['Alt'] });
   await page.waitForTimeout(700);
 
   const layout = await savedLayout(
@@ -479,7 +479,7 @@ async function twoFindersAndZoom({ session, result }) {
     zoomedBox !== null &&
     zoomedBox.x <= 1 &&
     near(zoomedBox.width, viewport.width, 2);
-  await zoomedWin.locator('.tl .f').click();
+  await zoomedWin.locator('.tl .f').click({ modifiers: ['Alt'] });
   await page.waitForTimeout(700);
   const unzoomed = zoomedId ? await boxOf(page.locator(`#${zoomedId}`)) : null;
   result.zoomedWindowUnzoomsToSavedBox =

@@ -30,6 +30,19 @@ interface WorkerRequest {
 
 let runtime: Promise<GitWorkbenchRuntime> | undefined;
 
+/**
+ * vendored lg2（wasm-git）的 scratch checkout 缺陷会间歇性打坏 wasm 堆；此后同一实例里所有 git 操作
+ * 都确定性失败（`memory access out of bounds` / `cannot be peeled`）。这类失败与仓库内容无关，OPFS 数据
+ * 始终完好——重建运行时从 OPFS 恢复即可自愈，重试一次。
+ */
+const WASM_CORRUPTION =
+  /memory access out of bounds|out of bounds memory access|cannot be peeled|cannot retrieve reference target/i;
+
+function isWasmCorruption(error: unknown): boolean {
+  if (typeof WebAssembly !== 'undefined' && error instanceof WebAssembly.RuntimeError) return true;
+  return error instanceof Error && WASM_CORRUPTION.test(error.message);
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -89,7 +102,7 @@ function serialized(value: unknown): unknown {
   return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, serialized(item)]));
 }
 
-async function dispatch({ action, payload }: WorkerRequest): Promise<unknown> {
+async function run({ action, payload }: WorkerRequest): Promise<unknown> {
   runtime ??= GitWorkbenchRuntime.create(new URL('/github-git/', self.location.origin).href);
   const git = await runtime;
   const projectId = payload.projectId;
@@ -157,6 +170,17 @@ async function dispatch({ action, payload }: WorkerRequest): Promise<unknown> {
       return git.importArchive(projectId, new Uint8Array(payload.archive ?? []));
     default:
       throw new Error(`Unknown Git action: ${action}`);
+  }
+}
+
+async function dispatch(request: WorkerRequest): Promise<unknown> {
+  try {
+    return await run(request);
+  } catch (error) {
+    if (!isWasmCorruption(error)) throw error;
+    /* 丢弃被打坏的实例（下次 run 会从 OPFS 重建），同一条请求重试一次；重试仍损坏则照常报错。 */
+    runtime = undefined;
+    return run(request);
   }
 }
 

@@ -3,7 +3,7 @@
   #layout
   [class.sidebar-collapsed]="!sidebarVisible()"
   [class.trash-window]="isTrash()"
-  [inert]="fileOperation() !== null || emptyTrashPrompt()"
+  [inert]="fileOperation() !== null || emptyTrashPrompt() || renameConflict() !== null || deletePrompt() !== null"
   [style.--finder-sidebar-width]="sidebarWidth() + 'px'"
 >
   <app-traffic-lights />
@@ -236,6 +236,10 @@
       [cdkDropListData]="importDirectory()"
       [cdkDropListSortingDisabled]="true"
       [class.scroll]="view() !== 'column'"
+      [style.--finder-grid-cell.px]="iconSize() * 2"
+      [style.--finder-grid-gap]="gridSpacing() + 'px 6px'"
+      [style.--finder-icon-size.px]="iconSize()"
+      [style.--finder-text-size.px]="textSize()"
       [style.overflow]="view() === 'column' ? 'hidden' : ''"
       (cdkDropListDropped)="dropFile($event)"
       (contextmenu)="bodyMenu($event)"
@@ -306,6 +310,9 @@
                   } @else {
                     <svg [appIcon]="displayIcon(item)"></svg>
                   }
+                  @if (isAlias(item)) {
+                    <span class="finder-alias-badge" aria-hidden="true"></span>
+                  }
                 </div>
                 <div class="nm" [style.visibility]="isRenaming(item) ? 'hidden' : null" data-rename-anchor>
                   {{ displayName(item) }}
@@ -323,70 +330,161 @@
           }
         }
         @case ('list') {
-          <div class="fv-list" aria-label="Items" role="listbox">
-            <div class="hd" aria-hidden="true">
-              <div class="c1" style="padding-left: 26px">Name</div>
-              <div class="c2">Date Modified</div>
-              <div class="c3">Size</div>
-              <div class="c4">Kind</div>
-            </div>
-            <cdk-virtual-scroll-viewport class="fv-list-scroll" #listViewport [itemSize]="24">
-              <div
-                class="r"
-                *cdkVirtualFor="let item of items(); trackBy: trackNode"
-                [appFileDrop]="item.kind === 'folder' ? item.path : undefined"
-                [attr.aria-label]="label(item)"
-                [attr.aria-selected]="isSelected(item.name)"
-                [attr.data-autofocus]="item.name === tabStop() ? '' : null"
-                [attr.data-drop-directory]="item.kind === 'folder' && item.path ? item.path.join('/') : null"
-                [attr.data-name]="item.name"
-                [attr.tabindex]="item.name === tabStop() ? 0 : -1"
-                [cdkDragData]="item"
-                [cdkDragDisabled]="!canFileDrag(item)"
-                [cdkDropListData]="item.kind === 'folder' ? item.path : null"
-                [class.finder-hidden]="item.hidden"
-                [class.sel]="isSelected(item.name)"
-                (cdkDragEnded)="dragEnded($event)"
-                (cdkDragMoved)="dragMoved($event)"
-                (cdkDragStarted)="dragStarted(item)"
-                (cdkDropListDropped)="dropFile($event)"
-                (cdkDropListEntered)="folderDragEntered($event)"
-                (cdkDropListExited)="folderDragExited($event)"
-                (click)="select(item.name, $event)"
-                (contextmenu)="itemMenu($event, item)"
-                (dblclick)="enter(item.name)"
-                (focus)="focusItem(item.name)"
-                (keydown)="itemKey($event, item.name)"
-                (pointerdown)="dragApp($event, item)"
-                cdkDrag
-                cdkDropList
-                role="option"
+          <div
+            class="fv-list-wrap"
+            [style.--finder-c2.px]="listWidth('date')"
+            [style.--finder-c3.px]="listWidth('size')"
+            [style.--finder-c4.px]="listWidth('kind')"
+          >
+            <div class="hd">
+              <button
+                class="hdbtn c1"
+                [attr.aria-sort]="ariaSort('name')"
+                (click)="headerSort('name')"
+                aria-label="Sort by Name"
+                tabindex="0"
+                type="button"
               >
-                <div class="c1">
-                  <span class="tw">
-                    @if (item.kind === 'folder') {
-                      <svg appIcon="g-chev-r"></svg>
-                    }
-                  </span>
-                  <span class="art">
-                    @if (item.icon === 'f-img') {
-                      <app-file-thumbnail class="shot" [contentId]="item.contentId" />
-                    } @else {
-                      <svg [appIcon]="displayIcon(item)"></svg>
-                    }
-                  </span>
-                  <span [style.visibility]="isRenaming(item) ? 'hidden' : null" data-rename-anchor>
-                    {{ displayName(item) }}
-                  </span>
+                Name
+              </button>
+              <div
+                class="hd-sep"
+                [attr.aria-valuenow]="listWidth('date')"
+                (keydown)="headerKey($event, 'date')"
+                (lostpointercapture)="endHeaderDrag($event)"
+                (pointercancel)="endHeaderDrag($event)"
+                (pointerdown)="startHeaderDrag($event, 'date')"
+                (pointermove)="moveHeaderDrag($event)"
+                (pointerup)="endHeaderDrag($event)"
+                aria-label="Resize Date Modified column"
+                aria-orientation="vertical"
+                aria-valuemax="480"
+                aria-valuemin="60"
+                role="separator"
+                tabindex="0"
+              ></div>
+              <button
+                class="hdbtn c2"
+                [attr.aria-sort]="ariaSort('date')"
+                (click)="headerSort('date')"
+                aria-label="Sort by Date Modified"
+                tabindex="0"
+                type="button"
+              >
+                Date Modified
+              </button>
+              <div
+                class="hd-sep"
+                [attr.aria-valuenow]="listWidth('size')"
+                (keydown)="headerKey($event, 'size')"
+                (lostpointercapture)="endHeaderDrag($event)"
+                (pointercancel)="endHeaderDrag($event)"
+                (pointerdown)="startHeaderDrag($event, 'size')"
+                (pointermove)="moveHeaderDrag($event)"
+                (pointerup)="endHeaderDrag($event)"
+                aria-label="Resize Size column"
+                aria-orientation="vertical"
+                aria-valuemax="480"
+                aria-valuemin="60"
+                role="separator"
+                tabindex="0"
+              ></div>
+              <button
+                class="hdbtn c3"
+                [attr.aria-sort]="ariaSort('size')"
+                (click)="headerSort('size')"
+                aria-label="Sort by Size"
+                tabindex="0"
+                type="button"
+              >
+                Size
+              </button>
+              <div
+                class="hd-sep"
+                [attr.aria-valuenow]="listWidth('kind')"
+                (keydown)="headerKey($event, 'kind')"
+                (lostpointercapture)="endHeaderDrag($event)"
+                (pointercancel)="endHeaderDrag($event)"
+                (pointerdown)="startHeaderDrag($event, 'kind')"
+                (pointermove)="moveHeaderDrag($event)"
+                (pointerup)="endHeaderDrag($event)"
+                aria-label="Resize Kind column"
+                aria-orientation="vertical"
+                aria-valuemax="480"
+                aria-valuemin="60"
+                role="separator"
+                tabindex="0"
+              ></div>
+              <button
+                class="hdbtn c4"
+                [attr.aria-sort]="ariaSort('kind')"
+                (click)="headerSort('kind')"
+                aria-label="Sort by Kind"
+                tabindex="0"
+                type="button"
+              >
+                Kind
+              </button>
+            </div>
+            <div class="fv-list" aria-label="Items" role="listbox">
+              <cdk-virtual-scroll-viewport class="fv-list-scroll" #listViewport [itemSize]="24">
+                <div
+                  class="r"
+                  *cdkVirtualFor="let item of items(); trackBy: trackNode"
+                  [appFileDrop]="item.kind === 'folder' ? item.path : undefined"
+                  [attr.aria-label]="label(item)"
+                  [attr.aria-selected]="isSelected(item.name)"
+                  [attr.data-autofocus]="item.name === tabStop() ? '' : null"
+                  [attr.data-drop-directory]="item.kind === 'folder' && item.path ? item.path.join('/') : null"
+                  [attr.data-name]="item.name"
+                  [attr.tabindex]="item.name === tabStop() ? 0 : -1"
+                  [cdkDragData]="item"
+                  [cdkDragDisabled]="!canFileDrag(item)"
+                  [cdkDropListData]="item.kind === 'folder' ? item.path : null"
+                  [class.finder-hidden]="item.hidden"
+                  [class.sel]="isSelected(item.name)"
+                  (cdkDragEnded)="dragEnded($event)"
+                  (cdkDragMoved)="dragMoved($event)"
+                  (cdkDragStarted)="dragStarted(item)"
+                  (cdkDropListDropped)="dropFile($event)"
+                  (cdkDropListEntered)="folderDragEntered($event)"
+                  (cdkDropListExited)="folderDragExited($event)"
+                  (click)="select(item.name, $event)"
+                  (contextmenu)="itemMenu($event, item)"
+                  (dblclick)="enter(item.name)"
+                  (focus)="focusItem(item.name)"
+                  (keydown)="itemKey($event, item.name)"
+                  (pointerdown)="dragApp($event, item)"
+                  cdkDrag
+                  cdkDropList
+                  role="option"
+                >
+                  <div class="c1">
+                    <span class="tw">
+                      @if (item.kind === 'folder') {
+                        <svg appIcon="g-chev-r"></svg>
+                      }
+                    </span>
+                    <span class="art">
+                      @if (item.icon === 'f-img') {
+                        <app-file-thumbnail class="shot" [contentId]="item.contentId" />
+                      } @else {
+                        <svg [appIcon]="displayIcon(item)"></svg>
+                      }
+                    </span>
+                    <span [style.visibility]="isRenaming(item) ? 'hidden' : null" data-rename-anchor>
+                      {{ displayName(item) }}
+                    </span>
+                  </div>
+                  <div class="c2">{{ finderDate(item.date) }}</div>
+                  <div class="c3">{{ item.kind === 'folder' ? '--' : item.size || '--' }}</div>
+                  <div class="c4">{{ item.k || (item.kind === 'folder' ? 'Folder' : 'Document') }}</div>
+                  <ng-template cdkDragPreview>
+                    <span class="finder-file-drag-preview">{{ displayName(item) }}</span>
+                  </ng-template>
                 </div>
-                <div class="c2">{{ finderDate(item.date) }}</div>
-                <div class="c3">{{ item.kind === 'folder' ? '--' : item.size || '--' }}</div>
-                <div class="c4">{{ item.k || (item.kind === 'folder' ? 'Folder' : 'Document') }}</div>
-                <ng-template cdkDragPreview>
-                  <span class="finder-file-drag-preview">{{ displayName(item) }}</span>
-                </ng-template>
-              </div>
-            </cdk-virtual-scroll-viewport>
+              </cdk-virtual-scroll-viewport>
+            </div>
           </div>
           @if (!items().length) {
             <div role="status" style="padding: 40px; text-align: center; color: var(--txt-3); font-size: 13px">
@@ -567,6 +665,7 @@
                   [class.sel]="isSelected(item.name)"
                   (click)="select(item.name, $event)"
                   (contextmenu)="itemMenu($event, item)"
+                  (dblclick)="enter(item.name)"
                   (focus)="focusItem(item.name)"
                   (keydown)="itemKey($event, item.name)"
                   role="option"
@@ -575,6 +674,9 @@
                     <app-file-thumbnail class="shot" [contentId]="item.contentId" />
                   } @else {
                     <div class="art"><svg [appIcon]="displayIcon(item)"></svg></div>
+                  }
+                  @if (isAlias(item)) {
+                    <span class="finder-alias-badge" aria-hidden="true"></span>
                   }
                 </div>
               }
@@ -586,6 +688,13 @@
     @if (isTrash()) {
       <div class="fx-status" data-trash-status role="status">
         {{ trashCount() }} {{ trashCount() === 1 ? 'item' : 'items' }}
+      </div>
+    } @else {
+      <div class="fx-status" data-status role="status">
+        {{ items().length }} {{ items().length === 1 ? 'item' : 'items' }}
+        @if (diskAvailable(); as available) {
+          , {{ available }} available
+        }
       </div>
     }
     <div class="fx-path" [style.display]="pathbar() ? '' : 'none'" aria-label="Path" data-path role="navigation">
@@ -606,6 +715,47 @@
   </div>
 </div>
 <input #importInput (change)="importSelection(importInput)" hidden multiple type="file" />
+
+@if (renameConflict(); as conflict) {
+  <div
+    class="finder-confirm"
+    (keydown.escape)="finishRenameConflict(null, $event)"
+    appFocusTrap
+    aria-labelledby="rename-conflict-title"
+    aria-modal="true"
+    role="alertdialog"
+  >
+    <div class="finder-confirm-card">
+      <h2 id="rename-conflict-title">Rename Conflict</h2>
+      <p>An item named “{{ conflict.name }}” already exists in this location.</p>
+      <div class="finder-confirm-actions">
+        <button (click)="finishRenameConflict(null)" data-autofocus tabindex="0" type="button">Cancel</button>
+        <button (click)="finishRenameConflict('keepBoth')" tabindex="0" type="button">Keep Both</button>
+        <button class="danger" (click)="finishRenameConflict('replace')" tabindex="0" type="button">Replace</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (deletePrompt(); as target) {
+  <div
+    class="finder-confirm"
+    (keydown.escape)="finishDeleteImmediately(false, $event)"
+    appFocusTrap
+    aria-labelledby="delete-immediately-title"
+    aria-modal="true"
+    role="alertdialog"
+  >
+    <div class="finder-confirm-card">
+      <h2 id="delete-immediately-title">Delete “{{ target.name }}”?</h2>
+      <p>This item will be deleted immediately. You can’t undo this action.</p>
+      <div class="finder-confirm-actions">
+        <button (click)="finishDeleteImmediately(false)" data-autofocus tabindex="0" type="button">Cancel</button>
+        <button class="danger" (click)="finishDeleteImmediately(true)" tabindex="0" type="button">Delete</button>
+      </div>
+    </div>
+  </div>
+}
 
 @defer (when fileOperation()) {
   @if (fileOperation(); as operation) {

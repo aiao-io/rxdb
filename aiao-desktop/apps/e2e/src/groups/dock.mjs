@@ -30,9 +30,11 @@ const LAYOUT_KEY = 'dock:layout';
 const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 const pause = milliseconds => new Promise(done => setTimeout(done, milliseconds));
 
-/** Dock 图标的 `data-app` 顺序（含临时图标），按屏幕上从左到右。 */
+/** Dock 图标的 `data-app` 顺序（含临时图标，不含最小化窗口 tile），按屏幕上从左到右。 */
 export const dockEntries = page =>
-  page.evaluate(() => [...document.querySelectorAll('#dock .di')].map(node => node.getAttribute('data-app')));
+  page.evaluate(() =>
+    [...document.querySelectorAll('#dock .di:not([data-win])')].map(node => node.getAttribute('data-app'))
+  );
 
 /** 实际顺序与期望顺序的差异；一致时为空数组，失败时输出里直接看得到差在哪。 */
 const orderDiff = (actual, expected) =>
@@ -92,15 +94,17 @@ function dockOf(page, helpers) {
   const icon = id => page.locator(`#dock .di[data-app="${id}"]`);
   const tile = id => page.locator(`#lpad .app[data-app="${id}"]`);
 
-  /** 全部固定项（含分隔线之后的废纸篓），不含本标签页的临时图标。 */
+  /** 全部固定项（含分隔线之后的废纸篓），不含本标签页的临时图标与最小化窗口 tile。 */
   const pinned = () =>
-    page.evaluate(() => [...document.querySelectorAll('#dock .di:not(.temp)')].map(node => node.dataset.app));
+    page.evaluate(() =>
+      [...document.querySelectorAll('#dock .di:not(.temp):not([data-win])')].map(node => node.dataset.app)
+    );
 
   const waitForEntries = (expected, timeout = 10_000) =>
     page
       .waitForFunction(
         wanted => {
-          const now = [...document.querySelectorAll('#dock .di')].map(node => node.dataset.app);
+          const now = [...document.querySelectorAll('#dock .di:not([data-win])')].map(node => node.dataset.app);
           return JSON.stringify(now) === JSON.stringify(wanted);
         },
         expected,
@@ -120,7 +124,7 @@ function dockOf(page, helpers) {
       };
       const dividerRect = document.querySelector('#dock .divider')?.getBoundingClientRect();
       return {
-        icons: [...document.querySelectorAll('#dock .di:not(.lifted)')].map(node => ({
+        icons: [...document.querySelectorAll('#dock .di:not(.lifted):not([data-win])')].map(node => ({
           app: node.dataset.app,
           temp: node.classList.contains('temp'),
           ...center(node)

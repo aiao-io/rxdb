@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { MessageFields, ThreadFields, buildChats } from './messages-model';
+import { MessageFields, ThreadFields, buildChats, unreadThreadIds } from './messages-model';
 
 const thread = (id: string, name: string, isGroup = false): ThreadFields => ({
   id,
@@ -40,5 +40,29 @@ describe('buildChats', () => {
     const threads = [thread('a', 'Kate')];
     const messages = [message('a', 'me', 'hi')];
     expect(buildChats(threads, messages)[0]).not.toBe(buildChats(threads, messages)[0]);
+  });
+});
+
+describe('unreadThreadIds', () => {
+  const chats = () =>
+    buildChats(
+      [thread('a', 'Kate'), thread('b', 'John'), thread('c', 'Empty')],
+      [
+        message('a', 'them', 'hi'),
+        message('a', 'me', 'replied'),
+        message('a', 'them', 'pinged again'),
+        message('b', 'them', 'waiting on you'),
+        message('b', 'me', 'sent')
+      ]
+    );
+
+  it('最后一条消息来自对方的会话算未读', () => {
+    expect([...unreadThreadIds(chats())].sort()).toEqual(['a']);
+  });
+
+  it('最后一条来自自己或没有消息的会话不算未读', () => {
+    const unread = unreadThreadIds(chats());
+    expect(unread.has('b')).toBe(false);
+    expect(unread.has('c')).toBe(false);
   });
 });

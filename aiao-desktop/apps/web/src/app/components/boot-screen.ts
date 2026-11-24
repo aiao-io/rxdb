@@ -1,8 +1,10 @@
+import { DOCUMENT } from '@angular/common';
 import {
   Component,
   DestroyRef,
   ElementRef,
   ViewEncapsulation,
+  afterNextRender,
   afterRenderEffect,
   effect,
   inject,
@@ -57,12 +59,16 @@ export class BootScreen {
   /** 开机阶段的第一次按键允许跳过，之后不再响应。 */
   private keyArmed = false;
   private readonly fs = inject(FileSystem);
+  private readonly document = inject(DOCUMENT);
   private readonly off = viewChild<ElementRef<HTMLElement>>('off');
   protected readonly session = inject(Session);
   protected readonly progress = signal<number | null>(null);
   protected readonly leaving = signal(false);
 
   constructor() {
+    /* 静态闪屏（index.html 的黑底苹果）与开机画面的起始帧像素一致：本组件首次渲染后摘掉，切换不可见。
+       跳过开机（?boot=0 / #noboot）时本组件不出现，闪屏由 index.html 里的脚本在解析期摘掉。 */
+    afterNextRender(() => this.document.getElementById('boot-splash')?.remove());
     /* 关机后的「点击启动」是一个按钮：出现时把焦点交给它。 */
     afterRenderEffect(() => this.off()?.nativeElement.focus());
     effect(() => {

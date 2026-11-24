@@ -67,6 +67,8 @@ export const freeformWorkflow = {
     await sql(`CREATE TRIGGER fail_freeform_delete BEFORE DELETE ON "${TABLE}"
       BEGIN SELECT RAISE(ABORT, 'Freeform delete unavailable'); END`);
     await window.locator('[data-clear]').click();
+    /* 清空是两步式：确认弹层（渲染在浮层里，不在窗口 DOM 内）里点 Clear 才真正擦除。 */
+    await page.locator('[data-clear-confirm]').click();
     await expect(window.locator('[data-fferror]')).toContainText('Local storage could not complete this change');
     await expect(window.locator('[data-retry]')).toBeVisible();
     await waitForCount(2);

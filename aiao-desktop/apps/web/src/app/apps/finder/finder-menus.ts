@@ -49,3 +49,29 @@ export function openWithCommands(
     { id: 'open-with-other', label: 'Other…', run: other }
   ];
 }
+
+/**
+ * Tags 子菜单：一种颜色一项，勾选条目已有的标签；点选切换这一种颜色，把整组颜色交给 `pick` 写回。
+ * 颜色顺序与侧栏的标签组一致，由调用方（`FINDER_TAG_COLORS`）提供。
+ */
+export function tagCommands(
+  colors: readonly string[],
+  tagged: readonly string[],
+  pick: (next: readonly string[]) => void
+): MenuEntry[] {
+  return colors.map(color => {
+    const has = tagged.includes(color);
+    return {
+      id: `tag-${color.toLowerCase()}`,
+      /* 存储用小写 TagColor，菜单显示首字母大写（与 macOS 标签名一致）。 */
+      label: color.charAt(0).toUpperCase() + color.slice(1),
+      checked: has,
+      run: () => pick(has ? tagged.filter(item => item !== color) : [...tagged, color])
+    };
+  });
+}
+
+/** Compress 命令的标签：单个条目是 `Compress “名字”`，多个是 `Compress N Items`（与 macOS 一致）。 */
+export function compressLabel(names: readonly string[]): string {
+  return names.length > 1 ? `Compress ${names.length} Items` : `Compress “${names[0] ?? ''}”`;
+}

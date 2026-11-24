@@ -138,8 +138,11 @@ export function viewTitle(view: CalendarView, y: number, m: number, day: number)
     : `${MONS3[a.getMonth()]} ${a.getDate()} – ${MONS3[b.getMonth()]} ${b.getDate()}, ${b.getFullYear()}`;
 }
 
-/** 侧栏迷你月历的一格：补位格没有文字。 */
+/** 侧栏迷你月历的一格：补位格没有文字也没有日期（`d` 为 0），点它不会跳转。 */
 export interface MiniCell {
+  readonly y: number;
+  readonly m: number;
+  readonly d: number;
   readonly text: string;
   readonly out: boolean;
   readonly today: boolean;
@@ -149,10 +152,25 @@ export interface MiniCell {
 export function miniMonth(y: number, m: number, now: Date): { label: string; cells: MiniCell[] } {
   const first = new Date(y, m, 1).getDay();
   const dim = new Date(y, m + 1, 0).getDate();
-  const cells: MiniCell[] = Array.from({ length: first }, () => ({ text: '', out: true, today: false }));
+  const cells: MiniCell[] = Array.from({ length: first }, () => ({ y, m, d: 0, text: '', out: true, today: false }));
   for (let d = 1; d <= dim; d++) {
     const today = d === now.getDate() && m === now.getMonth() && y === now.getFullYear();
-    cells.push({ text: String(d), out: false, today });
+    cells.push({ y, m, d, text: String(d), out: false, today });
   }
   return { label: `${MONS[m]} ${y}`, cells };
 }
+
+/** 月视图里方向键移动选中的格子：左右 ±1 天、上下 ±7 天，跨月由 `Date` 自动进位。 */
+export function pickStep(current: EventDate, key: 'ArrowLeft' | 'ArrowRight' | 'ArrowUp' | 'ArrowDown'): EventDate {
+  const base = new Date(current[0], current[1], current[2]);
+  const delta =
+    key === 'ArrowLeft' ? -1
+    : key === 'ArrowRight' ? 1
+    : key === 'ArrowUp' ? -7
+    : 7;
+  base.setDate(base.getDate() + delta);
+  return [base.getFullYear(), base.getMonth(), base.getDate()];
+}
+
+/** 时间轴上拖动事件条的纵向位移换算成 15 分钟一档的分钟数（向上拖动是负数）。 */
+export const timeDragMinutes = (dy: number): number => Math.round(((dy / HOUR_ROW) * 60) / 15) * 15;

@@ -4,7 +4,7 @@ import { localWriteFailureMessage as reminderFailureMessage } from '../../data/l
 
 export { reminderFailureMessage };
 
-import type { ReminderDraft } from './reminders-model';
+import { NEW_REMINDER_DUE, type ReminderDraft } from './reminders-model';
 import type { Reminder } from './reminders.entities';
 
 /** 草稿使用稳定 ID 重试，写入端不得覆盖同 ID 的不同内容。 */
@@ -12,6 +12,8 @@ export interface ReminderWrite {
   readonly id: Reminder['id'];
   readonly title: string;
   readonly done: boolean;
+  /** 用户给草稿选好的时间说明。 */
+  readonly due: string;
 }
 
 export interface ReminderDraftState extends ReminderDraft {
@@ -39,12 +41,19 @@ export class ReminderDrafts {
 
   add(): string {
     const id = this.createId();
-    this.state.update(rows => [{ id, title: '', done: false, editing: true, createdId: null, error: '' }, ...rows]);
+    this.state.update(rows => [
+      { id, title: '', done: false, due: NEW_REMINDER_DUE, editing: true, createdId: null, error: '' },
+      ...rows
+    ]);
     return id;
   }
 
   edit(id: string, title: string): void {
     this.change(id, { title });
+  }
+
+  setDue(id: string, due: string): void {
+    this.change(id, { due });
   }
 
   toggle(id: string): void {
@@ -76,7 +85,7 @@ export class ReminderDrafts {
     if (!title) return Promise.resolve(this.discard(id));
     this.patch(id, { editing: false, createdId: id, error: '' });
     const result = Promise.resolve()
-      .then(() => this.write({ id: draft.id, title, done: draft.done }))
+      .then(() => this.write({ id: draft.id, title, done: draft.done, due: draft.due }))
       .then(
         () => !this.disposed,
         error => {
@@ -111,7 +120,7 @@ export class ReminderDrafts {
     this.state.set([]);
   }
 
-  private change(id: string, fields: Partial<Pick<ReminderWrite, 'title' | 'done'>>): void {
+  private change(id: string, fields: Partial<Pick<ReminderWrite, 'title' | 'done' | 'due'>>): void {
     this.state.update(rows => rows.map(row => (row.id === id && row.editing ? { ...row, ...fields, error: '' } : row)));
   }
 

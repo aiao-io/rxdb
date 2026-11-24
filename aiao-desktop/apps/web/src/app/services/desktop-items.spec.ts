@@ -11,7 +11,18 @@ import { FsNode } from '../disk/disk-tree';
 import { configureServices } from '../testing/angular';
 import { fileNode, folderNode } from '../testing/nodes';
 import { createWindowManagerStub } from '../testing/stubs';
-import { DesktopCell, DesktopItems } from './desktop-items';
+import {
+  DesktopCell,
+  DesktopItems,
+  SortableItem,
+  gridMetrics,
+  layoutOrderedCells,
+  migrateCell,
+  rangeSelectIds,
+  shiftCells,
+  sortDesktopItems,
+  stackItems
+} from './desktop-items';
 import { FileOpener } from './file-opener';
 import { FileSystem } from './file-system';
 import { Toast } from './toast';
@@ -22,10 +33,12 @@ const CELLS_KEY = 'desktop:cells';
 interface Options {
   readonly entries?: readonly FsNode[];
   readonly saved?: unknown;
+  /** CELLS_KEY 之外各键的库内容（desktop:sort / desktop:stacks / desktop:view-options）。 */
+  readonly settings?: Readonly<Record<string, unknown>>;
   readonly preferencesFail?: boolean;
 }
 
-function setup({ entries = [], saved, preferencesFail = false }: Options = {}) {
+function setup({ entries = [], saved, settings = {}, preferencesFail = false }: Options = {}) {
   const desktop = signal<FsNode>(folderNode('Desktop', entries, DESKTOP));
   const root = folderNode('Macintosh HD', [], []);
   const fs = {
@@ -36,7 +49,8 @@ function setup({ entries = [], saved, preferencesFail = false }: Options = {}) {
     canUndoTrash: signal(false),
     undoTrash: vi.fn(async () => undefined),
     copyTo: vi.fn(async (path: DiskPath, dir: DiskPath) => [...dir, path.at(-1)!]),
-    moveTo: vi.fn(async (path: DiskPath, dir: DiskPath) => [...dir, path.at(-1)!])
+    moveTo: vi.fn(async (path: DiskPath, dir: DiskPath) => [...dir, path.at(-1)!]),
+    rename: vi.fn(async (path: DiskPath, name: string) => [...path.slice(0, -1), name])
   };
   const wm = createWindowManagerStub();
   const opener = { open: vi.fn() };
@@ -48,7 +62,7 @@ function setup({ entries = [], saved, preferencesFail = false }: Options = {}) {
   const preferences = {
     ready: preferencesFail ? Promise.reject(new Error('库不可用')) : Promise.resolve(),
     external$: external.asObservable(),
-    get: vi.fn(() => stored),
+    get: vi.fn((key: string) => (key === CELLS_KEY ? stored : settings[key])),
     set: vi.fn(async () => undefined)
   };
   const remote = (next: unknown, keys: readonly string[] = [CELLS_KEY]): void => {
@@ -293,5 +307,227 @@ describe('DesktopItems 新建文件夹与移到废纸篓', () => {
     items.undoTrash();
     await settled();
     expect(toast.show).toHaveBeenCalledExactlyOnceWith('Choose Restore to Folder.');
+  });
+});
+
+describe('DesktopItems 排序、叠放与单元格迁移的纯函数', () => {
+  const sortable = (id: string, name: string, node: FsNode | null): SortableItem => ({ id, name, node });
+
+  it('sortDesktopItems 按名字、种类、修改时间、大小排序，同级按名字', () => {
+    const january = new Date('2026-01-01');
+    const july = new Date('2026-07-01');
+    const items = [
+      sortable('f2', 'b.txt', fileNode('b.txt')),
+      sortable('f3', 'c.png', { ...fileNode('c.png'), bytes: 300 }),
+      sortable('f1', 'a.txt', { ...fileNode('a.txt'), date: july, bytes: 100 }),
+      sortable('f4', 'd.txt', { ...fileNode('d.txt'), date: january, bytes: 200 }),
+      sortable('f0', 'A.txt', fileNode('A.txt'))
+    ];
+    expect(sortDesktopItems(items, 'name').map(item => item.id)).toEqual(['f0', 'f1', 'f2', 'f3', 'f4']);
+    expect(sortDesktopItems(items, 'kind').map(item => item.id)).toEqual(['f3', 'f0', 'f1', 'f2', 'f4']);
+    expect(sortDesktopItems(items, 'size').map(item => item.id)).toEqual(['f3', 'f4', 'f1', 'f0', 'f2']);
+    expect(sortDesktopItems(items, 'date').map(item => item.id)).toEqual(['f1', 'f4', 'f0', 'f2', 'f3']);
+  });
+
+  it('layoutOrderedCells 按给定顺序紧凑排布，一列放六个', () => {
+    expect([...layoutOrderedCells(['hd', 'a', 'b', 'c', 'd', 'e', 'f', 'g']).entries()]).toEqual([
+      ['hd', [0, 0]],
+      ['a', [0, 1]],
+      ['b', [0, 2]],
+      ['c', [0, 3]],
+      ['d', [0, 4]],
+      ['e', [0, 5]],
+      ['f', [1, 0]],
+      ['g', [1, 1]]
+    ]);
+  });
+
+  it('shiftCells 整组按偏移平移，第一个优先落位、互相避让、不挪别的图标', () => {
+    const cells = new Map<string, DesktopCell>([
+      ['hd', [0, 0]],
+      ['a', [0, 1]],
+      ['b', [0, 2]],
+      ['c', [1, 0]]
+    ]);
+    expect([...shiftCells(cells, ['a', 'b'], [1, 0]).entries()]).toEqual([
+      ['hd', [0, 0]],
+      ['c', [1, 0]],
+      ['a', [1, 1]],
+      ['b', [1, 2]]
+    ]);
+  });
+
+  it('shiftCells 目标被占时顺着列往下让，负偏移夹回 0', () => {
+    const cells = new Map<string, DesktopCell>([
+      ['hd', [0, 0]],
+      ['a', [0, 1]],
+      ['b', [1, 1]]
+    ]);
+    expect(shiftCells(cells, ['a'], [1, 0]).get('a')).toEqual([1, 2]);
+    expect(shiftCells(cells, ['a'], [-1, 0]).get('a')).toEqual([0, 1]);
+  });
+
+  it('migrateCell 把旧 id 的格子迁给新 id 并删掉旧 id；旧 id 不在时保留新 id 现有的格子', () => {
+    const moved = migrateCell(
+      new Map<string, DesktopCell>([
+        ['hd', [0, 0]],
+        ['file:a.txt', [2, 3]]
+      ]),
+      'file:a.txt',
+      'file:b.txt'
+    );
+    expect([...moved.entries()]).toEqual([
+      ['hd', [0, 0]],
+      ['file:b.txt', [2, 3]]
+    ]);
+    expect([
+      ...migrateCell(new Map<string, DesktopCell>([['file:b.txt', [4, 1]]]), 'file:a.txt', 'file:b.txt').entries()
+    ]).toEqual([['file:b.txt', [4, 1]]]);
+  });
+
+  it('stackItems 按种类分组，组按名字排序，格子依次排布', () => {
+    const stacks = stackItems([
+      sortable('file:a.png', 'a.png', fileNode('a.png')),
+      sortable('file:c.txt', 'c.txt', fileNode('c.txt')),
+      sortable('file:docs', 'docs', folderNode('docs')),
+      sortable('file:b.jpg', 'b.jpg', fileNode('b.jpg'))
+    ]);
+    expect(stacks.map(stack => [stack.kind, stack.ids, stack.cell])).toEqual([
+      ['Folder', ['file:docs'], [0, 0]],
+      ['JPEG image', ['file:b.jpg'], [0, 1]],
+      ['PNG image', ['file:a.png'], [0, 2]],
+      ['Plain text', ['file:c.txt'], [0, 3]]
+    ]);
+  });
+
+  it('rangeSelectIds 按网格顺序（先列后行）取两端之间的区间，任一端不在就退回另一端', () => {
+    const items = [
+      { id: 'a', cell: [0, 0] as const },
+      { id: 'b', cell: [1, 0] as const },
+      { id: 'c', cell: [0, 1] as const }
+    ];
+    expect(rangeSelectIds(items, 'a', 'c')).toEqual(['a', 'c']);
+    expect(rangeSelectIds(items, 'b', 'a')).toEqual(['a', 'c', 'b']);
+    expect(rangeSelectIds(items, 'ghost', 'c')).toEqual(['c']);
+    expect(rangeSelectIds(items, 'a', 'ghost')).toEqual(['a']);
+  });
+
+  it('gridMetrics 默认档与旧硬编码网格一致（92×98），其余各档成比例', () => {
+    expect(gridMetrics({ iconSize: 'medium', gridSpacing: 'default', textSize: 'medium' })).toEqual({
+      w: 92,
+      h: 98,
+      tile: 82,
+      art: 60,
+      font: 12,
+      line: 14
+    });
+    expect(gridMetrics({ iconSize: 'small', gridSpacing: 'compact', textSize: 'small' })).toEqual({
+      w: 76,
+      h: 82,
+      tile: 70,
+      art: 48,
+      font: 10,
+      line: 12
+    });
+    expect(gridMetrics({ iconSize: 'large', gridSpacing: 'wide', textSize: 'large' })).toEqual({
+      w: 110,
+      h: 114,
+      tile: 94,
+      art: 72,
+      font: 14,
+      line: 16
+    });
+  });
+});
+
+describe('DesktopItems Sort By / Clean Up / 叠放 / 视图选项', () => {
+  it('sortBy 排序后紧凑重排并记住依据', () => {
+    const { items, preferences } = setup({ entries: [fileNode('b.txt'), fileNode('a.txt')] });
+    items.sortBy('name');
+    expect(cellsByName(items)).toEqual({ 'Macintosh HD': [0, 0], 'a.txt': [0, 1], 'b.txt': [0, 2] });
+    expect(items.sortCriteria()).toBe('name');
+    expect(preferences.set).toHaveBeenCalledWith('desktop:sort', 'name');
+    expect(preferences.set).toHaveBeenCalledWith('desktop:cells', {
+      hd: [0, 0],
+      'file:a.txt': [0, 1],
+      'file:b.txt': [0, 2]
+    });
+  });
+
+  it('sortBy(null) 只清掉勾选（None），不重排', () => {
+    const { items, preferences } = setup({ entries: [fileNode('b.txt'), fileNode('a.txt')] });
+    items.sortBy('name');
+    items.sortBy(null);
+    expect(items.sortCriteria()).toBeNull();
+    expect(cellsByName(items)['a.txt']).toEqual([0, 1]);
+    expect(preferences.set).toHaveBeenLastCalledWith('desktop:sort', null);
+  });
+
+  it('cleanUp 按当前视觉顺序紧凑重排，cleanUp(name) 先排序', () => {
+    const { items } = setup({ entries: [fileNode('a.txt'), fileNode('b.txt'), fileNode('c.txt')] });
+    items.move('file:c.txt', [2, 2]);
+    items.move('file:a.txt', [3, 0]);
+    items.cleanUp();
+    /* 视觉顺序（先列后行）：b [0,2]、c [2,2]、a [3,0] → b、c、a。 */
+    expect(cellsByName(items)).toEqual({ 'Macintosh HD': [0, 0], 'b.txt': [0, 1], 'c.txt': [0, 2], 'a.txt': [0, 3] });
+    items.cleanUp('name');
+    expect(cellsByName(items)).toEqual({ 'Macintosh HD': [0, 0], 'a.txt': [0, 1], 'b.txt': [0, 2], 'c.txt': [0, 3] });
+  });
+
+  it('moveMany 整组按偏移移动并一次写回', () => {
+    const { items, preferences } = setup({ entries: [fileNode('a.txt'), fileNode('b.txt')] });
+    items.moveMany(['file:a.txt', 'file:b.txt'], [1, 0]);
+    expect(cellsByName(items)).toEqual({ 'Macintosh HD': [0, 0], 'a.txt': [1, 1], 'b.txt': [1, 2] });
+    expect(preferences.set).toHaveBeenCalledExactlyOnceWith('desktop:cells', {
+      hd: [0, 0],
+      'file:a.txt': [1, 1],
+      'file:b.txt': [1, 2]
+    });
+  });
+
+  it('rename 成功后把旧 id 的格子迁给新名字并写回', async () => {
+    const { items, preferences } = setup({ entries: [fileNode('a.txt')] });
+    await expect(items.rename(items.items()[1], 'b.txt')).resolves.toEqual([...DESKTOP, 'b.txt']);
+    expect(preferences.set).toHaveBeenCalledWith('desktop:cells', { hd: [0, 0], 'file:b.txt': [0, 1] });
+  });
+
+  it('toggleStacks 切换叠放：按种类分组、Macintosh HD 不参与，开关写回偏好', () => {
+    const { items, preferences } = setup({ entries: [fileNode('a.txt'), fileNode('b.png')] });
+    expect(items.stacks()).toEqual([]);
+    items.toggleStacks();
+    expect(items.stacksEnabled()).toBe(true);
+    expect(items.stacks().map(stack => [stack.kind, stack.ids])).toEqual([
+      ['PNG image', ['file:b.png']],
+      ['Plain text', ['file:a.txt']]
+    ]);
+    expect(preferences.set).toHaveBeenCalledExactlyOnceWith('desktop:stacks', true);
+    items.toggleStacks();
+    expect(items.stacks()).toEqual([]);
+  });
+
+  it('setViewOption 更新一项并写回完整偏好', () => {
+    const { items, preferences } = setup();
+    items.setViewOption('iconSize', 'large');
+    expect(items.viewOptions()).toEqual({ iconSize: 'large', gridSpacing: 'default', textSize: 'medium' });
+    expect(preferences.set).toHaveBeenCalledExactlyOnceWith('desktop:view-options', {
+      iconSize: 'large',
+      gridSpacing: 'default',
+      textSize: 'medium'
+    });
+  });
+
+  it('启动时恢复排序、叠放与视图选项的偏好', async () => {
+    const { items } = setup({
+      entries: [fileNode('a.txt')],
+      settings: {
+        'desktop:sort': 'size',
+        'desktop:stacks': true,
+        'desktop:view-options': { iconSize: 'small', gridSpacing: 'wide', textSize: 'large' }
+      }
+    });
+    await settled();
+    expect(items.sortCriteria()).toBe('size');
+    expect(items.stacksEnabled()).toBe(true);
+    expect(items.viewOptions()).toEqual({ iconSize: 'small', gridSpacing: 'wide', textSize: 'large' });
   });
 });

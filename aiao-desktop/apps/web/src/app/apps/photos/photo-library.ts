@@ -2,10 +2,20 @@ import { Service, computed, inject } from '@angular/core';
 
 import { DesktopData } from '../../data/desktop-data';
 import { ALL_ROWS, liveQuery } from '../../data/live-query';
+import { Preferences } from '../../data/preferences';
 import { PhotoAlbum, PhotoAsset } from './photos.entities';
 
 /** 导入的照片放进这个相簿。 */
 export const IMPORTED_ALBUM = 'Imported';
+
+/**
+ * 废纸篓里照片 id 的偏好键。PhotoAsset 是发布过的实体，字段不能直接加（schema 指纹会变）；
+ * 废纸篓是应用自身的元数据，存在系统偏好里，跨标签页同步。
+ */
+export const PHOTOS_TRASH_KEY = 'com.apple.Photos.trash';
+
+const isIdList = (value: unknown): value is string[] =>
+  Array.isArray(value) && value.every(item => typeof item === 'string');
 
 /** 从网上导入的一张照片，还没有日期和相簿。 */
 export interface ImportedPhoto {
@@ -27,6 +37,7 @@ const albumNamed = (name: string) => ({
 @Service({ autoProvided: false })
 export class PhotoLibrary {
   private readonly data = inject(DesktopData);
+  private readonly preferences = inject(Preferences);
 
   private readonly rows = liveQuery(
     () => PhotoAsset.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
@@ -38,6 +49,8 @@ export class PhotoLibrary {
   readonly photos = computed(() => this.rows() ?? []);
   /** 库里的照片读到之前为 false；空状态提示等它变成 true 才出现，开机时不会一闪而过。 */
   readonly loaded = computed(() => this.rows() !== null);
+  /** 废纸篓里的照片 id：图库视图不显示它们，Recently Deleted 只显示它们。 */
+  readonly trash = computed(() => new Set(this.preferences.get(PHOTOS_TRASH_KEY, isIdList) ?? []));
   /** 全部相簿，按名字排序。 */
   readonly albums = liveQuery(
     () => PhotoAlbum.findAll({ where: ALL_ROWS, orderBy: [{ field: 'name', sort: 'asc' }] }),
@@ -52,8 +65,20 @@ export class PhotoLibrary {
     return favourite;
   }
 
+  /** 移进废纸篓（软删）：行保留，图库视图不再显示。 */
+  trashPhoto(photo: PhotoAsset): Promise<void> {
+    return this.preferences.update(PHOTOS_TRASH_KEY, isIdList, ids => [...new Set([...(ids ?? []), photo.id])]);
+  }
+
+  /** 从废纸篓恢复。 */
+  restorePhoto(photo: PhotoAsset): Promise<void> {
+    return this.clearTrash(photo.id);
+  }
+
+  /** 永久删除：行和废纸篓记录一起清掉。 */
   async remove(photo: PhotoAsset): Promise<void> {
     await (await this.data.repository(PhotoAsset)).remove(photo);
+    await this.clearTrash(photo.id);
   }
 
   /** 导入的照片排在最前，进「Imported」相簿；第一次导入时同时建出这个相簿。 */
@@ -77,5 +102,9 @@ export class PhotoLibrary {
         })
       );
     });
+  }
+
+  private clearTrash(id: string): Promise<void> {
+    return this.preferences.update(PHOTOS_TRASH_KEY, isIdList, ids => (ids ?? []).filter(item => item !== id));
   }
 }

@@ -1,4 +1,4 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
 
 import { DesktopData } from '../../data/desktop-data';
 import { ALL_ROWS, liveQuery } from '../../data/live-query';
@@ -10,11 +10,14 @@ import { PopoverService } from '../../services/popover';
 import { PrintableContent, printableText } from '../../services/print-document';
 import { Toast } from '../../services/toast';
 import { WindowManager } from '../../services/window-manager';
+import { clamp } from '../../shared/format';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
 import { MailComposer } from './mail-composer';
 import { DRAFTS_MAILBOX, counterpartOf, mailMatches, mailboxLabel, mailsIn, partyOf } from './mail-model';
 import { MailMailbox, MailMessage } from './mail.entities';
+
+const MAIL_MENU_ORDER = ['File', 'Edit', 'View', 'Message', 'Window', 'Help'] as const;
 
 /** 邮件：邮箱侧栏、邮件列表与阅读区，可标旗、回复、转发；邮件和已读、旗标都存在本地库里。 */
 @Component({
@@ -29,6 +32,7 @@ export class MailApp {
   private readonly toast = inject(Toast);
   private readonly wm = inject(WindowManager);
   private readonly popover = inject(PopoverService);
+  private readonly searchField = viewChild.required<ElementRef<HTMLInputElement>>('search');
 
   protected readonly composer = inject(MailComposer);
   protected readonly query = signal('');
@@ -64,12 +68,33 @@ export class MailApp {
     const win = inject(DesktopWindow);
     win.setMenus(
       computed(() =>
-        menus.standard('mail', {
-          File: [
-            { id: 'n', label: 'New Message', key: '⌘N', run: () => this.compose() },
-            { id: 'w', label: 'Close Window', key: '⌘W', run: () => this.wm.closeFront() }
-          ]
-        })
+        menus.standard(
+          'mail',
+          {
+            File: [
+              { id: 'n', label: 'New Message', key: '⌘N', run: () => this.compose() },
+              { id: 'f', label: 'Find', key: '⌘F', run: () => this.focusSearch() },
+              { id: 'w', label: 'Close Window', key: '⌘W', run: () => this.wm.closeFront() }
+            ],
+            Message: [
+              {
+                id: 'u',
+                label: 'Mark as Unread',
+                key: '⇧⌘U',
+                disabled: !this.current(),
+                run: () => void this.markUnread()
+              },
+              {
+                id: 't',
+                label: 'Move to Trash',
+                key: '⌘⌫',
+                disabled: !this.current(),
+                run: () => void this.moveToTrash()
+              }
+            ]
+          },
+          MAIL_MENU_ORDER
+        )
       )
     );
     this.composer.bindWindow(win);
@@ -85,6 +110,79 @@ export class MailApp {
     this.selection.set(index);
     const mail: MailMessage | undefined = this.list()[index];
     if (mail?.unread) void this.update(mail, { unread: false });
+  }
+
+  /** ⌘F：焦点交给搜索框。 */
+  protected focusSearch(): void {
+    this.searchField().nativeElement.focus();
+  }
+
+  /** 邮件列表方向键：上下移动选中项并把焦点带过去。 */
+  protected rowKey(event: KeyboardEvent, index: number): void {
+    const step =
+      event.key === 'ArrowDown' ? 1
+      : event.key === 'ArrowUp' ? -1
+      : 0;
+    if (!step) return;
+    event.preventDefault();
+    const target = clamp(index + step, 0, this.list().length - 1);
+    this.select(target);
+    const mail = this.list()[target];
+    (event.currentTarget as HTMLElement).parentElement
+      ?.querySelector<HTMLElement>(`[data-mail-id="${CSS.escape(mail.id)}"]`)
+      ?.focus();
+  }
+
+  /** 右键菜单：回复、转发、标旗、标记未读与移到废纸篓。 */
+  protected menu(event: MouseEvent, mail: MailMessage): void {
+    this.popover.contextMenu(
+      event,
+      [
+        {
+          id: 'r',
+          label: 'Reply',
+          run: () =>
+            this.composer.compose(`Re: ${mail.subject}`, counterpartOf(mail), `\n\n${mail.sender}:\n${mail.body}`)
+        },
+        {
+          id: 'f',
+          label: 'Forward',
+          run: () =>
+            this.composer.compose(
+              `Fwd: ${mail.subject}`,
+              '',
+              printableText({
+                title: mail.subject,
+                paragraphs: [`From: ${mail.sender}`, `To: ${mail.recipient}`, mail.timeLabel, mail.body]
+              })
+            )
+        },
+        '-',
+        { id: 'g', label: mail.flagged ? 'Remove Flag' : 'Flag', run: () => void this.setFlag(mail) },
+        { id: 'u', label: 'Mark as Unread', run: () => void this.update(mail, { unread: true }) },
+        '-',
+        { id: 't', label: 'Move to Trash', run: () => void this.trash(mail) }
+      ],
+      'mail'
+    );
+  }
+
+  /** 标旗开关；右键菜单与工具栏按钮共用。 */
+  protected async setFlag(mail: MailMessage): Promise<void> {
+    const flagged = !mail.flagged;
+    if (await this.update(mail, { flagged })) this.toast.show(flagged ? 'Flagged' : 'Flag removed');
+  }
+
+  /** 标记未读：⇧⌘U 与右键菜单共用。 */
+  protected async markUnread(): Promise<void> {
+    const mail = this.current();
+    if (mail) await this.update(mail, { unread: true });
+  }
+
+  /** 移到废纸篓：⌘⌫ 与右键菜单共用。 */
+  protected async moveToTrash(): Promise<void> {
+    const mail = this.current();
+    if (mail) await this.trash(mail);
   }
 
   protected compose(): void {
@@ -143,6 +241,10 @@ export class MailApp {
       ],
       { keyboard: event.detail === 0, label: 'mail sharing' }
     );
+  }
+
+  private async trash(mail: MailMessage): Promise<void> {
+    if (await this.update(mail, { mailbox: 'Trash' })) this.toast.show('Moved to Trash');
   }
 
   private async update(mail: MailMessage, patch: Partial<MailMessage>): Promise<boolean> {

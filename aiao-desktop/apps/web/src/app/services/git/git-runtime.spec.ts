@@ -1,3 +1,4 @@
+import { deflateSync } from 'node:zlib';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { encodeGitArchive } from './git-archive.js';
 import { GIT_WORKBENCH_LIMITS } from './git-protocol.js';
@@ -78,6 +79,7 @@ interface Commit {
   oid: string;
   message: string;
   parent?: string;
+  tree: string;
   files: Record<string, number[]>;
 }
 
@@ -90,11 +92,25 @@ function createRuntimeFixture() {
   let printErr = (value: unknown): void => {
     void value;
   };
+  let stdoutCollector = (byte: number): void => {
+    void byte;
+  };
   let faultPath = '';
   let commandFailure = '';
   let journalFailure = '';
   const commands: string[][] = [];
   const writes = new Map<string, number>();
+  const treeSeq = { value: 0 };
+  /** 内容寻址的假 blob id：同一批字节在任何 scratch/真实 .git 里都得到同一个 id（unstage 会把 scratch 的 index 拷回真实根）。 */
+  const blobOid = (bytes: number[]): string => {
+    let hash = 2166136261;
+    for (const byte of bytes) {
+      hash ^= byte;
+      hash = Math.imul(hash, 16777619);
+    }
+    return (hash >>> 0).toString(16).padStart(8, '0').repeat(5);
+  };
+  const objectOid = (): string => `t${(++treeSeq.value).toString(16)}`.padStart(40, '0');
   const failJournalAt = (phase: string, name: string): void => {
     if (name !== 'recovery.bin' || journalFailure !== phase) return;
     journalFailure = '';
@@ -103,6 +119,104 @@ function createRuntimeFixture() {
 
   const parse = <T>(path: string, fallback: T): T =>
     fs.analyzePath(path).exists ? (JSON.parse(new TextDecoder().decode(fs.readFile(path))) as T) : fallback;
+  type FixtureObject =
+    | {
+        readonly kind: 'tree';
+        readonly entries: {
+          readonly mode: number;
+          readonly kind: string;
+          readonly oid: string;
+          readonly name: string;
+        }[];
+      }
+    | { readonly kind: 'blob'; readonly bytes: number[] };
+  const objects = (git: string): Map<string, FixtureObject> => {
+    const raw = parse<[string, FixtureObject][]>(`${git}/fixture-objects.json`, []);
+    return new Map(raw);
+  };
+  const saveObjects = (git: string, store: Map<string, FixtureObject>): void => {
+    fs.writeFile(`${git}/fixture-objects.json`, encode([...store.entries()]));
+  };
+  /** 夹具的真实二进制 index（v2，平铺条目，校验和填零——运行时只解析、不校验和）。 */
+  const writeIndex = (git: string, entries: { readonly path: string; readonly oid: string }[]): void => {
+    const encoder = new TextEncoder();
+    const length =
+      12 +
+      entries.reduce((sum, entry) => sum + Math.ceil((62 + encoder.encode(entry.path).length + 1) / 8) * 8, 0) +
+      20;
+    const bytes = new Uint8Array(length);
+    const view = new DataView(bytes.buffer);
+    view.setUint32(0, 0x44495243);
+    view.setUint32(4, 2);
+    view.setUint32(8, entries.length);
+    let position = 12;
+    for (const entry of entries) {
+      const path = encoder.encode(entry.path);
+      view.setUint32(position + 24, 0o100644);
+      view.setUint16(position + 60, path.length);
+      bytes.set(
+        Uint8Array.from({ length: 20 }, (_, index) => parseInt(entry.oid.slice(index * 2, index * 2 + 2), 16)),
+        position + 40
+      );
+      bytes.set(path, position + 62);
+      position += Math.ceil((62 + path.length + 1) / 8) * 8;
+    }
+    fs.writeFile(`${git}/index`, bytes);
+  };
+  /** 把二进制 index 解析回 path→oid 映射（index 是夹具的暂存真源，运行时可能直接覆写它）。 */
+  const readIndex = (git: string): Record<string, string> => {
+    const bytes = fs.readFile(`${git}/index`);
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const count = view.getUint32(8);
+    const result: Record<string, string> = {};
+    let position = 12;
+    for (let index = 0; index < count; index += 1) {
+      const start = position;
+      position += view.getUint16(position + 60) & 0x4000 ? 64 : 62;
+      const nameStart = position;
+      while (bytes[position] !== 0) position += 1;
+      const path = new TextDecoder().decode(bytes.subarray(nameStart, position));
+      const oid = [...bytes.subarray(start + 40, start + 60)].map(byte => byte.toString(16).padStart(2, '0')).join('');
+      result[path] = oid;
+      position = start + Math.ceil((position - start + 1) / 8) * 8;
+    }
+    return result;
+  };
+  /** 写一个真实格式的 loose 对象（zlib 压缩的 `kind size\0content`），供运行时的只读对象读取路径使用。 */
+  const writeLoose = (git: string, oid: string, kind: string, content: Uint8Array<ArrayBuffer>): void => {
+    const header = new TextEncoder().encode(`${kind} ${content.length}\0`);
+    const joined = new Uint8Array(header.length + content.length);
+    joined.set(header);
+    joined.set(content, header.length);
+    const dir = `${git}/objects/${oid.slice(0, 2)}`;
+    fs.ensure(dir);
+    fs.writeFile(`${dir}/${oid.slice(2)}`, new Uint8Array(deflateSync(joined)));
+  };
+  /** 树对象的二进制条目序列化（`mode name\0` + 20 字节原始 sha）。 */
+  const treeBytes = (
+    entries: { readonly mode: number; readonly kind: string; readonly oid: string; readonly name: string }[]
+  ): Uint8Array<ArrayBuffer> => {
+    const encoder = new TextEncoder();
+    const parts: Uint8Array<ArrayBuffer>[] = [];
+    for (const entry of entries) {
+      const head = encoder.encode(`${entry.mode.toString(8)} ${entry.name}\0`);
+      const sha = Uint8Array.from({ length: 20 }, (_, index) =>
+        parseInt(entry.oid.slice(index * 2, index * 2 + 2), 16)
+      );
+      const joined = new Uint8Array(head.length + sha.length);
+      joined.set(head);
+      joined.set(sha, head.length);
+      parts.push(joined);
+    }
+    const length = parts.reduce((sum, part) => sum + part.length, 0);
+    const result = new Uint8Array(length);
+    let offset = 0;
+    for (const part of parts) {
+      result.set(part, offset);
+      offset += part.length;
+    }
+    return result;
+  };
   const files = (root: string): Record<string, number[]> =>
     Object.fromEntries(
       [...fs.nodes.entries()]
@@ -144,17 +258,19 @@ function createRuntimeFixture() {
     }
     const root = command === 'init' ? (parameters[0] ?? fs.cwd) : fs.cwd;
     const git = `${root}/.git`;
-    const indexPath = `${git}/index`;
     const commitsPath = `${git}/fixture-commits.json`;
-    const index = parse<Record<string, number[]>>(indexPath, {});
+    const index = command === 'init' ? {} : readIndex(git);
     const commits = parse<Commit[]>(commitsPath, []);
     const head = commits.at(-1);
     const worktree = files(root);
+    const store = objects(git);
     if (command === 'init') {
       fs.ensure(`${git}/objects/pack`);
       fs.ensure(`${git}/refs/heads`);
       fs.writeFile(`${git}/HEAD`, new TextEncoder().encode('ref: refs/heads/main\n'));
       fs.writeFile(`${git}/config`, new TextEncoder().encode('[core]\n bare = false\n'));
+      writeIndex(git, []);
+      fs.writeFile(`${git}/fixture-objects.json`, encode([]));
       print(`Initialized empty Git repository in ${root}/`);
     } else if (command === 'config') {
       const old = new TextDecoder().decode(fs.readFile(`${git}/config`));
@@ -164,19 +280,50 @@ function createRuntimeFixture() {
       );
     } else if (command === 'add') {
       for (const path of parameters) {
-        if (worktree[path]) index[path] = worktree[path];
-        else delete index[path];
+        if (worktree[path]) {
+          const oid = blobOid(worktree[path]);
+          store.set(oid, { kind: 'blob', bytes: [...worktree[path]] });
+          writeLoose(git, oid, 'blob', new Uint8Array(worktree[path]));
+          index[path] = oid;
+        } else delete index[path];
       }
-      fs.writeFile(indexPath, encode(index));
+      writeIndex(
+        git,
+        Object.entries(index).map(([path, oid]) => ({ path, oid }))
+      );
+      saveObjects(git, store);
     } else if (command === 'commit') {
+      const oids = Object.entries(index);
+      const tree = objectOid();
+      /* 夹具路径都是平铺的：一棵树装下全部条目（与真实 lg2 的 cat-file -p 树输出格式一致）。 */
+      const treeEntries = oids.map(([path, oid]) => ({
+        mode: 0o100644,
+        kind: 'blob',
+        oid,
+        name: path
+      }));
+      store.set(tree, { kind: 'tree', entries: treeEntries });
+      writeLoose(git, tree, 'tree', treeBytes(treeEntries));
       const commit = {
         oid: (commits.length + 1).toString(16).padStart(40, '0'),
         message: parameters[1],
         parent: head?.oid,
-        files: Object.fromEntries(Object.entries(index).map(([path, bytes]) => [path, [...bytes]]))
+        tree,
+        files: Object.fromEntries(
+          oids.map(([path, oid]) => [path, [...(store.get(oid) as { kind: 'blob'; bytes: number[] }).bytes]])
+        )
       };
       commits.push(commit);
       fs.writeFile(commitsPath, encode(commits));
+      saveObjects(git, store);
+      writeLoose(
+        git,
+        commit.oid,
+        'commit',
+        new TextEncoder().encode(
+          `tree ${tree}\n${head ? `parent ${head.oid}\n` : ''}author Fixture <f@invalid> 0 +0000\ncommitter Fixture <f@invalid> 0 +0000\n\n${parameters[1]}\n`
+        )
+      );
       fs.writeFile(`${git}/refs/heads/main`, new TextEncoder().encode(commit.oid));
     } else if (command === 'rev-parse') {
       if (!head) {
@@ -193,15 +340,26 @@ function createRuntimeFixture() {
         print(target[0].oid);
       } else print(target.oid);
     } else if (command === 'cat-file') {
-      const commit = commits.find(entry => entry.oid === parameters.at(-1));
-      if (!commit || parameters[0] !== '-p') return 1;
-      print(
-        `tree fixture\n${commit.parent ? `parent ${commit.parent}\n` : ''}author Fixture Author <fixture@example.invalid> 1700000000 +0000\ncommitter Fixture Author <fixture@example.invalid> 1700000000 +0000\n\n${commit.message}`
-      );
+      const target = parameters.at(-1);
+      const commit = commits.find(entry => entry.oid === target);
+      if (commit && parameters[0] === '-p') {
+        print(
+          `tree ${commit.tree}\n${commit.parent ? `parent ${commit.parent}\n` : ''}author Fixture Author <fixture@example.invalid> 1700000000 +0000\ncommitter Fixture Author <fixture@example.invalid> 1700000000 +0000\n\n${commit.message}`
+        );
+      } else {
+        const object = store.get(target ?? '');
+        if (!object) return 1;
+        if (object.kind === 'tree')
+          for (const entry of object.entries)
+            print(`${entry.mode.toString(8)} ${entry.kind} ${entry.oid}\t${entry.name}`);
+        else for (const byte of object.bytes) stdoutCollector(byte);
+      }
     } else if (command === 'checkout-index') {
-      for (const [path, data] of Object.entries(index)) {
+      for (const [path, oid] of Object.entries(index)) {
+        const blob = store.get(oid);
+        if (!blob || blob.kind !== 'blob') continue;
         fs.ensure(parent(`${root}/${path}`));
-        fs.writeFile(`${root}/${path}`, new Uint8Array(data));
+        fs.writeFile(`${root}/${path}`, new Uint8Array(blob.bytes));
       }
     } else if (command === 'ls-files') print(Object.keys(index).join('\n'));
     else if (command === 'rev-list')
@@ -220,10 +378,16 @@ function createRuntimeFixture() {
       );
     else if (command === 'status') {
       if (!head) printErr("error: reference 'refs/heads/main' not found");
+      const stagedBytes = (path: string): number[] | undefined => {
+        const oid = index[path];
+        if (!oid) return undefined;
+        const blob = store.get(oid);
+        return blob?.kind === 'blob' ? blob.bytes : undefined;
+      };
       const paths = new Set([...Object.keys(head?.files ?? {}), ...Object.keys(index), ...Object.keys(worktree)]);
       for (const path of [...paths].sort()) {
         const original = head?.files[path];
-        const staged = index[path];
+        const staged = stagedBytes(path);
         const current = worktree[path];
         const equal = (left?: number[], right?: number[]) => JSON.stringify(left) === JSON.stringify(right);
         const stage =
@@ -317,9 +481,16 @@ function createRuntimeFixture() {
   };
 
   const loader = {
-    load: async (options: { moduleOverrides: { print(value: unknown): void; printErr(value: unknown): void } }) => {
+    load: async (options: {
+      moduleOverrides: {
+        print(value: unknown): void;
+        printErr(value: unknown): void;
+        stdout?: (byte: number) => void;
+      };
+    }) => {
       print = options.moduleOverrides.print;
       printErr = options.moduleOverrides.printErr;
+      stdoutCollector = options.moduleOverrides.stdout ?? stdoutCollector;
       return {
         module: {
           FS: fs,
@@ -860,7 +1031,7 @@ describe('Git workspace operation contract', () => {
     await expect(runtime.discardWorking('project', 'a.ts')).rejects.toThrow('quota fixture');
     expect(await runtime.snapshot('project')).toEqual(before);
     expect(await runtime.status('project')).toEqual(status);
-    fixture.failCommand('commit');
+    fixture.failCommand('status');
     await expect(runtime.readDiff('project', 'a.ts', 'working')).rejects.toMatchObject({ code: 'git_failed' });
     expect(await runtime.snapshot('project')).toEqual(before);
   });
@@ -937,5 +1108,53 @@ describe('Git workspace operation contract', () => {
     const noop = await runtime.save('project', next, 2);
     expect(noop.revision).toBe(3);
     expect(fixture.writes).toEqual(written);
+  });
+
+  it('提交内容、暂存快照与差异都只读获取，不再触发 checkout（lg2 堆损坏的写路径）', async () => {
+    const binary = new Uint8Array([0, 255, 10, 13, 0, 128]);
+    await runtime.initialize('project', [file('main.ts', 'hello'), { path: 'asset.bin', bytes: binary }]);
+    await runtime.stage('project', ['main.ts', 'asset.bin']);
+    const oid = await runtime.commit('project', 'initial');
+    await runtime.save('project', [file('main.ts', 'changed'), { path: 'asset.bin', bytes: binary }], 1);
+    await runtime.stage('project', ['main.ts', 'asset.bin']);
+    await runtime.readDiff('project', 'main.ts', 'staged');
+    await runtime.readDiff('project', 'main.ts', 'working');
+    await runtime.committed('project');
+    await runtime.commitChanges('project', oid);
+    await runtime.snapshot('project');
+    expect(fixture.commands.filter(command => command[0] === 'checkout')).toEqual([]);
+  });
+
+  it('提交的二进制文件经 cat-file 逐字节往返', async () => {
+    const binary = new Uint8Array([0, 255, 10, 13, 0, 128, 7]);
+    await runtime.initialize('project', [{ path: 'asset.bin', bytes: binary }]);
+    await runtime.stage('project', ['asset.bin']);
+    const oid = await runtime.commit('project', 'binary');
+    const committed = await runtime.committed('project');
+    expect(committed.files).toEqual([{ path: 'asset.bin', bytes: binary }]);
+    const changes = await runtime.commitChanges('project', oid);
+    expect(changes).toEqual([
+      {
+        projectId: 'project',
+        oid,
+        path: 'asset.bin',
+        status: 'added',
+        base: { exists: false, binary: false, text: null, byteLength: 0 },
+        modified: { exists: true, binary: true, text: null, byteLength: binary.length }
+      }
+    ]);
+  });
+
+  it('暂存但未提交的二进制内容经 index 解析读取，保持逐字节一致', async () => {
+    const binary = new Uint8Array([1, 2, 0, 255, 254, 0]);
+    await runtime.initialize('project', [file('draft.txt', 'one')]);
+    await runtime.stage('project', ['draft.txt']);
+    await runtime.commit('project', 'base');
+    await runtime.save('project', [{ path: 'draft.txt', bytes: binary }], 1);
+    await runtime.stage('project', ['draft.txt']);
+    const diff = await runtime.readDiff('project', 'draft.txt', 'staged');
+    expect(diff.modified).toEqual({ exists: true, binary: true, text: null, byteLength: binary.length });
+    const snapshot = await runtime.snapshot('project');
+    expect(snapshot.files).toEqual([{ path: 'draft.txt', bytes: binary }]);
   });
 });

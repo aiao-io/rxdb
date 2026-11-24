@@ -11,6 +11,8 @@ import {
   newNoteBody,
   noteFolderNameError,
   noteWhen,
+  sortNotes,
+  stepNote,
   visibleNotes
 } from './notes-model';
 
@@ -106,6 +108,52 @@ describe('newNoteBody', () => {
     expect(newNoteBody(new Date(2026, 6, 27, 16, 12))).toBe(
       '<h1>New Note</h1><div class="date">27 July 2026 at 4:12 PM</div><p><br></p>'
     );
+  });
+});
+
+describe('sortNotes', () => {
+  const newest = note({ title: 'Zebra', date: new Date(2026, 6, 27) });
+  const middle = note({ title: 'Apple', date: new Date(2026, 6, 10) });
+  const oldest = note({ title: 'Mango', date: new Date(2026, 6, 1) });
+  const pinned = note({ title: 'Pinned', date: new Date(2026, 6, 20), pinned: true });
+  const all = [oldest, newest, pinned, middle];
+
+  it('置顶始终优先', () => {
+    for (const sort of ['edited', 'created', 'title'] as const) {
+      expect(sortNotes(all, sort)[0].title).toBe('Pinned');
+    }
+  });
+
+  it('编辑日期新到旧、创建日期旧到新、标题按字母', () => {
+    expect(sortNotes(all, 'edited').map(entry => entry.title)).toEqual(['Pinned', 'Zebra', 'Apple', 'Mango']);
+    expect(sortNotes(all, 'created').map(entry => entry.title)).toEqual(['Pinned', 'Mango', 'Apple', 'Zebra']);
+    expect(sortNotes(all, 'title').map(entry => entry.title)).toEqual(['Pinned', 'Apple', 'Mango', 'Zebra']);
+  });
+
+  it('不改动传入的数组', () => {
+    const input = [newest, oldest];
+    sortNotes(input, 'title');
+    expect(input).toEqual([newest, oldest]);
+  });
+});
+
+describe('stepNote', () => {
+  const ids = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+
+  it('上下移动选中项', () => {
+    expect(stepNote(ids, 'b', 1)).toBe('c');
+    expect(stepNote(ids, 'b', -1)).toBe('a');
+  });
+
+  it('还没选中时从第一行起算，到头不再移动', () => {
+    expect(stepNote(ids, null, 1)).toBe('b');
+    expect(stepNote(ids, null, -1)).toBeNull();
+    expect(stepNote(ids, 'c', 1)).toBeNull();
+  });
+
+  it('空列表与找不到的 id 返回 null', () => {
+    expect(stepNote([], null, 1)).toBeNull();
+    expect(stepNote(ids, 'gone', 1)).toBeNull();
   });
 });
 

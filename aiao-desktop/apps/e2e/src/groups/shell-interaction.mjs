@@ -54,6 +54,10 @@ export const shellInteraction = {
     'shellInteraction.boot.finderHomeName',
     'shellInteraction.boot.queryParameterSkips',
     'shellInteraction.boot.hashSkips',
+    'shellInteraction.boot.splashStaticCovers',
+    'shellInteraction.boot.splashStaticHasApple',
+    'shellInteraction.boot.splashTakenOver',
+    'shellInteraction.boot.splashSkipsWithQuery',
     'shellInteraction.lock.shows',
     'shellInteraction.lock.coversDesktop',
     'shellInteraction.lock.unlockRestores',
@@ -76,6 +80,7 @@ export const shellInteraction = {
     'shellInteraction.dragResizeZoom.keepOnScreen',
     'shellInteraction.dragResizeZoom.greenButtonZooms',
     'shellInteraction.dragResizeZoom.greenButtonRestores',
+    'shellInteraction.dragResizeZoom.greenButtonFullscreen',
     'shellInteraction.focusCycle.windowsOverlap',
     'shellInteraction.focusCycle.clickRaisesWindow',
     'shellInteraction.focusCycle.stackFollowsClicks',
@@ -91,9 +96,31 @@ export const shellInteraction = {
     const { win, closeAll, shows, appears, disappears } = session.helpers;
 
     /* AC#1 开机：不带 boot=0 的入口先出开机画面，进度走完到登录界面，点一下进入桌面。 */
-    await page.goto(`${origin}/`, { waitUntil: 'load' });
     const boot = {};
+    /* 静态闪屏在 JS 起来前就要盖住画面（index.html 的黑底苹果）：无脚本上下文里它必须存在且铺满视口，
+       这样刷新时浏览器不会先露出旧界面，开机动画从头开始。 */
+    const noJs = await session.browser.newContext({ javaScriptEnabled: false, viewport: { width: 1280, height: 720 } });
+    try {
+      const splashPage = await noJs.newPage();
+      await splashPage.goto(`${origin}/`, { waitUntil: 'load' });
+      const splash = splashPage.locator('#boot-splash');
+      boot.splashStaticCovers = await splash.boundingBox().then(
+        box => box !== null && near(box.width, 1280) && near(box.height, 720),
+        () => false
+      );
+      boot.splashStaticHasApple = (await splash.locator('svg.bl').count()) === 1;
+    } finally {
+      await noJs.close().catch(() => undefined);
+    }
+    await page.goto(`${origin}/`, { waitUntil: 'load' });
     boot.screenAppears = await appears(page.locator('#boot'), 5_000);
+    /* 开机画面接管后摘掉静态闪屏：两个画面像素一致，摘除本身不可见。 */
+    boot.splashTakenOver = await page
+      .waitForFunction(() => !document.querySelector('#boot-splash'), undefined, { timeout: 5_000 })
+      .then(
+        () => true,
+        () => false
+      );
     boot.progressAdvances = await page
       .waitForFunction(
         () => {
@@ -137,6 +164,7 @@ export const shellInteraction = {
     await page.goto(`${origin}/?boot=0`, { waitUntil: 'load' });
     await win('finder').waitFor();
     boot.queryParameterSkips = (await page.locator('#boot').count()) === 0;
+    boot.splashSkipsWithQuery = (await page.locator('#boot-splash').count()) === 0;
     await page.goto(`${origin}/#noboot`, { waitUntil: 'load' });
     await page.reload({ waitUntil: 'load' });
     await win('finder').waitFor();
@@ -181,10 +209,11 @@ export const shellInteraction = {
       near(finderBefore.y, finderAfter.y, 1) &&
       near(finderBefore.width, finderAfter.width, 1);
 
-    /* AC#3 睡眠：Apple 菜单「Sleep」出现睡眠画面，自动唤醒后桌面照常。 */
+    /* AC#3 睡眠：Apple 菜单「Sleep」出现睡眠画面；睡眠是输入唤醒（不再自动醒来），按任意键进入 waking。 */
     await appleItem('Sleep');
     const sleep = {};
     sleep.shows = await appears(page.locator('#sleeper'), 3_000);
+    await page.keyboard.press('a');
     sleep.wakes = await disappears(page.locator('#sleeper'), 6_000);
     sleep.desktopIntact = (await win('finder').count()) === 1 && (await page.locator('#menubar').isVisible());
 
@@ -279,7 +308,7 @@ export const shellInteraction = {
       near(resized.width, moved.width + 80, 4) && near(resized.height, moved.height + 50, 4);
 
     const sizeBeforeZoom = await finder.boundingBox();
-    await finder.locator('.tl .f').click();
+    await finder.locator('.tl .f').click({ modifiers: ['Alt'] });
     await page.waitForFunction(
       () => {
         const node = document.querySelector('.win[data-app="finder"]:not(.closing)');
@@ -294,7 +323,7 @@ export const shellInteraction = {
       zoomedBox.width > sizeBeforeZoom.width &&
       zoomedBox.x >= 0 &&
       zoomedBox.x + zoomedBox.width <= viewport.width + 1;
-    await finder.locator('.tl .f').click();
+    await finder.locator('.tl .f').click({ modifiers: ['Alt'] });
     await page.waitForFunction(
       () => {
         const node = document.querySelector('.win[data-app="finder"]:not(.closing)');
@@ -309,6 +338,26 @@ export const shellInteraction = {
       near(restoredBox.width, sizeBeforeZoom.width, 3) &&
       near(restoredBox.height, sizeBeforeZoom.height, 3) &&
       near(restoredBox.x, sizeBeforeZoom.x, 3);
+
+    /* 绿键单击进全屏（macOS 语义，与 ⌥+绿键的 Zoom 区分）：全屏元素是窗口，Esc 退出。 */
+    await finder.locator('.tl .f').click();
+    const fullscreenOn = await page
+      .waitForFunction(() => document.fullscreenElement?.matches('.win[data-app="finder"]') === true, undefined, {
+        timeout: 5_000
+      })
+      .then(
+        () => true,
+        () => false
+      );
+    /* 退出全屏再点一次绿键（toggle 语义）；headless Chromium 的 Esc 不触发全屏退出。 */
+    await finder.locator('.tl .f').click();
+    const fullscreenOff = await page
+      .waitForFunction(() => document.fullscreenElement === null, undefined, { timeout: 5_000 })
+      .then(
+        () => true,
+        () => false
+      );
+    dragResizeZoom.greenButtonFullscreen = fullscreenOn && fullscreenOff;
 
     /* 把标题栏拖到屏幕右下角之外：松手后窗口仍有一部分在屏幕内，标题栏够得着。 */
     const grab2 = await grabPoint('finder');
@@ -359,9 +408,23 @@ export const shellInteraction = {
     await clickWindow('calculator');
     focusCycle.stackFollowsClicks =
       (await stack()).join() === ['finder', 'notes', 'calculator'].join() && (await isFront('calculator'));
+
+    /* ⌘` 只循环前台应用的窗口：再开一个 Finder 窗口，两个 Finder 之间把最底层的提到最前。 */
+    await clickWindow('finder');
+    await page.keyboard.press('Meta+N');
+    await page.waitForTimeout(450);
+    const finderWindows = page.locator('.win[data-app="finder"]:not(.closing)');
+    const bottomFinder = await finderWindows.evaluateAll(nodes =>
+      nodes.reduce((bottom, node) => {
+        const z = Number(node.style.zIndex || getComputedStyle(node).zIndex);
+        return !bottom || z < bottom.z ? { id: node.id, z } : bottom;
+      }, null)
+    );
     await page.keyboard.press('Meta+Backquote');
     await page.waitForTimeout(500);
-    focusCycle.cycleRaisesBottom = (await isFront('finder')) && (await stack()).at(-1) === 'finder';
+    focusCycle.cycleRaisesBottom =
+      (await finderWindows.count()) === 2 &&
+      (await page.locator('.win.front[data-app="finder"]:not(.closing)').getAttribute('id')) === bottomFinder?.id;
 
     /*
      * 菜单与快捷键分发：应用菜单的 Hide 收起整个应用（不是只最小化前台窗口）；

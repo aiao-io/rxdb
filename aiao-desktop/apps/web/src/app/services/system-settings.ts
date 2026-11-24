@@ -12,6 +12,29 @@ const SETTINGS_KEY = 'system:settings';
 /** 拖滑块时只在停手后写一次。 */
 const SAVE_DELAY = 400;
 
+/** 提示音的可选项（经典 macOS 系统音；没有真实播放，只存用户的选择）。 */
+export const ALERT_SOUNDS = [
+  'boop',
+  'basso',
+  'blow',
+  'bottle',
+  'frog',
+  'funk',
+  'glass',
+  'hero',
+  'morse',
+  'ping',
+  'pop',
+  'purr',
+  'sosumi',
+  'submarine',
+  'tink'
+] as const;
+/** 提示音选择。 */
+export type AlertSoundKey = (typeof ALERT_SOUNDS)[number];
+/** 低电量模式：从不 / 一直 / 仅用电池时。 */
+export type LowPowerMode = 'never' | 'always' | 'battery';
+
 type Settings = Readonly<Record<string, unknown>>;
 
 interface SettingField {
@@ -35,8 +58,9 @@ const sameSettings = (baseline: Settings, snapshot: Settings): boolean =>
   Object.entries(snapshot).every(([key, value]) => Object.is(baseline[key], value));
 
 /**
- * 系统设置的持久化：外观、强调色、侧栏图标、滚动条、音量、亮度、Wi-Fi、蓝牙、Dock、壁纸与 Safari 收藏栏。
- * 启动时从本地库恢复（逐个字段校验类型，旧库少字段也能读），之后有改动就防抖写回。
+ * 系统设置的持久化：外观、强调色、侧栏图标、滚动条、音量、亮度、Wi-Fi、蓝牙、
+ * Dock（尺寸、放大、位置、自动隐藏、动画与指示点）、提示音与界面音效、自动亮度/True Tone、优化充电、
+ * 壁纸与 Safari 收藏栏。启动时从本地库恢复（逐个字段校验类型，旧库少字段也能读），之后有改动就防抖写回。
  *
  * 库读完之前用户已经改过的字段（不等于构造时的默认值）保留用户的值，库里的旧值不能盖掉它，恢复完成后一并写回——
  * 否则用户在启动后立刻改的设置（例如马上切深色）会因为「恢复什么也没改」而永远不写库，刷新就丢了。
@@ -56,11 +80,26 @@ export class SystemSettingsStore {
   /** 有改动正在等防抖、尚未写出。 */
   private pending = false;
   private timer: ReturnType<typeof setTimeout> | undefined;
-  private readonly fields: readonly SettingField[] = this.describeFields();
-  /** 构造时各字段的值，即默认值：用来分辨库读完之前被用户改过的字段。 */
-  private readonly defaults: Settings = this.snapshot();
+  /** 字段清单与构造时的默认值在构造函数里取：那时公共信号都已初始化，清单才能抓到它们。 */
+  private readonly fields: readonly SettingField[];
+  private readonly defaults: Settings;
+
+  /** 提示音选择（无播放，只存选择）。 */
+  readonly alertSound = signal<AlertSoundKey>('boop');
+  /** 界面音效（无音效，只存开关）。 */
+  readonly uiSounds = signal(true);
+  /** 自动亮度。 */
+  readonly autoBrightness = signal(true);
+  /** 原彩显示。 */
+  readonly trueTone = signal(true);
+  /** 优化电池充电。 */
+  readonly optimisedCharging = signal(true);
+  /** 低电量模式（无真实功耗影响，只存选择）。 */
+  readonly lowPowerMode = signal<LowPowerMode>('never');
 
   constructor() {
+    this.fields = this.describeFields();
+    this.defaults = this.snapshot();
     effect(() => {
       const snapshot = this.snapshot();
       if (this.restored()) untracked(() => this.schedule(snapshot));
@@ -157,13 +196,24 @@ export class SystemSettingsStore {
       plain('dockSize', system.dockSize, isNumber),
       plain('dockMag', system.dockMag, isNumber),
       plain('dockMagOn', system.dockMagOn, isBoolean),
+      plain('dockPosition', system.dockPosition, oneOf('bottom', 'left', 'right')),
+      plain('dockAutoHide', system.dockAutoHide, isBoolean),
+      plain('minimizeEffect', system.minimizeEffect, oneOf('genie', 'scale')),
+      plain('dockAnimateOpen', system.dockAnimateOpen, isBoolean),
+      plain('dockShowIndicators', system.dockShowIndicators, isBoolean),
       {
         key: 'wallpaper',
         read: () => system.wallpaper(),
         valid: oneOf('tahoe', 'ridges', 'summit', 'valley', 'forest', 'night'),
         apply: value => this.wallpaper.set(value as 'tahoe')
       },
-      plain('safariFavs', system.safariFavs, isBoolean)
+      plain('safariFavs', system.safariFavs, isBoolean),
+      plain('alertSound', this.alertSound, oneOf(...ALERT_SOUNDS)),
+      plain('uiSounds', this.uiSounds, isBoolean),
+      plain('autoBrightness', this.autoBrightness, isBoolean),
+      plain('trueTone', this.trueTone, isBoolean),
+      plain('optimisedCharging', this.optimisedCharging, isBoolean),
+      plain('lowPowerMode', this.lowPowerMode, oneOf('never', 'always', 'battery'))
     ];
   }
 }

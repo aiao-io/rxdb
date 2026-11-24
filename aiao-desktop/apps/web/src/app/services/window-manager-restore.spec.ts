@@ -326,7 +326,8 @@ describe('WindowManager 激活延后的窗口', () => {
   it('只是切换焦点（点标题栏、⌘`）不会装载延后的窗口', async () => {
     const { wm, calls } = setup();
     const win = restore(wm, spec('terminal', { layer: 11 }));
-    restore(wm, spec('finder', { layer: 12, foreground: true }));
+    restore(wm, spec('terminal', { layer: 12, foreground: true }));
+    /* ⌘` 只循环前台应用自己的窗口：前台 terminal 的窗口里把最底层的（延后的那个）提到最前，仍不装载。 */
     wm.cycle();
     expect(wm.focused()).toBe(win);
     wm.focus(win.id);

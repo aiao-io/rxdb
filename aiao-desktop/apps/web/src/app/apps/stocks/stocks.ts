@@ -1,12 +1,25 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
 
+import { DesktopData } from '../../data/desktop-data';
 import { ALL_ROWS, liveQuery } from '../../data/live-query';
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
+import { PopoverService } from '../../services/popover';
+import { Toast } from '../../services/toast';
+import { WindowManager } from '../../services/window-manager';
 import { Icon } from '../../shared/icon';
 import { Sparkline } from '../../shared/status-glyphs';
 import { TrafficLights } from '../../shared/traffic-lights';
-import { filterTickers, toTicker, type Ticker } from './stocks-data';
+import {
+  filterTickers,
+  moveIndex,
+  nextWatchPosition,
+  normalizeSymbol,
+  reorderPositions,
+  tickerOf,
+  toTicker,
+  type Ticker
+} from './stocks-data';
 import { WatchlistSymbol } from './stocks.entities';
 
 /** 时间范围按钮与折线的颠簸步数：窗口越长走势越平滑，一天则很毛躁。 */
@@ -33,11 +46,17 @@ type Range = (typeof RANGES)[number][0];
   templateUrl: './stocks.html'
 })
 export class StocksApp {
+  private readonly data = inject(DesktopData);
+  private readonly popover = inject(PopoverService);
+  private readonly toast = inject(Toast);
+  private readonly searchField = viewChild<ElementRef<HTMLInputElement>>('search');
+  private readonly listBox = viewChild<ElementRef<HTMLElement>>('listBox');
   private readonly watchlist = liveQuery(
     () => WatchlistSymbol.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
     [],
     WatchlistSymbol
   );
+  private dragAbort: AbortController | null = null;
 
   protected readonly ranges = RANGES;
   protected readonly selected = signal<string | null>(null);
@@ -80,6 +99,115 @@ export class StocksApp {
 
   constructor() {
     const menus = inject(DesktopMenus);
-    inject(DesktopWindow).setMenus(computed(() => menus.standard('stocks')));
+    const wm = inject(WindowManager);
+    inject(DesktopWindow).setMenus(
+      computed(() =>
+        menus.standard('stocks', {
+          File: [
+            { id: 'n', label: 'New Window', key: '⌘N', run: () => wm.open('stocks', { force: true }) },
+            { id: 'w', label: 'Close Window', key: '⌘W', run: () => wm.closeFront() },
+            '-',
+            { id: 'f', label: 'Find', key: '⌘F', run: () => this.focusSearch() }
+          ]
+        })
+      )
+    );
+  }
+
+  protected focusSearch(): void {
+    this.searchField()?.nativeElement.focus();
+  }
+
+  /** 把代码加进自选（来自演示目录）；已在列表里就选中它。 */
+  protected async addSymbol(input: HTMLInputElement): Promise<void> {
+    const symbol = normalizeSymbol(input.value);
+    input.value = '';
+    if (!symbol) return;
+    const existing = this.watchlist().find(row => row.symbol === symbol);
+    if (existing) {
+      this.selected.set(existing.symbol);
+      return;
+    }
+    const ticker = tickerOf(symbol);
+    if (!ticker) {
+      this.toast.show(`“${symbol}” is not in the demo catalog.`);
+      return;
+    }
+    await this.data.transaction(async executor => {
+      const repository = executor.getRepository(WatchlistSymbol);
+      await repository.create(
+        this.data.instantiate(WatchlistSymbol, {
+          symbol: ticker.s,
+          name: ticker.n,
+          price: ticker.p,
+          changePercent: ticker.d,
+          position: nextWatchPosition(this.watchlist().map(row => row.position))
+        })
+      );
+    });
+    this.selected.set(symbol);
+  }
+
+  protected rowMenu(event: MouseEvent, ticker: Ticker): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.popover.contextMenu(
+      event,
+      [
+        { id: 'sel', label: 'Show ' + ticker.s, run: () => this.selected.set(ticker.s) },
+        '-',
+        { id: 'rm', label: 'Remove from Watchlist', run: () => void this.removeSymbol(ticker.s) }
+      ],
+      'Stock actions'
+    );
+  }
+
+  /** 方向键在自选列表里移动选中并保持焦点跟着走。 */
+  protected rowKey(event: KeyboardEvent, index: number): void {
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+    event.preventDefault();
+    const next = moveIndex(index, event.key === 'ArrowUp' ? -1 : 1, this.visibleTickers().length);
+    const ticker = this.visibleTickers()[next];
+    if (!ticker) return;
+    this.selected.set(ticker.s);
+    (this.listBox()?.nativeElement.querySelector(`[data-ti="${next}"]`) as HTMLElement | null)?.focus();
+  }
+
+  /** 拖动排序：松手时把该行移到指针下的位置，写回库。 */
+  protected dragStart(event: PointerEvent, index: number): void {
+    if (event.button) return;
+    if ((event.target as Element).closest('button, input')) return;
+    this.dragAbort?.abort();
+    this.dragAbort = new AbortController();
+    const { signal } = this.dragAbort;
+    addEventListener('pointerup', (up: PointerEvent) => this.dragEnd(up, index), { signal });
+  }
+
+  private dragEnd(event: PointerEvent, from: number): void {
+    this.dragAbort?.abort();
+    this.dragAbort = null;
+    const element = document.elementFromPoint(event.clientX, event.clientY);
+    const target = element?.closest('[data-ti]')?.getAttribute('data-ti');
+    if (target === null || target === undefined) return;
+    const to = Number(target);
+    if (!Number.isInteger(to) || to === from) return;
+    const rows = this.watchlist();
+    const positions = reorderPositions(rows, from, to);
+    void this.data.transaction(async executor => {
+      const repository = executor.getRepository(WatchlistSymbol);
+      for (const row of rows) {
+        const position = positions.get(row.symbol);
+        if (position !== undefined && position !== row.position) await repository.update(row, { position });
+      }
+    });
+  }
+
+  private async removeSymbol(symbol: string): Promise<void> {
+    const row = this.watchlist().find(entry => entry.symbol === symbol);
+    if (!row) return;
+    await this.data.transaction(async executor => {
+      await executor.getRepository(WatchlistSymbol).remove(row);
+    });
+    if (this.selected() === symbol) this.selected.set(null);
   }
 }

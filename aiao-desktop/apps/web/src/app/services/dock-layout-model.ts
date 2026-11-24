@@ -1,5 +1,6 @@
 import { clamp } from '../shared/format';
 import { DesktopAppId, DesktopAppManifests, DockZone, defaultDockApps } from './desktop-apps';
+import { DockPosition } from './system-state';
 
 /** 布局里的一个应用。 */
 export interface DockAppItem {
@@ -10,6 +11,14 @@ export interface DockAppItem {
 /** 应用区与尾部区之间的分隔线。 */
 export interface DockDividerItem {
   readonly type: 'divider';
+}
+
+/** 最小化窗口在 Dock 尾区的 tile：图标加窗口标题，点击还原。 */
+export interface DockWindowItem {
+  readonly type: 'window';
+  readonly appId: DesktopAppId;
+  readonly windowId: string;
+  readonly title: string;
 }
 
 export type DockLayoutItem = DockAppItem | DockDividerItem;
@@ -29,6 +38,31 @@ export interface DockLayout {
 /** Dock 里实际显示的一格：固定项，或本标签页正在运行但未固定的临时项，或分隔线。 */
 export type DockSlotItem =
   { readonly type: 'app'; readonly id: DesktopAppId; readonly temporary: boolean } | DockDividerItem;
+
+/** 显示层的格子：{@link DockSlotItem} 再加最小化窗口的 tile（只出现在 `dockSlots` 之后的插入阶段，不进固定布局）。 */
+export type DockDisplayItem = DockSlotItem | DockWindowItem;
+
+/** 一个最小化窗口的 tile 内容；`order` 是排序键（大的排最前，即最近最小化的窗口靠分隔线）。 */
+export interface MinimizedDockWindow {
+  readonly appId: DesktopAppId;
+  readonly windowId: string;
+  readonly title: string;
+  readonly order: number;
+}
+
+/** Dock 面板的测量框：未旋转时宽是布局主轴长度、高是面板厚度。 */
+export interface DockPanelRect {
+  readonly left: number;
+  readonly top: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+/** 屏幕上的一点。 */
+export interface DockPoint {
+  readonly x: number;
+  readonly y: number;
+}
 
 const DIVIDER: DockDividerItem = { type: 'divider' };
 const appItem = (id: DesktopAppId): DockAppItem => ({ type: 'app', id });
@@ -159,6 +193,89 @@ export function dockSlots(layout: DockLayout, temporary: readonly DesktopAppId[]
 export function slotIndexAt(centers: readonly number[], x: number): number {
   const index = centers.findIndex(center => center >= x);
   return index < 0 ? centers.length : index;
+}
+
+/**
+ * 把最小化窗口的 tile 插到分隔线之后、尾部区（废纸篓）之前，最近的（`order` 大）靠分隔线；
+ * 没有最小化窗口时返回一份等价的拷贝，不改动传入的格子。
+ */
+export function insertMinimizedTiles(
+  slots: readonly DockSlotItem[],
+  windows: readonly MinimizedDockWindow[]
+): DockDisplayItem[] {
+  const tiles = [...windows]
+    .sort((a, b) => b.order - a.order)
+    .map((win): DockWindowItem => ({ type: 'window', appId: win.appId, windowId: win.windowId, title: win.title }));
+  const divider = slots.findIndex(item => item.type === 'divider');
+  const at = divider < 0 ? slots.length : divider + 1;
+  return [...slots.slice(0, at), ...tiles, ...slots.slice(at)];
+}
+
+/**
+ * 图标中心在屏幕上的坐标（最小化动画的终点）。`rect` 是未旋转（transform 被暂时取下）的面板测量框；
+ * 左/右位置的面板以贴屏边为旋转轴（transform-origin 0% / 100% 50%，盒子左缘放在距屏边半个厚度处），
+ * 图标行贴住所在边、距边 9px。
+ */
+export function dockIconCenter(
+  rect: DockPanelRect,
+  laidCenter: number,
+  size: number,
+  position: DockPosition
+): DockPoint {
+  if (position === 'bottom') return { x: rect.left + laidCenter, y: rect.top + rect.height - 9 - size / 2 };
+  if (position === 'left') return { x: rect.left - rect.height / 2 + 9 + size / 2, y: rect.top + laidCenter };
+  return { x: rect.left + rect.height / 2 - 9 - size / 2, y: rect.top + rect.width - laidCenter };
+}
+
+/**
+ * 指针在 Dock 布局主轴上的坐标。`rect` 是屏幕上的实时测量框（左/右位置时已包含旋转，
+ * 包围盒的高即主轴长度）：底部 Dock 用屏幕 x，左/右 Dock 用屏幕 y 换算到主轴。
+ */
+export function dockAxisPoint(rect: DockPanelRect, clientX: number, clientY: number, position: DockPosition): number {
+  if (position === 'bottom') return clientX - rect.left;
+  if (position === 'left') return clientY - rect.top;
+  return rect.top + rect.height - clientY;
+}
+
+/** 布局内容起点在主轴上的坐标（`total` 是静止布局的总长，内容在面板里居中）。 */
+export function dockAxisOrigin(rect: DockPanelRect, total: number, position: DockPosition): number {
+  return position === 'bottom' ? rect.left + (rect.width - total) / 2 : (rect.height - total) / 2;
+}
+
+/** 指针是否贴住 Dock 所在的屏幕边（自动隐藏的触发条带，默认 4 像素）。 */
+export function nearDockEdge(
+  clientX: number,
+  clientY: number,
+  viewWidth: number,
+  viewHeight: number,
+  position: DockPosition,
+  edge = 4
+): boolean {
+  if (position === 'bottom') return clientY >= viewHeight - edge;
+  if (position === 'left') return clientX <= edge;
+  return clientX >= viewWidth - edge;
+}
+
+/** 指针是否在 Dock 面板的接收范围内（比面板略大 `slack` 像素，用于悬停放大与自动隐藏的延迟收起）。 */
+export function withinDock(
+  rect: DockPanelRect,
+  clientX: number,
+  clientY: number,
+  position: DockPosition,
+  slack = 8
+): boolean {
+  if (position === 'bottom') {
+    return (
+      Math.abs(clientX - (rect.left + rect.width / 2)) <= rect.width / 2 + slack &&
+      clientY >= rect.top - slack &&
+      clientY <= rect.top + rect.height + slack
+    );
+  }
+  return (
+    Math.abs(clientY - (rect.top + rect.height / 2)) <= rect.height / 2 + slack &&
+    clientX >= rect.left - slack &&
+    clientX <= rect.left + rect.width + slack
+  );
 }
 
 const sameItem = (a: DockLayoutItem, b: DockLayoutItem | undefined): boolean =>

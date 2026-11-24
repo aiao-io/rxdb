@@ -1,4 +1,4 @@
-<div id="stage">
+<div id="stage" [class.fullscreen]="fullscreen()">
   <app-wallpaper></app-wallpaper>
   <app-menubar [attr.inert]="behind() ? '' : null"></app-menubar>
   <app-window-layer [attr.inert]="behind() ? '' : null"></app-window-layer>
@@ -51,4 +51,51 @@
 </div>
 @if (session.sleep() !== 'awake') {
   <div id="sleeper" [class.wake]="session.sleep() === 'waking'" aria-hidden="true"></div>
+}
+@if (session.confirm(); as request) {
+  <!-- 重启 / 关机的确认对话框：macOS 风格，Esc 或 Cancel 取消，确认后走 tearDown。样式内联，不进全局样式表。 -->
+  <div
+    [attr.aria-label]="prompt(request).title"
+    (keydown)="confirmKey($event)"
+    appFocusTrap
+    aria-modal="true"
+    role="alertdialog"
+    style="
+      position: fixed;
+      inset: 0;
+      z-index: 9997;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.35);
+      -webkit-backdrop-filter: blur(16px);
+      backdrop-filter: blur(16px);
+    "
+  >
+    <div
+      style="
+        width: min(420px, calc(100vw - 48px));
+        background: var(--win);
+        color: var(--txt);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        box-shadow: 0 8px 40px #0005;
+        padding: 20px;
+      "
+    >
+      <h2 style="margin: 0 0 6px; font-size: 15px; font-weight: 700">{{ prompt(request).title }}</h2>
+      <p style="margin: 0 0 18px; font-size: 13px; opacity: 0.72">{{ prompt(request).message }}</p>
+      <div style="display: flex; gap: 10px; justify-content: flex-end">
+        <button class="btn" (click)="session.resolveConfirm(false)" data-autofocus type="button">Cancel</button>
+        <button
+          class="btn"
+          (click)="session.resolveConfirm(true)"
+          style="background: #0a5ffe; border-color: #0a5ffe; color: #fff"
+          type="button"
+        >
+          {{ prompt(request).action }}
+        </button>
+      </div>
+    </div>
+  </div>
 }

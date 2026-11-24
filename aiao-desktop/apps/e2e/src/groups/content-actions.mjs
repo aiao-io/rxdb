@@ -83,10 +83,9 @@ export const contentActions = {
 
     await helpers.desktopIcon('Interface Guidelines.pdf').dblclick();
     preview = helpers.win('preview');
-    await expect(preview.locator('[data-pv-sheet]')).toBeVisible();
-    const pdfText = await preview
-      .locator('[data-pv-sheet]')
-      .evaluate(element => [...element.children].map(child => child.textContent).join('\n\n'));
+    /* PDF 按页渲染：画布与页码导航可见（早期 [data-pv-sheet] 文本视图已随按页渲染移除）。 */
+    await expect(preview.locator('[data-pv-canvas]')).toBeVisible();
+    await expect(preview.locator('[data-pv-nav]')).toContainText(/1 of \d+/);
     const stop = await pressUntil(page, focus => focus.app === 'preview' && focus.name === 'Share');
     expect(stop.found).toBe(true);
     await page.keyboard.press('Enter');
@@ -97,7 +96,9 @@ export const contentActions = {
     result.noViolations = accessibility.violations;
     await page.screenshot({ path: '/tmp/aiao-content-actions-menu.png' });
     await page.keyboard.press('Enter');
-    await expect.poll(clipboard).toBe(pdfText);
+    await expect.poll(clipboard).toMatch(/^Interface Guidelines\.pdf/);
+    const expectedText = await clipboard();
+    expect(expectedText.length).toBeGreaterThan(100);
     await expect(page.getByRole('menu', { name: 'preview sharing' })).toHaveCount(0);
     result.pdfTextInClipboard = true;
     result.keyboardMenu = true;
@@ -115,19 +116,19 @@ export const contentActions = {
       'rgb(255, 255, 255)'
     );
     await page.screenshot({ path: '/tmp/aiao-content-actions-error.png' });
-    expect(await clipboard()).toBe(pdfText);
+    expect(await clipboard()).toBe(expectedText);
     await page.evaluate(() => {
       navigator.clipboard.writeText = window.__originalContentCopy;
     });
     await choose(preview, '[data-pvshare]', 'Copy Text');
     await expect(preview.getByRole('alert')).toHaveCount(0);
-    await expect.poll(clipboard).toBe(pdfText);
+    await expect.poll(clipboard).toBe(expectedText);
     result.copyFailureAndRecovery = true;
 
     await choose(preview, '[data-pvshare]', 'Print…');
     await expect.poll(async () => (await prints()).length).toBe(1);
     await expect.poll(async () => (await prints())[0].beforePrint).toBe(true);
-    expect((await prints())[0]).toMatchObject({ text: pdfText, scripts: 0 });
+    expect((await prints())[0]).toMatchObject({ text: expectedText, scripts: 0 });
     await expect(page.locator('[data-content-print]')).toHaveCount(0);
     result.selectedDocumentPrint = true;
     await page.evaluate(() => {

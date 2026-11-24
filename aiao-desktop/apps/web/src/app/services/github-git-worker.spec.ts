@@ -177,4 +177,66 @@ describe('GitHub Git Worker protocol', () => {
     );
     expect(fixture.readDiff).not.toHaveBeenCalled();
   });
+
+  it('wasm 堆损坏（RuntimeError）时丢弃运行时并重试一次', async () => {
+    const runtime = (await import('./git/git-runtime.js')).GitWorkbenchRuntime;
+    const create = vi.mocked(runtime.create);
+    const corrupt = {
+      status: vi.fn().mockRejectedValueOnce(new WebAssembly.RuntimeError('memory access out of bounds'))
+    };
+    const fresh = { status: vi.fn().mockResolvedValue({ clean: true }) };
+    create.mockReset();
+    create.mockResolvedValueOnce(corrupt as never).mockResolvedValueOnce(fresh as never);
+    request({ id: 5, action: 'status', payload });
+    await vi.waitFor(() => expect(scope.postMessage).toHaveBeenCalledWith({ id: 5, result: { clean: true } }));
+    expect(corrupt.status).toHaveBeenCalledTimes(1);
+    expect(fresh.status).toHaveBeenCalledTimes(1);
+    expect(create).toHaveBeenCalledTimes(2);
+  });
+
+  it('git 报错消息匹配损坏签名时同样自愈', async () => {
+    const runtime = (await import('./git/git-runtime.js')).GitWorkbenchRuntime;
+    const create = vi.mocked(runtime.create);
+    const corrupt = {
+      status: vi.fn().mockRejectedValueOnce(new Error('git status failed (1): Cannot retrieve reference target'))
+    };
+    const fresh = { status: vi.fn().mockResolvedValue({ clean: true }) };
+    create.mockReset();
+    create.mockResolvedValueOnce(corrupt as never).mockResolvedValueOnce(fresh as never);
+    request({ id: 6, action: 'status', payload });
+    await vi.waitFor(() => expect(scope.postMessage).toHaveBeenCalledWith({ id: 6, result: { clean: true } }));
+    expect(create).toHaveBeenCalledTimes(2);
+  });
+
+  it('两次都损坏时只重试一次并回报失败', async () => {
+    const runtime = (await import('./git/git-runtime.js')).GitWorkbenchRuntime;
+    const create = vi.mocked(runtime.create);
+    const first = { status: vi.fn().mockRejectedValue(new Error('memory access out of bounds')) };
+    const second = { status: vi.fn().mockRejectedValue(new Error('memory access out of bounds')) };
+    create.mockReset();
+    create.mockResolvedValueOnce(first as never).mockResolvedValueOnce(second as never);
+    request({ id: 7, action: 'status', payload });
+    await vi.waitFor(() =>
+      expect(scope.postMessage).toHaveBeenCalledWith({
+        id: 7,
+        error: { code: 'storage_failed', message: 'memory access out of bounds' }
+      })
+    );
+    expect(create).toHaveBeenCalledTimes(2);
+  });
+
+  it('普通 git 失败不重试、不重建运行时', async () => {
+    const runtime = (await import('./git/git-runtime.js')).GitWorkbenchRuntime;
+    const create = vi.mocked(runtime.create);
+    create.mockClear();
+    fixture.status.mockRejectedValueOnce(new Error('git status failed (1): permission denied'));
+    request({ id: 8, action: 'status', payload });
+    await vi.waitFor(() =>
+      expect(scope.postMessage).toHaveBeenCalledWith({
+        id: 8,
+        error: { code: 'storage_failed', message: 'git status failed (1): permission denied' }
+      })
+    );
+    expect(create).toHaveBeenCalledTimes(1);
+  });
 });

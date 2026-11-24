@@ -1,6 +1,7 @@
 import { Service, inject } from '@angular/core';
 import { ApplicationRegistry } from './application-registry';
 
+import { FinderClipboard } from '../apps/finder/finder-clipboard';
 import { showInfoPanel } from '../components/overlays/info-panel';
 import { DESKTOP, finderPathOf } from '../disk/disk-path';
 import { DesktopAppId } from './desktop-apps';
@@ -31,6 +32,15 @@ export interface FinderCommands {
   toggleSidebar(): void;
   togglePathBar(): void;
   goto(place: string): void;
+  /** 当前目录是不是废纸篓（File 菜单据此在「移到废纸篓」与「清倒废纸篓」之间切换）。 */
+  inTrash(): boolean;
+  emptyTrash(): void;
+  /** 聚焦工具栏的搜索框（⌘F）。 */
+  focusSearch(): void;
+  /** 「前往文件夹…」：弹路径输入，回车后前往（⇧⌘G）。 */
+  gotoFolder(): void;
+  /** 「查看选项」面板：图标大小、网格间距、文字大小与扩展名开关（⌘J）。 */
+  showViewOptions(): void;
 }
 
 export type StandardMenuOverrides = Readonly<Partial<Record<string, readonly MenuEntry[]>>>;
@@ -79,6 +89,7 @@ export class DesktopMenus {
   private readonly popover = inject(PopoverService);
   private readonly fs = inject(FileSystem);
   private readonly desktopItems = inject(DesktopItems);
+  private readonly clipboard = inject(FinderClipboard);
 
   apple(): MenuEntry[] {
     return [
@@ -137,14 +148,26 @@ export class DesktopMenus {
     ];
   }
 
+  /** Window 菜单：窗口动作、前台应用自己的窗口列表（由窗口管理器生成），以及整组前置。 */
   window(): MenuEntry[] {
+    const front = this.wm.front();
+    const windows = this.wm.windowMenuEntries();
     return [
       { id: 'min', label: 'Minimize', key: '⌘M', run: () => this.wm.minimizeFront() },
       { id: 'zoo', label: 'Zoom', run: () => this.wm.zoomFront() },
       { id: 'fil', label: 'Fill', key: '⌃⌥⏎', run: () => this.wm.zoomFront() },
       '-',
+      ...windows,
+      ...(windows.length ? (['-'] as const) : []),
       { id: 'cyc', label: 'Cycle Through Windows', key: '⌘`', run: () => this.wm.cycle() },
-      { id: 'brf', label: 'Bring All to Front', run: () => this.wm.showAll() }
+      {
+        id: 'brf',
+        label: 'Bring All to Front',
+        run: () => {
+          const appId = front?.appId;
+          if (appId) this.wm.showAppWindows(appId);
+        }
+      }
     ];
   }
 
@@ -158,21 +181,32 @@ export class DesktopMenus {
         { id: 'cl', label: 'Close Window', key: '⌘W', run: () => this.wm.closeFront() },
         '-',
         { id: 'gi', label: 'Get Info', key: '⌘I', run: () => target.getInfo() },
-        { id: 'tr', label: 'Move to Trash', key: '⌘⌫', run: () => target.trashSelected() }
+        ...(target.inTrash() ?
+          ([{ id: 'et', label: 'Empty Trash…', key: '⇧⌘⌫', run: () => target.emptyTrash() }] as const)
+        : ([{ id: 'tr', label: 'Move to Trash', key: '⌘⌫', run: () => target.trashSelected() }] as const)),
+        '-',
+        { id: 'find', label: 'Find', key: '⌘F', run: () => target.focusSearch() }
       ]),
       section('Edit', [
         {
           id: 'u',
-          label: this.desktopItems.canUndoTrash() ? 'Undo Move to Trash' : 'Undo',
+          label: this.fs.undoLabel() ?? 'Undo',
           key: '⌘Z',
-          disabled: !this.desktopItems.canUndoTrash(),
-          run: () => this.desktopItems.undoTrash()
+          disabled: !this.fs.canUndo(),
+          run: () => void this.fs.undo()
         },
-        { id: 'r', label: 'Redo', key: '⇧⌘Z', disabled: true },
+        { id: 'r', label: 'Redo', key: '⇧⌘Z', disabled: !this.fs.canRedo(), run: () => void this.fs.redo() },
         '-',
         { id: 'x', label: 'Cut', key: '⌘X', run: () => target.cutSelected() },
         { id: 'c', label: 'Copy', key: '⌘C', run: () => target.copySelected() },
         { id: 'v', label: 'Paste', key: '⌘V', run: () => target.paste() },
+        {
+          id: 'mv',
+          label: 'Move Item Here',
+          key: '⌥⌘V',
+          disabled: this.clipboard.snapshot()?.mode !== 'cut',
+          run: () => target.paste()
+        },
         '-',
         { id: 'a', label: 'Select All', key: '⌘A', run: () => target.selectAll() }
       ]),
@@ -201,14 +235,18 @@ export class DesktopMenus {
               .toggleShowHiddenFiles()
               .catch((error: unknown) => this.toast.show(String(error)));
           }
-        }
+        },
+        '-',
+        { id: 'vo', label: 'Show View Options', key: '⌘J', run: () => target.showViewOptions() }
       ]),
       section('Go', [
         { id: 'g1', label: 'Recents', key: '⇧⌘F', run: () => target.goto('Recents') },
         { id: 'g2', label: 'Documents', key: '⇧⌘O', run: () => target.goto('Documents') },
         { id: 'g3', label: 'Desktop', key: '⇧⌘D', run: () => target.goto('Desktop') },
         { id: 'g4', label: 'Downloads', key: '⌥⌘L', run: () => target.goto('Downloads') },
-        { id: 'g5', label: 'Applications', key: '⇧⌘A', run: () => target.goto('Applications') }
+        { id: 'g5', label: 'Applications', key: '⇧⌘A', run: () => target.goto('Applications') },
+        '-',
+        { id: 'gf', label: 'Go to Folder…', key: '⇧⌘G', run: () => target.gotoFolder() }
       ]),
       section('Window', this.window()),
       section('Help', [
@@ -239,7 +277,12 @@ export class DesktopMenus {
       sidebarVisible: () => true,
       toggleSidebar: none,
       togglePathBar: none,
-      goto: place => this.wm.open('finder', { path: PLACES[place] ?? HOME_PATH })
+      goto: place => this.wm.open('finder', { path: PLACES[place] ?? HOME_PATH }),
+      inTrash: () => false,
+      emptyTrash: none,
+      focusSearch: () => this.wm.open('finder', { path: HOME_PATH }),
+      gotoFolder: () => this.wm.open('finder', { path: HOME_PATH }),
+      showViewOptions: none
     });
   }
 

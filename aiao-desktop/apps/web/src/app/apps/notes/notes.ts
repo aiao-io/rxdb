@@ -16,6 +16,7 @@ import { ALL_ROWS, liveQuery } from '../../data/live-query';
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
 import { PopoverService, RETURNS_FOCUS } from '../../services/popover';
+import { WindowManager } from '../../services/window-manager';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
 import { sanitizeNoteBody } from './note-body';
@@ -32,6 +33,7 @@ import {
   ALL_NOTES,
   CHECKLIST_ITEM,
   NOTES_FOLDER,
+  NoteSort,
   TABLE_HTML,
   TRASH_FOLDER,
   folderCount,
@@ -41,6 +43,8 @@ import {
   noteSnippet,
   noteTitle,
   noteWhen,
+  sortNotes,
+  stepNote,
   visibleNotes
 } from './notes-model';
 import { Note, NoteFolder } from './notes.entities';
@@ -88,6 +92,7 @@ const commandState = (command: string): boolean => {
 export class NotesApp {
   private readonly popover = inject(PopoverService);
   private readonly data = inject(DesktopData);
+  private readonly wm = inject(WindowManager);
   private readonly frame = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly doc = viewChild.required<ElementRef<HTMLElement>>('doc');
   private readonly notes = liveQuery(
@@ -100,7 +105,9 @@ export class NotesApp {
     [],
     NoteFolder
   );
-  private readonly list = computed(() => visibleNotes(this.notes(), this.folder(), this.query()));
+  private readonly list = computed(() =>
+    sortNotes(visibleNotes(this.notes(), this.folder(), this.query()), this.sort())
+  );
   private timer: ReturnType<typeof setTimeout> | undefined;
   /** 编辑区里现在装的是哪条笔记。 */
   private loaded: string | null = null;
@@ -124,10 +131,13 @@ export class NotesApp {
     }))
   ]);
   protected readonly textFormats = TEXT_FORMATS;
+  protected readonly trashFolder = TRASH_FOLDER;
   protected readonly folder = signal<string>(NOTES_FOLDER);
   protected readonly query = signal('');
   protected readonly selected = signal<string | null>(null);
   protected readonly sidebar = signal(true);
+  /** 列表排序：默认编辑日期（新到旧）。 */
+  protected readonly sort = signal<NoteSort>('edited');
   protected readonly active = signal<readonly string[]>([], { equal: sameList });
   protected readonly rows = computed(() => {
     const now = new Date();
@@ -167,6 +177,30 @@ export class NotesApp {
               '-',
               { id: 'c', label: 'Checklist', key: '⇧⌘L', run: () => this.checklist() },
               { id: 't', label: 'Table', run: () => this.table() }
+            ],
+            View: [
+              {
+                id: 'sort',
+                label: 'Sort By',
+                submenu: [
+                  {
+                    id: 'se',
+                    label: 'Date Edited',
+                    checked: this.sort() === 'edited',
+                    run: () => this.setSort('edited')
+                  },
+                  {
+                    id: 'sc',
+                    label: 'Date Created',
+                    checked: this.sort() === 'created',
+                    run: () => this.setSort('created')
+                  },
+                  { id: 'st', label: 'Title', checked: this.sort() === 'title', run: () => this.setSort('title') }
+                ]
+              },
+              '-',
+              { id: 'f', label: 'Enter Full Screen', key: '⌃⌘F', run: () => this.wm.zoomFront() },
+              { id: 't', label: 'Show Toolbar', key: '⌥⌘T', checked: true }
             ]
           },
           ['File', 'Edit', 'Format', 'View', 'Window', 'Help']
@@ -217,12 +251,79 @@ export class NotesApp {
   protected async menu(event: MouseEvent, id: string): Promise<void> {
     event.preventDefault();
     if (!(await this.pick(id))) return;
+    const note = this.current();
+    if (!note) return;
     this.popover.contextMenu(event, [
-      { id: 'p', label: this.current()?.pinned ? 'Unpin Note' : 'Pin Note', run: () => this.togglePin() },
+      { id: 'p', label: note.pinned ? 'Unpin Note' : 'Pin Note', run: () => this.togglePin() },
       { id: 'd', label: 'Duplicate', run: () => this.saveCopy() },
+      {
+        id: 'm',
+        label: 'Move to Folder',
+        submenu: [
+          {
+            id: 'mn',
+            label: NOTES_FOLDER,
+            checked: note.folder === NOTES_FOLDER,
+            run: () => this.moveTo(NOTES_FOLDER)
+          },
+          ...this.noteFolders().map(folder => ({
+            id: `mf-${folder.name}`,
+            label: folder.name,
+            checked: note.folder === folder.name,
+            run: () => this.moveTo(folder.name)
+          }))
+        ]
+      },
       '-',
+      ...(this.folder() === TRASH_FOLDER ?
+        ([{ id: 'r', label: 'Recover Note', run: () => this.recover() }] as const)
+      : []),
       { id: 'x', label: 'Delete', run: () => this.remove() }
     ]);
+  }
+
+  /** 列表方向键：上下移动选中项并把焦点带过去。 */
+  protected rowKey(event: KeyboardEvent, id: string): void {
+    const step =
+      event.key === 'ArrowDown' ? 1
+      : event.key === 'ArrowUp' ? -1
+      : 0;
+    if (!step) return;
+    event.preventDefault();
+    const target = stepNote(this.list(), id, step);
+    if (!target) return;
+    void this.pick(target).then(ok => {
+      if (!ok) return;
+      (event.currentTarget as HTMLElement).parentElement
+        ?.querySelector<HTMLElement>(`[data-id="${CSS.escape(target)}"]`)
+        ?.focus();
+    });
+  }
+
+  /** View 菜单的排序方式。 */
+  protected setSort(sort: NoteSort): void {
+    this.sort.set(sort);
+    this.show(true);
+  }
+
+  /** 把当前笔记移到另一个文件夹（右键「Move to Folder」与废纸篓恢复共用）。 */
+  protected moveTo(folder: string): Promise<boolean> {
+    return this.operate(async () => {
+      const value = this.editor.value();
+      if (!value) return;
+      await this.data.transaction(async executor => {
+        const repository = executor.getRepository(Note);
+        const [note] = await repository.find({ where: this.whereId(value.id), limit: 1 });
+        if (!note) throw new NoteSaveError('missing');
+        if (!sameNoteContent(note, value)) throw new NoteSaveError('conflict');
+        await repository.update(note, { folder });
+      });
+    });
+  }
+
+  /** 从废纸篓恢复：放回 Notes 文件夹。 */
+  protected recover(): Promise<boolean> {
+    return this.moveTo(NOTES_FOLDER);
   }
 
   protected search(event: Event): void {

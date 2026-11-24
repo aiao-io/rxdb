@@ -39,7 +39,10 @@ export const shell = {
       noRuntimeGlobals: ['WM', 'APPS', 'Pop', 'SYS', 'Bus', '__aiaoRuntimeBridge', '__aiaoTerminalBridge'].every(
         name => !(name in window)
       ),
-      noInlineScripts: [...document.scripts].every(script => script.src !== ''),
+      /* 唯一的行内脚本是开机闪屏的解析期摘除（?boot=0 / #noboot），其余脚本都必须带 src。 */
+      noInlineScripts: [...document.scripts].every(
+        script => script.src !== '' || script.textContent.includes('boot-splash')
+      ),
       noDevtools: !('__AIAO_RXDB_DEVTOOLS__' in window)
     }));
 

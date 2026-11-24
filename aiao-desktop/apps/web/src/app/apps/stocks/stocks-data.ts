@@ -31,3 +31,30 @@ export function filterTickers(tickers: readonly Ticker[], query: string): readon
   if (!normalized) return tickers;
   return tickers.filter(ticker => `${ticker.s} ${ticker.n}`.toLocaleLowerCase().includes(normalized));
 }
+
+/** 输入框里的代码整理成大写代码；空白输入得到空串。 */
+export const normalizeSymbol = (input: string): string => input.trim().toUpperCase();
+
+/** 演示目录里有没有这个代码；加自选只接受种子里的公司。 */
+export const tickerOf = (symbol: string): Ticker | undefined => TICKER_SEEDS.find(ticker => ticker.s === symbol);
+
+/** 新自选股的 `position`：排在现有的最前；列表为空时从 0 开始。 */
+export const nextWatchPosition = (positions: readonly number[]): number =>
+  positions.length ? Math.min(...positions) - 1 : 0;
+
+/** 拖动排序：把 `from` 位置的股票移到 `to`，返回每支股票新的 0..n-1 次序。 */
+export const reorderPositions = (
+  rows: readonly { symbol: string; position: number }[],
+  from: number,
+  to: number
+): ReadonlyMap<string, number> => {
+  const sorted = [...rows].sort((left, right) => left.position - right.position);
+  const [moved] = sorted.splice(from, 1);
+  if (!moved) return new Map();
+  sorted.splice(Math.max(0, Math.min(to, sorted.length)), 0, moved);
+  return new Map(sorted.map((row, index) => [row.symbol, index]));
+};
+
+/** 方向键移动选中：循环列表，空列表原地不动。 */
+export const moveIndex = (current: number, delta: -1 | 1, count: number): number =>
+  count > 0 ? (current + delta + count) % count : 0;

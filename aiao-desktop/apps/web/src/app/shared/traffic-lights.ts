@@ -7,6 +7,9 @@ import { Icon } from './icon';
 /**
  * 窗口左上角的关闭、最小化、缩放按钮；应用把它放在自己标题栏或侧栏顶部。
  * 三个都是原生按钮（Enter、空格触发，Tab 能到，名称是 Close / Minimize / Zoom），符号是装饰。
+ *
+ * macOS 修饰键：⌥+关闭=关闭该应用全部窗口，⌥+最小化=最小化该应用全部窗口；
+ * 绿键单击=全屏空间（再点或 Esc 退出），⌥+绿键=Zoom（填满菜单栏下方）。
  */
 @Component({
   selector: 'app-traffic-lights',
@@ -28,18 +31,21 @@ export class TrafficLights {
   private readonly win = inject(DesktopWindow);
   private readonly wm = inject(WindowManager);
 
-  protected close(event: Event): void {
+  protected close(event: MouseEvent): void {
     event.stopPropagation();
-    this.wm.close(this.win.id);
+    if (event.altKey) void this.wm.closeApp(this.win.appId);
+    else this.wm.close(this.win.id);
   }
 
-  protected minimize(event: Event): void {
+  protected minimize(event: MouseEvent): void {
     event.stopPropagation();
-    this.wm.minimize(this.win.id);
+    if (event.altKey) this.wm.minimizeApp(this.win.appId);
+    else this.wm.minimize(this.win.id);
   }
 
-  protected zoom(event: Event): void {
+  protected zoom(event: MouseEvent): void {
     event.stopPropagation();
-    this.wm.zoom(this.win.id);
+    if (event.altKey) this.wm.zoom(this.win.id);
+    else this.wm.toggleFullscreen(this.win.id);
   }
 }

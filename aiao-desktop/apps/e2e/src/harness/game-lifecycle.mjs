@@ -81,6 +81,8 @@ export async function checkGameLifecycle(page, { hiddenTab = false, synthetic = 
   await observePause();
   await apple('Sleep');
   result.sleepLoopStops = await stable();
+  /* 睡眠是输入唤醒（不再自动醒来）：按任意键进入 waking，桌面才会把可见性回报给游戏桥。 */
+  await page.keyboard.press('a');
   await waitFor('running');
 
   if (hiddenTab) {

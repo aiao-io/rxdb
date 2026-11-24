@@ -10,6 +10,7 @@ import { ApplicationRuntime } from './application-runtime';
 import { AppLoader, DESKTOP_APPS, DesktopAppId, DesktopAppRegistry, DesktopOpenOptions } from './desktop-apps';
 import { DesktopWindow } from './desktop-window';
 import { DockState } from './dock-state';
+import { isMenuCommand } from './menu';
 import { Toast } from './toast';
 import { WindowManager } from './window-manager';
 
@@ -61,6 +62,7 @@ function attachFrame(wm: WindowManager, win: DesktopWindow) {
     }),
     toggleZoom: vi.fn(() => win.zoomed.update(zoomed => !zoomed)),
     keepOnScreen: vi.fn(),
+    requestFullscreen: vi.fn(),
     focusContent: vi.fn(),
     holdsFocus
   };
@@ -643,9 +645,9 @@ describe('WindowManager 针对最前窗口的命令', () => {
 });
 
 describe('WindowManager 切换窗口', () => {
-  it('cycle（⌘`）把最底层的可见窗口提到最前，连续按下轮流切换', () => {
+  it('cycle（⌘`）把前台应用最底层的可见窗口提到最前，连续按下轮流切换', () => {
     const { wm } = setup();
-    const [a, b, c] = ['notes', 'calculator', 'terminal'].map(id => open(wm, id as DesktopAppId));
+    const [a, b, c] = openMany(wm, 'finder', 3);
     expect(wm.front()).toBe(c);
 
     wm.cycle();
@@ -659,20 +661,197 @@ describe('WindowManager 切换窗口', () => {
 
   it('cycle 跳过最小化的窗口；只剩一个可见窗口时不改变层级', () => {
     const { wm } = setup();
-    const a = openFramed(wm, 'notes');
-    const b = openFramed(wm, 'calculator');
-    openFramed(wm, 'terminal');
+    const a = openFramed(wm, 'finder');
+    const b = openFramed(wm, 'finder', { force: true });
     wm.minimize(a.win.id);
 
     wm.cycle();
     expect(wm.front()).toBe(b.win);
     expect(a.win.minimized()).toBe(true);
 
-    wm.hideOthers();
     const zBefore = b.win.zIndex();
     wm.cycle();
     expect(b.win.zIndex()).toBe(zBefore);
     expect(wm.front()).toBe(b.win);
+  });
+
+  it('cycle 不跨应用：只在前台应用的窗口之间循环，其他应用的窗口不会被切到', () => {
+    const { wm } = setup();
+    const [f1, f2] = openMany(wm, 'finder', 2);
+    const notes = open(wm, 'notes');
+    expect(wm.front()).toBe(notes);
+
+    wm.cycle();
+    expect(wm.front()).toBe(notes);
+    expect(wm.focused()).toBe(notes);
+
+    wm.focus(f1.id);
+    expect(wm.front()).toBe(f1);
+    wm.cycle();
+    expect(wm.front()).toBe(f2);
+    expect(wm.focused()).toBe(f2);
+    wm.cycle();
+    expect(wm.front()).toBe(f1);
+  });
+});
+
+describe('WindowManager ⌥+最小化与全屏空间', () => {
+  it('minimizeApp 最小化该应用全部可见窗口，其他应用与已最小化的窗口不动', () => {
+    const { wm } = setup();
+    const first = openFramed(wm, 'finder');
+    const second = openFramed(wm, 'finder', { force: true });
+    const notes = openFramed(wm, 'notes');
+    wm.minimize(first.win.id);
+    first.frame.minimize.mockClear();
+
+    wm.minimizeApp('finder');
+    expect(first.frame.minimize).not.toHaveBeenCalled();
+    expect(second.frame.minimize).toHaveBeenCalledTimes(1);
+    expect(second.win.minimized()).toBe(true);
+    expect(notes.win.minimized()).toBe(false);
+  });
+
+  it('minimizeApp 对不存在的应用或正在关闭的窗口什么也不做', () => {
+    const { wm } = setup();
+    const leaving = openFramed(wm, 'notes');
+    wm.close(leaving.win.id);
+    wm.minimizeApp('notes');
+    wm.minimizeApp('about');
+    expect(leaving.frame.minimize).not.toHaveBeenCalled();
+  });
+
+  it('hasFullscreen：有窗口标记全屏空间时为 true，窗口关闭后为 false', () => {
+    const { wm } = setup();
+    const win = open(wm, 'notes');
+    expect(wm.hasFullscreen()).toBe(false);
+
+    win.fullscreen.set(true);
+    expect(wm.hasFullscreen()).toBe(true);
+
+    wm.close(win.id);
+    expect(wm.hasFullscreen()).toBe(false);
+    vi.advanceTimersByTime(CLOSE_MS);
+    expect(wm.hasFullscreen()).toBe(false);
+  });
+
+  it('toggleFullscreen：非全屏窗口请求进入全屏，已在全屏的窗口走退出分支不再请求', () => {
+    const { wm } = setup();
+    const { win, frame } = openFramed(wm, 'notes');
+    wm.toggleFullscreen(win.id);
+    expect(frame.requestFullscreen).toHaveBeenCalledTimes(1);
+
+    win.fullscreen.set(true);
+    wm.toggleFullscreen(win.id);
+    expect(frame.requestFullscreen).toHaveBeenCalledTimes(1);
+  });
+
+  it('fullscreenFront 对最前窗口切换全屏，没有可见窗口时什么也不做', () => {
+    const { wm } = setup();
+    const { frame } = openFramed(wm, 'notes');
+    wm.fullscreenFront();
+    expect(frame.requestFullscreen).toHaveBeenCalledTimes(1);
+
+    wm.closeAll();
+    vi.advanceTimersByTime(CLOSE_MS);
+    wm.fullscreenFront();
+    expect(frame.requestFullscreen).toHaveBeenCalledTimes(1);
+  });
+
+  it('exitFullscreen 只在文档有全屏元素时调用 exitFullscreen，没有时不动', () => {
+    const { wm, dom } = setup();
+    const doc = dom.document as Document & {
+      fullscreenElement?: Element | null;
+      exitFullscreen?: () => Promise<void>;
+    };
+    const exit = vi.fn(() => Promise.resolve());
+    doc.fullscreenElement = {} as Element;
+    doc.exitFullscreen = exit;
+
+    wm.exitFullscreen();
+    expect(exit).toHaveBeenCalledTimes(1);
+
+    doc.fullscreenElement = null;
+    wm.exitFullscreen();
+    expect(exit).toHaveBeenCalledTimes(1);
+  });
+
+  it('关闭全屏窗口前先退出全屏', () => {
+    const { wm, dom } = setup();
+    const win = open(wm, 'notes');
+    const doc = dom.document as Document & {
+      fullscreenElement?: Element | null;
+      exitFullscreen?: () => Promise<void>;
+    };
+    const exit = vi.fn(() => Promise.resolve());
+    doc.fullscreenElement = {} as Element;
+    doc.exitFullscreen = exit;
+
+    win.fullscreen.set(true);
+    wm.close(win.id);
+    expect(exit).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('WindowManager Window 菜单条目与 Bring All to Front', () => {
+  it('windowMenuEntries 列出前台应用的窗口：最靠前的在前并勾选，点击聚焦', () => {
+    const { wm } = setup();
+    const [first, second] = openMany(wm, 'finder', 2);
+    open(wm, 'notes');
+    wm.focus(first.id);
+    const entries = wm.windowMenuEntries().map(entry => (isMenuCommand(entry) ? entry : null));
+
+    expect(entries.map(command => command?.id)).toEqual([first.id, second.id]);
+    expect(entries.map(command => command?.label)).toEqual(['Finder', 'Finder']);
+    expect(entries[0]?.checked).toBe(true);
+    expect(entries[1]?.checked).toBe(false);
+
+    wm.focus(second.id);
+    entries[0]?.run?.();
+    expect(wm.focused()).toBe(first);
+  });
+
+  it('windowMenuEntries 只列前台应用的窗口，没有前台窗口时为空', () => {
+    const { wm } = setup();
+    expect(wm.windowMenuEntries()).toEqual([]);
+    openMany(wm, 'finder', 2);
+    const notes = open(wm, 'notes');
+    expect(wm.windowMenuEntries().map(entry => (isMenuCommand(entry) ? entry.id : null))).toEqual([notes.id]);
+  });
+
+  it('showAppWindows 还原并置前该应用全部窗口（含用户自己最小化的），最后聚焦最靠前的', () => {
+    const { wm } = setup();
+    const first = openFramed(wm, 'finder');
+    const second = openFramed(wm, 'finder', { force: true });
+    const notes = openFramed(wm, 'notes');
+    wm.minimize(first.win.id);
+    wm.minimize(second.win.id);
+
+    wm.showAppWindows('finder');
+    expect(first.win.minimized()).toBe(false);
+    expect(second.win.minimized()).toBe(false);
+    expect(wm.front()).toBe(second.win);
+    expect(wm.focused()).toBe(second.win);
+    expect(notes.win.zIndex()).toBeLessThan(second.win.zIndex());
+  });
+
+  it('showAppWindows 对隐藏的应用同样整组还原并清掉隐藏标记', () => {
+    const { wm } = setup();
+    const first = openFramed(wm, 'finder');
+    const second = openFramed(wm, 'finder', { force: true });
+    wm.hideApp('finder');
+
+    wm.showAppWindows('finder');
+    expect(first.win.minimized()).toBe(false);
+    expect(second.win.minimized()).toBe(false);
+    expect(wm.hiddenApps().has('finder')).toBe(false);
+  });
+
+  it('showAppWindows 对没有窗口的应用什么也不做', () => {
+    const { wm } = setup();
+    const notes = openFramed(wm, 'notes');
+    wm.showAppWindows('terminal');
+    expect(notes.win.minimized()).toBe(false);
+    expect(wm.focused()).toBe(notes.win);
   });
 });
 
@@ -890,8 +1069,8 @@ describe('WindowManager 键盘焦点（ADESK-US-108）', () => {
 
   it('⌘` 循环到的窗口拿到键盘焦点，焦点与前台窗口同步', () => {
     const { wm } = setup();
-    const { win: bottom, frame: bottomFrame } = openFramed(wm, 'notes');
-    open(wm, 'calculator');
+    const { win: bottom, frame: bottomFrame } = openFramed(wm, 'finder');
+    openFramed(wm, 'finder', { force: true });
     wm.cycle();
     expect(wm.focused()).toBe(bottom);
     expect(bottomFrame.focusContent).toHaveBeenCalledTimes(1);

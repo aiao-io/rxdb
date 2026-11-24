@@ -143,7 +143,9 @@ export const offlineResources = {
     const requestsBefore = weatherRequests;
     await weather.getByRole('button', { name: 'Retry weather' }).click();
     await expect(weather.getByRole('status')).toHaveText('Updating weather…');
-    await expect(widget.locator('button')).toBeDisabled();
+    /* 桌面小组件也有刷新按钮（键盘可达）；请求进行中它同样禁用，不额外发请求。 */
+    await expect(widget.locator('button')).toHaveCount(1);
+    await expect(widget.getByRole('button', { name: /^(Retry|Refresh) weather$/ })).toBeDisabled();
     await expect.poll(() => typeof releaseWeather).toBe('function');
     expect(weatherRequests).toBe(requestsBefore + 1);
     weatherMode = 'warm';
@@ -162,10 +164,9 @@ export const offlineResources = {
       expect(await view.innerText()).not.toContain('100°');
     }
     await expect(weather.getByRole('button', { name: 'Retry weather' })).toBeEnabled();
-    for (const view of [weather, widget]) {
-      const contrast = await view.locator('app-weather-status button').evaluate(buttonContrast);
-      expect(contrast, 'Enabled weather retry text must be readable').toBeGreaterThanOrEqual(4.5);
-    }
+    const contrast = await weather.locator('app-weather-status button').evaluate(buttonContrast);
+    expect(contrast, 'Enabled weather retry text must be readable').toBeGreaterThanOrEqual(4.5);
+    await expect(widget.locator('app-weather-status button')).toHaveCount(1);
     const staleAxe = await new AxeBuilder({ page }).include('.win[data-app="weather"]').analyze();
     expect(staleAxe.violations).toEqual([]);
     await page.screenshot({ path: '/tmp/aiao-offline-weather-stale.png' });

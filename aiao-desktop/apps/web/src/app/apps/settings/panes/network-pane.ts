@@ -1,12 +1,11 @@
 import { Component, computed, inject } from '@angular/core';
 
 import { SystemState } from '../../../services/system-state';
-import { Icon } from '../../../shared/icon';
 
-/** 网络：几个网络服务的连接状态，Wi‑Fi 一行跟着当前网络名走。 */
+/** 网络：几个网络服务的连接状态（静态信息），Wi‑Fi 一行跟着当前网络名走。 */
 @Component({
   selector: 'app-network-pane',
-  imports: [Icon],
+  imports: [],
   host: { style: 'display: contents' },
   template: `
     <div class="st-group">
@@ -20,14 +19,13 @@ import { Icon } from '../../../shared/icon';
             {{ service.name }}
             <div class="hint">{{ service.status }}</div>
           </div>
-          <div class="rt"><svg appIcon="g-chev-r"></svg></div>
         </div>
       }
     </div>
     <div class="st-group">
       <div class="st-item">
         <div class="lb">Firewall</div>
-        <div class="rt"><span style="font-size: 12px; color: var(--txt-2)">On</span><svg appIcon="g-chev-r"></svg></div>
+        <div class="rt"><span style="font-size: 12px; color: var(--txt-2)">On</span></div>
       </div>
     </div>
   `

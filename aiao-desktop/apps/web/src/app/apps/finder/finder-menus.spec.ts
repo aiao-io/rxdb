@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { MenuCommand, isMenuCommand } from '../../services/menu';
-import { finderSortCommands, finderViewItems, openWithCommands } from './finder-menus';
+import { compressLabel, finderSortCommands, finderViewItems, openWithCommands, tagCommands } from './finder-menus';
 
 const commands = (entries: ReturnType<typeof finderViewItems>): MenuCommand[] => entries.filter(isMenuCommand);
 
@@ -67,5 +67,33 @@ describe('openWithCommands', () => {
   it('没有候选应用时只有 Other…，没有分隔线', () => {
     const items = openWithCommands([], vi.fn(), vi.fn());
     expect(items).toEqual([{ id: 'open-with-other', label: 'Other…', run: expect.any(Function) }]);
+  });
+});
+
+describe('tagCommands Tags 子菜单', () => {
+  it('一种颜色一项，勾选条目已有的标签', () => {
+    const items = tagCommands(['Red', 'Green', 'Blue'], ['Green'], vi.fn()).filter(isMenuCommand);
+    expect(items.map(item => [item.label, item.checked])).toEqual([
+      ['Red', false],
+      ['Green', true],
+      ['Blue', false]
+    ]);
+  });
+
+  it('点选切换这一种颜色，把整组颜色交给回调', () => {
+    const pick = vi.fn();
+    const items = tagCommands(['Red', 'Green', 'Blue'], ['Green'], pick).filter(isMenuCommand);
+    items.find(item => item.id === 'tag-red')?.run?.();
+    expect(pick).toHaveBeenCalledExactlyOnceWith(['Green', 'Red']);
+    pick.mockClear();
+    items.find(item => item.id === 'tag-green')?.run?.();
+    expect(pick).toHaveBeenCalledExactlyOnceWith([]);
+  });
+});
+
+describe('compressLabel Compress 菜单标签', () => {
+  it('单个条目带名字，多个条目带数量', () => {
+    expect(compressLabel(['notes.md'])).toBe('Compress “notes.md”');
+    expect(compressLabel(['a.txt', 'b.txt'])).toBe('Compress 2 Items');
   });
 });

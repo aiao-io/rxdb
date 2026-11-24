@@ -1,16 +1,32 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 
+import { Toast } from '../../../services/toast';
+import { WindowManager } from '../../../services/window-manager';
 import { Icon } from '../../../shared/icon';
 
-/** 通用：一串只能看的条目，外加「这台 Mac」的型号。 */
+interface GeneralRow {
+  readonly label: string;
+  readonly icon: string;
+  /** 打开目标的动作；没有动作的只是展示行（没有 chevron、不可点）。 */
+  readonly run?: () => void;
+}
+
+/** 通用：About 打开「关于本机」窗口，Software Update 弹提示，其余条目是静态信息。 */
 @Component({
   selector: 'app-general-pane',
   imports: [Icon],
   host: { style: 'display: contents' },
   template: `
     <div class="st-group">
-      @for (item of items; track item[0]) {
-        <div class="st-item">
+      @for (row of rows; track row.label) {
+        <div
+          class="st-item"
+          [attr.aria-label]="row.run ? row.label : null"
+          [attr.role]="row.run ? 'button' : null"
+          [attr.tabindex]="row.run ? 0 : null"
+          (click)="row.run?.()"
+          (keydown.enter)="row.run?.()"
+        >
           <span
             class="bg"
             style="
@@ -22,10 +38,12 @@ import { Icon } from '../../../shared/icon';
               display: grid;
               place-items: center;
             "
-            ><svg [appIcon]="item[1]" style="width: 13px; height: 13px"></svg
+            ><svg [appIcon]="row.icon" style="width: 13px; height: 13px"></svg
           ></span>
-          <div class="lb" style="min-width: 0; flex: 1">{{ item[0] }}</div>
-          <div class="rt"><svg appIcon="g-chev-r"></svg></div>
+          <div class="lb" style="min-width: 0; flex: 1">{{ row.label }}</div>
+          @if (row.run) {
+            <div class="rt"><svg appIcon="g-chev-r"></svg></div>
+          }
         </div>
       }
     </div>
@@ -36,21 +54,28 @@ import { Icon } from '../../../shared/icon';
           MacBook Pro 16″ · Apple M4 Max · 128 GB
           <div class="hint">macOS Tahoe 26.0 (26A5240b) — up to date</div>
         </div>
-        <div class="rt"><button class="btn pri">More Info…</button></div>
+        <div class="rt"><button class="btn pri" (click)="about()">More Info…</button></div>
       </div>
     </div>
   `
 })
 export class GeneralPane {
-  protected readonly items = [
-    ['About', 'g-gear'],
-    ['Software Update', 'g-download'],
-    ['Storage', 'g-hd'],
-    ['AirDrop & Handoff', 'g-airdrop'],
-    ['Login Items & Extensions', 'g-apps'],
-    ['Language & Region', 'g-globe'],
-    ['Date & Time', 'g-clock-a'],
-    ['Sharing', 'g-share'],
-    ['Time Machine', 'g-clock-a']
-  ] as const;
+  private readonly wm = inject(WindowManager);
+  private readonly toast = inject(Toast);
+
+  protected readonly rows: readonly GeneralRow[] = [
+    { label: 'About', icon: 'g-gear', run: () => this.about() },
+    { label: 'Software Update', icon: 'g-download', run: () => this.toast.show('Your Mac is up to date') },
+    { label: 'Storage', icon: 'g-hd' },
+    { label: 'AirDrop & Handoff', icon: 'g-airdrop' },
+    { label: 'Login Items & Extensions', icon: 'g-apps' },
+    { label: 'Language & Region', icon: 'g-globe' },
+    { label: 'Date & Time', icon: 'g-clock-a' },
+    { label: 'Sharing', icon: 'g-share' },
+    { label: 'Time Machine', icon: 'g-clock-a' }
+  ];
+
+  protected about(): void {
+    this.wm.open('about');
+  }
 }

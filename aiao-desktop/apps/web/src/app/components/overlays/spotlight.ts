@@ -19,11 +19,19 @@ import { Note } from '../../apps/notes/notes.entities';
 import { SafariBrowsers } from '../../apps/safari/safari-browsers';
 import { ALL_ROWS, liveQuery } from '../../data/live-query';
 import { AppLauncher } from '../../services/app-launcher';
+import { browserClipboard } from '../../services/browser-clipboard';
 import {} from '../../services/desktop-apps';
 import { FileOpener } from '../../services/file-opener';
 import { FileSystem, FsNode, HOME_PATH } from '../../services/file-system';
 import { Overlays } from '../../services/overlays';
 import { Session } from '../../services/session';
+import {
+  UnitConversion,
+  calculateExpression,
+  convertQuery,
+  folderTail,
+  formatNumber
+} from '../../services/spotlight-queries';
 import { ThemeService } from '../../services/theme';
 import { WindowManager } from '../../services/window-manager';
 import { clamp } from '../../shared/format';
@@ -33,6 +41,8 @@ interface SpotlightHit {
   readonly name: string;
   readonly kind: string;
   readonly icon: string;
+  /** 第二行小字：文件所在文件夹的路径尾段。 */
+  readonly subtitle?: string;
   readonly run: () => void;
 }
 
@@ -42,9 +52,9 @@ interface SpotlightGroup {
 }
 
 /**
- * 聚焦搜索：应用、动作、磁盘文件、笔记与网页建议。
+ * 聚焦搜索：应用、动作、磁盘文件、笔记与网页建议，外加算式求值与单位换算。
  * 无障碍（ADESK-US-108）：模态 `dialog`；输入框是 `combobox`，焦点始终留在输入框里，结果是 `listbox` 里的 `option`
- * （按分类分 `group`），方向键移动的「当前项」由 `aria-activedescendant` 指出，Enter 打开，Esc 关闭。
+ * （按分类分 `group`），方向键移动的「当前项」由 `aria-activedescendant` 指出，Enter 打开（算式/换算命中是复制结果），Esc 关闭。
  * 结果行的 `tabindex="-1"` 只是让鼠标点击能聚焦它：Tab 停靠点只有输入框。
  */
 @Component({
@@ -86,7 +96,11 @@ interface SpotlightGroup {
             @for (row of group.hits; track row.index) {
               <div
                 class="r"
-                [attr.aria-label]="row.hit.name + ', ' + row.hit.kind"
+                [attr.aria-label]="
+                  row.hit.subtitle ?
+                    row.hit.name + ', ' + row.hit.kind + ', ' + row.hit.subtitle
+                  : row.hit.name + ', ' + row.hit.kind
+                "
                 [attr.aria-selected]="row.index === selected()"
                 [attr.data-i]="row.index"
                 [attr.id]="'spot-opt-' + row.index"
@@ -97,14 +111,36 @@ interface SpotlightGroup {
                 role="option"
                 tabindex="-1"
               >
-                <span class="art"><svg [appIcon]="row.hit.icon"></svg></span><span class="nm">{{ row.hit.name }}</span
-                ><span class="kind">{{ row.hit.kind }}</span>
+                <span class="art"><svg [appIcon]="row.hit.icon"></svg></span><span class="nm">{{ row.hit.name }}</span>
+                @if (row.hit.subtitle) {
+                  <span class="sub">{{ row.hit.subtitle }}</span>
+                }
+                <span class="kind">{{ row.hit.kind }}</span>
               </div>
             }
           </div>
+        } @empty {
+          @if (term()) {
+            <div class="empty" role="status">No Results</div>
+          }
         }
       </div>
     </div>
+  `,
+  styles: `
+    .r .sub {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 11px;
+      color: var(--txt-3);
+      text-align: right;
+    }
+    .r.on .sub {
+      color: rgba(255, 255, 255, 0.75);
+    }
   `
 })
 export class Spotlight {
@@ -118,7 +154,6 @@ export class Spotlight {
   private readonly session = inject(Session);
   /** 备忘录只在第一次搜索时才读（D-18）：打开聚焦搜索不该触发 Notes 的数据域种子。 */
   private notesQuery: Signal<readonly Note[]> | null = null;
-  private lastQuery = '';
 
   private readonly injector = inject(Injector);
   private readonly queryInput = viewChild.required<ElementRef<HTMLInputElement>>('query');
@@ -145,6 +180,8 @@ export class Spotlight {
 
   protected readonly overlays = inject(Overlays);
 
+  /** 当前查询（已 trim）。 */
+  protected readonly term = signal('');
   protected readonly groups = signal<readonly SpotlightGroup[]>([]);
   protected readonly selected = signal(0);
   protected readonly hasResults = computed(() => this.groups().length > 0);
@@ -164,7 +201,7 @@ export class Spotlight {
   }
 
   protected search(value: string): void {
-    this.lastQuery = value.trim();
+    this.term.set(value.trim());
     this.selected.set(0);
     this.refresh();
   }
@@ -198,7 +235,7 @@ export class Spotlight {
         () => {
           query();
           untracked(() => {
-            if (this.lastQuery) this.refresh();
+            if (this.term()) this.refresh();
           });
         },
         { injector: this.injector }
@@ -210,7 +247,7 @@ export class Spotlight {
   /** 按当前输入重新收集结果：命中表从头记，分组去重才不会把上一轮的结果当成「已出现过」。 */
   private refresh(): void {
     this.hits = [];
-    this.groups.set(this.lastQuery ? this.collect(this.lastQuery) : []);
+    this.groups.set(this.term() ? this.collect(this.term()) : []);
     this.selected.update(index => clamp(index, 0, Math.max(this.hits.length - 1, 0)));
   }
 
@@ -221,6 +258,11 @@ export class Spotlight {
 
   private collect(q: string): SpotlightGroup[] {
     const lq = q.toLowerCase();
+    /* 算式与单位换算最先出现（macOS 把计算结果放在最上面），回车把结果复制到剪贴板。 */
+    const result = calculateExpression(q);
+    const conversion = convertQuery(q);
+    const calculation: SpotlightHit | null = result === null ? null : this.calculationHit(result);
+    const conversionHit: SpotlightHit | null = conversion === null ? null : this.conversionHit(conversion);
     const apps = this.appOrder()
       .filter(id => this.apps()[id].name.toLowerCase().includes(lq))
       .map((id): SpotlightHit => ({
@@ -230,10 +272,9 @@ export class Spotlight {
         run: () => this.launcher.activate(id)
       }));
     const actions = this.actions.filter(action => action.name.toLowerCase().includes(lq));
-    const found = this.fs
-      .deepSearch(this.fs.root(), lq)
-      .slice(0, 12)
-      .map(node => this.fileHit(node));
+    const foundNodes = this.fs.deepSearch(this.fs.root(), lq).slice(0, 12);
+    const found = foundNodes.map(node => this.fileHit(node));
+    const showAll: SpotlightHit | null = foundNodes.length ? this.showAllHit(foundNodes[0]) : null;
     const notes = this.notes()
       .filter(note => note.title.toLowerCase().includes(lq))
       .slice(0, 3)
@@ -253,12 +294,14 @@ export class Spotlight {
     /* 同名时优先真正的应用，而不是磁盘上的 .app 文件。 */
     const seen = new Set(apps.map(app => `${app.name.toLowerCase()}.app`));
     const sections: [string, readonly SpotlightHit[]][] = [
+      ['Calculator', calculation ? [calculation] : []],
+      ['Conversion', conversionHit ? [conversionHit] : []],
       ['Top Hit', [apps[0] ?? actions[0] ?? found[0]].filter((hit): hit is SpotlightHit => hit !== undefined)],
       [
         'Applications',
         [...apps, ...found.filter(hit => hit.kind === 'Application' && !seen.has(hit.name.toLowerCase()))]
       ],
-      ['Actions', actions],
+      ['Actions', [...actions, ...(showAll ? [showAll] : [])]],
       ['Documents', found.filter(hit => hit.kind !== 'Folder' && hit.kind !== 'Application')],
       ['Folders', found.filter(hit => hit.kind === 'Folder')],
       ['Notes', notes],
@@ -276,14 +319,46 @@ export class Spotlight {
   }
 
   private fileHit(node: FsNode): SpotlightHit {
+    const path = this.fs.findPath(node);
     const kind =
       node.kind === 'folder' ? 'Folder'
       : node.name.endsWith('.app') ? 'Application'
       : node.k || 'Document';
     const run =
-      node.kind === 'folder' ?
-        () => this.wm.open('finder', { path: this.fs.findPath(node) ?? HOME_PATH })
-      : () => this.opener.open(node);
-    return { name: node.name, kind, icon: node.icon, run };
+      node.kind === 'folder' ? () => this.wm.open('finder', { path: path ?? HOME_PATH }) : () => this.opener.open(node);
+    return { name: node.name, kind, icon: node.icon, subtitle: path ? folderTail(path) : undefined, run };
+  }
+
+  /** 算式命中：名字是结果，回车复制。 */
+  private calculationHit(result: number): SpotlightHit {
+    const text = formatNumber(result);
+    return { name: text, kind: 'Calculation', icon: 'app-calculator', run: () => this.copy(text) };
+  }
+
+  /** 换算命中：名字是完整的一句话，回车复制。 */
+  private conversionHit(conversion: UnitConversion): SpotlightHit {
+    return { name: conversion.text, kind: 'Conversion', icon: 'app-calculator', run: () => this.copy(conversion.text) };
+  }
+
+  private copy(text: string): void {
+    void browserClipboard()
+      .writeText(text)
+      .catch(() => undefined);
+  }
+
+  /** Show All in Finder：打开 Finder 到第一个命中所在目录。 */
+  private showAllHit(first: FsNode): SpotlightHit {
+    return {
+      name: 'Show All in Finder',
+      kind: 'Action',
+      icon: 'app-finder',
+      run: () => this.wm.open('finder', { path: this.dirOf(first) })
+    };
+  }
+
+  /** 命中节点的所在目录：文件夹就是它自己，文件是它的父目录。 */
+  private dirOf(node: FsNode): readonly string[] {
+    const path = this.fs.findPath(node) ?? HOME_PATH;
+    return node.kind === 'folder' || path.length < 2 ? path : path.slice(0, -1);
   }
 }

@@ -14,6 +14,13 @@
       <app-notification-centre [appFocusTrap]="overlays.notifications() === 'open'" />
     }
   }
+  @defer (when overlays.mission() !== 'closed') {
+    @if (overlays.mission() !== 'closed') {
+      <app-mission-control [appFocusTrap]="overlays.mission() === 'open'" [trapInitialFocus]="false" />
+    }
+  }
+  <!-- [BANNER] 常驻的通知横幅栈（组件由 impl:overlays-b 提供，selector 固定 app-notification-banner-stack）。 -->
+  <app-notification-banner-stack></app-notification-banner-stack>
 </div>
 <div id="layer-menu">
   <div id="menu-shield" [class.on]="popover.isOpen()" (contextmenu)="shield($event)" (mousedown)="shield($event)"></div>

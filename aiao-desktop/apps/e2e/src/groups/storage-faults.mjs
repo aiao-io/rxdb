@@ -238,6 +238,8 @@ export const storageFaults = {
       await stream.close();
     });
     await disk().getByRole('button', { name: 'First Aid', exact: true }).click();
+    /* First Aid 是两步式：先点 Run 才开始检查（macOS 语义）。 */
+    await page.getByRole('button', { name: 'Run', exact: true }).click();
     await expect(page.locator('.pop [data-log]')).toContainText(/[1-9]\d* unreferenced file bodies\./);
     const aidAxe = await new AxeBuilder({ page }).include('app-first-aid-panel').analyze();
     await page.getByRole('button', { name: 'Repair Orphan Files', exact: true }).click();

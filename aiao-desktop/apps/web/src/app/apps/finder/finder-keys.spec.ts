@@ -1,6 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
-import { ItemRect, gridTarget, isGoUp, isMoveToTrash, itemLabel, linearTarget } from './finder-keys';
+import {
+  ItemRect,
+  gridTarget,
+  isDeleteImmediately,
+  isGoUp,
+  isMoveToTrash,
+  itemLabel,
+  linearTarget,
+  parseGoToFolder,
+  shiftRange,
+  stemRange
+} from './finder-keys';
 
 const key = (init: Partial<KeyboardEvent>) => init as KeyboardEvent;
 
@@ -104,6 +115,69 @@ describe('isMoveToTrash Finder 移到废纸篓的快捷键', () => {
     expect(isMoveToTrash(key({ key: 'Backspace' }))).toBe(false);
     expect(isMoveToTrash(key({ key: 'Delete' }))).toBe(false);
     expect(isMoveToTrash(key({ key: 'Backspace', metaKey: true, shiftKey: true }))).toBe(false);
+  });
+});
+
+describe('isDeleteImmediately 跳过废纸篓直接删的快捷键', () => {
+  it('识别 ⌥⌘⌫（Meta+Alt+Backspace 与 Delete）', () => {
+    expect(isDeleteImmediately(key({ key: 'Backspace', metaKey: true, altKey: true }))).toBe(true);
+    expect(isDeleteImmediately(key({ key: 'Delete', metaKey: true, altKey: true }))).toBe(true);
+    expect(isDeleteImmediately(key({ key: 'Backspace', ctrlKey: true, altKey: true }))).toBe(true);
+  });
+
+  it('不带 Alt、带 Shift、或没有修饰键都不算', () => {
+    expect(isDeleteImmediately(key({ key: 'Backspace', metaKey: true }))).toBe(false);
+    expect(isDeleteImmediately(key({ key: 'Backspace', metaKey: true, altKey: true, shiftKey: true }))).toBe(false);
+    expect(isDeleteImmediately(key({ key: 'Backspace', altKey: true }))).toBe(false);
+  });
+});
+
+describe('shiftRange Shift 连选的区间', () => {
+  const names = ['a', 'b', 'c', 'd', 'e'];
+
+  it('以锚点为起点到点击项为止（向前向后都可以）', () => {
+    expect(shiftRange(names, ['b'], 'd', 'b')).toEqual(['b', 'c', 'd']);
+    expect(shiftRange(names, ['d'], 'b', 'd')).toEqual(['b', 'c', 'd']);
+  });
+
+  it('没有锚点时退回当前选择的第一项', () => {
+    expect(shiftRange(names, ['b', 'c'], 'e', null)).toEqual(['b', 'c', 'd', 'e']);
+  });
+
+  it('锚点或点击项不在列表里时只选点击项自己', () => {
+    expect(shiftRange(names, ['x'], 'c', 'x')).toEqual(['c']);
+    expect(shiftRange(names, ['a'], 'x', 'a')).toEqual(['x']);
+  });
+});
+
+describe('stemRange 就地改名只选主名', () => {
+  it('有扩展名时选到最后一个扩展名前；点开头的隐藏文件没有扩展名', () => {
+    expect(stemRange('report.txt', false)).toEqual([0, 6]);
+    expect(stemRange('a.tar.gz', false)).toEqual([0, 5]);
+    expect(stemRange('.env', false)).toEqual([0, 4]);
+    expect(stemRange('folder.name', false)).toEqual([0, 6]);
+  });
+
+  it('没有扩展名与程序包都是全选', () => {
+    expect(stemRange('notes', false)).toEqual([0, 5]);
+    expect(stemRange('Safari.app', true)).toEqual([0, 10]);
+  });
+});
+
+describe('parseGoToFolder 「前往文件夹」输入框的路径解析', () => {
+  it('接受 ~、~/…、绝对路径与带卷名的写法', () => {
+    expect(parseGoToFolder('~')).toEqual(['Users', 'stevejobs']);
+    expect(parseGoToFolder('~/Documents')).toEqual(['Users', 'stevejobs', 'Documents']);
+    expect(parseGoToFolder('/Users/a/Docs')).toEqual(['Users', 'a', 'Docs']);
+    expect(parseGoToFolder('Macintosh HD/Users/a')).toEqual(['Users', 'a']);
+    expect(parseGoToFolder('  macintosh hd/System  ')).toEqual(['System']);
+  });
+
+  it('相对路径、Trash 与空输入解析不了，返回 null', () => {
+    expect(parseGoToFolder('Documents')).toBeNull();
+    expect(parseGoToFolder('Trash')).toBeNull();
+    expect(parseGoToFolder('')).toBeNull();
+    expect(parseGoToFolder('   ')).toBeNull();
   });
 });
 

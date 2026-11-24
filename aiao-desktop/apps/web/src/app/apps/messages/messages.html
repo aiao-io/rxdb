@@ -41,13 +41,20 @@
             [class.on]="row.chat.id === chat()?.id"
             [disabled]="win.closePending()"
             (click)="select(row.chat.id)"
+            (contextmenu)="menu($event, row.chat.id)"
+            (keydown)="rowKey($event, row.chat.id)"
             style="width: 100%; text-align: left; border: 0"
             tabindex="0"
             type="button"
           >
             <span class="av" [style.background]="row.chat.color" aria-hidden="true">{{ row.chat.name[0] }}</span>
             <span class="bd">
-              <b>{{ row.chat.name }}</b>
+              <b>
+                @if (unreadIds().has(row.chat.id)) {
+                  <span aria-hidden="true" style="color: var(--blue)">●</span>
+                }
+                {{ row.chat.name }}
+              </b>
               <p>{{ row.draft.trim() ? 'Draft: ' + row.draft : row.last }}</p>
             </span>
             <span class="tm">{{ row.chat.time }}</span>
@@ -184,3 +191,42 @@
     </div>
   </div>
 </div>
+@if (confirmDelete(); as target) {
+  <div
+    style="
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: #0006;
+      z-index: 10;
+      padding: 16px;
+    "
+  >
+    <div
+      [attr.aria-label]="'Delete conversation'"
+      (keydown.escape)="cancelDelete()"
+      appFocusTrap
+      aria-modal="true"
+      role="dialog"
+      style="
+        box-sizing: border-box;
+        width: min(380px, 100%);
+        padding: 22px;
+        background: var(--win);
+        color: var(--txt);
+        border-radius: 12px;
+        box-shadow: 0 14px 50px #0006;
+      "
+    >
+      <h2 style="margin: 0 0 8px; font-size: 16px; font-weight: 600">Delete conversation with {{ target.name }}?</h2>
+      <p style="margin: 0; font-size: 12.5px; color: var(--txt-2)">
+        The conversation and all of its local messages will be removed from this browser. This cannot be undone.
+      </p>
+      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px">
+        <button class="btn" (click)="cancelDelete()" data-autofocus tabindex="0" type="button">Cancel</button>
+        <button class="btn pri" (click)="deleteChat()" tabindex="0" type="button">Delete</button>
+      </div>
+    </div>
+  </div>
+}

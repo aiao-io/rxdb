@@ -43,8 +43,9 @@ export function tileUrl(x: number, y: number, z: number, dark: boolean, retina: 
 /** 按结果的包围盒选缩放级别，国家不会落在街道级别。`box` 是 [南, 北, 西, 东]。 */
 export function zoomForBox(box: readonly number[]): number {
   const [south, north, west, east] = box;
-  const span = Math.max(Math.abs(north - south), Math.abs(east - west));
-  if (span > 20) return 4;
+  /* 经纬差有浮点尾差（如 37.4-37.3 = 0.0999…），先归一到 6 位小数再比阈值，避免恰好落在档位边界时选错级。 */
+  const span = Math.round(Math.max(Math.abs(north - south), Math.abs(east - west)) * 1e6) / 1e6;
+  if (span >= 20) return 4;
   if (span > 8) return 6;
   if (span > 2) return 8;
   if (span > 0.5) return 11;
@@ -52,3 +53,34 @@ export function zoomForBox(box: readonly number[]): number {
   if (span > 0.02) return 15;
   return 16;
 }
+
+/** 方向键平移的步长（像素），一次一块瓦片的距离。 */
+export const PAN_STEP = TILE;
+
+/** 方向键 → 内容平移量（内容朝反方向动，视口跟着键走）；不认识的键为 `null`。 */
+export const arrowDelta = (key: string): readonly [number, number] | null => {
+  switch (key) {
+    case 'ArrowLeft':
+      return [PAN_STEP, 0];
+    case 'ArrowRight':
+      return [-PAN_STEP, 0];
+    case 'ArrowUp':
+      return [0, PAN_STEP];
+    case 'ArrowDown':
+      return [0, -PAN_STEP];
+    default:
+      return null;
+  }
+};
+
+/** 视口里相对中心 (dx, dy) 的那一点对应的经纬度（右键落针、双击缩放共用这套换算）。 */
+export const pointLatLon = (
+  centerLat: number,
+  centerLon: number,
+  z: number,
+  dx: number,
+  dy: number
+): { lat: number; lon: number } => ({
+  lat: latAt(clamp(worldY(centerLat, z) + dy, 0, TILE * (1 << z)), z),
+  lon: lonAt(worldX(centerLon, z) + dx, z)
+});

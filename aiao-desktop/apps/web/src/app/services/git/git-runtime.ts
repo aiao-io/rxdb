@@ -1,5 +1,7 @@
 import { assertGitFileLimits, decodeGitArchive, encodeGitArchive, type GitArchive } from './git-archive.js';
 import { gitFileVersion } from './git-diff.js';
+import { parseGitIndex } from './git-index.js';
+import { parseGitTree, readLooseObject, type GitObject } from './git-object.js';
 import { originUrl, withOrigin } from './git-origin.js';
 import {
   assertGitPath,
@@ -9,6 +11,7 @@ import {
   literalGitPathspec
 } from './git-paths.js';
 import {
+  GitWorkbenchError,
   type GitBranch,
   type GitCommit,
   type GitCommitFileChange,
@@ -16,8 +19,7 @@ import {
   type GitFileDiff,
   type GitHistoryComparison,
   type GitSnapshot,
-  type GitStatus,
-  GitWorkbenchError
+  type GitStatus
 } from './git-protocol.js';
 import { parseGitStatus } from './git-status.js';
 
@@ -52,7 +54,12 @@ interface GitLoader {
     baseUrl: string;
     user: string;
     email: string;
-    moduleOverrides: { print(value: unknown): void; printErr(value: unknown): void };
+    moduleOverrides: {
+      print(value: unknown): void;
+      printErr(value: unknown): void;
+      /** /dev/stdout 设备的逐字节输出（glue 在提供了该回调时把 fd 1 接到设备而不是 TTY）。 */
+      stdout?: (byte: number) => void;
+    };
   }): Promise<WasmGit>;
 }
 
@@ -123,6 +130,8 @@ export class GitWorkbenchRuntime {
   #queue: Promise<unknown>;
   #stdout: string[] = [];
   #stderr: string[] = [];
+  /** vendored glue 的 /dev/stdout 设备逐字节写入的原始输出；二进制命令（cat-file blob）的内容只有这条通道保真。 */
+  #stdoutBytes: number[] = [];
   #git: WasmGit | undefined;
   #scratch = 0;
   readonly #commitMetadata = new Map<string, GitCommit>();
@@ -169,7 +178,8 @@ export class GitWorkbenchRuntime {
       email: 'workbench@example.invalid',
       moduleOverrides: {
         print: value => runtime.#stdout.push(String(value)),
-        printErr: value => runtime.#stderr.push(String(value))
+        printErr: value => runtime.#stderr.push(String(value)),
+        stdout: runtime.stdoutCollector()
       }
     });
     return runtime;
@@ -927,6 +937,15 @@ export class GitWorkbenchRuntime {
     return result.stdout;
   }
 
+  /** 与 {@link run} 相同，但 stdout 按原始字节返回（二进制内容如 cat-file blob 只有设备通道保真）。 */
+  private async runBytes(args: string[]): Promise<Uint8Array<ArrayBuffer>> {
+    const command = args[0];
+    const result = await this.runRaw(args);
+    if (result.exitCode !== 0)
+      throw new GitWorkbenchError('git_failed', `git ${command} failed (${result.exitCode}): ${result.stderr}`);
+    return this.#stdoutBytes.length ? new Uint8Array(this.#stdoutBytes) : new TextEncoder().encode(result.stdout);
+  }
+
   private async runInCommandDirectory(command: GitTerminalCommand): Promise<GitTerminalResult> {
     const root = `/tmp/aiao-terminal-${this.#scratch++}`;
     try {
@@ -974,15 +993,43 @@ export class GitWorkbenchRuntime {
   }
 
   private async runRaw(args: readonly string[]): Promise<{ exitCode: number; stdout: string; stderr: string }> {
-    this.#stdout = [];
-    this.#stderr = [];
+    this.#stdout.length = 0;
+    this.#stderr.length = 0;
+    this.#stdoutBytes.length = 0;
     try {
       const exitCode = await this.git.run([...args]);
-      return { exitCode, stdout: this.#stdout.join('\n'), stderr: this.#stderr.join('\n') };
+      /* wasm-git 的 C stdio 在进程退出时才 flush，且比 callMain 的 resolve 晚约半毫秒：至少等 4ms 且输出连续两个 tick 不再增长再读（否则会串进下一条命令）。 */
+      const quietDeadline = performance.now() + 4;
+      let settled = 0;
+      let lastText = this.#stdout.length;
+      let lastBytes = this.#stdoutBytes.length;
+      do {
+        await new Promise(resolve => setTimeout(resolve, 0));
+        const text = this.#stdout.length;
+        const bytes = this.#stdoutBytes.length;
+        settled = text === lastText && bytes === lastBytes ? settled + 1 : 0;
+        lastText = text;
+        lastBytes = bytes;
+      } while (settled < 2 || performance.now() < quietDeadline);
+      return { exitCode, stdout: this.collectedStdout(), stderr: this.#stderr.join('\n') };
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : String(cause);
-      return { exitCode: 1, stdout: this.#stdout.join('\n'), stderr: this.#stderr.concat(message).join('\n') };
+      return { exitCode: 1, stdout: this.collectedStdout(), stderr: this.#stderr.concat(message).join('\n') };
     }
+  }
+
+  /** 字节级 stdout 收集器：glue 逐字节调用，`.buffer` 属性供其关闭时的换行检查（引用保持稳定，runRaw 只清空内容）。 */
+  private stdoutCollector(): ((byte: number) => void) & { readonly buffer: number[] } {
+    const collect = (byte: number): void => {
+      this.#stdoutBytes.push(byte);
+    };
+    return Object.assign(collect, { buffer: this.#stdoutBytes });
+  }
+
+  /** 字节通道有输出时以字节为准（文本命令同样走设备通道）；否则回退到 print 的文本拼接（测试夹具）。 */
+  private collectedStdout(): string {
+    if (this.#stdoutBytes.length) return new TextDecoder().decode(Uint8Array.from(this.#stdoutBytes));
+    return this.#stdout.join('\n');
   }
 
   private async write(root: string, file: GitFile): Promise<void> {
@@ -1182,23 +1229,67 @@ export class GitWorkbenchRuntime {
     }
   }
 
+  /** 只读读取暂存内容：解析 .git/index 拿每个条目的路径与 blob id，再从对象库逐字节取内容（不 commit、不 checkout）。 */
   private async readIndexFiles(context: ProjectContext): Promise<readonly GitFile[]> {
-    return this.inScratch(context, async scratch => {
-      if (!(await this.run(['ls-files'])).trim()) return [];
-      await this.run(['config', 'user.name', 'Workbench Snapshot']);
-      await this.run(['config', 'user.email', 'snapshot@example.invalid']);
-      await this.run(['commit', '-m', 'Temporary staged snapshot']);
-      const oid = (await this.run(['rev-parse', 'HEAD'])).trim();
-      await this.run(['checkout', '--force', '--no-progress', oid]);
-      return this.collect(scratch, false).files;
-    });
+    const bytes = new Uint8Array(this.fs.readFile(`${context.root}/.git/index`));
+    const files: GitFile[] = [];
+    for (const entry of parseGitIndex(bytes))
+      files.push({ path: entry.path, bytes: (await this.readObject(context, entry.oid)).bytes });
+    return files.sort((left, right) => left.path.localeCompare(right.path, 'en'));
   }
 
+  /** 只读读取一个提交的完整文件树：从对象库逐层展开（提交→树→blob），不在工作区做任何 checkout。 */
   private async readCommitFiles(context: ProjectContext, oid: string): Promise<readonly GitFile[]> {
-    return this.inScratch(context, async scratch => {
-      await this.run(['checkout', '--force', '--no-progress', oid]);
-      return this.collect(scratch, false).files;
-    });
+    const files: GitFile[] = [];
+    await this.collectCommitTree(context, oid, '', files);
+    files.sort((left, right) => left.path.localeCompare(right.path, 'en'));
+    assertGitFileLimits(files);
+    return files;
+  }
+
+  /** 展开提交：对象内容以 `tree <oid>` 开头，取树 id 后递归 {@link collectObjectTree}。 */
+  private async collectCommitTree(
+    context: ProjectContext,
+    oid: string,
+    prefix: string,
+    files: GitFile[]
+  ): Promise<void> {
+    const commit = await this.readObject(context, oid);
+    const treeLine = new TextDecoder()
+      .decode(commit.bytes)
+      .split('\n')
+      .find(line => line.startsWith('tree '));
+    if (!treeLine) throw new GitWorkbenchError('git_failed', `Commit ${oid} does not expose a tree`);
+    await this.collectObjectTree(context, treeLine.slice('tree '.length).trim(), prefix, files);
+  }
+
+  /** 递归展开树对象（二进制条目 `mode name\0sha`），子树递归，blob 逐字节取内容。 */
+  private async collectObjectTree(
+    context: ProjectContext,
+    treeOid: string,
+    prefix: string,
+    files: GitFile[]
+  ): Promise<void> {
+    const tree = await this.readObject(context, treeOid);
+    if (tree.kind !== 'tree') throw new GitWorkbenchError('git_failed', `Object ${treeOid} is not a tree`);
+    for (const entry of parseGitTree(tree.bytes)) {
+      const path = prefix ? `${prefix}/${entry.name}` : entry.name;
+      if (entry.kind === 'tree') await this.collectObjectTree(context, entry.oid, path, files);
+      else files.push({ path, bytes: (await this.readObject(context, entry.oid)).bytes });
+    }
+  }
+
+  /**
+   * 只读读取一个 git 对象：优先 loose 对象（zlib 直读，不经 stdout、不受 wasm-git 退出 flush 延迟影响）；
+   * 对象被打包（fetch 产生 pack）时回退 cat-file -p——类型不可知，loose 是常态路径。
+   */
+  private async readObject(context: ProjectContext, oid: string): Promise<GitObject> {
+    try {
+      return await readLooseObject(this.fs, context.root, oid);
+    } catch (error) {
+      if (!(error instanceof GitWorkbenchError)) throw error;
+      return { kind: 'blob', bytes: await this.runBytes(['cat-file', '-p', oid]) };
+    }
   }
 
   private async inScratch<T>(context: ProjectContext, action: (scratch: string) => Promise<T>): Promise<T> {

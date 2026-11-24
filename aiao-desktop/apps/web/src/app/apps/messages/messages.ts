@@ -15,17 +15,18 @@ import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
 import { PopoverService, RETURNS_FOCUS } from '../../services/popover';
 import { WindowManager } from '../../services/window-manager';
+import { FocusTrap } from '../../shared/focus-trap';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
 import { MessageDrafts } from './message-drafts';
 import { MessagesDetails } from './messages-details';
-import { Chat } from './messages-model';
+import { Chat, unreadThreadIds } from './messages-model';
 import { MessagesStore } from './messages-store';
 
 /** 会话与消息只存在当前站点的本地库里，不模拟远程发送、收件和通话。 */
 @Component({
   selector: 'app-messages',
-  imports: [Icon, TrafficLights],
+  imports: [FocusTrap, Icon, TrafficLights],
   providers: [MessagesStore],
   host: { style: 'display: contents' },
   templateUrl: './messages.html'
@@ -36,7 +37,10 @@ export class MessagesApp {
   private readonly popover = inject(PopoverService);
   private readonly body = viewChild.required<ElementRef<HTMLElement>>('body');
   private readonly field = viewChild.required<ElementRef<HTMLInputElement>>('field');
+  private readonly searchField = viewChild.required<ElementRef<HTMLInputElement>>('search');
   private readonly selectedId = signal<string | null>(null);
+  /** 打开过的会话（选中即已读）。未读指示没有实体字段，是每个窗口自己的界面状态。 */
+  private readonly opened = signal<ReadonlySet<string>>(new Set());
   private creation: Promise<void> | null = null;
 
   protected readonly win = inject(DesktopWindow);
@@ -44,6 +48,13 @@ export class MessagesApp {
   protected readonly query = signal('');
   protected readonly creating = signal(false);
   protected readonly error = signal('');
+  /** 等确认删除的会话。 */
+  protected readonly confirmDelete = signal<Chat | null>(null);
+  protected readonly unreadIds = computed(() => {
+    const all = unreadThreadIds(this.store.chats());
+    const opened = this.opened();
+    return new Set([...all].filter(id => !opened.has(id)));
+  });
   protected readonly conversations = computed<readonly Chat[]>(() => {
     const chats = this.store.chats();
     const ids = new Set(chats.map(chat => chat.id));
@@ -98,6 +109,7 @@ export class MessagesApp {
         menus.standard('messages', {
           File: [
             { id: 'n', label: 'New Message', key: '⌘N', run: () => void this.create() },
+            { id: 'f', label: 'Find', key: '⌘F', run: () => this.focusSearch() },
             { id: 'w', label: 'Close Window', key: '⌘W', run: () => this.wm.closeFront() }
           ]
         })
@@ -106,7 +118,10 @@ export class MessagesApp {
     this.win.confirmClose = () => this.confirmClose();
     effect(() => {
       const first = this.store.chats()[0];
-      if (first && this.selectedId() === null) this.selectedId.set(first.id);
+      if (first && this.selectedId() === null) {
+        this.selectedId.set(first.id);
+        this.markRead(first.id);
+      }
     });
     effect(() => this.win.hasUnsavedChanges.set(this.drafts.dirty() || this.drafts.pending() || this.creating()));
     afterRenderEffect(() => {
@@ -129,7 +144,76 @@ export class MessagesApp {
   }
 
   protected select(id: string): void {
-    if (!this.win.closePending()) this.selectedId.set(id);
+    if (!this.win.closePending()) {
+      this.selectedId.set(id);
+      this.markRead(id);
+    }
+  }
+
+  /** ⌘F：焦点交给会话搜索框。 */
+  protected focusSearch(): void {
+    this.searchField().nativeElement.focus();
+  }
+
+  /** 把会话记为已读（右键「Mark as Read」与选中会话共用）。 */
+  protected markRead(id: string): void {
+    this.opened.update(opened => new Set(opened).add(id));
+  }
+
+  /** 会话列表方向键：上下移动选中项并把焦点带过去。 */
+  protected rowKey(event: KeyboardEvent, id: string): void {
+    const step =
+      event.key === 'ArrowDown' ? 1
+      : event.key === 'ArrowUp' ? -1
+      : 0;
+    if (!step) return;
+    event.preventDefault();
+    const list = this.rows();
+    const index = list.findIndex(row => row.chat.id === id);
+    const target = list[index + step];
+    if (!target) return;
+    this.select(target.chat.id);
+    (event.currentTarget as HTMLElement).parentElement
+      ?.querySelector<HTMLElement>(`[data-cid="${CSS.escape(target.chat.id)}"]`)
+      ?.focus();
+  }
+
+  /** 会话行的右键菜单。 */
+  protected menu(event: MouseEvent, id: string): void {
+    const conversation = this.store.chats().find(item => item.id === id);
+    if (!conversation) return;
+    this.popover.contextMenu(
+      event,
+      [
+        {
+          id: 'r',
+          label: 'Mark as Read',
+          disabled: !this.unreadIds().has(id),
+          run: () => this.markRead(id)
+        },
+        '-',
+        { id: 'd', label: 'Delete Conversation…', run: () => this.confirmDelete.set(conversation) }
+      ],
+      'conversation'
+    );
+  }
+
+  protected cancelDelete(): void {
+    this.confirmDelete.set(null);
+  }
+
+  protected async deleteChat(): Promise<void> {
+    const chat = this.confirmDelete();
+    this.confirmDelete.set(null);
+    if (!chat) return;
+    try {
+      this.drafts.discard(chat.id);
+      await this.store.remove(chat.id);
+      if (this.selectedId() === chat.id) this.selectedId.set(null);
+      this.markRead(chat.id);
+    } catch (error) {
+      this.error.set(localWriteFailureMessage(error));
+    }
   }
 
   protected edit(text: string): void {

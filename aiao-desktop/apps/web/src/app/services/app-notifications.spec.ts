@@ -2,14 +2,27 @@ import { DESKTOP_LIMITS } from '@aiao/orbit/desktop';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { DesktopData } from '../data/desktop-data';
+import { Preferences } from '../data/preferences';
 import { configureServices } from '../testing/angular';
+import { stubLocks } from '../testing/browser';
+import { FakeDesktopData } from '../testing/fake-desktop-data';
+import { fakeWindows } from '../testing/fake-windows';
 import { AppNotifications, NotificationSource } from './app-notifications';
+import { WindowManager } from './window-manager';
 
 const mail: NotificationSource = { id: 'mail', name: 'Mail', icon: 'app-mail' };
 const code: NotificationSource = { id: 'vscode', name: 'Aiao Code', icon: 'app-aiao-code' };
 
 function setup(): AppNotifications {
-  configureServices([AppNotifications]);
+  stubLocks();
+  const { windows } = fakeWindows();
+  configureServices([
+    AppNotifications,
+    Preferences,
+    { provide: DesktopData, useValue: new FakeDesktopData() },
+    { provide: WindowManager, useValue: windows }
+  ]);
   return TestBed.inject(AppNotifications);
 }
 
@@ -47,7 +60,7 @@ describe('AppNotifications：条目归属与显示', () => {
     expect([image!.symbol, image!.image]).toEqual([null, 'data:image/png;base64,AAAA']);
   });
 
-  it('状态只在内存里：新的服务实例（刷新页面、别的标签页）是空的', () => {
+  it('新的服务实例配新的库是空的：条目只从偏好表恢复，库是空的就什么也没有', () => {
     setup().post(mail, { title: 'a', body: 'b' });
     expect(setup().entries()).toEqual([]);
   });

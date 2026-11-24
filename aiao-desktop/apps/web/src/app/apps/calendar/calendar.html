@@ -29,7 +29,18 @@
             <span>{{ letter }}</span>
           }
           @for (cell of mini().cells; track $index) {
-            <i [class.out]="cell.out" [class.today]="cell.today">{{ cell.text }}</i>
+            <i
+              [attr.aria-label]="cell.d ? cell.d + ' ' + mini().label : null"
+              [attr.role]="cell.d ? 'button' : null"
+              [attr.tabindex]="cell.d ? '-1' : null"
+              [class.out]="cell.out"
+              [class.sel]="cell.d === day() && cell.m === month() && cell.y === year()"
+              [class.today]="cell.today"
+              (click)="miniPick(cell)"
+              (keydown.enter)="miniPick(cell)"
+            >
+              {{ cell.text }}
+            </i>
           }
         </div>
       </div>
@@ -130,17 +141,29 @@
                 [attr.data-ev]="chip.id"
                 [class.allday]="chip.allDay"
                 [class.dragging]="dragging() === chip.id"
+                [class.pick]="pickedEvent() === chip.id"
                 [style.background]="chip.color"
                 [textContent]="chip.title"
                 [title]="chip.tip"
-                (click)="edit(chip.id)"
+                (click)="chipClick($event, cell, chip.id)"
+                (dblclick)="edit(chip.id)"
                 (keydown.enter)="edit(chip.id)"
                 (pointerdown)="dragStart($event, chip.id)"
                 tabindex="-1"
               ></div>
             }
             @if (cell.more > 0) {
-              <div class="cal-more">{{ cell.more }} more</div>
+              <div
+                class="cal-more"
+                #moreBtn
+                [attr.aria-label]="cell.more + ' more events on this day'"
+                (click)="moreMenu(moreBtn, cell, $event.detail === 0)"
+                (keydown.enter)="moreMenu(moreBtn, cell, true)"
+                role="button"
+                tabindex="-1"
+              >
+                {{ cell.more }} more
+              </div>
             }
           </div>
         }
@@ -181,9 +204,11 @@
                   <div
                     class="chip"
                     [attr.data-ev]="chip.id"
+                    [class.pick]="pickedEvent() === chip.id"
                     [style.background]="chip.color"
                     [textContent]="chip.title"
-                    (click)="edit(chip.id)"
+                    (click)="selectEvent(chip.id)"
+                    (dblclick)="edit(chip.id)"
                     (keydown.enter)="edit(chip.id)"
                     tabindex="-1"
                   ></div>
@@ -215,13 +240,17 @@
                   <div
                     class="ev"
                     [attr.data-ev]="item.id"
+                    [class.dragging]="dragging() === item.id"
+                    [class.pick]="pickedEvent() === item.id"
                     [style.background]="item.color"
                     [style.height.px]="item.height"
                     [style.left.%]="item.x"
                     [style.top.px]="item.top"
                     [style.width]="'calc(' + item.w + '% - 4px)'"
-                    (click)="edit(item.id)"
+                    (click)="selectEvent(item.id)"
+                    (dblclick)="edit(item.id)"
                     (keydown.enter)="edit(item.id)"
+                    (pointerdown)="dragStartTime($event, item.id)"
                     tabindex="-1"
                   >
                     <b>{{ item.title }}</b>
@@ -239,3 +268,42 @@
     }
   </div>
 </div>
+@if (confirmEvent(); as event) {
+  <div
+    style="
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: #0006;
+      z-index: 10;
+      padding: 16px;
+    "
+  >
+    <div
+      [attr.aria-label]="'Delete event'"
+      (keydown.escape)="cancelDelete()"
+      appFocusTrap
+      aria-modal="true"
+      role="dialog"
+      style="
+        box-sizing: border-box;
+        width: min(380px, 100%);
+        padding: 22px;
+        background: var(--win);
+        color: var(--txt);
+        border-radius: 12px;
+        box-shadow: 0 14px 50px #0006;
+      "
+    >
+      <h2 style="margin: 0 0 8px; font-size: 16px; font-weight: 600">Delete “{{ event.t }}”?</h2>
+      <p style="margin: 0; font-size: 12.5px; color: var(--txt-2)">
+        This event will be removed from all of your calendars. This cannot be undone.
+      </p>
+      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px">
+        <button class="btn" (click)="cancelDelete()" data-autofocus tabindex="0" type="button">Cancel</button>
+        <button class="btn pri" (click)="deleteEvent()" tabindex="0" type="button">Delete</button>
+      </div>
+    </div>
+  </div>
+}

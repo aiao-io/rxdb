@@ -31,6 +31,8 @@ export class AppInstallationFlow {
   private readonly applications = inject(InstalledApplications);
   private readonly files = inject(FileSystem);
   private readonly windows = inject(WindowManager);
+  /** 安装/卸载进行中用户点了取消：在下个检查点停下，不写盘（提交一旦开始就原子完成）。 */
+  private abortRequested = false;
   readonly busy = signal(false);
   readonly error = signal('');
   readonly status = signal('');
@@ -90,7 +92,12 @@ export class AppInstallationFlow {
   }
 
   cancel(): void {
-    if (this.busy()) return;
+    /* 进行中：请求中止，在下个检查点停下（macOS App Store 的 Cancel）；请求保留在确认面板供重试。 */
+    if (this.busy()) {
+      this.abortRequested = true;
+      this.status.set('Cancelling…');
+      return;
+    }
     this.pending.set(null);
     this.error.set('');
   }
@@ -110,10 +117,24 @@ export class AppInstallationFlow {
     const request = this.pending();
     if (!request) return;
     await this.perform(async () => {
+      if (this.abortRequested) {
+        this.status.set('Operation cancelled. The installed version is unchanged.');
+        this.pending.set(null);
+        return;
+      }
       const ids = request.kind === 'reset' ? this.applications.state().apps.map(app => app.id) : [request.id];
       this.status.set('Waiting for open application windows in all desktop tabs…');
-      const completed = await this.transitions.change(ids, () => this.commit(request));
-      if (!completed) this.status.set('Operation cancelled. The installed version is unchanged.');
+      let cancelled = false;
+      const completed = await this.transitions.change(ids, async () => {
+        /* 关窗协商期间用户取消：提交前停下，不写盘；提交本身是原子的，一旦开始就完成。 */
+        if (this.abortRequested) {
+          cancelled = true;
+          return;
+        }
+        await this.commit(request);
+      });
+      if (cancelled || !completed) this.status.set('Operation cancelled. The installed version is unchanged.');
+      /* 取消与失败都关闭确认面板：重试从商店重新请求（与取消关窗协商的既有语义一致）。 */
       this.pending.set(null);
     });
   }
@@ -138,6 +159,7 @@ export class AppInstallationFlow {
     if (this.busy()) return;
     this.busy.set(true);
     this.error.set('');
+    this.abortRequested = false;
     this.status.set('Working…');
     try {
       await action();

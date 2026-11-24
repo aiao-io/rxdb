@@ -129,4 +129,53 @@ describe('应用商店交互流程', () => {
     await flow.confirm();
     expect(installed.apply).toHaveBeenCalledWith(release.id, null, expect.any(Function), '2.0.0');
   });
+
+  it('安装进行中取消：协商期间中止，不写盘，请求保留在面板可重试', async () => {
+    const { flow, installed, windows } = setup();
+    installed.state.set({ version: 1, apps: [{ id: release.id, version: '2.0.0', previous: null }] });
+    flow.request(release.id, '10.0.0');
+    let releaseNegotiation: ((value: boolean) => void) | undefined;
+    windows.closeApp.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          releaseNegotiation = resolve;
+        })
+    );
+    const confirming = flow.confirm();
+    expect(flow.busy()).toBe(true);
+    flow.cancel();
+    expect(flow.status()).toBe('Cancelling…');
+    releaseNegotiation?.(true);
+    await confirming;
+    expect(installed.apply).not.toHaveBeenCalled();
+    expect(flow.status()).toContain('cancelled');
+    expect(flow.pending()).toBeNull();
+
+    /* 取消后面板关闭：从商店重新请求再走完整流程并成功。 */
+    flow.request(release.id, '10.0.0');
+    await flow.confirm();
+    expect(installed.apply).toHaveBeenCalledWith(release.id, '10.0.0', expect.any(Function), '2.0.0');
+    expect(flow.pending()).toBeNull();
+  });
+
+  it('提交一旦开始就原子完成：提交进行中的取消不再打断写盘', async () => {
+    const { flow, installed } = setup();
+    installed.state.set({ version: 1, apps: [{ id: release.id, version: '2.0.0', previous: null }] });
+    flow.request(release.id, '10.0.0');
+    let commitStarted: (() => void) | undefined;
+    installed.apply.mockImplementationOnce(async () => {
+      commitStarted?.();
+      await new Promise(resolve => setTimeout(resolve, 20));
+    });
+    const started = new Promise<void>(resolve => {
+      commitStarted = resolve;
+    });
+    const confirming = flow.confirm();
+    await started;
+    flow.cancel();
+    await confirming;
+    expect(installed.apply).toHaveBeenCalledTimes(1);
+    expect(flow.pending()).toBeNull();
+    expect(flow.status()).toContain('10.0.0');
+  });
 });

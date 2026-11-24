@@ -5,8 +5,13 @@ import {
   DONE_TINT,
   ReminderDraft,
   ReminderFields,
+  ReminderRow,
+  applyList,
   draftRow,
+  dueLabel,
+  dueOptions,
   dueToday,
+  filterReminders,
   nextPosition,
   reminderListCount,
   reminderMatchesList,
@@ -39,12 +44,19 @@ describe('rowOf / draftRow', () => {
     });
   });
 
-  it('草稿转成 fresh 行：时间说明 Today、完成色强调蓝，编辑态跟着草稿走', () => {
-    const draft: ReminderDraft = { id: 'draft-1', done: true, editing: true, title: '', createdId: null };
+  it('草稿转成 fresh 行：时间说明、完成色强调蓝，编辑态跟着草稿走', () => {
+    const draft: ReminderDraft = {
+      id: 'draft-1',
+      done: true,
+      editing: true,
+      title: '',
+      due: 'Tomorrow',
+      createdId: null
+    };
     expect(draftRow(draft)).toEqual({
       id: 'draft-1',
       title: '',
-      due: 'Today',
+      due: 'Tomorrow',
       done: true,
       flagged: false,
       tint: DONE_TINT,
@@ -135,6 +147,63 @@ describe('togglePatch', () => {
 
   it('已完成的取消：只改 done，颜色保持', () => {
     expect(togglePatch({ done: true })).toEqual({ done: false });
+  });
+});
+
+describe('filterReminders', () => {
+  const rows: ReminderRow[] = [
+    rowOf(reminder({ id: 'r1', title: 'Pick up dry cleaning' })),
+    draftRow({ id: 'draft-1', done: false, editing: true, title: 'Buy milk', due: 'Today', createdId: null })
+  ];
+
+  it('按标题大小写不敏感地过滤', () => {
+    expect(filterReminders(rows, 'DRY').map(row => row.id)).toEqual(['r1']);
+    expect(filterReminders(rows, 'milk').map(row => row.id)).toEqual(['draft-1']);
+  });
+
+  it('查询为空时保留原列表', () => {
+    expect(filterReminders(rows, '  ')).toBe(rows);
+  });
+
+  it('没有匹配项时返回空列表', () => {
+    expect(filterReminders(rows, 'unknown')).toEqual([]);
+  });
+});
+
+describe('applyList', () => {
+  it('拖到 Today/Scheduled 改时间说明', () => {
+    expect(applyList(reminder({ due: 'Tomorrow 9:00 AM' }), 'today')).toEqual({ due: 'Today' });
+    expect(applyList(reminder({ due: 'Today 5:00 PM' }), 'scheduled')).toEqual({ due: 'Tomorrow' });
+  });
+
+  it('拖到 All 取消完成，拖到 Flagged/Completed 置位', () => {
+    expect(applyList(reminder({ done: true }), 'all')).toEqual({ done: false });
+    expect(applyList(reminder({ flagged: false }), 'flagged')).toEqual({ flagged: true });
+    expect(applyList(reminder({ done: false }), 'completed')).toEqual({ done: true, tint: DONE_TINT });
+  });
+
+  it('已经属于该列表时不用改动', () => {
+    expect(applyList(reminder({ due: 'Today 5:00 PM' }), 'today')).toBeNull();
+    expect(applyList(reminder({ due: 'Tomorrow', done: false }), 'scheduled')).toBeNull();
+    expect(applyList(reminder({ done: false }), 'all')).toBeNull();
+    expect(applyList(reminder({ flagged: true }), 'flagged')).toBeNull();
+    expect(applyList(reminder({ done: true }), 'completed')).toBeNull();
+  });
+});
+
+describe('dueLabel / dueOptions', () => {
+  const today = new Date(2026, 10, 24); // 2026-11-24
+
+  it('今天叫 Today，明天叫 Tomorrow，其余用星期加日期', () => {
+    expect(dueLabel(new Date(2026, 10, 24), today)).toBe('Today');
+    expect(dueLabel(new Date(2026, 10, 25), today)).toBe('Tomorrow');
+    expect(dueLabel(new Date(2026, 11, 31), today)).toBe('Thu, Dec 31');
+  });
+
+  it('快捷项依次是今天、明天、下周', () => {
+    const options = dueOptions(today);
+    expect(options.map(option => option.due)).toEqual(['Today', 'Tomorrow', 'Tue, Dec 1']);
+    expect(options.map(option => option.id)).toEqual(['today', 'tomorrow', 'week']);
   });
 });
 

@@ -1,6 +1,6 @@
 import { DiskBatchJournal, runDiskBatch } from './disk-batch';
-import { DiskPath, TRASH, isWithin, parentOf, samePath, uniqueName } from './disk-path';
-import { DiskError, DiskStore } from './disk-store';
+import { DiskPath, TRASH, foldName, isWithin, parentOf, samePath, uniqueName } from './disk-path';
+import { DiskError, DiskStore, nameTaken } from './disk-store';
 
 /** 浏览器一次导入最多 256 MiB，读取本机文件之前先检查。 */
 export const MAX_IMPORT_BYTES = 256 * 1024 * 1024;
@@ -48,6 +48,167 @@ export async function renameEntry(store: DiskStore, from: DiskPath, name: string
   if (!(await store.kindOf(from))) throw new DiskError('ENOENT', from);
   if (!samePath(from, to)) await store.move(from, to);
   return to;
+}
+
+/** 改名撞名时的处理：`replace` 覆盖目标，`keepBoth` 自动追加序号，`reject` 抛现有 EEXIST 语义。 */
+export type RenameConflictMode = 'replace' | 'keepBoth' | 'reject';
+
+/** 同级已有只差大小写的名字：返回占着它的那条路径（精确大小写），没有为 `null`。 */
+async function nameClash(store: DiskStore, dir: DiskPath, name: string): Promise<DiskPath | null> {
+  const folded = foldName(name);
+  const entry = (await store.list(dir)).find(item => foldName(item.name) === folded);
+  return entry ? [...dir, entry.name] : null;
+}
+
+/**
+ * 改名并处理重名。`reject` 与 {@link renameEntry} 同语义（抛 EEXIST，两个条目都不动）；
+ * `replace` 删除目标后用新名字落地（覆盖模式删掉了原目标，调用方不要把它压进撤销栈）；
+ * `keepBoth` 保留双方，新名字追加序号（`note.txt` → `note 2.txt`）。改成自己只差大小写的名字不算撞名。
+ */
+export async function renameWithConflict(
+  store: DiskStore,
+  from: DiskPath,
+  name: string,
+  mode: RenameConflictMode
+): Promise<DiskPath> {
+  const to = [...parentOf(from), validateName(name)];
+  if (!(await store.kindOf(from))) throw new DiskError('ENOENT', from);
+  if (samePath(from, to)) return to;
+  const clash = await nameClash(store, parentOf(from), name);
+  if (!clash || samePath(clash, from)) {
+    await store.move(from, to);
+    return to;
+  }
+  if (mode === 'reject') throw nameTaken(to, clash.at(-1) ?? name);
+  if (mode === 'replace') {
+    await store.remove(clash);
+    await store.move(from, to);
+    return to;
+  }
+  const target = [
+    ...parentOf(from),
+    uniqueName(
+      (await store.list(parentOf(from))).map(item => item.name),
+      name
+    )
+  ];
+  await store.move(from, target);
+  return target;
+}
+
+/** 按精确路径深复制（不消重名、不走批次日志）：撤销栈的重做与冲突覆盖用。 */
+export async function copyEntryToPath(store: DiskStore, from: DiskPath, to: DiskPath): Promise<void> {
+  if (await store.kindOf(to)) throw nameTaken(to, to.at(-1) ?? '');
+  if (!(await store.kindOf(from))) throw new DiskError('ENOENT', from);
+  await copyTree(store, from, to);
+}
+
+/** 撤销栈里的一条命令：记录正向动作，undo/redo 各执行一次反向/正向动作并返回实际改动的路径。 */
+export interface FileCommand {
+  readonly kind: 'rename' | 'move' | 'copy' | 'duplicate' | 'newFolder' | 'trash';
+  /** 菜单里显示的动作名（Rename、Move to Trash…）。 */
+  readonly label: string;
+  /** 撤销或重做之后要通知的路径。 */
+  readonly paths: readonly DiskPath[];
+  /** 还剩多少个子动作没还原（废纸篓批次用）；没有就是单条命令。 */
+  readonly pending?: () => number;
+  /** 撤销成功的收尾（标签键迁移等），在磁盘锁外执行，失败不打断。 */
+  readonly afterUndo?: () => Promise<void>;
+  /** 重做成功的收尾，在磁盘锁外执行，失败不打断。 */
+  readonly afterRedo?: () => Promise<void>;
+  undo(store: DiskStore): Promise<readonly DiskPath[]>;
+  redo(store: DiskStore): Promise<readonly DiskPath[]>;
+}
+
+/** 命令栈上限：与旧废纸篓撤销一致，超了丢最早的。 */
+export const OPERATION_UNDO_LIMIT = 50;
+
+/**
+ * 统一撤销/重做栈：只记本标签页的操作（跨页不共享）。压入新命令清空重做栈；
+ * 反向动作失败时命令留在栈里、错误抛给调用方。
+ */
+export class OperationHistory {
+  private readonly done: FileCommand[] = [];
+  private readonly undone: FileCommand[] = [];
+
+  get canUndo(): boolean {
+    return this.done.length > 0;
+  }
+
+  get canRedo(): boolean {
+    return this.undone.length > 0;
+  }
+
+  constructor(private readonly limit = OPERATION_UNDO_LIMIT) {}
+
+  /** 最近一条命令的动作名；没有可撤销的命令时为 `null`。 */
+  label(): string | null {
+    return this.done.at(-1)?.label ?? null;
+  }
+
+  push(command: FileCommand): void {
+    this.done.push(command);
+    if (this.done.length > this.limit) this.done.shift();
+    this.undone.length = 0;
+  }
+
+  /** 还有没有废纸篓命令可撤销（canUndoTrash 的口径）。 */
+  hasTrash(): boolean {
+    return this.done.some(command => command.kind === 'trash');
+  }
+
+  /** 最近一条废纸篓命令；undoTrash 据此撤销，不受夹在中间的其他命令影响。 */
+  mostRecentTrash(): FileCommand | null {
+    for (let index = this.done.length - 1; index >= 0; index--)
+      if (this.done[index].kind === 'trash') return this.done[index];
+    return null;
+  }
+
+  /** 清空废纸篓之后调用：两条栈里的废纸篓命令都失效了。 */
+  removeTrash(): void {
+    this.removeWhere(command => command.kind === 'trash');
+  }
+
+  clear(): void {
+    this.done.length = 0;
+    this.undone.length = 0;
+  }
+
+  /** 撤销最近一条命令并把它移进重做栈；反向动作失败时命令留在栈里，错误抛给调用方。 */
+  async undo(store: DiskStore): Promise<FileCommand | null> {
+    const command = this.done.at(-1);
+    if (!command) return null;
+    await command.undo(store);
+    this.done.pop();
+    this.undone.push(command);
+    if (this.undone.length > this.limit) this.undone.shift();
+    return command;
+  }
+
+  /** 重做最近一次撤销并把它移回撤销栈；重放失败时命令留在重做栈里，错误抛给调用方。 */
+  async redo(store: DiskStore): Promise<FileCommand | null> {
+    const command = this.undone.at(-1);
+    if (!command) return null;
+    await command.redo(store);
+    this.undone.pop();
+    this.done.push(command);
+    if (this.done.length > this.limit) this.done.shift();
+    return command;
+  }
+
+  /** 从两条栈里去掉一条命令（撤销中间的废纸篓命令时用）。 */
+  remove(command: FileCommand): void {
+    this.removeWhere(other => other === command);
+  }
+
+  private removeWhere(predicate: (command: FileCommand) => boolean): void {
+    const keep = (commands: FileCommand[]): void => {
+      for (let index = commands.length - 1; index >= 0; index--)
+        if (predicate(commands[index])) commands.splice(index, 1);
+    };
+    keep(this.done);
+    keep(this.undone);
+  }
 }
 
 async function unusedPath(store: DiskStore, dir: DiskPath, name: string): Promise<DiskPath> {

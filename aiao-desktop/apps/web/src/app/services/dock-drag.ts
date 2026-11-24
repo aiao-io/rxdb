@@ -26,6 +26,11 @@ export interface DockDropTarget {
   accepts(x: number, y: number): boolean;
   /** 指针 x 对应的插入槽位，不把正在拖动的应用算在内。 */
   slotAt(x: number, appId: DesktopAppId): number;
+  /**
+   * 指针位置对应的插入槽位（Dock 在左/右两侧时槽位沿屏幕 y 轴排布，需要两个坐标）。
+   * 实现了它的目标会优先于 {@link slotAt}；只认水平 x 轴的实现可以不提供。
+   */
+  slotAtPoint?(x: number, y: number, appId: DesktopAppId): number;
 }
 
 /** 位移不到这个距离不算拖动，免得吞掉普通的点击与双击。 */
@@ -170,7 +175,7 @@ export class DockDragController {
       source,
       x,
       y,
-      slot: accepted ? target.slotAt(x, appId) : null,
+      slot: accepted ? (target.slotAtPoint?.(x, y, appId) ?? target.slotAt(x, appId)) : null,
       removing: reorder && !over && this.layout.canUnpin(appId)
     };
   }

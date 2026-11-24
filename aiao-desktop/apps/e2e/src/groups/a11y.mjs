@@ -629,7 +629,7 @@ export const a11y = {
         ['Enter', 'Recents'],
         ['Space', 'Recents'],
         ['ArrowDown', 'Recents'],
-        ['ArrowUp', 'Applications']
+        ['ArrowUp', 'Go to Folder…']
       ]) {
         await focusGo();
         await press(key);
@@ -661,9 +661,9 @@ export const a11y = {
         'Documents',
         'Desktop',
         'Documents',
-        'Applications',
+        'Go to Folder…',
         'Recents',
-        'Applications',
+        'Go to Folder…',
         'Recents'
       ]);
       const typed = [];
@@ -1036,19 +1036,61 @@ export const a11y = {
           []
         : [`打开 Calculator 后焦点应在它的窗口里，实际 ${brief(focusedNow)}`];
 
-      /* ⌘反引号：最底层的窗口到前台，焦点、菜单栏与 aria-hidden 一起换。 */
-      await press('Meta+Backquote');
-      const cycled = await until(page, () =>
-        document.querySelector('.win[data-app="finder"]')?.classList.contains('front')
+      /* ⌘反引号只循环前台应用的窗口（macOS 语义）：先把 Finder 置前（Dock 图标），
+         ⌘N 再开一个 Finder，两个 Finder 之间把最底层的提到最前，焦点、菜单栏与 aria-hidden 一起换。 */
+      await page.locator('#dock .di[data-app="finder"]').click();
+      await until(
+        page,
+        () => document.querySelector('.win.front[data-app="finder"]:not(.closing)') !== null,
+        undefined,
+        5_000
       );
+      await press('Meta+n');
+      await until(
+        page,
+        () => document.querySelectorAll('.win[data-app="finder"]:not(.closing)').length === 2,
+        undefined,
+        5_000
+      );
+      const beforeCycle = await page.evaluate(() =>
+        [...document.querySelectorAll('.win[data-app="finder"]:not(.closing)')].map(node => ({
+          id: node.id,
+          z: Number(node.style.zIndex || getComputedStyle(node).zIndex),
+          front: node.classList.contains('front')
+        }))
+      );
+      await press('Meta+Backquote');
+      /* 用 rAF 轮询：headless 里定时器轮询不产出帧，无 Zone 的变更检测不会提交，前台状态永远读不到。 */
+      const bottomId = beforeCycle.find(item => !item.front).id;
+      const cycled = await page
+        .waitForFunction(
+          ({ id }) => {
+            const front = document.querySelector('.win.front[data-app="finder"]:not(.closing)');
+            return Boolean(front && front.id === id);
+          },
+          { id: bottomId },
+          { timeout: 10_000, polling: 'raf' }
+        )
+        .then(
+          () => true,
+          () => false
+        );
       const cycledStates = await windowStates();
       const cycleFocus = await focusReaches(page, info => info.region === 'window' && info.app === 'finder');
       windows.cycleSwitchesFocusAndFront = problems(
-        cycled ? [] : ['⌘反引号没有把 Finder 窗口调到前台'],
+        cycled ? [] : ['⌘反引号没有把最底层的 Finder 窗口调到前台'],
         cycleFocus ? [] : [`⌘反引号之后焦点应进入 Finder 窗口，实际 ${brief(await active())}`],
         await dialogsSettle(['Steve Jobs']),
-        cycledStates.find(state => state.app === 'finder')?.hidden ? ['新前台窗口仍 aria-hidden'] : [],
+        cycledStates.find(state => state.app === 'finder' && state.front)?.hidden ? ['新前台窗口仍 aria-hidden'] : [],
         (await menubarFirstApp()) === 'Finder' ? [] : [`菜单栏应换成 Finder，实际 ${await menubarFirstApp()}`]
+      );
+      /* 清理第二个 Finder：关掉前台的，剩一个（仍前台），后续最小化/还原只依赖「一个 Finder」。 */
+      await press('Meta+w');
+      await until(
+        page,
+        () => document.querySelectorAll('.win[data-app="finder"]:not(.closing)').length === 1,
+        undefined,
+        5_000
       );
 
       /* 把最小化动画停在中途，确保 Dock 还原请求发生在动画结束前，不受机器负载影响。 */
@@ -1057,8 +1099,9 @@ export const a11y = {
           if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'm') return;
           document.removeEventListener('keydown', hold);
           queueMicrotask(() => {
+            /* 清理刚关掉的窗口还在关闭动画里（.closing），要排除，否则会拿到它的关闭动画。 */
             const animation = document
-              .querySelector('.win[data-app="finder"]')
+              .querySelector('.win[data-app="finder"]:not(.closing)')
               ?.getAnimations()
               .find(
                 item =>
@@ -1394,12 +1437,18 @@ export const a11y = {
       const openView = async () => {
         await focusDocumentStart(page);
         await tabTo(info => is(info, 'menubar', 'View'));
+        /* 菜单从底部展开：最后一项是 Show View Options，再往上才是 Show Hidden Files。 */
         await press('ArrowUp');
-        return focusReaches(
-          page,
-          info =>
-            info.region === 'popover' && info.role === 'menuitemcheckbox' && info.name.startsWith('Show Hidden Files')
-        );
+        for (let step = 0; step < 4; step++) {
+          const reached = await focusReaches(
+            page,
+            info =>
+              info.region === 'popover' && info.role === 'menuitemcheckbox' && info.name.startsWith('Show Hidden Files')
+          );
+          if (reached) return reached;
+          await press('ArrowUp');
+        }
+        return false;
       };
       const focused = await openView();
       const unchecked = await toggle.getAttribute('aria-checked', { timeout: 3_000 });
@@ -1421,6 +1470,12 @@ export const a11y = {
     /* ==== AC#4 无障碍树 ==== */
     await guarded('tree', tree, async () => {
       await reset();
+      /* 视图偏好按目录持久化：先确保图标视图，工具栏与内容区的无障碍树才与期望一致。 */
+      const iconToggle = page.locator('.win[data-app="finder"] [data-view="icon"]');
+      if ((await iconToggle.getAttribute('aria-pressed')) !== 'true') {
+        await iconToggle.click();
+        await expect(iconToggle).toHaveAttribute('aria-pressed', 'true');
+      }
       const finderTree = await snapshot('.win[data-app="finder"]');
       tree.finderWindow = problems(
         missingInOrder(finderTree, [

@@ -6,6 +6,129 @@
 </div>
 <div class="wx-app" data-wx>
   <div
+    aria-label="Cities"
+    role="navigation"
+    style="
+      width: 210px;
+      flex: none;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 14px 10px;
+      background: rgba(255, 255, 255, 0.12);
+      border-right: 0.5px solid rgba(255, 255, 255, 0.25);
+      color: #fff;
+      overflow: auto;
+    "
+  >
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 0 6px 6px">
+      <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; opacity: 0.85">
+        Cities
+      </span>
+      <button
+        class="tbtn"
+        (click)="openAdd($event)"
+        aria-label="Add city"
+        data-nodrag
+        data-wx-add
+        style="background: rgba(255, 255, 255, 0.16); border: 0; border-radius: 50%; width: 22px; height: 22px"
+        tabindex="0"
+        title="Add city"
+        type="button"
+      >
+        <svg appIcon="g-plus" style="width: 12px; height: 12px; margin: auto"></svg>
+      </button>
+    </div>
+    @for (city of cityRows(); track city.id; let i = $index) {
+      <div
+        [attr.data-wcity]="city.name"
+        [style.background]="i === 0 ? 'rgba(255,255,255,0.2)' : null"
+        style="display: flex; align-items: center; border-radius: 8px; padding: 4px 4px 4px 6px"
+      >
+        <button
+          (click)="makePrimary(city)"
+          aria-label="Show weather for {{ city.name }}"
+          style="
+            flex: 1;
+            min-width: 0;
+            text-align: left;
+            font-size: 13px;
+            font-weight: 500;
+            color: #fff;
+            background: transparent;
+            border: 0;
+            padding: 4px 2px;
+            cursor: pointer;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          "
+          tabindex="0"
+          type="button"
+        >
+          {{ city.name }}
+        </button>
+        <button
+          class="tbtn"
+          [attr.aria-label]="'Remove ' + city.name"
+          [disabled]="cityRows().length <= 1"
+          (click)="removeCity(city)"
+          data-nodrag
+          data-wx-remove
+          style="
+            background: transparent;
+            border: 0;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            color: rgba(255, 255, 255, 0.8);
+          "
+          tabindex="0"
+          title="Remove city"
+          type="button"
+        >
+          <svg appIcon="g-x" style="width: 10px; height: 10px; margin: auto"></svg>
+        </button>
+      </div>
+    }
+    <div
+      style="
+        margin-top: auto;
+        display: flex;
+        gap: 4px;
+        padding: 6px 6px 0;
+        border-top: 0.5px solid rgba(255, 255, 255, 0.2);
+      "
+    >
+      @for (option of temperatureUnits; track option) {
+        <button
+          [attr.aria-pressed]="unit() === option"
+          [attr.data-wx-unit]="option"
+          [class.on]="unit() === option"
+          [style.background]="unit() === option ? 'rgba(255,255,255,0.34)' : null"
+          (click)="setUnit(option)"
+          aria-label="{{ option === 'celsius' ? '°C Celsius' : '°F Fahrenheit' }}"
+          style="
+            flex: 1;
+            font-size: 11.5px;
+            font-weight: 600;
+            padding: 3px 0;
+            border-radius: 6px;
+            border: 0;
+            cursor: pointer;
+            color: #fff;
+            background: rgba(255, 255, 255, 0.12);
+          "
+          tabindex="0"
+          type="button"
+        >
+          {{ option === 'celsius' ? '°C' : '°F' }}
+        </button>
+      }
+    </div>
+  </div>
+  <div
     [style.background]="sky()"
     aria-label="Weather forecast"
     role="region"
@@ -27,7 +150,7 @@
         <p>No weather data</p>
       </div>
     }
-    <app-weather-status />
+    <app-weather-status [showRefresh]="true" />
     @if (now()) {
       <div
         style="

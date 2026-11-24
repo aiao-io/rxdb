@@ -308,14 +308,22 @@ export const fileManagement = {
     await helpers.launch('Finder');
     const finder = () => page.locator('.win.front[data-app="finder"]:not(.closing)');
     const item = name => finder().locator(`[role="option"][data-name=${JSON.stringify(name)}]`);
-    /* 多窗口下前台会漂：废纸篓窗不能当工作窗、刚开的窗带开窗动画。导航/打开/导入前，
-       把普通 Finder 窗口显式置前，别赌「前台恰好是哪个」。 */
+    /* 多窗口下前台会漂：组内语义是「一个工作窗」。导航/打开/导入前把它显式置前，别赌「前台恰好是哪个」。
+       工作窗按窗口 id 绑定，首次取最新的普通窗口；废纸篓段结束、窗口被关光重启时由调用方换绑。 */
+    let working = null;
+    const bindWorking = async locator => {
+      working = page.locator(`#${await locator.getAttribute('id')}`);
+    };
     const frontFinder = async () => {
-      const normal = page.locator('.win[data-app="finder"]:not(.closing):not([aria-label="Trash"])').first();
-      await expect(normal).toBeVisible();
+      if (!working) {
+        const normal = page.locator('.win[data-app="finder"]:not(.closing):not([aria-label="Trash"])').last();
+        await expect(normal).toBeVisible();
+        await bindWorking(normal);
+      }
+      await expect(working).toBeVisible();
       /* 标题点击在窗口贴边时会被 resize 手柄拦住：窗口框架在捕获阶段监听 pointerdown 置前，
          直接派发指针按下即可（不经命中测试）。 */
-      await normal.dispatchEvent('pointerdown', { button: 0, pointerId: 1, isPrimary: true });
+      await working.dispatchEvent('pointerdown', { button: 0, pointerId: 1, isPrimary: true });
       await sidebarReady();
     };
     /* 条目也是 cdk-drag：真实双击的首次 mousedown 在窗口动画期间同样会越过拖动阈值。用合成 dblclick（无 mousedown）。 */
@@ -346,6 +354,8 @@ export const fileManagement = {
       await page.getByRole('menuitem', { name: command, exact: true }).click();
     };
     const edit = async command => {
+      /* 菜单栏的 Copy/Paste 作用在前台窗口：先显式把工作窗置前，别让命令落到别的窗口上。 */
+      await frontFinder();
       await page.getByRole('menubar').getByRole('menuitem', { name: 'Edit', exact: true }).click();
       await page
         .getByRole('menu', { name: 'Edit', exact: true })
@@ -412,10 +422,9 @@ export const fileManagement = {
     result.dropsOnDesktopFolder = (await diskText(session, 'from-desktop-folder.txt')) === text;
     result.dropsOnFolder = (await diskText(session, 'from-folder.txt')) === text;
 
-    /* 多窗口下前台会漂（刚开的窗、正在还原的窗都会抢）：把刚导航过的废纸篓窗（已是普通目录视图，
-       后续 Downloads 落点、弹簧与导入都作用在它上面）显式置前，别赌「前台恰好是哪个」。 */
-    await trashWin.locator('[data-title]').click();
-    await sidebarReady();
+    /* 工作窗换成刚导航过的废纸篓窗（已是普通目录视图）：后续 Downloads 落点、弹簧与导入都作用在它上面。 */
+    await bindWorking(trashWin);
+    await frontFinder();
     await finder()
       .locator('[data-place="Downloads"]')
       .drop({ files: payload('from-sidebar.txt', Buffer.from(text)) });
@@ -619,6 +628,7 @@ export const fileManagement = {
        导致后面的定位 strict violation。清掉恢复出的全部窗口，再开一个全新的 Finder。 */
     await helpers.closeAll();
     await helpers.launch('Finder');
+    working = null;
     await page.waitForTimeout(1_200);
     await place('Desktop');
     await openItem('Projects');
@@ -764,7 +774,10 @@ export const fileManagement = {
     await page.mouse.up();
     const sourceBoxAfterMove = await sourceFinder.boundingBox();
     if (!sourceBoxAfterMove) throw new Error('Moved Source Finder window is not measurable');
-    await page.mouse.click(sourceBoxAfterMove.x + 80, sourceBoxAfterMove.y + 18);
+    /* 废纸篓窗刚开过、盖在源窗上面：位置点击会命中错误窗口。直接给源窗派发捕获阶段指针按下置前
+       （窗口框架的捕获监听不经命中测试），条目拖拽的 mousedown 才落得到源条目上。 */
+    await sourceFinder.dispatchEvent('pointerdown', { button: 0, pointerId: 1, isPrimary: true });
+    await expect(sourceFinder).toHaveClass(/front/);
     const sourceItemBox = await sourceItem.boundingBox();
     const trashBodyBox = await trashFinderWindow.locator('[data-body]').boundingBox();
     if (!sourceItemBox || !trashBodyBox) throw new Error('Finder drag targets are not measurable');
@@ -805,9 +818,10 @@ export const fileManagement = {
     const trashTitle = trashFinderWindow.locator('[data-title]');
     const trashTitleBeforeReverseDrag = await trashTitle.boundingBox();
     const trashItemBox = await trashItem.boundingBox();
-    /* 弹簧目标必须悬停在 nested 文件夹条目上：悬在 body 的固定角落依赖图标布局，窗口尺寸一变就落空。 */
-    const nestedItemBox = await sourceFinder.locator('[data-name="nested"]').boundingBox();
-    if (!trashTitleBeforeReverseDrag || !trashItemBox || !nestedItemBox)
+    /* 反向拖拽只把条目送回嵌套窗口本体（落点=当前文件夹），不触发弹簧：悬停在 body 的空角落，
+       标题保持 nested 不变（若悬到文件夹条目上会导航，标题断言就会抓出来）。 */
+    const reverseBodyBox = await sourceFinder.locator('[data-body]').boundingBox();
+    if (!trashTitleBeforeReverseDrag || !trashItemBox || !reverseBodyBox)
       throw new Error('Reverse Finder drag targets are not measurable');
     await page.mouse.click(
       trashTitleBeforeReverseDrag.x + trashTitleBeforeReverseDrag.width / 2,
@@ -817,9 +831,7 @@ export const fileManagement = {
     await page.mouse.move(trashItemBox.x + trashItemBox.width / 2, trashItemBox.y + trashItemBox.height / 2);
     await page.mouse.down();
     await page.mouse.move(trashItemBox.x + 20, trashItemBox.y + 20, { steps: 4 });
-    await page.mouse.move(nestedItemBox.x + nestedItemBox.width / 2, nestedItemBox.y + nestedItemBox.height / 2, {
-      steps: 16
-    });
+    await page.mouse.move(reverseBodyBox.x + 40, reverseBodyBox.y + reverseBodyBox.height - 40, { steps: 16 });
     await page.waitForTimeout(800);
     await expect(trashTitle).toHaveText('Trash');
     await expect(sourceFinder.locator('[data-title]')).toHaveText('nested');
@@ -900,22 +912,29 @@ export const fileManagement = {
       );
       await page.mouse.up();
     }
-    /* 700ms 弹簧定时器可能在松手前抢先触发、把窗口导航进 nested：后退一步恢复，后续步骤的窗口状态才确定。 */
+    /* 700ms 弹簧定时器可能在松手前抢先触发：等图标回弹（松手已处理），再给迟到导航一个落地的窗口，
+       然后统一后退恢复——否则导航会在后续点击之后落地，把选择/前台全部打乱（Copy 会捕获错误条目）。 */
+    await expect(springTarget.locator('.art [data-icon]')).not.toHaveAttribute('data-icon', 'g-folder-open', {
+      timeout: 2_000
+    });
+    await page.waitForTimeout(800);
     if ((await item('drag-copy.txt').count()) === 0) {
       await finder().getByRole('button', { name: 'Back' }).click();
       await expect(item('drag-copy.txt')).toBeVisible();
     }
 
-    await item('clipboard-source.txt').click();
-    await edit('Copy');
+    /* 条目是 cdk-drag：真实 mousedown 在拖拽残留状态下可能吞掉后续 click。用合成 click 选中。
+       剪贴板走键盘快捷键（macOS 语义）：菜单路径的弹层在关闭时会把点击漏给下面的条目，导航与选择被污染。 */
+    await item('clipboard-source.txt').dispatchEvent('click');
+    await page.keyboard.press('Meta+c');
     await openItem('nested');
-    await edit('Paste');
+    await page.keyboard.press('Meta+v');
     await expect(item('clipboard-source.txt')).toBeVisible();
     const clipboardCopyKeptBytes = (await downloaded('clipboard-source.txt')).equals(Buffer.from(text));
     await item('clipboard-source.txt').focus();
-    await edit('Cut');
+    await page.keyboard.press('Meta+x');
     await place('Desktop');
-    await edit('Paste');
+    await page.keyboard.press('Meta+v');
     await expect(item('clipboard-source 2.txt')).toBeVisible();
     await openItem('nested');
     await expect(item('clipboard-source.txt')).toHaveCount(0);

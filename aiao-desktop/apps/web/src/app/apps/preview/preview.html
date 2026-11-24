@@ -1,8 +1,33 @@
+@let viewState = view();
 <div class="tb plain" data-drag>
   <div class="title">{{ name }}</div>
   <div class="tbz"><app-traffic-lights /></div>
   <div class="grow"></div>
   <div class="tbz">
+    @if (view().kind === 'pdf' || view().kind === 'image') {
+      <button
+        class="tbtn"
+        (click)="rotateBy(-90)"
+        aria-label="Rotate Left"
+        data-nodrag
+        data-pv-rotl
+        tabindex="0"
+        title="Rotate Left"
+      >
+        ↺
+      </button>
+      <button
+        class="tbtn"
+        (click)="rotateBy(90)"
+        aria-label="Rotate Right"
+        data-nodrag
+        data-pv-rotr
+        tabindex="0"
+        title="Rotate Right"
+      >
+        ↻
+      </button>
+    }
     <button
       class="tbtn"
       #share
@@ -34,7 +59,13 @@
       "
     >
       <span><svg appIcon="g-search"></svg></span>
-      <input #field (input)="find(field.value)" placeholder="Search" spellcheck="false" />
+      <input
+        #field
+        (input)="find(field.value)"
+        (keydown.enter)="stepMatchDirection($event)"
+        placeholder="Search"
+        spellcheck="false"
+      />
     </div>
   </div>
 </div>
@@ -48,16 +79,83 @@
   </p>
 }
 <div class="pv" #body style="flex-direction: column">
-  @let current = view();
-  @switch (current.kind) {
+  @switch (viewState.kind) {
     @case ('pdf') {
-      @if (current.kind === 'pdf') {
-        <div
-          #pdfBox
-          data-pv-pdf
-          style="flex: 1; min-height: 0; overflow: auto; display: grid; place-items: start center; padding: 18px"
-        >
-          <canvas #pdfCanvas data-pv-canvas style="box-shadow: 0 10px 40px -12px rgba(0, 0, 0, 0.55)"></canvas>
+      @if (viewState.kind === 'pdf') {
+        <div style="display: flex; flex: 1; min-height: 0">
+          <div
+            data-pv-thumbs
+            style="
+              flex: none;
+              width: 96px;
+              overflow-y: auto;
+              display: flex;
+              flex-direction: column;
+              gap: 10px;
+              padding: 14px 4px 14px 14px;
+            "
+          >
+            @for (n of pageNumbers(); track n) {
+              <button
+                [attr.aria-label]="'Page ' + n"
+                [attr.data-pv-thumb]="n"
+                [style.box-shadow]="n === page() ? '0 0 0 2px var(--blue)' : '0 0 0 0.5px rgba(0, 0, 0, 0.25)'"
+                (click)="page.set(n)"
+                style="padding: 0; border: 0; background: none; border-radius: 4px; cursor: var(--cur-hand)"
+                tabindex="0"
+                type="button"
+              >
+                <canvas
+                  #thumb
+                  [attr.data-pv-thumb-canvas]="n"
+                  style="display: block; width: 72px; border-radius: 3px; background: #fff"
+                ></canvas>
+              </button>
+            }
+          </div>
+          <div
+            #pdfBox
+            data-pv-pdf
+            style="
+              flex: 1;
+              min-width: 0;
+              min-height: 0;
+              overflow: auto;
+              display: grid;
+              place-items: start center;
+              padding: 18px;
+            "
+          >
+            <div style="position: relative; flex: none">
+              <canvas #pdfCanvas data-pv-canvas style="box-shadow: 0 10px 40px -12px rgba(0, 0, 0, 0.55)"></canvas>
+              @if (spans().length) {
+                <div
+                  data-pv-textlayer
+                  style="position: absolute; inset: 0; overflow: hidden; pointer-events: none; color: transparent"
+                >
+                  @for (span of spans(); track $index) {
+                    <span
+                      [style.font-size.px]="span.size"
+                      [style.height.px]="span.size"
+                      [style.left.px]="span.x"
+                      [style.top.px]="span.y"
+                      style="position: absolute; display: block; white-space: pre; font-family: sans-serif"
+                    >
+                      @for (segment of span.segments; track $index) {
+                        @if (segment.hit) {
+                          <mark style="background: rgba(255, 226, 96, 0.55); border-radius: 2px">
+                            {{ segment.text }}
+                          </mark>
+                        } @else {
+                          {{ segment.text }}
+                        }
+                      }
+                    </span>
+                  }
+                </div>
+              }
+            </div>
+          </div>
         </div>
         <div
           data-pv-nav
@@ -73,7 +171,52 @@
           >
             <svg appIcon="g-chev-l"></svg>
           </button>
-          <span style="font-size: 12px; color: var(--txt-2)">{{ page() }} of {{ pageCount() }}</span>
+          @if (!paging()) {
+            <button
+              [attr.aria-label]="'Go to page ' + page()"
+              (click)="startPaging()"
+              data-pv-pageno
+              style="
+                font-size: 12px;
+                color: var(--txt-2);
+                background: none;
+                border: 0;
+                padding: 2px 4px;
+                border-radius: 4px;
+                cursor: var(--cur-hand);
+              "
+              tabindex="0"
+              title="Go to Page"
+              type="button"
+            >
+              {{ page() }}
+            </button>
+            <span style="font-size: 12px; color: var(--txt-2)">of {{ pageCount() }}</span>
+          } @else {
+            <input
+              #pageInput
+              [value]="page()"
+              (blur)="cancelPaging()"
+              (keydown.enter)="jumpPage(pageInput.value)"
+              (keydown.escape)="cancelPaging()"
+              aria-label="Go to page"
+              data-pv-page-input
+              spellcheck="false"
+              style="
+                width: 44px;
+                height: 22px;
+                padding: 0 6px;
+                border-radius: 5px;
+                border: 0.5px solid var(--line-2);
+                background: var(--fill);
+                color: var(--txt);
+                font: inherit;
+                font-size: 12px;
+                text-align: center;
+              "
+            />
+            <span style="font-size: 12px; color: var(--txt-2)">of {{ pageCount() }}</span>
+          }
           <button
             class="tbtn"
             [disabled]="page() >= pageCount()"
@@ -106,16 +249,24 @@
       <div style="margin-top: 14px; font-size: 12px; color: var(--txt-2)">{{ name }} — 1920×1080 · H.264</div>
     }
     @case ('image') {
-      @if (current.kind === 'image') {
-        <img [alt]="name" [src]="current.url" (error)="imageFailed()" data-pv-image style="max-height: 78%" />
+      @if (viewState.kind === 'image') {
+        <img
+          [alt]="name"
+          [src]="viewState.url"
+          [style.transform]="rotation() ? 'rotate(' + rotation() + 'deg)' : null"
+          [style.zoom]="zoom() === 1 ? null : zoom()"
+          (error)="imageFailed()"
+          data-pv-image
+          style="max-height: 78%"
+        />
         <div style="margin-top: 14px; font-size: 12px; color: var(--txt-2)">{{ name }}</div>
       }
     }
     @case ('failed') {
-      @if (current.kind === 'failed') {
+      @if (viewState.kind === 'failed') {
         <div data-pv-failed style="text-align: center; color: var(--txt-2); font-size: 13px">
           <div style="font-weight: 600; color: var(--txt); margin-bottom: 6px">“{{ name }}” could not be opened.</div>
-          {{ current.reason }}
+          {{ viewState.reason }}
         </div>
       }
     }

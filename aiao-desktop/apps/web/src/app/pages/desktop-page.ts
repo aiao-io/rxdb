@@ -28,7 +28,7 @@ import { DockState } from '../services/dock-state';
 import { FileImport } from '../services/file-import';
 import { FileOpener } from '../services/file-opener';
 import { FilePanels } from '../services/file-panels';
-import { FileSystem, HOME_PATH } from '../services/file-system';
+import { FileSystem, HOME_PATH, describeDiskError } from '../services/file-system';
 import { FinderPreferences } from '../services/finder-preferences';
 import { ImageThumbnailCache } from '../services/image-thumbnail-cache';
 import { InstalledApplications } from '../services/installed-applications';
@@ -132,9 +132,9 @@ export class DesktopPage {
   private readonly wallpaper = inject(WallpaperService);
   private readonly backup = inject(DesktopBackup);
   private readonly toast = inject(Toast);
-  private readonly desktopItems = inject(DesktopItems);
   private readonly session = inject(Session);
   private readonly menuBarMenus = inject(MenuBarMenus);
+  private readonly fs = inject(FileSystem);
 
   protected readonly wm = inject(WindowManager);
   protected readonly layout = inject(WindowLayoutStore);
@@ -160,12 +160,24 @@ export class DesktopPage {
   protected shortcut(event: KeyboardEvent): void {
     /* Tab 按下期间焦点落进后台窗口，说明用户用 Tab 走进了它：窗口随之成为前台（见 WindowFrame）。 */
     this.wm.tabbing = event.key === 'Tab';
-    /* 锁屏、开机与睡眠期间桌面不响应快捷键；跳过开机与解锁由各自的界面处理。 */
-    if (this.session.locked() || this.session.boot() || this.session.sleep() !== 'awake') return;
+    /* 锁屏、开机、睡眠与重启/关机确认期间桌面不响应快捷键；跳过开机与解锁由各自的界面处理。 */
+    if (
+      this.session.locked() ||
+      this.session.boot() ||
+      this.session.sleep() !== 'awake' ||
+      this.session.confirm() !== null
+    )
+      return;
     if (event.key === 'Escape' && this.dismissOverlay()) return;
     if (event.key === 'F4') {
       event.preventDefault();
       this.overlays.toggleLaunchpad();
+      return;
+    }
+    /* ⌃↑ 是 Mission Control 系统手势的键盘版：切换全屏窗口总览。 */
+    if (event.key === 'ArrowUp' && event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+      event.preventDefault();
+      if (!event.repeat) this.overlays.toggleMission();
       return;
     }
     const meta = event.metaKey || event.ctrlKey;
@@ -198,6 +210,12 @@ export class DesktopPage {
     if (this.typing() && isTextEditingShortcut(event)) return;
     /* 应用自己已经在编辑区处理过这个键（例如 TextEdit 的 ⌘S）：不重复执行，也不抢着 preventDefault。 */
     if (event.defaultPrevented) return;
+    /* ⇧⌘Q 登出：全部窗口关闭后回到锁屏。desktop-menus 的 Log Out 项仍指向 lock()（该文件不在本代理清单，见 notes）。 */
+    if (event.shiftKey && !event.altKey && hasPrimaryModifier(event) && key === 'q') {
+      event.preventDefault();
+      if (!event.repeat) this.session.logOut();
+      return;
+    }
     /* 先看菜单栏上真实展示的命令：应用菜单、Apple 菜单与应用自己的菜单都能按键触发。 */
     if (this.runMenuShortcut(event)) {
       event.preventDefault();
@@ -230,11 +248,12 @@ export class DesktopPage {
     document.body.style.cursor = '';
   }
 
-  /** Esc 依次关闭弹出菜单、聚焦搜索、启动台、通知中心。 */
+  /** Esc 依次关闭弹出菜单、聚焦搜索、启动台、Mission Control、通知中心。 */
   private dismissOverlay(): boolean {
     if (this.popover.isOpen()) this.popover.close(false, 'escape');
     else if (this.overlays.spotlight() !== 'closed') this.overlays.closeSpotlight();
     else if (this.overlays.launchpad() !== 'closed') this.overlays.closeLaunchpad();
+    else if (this.overlays.mission() !== 'closed') this.overlays.closeMission();
     else if (this.overlays.notifications() === 'open') this.overlays.closeNotifications();
     else return false;
     return true;
@@ -272,11 +291,16 @@ export class DesktopPage {
     if (!onDesktop && frontApp && frontApp !== 'finder') return false;
     if (event.defaultPrevented || this.session.locked() || this.session.boot() || this.session.sleep() !== 'awake')
       return true;
-    if (this.popover.isOpen() || this.overlays.spotlight() !== 'closed' || this.overlays.launchpad() !== 'closed')
+    if (
+      this.popover.isOpen() ||
+      this.overlays.spotlight() !== 'closed' ||
+      this.overlays.launchpad() !== 'closed' ||
+      this.overlays.mission() !== 'closed'
+    )
       return true;
-    if (!this.desktopItems.canUndoTrash()) return true;
+    if (!this.fs.canUndo()) return true;
     event.preventDefault();
-    if (!event.repeat) this.desktopItems.undoTrash();
+    if (!event.repeat) void this.fs.undo().catch((error: unknown) => this.toast.show(describeDiskError(error)));
     return true;
   }
 

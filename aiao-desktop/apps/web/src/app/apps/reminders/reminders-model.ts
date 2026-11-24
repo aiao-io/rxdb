@@ -51,6 +51,8 @@ export interface ReminderDraft {
   readonly done: boolean;
   readonly editing: boolean;
   readonly title: string;
+  /** 草稿选好的时间说明，写入时随行存进库。 */
+  readonly due: string;
   readonly createdId: string | null;
 }
 
@@ -70,7 +72,7 @@ export const rowOf = (reminder: ReminderFields): ReminderRow => ({
 export const draftRow = (draft: ReminderDraft): ReminderRow => ({
   id: draft.id,
   title: draft.title,
-  due: NEW_REMINDER_DUE,
+  due: draft.due,
   done: draft.done,
   flagged: false,
   tint: DONE_TINT,
@@ -125,3 +127,58 @@ export const reminderListCount = (
 /** 勾选一行时写回库的字段：完成的变回未完成，未完成的变完成并染成强调蓝。 */
 export const togglePatch = (reminder: Pick<ReminderFields, 'done'>): { done: boolean; tint?: string } =>
   reminder.done ? { done: false } : { done: true, tint: DONE_TINT };
+
+/** 搜索框按标题过滤当前列表的行；查询为空时保留原列表。 */
+export const filterReminders = (rows: readonly ReminderRow[], query: string): readonly ReminderRow[] => {
+  const normalized = query.trim().toLocaleLowerCase();
+  if (!normalized) return rows;
+  return rows.filter(row => row.title.toLocaleLowerCase().includes(normalized));
+};
+
+/** 拖到侧栏某个列表时写回库的字段；已经属于该列表（无需改动）时为 `null`。 */
+export const applyList = (
+  reminder: Pick<ReminderFields, 'due' | 'done' | 'flagged'>,
+  list: ReminderList
+): { due?: string; done?: boolean; flagged?: boolean; tint?: string } | null => {
+  switch (list) {
+    case 'today':
+      return hasTodayDue(reminder) && !reminder.done ? null : { due: NEW_REMINDER_DUE };
+    case 'scheduled':
+      return scheduled(reminder) ? null : { due: 'Tomorrow' };
+    case 'all':
+      return reminder.done ? { done: false } : null;
+    case 'flagged':
+      return reminder.flagged ? null : { flagged: true };
+    case 'completed':
+      return reminder.done ? null : { done: true, tint: DONE_TINT };
+  }
+};
+
+/** 到期日选择面板里的一个快捷项。 */
+export interface DueOption {
+  readonly id: string;
+  readonly label: string;
+  readonly due: string;
+}
+
+/** 日期的时间说明：今天/明天叫名字，其余用 `Thu, Dec 31` 这种 macOS 说法。 */
+export const dueLabel = (date: Date, today: Date = new Date()): string => {
+  const day = (value: Date): number => new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime();
+  const diff = Math.round((day(date) - day(today)) / 86_400_000);
+  if (diff === 0) return NEW_REMINDER_DUE;
+  if (diff === 1) return 'Tomorrow';
+  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+};
+
+/** 到期日面板的快捷项：今天、明天、下周，以及任意日期。 */
+export const dueOptions = (today: Date = new Date()): readonly DueOption[] => {
+  const tomorrow = new Date(today);
+  tomorrow.setDate(today.getDate() + 1);
+  const nextWeek = new Date(today);
+  nextWeek.setDate(today.getDate() + 7);
+  return [
+    { id: 'today', label: 'Today', due: NEW_REMINDER_DUE },
+    { id: 'tomorrow', label: 'Tomorrow', due: 'Tomorrow' },
+    { id: 'week', label: 'Next Week', due: dueLabel(nextWeek, today) }
+  ];
+};

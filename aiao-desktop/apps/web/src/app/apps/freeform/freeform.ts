@@ -6,6 +6,7 @@ import {
   computed,
   effect,
   inject,
+  input,
   signal,
   untracked,
   viewChild
@@ -17,24 +18,68 @@ import { ALL_ROWS, liveQuery } from '../../data/live-query';
 import { localWriteFailureMessage } from '../../data/local-write-error';
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
+import { PopoverService } from '../../services/popover';
 import { SystemState } from '../../services/system-state';
+import { FocusTrap } from '../../shared/focus-trap';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
-import { Ink, Stroke, isStroke, unsettled, visibleStrokes } from './freeform-ink';
+import { Ink, Stroke, StrokeUndo, isStroke, unsettled, visibleStrokes } from './freeform-ink';
 import { FreeformStroke } from './freeform.entities';
 
 const PENS = ['#1d1d1f', '#0a84ff', '#ff375f', '#30d158', '#ff9f0a'] as const;
 
 const LINE_WIDTH = 3;
 
+/** 清空画板的确认弹层：Cancel 或 Esc 关闭，Clear 才执行擦除。 */
+@Component({
+  selector: 'app-freeform-clear-panel',
+  imports: [FocusTrap],
+  host: { class: 'pop', style: 'width: 300px; padding: 14px' },
+  template: `
+    <div
+      (keydown.escape)="popover.close()"
+      appFocusTrap
+      aria-label="Clear board"
+      aria-modal="true"
+      role="dialog"
+      style="display: flex; flex-direction: column; gap: 12px"
+    >
+      <h2 style="font-size: 14px; margin: 0">Clear this board?</h2>
+      <p style="font-size: 12px; color: var(--txt-2); margin: 0">
+        This removes all {{ strokes() }} strokes from the shared board.
+      </p>
+      <div style="display: flex; justify-content: flex-end; gap: 8px">
+        <button class="btn" (click)="popover.close()" data-clear-cancel tabindex="0" type="button">Cancel</button>
+        <button class="btn" (click)="confirmClear()" data-clear-confirm tabindex="0" type="button">Clear</button>
+      </div>
+    </div>
+  `
+})
+export class FreeformClearPanel {
+  protected readonly popover = inject(PopoverService);
+  /** 画布上的笔数，文案里展示。 */
+  readonly strokes = input(0);
+  /** 确认后执行擦除的回调。 */
+  readonly clear = input.required<() => void>();
+
+  protected confirmClear(): void {
+    this.popover.close(true);
+    this.clear()();
+  }
+}
+
 /** 正在画的一笔：`points` 随指针移动不断追加。 */
 interface PenStroke extends Stroke {
   readonly points: [number, number][];
 }
 
+const exec = (command: string): void => {
+  document.execCommand(command);
+};
+
 /**
  * 无边记：在画布上拖动即可画线，可换笔色、清空；窗口缩放时按新尺寸重绘全部笔迹。
- * 笔迹存在本地库里，所有无边记窗口共用同一块画板，刷新后仍在。
+ * 笔迹存在本地库里，所有无边记窗口共用同一块画板，刷新后仍在。⌘Z/⇧⌘Z 撤销重做本窗口画的笔迹。
  */
 @Component({
   selector: 'app-freeform',
@@ -109,6 +154,11 @@ interface PenStroke extends Stroke {
 export class FreeformApp {
   private readonly data = inject(DesktopData);
   private readonly system = inject(SystemState);
+  private readonly popover = inject(PopoverService);
+  /** 本窗口画进库的笔迹，按先后；撤销与重做只在栈里走。 */
+  private readonly undoStack = new StrokeUndo();
+  private readonly undoCount = signal(0);
+  private readonly redoCount = signal(0);
   /** 库里的笔迹，按落笔先后；库还没读到时为 `null`。 */
   private readonly saved = liveQuery<readonly FreeformStroke[] | null>(
     () => FreeformStroke.findAll({ where: ALL_ROWS, orderBy: [{ field: 'createdAt', sort: 'asc' }] }),
@@ -148,7 +198,22 @@ export class FreeformApp {
   constructor() {
     const menus = inject(DesktopMenus);
     const win = inject(DesktopWindow);
-    win.setMenus(computed(() => menus.standard('freeform')));
+    win.setMenus(
+      computed(() =>
+        menus.standard('freeform', {
+          Edit: [
+            { id: 'u', label: 'Undo', key: '⌘Z', disabled: !this.undoCount(), run: () => void this.undo() },
+            { id: 'r', label: 'Redo', key: '⇧⌘Z', disabled: !this.redoCount(), run: () => void this.redo() },
+            '-',
+            { id: 'x', label: 'Cut', key: '⌘X', run: () => exec('cut') },
+            { id: 'c', label: 'Copy', key: '⌘C', run: () => exec('copy') },
+            { id: 'v', label: 'Paste', key: '⌘V', run: () => exec('paste') },
+            '-',
+            { id: 'a', label: 'Select All', key: '⌘A', run: () => exec('selectAll') }
+          ]
+        })
+      )
+    );
     win.afterResize.pipe(takeUntilDestroyed()).subscribe(() => this.fit());
     /* 首次渲染后量一次尺寸；之后主题切换、库里的笔迹变了（含别的窗口画的）都重新铺画布。 */
     afterRenderEffect(() => {
@@ -186,34 +251,74 @@ export class FreeformApp {
     }
   }
 
+  /** 清空画板：先弹确认，确认后才删掉当前已落库的全部笔迹。 */
   protected clear(): void {
     if (this.busy() || this.inking()) return;
     const strokes = this.saved() ?? [];
-    this.actionError.set('');
-    this.clearFailed.set(false);
     if (!strokes.length) {
       this.failed.set([]);
+      this.undoStack.forgetAll();
+      this.syncUndo();
       return;
     }
-    this.busy.set(true);
-    void this.erase(strokes)
-      .then(
-        () => {
-          this.settling.set([]);
-          this.failed.set([]);
-        },
-        error => {
-          this.clearFailed.set(true);
-          this.actionError.set(localWriteFailureMessage(error));
+    const stage = this.stage().nativeElement.getBoundingClientRect();
+    this.popover.openComponent(
+      FreeformClearPanel,
+      {
+        x: stage.left + stage.width / 2 - 150,
+        y: stage.top + stage.height / 2 - 70,
+        origin: 'top left',
+        focus: true,
+        onClose: reason => {
+          if (reason === 'escape' || reason === 'tab') this.board().nativeElement.focus();
         }
-      )
-      .finally(() => this.busy.set(false));
+      },
+      { strokes: strokes.length, clear: () => this.eraseAll() }
+    );
+  }
+
+  /** 撤销最后一笔：按栈顶 id 从事务里删掉；重做重新落库（拿到新 id 再进撤销栈）。 */
+  protected async undo(): Promise<void> {
+    if (this.busy() || this.inking()) return;
+    const entry = this.undoStack.undoTop();
+    if (!entry) return;
+    this.syncUndo();
+    this.actionError.set('');
+    this.busy.set(true);
+    try {
+      await this.data.transaction(async executor => {
+        const repository = executor.getRepository(FreeformStroke);
+        const [row] = await repository.find({
+          where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: entry.id }] },
+          limit: 1
+        });
+        if (row) await repository.remove(row);
+      });
+    } catch (error) {
+      this.actionError.set(localWriteFailureMessage(error));
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  protected async redo(): Promise<void> {
+    if (this.busy() || this.inking()) return;
+    const entry = this.undoStack.redoTop();
+    if (!entry) return;
+    this.syncUndo();
+    this.actionError.set('');
+    this.busy.set(true);
+    try {
+      await this.persist({ color: entry.color, points: entry.points });
+    } finally {
+      this.busy.set(false);
+    }
   }
 
   protected retry(): void {
     if (this.busy()) return;
     if (this.clearFailed()) {
-      this.clear();
+      this.eraseAll();
       return;
     }
     const failed = this.failed();
@@ -271,6 +376,8 @@ export class FreeformApp {
     try {
       await (await this.data.repository(FreeformStroke)).create(row);
       this.actionError.set('');
+      this.undoStack.push({ id: row.id, color: stroke.color, points: stroke.points });
+      this.syncUndo();
     } catch (error) {
       this.settling.update(list => list.filter(item => item.id !== ink.id));
       this.failed.update(list => (list.some(item => item.id === ink.id) ? list : [...list, ink]));
@@ -286,6 +393,35 @@ export class FreeformApp {
     });
     this.actionError.set('');
     this.clearFailed.set(false);
+  }
+
+  /** 确认后真正清空：成功清掉两个撤销栈。 */
+  private eraseAll(): void {
+    if (this.busy()) return;
+    const strokes = this.saved() ?? [];
+    this.actionError.set('');
+    this.clearFailed.set(false);
+    this.busy.set(true);
+    void this.erase(strokes)
+      .then(
+        () => {
+          this.settling.set([]);
+          this.failed.set([]);
+          this.undoStack.forgetAll();
+          this.syncUndo();
+        },
+        error => {
+          this.clearFailed.set(true);
+          this.actionError.set(localWriteFailureMessage(error));
+        }
+      )
+      .finally(() => this.busy.set(false));
+  }
+
+  /** 撤销/重做菜单的可用状态跟着栈走。 */
+  private syncUndo(): void {
+    this.undoCount.set(this.undoStack.undoSize());
+    this.redoCount.set(this.undoStack.redoSize());
   }
 
   private dropSettled(saved: readonly FreeformStroke[]): void {

@@ -66,7 +66,7 @@ export class CalendarWidget {
       } @else {
         <p>No weather data</p>
       }
-      <app-weather-status />
+      <app-weather-status [showRefresh]="true" />
     </div>
   `
 })

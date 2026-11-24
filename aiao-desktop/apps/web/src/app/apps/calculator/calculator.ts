@@ -5,7 +5,7 @@ import { DesktopWindow } from '../../services/desktop-window';
 import { Toast } from '../../services/toast';
 import { WindowManager } from '../../services/window-manager';
 import { TrafficLights } from '../../shared/traffic-lights';
-import { CALC_RESET, CalcKey, formatCalc, pressCalc } from './calculator-engine';
+import { CALC_RESET, CalcKey, calcKeysOfText, formatCalc, pressCalc } from './calculator-engine';
 
 interface CalcButton {
   readonly label: string;
@@ -52,7 +52,7 @@ const KEYBOARD: Readonly<Record<string, CalcKey>> = {
   Delete: 'ac'
 };
 
-/** 计算器：基础模式，支持键盘输入（仅前台窗口响应）。 */
+/** 计算器：基础模式，支持键盘输入（仅前台窗口响应）、复制结果与粘贴数字。 */
 @Component({
   selector: 'app-calculator',
   imports: [TrafficLights],
@@ -93,6 +93,7 @@ const KEYBOARD: Readonly<Record<string, CalcKey>> = {
 export class CalculatorApp {
   private readonly win = inject(DesktopWindow);
   private readonly wm = inject(WindowManager);
+  private readonly toast = inject(Toast);
 
   private readonly state = signal(CALC_RESET);
   protected readonly buttons = BUTTONS;
@@ -108,10 +109,13 @@ export class CalculatorApp {
 
   constructor() {
     const menus = inject(DesktopMenus);
-    const toast = inject(Toast);
     this.win.setMenus(
       computed(() =>
         menus.standard('calculator', {
+          Edit: [
+            { id: 'c', label: 'Copy Result', key: '⌘C', run: () => void this.copyResult() },
+            { id: 'v', label: 'Paste', key: '⌘V', run: () => void this.pasteValue() }
+          ],
           View: [
             { id: 'b', label: 'Basic', key: '⌘1', checked: true },
             {
@@ -119,7 +123,7 @@ export class CalculatorApp {
               label: 'Scientific',
               key: '⌘2',
               checked: false,
-              run: () => toast.show('Scientific mode is not in this build')
+              run: () => this.toast.show('Scientific mode is not in this build')
             }
           ]
         })
@@ -131,13 +135,41 @@ export class CalculatorApp {
     this.state.update(state => pressCalc(state, key));
   }
 
+  /** 修饰键组合不落进键盘输入：⌘1 这类菜单快捷键不能顺便按出数字。 */
   protected keyboard(event: KeyboardEvent): void {
     if (this.wm.front() !== this.win) return;
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
     const key: CalcKey | undefined = /^[0-9]$/.test(event.key) ? (`n${event.key}` as CalcKey) : KEYBOARD[event.key];
     if (!key) return;
     event.preventDefault();
     this.pressed.set(key);
     setTimeout(() => this.pressed.update(current => (current === key ? null : current)), 95);
     this.press(key);
+  }
+
+  /** ⌘C：把当前显示的数字写进系统剪贴板（不带千分位，与 macOS 一致）。 */
+  private async copyResult(): Promise<void> {
+    try {
+      if (!navigator.clipboard) throw new DOMException('Clipboard unavailable', 'NotAllowedError');
+      await navigator.clipboard.writeText(this.state().cur);
+      this.toast.show('Copied to clipboard');
+    } catch {
+      this.toast.show('Clipboard unavailable');
+    }
+  }
+
+  /** ⌘V：读剪贴板，把里面的数字按按键序列回放进当前输入。 */
+  private async pasteValue(): Promise<void> {
+    try {
+      const text = navigator.clipboard ? await navigator.clipboard.readText() : '';
+      const keys = calcKeysOfText(text);
+      if (!keys.length) {
+        this.toast.show('Clipboard has no number');
+        return;
+      }
+      this.state.update(state => keys.reduce((current, key) => pressCalc(current, key), state));
+    } catch {
+      this.toast.show('Clipboard unavailable');
+    }
   }
 }

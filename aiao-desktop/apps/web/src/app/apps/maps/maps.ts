@@ -6,6 +6,7 @@ import {
   afterNextRender,
   afterRenderEffect,
   computed,
+  effect,
   inject,
   signal,
   untracked,
@@ -14,16 +15,30 @@ import {
 
 import { DesktopData } from '../../data/desktop-data';
 import { ALL_ROWS, liveQuery } from '../../data/live-query';
+import { Preferences } from '../../data/preferences';
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
 import { MenuEntry } from '../../services/menu';
+import { PopoverService } from '../../services/popover';
 import { SystemState } from '../../services/system-state';
 import { Toast } from '../../services/toast';
 import { clamp } from '../../shared/format';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
-import { CUPERTINO, TILE, latAt, lonAt, tileUrl, worldX, worldY, zoomForBox } from './maps-geo';
+import {
+  CUPERTINO,
+  TILE,
+  arrowDelta,
+  latAt,
+  lonAt,
+  pointLatLon,
+  tileUrl,
+  worldX,
+  worldY,
+  zoomForBox
+} from './maps-geo';
 import { PlaceSpot, samePlace } from './maps-places';
+import { isPlaceSpotList, recordRecent, suggestRecent } from './maps-suggest';
 import { MapPlace } from './maps.entities';
 
 import { Place, searchPlaces } from './maps-search';
@@ -34,6 +49,22 @@ type MapResults =
   | { readonly status: 'empty'; readonly query: string }
   | { readonly status: 'failed'; readonly query: string }
   | { readonly status: 'hits'; readonly hits: readonly Place[] };
+
+/** 输入中的建议面板：最近地点 + 远程命中。 */
+type SuggestPanel = {
+  readonly status: 'hits';
+  readonly query: string;
+  readonly recent: readonly PlaceSpot[];
+  readonly hits: readonly Place[];
+  readonly loading: boolean;
+};
+
+/** 最近地点的偏好键。 */
+const RECENT_KEY = 'maps:recent';
+/** 建议请求的防抖（Nominatim 使用政策：只在输入停顿后查一次）。 */
+const SUGGEST_DELAY = 500;
+/** 至少两个字符才发建议请求。 */
+const SUGGEST_MIN = 2;
 
 /** 地图左上角的地点卡片。 */
 interface MapCard {
@@ -85,6 +116,8 @@ export class MapsApp {
   private readonly toast = inject(Toast);
   private readonly renderer = inject(Renderer2);
   private readonly data = inject(DesktopData);
+  private readonly popover = inject(PopoverService);
+  private readonly preferences = inject(Preferences);
   /** 收藏的地点，按收藏先后。 */
   private readonly places = liveQuery(
     () => MapPlace.findAll({ where: ALL_ROWS, orderBy: [{ field: 'createdAt', sort: 'asc' }] }),
@@ -105,9 +138,17 @@ export class MapsApp {
   private searchController: AbortController | null = null;
   private tileGeneration = 0;
   private closed = false;
+  /** 建议请求的序号与控制器：过期的响应不能顶掉新的。 */
+  private suggestSeq = 0;
+  private suggestTimer: ReturnType<typeof setTimeout> | undefined;
+  private suggestController: AbortController | null = null;
+  /** 最近使用的地点，存偏好，启动时恢复。 */
+  private readonly recentState = signal<readonly PlaceSpot[]>([]);
+  private readonly restoredRecent = signal(false);
 
   protected readonly card = signal<MapCard>({ title: CUPERTINO.title, sub: CUPERTINO.sub });
   protected readonly results = signal<MapResults | null>(null);
+  protected readonly suggest = signal<SuggestPanel | null>(null);
   protected readonly offline = signal(false);
   protected readonly loadingTiles = signal(true);
   protected readonly placeName = placeName;
@@ -136,9 +177,25 @@ export class MapsApp {
         )
       )
     );
+    /* 最近地点：恢复偏好，之后每次记录写回。 */
+    this.preferences.ready.then(
+      () => {
+        const saved = this.preferences.get(RECENT_KEY, isPlaceSpotList);
+        if (saved) this.recentState.set(saved);
+        this.restoredRecent.set(true);
+      },
+      () => undefined
+    );
+    effect(() => {
+      const recent = this.recentState();
+      if (!this.restoredRecent()) return;
+      untracked(() => void this.preferences.set(RECENT_KEY, recent).catch(() => undefined));
+    });
     destroyRef.onDestroy(() => {
       this.closed = true;
       this.searchController?.abort();
+      this.suggestController?.abort();
+      clearTimeout(this.suggestTimer);
     });
     this.win.afterResize.subscribe(() => this.layout());
     /* 窗口刚创建时再等一帧，尺寸才是真的。 */
@@ -200,30 +257,104 @@ export class MapsApp {
 
   protected save(): void {
     const { title, sub } = this.card();
-    void this.keep({ title, subtitle: sub, latitude: this.lat, longitude: this.lon, zoom: this.z });
+    const spot: PlaceSpot = { title, subtitle: sub, latitude: this.lat, longitude: this.lon, zoom: this.z };
+    void this.keep(spot);
+    this.recordSpot(spot);
     this.toast.show(`${title} added to Favourites`);
+  }
+
+  /** 方向键平移：一次一块瓦片的距离；焦点在输入框或按钮上时不动。 */
+  protected key(event: KeyboardEvent): void {
+    if ((event.target as Element).closest('input, button')) return;
+    const delta = arrowDelta(event.key);
+    if (!delta) return;
+    event.preventDefault();
+    this.panBy(delta[0], delta[1]);
+  }
+
+  /** 地图右键：落针、复制坐标、收藏与回 Cupertino。 */
+  protected menu(event: MouseEvent): void {
+    event.preventDefault();
+    const box = this.mapBox().nativeElement.getBoundingClientRect();
+    const point = pointLatLon(
+      this.lat,
+      this.lon,
+      this.z,
+      event.clientX - box.left - box.width / 2,
+      event.clientY - box.top - box.height / 2
+    );
+    this.popover.contextMenu(
+      event,
+      [
+        {
+          id: 'pin',
+          label: 'Drop Pin',
+          run: () => {
+            this.lat = point.lat;
+            this.lon = point.lon;
+            this.card.set({ title: 'Dropped Pin', sub: `${point.lat.toFixed(4)}, ${point.lon.toFixed(4)}` });
+            this.layout();
+          }
+        },
+        { id: 'copy', label: 'Copy Coordinates', run: () => void this.copyCoordinates(point) },
+        '-',
+        {
+          id: 'save',
+          label: 'Save to Favourites',
+          run: () => {
+            this.lat = point.lat;
+            this.lon = point.lon;
+            this.save();
+          }
+        },
+        {
+          id: 'home',
+          label: 'Go to Cupertino',
+          run: () => this.goto(CUPERTINO.lat, CUPERTINO.lon, CUPERTINO.zoom, CUPERTINO.title, CUPERTINO.sub)
+        }
+      ],
+      'Map actions'
+    );
+  }
+
+  /** 输入防抖后拉取建议：最近地点即时出现，远程命中按 Nominatim 政策限频。 */
+  protected input(event: Event, field: HTMLInputElement): void {
+    const query = field.value.trim();
+    clearTimeout(this.suggestTimer);
+    if (query.length < SUGGEST_MIN) {
+      this.clearSuggest();
+      return;
+    }
+    this.suggestTimer = setTimeout(() => void this.fetchSuggest(query), SUGGEST_DELAY);
   }
 
   protected find(event: Event, field: HTMLInputElement): void {
     event.preventDefault();
+    this.clearSuggest();
     void this.search(field.value.trim());
   }
 
   protected dismiss(field: HTMLInputElement): void {
     field.value = '';
     this.clearResults();
+    this.clearSuggest();
   }
 
   protected pick(place: Place): void {
     const zoom = place.boundingbox ? zoomForBox(place.boundingbox.map(Number)) : 15;
-    this.goto(
-      +place.lat,
-      +place.lon,
-      zoom,
-      placeName(place),
-      place.display_name.split(',').slice(1, 4).join(',').trim()
-    );
+    const title = placeName(place);
+    const subtitle = place.display_name.split(',').slice(1, 4).join(',').trim();
+    this.goto(+place.lat, +place.lon, zoom, title, subtitle);
+    this.recordSpot({ title, subtitle, latitude: +place.lat, longitude: +place.lon, zoom });
     this.clearResults();
+  }
+
+  /** 点建议面板里的最近地点：直接回那里。 */
+  protected pickRecent(spot: PlaceSpot): void {
+    this.goto(spot.latitude, spot.longitude, spot.zoom, spot.title, spot.subtitle);
+    this.recordSpot(spot);
+    this.clearResults();
+    this.clearSuggest();
   }
 
   /** 收藏一处地点；库里已经有同一处就不重复添加。 */
@@ -380,6 +511,56 @@ export class MapsApp {
     this.searchController?.abort();
     this.searchController = null;
     this.results.set(null);
+  }
+
+  /** 按内容增量平移视图（方向键与拖动共用一套换算）。 */
+  private panBy(dx: number, dy: number): void {
+    this.lon = lonAt(worldX(this.lon, this.z) - dx, this.z);
+    this.lat = latAt(clamp(worldY(this.lat, this.z) - dy, 0, TILE * (1 << this.z)), this.z);
+    this.layout();
+  }
+
+  /** 拉取远程建议；最近地点先出现，远程命中到达后补上。 */
+  private async fetchSuggest(query: string): Promise<void> {
+    if (this.closed) return;
+    const recent = suggestRecent(this.recentState(), query);
+    this.suggestSeq++;
+    const seq = this.suggestSeq;
+    this.suggestController?.abort();
+    const controller = new AbortController();
+    this.suggestController = controller;
+    this.suggest.set({ status: 'hits', query, recent, hits: [], loading: true });
+    try {
+      const hits = await searchPlaces(query, controller.signal);
+      if (this.closed || seq !== this.suggestSeq) return;
+      this.suggest.set({ status: 'hits', query, recent, hits, loading: false });
+    } catch {
+      if (!this.closed && seq === this.suggestSeq)
+        this.suggest.set({ status: 'hits', query, recent, hits: [], loading: false });
+    }
+  }
+
+  private clearSuggest(): void {
+    this.suggestSeq++;
+    clearTimeout(this.suggestTimer);
+    this.suggestController?.abort();
+    this.suggestController = null;
+    this.suggest.set(null);
+  }
+
+  /** 记一次最近使用：去重移到最前，写偏好由 effect 完成。 */
+  private recordSpot(spot: PlaceSpot): void {
+    this.recentState.update(recent => recordRecent(recent, spot));
+  }
+
+  private async copyCoordinates(point: { lat: number; lon: number }): Promise<void> {
+    const text = `${point.lat.toFixed(4)}, ${point.lon.toFixed(4)}`;
+    try {
+      await navigator.clipboard.writeText(text);
+      this.toast.show('Coordinates copied');
+    } catch {
+      this.toast.show(`Copy failed: ${text}`);
+    }
   }
 
   /** Nominatim 是 OpenStreetMap 自己的地理编码，无需密钥、开放 CORS；按它的使用政策，只在回车时查一次。 */

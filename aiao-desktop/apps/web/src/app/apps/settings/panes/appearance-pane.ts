@@ -11,7 +11,6 @@ import {
 } from '../../../services/system-state';
 import { ACCENTS, ACCENT_KEYS, ThemeService, accentHex } from '../../../services/theme';
 import { Icon } from '../../../shared/icon';
-import { ToggleSwitch } from '../toggle-switch';
 
 const MULTICOLOUR = 'conic-gradient(from 210deg,#ff375f,#ff9f0a,#ffd60a,#30d158,#0a84ff,#bf5af2,#ff375f)';
 
@@ -48,7 +47,7 @@ const SWATCHES = [
 /** 外观：浅色/深色/自动、强调色、高亮色、侧栏图标大小与滚动条。 */
 @Component({
   selector: 'app-appearance-pane',
-  imports: [Icon, ToggleSwitch],
+  imports: [Icon],
   host: { style: 'display: contents' },
   template: `
     <div class="st-group">
@@ -139,10 +138,6 @@ const SWATCHES = [
             {{ sidebarIconLabel() }} <svg appIcon="g-chev-d"></svg>
           </button>
         </div>
-      </div>
-      <div class="st-item">
-        <div class="lb">Allow wallpaper tinting</div>
-        <div class="rt"><div [appSwitch]="true" data-k="tint"></div></div>
       </div>
       <div class="st-item">
         <div class="lb">Show scroll bars</div>

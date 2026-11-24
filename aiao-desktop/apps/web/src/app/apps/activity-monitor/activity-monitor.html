@@ -2,78 +2,171 @@
   <div class="title">Activity Monitor</div>
   <div class="tbz"><app-traffic-lights /></div>
   <div class="grow"></div>
-  <div class="tbz"></div>
+  <div class="tbz">
+    <div class="sfield" data-nodrag style="width: 170px">
+      <span><svg appIcon="g-search"></svg></span>
+      <input
+        #search
+        [value]="query()"
+        (input)="query.set(search.value)"
+        aria-label="Search processes"
+        data-amsearch
+        placeholder="Search"
+      />
+    </div>
+  </div>
+</div>
+<div style="display: flex; align-items: center; gap: 4px; padding: 8px 16px 0">
+  <div class="seg" data-nodrag>
+    @for (entry of tabs; track entry) {
+      <button [attr.data-amon-tab]="entry" [class.on]="tab() === entry" (click)="tab.set(entry)" tabindex="0">
+        {{ entry }}
+      </button>
+    }
+  </div>
 </div>
 <div class="wb col" style="background: var(--win); padding: 16px; gap: 12px">
-  <p role="status" style="margin: 0">{{ activity.rows().length }} windows in this desktop tab</p>
-  <p data-activity-scope style="margin: 0; color: var(--txt-2); font-size: 12px">
-    These are desktop windows. Per-app CPU, memory, energy, disk and network usage are not available. The bundled game
-    pauses rendering and audio when hidden. Other apps manage their own background work.
-  </p>
-  <div class="scroll" style="flex: 1; min-height: 0">
-    <table
-      aria-label="Running desktop windows"
-      data-activity-table
-      style="width: 100%; border-collapse: collapse; font-size: 12px"
-    >
-      <thead>
-        <tr>
-          <th scope="col" style="text-align: left; padding: 8px">Window</th>
-          <th scope="col" style="text-align: left; padding: 8px">Status</th>
-          <th scope="col" style="text-align: left; padding: 8px">Background work</th>
-          <th scope="col" style="text-align: right; padding: 8px">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (row of activity.rows(); track row.id) {
-          <tr
-            [attr.data-activity-app]="row.appId"
-            [attr.data-activity-id]="row.id"
-            style="border-top: 1px solid var(--line)"
-          >
-            <th scope="row" style="text-align: left; padding: 10px 8px; font-weight: 500">
-              {{ row.title }}
-              <small style="display: block; color: var(--txt-2)">{{ row.source }}</small>
-            </th>
-            <td style="padding: 10px 8px">
-              {{ row.state }}
-              <br />
-              {{ row.visibility }}
-            </td>
-            <td style="padding: 10px 8px">
-              {{ row.resources }}
-              @if (row.failure) {
-                <p role="alert" style="margin: 4px 0; color: var(--red)">{{ row.failure }}</p>
-              }
-            </td>
-            <td style="padding: 10px 8px; text-align: right; white-space: nowrap">
-              <button
-                class="btn"
-                [attr.aria-label]="'Show ' + row.title"
-                [disabled]="row.closing"
-                (click)="show(row.id)"
-                tabindex="0"
-                type="button"
-              >
-                Show
-              </button>
-              <button
-                class="btn"
-                [attr.aria-label]="'Close ' + row.title"
-                [disabled]="row.closing"
-                (click)="wm.close(row.id)"
-                tabindex="0"
-                type="button"
-              >
-                Close
-              </button>
-            </td>
+  @if (tab() === 'Windows') {
+    <p role="status" style="margin: 0">{{ activity.rows().length }} windows in this desktop tab</p>
+    <p data-activity-scope style="margin: 0; color: var(--txt-2); font-size: 12px">
+      These are desktop windows. Per-app CPU, memory, energy, disk and network usage are not available. The bundled game
+      pauses rendering and audio when hidden. Other apps manage their own background work.
+    </p>
+    <div class="scroll" style="flex: 1; min-height: 0">
+      <table
+        aria-label="Running desktop windows"
+        data-activity-table
+        style="width: 100%; border-collapse: collapse; font-size: 12px"
+      >
+        <thead>
+          <tr>
+            <th scope="col" style="text-align: left; padding: 8px">Window</th>
+            <th scope="col" style="text-align: left; padding: 8px">Status</th>
+            <th scope="col" style="text-align: left; padding: 8px">Background work</th>
+            <th scope="col" style="text-align: right; padding: 8px">Actions</th>
           </tr>
-        }
-      </tbody>
-    </table>
-  </div>
-  <p style="margin: 0; color: var(--txt-2); font-size: 12px">
-    Closing a window keeps its existing save or discard confirmation.
-  </p>
+        </thead>
+        <tbody>
+          @for (row of rows(); track row.id) {
+            <tr
+              [attr.data-activity-app]="row.appId"
+              [attr.data-activity-id]="row.id"
+              style="border-top: 1px solid var(--line)"
+            >
+              <th scope="row" style="text-align: left; padding: 10px 8px; font-weight: 500">
+                {{ row.title }}
+                <small style="display: block; color: var(--txt-2)">{{ row.source }}</small>
+              </th>
+              <td style="padding: 10px 8px">
+                {{ row.state }}
+                <br />
+                {{ row.visibility }}
+              </td>
+              <td style="padding: 10px 8px">
+                {{ row.resources }}
+                @if (row.failure) {
+                  <p role="alert" style="margin: 4px 0; color: var(--red)">{{ row.failure }}</p>
+                }
+              </td>
+              <td style="padding: 10px 8px; text-align: right; white-space: nowrap">
+                <button
+                  class="btn"
+                  [attr.aria-label]="'Show ' + row.title"
+                  [disabled]="row.closing"
+                  (click)="show(row.id)"
+                  tabindex="0"
+                  type="button"
+                >
+                  Show
+                </button>
+                <button
+                  class="btn"
+                  [attr.aria-label]="'Close ' + row.title"
+                  [disabled]="row.closing"
+                  (click)="requestClose(row.id, row.title)"
+                  tabindex="0"
+                  type="button"
+                >
+                  Close
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <p style="margin: 0; color: var(--txt-2); font-size: 12px">
+      Closing a window keeps its existing save or discard confirmation.
+    </p>
+  } @else {
+    <p role="status" style="margin: 0">
+      {{ tab() }} · {{ rows().length }} of {{ activity.rows().length }} processes shown
+    </p>
+    <p data-activity-metric-note style="margin: 0; color: var(--txt-2); font-size: 12px">
+      Demo readings — browser windows do not report per-app process metrics. {{ metricNote() }}
+    </p>
+    <div class="scroll" style="flex: 1; min-height: 0">
+      <table
+        [attr.aria-label]="tab() + ' usage'"
+        data-activity-metric-table
+        style="width: 100%; border-collapse: collapse; font-size: 12px"
+      >
+        <thead>
+          <tr>
+            <th scope="col" style="text-align: left; padding: 8px">Window</th>
+            <th scope="col" style="text-align: right; padding: 8px">{{ tab() }}</th>
+            <th scope="col" style="text-align: left; padding: 8px">Status</th>
+            <th scope="col" style="text-align: right; padding: 8px">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (entry of metric(); track entry.row.id) {
+            <tr
+              [attr.data-activity-app]="entry.row.appId"
+              [attr.data-activity-id]="entry.row.id"
+              style="border-top: 1px solid var(--line)"
+            >
+              <th scope="row" style="text-align: left; padding: 10px 8px; font-weight: 500">
+                {{ entry.row.title }}
+                <small style="display: block; color: var(--txt-2)">{{ entry.row.source }}</small>
+              </th>
+              <td
+                [attr.data-metric]="entry.value"
+                style="padding: 10px 8px; text-align: right; font-variant-numeric: tabular-nums"
+              >
+                {{ entry.value }}
+              </td>
+              <td style="padding: 10px 8px">
+                {{ entry.row.state }}
+                <br />
+                {{ entry.row.visibility }}
+              </td>
+              <td style="padding: 10px 8px; text-align: right; white-space: nowrap">
+                <button
+                  class="btn"
+                  [attr.aria-label]="'Show ' + entry.row.title"
+                  [disabled]="entry.row.closing"
+                  (click)="show(entry.row.id)"
+                  tabindex="0"
+                  type="button"
+                >
+                  Show
+                </button>
+                <button
+                  class="btn"
+                  [attr.aria-label]="'Close ' + entry.row.title"
+                  [disabled]="entry.row.closing"
+                  (click)="requestClose(entry.row.id, entry.row.title)"
+                  tabindex="0"
+                  type="button"
+                >
+                  Close
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
 </div>

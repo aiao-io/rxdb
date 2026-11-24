@@ -52,6 +52,8 @@ export class TerminalTab implements OnDestroy {
   readonly active = input(false);
   readonly cwd = input.required<string>();
   readonly focusOnMount = input.required<boolean>();
+  /** 字号（CSS 像素），由 Shell 菜单的 ⌘+/⌘- 调整。 */
+  readonly fontSize = input(12.5);
 
   constructor() {
     this.terminal.parser.registerOscHandler(OPEN_OSC, async data => {
@@ -72,6 +74,13 @@ export class TerminalTab implements OnDestroy {
       if (!firstActivation || this.focusOnMount()) this.terminal.focus();
       firstActivation = false;
     });
+    /* 字号变化时改 xterm 配置并重新排版，终端打开前只记配置。 */
+    afterRenderEffect(() => {
+      const size = this.fontSize();
+      if (this.terminal.options.fontSize === size) return;
+      this.terminal.options.fontSize = size;
+      if (this.terminal.element && this.active()) this.fitAddon.fit();
+    });
   }
 
   fit(): void {
@@ -86,6 +95,17 @@ export class TerminalTab implements OnDestroy {
   /** 清掉滚动缓冲，不向 shell 写入任何命令。 */
   clearScrollback(): void {
     this.terminal.clear();
+    this.terminal.focus();
+  }
+
+  /** 当前选中的文本；没有选中是空串。 */
+  selection(): string {
+    return this.terminal.getSelection();
+  }
+
+  /** 把文本喂给终端，等同粘贴。 */
+  pasteText(text: string): void {
+    this.terminal.paste(text);
     this.terminal.focus();
   }
 

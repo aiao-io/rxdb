@@ -15,21 +15,85 @@
           <svg appIcon="g-chev-r"></svg>
         </button>
       </div>
-      <div class="sf-url" data-nodrag>
+      <div class="sf-url" data-nodrag style="position: relative">
         <span data-urlico><svg [appIcon]="urlIcon()"></svg></span>
         <input
           #urlField
-          (focus)="urlField.select()"
+          [attr.aria-expanded]="suggestOpen() && suggestions().length ? 'true' : 'false'"
+          (blur)="closeSuggest()"
+          (focus)="focusField(urlField)"
+          (input)="suggest(urlField.value)"
+          (keydown.arrowdown)="suggestDown($event)"
+          (keydown.arrowup)="suggestUp($event)"
           (keydown.enter)="submit($event, urlField)"
-          (keydown.escape)="cancel(urlField)"
+          (keydown.escape)="cancelSuggest($event, urlField)"
+          aria-activedescendant="suggestOpen() && suggestAt() >= 0 ? 'sf-sug-' + suggestAt() : null"
+          aria-autocomplete="list"
+          aria-controls="sf-suggest"
           autocomplete="off"
           data-url
           placeholder="Search or enter website name"
+          role="combobox"
           spellcheck="false"
         />
         <button class="tbtn" (click)="reload()" data-reload style="min-width: 20px; height: 20px" title="Reload">
           <svg appIcon="g-reload"></svg>
         </button>
+        @if (suggestOpen() && suggestions().length) {
+          <div
+            id="sf-suggest"
+            aria-label="Suggested addresses"
+            data-sf-suggest
+            role="listbox"
+            style="
+              position: absolute;
+              top: calc(100% + 6px);
+              left: 0;
+              right: 0;
+              z-index: 40;
+              display: flex;
+              flex-direction: column;
+              gap: 1px;
+              padding: 4px;
+              border-radius: 8px;
+              background: var(--win);
+              box-shadow:
+                0 12px 34px -8px rgba(0, 0, 0, 0.35),
+                0 0 0 0.5px var(--line-2);
+            "
+          >
+            @for (s of suggestions(); track s.url; let i = $index) {
+              <button
+                [attr.aria-selected]="i === suggestAt()"
+                [attr.id]="'sf-sug-' + i"
+                [style.background]="i === suggestAt() ? 'var(--hover)' : null"
+                (mousedown)="pickSuggest(s.url)"
+                (mousemove)="suggestAt.set(i)"
+                role="option"
+                style="
+                  display: flex;
+                  flex-direction: column;
+                  align-items: flex-start;
+                  gap: 1px;
+                  width: 100%;
+                  padding: 4px 8px;
+                  border: 0;
+                  border-radius: 5px;
+                  background: none;
+                  text-align: left;
+                  cursor: default;
+                  font: inherit;
+                  color: var(--txt);
+                "
+                tabindex="-1"
+                type="button"
+              >
+                <span style="font-size: 12px">{{ s.label }}</span>
+                <span style="font-size: 11px; color: var(--txt-2)">{{ s.url }}</span>
+              </button>
+            }
+          </div>
+        }
       </div>
       <div class="sf-r">
         <button class="tbtn" (click)="share()" data-nodrag data-share title="Share">
@@ -49,25 +113,39 @@
           <div
             class="sf-tab"
             [attr.data-i]="i"
+            [attr.draggable]="true"
             [class.on]="i === current()"
+            [style.flex]="item.pinned ? '0 0 auto' : null"
+            [style.justify-content]="item.pinned ? 'center' : null"
+            [style.padding]="item.pinned ? '0' : null"
+            [style.width]="item.pinned ? '27px' : null"
             (click)="selectTab(i)"
+            (contextmenu)="tabMenu($event, i)"
+            (dragend)="tabDragEnd()"
+            (dragover)="tabDragOver($event)"
+            (dragstart)="tabDragStart($event, i)"
+            (drop)="tabDrop($event, i)"
             (keydown.enter)="selectTab(i)"
             tabindex="-1"
           >
-            <span
-              class="x"
-              (click)="closeTabButton($event, i)"
-              (keydown.enter)="closeTabButton($event, i)"
-              tabindex="-1"
-            >
-              <svg appIcon="g-x"></svg>
-            </span>
+            @if (!item.pinned) {
+              <span
+                class="x"
+                (click)="closeTabButton($event, i)"
+                (keydown.enter)="closeTabButton($event, i)"
+                tabindex="-1"
+              >
+                <svg appIcon="g-x"></svg>
+              </span>
+            }
             <span class="mid">
               <ng-container
                 [ngTemplateOutlet]="favicon"
                 [ngTemplateOutletContext]="{ $implicit: item.url, size: 14 }"
               />
-              <span class="nm">{{ titleFor(item.url) }}</span>
+              @if (!item.pinned) {
+                <span class="nm">{{ titleFor(item.url) }}</span>
+              }
             </span>
           </div>
         }
@@ -84,6 +162,51 @@
       }
     </div>
   </div>
+  @if (finding()) {
+    <div
+      data-sf-find
+      style="
+        flex: none;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 7px 11px;
+        border-top: 0.5px solid var(--line);
+        background: var(--chrome);
+      "
+    >
+      <input
+        #findField
+        (input)="findOnPage(findField.value)"
+        (keydown.enter)="findStepDirection($event)"
+        (keydown.escape)="closeFind()"
+        aria-label="Find on page"
+        placeholder="Find"
+        spellcheck="false"
+        style="
+          flex: 0 1 210px;
+          height: 24px;
+          padding: 0 8px;
+          border-radius: 6px;
+          border: 0.5px solid var(--line-2);
+          background: var(--fill);
+          color: var(--txt);
+          font: inherit;
+          font-size: 12px;
+        "
+      />
+      <span data-sf-findcount style="min-width: 52px; font-size: 12px; color: var(--txt-2)">{{ findCount() }}</span>
+      <button class="tbtn" (click)="findPrevMatch()" aria-label="Previous match" tabindex="0" type="button">
+        <svg appIcon="g-chev-u"></svg>
+      </button>
+      <button class="tbtn" (click)="findNextMatch()" aria-label="Next match" tabindex="0" type="button">
+        <svg appIcon="g-chev-d"></svg>
+      </button>
+      <button class="tbtn" (click)="closeFind()" aria-label="Close find bar" tabindex="0" type="button">
+        <svg appIcon="g-x"></svg>
+      </button>
+    </div>
+  }
   <div class="sf-body">
     <div class="sf-side" data-side>
       @if (sidebar()) {
@@ -126,7 +249,13 @@
         </div>
       }
     </div>
-    <div class="sf-page scroll" #pageBox [attr.data-kind]="kind()" data-page>
+    <div
+      class="sf-page scroll"
+      #pageBox
+      [attr.data-kind]="kind()"
+      [style.zoom]="zoom() === 1 ? null : zoom()"
+      data-page
+    >
       @for (progress of bars(); track progress.id) {
         <div class="sf-prog" [class.on]="progress.on" [style.width]="progress.width" data-prog></div>
       }

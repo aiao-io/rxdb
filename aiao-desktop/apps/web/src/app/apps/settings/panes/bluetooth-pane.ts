@@ -3,7 +3,7 @@ import { Component, inject } from '@angular/core';
 import { SystemState } from '../../../services/system-state';
 import { ToggleSwitch } from '../toggle-switch';
 
-/** 蓝牙：总开关与设备列表（按钮只是摆设）。 */
+/** 蓝牙：总开关写回系统状态，设备列表是静态信息（连接状态只是展示）。 */
 @Component({
   selector: 'app-bluetooth-pane',
   imports: [ToggleSwitch],
@@ -24,7 +24,7 @@ import { ToggleSwitch } from '../toggle-switch';
             <div class="hint">{{ device[1] }}</div>
           </div>
           <div class="rt">
-            <button class="btn">{{ device[1] === 'Not Connected' ? 'Connect' : 'Disconnect' }}</button>
+            <span style="font-size: 12px; color: var(--txt-2)">{{ device[1] }}</span>
           </div>
         </div>
       }

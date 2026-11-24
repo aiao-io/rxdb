@@ -11,12 +11,13 @@ import {
   viewChild
 } from '@angular/core';
 
-import { CalendarEvent, CalendarEventDraft, CalendarStore, eventTime } from '../../services/calendar-store';
+import { CalendarEvent, CalendarEventDraft, CalendarStore, clockLabel, eventTime } from '../../services/calendar-store';
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
 import { PopoverService } from '../../services/popover';
 import { Toast } from '../../services/toast';
 import { WindowManager } from '../../services/window-manager';
+import { FocusTrap } from '../../shared/focus-trap';
 import { DAYS, DAYS3, MONS, MONS3, clamp } from '../../shared/format';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
@@ -28,11 +29,14 @@ import {
   FIRST_HOUR,
   HOURS,
   HOUR_ROW,
+  MiniCell,
   MonthCell,
   hourLabel,
   layoutDay,
   miniMonth,
   monthCells,
+  pickStep,
+  timeDragMinutes,
   viewTitle,
   weekOf
 } from './calendar-model';
@@ -93,6 +97,14 @@ interface PointerDrag {
   live: boolean;
 }
 
+/** 时间轴事件的纵向拖动：记录起点的指针位置与事件的开始时刻。 */
+interface PointerTimeDrag {
+  readonly id: string;
+  readonly y: number;
+  readonly s: number;
+  live: boolean;
+}
+
 const VIEWS = [
   { view: 'day', label: 'Day', width: 38 },
   { view: 'week', label: 'Week', width: 42 },
@@ -105,8 +117,8 @@ const LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'] as const;
 /** 日历：日、周、月、年四种视图，事件来自共享的日历存储；每个窗口各自记着翻到哪一天。 */
 @Component({
   selector: 'app-calendar',
-  imports: [Icon, TrafficLights],
-  host: { style: 'display: contents' },
+  imports: [FocusTrap, Icon, TrafficLights],
+  host: { style: 'display: contents', '(keydown)': 'key($event)' },
   templateUrl: './calendar.html'
 })
 export class CalendarApp {
@@ -126,6 +138,8 @@ export class CalendarApp {
   private readonly start = new Date();
   private drag: PointerDrag | null = null;
   private dragAbort: AbortController | null = null;
+  private timeDrag: PointerTimeDrag | null = null;
+  private timeDragAbort: AbortController | null = null;
   private readonly editor: CalendarDraftEditor;
 
   protected readonly store = inject(CalendarStore);
@@ -140,6 +154,10 @@ export class CalendarApp {
   protected readonly day = signal(this.start.getDate());
   /** 点过的格子；样式上没有区别，只是和原版一样留个标记。 */
   protected readonly picked = signal<string | null>(null);
+  /** 选中的事件（时间轴、月视图里点过的事件条）；Delete 键与样式据此工作。 */
+  protected readonly pickedEvent = signal<string | null>(null);
+  /** Delete 键按下后等确认的事件。 */
+  protected readonly confirmEvent = signal<CalendarEvent | null>(null);
   protected readonly dragging = signal<string | null>(null);
   protected readonly dropKey = signal<string | null>(null);
 
@@ -257,11 +275,52 @@ export class CalendarApp {
     window.addEventListener('beforeunload', beforeUnload);
     this.destroyRef.onDestroy(() => {
       this.stopDrag();
+      this.stopTimeDrag();
       window.removeEventListener('beforeunload', beforeUnload);
       this.win.confirmClose = null;
       this.win.hasUnsavedChanges.set(false);
       this.editor.dispose();
     });
+  }
+
+  /**
+   * 键盘：方向键按视图翻页或移动选中格，⌘←/⌘→ 回到今天，Delete 删除选中事件。
+   * 编辑器与搜索框里的按键不落到这里。
+   */
+  protected key(event: KeyboardEvent): void {
+    const target = event.target as Element;
+    if (target.closest('input, textarea, [contenteditable="true"]')) return;
+    /* 确认弹层开着时，Esc 与 Tab 由弹层自己处理，其余按键不落在日历上。 */
+    if (this.confirmEvent()) return;
+    if ((event.metaKey || event.ctrlKey) && (event.key === 'ArrowLeft' || event.key === 'ArrowRight')) {
+      event.preventDefault();
+      this.goToday();
+      return;
+    }
+    if (event.key === 'Delete' || event.key === 'Backspace') {
+      const id = this.pickedEvent();
+      if (id) {
+        event.preventDefault();
+        this.confirmDelete(id);
+      }
+      return;
+    }
+    const mode = this.view();
+    if (mode === 'month') {
+      this.monthKey(event);
+    } else if (mode === 'day' || mode === 'week') {
+      if (event.key === 'ArrowLeft') {
+        event.preventDefault();
+        this.shift(-1);
+      } else if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        this.shift(1);
+      } else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+        event.preventDefault();
+        const box = this.scroller()?.nativeElement;
+        if (box) box.scrollTop += (event.key === 'ArrowUp' ? -3 : 3) * HOUR_ROW;
+      }
+    }
   }
 
   /** 箭头按当前视图的跨度翻页。 */
@@ -310,6 +369,69 @@ export class CalendarApp {
     if (cell.out) return;
     this.picked.set(cell.key);
     this.day.set(cell.d);
+    this.pickedEvent.set(null);
+  }
+
+  /**
+   * 单击月视图的事件条：先选中格子与事件，再打开编辑器。
+   * 保持单击即开编辑器：calendar-drafts e2e 依赖一次点击后编辑器可见，双击与回车也走同一入口。
+   * 阻止冒泡，避免格子的 click 又把事件选中清掉。
+   */
+  protected chipClick(event: MouseEvent, cell: CellView, id: string): void {
+    event.stopPropagation();
+    this.pick(cell);
+    this.pickedEvent.set(id);
+    this.edit(id);
+  }
+
+  /** 单击时间轴或全天条上的事件：只选中，双击或回车才打开编辑器。 */
+  protected selectEvent(id: string): void {
+    this.pickedEvent.set(id);
+  }
+
+  /** 点迷你月历里的某一天：跳过去；空位格没有日期，忽略。 */
+  protected miniPick(cell: MiniCell): void {
+    if (!cell.d) return;
+    this.year.set(cell.y);
+    this.month.set(cell.m);
+    this.day.set(cell.d);
+    this.picked.set(`${cell.y}-${cell.m}-${cell.d}`);
+    this.render();
+  }
+
+  /** 月视图格子里的「N more」：列出这一天剩下的全部事件。 */
+  protected moreMenu(anchor: HTMLElement, cell: CellView, keyboard = false): void {
+    const events = this.store.on(cell.y, cell.m, cell.d);
+    this.pick(cell);
+    this.popover.menuUnder(
+      anchor,
+      events.map(event => ({
+        id: event.id,
+        label: `${eventTime(event)} · ${event.t}`,
+        run: () => this.edit(event.id)
+      })),
+      { keyboard, label: `Events on ${MONS3[cell.m]} ${cell.d}` }
+    );
+  }
+
+  /** Delete 键：先请用户确认，再删掉选中事件。 */
+  protected confirmDelete(id: string): void {
+    const event = this.store.events().find(item => item.id === id);
+    if (event) this.confirmEvent.set(event);
+  }
+
+  protected cancelDelete(): void {
+    this.confirmEvent.set(null);
+  }
+
+  protected async deleteEvent(): Promise<void> {
+    const event = this.confirmEvent();
+    this.confirmEvent.set(null);
+    if (!event) return;
+    await this.store.remove(event.id);
+    this.pickedEvent.set(null);
+    this.toast.show(`Deleted “${event.t}”`);
+    this.render();
   }
 
   protected newEvent(): void {
@@ -346,9 +468,44 @@ export class CalendarApp {
     addEventListener('pointerup', (up: PointerEvent) => this.dragEnd(up), { signal });
   }
 
+  /** 时间轴上的事件条上下拖动改时刻：全天事件没有时刻，不参与。 */
+  protected dragStartTime(event: PointerEvent, id: string): void {
+    if (event.button) return;
+    this.stopDrag();
+    this.stopTimeDrag();
+    const moving = this.store.events().find(item => item.id === id);
+    if (!moving || moving.s === null) return;
+    this.timeDrag = { id, y: event.clientY, s: moving.s, live: false };
+    this.timeDragAbort = new AbortController();
+    const { signal } = this.timeDragAbort;
+    addEventListener('pointermove', (move: PointerEvent) => this.timeDragMove(move), { signal });
+    addEventListener('pointerup', (up: PointerEvent) => this.timeDragEnd(up), { signal });
+  }
+
   /** 原版每次重绘都会把时间轴滚回起始小时；这里等新的 DOM 渲染出来再对齐。 */
   private render(): void {
     afterNextRender(() => this.scrollToHour(), { injector: this.injector });
+  }
+
+  /** 月视图里方向键移动选中的格子，选中格翻出当月就跟着翻月。 */
+  private monthKey(event: KeyboardEvent): void {
+    const key = event.key;
+    if (key !== 'ArrowLeft' && key !== 'ArrowRight' && key !== 'ArrowUp' && key !== 'ArrowDown') return;
+    event.preventDefault();
+    const step = pickStep(this.pickedDate(), key);
+    this.year.set(step[0]);
+    this.month.set(step[1]);
+    this.day.set(step[2]);
+    this.picked.set(step.join('-'));
+    this.pickedEvent.set(null);
+    this.render();
+  }
+
+  /** 当前选中的日期：格子点过用格子，否则用窗口显示的那一天。 */
+  private pickedDate(): EventDate {
+    const parts = this.picked()?.split('-').map(Number);
+    if (parts?.length === 3 && parts.every(Number.isFinite)) return [parts[0], parts[1], parts[2]];
+    return [this.year(), this.month(), this.day() || 1];
   }
 
   /** 时间轴默认停在 7 点；看今天时跟着时钟走（当前时刻前两小时，夹在 7 点到 16 点之间），半夜来访也不会落在一片空白里。 */
@@ -467,6 +624,39 @@ export class CalendarApp {
     this.drag = null;
     this.dragging.set(null);
     this.dropKey.set(null);
+    document.body.style.cursor = '';
+  }
+
+  private timeDragMove(event: PointerEvent): void {
+    const drag = this.timeDrag;
+    if (!drag) return;
+    if (!drag.live) {
+      if (Math.abs(event.clientY - drag.y) < 4) return;
+      drag.live = true;
+      this.dragging.set(drag.id);
+      document.body.style.cursor = 'grabbing';
+    }
+  }
+
+  private async timeDragEnd(event: PointerEvent): Promise<void> {
+    const drag = this.timeDrag;
+    this.stopTimeDrag();
+    if (!drag?.live) return;
+    const moved = this.store.events().find(item => item.id === drag.id);
+    if (!moved || moved.s === null) return;
+    const delta = timeDragMinutes(event.clientY - drag.y);
+    if (!delta) return;
+    const start = clamp(drag.s + delta, 0, 1425);
+    await this.store.update(drag.id, { s: start });
+    this.render();
+    this.toast.show(`Moved to ${clockLabel(start)}`);
+  }
+
+  private stopTimeDrag(): void {
+    this.timeDragAbort?.abort();
+    this.timeDragAbort = null;
+    this.timeDrag = null;
+    this.dragging.set(null);
     document.body.style.cursor = '';
   }
 

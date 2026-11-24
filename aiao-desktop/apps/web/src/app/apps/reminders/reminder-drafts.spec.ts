@@ -50,8 +50,8 @@ describe('ReminderDrafts', () => {
     expect(drafts.dirty()).toBe(true);
     expect(await drafts.save(id)).toBe(true);
     expect(write.mock.calls).toEqual([
-      [{ id, title: 'user text 🌏', done: true }],
-      [{ id, title: 'user text 🌏', done: true }]
+      [{ id, title: 'user text 🌏', done: true, due: 'Today' }],
+      [{ id, title: 'user text 🌏', done: true, due: 'Today' }]
     ]);
     expect(drafts.rows()[0]).toMatchObject({ id, editing: false, createdId: id, error: '' });
     expect(drafts.dirty()).toBe(false);
@@ -143,6 +143,15 @@ describe('ReminderDrafts', () => {
     expect(drafts.discard('missing')).toBe(true);
     expect(drafts.rows().map(row => row.id)).toEqual([id]);
     expect(write).not.toHaveBeenCalled();
+  });
+
+  it('setDue 只改编辑中的草稿，保存时随行写进库', async () => {
+    const { drafts, id, write } = setup();
+    drafts.setDue(id, 'Tomorrow');
+    expect(drafts.rows()[0]).toMatchObject({ due: 'Tomorrow' });
+    drafts.edit(id, 'book car');
+    expect(await drafts.save(id)).toBe(true);
+    expect(write.mock.calls).toEqual([[{ id, title: 'book car', done: false, due: 'Tomorrow' }]]);
   });
 
   it('销毁后不启动新保存，迟到失败不恢复已销毁的编辑状态', async () => {

@@ -207,7 +207,7 @@ describe('SystemSettingsStore 写回', () => {
     const [key, snapshot] = preferences.set.mock.calls[0] as unknown as [string, Record<string, unknown>];
     expect(key).toBe(SETTINGS_KEY);
     expect(snapshot).toMatchObject({ accent: 'green', appearance: 'light', volume: 0.65, wallpaper: 'tahoe' });
-    expect(Object.keys(snapshot)).toHaveLength(15);
+    expect(Object.keys(snapshot)).toHaveLength(26);
   });
 
   it('拖滑块时只在停手后写一次，写的是最后的值', async () => {
@@ -341,7 +341,18 @@ describe('SystemSettingsStore 多标签页（ADESK-US-105）', () => {
       dockMag: 1.8,
       dockMagOn: false,
       wallpaper: 'tahoe',
-      safariFavs: true
+      safariFavs: true,
+      dockPosition: 'bottom',
+      dockAutoHide: false,
+      minimizeEffect: 'genie',
+      dockAnimateOpen: true,
+      dockShowIndicators: true,
+      alertSound: 'boop',
+      uiSounds: true,
+      autoBrightness: true,
+      trueTone: true,
+      optimisedCharging: true,
+      lowPowerMode: 'never'
     };
     const { preferences } = setup({ saved: full });
     await settle();

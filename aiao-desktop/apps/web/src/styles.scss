@@ -6945,3 +6945,464 @@ app-mail-compose textarea:focus-visible {
   outline: 2px solid var(--blue);
   outline-offset: 2px;
 }
+
+/* === macOS 差距批次：集中应用的组件样式（主会话统一写入） === */
+/* [impl:shell2] [FULLSCREEN] 全屏空间隐藏菜单栏与 Dock。class 由 desktop-shell.html 按 wm.hasFullscreen 挂到 #stage 上（menubar.html/dock.html 不在本代理文件清单，故用祖先 class + 后代选择器；#docktip 在 #dockwrap 内一并隐藏）。两个 id 选择器的 display:flex 规则特异性（1,0,0）低于本组合（2,0,0），无需 !important。放在 styles.scss 任意位置即可生效。 */
+#stage.fullscreen #menubar,
+#stage.fullscreen #dockwrap {
+  display: none;
+}
+
+/* [impl:desktop] Show View Options 的图标块宽度：变量由 desktop-surface 的 afterRenderEffect 按 gridMetrics 写到 #desktop 元素 style 上，默认 82px 与现网一致 */
+#desktop .dicon,
+#desktop .dstack {
+  width: var(--di-tile, 82px);
+}
+
+/* [impl:desktop] 图标画布尺寸跟随视图选项（默认 60px） */
+#desktop .dicon .art,
+#desktop .dstack .art {
+  width: var(--di-art, 60px);
+  height: var(--di-art, 60px);
+}
+
+/* [impl:desktop] 标签字号与行高跟随视图选项（默认 12px/14px） */
+#desktop .dicon .lbl,
+#desktop .dstack .lbl {
+  max-width: calc(var(--di-tile, 82px) - 4px);
+  font-size: var(--di-font, 12px);
+  line-height: var(--di-line, 14px);
+}
+
+/* [impl:desktop] Use Stacks 叠的数量角标（.dicon .art 已自带 position:relative） */
+#desktop .dstack .cnt {
+  position: absolute;
+  right: -7px;
+  bottom: -5px;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border-radius: 10px;
+  background: rgba(28, 28, 30, 0.92);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.28);
+}
+
+/* [impl:fileops] Alias 种类图标资源 f-alias.png 缺失（资源文件不在本角色清单内），否则 Finder 会渲染破图；补资源或改映射二选一。 */
+.f-alias {
+  /* 无需 CSS：图标走 public/icons/desktop/<name>.png 资源（shared/icon.ts 的 [appIcon] 指令）。仓库目前没有 f-alias.png，需主会话补充该资源（可参照 f-txt.png 风格，建议带小箭头角标的文档样式），或把 disk-kinds.ts 里 ALIAS_KIND.icon 改成已有图标再补资源。 */
+}
+
+/* [impl:dock] 覆盖全局 DOCK 段的 #dock transition（补上 transform 供自动隐藏滑出/滑入与位置旋转动画）；必须注入在 styles.scss 的 DOCK 一节之后，否则被原规则覆盖。 */
+#dock {
+  transition:
+    height 0.22s var(--e-out),
+    border-radius 0.22s var(--e-out),
+    transform 0.26s var(--e-out);
+}
+
+/* [impl:dock] 左/右位置时 wrap 变成贴边的零宽全高条，只当定位容器；#dock 的贴边定位与旋转由 dock.ts applyDockTransform 写内联样式完成。 */
+#dockwrap.dock-left,
+#dockwrap.dock-right {
+  #dockwrap.dock-left {
+    left: 0;
+    right: auto;
+    top: var(--mb-h);
+    bottom: 0;
+    width: 0;
+  }
+  #dockwrap.dock-right {
+    left: auto;
+    right: 0;
+    top: var(--mb-h);
+    bottom: 0;
+    width: 0;
+  }
+}
+
+/* [impl:dock] 自动隐藏的触发条带（仅 dockAutoHide 开启时由模板渲染），z-index 799 在 Dock(800) 之下；Dock 滑出时盖住它。 */
+#dock-edge,
+#dock-edge.bottom,
+#dock-edge.left,
+#dock-edge.right {
+  #dock-edge {
+    position: absolute;
+    z-index: 799;
+    pointer-events: auto;
+  }
+  #dock-edge.bottom {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 5px;
+  }
+  #dock-edge.left {
+    left: 0;
+    top: var(--mb-h);
+    bottom: 0;
+    width: 5px;
+  }
+  #dock-edge.right {
+    right: 0;
+    top: var(--mb-h);
+    bottom: 0;
+    width: 5px;
+  }
+}
+
+/* [impl:dock] 有最小化窗口 tile 时玻璃加高 22px，给图标上方的标题腾位置；图标仍锚在底部 9px，rectFor/布局不受影响。 */
+#dockwrap.has-minis #dock {
+  height: calc(var(--dock-size) + 36px);
+}
+
+/* [impl:dock] 最小化窗口 tile 的标题，显示在图标上方（左/右 Dock 随图标反向旋转保持直立）。 */
+#dock .di.win .win-title {
+  position: absolute;
+  bottom: calc(100% + 3px);
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(var(--dock-size) * 2.4);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+
+/* [impl:dock] 文件拖到 Dock 应用图标时的目标高亮（与键盘焦点环同款式；废纸篓不参与文件打开流程）。 */
+#dock .di.file-target .art {
+  outline: 2.5px solid var(--blue);
+  outline-offset: 2px;
+  border-radius: 22%;
+}
+
+/* [impl:dock] dockShowIndicators 关闭时隐藏运行指示点。 */
+#dockwrap.no-indicators .di .dot {
+  display: none;
+}
+
+/* [impl:dock] 悬停提示随玻璃旋转后反向转回直立；tip 的 left 内联定位在 Dock 主轴坐标里，无需改。 */
+#dockwrap.dock-left #docktip,
+#dockwrap.dock-right #docktip {
+  #dockwrap.dock-left #docktip {
+    transform: rotate(-90deg);
+  }
+  #dockwrap.dock-right #docktip {
+    transform: rotate(90deg);
+  }
+}
+
+/* [impl:finder1] View Options 的网格单元与间距（覆盖原固定 104px / 14px 6px）；变量由 finder.html 在 .fx-body 上按 iconSize()*2 与 gridSpacing() 设置 */
+.fv-icon {
+  grid-template-columns: repeat(auto-fill, var(--finder-grid-cell, 104px));
+  gap: var(--finder-grid-gap, 14px 6px);
+}
+
+/* [impl:finder1] View Options 的图标大小（原固定 52px） */
+.fitem .art {
+  width: var(--finder-icon-size, 52px);
+  height: var(--finder-icon-size, 52px);
+}
+
+/* [impl:finder1] View Options 的文字大小与随网格变宽的标签上限（原 12px / 96px） */
+.fitem .nm {
+  font-size: var(--finder-text-size, 12px);
+  max-width: calc(var(--finder-grid-cell, 104px) - 8px);
+}
+
+/* [impl:finder1] 列表视图新外层容器：装表头 + listbox（表头按钮不能放进 role=listbox 的子树，否则 axe aria-required-children 违规） */
+.fv-list-wrap {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  font-size: 12.5px;
+}
+
+/* [impl:finder1] .fv-list 现在只包滚动区，高度交给 flex 填满外层剩余空间（覆盖原 height: 100%） */
+.fv-list {
+  height: auto;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+/* [impl:finder1] 可点击排序的表头按钮：去掉按钮默认外观，与原来表头文字一致 */
+.fv-list .hd .hdbtn {
+  height: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 10px;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 500;
+}
+
+/* [impl:finder1] 表头悬停反馈 */
+.fv-list .hd .hdbtn:hover {
+  background: var(--hover);
+}
+
+/* [impl:finder1] 表头键盘焦点描边 */
+.fv-list .hd .hdbtn:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: -2px;
+}
+
+/* [impl:finder1] Size 列的值右对齐，表头也右对齐 */
+.fv-list .hd .hdbtn.c3 {
+  justify-content: flex-end;
+}
+
+/* [impl:finder1] 排序列表头的方向箭头占位（当前排序列才有 aria-sort 属性） */
+.fv-list .hd .hdbtn[aria-sort]::after {
+  content: '';
+  width: 0;
+  height: 0;
+  flex: none;
+  margin-left: 4px;
+  border-left: 3.5px solid transparent;
+  border-right: 3.5px solid transparent;
+}
+
+/* [impl:finder1] 升序：向上的三角 */
+.fv-list .hd .hdbtn[aria-sort='ascending']::after {
+  border-bottom: 4.5px solid var(--txt-2);
+}
+
+/* [impl:finder1] 降序：向下的三角 */
+.fv-list .hd .hdbtn[aria-sort='descending']::after {
+  border-top: 4.5px solid var(--txt-2);
+}
+
+/* [impl:finder1] 列表表头拖宽分隔条：4px 命中区、中间 1px 竖线（覆盖 .hd > div 的 padding/溢出规则） */
+.fv-list .hd .hd-sep {
+  width: 4px;
+  flex: none;
+  align-self: stretch;
+  padding: 0;
+  cursor: col-resize;
+  background: linear-gradient(var(--line), var(--line)) no-repeat center / 1px 100%;
+}
+
+/* [impl:finder1] 分隔条键盘焦点描边 */
+.fv-list .hd .hd-sep:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: -1px;
+}
+
+/* [impl:finder1] Date Modified 列宽变量（表头与行共用，默认 184px） */
+.fv-list .c2 {
+  width: var(--finder-c2, 184px);
+}
+
+/* [impl:finder1] Size 列宽变量（默认 76px） */
+.fv-list .c3 {
+  width: var(--finder-c3, 76px);
+}
+
+/* [impl:finder1] Kind 列宽变量（默认 112px） */
+.fv-list .c4 {
+  width: var(--finder-c4, 112px);
+}
+
+/* [impl:finder1] 别名角标：图标左下角的小圆角方块（macOS 别名箭头底） */
+.fitem .art .finder-alias-badge,
+.fv-gal .strip .t .finder-alias-badge {
+  position: absolute;
+  left: -2px;
+  bottom: -2px;
+  width: 17px;
+  height: 17px;
+  box-sizing: border-box;
+  display: flex;
+  border: 0.5px solid var(--line-2);
+  border-radius: 5px;
+  background: var(--win-2);
+  pointer-events: none;
+}
+
+/* [impl:finder1] 角标里指向右上（目标）的小箭头 */
+.fitem .art .finder-alias-badge::before,
+.fv-gal .strip .t .finder-alias-badge::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  margin: auto;
+  border-top: 1.5px solid var(--txt-2);
+  border-right: 1.5px solid var(--txt-2);
+}
+
+/* [impl:finder1] 画廊缩略图条格子给角标提供定位上下文 */
+.fv-gal .strip .t {
+  position: relative;
+}
+
+/* [impl:finder1] 重名冲突 / 立即删除确认浮层的全窗遮罩（与 EmptyTrashDialog 同规格） */
+.finder-confirm {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: grid;
+  place-items: center;
+  background: rgba(0, 0, 0, 0.28);
+}
+
+/* [impl:finder1] 确认卡片外观 */
+.finder-confirm-card {
+  width: min(390px, 100%);
+  padding: 22px;
+  box-sizing: border-box;
+  border: 0.5px solid var(--line-2);
+  border-radius: 12px;
+  background: var(--win-2);
+  color: var(--txt);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.28);
+}
+
+/* [impl:finder1] 确认框标题 */
+.finder-confirm h2 {
+  margin: 0 0 10px;
+  font-size: 16px;
+}
+
+/* [impl:finder1] 确认框正文（文件名可能很长） */
+.finder-confirm p {
+  margin: 0;
+  color: var(--txt-2);
+  font-size: 12.5px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+/* [impl:finder1] 确认按钮行 */
+.finder-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+/* [impl:finder1] 确认按钮外观 */
+.finder-confirm-actions button {
+  min-width: 82px;
+  padding: 7px 13px;
+  border: 0.5px solid var(--line-2);
+  border-radius: 6px;
+  background: var(--win);
+  color: var(--txt);
+  font: inherit;
+}
+
+/* [impl:finder1] 确认按钮悬停 */
+.finder-confirm-actions button:hover {
+  background: var(--hover);
+}
+
+/* [impl:finder1] 危险动作（Replace / Delete）红色 */
+.finder-confirm-actions button.danger {
+  border-color: var(--red);
+  background: var(--red);
+  color: #fff;
+}
+
+/* [impl:finder1] 危险按钮悬停 */
+.finder-confirm-actions button.danger:hover {
+  filter: brightness(1.08);
+}
+
+/* [impl:apps-b1] 月视图被选中（点击或方向键移动）的格子底色 */
+.cal-cell.pick {
+  background: color-mix(in srgb, var(--blue) 6%, transparent);
+}
+
+/* [impl:apps-b1] 选中格日期数字的蓝环；双层写法在 today 的蓝底上也可见 */
+.cal-cell.pick .d {
+  box-shadow:
+    0 0 0 1.5px var(--win),
+    0 0 0 3px var(--blue);
+}
+
+/* [impl:apps-b1] 选中的事件条（月视图 chip / 全天条 / 时间轴 ev）蓝环 */
+.cal-ev.pick,
+.cal-band .chip.pick,
+.cal-time .ev.pick {
+  box-shadow:
+    0 0 0 2px var(--win),
+    0 0 0 3.5px var(--blue);
+}
+
+/* [impl:apps-b1] tabindex=-1 的键盘导航目标需要自己的焦点环（全局规则对 [tabindex='-1'] 是 outline:none） */
+.mini .mg i:focus-visible,
+.cal-more:focus-visible,
+.cal-ev:focus-visible,
+.cal-time .ev:focus-visible,
+.mu-song:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+
+/* [impl:apps-b1] 迷你月历里当前显示的日期（today 保持蓝底不变） */
+.mini .mg i.sel:not(.today) {
+  box-shadow: inset 0 0 0 1.5px var(--blue);
+}
+
+/* [impl:apps-b1] 键盘选中的歌曲行背景（.pick 绑定之前就有，一直缺样式） */
+.mu-song.pick {
+  background: color-mix(in srgb, var(--blue) 9%, transparent);
+}
+
+/* [impl:apps-b1] 详情页放大后允许滚动；zoom=1 时不加该类，现有布局不变 */
+.ph-det .stage.zoom {
+  place-items: start;
+  overflow: auto;
+}
+
+/* [impl:apps-b1] 放大后图片按 zoom*100% 宽度显示，不再被 100% 上限夹住 */
+.ph-det .stage.zoom img {
+  max-width: none;
+  max-height: none;
+}
+
+/* [impl:apps-b2] Reminders 拖动提醒到侧栏列表时的悬停高亮（reminders.html 用 [class.drop]="hoverList() === list.id"） */
+.sbar .si.drop {
+  background: var(--win-2);
+  box-shadow: inset 0 0 0 2px var(--blue);
+}
+
+/* [impl:apps-b2] App Store 安装中的不确定进度条（app-store.html busy 时渲染，keyframes 必须进全局 styles.scss） */
+.store-progress,
+.store-progress-fill {
+  .store-progress {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--win-2);
+    overflow: hidden;
+  }
+  .store-progress-fill {
+    width: 40%;
+    height: 100%;
+    border-radius: 2px;
+    background: var(--blue);
+    animation: store-progress-slide 1.2s ease-in-out infinite;
+  }
+  @keyframes store-progress-slide {
+    0% {
+      margin-left: -40%;
+    }
+    100% {
+      margin-left: 100%;
+    }
+  }
+}

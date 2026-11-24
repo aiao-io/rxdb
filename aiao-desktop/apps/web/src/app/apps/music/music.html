@@ -68,8 +68,9 @@
                   [class.on]="row.index === index()"
                   [class.pick]="row.index === picked()"
                   (click)="picked.set(row.index)"
+                  (contextmenu)="menu($event, row)"
                   (dblclick)="play(row.index)"
-                  (keydown.enter)="picked.set(row.index)"
+                  (keydown)="rowKey($event, n)"
                   tabindex="-1"
                 >
                   <span class="n">{{ n + 1 }}</span>

@@ -5,7 +5,9 @@ import { DesktopAppServices } from '../../services/desktop-app-services';
 import { ALL_ROWS, liveQuery } from '../../data/live-query';
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
+import { PopoverService } from '../../services/popover';
 import { SystemState } from '../../services/system-state';
+import { Toast } from '../../services/toast';
 import { clamp, mmss } from '../../shared/format';
 import { Icon } from '../../shared/icon';
 import { Slider } from '../../shared/slider';
@@ -59,6 +61,8 @@ type MusicBody = 'search' | 'songs' | 'artists' | 'albums';
 })
 export class MusicApp {
   private readonly win = inject(DesktopWindow);
+  private readonly popover = inject(PopoverService);
+  private readonly toast = inject(Toast);
   private readonly nowPlaying = inject(DesktopAppServices).get(NowPlaying);
   private readonly synth = new Synth();
   /** 专辑与歌曲一起读：两边都到齐才发出，曲库里不会出现指向未读到专辑的歌。 */
@@ -211,6 +215,58 @@ export class MusicApp {
     this.playing.set(true);
     this.startSynth(from);
     this.picked.set(null);
+  }
+
+  /** 歌曲列表方向键：上下移动选中，Enter 播放选中的那一行。 */
+  protected rowKey(event: KeyboardEvent, index: number): void {
+    const rows = this.rows();
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      const chosen = this.picked();
+      this.play(chosen ?? rows[index]?.index ?? 0);
+      return;
+    }
+    const step =
+      event.key === 'ArrowDown' ? 1
+      : event.key === 'ArrowUp' ? -1
+      : 0;
+    if (!step) return;
+    event.preventDefault();
+    const target = rows[index + step];
+    if (!target) return;
+    this.picked.set(target.index);
+    (event.currentTarget as HTMLElement).parentElement
+      ?.querySelector<HTMLElement>(`[data-si="${target.index}"]`)
+      ?.focus();
+  }
+
+  /** 歌曲行的右键菜单；Play Next 与歌单编辑在本地曲库里没有对应能力，先用占位提示。 */
+  protected menu(event: MouseEvent, row: SongRow): void {
+    this.picked.set(row.index);
+    this.popover.contextMenu(
+      event,
+      [
+        { id: 'p', label: 'Play', run: () => this.play(row.index) },
+        {
+          id: 'n',
+          label: 'Play Next',
+          run: () => this.toast.show('Play Next is not available in this local library yet')
+        },
+        {
+          id: 'a',
+          label: 'Add to Playlist',
+          submenu:
+            this.playlists().length ?
+              this.playlists().map(playlist => ({
+                id: `pl-${playlist.name}`,
+                label: playlist.name,
+                run: () => this.toast.show('Playlist editing is not available in this local library yet')
+              }))
+            : [{ id: 'none', label: 'No Playlists', disabled: true }]
+        }
+      ],
+      'song'
+    );
   }
 
   protected playAlbum(album: number): void {

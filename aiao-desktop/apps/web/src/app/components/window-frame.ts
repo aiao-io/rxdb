@@ -3,6 +3,7 @@ import {
   Component,
   ElementRef,
   Injector,
+  OnDestroy,
   OnInit,
   Renderer2,
   afterNextRender,
@@ -11,9 +12,11 @@ import {
   input
 } from '@angular/core';
 
+import { Preferences } from '../data/preferences';
 import { windowHidden } from '../services/aria';
 import { DesktopWindow, WindowBox, WindowFrameHandle } from '../services/desktop-window';
 import { DockState } from '../services/dock-state';
+import { SystemState } from '../services/system-state';
 import { placeOnScreen } from '../services/window-layout-model';
 import { WindowManager } from '../services/window-manager';
 import { clamp, lerp } from '../shared/format';
@@ -44,6 +47,14 @@ const roundBox = (box: WindowBox): WindowBox => ({
   width: Math.round(box.width),
   height: Math.round(box.height)
 });
+
+/** 双击标题栏的动作（macOS「桌面与程序坞」设置，偏好键 {@link TITLE_DOUBLE_CLICK_KEY}）。 */
+export type TitleDoubleClickAction = 'zoom' | 'minimize' | 'none';
+/** 「双击标题栏」偏好键；系统设置面板由 impl:settings 按 plain() 模式注册。 */
+export const TITLE_DOUBLE_CLICK_KEY = 'window:doubleClickTitle';
+/** 收窄「双击标题栏」偏好值的守卫。 */
+export const isTitleDoubleClickAction = (value: unknown): value is TitleDoubleClickAction =>
+  value === 'zoom' || value === 'minimize' || value === 'none';
 
 /** 标题栏里这些元素自己处理指针，不触发拖动与双击缩放。 */
 const NO_DRAG = 'button,input,.tl,.seg,.sfield,[data-nodrag]';
@@ -92,9 +103,11 @@ const NO_DRAG = 'button,input,.tl,.seg,.sfield,[data-nodrag]';
     }
   `
 })
-export class WindowFrame implements OnInit, WindowFrameHandle {
+export class WindowFrame implements OnDestroy, OnInit, WindowFrameHandle {
   private readonly wm = inject(WindowManager);
   private readonly dock = inject(DockState);
+  private readonly system = inject(SystemState);
+  private readonly preferences = inject(Preferences);
   private readonly renderer = inject(Renderer2);
   private readonly injector = inject(Injector);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
@@ -111,6 +124,10 @@ export class WindowFrame implements OnInit, WindowFrameHandle {
   );
   protected readonly contentInjector = computed(() =>
     Injector.create({ providers: [{ provide: DesktopWindow, useValue: this.win() }], parent: this.injector })
+  );
+  /** 双击标题栏的动作；偏好里没有或值不合法时按 macOS 默认 Zoom。 */
+  protected readonly titleDoubleClickAction = computed(
+    () => this.preferences.get(TITLE_DOUBLE_CLICK_KEY, isTitleDoubleClickAction) ?? 'zoom'
   );
 
   readonly win = input.required<DesktopWindow>();
@@ -129,9 +146,15 @@ export class WindowFrame implements OnInit, WindowFrameHandle {
     const win = this.win();
     win.frame = this;
     this.setBox(win.initialBox);
+    /* 全屏进出（绿键、浏览器 Esc）经 fullscreenchange 回报窗口状态，桌面据此隐藏菜单栏与 Dock。 */
+    this.host.ownerDocument.addEventListener('fullscreenchange', this.onFullscreenChange);
     /* 刷新后恢复出来的窗口（ADESK-US-104）带着缩放 / 最小化状态来，不放动画，直接就位。 */
     if (win.zoomed()) this.applyRestoredZoom();
     if (win.minimized()) this.applyRestoredMinimize();
+  }
+
+  ngOnDestroy(): void {
+    this.host.ownerDocument.removeEventListener('fullscreenchange', this.onFullscreenChange);
   }
 
   focusContent(): void {
@@ -149,6 +172,8 @@ export class WindowFrame implements OnInit, WindowFrameHandle {
   minimize(): void {
     const win = this.win();
     if (win.minimized() || win.busy) return;
+    /* 全屏空间里的窗口先退出全屏再收起（浏览器只允许一个全屏元素；退出后菜单栏与 Dock 回来）。 */
+    if (win.fullscreen()) this.wm.exitFullscreen();
     const hadFocus = this.holdsFocus();
     win.busy = true;
     win.minimized.set(true);
@@ -160,30 +185,9 @@ export class WindowFrame implements OnInit, WindowFrameHandle {
     const sx = (target.w * 0.82) / rect.width;
     const sy = (target.h * 0.82) / rect.height;
     this.renderer.addClass(this.host, 'mini');
-    const animation = this.host.animate(
-      [
-        {
-          transform: 'translate(0px,0px) scale(1,1)',
-          clipPath: 'polygon(0% 0%,100% 0%,100% 100%,0% 100%)',
-          opacity: 1,
-          borderRadius: '11px'
-        },
-        {
-          transform: `translate(${tx * 0.5}px,${ty * 0.58}px) scale(${lerp(1, sx, 0.5)},${lerp(1, sy, 0.42)})`,
-          clipPath: 'polygon(20% 0%,80% 0%,93% 100%,7% 100%)',
-          opacity: 0.92,
-          borderRadius: '22px',
-          offset: 0.55
-        },
-        {
-          transform: `translate(${tx}px,${ty}px) scale(${sx},${sy})`,
-          clipPath: 'polygon(43% 0%,57% 0%,100% 100%,0% 100%)',
-          opacity: 0.3,
-          borderRadius: '40px'
-        }
-      ],
-      { duration: 430, easing: 'cubic-bezier(.42,.02,.58,1)', fill: 'forwards' }
-    );
+    /* [MINFX]：系统偏好「最小化效果」——scale 直线缩放进 Dock，genie（默认）神灯吸进 Dock。 */
+    const animation =
+      this.system.minimizeEffect() === 'scale' ? this.scaleToDock(tx, ty, sx, sy) : this.genieToDock(tx, ty, sx, sy);
     animation.onfinish = () => {
       this.host.style.visibility = 'hidden';
       win.hidden.set(true);
@@ -237,6 +241,7 @@ export class WindowFrame implements OnInit, WindowFrameHandle {
   }
 
   keepOnScreen(): void {
+    if (this.win().fullscreen()) return; /* 全屏几何由浏览器接管。 */
     const mb = this.wm.menubarHeight();
     if (this.win().zoomed()) {
       this.setBox({ left: 0, top: mb, width: innerWidth, height: this.wm.visibleHeight() });
@@ -248,6 +253,14 @@ export class WindowFrame implements OnInit, WindowFrameHandle {
     this.commitBox();
   }
 
+  /**
+   * 进入全屏空间（[FULLSCREEN] 契约，由 WindowManager 经框架句柄调用）：宿主元素 `requestFullscreen`，
+   * 成功与退出（绿键再点、Esc）都由 fullscreenchange 回报窗口状态。浏览器不支持或不在用户手势里时静默。
+   */
+  requestFullscreen(): void {
+    this.host.requestFullscreen().catch(() => undefined);
+  }
+
   /** 记住窗口里最近拿到焦点的元素；用 Tab 走进后台窗口时，窗口随之成为前台（鼠标按下已在捕获阶段处理）。 */
   protected focusEntered(event: FocusEvent): void {
     if (event.target !== this.host) this.lastFocus = event.target as HTMLElement;
@@ -257,18 +270,25 @@ export class WindowFrame implements OnInit, WindowFrameHandle {
   protected startDrag(event: PointerEvent): void {
     const target = event.target as Element;
     if (event.button !== 0 || !target.closest('[data-drag]') || target.closest(NO_DRAG)) return;
-    if (this.win().zoomed()) return;
+    if (this.win().zoomed() || this.win().fullscreen()) return;
     this.drag(event);
   }
 
+  /** 双击标题栏按「桌面与程序坞」偏好执行：Zoom（默认）/ 最小化 / 无操作；全屏空间里不动作。 */
   protected titleDoubleClick(event: MouseEvent): void {
     const target = event.target as Element;
-    if (target.closest('[data-drag]') && !target.closest(NO_DRAG)) this.wm.zoom(this.win().id);
+    if (!target.closest('[data-drag]') || target.closest(NO_DRAG)) return;
+    const win = this.win();
+    if (win.fullscreen()) return;
+    const action = this.titleDoubleClickAction();
+    if (action === 'minimize') this.wm.minimize(win.id);
+    else if (action === 'zoom') this.wm.zoom(win.id);
   }
 
   protected startResize(event: PointerEvent, edge: ResizeEdge): void {
     if (event.button !== 0) return;
     const win = this.win();
+    if (win.fullscreen()) return; /* 全屏几何由浏览器接管，macOS 全屏里也不能缩放。 */
     if (win.zoomed()) {
       win.zoomed.set(false);
       this.renderer.removeClass(this.host, 'zoomed');
@@ -312,9 +332,19 @@ export class WindowFrame implements OnInit, WindowFrameHandle {
     addEventListener('pointerup', up, true);
   }
 
+  /**
+   * 捕获阶段聚焦：内部按钮弹出的菜单要落在已经抬到最前的窗口上。
+   * ⌘+按下例外（macOS 的 ⌘ 拖动）：只移动窗口、不把它置前，松手的 commitBox 也不改层级。
+   */
   private focusOnPress(event: PointerEvent): void {
+    if (event.metaKey) return;
     if (!(event.target as Element).closest('.tl')) this.wm.focus(this.win().id, { dom: false });
   }
+
+  /** 全屏进出（绿键、浏览器 Esc）由 fullscreenchange 回报：窗口与桌面（hasFullscreen）的状态跟着变。 */
+  private onFullscreenChange = (): void => {
+    this.win().fullscreen.set(this.host.ownerDocument.fullscreenElement === this.host);
+  };
 
   private finishRestore(): void {
     this.renderer.removeClass(this.host, 'mini');
@@ -404,6 +434,45 @@ export class WindowFrame implements OnInit, WindowFrameHandle {
   private applyRestoredMinimize(): void {
     this.renderer.addClass(this.host, 'mini');
     this.host.style.visibility = 'hidden';
+  }
+
+  /** 「缩放」最小化效果：直线缩小、位移到 Dock 图标的位置（系统偏好 minimizeEffect=scale）。 */
+  private scaleToDock(tx: number, ty: number, sx: number, sy: number): Animation {
+    return this.host.animate(
+      [
+        { transform: 'translate(0px,0px) scale(1,1)', opacity: 1, borderRadius: '11px' },
+        { transform: `translate(${tx}px,${ty}px) scale(${sx},${sy})`, opacity: 0, borderRadius: '40px' }
+      ],
+      { duration: 260, easing: 'cubic-bezier(.42,.02,.58,1)', fill: 'forwards' }
+    );
+  }
+
+  /** 「神灯」最小化效果（默认）：三段补间，clipPath 收腰模拟吸进 Dock。 */
+  private genieToDock(tx: number, ty: number, sx: number, sy: number): Animation {
+    return this.host.animate(
+      [
+        {
+          transform: 'translate(0px,0px) scale(1,1)',
+          clipPath: 'polygon(0% 0%,100% 0%,100% 100%,0% 100%)',
+          opacity: 1,
+          borderRadius: '11px'
+        },
+        {
+          transform: `translate(${tx * 0.5}px,${ty * 0.58}px) scale(${lerp(1, sx, 0.5)},${lerp(1, sy, 0.42)})`,
+          clipPath: 'polygon(20% 0%,80% 0%,93% 100%,7% 100%)',
+          opacity: 0.92,
+          borderRadius: '22px',
+          offset: 0.55
+        },
+        {
+          transform: `translate(${tx}px,${ty}px) scale(${sx},${sy})`,
+          clipPath: 'polygon(43% 0%,57% 0%,100% 100%,0% 100%)',
+          opacity: 0.3,
+          borderRadius: '40px'
+        }
+      ],
+      { duration: 430, easing: 'cubic-bezier(.42,.02,.58,1)', fill: 'forwards' }
+    );
   }
 
   /** 把窗口当前（缩放前）的几何交给窗口，窗口布局据此记录；几何没变时窗口那一侧不会通知。 */

@@ -244,6 +244,8 @@ export const backupStorage = {
     await old.page.close({ runBeforeUnload: false });
     result.restoresFilesIntoNewGeneration = (await diskText(session, 'backup-test.txt')) === '备份保留 🌏\nsecond line';
     await disk().getByRole('button', { name: 'First Aid', exact: true }).click();
+    /* First Aid 是两步式：先点 Run 才开始检查（macOS 语义）。 */
+    await page.getByRole('button', { name: 'Run', exact: true }).click();
     await expect(page.locator('.pop [data-log]')).toContainText('Check complete.');
     result.firstAidUsesRealData = (await page.locator('.pop [data-log]').innerText()).includes(
       'File references and sizes are consistent.'

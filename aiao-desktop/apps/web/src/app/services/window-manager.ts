@@ -5,8 +5,9 @@ import { ApplicationRegistry } from './application-registry';
 import { clamp } from '../shared/format';
 import { ApplicationRuntime } from './application-runtime';
 import { DesktopAppId, DesktopOpenOptions } from './desktop-apps';
-import { DEFAULT_MIN_HEIGHT, DEFAULT_MIN_WIDTH, DesktopWindow, WindowBox } from './desktop-window';
+import { DEFAULT_MIN_HEIGHT, DEFAULT_MIN_WIDTH, DesktopWindow, WindowBox, WindowFrameHandle } from './desktop-window';
 import { DockState } from './dock-state';
+import { MenuEntry } from './menu';
 import { Toast } from './toast';
 import { fitBox } from './window-layout-model';
 
@@ -34,6 +35,14 @@ function insertByLayer(list: readonly DesktopWindow[], win: DesktopWindow): Desk
   return at < 0 ? [...list, win] : [...list.slice(0, at), win, ...list.slice(at)];
 }
 
+/**
+ * 窗口框架的全屏入口。[FULLSCREEN] 契约最终要把 `requestFullscreen` 加进 {@link WindowFrameHandle}，
+ * 接口扩展会要求同步修订各 spec 里的框架替身，落地前用结构类型调用——替身没有该方法时安全空转。
+ */
+interface FullscreenFrame {
+  readonly requestFullscreen?: () => void;
+}
+
 /** 窗口列表、层叠顺序与焦点。几何和动画由各自的窗口框架组件负责。 */
 @Service({ autoProvided: false })
 export class WindowManager {
@@ -41,7 +50,8 @@ export class WindowManager {
   private readonly dock = inject(DockState);
   private readonly toast = inject(Toast);
   private readonly runtime = inject(ApplicationRuntime);
-  private readonly root = inject(DOCUMENT).documentElement;
+  private readonly document = inject(DOCUMENT);
+  private readonly root = this.document.documentElement;
 
   private readonly windowsState = signal<readonly DesktopWindow[]>([]);
   private readonly focusedState = signal<DesktopWindow | null>(null);
@@ -84,6 +94,9 @@ export class WindowManager {
   readonly opaqueMenubar = computed(() =>
     this.windowsState().some(win => !win.closing() && !win.minimized() && win.zoomed())
   );
+
+  /** 有窗口在全屏空间（绿键进入的 macOS 全屏）时，桌面隐藏菜单栏与 Dock（由 desktop-shell 消费）。 */
+  readonly hasFullscreen = computed(() => this.windowsState().some(win => !win.closing() && win.fullscreen()));
 
   readonly runningApps = computed(() => new Set(this.windowsState().map(win => win.appId)));
 
@@ -287,6 +300,13 @@ export class WindowManager {
     this.get(id)?.frame?.minimize();
   }
 
+  /** ⌥+黄键：最小化该应用的全部可见窗口（macOS 语义）；已经最小化或正在关闭的不动。 */
+  minimizeApp(appId: DesktopAppId): void {
+    this.windowsState()
+      .filter(win => win.appId === appId && !win.minimized() && !win.closing())
+      .forEach(win => this.minimize(win.id));
+  }
+
   /**
    * 从 Dock 还原；刷新后恢复成最小化的窗口，第一次还原时才装载内容。
    * `keepHidden` 只还原这一个窗口，不把同一个应用里其他被 Hide 收起的窗口一起显示出来。
@@ -312,6 +332,19 @@ export class WindowManager {
     this.get(id)?.frame?.toggleZoom();
   }
 
+  /** 绿键单击：进入 / 退出全屏空间。⌥+绿键仍是 AppKit Zoom，由交通灯按钮自己按 `event.altKey` 分流。 */
+  toggleFullscreen(id: string): void {
+    const win = this.get(id);
+    if (!win) return;
+    if (win.fullscreen()) this.exitFullscreen();
+    else this.enterFullscreen(win);
+  }
+
+  /** 退出全屏空间：绿键再点、窗口关闭 / 最小化前调用；浏览器原生的 Esc 也会退出，由窗口框架回报状态。 */
+  exitFullscreen(): void {
+    if (this.document.fullscreenElement) this.document.exitFullscreen().catch(() => undefined);
+  }
+
   /** 视口变小时把窗口拉回屏幕内。 */
   keepOnScreen(): void {
     this.windowsState().forEach(win => win.frame?.keepOnScreen());
@@ -327,6 +360,11 @@ export class WindowManager {
 
   zoomFront(): void {
     this.withFront(win => this.zoom(win.id));
+  }
+
+  /** ⌃⌘F（Enter Full Screen 菜单）：前台窗口进入 / 退出全屏空间。 */
+  fullscreenFront(): void {
+    this.withFront(win => this.toggleFullscreen(win.id));
   }
 
   quitFront(): void {
@@ -383,14 +421,50 @@ export class WindowManager {
     for (const appId of this.hiddenAppsState()) this.unhideApp(appId);
   }
 
+  /**
+   * Window 菜单的窗口列表：前台应用的每个窗口一条，最靠前的在前、前台窗口勾选，点击聚焦
+   * （WINDOWMENU 契约：菜单本体由桌面菜单服务生成，这里只出数据与动作）。
+   */
+  windowMenuEntries(): MenuEntry[] {
+    const front = this.front();
+    if (!front) return [];
+    return this.byApp(front.appId)
+      .sort((a, b) => b.zIndex() - a.zIndex())
+      .map(win => ({
+        id: win.id,
+        label: win.title(),
+        checked: win === front,
+        run: () => this.focus(win.id)
+      }));
+  }
+
+  /**
+   * Bring All to Front（Window 菜单）：还原并置前该应用的全部窗口——包括用户自己最小化的
+   * （与只解除 Hide 的 Show All 不同）；层级顺序保持，最后聚焦最靠前的那个。
+   */
+  showAppWindows(appId: DesktopAppId): void {
+    const wins = this.byApp(appId).sort((a, b) => a.zIndex() - b.zIndex());
+    if (!wins.length) return;
+    for (const win of wins) if (win.minimized()) this.unminimize(win.id, { keepHidden: true });
+    const raised = wins.filter(win => !win.minimized() && !win.closing());
+    raised.forEach(win => this.raise(win));
+    const top = raised.at(-1);
+    if (top) this.focus(top.id);
+  }
+
   quitApp(appId: DesktopAppId): void {
     void this.closeWindows(this.byApp(appId));
   }
 
-  /** ⌘`：把最底层的可见窗口提到最前。 */
+  /**
+   * ⌘`：只在前台应用自己的可见窗口之间循环（macOS 语义），把最底层的提到最前；
+   * 应用只有一个可见窗口时不动。Window 菜单的 Cycle 项与桌面页快捷键兜底都走这里。
+   */
   cycle(): void {
+    const front = this.front();
+    if (!front) return;
     const visible = this.windowsState()
-      .filter(win => !win.minimized() && !win.closing())
+      .filter(win => win.appId === front.appId && !win.minimized() && !win.closing())
       .sort((a, b) => a.zIndex() - b.zIndex());
     if (visible.length > 1) this.focus(visible[0].id);
   }
@@ -421,6 +495,8 @@ export class WindowManager {
 
   private closeApproved(win: DesktopWindow): void {
     if (win.closing() || this.get(win.id) !== win) return;
+    /* 全屏空间里的窗口先退出全屏再走关闭动画，动画在桌面上可见。 */
+    if (win.fullscreen()) this.exitFullscreen();
     /* 关窗口的瞬间记下焦点在不在里面：窗口移除之后焦点就丢了。 */
     const hadFocus = win.frame?.holdsFocus() ?? false;
     win.closing.set(true);
@@ -477,6 +553,12 @@ export class WindowManager {
       this.toast.show(`Unable to close: ${error instanceof Error ? error.message : String(error)}`);
       return false;
     }
+  }
+
+  /** 进入全屏空间：窗口框架调宿主元素的 `requestFullscreen`，成功与退出都由 fullscreenchange 回报窗口状态。 */
+  private enterFullscreen(win: DesktopWindow): void {
+    if (win.fullscreen() || win.closing()) return;
+    (win.frame as (WindowFrameHandle & FullscreenFrame) | null)?.requestFullscreen?.();
   }
 
   private withFront(action: (win: DesktopWindow) => void): void {

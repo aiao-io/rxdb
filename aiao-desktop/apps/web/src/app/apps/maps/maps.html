@@ -7,6 +7,7 @@
       <span><svg appIcon="g-search"></svg></span>
       <input
         #search
+        (input)="input($event, search)"
         (keydown.enter)="find($event, search)"
         (keydown.escape)="dismiss(search)"
         aria-label="Search Maps"
@@ -20,10 +21,15 @@
 <div
   class="maps"
   #mapBox
+  (contextmenu)="menu($event)"
   (dblclick)="doubleClick($event)"
+  (keydown)="key($event)"
   (pointerdown)="down($event)"
   (wheel)="wheel($event)"
+  aria-label="Map"
   data-map
+  role="region"
+  tabindex="0"
 >
   <div class="pane" #pane data-pane></div>
   <svg class="pin" #pin viewBox="0 0 26 34">
@@ -66,6 +72,30 @@
             </button>
           }
         }
+      }
+    </div>
+  }
+  @if (suggest(); as panel) {
+    <div class="results" data-msuggest>
+      @if (panel.recent.length) {
+        <div style="padding: 7px 10px 3px; font-size: 11px; color: var(--txt-2); text-transform: uppercase">Recent</div>
+        @for (spot of panel.recent; track $index) {
+          <button [attr.data-recent]="$index" (click)="pickRecent(spot)" tabindex="0">
+            <b>{{ spot.title }}</b>
+            <span>{{ spot.subtitle }}</span>
+          </button>
+        }
+      }
+      @for (hit of panel.hits; track $index) {
+        <button [attr.data-suggest-hit]="$index" (click)="pick(hit)" tabindex="0">
+          <b>{{ placeName(hit) }}</b>
+          <span>{{ hit.display_name }}</span>
+        </button>
+      }
+      @if (panel.loading) {
+        <div style="padding: 9px 10px; font-size: 12px; color: var(--txt-2)">Searching…</div>
+      } @else if (!panel.recent.length && !panel.hits.length) {
+        <div style="padding: 9px 10px; font-size: 12px; color: var(--txt-2)">No suggestions</div>
       }
     </div>
   }

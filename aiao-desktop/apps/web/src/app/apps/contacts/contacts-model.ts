@@ -80,3 +80,18 @@ export const sameContact = (left: ContactDraft, right: ContactDraft): boolean =>
   left.email === right.email &&
   left.address === right.address &&
   left.position === right.position;
+
+/**
+ * 列表方向键：返回按步数移动后的联系人 id。
+ * 还没选中时按第一行算（列表高亮的就是第一行），到头不再移动，返回 `null`。
+ */
+export const stepContact = (
+  contacts: readonly { readonly id: string }[],
+  currentId: string | null,
+  step: number
+): string | null => {
+  if (!contacts.length) return null;
+  const index = currentId === null ? 0 : contacts.findIndex(contact => contact.id === currentId);
+  if (index < 0) return null;
+  return contacts[index + step]?.id ?? null;
+};

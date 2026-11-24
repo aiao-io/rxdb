@@ -1,3 +1,5 @@
+import { DiskPath, HOME, VOLUME_NAME, fromVmPath } from '../../disk/disk-path';
+
 /** 图标在屏幕上的盒子（图标视图按几何找方向键的邻居）。 */
 export interface ItemRect {
   readonly x: number;
@@ -62,6 +64,55 @@ export const isGoUp = (event: KeyboardEvent): boolean =>
 /** Finder 的「移到废纸篓」快捷键：macOS 的 ⌘Delete 在浏览器里表现为 Meta+Backspace。 */
 export const isMoveToTrash = (event: KeyboardEvent): boolean =>
   Boolean(event.metaKey || event.ctrlKey) && !event.shiftKey && (event.key === 'Backspace' || event.key === 'Delete');
+
+/** 「立即删除」的快捷键：跳过废纸篓直接删除（⌥⌘⌫）。 */
+export const isDeleteImmediately = (event: KeyboardEvent): boolean =>
+  Boolean(event.metaKey || event.ctrlKey) &&
+  Boolean(event.altKey) &&
+  !event.shiftKey &&
+  (event.key === 'Backspace' || event.key === 'Delete');
+
+/**
+ * Shift 连选的区间：以锚点（上一次点击的条目；没有就取当前选择的第一项）为起点，到点击项为止的连续区间。
+ * 锚点或点击项不在列表里时只选点击项自己。
+ */
+export function shiftRange(
+  names: readonly string[],
+  current: readonly string[],
+  clicked: string,
+  anchor: string | null
+): readonly string[] {
+  const start = names.findIndex(name => name === (anchor ?? current[0]));
+  const end = names.findIndex(name => name === clicked);
+  if (start < 0 || end < 0) return [clicked];
+  const [from, to] = start < end ? [start, end] : [end, start];
+  return names.slice(from, to + 1);
+}
+
+/**
+ * 就地改名时只选主名：有扩展名（最后一个点不在开头）就选到扩展名前，否则全选。
+ * 程序包（`.app`）整体是名字，不算扩展名。
+ */
+export function stemRange(name: string, isPackage: boolean): readonly [number, number] {
+  const dot = isPackage ? -1 : name.lastIndexOf('.');
+  return dot > 0 ? [0, dot] : [0, name.length];
+}
+
+/**
+ * 「前往文件夹」输入框的解析：`~`、`~/…` 与绝对 POSIX 路径（`/Users/…`），
+ * 也接受带卷名的写法（`Macintosh HD/Users/…`，不区分大小写）。
+ * 相对路径、`Trash` 等非卷内写法解析不了，返回 `null`（调用方提示）。
+ */
+export function parseGoToFolder(raw: string): DiskPath | null {
+  const value = raw.trim();
+  if (!value) return null;
+  if (value === '~') return [...HOME];
+  if (value.startsWith('~/')) return [...HOME, ...fromVmPath(value.slice(2))];
+  if (value.startsWith('/')) return fromVmPath(value);
+  const parts = fromVmPath(value);
+  if (parts[0]?.toLowerCase() === VOLUME_NAME.toLowerCase()) return parts.slice(1);
+  return null;
+}
 
 /** 条目的无障碍名称：名称加种类，读屏在按 Enter 之前就知道它是文件夹还是文件。 */
 export const itemLabel = (node: { readonly name: string; readonly kind: string; readonly k?: string }): string =>

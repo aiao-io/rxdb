@@ -46,3 +46,32 @@ describe('SystemState', () => {
     expect(system.brightness()).toBe(1);
   });
 });
+
+describe('SystemState 的 Dock 外观信号（DOCKSTATE）', () => {
+  it('新增五个信号都有 macOS 的默认值', () => {
+    const system = setup();
+    expect(system.dockPosition()).toBe('bottom');
+    expect(system.dockAutoHide()).toBe(false);
+    expect(system.minimizeEffect()).toBe('genie');
+    expect(system.dockAnimateOpen()).toBe(true);
+    expect(system.dockShowIndicators()).toBe(true);
+  });
+
+  it('dockPosition 只接受 bottom / left / right 三种位置', () => {
+    const system = setup();
+    system.dockPosition.set('left');
+    expect(system.dockPosition()).toBe('left');
+    system.dockPosition.set('right');
+    expect(system.dockPosition()).toBe('right');
+    system.dockPosition.set('bottom');
+    expect(system.dockPosition()).toBe('bottom');
+  });
+
+  it('minimizeEffect 在 genie 与 scale 之间切换', () => {
+    const system = setup();
+    system.minimizeEffect.set('scale');
+    expect(system.minimizeEffect()).toBe('scale');
+    system.minimizeEffect.set('genie');
+    expect(system.minimizeEffect()).toBe('genie');
+  });
+});

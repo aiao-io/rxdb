@@ -51,3 +51,11 @@ export function buildChats(threads: readonly ThreadFields[], messages: readonly 
     messages: lines.get(thread.id) ?? []
   }));
 }
+
+/**
+ * 有未读消息的会话：最后一条消息来自对方。
+ * 本构建没有远程收发，未读只按现有消息推导；用户打开过（或选中过）的会话由界面另行标记已读。
+ */
+export function unreadThreadIds(chats: readonly Chat[]): ReadonlySet<string> {
+  return new Set(chats.filter(chat => chat.messages.at(-1)?.from === 'them').map(chat => chat.id));
+}

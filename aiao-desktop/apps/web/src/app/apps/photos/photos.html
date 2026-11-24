@@ -120,13 +120,20 @@
         @if (detail()) {
           @if (selected(); as photo) {
             <div class="ph-det">
-              <div class="stage">
+              <div class="stage" [class.zoom]="zoom() > 1" (dblclick)="toggleZoom($event)" (wheel)="wheelZoom($event)">
                 <button class="nav l" (click)="step(-1)" data-pnudge="-1" title="Previous">
                   <svg appIcon="g-chev-l"></svg>
                 </button>
                 <!-- 每换一张照片重建一次 img，新图才会从透明淡入。 -->
                 @for (stage of [photo]; track stage.id) {
-                  <img [alt]="stage.title" [appPhotoSrc]="thumbAt(stage.thumb, 1280)" data-first decoding="async" />
+                  <img
+                    [alt]="stage.title"
+                    [appPhotoSrc]="thumbAt(stage.thumb, 1280)"
+                    [style.width.%]="zoom() * 100"
+                    (contextmenu)="menu($event, photo)"
+                    data-first
+                    decoding="async"
+                  />
                 }
                 <button class="nav r" (click)="step(1)" data-pnudge="1" title="Next">
                   <svg appIcon="g-chev-r"></svg>
@@ -154,6 +161,9 @@
                     <button class="btn" [class.pri]="photo.favourite" (click)="toggleFavourite()" data-pfav>
                       {{ photo.favourite ? 'Favourited' : 'Favourite' }}
                     </button>
+                    @if (view() === recentlyDeleted) {
+                      <button class="btn pri" (click)="recover(photo)" data-prestore>Recover</button>
+                    }
                     <button class="btn" (click)="remove()" data-pdel>Delete</button>
                   </div>
                   <p class="lic">A featured picture from Wikimedia Commons, shown with the credit it carries.</p>
@@ -206,8 +216,9 @@
                     [style.grid-column]="big() && bucket.items.length < 3 ? 'span 2' : null"
                     [title]="photo.title"
                     (click)="select(photo.id)"
+                    (contextmenu)="menu($event, photo)"
                     (dblclick)="open(photo.id)"
-                    (keydown.enter)="select(photo.id)"
+                    (keydown.enter)="open(photo.id)"
                     tabindex="-1"
                   >
                     <img [alt]="photo.title" [appPhotoSrc]="thumbAt(photo.thumb, big() ? 500 : 250)" decoding="async" />
@@ -260,3 +271,50 @@
     </div>
   </div>
 </div>
+@if (confirmDelete(); as photo) {
+  <div
+    style="
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      background: #0006;
+      z-index: 10;
+      padding: 16px;
+    "
+  >
+    <div
+      [attr.aria-label]="view() === recentlyDeleted ? 'Delete photo permanently' : 'Delete photo'"
+      (keydown.escape)="cancelDelete()"
+      appFocusTrap
+      aria-modal="true"
+      role="dialog"
+      style="
+        box-sizing: border-box;
+        width: min(380px, 100%);
+        padding: 22px;
+        background: var(--win);
+        color: var(--txt);
+        border-radius: 12px;
+        box-shadow: 0 14px 50px #0006;
+      "
+    >
+      <h2 style="margin: 0 0 8px; font-size: 16px; font-weight: 600">
+        {{ view() === recentlyDeleted ? 'Delete' : 'Remove' }} “{{ photo.title }}”?
+      </h2>
+      <p style="margin: 0; font-size: 12.5px; color: var(--txt-2)">
+        {{
+          view() === recentlyDeleted ?
+            'This photo will be deleted from this browser and cannot be recovered.'
+          : 'This photo will be moved to Recently Deleted. You can recover it from there.'
+        }}
+      </p>
+      <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px">
+        <button class="btn" (click)="cancelDelete()" data-autofocus tabindex="0" type="button">Cancel</button>
+        <button class="btn pri" (click)="deletePhoto()" tabindex="0" type="button">
+          {{ view() === recentlyDeleted ? 'Delete' : 'Remove' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

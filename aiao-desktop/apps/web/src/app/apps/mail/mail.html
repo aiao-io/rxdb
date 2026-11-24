@@ -104,6 +104,8 @@
             [attr.data-mi]="i"
             [class.on]="i === selection()"
             (click)="select(i)"
+            (contextmenu)="menu($event, mail)"
+            (keydown)="rowKey($event, i)"
             style="width: 100%; border: 0; text-align: left"
             tabindex="0"
             type="button"

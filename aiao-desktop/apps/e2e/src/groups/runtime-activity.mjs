@@ -23,6 +23,8 @@ export async function checkActivityAccessibility(session) {
   const close = await pressUntil(page, focus => focus.name === 'Close Calculator');
   expect(close.found).toBe(true);
   await page.keyboard.press('Enter');
+  /* 结束确认（macOS 语义）：确认后才关窗口。 */
+  await page.locator('[data-aclose-confirm]').click();
   await expect(helpers.win('calculator')).toHaveCount(0);
   const result = { keyboardControls: true, noViolations: axe.violations };
   await helpers.closeAll();
@@ -82,6 +84,8 @@ export const runtimeActivity = {
     await row('textedit')
       .getByRole('button', { name: /^Close / })
       .click();
+    /* 活动监视器的结束确认先出现（macOS 语义），确认后才进入应用自己的未保存协商。 */
+    await page.locator('[data-aclose-confirm]').click();
     const prompt = page.getByRole('alertdialog', { name: 'Save changes before closing?' });
     await expect(prompt).toBeVisible();
     await prompt.getByRole('button', { name: 'Cancel', exact: true }).click();
@@ -93,6 +97,7 @@ export const runtimeActivity = {
     await row('textedit')
       .getByRole('button', { name: /^Close / })
       .click();
+    await page.locator('[data-aclose-confirm]').click();
     await prompt.getByRole('button', { name: 'Don’t Save', exact: true }).click();
     await launch('Activity Monitor');
     await expect(row('textedit')).toHaveCount(0);
@@ -104,6 +109,7 @@ export const runtimeActivity = {
     await launch('Activity Monitor');
     await expect(row('vscode')).toContainText('Loading');
     await row('vscode').getByRole('button', { name: 'Close Aiao Code' }).click();
+    await page.locator('[data-aclose-confirm]').click();
     await expect(row('vscode')).toHaveCount(0);
     aiaoCode.mode = 'fail';
     await launch('Aiao Code');

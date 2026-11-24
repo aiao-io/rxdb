@@ -86,18 +86,46 @@ const decimalPoint = (state: CalcState): CalcState => {
   return state.cur.includes('.') ? state : { ...state, cur: `${state.cur}.` };
 };
 
+/** 百分比：算式中按累计值的百分比（200+10% → 20），单独按下维持 ÷100。 */
+const percent = (state: CalcState): CalcState => {
+  const b = parseFloat(state.cur);
+  if (state.op !== null && state.acc !== null) return { ...state, cur: toText((state.acc * b) / 100), fresh: true };
+  return { ...state, cur: toText(b / 100), fresh: false };
+};
+
 const ACTIONS: Readonly<Record<string, (state: CalcState) => CalcState>> = {
   dot: decimalPoint,
   del: backspace,
   ac: clearKey,
   neg: negate,
-  pct: state => ({ ...state, cur: toText(parseFloat(state.cur) / 100), fresh: false }),
+  pct: percent,
   eq: equals
 };
 
-/** 按一个键，返回新状态。 */
+/** 粘贴文本里能回放成按键的字符：数字与小数点（逗号同小数点），其余跳过。 */
+export function calcKeysOfText(text: string): readonly CalcKey[] {
+  const keys: CalcKey[] = [];
+  for (const char of text) {
+    if (/[0-9]/.test(char)) keys.push(`n${char}` as CalcKey);
+    else if (char === '.' || char === ',') keys.push('dot');
+  }
+  return keys;
+}
+
+/** 物理键盘符号 → 规范键名（与计算器 UI 的键盘表一致）。 */
+const KEY_ALIASES: Readonly<Partial<Record<string, CalcKey>>> = {
+  '+': 'add',
+  '-': 'sub',
+  '*': 'mul',
+  '/': 'div',
+  '%': 'pct'
+};
+
+/** 按一个键，返回新状态。除规范键名外，也接受物理键盘的数字字符与运算符符号（`7`、`+`、`*`、`%`…）。 */
 export function pressCalc(state: CalcState, key: CalcKey): CalcState {
-  if (key.length === 2 && key.startsWith('n')) return digit(state, key[1]);
-  if (OPERATORS.includes(key)) return operator(state, key as CalcOperator);
-  return ACTIONS[key](state);
+  const canonical = KEY_ALIASES[key] ?? key;
+  if (/^[0-9]$/.test(canonical)) return digit(state, canonical);
+  if (canonical.length === 2 && canonical.startsWith('n')) return digit(state, canonical[1]);
+  if (OPERATORS.includes(canonical)) return operator(state, canonical as CalcOperator);
+  return ACTIONS[canonical](state);
 }

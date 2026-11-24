@@ -437,3 +437,12 @@ export const longDate = (date: string): string => {
   const day = photoDate(date);
   return `${DAYS[day.getDay()]}, ${day.getDate()} ${MONS[day.getMonth()]} ${day.getFullYear()}`;
 };
+
+/** 详情页的缩放档位：1 是原始大小。 */
+export const ZOOM_STEPS: readonly number[] = [1, 2, 4];
+
+/** 在缩放档位间移动（`direction` 为 1 放大、-1 缩小），到头不再变。 */
+export const zoomStep = (current: number, direction: 1 | -1): number => {
+  const at = Math.max(0, ZOOM_STEPS.indexOf(current));
+  return ZOOM_STEPS[Math.min(ZOOM_STEPS.length - 1, Math.max(0, at + direction))];
+};

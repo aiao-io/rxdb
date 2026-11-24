@@ -4,6 +4,17 @@
       <h1>App Store</h1>
       <p>Applications approved for this desktop.</p>
     </div>
+    <div class="sfield" data-nodrag style="width: 190px">
+      <span><svg appIcon="g-search"></svg></span>
+      <input
+        #search
+        [value]="query()"
+        (input)="query.set(search.value)"
+        aria-label="Search the catalog"
+        data-asearch
+        placeholder="Search"
+      />
+    </div>
     <button [disabled]="flow.busy()" (click)="flow.refresh()" tabindex="0" type="button">Refresh Catalog</button>
   </header>
   <p class="scope">
@@ -35,7 +46,7 @@
       </p>
     </div>
   }
-  @for (item of flow.items(); track item.id) {
+  @for (item of visibleItems(); track item.id) {
     <article [attr.aria-label]="item.latest.name" [attr.data-catalog-app]="item.id">
       <div class="app-details">
         <h2>{{ item.latest.name }}</h2>
@@ -87,6 +98,18 @@
         }
       </div>
     </article>
+  }
+  @if (flow.busy()) {
+    <div
+      class="store-progress"
+      aria-label="Installation progress"
+      aria-valuetext="{{ flow.status() }}"
+      role="progressbar"
+      style="margin: 8px 0"
+    >
+      <div class="store-progress-fill"></div>
+    </div>
+    <button class="btn" (click)="flow.cancel()" tabindex="0" type="button">Cancel</button>
   }
   <p aria-live="polite" role="status">{{ flow.status() }}</p>
   @if (flow.error()) {

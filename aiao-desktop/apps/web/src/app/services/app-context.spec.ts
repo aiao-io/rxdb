@@ -13,7 +13,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { DesktopData } from '../data/desktop-data';
 import { Preferences } from '../data/preferences';
 import { configureServices } from '../testing/angular';
+import { stubLocks } from '../testing/browser';
 import { testApps } from '../testing/desktop-apps';
+import { FakeDesktopData } from '../testing/fake-desktop-data';
 import { SNAPSHOT, fakeHostServices, recordingInteraction } from '../testing/fake-host-services';
 import { fakeWindows } from '../testing/fake-windows';
 import { AppContextChrome, DesktopAppContext, DesktopAppContexts, DesktopNotice } from './app-context';
@@ -621,12 +623,14 @@ describe('DesktopAppContexts：创建上下文并把窗口状态与外观的变�
       DesktopAppContexts,
       AppNotifications,
       FilePanels,
+      Preferences,
       { provide: DESKTOP_APPS, useValue: registry },
       { provide: WindowManager, useValue: windows },
       { provide: SystemState, useValue: system },
       { provide: ThemeService, useValue: theme },
       { provide: Toast, useValue: toast },
-      { provide: FileSystem, useValue: disk }
+      { provide: FileSystem, useValue: disk },
+      { provide: DesktopData, useValue: new FakeDesktopData() }
     ]);
     const win = new DesktopWindow('w1', registry.notes, {}, { left: 0, top: 0, width: 600, height: 400 });
     win.attempt = 1;
@@ -668,6 +672,7 @@ describe('DesktopAppContexts：创建上下文并把窗口状态与外观的变�
       DesktopAppContexts,
       AppNotifications,
       FilePanels,
+      Preferences,
       { provide: DESKTOP_APPS, useValue: registry },
       { provide: WindowManager, useValue: fakeWindows().windows },
       { provide: SystemState, useValue: new SystemState() },
@@ -676,7 +681,8 @@ describe('DesktopAppContexts：创建上下文并把窗口状态与外观的变�
       {
         provide: FileSystem,
         useValue: Object.assign(Object.create(FileSystem.prototype), { run: vi.fn(), notifyChanges: vi.fn() })
-      }
+      },
+      { provide: DesktopData, useValue: new FakeDesktopData() }
     ]);
     const context = TestBed.inject(DesktopAppContexts).bind(win);
     expect(await codeOf(() => context.window.getState())).toBe('CAPABILITY_DENIED');
@@ -718,6 +724,8 @@ describe('DesktopAppContexts：创建上下文并把窗口状态与外观的变�
     const seen = new Set<object>();
     const walk = (value: unknown): void => {
       if (typeof value !== 'object' || value === null || seen.has(value)) return;
+      /* 通知中心服务把偏好表留给自己持久化条目，应用经上下文拿到的只是它的提交接口；它的内部依赖不参与遍历。 */
+      if (value instanceof AppNotifications) return;
       seen.add(value);
       for (const key of Reflect.ownKeys(value)) {
         const descriptor = Object.getOwnPropertyDescriptor(value, key);
@@ -823,7 +831,14 @@ describe('DesktopAppContext：notification', () => {
   });
 
   it('已提交的通知不随窗口关闭撤回：窗口关闭、上下文解绑之后，通知中心里它还在，之后再提交是 WINDOW_CLOSED', async () => {
-    const store = new AppNotifications();
+    stubLocks();
+    configureServices([
+      AppNotifications,
+      Preferences,
+      { provide: DesktopData, useValue: new FakeDesktopData() },
+      { provide: WindowManager, useValue: fakeWindows().windows }
+    ]);
+    const store = TestBed.inject(AppNotifications);
     const { context, win, services } = setup({ capabilities: ['notification'] });
     services.notifications.post.mockImplementation((source, content) => store.post(source, content));
     await context.notification.post({ title: 'Stays', body: 'in the centre' });

@@ -26,3 +26,52 @@ export function visibleStrokes(
 ): readonly Stroke[] {
   return [...saved, ...unsettled(settling, saved), ...(drawing ? [drawing] : [])];
 }
+
+/** 撤销栈里的一笔：`id` 是库里那一行的 id，undo 时按它删除。 */
+export interface UndoEntry {
+  readonly id: string;
+  readonly color: string;
+  readonly points: readonly (readonly [number, number])[];
+}
+
+/**
+ * 笔画级撤销：落笔成功就进栈；undo 弹出最后一笔（进重做栈），redo 弹出重做栈
+ * （调用方重新落库、拿到新 id 后再 push 回来，所以重做栈里的旧 id 不再使用）。
+ */
+export class StrokeUndo {
+  private readonly undoList: UndoEntry[] = [];
+  private readonly redoList: UndoEntry[] = [];
+
+  push(entry: UndoEntry): void {
+    this.undoList.push(entry);
+    this.redoList.length = 0;
+  }
+
+  undoSize(): number {
+    return this.undoList.length;
+  }
+
+  redoSize(): number {
+    return this.redoList.length;
+  }
+
+  undoTop(): UndoEntry | null {
+    const entry = this.undoList.at(-1);
+    if (!entry) return null;
+    this.undoList.pop();
+    this.redoList.push(entry);
+    return entry;
+  }
+
+  redoTop(): UndoEntry | null {
+    const entry = this.redoList.at(-1);
+    if (!entry) return null;
+    this.redoList.pop();
+    return entry;
+  }
+
+  forgetAll(): void {
+    this.undoList.length = 0;
+    this.redoList.length = 0;
+  }
+}

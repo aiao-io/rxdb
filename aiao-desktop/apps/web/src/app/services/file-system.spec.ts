@@ -54,6 +54,10 @@ function setup({ data = new FakeDesktopData(), readyError, recents }: Options = 
     ),
     set: vi.fn(async (key: string, value: unknown) => {
       stored.set(key, value);
+    }),
+    update: vi.fn(async (key: string, guard: (value: unknown) => boolean, updater: (current: unknown) => unknown) => {
+      const current = stored.get(key);
+      stored.set(key, updater(guard(current) ? current : undefined));
     })
   };
   const errors = { handleError: vi.fn() };
@@ -1081,5 +1085,216 @@ describe('批准目录的文件投影提交', () => {
     await fs.projectApplications([release], commit);
     expect(commit).toHaveBeenCalledOnce();
     expect(await fs.readText(['Applications', 'Approved Editor.app', 'Contents', 'Info.plist'])).toContain('1.0.0');
+  });
+});
+
+describe('FileSystem 命令栈（撤销/重做）', () => {
+  it('改名压栈：撤销还原、重做再改名，undoLabel 给出动作名', async () => {
+    const { fs, changes } = await mounted();
+    const original = [...DESKTOP, 'undo.txt'];
+    const renamed = [...DESKTOP, 'renamed.txt'];
+    await fs.writeText(original, 'keep');
+    expect(fs.canUndo()).toBe(false);
+
+    await fs.rename(original, 'renamed.txt');
+    expect(fs.undoLabel()).toBe('Rename');
+    expect(fs.canUndo()).toBe(true);
+    expect(fs.canRedo()).toBe(false);
+
+    await fs.undo();
+    expect(await fs.readText(original)).toBe('keep');
+    expect(fs.canUndo()).toBe(false);
+    expect(fs.canRedo()).toBe(true);
+    expect(changes.at(-1)).toEqual([original, renamed]);
+
+    await fs.redo();
+    expect(await fs.readText(renamed)).toBe('keep');
+    expect(fs.canRedo()).toBe(false);
+    expect(changes.at(-1)).toEqual([original, renamed]);
+  });
+
+  it('newFolder 撤销删掉空文件夹、重做建回；文件夹里已有东西时不动它', async () => {
+    const { fs } = await mounted();
+    const name = await fs.newFolder(DESKTOP);
+    const path = [...DESKTOP, name];
+    await fs.undo();
+    await flush();
+    expect(fs.nodeAt(path)).toBeNull();
+    await fs.redo();
+    await flush();
+    expect(fs.nodeAt(path)?.kind).toBe('folder');
+    expect(fs.canRedo()).toBe(false);
+
+    await fs.writeText([...path, 'mine.txt'], 'x');
+    await fs.undo();
+    await flush();
+    expect(fs.nodeAt([...path, 'mine.txt'])).not.toBeNull();
+    expect(fs.canUndo()).toBe(false);
+  });
+
+  it('duplicate 与 copyTo 撤销删掉副本、重做重新复制', async () => {
+    const { fs } = await mounted();
+    const original = [...DESKTOP, 'undo.txt'];
+    await fs.writeText(original, 'keep');
+
+    const copy = await fs.duplicate(original);
+    expect(await fs.readText(copy)).toBe('keep');
+    await fs.undo();
+    await expect(fs.readText(copy)).rejects.toMatchObject({ code: 'ENOENT' });
+    await fs.redo();
+    expect(await fs.readText(copy)).toBe('keep');
+
+    const docs = [...HOME, 'Documents'];
+    const moved = await fs.copyTo(original, docs);
+    expect(await fs.readText(moved)).toBe('keep');
+    await fs.undo();
+    await expect(fs.readText(moved)).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it('moveTo 撤销移回原处、重做再移走', async () => {
+    const { fs } = await mounted();
+    const docs = [...HOME, 'Documents'];
+    const original = [...docs, 'undo.txt'];
+    await fs.writeText(original, 'keep');
+    const moved = await fs.moveTo(original, DESKTOP);
+    expect(moved).toEqual([...DESKTOP, 'undo.txt']);
+    await fs.undo();
+    expect(await fs.readText(original)).toBe('keep');
+    await fs.redo();
+    expect(await fs.readText([...DESKTOP, 'undo.txt'])).toBe('keep');
+  });
+
+  it('废纸篓并入命令栈：undo/redo 还原与再移回，canUndoTrash 保持废纸篓口径', async () => {
+    const { fs } = await mounted();
+    const original = [...DESKTOP, 'undo.txt'];
+    await fs.writeText(original, 'keep');
+    await fs.moveToTrash(original);
+    expect(fs.canUndo()).toBe(true);
+    expect(fs.canUndoTrash()).toBe(true);
+    expect(fs.undoLabel()).toBe('Move to Trash');
+
+    await fs.undo();
+    expect(await fs.readText(original)).toBe('keep');
+    expect(fs.canUndoTrash()).toBe(false);
+    expect(fs.canRedo()).toBe(true);
+
+    await fs.redo();
+    expect(await fs.readText([...TRASH, 'undo.txt'])).toBe('keep');
+    expect(fs.canUndoTrash()).toBe(true);
+  });
+
+  it('undoTrash 只撤销废纸篓命令，夹在中间的改名留在栈里', async () => {
+    const { fs } = await mounted();
+    const original = [...DESKTOP, 'undo.txt'];
+    const trashed = [...TRASH, 'undo.txt'];
+    await fs.writeText(original, 'keep');
+    await fs.moveToTrash(original);
+    await fs.rename(trashed, 'renamed.txt');
+    await fs.undoTrash();
+    expect(await fs.readText(original)).toBe('keep');
+    expect(fs.undoLabel()).toBe('Rename');
+    expect(fs.canUndoTrash()).toBe(false);
+  });
+
+  it('新命令清空重做栈；emptyTrash 清掉废纸篓命令；erase 清空整条栈', async () => {
+    const { fs } = await mounted();
+    const original = [...DESKTOP, 'undo.txt'];
+    await fs.writeText(original, 'keep');
+    await fs.rename(original, 'renamed.txt');
+    await fs.undo();
+    expect(fs.canRedo()).toBe(true);
+    await fs.newFolder(DESKTOP);
+    expect(fs.canRedo()).toBe(false);
+
+    await fs.moveToTrash(original);
+    await fs.emptyTrash();
+    expect(fs.canUndoTrash()).toBe(false);
+    expect(fs.canUndo()).toBe(true);
+
+    await fs.erase();
+    expect(fs.canUndo()).toBe(false);
+    expect(fs.canRedo()).toBe(false);
+  });
+
+  it('撤销失败命令保留：旧名字被占用时 rename 撤销抛 EEXIST，腾出后可以撤销', async () => {
+    const { fs } = await mounted();
+    const original = [...DESKTOP, 'undo.txt'];
+    await fs.writeText(original, 'keep');
+    await fs.rename(original, 'renamed.txt');
+    await fs.writeText(original, 'blocker');
+    await expect(fs.undo()).rejects.toMatchObject({ code: 'EEXIST' });
+    expect(fs.canUndo()).toBe(true);
+    await fs.run(store => store.remove(original));
+    await fs.undo();
+    expect(await fs.readText(original)).toBe('keep');
+  });
+
+  it('renameWith：replace 覆盖不记撤销，keepBoth 追加序号并记撤销', async () => {
+    const { fs } = await mounted();
+    const first = [...DESKTOP, 'a.txt'];
+    const second = [...DESKTOP, 'b.txt'];
+    await fs.writeText(first, 'one');
+    await fs.writeText(second, 'two');
+
+    await fs.renameWith(first, 'b.txt', 'replace');
+    expect(await fs.readText(second)).toBe('one');
+    expect(fs.canUndo()).toBe(false);
+
+    await fs.writeText(first, 'three');
+    const kept = await fs.renameWith(first, 'b.txt', 'keepBoth');
+    expect(kept).toEqual([...DESKTOP, 'b 2.txt']);
+    expect(await fs.readText(kept)).toBe('three');
+    expect(await fs.readText(second)).toBe('one');
+    expect(fs.undoLabel()).toBe('Rename');
+    await fs.undo();
+    expect(await fs.readText(first)).toBe('three');
+  });
+
+  it('setTags/tagsOf 存进偏好；改名迁移键、撤销迁回', async () => {
+    const { fs } = await mounted();
+    const original = [...DESKTOP, 'tagged.txt'];
+    await fs.writeText(original, 'x');
+    await flush();
+    const node = fs.nodeAt(original);
+    expect(fs.tagsOf(node ?? fs.root())).toEqual([]);
+
+    await fs.setTags(original, ['red', 'blue', 'red']);
+    expect(fs.tagsOf(node ?? fs.root())).toEqual(['red', 'blue']);
+
+    await fs.rename(original, 'renamed.txt');
+    await flush();
+    const renamed = fs.nodeAt([...DESKTOP, 'renamed.txt']);
+    expect(fs.tagsOf(renamed ?? fs.root())).toEqual(['red', 'blue']);
+    expect(fs.tagsOf(node ?? fs.root())).toEqual([]);
+
+    await fs.undo();
+    await flush();
+    expect(fs.tagsOf(fs.nodeAt(original) ?? fs.root())).toEqual(['red', 'blue']);
+  });
+
+  it('makeAlias 生成别名文件，aliasTarget 解析出目标；别名损坏时为 null', async () => {
+    const { fs } = await mounted();
+    const target = [...DESKTOP, 'prasenx.txt'];
+    const alias = await fs.makeAlias(target);
+    expect(alias).toEqual([...DESKTOP, 'prasenx.txt alias']);
+    expect(await fs.readText(alias)).toBe('{"target":["Users","stevejobs","Desktop","prasenx.txt"]}');
+    await flush();
+    const node = fs.nodeAt(alias);
+    expect(node).not.toBeNull();
+    const resolved = await fs.aliasTarget(node ?? fs.root());
+    expect(resolved?.path).toEqual(target);
+
+    await fs.writeText(alias, 'not json');
+    expect(await fs.aliasTarget(node ?? fs.root())).toBeNull();
+  });
+
+  it('compressToZip 打成 ZIP 落盘：目标目录重名追加序号', async () => {
+    const { fs } = await mounted();
+    const target = await fs.compressToZip([[...DESKTOP, 'prasenx.txt']], DESKTOP);
+    expect(target).toEqual([...DESKTOP, 'prasenx.txt.zip']);
+    const bytes = await fs.read(target);
+    expect(bytes.byteLength).toBeGreaterThan(40);
+    expect(Array.from(bytes.slice(-22, -18))).toEqual([0x50, 0x4b, 0x05, 0x06]);
+    expect(await fs.compressToZip([[...DESKTOP, 'prasenx.txt']], DESKTOP)).toEqual([...DESKTOP, 'prasenx.txt 2.zip']);
   });
 });

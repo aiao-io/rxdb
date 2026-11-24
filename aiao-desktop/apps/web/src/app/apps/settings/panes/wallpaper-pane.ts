@@ -2,12 +2,10 @@ import { Component, inject } from '@angular/core';
 
 import { SystemState } from '../../../services/system-state';
 import { WALLPAPERS, WALLPAPER_KEYS, WallpaperService, wallpaperThumb } from '../../../services/wallpaper';
-import { ToggleSwitch } from '../toggle-switch';
 
-/** 壁纸：缩略图网格（点一下就换）与两个只改外观的开关。 */
+/** 壁纸：缩略图网格（点一下就换）。 */
 @Component({
   selector: 'app-wallpaper-pane',
-  imports: [ToggleSwitch],
   host: { style: 'display: contents' },
   template: `
     <div class="st-label">Desktop picture</div>
@@ -27,16 +25,6 @@ import { ToggleSwitch } from '../toggle-switch';
             <span>{{ paper.name }}</span>
           </button>
         }
-      </div>
-    </div>
-    <div class="st-group">
-      <div class="st-item">
-        <div class="lb">Show on all Spaces</div>
-        <div class="rt"><div [appSwitch]="true" data-k="spaces"></div></div>
-      </div>
-      <div class="st-item">
-        <div class="lb">Add wallpaper to Photos</div>
-        <div class="rt"><div [appSwitch]="false" data-k="addp"></div></div>
       </div>
     </div>
   `
