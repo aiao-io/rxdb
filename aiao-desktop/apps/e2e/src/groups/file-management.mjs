@@ -353,15 +353,6 @@ export const fileManagement = {
       } else await item(name).click({ button: 'right' });
       await page.getByRole('menuitem', { name: command, exact: true }).click();
     };
-    const edit = async command => {
-      /* 菜单栏的 Copy/Paste 作用在前台窗口：先显式把工作窗置前，别让命令落到别的窗口上。 */
-      await frontFinder();
-      await page.getByRole('menubar').getByRole('menuitem', { name: 'Edit', exact: true }).click();
-      await page
-        .getByRole('menu', { name: 'Edit', exact: true })
-        .getByRole('menuitem', { name: command, exact: true })
-        .click();
-    };
     const dialog = () => page.locator('app-file-operation-dialog [role="dialog"]');
     const renameInput = () => finder().locator('[data-rename-input]');
     const rename = async (from, to) => {
