@@ -1,0 +1,16 @@
+{
+  "commit": "8ea31cf8a9aa6224422528fb74c2d1bc2f88ad0b",
+  "frozenAbsolute": {
+    "commit": 704.265741500014
+  },
+  "medianRatios": {
+    "status": 1.7690102808695682,
+    "diff": 2.3789500394484184,
+    "restore": 9.980173834464672,
+    "commit": 13.136684103142557
+  },
+  "ratioProfile": "Linux linux x64 / Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz / node 26",
+  "regeneratedBecause": "8ea31cf8 已在 EPYC 7763 画像上过相对门禁（status 2.056 / diff 1.978 / restore 9.391 / commit 13.755 全 PASS），为 CI 的 Xeon Platinum 8370C 画像冻结",
+  "runnerProfileHash": "29dd73c9c851dd4fc17b7c7e428648ab55c03e761833dc70060bf73ec68cb889",
+  "runs": 10
+}
