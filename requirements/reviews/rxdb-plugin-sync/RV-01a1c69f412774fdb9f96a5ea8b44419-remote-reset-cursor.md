@@ -155,3 +155,19 @@ pr: null
   - 复核（verify）；
   - 远端在某一批写入之前被重建时，这一批仍会先写进新库、到落库前才被发现：本地不记账，之后幂等重推，新库多出的正是改绑之后本来也会推过去的那批。
     要在写入之前就拦住，得由服务端在推送 RPC 里原子比对身份。
+
+### EV-01a211955eec7faeaad05d50ac2e1194：复核（对 2026-11-25 分支评审的核验）
+
+- 时间：2026-11-25T15:19:59+0800
+- 操作：review/independent
+- 执行者：ai；anthropic/claude-fable-5；会话 5812bc94-4aee-477d-b7b0-036b9c8fbed8
+- 输入快照：`b739b164a7dec9093c2e27c124563fd99a250400`
+- 输出快照：同输入
+- 状态：Fixed（不变；本次为静态核验、未跑全量门禁，不转 Resolved）
+- 结论：客户端双重核对在 HEAD 上仍生效——推送入口 `SyncManager.ts:433` 的 `verifyRemoteBackend`（含会话绑定）与
+  回执落库前 `push-repository.ts:1173-1176` 的核对都在，且有集成测试钉住（`push-pull-protocol.integration.spec.ts:445-479`：
+  远端重建后回执与水位不落、按原水位幂等重推、不产生重复记录）。上一事件剩余事项中的「服务端在推送 RPC 内原子比对身份」
+  仍未实现：`docker/sql/04-rxdb-utils-functions.sql` 的 `rxdb_mutations`（992-1054 行）无 `auth.*` / `current_user` / `session_user` 引用，
+  「批先落进新库」的瞬态被代码注释明确接受。该剩余事项保留为已知后续工作，不在本记录修复范围内。
+- 验证：4 个独立验证 agent 在 HEAD 上对抗性核对（工作流 wf_fbd47c66-d14），主会话对上述行号做行级复核；未运行测试与真栈回归。
+- 剩余事项：服务端 `rxdb_mutations` 原子身份比对（需要时另立故事）；如需 Resolved，请按全量门禁（`pnpm test-all`）复核。
