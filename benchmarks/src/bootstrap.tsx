@@ -4,8 +4,8 @@ import { StrictMode, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './app/app';
 import { getBenchmarksI18n } from './i18n/runtime';
-import { BENCHMARK_SQLITE_ADAPTERS, DEFAULT_BENCHMARK_SQLITE_ADAPTER } from './utils/rxdb-factory';
 import './styles.css';
+import { BENCHMARK_SQLITE_ADAPTERS, DEFAULT_BENCHMARK_SQLITE_ADAPTER } from './utils/rxdb-factory';
 
 export async function bootstrap(client: OrbitClient | undefined): Promise<void> {
   const container = document.getElementById('root');
