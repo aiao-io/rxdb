@@ -139,6 +139,10 @@ Applications按清单投影，旧包补齐/重命名/下线及用户文件保留
 - AC#1 由 Chromium 冒烟的 `applications.finderPresentation`、`applications.finderColumnPresentation` 和 `applications.finderPathHasNoBackground` 检查图标、分栏及底部路径栏。[applications.mjs](../../../apps/e2e/src/groups/applications.mjs)
 - AC#3 由 `applicationsUpgrade.sameNameFileKeepsItsDisplayName` 验证用户的 `Clock.app` 仍以原文件名显示。[applications-upgrade.mjs](../../../apps/e2e/src/groups/applications-upgrade.mjs)
 
+## 路径栏截断回归（2026-11-25）
+
+- 路径栏空间不足时与 macOS Finder 对齐：文字不换行、以省略号截断，按钮最小缩到只剩图标。Chromium 冒烟 `applications.finderPathBarTruncates` 把 Finder 窗口压到路径栏内容宽度以下，断言每个路径按钮的高度不超出路径栏（不换行）、`.fx-crumb` 文本被省略（scrollWidth 大于 clientWidth）、按钮内的图标完整可见。[applications.mjs](../../../apps/e2e/src/groups/applications.mjs)
+
 ## 废纸篓图标回归（2026-11-19）
 
 - Chromium 正式构建冒烟 `applicationsProtection.trashArtworkReflectsContents` 验证 Dock 在清空废纸篓前后分别加载可解码的 macOS Dock 满桶和空桶 PNG。[applications-protection.mjs](../../../apps/e2e/src/groups/applications-protection.mjs)

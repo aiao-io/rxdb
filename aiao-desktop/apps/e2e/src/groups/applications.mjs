@@ -28,6 +28,7 @@ export const applications = {
     'applications.reloadKeepsOnePackagePerApp',
     'applications.finderPresentation',
     'applications.finderPathHasNoBackground',
+    'applications.finderPathBarTruncates',
     'applications.finderColumnPresentation'
   ],
   async run(session) {
@@ -82,6 +83,38 @@ export const applications = {
       (await appears(preview)) &&
       (await showsIconAsset(preview.locator('.big svg'), 'app-calculator.png')) &&
       (await path.getByRole('button', { name: 'Calculator', exact: true }).isVisible());
+
+    /* 路径栏放不下时（与 macOS Finder 对齐）：文字不换行、以省略号截断，按钮最小缩到只剩图标。 */
+    result.finderPathBarTruncates = await path.evaluate(node => {
+      const winEl = node.closest('.win');
+      const previous = winEl.style.width;
+      try {
+        /* 先放满窗口量路径栏的内容真实宽度（路径栏自身填满窗口，scrollWidth 不能代表内容），
+           再把窗口压到内容的六成加侧栏宽度，确保路径栏必然放不下。 */
+        winEl.style.width = '2000px';
+        const sidebar = winEl.getBoundingClientRect().width - node.getBoundingClientRect().width;
+        const children = [...node.children];
+        const content =
+          children.reduce((sum, child) => sum + child.getBoundingClientRect().width, 0) +
+          4 * Math.max(0, children.length - 1) +
+          24;
+        winEl.style.width = `${Math.max(120, Math.round(sidebar + content * 0.6))}px`;
+        const barHeight = node.clientHeight;
+        const buttons = [...node.querySelectorAll('button')];
+        const noWrap = buttons.every(button => button.getBoundingClientRect().height <= barHeight + 0.5);
+        const labels = buttons.map(button => button.querySelector('.fx-crumb'));
+        const elided = labels.every(label => label) && labels.some(label => label.scrollWidth > label.clientWidth);
+        const icons = buttons.every(button => {
+          const svg = button.querySelector('svg');
+          if (!svg) return true;
+          const icon = svg.getBoundingClientRect();
+          return icon.width > 0 && icon.width <= button.getBoundingClientRect().width;
+        });
+        return noWrap && elided && icons;
+      } finally {
+        winEl.style.width = previous;
+      }
+    });
 
     /* 各入口启动同一个应用：Calculator 从 Finder 的包、聚焦搜索、启动台与 Dock 分别打开。 */
     const opensCalculator = async trigger => {

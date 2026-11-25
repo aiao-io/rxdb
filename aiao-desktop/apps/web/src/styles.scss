@@ -2178,6 +2178,8 @@ svg {
   gap: 4px;
   height: 25px;
   padding: 0 12px;
+  min-width: 0;
+  overflow: hidden;
   border-top: 0.5px solid var(--line);
   font-size: 11.5px;
   color: var(--txt-2);
@@ -2186,6 +2188,18 @@ svg {
   display: flex;
   align-items: center;
   gap: 4px;
+  min-width: 15px; /* 图标 11px + 间距 4px：文字被省略光之后按钮只剩图标 */
+  overflow: hidden;
+  white-space: nowrap;
+}
+.fx-path button svg {
+  flex: none;
+}
+.fx-path .fx-crumb {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 .fx-path svg {
   width: 11px;
@@ -2264,11 +2278,11 @@ svg {
 .fitem:hover .nm {
   background: var(--hover);
 }
-/* 选中色块比图标宽一些，左右留出边距（Finder 的图标选中效果）。 */
+/* 选中色块与键盘焦点（2px 描边 + 2px 偏移，即图标外 4px）同范围，左右不再外扩 8px。 */
 .fitem.sel .art::before {
   content: '';
   position: absolute;
-  inset: 0 -8px;
+  inset: 0 -4px;
   z-index: -1;
   background: var(--sel-soft);
   border-radius: 9px;
@@ -2591,12 +2605,14 @@ svg {
   padding: 2px 16px 12px;
 }
 .fv-gal .cap b {
-  display: block;
+  display: inline-block;
+  max-width: 100%;
   font-size: 13px;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
 .fv-gal .cap span {
+  display: block;
   font-size: 11.5px;
   color: var(--txt-2);
 }

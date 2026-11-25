@@ -1716,12 +1716,18 @@ export class FinderApp implements FinderCommands {
     const bodyRect = body.getBoundingClientRect();
     const rect = anchor.getBoundingClientRect();
     const style = getComputedStyle(anchor);
+    const width = Math.min(Math.max(rect.width + 12, 72), 320);
+    const align = style.textAlign === 'center' ? 'center' : 'left';
+    /* 居中标签（图标视图、画廊说明）按锚点中心放输入框，左对齐标签（列表、分栏）贴着锚点左边；绝对定位随滚动容器走，需补回 scrollTop / scrollLeft。 */
     this.renameBox.set({
-      left: rect.left - bodyRect.left - 6,
+      left:
+        align === 'center' ?
+          rect.left + rect.width / 2 - bodyRect.left + body.scrollLeft - width / 2
+        : rect.left - bodyRect.left + body.scrollLeft - 6,
       top: rect.top - bodyRect.top + body.scrollTop - 1,
-      width: Math.min(Math.max(rect.width + 12, 72), 320),
+      width,
       fontSize: parseFloat(style.fontSize) || 12.5,
-      align: style.textAlign === 'center' ? 'center' : 'left'
+      align
     });
   }
 

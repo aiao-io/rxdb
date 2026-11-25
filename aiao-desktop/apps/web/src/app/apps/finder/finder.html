@@ -704,12 +704,14 @@
         }
         <button [attr.data-i]="i" (click)="jump(i)" tabindex="0" type="button">
           <svg [appIcon]="i === 0 ? 'g-hd' : 'g-folder-g'" style="width: 11px; height: 11px"></svg>
-          {{ segment }}
+          <span class="fx-crumb">{{ segment }}</span>
         </button>
       }
       @if (pathTail(); as tail) {
         <svg appIcon="g-chev-r" style="width: 11px; height: 11px"></svg>
-        <button (click)="jump(null)" tabindex="0" type="button">{{ tail }}</button>
+        <button (click)="jump(null)" tabindex="0" type="button">
+          <span class="fx-crumb">{{ tail }}</span>
+        </button>
       }
     </div>
   </div>
