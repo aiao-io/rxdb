@@ -302,6 +302,10 @@ export const dock = {
     'dock.keyboardAddMatchesDrag',
     'dock.keyboardAddFromTemporaryIcon',
     'dock.keyboardMenuEscapeRestoresFocus',
+    'dock.magPeakUnderPointer',
+    'dock.leftDockOnScreen',
+    'dock.rightDockOnScreen',
+    'dock.positionBackToBottom',
     'dock.repairDropsUnknownAndDuplicates',
     'dock.repairKeepsUserOrder',
     'dock.repairRestoresProtected',
@@ -702,6 +706,104 @@ export const dock = {
       (await icon('contacts').evaluate(node => !node.classList.contains('temp'))) &&
       (await dockPage.activeApp()) === 'contacts';
     await closeAll();
+
+    /* 放大（回归防线：放大峰值曾整条偏左 rect.left≈190px、tooltip 显示错误应用）。指针放在 maps 的静止中心上，
+       放大收敛后峰值必须在指针正下方、tooltip 显示 Maps。 */
+    await page.mouse.move(720, 120);
+    await page.waitForTimeout(650);
+    /* 防御性开放大（默认开，但偏好可能被写关）：右键玻璃读菜单标签，关着就点开，开着按 Esc 关掉菜单。 */
+    await page.click('#dock', { button: 'right', position: { x: 3, y: 30 } });
+    await page.locator('#layer-menu .pop .mi').first().waitFor();
+    const magItems = await page
+      .locator('#layer-menu .pop .mi')
+      .evaluateAll(nodes => nodes.map(node => ({ act: node.dataset.act, label: node.textContent.trim() })));
+    const magOn = magItems.some(item => item.act === 'mag' && item.label.endsWith('Off'));
+    if (magOn) await page.keyboard.press('Escape');
+    else await page.locator('#layer-menu .pop .mi[data-act="mag"]').click();
+    await page.waitForTimeout(300);
+    const magShape = await dockPage.geometry();
+    const target = dockPage.at(magShape, 'maps');
+    await page.mouse.move(target.x, target.y);
+    const magRead = () =>
+      page.evaluate(() =>
+        [...document.querySelectorAll('#dock .di[data-app]')].map(node => {
+          const rect = node.getBoundingClientRect();
+          return { app: node.dataset.app, cx: rect.left + rect.width / 2, w: rect.width };
+        })
+      );
+    const maxWidth = icons => Math.max(...icons.map(icon => icon.w));
+    /* 平滑系数 0.38 约 300ms 收敛：连续两次快照的最大宽度差足够小才算落定，慢机也稳。 */
+    const settleMagnify = () =>
+      until(
+        async () => {
+          const first = await magRead();
+          await pause(150);
+          const second = await magRead();
+          return Math.abs(maxWidth(first) - maxWidth(second));
+        },
+        delta => delta < 0.02,
+        { timeout: 8_000, interval: 250 }
+      );
+    await settleMagnify();
+    /* 放大让面板变宽、左缘跟着挪：轻轻动一下鼠标，让 hover 用当前面板框刷新指针坐标（否则留在放大前的框上）。 */
+    await page.mouse.move(target.x + 1, target.y);
+    const magnifiedSettled = await settleMagnify();
+    const magnified = await magRead();
+    const peak = [...magnified].sort((a, b) => b.w - a.w)[0];
+    const underPointer = [...magnified].sort((a, b) => Math.abs(a.cx - target.x) - Math.abs(b.cx - target.x))[0];
+    result.magPeakUnderPointer =
+      magnifiedSettled &&
+      underPointer.app === 'maps' &&
+      peak.app === 'maps' &&
+      Math.abs(peak.cx - target.x) <= 30 &&
+      peak.w >= 58 * 1.2 &&
+      (await page.locator('#docktip.on').count()) === 1 &&
+      (await page.locator('#docktip').textContent()) === 'Maps';
+
+    /* 位置（回归防线：左/右定位 CSS 曾编译成永不匹配的后代选择器，整条 Dock 出屏）。经 Settings 切 Left/Right，
+       全部图标必须在屏内且面板贴对应屏边，收尾切回 Bottom。 */
+    const pickPosition = async value => {
+      await icon('settings').click();
+      await page.waitForSelector('[data-sec="dock"]', { timeout: 15_000 });
+      await page.locator('[data-sec="dock"]').click();
+      await page.waitForSelector('[data-pick="dockPosition"]', { timeout: 10_000 });
+      await page.locator('[data-pick="dockPosition"]').click();
+      await page.locator(`#layer-menu .pop .mi[data-act="${value}"]`).waitFor();
+      await page.locator(`#layer-menu .pop .mi[data-act="${value}"]`).click();
+    };
+    const dockOnScreen = edge =>
+      until(
+        () =>
+          page.evaluate(which => {
+            const box = document.getElementById('dock').getBoundingClientRect();
+            const inside = [...document.querySelectorAll('#dock .di[data-app]')].every(node => {
+              const rect = node.getBoundingClientRect();
+              return rect.left >= 0 && rect.right <= innerWidth && rect.top >= 0 && rect.bottom <= innerHeight;
+            });
+            const nearEdge =
+              which === 'left' ? box.left >= -1 && box.right <= 130
+              : which === 'right' ? box.right <= innerWidth + 1 && box.left >= innerWidth - 130
+              : box.top >= 0 && box.bottom <= innerHeight + 1;
+            return inside && nearEdge;
+          }, edge),
+        ok => ok,
+        { timeout: 10_000, interval: 300 }
+      );
+    let positionSwitched = false;
+    try {
+      await pickPosition('left');
+      result.leftDockOnScreen = await dockOnScreen('left');
+      await pickPosition('right');
+      result.rightDockOnScreen = await dockOnScreen('right');
+      positionSwitched = true;
+    } finally {
+      try {
+        await pickPosition('bottom');
+        result.positionBackToBottom = positionSwitched && (await dockOnScreen('bottom'));
+      } finally {
+        await closeAll();
+      }
+    }
 
     /* AC#12：偏好内容损坏时只清理无效项。库里的布局被改成含未知应用、重复项、非法项、缺受保护项的内容。 */
     await page.close();

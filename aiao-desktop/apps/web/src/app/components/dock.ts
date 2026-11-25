@@ -273,9 +273,8 @@ export class Dock implements DockView, DockDropTarget {
     const position = this.system.dockPosition();
     const origin = dockAxisOrigin(rect, total, position);
     const centers = placed.filter(item => item.arranged?.slot.draggable).map(item => origin + item.base);
-    /* dockAxisPoint 底部返回相对面板左缘的值，而 dockAxisOrigin 底部是屏幕绝对坐标：补回左缘偏移再比较。 */
     const point = dockAxisPoint(rect, x, y, position);
-    return slotIndexAt(centers, position === 'bottom' ? point + rect.left : point);
+    return slotIndexAt(centers, point);
   }
 
   /** 只认水平 x 轴的旧接口（底部 Dock）；左/右 Dock 走 {@link slotAtPoint}。 */
@@ -315,7 +314,6 @@ export class Dock implements DockView, DockDropTarget {
     }
     this.baseWidth = total;
     this.paint();
-    this.applyDockTransform();
   }
 
   protected hover(event: PointerEvent): void {
@@ -536,8 +534,10 @@ export class Dock implements DockView, DockDropTarget {
 
   /** 宽屏上就是设置里的尺寸；视口窄、整条 Dock 放不进屏幕时，图标按需要缩小，直到放得下（不小于 {@link MIN_DOCK_SIZE}）。 */
   private fitSize(flow: readonly (ArrangedSlot | null)[], preferred: number): number {
-    /* Dock 的主轴：底部是屏幕宽，左/右是屏幕高。 */
-    const available = (this.system.dockPosition() === 'bottom' ? innerWidth : innerHeight) - 2 * DOCK_SIDE_MARGIN;
+    /* Dock 的主轴：底部是屏幕宽，左/右是菜单栏以下的屏幕高（wrap 的高度，与 applyDockTransform 一致）。 */
+    const available =
+      (this.system.dockPosition() === 'bottom' ? innerWidth : innerHeight - this.wm.menubarHeight()) -
+      2 * DOCK_SIDE_MARGIN;
     let size = preferred;
     while (size > MIN_DOCK_SIZE && this.restLayout(flow, size).total > available) size--;
     return Math.max(size, Math.min(preferred, MIN_DOCK_SIZE));
@@ -729,7 +729,7 @@ export class Dock implements DockView, DockDropTarget {
     const position = this.system.dockPosition();
     const vertical = position !== 'bottom';
     const rotate = position === 'left' ? -90 : 90;
-    const dockHeight = vertical ? this.dock().nativeElement.offsetHeight : 0;
+    const dockHeight = vertical ? this.panelThickness() : 0;
     const nodes = this.slotElements();
     const slots = this.slots();
     /* 格子刚变、DOM 还没跟上的那一帧不排布，等渲染完成后的 measure() 补上。 */
@@ -774,6 +774,12 @@ export class Dock implements DockView, DockDropTarget {
       trailingGap = this.gap;
     }
     this.dock().nativeElement.style.width = `${(x - trailingGap + this.padX).toFixed(2)}px`;
+    this.applyDockTransform();
+  }
+
+  /** 未旋转面板的厚度：玻璃高 = 图标尺寸 + 14（有最小化 tile 时 +36），与全局样式一致；不读 offsetHeight，避开高度过渡动画的中间值。 */
+  private panelThickness(): number {
+    return this.size + (this.hasMinis() ? 36 : 14);
   }
 
   private showTip(slot: DockSlot): void {
@@ -815,14 +821,17 @@ export class Dock implements DockView, DockDropTarget {
       return;
     }
     /* 未旋转的盒子先放到「旋转后恰好贴住屏幕边、主轴居中」的位置：以贴屏边为原点转 90°。
-       left/top 相对 #dockwrap（左贴屏幕左缘、右贴右缘），右 Dock 的盒子要越过 wrap 原点向左半个厚度。 */
-    const width = node.offsetWidth;
-    const height = node.offsetHeight;
+       left/top 相对 #dockwrap（左贴屏幕左缘、右贴右缘），右 Dock 的盒子要越过 wrap 原点向左主轴长加半个厚度。
+       宽度读 paint 刚落下的内联宽，厚度取 {@link panelThickness} 的终值，与过渡动画无关。 */
+    const width = parseFloat(node.style.width) || node.offsetWidth;
+    const height = this.panelThickness();
     const wrapHeight = innerHeight - this.wm.menubarHeight();
     node.style.position = 'absolute';
     node.style.transformOrigin = position === 'left' ? '0% 50%' : '100% 50%';
-    node.style.top = `${(wrapHeight - width) / 2}px`;
-    node.style.left = position === 'left' ? `${height / 2}px` : `${-height / 2}px`;
+    /* 旋转轴在盒子的贴屏边中点：左/右内容从轴心向屏幕内铺开，主轴行整体落在旋转轴的下方，
+       所以让「旋转轴」而不是「盒子」居中——top 再减去半个厚度。 */
+    node.style.top = `${(wrapHeight - width - height) / 2}px`;
+    node.style.left = position === 'left' ? `${height / 2}px` : `${-(width + height / 2)}px`;
     node.style.transform = `${position === 'left' ? 'rotate(90deg)' : 'rotate(-90deg)'}${hide}`;
   }
 

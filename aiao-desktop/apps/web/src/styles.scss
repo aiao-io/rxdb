@@ -7022,52 +7022,44 @@ app-mail-compose textarea:focus-visible {
 }
 
 /* [impl:dock] 左/右位置时 wrap 变成贴边的零宽全高条，只当定位容器；#dock 的贴边定位与旋转由 dock.ts applyDockTransform 写内联样式完成。 */
-#dockwrap.dock-left,
+#dockwrap.dock-left {
+  left: 0;
+  right: auto;
+  top: var(--mb-h);
+  bottom: 0;
+  width: 0;
+}
 #dockwrap.dock-right {
-  #dockwrap.dock-left {
-    left: 0;
-    right: auto;
-    top: var(--mb-h);
-    bottom: 0;
-    width: 0;
-  }
-  #dockwrap.dock-right {
-    left: auto;
-    right: 0;
-    top: var(--mb-h);
-    bottom: 0;
-    width: 0;
-  }
+  left: auto;
+  right: 0;
+  top: var(--mb-h);
+  bottom: 0;
+  width: 0;
 }
 
 /* [impl:dock] 自动隐藏的触发条带（仅 dockAutoHide 开启时由模板渲染），z-index 799 在 Dock(800) 之下；Dock 滑出时盖住它。 */
-#dock-edge,
-#dock-edge.bottom,
-#dock-edge.left,
+#dock-edge {
+  position: absolute;
+  z-index: 799;
+  pointer-events: auto;
+}
+#dock-edge.bottom {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 5px;
+}
+#dock-edge.left {
+  left: 0;
+  top: var(--mb-h);
+  bottom: 0;
+  width: 5px;
+}
 #dock-edge.right {
-  #dock-edge {
-    position: absolute;
-    z-index: 799;
-    pointer-events: auto;
-  }
-  #dock-edge.bottom {
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 5px;
-  }
-  #dock-edge.left {
-    left: 0;
-    top: var(--mb-h);
-    bottom: 0;
-    width: 5px;
-  }
-  #dock-edge.right {
-    right: 0;
-    top: var(--mb-h);
-    bottom: 0;
-    width: 5px;
-  }
+  right: 0;
+  top: var(--mb-h);
+  bottom: 0;
+  width: 5px;
 }
 
 /* [impl:dock] 有最小化窗口 tile 时玻璃加高 22px，给图标上方的标题腾位置；图标仍锚在底部 9px，rectFor/布局不受影响。 */
@@ -7104,15 +7096,19 @@ app-mail-compose textarea:focus-visible {
   display: none;
 }
 
-/* [impl:dock] 悬停提示随玻璃旋转后反向转回直立；tip 的 left 内联定位在 Dock 主轴坐标里，无需改。 */
-#dockwrap.dock-left #docktip,
+/* [impl:dock] 悬停提示随玻璃旋转后反向转回直立；tip 的 left 内联定位在 Dock 主轴坐标里，无需改。
+   必须带上全局 #docktip 的 translate/scale，否则旋转会顶掉居中位移；.on 态同样要反旋转。 */
+#dockwrap.dock-left #docktip {
+  transform: translate(-50%, 4px) scale(0.94) rotate(-90deg);
+}
+#dockwrap.dock-left #docktip.on {
+  transform: translate(-50%, 0) scale(1) rotate(-90deg);
+}
 #dockwrap.dock-right #docktip {
-  #dockwrap.dock-left #docktip {
-    transform: rotate(-90deg);
-  }
-  #dockwrap.dock-right #docktip {
-    transform: rotate(90deg);
-  }
+  transform: translate(-50%, 4px) scale(0.94) rotate(90deg);
+}
+#dockwrap.dock-right #docktip.on {
+  transform: translate(-50%, 0) scale(1) rotate(90deg);
 }
 
 /* [impl:finder1] View Options 的网格单元与间距（覆盖原固定 104px / 14px 6px）；变量由 finder.html 在 .fx-body 上按 iconSize()*2 与 gridSpacing() 设置 */

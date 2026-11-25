@@ -213,8 +213,8 @@ export function insertMinimizedTiles(
 
 /**
  * 图标中心在屏幕上的坐标（最小化动画的终点）。`rect` 是未旋转（transform 被暂时取下）的面板测量框；
- * 左/右位置的面板以贴屏边为旋转轴（transform-origin 0% / 100% 50%，盒子左缘放在距屏边半个厚度处），
- * 图标行贴住所在边、距边 9px。
+ * 左/右位置的面板以贴屏边的盒缘中点为轴转 ±90°（transform-origin 0% / 100% 50%，贴屏边的盒缘放在
+ * 距屏边半个厚度处），图标行贴住所在边、距边 9px。
  */
 export function dockIconCenter(
   rect: DockPanelRect,
@@ -223,21 +223,32 @@ export function dockIconCenter(
   position: DockPosition
 ): DockPoint {
   if (position === 'bottom') return { x: rect.left + laidCenter, y: rect.top + rect.height - 9 - size / 2 };
-  if (position === 'left') return { x: rect.left - rect.height / 2 + 9 + size / 2, y: rect.top + laidCenter };
-  return { x: rect.left + rect.height / 2 - 9 - size / 2, y: rect.top + rect.width - laidCenter };
+  if (position === 'left') {
+    return { x: rect.left - rect.height / 2 + 9 + size / 2, y: rect.top + rect.height / 2 + laidCenter };
+  }
+  return {
+    x: rect.left + rect.width + rect.height / 2 - 9 - size / 2,
+    y: rect.top + rect.height / 2 + rect.width - laidCenter
+  };
 }
 
 /**
- * 指针在 Dock 布局主轴上的坐标。`rect` 是屏幕上的实时测量框（左/右位置时已包含旋转，
- * 包围盒的高即主轴长度）：底部 Dock 用屏幕 x，左/右 Dock 用屏幕 y 换算到主轴。
+ * 指针在 Dock 布局主轴上的坐标。`rect` 是屏幕上的实时测量框（左/右位置时已包含旋转，包围盒的高即主轴长度）。
+ * 底部返回屏幕绝对 x，左/右返回相对包围盒顶缘的坐标——与 {@link dockAxisOrigin} 成对：
+ * 底部「绝对对绝对」、左/右「相对对相对」，两个函数任一换法都会让比较整体偏移一个面板偏移量。
  */
 export function dockAxisPoint(rect: DockPanelRect, clientX: number, clientY: number, position: DockPosition): number {
-  if (position === 'bottom') return clientX - rect.left;
+  if (position === 'bottom') return clientX;
   if (position === 'left') return clientY - rect.top;
   return rect.top + rect.height - clientY;
 }
 
-/** 布局内容起点在主轴上的坐标（`total` 是静止布局的总长，内容在面板里居中）。 */
+/**
+ * 布局内容起点在主轴上的坐标（`total` 是静止布局的总长，内容在面板里居中）。
+ * 底部返回屏幕绝对 x（面板水平居中时与放大后的面板宽无关），左/右返回相对包围盒顶缘的偏移。
+ * 与 {@link dockAxisPoint} 成对使用（见其 TSDoc）；指针坐标减它再减图标的静止中心，
+ * 就是指针到该图标静止中心的距离。
+ */
 export function dockAxisOrigin(rect: DockPanelRect, total: number, position: DockPosition): number {
   return position === 'bottom' ? rect.left + (rect.width - total) / 2 : (rect.height - total) / 2;
 }
