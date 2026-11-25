@@ -129,6 +129,7 @@ export function scopedIdentityKind(identity: ScopedSyncIdentity): ScopedIdentity
  * @remarks
  * 是核心 `RxDBIdentityMismatchError`（`source: 'database'`）的子类：库绑定在声明的身份上时，
  * 会话对不上由核心先拦下、抛核心的类；没有声明身份时由本插件按第一次同步时的会话绑定，对不上抛这个子类。
+ * 第一次按会话绑定时库已由核心绑定给别的身份（曾以别的身份声明打开），抛的同样是核心的类。
  * 应用按核心的类 catch 就能接住两种情况；需要区分 anon 与登录用户时读这里多出的两个种类字段。
  * 同步停在原地，不发远端请求，本地数据不动。
  */

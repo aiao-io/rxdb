@@ -52,7 +52,7 @@ import {
 } from './pull-conflict-utils.js';
 import { backfillOwnChangeRemoteIds, splitRemoteChangesByOrigin } from './pull-round.js';
 import { instantiateSyncRecord } from './remote-backend.js';
-import { assertSyncOnMainCheckout } from './sync-manager.utils.js';
+import { assertPullLimit, assertSyncOnMainCheckout } from './sync-manager.utils.js';
 import type { SyncManager } from './SyncManager.js';
 import { topologicalSortForPull } from './topological-sort.js';
 
@@ -147,6 +147,7 @@ export async function pullRepository(
   entity: string,
   options?: PullRepositoryOptions
 ): Promise<PullRepositoryResult> {
+  assertPullLimit(options?.limit, 'pullRepository');
   const opts = { ...DEFAULT_PULL_REPOSITORY_OPTIONS, ...options };
   const rxdb = sm.rxdb;
 

@@ -199,6 +199,34 @@ describe('与远端交换数据前的核对', () => {
     ).rejects.toBeInstanceOf(RxDBIdentityMismatchError);
   });
 
+  // RV-01a21182277b752b859ed1effe55f063：核对是严格相等、不做归一化（库名与绑定都按原文取摘要），
+  // 但只差格式时报错必须一眼看得出是 scope 写法不一致，而不是像换了登录身份
+  it.each([
+    ['尾斜杠', `${SCOPE}/`],
+    ['带路径段', `${SCOPE}/rest/v1`],
+    ['大写主机名', 'https://Project-A.supabase.co']
+  ])('声明的 scope 与远端报告的只差格式（%s）：仍拒绝，报错写出两边的 scope 原文', async (_case, declared) => {
+    const error = await assertCallerIdentity(identityOf(USER_A, declared), {
+      callerIdentity: async () => remoteIdentity(USER_A)
+    }).catch((rejection: unknown) => rejection);
+
+    expect(error).toBeInstanceOf(RxDBIdentityMismatchError);
+    expect(error).toMatchObject({ source: 'remote', scopes: { client: declared, remote: SCOPE } });
+    expect((error as Error).message).toContain(`"${declared}"`);
+    expect((error as Error).message).toContain(`"${SCOPE}"`);
+    expect((error as Error).message).not.toContain(USER_A);
+  });
+
+  it('scope 相同、subject 不同：报错不带 scope 字段，文案仍不含用户 id 原文', async () => {
+    const error = await assertCallerIdentity(identityOf(USER_A), {
+      callerIdentity: async () => remoteIdentity(USER_B)
+    }).catch((rejection: unknown) => rejection);
+
+    expect(error).toBeInstanceOf(RxDBIdentityMismatchError);
+    expect((error as RxDBIdentityMismatchError).scopes).toBeUndefined();
+    expect((error as Error).message).not.toContain(SCOPE);
+  });
+
   it('每次都问，不缓存：同一个适配器前后两次答案不同，两次各自判定', async () => {
     const answers = [USER_A, USER_B];
     const remote = { callerIdentity: async () => remoteIdentity(answers.shift() as string) };

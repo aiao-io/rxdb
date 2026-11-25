@@ -304,7 +304,10 @@ async function pullBucketScope(
       conflictsResolved += result.conflictsResolved;
       historyInvalidated ||= result.applied > 0;
       progress = result.progress;
-      if (!snapshotComplete) continue;
+      // 与增量同口径：没要 fetchAll 就只拉这一页、以 hasMore 告知。进度已随这一页落库，下一次从这页最后一个 id 接着拉
+      if (!snapshotComplete && !options.fetchAll) {
+        return { pulled, compacted, applied, conflictsResolved, historyInvalidated, hasMore: true };
+      }
     } catch (error) {
       if (error instanceof RemoteBackendMismatchError) {
         await removeBucketScope(localAdapter, EntityType, repoSync, scope, progress);

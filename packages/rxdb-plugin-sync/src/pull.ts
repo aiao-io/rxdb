@@ -17,6 +17,7 @@ import { BulkSyncOptions } from './bulk-sync.js';
 import { pullBatch } from './pull-batch.js';
 import { pullRepository } from './pull-repository.js';
 import type { ScopedSyncAdapter } from './scoped-sync.js';
+import { assertPullLimit } from './sync-manager.utils.js';
 import type { SyncManager } from './SyncManager.js';
 
 /**
@@ -39,6 +40,7 @@ export async function pull(sm: SyncManager, options?: PullOptions): Promise<Pull
   if (!remoteAdapterName) {
     throw new RxDBError('Remote adapter not configured.');
   }
+  assertPullLimit(options?.limit, 'pull');
 
   // 触发同步开始事件
   rxdb.dispatchEvent(new SyncBeginEvent('pull'));

@@ -671,7 +671,7 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f docker/sql/production/rxdb-change-gra
 
 #### 适用边界
 
-未分区旧日志仍对 `authenticated` 可读，`SyncType.Filter` 的过滤条件由客户端传入，不构成授权。启用 `rxdb_bucket` 的实体走按身份分区日志：anon 默认只读 `public`，authenticated 只能读 `rxdb_caller_buckets()` 返回的分区。过滤条件仍然只能在已授权分区内缩小范围，不能替代业务表 RLS。需要租户隔离的实体应完成生成列、caller buckets、业务表 RLS 和生产权限脚本的部署，再使用按区日志同步。
+未分区旧日志仍对 `authenticated` 可读，而且带完整正文：没有启用 `rxdb_bucket` 的实体之后的新写入同样记成这种日志，不只是升级前的历史。`SyncType.Filter` 的过滤条件由客户端传入，不构成授权。启用 `rxdb_bucket` 的实体走按身份分区日志：anon 默认只读 `public`，authenticated 只能读 `rxdb_caller_buckets()` 返回的分区。过滤条件仍然只能在已授权分区内缩小范围，不能替代业务表 RLS。需要租户隔离的实体应完成生成列、caller buckets、业务表 RLS 和生产权限脚本的部署，再使用按区日志同步。
 
 #### 非 main 分支按所有者写入
 

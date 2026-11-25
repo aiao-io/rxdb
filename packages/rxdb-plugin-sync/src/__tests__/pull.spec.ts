@@ -98,6 +98,21 @@ describe('pull', () => {
     expect(mockBulkSync).toHaveBeenCalledWith(expect.objectContaining({ pull: { limit: 50, fetchAll: true } }));
   });
 
+  // RV-01a21194e6b6742e98c9d90c0a3e6270：limit 不是正整数时，批量路径一条不拉就报「已全部同步」，按区快照原地空转
+  it.each([0, -1, 1.5, Number.NaN])('limit = %s：拒绝，不发 SyncBeginEvent，也不开始拉取', async limit => {
+    const mockRxDB = {
+      config: { sync: { remote: { adapter: 'mock-adapter' } } },
+      dispatchEvent: vi.fn()
+    } as unknown as RxDB;
+    const mockBulkSync = vi.fn().mockResolvedValue({ results: [] });
+    const mockVm = { rxdb: mockRxDB, bulkSync: mockBulkSync } as unknown as SyncManager;
+
+    await expect(pull(mockVm, { repositoryFilter: ['Todo'], limit })).rejects.toBeInstanceOf(RxDBError);
+
+    expect(mockBulkSync).not.toHaveBeenCalled();
+    expect(mockRxDB.dispatchEvent).not.toHaveBeenCalled();
+  });
+
   // RXD-031 B：某个仓库拉取失败时，此前被静默跳过、聚合结果仍当作成功派发 Complete
   it('throws RxDBPartialSyncError carrying accumulated progress when a filtered repository fails after others already applied changes', async () => {
     const mockRxDB = {

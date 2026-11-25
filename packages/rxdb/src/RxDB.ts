@@ -86,7 +86,8 @@ import {
   identityClaimName,
   identityWatermarkName,
   RxDBIdentityMismatchError,
-  type CallerIdentityReporter
+  type CallerIdentityReporter,
+  type RxDBIdentity
 } from './system/identity-binding.js';
 import { createMigrationWatermarks, runMigrations } from './system/migration-runner.js';
 import { isUniqueConstraintViolation, RxDBMigration } from './system/migration.js';
@@ -724,6 +725,26 @@ export class RxDB {
    */
   async assertCallerIdentity(remote: CallerIdentityReporter): Promise<void> {
     await assertCallerIdentity(this.#config.identity, remote);
+  }
+
+  /**
+   * 在调用方的事务里把本地库绑定给 `identity`（US-035）：库已绑定这个身份就不写
+   *
+   * @param executor - 调用方事务的 executor；绑定行随这个事务一起提交或回滚
+   * @param identity - 要绑定的身份；同步插件在没有声明 {@link RxDBOptions.identity} 时传第一次同步的会话身份
+   * @throws `RxDBIdentityMismatchError` 库已绑定别的身份，一行不写
+   * @throws `RxDBError` 身份不是两个非空字符串
+   *
+   * @remarks
+   * 与打开既有库时的就地绑定同一份写法、同一组行（竞争行 + 绑定行），之后带声明打开时由打开守卫核对。
+   * 同步插件只写自己那一行绑定的话，应用之后改为声明身份打开同一个库，打开守卫看不到绑定，会把装着
+   * 上一个身份数据的库就地绑给打开它的那个身份（RV-01a2118227d9715ab33e8ef2556bb4b6）。
+   *
+   * @internal
+   */
+  async bindIdentity(executor: TransactionExecutor, identity: RxDBIdentity): Promise<void> {
+    assertRxDBIdentity(identity);
+    await this.#writeIdentityBinding(executor, getRxDBIdentityKey(identity));
   }
 
   /**

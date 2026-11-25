@@ -274,7 +274,7 @@ const matchesFilter = (row: Record<string, unknown>, filter: RuleGroup): boolean
   return filter.combinator === 'and' ? results.every(Boolean) : results.some(Boolean);
 };
 
-const pull = (harness: BucketHarness, filter?: RuleGroup, limit = 2) =>
+const pull = (harness: BucketHarness, filter?: RuleGroup, limit = 2, fetchAll = true) =>
   pullBucketedRepositoryIfSupported(
     harness.sm,
     harness.adapter as never,
@@ -284,7 +284,7 @@ const pull = (harness: BucketHarness, filter?: RuleGroup, limit = 2) =>
     'public',
     'BucketPullItem',
     'main',
-    { limit, fetchAll: true, includeRelated: false },
+    { limit, fetchAll, includeRelated: false },
     filter
   );
 
@@ -314,6 +314,35 @@ describe('bucketed pull', () => {
     expect(harness.entities.map(item => item['id']).sort()).toEqual(['one', 'two']);
     expect(harness.entities.find(item => item['id'] === 'one')?.['value']).toBe('updated');
     expect(harness.progress[0]).toMatchObject({ snapshotComplete: true, snapshotAfterId: 'two', cursor: 3 });
+  });
+
+  // RV-01a21194e6b6742e98c9d90c0a3e6270：快照与增量同口径受 fetchAll 约束，默认只拉一页并以 hasMore 告知
+  it('没要 fetchAll 时快照一页一停：进度落库、报 hasMore，下一次从上一页最后一个 id 接着拉，快照拉完才拉增量', async () => {
+    const harness = createHarness({
+      buckets: ['public'],
+      snapshotRows: { public: [row('a'), row('b'), row('c')] },
+      changes: {
+        public: [createChange(2, 'a', 'UPDATE', { value: 'updated' }, row('a'), row('a'))]
+      },
+      snapshotPoint: 1
+    });
+
+    const first = await pull(harness, undefined, 2, false);
+
+    expect(first).toMatchObject({ pulled: 2, applied: 2, hasMore: true });
+    expect(harness.adapter.pullBucketSnapshot.mock.calls.map(call => call[4])).toEqual([null]);
+    expect(harness.adapter.pullBucketChanges).not.toHaveBeenCalled();
+    expect(harness.entities.map(item => item['id']).sort()).toEqual(['a', 'b']);
+    expect(harness.progress[0]).toMatchObject({ snapshotComplete: false, snapshotAfterId: 'b', cursor: 0 });
+
+    const second = await pull(harness, undefined, 2, false);
+
+    expect(second).toMatchObject({ pulled: 2, applied: 2, hasMore: false });
+    expect(harness.adapter.pullBucketSnapshot.mock.calls.map(call => call[4])).toEqual([null, 'b']);
+    expect(harness.adapter.pullBucketChanges.mock.calls.map(call => call[0])).toEqual([1]);
+    expect(harness.entities.map(item => item['id']).sort()).toEqual(['a', 'b', 'c']);
+    expect(harness.entities.find(item => item['id'] === 'a')?.['value']).toBe('updated');
+    expect(harness.progress[0]).toMatchObject({ snapshotComplete: true, snapshotAfterId: 'c', cursor: 2 });
   });
 
   it('加入新分区并清理退出分区的本地行', async () => {

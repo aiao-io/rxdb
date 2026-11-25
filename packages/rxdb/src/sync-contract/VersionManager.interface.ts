@@ -154,13 +154,16 @@ export interface SyncResult {
  */
 export interface PullOptions {
   /**
-   * 单次拉取的最大数量
+   * 单次拉取的最大数量；必须是正整数，否则拉取入口直接抛 `RxDBError`，一个请求都不发
    * @default 1000
    */
   limit?: number;
 
   /**
    * 是否自动处理分页，拉取所有数据
+   *
+   * @remarks
+   * 不开时只拉一页、以 `hasMore` 告知还有剩余；分区实体每个分区各拉一页，按区快照同样一页一停，进度逐页落库，下一次接着拉。
    * @default false
    */
   fetchAll?: boolean;
@@ -391,13 +394,16 @@ export interface RepositoryIdentifier {
  */
 export interface PullRepositoryOptions {
   /**
-   * 单次请求拉取的最大变更数
+   * 单次请求拉取的最大变更数；必须是正整数，否则 `pullRepository` 直接抛 `RxDBError`，一个请求都不发
    * @default 1000
    */
   limit?: number;
 
   /**
    * 是否多次请求拉取所有变更
+   *
+   * @remarks
+   * 不开时只拉一页、以 `hasMore` 告知还有剩余；分区实体每个分区各拉一页，按区快照同样一页一停，进度逐页落库，下一次接着拉。
    * @default false
    */
   fetchAll?: boolean;

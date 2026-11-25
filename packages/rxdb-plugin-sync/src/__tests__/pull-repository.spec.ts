@@ -15,6 +15,7 @@ import {
   type RuleGroup,
   RxDBBranch,
   RxDBChange,
+  RxDBError,
   type RxDBEvent,
   RxDBIdentityMismatchError,
   RxDBPartialSyncError,
@@ -964,6 +965,35 @@ describe('pullRepository 级联调度契约（RXD-030）', () => {
 
 // RXD-029：`RxDBSync.enabled` 此前只被状态展示读取，没有任何一条调度路径看过它 ——
 // 用户在 UI 上把某个仓库的同步关掉，下一次 pull 照拉不误。
+// RV-01a21194e6b6742e98c9d90c0a3e6270：分页靠「这一页不满就是最后一页」收尾，limit 不是正整数时这条判据成立不了，
+// 按区快照会原地空转、反复打远端
+describe('pullRepository 的 limit 必须是正整数', () => {
+  it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])('limit = %s：拒绝，不碰远端也不发事件', async limit => {
+    const syncRecord = createSyncRecord('PullSliceItem', 3);
+    const harness = createHarness({ syncRecords: [syncRecord], remoteChanges: [createRemoteChange(4)] });
+
+    await expect(
+      pullRepository(harness.vm, 'public', 'PullSliceItem', { includeRelated: false, limit })
+    ).rejects.toBeInstanceOf(RxDBError);
+
+    expect(harness.pullChanges).not.toHaveBeenCalled();
+    expect(harness.dispatchEvent).not.toHaveBeenCalled();
+    expect(syncRecord.lastPullRemoteChangeId).toBe(3);
+  });
+
+  it('不传 limit（含显式 undefined）：按默认值拉取', async () => {
+    const syncRecord = createSyncRecord('PullSliceItem', 3);
+    const harness = createHarness({ syncRecords: [syncRecord], remoteChanges: [createRemoteChange(4)] });
+
+    const result = await pullRepository(harness.vm, 'public', 'PullSliceItem', {
+      includeRelated: false,
+      limit: undefined
+    });
+
+    expect(result.pulled).toBe(1);
+  });
+});
+
 describe('pullRepository 尊重 RxDBSync.enabled（RXD-029）', () => {
   it('enabled = false 时拒绝拉取，且不碰远端', async () => {
     const syncRecord = createSyncRecord('PullSliceItem', 3);

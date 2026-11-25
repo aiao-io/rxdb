@@ -241,7 +241,8 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
    * 取的是**此刻**随请求发出的令牌，每次回答之前先 `realtime.setAuth()` 让客户端刷新它，不缓存：
    * 会话可能在两次请求之间换了主人。不读 `client.auth`：客户端配了 `accessToken` 选项时，
    * supabase-js 对 `client.auth` 的任何访问都抛错；而 Realtime 持有的就是 PostgREST 请求带的那个令牌。
-   * 只读本地已有的会话状态，不发网络请求。
+   * 取令牌与每个 PostgREST 请求走同一条路径（`accessToken` 回调或 `auth.getSession()`），不为身份另发请求：
+   * 令牌临期时的刷新由 auth-js 去重，本来就会发生在紧接着的那个请求上。
    *
    * 令牌换了主人而 Realtime 还按旧身份订阅着时，顺带重建频道：`accessToken` 模式没有 auth 事件可听，
    * 私有频道又是在加入时按身份授权的。

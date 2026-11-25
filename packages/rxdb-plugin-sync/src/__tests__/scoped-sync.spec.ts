@@ -39,14 +39,22 @@ const createIdentityHarness = (identity: ScopedSyncIdentity, existing?: RxDBSync
     syncIdentity: vi.fn(async () => identity)
   };
   const reportError = vi.fn();
+  // 每个事务的 executor：核心的身份水位必须写进插件绑定行所在的同一个事务
+  const executors: { getRepository: () => typeof repository }[] = [];
   const transaction = vi.fn(
-    async (callback: (executor: { getRepository: () => typeof repository }) => Promise<unknown>) =>
-      callback({ getRepository: () => repository })
+    async (callback: (executor: { getRepository: () => typeof repository }) => Promise<unknown>) => {
+      const executor = { getRepository: () => repository };
+      executors.push(executor);
+      return callback(executor);
+    }
   );
+  // 核心按身份写 rxdb_migration 水位行的入口；行为本体在核心的 identity-binding.connect.spec.ts
+  const bindIdentity = vi.fn<(executor: unknown, identity: ScopedSyncIdentity) => Promise<void>>(async () => undefined);
   const sm = {
     rxdb: {
       // 没有声明 RxDBOptions.identity：核心的会话核对什么都不做
       assertCallerIdentity: vi.fn(async () => undefined),
+      bindIdentity,
       entityManager: {
         instantiate: (EntityType: typeof RxDBSyncIdentityBinding) =>
           Object.create(EntityType.prototype) as RxDBSyncIdentityBinding
@@ -56,7 +64,7 @@ const createIdentityHarness = (identity: ScopedSyncIdentity, existing?: RxDBSync
     getRemoteRepositories: vi.fn(async () => ({ adapter: remoteAdapter })),
     getLocalRepositories: vi.fn(async () => ({ adapter: { getRepository: () => repository, transaction } }))
   } as unknown as SyncManager;
-  return { sm, repository, remoteAdapter, reportError, rows, transaction };
+  return { sm, repository, remoteAdapter, reportError, rows, transaction, executors, bindIdentity };
 };
 
 /** 声明了身份的宿主：会话核对用真实 RxDB 的 assertCallerIdentity，本地库是内存里的一张绑定表 */
@@ -83,6 +91,7 @@ const createDeclaredIdentityHarness = (declared: ScopedSyncIdentity) => {
   const sm = {
     rxdb: {
       assertCallerIdentity: (remote: never) => rxdb.assertCallerIdentity(remote),
+      bindIdentity: vi.fn(async () => undefined),
       entityManager: {
         instantiate: (EntityType: typeof RxDBSyncIdentityBinding) =>
           Object.create(EntityType.prototype) as RxDBSyncIdentityBinding
@@ -194,6 +203,8 @@ describe('bindScopedIdentity', () => {
 
     expect(harness.repository.create).not.toHaveBeenCalled();
     expect(harness.reportError).not.toHaveBeenCalled();
+    // 已有插件绑定只核对：本修复之前写下、缺核心水位的开发库不回填（未发布，见 RV-01a2118227d9715ab33e8ef2556bb4b6）
+    expect(harness.bindIdentity).not.toHaveBeenCalled();
   });
 
   it('身份变化时阻止同步并写入同步错误', async () => {
@@ -231,9 +242,11 @@ describe('bindScopedIdentity', () => {
       create: vi.fn()
     };
     const remoteAdapter = { syncIdentity: vi.fn(async () => user('user-a')) };
+    const bindIdentity = vi.fn(async () => undefined);
     const sm = {
       rxdb: {
         assertCallerIdentity: vi.fn(async () => undefined),
+        bindIdentity,
         entityManager: {
           instantiate: (EntityType: typeof RxDBSyncIdentityBinding) =>
             Object.create(EntityType.prototype) as RxDBSyncIdentityBinding
@@ -252,6 +265,45 @@ describe('bindScopedIdentity', () => {
 
     await expect(bindScopedIdentity(sm)).resolves.toBeUndefined();
     expect(repository.create).not.toHaveBeenCalled();
+    expect(bindIdentity).not.toHaveBeenCalled();
+  });
+
+  // RV-01a2118227d9715ab33e8ef2556bb4b6：只写插件这一行，应用之后改为声明身份打开同一个库时核心看不到绑定，
+  // 会把装着这个会话数据的库就地绑给打开它的那个身份
+  it('第一次按会话绑定：核心的身份水位与插件绑定行写在同一个事务里，核心那一行先写', async () => {
+    const harness = createIdentityHarness(user('user-a'));
+
+    await expect(bindScopedIdentity(harness.sm)).resolves.toBeUndefined();
+
+    expect(harness.bindIdentity).toHaveBeenCalledTimes(1);
+    expect(harness.bindIdentity).toHaveBeenCalledWith(harness.executors[0], user('user-a'));
+    expect(harness.bindIdentity.mock.invocationCallOrder[0]).toBeLessThan(
+      harness.repository.create.mock.invocationCallOrder[0]
+    );
+  });
+
+  it('库已绑定别的身份（曾以别的身份声明打开）：拒绝并写入同步错误，插件绑定一行不写', async () => {
+    const harness = createIdentityHarness(user('user-b'));
+    const mismatch = new RxDBIdentityMismatchError('database', identityFingerprint(user('user-b')), [
+      identityFingerprint(user('user-a'))
+    ]);
+    harness.bindIdentity.mockRejectedValueOnce(mismatch);
+
+    const error = await bindScopedIdentity(harness.sm).catch((rejection: unknown) => rejection);
+
+    expect(error).toBe(mismatch);
+    expect(harness.reportError).toHaveBeenCalledWith(mismatch);
+    expect(harness.repository.create).not.toHaveBeenCalled();
+  });
+
+  it('核心写水位时的其他错误原样抛出，不写进同步面板', async () => {
+    const harness = createIdentityHarness(user('user-a'));
+    const failure = new Error('disk full');
+    harness.bindIdentity.mockRejectedValueOnce(failure);
+
+    await expect(bindScopedIdentity(harness.sm)).rejects.toBe(failure);
+    expect(harness.reportError).not.toHaveBeenCalled();
+    expect(harness.repository.create).not.toHaveBeenCalled();
   });
 
   it('并发首次绑定时别的身份抢先写下了绑定：拒绝并写入同步错误', async () => {

@@ -92,20 +92,28 @@ const IDENTITY_BINDING = {
 };
 
 /**
- * 与远端交换数据之前先核对调用者身份：对不上先写进 `SyncState.lastError` 再抛
+ * 身份不匹配先写进 `SyncState.lastError` 再抛
  *
  * @remarks
- * 没声明身份时核心的 `assertCallerIdentity` 什么都不做，也不问远端。只有身份不匹配才写进面板：
- * 适配器不报告身份是配置问题，原样抛给调用方。
+ * 只有身份不匹配才写进面板：适配器不报告身份、写库失败这类是配置或环境问题，原样抛给调用方。
  */
-const assertRemoteIdentity = async (sm: SyncManager, remote: RxDBAdapterRemoteBase): Promise<void> => {
+const reportingIdentityMismatch = async (sm: SyncManager, step: () => Promise<void>): Promise<void> => {
   try {
-    await sm.rxdb.assertCallerIdentity(remote);
+    await step();
   } catch (error) {
     if (error instanceof RxDBIdentityMismatchError) sm.rxdb.syncState.reportError(error);
     throw error;
   }
 };
+
+/**
+ * 与远端交换数据之前先核对调用者身份：对不上先写进 `SyncState.lastError` 再抛
+ *
+ * @remarks
+ * 没声明身份时核心的 `assertCallerIdentity` 什么都不做，也不问远端。
+ */
+const assertRemoteIdentity = (sm: SyncManager, remote: RxDBAdapterRemoteBase): Promise<void> =>
+  reportingIdentityMismatch(sm, () => sm.rxdb.assertCallerIdentity(remote));
 
 /** 本地库已经绑定了身份：与当前会话对不上时先写进 `SyncState.lastError` 再抛 */
 const assertBoundIdentity = (
@@ -131,6 +139,11 @@ const assertBoundIdentity = (
  * @remarks
  * 声明了 `RxDBOptions.identity` 时先核对会话就是声明的身份，通过之后才写绑定：登错号的会话不能先把
  * 自己的指纹写进本地库——没有改绑，写错一次，换回正确的会话也再同步不了。
+ *
+ * 第一次绑定时先在同一个事务里写下核心的身份水位（`RxDB.bindIdentity`），再写本插件的绑定行。
+ * 没声明身份时只写本插件这一行的话，应用之后改为声明身份打开同一个库，核心的打开守卫看不到绑定，
+ * 会把装着这个会话数据的库就地绑给打开它的那个身份（RV-01a2118227d9715ab33e8ef2556bb4b6）。
+ * 库已绑定别的身份（曾以别的身份声明打开）时核心抛身份不匹配，两行都不写。已有本插件绑定时只核对、不回填核心水位。
  */
 export async function bindScopedIdentity(sm: SyncManager): Promise<void> {
   const { adapter: remoteAdapter } = await sm.getRemoteRepositories();
@@ -149,6 +162,7 @@ export async function bindScopedIdentity(sm: SyncManager): Promise<void> {
     const current = (await txRepository.find(IDENTITY_BINDING))[0];
     if (current) return assertBoundIdentity(sm, current, identity, fingerprint);
 
+    await reportingIdentityMismatch(sm, () => sm.rxdb.bindIdentity(executor, identity));
     const binding = Object.assign(sm.rxdb.entityManager.instantiate(RxDBSyncIdentityBinding), {
       id: IDENTITY_BINDING_ID,
       identityKind: scopedIdentityKind(identity),

@@ -373,6 +373,71 @@ describe('两个身份同时第一次打开本功能之前建的库', () => {
   });
 });
 
+// RV-01a2118227d9715ab33e8ef2556bb4b6：没声明身份时，同步插件按第一次同步的会话绑定本地库。
+// 只写插件自己那一行的话，应用之后改为声明身份打开同一个库，核心看不到绑定，会把装着上一个身份数据的库
+// 就地绑给打开它的那个身份：原主人从此打不开，新身份读得到原主人的数据
+describe('没声明身份时按会话写下的绑定（bindIdentity）', () => {
+  const bindAs = (database: RxDB, adapter: MemoryLocalAdapter, subject: string) =>
+    adapter.bootstrapTransaction(executor => database.bindIdentity(executor as never, identityOf(subject)));
+
+  it('之后以别的身份声明打开被拒，以这个身份声明打开照常连接', async () => {
+    const adapter = new MemoryLocalAdapter();
+    const undeclared = open(adapter);
+    await undeclared.connect(adapter.name);
+    await bindAs(undeclared, adapter, USER_A);
+    await undeclared.disconnectAll();
+
+    expect(identityRows(adapter.names)).toEqual([nameOf(USER_A)]);
+    expect(adapter.names).toContain(RXDB_IDENTITY_CLAIM_NAME);
+    await expect(open(adapter, identityOf(USER_B)).connect(adapter.name)).rejects.toBeInstanceOf(
+      RxDBIdentityMismatchError
+    );
+    await expect(open(adapter, identityOf(USER_A)).connect(adapter.name)).resolves.toBe(adapter);
+    expect(identityRows(adapter.names)).toEqual([nameOf(USER_A)]);
+  });
+
+  it('库已绑定这个身份（声明身份打开时写下的）：不重复写，以它结尾的水位行只有一条', async () => {
+    const adapter = new MemoryLocalAdapter();
+    const declared = open(adapter, identityOf(USER_A));
+    await declared.connect(adapter.name);
+    const rowsAfterOpen = [...adapter.names];
+
+    await bindAs(declared, adapter, USER_A);
+
+    expect(adapter.names).toEqual(rowsAfterOpen);
+    expect(adapter.appended).toEqual([]);
+  });
+
+  it('库已绑定别的身份：抛身份不匹配，一行不写', async () => {
+    const adapter = new MemoryLocalAdapter([RXDB_IDENTITY_CLAIM_NAME, nameOf(USER_A)]);
+    const undeclared = open(adapter);
+    await undeclared.connect(adapter.name);
+    // 打开既有库时引导会补写指纹行；这里只看绑定本身写了什么
+    const appendedBeforeBind = [...adapter.appended];
+
+    const error = await bindAs(undeclared, adapter, USER_B).catch((rejection: unknown) => rejection);
+
+    expect(error).toBeInstanceOf(RxDBIdentityMismatchError);
+    expect(error).toMatchObject({
+      source: 'database',
+      clientKey: getRxDBIdentityKey(identityOf(USER_B)),
+      foundKeys: [getRxDBIdentityKey(identityOf(USER_A))]
+    });
+    expect(adapter.appended).toEqual(appendedBeforeBind);
+  });
+
+  it('会话身份不合法（空 subject）：拒绝，不当作 anon，一行不写', async () => {
+    const adapter = new MemoryLocalAdapter();
+    const undeclared = open(adapter);
+    await undeclared.connect(adapter.name);
+
+    await expect(
+      adapter.bootstrapTransaction(executor => undeclared.bindIdentity(executor as never, { scope: SCOPE, subject: '' }))
+    ).rejects.toBeInstanceOf(RxDBError);
+    expect(identityRows(adapter.names)).toEqual([]);
+  });
+});
+
 describe('不声明身份：与没有这个功能时一致', () => {
   it('没有绑定的既有库：不写任何行', async () => {
     const adapter = new MemoryLocalAdapter(['0001-init']);

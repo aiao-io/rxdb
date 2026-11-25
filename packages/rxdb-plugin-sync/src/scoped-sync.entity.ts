@@ -127,6 +127,8 @@ export class RxDBSyncBucketRow {
  *
  * @remarks
  * 之后每次同步都核对，身份变了就停止同步并抛 `IdentityMismatchError`，没有改绑。
+ * 写下这一行的同一个事务里先写核心的身份水位（`RxDB.bindIdentity`）：应用之后改为声明身份打开同一个库，
+ * 核心的打开守卫按这个身份核对（RV-01a2118227d9715ab33e8ef2556bb4b6）。
  */
 @Entity({
   namespace: 'rxdb',

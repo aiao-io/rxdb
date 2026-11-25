@@ -31,6 +31,11 @@ export interface RxDBIdentity {
   /**
    * 后端标识：同一个身份在不同后端是不同的库
    *
+   * @remarks
+   * 必须与远端适配器的 `callerIdentity()` 报告的值逐字相同：核对是严格相等，不做归一化，
+   * 库名与库里的绑定也都按原文取摘要。Supabase 适配器报告的是项目 URL 的 origin（`new URL(supabaseUrl).origin`），
+   * 尾斜杠、路径段、大小写不同都算另一个后端。
+   *
    * @example 'https://project-a.supabase.co'
    */
   readonly scope: string;
@@ -128,7 +133,7 @@ export function getRxDBIdentityKey(identity: RxDBIdentity): string {
  *
  * @example
  * ```ts
- * const identity = { scope: supabaseUrl, subject: session?.user.id ?? RXDB_ANONYMOUS_SUBJECT };
+ * const identity = { scope: new URL(supabaseUrl).origin, subject: session?.user.id ?? RXDB_ANONYMOUS_SUBJECT };
  * const rxdb = new RxDB({
  *   dbName: getRxDBIdentityDatabaseName('todo', identity),
  *   identity,
@@ -145,6 +150,32 @@ export function getRxDBIdentityDatabaseName(baseName: string, identity: RxDBIden
   return `${baseName}-${getRxDBIdentityKey(identity).slice(0, DATABASE_NAME_KEY_LENGTH)}`;
 }
 
+const mismatchMessage = (
+  source: 'database' | 'remote',
+  client: string,
+  found: string,
+  scopes: RxDBIdentityMismatchError['scopes']
+): string => {
+  if (source === 'database') {
+    return (
+      `Local database is bound to a different identity: this client is ${client} but the database belongs to ${found}. ` +
+      `Local data is untouched. Open the database of this identity instead (see getRxDBIdentityDatabaseName).`
+    );
+  }
+  if (scopes) {
+    return (
+      `The remote reports a different backend scope: this client declares "${scopes.client}" but the remote reports "${scopes.remote}" ` +
+      `(identity ${client} vs ${found}). Nothing was exchanged with the remote and local data is untouched. ` +
+      `RxDBIdentity.scope must be exactly what the remote adapter reports; if it really is another backend, ` +
+      `open the database of that identity instead (see getRxDBIdentityDatabaseName).`
+    );
+  }
+  return (
+    `The remote session belongs to a different identity: this client is ${client} but the remote reports ${found}. ` +
+    `Nothing was exchanged with the remote and local data is untouched. Open the database of the signed-in identity instead (see getRxDBIdentityDatabaseName).`
+  );
+};
+
 /**
  * 身份对不上
  *
@@ -153,7 +184,9 @@ export function getRxDBIdentityDatabaseName(baseName: string, identity: RxDBIden
  * - `database`：本地库绑定的是别的身份。连接被拒，本地数据一行不动；
  * - `remote`：远端会话实际是别的身份。没有与远端交换任何数据，本地数据一行不动，待推变更留在原处。
  *
- * 唯一的处置是换到该身份自己的库。键都是不可逆摘要，文案与字段里没有用户 id 原文。
+ * 唯一的处置是换到该身份自己的库。身份键都是不可逆摘要，文案与字段里没有用户 id 原文；
+ * 只有远端报告的 scope 与声明的不同时，两边的 scope 原文写进 {@link RxDBIdentityMismatchError.scopes} 与文案：
+ * scope 是后端地址、不含用户信息，写出原文才分得清是写法不一致（尾斜杠、路径段、大小写）还是真连到了别的后端。
  */
 export class RxDBIdentityMismatchError extends RxDBError {
   constructor(
@@ -162,16 +195,14 @@ export class RxDBIdentityMismatchError extends RxDBError {
     /** 本客户端声明的身份键 */
     readonly clientKey: string,
     /** 另一边的身份键：库里绑定的（可能不止一个），或远端会话报告的 */
-    readonly foundKeys: readonly string[]
+    readonly foundKeys: readonly string[],
+    /**
+     * 远端报告的 scope 与声明的不同时两边的原文：`client` 是本客户端声明的，`remote` 是远端适配器报告的。
+     * scope 相同（只有 subject 不同）或来源是 `database` 时没有
+     */
+    readonly scopes?: { readonly client: string; readonly remote: string }
   ) {
-    const found = foundKeys.map(shortKey).join(', ');
-    super(
-      source === 'database' ?
-        `Local database is bound to a different identity: this client is ${shortKey(clientKey)} but the database belongs to ${found}. ` +
-          `Local data is untouched. Open the database of this identity instead (see getRxDBIdentityDatabaseName).`
-      : `The remote session belongs to a different identity: this client is ${shortKey(clientKey)} but the remote reports ${found}. ` +
-          `Nothing was exchanged with the remote and local data is untouched. Open the database of the signed-in identity instead (see getRxDBIdentityDatabaseName).`
-    );
+    super(mismatchMessage(source, shortKey(clientKey), foundKeys.map(shortKey).join(', '), scopes));
     this.name = 'RxDBIdentityMismatchError';
     Object.setPrototypeOf(this, RxDBIdentityMismatchError.prototype);
   }
@@ -250,7 +281,8 @@ export async function assertCallerIdentity(
   const reported = await remote.callerIdentity();
   assertRxDBIdentity(reported);
   if (reported.scope === identity.scope && reported.subject === identity.subject) return;
-  throw new RxDBIdentityMismatchError('remote', getRxDBIdentityKey(identity), [getRxDBIdentityKey(reported)]);
+  const scopes = reported.scope === identity.scope ? undefined : { client: identity.scope, remote: reported.scope };
+  throw new RxDBIdentityMismatchError('remote', getRxDBIdentityKey(identity), [getRxDBIdentityKey(reported)], scopes);
 }
 
 /**
