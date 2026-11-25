@@ -11,9 +11,9 @@
 | ✅ Done        | 100  |
 | 🚧 In Progress | 13   |
 | 👀 In Review   | 3    |
-| 📝 Backlog     | 28   |
+| 📝 Backlog     | 31   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 144  |
+| **合计**       | 147  |
 
 统计只包含带 story frontmatter 的文件。辅助证据和无故事文件的候选不计数；同编号的辅助文件不算另一条故事。
 Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关闭而自动通过。当前可开工条件见 roadmap 与各故事的阶段表。
@@ -101,6 +101,8 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 - 👀 [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)
 - ✅ [US-031 树形实体迁移到排序模块](stories/core/US-031-tree-sortable-migration.md)
 - ✅ [US-032 跨 Tab 增量 UPDATE 的活查询刷新](stories/core/US-032-cross-tab-update-live-query.md)
+- ⬜ [US-037 全量推送按外键依赖排序：子实体声明在前时不再被拒并删掉本地行](stories/core/US-037-push-order-by-foreign-key.md)
+- ⬜ [US-038 双向一对一的实体能开同步：外键成环时推拉不再整体失败](stories/core/US-038-bidirectional-one-to-one-sync.md)
 - ✅ [US-104 rxdb-model 表单校验反馈与保存失败的展示（三端对称）](stories/framework/US-104-validation-feedback.md)
 - ✅ [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md)
 - ✅ [US-208 Electron PGlite 数据目录与事务宿主](stories/adapter/US-208-electron-pglite-data-directory.md)
@@ -121,6 +123,7 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 - ✅ [US-224 Supabase 推送路径上级联删除的子行不写变更日志](stories/adapter/US-224-supabase-cascade-delete-change-log.md)
 - ✅ [US-225 Supabase 日志同步只对已登录身份开放，非 main 分支按所有者写入](stories/adapter/US-225-supabase-sync-protocol-access-baseline.md)
 - ⬜ [US-226 Supabase 待拉数按记录计：一个事务一条](stories/adapter/US-226-supabase-pull-count-records.md)
+- ⬜ [US-227 dev-rxdb-supabase 关系数据的推拉同步演示与端到端验收](stories/adapter/US-227-supabase-relational-sync-demo.md)
 - ✅ [US-504 Electron 本地文件存储](stories/plugin/US-504-electron-local-file-storage.md)
 - ✅ [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md)
 - ✅ [US-506 website 插件文档补齐（history / sync / querycache）](stories/plugin/US-506-website-plugin-docs.md)

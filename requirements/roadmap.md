@@ -10,11 +10,11 @@
 | ✅ Done        | 100    |
 | 🚧 In Progress | 13     |
 | 👀 In Review   | 3      |
-| 📝 Backlog     | 28     |
+| 📝 Backlog     | 31     |
 | 🚫 Blocked     | 0      |
-| **未完成合计** | **44** |
+| **未完成合计** | **47** |
 
-仓库还剩 **44 条**未关闭故事（13 In Progress + 3 In Review + 28 Backlog + 0 Blocked）。
+仓库还剩 **47 条**未关闭故事（13 In Progress + 3 In Review + 31 Backlog + 0 Blocked）。
 数字由 story YAML 推导；Backlog 包括已授权任务与价值待证候选，不能把全部未关闭故事当成可开工项。
 
 ## 未完成需求全景
@@ -31,6 +31,9 @@
 | [US-540](stories/domain/US-540-board-end-to-end-demo.md)                                                                                                                | 🚧 In Progress | demo 既有库初态（AC#7）与无搜索插件构建（AC#12）                                                       | 批次 6   |
 | [US-541](stories/domain/US-541-board-team-sync.md)                                                                                                                      | 📝 Backlog     | 具名团队触发后冻结身份、成员权限、RLS 与冲突规则                                                       | 立项池   |
 | [US-226](stories/adapter/US-226-supabase-pull-count-records.md)                                                                                                         | 📝 Backlog     | 远端日志补记 `transactionId`、广播带上它、按记录重算；先定旧服务端的处理方式                           |
+| [US-037](stories/core/US-037-push-order-by-foreign-key.md)                                                                                                              | 📝 Backlog     | 全量推送改按外键依赖排序，单仓推子仓不再让子行撞外键；补上级联仓的 `pushed` 汇总                       | 立项池   |
+| [US-038](stories/core/US-038-bidirectional-one-to-one-sync.md)                                                                                                          | 📝 Backlog     | 依赖图按可空外键断环、推送补外键回填相位；前置 US-037                                                  | 立项池   |
+| [US-227](stories/adapter/US-227-supabase-relational-sync-demo.md)                                                                                                       | 📝 Backlog     | dev-rxdb-supabase 订单页与两身份远端 e2e；前置 US-037，候选 AC#8 前置 US-038                           | 立项池   |
 | [US-029](stories/core/US-029-rbac-owner-role-permission.md)                                                                                                             | 📝 Backlog     | 价值待证，等待具名多用户写授权症状；解锁时重验当前 API 前提                                            | 立项池   |
 | [US-910](stories/future/US-910-data-i18n.md)                                                                                                                            | 📝 Backlog     | 先证明语言启停入口、删除判据与迟到子行合入；不能只归因于缺夹具                                         | 立项池   |
 | [US-704](stories/future/US-704-p2p-manifest-discovery.md) / [US-705](stories/future/US-705-p2p-byte-transfer.md) / [US-706](stories/future/US-706-p2p-fallback-auth.md) | 🚧 In Progress | 协议层已实现；先选定认证宿主，再接信令、mDNS 与桌面握手，按 AC 在真实宿主上验收                        | 批次 7   |
@@ -116,6 +119,9 @@ owner 明确了目标：不同用户同步到自己有权限的数据，没登�
 | US-910                            | 先完成故事中的能力/持久化合同验证；locale/fallback 复用 US-911 的同一份定义，不预先承诺无需同步改动 |
 | US-541                            | 具名团队离线协作症状出现后，先冻结身份、成员权限、RLS 与冲突合同                                    |
 | US-226                            | owner 排期；实现前先定新客户端连旧服务端（没跑升级脚本）时计数怎么处理                              |
+| US-037                            | owner 排期，无前置；实现前先定单仓推子仓时是带上父仓一起推，还是子行本轮不推                        |
+| US-038                            | 以 US-037 为前置；实现前先定断环方式（可空外键回填，或一对一的一侧只做导航）                        |
+| US-227                            | 以 US-037 为前置，候选 AC#8 另以 US-038 为前置；实现前先定演示实体放哪、访客能否进入订单页          |
 | US-709 / US-710 / US-711 / US-712 | 以 US-708 为前置；各故事「解锁条件」出现后由 owner 解锁，排序上 US-709 整库克隆在先                 |
 
 ### epic-006 评审顺延的架构项
