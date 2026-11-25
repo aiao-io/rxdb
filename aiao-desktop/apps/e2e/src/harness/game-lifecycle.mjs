@@ -57,14 +57,13 @@ export async function checkGameLifecycle(page, { hiddenTab = false, synthetic = 
     expect(sample.audio === null || sample.audio === 'suspended').toBe(true);
     return true;
   };
-  /* 键盘打开 Apple 菜单（焦点 + Enter）：与 a11y 组验证过的菜单路径一致。
-     合成 mousedown 在慢机（CI）上会带着 hover/回声状态竞态，菜单有时弹不出来。
-     菜单项同样用键盘激活（聚焦 + Enter）：合成 click 在键盘打开的菜单里在慢机上可能不触发命令。 */
+  /* 键盘打开 Apple 菜单（DOM focus + Enter）：与 a11y 组验证过的菜单路径一致。
+     合成鼠标事件在慢机（CI）上带 hover/回声竞态；locator.focus 又会被 Playwright 的稳定性预检卡住——
+     真游戏在 CI 慢机上 ~1fps，主线程饱和时连续两帧几何不变都凑不齐。evaluate 直设 DOM 焦点绕开一切 actionability。 */
   const apple = async label => {
-    await page.locator('#menubar .mb-item.apple').focus();
+    await page.locator('#menubar .mb-item.apple').evaluate(node => node.focus());
     await page.keyboard.press('Enter');
-    const item = page.locator('#layer-menu .pop .mi', { hasText: label });
-    await item.focus();
+    await page.locator('#layer-menu .pop .mi', { hasText: label }).evaluate(node => node.focus());
     await page.keyboard.press('Enter');
   };
   const before = await state();

@@ -871,8 +871,19 @@ export const a11y = {
         await tabTo(info => is(info, 'menubar', 'Repository'));
         await press('ArrowUp');
         await focusReaches(page, info => is(info, 'popover', 'Repository Settings…'));
-        await press('Enter');
         const settings = githubWindow.getByRole('dialog', { name: 'Repository Settings', exact: true });
+        /* CI 慢机上菜单项重渲染时 Enter 偶发被吞、命令不执行（对话框根本不出现）。
+           重试整条键盘路径（Escape 回标题 → ArrowUp 重开 → 焦点 → Enter），最多四次。 */
+        for (let attempt = 0; attempt < 4 && (await settings.count()) === 0; attempt++) {
+          if (attempt > 0) {
+            await press('Escape');
+            await focusReaches(page, info => is(info, 'menubar', 'Repository'), 3_000);
+            await press('ArrowUp');
+            await focusReaches(page, info => is(info, 'popover', 'Repository Settings…'), 3_000);
+          }
+          await press('Enter');
+          await page.waitForTimeout(400);
+        }
         /* 慢机（CI）上对话框与远端 URL 的加载更慢：先等对话框可见，URL 文本框给足时间。 */
         await settings.waitFor({ state: 'visible', timeout: 10_000 });
         const url = settings.getByRole('textbox', { name: 'Primary Remote Repository (origin) URL' });
