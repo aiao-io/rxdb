@@ -15,6 +15,8 @@ export interface CatalogRemoteItem {
   readonly name: string;
   readonly category: string;
   readonly price: number;
+  /** 业务表允许不填 */
+  readonly cost: number | null;
   readonly visibility: 'public' | 'tenant';
   readonly tenantId: string;
 }
@@ -28,6 +30,9 @@ export interface CatalogItemDraft {
   readonly visibility: 'public' | 'tenant';
   readonly tenantId: string;
 }
+
+/** 编辑商品能改的内容：可见范围另由「公开 / 收回为内部」切换，所属租户不变，行留在原来的区。 */
+export type CatalogItemChanges = Pick<CatalogItemDraft, 'name' | 'category' | 'price' | 'cost'>;
 
 interface Result<T> {
   readonly data: T | null;
@@ -84,7 +89,7 @@ export async function fetchTenantItems(
   return unwrap(
     await client
       .from('catalog_items')
-      .select('id, name, category, price, visibility, tenantId')
+      .select('id, name, category, price, cost, visibility, tenantId')
       .in('tenantId', [...tenantIds])
       .order('tenantId')
       .order('category')
@@ -99,6 +104,11 @@ export async function setItemVisibility(
   visibility: CatalogRemoteItem['visibility']
 ): Promise<void> {
   expectAffected(await client.from('catalog_items').update({ visibility }).eq('id', id).select('id'), '修改可见范围');
+}
+
+/** 改一件商品的名称、分类、售价与成本价。 */
+export async function updateItem(client: CatalogRemoteClient, id: string, changes: CatalogItemChanges): Promise<void> {
+  expectAffected(await client.from('catalog_items').update(changes).eq('id', id).select('id'), '编辑');
 }
 
 /** 删除一件商品。 */

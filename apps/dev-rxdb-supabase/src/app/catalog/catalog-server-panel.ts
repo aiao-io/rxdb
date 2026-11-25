@@ -1,7 +1,8 @@
-import { ChangeDetectionStrategy, Component, effect, inject, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DemoSession } from '../demo-session';
 import { getErrorMessage } from '../error-message';
+import { CatalogItemEditor, type CatalogItemEdit } from './catalog-item-editor';
 import {
   createItem,
   deleteItem,
@@ -9,13 +10,14 @@ import {
   joinTenant,
   leaveTenant,
   setItemVisibility,
+  updateItem,
   type CatalogRemoteItem
 } from './catalog-remote';
 import { CatalogRemoteState } from './catalog-remote-state';
 import { CATALOG_CATEGORIES } from './catalog-sync-rule';
 
 /**
- * 模拟服务端那边的变化：成员关系、商品的可见范围、删除与新增。
+ * 模拟服务端那边的变化：成员关系，商品的编辑、可见范围、删除与新增。
  *
  * @remarks
  * 这里直接以当前身份写远端业务表（RLS：只能改所在租户的商品），写入经同步触发器记进对应区的日志；
@@ -24,7 +26,7 @@ import { CATALOG_CATEGORIES } from './catalog-sync-rule';
  */
 @Component({
   selector: 'app-catalog-server-panel',
-  imports: [FormsModule],
+  imports: [FormsModule, CatalogItemEditor],
   template: `
     <section class="card bg-base-100 shadow-sm" aria-labelledby="server-title">
       <div class="card-body gap-4">
@@ -69,49 +71,39 @@ import { CATALOG_CATEGORIES } from './catalog-sync-rule';
           @if (remote.$myTenantIds().length === 0) {
             <p class="text-base-content/60 text-sm">还不在任何租户里：加入一个租户后可以管理它的商品。</p>
           } @else {
-            <div class="overflow-x-auto">
-              <table class="table-sm table">
-                <thead>
-                  <tr>
-                    <th>商品</th>
-                    <th>租户</th>
-                    <th>可见范围</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (item of $items(); track item.id) {
-                    <tr data-testid="server-item">
-                      <td>
-                        {{ item.name }} <span class="badge badge-ghost badge-sm">{{ item.category }}</span>
-                      </td>
-                      <td class="whitespace-nowrap">{{ remote.tenantName(item.tenantId) }}</td>
-                      <td class="whitespace-nowrap">{{ item.visibility === 'public' ? '公开' : '仅租户内部' }}</td>
-                      <td>
-                        <div class="flex justify-end gap-1">
-                          <button
-                            class="btn btn-xs"
-                            [disabled]="$busy()"
-                            (click)="toggleVisibility(item)"
-                            type="button"
-                          >
-                            {{ item.visibility === 'public' ? '收回为内部' : '公开' }}
-                          </button>
-                          <button
-                            class="btn btn-xs btn-error btn-outline"
-                            [disabled]="$busy()"
-                            (click)="remove(item)"
-                            type="button"
-                          >
-                            删除
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
+            <ul class="divide-base-200 divide-y">
+              @for (item of $items(); track item.id) {
+                <li class="flex flex-wrap items-center justify-between gap-2 py-2" data-testid="server-item">
+                  <div class="flex min-w-0 flex-col gap-1">
+                    <span class="flex flex-wrap items-center gap-1">
+                      {{ item.name }}
+                      <span class="badge badge-ghost badge-sm">{{ item.category }}</span>
+                      <span class="badge badge-outline badge-sm">
+                        {{ item.visibility === 'public' ? '公开' : '仅租户内部' }}
+                      </span>
+                    </span>
+                    <span class="text-base-content/60 text-xs">
+                      {{ remote.tenantName(item.tenantId) }} · ¥{{ item.price }} · 成本
+                      {{ item.cost === null ? '未填' : '¥' + item.cost }}
+                    </span>
+                  </div>
+                  <div class="ml-auto flex gap-1">
+                    <button class="btn btn-xs" [disabled]="$busy()" (click)="edit(item)" type="button">编辑</button>
+                    <button class="btn btn-xs w-20" [disabled]="$busy()" (click)="toggleVisibility(item)" type="button">
+                      {{ item.visibility === 'public' ? '收回为内部' : '公开' }}
+                    </button>
+                    <button
+                      class="btn btn-xs btn-error btn-outline"
+                      [disabled]="$busy()"
+                      (click)="remove(item)"
+                      type="button"
+                    >
+                      删除
+                    </button>
+                  </div>
+                </li>
+              }
+            </ul>
 
             <form class="flex flex-wrap items-end gap-2" (ngSubmit)="create()">
               <label class="fieldset">
@@ -165,6 +157,7 @@ import { CATALOG_CATEGORIES } from './catalog-sync-rule';
         }
       </div>
     </section>
+    <app-catalog-item-editor [busy]="$busy()" [error]="$error()" (save)="saveEdit($event)" />
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
 })
@@ -173,6 +166,7 @@ export class CatalogServerPanel {
   readonly #busy = signal(false);
   readonly #error = signal<string | null>(null);
   readonly #notice = signal<string | null>(null);
+  readonly editorRef = viewChild.required(CatalogItemEditor);
   readonly session = inject(DemoSession);
   readonly remote = inject(CatalogRemoteState);
   readonly categories = CATALOG_CATEGORIES;
@@ -209,6 +203,21 @@ export class CatalogServerPanel {
     return this.#run(`已退出${this.remote.tenantName(tenantId)}`, async client => {
       await leaveTenant(client, tenantId);
       await this.remote.refresh();
+    });
+  }
+
+  /** 以服务端现值打开编辑框；上一次操作的失败原因不带进框里 */
+  edit(item: CatalogRemoteItem): void {
+    this.#error.set(null);
+    this.editorRef().open(item);
+  }
+
+  /** 写回服务端，成功才关上编辑框；失败时框不关，原因显示在框里 */
+  saveEdit({ id, changes }: CatalogItemEdit): Promise<void> {
+    return this.#run(`「${changes.name}」已修改`, async client => {
+      await updateItem(client, id, changes);
+      this.editorRef().close();
+      await this.#loadItems(this.remote.$myTenantIds());
     });
   }
 

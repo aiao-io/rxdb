@@ -1,4 +1,4 @@
-import { expect, test, type Browser, type Page } from '@playwright/test';
+import { expect, test, type Browser, type Locator, type Page } from '@playwright/test';
 
 const isRemoteE2E = process.env['REMOTE_E2E'] === 'true';
 
@@ -64,8 +64,43 @@ if (isRemoteE2E) {
       return page.getByTestId('server-item').filter({ hasText: name });
     }
 
-    /** 删掉本轮建的商品；用例中途失败时有的还没建出来，跳过 */
+    /** 在「模拟服务端变更」里给星河零售新增一件商品 */
+    async function addItem(page: Page, name: string, category: string, visibility: 'public' | 'tenant'): Promise<void> {
+      await page.getByPlaceholder('名称', { exact: true }).fill(name);
+      await page.getByLabel('分类', { exact: true }).selectOption(category);
+      await page.getByLabel('所属租户', { exact: true }).selectOption('xinghe');
+      await page.getByLabel('可见范围', { exact: true }).selectOption(visibility);
+      await expect(page.getByPlaceholder('名称', { exact: true })).toHaveValue(name);
+      await serverAction(
+        page,
+        () => page.getByRole('button', { name: '新增', exact: true }).click(),
+        `「${name}」已新增`
+      );
+    }
+
+    /**
+     * 在编辑框里改一件商品，等编辑框关上
+     *
+     * @remarks
+     * 编辑框在服务端写入成功之后才关：不能等「已修改」的提示，同一件商品改两次时上一次的提示还挂在页面上。
+     */
+    async function editItem(page: Page, name: string, edit: (editor: Locator) => Promise<void>): Promise<void> {
+      await serverRow(page, name).getByRole('button', { name: '编辑' }).click();
+      const editor = page.getByRole('dialog', { name: '编辑商品' });
+      await edit(editor);
+      await editor.getByRole('button', { name: '保存' }).click();
+      await expect(editor).toBeHidden({ timeout: 30_000 });
+    }
+
+    /**
+     * 删掉本轮建的商品；用例中途失败时有的还没建出来，跳过
+     *
+     * @remarks
+     * 失败时编辑框可能还开着：模态框挡住整个页面，先关上它，否则删除点不到，商品会留在共用的栈上。
+     */
     async function deleteIfCreated(page: Page, name: string): Promise<void> {
+      const editor = page.getByRole('dialog', { name: '编辑商品' });
+      if (await editor.isVisible()) await editor.getByRole('button', { name: '取消' }).click();
       if ((await serverRow(page, name).count()) === 0) return;
       await serverAction(
         page,
@@ -89,16 +124,7 @@ if (isRemoteE2E) {
           [publicHome, '家居', 'public'],
           [internalDigital, '数码', 'tenant']
         ] as const) {
-          await member.getByPlaceholder('名称', { exact: true }).fill(name);
-          await member.getByLabel('分类', { exact: true }).selectOption(category);
-          await member.getByLabel('所属租户', { exact: true }).selectOption('xinghe');
-          await member.getByLabel('可见范围', { exact: true }).selectOption(visibility);
-          await expect(member.getByPlaceholder('名称', { exact: true })).toHaveValue(name);
-          await serverAction(
-            member,
-            () => member.getByRole('button', { name: '新增', exact: true }).click(),
-            `「${name}」已新增`
-          );
+          await addItem(member, name, category, visibility);
         }
 
         // US-033 AC#1：访客（anon，不登录）只能读公开区；默认规则只关注数码
@@ -166,6 +192,45 @@ if (isRemoteE2E) {
         await expect(syncedItem(member, 'tenant:xinghe', internalDigital)).toBeVisible();
       } finally {
         for (const name of [publicDigital, publicHome, internalDigital]) {
+          await deleteIfCreated(member, name);
+        }
+      }
+    });
+
+    test('编辑商品：改名改价，下次同步收到修改；改到访客没关注的分类，访客那边按规则移除', async ({ browser }) => {
+      const before = `e2e-${runId}-编辑前`;
+      const after = `e2e-${runId}-编辑后`;
+      const member = await openCatalog(browser, undefined);
+      await switchIdentity(member, 'anonymous', '匿名用户');
+      await serverAction(member, () => member.getByRole('button', { name: '加入星河零售' }).click(), '已加入星河零售');
+
+      try {
+        await addItem(member, before, '数码', 'public');
+        // 访客默认只关注数码
+        const visitor = await openCatalog(browser, member);
+        await sync(visitor);
+        await expect(syncedItem(visitor, 'public', before)).toBeVisible();
+
+        // 改名、改价：行留在公开区，下次同步按更新收到；服务端那一行马上变，本机要等同步
+        await editItem(member, before, async editor => {
+          await editor.getByLabel('名称', { exact: true }).fill(after);
+          await editor.getByLabel('售价', { exact: true }).fill('123');
+        });
+        await expect(serverRow(member, after)).toContainText('¥123');
+        await expect(syncedItem(visitor, 'public', before)).toBeVisible();
+        await sync(visitor);
+        await expect(syncedItem(visitor, 'public', after)).toContainText('¥123');
+        await expect(allSynced(visitor).filter({ hasText: before })).toHaveCount(0);
+
+        // 改到访客没关注的分类：这次更新对访客不再匹配规则，服务端按移除发过去
+        // 下拉框包在 label 里，label 的文字带上了全部选项：按角色和可访问名称找
+        await editItem(member, after, async editor => {
+          await editor.getByRole('combobox', { name: '分类' }).selectOption('图书');
+        });
+        await sync(visitor);
+        await expect(allSynced(visitor).filter({ hasText: after })).toHaveCount(0);
+      } finally {
+        for (const name of [before, after]) {
           await deleteIfCreated(member, name);
         }
       }
