@@ -2,7 +2,7 @@
 id: RV-01a2118227af7d5285df5ce117507582
 title: '升级后未转分区的实体，历史日志正文对任意登录用户持续可读'
 project: 'rxdb-adapter-supabase'
-status: Open
+status: Dismissed
 severity: 'P1'
 anchors:
   [
@@ -76,3 +76,21 @@ pr: null
   owner 裁决仍未出现；P1 暴露面在 US-229 落地后依旧存在，只是多了一条受控的替代通道。
 - 验证：文档评审工作流 wf_9f752545-f43（3 读者 + 1 评审）交叉核对，主会话复核 `US-229-supabase-change-history.md` 全文与 epic-015「变更历史与同步日志分开」定案；未运行测试，结论基于静态证据。
 - 剩余事项：不变——owner 裁决修复或 Accepted。
+
+### EV-01a21224d4eb73eabe7c936e7ad86023：复核（不成立）
+
+- 时间：2026-11-25T18:02:16+0800
+- 操作：review/independent
+- 执行者：ai；anthropic/claude-opus-5-5；会话 8b131c28-0801-4140-925f-c944249ee3cf
+- 输入快照：`45114a4aa36d2649ce281855e4beac56c6d7000c`
+- 输出快照：工作区树 `00a3a6eab9aa449d8b213f7ee822858bc8048fab`（顺带补了两处文档措辞，见下；`ai-review snapshot --worktree`，基于 `b1fcba9b`）；本记录不在该树内。
+- 状态：Open → Dismissed
+- 结论：不构成所述的数据暴露面：
+  - 未分区实体升级之后的新写入同样带完整正文进日志：`docker/sql/02-rxdb-sync-functions.sql:99`（INSERT）、`:152`（UPDATE）、`:171`（DELETE）在业务表没有 `rxdb_bucket` 列时照写 `patch` / `beforeData` / `afterData`，`bucket` 为 NULL，读策略第一分支对 authenticated 放行。历史正文与新写入的读者范围相同，删掉历史不减少任何暴露；
+  - 升级脚本不删有它的理由：删了会让还没拉到最新变更的旧客户端永久漏掉它们（`docker/sql/production/rxdb-sync-access-upgrade.sql:43-46`）；真正要收紧时就把实体改成分区实体，登记函数会删掉它全部未分区历史（`docker/sql/02-rxdb-sync-functions.sql:1004-1018`）；
+  - 评审称迁移文档「只说旧日志对 authenticated 可见，未写明正文残留与清理时机」与事实不符：`website/docs/migration/supabase-sync-access.md:108` 原文「登记会删掉这个实体全部的未分区历史日志。这些旧日志带完整正文，登记之前仍按旧口径对 authenticated 可读」；`:23` 与适配器文档「适用边界」（`website/docs/adapters/supabase.md:674`）写明未分区日志对全部登录者可读、需要租户隔离的实体应改用按区日志同步；
+  - epic-015「正文由业务表裁决」说的是分区日志（`requirements/epics/epic-015-identity-scoped-sync.md:31`「分区日志只记哪个区的哪一行变了，不存行内容」），不约束未分区日志；
+  - 与 main 比，本分支是收紧：main 上 `rxdb_change` 对 anon 与 authenticated 都可读（`git show main:docker/sql/production/rxdb-change-grants.sql` 第 17 行 `GRANT SELECT ON public.rxdb_change TO anon, authenticated`），现在 anon 只能读授权的分区；
+  - 顺带：两处文档的「未分区旧日志」容易被读成「只剩升级前的存量」，已在迁移文档 `:23` 与适配器文档 `:674` 补明「带完整正文，没有改成分区实体的实体之后的新写入同样记成这种日志」。术语本身沿用，SQL 注释不动。
+- 验证：静态阅读上述 SQL 与文档；`node scripts/check-doc-code.mjs` 0 个错误，两份文档 prettier 通过。
+- 剩余事项：无。若 owner 想让未分区实体的日志也不带正文，那是改未分区协议本身（US-229 范围以外），另立故事。

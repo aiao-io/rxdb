@@ -2,7 +2,7 @@
 id: RV-01a21194e6dd7d14907c32bfdb6571d2
 title: '核心 4 个新导出不符命名门禁，api-surface 例外清单自查自放未见裁决'
 project: 'rxdb'
-status: Open
+status: Dismissed
 severity: 'P2'
 anchors: ['scripts/audit/api-surface.mjs#corePrefixExceptions']
 affected_projects: []
@@ -69,3 +69,19 @@ owner 裁决二选一：4 个名字改名满足前缀门禁（如 `getRxDBIdenti
   同样不满足 `corePrefixes` 前缀门禁——若沿用现状，`corePrefixExceptions` 将再扩一员，「自查自放」形态延续，且故事未提及门禁影响。
 - 验证：文档评审工作流 wf_9f752545-f43（3 读者 + 1 评审）交叉核对，主会话复核 US-038 技术笔记与 `api-surface.mjs` 例外清单；未运行测试，结论基于静态证据。
 - 剩余事项：owner 裁决改名或放宽门禁；US-038 落地前先定新导出的门禁处置。
+
+### EV-01a21224d51172ce8ec297fc4861df1e：复核（不构成缺陷）
+
+- 时间：2026-11-25T18:02:16+0800
+- 操作：review/independent
+- 执行者：ai；anthropic/claude-opus-5-5；会话 8b131c28-0801-4140-925f-c944249ee3cf
+- 输入快照：`45114a4aa36d2649ce281855e4beac56c6d7000c`
+- 输出快照：同输入（只写评审记录）
+- 状态：Open → Dismissed
+- 结论：事实（4 个名字由本分支登记例外）属实，但不构成所述问题，也不满足评审标准「写得出什么输入或时序下、哪段代码、产生什么错误结果」（原记录自己写明「无行为后果」）：
+  - 逐名例外是门禁的设计本身：`scripts/audit/api-surface.mjs:320-331` 写明前缀规则的例外是「逐名例外，不是放宽前缀」，「列成名单而不是加一条前缀：加前缀之后第四个同族名字会静默通过」。每次扩例外都出现在 PR diff 里、附理由，裁决发生在 PR 评审（AGENTS.md「合并治理」）；US-218（`:542`）、US-312（`:552`）、US-313（`:557`）、US-226（`:574`）都按此登记过。「自查自放」是任何允许名单的形态，不等于门禁失效；
+  - 原修复方向的改名（如 `getRxDBIdentityDatabaseName` → `getRxDBWorktreeDatabaseName`）正是例外注释反对的：身份与工作树、提交能力无关，叫 `Worktree*` 等于宣称它属于提交能力（`:566` 起 US-035 那段注释）；
+  - 本会话修 `RV-01a21182277b752b859ed1effe55f063` 时没有新增导出名（类型内联在字段上），`node scripts/audit/api-surface.mjs --check` 63 个包命名合规，例外清单没有增长；
+  - 若 owner 认为清单持续增长说明 `corePrefixes`（epic-006 提交能力的前缀规则）不该套在全部核心导出上，那是收窄规则适用范围的流程决策，另立事项，不是本记录的缺陷。US-038 计划中的 `RxDBForeignKeyCycleError` 届时按同一机制登记即可。
+- 验证：静态阅读 `scripts/audit/api-surface.mjs`（快照 `45114a4a`）；`node scripts/audit/api-surface.mjs --check` 通过。
+- 剩余事项：无。

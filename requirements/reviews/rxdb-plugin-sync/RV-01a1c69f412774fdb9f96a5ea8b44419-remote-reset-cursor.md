@@ -22,7 +22,7 @@ found_snapshot: '6e03381dea405b988f09cf5ca2769e016b196707'
 found_range: project
 found_base: null
 created: 2026-11-10
-updated: 2026-11-11
+updated: 2026-11-25
 pr: null
 ---
 
@@ -171,3 +171,15 @@ pr: null
   「批先落进新库」的瞬态被代码注释明确接受。该剩余事项保留为已知后续工作，不在本记录修复范围内。
 - 验证：4 个独立验证 agent 在 HEAD 上对抗性核对（工作流 wf_fbd47c66-d14），主会话对上述行号做行级复核；未运行测试与真栈回归。
 - 剩余事项：服务端 `rxdb_mutations` 原子身份比对（需要时另立故事）；如需 Resolved，请按全量门禁（`pnpm test-all`）复核。
+
+### EV-01a21224d53870c581cbd3e72fc22aac：复核（对 2026-11-25 核验的复核）
+
+- 时间：2026-11-25T18:02:16+0800
+- 操作：review/independent
+- 执行者：ai；anthropic/claude-opus-5-5；会话 8b131c28-0801-4140-925f-c944249ee3cf
+- 输入快照：`45114a4aa36d2649ce281855e4beac56c6d7000c`
+- 输出快照：同输入（只写评审记录）
+- 状态：Fixed（不变）
+- 结论：上一事件的核验属实。推送入口 `packages/rxdb-plugin-sync/src/SyncManager.ts:433` 的 `verifyRemoteBackend()` 与回执落库前 `packages/rxdb-plugin-sync/src/push-repository.ts:1176` 的再核对都在。服务端 `rxdb_mutations` 内原子比对远端身份仍未实现，保留为已知后续是合理的：窗口只在运维重建与推送 RPC 之间的竞态里；「远端地址配错到别的项目」由入口核对挡住；被写进新库的那一批本地不记账，改绑后幂等重推。本会话对同步插件的改动（`RV-01a21194e6b6742e98c9d90c0a3e6270`、`RV-01a2118227d9715ab33e8ef2556bb4b6` 的修复）不碰这两处核对。
+- 验证：静态阅读上述行号；`pnpm nx run-many -t test --projects=rxdb,rxdb-plugin-sync --skip-nx-cache --parallel=1` 通过（rxdb-plugin-sync 39 个文件 619 条，含 `remote-backend.spec.ts`、`push-pull-protocol.integration.spec.ts` 的远端重建用例）。未跑 `rxdb-adapter-supabase` 真栈 `remote-reset.spec.ts` 与 `pnpm test-all`，所以不转 Resolved。
+- 剩余事项：不变：需要 Resolved 时按全量门禁复核；服务端原子比对需要时另立故事。
