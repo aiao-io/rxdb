@@ -213,9 +213,9 @@ function ComparisonContent({ copy }: ComparisonContentProps): ReactNode {
               )}
             </p>
             <div className='mt-6 flex flex-wrap gap-2'>
-              {['Version branching', 'Undo / redo', 'Conditional sync', 'Cross-tab sync'].map(tag => (
+              {['版本分支', '撤销重做', '条件同步', '跨 Tab 同步'].map(tag => (
                 <span key={tag} className='mono-chip'>
-                  {tag}
+                  {copy(tag)}
                 </span>
               ))}
             </div>

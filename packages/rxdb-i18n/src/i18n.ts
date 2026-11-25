@@ -23,8 +23,8 @@ export interface I18nOptions {
   /** 宿主语言，缺省 navigator.language。 */
   readonly deviceLocale?: string;
   /**
-   * 嵌入宿主下发的语言，启动期优先于已持久化的用户偏好与设备语言；
-   * 首个设置快照到达或用户显式切换后让位，且不写入偏好存储。
+   * 嵌入宿主下发的语言：会话期内始终优先于已持久化的用户偏好与设备语言，
+   * 仅用户显式 setLocale() 后让位；不写入偏好存储。
    */
   readonly hostLocale?: string;
   /** 初始显式语言；已持久化的用户偏好优先。 */
@@ -74,7 +74,7 @@ export class I18n {
   #local: MessageEntry[] = [];
   #remote: RemoteMessageEntry[] = [];
   #preferences: LocalePreferences;
-  /** 启动期的宿主语言覆盖；只影响运行内存，不落库、不进偏好快照。 */
+  /** 会话期的宿主语言覆盖；只在显式 setLocale() 时清除，不落库、不进偏好快照。 */
   #hostLocale: string | null;
   #subscription?: Subscription;
   #initializing?: Promise<void>;
@@ -170,7 +170,7 @@ export class I18n {
    */
   setLocale = async (locale: string): Promise<void> => {
     this.#assertActive();
-    // 用户显式切换后，启动期的宿主语言覆盖让位；无库模式不会走 #accept 消费，这里兜底。
+    // 用户显式切换后，会话期的宿主语言覆盖让位；无库模式不会走 #accept 消费，这里兜底。
     this.#hostLocale = null;
     const canonical = canonicalizeLocale(locale);
     if (!this.#db) {
@@ -453,10 +453,9 @@ export class I18n {
     this.#local = local;
     this.#remote = remote;
     this.#preferences = preferences;
+    // 宿主语言覆盖对会话期内的每一次设置快照（跨标签页写入、重连、迟到的持久化偏好）都保持优先，
+    // 不在此消费；只有用户显式 setLocale() 才清除，见 setLocale 与 #merge。
     this.#merge();
-    // 宿主语言只在启动期首个设置快照生效：之后的刷新（用户切换、跨标签页写入）
-    // 一律以持久化偏好为准，避免嵌入环境的启动语言永久压制用户选择。
-    this.#hostLocale = null;
   }
 
   #applySettings(settings: LocalePreferences): void {

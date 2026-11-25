@@ -486,10 +486,10 @@ export default function Home(): ReactNode {
               <motion.div variants={itemVariants}>
                 <div className='home-cta-card p-10 sm:p-16 lg:p-20'>
                   <h2 className='text-foreground mt-6 max-w-3xl text-3xl leading-tight font-semibold tracking-tight sm:text-5xl'>
-                    跑通最小链路，再评估接入
+                    {copy('跑通最小链路，再评估接入')}
                   </h2>
                   <p className='text-muted-foreground mt-6 text-base leading-7 sm:text-lg sm:leading-8'>
-                    先完成模型、数据库、查询和 UI 绑定，再通过三套框架演示与架构说明核对能力边界。
+                    {copy('先完成模型、数据库、查询和 UI 绑定，再通过三套框架演示与架构说明核对能力边界。')}
                   </p>
                   <div className='mt-10 flex flex-wrap justify-center gap-3'>
                     <Button size='lg' asChild>

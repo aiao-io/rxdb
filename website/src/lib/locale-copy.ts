@@ -28,7 +28,7 @@ const englishCopy: Readonly<Record<string, string>> = {
     'Connect query results as a reactive data source and let data changes drive the view.',
   按需引入协作: 'Add collaboration when needed',
   '本地读写链路稳定后，再按业务需要引入分支、撤销重做与同步。':
-    'Once local reads and writes are stable, add branches, undo/redo, and synchronization as the product requires.',
+    'Once local reads and writes are stable, add branches, undo/redo, and synchronization as business needs require.',
   复杂后台与表单: 'Complex back-office and forms',
   '使用 Signals 绑定查询和实体状态，查看表单、关系数据与管理页面的实现。':
     'Use Signals to bind queries and entity state across forms, relations, and management pages.',
@@ -125,7 +125,7 @@ const englishCopy: Readonly<Record<string, string>> = {
     'Framework differences stay in the UI binding APIs while core data semantics remain the same.',
   源码可直接对照: 'Compare the source directly',
   '每个演示都对应 apps/dev-rxdb-* 下的完整源码。': 'Each demo maps to a complete application under apps/dev-rxdb-*.',
-  覆盖完整业务场景: 'Cover complete product scenarios',
+  覆盖完整业务场景: 'Cover complete business scenarios',
   '包含关系详情页、任务看板、语言切换与文件管理，可用于评估实际接入。':
     'The demos include relation details, task boards, language switching, and file management for integration evaluation.',
   查询结果如何自动更新: 'How query results update automatically',
@@ -161,7 +161,7 @@ const englishCopy: Readonly<Record<string, string>> = {
   '界面与源码 1:1 对照': 'Compare UI and source 1:1',
   技术架构: 'Architecture',
   'RxDB 如何把数据库、响应式查询、模型驱动开发与同步协作在浏览器内组织成清晰层次':
-    'How RxDB organizes the database, reactive queries, model-driven development, and sync collaboration into clear layers inside the browser',
+    'How RxDB organizes the database, reactive queries, model-driven development, synchronization, and collaboration into clear layers inside the browser',
   'RxDB 如何组织浏览器内数据链路': 'How RxDB organizes the in-browser data path',
   '存储、响应式查询、实体模型与 UI 绑定分别承担明确职责，远端同步作为可选协作层接入。':
     'Storage, reactive queries, the entity model, and UI binding each carry a clear responsibility, with remote sync joining as an optional collaboration layer.',
@@ -188,7 +188,7 @@ const englishCopy: Readonly<Record<string, string>> = {
     'Pages, forms, and detail views consume local query results directly, so common reads and writes never wait for a network round trip.',
   本地业务与模型层: 'Local business and model layer',
   '实体规则、关系约束、查询构造与副作用在浏览器里闭环执行。':
-    'Entity rules, relation constraints, query construction, and side effects run in a closed loop inside the browser.',
+    'Entity rules, relation constraints, query construction, and side effects execute end-to-end inside the browser.',
   本地数据库层: 'Local database layer',
   'SQLite 或 PGlite 负责事务、索引与查询，持久化按适配器选择 IndexedDB 或 OPFS。':
     'SQLite or PGlite handles transactions, indexes, and queries, persisting through IndexedDB or OPFS depending on the adapter.',
@@ -220,7 +220,7 @@ const englishCopy: Readonly<Record<string, string>> = {
     'A WebAssembly SQLite implementation for the browser. It defaults to the supported IDB backend, while the OPFS VFS should be evaluated as an experimental capability.',
   高级查询执行层: 'Advanced query execution',
   '在浏览器内提供 PostgreSQL 兼容能力，适合复杂查询与扩展需求。':
-    'Brings PostgreSQL compatibility into the browser for complex queries and extended requirements.',
+    'Brings PostgreSQL compatibility into the browser for complex queries and extension needs.',
   模型与类型约束: 'Model and type constraints',
   '约束模型定义、生成代码与消费端 API，在编译期暴露类型错误。':
     'Constrains the model definition, generated code, and consumer APIs, surfacing type errors at compile time.',
@@ -229,7 +229,7 @@ const englishCopy: Readonly<Record<string, string>> = {
     'Uses Observables to connect query results, change events, and side effects into one reactive data stream.',
   可选持久化增强: 'Optional persistence upgrade',
   '按适配器和 VFS 的支持等级选择 OPFS；wa-sqlite 默认使用 IDB，不能只凭 API 可用自动切换。':
-    'Choose OPFS by adapter and VFS support level. wa-sqlite defaults to IDB and must not switch automatically just because an API is available.',
+    'Choose OPFS according to the support level of the adapter and VFS. wa-sqlite defaults to IDB; do not switch automatically just because an API is available.',
   代码生成引擎: 'Code generation engine',
   '基于 TypeScript AST，将实体元数据转换为类型、查询构建器与框架适配代码。':
     'Turns entity metadata into types, query builders, and framework adapter code using the TypeScript AST.',
@@ -267,8 +267,10 @@ const englishCopy: Readonly<Record<string, string>> = {
   '当前已验证版本分支、撤销重做、条件同步与跨 Tab 同步。':
     'Version branching, undo/redo, conditional sync, and cross-Tab sync have been verified.',
   'Branch 管理': 'Branch management',
-  撤销重做: 'Undo / redo',
-  '跨 Tab 同步': 'Cross-Tab sync',
+  撤销重做: 'undo/redo',
+  '跨 Tab 同步': 'cross-Tab sync',
+  版本分支: 'version branching',
+  条件同步: 'conditional sync',
   多种同步策略: 'Multiple sync strategies',
   关键代码路径: 'Key code paths',
   '从模型定义到界面订阅，每一步都有明确输入与输出':
@@ -280,7 +282,7 @@ const englishCopy: Readonly<Record<string, string>> = {
   '三个框架共享模型与查询语义，差异集中在各自的 UI 绑定 API。':
     'All three frameworks share model and query semantics; the differences stay in their UI binding APIs.',
   '# rxdb.config.ts 声明实体文件（entities）与输出目录（outDir），见「客户端生成」文档':
-    '# rxdb.config.ts declares the entity files (entities) and the output directory (outDir); see the "Client Generation" docs',
+    '# rxdb.config.ts declares the entity files (entities) and the output directory (outDir)',
   '# 输出内容包括：': '# Generated output includes:',
   '# - 实体类型与静态类型映射': '# - Entity types and static type mappings',
   '# - Repository 查询方法签名': '# - Repository query method signatures',

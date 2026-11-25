@@ -14,7 +14,7 @@ export interface InitialLocaleInput {
   readonly deviceLocale?: string;
 }
 
-/** 组装 I18n 启动语言选项的结果：宿主语言、持久化偏好与设备语言各归其位。 */
+/** 组装 I18n 选项的结果：宿主语言、持久化偏好与设备语言各归其位，覆盖语义由引擎决定。 */
 export interface InitialLocaleOptions {
   /** 宿主下发的语言；无法识别时为 undefined，交给其余偏好。 */
   readonly hostLocale: HostLocale | undefined;
@@ -25,10 +25,11 @@ export interface InitialLocaleOptions {
 }
 
 /**
- * 解析应用启动语言，优先级：宿主语言 → 持久化偏好 → 设备语言 → zh-Hans。
+ * 归一化启动语言的三个输入并原样交给 I18n，不实现自己的覆盖逻辑。
  *
- * 宿主语言经 {@link parseHostLocale} 只接受受支持集合，启动期由 I18n 的
- * `hostLocale` 选项覆盖其余偏好；用户显式切换后让位，且不写入偏好存储。
+ * 优先级（宿主语言 → 持久化偏好 → 设备语言 → zh-Hans）与「宿主语言覆盖整个
+ * 会话、仅显式 setLocale() 让位」的语义都由引擎的 `hostLocale` 选项承担；
+ * 这里只做 {@link parseHostLocale} 的受支持集合校验与 {@link resolveUiLocale} 归一化。
  */
 export function resolveInitialLocaleOptions({
   hostLocale,
@@ -37,8 +38,7 @@ export function resolveInitialLocaleOptions({
 }: InitialLocaleInput): InitialLocaleOptions {
   return {
     hostLocale: parseHostLocale(hostLocale),
-    locale:
-      typeof storedLocale === 'string' && storedLocale.trim() ? resolveUiLocale(storedLocale) : undefined,
+    locale: typeof storedLocale === 'string' && storedLocale.trim() ? resolveUiLocale(storedLocale) : undefined,
     deviceLocale: resolveUiLocale(deviceLocale)
   };
 }

@@ -156,7 +156,7 @@ function App() {
       <section className='git-demo-card'>
         <div className='git-demo-card-heading'>
           <h2>{t('gitDemo.logTitle')}</h2>
-          <span>clone → status → modify → commit → branch → checkout → reopen</span>
+          <span>{t('gitDemo.flow')}</span>
         </div>
         {steps.length === 0 && !error && <p className='git-demo-empty'>{t('gitDemo.emptyHint')}</p>}
         <ol className='git-demo-steps'>

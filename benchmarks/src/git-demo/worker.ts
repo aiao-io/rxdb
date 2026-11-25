@@ -101,7 +101,7 @@ async function reopen(): Promise<DemoResult> {
   return {
     steps: [
       step('gitStep.workerReopen', { detailKey: 'gitStep.reopenRestored' }),
-      step('gitStep.reopenStatus', { detail: status || 'clean' }),
+      step('gitStep.reopenStatus', status ? { detail: status } : { detailKey: 'gitStep.cleanDetail' }),
       step('gitStep.head', { detail: head.slice(0, 12) }),
       step('gitStep.currentBranch', { detail: demoBranch })
     ],
@@ -133,7 +133,7 @@ async function demo(): Promise<DemoResult> {
   }
 
   const cleanStatus = await runCommand(['status', '--short']);
-  steps.push(step('gitStep.cleanStatus', { detail: cleanStatus || 'clean' }));
+  steps.push(step('gitStep.cleanStatus', cleanStatus ? { detail: cleanStatus } : { detailKey: 'gitStep.cleanDetail' }));
   await instance.writeFile(repo, 'README.md', changedFile);
   const dirtyStatus = await runCommand(['status', '--short']);
   steps.push(
@@ -146,7 +146,9 @@ async function demo(): Promise<DemoResult> {
   await runCommand(['add', 'README.md']);
   await runCommand(['commit', '-m', 'persist browser workspace']);
   const modifiedHead = await currentHead();
-  steps.push(step('gitStep.commit', { detailKey: 'gitStep.commitDetail', detailParams: { head: modifiedHead.slice(0, 12) } }));
+  steps.push(
+    step('gitStep.commit', { detailKey: 'gitStep.commitDetail', detailParams: { head: modifiedHead.slice(0, 12) } })
+  );
   try {
     await runCommand(['checkout', '-b', demoBranch]);
   } catch {
@@ -154,7 +156,9 @@ async function demo(): Promise<DemoResult> {
   }
   steps.push(step('gitStep.branch', { detailKey: 'gitStep.branchDetail', detailParams: { branch: demoBranch } }));
   await runCommand(['checkout', modifiedHead]);
-  steps.push(step('gitStep.checkout', { detailKey: 'gitStep.checkoutDetail', detailParams: { head: modifiedHead.slice(0, 12) } }));
+  steps.push(
+    step('gitStep.checkout', { detailKey: 'gitStep.checkoutDetail', detailParams: { head: modifiedHead.slice(0, 12) } })
+  );
   const reopened = await reopen();
   steps.push(...reopened.steps);
   return { steps, persisted: true, head: reopened.head, branch: reopened.branch };

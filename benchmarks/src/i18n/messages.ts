@@ -31,6 +31,11 @@ export const benchmarksZhMessages = {
   'app.errorPrefix': '测试失败: {message}',
   'app.backToDocs': '返回文档',
   'app.startupFailed': '应用启动失败',
+  'app.gitDemoEyebrow': '研究演示',
+  'app.resultsEyebrow': '测试结果',
+  'app.scoreEyebrow': '评分',
+  'app.errorLabel': '错误',
+  'app.footer': 'RxDB Benchmarks · 本地优先数据基础设施 · {adapter} ·',
 
   'common.toggleTheme': '切换主题',
   'common.themeToLight': '切换到浅色主题',
@@ -42,6 +47,7 @@ export const benchmarksZhMessages = {
   'results.columnMemory': '内存 (MB)',
   'results.columnNotes': '详情备注',
   'results.emptyHint': '点击右上角「开始测试」运行性能基准测试',
+  'results.awaitingRun': '等待运行 · 空闲',
 
   'score.title': '综合性能评分',
   'score.gradeS': '出色',
@@ -54,6 +60,12 @@ export const benchmarksZhMessages = {
   'score.categoryScalability': '扩展性',
   'score.categoryConcurrency': '并发',
   'score.categoryAria': '{category} 得分 {score}',
+  'score.aggregateComment': '// 综合评分',
+  'score.range': '0 – 100',
+  'score.total': '总分',
+  'score.overHundred': '/ 100',
+  'score.weightLabel': '权重 {weight}%',
+  'score.weightFootnote': '权重 · 延迟 35 / 吞吐 30 / 扩展 20 / 并发 15 · 分段线性 → 0–100',
 
   'suite.throughput': '吞吐量测试',
   'suite.latency': '延迟分布测试',
@@ -109,8 +121,7 @@ export const benchmarksZhMessages = {
   'scenario.scalability.memoryLinear': '✓ 线性增长',
   'scenario.scalability.memoryNonLinear': '✗ 非线性增长',
   'scenario.scalability.memoryExtra': '{pattern} | 每条记录 {kb}KB',
-  'scenario.scalability.memoryUnavailable':
-    'performance.memory 不可用（仅 Chromium 且开启精确内存信息时可测）',
+  'scenario.scalability.memoryUnavailable': 'performance.memory 不可用（仅 Chromium 且开启精确内存信息时可测）',
   'scenario.scalability.memoryExpectation': '线性增长',
 
   'scenario.concurrency.concurrentWriteMeasure': '并发写入 ({count, number} 并发)',
@@ -156,10 +167,10 @@ export const benchmarksZhMessages = {
   'gitDemo.persistedNone': '尚未创建',
   'gitDemo.logTitle': '执行日志',
   'gitDemo.emptyHint': '点击「运行 Git 闭环」开始。',
-  'gitDemo.footnote':
-    'OPFS 按 origin 隔离，清理站点数据会删除仓库。导出、远端认证、依赖安装和隔离预览仍是后续验收项。',
+  'gitDemo.footnote': 'OPFS 按 origin 隔离，清理站点数据会删除仓库。导出、远端认证、依赖安装和隔离预览仍是后续验收项。',
   'gitDemo.workerTimeout': 'Worker 超时',
   'gitDemo.workerEmptyResult': 'Worker 返回空结果',
+  'gitDemo.flow': '克隆 → 状态 → 修改 → 提交 → 分支 → 切换 → 重开',
 
   'gitStep.workerReopen': 'Worker 重开',
   'gitStep.reopenNoRepo': 'OPFS 中没有可恢复的 demo 仓库',
@@ -174,6 +185,7 @@ export const benchmarksZhMessages = {
   'gitStep.openRepo': '打开仓库',
   'gitStep.openRepoDetail': '复用 OPFS 中已有的 demo 工作区',
   'gitStep.cleanStatus': 'clean status',
+  'gitStep.cleanDetail': '工作区干净，无改动',
   'gitStep.modifiedStatus': 'modified status',
   'gitStep.modifyFile': '修改文件',
   'gitStep.modifyFileDetail': 'README.md 写入 OPFS',
@@ -185,7 +197,15 @@ export const benchmarksZhMessages = {
   'gitStep.checkout': 'checkout',
   'gitStep.checkoutDetail': '恢复提交 {head}',
   'gitStep.clearOpfs': '清空 OPFS',
-  'gitStep.clearOpfsDetail': 'demo 仓库已删除'
+  'gitStep.clearOpfsDetail': 'demo 仓库已删除',
+
+  'clearDb.deleteTimeout': '删除 {name} 超时（{ms}ms 内没有任何事件）',
+  'clearDb.deleteBlocked': '删除 {name} 被阻塞',
+  'clearDb.skippedLocked': '清理已跳过：另一个实例持有锁',
+  'clearDb.failedDatabases': '{count, number} 个 IndexedDB 数据库清理失败',
+  'clearDb.databasesUnavailable': 'indexedDB.databases() 不可用，跳过 IndexedDB 清理',
+  'clearDb.done': 'Benchmark 存储清理完成 ✅',
+  'clearDb.error': '数据库清理出错:'
 };
 
 export type BenchmarksMessageKey = keyof typeof benchmarksZhMessages;
@@ -219,6 +239,11 @@ export const benchmarksEnMessages = {
   'app.errorPrefix': 'Benchmark failed: {message}',
   'app.backToDocs': 'Back to docs',
   'app.startupFailed': 'Application failed to start',
+  'app.gitDemoEyebrow': 'research demo',
+  'app.resultsEyebrow': 'results',
+  'app.scoreEyebrow': 'score',
+  'app.errorLabel': 'ERROR',
+  'app.footer': 'RxDB Benchmarks · local-first data infrastructure · {adapter} ·',
 
   'common.toggleTheme': 'Toggle theme',
   'common.themeToLight': 'Switch to light theme',
@@ -230,6 +255,7 @@ export const benchmarksEnMessages = {
   'results.columnMemory': 'Memory (MB)',
   'results.columnNotes': 'Notes',
   'results.emptyHint': 'Click "Run benchmarks" in the top-right corner to run the benchmarks',
+  'results.awaitingRun': 'awaiting run · idle',
 
   'score.title': 'Overall performance score',
   'score.gradeS': 'Outstanding',
@@ -242,6 +268,13 @@ export const benchmarksEnMessages = {
   'score.categoryScalability': 'Scalability',
   'score.categoryConcurrency': 'Concurrency',
   'score.categoryAria': '{category} score {score}',
+  'score.aggregateComment': '// aggregate score',
+  'score.range': '0 – 100',
+  'score.total': 'total',
+  'score.overHundred': '/ 100',
+  'score.weightLabel': 'w / {weight}%',
+  'score.weightFootnote':
+    'weight · latency 35 / throughput 30 / scalability 20 / concurrency 15 · piecewise-linear → 0–100',
 
   'suite.throughput': 'Throughput',
   'suite.latency': 'Latency distribution',
@@ -255,7 +288,8 @@ export const benchmarksEnMessages = {
   'scenario.throughput.singleWriteExtra': '{ops} ops/sec | avg {avg}ms | min {min}ms | max {max}ms',
   'scenario.throughput.batchWriteMeasure': 'Batch write throughput (batch={batchSize})',
   'scenario.throughput.batchWrite': 'Batch write batch={batchSize} ({count, number} items)',
-  'scenario.throughput.batchWriteExtra': '{ops} ops/sec ({speedup}x vs single write) | avg {avg}ms | min {min}ms | max {max}ms',
+  'scenario.throughput.batchWriteExtra':
+    '{ops} ops/sec ({speedup}x vs single write) | avg {avg}ms | min {min}ms | max {max}ms',
   'scenario.throughput.readMeasure': 'Read throughput',
   'scenario.throughput.read': 'Read throughput ({count, number} full-table queries)',
 
@@ -311,7 +345,8 @@ export const benchmarksEnMessages = {
   'scenario.concurrency.serialMeasure': 'Serial ({count, number} operations)',
   'scenario.concurrency.parallelMeasure': 'Parallel ({count, number} operations)',
   'scenario.concurrency.serialExtra': '{count, number} writes committed one by one | P50 of {samples, number} samples',
-  'scenario.concurrency.parallelExtra': '{count, number} writes committed in parallel | P50 of {samples, number} samples',
+  'scenario.concurrency.parallelExtra':
+    '{count, number} writes committed in parallel | P50 of {samples, number} samples',
   'scenario.concurrency.speedup': 'Serial vs parallel speedup ({count, number} operations)',
   'scenario.concurrency.speedupExtra': '{speedup}x | serial {serial}ms · parallel {parallel}ms (P50)',
   'scenario.concurrency.speedupExpectation': '≥1.5x speedup',
@@ -348,6 +383,7 @@ export const benchmarksEnMessages = {
     'OPFS is isolated per origin; clearing site data removes the repo. Export, remote auth, dependency installation and isolated preview remain future work.',
   'gitDemo.workerTimeout': 'Worker timed out',
   'gitDemo.workerEmptyResult': 'Worker returned an empty result',
+  'gitDemo.flow': 'clone → status → modify → commit → branch → checkout → reopen',
 
   'gitStep.workerReopen': 'Worker reopen',
   'gitStep.reopenNoRepo': 'No recoverable demo repo in OPFS',
@@ -362,6 +398,7 @@ export const benchmarksEnMessages = {
   'gitStep.openRepo': 'Open repo',
   'gitStep.openRepoDetail': 'Reuse the existing demo working tree in OPFS',
   'gitStep.cleanStatus': 'clean status',
+  'gitStep.cleanDetail': 'clean',
   'gitStep.modifiedStatus': 'modified status',
   'gitStep.modifyFile': 'Modify file',
   'gitStep.modifyFileDetail': 'README.md written to OPFS',
@@ -373,5 +410,13 @@ export const benchmarksEnMessages = {
   'gitStep.checkout': 'checkout',
   'gitStep.checkoutDetail': 'Restored commit {head}',
   'gitStep.clearOpfs': 'Clear OPFS',
-  'gitStep.clearOpfsDetail': 'Demo repo removed'
+  'gitStep.clearOpfsDetail': 'Demo repo removed',
+
+  'clearDb.deleteTimeout': 'Deleting {name} timed out (no events within {ms}ms)',
+  'clearDb.deleteBlocked': 'Deleting {name} is blocked',
+  'clearDb.skippedLocked': 'Cleanup skipped: another instance holds the lock',
+  'clearDb.failedDatabases': '{count, number} IndexedDB database(s) failed to clean up',
+  'clearDb.databasesUnavailable': 'indexedDB.databases() unavailable, skipping IndexedDB cleanup',
+  'clearDb.done': 'Benchmark storage cleanup complete ✅',
+  'clearDb.error': 'Database cleanup error:'
 } satisfies Record<BenchmarksMessageKey, string>;

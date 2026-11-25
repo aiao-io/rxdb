@@ -373,7 +373,7 @@ export const DEMO_DATE_OPTIONS: Intl.DateTimeFormatOptions = {
 
 /**
  * 解析演示应用的启动语言：嵌入文档站时宿主（网站）语言优先，独立运行回退设备语言；
- * 已持久化的用户偏好由 I18n 在首个设置快照就绪后接管。
+ * 宿主语言在会话期内持续优先于已持久化的用户偏好，直到用户在应用内显式切换语言。
  */
 export function resolveDemoInitialLocale(): {
   readonly deviceLocale: UiLocale;

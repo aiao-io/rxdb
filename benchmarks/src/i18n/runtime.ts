@@ -13,7 +13,8 @@ export const benchmarkCatalogs: readonly MessageCatalog[] = [
  * 创建 benchmarks 应用的静态 i18n 运行时。
  *
  * 基准应用没有常驻数据库，语言偏好落在 localStorage；启动语言按
- * 宿主语言 → 持久化偏好 → 设备语言解析，切换时由 {@link setBenchmarksLocale} 回写。
+ * 宿主语言 → 持久化偏好 → 设备语言解析。宿主语言覆盖与让位语义交给引擎的
+ * `hostLocale` 选项（会话期内优先，仅显式 setLocale() 让位），本应用不重复实现。
  */
 export function createBenchmarksI18n(input: InitialLocaleInput = {}): I18n {
   return new I18n({
@@ -30,7 +31,7 @@ export function readStoredLocale(): string | null {
 }
 
 /**
- * 独立运行时把用户选择写回 localStorage；嵌入时由宿主语言决定初始值，不写本地偏好。
+ * 独立运行时把用户选择写回 localStorage；嵌入时由宿主语言主导会话，不写本地偏好。
  */
 export function persistLocale(locale: UiLocale): void {
   if (getOrbitHost()) return;
@@ -56,5 +57,7 @@ export function getBenchmarksI18n(): I18n {
  * 切换语言并持久化；返回运行时刷新完成后的 Promise。
  */
 export function setBenchmarksLocale(locale: UiLocale): Promise<void> {
-  return getBenchmarksI18n().setLocale(locale).then(() => persistLocale(locale));
+  return getBenchmarksI18n()
+    .setLocale(locale)
+    .then(() => persistLocale(locale));
 }

@@ -51,8 +51,9 @@ describe('启动语言优先级', () => {
     expect(createBenchmarksI18n({ hostLocale: 42, storedLocale: '!!!', deviceLocale: 'fr' }).locale).toBe('zh-Hans');
   });
 
-  it('宿主语言只覆盖启动值，用户显式切换后让位', async () => {
+  it('宿主语言覆盖整个会话，仅显式 setLocale 让位', async () => {
     const i18n = createBenchmarksI18n({ hostLocale: 'en', storedLocale: 'zh-Hans' });
+    expect(i18n.locale).toBe('en');
 
     await i18n.setLocale('zh-Hans');
 

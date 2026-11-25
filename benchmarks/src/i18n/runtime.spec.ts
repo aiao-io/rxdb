@@ -35,7 +35,7 @@ describe('benchmarks i18n runtime', () => {
     localStorage.clear();
   });
 
-  it('宿主语言作为初始语言，优先于持久化偏好', () => {
+  it('宿主语言在整个会话内优先于持久化偏好（仅显式 setLocale 让位）', () => {
     window.$orbit = { props: { locale: 'en' } };
     localStorage.setItem(BENCHMARKS_LOCALE_KEY, 'zh-Hans');
 

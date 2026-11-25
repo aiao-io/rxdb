@@ -7,7 +7,8 @@ import ts from 'typescript';
 // 英文站点的文案门禁：页面/组件/演示源码里的中文文案必须登记在 locale-copy.ts 的
 // englishCopy 字典中，英文博客与 code.json 不得残留中文。
 // 字面量提取使用 TypeScript 编译器 API（AST 遍历 StringLiteral / NoSubstitutionTemplateLiteral），
-// 注释与 JSX 文本节点天然不是字面量，不会误报。
+// JSX 文本节点（JSXText）单独遍历：JSXText 是纯文本、不穿插表达式，但会原样渲染到英文站，
+// 因此含中文的 JSXText 必须经 copy() 渲染（登记在字典里也不行）；注释天然不是字面量，不会误报。
 
 const root = resolve(import.meta.dirname, '../..');
 const copyFile = join(root, 'website/src/lib/locale-copy.ts');
@@ -81,6 +82,26 @@ function cjkLiterals(path) {
   return found;
 }
 
+// 用 TS AST 提取一个文件里所有含中文的 JSX 文本节点（去空白后判定；JSXText 是纯文本，不穿插表达式）
+function cjkJsxTexts(path) {
+  const source = ts.createSourceFile(path, readFileSync(path, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const found = [];
+  const visit = node => {
+    if (ts.isJsxText(node)) {
+      const text = node.text.trim();
+      if (han.test(text)) {
+        found.push({
+          text,
+          line: source.getLineAndCharacterOfPosition(node.getStart()).line + 1
+        });
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+  return found;
+}
+
 // 去掉 frontmatter（首个 --- 块）后的正文，避免把元数据误判为正文
 function postBody(content) {
   const match = /^---\n[\s\S]*?\n---\n?/.exec(content);
@@ -99,10 +120,24 @@ test('英文站点的页面、组件与演示源码中的中文文案都登记�
           violations.push(`${relative(root, file)}:${line}: ${text}`);
         }
       }
+      for (const { text, line } of cjkJsxTexts(file)) {
+        checked += 1;
+        if (!keys.has(text)) {
+          violations.push(`${relative(root, file)}:${line}: ${text}（JSX 文本节点未登记到 englishCopy 字典）`);
+        } else {
+          violations.push(
+            `${relative(root, file)}:${line}: ${text}（JSX 文本节点已登记，但直接写在 JSX 里会在英文站原样渲染中文，需改为 copy() 调用）`
+          );
+        }
+      }
     }
   }
   assert.ok(checked > 0, '未在页面、组件与演示源码中扫描到任何中文字面量，检查目录遍历是否正确');
-  assert.deepEqual(violations, [], `以下中文字面量未登记到 englishCopy 字典：\n  ${violations.join('\n  ')}`);
+  assert.deepEqual(
+    violations,
+    [],
+    `以下中文文案未登记到 englishCopy 字典或未通过 copy() 渲染：\n  ${violations.join('\n  ')}`
+  );
 });
 
 test('英文博客包含初始化文章、作者与标签文件，且文章正文不含中文', () => {

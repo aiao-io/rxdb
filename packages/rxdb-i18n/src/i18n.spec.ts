@@ -230,7 +230,7 @@ describe('host locale', () => {
       expect(standalone.locale).toBe('en');
     });
 
-    it('follows later settings updates once the boot-time host locale is consumed', async () => {
+    it('keeps the host locale over later settings emissions instead of resurfacing the persisted preference', async () => {
       const seeder = service();
       await seeder.init();
       await seeder.setLocale('zh-Hans');
@@ -238,6 +238,30 @@ describe('host locale', () => {
       const embedded = service({ hostLocale: 'en' });
       await embedded.init();
       expect(embedded.locale).toBe('en');
+
+      const before = embedded.changes$.value;
+      const refreshed = firstValueFrom(embedded.changes$.pipe(filter(v => v > before), take(1)));
+      await seeder.setLocale('fr');
+      await refreshed;
+      expect(embedded.locale).toBe('en');
+
+      const [settings] = await db.localAdapterSync
+        .getRepository(I18nSettings)
+        .find({ where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: 'singleton' }] } });
+      expect(settings.devicePreferredLocale).toBe('fr');
+    });
+
+    it('yields to an explicit setLocale and then follows later settings emissions', async () => {
+      const seeder = service();
+      await seeder.init();
+      await seeder.setLocale('zh-Hans');
+
+      const embedded = service({ hostLocale: 'en' });
+      await embedded.init();
+      expect(embedded.locale).toBe('en');
+
+      await embedded.setLocale('zh-Hans');
+      expect(embedded.locale).toBe('zh-Hans');
 
       const changed = firstValueFrom(
         embedded.locale$.pipe(

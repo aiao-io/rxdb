@@ -62,7 +62,9 @@ export function BenchmarkResults({ sections }: BenchmarkResultsProps) {
               <td className='py-16 text-center' colSpan={4}>
                 <div className='flex flex-col items-center gap-4'>
                   <div className='data-cube' style={{ width: '2.25rem', height: '2.25rem' }} />
-                  <div className='mono text-[10px] tracking-[0.22em] uppercase opacity-50'>awaiting run · idle</div>
+                  <div className='mono text-[10px] tracking-[0.22em] uppercase opacity-50'>
+                    {t('results.awaitingRun')}
+                  </div>
                   <span className='text-sm opacity-50'>{t('results.emptyHint')}</span>
                 </div>
               </td>

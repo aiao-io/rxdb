@@ -50,13 +50,16 @@ export function useBenchmark(sqliteAdapter: BenchmarkSqliteAdapter) {
     await current.dispose();
   }, []);
 
-  const clearBenchmarkStorage = useCallback(async (reason: string) => {
-    try {
-      await clearDB();
-    } catch (err) {
-      console.warn(`Benchmark storage cleanup skipped during ${reason}:`, err);
-    }
-  }, []);
+  const clearBenchmarkStorage = useCallback(
+    async (reason: string) => {
+      try {
+        await clearDB(t);
+      } catch (err) {
+        console.warn(`Benchmark storage cleanup skipped during ${reason}:`, err);
+      }
+    },
+    [t]
+  );
 
   const createFreshBenchmarkDatabase = useCallback(
     async (adapter: BenchmarkSqliteAdapter, dbName: string) => {

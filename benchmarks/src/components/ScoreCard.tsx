@@ -1,7 +1,7 @@
 import { useI18n } from '@aiao/rxdb-i18n-react';
 import { computeScoreReport } from '../analysis/score-engine';
-import type { BenchmarksMessageKey } from '../i18n/messages';
 import type { BenchmarkSection } from '../hooks/useBenchmark';
+import type { BenchmarksMessageKey } from '../i18n/messages';
 
 interface ScoreCardProps {
   sections: BenchmarkSection[];
@@ -55,22 +55,24 @@ export function ScoreCard({ sections }: ScoreCardProps) {
       <div className='card-body'>
         <div className='mb-6 flex items-center justify-between gap-4'>
           <div>
-            <div className='mono mb-2 text-[10px] tracking-[0.18em] uppercase opacity-60'>// aggregate score</div>
+            <div className='mono mb-2 text-[10px] tracking-[0.18em] uppercase opacity-60'>
+              {t('score.aggregateComment')}
+            </div>
             <h3 className='text-xl font-semibold tracking-tight'>{t('score.title')}</h3>
           </div>
-          <span className='mono-chip mono-chip--primary'>0 – 100</span>
+          <span className='mono-chip mono-chip--primary'>{t('score.range')}</span>
         </div>
 
         <div className='mt-2 flex flex-col gap-8 sm:flex-row sm:items-center'>
           {/* Total score + grade */}
           <div className='flex shrink-0 flex-col items-center gap-3 border-r border-[color:color-mix(in_oklab,var(--color-base-content)_10%,transparent)] pr-8 sm:pr-12'>
-            <div className='mono text-[10px] tracking-[0.2em] uppercase opacity-50'>total</div>
+            <div className='mono text-[10px] tracking-[0.2em] uppercase opacity-50'>{t('score.total')}</div>
             <div
               className={`text-7xl leading-none font-semibold tracking-tight tabular-nums ${scoreTextClass(report.total)}`}
             >
               {report.total.toFixed(1)}
             </div>
-            <div className='mono text-[10px] tracking-[0.18em] uppercase opacity-40'>/ 100</div>
+            <div className='mono text-[10px] tracking-[0.18em] uppercase opacity-40'>{t('score.overHundred')}</div>
             <div className={`badge badge-outline badge-lg px-4 py-3 text-base font-bold ${gc.badge} ${gc.text}`}>
               {report.grade}&nbsp;
               <span className='ml-1 text-xs font-medium opacity-70'>{t(GRADE_LABEL[report.grade])}</span>
@@ -87,7 +89,7 @@ export function ScoreCard({ sections }: ScoreCardProps) {
                     <span className='text-sm font-medium'>
                       {title}
                       <span className='mono ml-2 text-[10px] tracking-[0.16em] uppercase opacity-50'>
-                        w / {cat.weight}%
+                        {t('score.weightLabel', { weight: cat.weight })}
                       </span>
                     </span>
                     <span className={`text-sm font-semibold tabular-nums ${scoreTextClass(cat.score)}`}>
@@ -106,9 +108,7 @@ export function ScoreCard({ sections }: ScoreCardProps) {
           </div>
         </div>
 
-        <p className='mono mt-6 text-[10px] tracking-[0.14em] uppercase opacity-40'>
-          weight · latency 35 / throughput 30 / scalability 20 / concurrency 15 · piecewise-linear → 0–100
-        </p>
+        <p className='mono mt-6 text-[10px] tracking-[0.14em] uppercase opacity-40'>{t('score.weightFootnote')}</p>
       </div>
     </div>
   );

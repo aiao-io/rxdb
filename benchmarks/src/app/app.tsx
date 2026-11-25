@@ -1,6 +1,6 @@
+import type { UiLocale } from '@aiao/rxdb-i18n';
 import { useI18n } from '@aiao/rxdb-i18n-react';
 import { requestIdleCallbackPolyfill } from '@aiao/utils';
-import type { UiLocale } from '@aiao/rxdb-i18n';
 import { BarChart3, FileDown, Gauge, GitBranch, Play, TrendingUp } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { BenchmarkResults } from '../components/BenchmarkResults';
@@ -189,7 +189,7 @@ export function App() {
         <section className='card border-primary/20 bg-base-200/40 mb-10 border'>
           <div className='card-body flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
             <div>
-              <span className='eyebrow'>research demo</span>
+              <span className='eyebrow'>{t('app.gitDemoEyebrow')}</span>
               <h3 className='mt-2 text-xl font-semibold'>{t('app.gitDemoTitle')}</h3>
               <p className='mt-2 max-w-2xl text-sm leading-6 opacity-70'>{t('app.gitDemoDescription')}</p>
             </div>
@@ -208,7 +208,7 @@ export function App() {
         {/* Results table */}
         <section className='mb-6'>
           <div className='mb-4 flex items-center justify-between gap-4'>
-            <span className='eyebrow'>results</span>
+            <span className='eyebrow'>{t('app.resultsEyebrow')}</span>
             <span className='mono text-[10px] tracking-[0.18em] uppercase opacity-60'>— 01</span>
           </div>
           <div className='card'>
@@ -221,7 +221,7 @@ export function App() {
         {state === 'completed' && (
           <section className='mt-8'>
             <div className='mb-4 flex items-center justify-between gap-4'>
-              <span className='eyebrow'>score</span>
+              <span className='eyebrow'>{t('app.scoreEyebrow')}</span>
               <span className='mono text-[10px] tracking-[0.18em] uppercase opacity-60'>— 02</span>
             </div>
             <ScoreCard sections={sections} />
@@ -230,7 +230,7 @@ export function App() {
 
         {error && (
           <div className='alert alert-error mt-6'>
-            <span className='mono text-xs tracking-wider uppercase opacity-70'>ERROR</span>
+            <span className='mono text-xs tracking-wider uppercase opacity-70'>{t('app.errorLabel')}</span>
             <span>{t('app.errorPrefix', { message: error })}</span>
           </div>
         )}
@@ -239,7 +239,7 @@ export function App() {
       <footer className='footer footer-center p-4 opacity-70'>
         <div>
           <p>
-            RxDB Benchmarks · local-first data infrastructure · {sqliteMeta.label} ·
+            {t('app.footer', { adapter: sqliteMeta.label })}
             <a className='link link-hover' href='/' target='_top'>
               {t('app.backToDocs')}
             </a>
