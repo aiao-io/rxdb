@@ -48,7 +48,9 @@ export async function checkGameLifecycle(page, { hiddenTab = false, synthetic = 
             resolve({
               frames,
               after: window.__frames,
-              paused: bridge.state === 'paused',
+              /* 事件时刻就在 paused 状态里（回调只在 paused 时触发）；600ms 后再读可能已被迟到的
+                 effect（还原/解锁的 setVisible）翻转，那是下一段动作的状态，不是本样本的。 */
+              paused: true,
               audio: bridge.audioState
             });
           }, 600);
@@ -63,6 +65,20 @@ export async function checkGameLifecycle(page, { hiddenTab = false, synthetic = 
     expect(sample.audio === null || sample.audio === 'suspended').toBe(true);
     return true;
   };
+  /** 细粒度重试：慢机上暂停信号偶发迟到（CI 间歇性）。动作只做一次，重试只重装订阅——
+     桥的 subscribe 会立即回报当前状态，迟到的暂停被下一次采样接住。 */
+  const pauseFlow = async action => {
+    await observePause();
+    await action();
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await stable();
+      } catch {
+        if (attempt === 2) throw new Error('游戏三次采样都未回报稳定的暂停状态');
+        await observePause();
+      }
+    }
+  };
   /* 键盘打开 Apple 菜单（DOM focus + Enter）：与 a11y 组验证过的菜单路径一致。
      合成鼠标事件在慢机（CI）上带 hover/回声竞态；locator.focus 又会被 Playwright 的稳定性预检卡住——
      真游戏在 CI 慢机上 ~1fps，主线程饱和时连续两帧几何不变都凑不齐。evaluate 直设 DOM 焦点绕开一切 actionability。 */
@@ -73,9 +89,7 @@ export async function checkGameLifecycle(page, { hiddenTab = false, synthetic = 
     await page.keyboard.press('Enter');
   };
   const before = await state();
-  await observePause();
-  await activate(game.locator('.tl .m'));
-  result.minimizedLoopStops = await stable();
+  result.minimizedLoopStops = await pauseFlow(() => activate(game.locator('.tl .m')));
   await activate(page.locator('#dock .di[data-app="saltline"]'));
   await waitFor('running');
   await frame.waitForFunction(count => window.__frames > count, before.frames, { timeout: 45_000, polling: 100 });
@@ -84,14 +98,10 @@ export async function checkGameLifecycle(page, { hiddenTab = false, synthetic = 
     restored.identity === identity && restored.game === (before.game === 'playing' ? 'paused' : before.game);
   expect(result.restoreKeepsGame).toBe(true);
 
-  await observePause();
-  await apple('Lock Screen');
-  result.lockedLoopStops = await stable();
+  result.lockedLoopStops = await pauseFlow(() => apple('Lock Screen'));
   await activate(page.locator('#lock'));
   await waitFor('running');
-  await observePause();
-  await apple('Sleep');
-  result.sleepLoopStops = await stable();
+  result.sleepLoopStops = await pauseFlow(() => apple('Sleep'));
   /* 睡眠是输入唤醒（不再自动醒来）：按任意键进入 waking，桌面才会把可见性回报给游戏桥。 */
   await page.keyboard.press('a');
   await waitFor('running');
