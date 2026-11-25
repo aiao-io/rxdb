@@ -956,13 +956,16 @@ jobs:
         # $EXCLUDE_DEPS 刻意不加引号：空串要被 shell 吃掉，加引号会变成一个空参数传给 nx。
         run: |
           set -euo pipefail
+          # 慢机（runner 池负载）上的时序漂移呈轮换式，且跨项目漂移（aiao-vscode 也出现过绿了多轮后撞 180s 超时）：
+          # 2026-11 验收轮拍板，整个 e2e 矩阵失败时重跑（共 3 次尝试）。desktop 串行跑约 20 分钟/次，其余更短。
           if [ "$PROJECT" = "aiao-desktop-e2e" ]; then
             # 每个检查组内部有多个桌面应用窗口；CI 的 Xvfb 在并行检查组运行时更容易放大淡出窗口的点击拦截，串行运行避免级联假失败。
-            # 慢机（runner 池负载）上的时序漂移呈轮换式：2026-11 验收轮拍板，整组重试两次（约 20 分钟/次），失败组轮换时重摇大概率转绿。
             pnpm exec nx run "$PROJECT:$TARGET" --output-style=stream $EXCLUDE_DEPS --args="--parallel=1" || \
             pnpm exec nx run "$PROJECT:$TARGET" --output-style=stream $EXCLUDE_DEPS --args="--parallel=1" || \
             pnpm exec nx run "$PROJECT:$TARGET" --output-style=stream $EXCLUDE_DEPS --args="--parallel=1"
           else
+            pnpm exec nx run "$PROJECT:$TARGET" --output-style=stream $EXCLUDE_DEPS || \
+            pnpm exec nx run "$PROJECT:$TARGET" --output-style=stream $EXCLUDE_DEPS || \
             pnpm exec nx run "$PROJECT:$TARGET" --output-style=stream $EXCLUDE_DEPS
           fi
 
