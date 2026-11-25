@@ -11,9 +11,9 @@
 | ✅ Done        | 100  |
 | 🚧 In Progress | 13   |
 | 👀 In Review   | 3    |
-| 📝 Backlog     | 31   |
+| 📝 Backlog     | 34   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 147  |
+| **合计**       | 150  |
 
 统计只包含带 story frontmatter 的文件。辅助证据和无故事文件的候选不计数；同编号的辅助文件不算另一条故事。
 Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关闭而自动通过。当前可开工条件见 roadmap 与各故事的阶段表。
@@ -102,7 +102,7 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 - ✅ [US-031 树形实体迁移到排序模块](stories/core/US-031-tree-sortable-migration.md)
 - ✅ [US-032 跨 Tab 增量 UPDATE 的活查询刷新](stories/core/US-032-cross-tab-update-live-query.md)
 - ⬜ [US-037 全量推送按外键依赖排序：子实体声明在前时不再被拒并删掉本地行](stories/core/US-037-push-order-by-foreign-key.md)
-- ⬜ [US-038 双向一对一的实体能开同步：外键成环时推拉不再整体失败](stories/core/US-038-bidirectional-one-to-one-sync.md)
+- ⬜ [US-038 双向一对一的实体能开同步：同步层按可空外键断环](stories/core/US-038-bidirectional-one-to-one-sync.md)
 - ✅ [US-104 rxdb-model 表单校验反馈与保存失败的展示（三端对称）](stories/framework/US-104-validation-feedback.md)
 - ✅ [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md)
 - ✅ [US-208 Electron PGlite 数据目录与事务宿主](stories/adapter/US-208-electron-pglite-data-directory.md)
@@ -124,6 +124,7 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 - ✅ [US-225 Supabase 日志同步只对已登录身份开放，非 main 分支按所有者写入](stories/adapter/US-225-supabase-sync-protocol-access-baseline.md)
 - ⬜ [US-226 Supabase 待拉数按记录计：一个事务一条](stories/adapter/US-226-supabase-pull-count-records.md)
 - ⬜ [US-227 dev-rxdb-supabase 关系数据的推拉同步演示与端到端验收](stories/adapter/US-227-supabase-relational-sync-demo.md)
+- ⬜ [US-228 多对多关联在 Supabase 上可同步：中间表按实体形状建表，关联行 id 由两端确定](stories/adapter/US-228-supabase-many-to-many-sync.md)
 - ✅ [US-504 Electron 本地文件存储](stories/plugin/US-504-electron-local-file-storage.md)
 - ✅ [US-505 Tauri 本地文件存储](stories/plugin/US-505-tauri-local-file-storage.md)
 - ✅ [US-506 website 插件文档补齐（history / sync / querycache）](stories/plugin/US-506-website-plugin-docs.md)
@@ -240,8 +241,10 @@ US-704～US-707 已获 owner 授权，US-708 会话层由 owner 决定在 PR #17
 ### [按身份授权的同步与本机数据隔离](epics/epic-015-identity-scoped-sync.md)
 
 - ✅ [US-033 按授权分区同步（只读）：分区决定能读什么，实体同步规则决定同步哪些](stories/core/US-033-identity-scoped-read-sync.md)
+- ⬜ [US-034 分区实体的本地写入：本地增删改可撤销/重做，推送后锁定](stories/core/US-034-bucketed-entity-local-writes.md)
 - ✅ [US-035 每个身份一个本地库：打开时核对身份，换账号不混数据](stories/core/US-035-identity-bound-local-database.md)
 - ✅ [US-036 规则之外的公开数据：在线浏览走只读浏览实体，不进同步子集](stories/core/US-036-browse-public-data-outside-sync-rule.md)
+- ⬜ [US-229 Supabase 远端变更历史：每次业务写入记完整前后快照，只对能编辑的成员开放](stories/adapter/US-229-supabase-change-history.md)
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 

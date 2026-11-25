@@ -35,6 +35,7 @@ owner 明确了目标：不同用户同步到自己有权限的数据是关键�
 ### 同步协议
 
 - **分区日志单独成表。** `rxdb_change` 与它的授权保持 [US-225](../stories/adapter/US-225-supabase-sync-protocol-access-baseline.md) 的状态，分区实体的变更只进分区日志。
+- **变更历史与同步日志分开。** 同步日志（含分区日志）不带正文的规则不变；完整前后快照、操作者与来源只进独立的历史表，覆盖所有登记同步的表，只对当前能编辑该行的成员经受控 RPC 按列权限开放（[US-229](../stories/adapter/US-229-supabase-change-history.md)）。
 - **一行换区时旧区只记移除。** 换租户、公开改私有时，旧区的成员只收到「移除」，新区收到一条写入。
 - **公开数据也走分区同步，按实体同步规则只取一部分。** 登录用户与 anon 都能订阅公开区，但只同步实体规则选中的行（例如关注的分类、近期的、收藏的），这部分离线可用；不做公开数据的全量下载。
 - **进度与规则绑定，规则变化要补齐与清理。** 拉取进度按区 × 实体分开，并记下当时的规则。加入区或放宽规则时先拉快照再增量；退出区、收窄规则或行离开规则时自动清理本地，跳过未推送的行。滚动时间窗口这类只收窄的变化不重拉快照。
@@ -58,7 +59,8 @@ owner 明确了目标：不同用户同步到自己有权限的数据是关键�
 - [ ] 本机数据按账号隔离：库名使用不含 PII 的不透明键，打开后校验库内记录的作用域与当前会话一致；切换账号时多标签页广播锁定代次，迟到的回调按会话代次丢弃；提供「从此设备移除此账户数据」（库名、打开时与同步前的身份校验、换身份时在途响应的丢弃由 [US-035](../stories/core/US-035-identity-bound-local-database.md) 认领，多标签页锁定与移除数据待后续故事；Admin 本机工作台库按 admin-template 分支 D-10 第 4 条另起评审）
 - [ ] 区内细分的权限：同一个区里成员可读的列不同时，正文按当前身份从业务表读（由 [US-033](../stories/core/US-033-identity-scoped-read-sync.md) 认领）；同一个区里可读的行不同时，分区日志会让成员看到自己读不到的行的 id 与变更时间，要先评估这层元数据（**尚无故事认领**）
 - [ ] 规则之外的公开数据：立项目标是没登录的用户能看到全部公开数据，而分区同步只落地规则选中的行；同一个实体的同步类型互斥，不能同时走 QueryCache 在线浏览其余公开行（另声明一个只读浏览实体的做法由 [US-036](../stories/core/US-036-browse-public-data-outside-sync-rule.md) 认领；一个实体既同步又在线浏览**尚无故事认领**）
-- [ ] 写入模式：实体声明只读、直写或仅经 PR；直接 REST、RxDB 推送、离线重放与服务端命令执行同一模式（**尚无故事认领**）
+- [ ] 写入模式：实体声明只读、直写或仅经 PR；直接 REST、RxDB 推送、离线重放与服务端命令执行同一模式（直写模式下分区实体的本地写入、撤销/重做与推送由 [US-034](../stories/core/US-034-bucketed-entity-local-writes.md) 认领；只读与仅经 PR 两种模式**尚无故事认领**）
+- [ ] 远端变更历史：每次业务写入在独立于同步日志的历史表里记完整前后快照、操作者与来源，只对当前能编辑该行的成员经受控 RPC 按列权限开放（由 [US-229](../stories/adapter/US-229-supabase-change-history.md) 认领）
 - [ ] 存在性信号：读授权落地后，推送对不可见的行按「不存在」处理，取代 [US-218](../stories/adapter/US-218-supabase-rls-push-integrity.md) AC#2 对「被拒绝」与「已不存在」的区分（**尚无故事认领**）
 - [ ] 三端验收：Angular / React / Vue 对同一权限矩阵运行同一组用户流程（**尚无故事认领**）
 
@@ -69,6 +71,8 @@ owner 明确了目标：不同用户同步到自己有权限的数据是关键�
 - [US-033 按授权分区同步（只读）：分区决定能读什么，实体同步规则决定同步哪些](../stories/core/US-033-identity-scoped-read-sync.md) (High)
 - [US-035 每个身份一个本地库：打开时核对身份，换账号不混数据](../stories/core/US-035-identity-bound-local-database.md) (High)
 - [US-036 规则之外的公开数据：在线浏览走只读浏览实体，不进同步子集](../stories/core/US-036-browse-public-data-outside-sync-rule.md) (High)
+- [US-034 分区实体的本地写入：本地增删改可撤销/重做，推送后锁定](../stories/core/US-034-bucketed-entity-local-writes.md) (High)
+- [US-229 Supabase 远端变更历史：每次业务写入记完整前后快照，只对能编辑的成员开放](../stories/adapter/US-229-supabase-change-history.md) (High)
 
 前置的访问底线 [US-225](../stories/adapter/US-225-supabase-sync-protocol-access-baseline.md) 归 epic-004。
 

@@ -63,11 +63,11 @@ INVEST 检查清单:
 
 ## 交付阶段
 
-| 阶段 | 状态 | 交付                                                                                                     | 必过 AC   | 门禁                                                                  |
-| ---- | ---- | -------------------------------------------------------------------------------------------------------- | --------- | --------------------------------------------------------------------- |
-| A    | ⬜   | 依赖图按强连通分量断环；推送把环内成员合进一次 `mergeChanges` 并带上延迟列；无法断开的环只拖垮自己和下游 | AC#1～5   | 与适配器无关，用假远端与 PGlite `ScriptedRemote` 验收；不改服务端     |
-| B    | ⬜   | `rxdb_mutations` 支持延迟列（三遍执行、按实体原子）；Supabase 适配器发送延迟列；夹具对齐                 | AC#6～12  | SQL 回归全绿；`rxdb-change-grants.sql` 签名清单同步；迁移文档随 PR    |
-| C    | ⬜   | 拉取：翻页补齐环内引用、单仓拉取把环放进一个本地事务；删除与级联两端一致；文档                           | AC#13～17 | 真栈 AC#13～16 通过；分支物化不再因环失败                             |
+| 阶段 | 状态 | 交付                                                                                                     | 必过 AC   | 门禁                                                               |
+| ---- | ---- | -------------------------------------------------------------------------------------------------------- | --------- | ------------------------------------------------------------------ |
+| A    | ⬜   | 依赖图按强连通分量断环；推送把环内成员合进一次 `mergeChanges` 并带上延迟列；无法断开的环只拖垮自己和下游 | AC#1～5   | 与适配器无关，用假远端与 PGlite `ScriptedRemote` 验收；不改服务端  |
+| B    | ⬜   | `rxdb_mutations` 支持延迟列（三遍执行、按实体原子）；Supabase 适配器发送延迟列；夹具对齐                 | AC#6～12  | SQL 回归全绿；`rxdb-change-grants.sql` 签名清单同步；迁移文档随 PR |
+| C    | ⬜   | 拉取：翻页补齐环内引用、单仓拉取把环放进一个本地事务；删除与级联两端一致；文档                           | AC#13～17 | 真栈 AC#13～16 通过；分支物化不再因环失败                          |
 
 阶段 A 可以先合入：服务端还不支持时，Supabase 适配器的能力标志保持 `false`，环内需要延迟列的批次以 `remote-unsupported` 失败，不会推上去撞外键。阶段 B 拆成两个 PR：先 SQL 与回归（参数可选，单独合入安全），再适配器、夹具与真栈用例。
 
@@ -97,35 +97,35 @@ INVEST 检查清单:
 
 ### 阶段 A：依赖图与客户端推送
 
-| #   | 前置条件                                                                  | 操作                     | 预期结果                                                                                                                       | 状态 |
-| --- | ------------------------------------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------ | ---- |
-| 1   | 注册 shop 夹具全部实体，`SyncType.Full`                                   | `push()` 与 `pull()`     | 都不抛 `Circular dependency`；没有变更的仓库正常返回                                                                           | ⬜   |
-| 2   | 两个实体互相持有非空外键（排不出顺序），本地有待推变更                    | `push()`                 | 环内仓库以 `RxDBForeignKeyCycleError`（`unbreakable`）失败，消息指明环上的关系并提示把一侧改为可空；下游被阻断；环外仓库照常推送 | ⬜   |
-| 3   | 远端适配器不支持延迟列；本地同批新建互相引用的 User 与 IdCard            | `push()`                 | 这一环以 `remote-unsupported` 失败，不发请求、不删本地行；其他仓库照常推送                                                     | ⬜   |
-| 4   | 假远端；本地有两对互相引用的 User / IdCard，`batchSize = 1`               | `push()`                 | 每对各一次 `mergeChanges`，同一对不拆开；请求带上延迟列 `shop.User.idCardId`                                                   | ⬜   |
-| 5   | PGlite + `ScriptedRemote`；远端拒绝环内一个成员（`dependency`）           | `push()`                 | 两个仓库的回执、被拒对齐与水位线在一个本地事务里落库，没有本地外键错误                                                         | ⬜   |
+| #   | 前置条件                                                        | 操作                 | 预期结果                                                                                                                         | 状态 |
+| --- | --------------------------------------------------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 1   | 注册 shop 夹具全部实体，`SyncType.Full`                         | `push()` 与 `pull()` | 都不抛 `Circular dependency`；没有变更的仓库正常返回                                                                             | ⬜   |
+| 2   | 两个实体互相持有非空外键（排不出顺序），本地有待推变更          | `push()`             | 环内仓库以 `RxDBForeignKeyCycleError`（`unbreakable`）失败，消息指明环上的关系并提示把一侧改为可空；下游被阻断；环外仓库照常推送 | ⬜   |
+| 3   | 远端适配器不支持延迟列；本地同批新建互相引用的 User 与 IdCard   | `push()`             | 这一环以 `remote-unsupported` 失败，不发请求、不删本地行；其他仓库照常推送                                                       | ⬜   |
+| 4   | 假远端；本地有两对互相引用的 User / IdCard，`batchSize = 1`     | `push()`             | 每对各一次 `mergeChanges`，同一对不拆开；请求带上延迟列 `shop.User.idCardId`                                                     | ⬜   |
+| 5   | PGlite + `ScriptedRemote`；远端拒绝环内一个成员（`dependency`） | `push()`             | 两个仓库的回执、被拒对齐与水位线在一个本地事务里落库，没有本地外键错误                                                           | ⬜   |
 
 ### 阶段 B：服务端协议与 Supabase 适配器
 
-| #   | 前置条件                                                                   | 操作                                         | 预期结果                                                                                         | 状态 |
-| --- | -------------------------------------------------------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------ | ---- |
-| 6   | 一次调用里有 User（`idCardId = X`）与 IdCard X（`ownerId` = 该 User）      | `rxdb_mutations` 带 `p_deferred_columns`     | 两行都写入，复合外键成立；日志的 `afterData` 是最终值；无被拒                                     | ⬜   |
-| 7   | 同 AC#6，不带延迟列（旧客户端）                                            | `rxdb_mutations`                             | 行为与现在一致：一个实体以 `dependency` 被拒                                                      | ⬜   |
-| 8   | 同 AC#6，IdCard 的写入被 RLS 拒绝                                          | `rxdb_mutations` 带延迟列                    | 两个实体都被拒（User 的补写以 `dependency` 失败）；两行都不存在，没有日志                         | ⬜   |
-| 9   | 延迟列不合格：非空、不是外键、是 `id`、列不存在、所在复合外键是 `MATCH FULL`、标识符非法 | `rxdb_mutations` 带该延迟列 | 以 RX003 拒绝，什么都不写                                                                         | ⬜   |
-| 10  | AC#6 的同一次调用重复执行                                                  | `rxdb_mutations`                             | 幂等：没有重复写入与重复日志                                                                     | ⬜   |
-| 11  | 服务端未升级（没有 `p_deferred_columns`）                                  | 客户端推送需要延迟列的批次                   | 报 `SupabaseConfigError`，指向迁移文档；本地不对齐、不删行；没有环的模型照常推送                  | ⬜   |
-| 12  | 真栈；本地同批新建互相引用的 User 与 IdCard                                 | `push()`                                     | 远端两行都在、互相引用一致，无被拒                                                               | ⬜   |
+| #   | 前置条件                                                                                 | 操作                                     | 预期结果                                                                         | 状态 |
+| --- | ---------------------------------------------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------- | ---- |
+| 6   | 一次调用里有 User（`idCardId = X`）与 IdCard X（`ownerId` = 该 User）                    | `rxdb_mutations` 带 `p_deferred_columns` | 两行都写入，复合外键成立；日志的 `afterData` 是最终值；无被拒                    | ⬜   |
+| 7   | 同 AC#6，不带延迟列（旧客户端）                                                          | `rxdb_mutations`                         | 行为与现在一致：一个实体以 `dependency` 被拒                                     | ⬜   |
+| 8   | 同 AC#6，IdCard 的写入被 RLS 拒绝                                                        | `rxdb_mutations` 带延迟列                | 两个实体都被拒（User 的补写以 `dependency` 失败）；两行都不存在，没有日志        | ⬜   |
+| 9   | 延迟列不合格：非空、不是外键、是 `id`、列不存在、所在复合外键是 `MATCH FULL`、标识符非法 | `rxdb_mutations` 带该延迟列              | 以 RX003 拒绝，什么都不写                                                        | ⬜   |
+| 10  | AC#6 的同一次调用重复执行                                                                | `rxdb_mutations`                         | 幂等：没有重复写入与重复日志                                                     | ⬜   |
+| 11  | 服务端未升级（没有 `p_deferred_columns`）                                                | 客户端推送需要延迟列的批次               | 报 `SupabaseConfigError`，指向迁移文档；本地不对齐、不删行；没有环的模型照常推送 | ⬜   |
+| 12  | 真栈；本地同批新建互相引用的 User 与 IdCard                                              | `push()`                                 | 远端两行都在、互相引用一致，无被拒                                               | ⬜   |
 
 ### 阶段 C：拉取与端到端
 
-| #   | 前置条件                                                  | 操作                                         | 预期结果                                                                | 状态 |
-| --- | --------------------------------------------------------- | -------------------------------------------- | ----------------------------------------------------------------------- | ---- |
-| 13  | 客户端 A 完成 AC#12                                       | 客户端 B 以 `limit = 1` 调 `pull()`          | 环内引用跨页时续拉；B 本地两行都在、互相引用一致                         | ⬜   |
-| 14  | 同 AC#13                                                  | 客户端 B 调 `pullRepository('shop', 'User')` | 环内成员在一个本地事务里落库；两行一致                                  | ⬜   |
-| 15  | 两端都有 AC#12 的数据                                     | A 删除 IdCard 并推送，B 拉取                 | 远端与 B 本地的 `User.idCardId` 都为空，User 仍在，无被拒               | ⬜   |
-| 16  | 两端都有 AC#12 的数据                                     | A 删除 User 并推送，B 拉取                   | 远端与 B 本地的 IdCard 一并消失                                         | ⬜   |
-| 17  | 环内有一个成员是 `SyncType.Filter` 或分区实体             | `pull()`                                     | 这一环以 `pull-unsupported-member` 失败；其他仓库照常拉取               | ⬜   |
+| #   | 前置条件                                      | 操作                                         | 预期结果                                                  | 状态 |
+| --- | --------------------------------------------- | -------------------------------------------- | --------------------------------------------------------- | ---- |
+| 13  | 客户端 A 完成 AC#12                           | 客户端 B 以 `limit = 1` 调 `pull()`          | 环内引用跨页时续拉；B 本地两行都在、互相引用一致          | ⬜   |
+| 14  | 同 AC#13                                      | 客户端 B 调 `pullRepository('shop', 'User')` | 环内成员在一个本地事务里落库；两行一致                    | ⬜   |
+| 15  | 两端都有 AC#12 的数据                         | A 删除 IdCard 并推送，B 拉取                 | 远端与 B 本地的 `User.idCardId` 都为空，User 仍在，无被拒 | ⬜   |
+| 16  | 两端都有 AC#12 的数据                         | A 删除 User 并推送，B 拉取                   | 远端与 B 本地的 IdCard 一并消失                           | ⬜   |
+| 17  | 环内有一个成员是 `SyncType.Filter` 或分区实体 | `pull()`                                     | 这一环以 `pull-unsupported-member` 失败；其他仓库照常拉取 | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -142,7 +142,7 @@ INVEST 检查清单:
   1. 写 INSERT / UPDATE，延迟列先从载荷里拿掉（INSERT 缺键即 NULL，`DO UPDATE SET` 只改载荷里有的键），记下待补写的值；
   2. 在 DELETE 之前补写；23503 照常给出 `dependency` 与 `dependsOn`；
   3. 执行 DELETE。
-  补写失败时整轮回滚、把该实体标为被拒后重试；排除集只增不减，循环必然收敛。配对校验、幂等跳过与日志都不变，`afterData` 本来就是最终值。
+     补写失败时整轮回滚、把该实体标为被拒后重试；排除集只增不减，循环必然收敛。配对校验、幂等跳过与日志都不变，`afterData` 本来就是最终值。
 - **签名**：新增第七个参数 `p_deferred_columns jsonb DEFAULT '[]'`，`DROP` 旧的 6 参数签名，否则 PostgREST 无法在两个签名之间选择。授权清单 `production/rxdb-change-grants.sql` 手写了签名，要同步改。升级方式与 US-218 / US-220 相同：`psql --single-transaction -f 04 -f production/rxdb-change-grants.sql`；迁移文档写在 `website/docs/migration/supabase-fk-cycle-push.md`。
 - **补写的权限**：补写是以调用者身份执行的 UPDATE，环上的表必须给行的创建者开 UPDATE 策略。
 - **拉取补齐**：`closeCycleReferences` 收集本页环内成员的外键值，去掉本页最终存在的与本地已有的，还缺就续拉下一页；远端拉空了就让提交如实失败。远端加事务 id 列的做法要迁移系统表、只对 Supabase 有效，不采用。
@@ -151,18 +151,18 @@ INVEST 检查清单:
 
 ## 实现文件
 
-| 阶段 | 路径                                                                                     | 说明                                                       |
-| ---- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| A    | `packages/rxdb-plugin-sync/src/dependency-graph.ts`、`topological-sort.ts`               | 强连通分量、断环边、凝聚图排序                             |
-| A    | `packages/rxdb-plugin-sync/src/push-component.ts`、`push-plan.ts`                        | 环内合批与回执分发；推送计划从 `push-repository.ts` 抽出   |
-| A    | `packages/rxdb/src/rxdb-adapter.ts`                                                      | `mergeChanges` 的 `options` 与能力标志                     |
-| B    | `docker/sql/04-rxdb-utils-functions.sql`                                                 | `p_deferred_columns`、校验函数、三遍执行                   |
-| B    | `docker/sql/production/rxdb-change-grants.sql`                                           | 签名清单                                                   |
-| B    | `packages/rxdb-adapter-supabase/src/supabase.merge-changes.ts`、`RxDBAdapterSupabase.ts` | 发送延迟列、`PGRST202` 识别、能力标志                      |
-| B    | `packages/rxdb-adapter-supabase/src/__tests__/supabase-sql-security-regressions.sql`     | `deferred-cycle-*` 与 `deferred-columns-validation` 用例   |
-| B    | `packages/rxdb-test/shop/User.ts`                                                        | `idCard` 声明 `onDelete: SET_NULL`                         |
-| C    | `packages/rxdb-plugin-sync/src/pull-cycle-closure.ts`、`pull-batch.ts`、`pull-repository.ts` | 翻页补齐、环放进一个本地事务                           |
-| C    | `website/docs/`                                                                          | `relations.md`、`sync.md`、`supabase.md` 与迁移文档        |
+| 阶段 | 路径                                                                                         | 说明                                                     |
+| ---- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| A    | `packages/rxdb-plugin-sync/src/dependency-graph.ts`、`topological-sort.ts`                   | 强连通分量、断环边、凝聚图排序                           |
+| A    | `packages/rxdb-plugin-sync/src/push-component.ts`、`push-plan.ts`                            | 环内合批与回执分发；推送计划从 `push-repository.ts` 抽出 |
+| A    | `packages/rxdb/src/rxdb-adapter.ts`                                                          | `mergeChanges` 的 `options` 与能力标志                   |
+| B    | `docker/sql/04-rxdb-utils-functions.sql`                                                     | `p_deferred_columns`、校验函数、三遍执行                 |
+| B    | `docker/sql/production/rxdb-change-grants.sql`                                               | 签名清单                                                 |
+| B    | `packages/rxdb-adapter-supabase/src/supabase.merge-changes.ts`、`RxDBAdapterSupabase.ts`     | 发送延迟列、`PGRST202` 识别、能力标志                    |
+| B    | `packages/rxdb-adapter-supabase/src/__tests__/supabase-sql-security-regressions.sql`         | `deferred-cycle-*` 与 `deferred-columns-validation` 用例 |
+| B    | `packages/rxdb-test/shop/User.ts`                                                            | `idCard` 声明 `onDelete: SET_NULL`                       |
+| C    | `packages/rxdb-plugin-sync/src/pull-cycle-closure.ts`、`pull-batch.ts`、`pull-repository.ts` | 翻页补齐、环放进一个本地事务                             |
+| C    | `website/docs/`                                                                              | `relations.md`、`sync.md`、`supabase.md` 与迁移文档      |
 
 ## References
 

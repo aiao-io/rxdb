@@ -10,11 +10,11 @@
 | ✅ Done        | 100    |
 | 🚧 In Progress | 13     |
 | 👀 In Review   | 3      |
-| 📝 Backlog     | 31     |
+| 📝 Backlog     | 34     |
 | 🚫 Blocked     | 0      |
-| **未完成合计** | **47** |
+| **未完成合计** | **50** |
 
-仓库还剩 **47 条**未关闭故事（13 In Progress + 3 In Review + 31 Backlog + 0 Blocked）。
+仓库还剩 **50 条**未关闭故事（13 In Progress + 3 In Review + 34 Backlog + 0 Blocked）。
 数字由 story YAML 推导；Backlog 包括已授权任务与价值待证候选，不能把全部未关闭故事当成可开工项。
 
 ## 未完成需求全景
@@ -31,9 +31,12 @@
 | [US-540](stories/domain/US-540-board-end-to-end-demo.md)                                                                                                                | 🚧 In Progress | demo 既有库初态（AC#7）与无搜索插件构建（AC#12）                                                       | 批次 6   |
 | [US-541](stories/domain/US-541-board-team-sync.md)                                                                                                                      | 📝 Backlog     | 具名团队触发后冻结身份、成员权限、RLS 与冲突规则                                                       | 立项池   |
 | [US-226](stories/adapter/US-226-supabase-pull-count-records.md)                                                                                                         | 📝 Backlog     | 远端日志补记 `transactionId`、广播带上它、按记录重算；先定旧服务端的处理方式                           |
-| [US-037](stories/core/US-037-push-order-by-foreign-key.md)                                                                                                              | 📝 Backlog     | 全量推送改按外键依赖排序，单仓推子仓不再让子行撞外键；补上级联仓的 `pushed` 汇总                       | 立项池   |
-| [US-038](stories/core/US-038-bidirectional-one-to-one-sync.md)                                                                                                          | 📝 Backlog     | 依赖图按可空外键断环、推送补外键回填相位；前置 US-037                                                  | 立项池   |
-| [US-227](stories/adapter/US-227-supabase-relational-sync-demo.md)                                                                                                       | 📝 Backlog     | dev-rxdb-supabase 订单页与两身份远端 e2e；前置 US-037，候选 AC#8 前置 US-038                           | 立项池   |
+| [US-037](stories/core/US-037-push-order-by-foreign-key.md)                                                                                                              | 📝 Backlog     | 一次级联覆盖全部仓库、单仓推连通分量；依赖图补继承关系与复合外键；汇总计全关联仓                       | 批次 9   |
+| [US-038](stories/core/US-038-bidirectional-one-to-one-sync.md)                                                                                                          | 📝 Backlog     | 三阶段：强连通分量与客户端合批 → `rxdb_mutations` 延迟列 → 拉取补齐与端到端；前置 US-037               | 批次 9   |
+| [US-228](stories/adapter/US-228-supabase-many-to-many-sync.md)                                                                                                          | 📝 Backlog     | 三阶段：确定性关联行 id → 中间表同步类型跟随两端 → DDL 契约与真栈；前置 US-037                         | 批次 9   |
+| [US-227](stories/adapter/US-227-supabase-relational-sync-demo.md)                                                                                                       | 📝 Backlog     | demo 自有表与订单页、两身份远端 e2e；三阶段分别以 US-037、US-228、US-038 为前置                        | 批次 9   |
+| [US-034](stories/core/US-034-bucketed-entity-local-writes.md)                                                                                                           | 📝 Backlog     | 商品本地增删改可撤销/重做、推送后锁定；换区、离线写、被移出租户时的未推送修改                          | 批次 8   |
+| [US-229](stories/adapter/US-229-supabase-change-history.md)                                                                                                             | 📝 Backlog     | 独立于同步日志的历史表、三个写入点、按编辑权限读取的 RPC 与列脱敏                                      | 批次 8   |
 | [US-029](stories/core/US-029-rbac-owner-role-permission.md)                                                                                                             | 📝 Backlog     | 价值待证，等待具名多用户写授权症状；解锁时重验当前 API 前提                                            | 立项池   |
 | [US-910](stories/future/US-910-data-i18n.md)                                                                                                                            | 📝 Backlog     | 先证明语言启停入口、删除判据与迟到子行合入；不能只归因于缺夹具                                         | 立项池   |
 | [US-704](stories/future/US-704-p2p-manifest-discovery.md) / [US-705](stories/future/US-705-p2p-byte-transfer.md) / [US-706](stories/future/US-706-p2p-fallback-auth.md) | 🚧 In Progress | 协议层已实现；先选定认证宿主，再接信令、mDNS 与桌面握手，按 AC 在真实宿主上验收                        | 批次 7   |
@@ -107,6 +110,28 @@ owner 已决定推进 US-704～US-707，US-713 管理后台随独立 demo 交付
 owner 明确了目标：不同用户同步到自己有权限的数据，没登录的用户能看到全部公开数据。本批的 US-033、US-035、US-036 已全部完成，
 `dev-rxdb-supabase` 的 `/catalog` 在同一个后端上完整演示（见 [epic-015](epics/epic-015-identity-scoped-sync.md#演示)）；写入与实时刷新随后。
 
+2026-11-25 owner 授权写入与变更历史两条后续（不分先后，可并行开 PR）：
+
+| 范围   | 关闭条件                                                                                       |
+| ------ | ---------------------------------------------------------------------------------------------- |
+| US-034 | 商品在本地增删改可撤销/重做，推送后锁定；被拒按 US-218 对齐；Supabase 真栈与 demo 组件测试通过 |
+| US-229 | 三个写入点都记历史、读取 RPC 只对能编辑的成员开放并按列脱敏；SQL 回归与生产升级通过            |
+
+同步日志不带正文的规则不变，完整前后快照只进 US-229 的历史表。实时刷新仍在后续。
+
+### 批次 9：关系数据同步
+
+2026-11-25 owner 授权，按顺序推进，每个 PR 先写红测试：
+
+| 顺序 | 范围                   | 关闭条件                                                                                        |
+| ---- | ---------------------- | ----------------------------------------------------------------------------------------------- |
+| 1    | US-037                 | 子实体先声明时 `push()` 不再被拒、不再删本地行；汇总与失败计全；PGlite 与 Supabase 真栈用例通过 |
+| 2    | US-227 阶段 A          | demo 自有表与订单页；一对多、多对一、级联删除、外键被拒的两身份远端 e2e 通过                    |
+| 3    | US-228 + US-227 阶段 B | 关联行 id 确定性派生、中间表同步类型跟随两端、DDL 契约；并发关联同一对只落一行                  |
+| 4    | US-038 + US-227 阶段 C | 依赖图按可空外键断环、`rxdb_mutations` 延迟列、拉取补齐；shop 夹具全量注册后推拉正常            |
+
+US-038 改 `rxdb_mutations` 的签名，随 PR 附迁移文档与 `production/rxdb-change-grants.sql` 的签名清单；US-229 若先合入，US-038 的重构要保留它加的历史写入。
+
 ### 线 A：桥接版本发布（owner 门控）
 
 当前下一次迁移的桥接锚点是 v0.0.28。此处仅保留引用入口，不重跑 v0.0.26 的历史操作；执行以 [发布计划](release-plan.md)为准。
@@ -119,9 +144,6 @@ owner 明确了目标：不同用户同步到自己有权限的数据，没登�
 | US-910                            | 先完成故事中的能力/持久化合同验证；locale/fallback 复用 US-911 的同一份定义，不预先承诺无需同步改动 |
 | US-541                            | 具名团队离线协作症状出现后，先冻结身份、成员权限、RLS 与冲突合同                                    |
 | US-226                            | owner 排期；实现前先定新客户端连旧服务端（没跑升级脚本）时计数怎么处理                              |
-| US-037                            | owner 排期，无前置；实现前先定单仓推子仓时是带上父仓一起推，还是子行本轮不推                        |
-| US-038                            | 以 US-037 为前置；实现前先定断环方式（可空外键回填，或一对一的一侧只做导航）                        |
-| US-227                            | 以 US-037 为前置，候选 AC#8 另以 US-038 为前置；实现前先定演示实体放哪、访客能否进入订单页          |
 | US-709 / US-710 / US-711 / US-712 | 以 US-708 为前置；各故事「解锁条件」出现后由 owner 解锁，排序上 US-709 整库克隆在先                 |
 
 ### epic-006 评审顺延的架构项

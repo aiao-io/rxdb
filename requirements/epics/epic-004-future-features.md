@@ -32,12 +32,14 @@ owner: jimmy
 - [ ] 实体元数据能声明 CHECK、条件唯一、区间排他与生成列，业务不变量落在存储层而不只活在仓储方法里
 - [x] 普通实体可声明手动排序（整表或按分组字段），三端 Todo 列表可拖拽调整先后并落库
 - [x] 三端 demo 的树菜单与文件管理器改用可排序树实体，排序键一律由 core 给出，同一操作三端结果一致
-- [ ] 关系模型的推拉同步：跨仓推送按外键依赖排序、双向一对一能同步，dev-rxdb-supabase 有关系数据的端到端演示
+- [ ] 关系模型的推拉同步：跨仓推送按外键依赖排序，多对多关联与双向一对一能同步，dev-rxdb-supabase 有关系数据的端到端演示
 
 ## 当前交付
 
 2026-10-28 owner 授权完成 US-223 / US-224，纳入 [roadmap 批次 3](../roadmap.md#批次-3能力补齐可并行开-pr)。
 两条故事待评审，AC 全部通过；2026-10-29 分支评审的修复已复验适配器全量用例与 SQL 安全回归，验证范围与数字见各 story 的验证记录。尚未合并，不标 Done。
+
+2026-11-25 owner 授权关系数据同步，按 US-037 → US-227 阶段 A → US-228 → US-227 阶段 B → US-038 → US-227 阶段 C 的顺序推进，纳入 [roadmap 批次 9](../roadmap.md#批次-9关系数据同步)。US-038 在同步层支持外键成环（`rxdb_mutations` 的延迟列），US-227 用 demo 自有的表。
 
 ## 故事
 
@@ -84,9 +86,10 @@ owner: jimmy
 - [US-031 树形实体迁移到排序模块](../stories/core/US-031-tree-sortable-migration.md) — 三端 demo 的树改用新建的可排序树实体（`parentId` 分组；旧的四个树实体不改），新建、批量添加、删除提升子节点与拖放改走 US-028 排序模块；症状可复现（三处撞键），三端行为已分叉；A 新实体与创建类写入 → B 拖放与显示顺序；前置 US-028 阶段 A + D
 - [US-226 Supabase 待拉数按记录计：一个事务一条](../stories/adapter/US-226-supabase-pull-count-records.md) — 本地待推数已按记录计；远端日志补记 `transactionId`、广播带上它、按记录重算，对端批量 10 条显示 1 条待拉
 - [US-032 跨 Tab 增量 UPDATE 的活查询刷新](../stories/core/US-032-cross-tab-update-live-query.md) — where 字段不完整时回 SQL，避免冷缓存或残缺缓存下的 count 与 find 系查询静默过期；保留既有事件协议
-- [US-037 全量推送按外键依赖排序：子实体声明在前时不再被拒并删掉本地行](../stories/core/US-037-push-order-by-foreign-key.md) — `push()` 按 `config.entities` 的声明顺序逐仓推，级联只带子仓；子实体声明在前时子行先到远端撞外键，被当终态拒绝并删掉本地行（真栈已复现）；另补级联仓不计入 `pushed` 的汇总
-- [US-038 双向一对一的实体能开同步：外键成环时推拉不再整体失败](../stories/core/US-038-bidirectional-one-to-one-sync.md) — 两侧都持有外键的一对一在依赖图里成环，`Circular dependency` 让全库推拉失败（shop 夹具真栈已复现）；按可空外键断环并补外键回填相位；前置 US-037
-- [US-227 dev-rxdb-supabase 关系数据的推拉同步演示与端到端验收](../stories/adapter/US-227-supabase-relational-sync-demo.md) — 订单页演示一对多、多对一、多对多与级联删除、外键被拒，两身份远端 e2e 守住 US-037；双向一对一为候选 AC，以 US-038 为前置
+- [US-037 全量推送按外键依赖排序：子实体声明在前时不再被拒并删掉本地行](../stories/core/US-037-push-order-by-foreign-key.md) — `push()` 按 `config.entities` 的声明顺序逐仓推，级联只带子仓；子实体声明在前时子行先到远端撞外键，被当终态拒绝并删掉本地行（真栈已复现）；改为一次级联覆盖全部仓库，单仓推连通分量；依赖图补上继承关系与复合外键；汇总计全关联仓的计数与失败
+- [US-038 双向一对一的实体能开同步：同步层按可空外键断环](../stories/core/US-038-bidirectional-one-to-one-sync.md) — 两侧都持有外键的一对一在依赖图里成环，`Circular dependency` 让全库推拉失败（shop 夹具真栈已复现）；三阶段（依赖图强连通分量与客户端合批 → `rxdb_mutations` 延迟列 → 拉取补齐与端到端）；前置 US-037
+- [US-228 多对多关联在 Supabase 上可同步：中间表按实体形状建表，关联行 id 由两端确定](../stories/adapter/US-228-supabase-many-to-many-sync.md) — 生成的中间表实体带 `id`，远端中间表是复合主键没有 `id`，关联推不上去；三阶段（确定性关联行 id → 中间表同步类型跟随两端 → DDL 契约与真栈）；前置 US-037
+- [US-227 dev-rxdb-supabase 关系数据的推拉同步演示与端到端验收](../stories/adapter/US-227-supabase-relational-sync-demo.md) — demo 自有表，订单页演示一对多、多对一、多对多、双向一对一、级联删除与外键被拒，两身份远端 e2e；三阶段分别以 US-037、US-228、US-038 为前置
 
 > 拆分理由：PGlite 的 callback transaction 无法跨 IPC 序列化，需要一套 SQLite 路径不需要的事务 host 协议，
 > 故 US-208 从 US-207 拆出。US-020 / US-212 / US-023 / US-213 / US-214 / US-021 / US-022 / US-215 / US-218 / US-220 保留在本 Epic 的历史范围内；Epic 归属按用户目标和当前范围维护，新增承诺需要同步目标与关闭条件。US-021 / US-022 / US-215 是
