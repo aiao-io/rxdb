@@ -822,7 +822,8 @@ jobs:
     needs: setup
     if: needs.setup.outputs.has_e2e == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    # 带重试的 desktop 套件一次 ~35 分钟、最多 3 次；40 分钟会在 attempt 2 中途把 job 杀掉（表现为 cancelled）。
+    timeout-minutes: 150
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.setup.outputs.e2e_matrix) }}
