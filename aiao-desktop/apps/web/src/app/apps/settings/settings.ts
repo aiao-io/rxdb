@@ -3,7 +3,7 @@ import { Component, computed, effect, inject, signal, untracked } from '@angular
 
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
-import { RETURNS_FOCUS, PopoverCloseReason, PopoverService } from '../../services/popover';
+import { PopoverCloseReason, PopoverService, RETURNS_FOCUS } from '../../services/popover';
 import { SystemState } from '../../services/system-state';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';

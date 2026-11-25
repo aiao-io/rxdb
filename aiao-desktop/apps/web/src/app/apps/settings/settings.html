@@ -18,14 +18,14 @@
       <div class="st-scroll">
         <div
           class="st-row"
-          style="height: 44px; margin-bottom: 8px"
           #account
+          (click)="openAccount($event, account)"
+          (keydown.enter)="openAccount($event, account)"
           aria-label="Apple Account"
           data-account
           role="button"
+          style="height: 44px; margin-bottom: 8px"
           tabindex="-1"
-          (click)="openAccount($event, account)"
-          (keydown.enter)="openAccount($event, account)"
         >
           <img
             class="bg"
