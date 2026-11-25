@@ -300,16 +300,13 @@ export async function installGameStandin(context, origin) {
           state = next;
           for (const listener of listeners) listener(next);
         };
-        const step = () => {
-          window.__frames += 1;
-          handle = requestAnimationFrame(step);
-        };
+        /* setInterval 驱动帧计数：CI 的软件渲染/后台页可能不产 rAF tick，计时器不依赖渲染。 */
         const start = () => {
-          if (handle === null) handle = requestAnimationFrame(step);
+          if (handle === null) handle = setInterval(() => (window.__frames += 1), 100);
         };
         const stop = () => {
           if (handle !== null) {
-            cancelAnimationFrame(handle);
+            clearInterval(handle);
             handle = null;
           }
         };
