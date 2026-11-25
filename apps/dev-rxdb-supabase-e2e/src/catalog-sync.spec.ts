@@ -171,6 +171,30 @@ if (isRemoteE2E) {
       }
     });
 
+    test('宽屏上商品展示在左、模拟服务端变更在右，窄屏上下堆叠', async ({ browser }) => {
+      const page = await openCatalog(browser, undefined);
+      const columns = () =>
+        page.evaluate(() => {
+          const box = (testId: string) => {
+            const { left, right, top, bottom } = document
+              .querySelector(`[data-testid="${testId}"]`)!
+              .getBoundingClientRect();
+            return { left, right, top, bottom };
+          };
+          return { display: box('catalog-display'), operations: box('catalog-operations') };
+        });
+
+      await page.setViewportSize({ width: 1440, height: 900 });
+      const wide = await columns();
+      expect(wide.operations.left).toBeGreaterThanOrEqual(wide.display.right);
+      expect(wide.operations.top).toBeCloseTo(wide.display.top, 0);
+
+      await page.setViewportSize({ width: 800, height: 900 });
+      const narrow = await columns();
+      expect(narrow.operations.left).toBeCloseTo(narrow.display.left, 0);
+      expect(narrow.operations.top).toBeGreaterThanOrEqual(narrow.display.bottom);
+    });
+
     test('每个身份一个本地库：访客与 Alice 打开不同的库，Alice 读得到星河零售的区', async ({ browser }) => {
       const page = await openCatalog(browser, undefined);
       const visitorDatabase = await page.getByTestId('catalog-database').innerText();

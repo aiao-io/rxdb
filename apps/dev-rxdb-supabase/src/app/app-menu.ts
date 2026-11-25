@@ -89,14 +89,8 @@ export class AppMenu {
     },
     {
       type: 'link',
-      title: 'Todo (findAll)',
+      title: 'Todo',
       path: '/todo',
-      icon: ListTodo
-    },
-    {
-      type: 'link',
-      title: 'Todo (cursor)',
-      path: '/todo-cursor',
       icon: ListTodo
     },
     {

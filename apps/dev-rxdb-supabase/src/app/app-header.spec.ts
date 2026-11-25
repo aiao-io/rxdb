@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { AppHeader } from './app-header';
 import { AppService } from './app.service';
 import { DemoSession } from './demo-session';
+import { RemoteSyncState } from './remote-sync-state';
 
 function renderHeader(session: Partial<DemoSession>) {
   TestBed.configureTestingModule({
@@ -41,6 +42,16 @@ describe('AppHeader', () => {
     const { select } = renderHeader({ description: undefined, currentChoice: null });
 
     expect(select).toBeNull();
+  });
+
+  // 安全提示不再在每个页面顶部占一整行，收成顶栏上的一个图标
+  it('远端同步连上时，顶栏有同步提示图标', () => {
+    const { fixture } = renderHeader({ description: { title: 'Alice', detail: '星河零售' }, currentChoice: 'alice' });
+
+    TestBed.inject(RemoteSyncState).markConnected(true);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('[data-testid="remote-security-toggle"]')).not.toBeNull();
   });
 
   // 窄屏上侧栏默认收起成抽屉，顶栏要有打开它的入口（宽屏由 md:hidden 隐藏）

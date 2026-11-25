@@ -81,6 +81,23 @@ function storedNames(target: Page): Promise<string[]> {
 
 if (isRemoteE2E) {
   test.describe('Supabase remote sync', () => {
+    // 安全提示不再在每个页面顶部占一整行：收成顶栏上的图标，点开才显示，按 Esc 收起；访客只读，不写远端
+    test('shows the remote security notice from the header icon', async ({ page }) => {
+      await page.goto('/todo', { timeout: 60_000, waitUntil: 'domcontentloaded' });
+      const toggle = page.getByRole('button', { name: /远端同步已连接/u });
+      const notice = page.getByRole('dialog', { name: '远端同步已连接' });
+      await expect(toggle).toBeVisible({ timeout: 60_000 });
+      await expect(notice).toBeHidden();
+
+      await toggle.click();
+      await expect(notice).toContainText('未分区的日志同步');
+      await expect(notice).toContainText('createdBy');
+
+      await page.keyboard.press('Escape');
+      await expect(notice).toBeHidden();
+      await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    });
+
     // US-035 AC#10：两个浏览器上下文各自匿名登录，各自打开按自己会话身份算出的库
     test('opens a separate local database per anonymous session in each browser context', async ({ browser, page }) => {
       await openTodoPage(page);
@@ -112,9 +129,6 @@ if (isRemoteE2E) {
       });
 
       await openTodoPage(page);
-      const securityNotice = page.getByRole('alert');
-      await expect(securityNotice).toContainText('未分区的日志同步');
-      await expect(securityNotice).toContainText('createdBy');
 
       const title = uniqueTitle();
       await page.getByRole('textbox', { name: '添加新任务' }).fill(title);

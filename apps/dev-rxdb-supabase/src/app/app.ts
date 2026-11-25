@@ -6,11 +6,10 @@ import { AppHeader } from './app-header';
 import { AppSidebar } from './app-sidebar';
 import { AppService } from './app.service';
 import { DemoSession } from './demo-session';
-import { RemoteSecurityNotice } from './remote-security-notice';
 import { SessionNotice } from './session-notice';
 
 @Component({
-  imports: [RouterOutlet, AppSidebar, AppHeader, RemoteSecurityNotice, SessionNotice],
+  imports: [RouterOutlet, AppSidebar, AppHeader, SessionNotice],
   selector: 'app-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -23,7 +22,6 @@ import { SessionNotice } from './session-notice';
       <div class="flex h-full min-w-0 grow flex-col overflow-auto" id="layout-container">
         <app-header></app-header>
         <app-session-notice></app-session-notice>
-        <app-remote-security-notice></app-remote-security-notice>
         <div id="layout-content">
           <router-outlet></router-outlet>
         </div>
@@ -33,7 +31,7 @@ import { SessionNotice } from './session-notice';
   styles: [],
   host: {
     '[class.left-menu-pinned]': 'app.$sidebarPinned()',
-    // 远端模式的顶栏常驻当前身份与切换菜单，占自己的一行，不浮在提示与页面内容上
+    // 远端模式的顶栏常驻同步提示图标、当前身份与切换菜单，占自己的一行，不浮在页面内容上
     '[class.header-floating]': 'app.$headerFloating() && !session.description'
   }
 })

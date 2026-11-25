@@ -55,7 +55,7 @@ test('起始页模板的每个占位符都有值', async () => {
 test('起始页给出连本栈的测试入口与命令', async () => {
   const html = await renderedTemplate();
   assert.ok(html.includes('href="http://localhost:4203/todo"'), 'Todo 入口');
-  assert.ok(html.includes('href="http://localhost:4203/todo-cursor"'), 'Todo Cursor 入口');
+  assert.ok(!html.includes('/todo-cursor'), 'Todo 只有一个页面，不再链到已删掉的 /todo-cursor');
   assert.ok(html.includes('href="http://localhost:4203/catalog"'), '商品目录（按身份同步）入口');
   for (const identity of ['访客', '匿名用户', 'Alice', 'Bob']) {
     assert.ok(html.includes(identity), `测试身份：${identity}`);
@@ -70,6 +70,14 @@ test('起始页给出连本栈的测试入口与命令', async () => {
     ),
     '远端 e2e 命令指向本栈的实际端口'
   );
+});
+
+test('测试入口的计数与卡片数一致', async () => {
+  const html = await renderedTemplate();
+  const entries = html.slice(html.indexOf('id="entries-title"'), html.indexOf('class="details"'));
+  const caption = entries.match(/<span class="caption">(\d+) 个入口<\/span>/);
+  assert.ok(caption, '入口计数');
+  assert.equal(Number(caption[1]), entries.match(/<a class="card"/g)?.length);
 });
 
 test('起始页不缓存、不向外发 Referer', async t => {

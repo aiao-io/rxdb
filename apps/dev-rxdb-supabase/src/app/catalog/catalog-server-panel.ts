@@ -35,7 +35,7 @@ import { CATALOG_CATEGORIES } from './catalog-sync-rule';
           </p>
         } @else {
           <p class="text-base-content/60 text-sm">
-            以当前身份直接写远端（按 RLS 只能改所在租户的商品）。本机数据不会马上变：点上面的「同步」，
+            以当前身份直接写远端（按 RLS 只能改所在租户的商品）。本机数据不会马上变：点「本机同步的商品」里的「同步」，
             或到别的身份的窗口里同步，看分区同步怎么收到写入与移除。
           </p>
 
@@ -54,7 +54,9 @@ import { CATALOG_CATEGORIES } from './catalog-sync-rule';
                 }
               }
             </div>
-            <p class="label">成员关系变了、业务行一行没改：下次同步时，加入的租户补快照，退出的租户整块从本机删掉。</p>
+            <p class="label whitespace-normal">
+              成员关系变了、业务行一行没改：下次同步时，加入的租户补快照，退出的租户整块从本机删掉。
+            </p>
           </fieldset>
 
           @if ($error(); as error) {
@@ -83,20 +85,27 @@ import { CATALOG_CATEGORIES } from './catalog-sync-rule';
                       <td>
                         {{ item.name }} <span class="badge badge-ghost badge-sm">{{ item.category }}</span>
                       </td>
-                      <td>{{ remote.tenantName(item.tenantId) }}</td>
-                      <td>{{ item.visibility === 'public' ? '公开' : '仅租户内部' }}</td>
-                      <td class="flex justify-end gap-1">
-                        <button class="btn btn-xs" [disabled]="$busy()" (click)="toggleVisibility(item)" type="button">
-                          {{ item.visibility === 'public' ? '收回为内部' : '公开' }}
-                        </button>
-                        <button
-                          class="btn btn-xs btn-error btn-outline"
-                          [disabled]="$busy()"
-                          (click)="remove(item)"
-                          type="button"
-                        >
-                          删除
-                        </button>
+                      <td class="whitespace-nowrap">{{ remote.tenantName(item.tenantId) }}</td>
+                      <td class="whitespace-nowrap">{{ item.visibility === 'public' ? '公开' : '仅租户内部' }}</td>
+                      <td>
+                        <div class="flex justify-end gap-1">
+                          <button
+                            class="btn btn-xs"
+                            [disabled]="$busy()"
+                            (click)="toggleVisibility(item)"
+                            type="button"
+                          >
+                            {{ item.visibility === 'public' ? '收回为内部' : '公开' }}
+                          </button>
+                          <button
+                            class="btn btn-xs btn-error btn-outline"
+                            [disabled]="$busy()"
+                            (click)="remove(item)"
+                            type="button"
+                          >
+                            删除
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   }

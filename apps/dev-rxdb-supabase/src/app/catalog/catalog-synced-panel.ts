@@ -53,7 +53,7 @@ import { groupByBucket } from './catalog-view';
                 </label>
               }
             </div>
-            <p class="label">改了规则之后点「同步」：新匹配的行补快照，不再匹配的行从本机删掉。</p>
+            <p class="label whitespace-normal">改了规则之后点「同步」：新匹配的行补快照，不再匹配的行从本机删掉。</p>
           </fieldset>
         }
 
