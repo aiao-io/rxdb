@@ -36,7 +36,7 @@ capabilities: []
 
 ## 验收证据
 
-- AC 1～4 由 `settings-workflow` 冒烟分组的 `accountMenu`、`accountMenuKeyboard`、`signOutConfirmCancel`、`signOutErasesAndReloads` 检查项覆盖（正式构建、桌面 Chromium），报告在 [evidence/2026-11-25](../../evidence/2026-11-25/README.md)。
+- AC 1～4 由 `settings-workflow` 冒烟分组的 `accountMenu`、`accountMenuKeyboard`、`signOutConfirmCancel`、`signOutErasesAndReloads` 检查项覆盖（正式构建、桌面 Chromium），运行记录见 [US-131 证据留档](ADESK-US-131-settings-sign-out-data-reset-evidence.md)。
 - AC 5 由 web 单测覆盖：`desktop-erase.spec.ts` 的 `tolerantStorage` 与 `forceDesktopErase`、`desktop-data.spec.ts` 的「localStorage 不可用也能抹掉」。键盘路径经 Playwright 合成事件验证代码路径；真实键盘行为以 [US-108](ADESK-US-108-accessibility.md) 台账为准。
 
 ## 实现文件
