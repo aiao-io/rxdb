@@ -240,7 +240,12 @@ describe('host locale', () => {
       expect(embedded.locale).toBe('en');
 
       const before = embedded.changes$.value;
-      const refreshed = firstValueFrom(embedded.changes$.pipe(filter(v => v > before), take(1)));
+      const refreshed = firstValueFrom(
+        embedded.changes$.pipe(
+          filter(v => v > before),
+          take(1)
+        )
+      );
       await seeder.setLocale('fr');
       await refreshed;
       expect(embedded.locale).toBe('en');

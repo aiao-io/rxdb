@@ -12,8 +12,7 @@ describe('appConfig LOCALE_ID resolution', () => {
 
   it('LOCALE_ID 提供商使用宿主优先的解析函数', () => {
     const provider = appConfig.providers.find(p => 'provide' in p && p.provide === LOCALE_ID) as
-      | { useFactory?: unknown }
-      | undefined;
+      { useFactory?: unknown } | undefined;
     expect(provider?.useFactory).toBe(resolveLocale);
   });
 
