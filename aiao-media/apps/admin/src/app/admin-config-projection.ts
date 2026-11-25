@@ -1,4 +1,5 @@
 import {
+  MEDIA_TEMPLATE_PUBLICATION_FIELDS,
   createMediaConfigCommitEnvelope,
   type MediaConfigCommitEnvelope,
   type MediaConfigCommitInput
@@ -16,7 +17,16 @@ import type { ProductClient } from './product-client';
 
 const CONFIG_ENTITIES = new Set(['MediaPromptTemplate', 'MediaProviderPolicy', 'MediaPlatformModel']);
 const CONFIG_FIELDS: Record<string, readonly string[]> = {
-  MediaPromptTemplate: ['key', 'title', 'prompt', 'purpose', 'style', 'tags', 'enabled'],
+  MediaPromptTemplate: [
+    'key',
+    'title',
+    'prompt',
+    'purpose',
+    'style',
+    'tags',
+    'enabled',
+    ...MEDIA_TEMPLATE_PUBLICATION_FIELDS
+  ],
   MediaProviderPolicy: ['key', 'version', 'providers', 'enabled'],
   MediaPlatformModel: ['providerId', 'modelId', 'displayName', 'capabilities', 'enabled']
 };

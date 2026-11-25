@@ -4,9 +4,11 @@ import {
   tryGetEntityMetadata,
   type EntitySyncOverride,
   type EntityType,
+  type MigrationType,
   type SyncOptions
 } from '@aiao/rxdb';
 import {
+  MEDIA_TEMPLATE_PUBLICATION_FIELDS,
   MediaConfigCommit,
   MediaConfigCommitChange,
   MediaPlatformModel,
@@ -146,5 +148,31 @@ export function createMediaConfigSyncOptions(options: MediaConfigSyncPlanOptions
           { type: SyncType.QueryCache, local: { adapter: local }, remote: { adapter: remote } }
         : { type: SyncType.Filter, local: { adapter: local }, remote: { adapter: remote, filter } }
     }))
+  };
+}
+
+/** 为已打开过的本地配置库补上公开展示字段，保留已有草稿、提交和同步游标。 */
+export function templateAttributionMigration(dialect: 'sqlite' | 'postgres'): MigrationType {
+  return {
+    name: 'media-template-publication-fields',
+    async up(executor) {
+      const table = executor.tableRef(MediaPromptTemplate);
+      if (dialect === 'postgres') {
+        for (const field of MEDIA_TEMPLATE_PUBLICATION_FIELDS) {
+          await executor.query(`ALTER TABLE IF EXISTS ${table} ADD COLUMN IF NOT EXISTS "${field}" text`);
+        }
+        return;
+      }
+      const columns = await executor.query(`PRAGMA table_info(${table})`);
+      const nameIndex = columns.columns.indexOf('name');
+      const names = new Set(columns.rows.map(row => row[nameIndex]));
+      if (!names.size) return;
+      for (const field of MEDIA_TEMPLATE_PUBLICATION_FIELDS) {
+        if (!names.has(field)) await executor.query(`ALTER TABLE ${table} ADD COLUMN "${field}" TEXT`);
+      }
+    },
+    async down() {
+      throw new Error('回退将丢失模板署名，请从备份恢复。');
+    }
   };
 }

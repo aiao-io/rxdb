@@ -1,4 +1,8 @@
-import { MEDIA_CONFIG_SYNC_ENTITIES, createMediaConfigSyncOptions } from '@aiao-media/domain';
+import {
+  MEDIA_CONFIG_SYNC_ENTITIES,
+  createMediaConfigSyncOptions,
+  templateAttributionMigration
+} from '@aiao-media/domain';
 import { RxDB, type EntityType } from '@aiao/rxdb';
 import { RxDBAdapterSqlite, type SqliteOptions } from '@aiao/rxdb-adapter-sqlite-wasm';
 import { RxDBAdapterSupabase } from '@aiao/rxdb-adapter-supabase';
@@ -57,6 +61,7 @@ export function createAdminConfigDatabase(options: AdminConfigDatabaseOptions): 
     dbName: options.dbName,
     context: { userId },
     entities: [...ADMIN_CONFIG_ENTITIES],
+    migrations: [templateAttributionMigration('sqlite')],
     sync: plan.sync,
     syncOverrides: plan.syncOverrides
   });

@@ -1340,7 +1340,12 @@ async function openTemplates(page: Page) {
 }
 
 /** 经模型驱动的新增弹窗创建一条模板；系统字段由页面固定带入。 */
-async function createTemplate(page: Page, values: { key: string; title: string; prompt: string }, enable = false) {
+async function createTemplate(
+  page: Page,
+  values: { key: string; title: string; prompt: string },
+  enable = false,
+  attribution?: { image: string; alt: string; author: string; source: string; rights: string }
+) {
   await page
     .locator('app-admin-config-model rxdb-entity-list')
     .getByRole('button', { name: '+ 新增', exact: true })
@@ -1351,6 +1356,20 @@ async function createTemplate(page: Page, values: { key: string; title: string; 
   await field('标识').fill(values.key);
   await field('标题').fill(values.title);
   await field('提示词').fill(values.prompt);
+  if (attribution) {
+    for (const [label, value] of [
+      ['封面路径', attribution.image],
+      ['封面替代文本', attribution.alt],
+      ['作者', attribution.author],
+      ['来源', attribution.source]
+    ]) {
+      await dialog.getByRole('group', { name: label, exact: true }).getByRole('textbox').fill(value);
+    }
+    await dialog
+      .getByRole('group', { name: '使用依据', exact: true })
+      .getByRole('combobox')
+      .selectOption(attribution.rights);
+  }
   if (enable) await dialog.getByRole('group', { name: /^启用/ }).getByRole('checkbox').check();
   await dialog.getByRole('button', { name: '保存', exact: true }).click();
   await expect(dialog).toHaveCount(0);
@@ -1510,12 +1529,19 @@ test('目录预览：取消保留两种模型和语音能力，确认后公开�
   }
 });
 
-test('模板发布：应用后用户仍读旧标题，发布并刷新后灵感页显示新版', async ({ page, browser }) => {
+test('模板发布：后续提交保留待发布入口，发布旧版本保留署名，新模板使用编辑器填写的封面和来源', async ({ page, browser }) => {
   await signInAdmin(page, 'templates');
   const config = await openTemplates(page);
   const key = `release-${randomUUID().slice(0, 8)}`;
   const oldTitle = '旧版海报 ' + key;
   const newTitle = '新版海报 ' + key;
+  const attribution = {
+    image: '/image-examples/portrait.jpg',
+    alt: '参考海报',
+    author: '外部作者',
+    source: 'https://github.com/example/poster',
+    rights: 'community-reference'
+  };
   const legacy = {
     id: key,
     title: oldTitle,
@@ -1526,7 +1552,7 @@ test('模板发布：应用后用户仍读旧标题，发布并刷新后灵感�
     image: '/prompt-art/coffee-launch.svg',
     alt: '海报',
     updatedAt: '2026-11-01',
-    author: 'Aiao',
+    author: '原版署名',
     source: 'Aiao 原创',
     rights: 'aiao-original-text-and-svg',
     needsReference: false,
@@ -1536,6 +1562,7 @@ test('模板发布：应用后用户仍读旧标题，发布并刷新后灵感�
   const row = { kind: 'template', key, payload: legacy, revision: 1 };
   expect((await admin.from('media_content_drafts').insert(row)).error).toBeNull();
   adminDrafts.add(key);
+  adminDrafts.add(key + '-b');
   const visitor = await browser.newContext({ baseURL: 'http://127.0.0.1:4399' });
   try {
     expect((await admin.from('media_public_content').insert(row)).error).toBeNull();
@@ -1547,7 +1574,7 @@ test('模板发布：应用后用户仍读旧标题，发布并刷新后灵感�
     const detail = config.locator('app-admin-config-commit');
     await detail.getByRole('button', { name: '应用提交' }).click();
     await expect(detail.getByRole('button', { name: '发布模板到灵感页' })).toBeEnabled();
-    await createTemplate(page, { key: key + '-b', title: '后续模板', prompt: '保持待应用' });
+    await createTemplate(page, { key: key + '-b', title: '后续模板', prompt: '保持待应用' }, true, attribution);
     await commitChanges(page, '后续独立提交');
     await page.reload();
     await openTemplates(page);
@@ -1561,9 +1588,31 @@ test('模板发布：应用后用户仍读旧标题，发布并刷新后灵感�
     await feed.reload();
     await expect(feed.getByRole('button', { name: '查看' + newTitle })).toBeVisible();
     await expect(feed.getByRole('button', { name: '查看' + oldTitle })).toHaveCount(0);
+    await detail.getByRole('button', { name: '应用提交' }).click();
+    await detail.getByRole('button', { name: '发布模板到灵感页' }).click();
+    await expect(detail).toContainText('已发布');
+    const response = await feed.request.get('/api/templates');
+    expect(response.ok()).toBe(true);
+    const { templates } = await response.json();
+    expect(templates).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          template: expect.objectContaining({ id: key, image: legacy.image, author: legacy.author, title: newTitle })
+        }),
+        expect.objectContaining({ template: expect.objectContaining({ id: key + '-b', ...attribution }) })
+      ])
+    );
   } finally {
     await visitor.close();
-    expect((await admin.from('media_public_content').delete().eq('kind', 'template').eq('key', key)).error).toBeNull();
+    expect(
+      (
+        await admin
+          .from('media_public_content')
+          .delete()
+          .eq('kind', 'template')
+          .in('key', [key, key + '-b'])
+      ).error
+    ).toBeNull();
   }
 });
 

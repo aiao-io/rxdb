@@ -1,4 +1,11 @@
-import { RxDB, SyncType, type EntitySyncOverride, type EntityType, type SyncOptions } from '@aiao/rxdb';
+import {
+  RxDB,
+  SyncType,
+  type EntitySyncOverride,
+  type EntityType,
+  type MigrationType,
+  type SyncOptions
+} from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import { RxDBAdapterSupabase } from '@aiao/rxdb-adapter-supabase';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
@@ -27,6 +34,8 @@ export interface BackendRxdbOptions {
   enableWorkingTree?: boolean;
   store?: 'memory' | 'idb';
   rlsTables?: Array<{ schema?: string; table: string }>;
+  /** 既有本地库使用的业务表迁移。 */
+  migrations?: MigrationType[];
   /** 显式同步计划；给出时替代按 workspaceId 生成的默认计划，例如配置同步白名单。 */
   syncPlan?: { sync: SyncOptions; syncOverrides?: readonly EntitySyncOverride[] };
 }
@@ -128,6 +137,7 @@ export async function openBackendRxdb(options: BackendRxdbOptions): Promise<Back
     dbName: options.dbName,
     context: { userId: options.auth.userId },
     entities: options.entities,
+    migrations: options.migrations,
     sync: syncConfig.sync,
     syncOverrides: syncConfig.syncOverrides
   });
@@ -168,7 +178,7 @@ export async function openBackendRxdb(options: BackendRxdbOptions): Promise<Back
 /** {@link openBackendConfigRxdb} 的输入：配置同步固定实体与适配器，只需身份与工作区。 */
 export type BackendConfigRxdbOptions = Omit<
   BackendRxdbOptions,
-  'entities' | 'workspaceScopedEntities' | 'syncPlan' | 'rlsTables'
+  'entities' | 'workspaceScopedEntities' | 'syncPlan' | 'rlsTables' | 'migrations'
 > & {
   workspaceId: string;
 };
@@ -181,13 +191,15 @@ export type BackendConfigRxdbOptions = Omit<
  * 领域包使用装饰器，Node 原生类型剥离无法直接加载，因此在调用时动态导入。
  */
 export async function openBackendConfigRxdb(options: BackendConfigRxdbOptions): Promise<BackendRxdbSession> {
-  const { MEDIA_CONFIG_SYNC_ENTITIES, createMediaConfigSyncOptions } = await import('@aiao-media/domain');
+  const { templateAttributionMigration, MEDIA_CONFIG_SYNC_ENTITIES, createMediaConfigSyncOptions } =
+    await import('@aiao-media/domain');
   const workspaceId = assertBackendWorkspaceId(options.workspaceId);
   const plan = createMediaConfigSyncOptions({ workspaceId, adapters: { local: 'pglite', remote: 'supabase' } });
   return openBackendRxdb({
     ...options,
     workspaceId,
     entities: [...MEDIA_CONFIG_SYNC_ENTITIES],
+    migrations: [templateAttributionMigration('postgres')],
     syncPlan: plan,
     rlsTables: BACKEND_CONFIG_RLS_TABLES.map(table => ({ ...table }))
   });

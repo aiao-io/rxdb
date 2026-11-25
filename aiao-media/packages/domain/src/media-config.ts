@@ -8,6 +8,9 @@ export abstract class MediaConfigEntity extends EntityBase {
   deletedAt: Date | null = null;
 }
 
+/** 编辑器、提交投影和数据库迁移共同维护的公开展示字段。 */
+export const MEDIA_TEMPLATE_PUBLICATION_FIELDS = ['image', 'alt', 'author', 'source', 'rights'] as const;
+
 /** 管理员可编辑的媒体提示词模板。 */
 @Entity({
   name: 'MediaPromptTemplate',
@@ -24,6 +27,18 @@ export abstract class MediaConfigEntity extends EntityBase {
     { name: 'prompt', type: PropertyType.string, displayName: '提示词', searchable: true, required: true },
     { name: 'purpose', type: PropertyType.string, nullable: true, displayName: '用途' },
     { name: 'style', type: PropertyType.string, nullable: true, displayName: '风格' },
+    { name: 'image', type: PropertyType.string, nullable: true, displayName: '封面路径' },
+    { name: 'alt', type: PropertyType.string, nullable: true, displayName: '封面替代文本' },
+    { name: 'author', type: PropertyType.string, nullable: true, displayName: '作者' },
+    { name: 'source', type: PropertyType.string, nullable: true, displayName: '来源' },
+    {
+      name: 'rights',
+      type: PropertyType.enum,
+      enum: ['aiao-original-text-and-svg', 'community-reference'],
+      options: { 'aiao-original-text-and-svg': { label: 'Aiao 原创' }, 'community-reference': { label: '社区参考' } },
+      nullable: true,
+      displayName: '使用依据'
+    },
     { name: 'tags', type: PropertyType.stringArray, displayName: '标签' },
     { name: 'enabled', type: PropertyType.boolean, displayName: '启用' }
   ],
@@ -35,6 +50,11 @@ export class MediaPromptTemplate extends MediaConfigEntity {
   prompt!: string;
   purpose: string | null = null;
   style: string | null = null;
+  image: string | null = null;
+  alt: string | null = null;
+  author: string | null = null;
+  source: string | null = null;
+  rights: 'aiao-original-text-and-svg' | 'community-reference' | null = null;
   tags: string[] = [];
   enabled = true;
 }

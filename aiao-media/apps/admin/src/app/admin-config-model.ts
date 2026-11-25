@@ -1,4 +1,5 @@
 import {
+  MEDIA_TEMPLATE_PUBLICATION_FIELDS,
   MediaPlatformModel,
   MediaPromptTemplate,
   MediaProviderPolicy,
@@ -144,6 +145,12 @@ export function toAdminConfigCommitView(
         <p class="section-kicker">内容管理</p>
         <h2>{{ title() }}</h2>
         <p>修改先保存在本机并同步到你的工作区草稿；提交后可应用到服务端配置，对用户生效前请核对状态。</p>
+        @if (name() === 'MediaPromptTemplate') {
+          <p>
+            首次发布须填写封面、替代文本、作者、来源和使用依据。原创使用站内 /prompt-art/ 的 SVG；社区参考使用
+            /image-examples/ 的 JPG，来源填写 GitHub 或 X 的 HTTPS 链接。
+          </p>
+        }
       </header>
       <app-admin-config-state
         [conflictMessage]="conflict()"
@@ -1008,6 +1015,7 @@ export class AdminConfigModelComponent {
     if (this.name() === 'MediaPromptTemplate') {
       return {
         ...base,
+        ...Object.fromEntries(MEDIA_TEMPLATE_PUBLICATION_FIELDS.map(field => [field, payload[field] ?? null])),
         title: typeof payload['title'] === 'string' ? payload['title'] : row.key,
         prompt: typeof payload['prompt'] === 'string' ? payload['prompt'] : '',
         purpose: typeof payload['purpose'] === 'string' ? payload['purpose'] : null,

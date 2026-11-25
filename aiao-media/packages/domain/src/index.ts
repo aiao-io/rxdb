@@ -22,6 +22,7 @@ export interface ProviderInstance {
 export {
   MEDIA_CONFIG_COMMIT_OPERATIONS,
   MEDIA_CONFIG_COMMIT_STATUSES,
+  MEDIA_TEMPLATE_PUBLICATION_FIELDS,
   MediaConfigCommit,
   MediaConfigCommitChange,
   MediaPlatformModel,
@@ -46,6 +47,7 @@ export {
   MEDIA_CONFIG_VERSIONED_ENTITIES,
   assertMediaConfigSyncEntities,
   createMediaConfigSyncOptions,
+  templateAttributionMigration,
   type MediaConfigSyncAdapters,
   type MediaConfigSyncPlan,
   type MediaConfigSyncPlanOptions

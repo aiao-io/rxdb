@@ -1,8 +1,10 @@
 import { CORE_SYSTEM_ENTITIES, SyncType, getEntityMetadata, isSystemEntity } from '@aiao/rxdb';
+import { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it } from 'vitest';
 import {
   MEDIA_CONFIG_SYNC_ENTITIES,
   MEDIA_CONFIG_VERSIONED_ENTITIES,
+  MEDIA_TEMPLATE_PUBLICATION_FIELDS,
   MediaConfigCommit,
   MediaConfigCommitChange,
   MediaPlatformModel,
@@ -10,7 +12,8 @@ import {
   MediaProviderPolicy,
   MediaSyncRecord,
   assertMediaConfigSyncEntities,
-  createMediaConfigSyncOptions
+  createMediaConfigSyncOptions,
+  templateAttributionMigration
 } from './index.js';
 
 const workspaceId = '10000000-0000-4000-8000-000000000001';
@@ -115,4 +118,30 @@ describe('media configuration sync plan', () => {
       /适配器/
     );
   });
+});
+
+it('SQLite 旧配置表升级和重跑保留离线草稿及已有的展示字段', async () => {
+  const db = new DatabaseSync(':memory:');
+  try {
+    db.exec("CREATE TABLE templates (title TEXT, author TEXT); INSERT INTO templates VALUES ('草稿', '原作者')");
+    const migration = templateAttributionMigration('sqlite');
+    const executor = {
+      tableRef: () => '"templates"',
+      async query(sql: string) {
+        const statement = db.prepare(sql);
+        const columns = statement.columns().map(column => column.name);
+        const rows = statement.all().map(record => columns.map(column => record[column]));
+        return { columns, rows, rowsAffected: 0 };
+      }
+    };
+    await migration.up(executor as unknown as Parameters<typeof migration.up>[0]);
+    await migration.up(executor as unknown as Parameters<typeof migration.up>[0]);
+    expect(db.prepare('SELECT * FROM templates').get()).toEqual({
+      title: '草稿',
+      ...Object.fromEntries(MEDIA_TEMPLATE_PUBLICATION_FIELDS.map(key => [key, null])),
+      author: '原作者'
+    });
+  } finally {
+    db.close();
+  }
 });

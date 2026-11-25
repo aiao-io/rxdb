@@ -67,7 +67,7 @@ test('production bundle is deterministic, excludes development probe, and keeps 
     const first = await buildProductionBundle(join(directory, 'first.sql'));
     const second = await buildProductionBundle(join(directory, 'second.sql'));
     assert.equal(first.sql, second.sql);
-    assert.equal(first.sources.length, 28);
+    assert.equal(first.sources.length, 29);
     assert.deepEqual(
       first.sources.map(source => source.relativePath),
       productionSources
@@ -276,7 +276,8 @@ test('生产增量包只含单事务与源摘要，先校验版本再执行迁�
     ['admin-account-profile', 21, 22],
     ['config-rxdb-sync', 22, 23],
     ['platform-configuration', 23, 24],
-    ['template-publication', 24, 25]
+    ['template-publication', 24, 25],
+    ['template-attribution', 25, 26]
   ]) {
     const bundle = await productionUpgrade(name);
     assert.equal(bundle.fromVersion, fromVersion);
@@ -756,6 +757,14 @@ async function insertProjection(
   return id;
 }
 
+const originalAttribution = {
+  image: '/prompt-art/coffee-launch.svg',
+  alt: '咖啡海报',
+  author: '测试作者',
+  source: '作者原创',
+  rights: 'aiao-original-text-and-svg'
+};
+
 async function insertProjectionChange(
   db,
   {
@@ -766,7 +775,7 @@ async function insertProjectionChange(
     authorId,
     operation = 'insert',
     expected = null,
-    value = { key: `hero-${sequence}`, title: '首页', prompt: '生成海报' }
+    value = { key: `hero-${sequence}`, title: '首页', prompt: '生成海报', ...originalAttribution }
   }
 ) {
   await db.query(
@@ -856,15 +865,15 @@ test('已有 schema 22 可升级配置同步：旧投影迁入 RxDB 形状的新
   }
 });
 
-test('已有 23 版可顺序升级到 25，管理员确认目录时校验身份和修订号', async () => {
+test('已有 23 版可顺序升级到 26，管理员确认目录时校验身份和修订号', async () => {
   const db = await historicalProject(23);
   try {
-    for (const name of ['platform-configuration', 'template-publication']) {
+    for (const name of ['platform-configuration', 'template-publication', 'template-attribution']) {
       const bundle = await productionUpgrade(name);
       await apply(db, bundle.sql);
       await apply(db, bundle.sql);
     }
-    assert.equal(await schemaComment(db), 'aiao-media schema 25');
+    assert.equal(await schemaComment(db), 'aiao-media schema 26');
     const owner = await seedAdmin(db);
     const stranger = await seedAdmin(db, { admin: false });
     const save = revision =>
@@ -1004,6 +1013,36 @@ test('配置投影新表：客户端只写 prepared、变更到齐才标记 sync
         true
       );
     });
+    await t.test('新模板须显式提供封面和署名，改标题时保留已公开的署名', async () => {
+      await db.exec('RESET ROLE');
+      try {
+        const build = async (v, previous = null) =>
+          (
+            await db.query('SELECT media_private.template_public_payload($1,$2) AS payload', [
+              JSON.stringify(v),
+              previous && JSON.stringify(previous)
+            ])
+          ).rows[0].payload;
+        const v = { key: 'reference', title: '海报', prompt: '海报文案' };
+        const attribution = {
+          image: '/image-examples/portrait.jpg',
+          alt: '海报封面',
+          author: '示例作者',
+          source: 'https://github.com/example/design',
+          rights: 'community-reference'
+        };
+        await assert.rejects(build(v), { code: '22023' });
+        await assert.rejects(build({ ...v, ...attribution, source: 'https://example.com' }), { code: '22023' });
+        const published = validatePublishedTemplate(await build({ ...v, ...attribution }));
+        assert.equal(published.author, attribution.author);
+        assert.deepEqual(validatePublishedTemplate(await build({ ...v, title: '新版' }, published)), {
+          ...published,
+          title: '新版'
+        });
+      } finally {
+        await actAs(db, owner.userId);
+      }
+    });
     await t.test('已应用的模板只有显式发布才进入匿名目录，重复发布沿用同一版本', async () => {
       const id = await insertProjection(db, { workspaceId: owner.workspaceId, authorId: owner.userId });
       await insertProjectionChange(db, {
@@ -1052,7 +1091,7 @@ test('配置投影新表：客户端只写 prepared、变更到齐才标记 sync
           entityId,
           operation: revision ? 'update' : 'insert',
           expected: revision,
-          value: { key, title, prompt: '生成海报', enabled }
+          value: { key, title, prompt: '生成海报', enabled, ...originalAttribution }
         });
         await db.query("UPDATE public.media_config_projection_commits SET status='synced' WHERE id=$1", [id]);
         await db.query(
