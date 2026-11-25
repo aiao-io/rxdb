@@ -265,6 +265,24 @@ export function toAdminConfigCommitView(
         @if (operationError(); as failure) {
           <p class="operation-error" role="alert">操作失败：{{ failure }}</p>
         }
+        @if (name() === 'MediaPromptTemplate' && activeBranchId() === 'main' && earlierTemplates().length) {
+          <section aria-label="待发布模板提交">
+            <h3>待发布模板提交</h3>
+            @for (item of earlierTemplates(); track item.id) {
+              <button
+                class="btn btn-outline btn-sm"
+                [disabled]="loading() || offline() || !canPublish()"
+                (click)="releaseTemplates(item.id)"
+                type="button"
+              >
+                发布「{{ item.message }}」
+              </button>
+              @if (earlierReleaseError()?.id === item.id) {
+                <p role="alert">{{ earlierReleaseError()?.message }}</p>
+              }
+            }
+          </section>
+        }
         @if (commitView(); as view) {
           <app-admin-config-commit
             [allowApply]="canPublish()"
@@ -438,6 +456,9 @@ export class AdminConfigModelComponent {
   readonly mergePreview = signal<MergePreview | null>(null);
   readonly mergeSourceBranchId = signal<string | null>(null);
   readonly commit = signal<RemoteConfigCommitStatus | null>(null);
+  readonly earlierReleaseError = signal<{ id: string; message: string } | null>(null);
+  readonly pendingTemplates = signal<readonly { id: string; message: string }[]>([]);
+  readonly earlierTemplates = computed(() => this.pendingTemplates().filter(item => item.id !== this.commit()?.id));
   readonly commitMessage = signal('');
   readonly workspaceQuery = computed(() => createAdminConfigWorkspaceQuery(this.workspaceId()));
   readonly fixedFormData = computed(() => createAdminConfigFixedFormData(this.workspaceId()));
@@ -671,8 +692,14 @@ export class AdminConfigModelComponent {
   }
 
   async releaseTemplates(commitId: string): Promise<void> {
-    if (!this.canReleaseTemplates() || this.commit()?.id !== commitId || this.loading() || this.offline()) return;
-    await this.runRemote(client => client.releaseTemplateCommit(commitId), '模板发布失败。');
+    if (this.name() !== 'MediaPromptTemplate' || !this.canPublish() || this.loading() || this.offline()) return;
+    const eligible =
+      this.commit()?.id === commitId ?
+        this.canReleaseTemplates()
+      : this.earlierTemplates().some(item => item.id === commitId);
+    if (!eligible) return;
+    this.earlierReleaseError.set(null);
+    await this.runRemote(client => client.releaseTemplateCommit(commitId), '模板发布失败。', commitId);
   }
 
   async rollbackCommit(commitId: string): Promise<void> {
@@ -684,7 +711,11 @@ export class AdminConfigModelComponent {
     }, '安全回滚失败。');
   }
 
-  private async runRemote(operation: (client: ProductClient) => Promise<void>, fallbackMessage: string): Promise<void> {
+  private async runRemote(
+    operation: (client: ProductClient) => Promise<void>,
+    fallbackMessage: string,
+    releaseId?: string
+  ): Promise<void> {
     const client = this.client();
     this.loading.set(true);
     this.commitConflict.set(null);
@@ -694,7 +725,18 @@ export class AdminConfigModelComponent {
       const workspaceId = this.workspaceId();
       if (workspaceId) await this.refreshRemoteCommit(client, workspaceId, this.activeBranchId() ?? 'main');
     } catch (error) {
-      this.reportRemoteError(error, fallbackMessage, 'commit');
+      if (
+        releaseId &&
+        releaseId !== this.commit()?.id &&
+        !(error instanceof ProductRequestError && [401, 403].includes(error.status))
+      ) {
+        this.earlierReleaseError.set({
+          id: releaseId,
+          message: error instanceof Error ? error.message : fallbackMessage
+        });
+      } else {
+        this.reportRemoteError(error, fallbackMessage, 'commit');
+      }
     } finally {
       this.loading.set(false);
     }
@@ -889,7 +931,12 @@ export class AdminConfigModelComponent {
   }
 
   private async refreshRemoteCommit(client: ProductClient, workspaceId: string, branchId: string): Promise<void> {
-    const remote = await client.latestConfigCommit(workspaceId, branchId);
+    const [remote, pending] = await Promise.all([
+      client.latestConfigCommit(workspaceId, branchId),
+      this.name() === 'MediaPromptTemplate' && branchId === 'main' ? client.pendingTemplateCommits(workspaceId) : []
+    ]);
+    if (this.activeBranchId() !== branchId || this.workspaceId() !== workspaceId) return;
+    this.pendingTemplates.set(pending);
     this.commit.set(remote);
   }
 

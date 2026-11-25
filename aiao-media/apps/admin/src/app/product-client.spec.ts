@@ -398,6 +398,24 @@ it('读取配置提交的应用、发布和拒绝状态，仍然直连业务表'
   );
 });
 
+it('分批读取当前工作区 main 已应用未发布的模板，后续策略或已发布提交不占用名额', async () => {
+  const firstPage = Array.from({ length: 100 }, (_, n) => ({ id: String(200 - n), message: '模板' + n }));
+  const earlier = { id: '100', message: '较早的模板提交' };
+  vi.mocked(fetch)
+    .mockResolvedValueOnce(new Response(JSON.stringify(firstPage)))
+    .mockResolvedValueOnce(new Response(JSON.stringify([earlier])));
+  const result = await new ProductClient(async () => access).pendingTemplateCommits(userId);
+  expect(result).toEqual([...firstPage, earlier]);
+  const urls = vi.mocked(fetch).mock.calls.map(([url]) => new URL(String(url)).searchParams);
+  expect(urls[0].get('workspaceId')).toBe('eq.' + userId);
+  expect(urls[0].get('branchId')).toBe('eq.main');
+  expect(urls[0].get('select')).toContain('!inner');
+  expect(urls[0].get('templates.entity')).toBe('eq.MediaPromptTemplate');
+  expect(urls[0].get('status')).toBe('eq.applied');
+  expect(urls[0].get('releasedAt')).toBe('is.null');
+  expect(urls[1].get('id')).toBe('lt.101');
+});
+
 it('按当前配置分支读取最新提交，避免把其他分支状态显示到页面', async () => {
   respond([]);
   await expect(new ProductClient(async () => access).latestConfigCommit(userId, 'release/2026-11')).resolves.toBeNull();

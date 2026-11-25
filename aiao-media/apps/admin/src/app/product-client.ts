@@ -239,6 +239,25 @@ export class ProductClient {
     });
   }
 
+  async pendingTemplateCommits(workspaceId: string): Promise<{ id: string; message: string }[]> {
+    const access = await this.authorize();
+    const commits: { id: string; message: string }[] = [];
+    let cursor = '';
+    for (;;) {
+      const rows = await this.remote(
+        access,
+        `/media_config_projection_commits?select=id,message,templates:media_config_projection_changes!inner(entity)&templates.entity=eq.MediaPromptTemplate&templates.limit=1&workspaceId=eq.${encodeURIComponent(workspaceId)}&branchId=eq.main&status=eq.applied&releasedAt=is.null&order=id.desc&limit=100${cursor}`
+      );
+      if (!Array.isArray(rows)) throw new Error('待发布模板提交不可读。');
+      for (const row of rows) {
+        if (typeof row?.id !== 'string' || typeof row.message !== 'string') throw new Error('待发布模板提交不可读。');
+        commits.push({ id: row.id, message: row.message });
+      }
+      if (rows.length < 100) return commits;
+      cursor = '&id=lt.' + encodeURIComponent(commits[commits.length - 1].id);
+    }
+  }
+
   async latestConfigCommit(workspaceId: string, branchId = 'main'): Promise<RemoteConfigCommitStatus | null> {
     const access = await this.authorize();
     const rows = await this.remote(
