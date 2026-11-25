@@ -175,7 +175,7 @@ describe('useBoard（Angular 桥接）', () => {
     mounted.selectBoard(second.id);
     expect(values.get(LAST_BOARD_KEY)).toBe(second.id);
     const reopened = TestBed.runInInjectionContext(() => useBoard(rxdb));
-    await waitFor(() => reopened.currentBoardId() !== null, '重建绑定');
+    await waitFor(() => reopened.currentBoardId() === second.id, '重建绑定保留选板');
     expect(reopened.currentBoardId()).toBe(second.id);
   });
 
