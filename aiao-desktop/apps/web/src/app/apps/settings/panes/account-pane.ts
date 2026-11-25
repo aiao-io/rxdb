@@ -48,6 +48,7 @@ interface AccountRow {
           <div class="st-item">
             <span
               class="bg"
+              [style.background]="row.bg"
               style="
                 width: 20px;
                 height: 20px;
@@ -56,7 +57,6 @@ interface AccountRow {
                 display: grid;
                 place-items: center;
               "
-              [style.background]="row.bg"
               ><svg [appIcon]="row.icon" style="width: 13px; height: 13px"></svg
             ></span>
             <div class="lb" style="min-width: 0; flex: 1">{{ row.label }}</div>
@@ -78,7 +78,14 @@ interface AccountRow {
           {{ SIGN_OUT_WARNING }}
         </p>
         <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; padding: 0 4px">
-          <button class="btn" [disabled]="signingOut()" (click)="cancel()" data-account-cancel tabindex="0" type="button">
+          <button
+            class="btn"
+            [disabled]="signingOut()"
+            (click)="cancel()"
+            data-account-cancel
+            tabindex="0"
+            type="button"
+          >
             Cancel
           </button>
           <button
