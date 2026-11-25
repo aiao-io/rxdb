@@ -37,7 +37,8 @@ export const productionSources = [
   'aiao-media/infra/supabase/migrations/021-config-commit-rollback.sql',
   'aiao-media/infra/supabase/migrations/022-admin-account-profile.sql',
   'aiao-media/infra/supabase/migrations/023-config-rxdb-sync.sql',
-  'aiao-media/infra/supabase/migrations/024-admin-platform-configuration.sql'
+  'aiao-media/infra/supabase/migrations/024-admin-platform-configuration.sql',
+  'aiao-media/infra/supabase/migrations/025-template-publication.sql'
 ];
 
 const transactionBoundary = /^\s*(?:BEGIN|COMMIT)\s*;\s*$/gm;
@@ -174,7 +175,13 @@ export const productionUpgrades = [
     name: 'platform-configuration',
     fromVersion: 23,
     toVersion: 24,
-    required: ['public.media_platform_configuration']
+    required: ['public.media_admin_memberships']
+  },
+  {
+    name: 'template-publication',
+    fromVersion: 24,
+    toVersion: 25,
+    required: ['public.media_platform_configuration', 'public.media_config_projection_commits']
   }
 ];
 

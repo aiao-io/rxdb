@@ -29,6 +29,7 @@ export interface RemoteWorkspace {
   created?: boolean;
 }
 export interface RemoteConfigCommitStatus {
+  hasTemplateChanges?: boolean;
   id: string;
   workspaceId: string;
   branchId: string;
@@ -225,6 +226,11 @@ export class ProductClient {
     });
   }
 
+  async releaseTemplateCommit(commitId: string): Promise<void> {
+    const access = await this.authorize();
+    await this.remote(access, '/rpc/release_media_template_commit', { p_commit_id: commitId });
+  }
+
   async rollbackConfigCommit(commitId: string, operationId: string): Promise<unknown> {
     const access = await this.authorize();
     return this.remote(access, '/rpc/rollback_media_config_commit', {
@@ -237,7 +243,7 @@ export class ProductClient {
     const access = await this.authorize();
     const rows = await this.remote(
       access,
-      `/media_config_projection_commits?select=id,workspaceId,branchId,parentIds,authorId,message,operationId,status,createdAt,appliedAt,releasedAt,rejectionCode&workspaceId=eq.${encodeURIComponent(workspaceId)}&branchId=eq.${encodeURIComponent(branchId)}&order=createdAt.desc&limit=1`
+      `/media_config_projection_commits?select=id,workspaceId,branchId,parentIds,authorId,message,operationId,status,createdAt,appliedAt,releasedAt,rejectionCode,templates:media_config_projection_changes(entity)&templates.entity=eq.MediaPromptTemplate&templates.limit=1&workspaceId=eq.${encodeURIComponent(workspaceId)}&branchId=eq.${encodeURIComponent(branchId)}&order=createdAt.desc&limit=1`
     );
     if (!Array.isArray(rows) || rows.length > 1) throw new Error('配置提交状态不可读。');
     if (!rows.length) return null;
@@ -544,6 +550,7 @@ function parseConfigCommitStatus(value: unknown): RemoteConfigCommitStatus {
     authorId: row['authorId'] as string,
     message: row['message'] as string,
     operationId: row['operationId'] as string,
+    hasTemplateChanges: Array.isArray(row['templates']) && row['templates'].length > 0,
     status: row['status'] as MediaConfigCommitStatus,
     createdAt: row['createdAt'] as string,
     appliedAt: nullableString('appliedAt'),

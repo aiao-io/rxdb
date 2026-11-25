@@ -258,6 +258,16 @@ export class AdminConfigStateComponent {
               应用提交
             </button>
           }
+          @if (allowRelease()) {
+            <button
+              class="btn btn-primary btn-sm"
+              [disabled]="disabled()"
+              (click)="release.emit(commit().id)"
+              type="button"
+            >
+              发布模板到灵感页
+            </button>
+          }
           @if (canRollback()) {
             <button class="btn btn-outline btn-sm" [disabled]="disabled()" (click)="confirming.set(true)" type="button">
               执行安全回滚
@@ -266,7 +276,7 @@ export class AdminConfigStateComponent {
         </div>
         @if (confirming() && canRollback()) {
           <div class="rollback-confirm" aria-label="确认安全回滚" role="group">
-            <p>确认回滚「{{ commit().message }}」？回滚按逆向变更恢复上一版配置，并留下审计记录。</p>
+            <p>确认回滚「{{ commit().message }}」？回滚恢复上一版服务端配置，已发布的灵感目录保留当前版本。</p>
             <button class="btn btn-error btn-sm" [disabled]="disabled()" (click)="confirmRollback()" type="button">
               确认回滚
             </button>
@@ -366,6 +376,8 @@ export class AdminConfigCommitComponent {
   readonly canManage = input.required<boolean>();
   /** 当前提交是否允许发布到平台配置。 */
   readonly allowApply = input(true);
+  readonly allowRelease = input(false);
+  readonly release = output<string>();
   /** 有进行中的应用或回滚请求。 */
   readonly busy = input(false);
   /** 浏览器处于离线状态。 */

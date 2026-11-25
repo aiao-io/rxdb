@@ -4,6 +4,7 @@ import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test from 'node:test';
+import { validatePublishedTemplate } from '../../packages/api-contracts/src/contracts/product-data.mjs';
 import {
   buildProductionBundle,
   emptyPublicGuard,
@@ -66,7 +67,7 @@ test('production bundle is deterministic, excludes development probe, and keeps 
     const first = await buildProductionBundle(join(directory, 'first.sql'));
     const second = await buildProductionBundle(join(directory, 'second.sql'));
     assert.equal(first.sql, second.sql);
-    assert.equal(first.sources.length, 27);
+    assert.equal(first.sources.length, 28);
     assert.deepEqual(
       first.sources.map(source => source.relativePath),
       productionSources
@@ -273,7 +274,9 @@ test('生产增量包只含单事务与源摘要，先校验版本再执行迁�
     ['image-lifecycle', 13, 16],
     ['supabase-first-admin-rxdb', 16, 21],
     ['admin-account-profile', 21, 22],
-    ['config-rxdb-sync', 22, 23]
+    ['config-rxdb-sync', 22, 23],
+    ['platform-configuration', 23, 24],
+    ['template-publication', 24, 25]
   ]) {
     const bundle = await productionUpgrade(name);
     assert.equal(bundle.fromVersion, fromVersion);
@@ -755,7 +758,16 @@ async function insertProjection(
 
 async function insertProjectionChange(
   db,
-  { workspaceId, commitId, sequence, entityId, authorId, operation = 'insert', expected = null }
+  {
+    workspaceId,
+    commitId,
+    sequence,
+    entityId,
+    authorId,
+    operation = 'insert',
+    expected = null,
+    value = { key: `hero-${sequence}`, title: '首页', prompt: '生成海报' }
+  }
 ) {
   await db.query(
     `INSERT INTO public.media_config_projection_changes
@@ -768,7 +780,7 @@ async function insertProjectionChange(
       sequence,
       entityId,
       operation,
-      JSON.stringify({ value: { key: `hero-${sequence}`, title: '首页', prompt: '生成海报' } }),
+      JSON.stringify({ value }),
       expected,
       'b'.repeat(64),
       authorId
@@ -844,12 +856,38 @@ test('已有 schema 22 可升级配置同步：旧投影迁入 RxDB 形状的新
   }
 });
 
+test('已有 23 版可顺序升级到 25，管理员确认目录时校验身份和修订号', async () => {
+  const db = await historicalProject(23);
+  try {
+    for (const name of ['platform-configuration', 'template-publication']) {
+      const bundle = await productionUpgrade(name);
+      await apply(db, bundle.sql);
+      await apply(db, bundle.sql);
+    }
+    assert.equal(await schemaComment(db), 'aiao-media schema 25');
+    const owner = await seedAdmin(db);
+    const stranger = await seedAdmin(db, { admin: false });
+    const save = revision =>
+      db.query("SELECT public.media_admin_platform_configuration_self_write($1,$2,'[]','[]') AS receipt", [
+        revision,
+        crypto.randomUUID()
+      ]);
+    await actAs(db, stranger.userId);
+    await assert.rejects(save(0), { code: '42501' });
+    await actAs(db, owner.userId);
+    assert.equal((await save(0)).rows[0].receipt.revision, 1);
+    await assert.rejects(save(0), { code: 'PT409' });
+  } finally {
+    await db.close();
+  }
+});
+
 test('配置投影新表：客户端只写 prepared、变更到齐才标记 synced，应用与回滚只经服务端 RPC', async t => {
   const db = await supabaseProject();
   const directory = await mkdtemp(join(tmpdir(), 'aiao-config-projection-'));
   try {
     await apply(db, (await buildProductionBundle(join(directory, 'bootstrap.sql'))).sql);
-    assert.equal(await schemaComment(db), 'aiao-media schema 24');
+    assert.equal(await schemaComment(db), `aiao-media schema ${schemaVersion}`);
     const owner = await seedAdmin(db);
     const stranger = await seedAdmin(db, { admin: false });
     const entity = crypto.randomUUID();
@@ -965,6 +1003,74 @@ test('配置投影新表：客户端只写 prepared、变更到齐才标记 sync
           .reused,
         true
       );
+    });
+    await t.test('已应用的模板只有显式发布才进入匿名目录，重复发布沿用同一版本', async () => {
+      const id = await insertProjection(db, { workspaceId: owner.workspaceId, authorId: owner.userId });
+      await insertProjectionChange(db, {
+        workspaceId: owner.workspaceId,
+        authorId: owner.userId,
+        commitId: id,
+        sequence: 1,
+        entityId: crypto.randomUUID()
+      });
+      await db.query("UPDATE public.media_config_projection_commits SET status='synced' WHERE id=$1", [id]);
+      await db.query(
+        'SELECT public.apply_media_config_commit(id,"operationId") FROM public.media_config_projection_commits WHERE id=$1',
+        [id]
+      );
+      const catalog = () =>
+        db.query("SELECT payload,revision FROM public.media_public_content WHERE kind='template' AND key='hero-1'");
+      assert.equal((await catalog()).rows.length, 0);
+      const release = () => db.query('SELECT public.release_media_template_commit($1)', [id]);
+      await actAs(db, stranger.userId);
+      await assert.rejects(release(), { code: '42501' });
+      await actAs(db, owner.userId);
+      await release();
+      await release();
+      await db.exec('RESET ROLE; SET ROLE anon');
+      const { rows } = await catalog();
+      assert.equal(rows.length, 1);
+      assert.equal(rows[0].revision, 1);
+      assert.equal(validatePublishedTemplate(rows[0].payload).title, '首页');
+      await actAs(db, owner.userId);
+    });
+    await t.test('修改同一模板时校验应用版本，改名撤下旧标识，停用后从公共目录移除', async () => {
+      const entityId = crypto.randomUUID();
+      const catalog = async () =>
+        (
+          await db.query(
+            "SELECT key, payload->>'title' AS title FROM public.media_public_content WHERE key LIKE 'poster-%' ORDER BY key"
+          )
+        ).rows;
+      const applyTemplate = async (revision, key, title, enabled = true) => {
+        const id = await insertProjection(db, { workspaceId: owner.workspaceId, authorId: owner.userId });
+        await insertProjectionChange(db, {
+          workspaceId: owner.workspaceId,
+          authorId: owner.userId,
+          commitId: id,
+          sequence: 1,
+          entityId,
+          operation: revision ? 'update' : 'insert',
+          expected: revision,
+          value: { key, title, prompt: '生成海报', enabled }
+        });
+        await db.query("UPDATE public.media_config_projection_commits SET status='synced' WHERE id=$1", [id]);
+        await db.query(
+          'SELECT public.apply_media_config_commit(id,"operationId") FROM public.media_config_projection_commits WHERE id=$1',
+          [id]
+        );
+        return id;
+      };
+      const release = id => db.query('SELECT public.release_media_template_commit($1)', [id]);
+      await release(await applyTemplate(0, 'poster-first', '第一版'));
+      const stale = await applyTemplate(1, 'poster-first', '中间草稿');
+      const latest = await applyTemplate(2, 'poster-final', '新版');
+      await assert.rejects(release(stale), { code: 'PT409' });
+      assert.deepEqual(await catalog(), [{ key: 'poster-first', title: '第一版' }]);
+      await release(latest);
+      assert.deepEqual(await catalog(), [{ key: 'poster-final', title: '新版' }]);
+      await release(await applyTemplate(3, 'poster-final', '新版', false));
+      assert.deepEqual(await catalog(), []);
     });
     await t.test('版本冲突以 PT409 返回：PostgREST 直接给 409，不把业务冲突当成序列化失败重试', async () => {
       const existing = crypto.randomUUID();

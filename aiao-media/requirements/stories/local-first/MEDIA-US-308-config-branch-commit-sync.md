@@ -6,7 +6,7 @@ status: In Progress
 priority: High
 epic: MEDIA-EPIC-004
 created: 2026-11-15
-updated: 2026-11-21
+updated: 2026-11-25
 dependsOn: [MEDIA-US-306, MEDIA-US-307]
 tags: [rxdb, branch, commit, sync, config, audit]
 ---
@@ -64,7 +64,8 @@ tags: [rxdb, branch, commit, sync, config, audit]
 - 应用 RPC 在一个事务内写配置、审计与提交状态；同一 operationId 重放复用首次回执（AC5、AC6，真实本地 Supabase 集成与 SQL 包测试）。
 - 应用后提交详情显示状态、操作者、分支、父提交与应用时间，刷新后保持（AC8，真实浏览器 e2e）。
 - AC7：配置页现在能读取本地分支、创建并切换 feature 分支、预览合并并列出同字段覆盖冲突；工作树有未提交修改、恢复中或冲突时禁止切换和合并，有冲突时合并按钮保持禁用。原始双方提交继续保留在各自历史中，服务端以 revision CAS 拒绝冲突应用。
-- 发布边界：只有 `main` 分支允许生成 commit projection 并执行应用，feature 分支提交只保留在本机；远端分支仍只开放 `main`，`media_config_records` 到公共目录的正式发布链路仍待接通。
+- 发布边界：只有 `main` 分支允许生成 commit projection 并执行应用，feature 分支提交只保留在本机；远端分支仍只开放 `main`。
+- 2026-11-25 提示词模板接入独立发布动作。应用提交后，普通用户继续看到旧版；点击「发布模板到灵感页」后，用户刷新可读取新标题。已通过本地 Supabase 与 Playwright 验证，生产部署待验。
 
 ## 交付阶段
 

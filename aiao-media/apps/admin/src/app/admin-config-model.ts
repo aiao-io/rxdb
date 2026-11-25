@@ -268,11 +268,13 @@ export function toAdminConfigCommitView(
         @if (commitView(); as view) {
           <app-admin-config-commit
             [allowApply]="canPublish()"
+            [allowRelease]="canReleaseTemplates()"
             [busy]="loading()"
             [canManage]="true"
             [commit]="view"
             [offline]="offline()"
             (apply)="applyCommit($event)"
+            (release)="releaseTemplates($event)"
             (rollback)="rollbackCommit($event)"
           />
         }
@@ -463,6 +465,16 @@ export class AdminConfigModelComponent {
       this.mergeConflictCount() === 0 &&
       this.workingTreeClean()
   );
+  readonly canReleaseTemplates = computed(() => {
+    const commit = this.commit();
+    return (
+      this.name() === 'MediaPromptTemplate' &&
+      this.canPublish() &&
+      commit?.status === 'applied' &&
+      !!commit.hasTemplateChanges &&
+      !commit.releasedAt
+    );
+  });
   readonly syncLabel = computed(
     () =>
       ({
@@ -656,6 +668,11 @@ export class AdminConfigModelComponent {
       await this.writeBackRevisions(parseAppliedRevisions(receipt));
       this.syncState.set('applied');
     }, '配置应用失败。');
+  }
+
+  async releaseTemplates(commitId: string): Promise<void> {
+    if (!this.canReleaseTemplates() || this.commit()?.id !== commitId || this.loading() || this.offline()) return;
+    await this.runRemote(client => client.releaseTemplateCommit(commitId), '模板发布失败。');
   }
 
   async rollbackCommit(commitId: string): Promise<void> {

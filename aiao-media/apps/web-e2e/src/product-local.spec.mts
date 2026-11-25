@@ -1340,7 +1340,7 @@ async function openTemplates(page: Page) {
 }
 
 /** 经模型驱动的新增弹窗创建一条模板；系统字段由页面固定带入。 */
-async function createTemplate(page: Page, values: { key: string; title: string; prompt: string }) {
+async function createTemplate(page: Page, values: { key: string; title: string; prompt: string }, enable = false) {
   await page
     .locator('app-admin-config-model rxdb-entity-list')
     .getByRole('button', { name: '+ 新增', exact: true })
@@ -1351,6 +1351,7 @@ async function createTemplate(page: Page, values: { key: string; title: string; 
   await field('标识').fill(values.key);
   await field('标题').fill(values.title);
   await field('提示词').fill(values.prompt);
+  if (enable) await dialog.getByRole('group', { name: /^启用/ }).getByRole('checkbox').check();
   await dialog.getByRole('button', { name: '保存', exact: true }).click();
   await expect(dialog).toHaveCount(0);
 }
@@ -1439,6 +1440,126 @@ test('后台配置：提交后应用，状态与服务端修订号可见且不�
         ).data
     )
     .toEqual({ revision: 2, deleted: true });
+});
+
+test('目录预览：取消保留两种模型和语音能力，确认后公开目录只剩选中的模型', async ({ page, request }) => {
+  const user = await signInAdmin(page, 'platforms');
+  const model = {
+    id: 'preview-keep',
+    name: '预览测试',
+    model: 'fixture-image',
+    credits: 1,
+    baseUrl: 'https://images.example.test/v1',
+    apiKey: 'local-fixture'
+  };
+  const capability = {
+    providerInstanceId: randomUUID(),
+    providerRevision: 1,
+    operation: 'text-to-speech',
+    kind: 'audio',
+    label: '测试语音',
+    modelId: 'preview-voice',
+    model: 'fixture-voice',
+    protocol: 'openai',
+    credits: 1,
+    baseUrl: 'https://audio.example.test/v1',
+    apiKey: 'local-fixture',
+    input: { textMaxLength: 500 },
+    parameters: { languages: ['zh-CN'], voices: [{ id: 'alloy', label: 'Alloy' }], speeds: [1] },
+    output: { mediaTypes: ['audio/wav'], maxBytes: 8388608, maxDurationMs: 120000 }
+  };
+  const seed = await admin.from('media_platform_configuration').insert({
+    id: 'default',
+    updated_by: user.id,
+    revision: 1,
+    models: [model, { ...model, id: 'preview-remove' }],
+    capabilities: [capability]
+  });
+  test.skip(seed.error?.code === '23505', '本地环境已有平台配置，保留现有凭据。');
+  expect(seed.error).toBeNull();
+  try {
+    await page.reload();
+    await page.getByLabel('图片模型 JSON').fill(JSON.stringify([model]));
+    await page.getByLabel('ASR / TTS / 音乐 / 视频 JSON').fill('[]');
+    await page.getByRole('button', { name: '预览变更' }).click();
+    const preview = page.getByLabel('目录变更预览');
+    await expect(preview).toContainText('preview-remove');
+    await expect(preview).toContainText('preview-voice');
+    await page.getByRole('button', { name: '返回编辑' }).click();
+    const publicModels = async () => {
+      const response = await request.get('/api/models');
+      expect(response.ok()).toBe(true);
+      return (await response.json()).models.map((value: { id: string }) => value.id);
+    };
+    expect(await publicModels()).toEqual(['preview-keep', 'preview-remove']);
+    const capabilities = async () => {
+      const response = await request.get('/api/media/capabilities');
+      expect(response.ok()).toBe(true);
+      return (await response.json()).capabilities.map((value: { modelId: string }) => value.modelId);
+    };
+    expect(await capabilities()).toEqual(['preview-voice']);
+    await page.getByRole('button', { name: '预览变更' }).click();
+    await page.getByRole('button', { name: '确认保存并启用' }).click();
+    await expect(page.getByRole('status')).toContainText('新的目录已生效');
+    expect(await publicModels()).toEqual(['preview-keep']);
+    expect(await capabilities()).toEqual([]);
+  } finally {
+    expect(
+      (await admin.from('media_platform_configuration').delete().eq('id', 'default').eq('updated_by', user.id)).error
+    ).toBeNull();
+  }
+});
+
+test('模板发布：应用后用户仍读旧标题，发布并刷新后灵感页显示新版', async ({ page, browser }) => {
+  await signInAdmin(page, 'templates');
+  const config = await openTemplates(page);
+  const key = `release-${randomUUID().slice(0, 8)}`;
+  const oldTitle = '旧版海报 ' + key;
+  const newTitle = '新版海报 ' + key;
+  const legacy = {
+    id: key,
+    title: oldTitle,
+    prompt: '生成海报',
+    purpose: '设计',
+    style: '简洁',
+    tags: [],
+    image: '/prompt-art/coffee-launch.svg',
+    alt: '海报',
+    updatedAt: '2026-11-01',
+    author: 'Aiao',
+    source: 'Aiao 原创',
+    rights: 'aiao-original-text-and-svg',
+    needsReference: false,
+    referenceModel: null,
+    featuredRank: null
+  };
+  const row = { kind: 'template', key, payload: legacy, revision: 1 };
+  expect((await admin.from('media_content_drafts').insert(row)).error).toBeNull();
+  adminDrafts.add(key);
+  const visitor = await browser.newContext({ baseURL: 'http://127.0.0.1:4399' });
+  try {
+    expect((await admin.from('media_public_content').insert(row)).error).toBeNull();
+    const feed = await visitor.newPage();
+    await feed.goto('/');
+    await expect(feed.getByRole('button', { name: '查看' + oldTitle })).toBeVisible();
+    await createTemplate(page, { key, title: newTitle, prompt: legacy.prompt }, true);
+    await commitChanges(page, '更新灵感页标题');
+    const detail = config.locator('app-admin-config-commit');
+    await detail.getByRole('button', { name: '应用提交' }).click();
+    await expect(detail.getByRole('button', { name: '发布模板到灵感页' })).toBeEnabled();
+    await page.reload();
+    await openTemplates(page);
+    await feed.reload();
+    await expect(feed.getByRole('button', { name: '查看' + oldTitle })).toBeVisible();
+    await detail.getByRole('button', { name: '发布模板到灵感页' }).click();
+    await expect(detail).toContainText('已发布');
+    await feed.reload();
+    await expect(feed.getByRole('button', { name: '查看' + newTitle })).toBeVisible();
+    await expect(feed.getByRole('button', { name: '查看' + oldTitle })).toHaveCount(0);
+  } finally {
+    await visitor.close();
+    expect((await admin.from('media_public_content').delete().eq('kind', 'template').eq('key', key)).error).toBeNull();
+  }
 });
 
 test('后台配置：其他设备已应用同一配置时，应用被服务端拒绝并显示冲突，不写入配置', async ({ page }) => {

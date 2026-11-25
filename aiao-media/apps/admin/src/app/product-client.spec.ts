@@ -369,6 +369,7 @@ it('读取配置提交的应用、发布和拒绝状态，仍然直连业务表'
       authorId: userId,
       message: '更新首页模板',
       operationId: '10000000-0000-4000-8000-000000000011',
+      templates: [{ entity: 'MediaPromptTemplate' }],
       status: 'rejected',
       createdAt: '2026-11-15T07:00:00Z',
       appliedAt: null,
@@ -385,13 +386,14 @@ it('读取配置提交的应用、发布和拒绝状态，仍然直连业务表'
     message: '更新首页模板',
     operationId: '10000000-0000-4000-8000-000000000011',
     status: 'rejected',
+    hasTemplateChanges: true,
     createdAt: '2026-11-15T07:00:00Z',
     appliedAt: null,
     releasedAt: null,
     rejectionCode: 'revision_conflict'
   });
   expect(fetch).toHaveBeenCalledWith(
-    `https://account.example/rest/v1/media_config_projection_commits?select=id,workspaceId,branchId,parentIds,authorId,message,operationId,status,createdAt,appliedAt,releasedAt,rejectionCode&workspaceId=eq.${userId}&branchId=eq.main&order=createdAt.desc&limit=1`,
+    `https://account.example/rest/v1/media_config_projection_commits?select=id,workspaceId,branchId,parentIds,authorId,message,operationId,status,createdAt,appliedAt,releasedAt,rejectionCode,templates:media_config_projection_changes(entity)&templates.entity=eq.MediaPromptTemplate&templates.limit=1&workspaceId=eq.${userId}&branchId=eq.main&order=createdAt.desc&limit=1`,
     expect.objectContaining({ method: 'GET' })
   );
 });
@@ -400,7 +402,7 @@ it('按当前配置分支读取最新提交，避免把其他分支状态显示�
   respond([]);
   await expect(new ProductClient(async () => access).latestConfigCommit(userId, 'release/2026-11')).resolves.toBeNull();
   expect(fetch).toHaveBeenCalledWith(
-    `https://account.example/rest/v1/media_config_projection_commits?select=id,workspaceId,branchId,parentIds,authorId,message,operationId,status,createdAt,appliedAt,releasedAt,rejectionCode&workspaceId=eq.${userId}&branchId=eq.release%2F2026-11&order=createdAt.desc&limit=1`,
+    `https://account.example/rest/v1/media_config_projection_commits?select=id,workspaceId,branchId,parentIds,authorId,message,operationId,status,createdAt,appliedAt,releasedAt,rejectionCode,templates:media_config_projection_changes(entity)&templates.entity=eq.MediaPromptTemplate&templates.limit=1&workspaceId=eq.${userId}&branchId=eq.release%2F2026-11&order=createdAt.desc&limit=1`,
     expect.objectContaining({ method: 'GET' })
   );
 });
