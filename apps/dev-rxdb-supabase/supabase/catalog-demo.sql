@@ -89,6 +89,30 @@ CREATE POLICY catalog_items_member_delete ON public.catalog_items
   FOR DELETE TO authenticated
   USING (('tenant:' || "tenantId") = ANY((SELECT public.rxdb_caller_buckets())::text[]));
 
+-- 远端变更历史的可见性（US-229）：商品的历史只对它所属租户的成员开放，与上面三条成员写策略同一口径
+-- （按 tenantId，不看可见范围：公开商品的修改照样只给本租户的成员看）。其他实体交回平台默认。
+-- 历史按每条记录时的行判定，商品换了租户之后，改动前的历史只对旧租户的成员可见
+CREATE OR REPLACE FUNCTION public.rxdb_caller_can_edit(p_namespace text, p_entity text, p_row jsonb)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $$
+    SELECT CASE
+        WHEN p_namespace = 'public' AND p_entity = 'CatalogItem' THEN
+            auth.uid() IS NOT NULL AND EXISTS (
+                SELECT 1
+                FROM public.demo_tenant_members AS member
+                WHERE member.user_id = auth.uid()
+                  AND member.tenant_id = p_row->>'tenantId'
+            )
+        ELSE public.rxdb_caller_can_edit_default(p_namespace, p_entity, p_row)
+    END
+$$;
+
+REVOKE ALL ON FUNCTION public.rxdb_caller_can_edit(text, text, jsonb) FROM PUBLIC, anon, authenticated;
+
 -- 演示数据：id 固定，重复执行只补缺的行，不覆盖演示过程中的修改
 CREATE OR REPLACE FUNCTION public.demo_catalog_seed()
 RETURNS TABLE (id uuid, name varchar, category varchar, price numeric, cost numeric, visibility varchar, "tenantId" varchar)

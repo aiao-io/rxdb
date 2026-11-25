@@ -3,6 +3,7 @@ import {
   Entity,
   EntityBase,
   type EntityType,
+  getEntityMetadata,
   getRxDBChangeKey,
   type IRepository,
   type IRxDBChange,
@@ -10,8 +11,10 @@ import {
   RelationKind,
   type RemoteChangeRejection,
   type RemoteChangeResult,
+  type RemoteMergeOptions,
   type RemoteMergeResult,
   RepositorySyncBeginEvent,
+  RepositorySyncCompleteEvent,
   RepositorySyncErrorEvent,
   RxDBBranch,
   RxDBChange,
@@ -31,7 +34,10 @@ import {
 import { PushInFlightRegistry } from '@aiao/rxdb-plugin-history';
 import { type Observable, of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { bulkSync, type BulkSyncOptions, type BulkSyncResult } from '../bulk-sync.js';
 import { pushRepository, type PushRepositoryResult } from '../push-repository.js';
+import { RxDBForeignKeyCycleError } from '../foreign-key-cycle-error.js';
+import { push } from '../push.js';
 import { RemoteBackendMismatchError } from '../remote-backend.js';
 import { syncRepository, type SyncRepositoryResult } from '../sync-repository.js';
 import type { SyncManager } from '../SyncManager.js';
@@ -43,7 +49,8 @@ type BranchFindOptions = Parameters<IRepository<typeof RxDBBranch>['find']>[0];
 type MergeChanges = (
   actions: SwitchVersionActions,
   branchId?: string,
-  changes?: IRxDBChange[]
+  changes?: IRxDBChange[],
+  options?: RemoteMergeOptions
 ) => Promise<RemoteMergeResult>;
 
 /** 默认远端替身：把本批源变更原样标记为 applied，`remoteId = localId + 100`。 */
@@ -118,6 +125,8 @@ type HarnessOptions = {
   entities?: EntityType[];
   /** 回执事务落在哪一套业务表上，不给就是主表集 */
   tableSet?: WorktreeTableSet;
+  /** 远端能否先写空、再补写外键（US-038），默认不能 */
+  supportsDeferredForeignKeys?: boolean;
 };
 
 const fullSync = (): SyncOptions => ({
@@ -163,6 +172,47 @@ class PushRemoteOnlyChild extends EntityBase {
 })
 class PushComment extends EntityBase {
   body!: string;
+}
+
+// User 的另一个子仓：User ← Post、User ← PushUserNote。单仓推 Post 时，User 的待推删除
+// 要等 PushUserNote 先删，所以级联必须取整个连通分量，只补父仓不够（US-037）。
+@Entity({
+  name: 'PushUserNote',
+  sync: { type: SyncType.Full, local: { adapter: 'local' }, remote: { adapter: 'remote' } },
+  properties: [{ name: 'text', type: PropertyType.string }],
+  relations: [{ name: 'user', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'User', mappedProperty: 'notes' }]
+})
+class PushUserNote extends EntityBase {
+  text!: string;
+}
+
+// 关系声明在父类上：注册的只有子类，子类自己的 `relations` 是空的（US-037 AC#8）
+@Entity({
+  name: 'PushAuthoredBase',
+  relations: [{ name: 'author', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'User', mappedProperty: 'authored' }]
+})
+class PushAuthoredBase extends EntityBase {}
+
+@Entity({
+  name: 'PushAuthoredDoc',
+  sync: { type: SyncType.Full, local: { adapter: 'local' }, remote: { adapter: 'remote' } },
+  properties: [{ name: 'title', type: PropertyType.string }]
+})
+class PushAuthoredDoc extends PushAuthoredBase {
+  title!: string;
+}
+
+// 只用实体级 `foreignKeys` 引用 User（US-037 AC#9）
+@Entity({
+  name: 'PushKeyedDoc',
+  sync: { type: SyncType.Full, local: { adapter: 'local' }, remote: { adapter: 'remote' } },
+  properties: [{ name: 'userKey', type: PropertyType.uuid }],
+  foreignKeys: [
+    { name: 'push_keyed_doc_user', properties: ['userKey'], mappedEntity: 'User', mappedProperties: ['id'] }
+  ]
+})
+class PushKeyedDoc extends EntityBase {
+  userKey!: string;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
@@ -344,7 +394,11 @@ function createHarness(options: HarnessOptions = {}) {
     options.mergeChanges ?? (async (_actions, _branchId, sourceChanges) => defaultMergeResult(sourceChanges))
   );
   const findByIds = vi.fn<FindByIds>(options.findByIds ?? (() => of([])));
-  const remoteAdapter = { mergeChanges, findByIds };
+  const remoteAdapter = {
+    mergeChanges,
+    findByIds,
+    supportsDeferredForeignKeys: options.supportsDeferredForeignKeys ?? false
+  };
   const dispatchEvent = vi.fn<DispatchEvent>();
   const reportRejections = vi.fn<ReportRejections>();
   const currentBranch = createBranch(currentBranchId, branchParents[currentBranchId] ?? null);
@@ -1871,5 +1925,513 @@ describe('pushRepository 上报被拒', () => {
     await expect(pushRepository(harness.vm, 'public', 'User', { includeRelated: false })).rejects.toThrow();
 
     expect(harness.reportRejections).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * US-037：推送的跨仓顺序只由依赖图决定，与 `config.entities` 的声明顺序无关。
+ *
+ * 整库推送经 `sm.bulkSync` → `bulkSync(rxdb)` → `rxdb.syncManager`：两处都指回同一个替身，
+ * `push()` 就能在替身上端到端跑。替身远端不模拟外键，顺序靠 {@link mergeTrace} 断言。
+ */
+describe('推送按外键依赖排序（US-037）', () => {
+  const wirePush = (harness: ReturnType<typeof createHarness>): ReturnType<typeof createHarness> => {
+    const vm = harness.vm as unknown as {
+      bulkSync: (options?: BulkSyncOptions) => Promise<BulkSyncResult>;
+      rxdb: { syncManager: SyncManager };
+    };
+    vm.bulkSync = options => bulkSync(harness.vm.rxdb, options);
+    vm.rxdb.syncManager = harness.vm;
+    return harness;
+  };
+
+  /** 两仓都有同步记录；`entities` 的顺序就是声明顺序 */
+  const createOrderedHarness = (
+    changes: RxDBChange[],
+    entities: EntityType[],
+    overrides?: Partial<Parameters<typeof createHarness>[0]>
+  ) => {
+    const harness = createHarness({ changes, entities, ...overrides });
+    // 替身只认 public 下的同步记录；系统表从来不该被规划到，不给它们记录
+    const businessEntities = entities
+      .map(EntityClass => getEntityMetadata(EntityClass))
+      .filter(meta => meta.namespace === 'public');
+    for (const { name } of businessEntities) {
+      const record = createSyncRecord(name, 'main', null);
+      if (!harness.syncRecords.has(record.id)) harness.syncRecords.set(record.id, record);
+    }
+    return wirePush(harness);
+  };
+
+  const userPostInserts = (): RxDBChange[] => [
+    createChange({ id: 1, entity: 'User', type: 'INSERT' }),
+    createChange({ id: 2, entity: 'Post', type: 'INSERT' })
+  ];
+
+  /** Post 的推送一律失败，其余照常 applied */
+  const failPostInserts =
+    (error: Error): MergeChanges =>
+    async (actions, _branchId, sourceChanges) => {
+      if ([...actions.inserts.keys()].some(key => key.startsWith('public:Post:'))) throw error;
+      return defaultMergeResult(sourceChanges);
+    };
+
+  it('AC#1：子实体声明在前，父行仍先到远端', async () => {
+    const harness = createOrderedHarness(userPostInserts(), [Post, User]);
+
+    const result = await push(harness.vm);
+
+    expect(mergeTrace(harness.mergeChanges)).toEqual(['User:INSERT', 'Post:INSERT']);
+    expect(result).toEqual({ pushed: 2, rejected: 0, failed: 0, compacted: 0, originalCount: 2, failures: [] });
+  });
+
+  it('AC#2：三层模型按 [孙, 子, 父] 声明，三层同批新建按父先子后推', async () => {
+    const harness = createOrderedHarness(
+      [
+        createChange({ id: 1, entity: 'PushComment', type: 'INSERT' }),
+        createChange({ id: 2, entity: 'User', type: 'INSERT' }),
+        createChange({ id: 3, entity: 'Post', type: 'INSERT' })
+      ],
+      [PushComment, Post, User]
+    );
+
+    await push(harness.vm);
+
+    expect(mergeTrace(harness.mergeChanges)).toEqual(['User:INSERT', 'Post:INSERT', 'PushComment:INSERT']);
+  });
+
+  it('AC#3：删旧建新混在一批时，删除子先父后、新建父先子后，与声明顺序无关', async () => {
+    const harness = createOrderedHarness(
+      [
+        createChange({ id: 1, entity: 'Post', type: 'DELETE' }),
+        createChange({ id: 2, entity: 'User', type: 'DELETE' }),
+        createChange({ id: 3, entity: 'User', type: 'INSERT' }),
+        createChange({ id: 4, entity: 'Post', type: 'INSERT' })
+      ],
+      [Post, User]
+    );
+
+    const result = await push(harness.vm);
+
+    expect(mergeTrace(harness.mergeChanges)).toEqual(['Post:DELETE', 'User:DELETE', 'User:INSERT', 'Post:INSERT']);
+    expect(result.pushed).toBe(4);
+  });
+
+  it('AC#4：repositoryFilter 依次点名子、父，点名的仓库之间同样父先子后', async () => {
+    const harness = createOrderedHarness(userPostInserts(), [User, Post]);
+
+    const result = await push(harness.vm, { repositoryFilter: ['Post', 'User'] });
+
+    expect(mergeTrace(harness.mergeChanges)).toEqual(['User:INSERT', 'Post:INSERT']);
+    expect(result).toMatchObject({ pushed: 2, rejected: 0, failures: [] });
+  });
+
+  it('AC#5：单推子仓带上父仓，父行先推', async () => {
+    const harness = createOrderedHarness(userPostInserts(), [Post, User]);
+
+    const result = await pushRepository(harness.vm, 'public', 'Post');
+
+    expect(mergeTrace(harness.mergeChanges)).toEqual(['User:INSERT', 'Post:INSERT']);
+    expect(result).toMatchObject({ repository: { namespace: 'public', entity: 'Post' }, pushed: 1, failures: [] });
+    expect(result.relatedResults?.map(related => [related.repository.entity, related.pushed])).toEqual([['User', 1]]);
+  });
+
+  it('单推子仓取整个连通分量：父仓的其他子仓先删，父仓的删除才发得出去', async () => {
+    const harness = createOrderedHarness(
+      [
+        createChange({ id: 1, entity: 'User', type: 'DELETE' }),
+        createChange({ id: 2, entity: 'PushUserNote', type: 'DELETE' }),
+        createChange({ id: 3, entity: 'Post', type: 'DELETE' })
+      ],
+      [Post, User, PushUserNote]
+    );
+
+    await pushRepository(harness.vm, 'public', 'Post');
+
+    const trace = mergeTrace(harness.mergeChanges);
+    expect(trace).toHaveLength(3);
+    expect(trace.at(-1)).toBe('User:DELETE');
+  });
+
+  it.each([
+    ['AC#8：关系声明在父类上', PushAuthoredDoc],
+    ['AC#9：只用实体级 foreignKeys 引用', PushKeyedDoc]
+  ])('%s、引用方声明在前时，被引用的行先到远端', async (_label, Referencing) => {
+    const entity = getEntityMetadata(Referencing).name;
+    const harness = createOrderedHarness(
+      [createChange({ id: 1, entity, type: 'INSERT' }), createChange({ id: 2, entity: 'User', type: 'INSERT' })],
+      [Referencing, User]
+    );
+
+    await push(harness.vm);
+
+    expect(mergeTrace(harness.mergeChanges)).toEqual(['User:INSERT', `${entity}:INSERT`]);
+  });
+
+  it('AC#6：父在前声明时计数不再少算，级联顺带推上去的仓库也计入', async () => {
+    const harness = createOrderedHarness(userPostInserts(), [User, Post]);
+
+    const result = await push(harness.vm);
+
+    expect(result).toMatchObject({ pushed: 2, rejected: 0, failed: 0, originalCount: 2 });
+  });
+
+  it('一次推送里每个仓库只规划一次：同一份待推变更只查、只认领一遍', async () => {
+    const harness = createOrderedHarness(userPostInserts(), [User, Post]);
+
+    await push(harness.vm);
+
+    const postQueries = harness.changeFind.mock.calls.filter(([options]) => {
+      const entity = ruleValue(options.where, 'entity');
+      return Array.isArray(entity) && entity.includes('Post');
+    });
+    // 认领前选一次、认领后复查一次
+    expect(postQueries).toHaveLength(2);
+  });
+
+  it('AC#10：只点名目标仓时，同一次级联里关联仓的失败进 failures，计数满足 originalCount 等式', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const pushError = new Error('post push failed');
+    const harness = createOrderedHarness(userPostInserts(), [User, Post], { mergeChanges: failPostInserts(pushError) });
+
+    const result = await push(harness.vm, { repositoryFilter: ['User'] });
+
+    expect(result.failures).toEqual([{ repository: { namespace: 'public', entity: 'Post' }, error: pushError }]);
+    expect(result).toMatchObject({ pushed: 1, failed: 1, rejected: 0, compacted: 0, originalCount: 2 });
+    expect(result.pushed + result.failed + result.rejected + result.compacted).toBe(result.originalCount);
+  });
+
+  it('整库推送：每个仓库各发一次 begin 与 complete，失败的仓库发 error', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const harness = createOrderedHarness(userPostInserts(), [Post, User], {
+      mergeChanges: failPostInserts(new Error('post push failed'))
+    });
+
+    await push(harness.vm);
+
+    const label = (event: RxDBEvent): string[] => {
+      if (event instanceof RepositorySyncBeginEvent) return [`begin:${event.direction}:${event.entity}`];
+      if (event instanceof RepositorySyncCompleteEvent) return [`complete:${event.direction}:${event.entity}`];
+      if (event instanceof RepositorySyncErrorEvent) return [`error:${event.direction}:${event.entity}`];
+      return [];
+    };
+    expect(harness.dispatchEvent.mock.calls.flatMap(([event]) => label(event))).toEqual([
+      'begin:push:Post',
+      'begin:push:User',
+      'error:push:Post',
+      'complete:push:User'
+    ]);
+  });
+
+  it('bulkSync 点名子仓：带进来的父仓单列一项，结果按点名在前、关联在后', async () => {
+    const harness = createOrderedHarness(userPostInserts(), [User, Post]);
+
+    const result = await bulkSync(harness.vm.rxdb, {
+      operation: 'push',
+      repositories: [{ namespace: 'public', entity: 'Post' }]
+    });
+
+    expect(result.results.map(item => [item.repository.entity, item.success, item.result?.pushResult.pushed])).toEqual([
+      ['Post', true, 1],
+      ['User', true, 1]
+    ]);
+    expect(result).toMatchObject({ succeeded: 2, failed: 0 });
+  });
+
+  describe('bulkSync 推送前的资格判定，与逐仓 syncRepository → pushRepository 同口径', () => {
+    const bulkPush = (harness: ReturnType<typeof createHarness>, entities: string[], push?: BulkSyncOptions['push']) =>
+      bulkSync(harness.vm.rxdb, {
+        operation: 'push',
+        repositories: entities.map(entity => ({ namespace: 'public', entity })),
+        ...(push ? { push } : {})
+      });
+    const summary = (result: BulkSyncResult) =>
+      result.results.map(item => [item.repository.entity, item.success, item.error?.message ?? null]);
+
+    it('不存在的仓库、开关关着的仓库各记一条失败；被别的仓库带进级联时也不推，结论不被覆盖', async () => {
+      const harness = createOrderedHarness(userPostInserts(), [User, Post]);
+      const postSync = harness.syncRecords.get('public:Post:main');
+      if (!postSync) throw new Error('fixture: Post sync record missing');
+      postSync.enabled = false;
+
+      const result = await bulkPush(harness, ['Missing', 'Post', 'User']);
+
+      expect(summary(result)).toEqual([
+        ['Missing', false, 'Entity not found: public:Missing'],
+        ['Post', false, 'Cannot push repository public:Post: sync is disabled (RxDBSync.enabled = false).'],
+        ['User', true, null]
+      ]);
+      expect(mergeTrace(harness.mergeChanges)).toEqual(['User:INSERT']);
+      expect(result).toMatchObject({ succeeded: 1, failed: 2 });
+    });
+
+    it('syncType 为 none 的仓库记失败', async () => {
+      const harness = createOrderedHarness(userPostInserts(), [User], { sync: { type: SyncType.None } });
+
+      const result = await bulkPush(harness, ['User']);
+
+      expect(summary(result)).toEqual([
+        [
+          'User',
+          false,
+          "Cannot sync repository public:User: syncType is 'none'. This entity is not configured for remote synchronization."
+        ]
+      ]);
+      expect(harness.mergeChanges).not.toHaveBeenCalled();
+    });
+
+    it('没有推送能力的只读仓库记推了 0 条的成功，照发 begin 与 complete', async () => {
+      const harness = createOrderedHarness([], [User, PushRemoteOnlyChild]);
+
+      const result = await bulkPush(harness, ['PushRemoteOnlyChild']);
+
+      expect(result.results).toEqual([
+        expect.objectContaining({
+          repository: { namespace: 'public', entity: 'PushRemoteOnlyChild' },
+          success: true,
+          result: expect.objectContaining({ pushResult: expect.objectContaining({ pushed: 0, originalCount: 0 }) })
+        })
+      ]);
+      expect(harness.dispatchEvent.mock.calls.map(([event]) => event.constructor)).toEqual([
+        RepositorySyncBeginEvent,
+        RepositorySyncCompleteEvent
+      ]);
+    });
+
+    it('级联整体没能开始（batchSize 非法）时，每个可推的仓库都记这条错，只读仓库不受影响', async () => {
+      const harness = createOrderedHarness(userPostInserts(), [User, Post, PushRemoteOnlyChild]);
+
+      const result = await bulkPush(harness, ['User', 'PushRemoteOnlyChild'], { batchSize: 0 });
+
+      expect(summary(result)).toEqual([
+        ['User', false, 'batchSize must be a positive safe integer'],
+        ['PushRemoteOnlyChild', true, null]
+      ]);
+      expect(harness.mergeChanges).not.toHaveBeenCalled();
+    });
+
+    it('推上去一部分后失败：错误包成 RxDBPartialSyncError，进度挂在 result 上', async () => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const insertError = new Error('user insert failed');
+      const harness = createOrderedHarness(
+        [
+          createChange({ id: 1, entity: 'User', type: 'DELETE' }),
+          createChange({ id: 2, entity: 'User', type: 'INSERT' })
+        ],
+        [User],
+        {
+          mergeChanges: async (actions, _branchId, sourceChanges) => {
+            if (actions.inserts.size > 0) throw insertError;
+            return defaultMergeResult(sourceChanges);
+          }
+        }
+      );
+
+      const [item] = (await bulkPush(harness, ['User'])).results;
+
+      expect(item.success).toBe(false);
+      expect(item.error).toBeInstanceOf(RxDBPartialSyncError);
+      expect((item.error as RxDBPartialSyncError).cause).toBe(insertError);
+      expect(item.result?.pushResult).toMatchObject({ pushed: 1, failed: 1, originalCount: 2 });
+      expect((item.error as RxDBPartialSyncError<SyncRepositoryResult>).result).toBe(item.result);
+    });
+
+    it('同一个仓库点名两次只推一次、只列一条，计数不被汇总两遍', async () => {
+      const harness = createOrderedHarness(userPostInserts(), [User, Post]);
+
+      const result = await bulkPush(harness, ['User', 'User'], { includeRelated: false });
+
+      expect(result.results.map(item => [item.repository.entity, item.result?.pushResult.pushed])).toEqual([
+        ['User', 1]
+      ]);
+      expect(mergeTrace(harness.mergeChanges)).toEqual(['User:INSERT']);
+    });
+  });
+
+  it('AC#11：库级 Full 时系统表不进推送目标，结果、失败与仓库事件里都没有它们', async () => {
+    const harness = createOrderedHarness(userPostInserts(), [User, Post, RxDBBranch, RxDBChange, RxDBSync]);
+
+    const bulk = await bulkSync(harness.vm.rxdb, { operation: 'push' });
+    const result = await push(harness.vm);
+
+    expect(bulk.results.map(item => item.repository.entity)).toEqual(['User', 'Post']);
+    expect(result.failures).toEqual([]);
+    const touched = harness.dispatchEvent.mock.calls
+      .map(([event]) => event)
+      .filter(event => event instanceof RepositorySyncBeginEvent)
+      .map(event => (event as RepositorySyncBeginEvent).namespace);
+    expect(touched).not.toContain('rxdb');
+  });
+});
+
+// 双向一对一：CycleUser.card 可空 ↔ CycleCard.owner 非空（与 shop 的 User.idCard ↔ IdCard.owner 同形，US-038）
+@Entity({
+  name: 'CycleUser',
+  properties: [{ name: 'name', type: PropertyType.string }],
+  relations: [
+    { name: 'card', kind: RelationKind.ONE_TO_ONE, mappedEntity: 'CycleCard', mappedProperty: 'owner', nullable: true }
+  ]
+})
+class CycleUser extends EntityBase {}
+
+@Entity({
+  name: 'CycleCard',
+  properties: [{ name: 'code', type: PropertyType.string }],
+  relations: [{ name: 'owner', kind: RelationKind.ONE_TO_ONE, mappedEntity: 'CycleUser', mappedProperty: 'card' }]
+})
+class CycleCard extends EntityBase {}
+
+// 互相持有非空外键：排不出写入顺序；LockChild 是它的下游
+@Entity({
+  name: 'LockA',
+  relations: [
+    { name: 'b', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'LockB', mappedProperty: 'as' },
+    { name: 'bs', kind: RelationKind.ONE_TO_MANY, mappedEntity: 'LockB', mappedProperty: 'a' }
+  ]
+})
+class LockA extends EntityBase {}
+
+@Entity({
+  name: 'LockB',
+  relations: [
+    { name: 'a', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'LockA', mappedProperty: 'bs' },
+    { name: 'as', kind: RelationKind.ONE_TO_MANY, mappedEntity: 'LockA', mappedProperty: 'b' }
+  ]
+})
+class LockB extends EntityBase {}
+
+@Entity({
+  name: 'LockChild',
+  relations: [{ name: 'a', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'LockA', mappedProperty: 'children' }]
+})
+class LockChild extends EntityBase {}
+
+describe('外键成环的推送（US-038）', () => {
+  const wire = (harness: ReturnType<typeof createHarness>): ReturnType<typeof createHarness> => {
+    const vm = harness.vm as unknown as {
+      bulkSync: (options?: BulkSyncOptions) => Promise<BulkSyncResult>;
+      rxdb: { syncManager: SyncManager };
+    };
+    vm.bulkSync = options => bulkSync(harness.vm.rxdb, options);
+    vm.rxdb.syncManager = harness.vm;
+    return harness;
+  };
+  const createCycleHarness = (
+    changes: RxDBChange[],
+    entities: EntityType[],
+    overrides?: Partial<Parameters<typeof createHarness>[0]>
+  ) => {
+    const harness = createHarness({ changes, entities, ...overrides });
+    for (const EntityClass of entities) {
+      const record = createSyncRecord(getEntityMetadata(EntityClass).name, 'main', null);
+      if (!harness.syncRecords.has(record.id)) harness.syncRecords.set(record.id, record);
+    }
+    return wire(harness);
+  };
+  const id = (prefix: string, n: number) => `${prefix}000000-0000-4000-8000-${String(n).padStart(12, '0')}` as UUID;
+  const userId = (n: number) => id('aaaaaaaa'.slice(0, 2), n);
+  const cardId = (n: number) => id('bb', n);
+  /** 一对互相引用的 User / Card：User 的 card 指向 Card，Card 的 owner 指向 User */
+  const pair = (n: number, changeId: number): RxDBChange[] => [
+    createChange({
+      id: changeId,
+      entity: 'CycleUser',
+      entityId: userId(n),
+      patch: { id: userId(n), name: `u${n}`, cardId: cardId(n) }
+    }),
+    createChange({
+      id: changeId + 1,
+      entity: 'CycleCard',
+      entityId: cardId(n),
+      patch: { id: cardId(n), code: `c${n}`, ownerId: userId(n) }
+    })
+  ];
+  const failureOf = (failures: readonly { repository?: { entity: string }; error: Error }[], entity: string) =>
+    failures.find(failure => failure.repository?.entity === entity)?.error;
+
+  it('AC#1：注册了成环的实体，push() 不抛 Circular dependency；没有变更的仓库正常返回', async () => {
+    const harness = createCycleHarness([createChange({ id: 1, entity: 'User' })], [CycleCard, CycleUser, User]);
+
+    const result = await push(harness.vm);
+
+    expect(result).toMatchObject({ pushed: 1, rejected: 0, failed: 0, failures: [] });
+    expect(mergeTrace(harness.mergeChanges)).toEqual(['User:INSERT']);
+  });
+
+  it('AC#2：断不开的环有待推变更：环内以 unbreakable 失败并指出环路，下游被阻断，环外照常推送', async () => {
+    const harness = createCycleHarness(
+      [
+        createChange({ id: 1, entity: 'LockA' }),
+        createChange({ id: 2, entity: 'LockChild' }),
+        createChange({ id: 3, entity: 'User' })
+      ],
+      [LockChild, LockA, LockB, User]
+    );
+
+    const result = await push(harness.vm);
+
+    expect(mergeTrace(harness.mergeChanges)).toEqual(['User:INSERT']);
+    const cycleError = failureOf(result.failures, 'LockA');
+    expect(cycleError).toBeInstanceOf(RxDBForeignKeyCycleError);
+    expect(cycleError).toMatchObject({ reason: 'unbreakable' });
+    expect(cycleError?.message).toContain('public:LockA -> public:LockB -> public:LockA');
+    expect(cycleError?.message).toContain('nullable');
+    expect(failureOf(result.failures, 'LockB')).toBeInstanceOf(RxDBForeignKeyCycleError);
+    expect(failureOf(result.failures, 'LockChild')).toBeInstanceOf(RxDBDependencyFailedError);
+    expect(failureOf(result.failures, 'User')).toBeUndefined();
+  });
+
+  it('AC#3：远端不支持延迟外键，同批新建互相引用的两行：这一环以 remote-unsupported 失败，不发请求、不动本地', async () => {
+    const harness = createCycleHarness([...pair(1, 1), createChange({ id: 3, entity: 'User' })], [
+      CycleCard,
+      CycleUser,
+      User
+    ]);
+
+    const result = await push(harness.vm);
+
+    expect(mergeTrace(harness.mergeChanges)).toEqual(['User:INSERT']);
+    for (const entity of ['CycleUser', 'CycleCard']) {
+      expect(failureOf(result.failures, entity)).toMatchObject({ reason: 'remote-unsupported' });
+    }
+    expect(harness.localMergeChanges).not.toHaveBeenCalled();
+    expect(result.pushed).toBe(1);
+  });
+
+  it('AC#4：远端支持延迟外键，两对互相引用、batchSize = 1：每对各一次 mergeChanges，同一对不拆开，带上延迟列', async () => {
+    const harness = createCycleHarness([...pair(1, 1), ...pair(2, 3)], [CycleCard, CycleUser], {
+      supportsDeferredForeignKeys: true
+    });
+
+    const result = await push(harness.vm, { batchSize: 1 });
+
+    expect(result).toMatchObject({ pushed: 4, rejected: 0, failed: 0, failures: [] });
+    // 每次一对：pair(1) 是源变更 1、2，pair(2) 是 3、4；同一次里 User 在 Card 前面
+    expect(harness.mergeChanges.mock.calls.map(call => call[2]?.map(change => change.id))).toEqual([
+      [1, 2],
+      [3, 4]
+    ]);
+    expect(mergeTrace(harness.mergeChanges)).toEqual([
+      'CycleUser:INSERT',
+      'CycleCard:INSERT',
+      'CycleUser:INSERT',
+      'CycleCard:INSERT'
+    ]);
+    const deferred = { deferredForeignKeys: [{ namespace: 'public', entity: 'CycleUser', property: 'cardId' }] };
+    expect(harness.mergeChanges.mock.calls.map(call => call[3])).toEqual([deferred, deferred]);
+  });
+
+  it('环内的行没有互相引用时不带延迟列：远端不支持也照常推', async () => {
+    const harness = createCycleHarness(
+      [
+        createChange({ id: 1, entity: 'CycleUser', entityId: userId(1), patch: { id: userId(1), name: 'u1', cardId: null } })
+      ],
+      [CycleCard, CycleUser]
+    );
+
+    const result = await push(harness.vm);
+
+    expect(result).toMatchObject({ pushed: 1, failures: [] });
+    expect(harness.mergeChanges.mock.calls.map(call => call[3])).toEqual([{}]);
   });
 });

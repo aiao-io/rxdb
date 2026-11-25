@@ -44,6 +44,12 @@ export type { EntityStatus } from './entity/entity-status.js';
 export * from './entity/entity-value.utils.js';
 export * from './entity/entity.decorator.js';
 export * from './entity/entity.interface.js';
+export {
+  JUNCTION_ID_NAMESPACE,
+  junctionEntityId,
+  type JunctionEndpointKey,
+  type JunctionName
+} from './entity/many-to-many-entity.js';
 export { assertMutationsTableSet } from './entity/worktree-table-set-guard.js';
 // 具名收口（原为 `export *`，连带把九个内部装配手法一起放在了公开面上）。
 // 留在面上的五个各有理由：`normalizeCreateEntity` / `normalizeUpdateEntity` 是适配器写
@@ -310,7 +316,8 @@ export {
   isEntitySyncResolver,
   toEntitySyncResolver,
   type EntitySyncResolver,
-  type EntitySyncTarget
+  type EntitySyncTarget,
+  type JunctionEndpointsLookup
 } from './sync-contract/entity-sync-resolver.js';
 // 同步子系统的公开契约形状：推拉选项、结果与历史项。
 // 实现在 `@aiao/rxdb-plugin-history`，契约留在核心供适配器与 QueryCache 共用。

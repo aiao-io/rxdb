@@ -67,6 +67,41 @@ VALUES
   ('documented-a', '00000000-0000-4000-8000-0000000000a1'),
   ('documented-b', '00000000-0000-4000-8000-0000000000b2');
 
+-- 远端变更历史（change-history，US-229）：按所有者分区的表、未分区的父子表（级联删除），
+-- 以及一张调用者读不到 secret 列的未分区表（列权限在文末的授权里收）
+CREATE TABLE rxdb_sql_regression.history_owned_rows (
+  id text PRIMARY KEY,
+  owner_id uuid NOT NULL,
+  visibility text NOT NULL DEFAULT 'private',
+  value text NOT NULL,
+  rxdb_bucket text GENERATED ALWAYS AS (
+    CASE WHEN visibility = 'public' THEN 'public' ELSE 'user:' || owner_id::text END
+  ) STORED
+);
+SELECT public.rxdb_enable_sync_for_table('history_owned_rows', 'rxdb_sql_regression', 'HistoryOwnedRow');
+ALTER TABLE rxdb_sql_regression.history_owned_rows ENABLE ROW LEVEL SECURITY;
+CREATE POLICY history_owned_rows_owner ON rxdb_sql_regression.history_owned_rows
+  FOR ALL TO authenticated USING (owner_id = auth.uid()) WITH CHECK (owner_id = auth.uid());
+
+CREATE TABLE rxdb_sql_regression.history_parents (
+  id text PRIMARY KEY,
+  value text NOT NULL
+);
+CREATE TABLE rxdb_sql_regression.history_children (
+  id text PRIMARY KEY,
+  "parentId" text NOT NULL REFERENCES rxdb_sql_regression.history_parents(id) ON DELETE CASCADE,
+  value text NOT NULL
+);
+SELECT public.rxdb_enable_sync_for_table('history_parents', 'rxdb_sql_regression', 'HistoryParent');
+SELECT public.rxdb_enable_sync_for_table('history_children', 'rxdb_sql_regression', 'HistoryChild');
+
+CREATE TABLE rxdb_sql_regression.history_plain_rows (
+  id text PRIMARY KEY,
+  value text NOT NULL,
+  secret text
+);
+SELECT public.rxdb_enable_sync_for_table('history_plain_rows', 'rxdb_sql_regression', 'HistoryPlainRow');
+
 -- 分区实体的推送（bucketed-push）：表不在 public schema，只有所有者能读写自己的行；公开的行在 public 区
 CREATE TABLE rxdb_sql_regression.bucket_push_rows (
   id text PRIMARY KEY,
@@ -499,6 +534,46 @@ CREATE TABLE rxdb_sql_regression.receipts_child_multi_ids (
 
 SELECT public.rxdb_enable_sync_for_table('receipts_parent_multi_ids', 'rxdb_sql_regression', 'ReceiptsParentMulti');
 SELECT public.rxdb_enable_sync_for_table('receipts_child_multi_ids', 'rxdb_sql_regression', 'ReceiptsChildMulti');
+
+-- deferred-cycle 夹具（US-038）：双向一对一。cycle_users."cardId" 可空（ON DELETE SET NULL），cycle_cards."ownerId" 非空
+-- （ON DELETE CASCADE），另有复合外键 ("cardId", id) → cycle_cards (id, "ownerId")（MATCH SIMPLE，cardId 为空时不检查）。
+-- 证件的 code 为 'denied' 时 RLS 拒绝新建；cycle_full_refs 的复合外键是 MATCH FULL，用来验证延迟列校验
+CREATE TABLE rxdb_sql_regression.cycle_users (
+  id text PRIMARY KEY,
+  name text NOT NULL,
+  nickname text,
+  "cardId" text
+);
+
+CREATE TABLE rxdb_sql_regression.cycle_cards (
+  id text PRIMARY KEY,
+  code text NOT NULL,
+  "ownerId" text NOT NULL REFERENCES rxdb_sql_regression.cycle_users (id) ON DELETE CASCADE,
+  CONSTRAINT cycle_cards_identity UNIQUE (id, "ownerId")
+);
+
+ALTER TABLE rxdb_sql_regression.cycle_users
+  ADD CONSTRAINT cycle_users_card_fkey
+    FOREIGN KEY ("cardId") REFERENCES rxdb_sql_regression.cycle_cards (id) ON DELETE SET NULL,
+  ADD CONSTRAINT cycle_users_card_owner_fkey
+    FOREIGN KEY ("cardId", id) REFERENCES rxdb_sql_regression.cycle_cards (id, "ownerId");
+
+ALTER TABLE rxdb_sql_regression.cycle_cards ENABLE ROW LEVEL SECURITY;
+CREATE POLICY cycle_cards_select ON rxdb_sql_regression.cycle_cards FOR SELECT USING (true);
+CREATE POLICY cycle_cards_insert ON rxdb_sql_regression.cycle_cards FOR INSERT WITH CHECK (code <> 'denied');
+CREATE POLICY cycle_cards_update ON rxdb_sql_regression.cycle_cards FOR UPDATE USING (true) WITH CHECK (code <> 'denied');
+CREATE POLICY cycle_cards_delete ON rxdb_sql_regression.cycle_cards FOR DELETE USING (true);
+
+CREATE TABLE rxdb_sql_regression.cycle_full_refs (
+  id text PRIMARY KEY,
+  "cardRef" text,
+  "ownerRef" text,
+  CONSTRAINT cycle_full_refs_card_fkey FOREIGN KEY ("cardRef", "ownerRef")
+    REFERENCES rxdb_sql_regression.cycle_cards (id, "ownerId") MATCH FULL
+);
+
+SELECT public.rxdb_enable_sync_for_table('cycle_users', 'rxdb_sql_regression', 'CycleUser');
+SELECT public.rxdb_enable_sync_for_table('cycle_cards', 'rxdb_sql_regression', 'CycleCard');
 
 -- 级联删除日志复现（零散收尾项第 12 条）：父表 + ON DELETE CASCADE 子表，都挂同步触发器。
 -- 用回归内夹具表而不是参考 schema 的 menu_large：本用例要按实体名精确计数
@@ -1198,7 +1273,7 @@ DECLARE
     pg_catalog.to_regprocedure('public.rxdb_batch_upsert(text,text,jsonb)'),
     pg_catalog.to_regprocedure('public.rxdb_batch_update(text,text,jsonb)'),
     pg_catalog.to_regprocedure('public.rxdb_batch_delete(text,text,text[])'),
-    pg_catalog.to_regprocedure('public.rxdb_mutations(jsonb,jsonb,jsonb,boolean,jsonb,boolean)')
+    pg_catalog.to_regprocedure('public.rxdb_mutations(jsonb,jsonb,jsonb,boolean,jsonb,boolean,jsonb)')
   ];
   no_dml_blocked boolean := false;
   rls_blocked boolean := false;
@@ -1209,15 +1284,16 @@ BEGIN
     pg_catalog.format('every write RPC signature must resolve: %s', write_rpcs)
   );
 
-  -- US-218 阶段 B：旧 5 参签名必须已被 DROP，新 6 参签名必须存在且非 SECURITY DEFINER
-  old_signature_gone := pg_catalog.to_regprocedure('public.rxdb_mutations(jsonb,jsonb,jsonb,boolean,jsonb)') IS NULL;
-  SELECT pg_catalog.to_regprocedure('public.rxdb_mutations(jsonb,jsonb,jsonb,boolean,jsonb,boolean)') IS NOT NULL
+  -- US-218 阶段 B 删掉旧 5 参签名，US-038 删掉 6 参签名：只剩 7 参签名，且非 SECURITY DEFINER
+  old_signature_gone := pg_catalog.to_regprocedure('public.rxdb_mutations(jsonb,jsonb,jsonb,boolean,jsonb)') IS NULL
+    AND pg_catalog.to_regprocedure('public.rxdb_mutations(jsonb,jsonb,jsonb,boolean,jsonb,boolean)') IS NULL;
+  SELECT pg_catalog.to_regprocedure('public.rxdb_mutations(jsonb,jsonb,jsonb,boolean,jsonb,boolean,jsonb)') IS NOT NULL
     AND NOT p.prosecdef
   INTO new_signature_invoker
   FROM pg_catalog.pg_proc AS p
-  WHERE p.oid = pg_catalog.to_regprocedure('public.rxdb_mutations(jsonb,jsonb,jsonb,boolean,jsonb,boolean)');
-  PERFORM rxdb_sql_regression.assert_true(old_signature_gone, 'the old 5-arg rxdb_mutations signature must be dropped');
-  PERFORM rxdb_sql_regression.assert_true(new_signature_invoker, 'the new 6-arg rxdb_mutations signature must exist and run as SECURITY INVOKER');
+  WHERE p.oid = pg_catalog.to_regprocedure('public.rxdb_mutations(jsonb,jsonb,jsonb,boolean,jsonb,boolean,jsonb)');
+  PERFORM rxdb_sql_regression.assert_true(old_signature_gone, 'the old 5-arg and 6-arg rxdb_mutations signatures must be dropped');
+  PERFORM rxdb_sql_regression.assert_true(new_signature_invoker, 'the 7-arg rxdb_mutations signature must exist and run as SECURITY INVOKER');
 
   SELECT pg_catalog.count(*)::integer
   INTO unsafe_write_rpcs
@@ -2572,6 +2648,232 @@ BEGIN
     multi_entry->'dependsOn' = pg_catalog.jsonb_build_object('constraint', 'receipts_child_multi_parent_fk'),
     pg_catalog.format('receipts-dependency: unresolved multi-column FK must fall back to {constraint}: %s', multi_entry)
   );
+END;
+$$;
+
+-- US-038：外键成环的一批推送（p_deferred_columns）。延迟列先写空、在 DELETE 之前补写；补写失败按实体原子回滚
+CREATE FUNCTION rxdb_sql_regression.deferred_cycle_change(
+  p_entity text, p_table text, p_entity_id text, p_type text, p_patch jsonb, p_local_id integer, p_inverse jsonb DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE sql
+IMMUTABLE
+SET search_path = pg_catalog, pg_temp
+AS $$
+  SELECT pg_catalog.jsonb_build_object(
+    'namespace', 'rxdb_sql_regression', 'entity', p_entity, 'schema', 'rxdb_sql_regression', 'table', p_table,
+    'entityId', p_entity_id, 'type', p_type, 'patch', p_patch, 'inversePatch', p_inverse,
+    'branchId', 'main', 'clientId', 'sql-deferred-cycle-client', 'localId', p_local_id
+  )
+$$;
+
+CREATE FUNCTION rxdb_sql_regression.deferred_cycle_status(p_result jsonb, p_entity_id text)
+RETURNS jsonb
+LANGUAGE sql
+IMMUTABLE
+SET search_path = pg_catalog, pg_temp
+AS $$
+  SELECT value FROM pg_catalog.jsonb_array_elements(p_result->'entity_results') AS r(value)
+  WHERE value->>'entityId' = p_entity_id
+$$;
+
+CREATE FUNCTION rxdb_sql_regression.test_deferred_cycle()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  v_deferred constant jsonb := '[{"schema":"rxdb_sql_regression","table":"cycle_users","column":"cardId"}]';
+  v_pair_upserts jsonb;
+  v_pair_changes jsonb;
+  v_result jsonb;
+  v_user jsonb;
+  v_card jsonb;
+  v_previous_captured text := COALESCE(pg_catalog.current_setting('rxdb.captured_deletes', true), '');
+BEGIN
+  PERFORM rxdb_sql_regression.clear_change_log(ARRAY['sql-deferred-cycle-client']);
+
+  -- 实现前核实：子事务回滚时，rxdb.captured_deletes 的事务级设置一起撤销（补写失败整轮回滚靠它不留脏的删除捕获）
+  PERFORM pg_catalog.set_config('rxdb.captured_deletes', '{}', true);
+  BEGIN
+    PERFORM pg_catalog.set_config('rxdb.captured_deletes', '{"leaked":true}', true);
+    RAISE EXCEPTION USING ERRCODE = 'RX004', MESSAGE = 'probe';
+  EXCEPTION
+    WHEN SQLSTATE 'RX004' THEN NULL;
+  END;
+  PERFORM rxdb_sql_regression.assert_true(
+    pg_catalog.current_setting('rxdb.captured_deletes', true) = '{}',
+    'deferred-cycle: a rolled-back subtransaction must also roll back rxdb.captured_deletes'
+  );
+  PERFORM pg_catalog.set_config('rxdb.captured_deletes', v_previous_captured, true);
+
+  -- AC#6：一次调用里互相引用的用户与证件，带延迟列：两行都写入，复合外键成立，日志的 afterData 是最终值
+  v_pair_upserts := '[
+    {"schema":"rxdb_sql_regression","table":"cycle_users","data":[{"id":"cu-1","name":"u1","cardId":"cc-1"}]},
+    {"schema":"rxdb_sql_regression","table":"cycle_cards","data":[{"id":"cc-1","code":"c1","ownerId":"cu-1"}]}
+  ]';
+  v_pair_changes := pg_catalog.jsonb_build_array(
+    rxdb_sql_regression.deferred_cycle_change('CycleUser', 'cycle_users', 'cu-1', 'INSERT', '{"id":"cu-1","name":"u1","cardId":"cc-1"}', 880001),
+    rxdb_sql_regression.deferred_cycle_change('CycleCard', 'cycle_cards', 'cc-1', 'INSERT', '{"id":"cc-1","code":"c1","ownerId":"cu-1"}', 880002)
+  );
+  v_result := public.rxdb_mutations(
+    p_upserts => v_pair_upserts, p_changes => v_pair_changes, p_skip_sync => true, p_receipts => true,
+    p_deferred_columns => v_deferred
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    (SELECT pg_catalog.bool_and(value->>'status' = 'applied') FROM pg_catalog.jsonb_array_elements(v_result->'entity_results')),
+    pg_catalog.format('deferred-cycle: both entities must apply: %s', v_result)
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    EXISTS (SELECT 1 FROM rxdb_sql_regression.cycle_users WHERE id = 'cu-1' AND "cardId" = 'cc-1')
+      AND EXISTS (SELECT 1 FROM rxdb_sql_regression.cycle_cards WHERE id = 'cc-1' AND "ownerId" = 'cu-1'),
+    'deferred-cycle: the user must reference the card and the card its owner'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    (SELECT "afterData"->>'cardId' FROM public.rxdb_change
+     WHERE "clientId" = 'sql-deferred-cycle-client' AND "localId" = 880001) = 'cc-1',
+    'deferred-cycle: the user log must carry the final cardId'
+  );
+
+  -- AC#10：同一次调用重复执行：幂等，没有重复写入与重复日志
+  v_result := public.rxdb_mutations(
+    p_upserts => v_pair_upserts, p_changes => v_pair_changes, p_skip_sync => true, p_receipts => true,
+    p_deferred_columns => v_deferred
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    (SELECT pg_catalog.bool_and(value->>'status' = 'applied') FROM pg_catalog.jsonb_array_elements(v_result->'entity_results'))
+      AND (SELECT pg_catalog.count(*) FROM public.rxdb_change WHERE "clientId" = 'sql-deferred-cycle-client') = 2
+      AND (SELECT pg_catalog.count(*) FROM rxdb_sql_regression.cycle_users WHERE id = 'cu-1') = 1,
+    pg_catalog.format('deferred-cycle: replaying the call must be idempotent: %s', v_result)
+  );
+
+  -- AC#7：不带延迟列（旧客户端）：行为与现在一致，以 dependency 被拒，什么都不写
+  v_result := public.rxdb_mutations(
+    p_upserts => '[
+      {"schema":"rxdb_sql_regression","table":"cycle_users","data":[{"id":"cu-2","name":"u2","cardId":"cc-2"}]},
+      {"schema":"rxdb_sql_regression","table":"cycle_cards","data":[{"id":"cc-2","code":"c2","ownerId":"cu-2"}]}
+    ]',
+    p_changes => pg_catalog.jsonb_build_array(
+      rxdb_sql_regression.deferred_cycle_change('CycleUser', 'cycle_users', 'cu-2', 'INSERT', '{"id":"cu-2","name":"u2","cardId":"cc-2"}', 880011),
+      rxdb_sql_regression.deferred_cycle_change('CycleCard', 'cycle_cards', 'cc-2', 'INSERT', '{"id":"cc-2","code":"c2","ownerId":"cu-2"}', 880012)
+    ),
+    p_skip_sync => true, p_receipts => true
+  );
+  v_user := rxdb_sql_regression.deferred_cycle_status(v_result, 'cu-2');
+  PERFORM rxdb_sql_regression.assert_true(
+    v_user->>'status' = 'rejected' AND v_user->>'reason' = 'dependency'
+      AND NOT EXISTS (SELECT 1 FROM rxdb_sql_regression.cycle_users WHERE id = 'cu-2')
+      AND NOT EXISTS (SELECT 1 FROM rxdb_sql_regression.cycle_cards WHERE id = 'cc-2'),
+    pg_catalog.format('deferred-cycle: without deferred columns the cycle must be rejected as dependency: %s', v_result)
+  );
+
+  -- AC#8：证件被 RLS 拒绝：用户的补写以 dependency 失败，整轮回滚后两个实体都被拒，两行都不在，没有日志
+  v_result := public.rxdb_mutations(
+    p_upserts => '[
+      {"schema":"rxdb_sql_regression","table":"cycle_users","data":[{"id":"cu-3","name":"u3","cardId":"cc-3"}]},
+      {"schema":"rxdb_sql_regression","table":"cycle_cards","data":[{"id":"cc-3","code":"denied","ownerId":"cu-3"}]}
+    ]',
+    p_changes => pg_catalog.jsonb_build_array(
+      rxdb_sql_regression.deferred_cycle_change('CycleUser', 'cycle_users', 'cu-3', 'INSERT', '{"id":"cu-3","name":"u3","cardId":"cc-3"}', 880021),
+      rxdb_sql_regression.deferred_cycle_change('CycleCard', 'cycle_cards', 'cc-3', 'INSERT', '{"id":"cc-3","code":"denied","ownerId":"cu-3"}', 880022)
+    ),
+    p_skip_sync => true, p_receipts => true, p_deferred_columns => v_deferred
+  );
+  v_user := rxdb_sql_regression.deferred_cycle_status(v_result, 'cu-3');
+  v_card := rxdb_sql_regression.deferred_cycle_status(v_result, 'cc-3');
+  PERFORM rxdb_sql_regression.assert_true(
+    v_card->>'status' = 'rejected' AND v_card->>'reason' = 'denied',
+    pg_catalog.format('deferred-cycle: the denied card must be rejected as denied: %s', v_card)
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    v_user->>'status' = 'rejected' AND v_user->>'reason' = 'dependency'
+      AND v_user->'dependsOn' = '{"schema":"rxdb_sql_regression","table":"cycle_cards","entityId":"cc-3"}'::jsonb,
+    pg_catalog.format('deferred-cycle: the user whose fill-in failed must be rejected as dependency on the card: %s', v_user)
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    NOT EXISTS (SELECT 1 FROM rxdb_sql_regression.cycle_users WHERE id = 'cu-3')
+      AND NOT EXISTS (SELECT 1 FROM rxdb_sql_regression.cycle_cards WHERE id = 'cc-3')
+      AND NOT EXISTS (SELECT 1 FROM public.rxdb_change WHERE "clientId" = 'sql-deferred-cycle-client' AND "localId" IN (880021, 880022)),
+    'deferred-cycle: a rejected cycle must leave neither rows nor logs'
+  );
+
+  -- 修改只改了延迟列：同批新建的证件 cc-4（持有人 cu-1），cu-1 改指向它
+  v_result := public.rxdb_mutations(
+    p_upserts => '[{"schema":"rxdb_sql_regression","table":"cycle_cards","data":[{"id":"cc-4","code":"c4","ownerId":"cu-1"}]}]',
+    p_updates => '[{"schema":"rxdb_sql_regression","table":"cycle_users","data":[{"id":"cu-1","cardId":"cc-4"}]}]',
+    p_changes => pg_catalog.jsonb_build_array(
+      rxdb_sql_regression.deferred_cycle_change('CycleCard', 'cycle_cards', 'cc-4', 'INSERT', '{"id":"cc-4","code":"c4","ownerId":"cu-1"}', 880031),
+      rxdb_sql_regression.deferred_cycle_change('CycleUser', 'cycle_users', 'cu-1', 'UPDATE', '{"cardId":"cc-4"}', 880032, '{"cardId":"cc-1"}')
+    ),
+    p_skip_sync => true, p_receipts => true, p_deferred_columns => v_deferred
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    (SELECT pg_catalog.bool_and(value->>'status' = 'applied') FROM pg_catalog.jsonb_array_elements(v_result->'entity_results'))
+      AND EXISTS (SELECT 1 FROM rxdb_sql_regression.cycle_users WHERE id = 'cu-1' AND "cardId" = 'cc-4'),
+    pg_catalog.format('deferred-cycle: an update of only the deferred column must be filled in: %s', v_result)
+  );
+
+  -- DELETE 在补写之后执行：同批新建一对、删掉 cc-4（cu-1 的 cardId 随之置空）
+  v_result := public.rxdb_mutations(
+    p_upserts => '[
+      {"schema":"rxdb_sql_regression","table":"cycle_users","data":[{"id":"cu-6","name":"u6","cardId":"cc-6"}]},
+      {"schema":"rxdb_sql_regression","table":"cycle_cards","data":[{"id":"cc-6","code":"c6","ownerId":"cu-6"}]}
+    ]',
+    p_deletes => '[{"schema":"rxdb_sql_regression","table":"cycle_cards","ids":["cc-4"]}]',
+    p_changes => pg_catalog.jsonb_build_array(
+      rxdb_sql_regression.deferred_cycle_change('CycleUser', 'cycle_users', 'cu-6', 'INSERT', '{"id":"cu-6","name":"u6","cardId":"cc-6"}', 880041),
+      rxdb_sql_regression.deferred_cycle_change('CycleCard', 'cycle_cards', 'cc-6', 'INSERT', '{"id":"cc-6","code":"c6","ownerId":"cu-6"}', 880042),
+      rxdb_sql_regression.deferred_cycle_change('CycleCard', 'cycle_cards', 'cc-4', 'DELETE', NULL, 880043, '{"code":"c4","ownerId":"cu-1"}')
+    ),
+    p_skip_sync => true, p_receipts => true, p_deferred_columns => v_deferred
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    (SELECT pg_catalog.bool_and(value->>'status' = 'applied') FROM pg_catalog.jsonb_array_elements(v_result->'entity_results'))
+      AND EXISTS (SELECT 1 FROM rxdb_sql_regression.cycle_users WHERE id = 'cu-6' AND "cardId" = 'cc-6')
+      AND NOT EXISTS (SELECT 1 FROM rxdb_sql_regression.cycle_cards WHERE id = 'cc-4')
+      AND EXISTS (SELECT 1 FROM rxdb_sql_regression.cycle_users WHERE id = 'cu-1' AND "cardId" IS NULL),
+    pg_catalog.format('deferred-cycle: deletes run after the fill-in: %s', v_result)
+  );
+END;
+$$;
+
+-- US-038 AC#9：延迟列不合格以 RX003 拒绝，什么都不写
+CREATE FUNCTION rxdb_sql_regression.test_deferred_columns_validation()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  v_case record;
+  v_raised boolean;
+BEGIN
+  FOR v_case IN
+    SELECT * FROM (VALUES
+      ('NOT NULL column', '[{"schema":"rxdb_sql_regression","table":"cycle_cards","column":"ownerId"}]'),
+      ('not a foreign key', '[{"schema":"rxdb_sql_regression","table":"cycle_users","column":"nickname"}]'),
+      ('the id', '[{"schema":"rxdb_sql_regression","table":"cycle_users","column":"id"}]'),
+      ('missing column', '[{"schema":"rxdb_sql_regression","table":"cycle_users","column":"missing"}]'),
+      ('missing table', '[{"schema":"rxdb_sql_regression","table":"missing_table","column":"cardId"}]'),
+      ('MATCH FULL foreign key', '[{"schema":"rxdb_sql_regression","table":"cycle_full_refs","column":"cardRef"}]'),
+      ('invalid identifier', '[{"schema":"rxdb_sql_regression","table":"cycle_users; drop","column":"cardId"}]'),
+      ('not an array', '{"schema":"rxdb_sql_regression","table":"cycle_users","column":"cardId"}')
+    ) AS cases(label, payload)
+  LOOP
+    v_raised := false;
+    BEGIN
+      PERFORM public.rxdb_mutations(
+        p_upserts => '[{"schema":"rxdb_sql_regression","table":"push_open_ids","data":[{"id":"deferred-validation-probe","value":"x"}]}]',
+        p_receipts => true,
+        p_deferred_columns => v_case.payload::jsonb
+      );
+    EXCEPTION
+      WHEN SQLSTATE 'RX003' THEN v_raised := true;
+    END;
+    PERFORM rxdb_sql_regression.assert_true(
+      v_raised AND NOT EXISTS (SELECT 1 FROM rxdb_sql_regression.push_open_ids WHERE id = 'deferred-validation-probe'),
+      pg_catalog.format('deferred-columns-validation: %s must be rejected with RX003 before anything is written', v_case.label)
+    );
+  END LOOP;
 END;
 $$;
 
@@ -4727,8 +5029,8 @@ BEGIN
     'production-grants-idempotent: table privileges must match the production model'
   );
   PERFORM rxdb_sql_regression.assert_true(
-    NOT pg_catalog.has_function_privilege('anon', 'public.rxdb_mutations(jsonb, jsonb, jsonb, boolean, jsonb, boolean)', 'EXECUTE')
-      AND pg_catalog.has_function_privilege('authenticated', 'public.rxdb_mutations(jsonb, jsonb, jsonb, boolean, jsonb, boolean)', 'EXECUTE')
+    NOT pg_catalog.has_function_privilege('anon', 'public.rxdb_mutations(jsonb, jsonb, jsonb, boolean, jsonb, boolean, jsonb)', 'EXECUTE')
+      AND pg_catalog.has_function_privilege('authenticated', 'public.rxdb_mutations(jsonb, jsonb, jsonb, boolean, jsonb, boolean, jsonb)', 'EXECUTE')
       AND NOT pg_catalog.has_function_privilege('anon', 'public.rxdb_assert_push_integrity(jsonb, jsonb, jsonb, boolean, jsonb)', 'EXECUTE')
       AND NOT pg_catalog.has_function_privilege('authenticated', 'public.rxdb_claim_branch(text)', 'EXECUTE')
       AND pg_catalog.has_function_privilege('anon', 'public.rxdb_server_version()', 'EXECUTE')
@@ -4834,6 +5136,363 @@ END;
 $$;
 
 -- US-225 AC#18 的业务表：权限、列权限、行级安全开关与策略，升级前后逐项比对
+-- 远端变更历史（change-history，US-229）：以属主身份读历史表——被测调用方对它没有任何直接权限
+-- 列写明、不返回表的行类型：返回行类型会让函数依赖历史表，sync-access-upgrade 退回升级前的样子时删不掉它
+CREATE FUNCTION rxdb_sql_regression.history_of(p_entity text, p_entity_id text)
+RETURNS TABLE (
+  id bigint, "changeId" integer, "entityId" text, bucket text, type text, patch jsonb, "inversePatch" jsonb,
+  "beforeData" jsonb, "afterData" jsonb, actor uuid, role text, source text, "clientId" text, "localId" integer,
+  "branchId" text
+)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+  SELECT history.id, history."changeId", history."entityId", history.bucket, history.type, history.patch,
+    history."inversePatch", history."beforeData", history."afterData", history.actor, history.role, history.source,
+    history."clientId", history."localId", history."branchId"
+  FROM public.rxdb_change_history AS history
+  WHERE history.namespace = 'rxdb_sql_regression' AND history.entity = p_entity AND history."entityId" = p_entity_id
+  ORDER BY history.id
+$$;
+
+-- 以属主身份写：被测调用方的 RLS 只放行自己的行，换所有者、替别人建行都要绕过它（同步触发器照常记历史）
+CREATE FUNCTION rxdb_sql_regression.history_write_owned(p_id text, p_owner uuid, p_value text)
+RETURNS void
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+  INSERT INTO rxdb_sql_regression.history_owned_rows (id, owner_id, value)
+  VALUES (p_id, p_owner, p_value)
+  ON CONFLICT (id) DO UPDATE SET owner_id = EXCLUDED.owner_id, value = EXCLUDED.value
+$$;
+
+CREATE FUNCTION rxdb_sql_regression.history_caller(p_user uuid)
+RETURNS void
+LANGUAGE sql
+SET search_path = pg_catalog, pg_temp
+AS $$
+  SELECT pg_catalog.set_config(
+    'request.jwt.claims', pg_catalog.jsonb_build_object('sub', p_user, 'role', 'authenticated')::text, true
+  )
+$$;
+
+CREATE FUNCTION rxdb_sql_regression.history_visible(p_entity text, p_entity_id text)
+RETURNS text[]
+LANGUAGE sql
+STABLE
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+  SELECT COALESCE(pg_catalog.array_agg(visible.type || ':' || visible.source ORDER BY visible.id), '{}'::text[])
+  FROM public.rxdb_entity_history('rxdb_sql_regression', p_entity, p_entity_id) AS visible
+$$;
+
+-- 推送一个实体的一条变更：业务写与它的源日志一一配对
+CREATE FUNCTION rxdb_sql_regression.history_push(
+  p_table text,
+  p_entity text,
+  p_type text,
+  p_row jsonb,
+  p_local_id integer,
+  p_receipts boolean DEFAULT false
+)
+RETURNS jsonb
+LANGUAGE sql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+  SELECT public.rxdb_mutations(
+    p_upserts => CASE WHEN p_type = 'INSERT' THEN pg_catalog.jsonb_build_array(pg_catalog.jsonb_build_object(
+      'schema', 'rxdb_sql_regression', 'table', p_table, 'data', pg_catalog.jsonb_build_array(p_row)
+    )) ELSE '[]'::jsonb END,
+    p_updates => CASE WHEN p_type = 'UPDATE' THEN pg_catalog.jsonb_build_array(pg_catalog.jsonb_build_object(
+      'schema', 'rxdb_sql_regression', 'table', p_table, 'data', pg_catalog.jsonb_build_array(p_row)
+    )) ELSE '[]'::jsonb END,
+    p_deletes => CASE WHEN p_type = 'DELETE' THEN pg_catalog.jsonb_build_array(pg_catalog.jsonb_build_object(
+      'schema', 'rxdb_sql_regression', 'table', p_table, 'ids', pg_catalog.jsonb_build_array(p_row->>'id')
+    )) ELSE '[]'::jsonb END,
+    p_changes => pg_catalog.jsonb_build_array(pg_catalog.jsonb_build_object(
+      'namespace', 'rxdb_sql_regression', 'entity', p_entity, 'schema', 'rxdb_sql_regression', 'table', p_table,
+      'entityId', p_row->>'id', 'type', p_type,
+      'patch', CASE WHEN p_type = 'DELETE' THEN NULL ELSE p_row - 'id' END,
+      'branchId', 'main', 'clientId', 'sql-history-push', 'localId', p_local_id,
+      'rxdbHistorySource', 'cascade'
+    )),
+    p_skip_sync => true,
+    p_receipts => p_receipts
+  )
+$$;
+
+CREATE FUNCTION rxdb_sql_regression.test_change_history()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  user_a constant uuid := '00000000-0000-4000-8000-0000000000a1';
+  user_b constant uuid := '00000000-0000-4000-8000-0000000000b2';
+  v_history record;
+  v_result jsonb;
+  v_count integer;
+  v_rejected boolean := false;
+BEGIN
+  -- 整个回归在一个事务里（test_case = all）：前面 p_skip_sync = true 的用例可能已把 rxdb.sync_enabled 置为 'false'
+  PERFORM pg_catalog.set_config('rxdb.sync_enabled', 'true', true);
+  PERFORM rxdb_sql_regression.history_caller(user_a);
+
+  -- AC#1 直写：完整前后快照、patch、操作者、来源与当时所在的区；AC#6 分区日志照旧不带正文
+  INSERT INTO rxdb_sql_regression.history_owned_rows (id, owner_id, value) VALUES ('hist-a', user_a, 'v1');
+  UPDATE rxdb_sql_regression.history_owned_rows SET value = 'v2' WHERE id = 'hist-a';
+  SELECT * INTO v_history FROM rxdb_sql_regression.history_of('HistoryOwnedRow', 'hist-a') AS history
+  WHERE history.type = 'UPDATE';
+  PERFORM rxdb_sql_regression.assert_true(
+    (SELECT pg_catalog.array_agg(history.type || ':' || history.source ORDER BY history.id)
+      FROM rxdb_sql_regression.history_of('HistoryOwnedRow', 'hist-a') AS history) = ARRAY['INSERT:trigger', 'UPDATE:trigger']
+      AND v_history.actor = user_a AND v_history.role = 'authenticated'
+      AND v_history.bucket = 'user:' || user_a::text AND v_history."branchId" = 'main'
+      AND v_history.patch = '{"value":"v2"}'::jsonb AND v_history."inversePatch" = '{"value":"v1"}'::jsonb
+      AND v_history."beforeData"->>'value' = 'v1' AND v_history."afterData"->>'value' = 'v2'
+      AND v_history."afterData"->>'rxdb_bucket' = 'user:' || user_a::text
+      AND v_history."changeId" = (
+        SELECT change.id FROM public.rxdb_change AS change
+        WHERE change.entity = 'HistoryOwnedRow' AND change."entityId" = 'hist-a' AND change.type = 'UPDATE'
+      ),
+    pg_catalog.format('change-history: a direct write must record a complete trigger history, got %s', pg_catalog.to_jsonb(v_history))
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    NOT EXISTS (
+      SELECT 1 FROM public.rxdb_change AS change
+      WHERE change.entity = 'HistoryOwnedRow' AND change."entityId" = 'hist-a'
+        AND (change.patch IS NOT NULL OR change."inversePatch" IS NOT NULL
+          OR change."beforeData" IS NOT NULL OR change."afterData" IS NOT NULL)
+    ),
+    'change-history: the bucketed change log must still carry no body'
+  );
+
+  -- AC#5 未分区表的直写同样记历史；AC#6 未分区日志照旧带正文
+  INSERT INTO rxdb_sql_regression.history_parents (id, value) VALUES ('hist-parent-t', 'p');
+  PERFORM rxdb_sql_regression.assert_true(
+    (SELECT pg_catalog.count(*) FROM rxdb_sql_regression.history_of('HistoryParent', 'hist-parent-t') AS history
+      WHERE history.type = 'INSERT' AND history.source = 'trigger' AND history.bucket IS NULL
+        AND history."afterData"->>'value' = 'p') = 1
+      AND EXISTS (
+        SELECT 1 FROM public.rxdb_change AS change
+        WHERE change.entity = 'HistoryParent' AND change."entityId" = 'hist-parent-t' AND change.patch->>'value' = 'p'
+      ),
+    'change-history: an unbucketed direct write must record history and keep its change log body'
+  );
+
+  -- AC#2 推送新增、修改、删除：每个生效的实体一条历史，来源为推送，带 clientId / localId 与完整快照。
+  -- 载荷里伪造的 rxdbHistorySource 不认
+  PERFORM rxdb_sql_regression.history_write_owned('hist-pushed-update', user_a, 'old');
+  PERFORM rxdb_sql_regression.history_write_owned('hist-pushed-delete', user_a, 'gone');
+  PERFORM rxdb_sql_regression.history_push(
+    'history_owned_rows', 'HistoryOwnedRow', 'INSERT',
+    pg_catalog.jsonb_build_object('id', 'hist-pushed-insert', 'owner_id', user_a, 'visibility', 'private', 'value', 'new'),
+    870001
+  );
+  PERFORM rxdb_sql_regression.history_push(
+    'history_owned_rows', 'HistoryOwnedRow', 'UPDATE', '{"id":"hist-pushed-update","value":"changed"}'::jsonb, 870002
+  );
+  PERFORM rxdb_sql_regression.history_push(
+    'history_owned_rows', 'HistoryOwnedRow', 'DELETE', '{"id":"hist-pushed-delete"}'::jsonb, 870003
+  );
+  -- 重放同一批：日志按 (clientId, localId) 去重，历史也不重复
+  PERFORM rxdb_sql_regression.history_push(
+    'history_owned_rows', 'HistoryOwnedRow', 'UPDATE', '{"id":"hist-pushed-update","value":"changed"}'::jsonb, 870002
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    (SELECT pg_catalog.count(*) FROM rxdb_sql_regression.history_of('HistoryOwnedRow', 'hist-pushed-insert') AS history
+      WHERE history.source = 'push' AND history.type = 'INSERT' AND history."clientId" = 'sql-history-push'
+        AND history."localId" = 870001 AND history.actor = user_a AND history."beforeData" IS NULL
+        AND history."afterData"->>'value' = 'new' AND history."changeId" IS NOT NULL) = 1
+      AND (SELECT pg_catalog.count(*) FROM rxdb_sql_regression.history_of('HistoryOwnedRow', 'hist-pushed-update') AS history
+        WHERE history.source = 'push' AND history.type = 'UPDATE' AND history."localId" = 870002
+          AND history."beforeData"->>'value' = 'old' AND history."afterData"->>'value' = 'changed'
+          AND history.patch = '{"value":"changed"}'::jsonb) = 1
+      AND (SELECT pg_catalog.count(*) FROM rxdb_sql_regression.history_of('HistoryOwnedRow', 'hist-pushed-delete') AS history
+        WHERE history.source = 'push' AND history.type = 'DELETE' AND history."localId" = 870003
+          AND history."beforeData"->>'value' = 'gone' AND history."afterData" IS NULL) = 1,
+    'change-history: each applied pushed entity must record exactly one complete push history'
+  );
+
+  -- AC#4 被 RLS 拒绝的实体没有历史，同批生效的照常记录
+  PERFORM rxdb_sql_regression.history_write_owned('hist-denied', user_b, 'b-value');
+  v_result := public.rxdb_mutations(
+    p_updates => '[{"schema":"rxdb_sql_regression","table":"history_owned_rows","data":[{"id":"hist-denied","value":"stolen"},{"id":"hist-pushed-update","value":"again"}]}]'::jsonb,
+    p_changes => pg_catalog.jsonb_build_array(
+      pg_catalog.jsonb_build_object(
+        'namespace', 'rxdb_sql_regression', 'entity', 'HistoryOwnedRow', 'schema', 'rxdb_sql_regression',
+        'table', 'history_owned_rows', 'entityId', 'hist-denied', 'type', 'UPDATE', 'patch', '{"value":"stolen"}'::jsonb,
+        'branchId', 'main', 'clientId', 'sql-history-push', 'localId', 870011
+      ),
+      pg_catalog.jsonb_build_object(
+        'namespace', 'rxdb_sql_regression', 'entity', 'HistoryOwnedRow', 'schema', 'rxdb_sql_regression',
+        'table', 'history_owned_rows', 'entityId', 'hist-pushed-update', 'type', 'UPDATE', 'patch', '{"value":"again"}'::jsonb,
+        'branchId', 'main', 'clientId', 'sql-history-push', 'localId', 870012
+      )
+    ),
+    p_skip_sync => true,
+    p_receipts => true
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    NOT EXISTS (
+      SELECT 1 FROM rxdb_sql_regression.history_of('HistoryOwnedRow', 'hist-denied') AS history WHERE history.source = 'push'
+    )
+      AND EXISTS (
+        SELECT 1 FROM rxdb_sql_regression.history_of('HistoryOwnedRow', 'hist-pushed-update') AS history
+        WHERE history.source = 'push' AND history."localId" = 870012 AND history."afterData"->>'value' = 'again'
+      ),
+    pg_catalog.format('change-history: a rejected entity must leave no history, got %s', v_result)
+  );
+
+  -- AC#3 推送只删父行：被级联删除的子行各有一条历史，来源为服务端级联
+  INSERT INTO rxdb_sql_regression.history_parents (id, value) VALUES ('hist-parent-c', 'p');
+  INSERT INTO rxdb_sql_regression.history_children (id, "parentId", value)
+  VALUES ('hist-child-1', 'hist-parent-c', 'c1'), ('hist-child-2', 'hist-parent-c', 'c2');
+  PERFORM rxdb_sql_regression.history_push(
+    'history_parents', 'HistoryParent', 'DELETE', '{"id":"hist-parent-c"}'::jsonb, 870021
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    EXISTS (
+      SELECT 1 FROM rxdb_sql_regression.history_of('HistoryParent', 'hist-parent-c') AS history
+      WHERE history.source = 'push' AND history.type = 'DELETE' AND history."beforeData"->>'value' = 'p'
+    )
+      AND (SELECT pg_catalog.count(*)
+        FROM pg_catalog.unnest(ARRAY['hist-child-1', 'hist-child-2']) AS child(id)
+        CROSS JOIN LATERAL rxdb_sql_regression.history_of('HistoryChild', child.id) AS history
+        WHERE history.source = 'cascade' AND history.type = 'DELETE' AND history."clientId" IS NULL
+          AND history.actor = user_a AND history."beforeData"->>'parentId' = 'hist-parent-c'
+          AND history."afterData" IS NULL) = 2,
+    'change-history: children deleted by a pushed parent delete must each record a cascade history'
+  );
+
+  -- 读取 RPC。AC#9（平台默认判定）：能编辑这一行的调用者读得到它的全部历史
+  PERFORM rxdb_sql_regression.assert_true(
+    rxdb_sql_regression.history_visible('HistoryOwnedRow', 'hist-a') = ARRAY['INSERT:trigger', 'UPDATE:trigger'],
+    'change-history: the owner must read the full history of a row it can edit'
+  );
+  -- AC#8 不能编辑的调用者一条都读不到
+  PERFORM rxdb_sql_regression.history_caller(user_b);
+  PERFORM rxdb_sql_regression.assert_true(
+    rxdb_sql_regression.history_visible('HistoryOwnedRow', 'hist-a') = '{}'::text[],
+    'change-history: a caller who cannot edit the row must read no history'
+  );
+
+  -- AC#11 换给 B 之后：换之前的历史只对 A 可见，换区那一次与之后的只对 B 可见
+  PERFORM rxdb_sql_regression.history_caller(user_a);
+  PERFORM rxdb_sql_regression.history_write_owned('hist-a', user_b, 'v3');
+  PERFORM rxdb_sql_regression.assert_true(
+    rxdb_sql_regression.history_visible('HistoryOwnedRow', 'hist-a') = ARRAY['INSERT:trigger', 'UPDATE:trigger'],
+    'change-history: history recorded before the move must stay with the previous owner'
+  );
+  PERFORM rxdb_sql_regression.history_caller(user_b);
+  PERFORM rxdb_sql_regression.assert_true(
+    rxdb_sql_regression.history_visible('HistoryOwnedRow', 'hist-a') = ARRAY['UPDATE:trigger'],
+    'change-history: the move itself must be visible to the new owner only'
+  );
+
+  -- AC#12 删掉之后按删除前的行判定：B 仍读得到换区之后的全部历史
+  DELETE FROM rxdb_sql_regression.history_owned_rows WHERE id = 'hist-a';
+  PERFORM rxdb_sql_regression.assert_true(
+    rxdb_sql_regression.history_visible('HistoryOwnedRow', 'hist-a') = ARRAY['UPDATE:trigger', 'DELETE:trigger'],
+    'change-history: a deleted row must keep its history, judged by the row before deletion'
+  );
+
+  -- 平台默认：公开区谁都不能编辑，所有者也读不到它在公开区时的历史
+  PERFORM rxdb_sql_regression.history_caller(user_a);
+  UPDATE rxdb_sql_regression.history_owned_rows SET visibility = 'public' WHERE id = 'hist-pushed-insert';
+  PERFORM rxdb_sql_regression.assert_true(
+    NOT ('UPDATE:trigger' = ANY(rxdb_sql_regression.history_visible('HistoryOwnedRow', 'hist-pushed-insert'))),
+    'change-history: by default nobody can edit public rows, so their history stays hidden'
+  );
+
+  -- AC#10 调用者没有某列的列权限：四个正文字段都不含这一列
+  INSERT INTO rxdb_sql_regression.history_plain_rows (id, value, secret) VALUES ('hist-plain', 'v1', 's1');
+  UPDATE rxdb_sql_regression.history_plain_rows SET value = 'v2', secret = 's2' WHERE id = 'hist-plain';
+  SELECT pg_catalog.count(*)::integer INTO v_count
+  FROM public.rxdb_entity_history('rxdb_sql_regression', 'HistoryPlainRow', 'hist-plain') AS visible
+  WHERE NOT (COALESCE(visible.patch, '{}'::jsonb) ? 'secret')
+    AND NOT (COALESCE(visible."inversePatch", '{}'::jsonb) ? 'secret')
+    AND NOT (COALESCE(visible."beforeData", '{}'::jsonb) ? 'secret')
+    AND NOT (COALESCE(visible."afterData", '{}'::jsonb) ? 'secret')
+    AND visible."afterData" ? 'value';
+  PERFORM rxdb_sql_regression.assert_true(
+    v_count = 2
+      AND (SELECT pg_catalog.bool_and(history."afterData" ? 'secret')
+        FROM rxdb_sql_regression.history_of('HistoryPlainRow', 'hist-plain') AS history),
+    pg_catalog.format('change-history: columns the caller cannot select must be masked out of every body, visible rows %s', v_count)
+  );
+
+  BEGIN
+    PERFORM public.rxdb_entity_history('rxdb_sql_regression', 'HistoryPlainRow', 'hist-plain', 0, 0);
+  EXCEPTION
+    WHEN invalid_parameter_value THEN
+      v_rejected := true;
+  END;
+  PERFORM rxdb_sql_regression.assert_true(v_rejected, 'change-history: a page size outside 1..1000 must be rejected');
+END;
+$$;
+
+-- AC#7 / AC#13：生产权限下客户端直接读历史表一律被拒；anon 没有读取 RPC 的执行权
+CREATE FUNCTION rxdb_sql_regression.test_change_history_direct_access(p_expect_rpc boolean)
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  v_table_denied boolean := false;
+  v_rpc_denied boolean := false;
+BEGIN
+  BEGIN
+    PERFORM 1 FROM public.rxdb_change_history LIMIT 1;
+  EXCEPTION
+    WHEN insufficient_privilege THEN
+      v_table_denied := true;
+  END;
+  BEGIN
+    PERFORM public.rxdb_entity_history('rxdb_sql_regression', 'HistoryOwnedRow', 'hist-a');
+  EXCEPTION
+    WHEN insufficient_privilege THEN
+      v_rpc_denied := true;
+  END;
+  PERFORM rxdb_sql_regression.assert_true(
+    v_table_denied AND v_rpc_denied = NOT p_expect_rpc,
+    pg_catalog.format(
+      'change-history: %s must not read rxdb_change_history directly (denied %s) and %s the history RPC (denied %s)',
+      current_user, v_table_denied, CASE WHEN p_expect_rpc THEN 'must call' ELSE 'must not call' END, v_rpc_denied
+    )
+  );
+END;
+$$;
+
+-- AC#13：生产权限脚本收紧历史表与读取 RPC（以属主身份检查目录），重复执行之后仍然如此
+CREATE FUNCTION rxdb_sql_regression.assert_change_history_grants(p_label text)
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+BEGIN
+  PERFORM rxdb_sql_regression.assert_true(
+    (SELECT relrowsecurity AND relforcerowsecurity FROM pg_catalog.pg_class
+      WHERE oid = pg_catalog.to_regclass('public.rxdb_change_history'))
+      AND NOT pg_catalog.has_table_privilege('anon', 'public.rxdb_change_history', 'SELECT, INSERT, UPDATE, DELETE')
+      AND NOT pg_catalog.has_table_privilege('authenticated', 'public.rxdb_change_history', 'SELECT, INSERT, UPDATE, DELETE')
+      AND NOT pg_catalog.has_sequence_privilege('authenticated', 'public.rxdb_change_history_id_seq', 'USAGE, UPDATE')
+      AND pg_catalog.has_function_privilege(
+        'authenticated', 'public.rxdb_entity_history(text, text, text, bigint, integer)', 'EXECUTE')
+      AND NOT pg_catalog.has_function_privilege(
+        'anon', 'public.rxdb_entity_history(text, text, text, bigint, integer)', 'EXECUTE')
+      AND NOT pg_catalog.has_function_privilege('authenticated', 'public.rxdb_caller_can_edit(text, text, jsonb)', 'EXECUTE')
+      AND NOT pg_catalog.has_function_privilege(
+        'authenticated', 'public.rxdb_record_change_history(integer, text, text, text, text, text, jsonb, jsonb, jsonb, jsonb, text)',
+        'EXECUTE'),
+    pg_catalog.format('%s: rxdb_change_history must be locked to clients and its RPC open to authenticated only', p_label)
+  );
+END;
+$$;
+
 CREATE FUNCTION rxdb_sql_regression.upgrade_probe_privileges()
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -4883,6 +5542,8 @@ DECLARE
   v_function regprocedure;
 BEGIN
   DROP TABLE public.rxdb_branch_owner;
+  -- 升级前没有远端变更历史（US-229）：增量脚本建表，生产权限脚本收紧
+  DROP TABLE public.rxdb_change_history;
   -- 增量脚本 ADD COLUMN 把 bucket 加在表尾，升级库的物理列序与全新安装不同（复合类型按列位置匹配）。
   -- 连带删掉的按区索引与 RLS 策略由增量脚本与生产权限脚本重建
   ALTER TABLE public.rxdb_change DROP COLUMN bucket CASCADE;
@@ -4995,6 +5656,7 @@ BEGIN
   );
 
   PERFORM rxdb_sql_regression.test_production_grants_idempotent();
+  PERFORM rxdb_sql_regression.assert_change_history_grants('sync-access-upgrade');
 
   -- 升级库的 bucket 在日志表末尾：按区拉取仍要按列名给出每个字段
   PERFORM pg_catalog.set_config('request.jwt.claims', '{"role":"anon"}', true);
@@ -5047,6 +5709,10 @@ REVOKE ALL ON TABLE rxdb_sql_regression.no_dml_ids FROM PUBLIC, anon, authentica
 REVOKE ALL ON TABLE rxdb_sql_regression.update_column_privileges FROM PUBLIC, anon, authenticated;
 GRANT SELECT (id, value), UPDATE (value) ON rxdb_sql_regression.update_column_privileges TO authenticated;
 REVOKE ALL ON TABLE rxdb_sql_regression.column_bucket_rows FROM PUBLIC, anon, authenticated;
+-- change-history（AC#10）：authenticated 能整表写，但读不到 secret 列
+REVOKE ALL ON TABLE rxdb_sql_regression.history_plain_rows FROM PUBLIC, anon, authenticated;
+GRANT INSERT, UPDATE, DELETE ON rxdb_sql_regression.history_plain_rows TO authenticated;
+GRANT SELECT (id, value) ON rxdb_sql_regression.history_plain_rows TO authenticated;
 GRANT SELECT (id, value, rxdb_bucket) ON rxdb_sql_regression.column_bucket_rows TO anon, authenticated;
 
 -- 日志同步协议只对已登录身份开放（US-225）：用例以固定测试用户的 authenticated 身份运行，
@@ -5133,6 +5799,12 @@ SELECT rxdb_sql_regression.test_bucketed_push()
 WHERE :'test_case' IN ('all', 'bucketed-push');
 SELECT rxdb_sql_regression.test_bucketed_documented_policy()
 WHERE :'test_case' IN ('all', 'bucketed-documented-policy');
+SELECT rxdb_sql_regression.test_change_history()
+WHERE :'test_case' IN ('all', 'change-history');
+SELECT rxdb_sql_regression.test_deferred_cycle()
+WHERE :'test_case' IN ('all', 'deferred-cycle');
+SELECT rxdb_sql_regression.test_deferred_columns_validation()
+WHERE :'test_case' IN ('all', 'deferred-columns-validation');
 RESET ROLE;
 
 SELECT rxdb_sql_regression.test_delete_hidden_row_verify()
@@ -5148,7 +5820,7 @@ WHERE :'test_case' IN ('all', 'backend-identity');
 -- 必须放在最后：本栈初始化时加载的可能是旧版脚本，前面的用例不依赖它收回了哪些权限。
 SELECT :'test_case' IN (
   'all', 'production-change-grants', 'bucketed-read-sync', 'bucketed-guards', 'anon-sync-protocol',
-  'branch-ownership', 'realtime-notifications', 'production-grants-idempotent'
+  'branch-ownership', 'realtime-notifications', 'production-grants-idempotent', 'change-history'
 ) AS run_production_change_grants \gset
 \if :run_production_change_grants
 \i :production_grants_file
@@ -5163,6 +5835,8 @@ SELECT rxdb_sql_regression.test_production_change_grants()
 WHERE :'test_case' IN ('all', 'production-change-grants');
 SELECT rxdb_sql_regression.test_realtime_notifications()
 WHERE :'test_case' IN ('all', 'realtime-notifications');
+SELECT rxdb_sql_regression.test_change_history_direct_access(true)
+WHERE :'test_case' IN ('all', 'change-history');
 SELECT rxdb_sql_regression.assert_true(
   rxdb_sql_regression.visible_change_notifications() > 0,
   'realtime-notifications: authenticated must be able to receive rxdb:changes broadcasts'
@@ -5193,6 +5867,8 @@ SELECT rxdb_sql_regression.test_bucketed_guards()
 WHERE :'test_case' IN ('all', 'bucketed-guards');
 SELECT rxdb_sql_regression.test_anon_sync_protocol()
 WHERE :'test_case' IN ('all', 'anon-sync-protocol');
+SELECT rxdb_sql_regression.test_change_history_direct_access(false)
+WHERE :'test_case' IN ('all', 'change-history');
 SELECT rxdb_sql_regression.assert_true(
   rxdb_sql_regression.visible_change_notifications() = 0,
   'realtime-notifications: anon must not receive rxdb:changes broadcasts'
@@ -5206,6 +5882,8 @@ SELECT rxdb_sql_regression.test_bucketed_guards_owner()
 WHERE :'test_case' IN ('all', 'bucketed-guards');
 SELECT rxdb_sql_regression.test_production_grants_idempotent()
 WHERE :'test_case' IN ('all', 'production-grants-idempotent');
+SELECT rxdb_sql_regression.assert_change_history_grants('change-history')
+WHERE :'test_case' IN ('all', 'change-history');
 \endif
 
 -- US-225 AC#18：生产库从旧版本升级。按迁移指南第 2 步的顺序执行参考 SQL，随外层 ROLLBACK 撤销。

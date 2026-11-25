@@ -15,6 +15,9 @@
  * 同样一对关系无论谁先声明都会得到**同一个**中间表名。
  */
 
+import { v5 as uuidV5 } from 'uuid';
+import { RxDBError } from '../RxDBError.js';
+import type { RxDBEntityId, UUID } from './entity.interface.js';
 import {
   EntityMetadataOptions,
   EntityRelationManyToManyMetadata,
@@ -22,6 +25,82 @@ import {
   RelationKind
 } from './metadata-options.interface.js';
 import { EntityMetadata } from './metadata.interface.js';
+
+/**
+ * 关联行 id 的 uuid v5 命名空间（US-228）
+ *
+ * @remarks
+ * 协议常量，永不改变：改了它，已经落库、已经推上远端的关联行就和新算出来的 id 对不上，
+ * 同一对数据会出现两行（远端有成对唯一约束时推送报 23505）。
+ */
+export const JUNCTION_ID_NAMESPACE = '9fb02b21-84d4-40f2-8847-bb5c3878b0e0';
+
+/** 中间表实体的命名空间与名字（`EntityMetadata` 的子集，普通字符串也可以） */
+export interface JunctionName {
+  readonly namespace: string;
+  readonly name: string;
+}
+
+/** 中间表的一端：外键属性名与这一端实体的主键 */
+export interface JunctionEndpointKey {
+  /** 中间表上指向这一端的外键属性名，如 `categoriesId` */
+  readonly foreignKey: string;
+  /** 这一端实体的主键 */
+  readonly id: RxDBEntityId;
+  /** 这一端的主键是不是 uuid：是的话统一转小写再参与派生 */
+  readonly uuid: boolean;
+}
+
+/**
+ * 多对多关联行的确定性 id（US-228）
+ *
+ * @param junction - 中间表实体的命名空间与名字
+ * @param endpoints - 两端的外键与主键，顺序无关
+ * @returns uuid v5：名字是 `rxdb-junction:v1:<namespace>.<中间表名>|<外键>=<主键>|<外键>=<主键>`，外键按属性名排序
+ * @throws {RxDBError} 任一端没有主键，或两端的外键同名
+ *
+ * @remarks
+ * 同一对数据不管从哪一端关联、在哪个客户端关联、取消之后重新关联，都得到同一个 id：
+ * 两个客户端并发关联同一对只落成远端的一行，推送不会撞成对唯一约束。
+ * uuid 主键转小写：PGlite 按 `uuid` 存、SQLite 按区分大小写的 TEXT 存，大小写不同的同一个 uuid 不能算成两对。
+ * 服务端自己写关联行时用同一个公式（Postgres：`extensions.uuid_generate_v5(命名空间, 名字)`），见 Supabase 适配器文档。
+ *
+ * @example
+ * ```ts
+ * junctionEntityId({ namespace: 'shop', name: 'Category_OrderItem' }, [
+ *   { foreignKey: 'categoriesId', id: category.id, uuid: true },
+ *   { foreignKey: 'orderItemsId', id: orderItem.id, uuid: true }
+ * ]);
+ * ```
+ */
+export function junctionEntityId(
+  junction: JunctionName,
+  endpoints: readonly [JunctionEndpointKey, JunctionEndpointKey]
+): UUID {
+  const [first, second] = [...endpoints].sort((a, b) => (a.foreignKey < b.foreignKey ? -1 : 1));
+  if (first.foreignKey === second.foreignKey) {
+    throw new RxDBError(
+      `中间表 ${junction.namespace}.${junction.name} 的两端外键同名（${first.foreignKey}），派生不出关联行 id`
+    );
+  }
+  const parts = [first, second].map(endpoint => `${endpoint.foreignKey}=${endpointIdText(junction, endpoint)}`);
+  return uuidV5(
+    `rxdb-junction:v1:${junction.namespace}.${junction.name}|${parts.join('|')}`,
+    JUNCTION_ID_NAMESPACE
+  ) as UUID;
+}
+
+/** 一端主键参与派生的文本：uuid 转小写，数字与 bigint 取十进制文本 */
+function endpointIdText(junction: JunctionName, endpoint: JunctionEndpointKey): string {
+  const { id } = endpoint as { id: RxDBEntityId | null | undefined };
+  if (id === null || id === undefined || id === '') {
+    throw new RxDBError(
+      `中间表 ${junction.namespace}.${junction.name} 的 ${endpoint.foreignKey} 一端没有主键：先给两端实体定好 id 再关联`
+    );
+  }
+  const text = String(id);
+  return endpoint.uuid ? text.toLowerCase() : text;
+}
 
 /**
  * 多对多关系描述接口

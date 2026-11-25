@@ -30,6 +30,14 @@
         "kind": "type"
       },
       {
+        "name": "SupabaseEntityHistoryItem",
+        "kind": "type"
+      },
+      {
+        "name": "SupabaseEntityHistoryOptions",
+        "kind": "type"
+      },
+      {
         "name": "SupabaseEntitySyncInfo",
         "kind": "type"
       },

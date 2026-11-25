@@ -1,11 +1,11 @@
 ---
 id: US-037
 title: 全量推送按外键依赖排序：子实体声明在前时不再被拒并删掉本地行
-status: Backlog
+status: In Review
 priority: High
 epic: epic-004-future-features
 created: 2026-11-25
-updated: 2026-11-25
+updated: 2026-11-26
 tags: [core, sync, push, relationship]
 ---
 
@@ -105,30 +105,40 @@ INVEST 检查清单:
 
 | #   | 前置条件                                                                                                         | 操作                                                    | 预期结果                                                                                 | 状态 |
 | --- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ---- |
-| 1   | 实体声明为 `[Order, User]`（Order MANY_TO_ONE → User）；本地新建 User 与引用它的 Order，都未推送                 | `syncManager.push()`                                    | 远端两行都在；无被拒；本地 Order 保留，源变更拿到 `remoteId`                             | ⬜   |
-| 2   | 三层模型声明为 `[OrderItem, Order, User]`；三层同批新建                                                          | `push()`                                                | 三行都到远端，无被拒                                                                     | ⬜   |
-| 3   | 实体声明为 `[Order, User]`；远端已有 User1 与它的 Order1；本地删除 Order1、User1，并新建 User2 与引用它的 Order2 | `push()`                                                | 远端只剩 User2 与 Order2；四条变更都被接受，无 23503                                     | ⬜   |
-| 4   | 本地新建 User 与引用它的 Order，都未推送                                                                         | `push()` 带 `repositoryFilter`，依次点名 Order、User    | 同 AC#1                                                                                  | ⬜   |
-| 5   | 本地新建 User 与引用它的 Order，都未推送                                                                         | 只推子仓：`syncManager.pushRepository('shop', 'Order')` | User 与 Order 都被推上去，User 在前；Order 被接受，无被拒                                | ⬜   |
-| 6   | 实体声明为 `[User, Order]`；本地新建 User 与引用它的 Order                                                       | `push()`                                                | 返回 `pushed: 2, rejected: 0`                                                            | ⬜   |
-| 7   | 远端的父行已被别的客户端删除；本地新建引用它的子行                                                               | `push()`                                                | 子行仍以 `dependency` 被拒并对齐本地（US-218 语义不变）                                  | ⬜   |
-| 8   | 外键关系声明在父类上，子类实体声明在被引用实体之前；同批新建                                                     | `push()`                                                | 被引用的行先到远端，无被拒                                                               | ⬜   |
-| 9   | 实体 A 只用实体级 `foreignKeys` 引用实体 B，A 声明在前；同批新建                                                 | `push()`                                                | B 的行先到远端，无被拒                                                                   | ⬜   |
-| 10  | 目标仓推送成功，同一次级联里的关联仓推送失败                                                                     | `push()`                                                | 关联仓出现在 `failures` 里；`failed` 与各计数满足 `originalCount` 等式                   | ⬜   |
-| 11  | 库级 `SyncType.Full`，注册了业务实体                                                                             | `push()`                                                | 结果、`failures` 与仓库事件里都不出现系统表（`RxDBBranch`、`RxDBChange`、`RxDBSync` 等） | ⬜   |
+| 1   | 实体声明为 `[Order, User]`（Order MANY_TO_ONE → User）；本地新建 User 与引用它的 Order，都未推送                 | `syncManager.push()`                                    | 远端两行都在；无被拒；本地 Order 保留，源变更拿到 `remoteId`                             | ✅   |
+| 2   | 三层模型声明为 `[OrderItem, Order, User]`；三层同批新建                                                          | `push()`                                                | 三行都到远端，无被拒                                                                     | ✅   |
+| 3   | 实体声明为 `[Order, User]`；远端已有 User1 与它的 Order1；本地删除 Order1、User1，并新建 User2 与引用它的 Order2 | `push()`                                                | 远端只剩 User2 与 Order2；四条变更都被接受，无 23503                                     | ✅   |
+| 4   | 本地新建 User 与引用它的 Order，都未推送                                                                         | `push()` 带 `repositoryFilter`，依次点名 Order、User    | 同 AC#1                                                                                  | ✅   |
+| 5   | 本地新建 User 与引用它的 Order，都未推送                                                                         | 只推子仓：`syncManager.pushRepository('shop', 'Order')` | User 与 Order 都被推上去，User 在前；Order 被接受，无被拒                                | ✅   |
+| 6   | 实体声明为 `[User, Order]`；本地新建 User 与引用它的 Order                                                       | `push()`                                                | 返回 `pushed: 2, rejected: 0`                                                            | ✅   |
+| 7   | 远端的父行已被别的客户端删除；本地新建引用它的子行                                                               | `push()`                                                | 子行仍以 `dependency` 被拒并对齐本地（US-218 语义不变）                                  | ✅   |
+| 8   | 外键关系声明在父类上，子类实体声明在被引用实体之前；同批新建                                                     | `push()`                                                | 被引用的行先到远端，无被拒                                                               | ✅   |
+| 9   | 实体 A 只用实体级 `foreignKeys` 引用实体 B，A 声明在前；同批新建                                                 | `push()`                                                | B 的行先到远端，无被拒                                                                   | ✅   |
+| 10  | 目标仓推送成功，同一次级联里的关联仓推送失败                                                                     | `push()`                                                | 关联仓出现在 `failures` 里；`failed` 与各计数满足 `originalCount` 等式                   | ✅   |
+| 11  | 库级 `SyncType.Full`，注册了业务实体                                                                             | `push()`                                                | 结果、`failures` 与仓库事件里都不出现系统表（`RxDBBranch`、`RxDBChange`、`RxDBSync` 等） | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-验收证据：待实现。AC#1～#6、#8～#11 由 `rxdb-plugin-sync` 单测与 `rxdb-adapter-pglite` 的 `sync-push-integrity.spec.ts`（`ScriptedRemote`）断言 `mergeChanges` 的调用顺序与汇总；AC#1、#3、#5、#7 另由 `rxdb-adapter-supabase` 真栈用例在 shop 表的外键上复验。
+验收证据：
+
+| AC                      | 证据                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #1～#6、#10、#11        | 单测 [push-repository.spec.ts](../../../packages/rxdb-plugin-sync/src/__tests__/push-repository.spec.ts) 的「推送按外键依赖排序（US-037）」：替身上端到端跑 `push()` / `bulkSync` / `pushRepository`，按 `mergeChanges` 的调用序列断言顺序（子在前声明、三层、删旧建新、`repositoryFilter`、单推子仓带父仓、单推子仓取整个连通分量），并断言汇总计数、关联仓失败进 `failures`、每个仓库只规划一次、事件与结果里没有系统表 |
+| #1、#3、#5、#7、#9、#11 | 真实 PGlite 本地 + 按外键回执的远端替身 [sync-push-integrity.spec.ts](../../../packages/rxdb-adapter-pglite/src/__tests__/sync-push-integrity.spec.ts)：远端收到的顺序、本地子行保留并拿到 `remoteId`、远端父行已删时子行仍以 `dependency` 被拒并对齐本地、仓库事件只有 `public` 命名空间                                                                                                                                 |
+| #1、#3、#5、#7          | Supabase 真栈 [push-fk-order.spec.ts](../../../packages/rxdb-adapter-supabase/src/__tests__/push-fk-order.spec.ts)：`shop."order"` → `shop."user"` 的 `order_ownerId_fkey`，实体按 `[Order, User]` 声明；改动前同一用例得到 `pushed: 1, rejected: 1`、本地订单被删                                                                                                                                                        |
+| #8、#9                  | 依赖图单测 [dependency-graph.spec.ts](../../../packages/rxdb-plugin-sync/src/__tests__/dependency-graph.spec.ts) 用真实装饰器元数据断言父类上的关系与实体级 `foreignKeys` 都成边；推送顺序由 push-repository.spec.ts 的同名用例断言。AC#8 没进 PGlite 用例：在 PGlite 本地保存「关系声明在父类上」的实体本身就抛 `DataCloneError`（`EntityStatus.replace` 的 `structuredClone`），与推送无关，另行处理                    |
+
+复验命令：`pnpm nx test rxdb-plugin-sync`、`pnpm nx test rxdb-adapter-pglite -- src/__tests__/sync-push-integrity.spec.ts`；真栈先 `pnpm nx run rxdb-adapter-supabase:test-env`，再 `pnpm nx test rxdb-adapter-supabase -- src/__tests__/push-fk-order.spec.ts`（只写、只删本文件自己的 shop 行与日志行）。
 
 ## 技术笔记
 
 - 做法：全量推送不再逐仓各起一次级联，改为对全部有推送资格的仓库建一次依赖图，按现有两个相位一次推完。从 `pushWithCascade` 抽出 `runCascade(sm, graph, repoKeys, options, inFlight, rejections)`：按相位排序 → `runCascadePhase` → `commitPushPlans` 一次提交，依赖闸门（`findBlockingDependency`）沿用。
 - 只按父在前排序不够：`pushRepository(User)` 的级联 `{User, Post}` 不含 Post 的其他父仓（如 Category），Post 引用新建的 Category 行时照样会撞外键。
 - 单仓推送取连通分量，而不是只收父仓：提交会把每个仓库的水位线推过它的全部待推变更（`maxPlanChangeId`），带进来的父仓的待推 DELETE 又需要它的其他子仓先删。
-- `bulkSync`：`'push'` 走一次 `runCascade`，再把各仓库结果映射回 `BulkSyncResult.results`，返回形状不变；`'sync'` 先逐仓拉取，再统一推送。
+- `bulkSync`：`'push'` 先按逐仓老路的口径逐个过资格判定（实体不存在、`none`、开关关着记失败，没有推送能力的记推了 0 条的成功），有资格的交给一次 `runCascade`（`pushRepositories`），再映射回 `BulkSyncResult.results`，返回形状不变。点名的在前；`includeRelated` 带进来的关联仓各占一条排在后面，按同步类型或开关跳过的关联仓不列出。失败项也带 `result`，没推上去的条数照样进汇总。`concurrent` 对 `'push'` 不再生效。
+- `'sync'` 仍逐仓「先拉后推」：每个仓库的推送已经取连通分量，跨仓顺序同样正确。改成「全部拉完再统一推送」要重做拉取失败时跳过推送、两段进度合并成 `RxDBPartialSyncError` 与事件序列，不在本故事的验收里。
 - 系统表的排除口径参照 `sync-listeners` 的 `consumerEntities`。
-- 事件：提交后每个仓库仍发一次 `REPOSITORY_SYNC_COMPLETE`，历史插件靠它重算待推数。
+- 事件：`'push'` 给每个点名的仓库开头发一次 `push` 方向的 begin，全部提交之后发一次 complete 或 error，历史插件靠 complete 重算待推数；不再套 `sync` 方向的那一层。带进来的关联仓不发事件，与单仓级联同口径。
 - `PushInFlightSession`：一次 `push()` 里同一仓库只规划、只认领一次（`runCascade` 的节点表按仓库键去重）。
 - `forkPointPending` 的补推条件随汇总口径修正：只推了关联仓时也要补推分支。
 - 需要同步改的既有断言：`contracts/push-repository.spec.ts`（事件序列）、`sync-repository.boundaries.spec.ts`、`sync-entrypoints.spec.ts`（`PushResult` 的精确 `toEqual` 与 bulkSync 参数）、`push-filter.spec.ts`、`push-batch-size.spec.ts`、`contracts/sync-manager-api.spec.ts`。

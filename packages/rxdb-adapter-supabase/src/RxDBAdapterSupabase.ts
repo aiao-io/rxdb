@@ -18,6 +18,7 @@ import type {
   RemoteBranchInfo,
   RemoteChange,
   RemoteEntityRef,
+  RemoteMergeOptions,
   RemoteMergeResult,
   RepositoryInstance,
   RuleGroup,
@@ -82,6 +83,8 @@ import {
 } from './supabase.helpers.js';
 import {
   SupabaseAdapterOptions,
+  type SupabaseEntityHistoryItem,
+  type SupabaseEntityHistoryOptions,
   type SupabaseEntitySyncInfo,
   type SupabaseRlsCheckTable,
   type SupabaseScopedSyncIdentity
@@ -121,6 +124,14 @@ type AuthStateChangeListener = (callback: (event: AuthChangeEvent, session: Sess
  * ```
  */
 export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBAdapter {
+  /**
+   * `rxdb_mutations` 能先把外键写空、再补写（`p_deferred_columns`，US-038）
+   *
+   * @remarks
+   * 服务端要升级到带第七个参数的 `rxdb_mutations`；没升级时需要补写的批次报 {@link SupabaseConfigError}，
+   * 不需要补写的推送照常可用。
+   */
+  override readonly supportsDeferredForeignKeys = true;
   #client: SupabaseClient;
   #channels: RealtimeChannel[] = [];
   #reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -480,6 +491,47 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
   }
 
   /**
+   * 读一行的远端变更历史（US-229）
+   *
+   * @param EntityType - 实体类
+   * @param entityId - 行 id
+   * @param options - 分页：`afterId` 传上一页最后一条的 `id`，`limit` 一页最多几条（1～1000）
+   * @returns 调用者当前能编辑的那些历史，按写入顺序；正文只含调用者有列权限的列
+   * @throws {SupabaseDataError} 远端拒绝（没有部署读取 RPC，或调用者没有执行权：anon 一律没有）或返回的形状不对
+   *
+   * @remarks
+   * 历史与同步日志分开存放：同步日志按区开放读取、分区日志不带正文；历史记每次生效的业务写入的完整前后快照、
+   * 操作者与来源，只经服务端的 `rxdb_entity_history` 读取。能不能看由服务端的 `rxdb_caller_can_edit` 按每条历史
+   * 记录时的行判定：一行换了租户之后，改动前的历史只对旧租户的成员可见；行删掉之后，它的历史照样按删除前的行开放。
+   *
+   * @example
+   * ```ts
+   * const adapter = (await rxdb.getAdapter('supabase')) as RxDBAdapterSupabase;
+   * const history = await adapter.getEntityHistory(CatalogItem, item.id);
+   * for (const entry of history) console.log(entry.createdAt, entry.actor, entry.patch);
+   * ```
+   */
+  async getEntityHistory<T extends EntityType>(
+    EntityType: T,
+    entityId: string | number,
+    options: SupabaseEntityHistoryOptions = {}
+  ): Promise<SupabaseEntityHistoryItem[]> {
+    const { namespace, name } = getEntityMetadata(EntityType);
+    const { data, error, status } = await this.#client.rpc('rxdb_entity_history', {
+      p_namespace: namespace,
+      p_entity: name,
+      p_entity_id: String(entityId),
+      ...(options.afterId === undefined ? {} : { p_after_id: options.afterId }),
+      ...(options.limit === undefined ? {} : { p_limit: options.limit })
+    });
+    assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to read entity history');
+    if (!Array.isArray(data) || !data.every(isEntityHistoryRow)) {
+      throw new SupabaseDataError('Failed to read entity history: invalid response data');
+    }
+    return data.map(item => ({ ...item, createdAt: new Date(item.createdAt) }));
+  }
+
+  /**
    * 实体在远端的登记信息（US-033）
    *
    * @param namespace - 实体命名空间（即业务表所在 schema）
@@ -696,14 +748,21 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
    * @param branchId - 分支 ID
    * @param changes - 完整的原始变更记录（可选，用于保留完整历史）
    *
+   * @param options - 外键成环时先写空、再补写的外键（US-038），换成 `p_deferred_columns` 发给 `rxdb_mutations`
+   * @throws {SupabaseConfigError} 带了延迟外键、服务端的 `rxdb_mutations` 却还没有 `p_deferred_columns`（PGRST202）
+   *
    * @remarks
    * 载荷一律以 `id` 键定位行，不读实体主键的 columnName：同步协议的两端（变更日志触发器记 `NEW.id`、
    * `rxdb_mutations` 按 `id` 判冲突）都绑定业务表的 `id` 列，只在本地改了主键列名的同步实体照常推送。
+   *
+   * 延迟外键只在推 main 分支、且确有要补写的列时才带：非 main 推送只写日志、不写业务表；
+   * 不带时请求与从前逐字相同，没升级的服务端照常可用。列名即载荷里的键（属性名），与其他列同一口径。
    */
   async mergeChanges(
     actions: SwitchVersionActions,
     branchId?: string,
-    changes?: IRxDBChange[]
+    changes?: IRxDBChange[],
+    options?: RemoteMergeOptions
   ): Promise<RemoteMergeResult> {
     if (actions.inserts.size === 0 && actions.updates.size === 0 && actions.deletes.size === 0 && !changes?.length) {
       return { results: [] };
@@ -737,6 +796,8 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       return { namespace: metadata.namespace, entity: metadata.name, entityId: ref.entityId };
     };
 
+    const p_deferred_columns = (branchId ?? 'main') === 'main' ? this.#deferredColumns(options) : [];
+
     // 调用 RPC（单一事务，跳过触发器；p_receipts 开启逐实体回执，一条被拒不拖垮整批；瞬时网络错误自动重试）
     return this.executeRetryableWrite(
       'merge changes',
@@ -747,12 +808,30 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
           p_deletes,
           p_changes,
           p_skip_sync: true,
-          p_receipts: true
+          p_receipts: true,
+          ...(p_deferred_columns.length > 0 ? { p_deferred_columns } : {})
         });
+        if (p_deferred_columns.length > 0 && error?.code === 'PGRST202') {
+          throw new SupabaseConfigError(
+            'The server rxdb_mutations does not accept p_deferred_columns, so rows whose foreign keys form a cycle ' +
+              'cannot be pushed. Upgrade the reference SQL first: website/docs/migration/supabase-fk-cycle-push.md'
+          );
+        }
         return { data, error, status };
       },
       data => validateMergeResponse(data, changes, resolveDependsOnEntity)
     );
+  }
+
+  /** 延迟外键换成 `rxdb_mutations` 的 `p_deferred_columns`：表取实体的表名，列即属性名 */
+  #deferredColumns(options: RemoteMergeOptions | undefined): { schema: string; table: string; column: string }[] {
+    return (options?.deferredForeignKeys ?? []).map(key => {
+      const metadata = this.rxdb.schemaManager.getEntityMetadata(key.entity, key.namespace);
+      if (!metadata) {
+        throw new SupabaseConfigError(`Deferred foreign key references an unregistered entity: ${key.namespace}.${key.entity}`);
+      }
+      return { schema: metadata.namespace, table: metadata.tableName, column: key.property };
+    });
   }
 
   /**
@@ -1459,6 +1538,40 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
 }
 
 /** 令牌代表的调用者；声称已登录却没有 `sub`、读不出是谁时为 `undefined`（不猜） */
+/** `rxdb_entity_history()` 返回的一行，日期还是字符串 */
+type EntityHistoryRow = Omit<SupabaseEntityHistoryItem, 'createdAt'> & { createdAt: string };
+
+const HISTORY_TYPES: readonly unknown[] = ['INSERT', 'UPDATE', 'DELETE'];
+const HISTORY_SOURCES: readonly unknown[] = ['trigger', 'push', 'cascade'];
+
+const isNullableBody = (value: unknown): boolean =>
+  value === null || (typeof value === 'object' && !Array.isArray(value));
+
+const isNullableOf = (value: unknown, type: 'string' | 'number'): boolean => value === null || typeof value === type;
+
+/** 远端交回的一行历史形状对不对：交给调用方之前逐字段核对，坏数据整批拒绝 */
+function isEntityHistoryRow(value: unknown): value is EntityHistoryRow {
+  if (!value || typeof value !== 'object') return false;
+  const row = value as Record<string, unknown>;
+  return (
+    typeof row['id'] === 'number' &&
+    isNullableOf(row['changeId'], 'number') &&
+    typeof row['namespace'] === 'string' &&
+    typeof row['entity'] === 'string' &&
+    typeof row['entityId'] === 'string' &&
+    isNullableOf(row['bucket'], 'string') &&
+    HISTORY_TYPES.includes(row['type']) &&
+    ['patch', 'inversePatch', 'beforeData', 'afterData'].every(key => isNullableBody(row[key])) &&
+    isNullableOf(row['actor'], 'string') &&
+    isNullableOf(row['role'], 'string') &&
+    HISTORY_SOURCES.includes(row['source']) &&
+    isNullableOf(row['clientId'], 'string') &&
+    isNullableOf(row['localId'], 'number') &&
+    typeof row['branchId'] === 'string' &&
+    typeof row['createdAt'] === 'string'
+  );
+}
+
 function realtimeSubjectOf(accessToken: string | null): string | undefined {
   try {
     return identityOfAccessToken(accessToken);

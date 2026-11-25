@@ -4,6 +4,7 @@ import {
   LucideHouse as House,
   LucideListTodo as ListTodo,
   LucideDynamicIcon,
+  LucideReceipt as Receipt,
   LucideStore as Store,
   type LucideIcon
 } from '@lucide/angular';
@@ -102,6 +103,16 @@ export class AppMenu {
       title: '商品目录（按身份同步）',
       path: '/catalog',
       icon: Store
+    },
+    {
+      type: 'divider',
+      title: 'Relational Sync'
+    },
+    {
+      type: 'link',
+      title: '订单（关系数据同步）',
+      path: '/orders',
+      icon: Receipt
     }
   ] satisfies readonly MenuItem[];
 }

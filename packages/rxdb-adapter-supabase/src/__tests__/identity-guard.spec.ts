@@ -72,14 +72,14 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('远端会话换了主人', () =
    * 建实例、登记适配器，不连接
    *
    * @param name - 本地库名（加上本轮的前缀）
-   * @param declared - 库声明的身份（`RxDBOptions.identity.subject`）
+   * @param declared - 库声明的身份（`RxDBOptions.identity.subject`）；`null` 表示不声明身份
    * @param session - 适配器的会话令牌实际属于谁
    */
-  function openDatabase(name: string, declared: string, session: string, options: ClientOptions = {}): RxDB {
+  function openDatabase(name: string, declared: string | null, session: string, options: ClientOptions = {}): RxDB {
     const rxdb = new RxDB({
       dbName: `id-${runId.slice(0, 8)}-${name}`,
       context: { userId: crypto.randomUUID() },
-      identity: { scope: SUPABASE_URL, subject: declared },
+      ...(declared === null ? {} : { identity: { scope: SUPABASE_URL, subject: declared } }),
       entities: [Todo],
       sync: { type: SyncType.Full, local: { adapter: 'wa-sqlite' }, remote: { adapter: 'supabase' } }
     });
@@ -106,7 +106,7 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('远端会话换了主人', () =
   /** 建实例并连上本地库（参数同 {@link openDatabase}） */
   async function createClient(
     name: string,
-    declared: string,
+    declared: string | null,
     session: string,
     options: ClientOptions = {}
   ): Promise<SyncClient> {
@@ -260,6 +260,28 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('远端会话换了主人', () =
     const control = await readTodosWithin(reopened.rxdb, 500);
     expect(control).toHaveProperty('rows');
     expect((control as { rows: Todo[] }).rows.map(row => row.id)).toContain(todo.id);
+  });
+
+  // RV-01a2118227d9715ab33e8ef2556bb4b6：库没声明身份时以 A 同步过，应用之后改为声明身份、仍用这个库名。
+  // 第一次声明打开的是 B：同步插件按会话写下的绑定同时记进了库的身份绑定，打开即被拒、读不到 A 的行；
+  // A 以自己的身份声明打开照常连接，未声明期留下的待推变更推得出去
+  it('没声明身份时以 A 同步过的库：之后以 B 声明打开被拒，以 A 声明打开照常同步', async () => {
+    const undeclared = await createClient('undeclared-a', null, TEST_USER_ID, { persistent: true });
+    const synced = await saveTodo(undeclared, `${runId}-undeclared-synced`);
+    await undeclared.rxdb.syncManager.pushRepository('public', 'Todo');
+    const pending = await saveTodo(undeclared, `${runId}-undeclared-pending`);
+    await undeclared.rxdb.destroy();
+
+    const b = openDatabase('undeclared-a', OTHER_USER_ID, OTHER_USER_ID, { persistent: true });
+    await expect(b.connect('wa-sqlite')).rejects.toBeInstanceOf(RxDBIdentityMismatchError);
+    expect(await readTodosWithin(b, 500)).not.toHaveProperty('rows');
+    await b.destroy();
+
+    const a = await createClient('undeclared-a', TEST_USER_ID, TEST_USER_ID, { persistent: true });
+    expect(await hasLocalTodo(a, pending.id)).toBe(true);
+    await a.rxdb.syncManager.pushRepository('public', 'Todo');
+    expect(await remoteHasTodo(synced.id)).toBe(true);
+    expect(await remoteHasTodo(pending.id)).toBe(true);
   });
 
   // AC#5：库按未登录的身份建、绑定 anon。登录之后应用仍打开这个库被拒；改按登录用户算库名，照常同步

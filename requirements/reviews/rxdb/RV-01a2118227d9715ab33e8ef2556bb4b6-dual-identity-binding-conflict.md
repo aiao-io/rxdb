@@ -112,3 +112,16 @@ Y 尚未推送的变更困在库里，没有改绑入口。
   - 复核（verify）；
   - 本修复之前已写下插件绑定、缺核心水位的库不回填：两处绑定都没进 `main`，只存在于本分支的开发库。插件对已有绑定只核对、不碰核心水位（`scoped-sync.spec.ts`「同一用户刷新令牌后继续使用原库」钉住）；需要时删开发库重建；
   - 两个标签页真正并发地首次绑定、撞上竞争行唯一键时，这一轮同步失败、下一轮即按已写下的绑定核对，与插件绑定行原有的竞争口径一致，没有另加重试。
+
+### EV-01a212fb699e71ea9d0a1933db2516fb：修复（补真栈回归）
+
+- 时间：2026-11-25T21:53:16+0800
+- 操作：fix
+- 执行者：ai；anthropic/claude-opus-5-5；会话 8b131c28-0801-4140-925f-c944249ee3cf
+- 输入快照：`2b12192f5f7ad2bc9004f90014a9f2de7ee01b4f`（提交视图，已含上一修复事件的改动）
+- 输出快照：工作区树 `10dff253d738defe79f10c55809862563ff88081`（`ai-review snapshot --worktree`，基于 `2b12192f`）；本记录不在该树内。
+- 状态：Fixed（不变）
+- 结论：上一修复事件的单测都用替身，没有覆盖「连接之后在普通事务里写 `rxdb_migration`」在真实本地适配器上的表现。补一条真栈端到端回归，真实 wa-sqlite（`IDBBatchAtomicVFS` 持久化）加真实 Supabase，照原记录的触发链走一遍，通过。
+- 改动：`packages/rxdb-adapter-supabase/src/__tests__/identity-guard.spec.ts:268` 新增「没声明身份时以 A 同步过的库：之后以 B 声明打开被拒，以 A 声明打开照常同步」：不声明身份，以 A 推一条、再留一条待推，销毁实例 → 以 B 声明打开同一个库名，`connect()` 抛 `RxDBIdentityMismatchError`、仓储读不到行 → 以 A 声明打开照常连接，未声明期留下的待推变更推得出去，远端两条都在。`openDatabase` / `createClient` 的 `declared` 改为可传 `null`（不声明身份），其余用例不变。
+- 验证：`pnpm nx test rxdb-adapter-supabase --skip-nx-cache -- src/__tests__/identity-guard.spec.ts src/__tests__/caller-identity.spec.ts --coverage.enabled=false`，2 个文件 27 条通过（新用例 855ms）。只跑这两个 spec：它们只删自己建的 todo 与日志行（`identity-guard.spec.ts` 的 `afterAll` 按 `todoIds` 删），不碰 dev demo 共用的数据；`test-env` 重跑的初始化 SQL 幂等。修复前的红灯没有在真栈上实跑：那要临时回退已提交的 `remote-backend.ts`，按代码推演修复前 B 的声明打开会被就地补绑、`connect()` 成功，这条必红；缺陷本身已由上一事件的核心与插件单测红过。
+- 剩余事项：复核（verify）。

@@ -57,7 +57,7 @@ npm install @aiao/rxdb @aiao/rxdb-adapter-supabase @supabase/supabase-js
 本地**不记 `RxDBChange`**，因此没有 push 阶段，也没有 undo/redo 与冲突解决。远端已删除的行在下一次
 同步该 `where` 时从本地清除。配置与调用面见[同步策略 · QueryCache 快速入门](../collaboration/sync.md#querycache-快速入门)。
 
-## 按授权分区的只读同步
+## 按授权分区同步
 
 US-033 把授权和实体筛选拆成两层。业务表的 `rxdb_bucket` 由数据库生成，决定一行属于哪个授权区。`rxdb_caller_buckets()` 决定当前调用者能读取哪些区，实体的 `remote.filter()` 只能在这些区内继续缩小范围。
 
@@ -186,6 +186,18 @@ export class Document extends EntityBase {}
 
 一个分区失败不会回滚其他分区的进度。失败分区保留自己的快照点和游标，下次从该分区继续拉取。分区权限被撤销时，本地会删除该分区的已同步行和进度记录。
 
+### 在本机写分区实体
+
+分区实体和普通实体一样可以在本机增删改（US-034）：写入留下带 `patch` / `inversePatch` 的变更，离线也能改，推送之前可以用 `rxdb.versionManager.history(Entity)` 撤销、重做。推送经 `rxdb_mutations`，不需要额外的协议：
+
+- 区由服务端按写后的行算：载荷里的 `rxdb_bucket` 一律不认（它是生成列，推送不写它），分区日志也不带正文。每次修改的完整前后快照记在[远端变更历史](#远端变更历史)里，只对能编辑这一行的成员开放。
+- 一行换区（例如公开改成租户内部）时，旧区记一条不带内容的移除、新区记一条写入；只读得到旧区的客户端下次同步时把这一行删掉。
+- 能不能写由业务表 RLS 裁决。被拒的修改在本地对齐成远端的样子，被拒清单在 `rxdb.syncState` 的 `lastRejections` 里（见[被拒的推送](../plugins/rxdb-plugin-sync/README.md#被拒的推送)）；被移出某个区时，本地清理会跳过未推送的行，这些行随后推送被拒，同样对齐。
+- 推送成功之后撤销历史清空，已推送的修改不能再撤销；拉取到远端改写了本地数据之后同样清空。没推送的修改照样待推。
+- 与远端的修改冲突时沿用拉取的冲突解决（默认按编辑时刻 LWW）。
+
+实体写权限是静态元数据，分不出身份。不该写的身份（例如只读公开数据的 anon）由应用禁用写入口；就算在本机写了也推不上去：anon 不能调用推送。
+
 ### 规则之外的公开数据：在线浏览
 
 同步规则只把选中的公开行落到本机。没登录的访客还要能看到其余的公开数据时，另声明一个**只读浏览实体**：它映射服务端的公开视图，走 `SyncType.QueryCache`，以调用者身份在线查询，anon 不需要登录，也不需要匿名账号。
@@ -194,7 +206,7 @@ export class Document extends EntityBase {}
 | :--------- | :--------------------------------------------------------------------------------------------------------- | :----------------------------------- |
 | 适用的数据 | 要离线可用的：关注的分类、近期的、收藏的；所在租户的数据                                                   | 规则之外、只在线查看的公开数据       |
 | 本机       | 规则选中的完整子集，离线可读                                                                               | 只缓存查过的条件，每次查询向远端对账 |
-| 写入       | 本批只读                                                                                                   | 只读：三项写权限都声明为只许系统写   |
+| 写入       | 本机增删改，推送之前可以撤销、重做；推送由服务端按写后的行算区、按 RLS 裁决（US-034）                      | 只读：三项写权限都声明为只许系统写   |
 | 相互关系   | 两个实体、两张本地表：同步的清理删不到浏览缓存，浏览也不改变同步子集；同一行可能两边各有一份，各自保持新鲜 |                                      |
 
 公开视图只选公开行、只给可以公开的列（这里不含成本价 `cost`），并带上 QueryCache 需要的 `id`、`createdAt`、`updatedAt`：
@@ -620,6 +632,123 @@ local-only 并使用 SQLite family 或 PGlite；不要用 string/base64 fallback
 3. **事务性双写**：`mutations()` 通过单次 RPC 调用完成所有操作，保证原子性
 4. **游标同步**：基于自增 ID 而非时间戳，避免重复拉取
 
+## 多对多中间表
+
+多对多的连接实体推上远端、拉回本地，远端的中间表要按实体的形状建（US-228）：
+
+```sql
+CREATE TABLE shop."Category_OrderItem" (
+  id uuid NOT NULL DEFAULT gen_random_uuid(),
+  "categoriesId" uuid NOT NULL REFERENCES shop.category (id) ON DELETE CASCADE,
+  "orderItemsId" uuid NOT NULL REFERENCES shop.order_item (id) ON DELETE CASCADE,
+  "createdAt" timestamptz(3) NOT NULL DEFAULT now(),
+  "updatedAt" timestamptz(3) NOT NULL DEFAULT now(),
+  "createdBy" varchar,
+  "updatedBy" varchar,
+  PRIMARY KEY ("categoriesId", "orderItemsId"),
+  CONSTRAINT "Category_OrderItem_id_key" UNIQUE (id)
+);
+
+SELECT public.rxdb_enable_sync_for_table('Category_OrderItem', 'shop', 'Category_OrderItem');
+```
+
+- 表名、实体名都是连接实体名（两端实体名按字母序拼接），外键列是两条关系名加 `Id`。
+- `id` 唯一：推送按它定位行（载荷里的 `id`、`rxdb_batch_upsert` 的 `ON CONFLICT (id)`），同步触发器按它记日志。
+- 主键是两端外键：PostgREST 只把外键在主键里的表认作多对多中间表，主键换成 `id` 之后跨中间表的嵌入查询（`select=*,category(*)`）就找不到关系。两端成对唯一也由它保证。
+- 两端外键 `ON DELETE CASCADE`：删掉任一端时关联行一起删掉。经推送删除时客户端已经按子在前推了关联行的删除；直接写业务表删掉一端时，触发器同样给级联删掉的关联行记日志，其他客户端拉取之后关联消失。
+- 登记同步时顺带装上 `updatedAt` 触发器。
+
+客户端关联行的 id 由两端 id 派生（[关联行的 id](../model-definition/relations.md#关联行的-id)），两个客户端并发关联同一对推上来的是同一个 id：后到的那次按 `id` upsert，远端只有一行，推送不失败。服务端自己写关联行时用同一个公式，不然之后客户端关联同一对会撞主键（`23505`）：
+
+```sql
+INSERT INTO shop."Category_OrderItem" (id, "categoriesId", "orderItemsId")
+VALUES (
+  extensions.uuid_generate_v5(
+    '9fb02b21-84d4-40f2-8847-bb5c3878b0e0',
+    'rxdb-junction:v1:shop.Category_OrderItem|categoriesId=' || $1::uuid || '|orderItemsId=' || $2::uuid
+  ),
+  $1,
+  $2
+);
+```
+
+外键按属性名排序拼接，uuid 写成小写（`uuid::text` 本就是小写）；`uuid_generate_v5` 来自 Supabase 默认装在 `extensions` schema 的 `uuid-ossp`。不带 `id` 直写时取 `gen_random_uuid()`，只适合客户端不会再关联的那些对。已有的随机 id 关联行怎么处理见[迁移说明](../migration/many-to-many-junction-id.md)。
+
+## 远端变更历史
+
+同步日志 `rxdb_change` 只是同步通道：分区日志不带正文，未分区日志对全部已登录身份可读，两者都不记操作者。要看一行被谁、从哪条路径、怎么改过，读远端变更历史（US-229）。
+
+登记了同步的业务表每次生效的写入都在 `rxdb_change_history` 记一条，分区表与未分区表一样。历史与业务写入在同一事务里，被拒、回滚的写入不记；非 main 分支的推送只写日志、不写业务表，也不记。
+
+| 字段                       | 含义                                                                                                 |
+| -------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `beforeData` / `afterData` | 写入前、写入后的整行；新增没有前像，删除没有后像                                                     |
+| `patch` / `inversePatch`   | 这次改了什么、撤回这次写入要改回什么                                                                 |
+| `actor` / `role`           | 操作者 `auth.uid()` 与 JWT 里的角色；`service_role` 或没有会话的写入，`actor` 为 `null`              |
+| `source`                   | `trigger`：直接写业务表；`push`：经 `rxdb_mutations` 推送；`cascade`：推送里删父行时由外键带走的子行 |
+| `clientId` / `localId`     | 推送这条变更的客户端与它的本地变更编号；直写为 `null`                                                |
+| `bucket`                   | 写入时这一行所在的区，换区的修改记新区；未分区实体为 `null`                                          |
+| `changeId`                 | 同一次写入在 `rxdb_change` 里的 id                                                                   |
+
+推送记的是推上去的每条变更：两次推送之间的多次修改各记一条，撤销掉的那一对在本机就摘掉了，不会推上去。推送的快照是 `rxdb_mutations` 按调用者读到的前快照（或客户端补的 `inversePatch`）加上本次修改算出的，与它写进业务表的值一致。
+
+### 读取历史
+
+历史表开着 RLS 并 `FORCE`、不建策略，客户端角色直接 `SELECT` 一律被拒。读取只经 `rxdb_entity_history`（`SECURITY DEFINER`，只授给 `authenticated`，anon 没有执行权）：
+
+- 只返回调用者**当前**能编辑的行的历史，由 `rxdb_caller_can_edit` 判定；判否的条目不返回，也不报错。
+- 判定用每条历史记录时的行（`afterData`，删除取 `beforeData`）。一行从租户 1 改到租户 2 之后，改动前的历史只对租户 1 的成员可见，改动后的只对租户 2 的成员可见；行删掉之后，它的历史照样按删除前的行开放。
+- 四个正文字段逐列按调用者角色的列 `SELECT` 权限脱敏：没有列权限的列在哪个正文字段里都不出现。
+- 按 `id` 升序（即写入顺序）分页，一页 1～1000 条，默认 100 条。
+
+适配器的 `getEntityHistory` 包了这个 RPC，`createdAt` 转成 `Date`，其余字段与上表一致：
+
+```ts
+import type { RxDBAdapterSupabase } from '@aiao/rxdb-adapter-supabase';
+
+const adapter = (await rxdb.getAdapter('supabase')) as RxDBAdapterSupabase;
+const page = await adapter.getEntityHistory(CatalogItem, item.id, { limit: 50 });
+const last = page.at(-1);
+const nextPage = last ? await adapter.getEntityHistory(CatalogItem, item.id, { afterId: last.id, limit: 50 }) : [];
+```
+
+anon 调用、远端没有这个 RPC 或返回的不是历史数组时抛 `SupabaseDataError`；连不上远端时与其他远端调用一样抛 `NetworkOfflineError`。本机还没推送的修改不在远端历史里，它们在本机的撤销历史里（`rxdb.versionManager.history(Entity)`）。
+
+### 按自己的权限模型判定
+
+平台默认的 `rxdb_caller_can_edit_default`：未分区实体看调用者角色对业务表有没有 `UPDATE` 权限；分区实体只认调用者自己的 `user:<auth.uid()>` 区，公开区与其他区默认谁都看不到。权限模型不同的部署方用 `CREATE OR REPLACE` 覆盖 `rxdb_caller_can_edit`（签名不变），与[配置 caller buckets](#配置-caller-buckets) 同一模式；只改自己关心的实体，其余交回默认。dev-rxdb-supabase 的商品按租户成员资格开放，与 `catalog_items_member_*` 策略同口径：
+
+```sql
+CREATE OR REPLACE FUNCTION public.rxdb_caller_can_edit(p_namespace text, p_entity text, p_row jsonb)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $$
+    SELECT CASE
+        WHEN p_namespace = 'public' AND p_entity = 'CatalogItem' THEN
+            auth.uid() IS NOT NULL AND EXISTS (
+                SELECT 1
+                FROM public.demo_tenant_members AS member
+                WHERE member.user_id = auth.uid()
+                  AND member.tenant_id = p_row->>'tenantId'
+            )
+        ELSE public.rxdb_caller_can_edit_default(p_namespace, p_entity, p_row)
+    END
+$$;
+
+REVOKE ALL ON FUNCTION public.rxdb_caller_can_edit(text, text, jsonb) FROM PUBLIC, anon, authenticated;
+```
+
+未分区实体的默认只看表级权限。业务表用 RLS 按行限制编辑（例如只能改自己创建的行）时，默认判定比 RLS 宽：有表级 `UPDATE` 权限的已登录身份读得到这张表全部行的历史。正文本来就在对已登录身份可读的未分区日志里，多出来的是操作者与来源；这样的表也要覆盖判定，与 UPDATE 策略同口径。
+
+`p_row` 是记录时的整行，判定只能用它和调用者的身份，不能假设这一行现在还在业务表里。判定函数只在读取 RPC 里以属主身份调用，覆盖之后同样收回客户端角色的执行权，免得它成了探测别人权限的通道。重新执行 `04-rxdb-utils-functions.sql` 会把它恢复成平台默认：升级之后先重新加载自己的覆盖，再执行生产权限脚本。
+
+### 保留期限
+
+历史默认永久保留。每次生效的业务写入一条，条数与 `rxdb_change` 同阶；每条带两份整行快照与两份补丁，体积约为带正文的未分区日志的 1.5 倍（demo 的商品一条约 1 KB）。历史不参与同步，清理旧历史不影响任何客户端的拉取与推送；归档策略尚未提供，需要时以 `service_role` 或数据库属主身份按 `createdAt` 自行清理。
+
 ## 生产部署
 
 ### 让日志 id 顺序等于提交顺序
@@ -641,6 +770,10 @@ local-only 并使用 SQLite family 或 PGlite；不要用 string/base64 fallback
 
 用 `psql --single-transaction` 同时传入两个 `-f`；Supabase SQL Editor 则须在同一次执行中用 `BEGIN` / `COMMIT` 包住两份文件的完整内容。若工具无法原子执行，须在维护窗口禁止业务写入，直到两份脚本部署完成。`01-rxdb-system-tables.sql` 本次无变化，无需为这两项修复重跑；从更早版本升级仍须满足原有系统表与推送回执迁移前置。完整命令见[迁移说明](../migration/supabase-update-push.md)。
 
+### 装上远端变更历史
+
+已有部署在同一个事务里按增量脚本 → 02 → 04 → 生产权限脚本执行一次（与[从旧版本升级](#从旧版本升级)同一条命令），再重新加载自己的 `rxdb_caller_can_edit` 覆盖并再执行一次生产权限脚本。客户端无需升级就能继续同步，读历史要升级到带 `getEntityHistory` 的适配器。升级之前的写入没有历史。完整步骤见[迁移说明](../migration/supabase-change-history.md)。
+
 ### 日志同步只对已登录身份开放
 
 基础 SQL 里的 `docker/sql/01-rxdb-system-tables.sql` 与 `03-business-tables.sql` 以 `GRANT ALL ON ALL TABLES IN SCHEMA public` 给 `anon` / `authenticated` 授权；Supabase 的默认权限还会在建表、建函数时把执行权授给 `anon`。执行完基础 SQL 之后，再执行一次生产权限脚本：
@@ -660,6 +793,8 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f docker/sql/production/rxdb-change-gra
 | `rxdb_server_version`、`rxdb_backend_id`、`rxdb_check_rls`                     | 可以调用（连接时用）                | 可以调用                                                          |
 | 实时通知频道 `rxdb:changes` / `rxdb:changes:bucket:<bucket>`                   | 订阅被拒                            | 旧日志只能接收，分区频道按 caller buckets 接收，不能发送          |
 | 远端身份 `rxdb_backend`                                                        | 只读                                | 只读                                                              |
+| 远端变更历史 `rxdb_change_history` 与序列                                      | 无权限                              | 无权限（只经 `rxdb_entity_history` 读取）                         |
+| `rxdb_entity_history`                                                          | 不能调用                            | 可以调用；只返回当前能编辑的行的历史，按列权限脱敏                |
 
 `anon` 仍可按业务表自己的 GRANT 与 RLS 直接读取公开业务行，也可以调用按区快照与按区变更 RPC。写入、通用日志拉取、分支登记和存在性探针仍然收回。推送之所以连同存在性探针一起收回：推送对「被 RLS 拒绝」与「已不存在」分别报 `42501` / `RX001`，本身就能判断某个 id 是否存在。
 

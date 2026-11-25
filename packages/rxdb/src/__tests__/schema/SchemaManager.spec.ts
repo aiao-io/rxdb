@@ -150,6 +150,29 @@ describe('@Entity', () => {
       expect(entityType).toBeUndefined();
     });
   });
+
+  describe('isJunctionEntity / junctionEndpointsOf（US-228）', () => {
+    it('生成的多对多中间表记下两端，按 namespace:name 排序；实体类与元数据都能查', () => {
+      const junction = rxdb.schemaManager.getEntityType('Category_OrderItem', 'public');
+      if (!junction) throw new Error('多对多中间表没有生成');
+
+      expect(rxdb.schemaManager.isJunctionEntity(junction)).toBe(true);
+      expect(rxdb.schemaManager.isJunctionEntity(getEntityMetadata(junction))).toBe(true);
+      expect(rxdb.schemaManager.junctionEndpointsOf(junction)?.map(endpoint => endpoint.name)).toEqual([
+        'Category',
+        'OrderItem'
+      ]);
+      expect(rxdb.schemaManager.junctionEndpointsOf(getEntityMetadata(junction))).toEqual([
+        getEntityMetadata(Category),
+        getEntityMetadata(OrderItem)
+      ]);
+    });
+
+    it('接入方声明的实体不是中间表', () => {
+      expect(rxdb.schemaManager.isJunctionEntity(OrderItem)).toBe(false);
+      expect(rxdb.schemaManager.junctionEndpointsOf(OrderItem)).toBeUndefined();
+    });
+  });
 });
 
 @Entity({

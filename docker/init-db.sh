@@ -55,6 +55,8 @@ psql_file ../../apps/dev-rxdb-p2p/supabase/p2p-schema.sql 'Loading dev-rxdb-p2p 
 # dev-rxdb-supabase 的按身份同步演示（epic-015）：租户、成员、按成员关系扩展的 caller buckets 与演示商品。
 # 依赖 03 的 catalog_items 夹具；归 demo 所有，这里只负责在初始化链里建好，生产权限脚本之前加载。
 psql_file ../../apps/dev-rxdb-supabase/supabase/catalog-demo.sql 'Loading dev-rxdb-supabase catalog demo...'
+# dev-rxdb-supabase 的关系数据演示（US-227）：客户、订单与订单项三张有外键的表。同样归 demo 所有，生产权限脚本之前加载。
+psql_file ../../apps/dev-rxdb-supabase/supabase/orders-demo.sql 'Loading dev-rxdb-supabase orders demo...'
 
 # 生产权限脚本要在 realtime.messages 上建通知频道的接收策略（US-225）。realtime.messages 与
 # realtime.send 由 Realtime 服务启动后自己建：全新的栈上 Realtime 往往比本脚本慢，直接加载会报

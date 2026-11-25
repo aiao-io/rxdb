@@ -14,6 +14,79 @@ export interface SupabaseRlsCheckTable {
 }
 
 /**
+ * 一条远端变更历史：`rxdb_entity_history()` 返回的一行（US-229）
+ *
+ * @remarks
+ * 只读得到调用者**当前**能编辑的行的历史（按每条历史记录时的行判定），四个正文字段只含调用者有列权限的列。
+ */
+export interface SupabaseEntityHistoryItem {
+  /** 历史记录 id，按写入顺序递增；翻页时作为 {@link SupabaseEntityHistoryOptions.afterId} 传回 */
+  id: number;
+
+  /** 同一次写入在同步日志 `rxdb_change` 里的 id */
+  changeId: number | null;
+
+  /** 实体命名空间，即业务表所在 schema */
+  namespace: string;
+
+  /** 实体名 */
+  entity: string;
+
+  /** 行 id 的文本形式 */
+  entityId: string;
+
+  /** 写入时这一行所在的分区；未分区实体为 `null` */
+  bucket: string | null;
+
+  /** 写入的种类 */
+  type: 'INSERT' | 'UPDATE' | 'DELETE';
+
+  /** 这次写入改了什么 */
+  patch: Record<string, unknown> | null;
+
+  /** 撤回这次写入要改回什么 */
+  inversePatch: Record<string, unknown> | null;
+
+  /** 写入之前的整行；新增为 `null` */
+  beforeData: Record<string, unknown> | null;
+
+  /** 写入之后的整行；删除为 `null` */
+  afterData: Record<string, unknown> | null;
+
+  /** 操作者 `auth.uid()`；`service_role` 或没有会话的写入为 `null` */
+  actor: string | null;
+
+  /** 写入时 JWT 里的角色 */
+  role: string | null;
+
+  /** 写入路径：直写业务表（同步触发器）、经 `rxdb_mutations` 推送、推送里父行删除带走的子行 */
+  source: 'trigger' | 'push' | 'cascade';
+
+  /** 推送方的客户端 id；直写与级联为 `null` */
+  clientId: string | null;
+
+  /** 推送方本地的 change id；直写与级联为 `null` */
+  localId: number | null;
+
+  /** 写入所在的分支，业务写只发生在 `main` */
+  branchId: string;
+
+  /** 写入时刻 */
+  createdAt: Date;
+}
+
+/**
+ * 读变更历史的分页选项（US-229）
+ */
+export interface SupabaseEntityHistoryOptions {
+  /** 只返回 id 大于它的历史，传上一页最后一条的 `id`；不传从头读 */
+  afterId?: number;
+
+  /** 一页最多几条，1～1000；不传时服务端取 100 */
+  limit?: number;
+}
+
+/**
  * 实体在远端的同步登记（`rxdb_entity_sync_info()` 的结果，US-033）
  */
 export interface SupabaseEntitySyncInfo {

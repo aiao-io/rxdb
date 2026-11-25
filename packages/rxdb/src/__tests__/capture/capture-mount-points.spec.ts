@@ -178,7 +178,7 @@ describe('远端 mergeChanges 重载不在表内，且判别按签名不按函�
   it('远端重载确实存在于源码，只是宿主与形参都不同', () => {
     const declarations = findDeclarations('RxDBAdapterRemoteBase', 'mergeChanges');
     expect(declarations.length).toBe(1);
-    expect(declarations[0].parameters).toEqual(['actions', 'branchId', 'changes']);
+    expect(declarations[0].parameters).toEqual(['actions', 'branchId', 'changes', 'options']);
   });
 
   it('注册表里没有任何一条指向远端基类', () => {

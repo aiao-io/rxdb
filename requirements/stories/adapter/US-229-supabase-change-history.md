@@ -1,11 +1,11 @@
 ---
 id: US-229
 title: Supabase 远端变更历史：每次业务写入记完整前后快照，只对能编辑的成员开放
-status: Backlog
+status: In Review
 priority: High
 epic: epic-015-identity-scoped-sync
 created: 2026-11-25
-updated: 2026-11-25
+updated: 2026-11-26
 tags: [adapter, supabase, sql, history, audit, security]
 ---
 
@@ -68,24 +68,35 @@ INVEST 检查清单:
 
 | #   | 前置条件                                          | 操作                                     | 预期结果                                                                                           | 状态 |
 | --- | ------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 业务表登记了同步                                  | 直写一行（触发器模式）                   | 历史里有一条：完整前后快照、`patch` / `inversePatch`、操作者为调用者、来源为直写、记下当时所在的区 | ⬜   |
-| 2   | 同上                                              | 经 `rxdb_mutations` 推送新增、修改、删除 | 每个生效的实体一条历史，带完整快照、操作者、`clientId` / `localId`，来源为推送                     | ⬜   |
-| 3   | 父行删除会级联删除子行                            | 推送只删父行                             | 被级联删除的子行也各有一条历史，来源为服务端级联                                                   | ⬜   |
-| 4   | 推送里有一个实体被 RLS 拒绝                       | `rxdb_mutations`                         | 被拒的实体没有历史；生效的实体照常记录                                                             | ⬜   |
-| 5   | 未分区表（`todos`）                               | 直写与推送                               | 同样记录历史                                                                                       | ⬜   |
-| 6   | 完成 AC#1～5                                      | 查看 `rxdb_change`                       | 分区日志仍不带正文，未分区日志与现在一致                                                           | ⬜   |
-| 7   | anon、已登录身份                                  | 直接 `SELECT` 历史表                     | 都被拒绝                                                                                           | ⬜   |
-| 8   | anon；已登录但不是该商品租户成员的身份            | 调读取 RPC 查一件商品的历史              | 都得到零条                                                                                         | ⬜   |
-| 9   | 该商品所属租户的成员                              | 调读取 RPC                               | 得到这件商品的全部历史，包括它在公开区时的修改                                                     | ⬜   |
-| 10  | 调用者没有某列的列权限                            | 调读取 RPC                               | 四个正文字段里都不含这一列                                                                         | ⬜   |
-| 11  | 一件商品从租户 1 改到租户 2                       | 两个租户的成员分别调读取 RPC             | 改动前的历史只对租户 1 成员可见，改动后的只对租户 2 成员可见                                       | ⬜   |
-| 12  | 一件商品已被删除                                  | 该租户成员调读取 RPC                     | 仍能看到它的全部历史，按删除前的行判定可见性                                                       | ⬜   |
-| 13  | 已有数据的库                                      | 执行生产升级命令两次                     | 幂等；历史表与 RPC 的授权正确，anon 没有执行权                                                     | ⬜   |
-| 14  | dev-rxdb-supabase，Alice 编辑过一件星河零售的商品 | 打开这件商品的「变更历史」               | 按时间列出每次修改的前后值与操作者；访客与 Bob 看不到入口                                          | ⬜   |
+| 1   | 业务表登记了同步                                  | 直写一行（触发器模式）                   | 历史里有一条：完整前后快照、`patch` / `inversePatch`、操作者为调用者、来源为直写、记下当时所在的区 | ✅   |
+| 2   | 同上                                              | 经 `rxdb_mutations` 推送新增、修改、删除 | 每个生效的实体一条历史，带完整快照、操作者、`clientId` / `localId`，来源为推送                     | ✅   |
+| 3   | 父行删除会级联删除子行                            | 推送只删父行                             | 被级联删除的子行也各有一条历史，来源为服务端级联                                                   | ✅   |
+| 4   | 推送里有一个实体被 RLS 拒绝                       | `rxdb_mutations`                         | 被拒的实体没有历史；生效的实体照常记录                                                             | ✅   |
+| 5   | 未分区表（`todos`）                               | 直写与推送                               | 同样记录历史                                                                                       | ✅   |
+| 6   | 完成 AC#1～5                                      | 查看 `rxdb_change`                       | 分区日志仍不带正文，未分区日志与现在一致                                                           | ✅   |
+| 7   | anon、已登录身份                                  | 直接 `SELECT` 历史表                     | 都被拒绝                                                                                           | ✅   |
+| 8   | anon；已登录但不是该商品租户成员的身份            | 调读取 RPC 查一件商品的历史              | 都得到零条                                                                                         | ✅   |
+| 9   | 该商品所属租户的成员                              | 调读取 RPC                               | 得到这件商品的全部历史，包括它在公开区时的修改                                                     | ✅   |
+| 10  | 调用者没有某列的列权限                            | 调读取 RPC                               | 四个正文字段里都不含这一列                                                                         | ✅   |
+| 11  | 一件商品从租户 1 改到租户 2                       | 两个租户的成员分别调读取 RPC             | 改动前的历史只对租户 1 成员可见，改动后的只对租户 2 成员可见                                       | ✅   |
+| 12  | 一件商品已被删除                                  | 该租户成员调读取 RPC                     | 仍能看到它的全部历史，按删除前的行判定可见性                                                       | ✅   |
+| 13  | 已有数据的库                                      | 执行生产升级命令两次                     | 幂等；历史表与 RPC 的授权正确，anon 没有执行权                                                     | ✅   |
+| 14  | dev-rxdb-supabase，Alice 编辑过一件星河零售的商品 | 打开这件商品的「变更历史」               | 按时间列出每次修改的前后值与操作者；访客与 Bob 看不到入口                                          | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-验收证据：待实现。AC#1～13 由 SQL 回归套件（`rxdb-adapter-supabase:sql-security-regressions`）覆盖，适配器的读取方法另由真栈用例覆盖；AC#14 由 `dev-rxdb-supabase-e2e` 覆盖。
+验收证据：
+
+| AC         | 证据                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #1、#5、#6 | SQL 回归 `change-history`（[supabase-sql-security-regressions.sql](../../../packages/rxdb-adapter-supabase/src/__tests__/supabase-sql-security-regressions.sql)）：直写按所有者分区的表与未分区表各一行，断言完整前后快照、`patch` / `inversePatch`、`actor` 为调用者、来源 `trigger`、记下当时的区；分区日志四个正文字段仍为空，未分区日志正文与改动前一致                                                                                                                                                                                     |
+| #2、#4     | 同上：经 `rxdb_mutations`（`p_receipts = true`）推送新增、修改、删除，每条生效的源变更一条历史，带 `clientId` / `localId`、完整快照与来源 `push`；同批被 RLS 拒绝的实体没有历史。真栈 [catalog-local-writes.spec.ts](../../../packages/rxdb-adapter-supabase/src/__tests__/catalog-local-writes.spec.ts) 另验本机新建的分区实体能推上去（见技术笔记里 `rxdb_batch_upsert` 的修正）                                                                                                                                                              |
+| #3         | 同上：未分区父子表，推送只删父行，外键级联删除的子行各一条来源为 `cascade` 的历史，前像取触发器捕获的 OLD                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| #7、#13    | 同上：生产权限下 anon、authenticated 直接 `SELECT` 历史表得到 `42501`，anon 没有 `rxdb_entity_history` 的执行权；按目录检查历史表、序列、读取 RPC 与内部函数的授权，生产权限脚本执行两次之后不变。US-225 的升级用例先删掉历史表，按迁移指南的四份文件执行两次，表、索引、RLS 与授权到位                                                                                                                                                                                                                                                         |
+| #8～#12    | SQL 回归 `change-history`（平台默认判定，含 #10 的列脱敏：没有列权限的列在四个正文字段里都不出现）；真栈 [change-history.spec.ts](../../../packages/rxdb-adapter-supabase/src/__tests__/change-history.spec.ts) 经适配器 `getEntityHistory` 验 demo 覆盖的租户成员判定：成员读到含公开区时的全部历史，非成员零条，anon 抛 `SupabaseDataError`；换租户之后新旧租户成员各见各的；删除之后按删除前的行开放。适配器的参数、日期与形状由 [entity-history.spec.ts](../../../packages/rxdb-adapter-supabase/src/__tests__/entity-history.spec.ts) 覆盖 |
+| #14        | `dev-rxdb-supabase-e2e` 的 [catalog-local-writes.spec.ts](../../../apps/dev-rxdb-supabase-e2e/src/catalog-local-writes.spec.ts)：匿名成员加入星河零售，本机新建、改价、撤销重做后推送，再改价推送一次，打开「历史」按时间列出「新建 · 本机推送（售价 — → 99）」「修改（99 → 123）」「修改（123 → 150）」，操作者都是「我」；访客的商品行没有「历史」入口。别的租户的成员（Bob）没有入口由面板单测 [catalog-synced-panel.spec.ts](../../../apps/dev-rxdb-supabase/src/app/catalog/catalog-synced-panel.spec.ts) 覆盖                             |
+
+复验命令：SQL 回归 `pnpm nx run rxdb-adapter-supabase:sql-security-regressions`（每个用例在事务里执行，结束时回滚）；真栈先 `pnpm nx run rxdb-adapter-supabase:test-env`，再 `pnpm nx test rxdb-adapter-supabase -- src/__tests__/change-history.spec.ts`（自建租户与用户，结束时按 id 清理）；e2e 见 [dev-rxdb-supabase README](../../../apps/dev-rxdb-supabase/README.md)，`pnpm nx run dev-rxdb-supabase-e2e:e2e-remote --grep="Catalog local writes"`。
 
 ## 技术笔记
 
@@ -100,17 +111,30 @@ INVEST 检查清单:
 - **与 US-038 的关系**：US-038 会把 `rxdb_mutations` 第 3 步重构成三遍执行，历史写入要放在只记 `applied` 实体的第 4 步，不受重构影响；重构时要保留。
 - `search_path` 与其他 `SECURITY DEFINER` 函数一样固定为 `pg_catalog, pg_temp`。
 
+### 实现记录
+
+- **索引**按 `(namespace, entity, "entityId", id)`：读取按 `id` 升序翻页，`id` 即写入顺序，不用 `createdAt`。
+- **写入点**：直写在 `rxdb_log_change_trigger` 里每写一条日志就经 `rxdb_record_change_history` 记一条（diff 在换区分支之前算好，换区记成新区的 UPDATE）。推送与级联在 `rxdb_insert_changes` 里：日志仍是一条集合式 `INSERT … RETURNING`（实时通知按语句聚合，逐行插会把 200 条一批的通知拆散），历史随后按 `(clientId, localId)`、隐式日志按 `(namespace, entity, entityId, type)` 与返回的日志 id 配对，一次插入。`rxdbHistory` / `rxdbHistoryType` / `rxdbHistorySource` 只由函数自己打，载荷带进来的一律摘掉。只记 main：非 main 推送只写日志。
+- **粒度**：历史跟源变更一一对应，与日志同口径。一次推送里同一实体的多条变更（新建之后又改）各记一条；业务表收到的是本机压缩后的一次写，历史记的是逻辑上的每次修改。AC#2 的「每个生效的实体一条」按「每条生效的源变更一条」实现。
+- **快照**：推送的前后快照取 `rxdb_mutations` 已经固化的 `beforeData` / `afterData`；JSON 的 `null` 正文存成 SQL `NULL`。`actor` 取 `auth.uid()`，`role` 取 `auth.role()`；`service_role` 与没有会话的直连 `actor` 为 `NULL`。
+- **平台默认判定** `rxdb_caller_can_edit_default`：未分区实体按表级 `UPDATE`；分区实体只认调用者自己的 `user:<auth.uid()>` 区。caller buckets 是「读得到的区」，不等于「能编辑的区」，所以不拿它做默认。未分区实体的默认比按行的 RLS 宽，文档提示按行限制编辑的表要覆盖。
+- **demo 覆盖**在 `catalog-demo.sql`：`CatalogItem` 按 `demo_tenant_members` 判定，其余交回默认。重新执行 04 会把判定恢复成默认，demo 与部署方都要在升级之后重新加载覆盖（迁移文档第 2 步）。
+- **顺带修正 `rxdb_batch_upsert`**：它把载荷按整行 `jsonb_populate_record` 插入，连生成列 `rxdb_bucket` 也写了 `NULL`，推送本机新建的分区实体报 `428C9 cannot insert a non-DEFAULT value into column "rxdb_bucket"`（US-034 的本机新建因此推不上去）。改为只写 `attgenerated = ''` 的列。
+- **量级**（2026-11-26 在 demo 栈上量的 `pg_column_size`）：商品的一条历史约 1.0～1.1 KB；同一张表的分区日志约 140 字节，带正文的未分区日志约 730 字节。条数与 `rxdb_change` 同阶，体积约为带正文日志的 1.5 倍。先不做归档。
+
 ## 实现文件
 
-- `docker/sql/01-rxdb-system-tables.sql` — `rxdb_change_history`
-- `docker/sql/02-rxdb-sync-functions.sql` — 直写的历史写入
-- `docker/sql/04-rxdb-utils-functions.sql` — 推送与级联的历史写入、读取 RPC、默认判定函数、GRANT
-- `docker/sql/production/rxdb-change-grants.sql` — 签名与授权
+- `docker/sql/01-rxdb-system-tables.sql`、`docker/sql/production/rxdb-sync-access-upgrade.sql` — `rxdb_change_history`（全新安装与增量升级）
+- `docker/sql/02-rxdb-sync-functions.sql` — 直写的历史写入 `rxdb_record_change_history`
+- `docker/sql/04-rxdb-utils-functions.sql` — 推送与级联的历史写入、读取 RPC `rxdb_entity_history`、判定函数、`rxdb_batch_upsert` 生成列修正、GRANT
+- `docker/sql/production/rxdb-change-grants.sql` — 历史表与序列收权、读取 RPC 的签名与授权、内部函数收权
 - `apps/dev-rxdb-supabase/supabase/catalog-demo.sql` — demo 的判定函数
-- `packages/rxdb-adapter-supabase/src/` — 读历史的方法
-- `packages/rxdb-adapter-supabase/src/__tests__/supabase-sql-security-regressions.sql`、`run-supabase-sql-security-regressions.sh` — 回归用例
-- `apps/dev-rxdb-supabase/src/app/catalog/` — 「变更历史」抽屉
-- `website/docs/migration/` — 迁移说明
+- `packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts`、`supabase.interface.ts` — `getEntityHistory`、`SupabaseEntityHistoryItem`、`SupabaseEntityHistoryOptions`
+- `packages/rxdb-adapter-supabase/src/__tests__/supabase-sql-security-regressions.sql`、`run-supabase-sql-security-regressions.sh` — 回归用例 `change-history`
+- `packages/rxdb-adapter-supabase/src/__tests__/entity-history.spec.ts`、`change-history.spec.ts` — 适配器读取方法（替身与真栈）
+- `apps/dev-rxdb-supabase/src/app/catalog/catalog-item-history.ts`、`catalog-history-view.ts`、`catalog-synced-panel.ts` — 「历史」入口与对话框
+- `apps/dev-rxdb-supabase-e2e/src/catalog-local-writes.spec.ts` — AC#14
+- `website/docs/adapters/supabase.md`（「远端变更历史」）、`website/docs/migration/supabase-change-history.md` — 用法与迁移说明
 
 ## References
 

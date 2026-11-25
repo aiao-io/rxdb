@@ -5,7 +5,8 @@
 --   1. rxdb_change 的 bucket 列与按区游标索引；
 --   2. 分区同步实体登记表 rxdb_sync_entity；
 --   3. 分支所有者表 rxdb_branch_owner（开 RLS、不建策略，只经 02 的 rxdb_claim_branch 写入）；
---   4. 把 rxdb_change 移出 supabase_realtime 发布（变更通知改由 02 的 rxdb_change_broadcast 发送）。
+--   4. 把 rxdb_change 移出 supabase_realtime 发布（变更通知改由 02 的 rxdb_change_broadcast 发送）；
+--   5. 远端变更历史表 rxdb_change_history（US-229，开 RLS 并 FORCE、不建策略）。
 -- 只动 RxDB 自己的对象。升级时不要重跑整份 01：它末尾给开发与测试库用的
 --   `GRANT ALL ON ALL TABLES IN SCHEMA public` 会连同 public 下业务表的权限一起放宽，
 --   而生产权限脚本只收回 RxDB 自己的对象。
@@ -39,6 +40,35 @@ CREATE TABLE IF NOT EXISTS public.rxdb_branch_owner (
 );
 
 ALTER TABLE public.rxdb_branch_owner ENABLE ROW LEVEL SECURITY;
+
+-- 远端变更历史（US-229）：与 01 同一份定义。开 RLS 并 FORCE、不建策略，只经 02 的同步触发器与 04 的
+-- rxdb_insert_changes 写入，读取只经 rxdb_entity_history
+CREATE TABLE IF NOT EXISTS public.rxdb_change_history (
+  id bigserial PRIMARY KEY,
+  "changeId" integer,
+  namespace varchar NOT NULL,
+  entity varchar NOT NULL,
+  "entityId" varchar NOT NULL,
+  bucket varchar,
+  type varchar NOT NULL CHECK (type IN ('INSERT', 'UPDATE', 'DELETE')),
+  patch jsonb,
+  "inversePatch" jsonb,
+  "beforeData" jsonb,
+  "afterData" jsonb,
+  actor uuid,
+  role varchar,
+  source varchar NOT NULL CHECK (source IN ('trigger', 'push', 'cascade')),
+  "clientId" varchar,
+  "localId" integer,
+  "branchId" varchar NOT NULL DEFAULT 'main',
+  "createdAt" timestamptz(3) NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_rxdb_change_history_entity
+ON public.rxdb_change_history(namespace, entity, "entityId", id);
+
+ALTER TABLE public.rxdb_change_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rxdb_change_history FORCE ROW LEVEL SECURITY;
 
 -- 这里不清理日志：升级时没有任何实体登记为分区实体，已有日志全是未分区旧日志，仍按旧口径对 authenticated 可读。
 -- 实体改成分区实体（业务表加 rxdb_bucket 后调 rxdb_enable_sync_for_table）时，由登记函数删掉它全部的

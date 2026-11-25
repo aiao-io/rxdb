@@ -330,6 +330,10 @@
         "kind": "type"
       },
       {
+        "name": "InsertsSqlOptions",
+        "kind": "type"
+      },
+      {
         "name": "IRxDBAdapterDataChange",
         "kind": "type"
       },

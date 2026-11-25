@@ -11,6 +11,7 @@
 --   3. 分支表与分支所有者表只经 SECURITY DEFINER 函数写入（rxdb_enable_sync_for_branch / rxdb_claim_branch）。
 --      分支表、远端身份表与日志表一样开着 RLS、只有读取策略，客户端即便重新拿到写权限也写不进去。
 --   4. 实时变更通知：未分区旧日志使用私有频道 rxdb:changes，分区日志使用带 bucket 的私有频道；旧日志只对 authenticated 开放，分区频道按 rxdb_caller_buckets() 开放接收，客户端不能往里发消息。
+--   5. 远端变更历史 rxdb_change_history（US-229）：客户端不能直接读写，只经 rxdb_entity_history（authenticated）读取。
 -- 适用边界: 带 rxdb_bucket 的日志按 rxdb_caller_buckets() 做 RLS，未分区旧日志仍对 authenticated 可读。
 --       anon 默认只能读取 public 区。应用通过 SECURITY DEFINER 的 rxdb_caller_buckets() 扩展租户授权，
 --       见 requirements/epics/epic-015-identity-scoped-sync.md。
@@ -65,6 +66,13 @@ END $$;
 -- 实体注册表只经快照 RPC 读取，避免把部署元数据当作业务表暴露。
 REVOKE ALL ON public.rxdb_sync_entity FROM PUBLIC, anon, authenticated;
 
+-- 远端变更历史（US-229）：客户端角色不能直接读写，只经 rxdb_entity_history 按编辑权限与列权限读取。
+-- RLS 开着并 FORCE、不建策略：即便整库 GRANT 把表权限放了回来，也读写不了任何一行
+REVOKE ALL ON public.rxdb_change_history FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON SEQUENCE public.rxdb_change_history_id_seq FROM PUBLIC, anon, authenticated;
+ALTER TABLE public.rxdb_change_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rxdb_change_history FORCE ROW LEVEL SECURITY;
+
 -- 2. 分支：authenticated 可读；登记与改写只经 rxdb_enable_sync_for_branch（校验所有者）
 REVOKE ALL ON public.rxdb_branch FROM PUBLIC, anon;
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON public.rxdb_branch FROM authenticated;
@@ -117,8 +125,11 @@ BEGIN
     'public.rxdb_assert_snapshot_filter_columns(jsonb, text[])',
     'public.rxdb_selectable_row_expression(text[])',
     'public.rxdb_enable_sync_for_branch(jsonb)',
-    'public.rxdb_mutations(jsonb, jsonb, jsonb, boolean, jsonb, boolean)',
+    'public.rxdb_mutations(jsonb, jsonb, jsonb, boolean, jsonb, boolean, jsonb)',
     'public.rxdb_assert_push_integrity(jsonb, jsonb, jsonb, boolean, jsonb)',
+    'public.rxdb_mutations_deferred_columns(jsonb)',
+    'public.rxdb_mutations_apply_groups(jsonb, jsonb, text[], boolean, boolean, jsonb)',
+    'public.rxdb_mutations_fill_deferred(jsonb, jsonb, boolean)',
     'public.rxdb_mutations_apply_group(text, text, text, jsonb, boolean)',
     'public.rxdb_mutations_depends_on(text, text, text, jsonb)',
     'public.rxdb_mutations_replay_group(text, text, text, jsonb, boolean)',
@@ -129,7 +140,8 @@ BEGIN
     'public.rxdb_batch_update(text, text, jsonb)',
     'public.rxdb_batch_delete(text, text, text[])',
     'public.rxdb_id_array_type(text, text)',
-    'public.rxdb_existing_ids(text, text, text[])'
+    'public.rxdb_existing_ids(text, text, text[])',
+    'public.rxdb_entity_history(text, text, text, bigint, integer)'
   ]::regprocedure[]
   LOOP
     EXECUTE pg_catalog.format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon', v_function);
@@ -157,6 +169,12 @@ REVOKE ALL ON FUNCTION public.rxdb_enable_sync_for_table(text, text, text) FROM 
 REVOKE ALL ON FUNCTION public.rxdb_claim_branch(text) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.rxdb_change_broadcast() FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.rxdb_strip_bucket_change_payload() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.rxdb_record_change_history(
+  integer, text, text, text, text, text, jsonb, jsonb, jsonb, jsonb, text
+) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.rxdb_caller_can_edit(text, text, jsonb) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.rxdb_caller_can_edit_default(text, text, jsonb) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.rxdb_jsonb_pick(jsonb, text[]) FROM PUBLIC, anon, authenticated;
 
 -- 4. 实时变更通知：Realtime 在加入私有频道时以登录用户身份试读 realtime.messages，有 SELECT 策略才放行。
 -- 只建 SELECT 策略、不建 INSERT 策略：广播只由日志插入触发器经 realtime.send 写入，客户端发不了伪造通知。

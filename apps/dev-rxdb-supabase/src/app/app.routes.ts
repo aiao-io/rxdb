@@ -17,6 +17,11 @@ export const appRoutes: Route[] = [
     loadComponent: () => import('./catalog/catalog.page')
   },
   {
+    path: 'orders',
+    resolve: { supabase: supabaseSyncResolver },
+    loadComponent: () => import('./orders/orders.page')
+  },
+  {
     path: '**',
     redirectTo: 'home',
     pathMatch: 'full'

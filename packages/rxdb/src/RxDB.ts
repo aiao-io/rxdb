@@ -699,7 +699,10 @@ export class RxDB {
         undefined
       : snapshotSyncOverrides(options.syncOverrides, options.entities, isSystemEntity, this.#config.sync);
     if (overrides) this.#config.syncOverrides = overrides.entries;
-    this.entitySync = createEntitySyncResolver(this.#config.sync, overrides?.index);
+    // 中间表跟随两端（US-228）：中间表在 init() 时才生成，解析时经 schemaManager 现查两端
+    this.entitySync = createEntitySyncResolver(this.#config.sync, overrides?.index, metadata =>
+      this.schemaManager.junctionEndpointsOf(metadata)
+    );
     this.schemaManager = new SchemaManager(this);
     this.entityManager = new EntityManager(this);
     // changelog 路径的待推数由 `@aiao/rxdb-plugin-history` 在安装时经

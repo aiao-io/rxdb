@@ -59,6 +59,7 @@ export interface ScopedSyncAdapter {
    * @param entity - 实体名
    * @param bucket - 调用者可读的分区
    * @param branchIds - 只算这些分支，与拉取同口径；不传时算全部分支
+   * @throws 分区此刻已不属于调用者时（参考 SQL 报 `42501`）；状态查询据重读 {@link ScopedSyncAdapter.getCallerBuckets} 判定撤销
    */
   getBucketSnapshotPoint(
     namespace: string,

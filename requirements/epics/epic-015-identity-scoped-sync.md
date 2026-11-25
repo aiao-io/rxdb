@@ -84,7 +84,9 @@ owner 明确了目标：不同用户同步到自己有权限的数据是关键�
 - 「模拟服务端变更」以当前身份直写业务表：公开改内部、删除、加入或退出租户之后同步，本机按区补快照或整块清理（US-033 AC#3～#7）。
 - 每个身份一个本地库，切换身份就是打开另一个库；别的标签页换了身份，本页同步被身份守卫拦下（US-035）。
 - 规则之外的公开商品在线浏览，一键把分类加进同步规则（US-036）。
-- 远端 e2e：[catalog-sync.spec.ts](../../apps/dev-rxdb-supabase-e2e/src/catalog-sync.spec.ts)。
+- 所在租户的商品在本机新建、编辑、删除，推送之前撤销、重做，推送之后锁定；访客的写入口禁用（US-034）。
+- 所在租户的商品打开「历史」看远端记下的每次修改：前后值、操作者与写入路径；访客与别的租户的成员没有入口（US-229）。
+- 远端 e2e：[catalog-sync.spec.ts](../../apps/dev-rxdb-supabase-e2e/src/catalog-sync.spec.ts)、[catalog-local-writes.spec.ts](../../apps/dev-rxdb-supabase-e2e/src/catalog-local-writes.spec.ts)。
 
 ## 现状核实（`258856694`）
 

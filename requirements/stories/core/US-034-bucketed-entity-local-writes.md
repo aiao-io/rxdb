@@ -1,11 +1,11 @@
 ---
 id: US-034
 title: 分区实体的本地写入：本地增删改可撤销/重做，推送后锁定
-status: Backlog
+status: In Review
 priority: High
 epic: epic-015-identity-scoped-sync
 created: 2026-11-25
-updated: 2026-11-25
+updated: 2026-11-26
 tags: [core, sync, push, undo-redo, bucket, supabase]
 ---
 
@@ -77,20 +77,33 @@ INVEST 检查清单:
 
 | #   | 前置条件                                                | 操作                         | 预期结果                                                                                 | 状态 |
 | --- | ------------------------------------------------------- | ---------------------------- | ---------------------------------------------------------------------------------------- | ---- |
-| 1   | Alice 登录，是星河零售成员                              | 在本地新建一件星河零售的商品 | 本地出现这件商品与一条带 `patch` 的 INSERT 变更；待推数加 1                              | ⬜   |
-| 2   | AC#1 的商品未推送                                       | 改售价，撤销，再重做         | 撤销后售价回到原值，重做后是新值；变更都带 `patch` / `inversePatch`                      | ⬜   |
-| 3   | 一件已同步的星河零售商品                                | 本地删除后撤销               | 商品恢复，字段与删除前一致                                                               | ⬜   |
-| 4   | Alice 有未推送的修改                                    | 推送                         | 远端业务行更新；分区日志落在 `tenant:xinghe`，正文为空；撤销栈清空，已推送的修改不能撤销 | ⬜   |
-| 5   | Alice 把一件公开商品改成租户可见并推送                  | 访客同步                     | 访客本地这件商品被移除                                                                   | ⬜   |
-| 6   | Alice 离线修改两件商品                                  | 恢复连接后推送               | 两条修改都被接受，远端一致                                                               | ⬜   |
-| 7   | 远端与 Alice 本地都改了同一件商品的售价，Alice 的未推送 | Alice 先同步再推送           | 按冲突解决的结果收敛，本地与远端一致，没有半截数据                                       | ⬜   |
-| 8   | Alice 有一条未推送的修改，随后退出星河零售              | 推送                         | 以 `denied` 被拒；本地按 US-218 对齐；被拒清单显示这件商品                               | ⬜   |
-| 9   | Alice 有未推送的修改                                    | 同步拉到别人的修改           | 撤销历史失效，不能跨过远端修改撤销                                                       | ⬜   |
-| 10  | 访客打开商品目录                                        | 查看商品面板                 | 新建、编辑、删除入口禁用；没有 `rxdb_mutations` 请求                                     | ⬜   |
+| 1   | Alice 登录，是星河零售成员                              | 在本地新建一件星河零售的商品 | 本地出现这件商品与一条带 `patch` 的 INSERT 变更；待推数加 1                              | ✅   |
+| 2   | AC#1 的商品未推送                                       | 改售价，撤销，再重做         | 撤销后售价回到原值，重做后是新值；变更都带 `patch` / `inversePatch`                      | ✅   |
+| 3   | 一件已同步的星河零售商品                                | 本地删除后撤销               | 商品恢复，字段与删除前一致                                                               | ✅   |
+| 4   | Alice 有未推送的修改                                    | 推送                         | 远端业务行更新；分区日志落在 `tenant:xinghe`，正文为空；撤销栈清空，已推送的修改不能撤销 | ✅   |
+| 5   | Alice 把一件公开商品改成租户可见并推送                  | 访客同步                     | 访客本地这件商品被移除                                                                   | ✅   |
+| 6   | Alice 离线修改两件商品                                  | 恢复连接后推送               | 两条修改都被接受，远端一致                                                               | ✅   |
+| 7   | 远端与 Alice 本地都改了同一件商品的售价，Alice 的未推送 | Alice 先同步再推送           | 按冲突解决的结果收敛，本地与远端一致，没有半截数据                                       | ✅   |
+| 8   | Alice 有一条未推送的修改，随后退出星河零售              | 推送                         | 以 `denied` 被拒；本地按 US-218 对齐；被拒清单显示这件商品                               | ✅   |
+| 9   | Alice 有未推送的修改                                    | 同步拉到别人的修改           | 撤销历史失效，不能跨过远端修改撤销                                                       | ✅   |
+| 10  | 访客打开商品目录                                        | 查看商品面板                 | 新建、编辑、删除入口禁用；没有 `rxdb_mutations` 请求                                     | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-验收证据：待实现。AC#1～3、#9 由历史插件与 `rxdb-adapter-pglite` 的 `ScriptedRemote` 用例覆盖；AC#4～8 由 `rxdb-adapter-supabase` 真栈用例覆盖；AC#10 由 dev-rxdb-supabase 组件单测与 `dev-rxdb-supabase-e2e` 覆盖。
+验收证据：
+
+| AC         | 证据                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| #1～#4、#9 | 真实 PGlite 本地 + 脚本化远端 [catalog-local-writes.spec.ts](../../../packages/rxdb-adapter-pglite/src/__tests__/catalog-local-writes.spec.ts)：本机新建留下带 `patch` 的 INSERT、待推数为 1；改售价后撤销、重做，UPDATE 带 `patch` / `inversePatch`；删除拉下来的商品再撤销，字段与删除前一致；推送之后撤销栈清空、撤销不了；拉到别人的修改之后撤销历史失效，没推的修改照样待推。改动前五条都以 `PermissionDeniedError` 失败                                                                          |
+| #4～#8     | Supabase 真栈 [catalog-local-writes.spec.ts](../../../packages/rxdb-adapter-supabase/src/__tests__/catalog-local-writes.spec.ts)，每轮自建租户、分类与用户：推送后远端行更新、分区日志落在租户区且正文全空、撤销栈清空；公开改内部推送后访客同步时移除，旧区记移除、新区记写入；改的时候一个请求都不发，恢复后两条都被接受；与远端更晚的修改冲突时先同步再推送，本地与远端收敛；被移出租户后推送以 `denied` 被拒、本地移除、被拒清单列出；本机新建的租户内部商品推送之后远端有这一行，区由服务端按行算 |
+| #10        | 组件单测 [catalog-synced-panel.spec.ts](../../../apps/dev-rxdb-supabase/src/app/catalog/catalog-synced-panel.spec.ts) 与 [catalog-local-writes.spec.ts](../../../apps/dev-rxdb-supabase/src/app/catalog/catalog-local-writes.spec.ts)：访客的新建、编辑、删除、撤销、重做与推送都不可用；远端 e2e [catalog-local-writes.spec.ts](../../../apps/dev-rxdb-supabase-e2e/src/catalog-local-writes.spec.ts) 的 AC#10 用例断言访客打开并同步商品目录时没有 `rxdb_mutations` 请求                             |
+| 演示       | `dev-rxdb-supabase` 的 `/catalog`「本机同步的商品」：新建、编辑、收回为内部或公开、删除，撤销、重做与推送，被拒清单。同一 e2e 文件的成员用例：匿名成员加入星河零售，本机新建、改价、撤销、重做、推送，重新打开页面后服务端读到改后的值、撤销不可用；本轮建的商品结束时删掉。2026-11-26 成员、访客两条用例都通过                                                                                                                                                                                        |
+
+服务端只修了一处：`rxdb_batch_upsert` 把载荷整行插入，连生成列 `rxdb_bucket` 也写了 `NULL`，推送本机新建的分区实体报 `428C9 cannot insert a non-DEFAULT value into column "rxdb_bucket"`（原先的真栈用例只改、只删拉下来的行，没测到新建）。改为只写非生成列，随 US-229 的 04 一起升级，见[迁移说明](../../../website/docs/migration/supabase-change-history.md)。其余不用改：`rxdb_insert_changes` 已按写后的行算区、换区补移除、分区日志剥正文；`authenticated` 对 `catalog_items` 有表级写权限，列权限不缺。核心改动只有 `CatalogItem` 放开三项写权限。
+
+演示的「推送」推整机（`syncManager.push()`），待推数取整机的 `versionManager.pushableCount$`，不是技术笔记里的 `pushRepository('public', 'CatalogItem')` 加按仓库的待推数：按仓库的同步状态（`getRepositorySyncStatus`）要向远端查待拉数，离线时查不出来，改一次就发一轮请求；本机只有整机这一份待推数，推送的范围跟它对齐。撤销/重做仍只作用于商品。
+
+复验命令：`pnpm nx test rxdb-adapter-pglite -- src/__tests__/catalog-local-writes.spec.ts`、`pnpm nx test dev-rxdb-supabase -- src/app/catalog/`；真栈先 `pnpm nx run rxdb-adapter-supabase:test-env`，再 `pnpm nx test rxdb-adapter-supabase -- src/__tests__/catalog-local-writes.spec.ts`（只写、只删本轮自建的租户、成员与商品）；e2e 用 `VITE_SUPABASE_URL=… VITE_SUPABASE_KEY=… pnpm nx run dev-rxdb-supabase-e2e:e2e-remote --grep="Catalog local writes"`（成员用例写共用栈上的演示租户星河零售，只建、只删本轮自己的商品）。
 
 ## 技术笔记
 

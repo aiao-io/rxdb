@@ -81,3 +81,15 @@ URL 带尾斜杠、路径段、显式端口或大小写差异时，同一个后�
   - 一起核对：三框架 demo 里只有 `apps/dev-rxdb-supabase` 声明身份，已按 origin 声明（`apps/dev-rxdb-supabase/src/app/runtime-config.ts:73`）；本地适配器不消费 scope；`getRxDBIdentityDatabaseName` 的取摘要口径没变，库名不漂移；
   - 未跑真栈 `identity-guard.spec.ts`：它声明的 scope 就是 `SUPABASE_URL`，与适配器报告值相同，走的是不变的分支。
 - 剩余事项：复核（verify）。
+
+### EV-01a212fb69c87fd3936ae14077ce5b72：修复（补真栈验证）
+
+- 时间：2026-11-25T21:53:16+0800
+- 操作：fix
+- 执行者：ai；anthropic/claude-opus-5-5；会话 8b131c28-0801-4140-925f-c944249ee3cf
+- 输入快照：`2b12192f5f7ad2bc9004f90014a9f2de7ee01b4f`（提交视图，已含上一修复事件的改动）
+- 输出快照：同输入（只写评审记录）
+- 状态：Fixed（不变）
+- 结论：上一修复事件写着「未跑真栈 `identity-guard.spec.ts`」，现已跑过：声明的 scope 与适配器报告值相同的各条照常通过，scope 相同、只有 subject 不同的远端拒绝走的是不变的分支；`caller-identity.spec.ts`「身份的 scope」两条（客户端报得出项目 URL 时以它为准、按 origin 归一；配置的 `supabaseUrl` 与客户端项目不一致时构造即拒绝）通过，适配器报告 origin 的口径没变。
+- 验证：`pnpm nx test rxdb-adapter-supabase --skip-nx-cache -- src/__tests__/identity-guard.spec.ts src/__tests__/caller-identity.spec.ts --coverage.enabled=false`，2 个文件 27 条通过。
+- 剩余事项：复核（verify）。

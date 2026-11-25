@@ -2,7 +2,7 @@
 id: RV-01a21194e68f7aacb5782c196d2ea870
 title: '状态查询的分区分支没有逐分区的错误处理，撤销分区的竞态下 checkRepositoryUpdates 整体抛错'
 project: 'rxdb-plugin-sync'
-status: Open
+status: Fixed
 severity: 'P3'
 anchors: ['packages/rxdb-plugin-sync/src/check-repository-updates.ts#checkRepositoryUpdates']
 affected_projects: ['rxdb-adapter-supabase']
@@ -92,3 +92,20 @@ pr: null
   - 上一事件提到的 US-229 新 RPC 门控：比照 US-038 的「能力标志 + PGRST202 → `SupabaseConfigError`」是合理建议，属 US-229 的设计范围，不并入本记录。
 - 验证：静态阅读上述行号；对照 `git show main:docker/sql/02-rxdb-sync-functions.sql` 与 `04`：`rxdb_pull_changes`、`rxdb_mutations` 在 main 上签名相同，旧服务端只缺分区那批函数；`rxdb_server_version()`（`docker/sql/04-rxdb-utils-functions.sql:1413-1421`）返回的是 PostgreSQL 版本，不是 RxDB SQL 版本。
 - 剩余事项：按「修复方向」处理逐分区的 42501（P3，排期）；PGRST202 → 配置错误的映射可选。
+
+### EV-01a212fb69747a2f942db42d9e1b116a：修复
+
+- 时间：2026-11-25T21:53:16+0800
+- 操作：fix
+- 执行者：ai；anthropic/claude-opus-5-5；会话 8b131c28-0801-4140-925f-c944249ee3cf
+- 输入快照：`2b12192f5f7ad2bc9004f90014a9f2de7ee01b4f`（提交视图；`checkRepositoryUpdates` 与收窄范围时的快照 `45114a4a` 相同）
+- 输出快照：工作区树 `10dff253d738defe79f10c55809862563ff88081`（`ai-review snapshot --worktree`，基于 `2b12192f`）；本记录不在该树内。
+- 状态：Open → Fixed
+- 结论：按收窄后的「修复方向」修。不按错误码猜是不是撤销：插件对适配器无关，`42501` 是参考 SQL 的错误码；改为问快照点失败之后重读一次可读分区，确实不在了才跳过，与拉取逐分区记失败的口径一致。还在列表里或重读本身也失败，原样抛出原来的错误，网络与配置错误不被当成撤销吞掉。可选的 PGRST202 → `SupabaseConfigError` 映射没有做：迁移文档 `website/docs/migration/supabase-sync-access.md:99` 已写明先升级客户端时的报错原文，改报错类型要连文档一起改，留给需要时。
+- 改动：
+  - `packages/rxdb-plugin-sync/src/check-repository-updates.ts:220` 新增 `snapshotPointUnlessRevoked()`；分区循环（`:160-165`）改用它，返回 `undefined` 的分区跳过、不计入待拉数与本地游标；
+  - `packages/rxdb-plugin-sync/src/scoped-sync.ts` 的 `ScopedSyncAdapter.getBucketSnapshotPoint` 补 `@throws`：分区此刻已不属于调用者时抛错，状态查询据重读可读分区判定撤销。
+- 验证（Node 26，均 `--skip-nx-cache`）：
+  - 修复前红：`pnpm nx test rxdb-plugin-sync -- src/__tests__/check-repository-updates.spec.ts --coverage.enabled=false`，新增「问快照点时分区已被撤销」下的「重读可读分区确认它已不在：跳过它，其他分区照常计数」失败（整个查询 reject）；两条守卫「分区仍在可读列表里却失败：原样抛出，不当作撤销吞掉」「重读可读分区也失败：确认不了撤销，抛原来那个错误」为绿；
+  - 修复后：同文件 18 条通过；`pnpm nx test rxdb-plugin-sync` 39 个文件 622 条通过（覆盖率 93.9 / 86.9 / 94.57 / 95.21）；`pnpm nx run-many -t lint typecheck --projects=rxdb-plugin-sync,rxdb-adapter-supabase --parallel=1` 通过；改动文件 prettier 通过。
+- 剩余事项：复核（verify）。

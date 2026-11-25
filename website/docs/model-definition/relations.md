@@ -192,6 +192,28 @@ export class Category extends EntityBase {}
 
 如果你确实需要自定义连接实体，也可以用 `junctionEntityType` 指定。
 
+### 关联行的 id
+
+`add()` 新建的连接行 id 由两端 id 确定性派生（uuid v5，US-228），与从哪一端调用、在哪个客户端调用无关：
+
+```ts
+import { junctionEntityId } from '@aiao/rxdb';
+
+// 与 orderItem.categories$.add(category) 新建的那一行同 id
+junctionEntityId({ namespace: 'shop', name: 'Category_OrderItem' }, [
+  { foreignKey: 'categoriesId', id: category.id, uuid: true },
+  { foreignKey: 'orderItemsId', id: orderItem.id, uuid: true }
+]);
+```
+
+- 名字是 `rxdb-junction:v1:<namespace>.<连接实体名>|<外键>=<主键>|<外键>=<主键>`，外键按属性名排序，uuid 主键转小写；命名空间是固定的协议常量 `JUNCTION_ID_NAMESPACE`。
+- 取消关联之后重新关联，还是同一个 id，本地只有一行。
+- 关联已经在库里、只是没有加载进内存（例如刚从远端拉到）时，再 `add()` 并保存不报主键冲突：本地适配器保留库里那一行，保存之后由这个实例接管，之后照常能取消关联。
+- 内存里已经有这一对的连接实例时，`add()` 复用它，不另造一个同 id 的实例。
+- 缺任一端的 id 时 `add()` 直接抛错：先给两端定好主键再关联。
+
+两个客户端并发关联同一对数据，推到远端只落成一行，见 [Supabase 适配器的多对多中间表](../adapters/supabase.md#多对多中间表)。
+
 ## 关系访问 API
 
 ### 单值关系：`RelationEntityObservable`

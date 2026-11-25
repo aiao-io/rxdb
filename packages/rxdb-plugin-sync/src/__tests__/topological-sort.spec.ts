@@ -12,6 +12,7 @@ import {
   topologicalSortForPull,
   topologicalSortForPush
 } from '../topological-sort.js';
+import { graphInputs } from './fixtures/dependency-graph-input.js';
 
 describe('topological-sort', () => {
   describe('topologicalSort - pull direction', () => {
@@ -25,7 +26,7 @@ describe('topological-sort', () => {
         }
       ];
 
-      const graph = buildDependencyGraph(entities);
+      const graph = buildDependencyGraph(graphInputs(entities));
       const result = topologicalSort(graph, 'pull');
 
       expect(result).toEqual([{ namespace: 'public', entity: 'User' }]);
@@ -57,7 +58,7 @@ describe('topological-sort', () => {
         }
       ];
 
-      const graph = buildDependencyGraph(entities);
+      const graph = buildDependencyGraph(graphInputs(entities));
       const result = topologicalSort(graph, 'pull');
 
       expect(result).toEqual([
@@ -108,7 +109,7 @@ describe('topological-sort', () => {
         }
       ];
 
-      const graph = buildDependencyGraph(entities);
+      const graph = buildDependencyGraph(graphInputs(entities));
       const result = topologicalSort(graph, 'pull');
 
       expect(result).toEqual([
@@ -183,7 +184,7 @@ describe('topological-sort', () => {
         }
       ];
 
-      const graph = buildDependencyGraph(entities);
+      const graph = buildDependencyGraph(graphInputs(entities));
       const result = topologicalSort(graph, 'pull');
 
       // A 必须在最前，D 必须在最后。
@@ -239,7 +240,7 @@ describe('topological-sort', () => {
         }
       ];
 
-      const graph = buildDependencyGraph(entities);
+      const graph = buildDependencyGraph(graphInputs(entities));
       const result = topologicalSort(graph, 'push');
 
       expect(result).toEqual([
@@ -275,7 +276,7 @@ describe('topological-sort', () => {
         }
       ];
 
-      const graph = buildDependencyGraph(entities);
+      const graph = buildDependencyGraph(graphInputs(entities));
       const pullOrder = topologicalSort(graph, 'pull');
       const pushOrder = topologicalSort(graph, 'push');
 
@@ -310,7 +311,7 @@ describe('topological-sort', () => {
         }
       ];
 
-      const graph = buildDependencyGraph(entities);
+      const graph = buildDependencyGraph(graphInputs(entities));
       const result1 = topologicalSortForPull(graph);
       const result2 = topologicalSort(graph, 'pull');
 
@@ -345,7 +346,7 @@ describe('topological-sort', () => {
         }
       ];
 
-      const graph = buildDependencyGraph(entities);
+      const graph = buildDependencyGraph(graphInputs(entities));
       const result1 = topologicalSortForPush(graph);
       const result2 = topologicalSort(graph, 'push');
 
@@ -382,7 +383,7 @@ describe('topological-sort', () => {
         ]
       }
     ];
-    const graph = buildDependencyGraph(entities);
+    const graph = buildDependencyGraph(graphInputs(entities));
 
     const USER = { namespace: 'public', entity: 'User' };
     const TODO = { namespace: 'public', entity: 'Todo' };
@@ -445,7 +446,7 @@ describe('topological-sort', () => {
         }
       ];
 
-      const graph = buildDependencyGraph(entities);
+      const graph = buildDependencyGraph(graphInputs(entities));
 
       // 只同步 Todo 和 Comment，跳过 User。
       const result = filterAndSort(
@@ -505,7 +506,7 @@ describe('topological-sort', () => {
         }
       ];
 
-      const graph = buildDependencyGraph(entities);
+      const graph = buildDependencyGraph(graphInputs(entities));
 
       // 只筛选 A 和 C（跳过 B）。
       const result = filterAndSort(
@@ -566,7 +567,7 @@ describe('topological-sort', () => {
         }
       ];
 
-      const graph = buildDependencyGraph(entities);
+      const graph = buildDependencyGraph(graphInputs(entities));
 
       const result = filterAndSort(
         graph,
@@ -609,14 +610,14 @@ describe('topological-sort', () => {
     ];
 
     it('pull 方向跳过悬挂依赖而不是抛错', () => {
-      const graph = buildDependencyGraph(entitiesWithDanglingRelation());
+      const graph = buildDependencyGraph(graphInputs(entitiesWithDanglingRelation()));
 
       expect(() => topologicalSort(graph, 'pull')).not.toThrow();
       expect(topologicalSort(graph, 'pull')).toEqual([{ namespace: 'public', entity: 'Todo' }]);
     });
 
     it('push 方向同样跳过悬挂依赖', () => {
-      const graph = buildDependencyGraph(entitiesWithDanglingRelation());
+      const graph = buildDependencyGraph(graphInputs(entitiesWithDanglingRelation()));
 
       expect(topologicalSortForPush(graph)).toEqual([{ namespace: 'public', entity: 'Todo' }]);
     });
@@ -639,12 +640,66 @@ describe('topological-sort', () => {
         }
       ];
 
-      const graph = buildDependencyGraph(entities);
+      const graph = buildDependencyGraph(graphInputs(entities));
 
       expect(topologicalSortForPull(graph)).toEqual([
         { namespace: 'public', entity: 'Todo' },
         { namespace: 'public', entity: 'Comment' }
       ]);
+    });
+  });
+
+  describe('外键成环（US-038）', () => {
+    // Root ← B ⇄ C ← D：B.c → C 可空（断环边），C.b → B 非空；B 还引用 Root，D 引用 C
+    const cycleEntities = [
+      { name: 'D', namespace: 'public', relations: [{ name: 'c', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'C' }] },
+      { name: 'C', namespace: 'public', relations: [{ name: 'b', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'B' }] },
+      {
+        name: 'B',
+        namespace: 'public',
+        relations: [
+          { name: 'root', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'Root' },
+          { name: 'c', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'C', nullable: true }
+        ]
+      },
+      { name: 'Root', namespace: 'public' }
+    ];
+    const names = (repos: { entity: string }[]) => repos.map(repo => repo.entity);
+
+    it('环当作一个单元：成员连续排列，INSERT 相位按断环之后父在前，DELETE 相位倒过来', () => {
+      const graph = buildDependencyGraph(graphInputs(cycleEntities));
+
+      expect(names(topologicalSortForAction(graph, 'INSERT'))).toEqual(['Root', 'B', 'C', 'D']);
+      expect(names(topologicalSortForAction(graph, 'UPDATE'))).toEqual(['Root', 'B', 'C', 'D']);
+      expect(names(topologicalSortForAction(graph, 'DELETE'))).toEqual(['D', 'C', 'B', 'Root']);
+    });
+
+    it('与实体的声明顺序无关', () => {
+      const graph = buildDependencyGraph(graphInputs([...cycleEntities].reverse()));
+
+      expect(names(topologicalSortForPull(graph))).toEqual(['Root', 'B', 'C', 'D']);
+      expect(names(topologicalSortForPush(graph))).toEqual(['D', 'C', 'B', 'Root']);
+    });
+
+    it('断不开的环同样连续排列，成员按仓库键排序', () => {
+      const graph = buildDependencyGraph(
+        graphInputs([
+          { name: 'Y', namespace: 'public', relations: [{ name: 'x', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'X' }] },
+          { name: 'X', namespace: 'public', relations: [{ name: 'y', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'Y' }] },
+          { name: 'Z', namespace: 'public', relations: [{ name: 'x', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'X' }] }
+        ])
+      );
+
+      expect(names(topologicalSortForPull(graph))).toEqual(['X', 'Y', 'Z']);
+      expect(names(topologicalSortForPush(graph))).toEqual(['Z', 'Y', 'X']);
+    });
+
+    it('filterAndSort 选中的子集里仍成环时照样当作一个单元；只选中环的一部分就不再是环', () => {
+      const graph = buildDependencyGraph(graphInputs(cycleEntities));
+      const repo = (entity: string) => ({ namespace: 'public', entity });
+
+      expect(names(filterAndSort(graph, [repo('D'), repo('C'), repo('B')], 'pull'))).toEqual(['B', 'C', 'D']);
+      expect(names(filterAndSort(graph, [repo('D'), repo('C')], 'pull'))).toEqual(['C', 'D']);
     });
   });
 });

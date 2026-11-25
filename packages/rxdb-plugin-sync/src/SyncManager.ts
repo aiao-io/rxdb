@@ -403,7 +403,8 @@ export class SyncManager {
   /**
    * 推送指定 Repository 的本地变更
    *
-   * 提供实体类型级别的精细同步控制，支持级联同步以自动推送依赖实体。
+   * 提供实体类型级别的精细同步控制。默认连同目标所在的连通分量一起推，跨仓顺序只由外键决定：
+   * 删除子先父后，新建与修改父先子后。
    *
    * @param namespace - 实体命名空间（如 "public"）
    * @param entity - 实体名称（如 "User"）
@@ -413,9 +414,9 @@ export class SyncManager {
    *
    * @example
    * ```typescript
-   * // 推送 User 并级联推送依赖方
-   * const result = await rxdb.syncManager.pushRepository('public', 'User', {
-   *   includeRelated: true // 默认：若 Post 引用 User 则自动推送 Post
+   * // 推送 Post 及其所在的连通分量：先推它引用的 User，再推 Post
+   * const result = await rxdb.syncManager.pushRepository('public', 'Post', {
+   *   includeRelated: true // 默认
    * });
    *
    * // 不级联推送

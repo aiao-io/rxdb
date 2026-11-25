@@ -35,8 +35,10 @@ export type { CheckRepositoryUpdatesResult } from './check-repository-updates.js
 // 全仓只有 `SyncManager.ts:427` 与本包测试相对 import 它——转出去等于多一个能绕开
 // `SyncManager` 自身前置校验的入口。
 export type { CleanupExpiredOptions, CleanupExpiredResult } from './cleanup-expired.js';
-// `SyncManager.getRepositoryDependencyGraph()` 的返回值。图的构建函数是内部实现。
-export type { DependencyGraph } from './dependency-graph.js';
+// `SyncManager.getRepositoryDependencyGraph()` 的返回值，连同图上的外键与环（US-038）。图的构建函数是内部实现。
+export type { DependencyCycle, DependencyForeignKey, DependencyGraph } from './dependency-graph.js';
+// 外键成环的仓库推拉不了时进 `failures` 的错误（US-038）。
+export { RxDBForeignKeyCycleError, type RxDBForeignKeyCycleReason } from './foreign-key-cycle-error.js';
 // `SyncManager.getAllRepositorySyncStatus()` 的可选过滤器。
 export type { GetAllRepositorySyncStatusFilter } from './get-all-repository-sync-status.js';
 // `getRepositorySyncStatus()` 的返回值。

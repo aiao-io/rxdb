@@ -943,7 +943,44 @@ export abstract class RxDBAdapterLocalBase extends RxDBAdapterBase {
 /**
  * 数据库适配器基类（远程）
  */
+/**
+ * 推送时先写空、同一个请求里再补写的外键属性（US-038）
+ *
+ * @remarks
+ * 外键成环的实体（例如双向一对一）排不出写入顺序：同步插件选出环上可空的外键，让远端先把这一列写空、
+ * 写完同一请求里的其他行之后再补写，环就在一个请求里落齐。
+ */
+export interface RemoteDeferredForeignKey {
+  /** 实体命名空间 */
+  readonly namespace: string;
+  /** 实体名 */
+  readonly entity: string;
+  /** 外键属性名（不是列名，适配器按元数据换成列） */
+  readonly property: string;
+}
+
+/** {@link RxDBAdapterRemoteBase.mergeChanges} 的可选项 */
+export interface RemoteMergeOptions {
+  /**
+   * 先写空、同一请求里再补写的外键属性
+   *
+   * @remarks
+   * 只发给声明了 {@link RxDBAdapterRemoteBase.supportsDeferredForeignKeys} 的适配器，且只在本批确有要补写的值时才带。
+   */
+  readonly deferredForeignKeys?: readonly RemoteDeferredForeignKey[];
+}
+
 export abstract class RxDBAdapterRemoteBase extends RxDBAdapterBase {
+  /**
+   * 能否在同一个请求里先把外键写空、再补写（{@link RemoteMergeOptions.deferredForeignKeys}，US-038）
+   *
+   * @remarks
+   * 默认 `false`。不支持的适配器收不到延迟外键：外键成环、同一批里互相引用的行推不上去，同步插件让这个环以
+   * `remote-unsupported` 失败，而不是把它们推上去撞外键、再按被拒把本地行对齐删掉。只有确实实现了补写的适配器
+   * 才声明 `true`，忽略第四个参数的实现不能声明。
+   */
+  readonly supportsDeferredForeignKeys: boolean = false;
+
   /**
    * 远端身份：远端库建立时生成、重建后改变的标识
    *
@@ -1036,6 +1073,8 @@ export abstract class RxDBAdapterRemoteBase extends RxDBAdapterBase {
    * @param changes - 完整的原始变更记录（可选，用于保留完整的变更历史）
    * @returns 创建的远程 RxDBChange 的最大 ID（用于更新 lastPullRemoteChangeId）
    *
+   * @param options - 可选项：先写空、再补写的外键（只发给声明了 {@link supportsDeferredForeignKeys} 的实现）
+   *
    * @remarks
    * 提供 `changes` 时，实现必须以客户端 ID 和本地 change ID 作为幂等键。相同批次重试时不得重复执行
    * 实体副作用，并且必须为每个本地 change ID 返回首次提交得到的同一个远端 ID。
@@ -1043,7 +1082,8 @@ export abstract class RxDBAdapterRemoteBase extends RxDBAdapterBase {
   abstract mergeChanges(
     actions: SwitchVersionActions,
     branchId?: string,
-    changes?: IRxDBChange[]
+    changes?: IRxDBChange[],
+    options?: RemoteMergeOptions
   ): Promise<RemoteMergeResult>;
 
   /**

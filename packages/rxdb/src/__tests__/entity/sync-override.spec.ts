@@ -9,7 +9,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { EntityBase } from '../../entity/entity-base.js';
 import { Entity } from '../../entity/entity.decorator.js';
 import { ENTITY_STATIC_TYPES, type EntityType, type UUID } from '../../entity/entity.interface.js';
-import { PropertyType, SyncType, type SyncOptions } from '../../entity/metadata-options.interface.js';
+import { PropertyType, RelationKind, SyncType, type SyncOptions } from '../../entity/metadata-options.interface.js';
 import { RxDBMixedPrimaryAdapterError } from '../../entity/primary-adapter.js';
 import {
   assertNoSystemEntityOverride,
@@ -721,5 +721,83 @@ describe('US-026 实例级实体同步覆盖', () => {
 
       expect(() => rxdb.init()).toThrow(/QueryCache/);
     });
+  });
+});
+
+/** 多对多的两端：中间表 `JunctionPost_JunctionTag` 由 SchemaManager 在 init() 时生成 */
+@Entity({
+  name: 'JunctionTag',
+  properties: [{ name: 'title', type: PropertyType.string }],
+  relations: [{ name: 'posts', kind: RelationKind.MANY_TO_MANY, mappedEntity: 'JunctionPost', mappedProperty: 'tags' }]
+})
+class JunctionTag extends EntityBase {}
+
+@Entity({
+  name: 'JunctionPost',
+  properties: [{ name: 'title', type: PropertyType.string }],
+  relations: [{ name: 'tags', kind: RelationKind.MANY_TO_MANY, mappedEntity: 'JunctionTag', mappedProperty: 'posts' }]
+})
+class JunctionPost extends EntityBase {}
+
+describe('US-228 中间表的同步类型跟随两端', () => {
+  const FULL_SYNC: SyncOptions = { type: SyncType.Full, local: { adapter: 'sqlite' }, remote: { adapter: 'http' } };
+
+  const open = (dbName: string, overrides: RxDBOptions['syncOverrides']) => {
+    const rxdb = trackRxDB(
+      new RxDB({ dbName, entities: [JunctionTag, JunctionPost], sync: FULL_SYNC, syncOverrides: overrides })
+    );
+    rxdb.init();
+    const junction = rxdb.schemaManager.getEntityType('JunctionPost_JunctionTag', 'public');
+    if (!junction) throw new Error('多对多中间表没有生成');
+    return { rxdb, junction };
+  };
+
+  it('AC#4 两端都覆盖成 None + local：中间表也只在本地，不推不拉', () => {
+    const { rxdb, junction } = open('junction-sync-both-local', [
+      { entity: JunctionTag, sync: LOCAL_ONLY },
+      { entity: JunctionPost, sync: LOCAL_ONLY }
+    ]);
+
+    expect(rxdb.entitySync.resolveType(junction)).toBe('local');
+    expect(rxdb.entitySync.resolve(junction)).toEqual(LOCAL_ONLY);
+    expect(rxdb.entitySync.resolveType(getEntityMetadata(junction))).toBe('local');
+  });
+
+  it.each([
+    ['JunctionTag', JunctionTag],
+    ['JunctionPost', JunctionPost]
+  ])('AC#5 只有 %s 一端是 local、另一端 Full：中间表取 local 那一端的配置', (_label, entity) => {
+    const { rxdb, junction } = open(`junction-sync-one-local-${_label}`, [{ entity, sync: LOCAL_ONLY }]);
+
+    expect(rxdb.entitySync.resolveType(junction)).toBe('local');
+    expect(rxdb.entitySync.resolve(junction)).toEqual(LOCAL_ONLY);
+  });
+
+  it('AC#6 两端都是 Full：中间表照旧继承数据库默认（Full）', () => {
+    const { rxdb, junction } = open('junction-sync-both-full', undefined);
+
+    expect(rxdb.entitySync.resolveType(junction)).toBe('full');
+    expect(rxdb.entitySync.resolve(junction)).toBe(FULL_SYNC);
+  });
+
+  it('不能用 syncOverrides 直接指向中间表：它不是接入方注册的实体，构造时按未注册拒绝', () => {
+    const { junction } = open('junction-sync-source', undefined);
+
+    expect(
+      () =>
+        new RxDB({
+          dbName: 'junction-sync-direct-override',
+          entities: [JunctionTag, JunctionPost],
+          sync: FULL_SYNC,
+          syncOverrides: [{ entity: junction, sync: LOCAL_ONLY }]
+        })
+    ).toThrow(RxDBSyncOverrideError);
+  });
+
+  it('解析器的第三个参数缺省时不认中间表（旧签名逐字不变）', () => {
+    const { junction } = open('junction-sync-legacy-signature', [{ entity: JunctionTag, sync: LOCAL_ONLY }]);
+    const resolver = createEntitySyncResolver(FULL_SYNC, new Map([[getEntityMetadata(JunctionTag), LOCAL_ONLY]]));
+
+    expect(resolver.resolveType(junction)).toBe('full');
   });
 });

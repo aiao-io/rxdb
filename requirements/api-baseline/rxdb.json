@@ -1158,6 +1158,26 @@
         "kind": "type"
       },
       {
+        "name": "JUNCTION_ID_NAMESPACE",
+        "kind": "value"
+      },
+      {
+        "name": "JunctionEndpointKey",
+        "kind": "type"
+      },
+      {
+        "name": "JunctionEndpointsLookup",
+        "kind": "type"
+      },
+      {
+        "name": "junctionEntityId",
+        "kind": "value"
+      },
+      {
+        "name": "JunctionName",
+        "kind": "type"
+      },
+      {
         "name": "KeyValue",
         "kind": "type"
       },

@@ -8,13 +8,13 @@
 | 状态           | 数量   |
 | :------------- | :----- |
 | ✅ Done        | 100    |
-| 🚧 In Progress | 13     |
-| 👀 In Review   | 3      |
-| 📝 Backlog     | 34     |
+| 🚧 In Progress | 14     |
+| 👀 In Review   | 7      |
+| 📝 Backlog     | 29     |
 | 🚫 Blocked     | 0      |
 | **未完成合计** | **50** |
 
-仓库还剩 **50 条**未关闭故事（13 In Progress + 3 In Review + 34 Backlog + 0 Blocked）。
+仓库还剩 **50 条**未关闭故事（14 In Progress + 7 In Review + 29 Backlog + 0 Blocked）。
 数字由 story YAML 推导；Backlog 包括已授权任务与价值待证候选，不能把全部未关闭故事当成可开工项。
 
 ## 未完成需求全景
@@ -31,12 +31,12 @@
 | [US-540](stories/domain/US-540-board-end-to-end-demo.md)                                                                                                                | 🚧 In Progress | demo 既有库初态（AC#7）与无搜索插件构建（AC#12）                                                       | 批次 6   |
 | [US-541](stories/domain/US-541-board-team-sync.md)                                                                                                                      | 📝 Backlog     | 具名团队触发后冻结身份、成员权限、RLS 与冲突规则                                                       | 立项池   |
 | [US-226](stories/adapter/US-226-supabase-pull-count-records.md)                                                                                                         | 📝 Backlog     | 远端日志补记 `transactionId`、广播带上它、按记录重算；先定旧服务端的处理方式                           |
-| [US-037](stories/core/US-037-push-order-by-foreign-key.md)                                                                                                              | 📝 Backlog     | 一次级联覆盖全部仓库、单仓推连通分量；依赖图补继承关系与复合外键；汇总计全关联仓                       | 批次 9   |
+| [US-037](stories/core/US-037-push-order-by-foreign-key.md)                                                                                                              | 👀 In Review   | AC 全部通过（单测、PGlite、Supabase 真栈），待 owner 评审后合入                                        | 批次 9   |
 | [US-038](stories/core/US-038-bidirectional-one-to-one-sync.md)                                                                                                          | 📝 Backlog     | 三阶段：强连通分量与客户端合批 → `rxdb_mutations` 延迟列 → 拉取补齐与端到端；前置 US-037               | 批次 9   |
-| [US-228](stories/adapter/US-228-supabase-many-to-many-sync.md)                                                                                                          | 📝 Backlog     | 三阶段：确定性关联行 id → 中间表同步类型跟随两端 → DDL 契约与真栈；前置 US-037                         | 批次 9   |
-| [US-227](stories/adapter/US-227-supabase-relational-sync-demo.md)                                                                                                       | 📝 Backlog     | demo 自有表与订单页、两身份远端 e2e；三阶段分别以 US-037、US-228、US-038 为前置                        | 批次 9   |
-| [US-034](stories/core/US-034-bucketed-entity-local-writes.md)                                                                                                           | 📝 Backlog     | 商品本地增删改可撤销/重做、推送后锁定；换区、离线写、被移出租户时的未推送修改                          | 批次 8   |
-| [US-229](stories/adapter/US-229-supabase-change-history.md)                                                                                                             | 📝 Backlog     | 独立于同步日志的历史表、三个写入点、按编辑权限读取的 RPC 与列脱敏                                      | 批次 8   |
+| [US-228](stories/adapter/US-228-supabase-many-to-many-sync.md)                                                                                                          | 👀 In Review   | AC 全部通过（核心单测、SQLite 与 PGlite 套件、真栈两客户端、SQL 回归），待 owner 评审                  | 批次 9   |
+| [US-227](stories/adapter/US-227-supabase-relational-sync-demo.md)                                                                                                       | 🚧 In Progress | 阶段 A、B 完成（订单页、分类多对多、两身份远端 e2e、表权限真栈用例）；阶段 C 等 US-038                 | 批次 9   |
+| [US-034](stories/core/US-034-bucketed-entity-local-writes.md)                                                                                                           | 👀 In Review   | AC 全部通过（PGlite、Supabase 真栈、demo 组件单测与成员、访客两条远端 e2e），待 owner 评审             | 批次 8   |
+| [US-229](stories/adapter/US-229-supabase-change-history.md)                                                                                                             | 👀 In Review   | AC 全部通过（SQL 回归 `change-history`、真栈读取、demo 单测与成员 e2e），待 owner 评审                 | 批次 8   |
 | [US-029](stories/core/US-029-rbac-owner-role-permission.md)                                                                                                             | 📝 Backlog     | 价值待证，等待具名多用户写授权症状；解锁时重验当前 API 前提                                            | 立项池   |
 | [US-910](stories/future/US-910-data-i18n.md)                                                                                                                            | 📝 Backlog     | 先证明语言启停入口、删除判据与迟到子行合入；不能只归因于缺夹具                                         | 立项池   |
 | [US-704](stories/future/US-704-p2p-manifest-discovery.md) / [US-705](stories/future/US-705-p2p-byte-transfer.md) / [US-706](stories/future/US-706-p2p-fallback-auth.md) | 🚧 In Progress | 协议层已实现；先选定认证宿主，再接信令、mDNS 与桌面握手，按 AC 在真实宿主上验收                        | 批次 7   |

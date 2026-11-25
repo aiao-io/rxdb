@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, OnInit } from '@angular/cor
 import { DemoSession } from '../demo-session';
 import { RemoteSyncState } from '../remote-sync-state';
 import { CatalogBrowsePanel } from './catalog-browse-panel';
+import { CatalogLocalWrites } from './catalog-local-writes';
 import { CatalogRemoteState } from './catalog-remote-state';
 import { CatalogServerPanel } from './catalog-server-panel';
 import { CatalogSyncedPanel } from './catalog-synced-panel';
@@ -14,6 +15,7 @@ import { bucketLabel } from './catalog-view';
  * - US-033：数据按授权分区，能读哪些区由服务端裁决，同步规则只在能读的区里挑行
  * - US-035：每个身份一个本地库，切换身份就是打开另一个库
  * - US-036：规则之外的公开数据在线浏览，不落进同步子集
+ * - US-034：所在租户的商品在本机增删改，推送之前可以撤销、重做
  *
  * 页面够宽时分两栏：左边是身份、本机同步的商品与在线浏览，右边是模拟服务端变更，
  * 改完服务端点「同步」不用上下翻找。按页面自己的宽度（容器查询）分栏，侧栏展开、收起都算得准。
@@ -21,7 +23,7 @@ import { bucketLabel } from './catalog-view';
 @Component({
   selector: 'app-catalog-page',
   imports: [CatalogSyncedPanel, CatalogBrowsePanel, CatalogServerPanel],
-  providers: [CatalogRemoteState],
+  providers: [CatalogRemoteState, CatalogLocalWrites],
   template: `
     <main class="@container mx-auto flex max-w-7xl flex-col gap-4 p-4">
       <header class="flex flex-col gap-1">

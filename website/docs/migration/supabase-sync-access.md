@@ -1,6 +1,6 @@
 # Supabase 日志同步只对已登录身份开放
 
-本文记录 US-225 的旧协议权限迁移，重点是未分区 `rxdb_change` 日志、通用拉取、推送、分支登记和实时通知。当前按授权分区的只读同步见[Supabase 适配器文档](../adapters/supabase.md#按授权分区的只读同步)。分区实体部署新版 SQL 后，anon 可以通过按区只读 RPC 读取授权的 `public` 区，authenticated 可以读取 `rxdb_caller_buckets()` 返回的分区。
+本文记录 US-225 的旧协议权限迁移，重点是未分区 `rxdb_change` 日志、通用拉取、推送、分支登记和实时通知。当前按授权分区同步见[Supabase 适配器文档](../adapters/supabase.md#按授权分区同步)。分区实体部署新版 SQL 后，anon 可以通过按区只读 RPC 读取授权的 `public` 区，authenticated 可以读取 `rxdb_caller_buckets()` 返回的分区。
 
 `@aiao/rxdb-adapter-supabase` 的参考 SQL 收紧了变更日志的访问。旧版本里：
 

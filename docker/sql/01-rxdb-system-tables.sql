@@ -166,6 +166,41 @@ INSERT INTO public.rxdb_backend DEFAULT VALUES
 ON CONFLICT (singleton) DO NOTHING;
 
 -- ============================================
+-- rxdb_change_history 表（远端变更历史，US-229）
+-- ============================================
+-- 每次生效的业务写入一条：完整的前后快照、操作者与来源。与同步日志 rxdb_change 分开存放：同步日志按区开放读取，
+-- 分区日志不带正文；历史只经读取 RPC rxdb_entity_history 按「调用者当前能否编辑这一行」与列权限开放。
+-- 只经 SECURITY DEFINER 的写入点落库：直写时的同步触发器（source = trigger），推送的 rxdb_insert_changes
+-- （push；被级联删除的子行为 cascade）。开 RLS 并 FORCE、不建任何策略：客户端即便经下文的整库授权拿到表权限，
+-- 也读写不了任何一行；属主（BYPASSRLS）的 SECURITY DEFINER 函数照常写入。
+CREATE TABLE IF NOT EXISTS public.rxdb_change_history (
+  id bigserial PRIMARY KEY,
+  "changeId" integer,
+  namespace varchar NOT NULL,
+  entity varchar NOT NULL,
+  "entityId" varchar NOT NULL,
+  bucket varchar,
+  type varchar NOT NULL CHECK (type IN ('INSERT', 'UPDATE', 'DELETE')),
+  patch jsonb,
+  "inversePatch" jsonb,
+  "beforeData" jsonb,
+  "afterData" jsonb,
+  actor uuid,
+  role varchar,
+  source varchar NOT NULL CHECK (source IN ('trigger', 'push', 'cascade')),
+  "clientId" varchar,
+  "localId" integer,
+  "branchId" varchar NOT NULL DEFAULT 'main',
+  "createdAt" timestamptz(3) NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_rxdb_change_history_entity
+ON public.rxdb_change_history(namespace, entity, "entityId", id);
+
+ALTER TABLE public.rxdb_change_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rxdb_change_history FORCE ROW LEVEL SECURITY;
+
+-- ============================================
 -- 自动更新 updatedAt 触发器
 -- ============================================
 CREATE OR REPLACE FUNCTION update_updated_at_column()

@@ -1,4 +1,5 @@
 import { expect, test, type Browser, type Locator, type Page } from '@playwright/test';
+import { switchIdentity as switchTo } from './support/identity';
 
 const isRemoteE2E = process.env['REMOTE_E2E'] === 'true';
 
@@ -25,10 +26,8 @@ if (isRemoteE2E) {
       return page;
     }
 
-    async function switchIdentity(page: Page, choice: string, title: string): Promise<void> {
-      await page.getByLabel('切换身份').selectOption(choice);
-      await expect(page.getByTestId('identity-title')).toHaveText(title, { timeout: 60_000 });
-      await expect(page.getByTestId('catalog-identity')).toBeVisible({ timeout: 60_000 });
+    function switchIdentity(page: Page, choice: string, title: string): Promise<void> {
+      return switchTo(page, choice, title, 'catalog-identity');
     }
 
     /** 点「同步」并等这一轮结算：按钮上的轮数加一才算这一轮结束，不会被上一轮留下的结果骗过 */

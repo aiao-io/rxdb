@@ -10,6 +10,8 @@
 - [Supabase 变更日志提交顺序修复](./supabase-change-log-order.md)：`rxdb_change` 加触发器让日志 `id` 顺序等于提交顺序，拉取不再漏掉晚提交的变更；重跑一次新版 02 SQL，客户端无需升级
 - [Supabase 远端身份与远端重置](./supabase-remote-backend.md)：远端新增身份值 `rxdb_backend_id()`，客户端把它和拉取游标存在一起，远端重建后停止同步并报 `RemoteBackendMismatchError`，由应用显式改绑；须先执行新版 SQL 再升级客户端，自定义远端适配器须实现 `backendId()`
 - [Supabase 日志同步只对已登录身份开放](./supabase-sync-access.md)：anon 不能再拉取、推送与登记分支，非 main 分支由首个写入者认领，实时通知改为只带元数据的私有频道广播；应用须先改用已登录的客户端，再执行新版 SQL，旧分支要补登所有者
+- [Supabase 远端变更历史](./supabase-change-history.md)：新表 `rxdb_change_history` 记每次生效写入的完整前后快照与操作者，只经 `rxdb_entity_history` 对能编辑这一行的成员开放；执行与日志访问收口同一条升级命令，之后重新加载自己的 `rxdb_caller_can_edit` 覆盖，客户端无需升级
+- [多对多关联行的确定性 id](./many-to-many-junction-id.md)：关联行 id 由两端派生、连接表的同步跟随两端；远端中间表补 `id` 与时间戳列并登记同步，已有行先改成派生 id 再升级客户端
 - [Supabase 推送回执迁移](./supabase-push-receipts.md)：`mergeChanges` 返回值从 `changeIdMapping` 改为必填的 `results`，自定义远端适配器须跟着改；被拒变更不再拖垮整批，须先执行新版 SQL 再升级客户端
 - [HTTP 适配器翻页键改名](./http-page-token.md)：`ctx.cursor` → `ctx.pageToken`、`nextCursor` → `nextPageToken`，与 core 的 keyset 游标区分开
 - [桌面适配器拆包](./desktop-split.md)：`rxdb-adapter-desktop` 拆成 `-electron` / `-tauri` 两个包

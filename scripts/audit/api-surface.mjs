@@ -579,7 +579,22 @@ const NAMING = {
     // 包外要给它们起名，不导出就只能写 `Parameters<typeof countRxDBChangeRecords>[0]` 或照抄一份结构。
     'countRxDBChangeRecords',
     'RxDBChangeCounter',
-    'RxDBChangeWhere'
+    'RxDBChangeWhere',
+    // US-228 多对多关联行的确定性 id。`junctionEntityId` 是关系缓存新建关联行、本地适配器与测试核对行 id、
+    // 服务端写关联行时共用的同一个公式；`JUNCTION_ID_NAMESPACE` 是它的协议常量，`JunctionName` /
+    // `JunctionEndpointKey` 是入参形状。`JunctionEndpointsLookup` 是 `createEntitySyncResolver` 第三个参数的形状
+    // （中间表的同步跟随两端），与上面 US-026 的解析器同族。它们是实体关系与同步配置的契约，与工作树、
+    // 提交能力都无关，叫 `Commit*` / `WorkingTree*` 等于宣称多对多关联是提交能力的一部分。
+    'junctionEntityId',
+    'JUNCTION_ID_NAMESPACE',
+    'JunctionName',
+    'JunctionEndpointKey',
+    'JunctionEndpointsLookup',
+    // US-038 外键成环的推送。`RemoteMergeOptions` 是远端 `mergeChanges` 第四个参数的形状，`RemoteDeferredForeignKey`
+    // 是其中「先写空、再补写」的外键；与同族的 `RemoteMergeResult` / `RemoteChangeResult` 一样是远端适配器契约，
+    // 第三方远端适配器实现它时必须能命名。它们与工作树、提交能力都无关，叫 `Commit*` / `WorkingTree*` 只会是个谎。
+    'RemoteMergeOptions',
+    'RemoteDeferredForeignKey'
   ],
   /** 全部包都不许有的新前缀 */
   bannedPrefixes: ['Index', 'Workspace'],

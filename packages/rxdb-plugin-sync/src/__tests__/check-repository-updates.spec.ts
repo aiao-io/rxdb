@@ -478,4 +478,70 @@ describe('checkRepositoryUpdates：按区同步的实体', () => {
       hasUpdates: true
     });
   });
+
+  // RV-01a21194e68f7aacb5782c196d2ea870：先问可读分区、再逐个问快照点，两次之间分区可能被撤销，
+  // 服务端对它报未授权。拉取按分区记失败、其他分区照常，状态查询同口径，不整体抛错
+  describe('问快照点时分区已被撤销', () => {
+    const notAuthorized = () =>
+      Object.assign(new Error('rxdb: bucket is not authorized for the current caller'), { code: '42501' });
+
+    const createRevokingHarness = () => {
+      const current = filterFingerprint(ACTIVE);
+      return createBucketedHarness([progress(current, 10, 'public'), progress(current, 3, 'tenant:1')], 10, {
+        public: 10,
+        'tenant:1': 8
+      });
+    };
+
+    it('重读可读分区确认它已不在：跳过它，其他分区照常计数', async () => {
+      const harness = createRevokingHarness();
+      harness.remoteAdapter.getCallerBuckets
+        .mockResolvedValueOnce(['public', 'tenant:1'])
+        .mockResolvedValueOnce(['public']);
+      harness.remoteAdapter.getBucketSnapshotPoint.mockImplementation(
+        async (_namespace: string, _entity: string, bucket: string) => {
+          if (bucket === 'tenant:1') throw notAuthorized();
+          return 10;
+        }
+      );
+
+      await expect(checkRepositoryUpdates(harness.rxdb, 'public', 'CheckBucketed')).resolves.toEqual({
+        repository: { namespace: 'public', entity: 'CheckBucketed' },
+        remoteLatestChangeId: 10,
+        localLastPullRemoteChangeId: 10,
+        pendingCount: 0,
+        hasUpdates: false
+      });
+      expect(harness.remoteAdapter.getCallerBuckets).toHaveBeenCalledTimes(2);
+    });
+
+    it('分区仍在可读列表里却失败：原样抛出，不当作撤销吞掉', async () => {
+      const harness = createRevokingHarness();
+      const failure = new Error('network down');
+      harness.remoteAdapter.getBucketSnapshotPoint.mockImplementation(
+        async (_namespace: string, _entity: string, bucket: string) => {
+          if (bucket === 'tenant:1') throw failure;
+          return 10;
+        }
+      );
+
+      await expect(checkRepositoryUpdates(harness.rxdb, 'public', 'CheckBucketed')).rejects.toBe(failure);
+    });
+
+    it('重读可读分区也失败：确认不了撤销，抛原来那个错误', async () => {
+      const harness = createRevokingHarness();
+      const failure = notAuthorized();
+      harness.remoteAdapter.getCallerBuckets
+        .mockResolvedValueOnce(['public', 'tenant:1'])
+        .mockRejectedValueOnce(new Error('network down'));
+      harness.remoteAdapter.getBucketSnapshotPoint.mockImplementation(
+        async (_namespace: string, _entity: string, bucket: string) => {
+          if (bucket === 'tenant:1') throw failure;
+          return 10;
+        }
+      );
+
+      await expect(checkRepositoryUpdates(harness.rxdb, 'public', 'CheckBucketed')).rejects.toBe(failure);
+    });
+  });
 });

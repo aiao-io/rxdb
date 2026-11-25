@@ -1,11 +1,4 @@
-import {
-  getEntityMetadata,
-  getRxDBIdentityDatabaseName,
-  RxDB,
-  SyncType,
-  type EntitySyncOverride,
-  type RxDBIdentity
-} from '@aiao/rxdb';
+import { getEntityMetadata, getRxDBIdentityDatabaseName, RxDB, SyncType, type RxDBIdentity } from '@aiao/rxdb';
 import type { SupabaseAdapterOptions } from '@aiao/rxdb-adapter-supabase';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { rxDBPluginGraph } from '@aiao/rxdb-plugin-graph';
@@ -15,7 +8,9 @@ import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 import { CatalogItem, PublicCatalogItem, Todo } from '@aiao/rxdb-test/entities';
 import { checkOPFSAvailable } from '@aiao/utils';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { catalogSyncRule, FollowedCategories } from './catalog/catalog-sync-rule';
+import { FollowedCategories } from './catalog/catalog-sync-rule';
+import { demoSyncOverrides, type DemoSyncOverrideSession } from './demo-sync-overrides';
+import { ORDER_ENTITIES } from './orders/order-entities';
 import { getOrCreateUserId, readSupabaseConfig, resolveDatabaseName } from './runtime-config';
 import { DEMO_RLS_CHECK } from './supabase-rls-check';
 import { readSessionIdentity, type DemoSessionIdentity } from './supabase-session';
@@ -66,38 +61,9 @@ export async function prepareSupabaseSession(): Promise<void> {
   prepared = { client, identity, session, databaseName, followed: new FollowedCategories(localStorage, databaseName) };
 }
 
-/**
- * 按身份给出的同步覆盖。
- *
- * @remarks
- * - 商品：按授权分区同步（US-033），规则在每轮拉取时读当前关注的分类。
- * - 公开商品：在线浏览规则之外的公开数据（US-036），QueryCache 每次查询都向远端校验。
- * - 访客的 Todo 只存本地：Todo 走未分区的日志同步，只对登录身份开放（US-225）。
- */
-function syncOverridesFor(session: PreparedSession | undefined): EntitySyncOverride[] {
-  const followed = session?.followed;
-  const overrides: EntitySyncOverride[] = [
-    {
-      entity: CatalogItem,
-      sync: {
-        type: SyncType.Filter,
-        local: { adapter: 'wa-sqlite' },
-        remote: { adapter: 'supabase', filter: () => catalogSyncRule(followed?.value() ?? []) }
-      }
-    },
-    {
-      entity: PublicCatalogItem,
-      sync: {
-        type: SyncType.QueryCache,
-        local: { adapter: 'wa-sqlite', syncStaleTime: 0 },
-        remote: { adapter: 'supabase' }
-      }
-    }
-  ];
-  if (session?.session.kind === 'visitor') {
-    overrides.push({ entity: Todo, sync: { type: SyncType.None, local: { adapter: 'wa-sqlite' } } });
-  }
-  return overrides;
+/** 同步覆盖只要会话的身份类别与关注的分类；分类在每轮拉取时现读 */
+function overrideSessionOf(session: PreparedSession): DemoSyncOverrideSession {
+  return { kind: session.session.kind, followed: () => session.followed.value() };
 }
 
 export default () => {
@@ -109,7 +75,8 @@ export default () => {
     context: {
       userId: getOrCreateUserId(import.meta.env.VITE_RXDB_USER_ID, localStorage, () => crypto.randomUUID())
     },
-    entities: [Todo, CatalogItem, PublicCatalogItem],
+    // 订单演示的实体按「子在前」注册，让全量推送顺带守住 US-037 的外键顺序
+    entities: [Todo, CatalogItem, PublicCatalogItem, ...ORDER_ENTITIES],
     sync: {
       local: {
         adapter: 'wa-sqlite'
@@ -119,7 +86,7 @@ export default () => {
       },
       type: SyncType.Full
     },
-    syncOverrides: syncOverridesFor(prepared)
+    syncOverrides: demoSyncOverrides(prepared && overrideSessionOf(prepared))
   });
   rxdb
     .use(rxDBPluginGraph)

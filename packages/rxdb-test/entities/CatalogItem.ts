@@ -8,13 +8,13 @@ import { Entity, EntityBase, PropertyType } from '@aiao/rxdb';
  * anon 同步下来的行里它为空。
  *
  * 不在装饰器里声明 `sync`：同步规则（`remote.filter`）随使用方而变，由 `syncOverrides` 给出。
- * 第一批故事只读，三项写权限都只许系统写，本地只由同步拉取落库。
+ * 本地可以增删改（US-034）：写入留下可撤销的变更，推送经 `rxdb_mutations`，服务端按写后的行算区、
+ * 按 RLS 裁决能不能写。实体权限是静态的、分不出身份，访客的写入口由应用禁用，即使在本地写了也推不上去。
  */
 @Entity({
   name: 'CatalogItem',
   tableName: 'catalog_items',
   displayName: '商品',
-  permissions: { create: 'system', update: 'system', delete: 'system' },
   properties: [
     { name: 'name', type: PropertyType.string, displayName: '名称' },
     { name: 'category', type: PropertyType.string, displayName: '分类' },

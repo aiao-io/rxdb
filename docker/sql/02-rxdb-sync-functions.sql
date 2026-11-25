@@ -20,6 +20,44 @@ END;
 $$;
 
 -- ============================================
+-- 远端变更历史的写入（US-229，内部函数）
+-- ============================================
+-- 每次生效的业务写入一条：完整的前后快照、操作者 auth.uid() 与角色、来源，与业务写在同一事务里。
+-- 只由 SECURITY DEFINER 的写入点调用（本文件的同步触发器；推送走 04 的 rxdb_insert_changes 自己的批量写入），
+-- 不授给任何客户端角色（生产权限脚本收回）。分区实体同样记完整正文：历史不经同步日志的按区读取开放，
+-- 只经 rxdb_entity_history 按编辑权限与列权限读取
+CREATE OR REPLACE FUNCTION public.rxdb_record_change_history(
+    p_change_id integer,
+    p_namespace text,
+    p_entity text,
+    p_entity_id text,
+    p_bucket text,
+    p_type text,
+    p_patch jsonb,
+    p_inverse_patch jsonb,
+    p_before jsonb,
+    p_after jsonb,
+    p_source text
+)
+RETURNS void
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+    INSERT INTO public.rxdb_change_history (
+        "changeId", namespace, entity, "entityId", bucket, type, patch, "inversePatch",
+        "beforeData", "afterData", actor, role, source, "branchId"
+    ) VALUES (
+        p_change_id, p_namespace, p_entity, p_entity_id, p_bucket, p_type, p_patch, p_inverse_patch,
+        p_before, p_after, auth.uid(), auth.role(), p_source, 'main'
+    )
+$$;
+
+REVOKE ALL ON FUNCTION public.rxdb_record_change_history(
+    integer, text, text, text, text, text, jsonb, jsonb, jsonb, jsonb, text
+) FROM PUBLIC, anon, authenticated;
+
+-- ============================================
 -- 通用变更追踪触发器函数
 -- ============================================
 -- SECURITY DEFINER（US-218 阶段 C）：生产权限脚本撤销了客户端对 rxdb_change 的写权限，
@@ -45,6 +83,7 @@ DECLARE
     v_is_bucketed boolean;
     v_captured_deletes jsonb;
     v_capture_key text;
+    v_change_id integer;
 BEGIN
     SELECT EXISTS (
         SELECT 1
@@ -92,6 +131,7 @@ BEGIN
     -- v_branch_id := current_setting('rxdb.branch_id', true);
     -- IF v_branch_id IS NULL THEN v_branch_id := 'main'; END IF;
 
+    -- 历史（US-229）与日志同一事务、同一处写入；历史始终带完整正文，不受分区日志剥正文的影响
     IF (TG_OP = 'INSERT') THEN
         v_entity_id := NEW.id::text;
         v_patch := pg_catalog.to_jsonb(NEW);
@@ -107,29 +147,15 @@ BEGIN
             NULL,
             CASE WHEN v_is_bucketed THEN NULL ELSE pg_catalog.to_jsonb(NEW) END,
             NOT v_is_bucketed
+        ) RETURNING id INTO v_change_id;
+        PERFORM public.rxdb_record_change_history(
+            v_change_id, v_namespace, v_entity, v_entity_id, v_new_bucket, 'INSERT',
+            v_patch, NULL, NULL, pg_catalog.to_jsonb(NEW), 'trigger'
         );
         RETURN NEW;
 
     ELSIF (TG_OP = 'UPDATE') THEN
         v_entity_id := NEW.id::text;
-
-        IF v_old_bucket IS DISTINCT FROM v_new_bucket THEN
-            INSERT INTO public.rxdb_change (
-                namespace, entity, bucket, "entityId", type, patch, "inversePatch", "branchId",
-                "beforeData", "afterData", "snapshotComplete"
-            ) VALUES (
-                v_namespace, v_entity, v_old_bucket, v_entity_id, 'DELETE', NULL, NULL, v_branch_id,
-                NULL, NULL, true
-            );
-            INSERT INTO public.rxdb_change (
-                namespace, entity, bucket, "entityId", type, patch, "inversePatch", "branchId",
-                "beforeData", "afterData", "snapshotComplete"
-            ) VALUES (
-                v_namespace, v_entity, v_new_bucket, v_entity_id, 'INSERT', NULL, NULL, v_branch_id,
-                NULL, NULL, false
-            );
-            RETURN NEW;
-        END IF;
 
         -- 计算差异
         v_patch := '{}'::jsonb;
@@ -147,6 +173,29 @@ BEGIN
             END IF;
         END LOOP;
 
+        IF v_old_bucket IS DISTINCT FROM v_new_bucket THEN
+            INSERT INTO public.rxdb_change (
+                namespace, entity, bucket, "entityId", type, patch, "inversePatch", "branchId",
+                "beforeData", "afterData", "snapshotComplete"
+            ) VALUES (
+                v_namespace, v_entity, v_old_bucket, v_entity_id, 'DELETE', NULL, NULL, v_branch_id,
+                NULL, NULL, true
+            );
+            INSERT INTO public.rxdb_change (
+                namespace, entity, bucket, "entityId", type, patch, "inversePatch", "branchId",
+                "beforeData", "afterData", "snapshotComplete"
+            ) VALUES (
+                v_namespace, v_entity, v_new_bucket, v_entity_id, 'INSERT', NULL, NULL, v_branch_id,
+                NULL, NULL, false
+            ) RETURNING id INTO v_change_id;
+            -- 换区在日志里是旧区的移除加新区的写入，在历史里仍是一次修改，记在新区
+            PERFORM public.rxdb_record_change_history(
+                v_change_id, v_namespace, v_entity, v_entity_id, v_new_bucket, 'UPDATE',
+                v_patch, v_inverse_patch, pg_catalog.to_jsonb(OLD), pg_catalog.to_jsonb(NEW), 'trigger'
+            );
+            RETURN NEW;
+        END IF;
+
         -- 如果有变更才插入
         IF v_patch != '{}'::jsonb THEN
             INSERT INTO public.rxdb_change (
@@ -160,6 +209,10 @@ BEGIN
                 CASE WHEN v_is_bucketed THEN NULL ELSE pg_catalog.to_jsonb(OLD) END,
                 CASE WHEN v_is_bucketed THEN NULL ELSE pg_catalog.to_jsonb(NEW) END,
                 NOT v_is_bucketed
+            ) RETURNING id INTO v_change_id;
+            PERFORM public.rxdb_record_change_history(
+                v_change_id, v_namespace, v_entity, v_entity_id, v_new_bucket, 'UPDATE',
+                v_patch, v_inverse_patch, pg_catalog.to_jsonb(OLD), pg_catalog.to_jsonb(NEW), 'trigger'
             );
         END IF;
         RETURN NEW;
@@ -179,6 +232,10 @@ BEGIN
             CASE WHEN v_is_bucketed THEN NULL ELSE pg_catalog.to_jsonb(OLD) END,
             NULL,
             NOT v_is_bucketed
+        ) RETURNING id INTO v_change_id;
+        PERFORM public.rxdb_record_change_history(
+            v_change_id, v_namespace, v_entity, v_entity_id, v_old_bucket, 'DELETE',
+            v_patch, NULL, pg_catalog.to_jsonb(OLD), NULL, 'trigger'
         );
         RETURN OLD;
     END IF;

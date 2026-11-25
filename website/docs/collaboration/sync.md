@@ -106,6 +106,24 @@ await sync.syncRepository('public', 'Todo', { direction: 'push' });
 同步方法过去挂在 `rxdb.versionManager` 上，现在全部搬到 `rxdb.syncManager`。`versionManager` 仍然存在，但只保留历史与分支 API。对照表见[历史与同步拆包](../migration/history-sync-plugins.md)。
 :::
 
+### 推送顺序
+
+推送的跨仓顺序只由外键决定，与 `config.entities` 的书写顺序无关：删除子先父后，新建与修改父先子后。父行和引用它的子行同批新建时，父行一定先到远端，子行不会撞上外键被拒。
+
+- `push()`（以及 `bulkSync({ operation: 'push' })`）把所有要推的仓库合成一次推完，每个仓库只计一次，级联顺带推上去的仓库同样计入 `pushed` / `failed`，它们的失败也进 `failures`。系统表不在推送目标里。
+- `pushRepository(namespace, entity)` 默认（`includeRelated: true`）推目标所在的整个连通分量：它引用的父仓、引用它的子仓，以及沿外键能连到的其余仓库。只推子仓时，父仓的新行会先推上去。
+- `push({ repositoryFilter })` 与 `bulkSync` 点名仓库时同样连同连通分量一起推；带进来的关联仓在 `bulkSync` 的 `results` 里各占一条，排在点名的仓库之后。
+- 外键取实体合并后的元数据：父类上声明的关系、实体级复合外键 `foreignKeys` 都算。
+- 远端确实没有父行（例如已被别的客户端删掉）时，子行照旧以 `dependency` 被拒，本地对齐成远端的样子。
+
+外键成环（例如双向一对一）的实体暂不支持推拉，依赖图会直接报循环依赖。
+
+### 多对多的连接表
+
+多对多的连接实体由 RxDB 生成，不在 `entities` 里，也不能被 `syncOverrides` 直接覆盖（按 `unregistered` 拒绝）。它的同步配置跟随两端（US-228）：两端里有一端只在本地或不同步（解析为 `local` / `none`），连接表就用那一端的配置；两端都同步时，连接表照旧按库级默认。访客把两端设成只存本地，连接表也只存本地，不会还按库级默认去推拉。两端是 `Filter` / `QueryCache` 的多对多不在支持范围内。
+
+连接表依赖两端：推送时两端的新行先到远端，删除时连接行先删；拉取连接表时两端一并拉。关联行 id 由两端派生，两个客户端关联同一对只落成远端的一行，见[关联行的 id](../model-definition/relations.md#关联行的-id)。
+
 ### 冲突解决
 
 当 pull 或 sync 过程中检测到本地未推送变更与远程变更命中同一实体时，系统会先进入冲突检测，再默认使用 **Last Write Wins (LWW)** 策略：

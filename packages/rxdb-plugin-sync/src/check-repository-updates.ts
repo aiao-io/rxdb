@@ -142,7 +142,9 @@ export async function checkRepositoryUpdates(
         ]
       }
     } as never);
-    const buckets = [...new Set(await scopedRemote.getCallerBuckets())];
+    const getCallerBuckets = scopedRemote.getCallerBuckets.bind(scopedRemote);
+    const getBucketSnapshotPoint = scopedRemote.getBucketSnapshotPoint.bind(scopedRemote);
+    const buckets = [...new Set(await getCallerBuckets())];
     // 水位与拉取同口径：拉取只拉当前分支及其祖先，别的分支写进同一个 bucket 不算待拉
     const ancestorBranchIds = await getAncestorBranchIds(sm, branchId);
     // 进度按同步规则指纹分开记：规则改过、旧指纹的进度还没清（某个区拉失败时会留下）时，只看 pull() 会用的那一份
@@ -155,7 +157,12 @@ export async function checkRepositoryUpdates(
 
     for (const bucket of buckets) {
       const progress = progresses.find(item => item.bucket === bucket && item.filterFingerprint === fingerprint);
-      const remotePoint = await scopedRemote.getBucketSnapshotPoint(namespace, entity, bucket, ancestorBranchIds);
+      const remotePoint = await snapshotPointUnlessRevoked(
+        () => getBucketSnapshotPoint(namespace, entity, bucket, ancestorBranchIds),
+        getCallerBuckets,
+        bucket
+      );
+      if (remotePoint === undefined) continue;
       latestChangeId = Math.max(latestChangeId, remotePoint);
       if (progress) localCursor = Math.max(localCursor ?? 0, progress.cursor);
       if (!progress || !progress.snapshotComplete || remotePoint > progress.cursor) {
@@ -194,4 +201,35 @@ export async function checkRepositoryUpdates(
     pendingCount: count,
     hasUpdates: count > 0
   };
+}
+
+/**
+ * 分区此刻的快照点；问的时候分区已被撤销则为 `undefined`
+ *
+ * @param getSnapshotPoint - 问这个分区的快照点
+ * @param getCallerBuckets - 问调用者此刻可读的分区
+ * @param bucket - 要问的分区
+ * @returns 快照点；重读可读分区确认它已不在时为 `undefined`
+ *
+ * @remarks
+ * 先问可读分区、再逐个问快照点，两次之间分区可能被撤销，服务端对它报未授权（参考 SQL 是 `42501`）。
+ * 不按错误码猜是不是撤销：失败之后重读一次可读分区，确实不在了才跳过，下一次拉取会清掉它的本地范围，
+ * 与拉取逐分区记失败的口径一致（RV-01a21194e68f7aacb5782c196d2ea870）。还在列表里，或者重读本身也失败，
+ * 就原样抛出原来的错误：网络与配置错误不能被当成撤销吞掉。
+ */
+async function snapshotPointUnlessRevoked(
+  getSnapshotPoint: () => Promise<number>,
+  getCallerBuckets: () => Promise<string[]>,
+  bucket: string
+): Promise<number | undefined> {
+  try {
+    return await getSnapshotPoint();
+  } catch (error) {
+    const stillReadable = await getCallerBuckets().then(
+      buckets => buckets.includes(bucket),
+      () => true
+    );
+    if (stillReadable) throw error;
+    return undefined;
+  }
 }

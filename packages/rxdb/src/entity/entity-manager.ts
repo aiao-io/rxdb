@@ -580,6 +580,12 @@ export class EntityManager {
    */
   async create<T extends EntityType>(data: InstanceType<T>): Promise<InstanceType<T>> {
     const EntityType = data.constructor as EntityType;
+    // 多对多中间表的行 id 由两端派生（US-228），库里可能已经有同一对（关联过、只是没加载进内存）：
+    // 走批量写，本地适配器遇到同 id 的行保留它、读回来交给这个实例，而不是报主键冲突
+    if (this.rxdb.schemaManager.isJunctionEntity(EntityType)) {
+      await this.mutations(getEntityMutations({ needSaveEntities: [data], needRemoveEntities: [] }));
+      return data;
+    }
     const entity = await this.#get_entity_repository(EntityType).create(data);
     return entity;
   }

@@ -214,10 +214,21 @@ CREATE TABLE IF NOT EXISTS shop.order_item (
       FOREIGN KEY ("skuId") REFERENCES shop.sku(id) ON DELETE SET NULL
 );
 
+-- 多对多中间表按实体形状建表（US-228 的 DDL 契约）：`id uuid` 唯一并带时间戳列（中间表实体继承 EntityBase，
+-- 推送按 id 定位行），两端外键 NOT NULL + ON DELETE CASCADE 并作主键，登记同步（第 7 节）。主键必须是两端外键：
+-- PostgREST 只把「外键在主键里」的表认作多对多中间表，主键换成 id 之后跨中间表的嵌入查询就找不到关系。
+-- 客户端的关联行 id 由两端 id 确定性派生（uuid v5，见 website/docs/adapters/supabase.md「多对多中间表」），
+-- 两个客户端关联同一对只落成一行；服务端不带 id 直写时取 gen_random_uuid()
 CREATE TABLE IF NOT EXISTS shop."Category_OrderItem" (
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
     "categoriesId" uuid NOT NULL,
     "orderItemsId" uuid NOT NULL,
+    "createdAt" timestamptz(3) NOT NULL DEFAULT now(),
+    "updatedAt" timestamptz(3) NOT NULL DEFAULT now(),
+    "createdBy" varchar,
+    "updatedBy" varchar,
     PRIMARY KEY ("categoriesId", "orderItemsId"),
+    CONSTRAINT "Category_OrderItem_id_key" UNIQUE (id),
     CONSTRAINT Category_OrderItem_categoriesId_fkey
       FOREIGN KEY ("categoriesId") REFERENCES shop.category(id) ON DELETE CASCADE,
     CONSTRAINT Category_OrderItem_orderItemsId_fkey
@@ -225,14 +236,73 @@ CREATE TABLE IF NOT EXISTS shop."Category_OrderItem" (
 );
 
 CREATE TABLE IF NOT EXISTS shop."Category_Product" (
+    id uuid NOT NULL DEFAULT gen_random_uuid(),
     "categoriesId" uuid NOT NULL,
     "productsId" uuid NOT NULL,
+    "createdAt" timestamptz(3) NOT NULL DEFAULT now(),
+    "updatedAt" timestamptz(3) NOT NULL DEFAULT now(),
+    "createdBy" varchar,
+    "updatedBy" varchar,
     PRIMARY KEY ("categoriesId", "productsId"),
+    CONSTRAINT "Category_Product_id_key" UNIQUE (id),
     CONSTRAINT Category_Product_categoriesId_fkey
       FOREIGN KEY ("categoriesId") REFERENCES shop.category(id) ON DELETE CASCADE,
     CONSTRAINT Category_Product_productsId_fkey
       FOREIGN KEY ("productsId") REFERENCES shop.product(id) ON DELETE CASCADE
 );
+
+-- 已有库里的旧形状（没有 id 与时间戳列）迁到契约形状，可重复执行：补列、id 唯一、主键是两端外键。
+-- 已有的关联行拿到随机 id，与客户端派生的 id 不同：客户端再关联同一对时撞主键（23505），处理办法见迁移文档
+DO $$
+DECLARE
+  v_junction record;
+  v_relation regclass;
+  v_primary_key text;
+  v_primary_columns text[];
+BEGIN
+  FOR v_junction IN
+    SELECT *
+    FROM (VALUES ('Category_OrderItem', 'categoriesId', 'orderItemsId'), ('Category_Product', 'categoriesId', 'productsId'))
+      AS junction(name, first_key, second_key)
+  LOOP
+    v_relation := pg_catalog.format('shop.%I', v_junction.name)::regclass;
+    EXECUTE pg_catalog.format('ALTER TABLE %s ADD COLUMN IF NOT EXISTS id uuid NOT NULL DEFAULT gen_random_uuid()', v_relation);
+    EXECUTE pg_catalog.format(
+      'ALTER TABLE %s ADD COLUMN IF NOT EXISTS "createdAt" timestamptz(3) NOT NULL DEFAULT now()', v_relation
+    );
+    EXECUTE pg_catalog.format(
+      'ALTER TABLE %s ADD COLUMN IF NOT EXISTS "updatedAt" timestamptz(3) NOT NULL DEFAULT now()', v_relation
+    );
+    EXECUTE pg_catalog.format('ALTER TABLE %s ADD COLUMN IF NOT EXISTS "createdBy" varchar', v_relation);
+    EXECUTE pg_catalog.format('ALTER TABLE %s ADD COLUMN IF NOT EXISTS "updatedBy" varchar', v_relation);
+
+    -- 推送按 id 定位行（rxdb_batch_upsert 的 ON CONFLICT (id)），id 要有唯一约束
+    IF NOT EXISTS (
+      SELECT 1 FROM pg_catalog.pg_constraint
+      WHERE conrelid = v_relation AND conname = v_junction.name || '_id_key'
+    ) THEN
+      EXECUTE pg_catalog.format('ALTER TABLE %s ADD CONSTRAINT %I UNIQUE (id)', v_relation, v_junction.name || '_id_key');
+    END IF;
+
+    SELECT constraint_row.conname, pg_catalog.array_agg(attribute.attname::text ORDER BY attribute.attname)
+    INTO v_primary_key, v_primary_columns
+    FROM pg_catalog.pg_constraint AS constraint_row
+    JOIN pg_catalog.pg_attribute AS attribute
+      ON attribute.attrelid = constraint_row.conrelid AND attribute.attnum = ANY(constraint_row.conkey)
+    WHERE constraint_row.conrelid = v_relation AND constraint_row.contype = 'p'
+    GROUP BY constraint_row.conname;
+    IF v_primary_columns IS DISTINCT FROM ARRAY[v_junction.first_key, v_junction.second_key] THEN
+      IF v_primary_key IS NOT NULL THEN
+        EXECUTE pg_catalog.format('ALTER TABLE %s DROP CONSTRAINT %I', v_relation, v_primary_key);
+      END IF;
+      EXECUTE pg_catalog.format(
+        'ALTER TABLE %s ADD PRIMARY KEY (%I, %I)', v_relation, v_junction.first_key, v_junction.second_key
+      );
+    END IF;
+    -- 两端已是主键，早先迁到 id 主键时加的成对唯一约束多余
+    EXECUTE pg_catalog.format('ALTER TABLE %s DROP CONSTRAINT IF EXISTS %I', v_relation, v_junction.name || '_pair_key');
+  END LOOP;
+END $$;
 
 CREATE INDEX IF NOT EXISTS idx_id_card_owner_id ON shop.id_card("ownerId");
 CREATE UNIQUE INDEX IF NOT EXISTS idx_user_id_card_id ON shop."user"("idCardId") WHERE "idCardId" IS NOT NULL;
@@ -514,6 +584,9 @@ BEGIN
     PERFORM public.rxdb_enable_sync_for_table('attribute', 'shop', 'Attribute');
     PERFORM public.rxdb_enable_sync_for_table('attribute_value', 'shop', 'AttributeValue');
     PERFORM public.rxdb_enable_sync_for_table('sku_attributes', 'shop', 'SKUAttributes');
+    -- 多对多中间表（US-228）：实体名就是中间表名
+    PERFORM public.rxdb_enable_sync_for_table('Category_OrderItem', 'shop', 'Category_OrderItem');
+    PERFORM public.rxdb_enable_sync_for_table('Category_Product', 'shop', 'Category_Product');
   END IF;
 END $$;
 
