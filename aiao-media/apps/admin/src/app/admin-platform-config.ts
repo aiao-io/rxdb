@@ -1,3 +1,4 @@
+import { AUDIO_TEXT_MAX_LENGTH } from '@aiao-media/api-contracts';
 import { Component, effect, input, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ProductRequestError, type ProductClient } from './product-client';
@@ -30,6 +31,35 @@ function response(value: unknown): PlatformConfigurationResponse {
     models: models as Record<string, unknown>[],
     capabilities: capabilities as Record<string, unknown>[]
   };
+}
+
+interface CatalogPreview extends PlatformConfigurationResponse {
+  groups: { label: string; entries: string[] }[];
+}
+
+function catalogEntries(models: readonly unknown[], capabilities: readonly unknown[]): Map<string, string> {
+  const entries = new Map<string, string>();
+  const add = (key: string, label: string) => {
+    if (entries.has(key)) throw new Error('目录中存在重复的模型或媒体能力标识。');
+    entries.set(key, label);
+  };
+  for (const model of models) {
+    const id = record(model)?.['id'];
+    if (typeof id !== 'string' || !id.trim()) throw new Error('每个图片模型都需要填写 id。');
+    add('image/' + id, '图片模型 · ' + id);
+  }
+  for (const capability of capabilities) {
+    const row = record(capability);
+    const identity = [row?.['providerInstanceId'], row?.['providerRevision'], row?.['modelId'], row?.['operation']];
+    if (
+      !identity.every((part, index) =>
+        index === 1 ? Number.isSafeInteger(part) : typeof part === 'string' && part.trim()
+      )
+    )
+      throw new Error('每项媒体能力都需要填写供应商实例、修订号、模型和操作。');
+    add(JSON.stringify(identity), `${identity[3]} · ${identity[2]}（${identity[0]}，r${identity[1]}）`);
+  }
+  return entries;
 }
 
 const modelExample = JSON.stringify(
@@ -66,7 +96,7 @@ const capabilityExample = JSON.stringify(
       baseUrl: 'https://api.example.com/v1',
       model: 'replace-tts-model',
       apiKey: 'replace-with-provider-key',
-      input: { textMaxLength: 4000 },
+      input: { textMaxLength: AUDIO_TEXT_MAX_LENGTH },
       parameters: { languages: ['zh-CN'], voices: [{ id: 'alloy', label: 'Alloy' }], speeds: [1] },
       output: { mediaTypes: ['audio/wav'], maxBytes: 8388608, maxDurationMs: 120000 }
     }
@@ -142,7 +172,13 @@ const capabilityExample = JSON.stringify(
                   }
                   @for (
                     capability of capabilities();
-                    track capability['providerInstanceId'] + ':' + capability['operation']
+                    track capability['providerInstanceId'] +
+                      '/' +
+                      capability['providerRevision'] +
+                      '/' +
+                      capability['modelId'] +
+                      '/' +
+                      capability['operation']
                   ) {
                     <tr>
                       <td>{{ capability['operation'] }}</td>
@@ -161,7 +197,7 @@ const capabilityExample = JSON.stringify(
           }
         </section>
 
-        <form class="editor" (ngSubmit)="save()">
+        <form class="editor" (ngSubmit)="previewChanges()">
           <div class="section-heading">
             <div>
               <p class="section-kicker">服务端配置</p>
@@ -169,33 +205,56 @@ const capabilityExample = JSON.stringify(
             </div>
             <span class="revision">保存基于 r{{ revision() }}</span>
           </div>
-          <p class="hint">
-            保存时会整体替换两份目录。读取接口不会回显私密字段，更新已有供应商时请再次填写完整 JSON 和 API Key。
-          </p>
-          <label>
-            图片模型 JSON
-            <textarea
-              [(ngModel)]="modelsJson"
-              [placeholder]="modelExample"
-              name="modelsJson"
-              rows="14"
-              spellcheck="false"
-            ></textarea>
-          </label>
-          <label>
-            ASR / TTS / 音乐 / 视频 JSON
-            <textarea
-              [(ngModel)]="capabilitiesJson"
-              [placeholder]="capabilityExample"
-              name="capabilitiesJson"
-              rows="18"
-              spellcheck="false"
-            ></textarea>
-          </label>
-          <div class="actions">
-            <button class="btn btn-primary" [disabled]="loading()" type="submit">保存并启用</button>
-            <button class="btn btn-ghost" [disabled]="loading()" (click)="clearEditor()" type="button">清空输入</button>
-          </div>
+          @if (preview(); as review) {
+            <section class="editor" aria-label="目录变更预览">
+              <h3>目录变更预览 · r{{ review.revision }}</h3>
+              <p>保留的标识仍可使用，参数和凭据将按本次输入更新。</p>
+              @for (group of review.groups; track group.label) {
+                <div>
+                  <strong>{{ group.label }}（{{ group.entries.length }}）</strong>
+                  <ul>
+                    @for (entry of group.entries; track entry) {
+                      <li>{{ entry }}</li>
+                    }
+                  </ul>
+                </div>
+              }
+              <div class="actions">
+                <button class="btn btn-primary" (click)="save()" type="button">确认保存并启用</button>
+                <button class="btn btn-ghost" (click)="preview.set(null)" type="button">返回编辑</button>
+              </div>
+            </section>
+          } @else {
+            <p class="hint">
+              保存时会整体替换两份目录。读取接口不会回显私密字段，更新已有供应商时请再次填写完整 JSON 和 API Key。
+            </p>
+            <label>
+              图片模型 JSON
+              <textarea
+                [(ngModel)]="modelsJson"
+                [placeholder]="modelExample"
+                name="modelsJson"
+                rows="14"
+                spellcheck="false"
+              ></textarea>
+            </label>
+            <label>
+              ASR / TTS / 音乐 / 视频 JSON
+              <textarea
+                [(ngModel)]="capabilitiesJson"
+                [placeholder]="capabilityExample"
+                name="capabilitiesJson"
+                rows="18"
+                spellcheck="false"
+              ></textarea>
+            </label>
+            <div class="actions">
+              <button class="btn btn-primary" [disabled]="!catalogLoaded()" type="submit">预览变更</button>
+              <button class="btn btn-ghost" [disabled]="loading()" (click)="clearEditor()" type="button">
+                清空输入
+              </button>
+            </div>
+          }
         </form>
       }
     </section>
@@ -330,6 +389,8 @@ export class AdminPlatformConfigComponent {
   readonly capabilities = signal<readonly Record<string, unknown>[]>([]);
   readonly modelExample = modelExample;
   readonly capabilityExample = capabilityExample;
+  readonly preview = signal<CatalogPreview | null>(null);
+  readonly catalogLoaded = signal(false);
   modelsJson = '';
   capabilitiesJson = '';
 
@@ -343,6 +404,8 @@ export class AdminPlatformConfigComponent {
   async load(client = this.client()): Promise<void> {
     if (this.loading()) return;
     this.loading.set(true);
+    this.catalogLoaded.set(false);
+    this.preview.set(null);
     this.error.set(null);
     try {
       this.apply(await this.read(client));
@@ -358,8 +421,10 @@ export class AdminPlatformConfigComponent {
     this.capabilitiesJson = '';
   }
 
-  async save(): Promise<void> {
-    if (this.loading()) return;
+  previewChanges(): void {
+    if (this.loading() || !this.catalogLoaded() || this.preview()) return;
+    this.message.set(null);
+    this.error.set(null);
     let models: unknown;
     let capabilities: unknown;
     try {
@@ -373,22 +438,44 @@ export class AdminPlatformConfigComponent {
       this.error.set('两份配置都必须是 JSON 数组。');
       return;
     }
+    try {
+      const next = response({ revision: this.revision(), models, capabilities });
+      const before = catalogEntries(this.models(), this.capabilities());
+      const after = catalogEntries(next.models, next.capabilities);
+      this.preview.set({
+        ...next,
+        groups: [
+          { label: '新增', entries: [...after].filter(([key]) => !before.has(key)).map(([, label]) => label) },
+          { label: '保留', entries: [...after].filter(([key]) => before.has(key)).map(([, label]) => label) },
+          { label: '移除', entries: [...before].filter(([key]) => !after.has(key)).map(([, label]) => label) }
+        ]
+      });
+    } catch (error) {
+      this.error.set(error instanceof Error ? error.message : '目录格式无效。');
+    }
+  }
+
+  async save(): Promise<void> {
+    const review = this.preview();
+    if (this.loading() || !review) return;
     this.loading.set(true);
     this.error.set(null);
     this.message.set(null);
     try {
       const result = record(
         await this.client().admin('platform-config', 'PUT', {
-          revision: this.revision(),
+          revision: review.revision,
           requestId: crypto.randomUUID(),
-          models,
-          capabilities
+          models: review.models,
+          capabilities: review.capabilities
         })
       );
       if (!result || !Number.isSafeInteger(result['revision'])) throw new Error('平台配置保存回执无效。');
       const savedRevision = result['revision'] as number;
       this.revision.set(savedRevision);
       this.clearEditor();
+      this.preview.set(null);
+      this.catalogLoaded.set(false);
       try {
         this.apply(await this.read(this.client()));
         this.message.set('平台配置已保存，新的目录已生效。');
@@ -397,6 +484,8 @@ export class AdminPlatformConfigComponent {
         this.error.set(error instanceof Error ? error.message : '平台配置目录刷新失败。');
       }
     } catch (error) {
+      this.preview.set(null);
+      if (error instanceof ProductRequestError && error.status === 409) this.catalogLoaded.set(false);
       this.error.set(
         error instanceof ProductRequestError && error.status === 409 ? '配置版本已变化，请重新读取后再保存。'
         : error instanceof Error ? error.message
@@ -409,6 +498,7 @@ export class AdminPlatformConfigComponent {
 
   private apply(value: PlatformConfigurationResponse): void {
     this.revision.set(value.revision);
+    this.catalogLoaded.set(true);
     this.models.set(value.models);
     this.capabilities.set(value.capabilities);
   }
