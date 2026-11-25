@@ -291,7 +291,7 @@ const rxdb = new RxDB({
 
 同步第一次访问远端时还会在本地绑定身份。已绑定 A 的数据库被 B 或 anon 继续使用，会抛身份不匹配，不会发起远端请求，也不会修改本地行。应用应关闭当前实例，按当前 Supabase 会话重新计算数据库名，再打开对应身份的库。A 刷新 token 只要 `sub` 不变，就继续使用 A 的库。
 
-声明了 `identity` 时，会话先与声明的身份核对，对不上抛核心的 `RxDBIdentityMismatchError`，本地绑定不会被写错；没有声明时按第一次同步的会话绑定，之后对不上抛同步插件的 `IdentityMismatchError`。后者是前者的子类，按 `RxDBIdentityMismatchError` catch 能接住两种情况：
+声明了 `identity` 时，会话先与声明的身份核对，对不上抛核心的 `RxDBIdentityMismatchError`，本地绑定不会被写错；没有声明时按第一次同步的会话绑定，之后对不上抛同步插件的 `IdentityMismatchError`。这份绑定同时记进库的身份绑定：应用之后改为声明 `identity` 打开同一个库，打开时按第一次同步的那个会话核对，声明成别的身份会被拒绝连接。`IdentityMismatchError` 是 `RxDBIdentityMismatchError` 的子类，按后者 catch 能接住两种情况：
 
 ```ts
 import { RxDBIdentityMismatchError } from '@aiao/rxdb';

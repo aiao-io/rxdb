@@ -432,7 +432,9 @@ describe('没声明身份时按会话写下的绑定（bindIdentity）', () => {
     await undeclared.connect(adapter.name);
 
     await expect(
-      adapter.bootstrapTransaction(executor => undeclared.bindIdentity(executor as never, { scope: SCOPE, subject: '' }))
+      adapter.bootstrapTransaction(executor =>
+        undeclared.bindIdentity(executor as never, { scope: SCOPE, subject: '' })
+      )
     ).rejects.toBeInstanceOf(RxDBError);
     expect(identityRows(adapter.names)).toEqual([]);
   });
