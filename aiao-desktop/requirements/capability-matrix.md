@@ -69,4 +69,4 @@ US-129 补充：Finder 的拖动移动/复制、剪切粘贴、多选、列表�
 
 US-114：Preview 的文本 PDF 全文/图片文件名、Mail 邮件文本、Photos 图片地址已支持真实复制；Preview/Mail 支持所选内容浏览器打印及可见失败。成功请求不代表纸张输出，邮件传输与视频播放等未由此完成；见 [A06 台账](plans/2026-11-17-builtin-workflows.md)。
 
-US-131 补充：设置侧栏头像的账户菜单提供「Sign Out…」退出入口，确认后抹掉本产品的全部本地数据并刷新回全新桌面，清除范围与数据问题阻断界面一致（游戏、终端镜像、远程应用与下载的备份保留）。localStorage 本身不可用（隐私模式等）时仍能抹除，活动指针读不到时按默认位置继续启动；详见 [US-131](stories/desktop/ADESK-US-131-settings-sign-out-data-reset.md)。Apple 菜单与 ⇧⌘Q 的 Log Out（关窗回锁屏）不变。
+US-131 补充：设置侧栏头像进入 Apple Account 账户详情页（macOS 账户页样式，不在侧栏列表与搜索里），页尾的「Sign Out…」确认后抹掉本产品的全部本地数据并刷新回全新桌面，清除范围与数据问题阻断界面一致（游戏、终端镜像、远程应用与下载的备份保留）。localStorage 本身不可用（隐私模式等）时仍能抹除，活动指针读不到时按默认位置继续启动；详见 [US-131](stories/desktop/ADESK-US-131-settings-sign-out-data-reset.md)。Apple 菜单与 ⇧⌘Q 的 Log Out（关窗回锁屏）不变。

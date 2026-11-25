@@ -181,9 +181,21 @@ export const SETTINGS_GROUPS: readonly (readonly SettingsSection[])[] = [
 /** 分区 id 不认识时落到「通用」。 */
 export const DEFAULT_SECTION: SettingsSection = SETTINGS_GROUPS[1][0];
 
+/**
+ * 头像进的账户详情页（ADESK-US-131）：macOS 里它不在侧栏列表与搜索里，只从侧栏顶部的头像进入，
+ * 所以单独定义、不放进 {@link SETTINGS_GROUPS}。
+ */
+export const ACCOUNT_SECTION: SettingsSection = {
+  id: 'account',
+  name: 'Apple Account',
+  icon: 'g-apple',
+  bg: '#8e8e93',
+  searchTerms: []
+};
+
 /** 按 id 找分区。 */
 export const findSection = (id: string): SettingsSection =>
-  SETTINGS_GROUPS.flat().find(section => section.id === id) ?? DEFAULT_SECTION;
+  [ACCOUNT_SECTION, ...SETTINGS_GROUPS.flat()].find(section => section.id === id) ?? DEFAULT_SECTION;
 
 /** 按分区名称与设置项标签筛选系统设置侧栏，并保留原有分组顺序。 */
 export function filterSettingsGroups(

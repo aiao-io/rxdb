@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { filterSettingsGroups, SETTINGS_GROUPS } from './settings-data';
+import { ACCOUNT_SECTION, filterSettingsGroups, findSection, SETTINGS_GROUPS } from './settings-data';
 
 describe('filterSettingsGroups', () => {
   it('按分区名称筛选并保留原分组顺序', () => {
@@ -51,5 +51,18 @@ describe('filterSettingsGroups', () => {
     for (const section of SETTINGS_GROUPS.flat()) {
       expect(section.searchTerms.length, section.id).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('账户分区', () => {
+  it('头像进的账户详情页是独立分区：findSection 认识它，但不在侧栏分组与搜索里', () => {
+    expect(findSection('account')).toBe(ACCOUNT_SECTION);
+    expect(ACCOUNT_SECTION.name).toBe('Apple Account');
+    expect(SETTINGS_GROUPS.flat().some(section => section.id === 'account')).toBe(false);
+    expect(filterSettingsGroups(SETTINGS_GROUPS, 'account')).toEqual([]);
+  });
+
+  it('不认识的分区仍落到通用', () => {
+    expect(findSection('missing')).toBe(SETTINGS_GROUPS[1][0]);
   });
 });

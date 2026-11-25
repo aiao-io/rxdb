@@ -3,12 +3,11 @@ import { Component, computed, effect, inject, signal, untracked } from '@angular
 
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
-import { PopoverCloseReason, PopoverService, RETURNS_FOCUS } from '../../services/popover';
 import { SystemState } from '../../services/system-state';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
 import { USER_PROFILE } from '../../shared/user-profile';
-import { AccountMenu } from './account-menu';
+import { AccountPane } from './panes/account-pane';
 import { AppearancePane } from './panes/appearance-pane';
 import { BatteryPane } from './panes/battery-pane';
 import { BluetoothPane } from './panes/bluetooth-pane';
@@ -27,6 +26,7 @@ import { filterSettingsGroups, findSection, SETTINGS_GROUPS } from './settings-d
 @Component({
   selector: 'app-settings',
   imports: [
+    AccountPane,
     AppearancePane,
     BatteryPane,
     BluetoothPane,
@@ -48,7 +48,6 @@ import { filterSettingsGroups, findSection, SETTINGS_GROUPS } from './settings-d
 })
 export class SettingsApp {
   private readonly win = inject(DesktopWindow);
-  private readonly popover = inject(PopoverService);
   private readonly selected = signal(this.win.options.section || 'appearance');
   private readonly generation = signal(0);
 
@@ -77,28 +76,6 @@ export class SettingsApp {
   protected select(id: string): void {
     this.selected.set(id);
     this.refresh();
-  }
-
-  /**
-   * 头像上的账户弹出层（退出入口）：弹出层浮在窗口上面，锚点取头像的屏幕坐标。菜单开着时全屏护罩
-   * 会接住外面的点击（点头像即收起），键盘打开的（或读屏按下的）焦点进弹出层，关闭后回到头像。
-   */
-  protected openAccount(event: Event, anchor: HTMLElement): void {
-    const rect = anchor.getBoundingClientRect();
-    const keyboard = event instanceof KeyboardEvent || (event instanceof MouseEvent && event.detail === 0);
-    this.popover.openComponent(AccountMenu, {
-      x: rect.left,
-      y: rect.bottom + 4,
-      origin: 'top left',
-      ...(keyboard ?
-        {
-          focus: true,
-          onClose: (reason: PopoverCloseReason) => {
-            if (RETURNS_FOCUS.has(reason)) anchor.focus();
-          }
-        }
-      : {})
-    });
   }
 
   protected refresh(): void {

@@ -18,9 +18,8 @@
       <div class="st-scroll">
         <div
           class="st-row"
-          #account
-          (click)="openAccount($event, account)"
-          (keydown.enter)="openAccount($event, account)"
+          (click)="select('account')"
+          (keydown.enter)="select('account')"
           aria-label="Apple Account"
           data-account
           role="button"
@@ -72,6 +71,9 @@
       <div class="st-body" data-stbody>
         @for (render of renders(); track render.id) {
           @switch (section().id) {
+            @case ('account') {
+              <app-account-pane />
+            }
             @case ('wifi') {
               <app-wifi-pane (rerender)="refresh()" />
             }

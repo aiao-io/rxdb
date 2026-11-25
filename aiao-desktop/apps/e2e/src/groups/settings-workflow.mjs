@@ -58,41 +58,29 @@ export const settingsWorkflow = {
     await expect(title).toHaveText('General');
     result.sectionFollowsSelection = true;
 
-    /* 头像账户菜单（ADESK-US-131）：点开、Esc 收起、键盘路径与确认视图。弹出层浮在窗口上面，是页面级元素。 */
+    /* 头像账户详情页（ADESK-US-131）：点头像进 Apple Account 分区，内容信息在上、退出按钮在页尾。 */
     const account = window.locator('[data-account]');
-    const menu = page.locator('[role="dialog"][aria-label="Apple Account"]');
     await account.click();
-    await expect(menu).toBeVisible();
-    await expect(menu).toContainText('Apple Account');
-    await expect(menu.getByRole('button', { name: 'Sign Out…', exact: true })).toBeVisible();
+    await expect(title).toHaveText('Apple Account');
+    await expect(window.locator('[data-account-pane]')).toBeVisible();
+    await expect(window.locator('[data-account-pane]')).toContainText('Sign-In & Security');
+    await expect(window.locator('[data-account-signout]')).toBeVisible();
     result.accountMenu = true;
 
-    /* Esc 收起；菜单开着时点外面的全屏护罩同样收起。 */
-    await page.keyboard.press('Escape');
-    await expect(menu).toHaveCount(0);
-
-    /* 键盘路径：焦点在头像行上按 Enter 打开并接管焦点，Esc 关闭后焦点回到头像行。 */
+    /* 键盘路径：焦点在头像行上按 Enter 同样进入账户页。 */
+    await rows().filter({ hasText: 'General' }).click();
+    await expect(title).toHaveText('General');
     await account.focus();
     await page.keyboard.press('Enter');
-    await expect(menu).toBeVisible();
-    await expect(menu.locator('[data-account-signout]')).toBeFocused();
-    await page.keyboard.press('Escape');
-    await expect(menu).toHaveCount(0);
-    await expect(account).toBeFocused();
+    await expect(title).toHaveText('Apple Account');
     result.accountMenuKeyboard = true;
 
-    /* 重新打开，Sign Out… 先要确认：取消不改变任何数据，菜单留在原地。 */
-    await account.click();
-    await expect(menu).toBeVisible();
-    await menu.getByRole('button', { name: 'Sign Out…', exact: true }).click();
-    await expect(menu.locator('[data-account-warning]')).toContainText('permanently removed');
-    await menu.getByRole('button', { name: 'Cancel', exact: true }).click();
-    await expect(menu.locator('[data-account-warning]')).toHaveCount(0);
+    /* Sign Out… 先要确认：取消不改变任何数据，页面留在原地。 */
+    await window.locator('[data-account-signout]').click();
+    await expect(window.locator('[data-account-warning]')).toContainText('permanently removed');
+    await window.locator('[data-account-cancel]').click();
+    await expect(window.locator('[data-account-warning]')).toHaveCount(0);
     result.signOutConfirmCancel = true;
-
-    /* 收起菜单，再进 Sound 分区。 */
-    await page.keyboard.press('Escape');
-    await expect(menu).toHaveCount(0);
 
     /* Mute 开关写回系统的静音状态：菜单栏音量图标跟着变，最后停在静音（后面退出用「数据被清掉」验证）。 */
     await rows().filter({ hasText: 'Sound' }).click();
@@ -112,9 +100,9 @@ export const settingsWorkflow = {
 
     /* 退出：确认后抹掉全部本地数据并刷新页面，新的桌面回到默认状态（刚开的静音随数据一起没了）。 */
     await account.click();
-    await expect(menu).toBeVisible();
-    await menu.getByRole('button', { name: 'Sign Out…', exact: true }).click();
-    const confirm = menu.getByRole('button', { name: 'Sign Out', exact: true });
+    await expect(title).toHaveText('Apple Account');
+    await window.locator('[data-account-signout]').click();
+    const confirm = window.locator('[data-account-confirm]');
     await expect(confirm).toBeVisible();
     const reloaded = page.waitForEvent('domcontentloaded');
     await confirm.click();
