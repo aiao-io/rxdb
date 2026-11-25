@@ -165,6 +165,8 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('实时变更通知（US-225）'
   });
 
   it('只拿 anon key 的适配器连接时不订阅通知，也不反复重试', async () => {
+    // 访客（anon）是正式支持的身份，不是配置错误：跳过订阅只给 info 提示，不报 warning
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined);
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const error = vi.spyOn(console, 'error');
     const rxdb = new RxDB({
@@ -181,10 +183,12 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('实时变更通知（US-225）'
       await new Promise(resolve => setTimeout(resolve, 1_500));
 
       expect(anonClient.getChannels()).toEqual([]);
-      expect(warn).toHaveBeenCalledWith(expect.stringContaining('signed-in session'));
+      expect(info).toHaveBeenCalledWith(expect.stringContaining('signed-in session'));
+      expect(warn).not.toHaveBeenCalledWith(expect.stringContaining('signed-in session'));
       expect(error).not.toHaveBeenCalledWith('Supabase Realtime subscription failed:', expect.anything());
     } finally {
       await rxdb.destroy();
+      info.mockRestore();
       warn.mockRestore();
       error.mockRestore();
     }
