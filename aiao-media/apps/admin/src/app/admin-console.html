@@ -376,12 +376,45 @@
             @for (entry of audit(); track entry.id) {
               <article class="audit-item">
                 <div class="audit-item-main">
-                  <strong>{{ entry.action }}</strong>
+                  <strong>{{ entry.action === 'template-commit-release' ? '发布模板' : entry.action }}</strong>
+                  @if (entry.release; as release) {
+                    <span>{{ release.message }}</span>
+                    <details>
+                      <summary>查看 {{ release.templates.length }} 个模板的变更</summary>
+                      @for (item of release.templates; track $index) {
+                        <h4>{{ item.operation }} · {{ item.key }}</h4>
+                        @if (item.fields.length) {
+                          <table class="audit-diff">
+                            <thead>
+                              <tr>
+                                <th scope="col">字段</th>
+                                <th scope="col">发布前</th>
+                                <th scope="col">发布后</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              @for (field of item.fields; track field.label) {
+                                <tr>
+                                  <th scope="row">{{ field.label }}</th>
+                                  <td>{{ field.before }}</td>
+                                  <td>{{ field.after }}</td>
+                                </tr>
+                              }
+                            </tbody>
+                          </table>
+                        } @else {
+                          <p>公开标识、标题、封面和署名均无变化。</p>
+                        }
+                      }
+                    </details>
+                  } @else if (entry.action === 'template-commit-release') {
+                    <small>此记录未保存发布明细。</small>
+                  }
                   <span>{{ entry.target_id }}</span>
                 </div>
                 <div class="audit-item-meta">
-                  <span>{{ entry.created_at }}</span>
-                  <small>操作者 {{ entry.actor_id }} · 审计 {{ entry.id }}</small>
+                  <time [attr.datetime]="entry.created_at">{{ entry.created_at | date: 'yyyy-MM-dd HH:mm:ss Z' }}</time>
+                  <small>操作者 {{ entry.release?.actorName }} {{ entry.actor_id }} · 审计 {{ entry.id }}</small>
                 </div>
               </article>
             } @empty {

@@ -39,7 +39,8 @@ export const productionSources = [
   'aiao-media/infra/supabase/migrations/023-config-rxdb-sync.sql',
   'aiao-media/infra/supabase/migrations/024-admin-platform-configuration.sql',
   'aiao-media/infra/supabase/migrations/025-template-publication.sql',
-  'aiao-media/infra/supabase/migrations/026-template-attribution.sql'
+  'aiao-media/infra/supabase/migrations/026-template-attribution.sql',
+  'aiao-media/infra/supabase/migrations/027-template-release-audit.sql'
 ];
 
 const transactionBoundary = /^\s*(?:BEGIN|COMMIT)\s*;\s*$/gm;
@@ -189,6 +190,12 @@ export const productionUpgrades = [
     fromVersion: 25,
     toVersion: 26,
     required: ['public.media_prompt_templates', 'media_private.template_publications']
+  },
+  {
+    name: 'template-release-audit',
+    fromVersion: 26,
+    toVersion: 27,
+    required: ['public.media_admin_audit', 'media_private.template_publications']
   }
 ];
 

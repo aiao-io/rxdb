@@ -482,6 +482,28 @@
   gap: 0.3rem;
 }
 
+.audit-item-main {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.audit-item-main summary {
+  cursor: pointer;
+}
+.audit-item-main h4 {
+  margin: 0.75rem 0 0.25rem;
+}
+.audit-diff {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: start;
+}
+.audit-diff th,
+.audit-diff td {
+  padding: 0.3rem 0.6rem;
+  border-bottom: 1px solid var(--color-base-300);
+  vertical-align: top;
+}
+
 .audit-item-main span,
 .audit-item-meta {
   font-size: 0.78rem;

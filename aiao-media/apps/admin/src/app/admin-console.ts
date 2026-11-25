@@ -1,4 +1,5 @@
 import type { CreditSnapshot, TaskReport } from '@aiao-media/api-contracts';
+import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, effect, input, output, signal, untracked } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ProductRequestError, type ProductClient } from './product-client';
@@ -34,18 +35,63 @@ interface AdminUsage {
   sources: Record<string, UsageBucket>;
   partial: boolean;
 }
+const releaseFields = {
+  key: '标识',
+  title: '标题',
+  image: '封面',
+  alt: '封面替代文本',
+  author: '作者',
+  source: '来源',
+  rights: '使用依据'
+} as const;
+type ReleaseSnapshot = Partial<Record<keyof typeof releaseFields, string | null>>;
+interface TemplateReleaseReceipt {
+  actorName: string | null;
+  message: string;
+  templates: { key: string; before: ReleaseSnapshot | null; after: ReleaseSnapshot | null }[];
+}
+
+function releaseValue(field: keyof ReleaseSnapshot, value?: string | null): string {
+  if (field === 'rights' && value === 'aiao-original-text-and-svg') return 'Aiao 原创';
+  if (field === 'rights' && value === 'community-reference') return '社区参考';
+  return value ?? '—';
+}
+
+function templateReleaseView(receipt: TemplateReleaseReceipt) {
+  return {
+    actorName: receipt.actorName,
+    message: receipt.message,
+    templates: receipt.templates.map(({ key, before, after }) => ({
+      key,
+      operation:
+        before ?
+          after ? '更新'
+          : '撤下'
+        : after ? '新增'
+        : '已处于未公开状态',
+      fields: (Object.keys(releaseFields) as (keyof ReleaseSnapshot)[])
+        .filter(field => before?.[field] !== after?.[field])
+        .map(field => ({
+          label: releaseFields[field],
+          before: releaseValue(field, before?.[field]),
+          after: releaseValue(field, after?.[field])
+        }))
+    }))
+  };
+}
 interface AuditEntry {
   id: number;
   actor_id: string;
   action: string;
   target_id: string;
   created_at: string;
+  release?: ReturnType<typeof templateReleaseView>;
 }
 export type AdminTab = 'users' | 'templates' | 'policies' | 'platforms' | 'tasks' | 'audit';
 
 @Component({
   selector: 'app-admin-console',
-  imports: [FormsModule],
+  imports: [FormsModule, DatePipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './admin-console.html',
   styleUrl: './admin-console.css'
@@ -255,8 +301,15 @@ export class AdminConsole {
     }
     if (['templates', 'policies'].includes(this.tab())) return () => undefined;
     if (this.tab() === 'audit') {
-      const data = (await this.client().admin('audit')) as { entries: AuditEntry[] };
-      return () => this.audit.set(data.entries);
+      const data = (await this.client().admin('audit')) as {
+        entries: (AuditEntry & { after_data?: TemplateReleaseReceipt | null })[];
+      };
+      const entries = data.entries.map(({ after_data, ...entry }) =>
+        entry.action === 'template-commit-release' && Array.isArray(after_data?.templates) ?
+          { ...entry, release: templateReleaseView(after_data) }
+        : entry
+      );
+      return () => this.audit.set(entries);
     }
     const query = new URLSearchParams();
     for (const [key, value] of Object.entries(this.filter)) {

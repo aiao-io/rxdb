@@ -1529,8 +1529,11 @@ test('目录预览：取消保留两种模型和语音能力，确认后公开�
   }
 });
 
-test('模板发布：后续提交保留待发布入口，发布旧版本保留署名，新模板使用编辑器填写的封面和来源', async ({ page, browser }) => {
-  await signInAdmin(page, 'templates');
+test('模板发布：后续提交保留待发布入口，发布旧版本保留署名，新模板使用编辑器填写的封面和来源', async ({
+  page,
+  browser
+}) => {
+  const publisher = await signInAdmin(page, 'templates');
   const config = await openTemplates(page);
   const key = `release-${randomUUID().slice(0, 8)}`;
   const oldTitle = '旧版海报 ' + key;
@@ -1602,6 +1605,20 @@ test('模板发布：后续提交保留待发布入口，发布旧版本保留�
         expect.objectContaining({ template: expect.objectContaining({ id: key + '-b', ...attribution }) })
       ])
     );
+    await page.goto('/admin/audit');
+    const update = page.locator('article').filter({ hasText: '更新灵感页标题' });
+    await expect(update).toContainText('发布模板');
+    await expect(update).toContainText(publisher.email);
+    await expect(update).toContainText(publisher.id);
+    await expect(update.locator('time')).toBeVisible();
+    await update.locator('summary').click();
+    await expect(update).toContainText(oldTitle);
+    await expect(update).toContainText(newTitle);
+    const added = page.locator('article').filter({ hasText: '后续独立提交' });
+    await added.locator('summary').click();
+    await expect(added).toContainText(key + '-b');
+    await expect(added).toContainText(attribution.image);
+    await expect(added).toContainText(attribution.author);
   } finally {
     await visitor.close();
     expect(

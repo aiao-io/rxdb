@@ -178,6 +178,53 @@ describe('administrative content and state changes', () => {
     ).toBe('USD 2');
   });
 
+  it('审计页按模板比较发布快照，旧记录只展示能核实的内容', async () => {
+    const { component, admin, fixture } = await rig('signed-in', true);
+    const base = {
+      actor_id: 'actor-id',
+      created_at: '2026-11-25T12:00:00Z',
+      action: 'template-commit-release',
+      target_id: 'commit-id'
+    };
+    const before = { key: 'hero', title: '海报', image: '/prompt-art/a.svg', author: '作者一' };
+    admin.mockResolvedValue({
+      entries: [
+        {
+          ...base,
+          id: 3,
+          after_data: {
+            actorName: '发布人',
+            message: '调整封面和署名',
+            templates: [
+              { key: 'hero', before, after: { ...before, image: '/prompt-art/b.svg', author: '作者二' } },
+              { key: 'old', before: { ...before, key: 'old' }, after: null }
+            ]
+          }
+        },
+        { ...base, id: 2, after_data: null }
+      ]
+    });
+    await component.selectTab('audit');
+    fixture.detectChanges();
+    const [current, legacy] = Array.from<HTMLElement>(fixture.nativeElement.querySelectorAll('article'));
+    expect(current.textContent).toContain('调整封面和署名');
+    expect(current.textContent).toContain('发布人');
+    expect(current.textContent).toContain('actor-id');
+    expect(current.querySelector('time')?.dateTime).toBe(base.created_at);
+    const changed = current.querySelector('table')!;
+    expect(
+      Array.from(changed.querySelectorAll<HTMLTableRowElement>('tbody tr')).map(row =>
+        Array.from(row.cells).map(cell => cell.textContent?.trim())
+      )
+    ).toEqual([
+      ['封面', '/prompt-art/a.svg', '/prompt-art/b.svg'],
+      ['作者', '作者一', '作者二']
+    ]);
+    expect(current.textContent).toContain('撤下 · old');
+    expect(legacy.textContent).toContain('此记录未保存发布明细');
+    expect(legacy.querySelector('details')).toBeNull();
+  });
+
   it('clamps the first page and loads the audit trail on its own tab', async () => {
     const { component } = await rig();
     await component.changePage(-1);

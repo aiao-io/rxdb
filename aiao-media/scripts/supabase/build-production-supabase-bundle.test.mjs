@@ -35,7 +35,7 @@ async function supabaseProject() {
     CREATE ROLE authenticated;
     CREATE ROLE service_role BYPASSRLS;
     CREATE SCHEMA auth;
-    CREATE TABLE auth.users (id uuid PRIMARY KEY);
+    CREATE TABLE auth.users (id uuid PRIMARY KEY, email text);
     CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
       SELECT nullif(current_setting('request.jwt.claim.sub', true), '')::uuid
     $$;
@@ -67,7 +67,7 @@ test('production bundle is deterministic, excludes development probe, and keeps 
     const first = await buildProductionBundle(join(directory, 'first.sql'));
     const second = await buildProductionBundle(join(directory, 'second.sql'));
     assert.equal(first.sql, second.sql);
-    assert.equal(first.sources.length, 29);
+    assert.equal(first.sources.length, 30);
     assert.deepEqual(
       first.sources.map(source => source.relativePath),
       productionSources
@@ -277,7 +277,8 @@ test('生产增量包只含单事务与源摘要，先校验版本再执行迁�
     ['config-rxdb-sync', 22, 23],
     ['platform-configuration', 23, 24],
     ['template-publication', 24, 25],
-    ['template-attribution', 25, 26]
+    ['template-attribution', 25, 26],
+    ['template-release-audit', 26, 27]
   ]) {
     const bundle = await productionUpgrade(name);
     assert.equal(bundle.fromVersion, fromVersion);
@@ -865,15 +866,20 @@ test('已有 schema 22 可升级配置同步：旧投影迁入 RxDB 形状的新
   }
 });
 
-test('已有 23 版可顺序升级到 26，管理员确认目录时校验身份和修订号', async () => {
+test('已有 23 版可顺序升级到 27，管理员确认目录时校验身份和修订号', async () => {
   const db = await historicalProject(23);
   try {
-    for (const name of ['platform-configuration', 'template-publication', 'template-attribution']) {
+    for (const name of [
+      'platform-configuration',
+      'template-publication',
+      'template-attribution',
+      'template-release-audit'
+    ]) {
       const bundle = await productionUpgrade(name);
       await apply(db, bundle.sql);
       await apply(db, bundle.sql);
     }
-    assert.equal(await schemaComment(db), 'aiao-media schema 26');
+    assert.equal(await schemaComment(db), 'aiao-media schema 27');
     const owner = await seedAdmin(db);
     const stranger = await seedAdmin(db, { admin: false });
     const save = revision =>
@@ -1044,12 +1050,19 @@ test('配置投影新表：客户端只写 prepared、变更到齐才标记 sync
       }
     });
     await t.test('已应用的模板只有显式发布才进入匿名目录，重复发布沿用同一版本', async () => {
-      const id = await insertProjection(db, { workspaceId: owner.workspaceId, authorId: owner.userId });
+      const id = await insertProjection(db, { workspaceId: owner.workspaceId, authorId: owner.userId, changeCount: 2 });
       await insertProjectionChange(db, {
         workspaceId: owner.workspaceId,
         authorId: owner.userId,
         commitId: id,
         sequence: 1,
+        entityId: crypto.randomUUID()
+      });
+      await insertProjectionChange(db, {
+        workspaceId: owner.workspaceId,
+        authorId: owner.userId,
+        commitId: id,
+        sequence: 2,
         entityId: crypto.randomUUID()
       });
       await db.query("UPDATE public.media_config_projection_commits SET status='synced' WHERE id=$1", [id]);
@@ -1066,7 +1079,23 @@ test('配置投影新表：客户端只写 prepared、变更到齐才标记 sync
       await actAs(db, owner.userId);
       await release();
       await release();
-      await db.exec('RESET ROLE; SET ROLE anon');
+      await db.exec('RESET ROLE');
+      const rowsByCommit = (
+        await db.query(
+          "SELECT after_data FROM public.media_admin_audit WHERE action='template-commit-release' AND target_id=$1",
+          [id]
+        )
+      ).rows;
+      assert.equal(rowsByCommit.length, 1);
+      assert.deepEqual(
+        rowsByCommit[0].after_data.templates.sort((a, b) => a.key.localeCompare(b.key)),
+        [1, 2].map(n => ({
+          key: 'hero-' + n,
+          before: null,
+          after: { key: 'hero-' + n, title: '首页', ...originalAttribution }
+        }))
+      );
+      await db.exec('SET ROLE anon');
       const { rows } = await catalog();
       assert.equal(rows.length, 1);
       assert.equal(rows[0].revision, 1);
@@ -1108,7 +1137,27 @@ test('配置投影新表：客户端只写 prepared、变更到齐才标记 sync
       assert.deepEqual(await catalog(), [{ key: 'poster-first', title: '第一版' }]);
       await release(latest);
       assert.deepEqual(await catalog(), [{ key: 'poster-final', title: '新版' }]);
-      await release(await applyTemplate(3, 'poster-final', '新版', false));
+      const withdrawn = await applyTemplate(3, 'poster-final', '新版', false);
+      await release(withdrawn);
+      await release(withdrawn);
+      await db.exec('RESET ROLE');
+      const releases = (
+        await db.query(
+          "SELECT actor_id, target_id, after_data FROM public.media_admin_audit WHERE action='template-commit-release' AND target_id IN ($1,$2,$3) ORDER BY id",
+          [stale, latest, withdrawn]
+        )
+      ).rows;
+      assert.deepEqual(
+        releases.map(r => r.target_id),
+        [latest, withdrawn]
+      );
+      assert.equal(releases[0].actor_id, owner.userId);
+      assert.equal(releases[0].after_data.message, '配置提交');
+      const from = { key: 'poster-first', title: '第一版', ...originalAttribution };
+      const to = { ...from, key: 'poster-final', title: '新版' };
+      assert.deepEqual(releases[0].after_data.templates, [{ key: 'poster-final', before: from, after: to }]);
+      assert.deepEqual(releases[1].after_data.templates, [{ key: 'poster-final', before: to, after: null }]);
+      await actAs(db, owner.userId);
       assert.deepEqual(await catalog(), []);
     });
     await t.test('版本冲突以 PT409 返回：PostgREST 直接给 409，不把业务冲突当成序列化失败重试', async () => {
