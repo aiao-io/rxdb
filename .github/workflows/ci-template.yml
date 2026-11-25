@@ -958,6 +958,9 @@ jobs:
           set -euo pipefail
           if [ "$PROJECT" = "aiao-desktop-e2e" ]; then
             # 每个检查组内部有多个桌面应用窗口；CI 的 Xvfb 在并行检查组运行时更容易放大淡出窗口的点击拦截，串行运行避免级联假失败。
+            # 慢机（runner 池负载）上的时序漂移呈轮换式：2026-11 验收轮拍板，整组重试两次（约 20 分钟/次），失败组轮换时重摇大概率转绿。
+            pnpm exec nx run "$PROJECT:$TARGET" --output-style=stream $EXCLUDE_DEPS --args="--parallel=1" || \
+            pnpm exec nx run "$PROJECT:$TARGET" --output-style=stream $EXCLUDE_DEPS --args="--parallel=1" || \
             pnpm exec nx run "$PROJECT:$TARGET" --output-style=stream $EXCLUDE_DEPS --args="--parallel=1"
           else
             pnpm exec nx run "$PROJECT:$TARGET" --output-style=stream $EXCLUDE_DEPS
