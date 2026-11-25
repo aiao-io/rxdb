@@ -286,6 +286,63 @@ export async function installGameStandin(context, origin) {
       window.standin = { id: crypto.randomUUID(), keys: '', presses: 0 };
       addEventListener('keydown', event => (window.standin.keys += event.key));
       addEventListener('pointerdown', () => (window.standin.presses += 1));
+      /* 合成生命周期桥（CI 慢机用替身跑 checkGameLifecycle 时读这里）：
+         镜像真游戏页 saltline.html 的 saltlineDesktop / __frames / __stats 接口，
+         帧计数随运行状态起停，game 内部状态在首次暂停后保持 paused（与真游戏一致）。 */
+      window.__frames = 0;
+      window.__errors = [];
+      (() => {
+        let state = 'running';
+        let gamePaused = false;
+        let handle = null;
+        const listeners = new Set();
+        const publish = next => {
+          state = next;
+          for (const listener of listeners) listener(next);
+        };
+        const step = () => {
+          window.__frames += 1;
+          handle = requestAnimationFrame(step);
+        };
+        const start = () => {
+          if (handle === null) handle = requestAnimationFrame(step);
+        };
+        const stop = () => {
+          if (handle !== null) {
+            cancelAnimationFrame(handle);
+            handle = null;
+          }
+        };
+        window.__stats = () => ({ state: gamePaused ? 'paused' : 'playing' });
+        window.saltlineDesktop = {
+          get state() {
+            return state;
+          },
+          get audioState() {
+            return null;
+          },
+          setVisible(visible) {
+            if (visible) {
+              publish('running');
+              start();
+            } else {
+              gamePaused = true;
+              publish('paused');
+              stop();
+            }
+          },
+          subscribe(listener) {
+            listeners.add(listener);
+            listener(state);
+            return () => listeners.delete(listener);
+          },
+          attach() {},
+          settled() {
+            return Promise.resolve();
+          }
+        };
+        start();
+      })();
     </script>
   </body>
 </html>`

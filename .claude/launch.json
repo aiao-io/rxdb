@@ -85,6 +85,18 @@
       "port": 4410
     },
     {
+      "name": "aiao-desktop-dist-4414",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "scripts/e2e-static-server.mjs",
+        "--root",
+        "dist/aiao-desktop/apps/web/browser",
+        "--port",
+        "4414"
+      ],
+      "port": 4414
+    },
+    {
       "name": "aiao-desktop-4411-attach",
       "url": "http://localhost:4411",
       "port": 4411

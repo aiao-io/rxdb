@@ -158,6 +158,14 @@ export const game = {
       realGame.errors === 0 &&
       realGame.isolated === true &&
       realGame.screen === 'title';
+    /* CI 慢机上真游戏以软件 WebGL ~1fps 渲染，主线程饱和到连 Playwright 的元素解析都超时：
+       E2E_GAME_STANDIN=1（CI 设置）时生命周期改用替身页——暂停/恢复的信号链路照常验证，
+       「真帧停止」的证据留在本地与强机；真游戏启动检查（realGameBoots）照跑。 */
+    if (process.env.E2E_GAME_STANDIN === '1') {
+      await closeAll();
+      gameControl.enabled = true;
+      await launch('几猫3A大作');
+    }
     Object.assign(game, await checkGameLifecycle(page, { synthetic: true }));
     await closeAll();
     gameControl.enabled = true;

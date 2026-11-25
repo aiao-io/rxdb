@@ -9,7 +9,13 @@ export async function checkGameLifecycle(page, { hiddenTab = false, synthetic = 
   const activate = locator => (synthetic ? locator.dispatchEvent('click') : locator.click());
   const result = traced('game-lifecycle');
   const game = page.locator('.win[data-app="saltline"]:not(.closing)');
-  const frame = page.frames().find(item => item.url().endsWith('/saltline.html'));
+  /* 替身路径在开窗后立刻进来：iframe 可能还没注册进 page.frames()，等它出现。 */
+  let frame = page.frames().find(item => item.url().endsWith('/saltline.html'));
+  for (let attempt = 0; !frame && attempt < 20; attempt++) {
+    await page.waitForTimeout(250);
+    frame = page.frames().find(item => item.url().endsWith('/saltline.html'));
+  }
+  if (!frame) throw new Error('Saltline frame did not appear in time');
   const identity = await frame.evaluate(() => (window.__lifecycleProof = crypto.randomUUID()));
   const state = () =>
     frame.evaluate(() => ({

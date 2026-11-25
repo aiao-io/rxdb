@@ -206,7 +206,9 @@ export const storageFaults = {
       remaining.length === 0 && (await diskText(session, 'keep.txt')) === 'content:keep.txt';
     await choose();
     await disk().getByRole('button', { name: 'Restore Desktop', exact: true }).click();
-    await expect.poll(() => page.evaluate(key => localStorage.getItem(key), select)).not.toBeNull();
+    /* Restore 触发整页导航：poll 的 evaluate 落在导航窗口里会抛「Execution context destroyed」，
+       expect.poll 取值抛错不重试——catch 转 null 让它继续轮询到导航结束。 */
+    await expect.poll(() => page.evaluate(key => localStorage.getItem(key), select).catch(() => null)).not.toBeNull();
     await page.waitForLoadState('load');
     await helpers.restored();
     result.workerFailureCanRetry &&= (await diskText(session, 'keep.txt')) === 'content:keep.txt';

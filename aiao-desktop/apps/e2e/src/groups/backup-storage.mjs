@@ -221,15 +221,19 @@ export const backupStorage = {
     const accessibility = await new AxeBuilder({ page }).include('app-backup-panel').analyze();
     result.backupControlsAccessible = accessibility.violations.map(issue => `${issue.id}: ${issue.help}`);
     await disk().getByRole('button', { name: 'Restore Desktop', exact: true }).click();
+    /* Restore 触发整页导航：poll 的 evaluate 落在导航窗口里会抛「Execution context destroyed」，
+       expect.poll 取值抛错不重试——catch 转 null 让它继续轮询到导航结束。 */
     await expect
       .poll(
         () =>
-          page.evaluate(
-            () =>
-              JSON.parse(localStorage.getItem('aiao-desktop:data-location') ?? 'null')?.active ??
-              document.querySelector('app-backup-panel [role=alert]')?.textContent ??
-              'pending'
-          ),
+          page
+            .evaluate(
+              () =>
+                JSON.parse(localStorage.getItem('aiao-desktop:data-location') ?? 'null')?.active ??
+                document.querySelector('app-backup-panel [role=alert]')?.textContent ??
+                'pending'
+            )
+            .catch(() => null),
         { timeout: 30_000 }
       )
       .toMatch(/^[a-f0-9]{12}$/);

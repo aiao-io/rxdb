@@ -949,6 +949,9 @@ jobs:
         env:
           PROJECT: ${{ matrix.project }}
           TARGET: ${{ matrix.target }}
+          # 桌面冒烟（game 组）：CI 慢机上真游戏以软件 WebGL ~1fps 渲染、主线程饱和，
+          # 生命周期检查改用替身页（信号链路照常验证，真帧证据留本地与强机）。其余项目忽略此变量。
+          E2E_GAME_STANDIN: '1'
           # dev-rxdb-electron-e2e 的 21 个依赖任务已在上面全部建完，这里必须排除任务依赖：
           # 不排除的话 electron-package-dir 会重跑，把刚配好的 SUID 助手连同整个
           # linux-unpacked/ 一起覆盖（见上面 Build E2E dependencies 的注释）。
@@ -958,7 +961,7 @@ jobs:
         run: |
           set -euo pipefail
           # 慢机（runner 池负载）上的时序漂移呈轮换式，且跨项目漂移（aiao-vscode 也出现过绿了多轮后撞 180s 超时）：
-          # 2026-11 验收轮拍板，整个 e2e 矩阵失败时重跑（共 3 次尝试）。desktop 串行跑约 20 分钟/次，其余更短。
+          # 2026-11 验收轮拍板，整个 e2e 矩阵失败时重跑（共 3 次尝试）。CI 上 desktop 串行一次约 35 分钟，三轮 ≈105 分钟，job 超时须容纳（见 e2e job 的 timeout-minutes）。
           if [ "$PROJECT" = "aiao-desktop-e2e" ]; then
             # 每个检查组内部有多个桌面应用窗口；CI 的 Xvfb 在并行检查组运行时更容易放大淡出窗口的点击拦截，串行运行避免级联假失败。
             pnpm exec nx run "$PROJECT:$TARGET" --output-style=stream $EXCLUDE_DEPS --args="--parallel=1" || \
