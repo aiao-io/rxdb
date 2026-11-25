@@ -788,6 +788,30 @@ describe('DesktopData.eraseLocalData', () => {
     await expect(data.eraseLocalData()).rejects.toThrow('桌面的本地适配器不是 sqlite-wasm');
     expect(host.removeFile).not.toHaveBeenCalled();
   });
+
+  it('localStorage 不可用也能抹掉：记不了意图就强制删除本产品数据', async () => {
+    const { data } = setup();
+    await settled(data);
+    const host = eraseHost();
+    vi.stubGlobal('localStorage', {
+      getItem: () => {
+        throw new Error('denied');
+      },
+      setItem: () => {
+        throw new Error('denied');
+      },
+      removeItem: () => {
+        throw new Error('denied');
+      }
+    });
+    try {
+      await data.eraseLocalData();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(host.removeFile.mock.calls).toEqual([['aiao-desktop@0_1.sqlite'], ['aiao-desktop-files']]);
+    expect(host.listDatabases).toHaveBeenCalled();
+  });
 });
 
 describe('DesktopData 多标签页（ADESK-US-105）', () => {

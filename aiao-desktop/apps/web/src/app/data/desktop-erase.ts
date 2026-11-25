@@ -3,6 +3,41 @@ import { DATA_LOCATION_KEY, DataSelectionStorage, RESTORE_PENDING_KEY, dataLocat
 export const ERASE_PENDING_KEY = 'aiao-desktop:erase-pending';
 type EraseStorage = DataSelectionStorage & { removeItem(key: string): void };
 
+/** 一个「访问就会抛错」的 localStorage 的容错外壳。 */
+export interface TolerantEraseStorage extends EraseStorage {
+  /** 有没有哪次访问抛过错：说明 localStorage 本身不可用或拒绝读写。 */
+  readonly failed: boolean;
+}
+
+/**
+ * 把 localStorage 包成读作空、写静默丢弃的存储：localStorage 自身不可用（隐私模式、被站点禁用、配额用尽）
+ * 时，抹除是这类故障的恢复手段，不能因为记不了意图日志就拒绝执行。存储正常时行为与直接使用一致。
+ * 用惰性取源：部分浏览器在**读取 `localStorage` 属性本身**时就抛错，取源也要兜住。
+ */
+export function tolerantStorage(source: () => EraseStorage): TolerantEraseStorage {
+  let failed = false;
+  const tolerant = <T>(fallback: T, task: (storage: EraseStorage) => T): T => {
+    try {
+      return task(source());
+    } catch {
+      failed = true;
+      return fallback;
+    }
+  };
+  return {
+    get failed() {
+      return failed;
+    },
+    getItem: key => tolerant(null, storage => storage.getItem(key)),
+    setItem: (key, value) => {
+      tolerant(undefined, storage => storage.setItem(key, value));
+    },
+    removeItem: key => {
+      tolerant(undefined, storage => storage.removeItem(key));
+    }
+  };
+}
+
 export interface DesktopEraseHost {
   listFiles(): Promise<readonly string[]>;
   removeFile(name: string): Promise<void>;
@@ -32,14 +67,25 @@ export async function resumeDesktopErase(storage: EraseStorage, host: DesktopEra
   const generation = pendingEraseGeneration(storage);
   if (generation === null) return false;
   storage.setItem(DATA_LOCATION_KEY, JSON.stringify({ version: 1, active: generation, previous: null }));
-  const files = await host.listFiles();
-  for (const name of files.filter(isDesktopFile)) await host.removeFile(name);
-  const databases = await host.listDatabases();
-  for (const name of databases.filter(name => /^aiao-desktop(?:-[a-f0-9]{12})?(?:@\d+_\d+)?\.sqlite\.db$/.test(name)))
-    await host.removeDatabase(name);
+  await eraseAllDesktopData(host);
   storage.removeItem(RESTORE_PENDING_KEY);
   storage.removeItem(ERASE_PENDING_KEY);
   return true;
+}
+
+/**
+ * localStorage 不可用、意图日志记不下来时的兜底（{@link tolerantStorage} 的 `failed`）：不再要求记录，
+ * 直接删除本产品数据库与文件体。只会在用户确认抹除、且持有抹除所需的全部锁时调用。
+ */
+export async function forceDesktopErase(host: DesktopEraseHost): Promise<void> {
+  await eraseAllDesktopData(host);
+}
+
+async function eraseAllDesktopData(host: DesktopEraseHost): Promise<void> {
+  const files = await host.listFiles();
+  for (const name of files.filter(isDesktopFile)) await host.removeFile(name);
+  const databases = await host.listDatabases();
+  for (const name of databases.filter(isDesktopDatabase)) await host.removeDatabase(name);
 }
 
 function isDesktopFile(name: string): boolean {
@@ -47,6 +93,10 @@ function isDesktopFile(name: string): boolean {
     /^aiao-desktop(?:-[a-f0-9]{12})?(?:@\d+_\d+)?\.sqlite(?:-journal|-wal|-shm)?$/.test(name) ||
     /^aiao-desktop-files(?:-[a-f0-9]{12})?$/.test(name)
   );
+}
+
+function isDesktopDatabase(name: string): boolean {
+  return /^aiao-desktop(?:-[a-f0-9]{12})?(?:@\d+_\d+)?\.sqlite\.db$/.test(name);
 }
 
 export function browserEraseHost(): DesktopEraseHost {

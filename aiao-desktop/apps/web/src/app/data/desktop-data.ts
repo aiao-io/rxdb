@@ -3,7 +3,14 @@ import { RxDBAdapterSqlite } from '@aiao/rxdb-adapter-sqlite-wasm';
 import { Service, inject, signal } from '@angular/core';
 
 import { DESKTOP_ADAPTER, locationGuardOf, schemaGuardOf, tabSyncOf } from './desktop-database';
-import { beginDesktopErase, browserEraseHost, pendingEraseGeneration, resumeDesktopErase } from './desktop-erase';
+import {
+  beginDesktopErase,
+  browserEraseHost,
+  forceDesktopErase,
+  pendingEraseGeneration,
+  resumeDesktopErase,
+  tolerantStorage
+} from './desktop-erase';
 import { DATA_WRITE_LOCK } from './desktop-location-guard';
 import { RESTORE_LOCK } from './desktop-restore';
 import { DESKTOP_ENTITIES } from './entities';
@@ -172,16 +179,20 @@ export class DesktopData {
   /**
    * 抹掉本地数据并重新加载：断开库、删掉库文件与文件体，下次打开是一份全新的桌面。
    * 这是不能打开的库（损坏、没有迁移路径）的恢复入口，由用户在阻断界面里明确选择，不会自动发生。
+   * localStorage 本身不可用时（隐私模式等）记不下意图日志，改为直接删除本产品数据——这是那种故障唯一的恢复办法。
    */
   async eraseLocalData(): Promise<void> {
     await this.eraseExclusive(async () => {
       const generation = [...crypto.getRandomValues(new Uint8Array(6))]
         .map(byte => byte.toString(16).padStart(2, '0'))
         .join('');
-      beginDesktopErase(localStorage, generation);
+      const storage = tolerantStorage(() => localStorage);
+      beginDesktopErase(storage, generation);
       const adapter = await this.sqliteAdapter();
       await adapter.disconnect();
-      await resumeDesktopErase(localStorage, browserEraseHost());
+      if (await resumeDesktopErase(storage, browserEraseHost())) return;
+      if (!storage.failed) return;
+      await forceDesktopErase(browserEraseHost());
     });
   }
 
@@ -211,10 +222,12 @@ export class DesktopData {
   /**
    * 启动：连接、探测、建表、升级。两个标签页同时打开桌面时，OPFS 上的库文件被两条连接同时初始化、同时建表与升级
    * 会互相撞上（实测同时刷新两个标签页，约三十分之一出现「找不到文件或目录」而打不开库），所以整段放进启动锁，一个接一个来。
+   * 意图日志经容错存储读取：localStorage 本身不可用时不因「读不到日志」拒绝启动。
    */
   private async start(): Promise<RxDB> {
-    if (pendingEraseGeneration(localStorage) !== null)
-      await this.eraseExclusive(() => resumeDesktopErase(localStorage, browserEraseHost()));
+    const storage = tolerantStorage(() => localStorage);
+    if (pendingEraseGeneration(storage) !== null)
+      await this.eraseExclusive(() => resumeDesktopErase(storage, browserEraseHost()));
     return this.tabs.exclusive(() => this.open(), STARTUP_LOCK);
   }
 

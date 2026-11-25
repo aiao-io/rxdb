@@ -1,7 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { DATA_LOCATION_KEY, RESTORE_PENDING_KEY, readDataSelection } from './desktop-data-location';
-import { ERASE_PENDING_KEY, beginDesktopErase, pendingEraseGeneration, resumeDesktopErase } from './desktop-erase';
+import {
+  ERASE_PENDING_KEY,
+  beginDesktopErase,
+  forceDesktopErase,
+  pendingEraseGeneration,
+  resumeDesktopErase,
+  tolerantStorage
+} from './desktop-erase';
 
 function storage() {
   const values = new Map<string, string>();
@@ -109,6 +116,62 @@ describe('全桌面数据抹除日志', () => {
     await expect(resumeDesktopErase(saved, io)).rejects.toThrow('denied');
     expect(io.removeFile).not.toHaveBeenCalled();
     expect(() => beginDesktopErase(saved, '../outside')).toThrow();
+  });
+});
+
+describe('tolerantStorage：localStorage 不可用时的抹除兜底', () => {
+  it('读抛错读作 null，写与删抛错不冒泡，并记下 failed', () => {
+    const broken = {
+      getItem: () => {
+        throw new Error('denied');
+      },
+      setItem: () => {
+        throw new Error('denied');
+      },
+      removeItem: () => {
+        throw new Error('denied');
+      }
+    };
+    const tolerant = tolerantStorage(() => broken);
+    expect(tolerant.getItem('k')).toBeNull();
+    expect(() => tolerant.setItem('k', 'v')).not.toThrow();
+    expect(() => tolerant.removeItem('k')).not.toThrow();
+    expect(tolerant.failed).toBe(true);
+  });
+
+  it('访问 localStorage 本身（属性读取就抛）也兜住', () => {
+    const tolerant = tolerantStorage(() => {
+      throw new Error('no storage');
+    });
+    expect(tolerant.getItem('k')).toBeNull();
+    expect(() => tolerant.setItem('k', 'v')).not.toThrow();
+    expect(() => tolerant.removeItem('k')).not.toThrow();
+    expect(tolerant.failed).toBe(true);
+  });
+
+  it('存储正常时原样透传，failed 为 false', () => {
+    const saved = storage();
+    const tolerant = tolerantStorage(() => saved);
+    tolerant.setItem('k', 'v');
+    expect(tolerant.getItem('k')).toBe('v');
+    tolerant.removeItem('k');
+    expect(tolerant.getItem('k')).toBeNull();
+    expect(tolerant.failed).toBe(false);
+  });
+});
+
+describe('forceDesktopErase：记不了意图时的兜底删除', () => {
+  it('只删本产品的库与文件体，其余条目不动', async () => {
+    const io = host();
+    await forceDesktopErase(io);
+    expect([...io.entries]).toEqual(['aiao-desktop-other', 'game', 'terminal']);
+    expect([...io.databases]).toEqual(['game']);
+  });
+
+  it('删除失败照常抛给调用方', async () => {
+    const io = host();
+    io.removeFile.mockRejectedValueOnce(new Error('busy'));
+    await expect(forceDesktopErase(io)).rejects.toThrow('busy');
   });
 });
 

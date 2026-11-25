@@ -1,6 +1,6 @@
 # Aiao Desktop 产品需求
 
-当前交付：[48/54 已交付]。1 条进行中、1 条待评审、4 条待开发。状态真相源为 `stories/<domain>/ADESK-US-*.md` 的 YAML `status`，其余视图由故事派生。
+当前交付：[49/55 已交付]。1 条进行中、1 条待评审、4 条待开发。状态真相源为 `stories/<domain>/ADESK-US-*.md` 的 YAML `status`，其余视图由故事派生。
 
 ## 产品定位
 
@@ -19,6 +19,7 @@ Aiao Desktop 当前是在浏览器里运行的 macOS 风格桌面，把本地文
 ## 当前范围
 
 [ADESK-US-130 桌面冷启动与首次使用时加载](stories/desktop/ADESK-US-130-desktop-on-demand.md)已通过生产构建验收。默认桌面只加载当前所需内容，首次打开的应用与面板在同页重开时复用脚本。
+[ADESK-US-131 设置里的退出与重置本地数据](stories/desktop/ADESK-US-131-settings-sign-out-data-reset.md)已通过生产构建验收。设置头像的账户菜单提供确认后抹掉全部本地数据并刷新的退出入口，localStorage 不可用时也能清理。
 
 2026-11-21 [US-128 浏览器关闭后恢复工作区](stories/desktop/ADESK-US-128-browser-session-restore.md) 已完成。持久浏览器上下文已验证最近活跃工作区、标签页竞争、显式关闭窗口、损坏快照和单窗口失败恢复。
 

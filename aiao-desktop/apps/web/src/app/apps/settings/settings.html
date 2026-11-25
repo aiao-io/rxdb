@@ -16,7 +16,17 @@
         </div>
       </div>
       <div class="st-scroll">
-        <div class="st-row" style="height: 44px; margin-bottom: 8px">
+        <div
+          class="st-row"
+          style="height: 44px; margin-bottom: 8px"
+          #account
+          aria-label="Apple Account"
+          data-account
+          role="button"
+          tabindex="-1"
+          (click)="openAccount($event, account)"
+          (keydown.enter)="openAccount($event, account)"
+        >
           <img
             class="bg"
             [ngSrc]="avatar"

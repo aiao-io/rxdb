@@ -1,0 +1,81 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-25T11:32:52.961Z",
+  "source": {
+    "sha": "12dc058eccb5e0b6a2586c7c307886e934677609",
+    "changes": "M src/groups/settings-workflow.mjs\n M ../web/src/app/app.config.ts\n M ../web/src/app/apps/settings/settings.html\n M ../web/src/app/apps/settings/settings.ts\n M ../web/src/app/data/desktop-data.spec.ts\n M ../web/src/app/data/desktop-data.ts\n M ../web/src/app/data/desktop-erase.spec.ts\n M ../web/src/app/data/desktop-erase.ts\n M ../../requirements/README.md\n M ../../requirements/capability-matrix.md\n M ../../requirements/epics/ADESK-EPIC-002.md\n M ../../requirements/status-overview.md\n?? ../web/src/app/apps/settings/account-menu.ts\n?? ../../requirements/stories/desktop/ADESK-US-131-settings-sign-out-data-reset.md"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "159.0.8154.6",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/aiao/aiao-worktree-desktop/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "f02738a4bdf548b7e72955eddb9e31eb00c39f94b9420a278bece2b03f6fb62d"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 1,
+    "groups": [
+      "settings-workflow"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 8.985075792,
+  "outcomes": [
+    {
+      "group": "settings-workflow",
+      "result": {
+        "settingsWorkflow": {
+          "initialSections": true,
+          "searchesBySection": true,
+          "emptySearch": true,
+          "clearsSearch": true,
+          "sectionFollowsSelection": true,
+          "accountMenu": true,
+          "accountMenuKeyboard": true,
+          "signOutConfirmCancel": true,
+          "muteSwitchMutesSystem": true,
+          "signOutErasesAndReloads": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 8.942628334
+    }
+  ],
+  "checks": {
+    "settingsWorkflow": {
+      "initialSections": true,
+      "searchesBySection": true,
+      "emptySearch": true,
+      "clearsSearch": true,
+      "sectionFollowsSelection": true,
+      "accountMenu": true,
+      "accountMenuKeyboard": true,
+      "signOutConfirmCancel": true,
+      "muteSwitchMutesSystem": true,
+      "signOutErasesAndReloads": true
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [],
+    "stale": []
+  },
+  "passed": true,
+  "clean": true
+}
