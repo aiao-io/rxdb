@@ -40,7 +40,7 @@ import {
   queryPendingLocalChanges,
   resolveConflictsAndBuildActions
 } from './pull-conflict-utils.js';
-import { backfillOwnChangeRemoteIds, splitRemoteChangesByOrigin } from './pull-round.js';
+import { preparePulledChanges } from './pull-round.js';
 import { instantiateSyncRecord } from './remote-backend.js';
 import { assertSyncOnMainCheckout } from './sync-manager.utils.js';
 import type { SyncManager } from './SyncManager.js';
@@ -313,10 +313,7 @@ async function pullBatchOnce(
 
       totalPulled += filteredChanges.length;
 
-      // 分离自己推送的变更和他人的变更，再把自推变更的 remoteId 回填到本地行上。
-      // 两步与 pull-repository.ts 共用同一份实现（见 pull-round.ts 的 @packageDocumentation）。
-      const { ownChanges, otherChanges } = splitRemoteChangesByOrigin(filteredChanges, clientId);
-      await backfillOwnChangeRemoteIds(changeRepo, ownChanges);
+      const otherChanges = await preparePulledChanges(changeRepo, filteredChanges, clientId);
 
       // 压缩并应用他人的变更
       if (otherChanges.length > 0) {

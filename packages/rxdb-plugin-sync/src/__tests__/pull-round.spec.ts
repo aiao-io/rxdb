@@ -8,7 +8,7 @@
 
 import type { RemoteChange } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
-import { backfillOwnChangeRemoteIds, splitRemoteChangesByOrigin } from '../pull-round.js';
+import { backfillOwnChangeRemoteIds, preparePulledChanges, splitRemoteChangesByOrigin } from '../pull-round.js';
 
 const remoteChange = (over: Partial<RemoteChange>): RemoteChange =>
   ({ id: 1, entityId: 'e1', namespace: 'test', entity: 'Todo', type: 'INSERT', ...over }) as RemoteChange;
@@ -104,4 +104,19 @@ describe('backfillOwnChangeRemoteIds', () => {
 
     expect(updates).toEqual([]);
   });
+});
+
+it('刷新后跳过已有推送回执的变更，其他设备碰巧用了同一 localId 时仍正常应用', async () => {
+  const { repo } = createChangeRepoStub([
+    { id: 10, remoteId: 501 },
+    { id: 11, remoteId: 502 }
+  ]);
+  const acknowledged = remoteChange({ id: 501, localId: 10, clientId: 'before-reload' });
+  const other = remoteChange({ id: 502, localId: 10, clientId: 'peer' });
+  const noReceipt = remoteChange({ id: 504, clientId: 'peer' });
+  const current = remoteChange({ id: 505, clientId: 'current' });
+  expect(await preparePulledChanges(repo, [acknowledged, other, noReceipt, current], 'current')).toEqual([
+    other,
+    noReceipt
+  ]);
 });

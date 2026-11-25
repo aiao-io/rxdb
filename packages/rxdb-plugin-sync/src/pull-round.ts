@@ -101,3 +101,25 @@ export const backfillOwnChangeRemoteIds = async (
     if (remoteId != null) await changeRepo.update(local, { remoteId });
   }
 };
+
+/**
+ * 在拉取事务内认领自推回执，并返回仍需应用的远端变更。
+ *
+ * @remarks 刷新或换标签页后 clientId 会变。本地推送回执同时记有本地和远端日志 ID，
+ * 两个 ID 都吻合才能跳过重放，其他设备独立生成的 localId 可能与本机相同。
+ */
+export async function preparePulledChanges(
+  changeRepo: IRepository<typeof RxDBChange>,
+  changes: RemoteChange[],
+  clientId: string | undefined
+): Promise<RemoteChange[]> {
+  const { ownChanges, otherChanges } = splitRemoteChangesByOrigin(changes, clientId);
+  await backfillOwnChangeRemoteIds(changeRepo, ownChanges);
+  const localIds = otherChanges.flatMap(change => (change.localId == null ? [] : [change.localId]));
+  if (!localIds.length) return otherChanges;
+  const rows = await changeRepo.find({
+    where: { combinator: 'and', rules: [{ field: 'id', operator: 'in', value: localIds }] }
+  });
+  const receipts = new Map(rows.map(row => [row.id, row.remoteId]));
+  return otherChanges.filter(change => change.localId == null || receipts.get(change.localId) !== change.id);
+}

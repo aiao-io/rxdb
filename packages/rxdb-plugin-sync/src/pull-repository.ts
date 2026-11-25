@@ -47,7 +47,7 @@ import {
   queryPendingLocalChanges,
   resolveConflictsAndBuildActions
 } from './pull-conflict-utils.js';
-import { backfillOwnChangeRemoteIds, splitRemoteChangesByOrigin } from './pull-round.js';
+import { preparePulledChanges } from './pull-round.js';
 import { instantiateSyncRecord } from './remote-backend.js';
 import { assertSyncOnMainCheckout } from './sync-manager.utils.js';
 import type { SyncManager } from './SyncManager.js';
@@ -577,9 +577,6 @@ async function pullSingleRepository(
       lastRemoteChange = remoteChanges[remoteChanges.length - 1];
       sinceId = lastRemoteChange.id;
 
-      // 分离自己 push 上去的变更和他人的变更（与 pull-batch.ts 共用同一份实现）
-      const { ownChanges, otherChanges } = splitRemoteChangesByOrigin(remoteChanges, rxdb.context.clientId);
-
       // remoteId 回填、实体应用、supersession 标记与水位线推进必须在**一个**事务里。
       //
       // 否则中途失败时前面几步已落库、水位线也可能已前移：重试会从新水位线继续，
@@ -595,9 +592,7 @@ async function pullSingleRepository(
         // 绑定在适配器上，其读写会重新排队并排在自己这个事务后面（队列并发度 1）。
         const txChangeRepo = executor.getRepository(RxDBChange);
         const txRepoSyncRepo = executor.getRepository(RxDBSync);
-        // 为自己 push 的变更更新本地 remoteId。此前这里把「只写没映射过的行」写成 JS 守卫，
-        // 而 pull-batch 写在 SQL 里——判据相同、写法不同，改一处漏一处不会红。现已共用。
-        await backfillOwnChangeRemoteIds(txChangeRepo, ownChanges);
+        const otherChanges = await preparePulledChanges(txChangeRepo, remoteChanges, rxdb.context.clientId);
 
         // 只对他人的变更执行压缩和应用
         if (otherChanges.length > 0) {
