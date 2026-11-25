@@ -70,6 +70,7 @@ export const fileManagement = {
     'fileManagement.duplicateIsIndependent',
     'fileManagement.folderCopyKeepsNestedAndEmptyEntries',
     'fileManagement.listVirtualScroll',
+    'fileManagement.listHeaderRow',
     'fileManagement.multiSelection',
     'fileManagement.finderMarqueeSelection',
     'fileManagement.clipboardCopyPaste',
@@ -843,6 +844,14 @@ export const fileManagement = {
     await finder().getByRole('button', { name: 'List', exact: true }).click();
     await expect(finder().locator('.fv-list-scroll')).toHaveCount(1);
     result.listVirtualScroll = true;
+    /* 表头四个列标题并排一行（.hd 移出 .fv-list 后选择器曾失配，标题竖着堆成一列）。 */
+    const headerCells = finder().locator('.fv-list-wrap .hd .hdbtn');
+    await expect(headerCells).toHaveCount(4);
+    const headerBoxes = await Promise.all([0, 1, 2, 3].map(i => headerCells.nth(i).boundingBox()));
+    result.listHeaderRow =
+      headerBoxes.every(box => box) &&
+      Math.max(...headerBoxes.map(box => box.y)) - Math.min(...headerBoxes.map(box => box.y)) < 1 &&
+      headerBoxes[3].x > headerBoxes[0].x;
     await item('clipboard-source.txt').click();
     await item('drag-copy.txt').click({ modifiers: ['Meta'] });
     await expect(finder().locator('[role=option][aria-selected="true"]')).toHaveCount(2);

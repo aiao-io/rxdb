@@ -2338,7 +2338,7 @@ svg {
 .fv-list-scroll .cdk-virtual-scroll-content-wrapper {
   width: 100%;
 }
-.fv-list .hd {
+.fv-list-wrap .hd {
   display: flex;
   position: sticky;
   top: 0;
@@ -2351,7 +2351,7 @@ svg {
   font-weight: 500;
   color: var(--txt-2);
 }
-.fv-list .hd > div,
+.fv-list-wrap .hd > div,
 .fv-list .r > div {
   padding: 0 10px;
   overflow: hidden;
@@ -2377,9 +2377,6 @@ svg {
 .fv-list .c4 {
   width: 112px;
   flex: none;
-}
-.fv-list .hd > div + div {
-  box-shadow: inset 1px 0 0 var(--line);
 }
 .fv-list .r {
   display: flex;
@@ -7146,13 +7143,16 @@ app-mail-compose textarea:focus-visible {
 }
 
 /* [impl:finder1] 可点击排序的表头按钮：去掉按钮默认外观，与原来表头文字一致 */
-.fv-list .hd .hdbtn {
+.fv-list-wrap .hd .hdbtn {
   height: 100%;
   min-width: 0;
   display: flex;
   align-items: center;
   gap: 4px;
   padding: 0 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   background: none;
   border: none;
   color: inherit;
@@ -7162,23 +7162,40 @@ app-mail-compose textarea:focus-visible {
 }
 
 /* [impl:finder1] 表头悬停反馈 */
-.fv-list .hd .hdbtn:hover {
+.fv-list-wrap .hd .hdbtn:hover {
   background: var(--hover);
 }
 
 /* [impl:finder1] 表头键盘焦点描边 */
-.fv-list .hd .hdbtn:focus-visible {
+.fv-list-wrap .hd .hdbtn:focus-visible {
   outline: 2px solid var(--blue);
   outline-offset: -2px;
 }
 
 /* [impl:finder1] Size 列的值右对齐，表头也右对齐 */
-.fv-list .hd .hdbtn.c3 {
+.fv-list-wrap .hd .hdbtn.c3 {
   justify-content: flex-end;
+  width: var(--finder-c3, 76px);
+  flex: none;
+}
+
+/* [impl:finder1] 表头按钮与行单元格共用列宽变量，保证表头与数据行对齐 */
+.fv-list-wrap .hd .hdbtn.c1 {
+  flex: 1;
+}
+
+.fv-list-wrap .hd .hdbtn.c2 {
+  width: var(--finder-c2, 184px);
+  flex: none;
+}
+
+.fv-list-wrap .hd .hdbtn.c4 {
+  width: var(--finder-c4, 112px);
+  flex: none;
 }
 
 /* [impl:finder1] 排序列表头的方向箭头占位（当前排序列才有 aria-sort 属性） */
-.fv-list .hd .hdbtn[aria-sort]::after {
+.fv-list-wrap .hd .hdbtn[aria-sort]::after {
   content: '';
   width: 0;
   height: 0;
@@ -7189,17 +7206,17 @@ app-mail-compose textarea:focus-visible {
 }
 
 /* [impl:finder1] 升序：向上的三角 */
-.fv-list .hd .hdbtn[aria-sort='ascending']::after {
+.fv-list-wrap .hd .hdbtn[aria-sort='ascending']::after {
   border-bottom: 4.5px solid var(--txt-2);
 }
 
 /* [impl:finder1] 降序：向下的三角 */
-.fv-list .hd .hdbtn[aria-sort='descending']::after {
+.fv-list-wrap .hd .hdbtn[aria-sort='descending']::after {
   border-top: 4.5px solid var(--txt-2);
 }
 
 /* [impl:finder1] 列表表头拖宽分隔条：4px 命中区、中间 1px 竖线（覆盖 .hd > div 的 padding/溢出规则） */
-.fv-list .hd .hd-sep {
+.fv-list-wrap .hd .hd-sep {
   width: 4px;
   flex: none;
   align-self: stretch;
@@ -7209,7 +7226,7 @@ app-mail-compose textarea:focus-visible {
 }
 
 /* [impl:finder1] 分隔条键盘焦点描边 */
-.fv-list .hd .hd-sep:focus-visible {
+.fv-list-wrap .hd .hd-sep:focus-visible {
   outline: 2px solid var(--blue);
   outline-offset: -1px;
 }
