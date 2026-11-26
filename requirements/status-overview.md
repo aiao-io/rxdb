@@ -9,18 +9,22 @@
 | 状态           | 数量 |
 | :------------- | :--- |
 | ✅ Done        | 100  |
-| 🚧 In Progress | 13   |
+| 🚧 In Progress | 17   |
 | 👀 In Review   | 9    |
-| 📝 Backlog     | 35   |
+| 📝 Backlog     | 32   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 157  |
+| **合计**       | 158  |
 
 统计只包含带 story frontmatter 的文件。辅助证据和无故事文件的候选不计数；同编号的辅助文件不算另一条故事。
 Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关闭而自动通过。当前可开工条件见 roadmap 与各故事的阶段表。
 
-## 进行中（13 条）
+## 进行中（17 条）
 
 - [US-211 多端小程序宿主（支付宝 / 抖音 / 百度 / QQ）](stories/adapter/US-211-multi-miniprogram-platforms.md)：未通过 AC#14、#16、#18（3/21）
+- [US-233 Supabase 待拉数与能拉的对不上：刷新后把自己推的算进去，分区按变更号差计](stories/adapter/US-233-supabase-pullable-count-accuracy.md)：未通过 AC#1～#5（5/5）
+- [US-316 撤销/重做的多仓库作用域：几个实体合起来撤，跨它们的事务整条撤](stories/collaboration/US-316-multi-repository-history-scope.md)：未通过 AC#1～#8（8/8）
+- [US-317 待推送清单：与待推数同一口径的历史项流](stories/collaboration/US-317-pushable-histories.md)：未通过 AC#1～#8（8/8）
+- [US-318 本地外键级联删除与源删除记进同一个事务：一次撤销整组恢复，互相引用的也撤得回来](stories/collaboration/US-318-cascade-delete-one-transaction.md)：未通过 AC#1～#6（6/6）
 - [US-403 实体组件 Headless API 与可定制展示层](stories/ui/US-403-entity-components-headless.md)：未通过 AC#1～#16、#18～#21（20/21）
 - [US-530 后台外壳偏好中心：声明式 schema 驱动的偏好抽屉与外观设置](stories/domain/US-530-admin-shell-preferences-appearance.md)：未通过 AC#1～#7（7/7）
 - [US-531 后台外壳布局：四种布局模式、侧栏图标轨、移动端抽屉与页签栏](stories/domain/US-531-admin-shell-layout-tabbar.md)：未通过 AC#1～#7（7/7）
@@ -103,7 +107,6 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 - ✅ [US-026 实例级实体同步配置覆盖](stories/core/US-026-instance-sync-override.md)
 - ✅ [US-027 实体操作权限模型](stories/core/US-027-entity-permission-model.md)
 - ✅ [US-028 可排序实体（普通实体手动排序）](stories/core/US-028-sortable-entity.md)
-- ⬜ [US-029 多用户 RBAC：角色与所有权写权限](stories/core/US-029-rbac-owner-role-permission.md)
 - 👀 [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)
 - ✅ [US-031 树形实体迁移到排序模块](stories/core/US-031-tree-sortable-migration.md)
 - ✅ [US-032 跨 Tab 增量 UPDATE 的活查询刷新](stories/core/US-032-cross-tab-update-live-query.md)
@@ -246,26 +249,29 @@ US-704～US-707 已获 owner 授权，US-708 会话层由 owner 决定在 PR #17
 
 ### [按身份授权的同步与本机数据隔离](epics/epic-015-identity-scoped-sync.md)
 
+- ⬜ [US-029 按作用域的成员写权限：实体声明作用域与所需权限，本地写入口快速拒绝，三端按行显隐入口](stories/core/US-029-rbac-owner-role-permission.md)
 - ✅ [US-033 按授权分区同步（只读）：分区决定能读什么，实体同步规则决定同步哪些](stories/core/US-033-identity-scoped-read-sync.md)
 - 👀 [US-034 分区实体的本地写入：本地增删改可撤销/重做，推送后锁定](stories/core/US-034-bucketed-entity-local-writes.md)
 - ✅ [US-035 每个身份一个本地库：打开时核对身份，换账号不混数据](stories/core/US-035-identity-bound-local-database.md)
 - ✅ [US-036 规则之外的公开数据：在线浏览走只读浏览实体，不进同步子集](stories/core/US-036-browse-public-data-outside-sync-rule.md)
 - 👀 [US-229 Supabase 远端变更历史：每次业务写入记完整前后快照，只对能编辑的成员开放](stories/adapter/US-229-supabase-change-history.md)
+- ⬜ [US-234 Supabase 租户内成员权限：管理员能改、员工只能看，dev-rxdb-supabase 完整演示](stories/adapter/US-234-supabase-tenant-member-permissions.md)
 
 ### [本机修改工作台：推送、拉取、撤销与历史的统一交互](epics/epic-016-local-change-workbench.md)
 
 - ⬜ [US-230 dev-rxdb-supabase 顶栏统一推送与拉取：页面登记要哪些按钮，待拉数准确，推之前看得见会推什么](stories/adapter/US-230-supabase-header-sync.md)
 - ⬜ [US-231 dev-rxdb-supabase 三页交互统一：撤销、重做与操作历史同一位置、作用域写在控件上](stories/adapter/US-231-supabase-unified-undo-history.md)
 - ⬜ [US-232 dev-rxdb-supabase 商品「模拟服务端变更」收进右侧抽屉：主界面先看本机数据，需要时再打开](stories/adapter/US-232-supabase-catalog-server-drawer.md)
-- ⬜ [US-233 Supabase 待拉数与能拉的对不上：刷新后把自己推的算进去，分区按变更号差计](stories/adapter/US-233-supabase-pullable-count-accuracy.md)
-- ⬜ [US-316 撤销/重做的多仓库作用域：几个实体合起来撤，跨它们的事务整条撤](stories/collaboration/US-316-multi-repository-history-scope.md)
-- ⬜ [US-317 待推送清单：与待推数同一口径的历史项流](stories/collaboration/US-317-pushable-histories.md)
-- ⬜ [US-318 本地外键级联删除与源删除记进同一个事务：一次撤销整组恢复，互相引用的也撤得回来](stories/collaboration/US-318-cascade-delete-one-transaction.md)
+- 🚧 [US-233 Supabase 待拉数与能拉的对不上：刷新后把自己推的算进去，分区按变更号差计](stories/adapter/US-233-supabase-pullable-count-accuracy.md)
+- 🚧 [US-316 撤销/重做的多仓库作用域：几个实体合起来撤，跨它们的事务整条撤](stories/collaboration/US-316-multi-repository-history-scope.md)
+- 🚧 [US-317 待推送清单：与待推数同一口径的历史项流](stories/collaboration/US-317-pushable-histories.md)
+- 🚧 [US-318 本地外键级联删除与源删除记进同一个事务：一次撤销整组恢复，互相引用的也撤得回来](stories/collaboration/US-318-cascade-delete-one-transaction.md)
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 
 - BOM按已授权切片推进，后续故事仍受各自前置约束；联产品、热路径与可选索引保留独立准入。
-- US-029仍价值待证；US-910留在立项池，不因Backlog状态自动获得开工授权。US-603 已获授权并进入本轮执行。
+- US-910留在立项池，不因Backlog状态自动获得开工授权。US-603 已获授权并进入本轮执行。
+- 成员权限（批次 11）：US-029 阶段 C 以 US-234 阶段 A 为前置；US-234 的演示部分排在 epic-016 的页面骨架（US-230 阶段 A、US-231 阶段 A、US-232）之后。
 - P2P（US-704～707）已解锁，协议层的内存测试不替代真实宿主验收；依赖身份的验收等 US-704 选定认证宿主。US-708 会话层随 PR #172 交付。
 - epic-012（US-709 / US-710 / US-711 / US-712）价值待证，留在立项池，以 US-708 会话层为共同前置。
 - US-910/911的最小能力验证、US-211/219的真实宿主证据、US-528的仓外消费均不能由源码单测替代。

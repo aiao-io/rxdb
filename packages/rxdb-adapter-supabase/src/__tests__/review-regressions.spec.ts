@@ -528,6 +528,42 @@ describe('supabase review regressions', () => {
     expect(result).toEqual({ count: 0, latestChangeId: 17 });
   });
 
+  it('getChangeCount 只数别人的变更：排除本客户端推上去的，保留没有客户端标识的远端直写（US-233）', async () => {
+    const query = resolvedRecordingQuery({ data: [{ id: 9 }], count: 1, error: null });
+    const from = vi.fn(() => query.proxy);
+    const adapter = createAdapter({ from }, {}, [Todo]);
+
+    await expect(adapter.getChangeCount(5, ['Todo'])).resolves.toEqual({ count: 1, latestChangeId: 9 });
+
+    // `clientId.neq.x` 单独用会把 clientId 为空的远端直写一并滤掉
+    expect(query.calls).toContainEqual({ method: 'or', args: ['clientId.is.null,clientId.neq.local-client'] });
+  });
+
+  it('getBucketChangeCount 按实体、分区、游标与分支数，只数别人的变更（US-233）', async () => {
+    const query = resolvedRecordingQuery({ data: null, count: 1, error: null });
+    const from = vi.fn(() => query.proxy);
+    const adapter = createAdapter({ from }, {}, [Todo]);
+
+    await expect(adapter.getBucketChangeCount('public', 'Todo', 'tenant:a', 68, ['main'])).resolves.toBe(1);
+
+    expect(from).toHaveBeenCalledWith('rxdb_change');
+    expect(query.calls).toContainEqual({ method: 'eq', args: ['namespace', 'public'] });
+    expect(query.calls).toContainEqual({ method: 'eq', args: ['entity', 'Todo'] });
+    expect(query.calls).toContainEqual({ method: 'eq', args: ['bucket', 'tenant:a'] });
+    expect(query.calls).toContainEqual({ method: 'gt', args: ['id', 68] });
+    expect(query.calls).toContainEqual({ method: 'in', args: ['branchId', ['main']] });
+    expect(query.calls).toContainEqual({ method: 'or', args: ['clientId.is.null,clientId.neq.local-client'] });
+  });
+
+  it('getBucketChangeCount reports query errors', async () => {
+    const query = resolvedRecordingQuery({ data: null, error: { message: 'bucket count denied' } });
+    const adapter = createAdapter({ from: vi.fn(() => query.proxy) }, {}, [Todo]);
+
+    await expect(adapter.getBucketChangeCount('public', 'Todo', 'public', 0, ['main'])).rejects.toThrow(
+      new SupabaseDataError('Failed to count bucket changes: bucket count denied')
+    );
+  });
+
   it('getChangeCount preserves the cursor when count data has no latest row', async () => {
     const query = resolvedRecordingQuery({ data: [], count: 2, error: null });
     const from = vi.fn(() => query.proxy);
@@ -1071,6 +1107,7 @@ describe('supabase review regressions', () => {
       is: vi.fn(),
       in: vi.fn(),
       eq: vi.fn(),
+      or: vi.fn(),
       order: vi.fn(),
       limit: vi.fn()
     };
@@ -1078,6 +1115,7 @@ describe('supabase review regressions', () => {
     builder.is.mockReturnValue(builder);
     builder.in.mockReturnValue(builder);
     builder.eq.mockReturnValue(builder);
+    builder.or.mockReturnValue(builder);
     builder.order.mockReturnValue(builder);
     builder.limit.mockResolvedValue({ data: [{ id: 42 }], count: 3, error: null });
 

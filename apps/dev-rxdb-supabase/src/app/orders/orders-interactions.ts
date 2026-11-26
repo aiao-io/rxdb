@@ -1,5 +1,4 @@
-import type { PullResult, PushResult, SyncFailure, SyncRejection } from '@aiao/rxdb';
-import { getErrorMessage } from '../error-message';
+import type { SyncRejection } from '@aiao/rxdb';
 import type { DemoOrderItem } from './order-entities';
 
 /** 新建订单项要填的字段 */
@@ -19,12 +18,6 @@ export interface OrderItemInput {
 /** 表单校验的结果：通过时交出订单项，不通过时交出原因 */
 export type OrderItemDraftResult =
   { readonly ok: true; readonly draft: OrderItemDraft } | { readonly ok: false; readonly error: string };
-
-/** 一轮推拉在页面上的说法：完成时给提示，有仓库失败时给原因 */
-export interface SyncOutcome {
-  readonly notice: string | null;
-  readonly error: string | null;
-}
 
 /**
  * 一张订单的金额
@@ -112,39 +105,4 @@ export function describeDependencyRejections(
     const who = name === undefined ? `（${parent.entityId}）` : `「${name}」`;
     return [`订单被远端拒绝：它的客户${who}已不在远端。拉取之后，这位客户也会从本机消失。`];
   });
-}
-
-/**
- * 一轮推送的结果
- *
- * @param result - `syncManager.push()` 的结果
- * @returns 推上去与被拒的条数；有仓库失败时按实体报出原因
- */
-export function describePushOutcome(result: PushResult): SyncOutcome {
-  if (result.failures.length > 0)
-    return { notice: null, error: `推送没有全部完成：${describeFailures(result.failures)}` };
-  const rejected = result.rejected > 0 ? `，被拒 ${result.rejected} 条（见「被拒的推送」）` : '';
-  return { notice: `推送完成：推上去 ${result.pushed} 条${rejected}`, error: null };
-}
-
-/**
- * 一轮拉取的结果
- *
- * @param result - `syncManager.pull()` 的结果
- * @returns 拉到的条数；有仓库失败时按实体报出原因
- */
-export function describePullOutcome(result: PullResult): SyncOutcome {
-  if (result.failures.length > 0)
-    return { notice: null, error: `拉取没有全部完成：${describeFailures(result.failures)}` };
-  return { notice: `拉取完成：拉到 ${result.pulled} 条`, error: null };
-}
-
-/** 按实体列出失败原因；整机推拉的失败总带着仓库，个别没有仓库的只报原因 */
-function describeFailures(failures: readonly SyncFailure[]): string {
-  return failures
-    .map(failure => {
-      const reason = getErrorMessage(failure.error, '未知错误');
-      return failure.repository ? `${failure.repository.entity}：${reason}` : reason;
-    })
-    .join('；');
 }

@@ -1,7 +1,7 @@
 ---
 id: US-318
 title: 本地外键级联删除与源删除记进同一个事务：一次撤销整组恢复，互相引用的也撤得回来
-status: Backlog
+status: In Progress
 priority: High
 epic: epic-016-local-change-workbench
 created: 2026-11-26

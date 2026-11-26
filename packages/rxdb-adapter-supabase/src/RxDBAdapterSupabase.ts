@@ -592,6 +592,53 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
   }
 
   /**
+   * 分区在游标之后、不是本客户端推上去的日志条数（US-233）
+   *
+   * @param namespace - 实体命名空间
+   * @param entity - 实体名
+   * @param bucket - 调用者可读的分区
+   * @param afterId - 游标：只数 id 大于它的日志
+   * @param branchIds - 只算这些分支，与拉取同口径
+   * @returns 条数
+   * @throws {@link SupabaseDataError} 查询失败时
+   *
+   * @remarks
+   * 直接数 `rxdb_change`：表上的 `rxdb_change_read_by_bucket` 策略只放行调用者可读分区的行，
+   * 分区此刻已被撤销时数出来是 0，不需要另开 RPC。不求值实体同步规则，与快照点同口径。
+   */
+  async getBucketChangeCount(
+    namespace: string,
+    entity: string,
+    bucket: string,
+    afterId: number,
+    branchIds: readonly string[]
+  ): Promise<number> {
+    const query = this.#client
+      .from('rxdb_change')
+      .select('id', { count: 'exact', head: true })
+      .eq('namespace', namespace)
+      .eq('entity', entity)
+      .eq('bucket', bucket)
+      .gt('id', afterId)
+      .in('branchId', [...branchIds]);
+    const { count, error, status } = await this.#othersOnly(query);
+    assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to count bucket changes');
+    return count ?? 0;
+  }
+
+  /**
+   * 只留别人的变更（US-233）
+   *
+   * @remarks
+   * 本客户端推上去的变更拉下来只回填 `remoteId`、不落库，不算待拉，与实时通知跳过自己的口径一致
+   * （`handle_supabase_change`）。远端直写没有客户端标识，照样计入：单写 `clientId.neq.x` 会把空值一并滤掉。
+   */
+  #othersOnly<Q extends { or(filters: string): Q }>(query: Q): Q {
+    const clientId = this.rxdb.context.clientId;
+    return clientId ? query.or(`clientId.is.null,clientId.neq.${clientId}`) : query;
+  }
+
+  /**
    * 按分区从业务表读一页快照（US-033）
    *
    * @param namespace - 实体命名空间
@@ -727,7 +774,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       query = query.eq('branchId', branchId);
     }
 
-    const { data, count, error, status } = await query.order('id', { ascending: false }).limit(1);
+    const { data, count, error, status } = await this.#othersOnly(query).order('id', { ascending: false }).limit(1);
     assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to get change count');
 
     return {
