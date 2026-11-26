@@ -43,8 +43,9 @@ export async function createSession({
   standins = [],
   context: requestedContext = {}
 }) {
-  // 普通行为组隔离缓存影响；pwa 组显式启用真实 Worker，覆盖离线与更新。
-  const contextOptions = { serviceWorkers: 'block', ...requestedContext };
+  // 默认钉 en-US：既有英文断言按此基线写（ADESK-US-132 接入界面语言后仍保持英文默认）。
+  // 语言矩阵（zh-CN 设备首启等）由 language 组自建上下文覆盖；组级 context 选项可覆盖这里的默认值。
+  const contextOptions = { serviceWorkers: 'block', locale: 'en-US', ...requestedContext };
   const viewport = contextOptions.viewport ?? VIEWPORT;
   const profile =
     EPHEMERAL_CONTEXT_HAS_OPFS[engine] ? null : await createPersistentProfile({ engine, viewport, contextOptions });

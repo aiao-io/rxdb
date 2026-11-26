@@ -35,7 +35,7 @@ export const settingsWorkflow = {
     const rows = () => window.locator('[data-sec]');
     const title = window.locator('[data-sttitle]');
 
-    await expect(rows()).toHaveCount(12);
+    await expect(rows()).toHaveCount(13);
     result.initialSections = true;
 
     await search.fill('Network');
@@ -51,7 +51,7 @@ export const settingsWorkflow = {
     result.emptySearch = true;
 
     await search.fill('');
-    await expect(rows()).toHaveCount(12);
+    await expect(rows()).toHaveCount(13);
     result.clearsSearch = true;
 
     await rows().filter({ hasText: 'General' }).click();

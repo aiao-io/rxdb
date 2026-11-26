@@ -27,6 +27,7 @@ import { hostCapabilities } from './host-capabilities.mjs';
 import { hostFilesystem } from './host-filesystem.mjs';
 import { imageThumbnails } from './image-thumbnails.mjs';
 import { integratedApp } from './integrated-app.mjs';
+import { language } from './language.mjs';
 import { lazyLoading } from './lazy-loading.mjs';
 import { localMail } from './local-mail.mjs';
 import { localMessages } from './local-messages.mjs';
@@ -118,5 +119,7 @@ export const GROUPS = [
   { ...fontbookWorkflow, weight: 20 },
   { ...stocksWorkflow, weight: 25 },
   { ...settingsWorkflow, weight: 20 },
+  /* 界面语言矩阵只验收桌面 Chrome（D-19）；组内 zh-CN 设备场景用独立上下文覆盖。 */
+  { ...language, engines: ['chromium'], weight: 30 },
   { ...fixtures, weight: 40, exclusive: true }
 ];

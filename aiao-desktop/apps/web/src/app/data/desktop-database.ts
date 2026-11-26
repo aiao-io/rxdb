@@ -125,3 +125,14 @@ export function createDesktopDatabase(baseHref: string, options: DesktopDatabase
   }
   return rxdb;
 }
+
+let desktopDatabase: RxDB | undefined;
+
+/**
+ * 页面级单例：provideRxDB 与 provideI18n 的工厂都要拿同一个库实例（i18n 实体必须与桌面实体一起
+ * 在 RxDB.init 前注册，两份工厂各自建库会造成实体清单不一致）。首次调用建库，之后原样返回。
+ */
+export function getDesktopDatabase(baseHref: string, options: DesktopDatabaseOptions = {}): RxDB {
+  desktopDatabase ??= createDesktopDatabase(baseHref, options);
+  return desktopDatabase;
+}

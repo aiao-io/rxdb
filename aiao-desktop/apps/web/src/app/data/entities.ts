@@ -1,4 +1,5 @@
 import type { EntityType } from '@aiao/rxdb';
+import { i18nEntities } from '@aiao/rxdb-i18n';
 
 import { CLOCK_ENTITIES } from '../apps/clock/clock.entities';
 import { CONTACTS_ENTITIES } from '../apps/contacts/contacts.entities';
@@ -28,6 +29,8 @@ import { SystemPreference } from './system-preference.entity';
 export const DESKTOP_ENTITIES: readonly EntityType[] = [
   SystemPreference,
   DesktopFile,
+  /* i18n 语言偏好与目录实体（US-132）：必须早于 RxDB.init() 注册。 */
+  ...i18nEntities(),
   ...NOTES_ENTITIES,
   ...REMINDERS_ENTITIES,
   ...CALENDAR_ENTITIES,

@@ -1,4 +1,5 @@
-import { Component, DestroyRef, ViewEncapsulation, afterNextRender, inject } from '@angular/core';
+import { I18N, useI18n } from '@aiao/rxdb-i18n-angular';
+import { Component, DestroyRef, ViewEncapsulation, afterNextRender, effect, inject } from '@angular/core';
 
 import { FinderClipboard } from '../apps/finder/finder-clipboard';
 import { FinderSidebarOrder } from '../apps/finder/finder-sidebar-order';
@@ -138,12 +139,30 @@ export class DesktopPage {
 
   protected readonly wm = inject(WindowManager);
   protected readonly layout = inject(WindowLayoutStore);
+  protected readonly i18n = useI18n();
 
   constructor() {
     this.theme.setAppearance(this.system.appearance());
     this.wallpaper.set(this.system.wallpaper());
     /* 设置存在本地库里：库就绪后恢复上次的外观、壁纸、Dock 等，之后的改动自动写回。 */
     inject(SystemSettingsStore);
+    /* i18n 串行于桌面数据之后初始化（US-132 设计决策 3）：i18n 的 connect 引导不持 STARTUP_LOCK，
+       过早 init 会静默补建表、掩盖 probeSchema 的损坏探测，并与其他标签页的升级交错。失败不阻断桌面：
+       目录随包可用，语言偏好未落库时界面仍按设备语言显示。桌面数据打不开（corrupt/too-new/selection 损坏等）
+       由 DesktopData 的阻断界面按设计呈现，不算 i18n 失败；这里只记录 init 本身的失败。
+       注入必须在构造器的注入上下文里解析，回调里只用解析出来的实例（回调里再 inject 会抛 NG0203）。 */
+    const desktopData = inject(DesktopData);
+    const i18nRuntime = inject(I18N);
+    void desktopData.ready
+      .then(
+        () => i18nRuntime.init(),
+        () => undefined
+      )
+      .catch((error: unknown) => console.error('i18n init failed', error));
+    /* 界面语言跟随运行时：zh-CN 设备上 locale 为 zh-CN（文案来自 zh 目录），lang 按设备链写、不强制归一。 */
+    effect(() => {
+      document.documentElement.lang = this.i18n.locale();
+    });
     afterNextRender(() => {
       void this.startWindows();
       void this.backup

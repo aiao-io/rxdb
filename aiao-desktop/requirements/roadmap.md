@@ -92,3 +92,7 @@ A06 已建立[逐应用台账](plans/2026-11-17-builtin-workflows.md)，[US-114 
 ## Git 工作区增量（2026-11-22）
 
 [ADESK-US-211 终端、GitHub Desktop 与 Aiao Code 共用仓库](stories/application/ADESK-US-211-git-terminal-workspace.md) 在 US-209 之上增加终端 Git、按目录打开与拖放、远端配置，以及跨源编辑器保存回原仓库。验收先核对本地历史和暂存区，再验证远端分支读回，最后验证跨源窗口保存与重开。[2026-11-23 验收记录](evidence/2026-11-23/git-workspace.md)
+
+## 界面多语言增量（2026-11-26）
+
+[ADESK-US-132 界面多语言（跟随系统 + 语言与地区切换）](stories/desktop/ADESK-US-132-desktop-i18n.md) 基于仓库已交付的 rxdb:US-911 运行时接入中英双语：中文系统自动中文、其余回退英文，「语言与地区」分区即时切换并持久化，跨标签页跟随；设置分区名与搜索本地化。阶段 1（框架接线与设置面）先行，随后是内置应用与错误消息（阶段 2）、旧库升级账本与体积收口（阶段 3）。方案见 [plans/2026-11-24-desktop-i18n.md](plans/2026-11-24-desktop-i18n.md)。

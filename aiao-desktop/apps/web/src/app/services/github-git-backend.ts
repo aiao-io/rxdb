@@ -268,6 +268,7 @@ export class GithubGitBackend {
   private readonly pending = new Map<number, PendingRequest>();
   private readonly workerFactory: WorkerFactory;
   private sequence = 0;
+  private generation = 0;
   private closed = false;
   private disposed = false;
 
@@ -424,6 +425,7 @@ export class GithubGitBackend {
   restart(): void {
     if (this.disposed) return;
     const error = this.storageError('Git Worker restarted');
+    this.generation++;
     this.closed = true;
     this.worker.terminate();
     this.rejectPending(error);
@@ -450,8 +452,32 @@ export class GithubGitBackend {
     return worker;
   }
 
+  /**
+   * Worker 崩溃、超时或返回非法消息都会让后端进入 closed 状态，此后所有请求直接拒绝。
+   * 下一次调用时自动重建 Worker 自愈；被 shutdown 打断的在途请求在新 Worker 上重试一次。
+   * 后端健在时返回的业务性 storage_failed（不伴随 shutdown 或重启）不触发重建。
+   */
   private call(action: string, payload: Record<string, unknown>): Promise<unknown> {
-    if (this.closed) return Promise.reject(this.storageError('Git backend is closed'));
+    if (this.closed) {
+      if (this.disposed) return Promise.reject(this.storageError('Git backend is closed'));
+      this.restart();
+    }
+    const generation = this.generation;
+    return this.dispatch(action, payload).catch((error: unknown) => {
+      if (
+        !this.disposed &&
+        error instanceof GitWorkbenchError &&
+        error.code === 'storage_failed' &&
+        (this.closed || this.generation !== generation)
+      ) {
+        if (this.closed) this.restart();
+        return this.dispatch(action, payload);
+      }
+      throw error;
+    });
+  }
+
+  private dispatch(action: string, payload: Record<string, unknown>): Promise<unknown> {
     const id = ++this.sequence;
     return new Promise<unknown>((resolve, reject) => {
       const timer = setTimeout(() => this.shutdown(this.storageError(`Git Worker timed out: ${action}`)), 60_000);

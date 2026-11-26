@@ -30,6 +30,12 @@
     },
     {
       "path": "../../../packages/rxdb-angular/tsconfig.lib.json"
+    },
+    {
+      "path": "../../../packages/rxdb-i18n/tsconfig.lib.json"
+    },
+    {
+      "path": "../../../packages/rxdb-i18n-angular/tsconfig.lib.json"
     }
   ]
 }

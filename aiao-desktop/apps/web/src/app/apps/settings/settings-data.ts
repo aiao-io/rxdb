@@ -1,10 +1,11 @@
 /** 侧栏里的一个设置分区。 */
 export interface SettingsSection {
   readonly id: string;
+  /** 分区名的目录 key（命名空间 `desktop`），显示与搜索都按当前语言解析。 */
   readonly name: string;
   readonly icon: string;
   readonly bg: string;
-  /** 搜索时除了分区名还匹配的词：分区里的设置项标签与常见别名（匹配不区分大小写）。 */
+  /** 搜索时除了本地化分区名还匹配的词：设置项标签与常见别名（匹配不区分大小写）。 */
   readonly searchTerms: readonly string[];
 }
 
@@ -13,21 +14,21 @@ export const SETTINGS_GROUPS: readonly (readonly SettingsSection[])[] = [
   [
     {
       id: 'wifi',
-      name: 'Wi‑Fi',
+      name: 'settings.section.wifi',
       icon: 'g-wifi',
       bg: '#0a84ff',
       searchTerms: ['wifi', 'wi-fi', 'wireless', 'connection']
     },
     {
       id: 'bluetooth',
-      name: 'Bluetooth',
+      name: 'settings.section.bluetooth',
       icon: 'g-bt',
       bg: '#0a84ff',
       searchTerms: ['devices', 'connect', 'disconnect', 'airpods', 'keyboard', 'trackpad', 'headphones', 'pair']
     },
     {
       id: 'network',
-      name: 'Network',
+      name: 'settings.section.network',
       icon: 'g-network',
       bg: '#0a84ff',
       searchTerms: ['firewall', 'vpn', 'thunderbolt', 'bridge', 'ethernet']
@@ -36,7 +37,7 @@ export const SETTINGS_GROUPS: readonly (readonly SettingsSection[])[] = [
   [
     {
       id: 'general',
-      name: 'General',
+      name: 'settings.section.general',
       icon: 'g-gear',
       bg: '#8e8e93',
       searchTerms: [
@@ -58,8 +59,15 @@ export const SETTINGS_GROUPS: readonly (readonly SettingsSection[])[] = [
       ]
     },
     {
+      id: 'language-region',
+      name: 'settings.section.languageRegion',
+      icon: 'g-globe',
+      bg: '#0a84ff',
+      searchTerms: ['language', 'region', 'locale', 'chinese', 'english', 'preferred']
+    },
+    {
       id: 'appearance',
-      name: 'Appearance',
+      name: 'settings.section.appearance',
       icon: 'g-display',
       bg: '#1d1d1f',
       searchTerms: [
@@ -77,14 +85,14 @@ export const SETTINGS_GROUPS: readonly (readonly SettingsSection[])[] = [
     },
     {
       id: 'wallpaper',
-      name: 'Wallpaper',
+      name: 'settings.section.wallpaper',
       icon: 'g-globe',
       bg: '#30d158',
       searchTerms: ['desktop picture', 'background', 'picture', 'photo']
     },
     {
       id: 'dock',
-      name: 'Desktop & Dock',
+      name: 'settings.section.dock',
       icon: 'g-slider-h',
       bg: '#1d1d1f',
       searchTerms: [
@@ -106,7 +114,7 @@ export const SETTINGS_GROUPS: readonly (readonly SettingsSection[])[] = [
     },
     {
       id: 'displays',
-      name: 'Displays',
+      name: 'settings.section.displays',
       icon: 'g-display',
       bg: '#0a84ff',
       searchTerms: [
@@ -125,14 +133,14 @@ export const SETTINGS_GROUPS: readonly (readonly SettingsSection[])[] = [
     },
     {
       id: 'sound',
-      name: 'Sound',
+      name: 'settings.section.sound',
       icon: 'g-vol-hi',
       bg: '#ff375f',
       searchTerms: ['volume', 'mute', 'output', 'input', 'alert sound', 'sound effects', 'speakers', 'airpods', 'audio']
     },
     {
       id: 'battery',
-      name: 'Battery',
+      name: 'settings.section.battery',
       icon: 'g-batt-glyph',
       bg: '#30d158',
       searchTerms: [
@@ -149,7 +157,7 @@ export const SETTINGS_GROUPS: readonly (readonly SettingsSection[])[] = [
     },
     {
       id: 'notifications',
-      name: 'Notifications',
+      name: 'settings.section.notifications',
       icon: 'g-info',
       bg: '#ff375f',
       searchTerms: ['do not disturb', 'dnd', 'focus', 'banners', 'alerts', 'notification centre', 'notification center']
@@ -158,7 +166,7 @@ export const SETTINGS_GROUPS: readonly (readonly SettingsSection[])[] = [
   [
     {
       id: 'privacy',
-      name: 'Privacy & Security',
+      name: 'settings.section.privacy',
       icon: 'g-hand',
       bg: '#0a84ff',
       searchTerms: [
@@ -187,7 +195,7 @@ export const DEFAULT_SECTION: SettingsSection = SETTINGS_GROUPS[1][0];
  */
 export const ACCOUNT_SECTION: SettingsSection = {
   id: 'account',
-  name: 'Apple Account',
+  name: 'settings.section.account',
   icon: 'g-apple',
   bg: '#8e8e93',
   searchTerms: []
@@ -197,10 +205,14 @@ export const ACCOUNT_SECTION: SettingsSection = {
 export const findSection = (id: string): SettingsSection =>
   [ACCOUNT_SECTION, ...SETTINGS_GROUPS.flat()].find(section => section.id === id) ?? DEFAULT_SECTION;
 
-/** 按分区名称与设置项标签筛选系统设置侧栏，并保留原有分组顺序。 */
+/**
+ * 按分区名与设置项标签筛选系统设置侧栏，并保留原有分组顺序。
+ * @param translate - 把分区名 key 解析为当前语言的显示名；缺省按原样匹配（纯 key 场景）。
+ */
 export function filterSettingsGroups(
   groups: readonly (readonly SettingsSection[])[],
-  query: string
+  query: string,
+  translate: (name: string) => string = name => name
 ): readonly (readonly SettingsSection[])[] {
   const normalized = query.trim().toLocaleLowerCase();
   if (!normalized) return groups;
@@ -208,7 +220,7 @@ export function filterSettingsGroups(
     .map(group =>
       group.filter(
         section =>
-          section.name.toLocaleLowerCase().includes(normalized) ||
+          translate(section.name).toLocaleLowerCase().includes(normalized) ||
           section.searchTerms.some(term => term.toLocaleLowerCase().includes(normalized))
       )
     )

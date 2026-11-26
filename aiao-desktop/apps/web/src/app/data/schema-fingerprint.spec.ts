@@ -1,4 +1,5 @@
 import { computeRxDBSchemaFingerprint } from '@aiao/rxdb';
+import { i18nEntities } from '@aiao/rxdb-i18n';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
@@ -70,8 +71,8 @@ describe('schema 版本与实体、数据域同步', () => {
 });
 
 describe('数据域登记（DATA_DOMAINS）与实体登记（DESKTOP_ENTITIES）一致', () => {
-  /** 不属于任何数据域的实体：系统偏好、磁盘文件行、Freeform 笔迹，它们没有初始数据。 */
-  const UNSEEDED = [SystemPreference, DesktopFile, ...FREEFORM_ENTITIES];
+  /** 不属于任何数据域的实体：系统偏好、磁盘文件行、Freeform 笔迹与 i18n 运行时实体（无初始数据，也不种种子）。 */
+  const UNSEEDED = [SystemPreference, DesktopFile, ...FREEFORM_ENTITIES, ...i18nEntities()];
 
   it('数据域的名字互不重复', () => {
     const names = DATA_DOMAINS.map(domain => domain.domain);

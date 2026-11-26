@@ -23,7 +23,7 @@ import { migrateDesktopHome } from './desktop-home-migration';
  * 构建产物里最大的十位版本字面量是当前版本，升级验收（ADESK-US-106 的冒烟）靠它改写出「更新的构建」。
  * **改这个常量是一次单向操作**：升过的库，没有降级保护的旧构建会直接打开，所以每次升版本都进发布说明。
  */
-export const DESKTOP_SCHEMA_VERSION = 2026112301;
+export const DESKTOP_SCHEMA_VERSION = 2026112601;
 
 /** 版本记录在系统偏好表里的键。 */
 export const SCHEMA_RECORD_KEY = 'schema:desktop';
@@ -118,6 +118,10 @@ export const SCHEMA_STEPS: readonly SchemaStep[] = [
     version: 2026112301,
     summary: '桌面短用户名统一为 stevejobs；旧库原地迁移主目录及其系统路径引用，保留文件体与仓库记录。',
     migrate: migrateDesktopHome
+  },
+  {
+    version: 2026112601,
+    summary: '界面语言偏好与目录实体（i18nEntities 四表）；旧库由 RxDB 连接时补建，无字段迁移。'
   }
 ];
 

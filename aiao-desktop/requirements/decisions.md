@@ -285,3 +285,13 @@ Aiao Desktop 的首个原生安装版使用 Tauri 2 作为桌面宿主，首版�
 - Preview 用 pdf.js 按页渲染 PDF（随预览组件懒加载，worker 由构建配置发布到 `pdfjs/`），分享、打印与复制用从页面提取出的文本。
 - 「显示简介」面板与 Open With 对话框的 Always Open With 落同一条关联；不提供按文件覆盖，语义与 macOS 的「全部更改」一致。
 - 唤起系统 Safari/Preview 不属于纯 Web 范围，归 Tauri 版（D-27）；Music（合成器）与 Photos 不进候选集，不伪装支持文件传入。
+
+## D-29：界面多语言中英双语与切换方式
+
+状态：已接受，尚未实现（[ADESK-US-132](stories/desktop/ADESK-US-132-desktop-i18n.md)）。2026-11-26 立项，方案见 [plans/2026-11-24-desktop-i18n.md](plans/2026-11-24-desktop-i18n.md)。
+
+- 界面语言首批中英双语：目录注册 zh / zh-Hans / en 三份，zh 与 zh-Hans 是同一份中文消息的双注册（BCP 47 父链 zh-CN→zh 推不出 zh-Hans）；`defaultLocale:'en'`——中文系统自动中文，其他语言系统回退英文。
+- 跟随系统用 macOS 传统语义：首次建行冻结 `deviceLocale`（navigator.language），系统语言变更重登录后生效；应用内「语言与地区」分区覆盖即时生效并持久化（`devicePreferredLocale`），跨标签页经 RxDBTabsGateway 跟随。
+- i18n 初始化串行于桌面数据之后：`I18n.init()` 等 `DesktopData.ready`（其 connect 引导不持 STARTUP_LOCK，过早 init 会掩盖 schema 损坏探测并与其他标签页升级交错）。
+- 实施三阶段分期：框架接线与外壳/设置面 → 内置应用与错误消息 → 收口验证；e2e 默认钉 `locale:'en-US'` 保护既有英文断言，语言矩阵由独立检查组覆盖（衔接 D-19 只验收桌面 Chrome）。
+- v1 不做：languagechange 热跟随、「跟随系统」重置、语言与区域独立设置、PWA 静态安装元数据、种子与样例数据本地化；品牌名 "Aiao Desktop" 不翻译。

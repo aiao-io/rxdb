@@ -396,6 +396,9 @@ importers:
       idb-keyval:
         specifier: ^6.3.0
         version: 6.3.0
+      intl-messageformat:
+        specifier: ^12.2.0
+        version: 12.2.0
       lucide-react:
         specifier: ^1.77.0
         version: 1.77.0(@types/react@19.3.0)(react@19.3.1)

@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { NgOptimizedImage } from '@angular/common';
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 
@@ -14,6 +15,7 @@ import { BluetoothPane } from './panes/bluetooth-pane';
 import { DisplaysPane } from './panes/displays-pane';
 import { DockPane } from './panes/dock-pane';
 import { GeneralPane } from './panes/general-pane';
+import { LanguageRegionPane } from './panes/language-region-pane';
 import { NetworkPane } from './panes/network-pane';
 import { NotificationsPane } from './panes/notifications-pane';
 import { PrivacyPane } from './panes/privacy-pane';
@@ -34,6 +36,7 @@ import { filterSettingsGroups, findSection, SETTINGS_GROUPS } from './settings-d
     DockPane,
     GeneralPane,
     Icon,
+    LanguageRegionPane,
     NetworkPane,
     NgOptimizedImage,
     NotificationsPane,
@@ -52,7 +55,11 @@ export class SettingsApp {
   private readonly generation = signal(0);
 
   protected readonly query = signal('');
-  protected readonly visibleGroups = computed(() => filterSettingsGroups(SETTINGS_GROUPS, this.query()));
+  /* 分区名与搜索按当前语言解析：语言切换时 computed 自动重算侧栏与筛选结果。 */
+  protected readonly i18n = useI18n();
+  protected readonly visibleGroups = computed(() =>
+    filterSettingsGroups(SETTINGS_GROUPS, this.query(), name => this.i18n.t(name))
+  );
   protected readonly system = inject(SystemState);
   protected readonly avatar = USER_PROFILE.avatar;
   protected readonly section = computed(() => findSection(this.selected()));

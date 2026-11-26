@@ -83,26 +83,81 @@ describe('GitHub Git Worker backend', () => {
     const invalidStatus = backend.status('project');
     current.reply(2, { head: null, branch: 'main', raw: '', entries: [{ path: 'README.md' }] });
     await expect(invalidStatus).rejects.toMatchObject({ code: 'storage_failed', message: /invalid status\.entries/ });
-
-    const invalidError = backend.open('project');
-    current.onmessage?.({ data: { id: 3, error: { code: 1, message: 'bad' } } } as MessageEvent);
-    await expect(invalidError).rejects.toMatchObject({ code: 'storage_failed', message: /invalid response/ });
   });
 
-  it('rejects all pending calls after a worker crash and can restart once', async () => {
+  it('recovers from an invalid worker response by retrying on a fresh worker', async () => {
     const first = new FakeWorker();
     const second = new FakeWorker();
     let created = 0;
     const factory = vi.fn<() => Worker>(() => (created++ === 0 ? worker(first) : worker(second)));
     const backend = new GithubGitBackend(factory);
     const pending = backend.open('project');
-    first.crash('quota');
-    await expect(pending).rejects.toMatchObject({ code: 'storage_failed', message: 'quota' });
-    backend.restart();
-    const next = backend.open('project');
-    expect(second.messages).toHaveLength(1);
+    first.onmessage?.({ data: { id: 1, error: { code: 1, message: 'bad' } } } as MessageEvent);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(second.messages).toEqual([{ id: 2, action: 'open', payload: { projectId: 'project' } }]);
     second.reply(2, snapshot);
-    await expect(next).resolves.toMatchObject({ projectId: 'project' });
+    await expect(pending).resolves.toMatchObject({ projectId: 'project' });
+    expect(first.terminate).toHaveBeenCalledTimes(2);
+  });
+
+  it('restarts a closed backend automatically when the next call arrives', async () => {
+    const first = new FakeWorker();
+    const second = new FakeWorker();
+    let created = 0;
+    const factory = vi.fn<() => Worker>(() => (created++ === 0 ? worker(first) : worker(second)));
+    const backend = new GithubGitBackend(factory);
+    first.crash('worker crashed');
+    const pending = backend.open('project');
+    expect(second.messages).toEqual([{ id: 1, action: 'open', payload: { projectId: 'project' } }]);
+    second.reply(1, snapshot);
+    await expect(pending).resolves.toMatchObject({ projectId: 'project' });
+    expect(first.terminate).toHaveBeenCalledTimes(2);
+  });
+
+  it('recovers from a worker crash by retrying once on a fresh worker', async () => {
+    const first = new FakeWorker();
+    const second = new FakeWorker();
+    let created = 0;
+    const factory = vi.fn<() => Worker>(() => (created++ === 0 ? worker(first) : worker(second)));
+    const backend = new GithubGitBackend(factory);
+    const pending = backend.open('project');
+    first.crash('heap corrupted');
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(second.messages).toEqual([{ id: 2, action: 'open', payload: { projectId: 'project' } }]);
+    second.reply(2, snapshot);
+    await expect(pending).resolves.toMatchObject({ projectId: 'project' });
+    expect(factory).toHaveBeenCalledTimes(2);
+  });
+
+  it('retries once on a fresh worker after a timeout', async () => {
+    const first = new FakeWorker();
+    const second = new FakeWorker();
+    let created = 0;
+    const factory = vi.fn<() => Worker>(() => (created++ === 0 ? worker(first) : worker(second)));
+    const backend = new GithubGitBackend(factory);
+    const pending = backend.open('project');
+    vi.advanceTimersByTime(60_000);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(second.messages).toEqual([{ id: 2, action: 'open', payload: { projectId: 'project' } }]);
+    second.reply(2, snapshot);
+    await expect(pending).resolves.toMatchObject({ projectId: 'project' });
+  });
+
+  it('surfaces the error when the retried call crashes too', async () => {
+    const first = new FakeWorker();
+    const second = new FakeWorker();
+    let created = 0;
+    const factory = vi.fn<() => Worker>(() => (created++ === 0 ? worker(first) : worker(second)));
+    const backend = new GithubGitBackend(factory);
+    const pending = backend.open('project');
+    first.crash('first crash');
+    await Promise.resolve();
+    await Promise.resolve();
+    second.crash('second crash');
+    await expect(pending).rejects.toMatchObject({ code: 'storage_failed', message: 'second crash' });
     expect(factory).toHaveBeenCalledTimes(2);
   });
 
@@ -114,27 +169,44 @@ describe('GitHub Git Worker backend', () => {
     const backend = new GithubGitBackend(factory);
     const old = backend.open('project');
     backend.restart();
-    await expect(old).rejects.toMatchObject({ code: 'storage_failed' });
+    await Promise.resolve();
+    await Promise.resolve();
     const current = backend.open('project');
+    expect(second.messages.map(message => (message as { id: number }).id)).toEqual([2, 3]);
     first.reply(1, snapshot);
     first.crash('late');
     expect(second.terminate).not.toHaveBeenCalled();
     second.reply(2, snapshot);
+    await expect(old).resolves.toMatchObject({ projectId: 'project' });
+    second.reply(3, snapshot);
     await expect(current).resolves.toMatchObject({ projectId: 'project' });
   });
 
-  it('turns messageerror and timeout into storage failures', async () => {
+  it('recovers from a messageerror by retrying once on a fresh worker', async () => {
+    const first = new FakeWorker();
+    const second = new FakeWorker();
+    let created = 0;
+    const factory = vi.fn<() => Worker>(() => (created++ === 0 ? worker(first) : worker(second)));
+    const backend = new GithubGitBackend(factory);
+    const pending = backend.open('project');
+    first.messageError();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(second.messages).toEqual([{ id: 2, action: 'open', payload: { projectId: 'project' } }]);
+    second.reply(2, snapshot);
+    await expect(pending).resolves.toMatchObject({ projectId: 'project' });
+  });
+
+  it('rejects a call whose retry times out too', async () => {
     const current = new FakeWorker();
     const backend = new GithubGitBackend(() => worker(current));
-    const messageError = backend.open('project');
-    current.messageError();
-    await expect(messageError).rejects.toMatchObject({ code: 'storage_failed' });
-
-    const timeoutWorker = new FakeWorker();
-    const timeoutBackend = new GithubGitBackend(() => worker(timeoutWorker));
-    const timed = timeoutBackend.open('project');
+    const timed = backend.open('project');
+    vi.advanceTimersByTime(60_000);
+    await Promise.resolve();
+    await Promise.resolve();
     vi.advanceTimersByTime(60_000);
     await expect(timed).rejects.toMatchObject({ code: 'storage_failed', message: /timed out/i });
+    expect(current.messages).toHaveLength(2);
   });
 
   it('validates branch comparison and forwards its branch ref to the commit diff', async () => {
@@ -287,7 +359,7 @@ describe('GitHub Git Worker backend', () => {
     current.shouldThrow = true;
     const backend = new GithubGitBackend(() => worker(current));
     await expect(backend.open('project')).rejects.toMatchObject({ code: 'storage_failed' });
-    expect(current.terminate).toHaveBeenCalledOnce();
+    expect(current.terminate).toHaveBeenCalledTimes(3);
 
     backend.dispose();
     backend.restart();
@@ -301,11 +373,13 @@ describe('GitHub Git Worker backend', () => {
     expect(() => backend.save('project', [], Number.NaN)).toThrow('Invalid project revision');
   });
 
-  it('returns a typed GitWorkbenchError for worker failures', async () => {
+  it('returns a typed GitWorkbenchError for worker failures without restarting a healthy worker', async () => {
     const current = new FakeWorker();
     const backend = new GithubGitBackend(() => worker(current));
     const pending = backend.open('project');
     current.fail(1, 'storage_failed', 'disk unavailable');
     await expect(pending).rejects.toBeInstanceOf(GitWorkbenchError);
+    expect(current.terminate).not.toHaveBeenCalled();
+    expect(current.messages).toHaveLength(1);
   });
 });
