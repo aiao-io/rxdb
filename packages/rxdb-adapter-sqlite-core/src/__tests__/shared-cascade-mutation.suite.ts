@@ -8,7 +8,8 @@ import {
   RelationKind,
   RxDBChange,
   UUID,
-  getEntityStatus
+  getEntityStatus,
+  getRxDBChangeEntityIdQueryValues
 } from '@aiao/rxdb';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { ENTITIES, User } from '@aiao/rxdb-test/shop';
@@ -430,7 +431,10 @@ export function cascadeMutationSuite(factory: AdapterFactory) {
       describe('级联写入与源删除记成一个事务（US-318）', () => {
         const changesOf = (entityIds: string[]) =>
           adapter.getRepository(RxDBChange).find({
-            where: { combinator: 'and', rules: [{ field: 'entityId', operator: 'in', value: entityIds }] }
+            where: {
+              combinator: 'and',
+              rules: [{ field: 'entityId', operator: 'in', value: getRxDBChangeEntityIdQueryValues(entityIds) }]
+            }
           });
         const byId = <T extends typeof Parent | typeof Category | typeof Product>(EntityType: T, id: string) =>
           adapter.getRepository(EntityType).find({
