@@ -12,7 +12,7 @@ function findFirstReplayIncompatibility(
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/restore-precheck.ts:259](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/restore-precheck.ts#L259)
 
-Finds the first incompatible node along an **already selected** path.
+Finds the first incompatible node along an **already-selected** path.
 
 ## Parameters
 
@@ -28,10 +28,10 @@ Finds the first incompatible node along an **already selected** path.
   \| [`RestoreIncompatibility`](../interfaces/RestoreIncompatibility.md)
   \| `undefined`&gt;
 
-The first incompatible node; `undefined` when everything is compatible
+The first incompatible node, `undefined` when all are compatible
 
 ## Remarks
 
-Returns on the first hit, **without reading the later nodes** — FR-050's "no decoding or writing of subsequent ChangeSets during the check" is physically realized by this `return`.
+Returns on the first hit and **does not keep reading later nodes** — FR-050's "during the check, no later ChangeSet may be decoded or written" has this `return` as its physical meaning here.
 
-It is exported separately for `restore-command.ts`: that module has already called [selectRestoreReplayPath](selectRestoreReplayPath.md) once for "is the target reachable", and going through [checkRestoreCompatibility](checkRestoreCompatibility.md) again would re-traverse the whole parent chain, while nothing can change between the two traversals (same transaction).
+It is exported separately for `restore-command.ts`: that module already called [selectRestoreReplayPath](selectRestoreReplayPath.md) once for "is the target reachable", and running [checkRestoreCompatibility](checkRestoreCompatibility.md) again would traverse the whole parent chain a second time, while nothing can change between the two traversals (same transaction).
