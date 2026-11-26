@@ -14,7 +14,7 @@ one would eventually go stale. To get that answer, call the plugin side's `produ
 ### entrance \{#entrance\}
 
 ```ts
-readonly entrance: 
+readonly entrance:
   | "crud"
   | "domain_recompute"
   | "remote_entity_apply"
@@ -32,7 +32,7 @@ Defined in: [packages/rxdb/src/trusted-write/trusted-write-intent.ts:125](https:
 
 The row of this intent in the write-entrance semantics matrix
 
-***
+---
 
 ### file \{#file\}
 
@@ -51,7 +51,7 @@ and the US-025 package extraction was exactly the move that took them out of the
 mismatched wholesale at that move, while not a single one of the nine mismatched rows had actually drifted. Basename plus symbol name uniquely locate a call site,
 and duplicates are caught by T066's whole-repo scan (declarations with the same key appearing in same-named files are reported as duplicate registrations).
 
-***
+---
 
 ### intent \{#intent\}
 
@@ -63,7 +63,7 @@ Defined in: [packages/rxdb/src/trusted-write/trusted-write-intent.ts:122](https:
 
 The intent self-reported by the call site
 
-***
+---
 
 ### symbol \{#symbol\}
 
@@ -75,7 +75,7 @@ Defined in: [packages/rxdb/src/trusted-write/trusted-write-intent.ts:116](https:
 
 The innermost named function that actually initiated this bulk rewrite
 
-***
+---
 
 ### verifiedAtLine \{#verifiedatline\}
 
@@ -87,7 +87,7 @@ Defined in: [packages/rxdb/src/trusted-write/trusted-write-intent.ts:128](https:
 
 The line number at the time of this check; **archival only**, not part of the registration key
 
-***
+---
 
 ### writePrimitive \{#writeprimitive\}
 

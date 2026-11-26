@@ -1,12 +1,7 @@
 # updateTableRecords()
 
 ```ts
-function updateTableRecords(
-   table, 
-   records, 
-   prevColumns, 
-   newColumns
-): void;
+function updateTableRecords(table, records, prevColumns, newColumns): void;
 ```
 
 Defined in: packages/rxdb-model/dist/entity-table/vtable/table-operations.d.ts:60
@@ -15,12 +10,12 @@ Updates the table data and restores the column widths (matched by field name, to
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `table` | `ListTableAll` | The target table instance |
-| `records` | [`EntityTableRecord`](../interfaces/EntityTableRecord.md)[] | The updated row data |
-| `prevColumns` | `ColumnsDefine` \| `undefined` | The column definitions before the update, used to read the old column widths |
-| `newColumns` | `ColumnsDefine` \| `undefined` | The updated column definitions |
+| Parameter     | Type                                                        | Description                                                                  |
+| ------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `table`       | `ListTableAll`                                              | The target table instance                                                    |
+| `records`     | [`EntityTableRecord`](../interfaces/EntityTableRecord.md)[] | The updated row data                                                         |
+| `prevColumns` | `ColumnsDefine` \| `undefined`                              | The column definitions before the update, used to read the old column widths |
+| `newColumns`  | `ColumnsDefine` \| `undefined`                              | The updated column definitions                                               |
 
 ## Returns
 

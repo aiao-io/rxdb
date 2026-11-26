@@ -10,9 +10,9 @@ Hands over the synchronous access handles and the temporary directory left by `O
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `vfs` | `object` | The `OPFSCoopSyncVFS` instance no longer in use (wa-sqlite and `@subframe7536/sqlite-wasm` share the same implementation) |
+| Parameter | Type     | Description                                                                                                               |
+| --------- | -------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `vfs`     | `object` | The `OPFSCoopSyncVFS` instance no longer in use (wa-sqlite and `@subframe7536/sqlite-wasm` share the same implementation) |
 
 ## Returns
 

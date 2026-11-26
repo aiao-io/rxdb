@@ -1,11 +1,11 @@
 ---
-sidebar_label: "RxDBEntityLocalEventData⟨T⟩"
+sidebar_label: 'RxDBEntityLocalEventData⟨T⟩'
 ---
 
 # RxDBEntityLocalEventData`<T>`
 
 ```ts
-type RxDBEntityLocalEventData<T> = 
+type RxDBEntityLocalEventData<T> =
   | RxDBEntityLocalNewEventData<T>
   | RxDBEntityLocalCreatedEventData<T>
   | RxDBEntityLocalUpdatedEventData<T>
@@ -18,6 +18,6 @@ RxDB entity local event data union type
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](EntityType.md) | [`EntityType`](EntityType.md) |
+| Type Parameter                                                            | Default type                  |
+| ------------------------------------------------------------------------- | ----------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](EntityType.md) | [`EntityType`](EntityType.md) |

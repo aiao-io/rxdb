@@ -16,8 +16,8 @@ Defined in: [packages/rxdb-model-vue/src/query-builder/query-group/query-drag-dr
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter    | Type                                                 |
+| ------------ | ---------------------------------------------------- |
 | `moveItemFn` | (`itemId`, `targetGroupId`, `targetIndex`) => `void` |
 
 #### Returns
@@ -42,8 +42,8 @@ Current drag-and-drop state (reactive)
 
 ```ts
 drop(
-   itemId, 
-   targetGroupId, 
+   itemId,
+   targetGroupId,
    targetIndex
 ): void;
 ```
@@ -54,17 +54,17 @@ Drop: calls the move function (silently ignored when the service layer rejects, 
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `itemId` | `string` |
+| Parameter       | Type     |
+| --------------- | -------- |
+| `itemId`        | `string` |
 | `targetGroupId` | `string` |
-| `targetIndex` | `number` |
+| `targetIndex`   | `number` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### end() \{#end\}
 
@@ -80,7 +80,7 @@ Drag ends (without dropping): resets
 
 `void`
 
-***
+---
 
 ### leave() \{#leave\}
 
@@ -96,15 +96,15 @@ Leaves the target: clears the target but keeps the dragged item
 
 `void`
 
-***
+---
 
 ### over() \{#over\}
 
 ```ts
 over(
-   targetItemId, 
-   dropMode, 
-   isValid, 
+   targetItemId,
+   dropMode,
+   isValid,
    depth
 ): void;
 ```
@@ -115,18 +115,18 @@ Drag passes over a target: records the target and drop mode; deeper targets take
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `targetItemId` | `string` |
-| `dropMode` | [`QueryDropMode`](../type-aliases/QueryDropMode.md) |
-| `isValid` | `boolean` |
-| `depth` | `number` |
+| Parameter      | Type                                                |
+| -------------- | --------------------------------------------------- |
+| `targetItemId` | `string`                                            |
+| `dropMode`     | [`QueryDropMode`](../type-aliases/QueryDropMode.md) |
+| `isValid`      | `boolean`                                           |
+| `depth`        | `number`                                            |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### start() \{#start\}
 
@@ -140,9 +140,9 @@ Starts dragging: records the dragged item
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `itemId` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `itemId`  | `string` |
 
 #### Returns
 

@@ -1,12 +1,7 @@
 # createWorkingTreeCapturePort()
 
 ```ts
-function createWorkingTreeCapturePort(
-   executor, 
-   host, 
-   token, 
-   key
-): WorkingTreeCapturePort;
+function createWorkingTreeCapturePort(executor, host, token, key): WorkingTreeCapturePort;
 ```
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/capture-runtime.ts:526](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/capture-runtime.ts#L526)
@@ -15,12 +10,12 @@ Wraps a transaction executor into a [WorkingTreeCapturePort](../interfaces/Worki
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md) | The transaction the business write is in |
-| `host` | [`WorkingTreeCaptureHost`](../interfaces/WorkingTreeCaptureHost.md) | The entity manager host for building instances |
-| `token` | [`ActiveBranchToken`](../interfaces/ActiveBranchToken.md) | The active branch token held by this write |
-| `key` | [`WorkingTreeEntryKey`](../interfaces/WorkingTreeEntryKey.md) | The entity identity captured this time |
+| Parameter  | Type                                                                  | Description                                    |
+| ---------- | --------------------------------------------------------------------- | ---------------------------------------------- |
+| `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md) | The transaction the business write is in       |
+| `host`     | [`WorkingTreeCaptureHost`](../interfaces/WorkingTreeCaptureHost.md)   | The entity manager host for building instances |
+| `token`    | [`ActiveBranchToken`](../interfaces/ActiveBranchToken.md)             | The active branch token held by this write     |
+| `key`      | [`WorkingTreeEntryKey`](../interfaces/WorkingTreeEntryKey.md)         | The entity identity captured this time         |
 
 ## Returns
 

@@ -18,7 +18,7 @@ Defined in: [packages/rxdb/src/repository/query-cache.interface.ts:25](https://g
 
 The entity's unique identifier
 
-***
+---
 
 ### updatedAt \{#updatedat\}
 

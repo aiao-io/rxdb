@@ -3,6 +3,7 @@
 Defined in: [packages/rxdb-adapter-pglite/src/PGliteClient.ts:385](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-pglite/src/PGliteClient.ts#L385)
 
 PGlite client: wraps a `@electric-sql/pglite` instance and provides:
+
 - a unified query/exec/transaction API (aligned with [IPGliteClient](../interfaces/IPGliteClient.md))
 - NOTIFY listening on system tables (rxdb_change/rxdb_branch/rxdb_migration) with batched dispatch
   (16ms trailing debounce, plus max-wait and capacity ceilings as safeguards, see [PGliteNotificationBatcher](PGliteNotificationBatcher.md))
@@ -32,8 +33,8 @@ Defined in: [packages/rxdb-adapter-pglite/src/PGliteClient.ts:423](https://githu
 
 #### Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
+| Parameter           | Type                                                                                      | Default value                 | Description                                                                                                                              |
+| ------------------- | ----------------------------------------------------------------------------------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | `serverExtensions?` | [`PGliteServerExtensionRequirements`](../interfaces/PGliteServerExtensionRequirements.md) | `NO_PGLITE_SERVER_EXTENSIONS` | Server extensions the adapter loads based on entity metadata (`btree_gist` required by range exclusions); loads no extensions by default |
 
 #### Returns
@@ -82,16 +83,16 @@ Registers a listener. Registering the same `listener` repeatedly keeps only one 
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* keyof [`PGliteClientEvents`](../interfaces/PGliteClientEvents.md) |
+| Type Parameter                                                                                                |
+| ------------------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ keyof [`PGliteClientEvents`](../interfaces/PGliteClientEvents.md) |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `type` | `T` | Event name |
-| `listener` | [`EventListener`](../../utils/type-aliases/EventListener.md)&lt;[`PGliteClientEvents`](../interfaces/PGliteClientEvents.md)\[`T`\]&gt; | Listener |
+| Parameter  | Type                                                                                                                                   | Description |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| `type`     | `T`                                                                                                                                    | Event name  |
+| `listener` | [`EventListener`](../../utils/type-aliases/EventListener.md)&lt;[`PGliteClientEvents`](../interfaces/PGliteClientEvents.md)\[`T`\]&gt; | Listener    |
 
 #### Returns
 
@@ -101,7 +102,7 @@ Registers a listener. Registering the same `listener` repeatedly keeps only one 
 
 [`EventDispatcher`](../../utils/classes/EventDispatcher.md).[`addEventListener`](../../utils/classes/EventDispatcher.md#addeventlistener)
 
-***
+---
 
 ### describeQuery() \{#describequery\}
 
@@ -115,10 +116,10 @@ Describes a query
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `query` | `string` | The query to describe |
-| `options?` | `QueryOptions` | - |
+| Parameter  | Type           | Description           |
+| ---------- | -------------- | --------------------- |
+| `query`    | `string`       | The query to describe |
+| `options?` | `QueryOptions` | -                     |
 
 #### Returns
 
@@ -134,7 +135,7 @@ Optional: `DescribeQueryResult` carries parser functions that cannot survive str
 
 [`IPGliteClient`](../interfaces/IPGliteClient.md).[`describeQuery`](../interfaces/IPGliteClient.md#describequery)
 
-***
+---
 
 ### disconnect() \{#disconnect\}
 
@@ -156,7 +157,7 @@ Under `relaxedDurability` + IDBFS backend, `syncToFs` must run first to write th
 
 [`IPGliteClient`](../interfaces/IPGliteClient.md).[`disconnect`](../interfaces/IPGliteClient.md#disconnect)
 
-***
+---
 
 ### dispatchEvent() \{#dispatchevent\}
 
@@ -172,16 +173,16 @@ Iterates over a snapshot rather than the live set: a listener calling `addEventL
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-1"></a> `T` *extends* keyof [`PGliteClientEvents`](../interfaces/PGliteClientEvents.md) |
+| Type Parameter                                                                                                  |
+| --------------------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-1"></a> `T` _extends_ keyof [`PGliteClientEvents`](../interfaces/PGliteClientEvents.md) |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `type` | `T` | Event name |
-| `data` | [`PGliteClientEvents`](../interfaces/PGliteClientEvents.md)\[`T`\] | Event data |
+| Parameter | Type                                                               | Description |
+| --------- | ------------------------------------------------------------------ | ----------- |
+| `type`    | `T`                                                                | Event name  |
+| `data`    | [`PGliteClientEvents`](../interfaces/PGliteClientEvents.md)\[`T`\] | Event data  |
 
 #### Returns
 
@@ -195,7 +196,7 @@ Any exception thrown by a listener bubbles up unchanged; subsequent listeners ar
 
 [`EventDispatcher`](../../utils/classes/EventDispatcher.md).[`dispatchEvent`](../../utils/classes/EventDispatcher.md#dispatchevent)
 
-***
+---
 
 ### exec() \{#exec\}
 
@@ -210,10 +211,10 @@ Uses PostgreSQL's "simple query" protocol message
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `query` | `string` | The query to execute |
-| `options?` | `QueryOptions` | - |
+| Parameter  | Type           | Description          |
+| ---------- | -------------- | -------------------- |
+| `query`    | `string`       | The query to execute |
+| `options?` | `QueryOptions` | -                    |
 
 #### Returns
 
@@ -225,7 +226,7 @@ The query results
 
 [`IPGliteClient`](../interfaces/IPGliteClient.md).[`exec`](../interfaces/IPGliteClient.md#exec)
 
-***
+---
 
 ### flushPendingNotifications() \{#flushpendingnotifications\}
 
@@ -245,7 +246,7 @@ Used for test assertions of "events have been dispatched", or on critical paths 
 
 Whether pending events existed at call time
 
-***
+---
 
 ### forceClose() \{#forceclose\}
 
@@ -265,7 +266,7 @@ Skips the durability flush, cancels subscriptions and closes the runtime directl
 
 [`IPGliteClient`](../interfaces/IPGliteClient.md).[`forceClose`](../interfaces/IPGliteClient.md#forceclose)
 
-***
+---
 
 ### hasEventListener() \{#haseventlistener\}
 
@@ -279,16 +280,16 @@ Checks whether a listener is registered. No set is created for unknown event nam
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-2"></a> `T` *extends* keyof [`PGliteClientEvents`](../interfaces/PGliteClientEvents.md) |
+| Type Parameter                                                                                                  |
+| --------------------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-2"></a> `T` _extends_ keyof [`PGliteClientEvents`](../interfaces/PGliteClientEvents.md) |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `type` | `T` | Event name |
-| `listener` | [`EventListener`](../../utils/type-aliases/EventListener.md)&lt;[`PGliteClientEvents`](../interfaces/PGliteClientEvents.md)\[`T`\]&gt; | Listener |
+| Parameter  | Type                                                                                                                                   | Description |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| `type`     | `T`                                                                                                                                    | Event name  |
+| `listener` | [`EventListener`](../../utils/type-aliases/EventListener.md)&lt;[`PGliteClientEvents`](../interfaces/PGliteClientEvents.md)\[`T`\]&gt; | Listener    |
 
 #### Returns
 
@@ -300,7 +301,7 @@ Whether it is registered
 
 [`EventDispatcher`](../../utils/classes/EventDispatcher.md).[`hasEventListener`](../../utils/classes/EventDispatcher.md#haseventlistener)
 
-***
+---
 
 ### hasStoragePeer() \{#hasstoragepeer\}
 
@@ -320,7 +321,7 @@ Determines whether another live client currently holds the same persistent stora
 
 [`IPGliteClient`](../interfaces/IPGliteClient.md).[`hasStoragePeer`](../interfaces/IPGliteClient.md#hasstoragepeer)
 
-***
+---
 
 ### init() \{#init\}
 
@@ -336,9 +337,9 @@ Must be called before any query/exec. Repeated calls fully close the old runtime
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `dbName` | `string` | Database name (used for IndexedDB persistence and Worker naming) |
+| Parameter | Type                                                          | Description                                                       |
+| --------- | ------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `dbName`  | `string`                                                      | Database name (used for IndexedDB persistence and Worker naming)  |
 | `options` | [`PGliteClientOptions`](../interfaces/PGliteClientOptions.md) | PGlite options; `store: 'memory'` for tests, other values persist |
 
 #### Returns
@@ -349,14 +350,14 @@ Must be called before any query/exec. Repeated calls fully close the old runtime
 
 [`IPGliteClient`](../interfaces/IPGliteClient.md).[`init`](../interfaces/IPGliteClient.md#init)
 
-***
+---
 
 ### liveQuery() \{#livequery\}
 
 ```ts
 liveQuery<T>(
-   query, 
-   params?, 
+   query,
+   params?,
    callback?
 ): Promise<LiveQuery<T>>;
 ```
@@ -367,16 +368,16 @@ Creates a live query via the @electric-sql/pglite/live plugin. Depends on the `l
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                      |
+| ----------------------------------- |
 | <a id="type-parameter-t-3"></a> `T` |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `query` | `string` |
-| `params?` | `unknown`[] \| `null` |
+| Parameter   | Type                  |
+| ----------- | --------------------- |
+| `query`     | `string`              |
+| `params?`   | `unknown`[] \| `null` |
 | `callback?` | (`results`) => `void` |
 
 #### Returns
@@ -387,14 +388,14 @@ Creates a live query via the @electric-sql/pglite/live plugin. Depends on the `l
 
 [`IPGliteClient`](../interfaces/IPGliteClient.md).[`liveQuery`](../interfaces/IPGliteClient.md#livequery)
 
-***
+---
 
 ### query() \{#query\}
 
 ```ts
 query<T>(
-   query, 
-   params?, 
+   query,
+   params?,
    options?
 ): Promise<Results<T>>;
 ```
@@ -406,17 +407,17 @@ Uses PostgreSQL's "extended query" protocol message
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                      |
+| ----------------------------------- |
 | <a id="type-parameter-t-4"></a> `T` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `query` | `string` | The query statement to execute |
-| `params?` | `unknown`[] | Optional parameters of the query |
-| `options?` | `QueryOptions` | - |
+| Parameter  | Type           | Description                      |
+| ---------- | -------------- | -------------------------------- |
+| `query`    | `string`       | The query statement to execute   |
+| `params?`  | `unknown`[]    | Optional parameters of the query |
+| `options?` | `QueryOptions` | -                                |
 
 #### Returns
 
@@ -428,7 +429,7 @@ The query results
 
 [`IPGliteClient`](../interfaces/IPGliteClient.md).[`query`](../interfaces/IPGliteClient.md#query)
 
-***
+---
 
 ### removeAllEventListeners() \{#removealleventlisteners\}
 
@@ -448,7 +449,7 @@ Clears all listeners under every event name.
 
 [`EventDispatcher`](../../utils/classes/EventDispatcher.md).[`removeAllEventListeners`](../../utils/classes/EventDispatcher.md#removealleventlisteners)
 
-***
+---
 
 ### removeEventListener() \{#removeeventlistener\}
 
@@ -464,16 +465,16 @@ If removed during `dispatchEvent`, the removed listener **still** receives the c
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-5"></a> `T` *extends* keyof [`PGliteClientEvents`](../interfaces/PGliteClientEvents.md) |
+| Type Parameter                                                                                                  |
+| --------------------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-5"></a> `T` _extends_ keyof [`PGliteClientEvents`](../interfaces/PGliteClientEvents.md) |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `type` | `T` | Event name |
-| `listener` | [`EventListener`](../../utils/type-aliases/EventListener.md)&lt;[`PGliteClientEvents`](../interfaces/PGliteClientEvents.md)\[`T`\]&gt; | Listener |
+| Parameter  | Type                                                                                                                                   | Description |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| `type`     | `T`                                                                                                                                    | Event name  |
+| `listener` | [`EventListener`](../../utils/type-aliases/EventListener.md)&lt;[`PGliteClientEvents`](../interfaces/PGliteClientEvents.md)\[`T`\]&gt; | Listener    |
 
 #### Returns
 
@@ -483,7 +484,7 @@ If removed during `dispatchEvent`, the removed listener **still** receives the c
 
 [`EventDispatcher`](../../utils/classes/EventDispatcher.md).[`removeEventListener`](../../utils/classes/EventDispatcher.md#removeeventlistener)
 
-***
+---
 
 ### runExclusive() \{#runexclusive\}
 
@@ -498,15 +499,15 @@ This is especially useful with the execProtocol methods, since they are not bloc
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                      |
+| ----------------------------------- |
 | <a id="type-parameter-t-6"></a> `T` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `fn` | () => `Promise`&lt;`T`&gt; | The function to run |
+| Parameter | Type                       | Description         |
+| --------- | -------------------------- | ------------------- |
+| `fn`      | () => `Promise`&lt;`T`&gt; | The function to run |
 
 #### Returns
 
@@ -522,7 +523,7 @@ Optional, for the same reason as [IPGliteClient.describeQuery](../interfaces/IPG
 
 [`IPGliteClient`](../interfaces/IPGliteClient.md).[`runExclusive`](../interfaces/IPGliteClient.md#runexclusive)
 
-***
+---
 
 ### snapshotDataDir() \{#snapshotdatadir\}
 
@@ -536,15 +537,15 @@ Takes the runtime exclusively, performs a `CHECKPOINT`, then hands the traversal
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                      |
+| ----------------------------------- |
 | <a id="type-parameter-t-7"></a> `T` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `fn` | (`items`) => `Promise`&lt;`T`&gt; | Callback that reads the data directory |
+| Parameter | Type                              | Description                            |
+| --------- | --------------------------------- | -------------------------------------- |
+| `fn`      | (`items`) => `Promise`&lt;`T`&gt; | Callback that reads the data directory |
 
 #### Returns
 
@@ -568,7 +569,7 @@ RxDBBackupError `unsupported_combination` when the runtime is not on the current
 
 [`IPGliteClient`](../interfaces/IPGliteClient.md).[`snapshotDataDir`](../interfaces/IPGliteClient.md#snapshotdatadir)
 
-***
+---
 
 ### sql() \{#sql\}
 
@@ -584,16 +585,16 @@ Uses PostgreSQL's "extended query" protocol message
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                      |
+| ----------------------------------- |
 | <a id="type-parameter-t-8"></a> `T` |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter    | Type                   |
+| ------------ | ---------------------- |
 | `sqlStrings` | `TemplateStringsArray` |
-| ...`params` | `unknown`[] |
+| ...`params`  | `unknown`[]            |
 
 #### Returns
 
@@ -604,14 +605,14 @@ The query results
 #### Example
 
 ```ts
-const results = await db.sql`SELECT * FROM ${identifier`foo`} WHERE id = ${id}`
+const results = await db.sql`SELECT * FROM ${identifier`foo`} WHERE id = ${id}`;
 ```
 
 #### Implementation of
 
 [`IPGliteClient`](../interfaces/IPGliteClient.md).[`sql`](../interfaces/IPGliteClient.md#sql)
 
-***
+---
 
 ### transaction() \{#transaction\}
 
@@ -625,14 +626,14 @@ Executes a transaction
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                      |
+| ----------------------------------- |
 | <a id="type-parameter-t-9"></a> `T` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                           | Description                                        |
+| ---------- | ------------------------------ | -------------------------------------------------- |
 | `callback` | (`tx`) => `Promise`&lt;`T`&gt; | Callback function receiving the transaction object |
 
 #### Returns
@@ -645,7 +646,7 @@ The transaction's result
 
 [`IPGliteClient`](../interfaces/IPGliteClient.md).[`transaction`](../interfaces/IPGliteClient.md#transaction)
 
-***
+---
 
 ### version() \{#version\}
 

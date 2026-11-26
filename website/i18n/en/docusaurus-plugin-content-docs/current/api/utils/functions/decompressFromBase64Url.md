@@ -10,10 +10,10 @@ Decompresses a string from URL-safe Base64
 
 ## Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `value` | `string` | `undefined` | The URL-safe Base64 string |
-| `format?` | `"deflate"` \| `"deflate-raw"` \| `"gzip"` | `'deflate'` | The compression format |
+| Parameter | Type                                       | Default value | Description                |
+| --------- | ------------------------------------------ | ------------- | -------------------------- |
+| `value`   | `string`                                   | `undefined`   | The URL-safe Base64 string |
+| `format?` | `"deflate"` \| `"deflate-raw"` \| `"gzip"` | `'deflate'`   | The compression format     |
 
 ## Returns
 

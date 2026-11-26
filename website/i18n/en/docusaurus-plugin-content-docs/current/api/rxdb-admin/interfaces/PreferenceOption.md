@@ -16,7 +16,7 @@ Defined in: [preferences/schema/types.ts:16](https://github.com/aiao-io/rxdb/blo
 
 The literal copy, used when there is no `labelKey`.
 
-***
+---
 
 ### labelKey? \{#labelkey\}
 
@@ -28,7 +28,7 @@ Defined in: [preferences/schema/types.ts:14](https://github.com/aiao-io/rxdb/blo
 
 The translation key.
 
-***
+---
 
 ### value \{#value\}
 

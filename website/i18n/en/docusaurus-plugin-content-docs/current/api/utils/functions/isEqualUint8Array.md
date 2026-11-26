@@ -8,10 +8,10 @@ Defined in: [packages/utils/src/object/isEqualUint8Array.ts:1](https://github.co
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `u8_1` | `Uint8Array` |
-| `u8_2` | `Uint8Array` |
+| Parameter | Type         |
+| --------- | ------------ |
+| `u8_1`    | `Uint8Array` |
+| `u8_2`    | `Uint8Array` |
 
 ## Returns
 

@@ -1,11 +1,7 @@
 # describeHistoryBarrier()
 
 ```ts
-function describeHistoryBarrier(
-   operation, 
-   barrier, 
-   i18n?
-): string | null;
+function describeHistoryBarrier(operation, barrier, i18n?): string | null;
 ```
 
 Defined in: [packages/rxdb-model/src/entity-list/history-barrier.ts:16](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model/src/entity-list/history-barrier.ts#L16)
@@ -14,11 +10,11 @@ Description shown when the undo / redo buttons are disabled.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `operation` | `"undo"` \| `"redo"` | Whether it is undo or redo |
-| `barrier` | \| \{ `branchIds`: readonly `string`[]; `reason`: `"inherited_by_branch"`; \} \| `null` | Why the stack stopped: the current value of `HistoryScopeAPI.undoBarrier$` / `redoBarrier$` |
-| `i18n?` | [`ModelI18n`](../interfaces/ModelI18n.md) | - |
+| Parameter   | Type                                                                                    | Description                                                                                 |
+| ----------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `operation` | `"undo"` \| `"redo"`                                                                    | Whether it is undo or redo                                                                  |
+| `barrier`   | \| \{ `branchIds`: readonly `string`[]; `reason`: `"inherited_by_branch"`; \} \| `null` | Why the stack stopped: the current value of `HistoryScopeAPI.undoBarrier$` / `redoBarrier$` |
+| `i18n?`     | [`ModelI18n`](../interfaces/ModelI18n.md)                                               | -                                                                                           |
 
 ## Returns
 

@@ -16,7 +16,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:669](ht
 
 The number of merged changes (entity operations applied to the target branch)
 
-***
+---
 
 ### sourceDeleted \{#sourcedeleted\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:679](ht
 
 Whether the source branch has been deleted
 
-***
+---
 
 ### sourceDeleteError? \{#sourcedeleteerror\}
 
@@ -46,7 +46,7 @@ Deleting the source branch is the wrap-up step after the merge has been persiste
 otherwise callers would think nothing was merged and retry, which under the normal strategy means merging twice.
 The merge result is still reflected by `merged` as usual; this field only truthfully reports that the wrap-up failed and why.
 
-***
+---
 
 ### strategy \{#strategy\}
 

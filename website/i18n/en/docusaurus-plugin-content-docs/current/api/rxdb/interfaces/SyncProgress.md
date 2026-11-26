@@ -31,7 +31,7 @@ Whether remote changes rewrote local entity data
 
 When true, the undo/redo history boundary has been invalidated and the undo history must be cleared.
 
-***
+---
 
 ### persistedProgress \{#persistedprogress\}
 

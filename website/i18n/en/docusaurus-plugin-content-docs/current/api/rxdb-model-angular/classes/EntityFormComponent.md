@@ -27,7 +27,7 @@ readonly data: InputSignal<EntityFormData>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts:264](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts#L264)
 
-***
+---
 
 ### displayValueMap \{#displayvaluemap\}
 
@@ -37,7 +37,7 @@ readonly displayValueMap: Signal<Map<string, string>>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts:309](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts#L309)
 
-***
+---
 
 ### editableFields \{#editablefields\}
 
@@ -47,7 +47,7 @@ readonly editableFields: Signal<FormFieldConfig[]>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts:290](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts#L290)
 
-***
+---
 
 ### fieldChanged \{#fieldchanged\}
 
@@ -57,7 +57,7 @@ readonly fieldChanged: OutputEmitterRef<FormFieldChangeEvent>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts:269](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts#L269)
 
-***
+---
 
 ### fields \{#fields\}
 
@@ -67,7 +67,7 @@ readonly fields: InputSignal<FormFieldConfig[]>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts:263](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts#L263)
 
-***
+---
 
 ### formBinding \{#formbinding\}
 
@@ -79,7 +79,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angula
 
 Input signals can only be read after component instantiation, so an empty controller is created first and the real inputs are synced by an effect.
 
-***
+---
 
 ### formCancelled \{#formcancelled\}
 
@@ -89,7 +89,7 @@ readonly formCancelled: OutputEmitterRef<void>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts:271](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts#L271)
 
-***
+---
 
 ### formData \{#formdata\}
 
@@ -99,7 +99,7 @@ readonly formData: Signal<EntityFormData>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts:288](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts#L288)
 
-***
+---
 
 ### formInputSync \{#forminputsync\}
 
@@ -109,7 +109,7 @@ readonly formInputSync: EffectRef;
 
 Defined in: [packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts:276](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts#L276)
 
-***
+---
 
 ### formSubmitted \{#formsubmitted\}
 
@@ -119,7 +119,7 @@ readonly formSubmitted: OutputEmitterRef<EntityFormData>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts:270](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts#L270)
 
-***
+---
 
 ### initialData \{#initialdata\}
 
@@ -129,7 +129,7 @@ readonly initialData: Signal<EntityFormData>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts:287](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts#L287)
 
-***
+---
 
 ### isReadonly \{#isreadonly\}
 
@@ -139,7 +139,7 @@ readonly isReadonly: Signal<boolean>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts:294](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts#L294)
 
-***
+---
 
 ### mode \{#mode\}
 
@@ -149,7 +149,7 @@ readonly mode: InputSignal<FormMode>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts:265](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts#L265)
 
-***
+---
 
 ### relatedEntityProvider \{#relatedentityprovider\}
 
@@ -161,7 +161,7 @@ readonly relatedEntityProvider: InputSignal<
 
 Defined in: [packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts:266](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts#L266)
 
-***
+---
 
 ### relatedItemsMap \{#relateditemsmap\}
 
@@ -171,7 +171,7 @@ readonly relatedItemsMap: Signal<Map<string, RelatedEntityItem[]>>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts:296](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts#L296)
 
-***
+---
 
 ### showActions \{#showactions\}
 
@@ -181,7 +181,7 @@ readonly showActions: InputSignal<boolean>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts:267](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts#L267)
 
-***
+---
 
 ### validationErrors \{#validationerrors\}
 
@@ -221,15 +221,15 @@ Echoes a byte sequence as a hex string
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `value`   | `unknown` |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### colorValue() \{#colorvalue\}
 
@@ -243,15 +243,15 @@ Color picker echo value: falls back to black for invalid or empty values
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `field` | [`FormFieldConfig`](../interfaces/FormFieldConfig.md) |
+| Parameter | Type                                                  |
+| --------- | ----------------------------------------------------- |
+| `field`   | [`FormFieldConfig`](../interfaces/FormFieldConfig.md) |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### dateInputType() \{#dateinputtype\}
 
@@ -265,15 +265,15 @@ Maps the display mode of the dateTime format to the native input type
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `field` | [`FormFieldConfig`](../interfaces/FormFieldConfig.md) |
+| Parameter | Type                                                  |
+| --------- | ----------------------------------------------------- |
+| `field`   | [`FormFieldConfig`](../interfaces/FormFieldConfig.md) |
 
 #### Returns
 
 `"time"` \| `"date"` \| `"datetime-local"`
 
-***
+---
 
 ### datePipeFormat() \{#datepipeformat\}
 
@@ -287,15 +287,15 @@ Maps the display mode of the dateTime format to a DatePipe format
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `field` | [`FormFieldConfig`](../interfaces/FormFieldConfig.md) |
+| Parameter | Type                                                  |
+| --------- | ----------------------------------------------------- |
+| `field`   | [`FormFieldConfig`](../interfaces/FormFieldConfig.md) |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### enumOptionDisabled() \{#enumoptiondisabled\}
 
@@ -309,16 +309,16 @@ Values declared as disabled in options cannot be selected
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `field` | [`FormFieldConfig`](../interfaces/FormFieldConfig.md) |
-| `value` | `string` |
+| Parameter | Type                                                  |
+| --------- | ----------------------------------------------------- |
+| `field`   | [`FormFieldConfig`](../interfaces/FormFieldConfig.md) |
+| `value`   | `string`                                              |
 
 #### Returns
 
 `boolean`
 
-***
+---
 
 ### enumOptionLabel() \{#enumoptionlabel\}
 
@@ -332,16 +332,16 @@ Display label for enum / multi-select values (falls back to the original value w
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `field` | [`FormFieldConfig`](../interfaces/FormFieldConfig.md) |
-| `value` | `string` |
+| Parameter | Type                                                  |
+| --------- | ----------------------------------------------------- |
+| `field`   | [`FormFieldConfig`](../interfaces/FormFieldConfig.md) |
+| `value`   | `string`                                              |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### isFieldReadonly() \{#isfieldreadonly\}
 
@@ -353,15 +353,15 @@ Defined in: [packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angula
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `field` | [`FormFieldConfig`](../interfaces/FormFieldConfig.md) |
+| Parameter | Type                                                  |
+| --------- | ----------------------------------------------------- |
+| `field`   | [`FormFieldConfig`](../interfaces/FormFieldConfig.md) |
 
 #### Returns
 
 `boolean`
 
-***
+---
 
 ### isTextareaFormat() \{#istextareaformat\}
 
@@ -375,15 +375,15 @@ Multiline text formats: renders a textarea
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `field` | [`FormFieldConfig`](../interfaces/FormFieldConfig.md) |
+| Parameter | Type                                                  |
+| --------- | ----------------------------------------------------- |
+| `field`   | [`FormFieldConfig`](../interfaces/FormFieldConfig.md) |
 
 #### Returns
 
 `boolean`
 
-***
+---
 
 ### isWideField() \{#iswidefield\}
 
@@ -397,15 +397,15 @@ Fields occupying two grid columns: json / keyValue / binary / multiline text for
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `field` | [`FormFieldConfig`](../interfaces/FormFieldConfig.md) |
+| Parameter | Type                                                  |
+| --------- | ----------------------------------------------------- |
+| `field`   | [`FormFieldConfig`](../interfaces/FormFieldConfig.md) |
 
 #### Returns
 
 `boolean`
 
-***
+---
 
 ### multiSelected() \{#multiselected\}
 
@@ -419,16 +419,16 @@ Current selected state of the checkbox group (supports both array and comma-stri
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `field` | [`FormFieldConfig`](../interfaces/FormFieldConfig.md) |
-| `value` | `string` |
+| Parameter | Type                                                  |
+| --------- | ----------------------------------------------------- |
+| `field`   | [`FormFieldConfig`](../interfaces/FormFieldConfig.md) |
+| `value`   | `string`                                              |
 
 #### Returns
 
 `boolean`
 
-***
+---
 
 ### numericBounds() \{#numericbounds\}
 
@@ -442,9 +442,9 @@ Value range constraints of numeric formats (min / max / step)
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `field` | [`FormFieldConfig`](../interfaces/FormFieldConfig.md) |
+| Parameter | Type                                                  |
+| --------- | ----------------------------------------------------- |
+| `field`   | [`FormFieldConfig`](../interfaces/FormFieldConfig.md) |
 
 #### Returns
 
@@ -468,7 +468,7 @@ min?: number;
 step?: number;
 ```
 
-***
+---
 
 ### numericUnitLabel() \{#numericunitlabel\}
 
@@ -482,15 +482,15 @@ Unit annotation of numeric formats (currency code / percent sign / duration unit
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `field` | [`FormFieldConfig`](../interfaces/FormFieldConfig.md) |
+| Parameter | Type                                                  |
+| --------- | ----------------------------------------------------- |
+| `field`   | [`FormFieldConfig`](../interfaces/FormFieldConfig.md) |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### onCancel() \{#oncancel\}
 
@@ -504,7 +504,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angula
 
 `void`
 
-***
+---
 
 ### onFieldChange() \{#onfieldchange\}
 
@@ -518,23 +518,23 @@ Input that fails to parse is discarded immediately: errors are reported only via
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `field` | [`FormFieldConfig`](../interfaces/FormFieldConfig.md) |
-| `rawValue` | `unknown` |
+| Parameter  | Type                                                  |
+| ---------- | ----------------------------------------------------- |
+| `field`    | [`FormFieldConfig`](../interfaces/FormFieldConfig.md) |
+| `rawValue` | `unknown`                                             |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onMultiSelectChange() \{#onmultiselectchange\}
 
 ```ts
 onMultiSelectChange(
-   field, 
-   value, 
+   field,
+   value,
    checked
 ): void;
 ```
@@ -545,17 +545,17 @@ Checkbox group toggle: merges a new array and goes through the unified parsing p
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `field` | [`FormFieldConfig`](../interfaces/FormFieldConfig.md) |
-| `value` | `string` |
-| `checked` | `boolean` |
+| Parameter | Type                                                  |
+| --------- | ----------------------------------------------------- |
+| `field`   | [`FormFieldConfig`](../interfaces/FormFieldConfig.md) |
+| `value`   | `string`                                              |
+| `checked` | `boolean`                                             |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onSubmit() \{#onsubmit\}
 
@@ -569,7 +569,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angula
 
 `void`
 
-***
+---
 
 ### textInputType() \{#textinputtype\}
 
@@ -583,9 +583,9 @@ Maps string formats to native input types
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `field` | [`FormFieldConfig`](../interfaces/FormFieldConfig.md) |
+| Parameter | Type                                                  |
+| --------- | ----------------------------------------------------- |
+| `field`   | [`FormFieldConfig`](../interfaces/FormFieldConfig.md) |
 
 #### Returns
 

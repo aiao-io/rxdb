@@ -10,9 +10,9 @@ Creates a session-level snapshot store.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `ports` | [`DevToolsSnapshotPorts`](../interfaces/DevToolsSnapshotPorts.md) | The clock and the materialization source. |
+| Parameter | Type                                                              | Description                               |
+| --------- | ----------------------------------------------------------------- | ----------------------------------------- |
+| `ports`   | [`DevToolsSnapshotPorts`](../interfaces/DevToolsSnapshotPorts.md) | The clock and the materialization source. |
 
 ## Returns
 

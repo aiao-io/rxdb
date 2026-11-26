@@ -32,7 +32,7 @@ readonly closeRequested: OutputEmitterRef<void>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-dialog/entity-dialog.component.ts:40](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-dialog/entity-dialog.component.ts#L40)
 
-***
+---
 
 ### isFullscreen \{#isfullscreen\}
 
@@ -42,7 +42,7 @@ readonly isFullscreen: WritableSignal<boolean>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-dialog/entity-dialog.component.ts:42](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-dialog/entity-dialog.component.ts#L42)
 
-***
+---
 
 ### isInDialog \{#isindialog\}
 
@@ -52,7 +52,7 @@ readonly isInDialog: boolean;
 
 Defined in: [packages/rxdb-model-angular/src/entity-dialog/entity-dialog.component.ts:43](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-dialog/entity-dialog.component.ts#L43)
 
-***
+---
 
 ### title \{#title\}
 
@@ -78,7 +78,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-dialog/entity-dialog.compone
 
 [`ModelI18n`](../interfaces/ModelI18n.md)
 
-***
+---
 
 ### t \{#t\}
 
@@ -108,7 +108,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-dialog/entity-dialog.compone
 
 `void`
 
-***
+---
 
 ### ngAfterViewInit() \{#ngafterviewinit\}
 
@@ -130,7 +130,7 @@ It is invoked only once when the view is instantiated.
 
 `AfterViewInit.ngAfterViewInit`
 
-***
+---
 
 ### startResize() \{#startresize\}
 
@@ -142,16 +142,16 @@ Defined in: [packages/rxdb-model-angular/src/entity-dialog/entity-dialog.compone
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `e` | `MouseEvent` |
-| `dir` | `string` |
+| Parameter | Type         |
+| --------- | ------------ |
+| `e`       | `MouseEvent` |
+| `dir`     | `string`     |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### toggleFullscreen() \{#togglefullscreen\}
 

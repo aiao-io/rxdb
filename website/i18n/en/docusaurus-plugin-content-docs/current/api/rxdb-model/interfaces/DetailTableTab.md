@@ -20,7 +20,7 @@ Defined in: [packages/rxdb-model/src/entity-detail/interfaces.ts:47](https://git
 
 ONE_TO_MANY: foreign key field on the related entity that points to the current entity, e.g. 'ownerId'
 
-***
+---
 
 ### key \{#key\}
 
@@ -36,7 +36,7 @@ Unique identifier of the tab
 
 [`DetailTabBase`](DetailTabBase.md).[`key`](DetailTabBase.md#key)
 
-***
+---
 
 ### label \{#label\}
 
@@ -52,7 +52,7 @@ Display name of the tab
 
 [`DetailTabBase`](DetailTabBase.md).[`label`](DetailTabBase.md#label)
 
-***
+---
 
 ### mappedProperty? \{#mappedproperty\}
 
@@ -64,7 +64,7 @@ Defined in: [packages/rxdb-model/src/entity-detail/interfaces.ts:49](https://git
 
 MANY_TO_MANY: name of the relation property on the related entity that points to the current entity, e.g. 'orderItems'
 
-***
+---
 
 ### relatedEntityName \{#relatedentityname\}
 
@@ -76,7 +76,7 @@ Defined in: [packages/rxdb-model/src/entity-detail/interfaces.ts:41](https://git
 
 Name of the related entity
 
-***
+---
 
 ### relatedNamespace \{#relatednamespace\}
 
@@ -88,7 +88,7 @@ Defined in: [packages/rxdb-model/src/entity-detail/interfaces.ts:43](https://git
 
 Namespace of the related entity
 
-***
+---
 
 ### relationKind \{#relationkind\}
 
@@ -100,7 +100,7 @@ Defined in: [packages/rxdb-model/src/entity-detail/interfaces.ts:45](https://git
 
 Relation type
 
-***
+---
 
 ### relationName \{#relationname\}
 
@@ -112,12 +112,12 @@ Defined in: [packages/rxdb-model/src/entity-detail/interfaces.ts:39](https://git
 
 Relation name
 
-***
+---
 
 ### type \{#type\}
 
 ```ts
-type: "table";
+type: 'table';
 ```
 
 Defined in: [packages/rxdb-model/src/entity-detail/interfaces.ts:37](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model/src/entity-detail/interfaces.ts#L37)

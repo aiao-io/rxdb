@@ -44,7 +44,7 @@ An observable that replays the current value and pushes subsequent changes.
 
 [`ReadableStore`](../interfaces/ReadableStore.md).[`changes$`](../interfaces/ReadableStore.md#changes)
 
-***
+---
 
 ### value \{#value\}
 
@@ -84,7 +84,7 @@ Refreshes the current page: increments the refresh counter, and the content area
 
 `void`
 
-***
+---
 
 ### setDrawer() \{#setdrawer\}
 
@@ -98,15 +98,15 @@ Sets the mobile sidebar drawer.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `open` | `boolean` | Whether it is open. |
+| Parameter | Type      | Description         |
+| --------- | --------- | ------------------- |
+| `open`    | `boolean` | Whether it is open. |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### setHoverExpanded() \{#sethoverexpanded\}
 
@@ -120,15 +120,15 @@ Sets the collapsed sidebar's hover expansion.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type      | Description             |
+| ---------- | --------- | ----------------------- |
 | `expanded` | `boolean` | Whether it is expanded. |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### setMaximized() \{#setmaximized\}
 
@@ -142,15 +142,15 @@ Sets content maximization.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type      | Description              |
+| ----------- | --------- | ------------------------ |
 | `maximized` | `boolean` | Whether it is maximized. |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### setNavigating() \{#setnavigating\}
 
@@ -164,15 +164,15 @@ Marks navigation as in progress.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter    | Type      | Description                |
+| ------------ | --------- | -------------------------- |
 | `navigating` | `boolean` | Whether it is in progress. |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### setPreferencesOpen() \{#setpreferencesopen\}
 
@@ -186,15 +186,15 @@ Opens / closes the preferences drawer.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `open` | `boolean` | Whether it is open. |
+| Parameter | Type      | Description         |
+| --------- | --------- | ------------------- |
+| `open`    | `boolean` | Whether it is open. |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### subscribe() \{#subscribe\}
 
@@ -208,8 +208,8 @@ Subscribes to subsequent changes.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                | Description      |
+| ---------- | ------------------- | ---------------- |
 | `listener` | (`value`) => `void` | Change callback. |
 
 #### Returns
@@ -222,7 +222,7 @@ An unsubscribe function.
 
 [`ReadableStore`](../interfaces/ReadableStore.md).[`subscribe`](../interfaces/ReadableStore.md#subscribe)
 
-***
+---
 
 ### toggleDrawer() \{#toggledrawer\}
 
@@ -238,7 +238,7 @@ Toggles the mobile sidebar drawer.
 
 `void`
 
-***
+---
 
 ### toggleMaximize() \{#togglemaximize\}
 

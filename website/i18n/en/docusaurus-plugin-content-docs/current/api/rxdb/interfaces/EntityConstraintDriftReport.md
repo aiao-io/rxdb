@@ -16,7 +16,7 @@ Defined in: [packages/rxdb/src/system/constraint-drift.ts:38](https://github.com
 
 Actual constraint names in the database (already filtered to the comparison scope by the adapter)
 
-***
+---
 
 ### entity \{#entity\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb/src/system/constraint-drift.ts:30](https://github.com
 
 Entity name (the `name` in the metadata)
 
-***
+---
 
 ### expected \{#expected\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb/src/system/constraint-drift.ts:36](https://github.com
 
 Constraint names deterministically generated from the metadata (`ck_` / `uq_` / `ex_`, assembled by the adapter in this dialect's object shape)
 
-***
+---
 
 ### tableMissing \{#tablemissing\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb/src/system/constraint-drift.ts:34](https://github.com
 
 The table itself does not exist in the catalog (missing table). Reported separately from "table exists but constraints differ" (fail-fast).
 
-***
+---
 
 ### tableName \{#tablename\}
 

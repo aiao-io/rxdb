@@ -1,5 +1,5 @@
 ---
-sidebar_label: "QueryTableSnapshot⟨T⟩"
+sidebar_label: 'QueryTableSnapshot⟨T⟩'
 ---
 
 # QueryTableSnapshot`<T>`
@@ -14,9 +14,9 @@ Renderless snapshot of the query table reusing the list state.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityInstance`](../type-aliases/EntityInstance.md) | [`EntityInstance`](../type-aliases/EntityInstance.md) |
+| Type Parameter                                                                                    | Default type                                          |
+| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityInstance`](../type-aliases/EntityInstance.md) | [`EntityInstance`](../type-aliases/EntityInstance.md) |
 
 ## Properties
 
@@ -32,7 +32,7 @@ Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:18
 
 [`EntityListSnapshot`](EntityListSnapshot.md).[`capabilities`](EntityListSnapshot.md#capabilities)
 
-***
+---
 
 ### error \{#error\}
 
@@ -46,7 +46,7 @@ Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:17
 
 [`EntityListSnapshot`](EntityListSnapshot.md).[`error`](EntityListSnapshot.md#error)
 
-***
+---
 
 ### hasNext \{#hasnext\}
 
@@ -62,7 +62,7 @@ Whether there is a next page; undefined when the data source does not provide a 
 
 [`EntityListSnapshot`](EntityListSnapshot.md).[`hasNext`](EntityListSnapshot.md#hasnext)
 
-***
+---
 
 ### loading \{#loading\}
 
@@ -76,7 +76,7 @@ Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:16
 
 [`EntityListSnapshot`](EntityListSnapshot.md).[`loading`](EntityListSnapshot.md#loading)
 
-***
+---
 
 ### page \{#page\}
 
@@ -90,7 +90,7 @@ Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:8
 
 [`EntityListSnapshot`](EntityListSnapshot.md).[`page`](EntityListSnapshot.md#page)
 
-***
+---
 
 ### pageSize \{#pagesize\}
 
@@ -104,7 +104,7 @@ Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:9
 
 [`EntityListSnapshot`](EntityListSnapshot.md).[`pageSize`](EntityListSnapshot.md#pagesize)
 
-***
+---
 
 ### query \{#query\}
 
@@ -118,7 +118,7 @@ Defined in: packages/rxdb-model/dist/entity-table/headless.d.ts:6
 
 [`EntityListSnapshot`](EntityListSnapshot.md).[`query`](EntityListSnapshot.md#query)
 
-***
+---
 
 ### records \{#records\}
 
@@ -132,7 +132,7 @@ Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:10
 
 [`EntityListSnapshot`](EntityListSnapshot.md).[`records`](EntityListSnapshot.md#records)
 
-***
+---
 
 ### selectedIds \{#selectedids\}
 
@@ -146,7 +146,7 @@ Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:15
 
 [`EntityListSnapshot`](EntityListSnapshot.md).[`selectedIds`](EntityListSnapshot.md#selectedids)
 
-***
+---
 
 ### sorts \{#sorts\}
 
@@ -160,7 +160,7 @@ Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:7
 
 [`EntityListSnapshot`](EntityListSnapshot.md).[`sorts`](EntityListSnapshot.md#sorts)
 
-***
+---
 
 ### total \{#total\}
 

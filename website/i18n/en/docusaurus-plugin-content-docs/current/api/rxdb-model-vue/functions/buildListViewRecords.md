@@ -10,10 +10,10 @@ Normalizes unfilled grouping fields to null, so VTable does not drop undefined g
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                        |
+| --------- | ----------------------------------------------------------- |
 | `records` | [`EntityTableRecord`](../interfaces/EntityTableRecord.md)[] |
-| `state` | [`ListViewState`](../interfaces/ListViewState.md) |
+| `state`   | [`ListViewState`](../interfaces/ListViewState.md)           |
 
 ## Returns
 

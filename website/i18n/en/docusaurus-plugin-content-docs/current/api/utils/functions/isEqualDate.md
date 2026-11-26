@@ -8,10 +8,10 @@ Defined in: [packages/utils/src/object/isEqualDate.ts:1](https://github.com/aiao
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `a` | `Date` |
-| `b` | `Date` |
+| Parameter | Type   |
+| --------- | ------ |
+| `a`       | `Date` |
+| `b`       | `Date` |
 
 ## Returns
 

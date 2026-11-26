@@ -10,9 +10,9 @@ Callback that looks up the metadata of the **remote entity**.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `string` | The remote entity name |
+| Parameter   | Type     | Description                        |
+| ----------- | -------- | ---------------------------------- |
+| `entity`    | `string` | The remote entity name             |
 | `namespace` | `string` | The namespace of the remote entity |
 
 ## Returns

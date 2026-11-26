@@ -1,5 +1,5 @@
 ---
-sidebar_label: "RxDBEntityLocalCreatedEventData⟨T⟩"
+sidebar_label: 'RxDBEntityLocalCreatedEventData⟨T⟩'
 ---
 
 # RxDBEntityLocalCreatedEventData`<T>`
@@ -19,9 +19,9 @@ The payload of [ENTITY\_LOCAL\_CREATE\_EVENT](../variables/ENTITY_LOCAL_CREATE_E
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) | [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                            | Default type                                  |
+| ----------------------------------------------------------------------------------------- | --------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) | [`EntityType`](../type-aliases/EntityType.md) |
 
 ## Properties
 
@@ -39,7 +39,7 @@ Branch ID (remote events)
 
 `RxDBEntityLocalEventDataBase.branchId`
 
-***
+---
 
 ### entity \{#entity\}
 
@@ -55,7 +55,7 @@ Entity name
 
 `RxDBEntityLocalEventDataBase.entity`
 
-***
+---
 
 ### entityType? \{#entitytype\}
 
@@ -71,12 +71,12 @@ The entity type
 
 `RxDBEntityLocalEventDataBase.entityType`
 
-***
+---
 
 ### id \{#id\}
 
 ```ts
-id: EntityStaticType<T, "idType">;
+id: EntityStaticType<T, 'idType'>;
 ```
 
 Defined in: [packages/rxdb/src/rxdb-events.ts:202](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-events.ts#L202)
@@ -87,7 +87,7 @@ The entity's unique identifier
 
 `RxDBEntityLocalEventDataBase.id`
 
-***
+---
 
 ### inversePatch \{#inversepatch\}
 
@@ -97,7 +97,7 @@ inversePatch: null;
 
 Defined in: [packages/rxdb/src/rxdb-events.ts:246](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-events.ts#L246)
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -113,7 +113,7 @@ Namespace
 
 `RxDBEntityLocalEventDataBase.namespace`
 
-***
+---
 
 ### origin? \{#origin\}
 
@@ -129,7 +129,7 @@ Event origin: undefined = the local current tab, 'cross-tab' = received from ano
 
 `RxDBEntityLocalEventDataBase.origin`
 
-***
+---
 
 ### patch \{#patch\}
 
@@ -139,7 +139,7 @@ patch: Readonly<InstanceType<T>>;
 
 Defined in: [packages/rxdb/src/rxdb-events.ts:245](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-events.ts#L245)
 
-***
+---
 
 ### recordAt \{#recordat\}
 
@@ -155,7 +155,7 @@ When the change was recorded
 
 `RxDBEntityLocalEventDataBase.recordAt`
 
-***
+---
 
 ### tableSetSuffix? \{#tablesetsuffix\}
 
@@ -176,12 +176,12 @@ Events on the main table set do not carry this field, and libraries without chec
 
 `RxDBEntityLocalEventDataBase.tableSetSuffix`
 
-***
+---
 
 ### type \{#type\}
 
 ```ts
-type: "INSERT" | "UPDATE" | "DELETE" | "NEW";
+type: 'INSERT' | 'UPDATE' | 'DELETE' | 'NEW';
 ```
 
 Defined in: [packages/rxdb/src/rxdb-events.ts:196](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-events.ts#L196)

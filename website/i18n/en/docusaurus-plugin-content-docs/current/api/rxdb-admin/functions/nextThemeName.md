@@ -10,10 +10,10 @@ The next state of the top-bar theme button: system → light → dark → system
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `current` | `string` | The current theme preference. |
-| `themes` | readonly [`ThemeOption`](../interfaces/ThemeOption.md)[] | The available themes. |
+| Parameter | Type                                                     | Description                   |
+| --------- | -------------------------------------------------------- | ----------------------------- |
+| `current` | `string`                                                 | The current theme preference. |
+| `themes`  | readonly [`ThemeOption`](../interfaces/ThemeOption.md)[] | The available themes.         |
 
 ## Returns
 

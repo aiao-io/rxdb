@@ -1,5 +1,5 @@
 ---
-sidebar_label: "QueryBuilderConfig⟨T⟩"
+sidebar_label: 'QueryBuilderConfig⟨T⟩'
 ---
 
 # QueryBuilderConfig`<T>`
@@ -10,8 +10,8 @@ Query builder configuration
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
+| Type Parameter                    | Default type                        |
+| --------------------------------- | ----------------------------------- |
 | <a id="type-parameter-t"></a> `T` | `Record`&lt;`string`, `unknown`&gt; |
 
 ## Properties
@@ -26,7 +26,7 @@ Defined in: packages/rxdb-model/dist/query-builder/models/config.interface.d.ts:
 
 Custom operators
 
-***
+---
 
 ### initialQuery? \{#initialquery\}
 
@@ -38,7 +38,7 @@ Defined in: packages/rxdb-model/dist/query-builder/models/config.interface.d.ts:
 
 Initial query
 
-***
+---
 
 ### maxNestingLevel? \{#maxnestinglevel\}
 
@@ -50,7 +50,7 @@ Defined in: packages/rxdb-model/dist/query-builder/models/config.interface.d.ts:
 
 Maximum nesting level (default 5)
 
-***
+---
 
 ### readonly? \{#readonly\}
 
@@ -62,7 +62,7 @@ Defined in: packages/rxdb-model/dist/query-builder/models/config.interface.d.ts:
 
 Whether it is in readonly mode
 
-***
+---
 
 ### schema? \{#schema\}
 

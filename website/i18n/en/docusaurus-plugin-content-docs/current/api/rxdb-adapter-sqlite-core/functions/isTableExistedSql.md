@@ -10,8 +10,8 @@ Checks whether a sqlite table exists
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type     | Description    |
+| ----------- | -------- | -------------- |
 | `tableName` | `string` | The table name |
 
 ## Returns

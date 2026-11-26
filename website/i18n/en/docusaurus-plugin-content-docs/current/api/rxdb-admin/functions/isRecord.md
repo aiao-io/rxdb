@@ -10,9 +10,9 @@ Checks whether a value is a plain object.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | Any value. |
+| Parameter | Type      | Description |
+| --------- | --------- | ----------- |
+| `value`   | `unknown` | Any value.  |
 
 ## Returns
 

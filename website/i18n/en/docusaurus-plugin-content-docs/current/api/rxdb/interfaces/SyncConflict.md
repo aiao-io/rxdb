@@ -20,7 +20,7 @@ Defined in: [packages/rxdb/src/sync-state.ts:37](https://github.com/aiao-io/rxdb
 
 The moment of judgment
 
-***
+---
 
 ### entity \{#entity\}
 
@@ -36,7 +36,7 @@ Entity name
 
 [`SyncConflictReport`](SyncConflictReport.md).[`entity`](SyncConflictReport.md#entity)
 
-***
+---
 
 ### entityId \{#entityid\}
 
@@ -52,7 +52,7 @@ The primary key of the entity involved in the judgment
 
 [`SyncConflictReport`](SyncConflictReport.md).[`entityId`](SyncConflictReport.md#entityid)
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -68,12 +68,12 @@ Entity namespace
 
 [`SyncConflictReport`](SyncConflictReport.md).[`namespace`](SyncConflictReport.md#namespace)
 
-***
+---
 
 ### winner \{#winner\}
 
 ```ts
-winner: "local" | "remote";
+winner: 'local' | 'remote';
 ```
 
 Defined in: [packages/rxdb/src/sync-state.ts:29](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-state.ts#L29)

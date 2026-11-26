@@ -14,8 +14,8 @@ for inheritance, such as `EntityBase` / `TreeAdjacencyListEntityBase`.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type      |
+| --------- | --------- |
 | ...`args` | `never`[] |
 
 ## Returns

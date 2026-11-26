@@ -24,8 +24,8 @@ Records one entity operation within this transaction
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter    | Type     | Description                     |
+| ------------ | -------- | ------------------------------- |
 | `entityName` | `string` | The name of the operated entity |
 
 #### Returns

@@ -12,10 +12,10 @@ This is a convenience factory function that wraps the creation and parsing of Sc
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                          | Description          |
+| ---------- | ------------------------------------------------------------- | -------------------- |
 | `metadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | RxDB entity metadata |
-| `options?` | [`SchemaParserOptions`](../interfaces/SchemaParserOptions.md) | Parser options |
+| `options?` | [`SchemaParserOptions`](../interfaces/SchemaParserOptions.md) | Parser options       |
 
 ## Returns
 
@@ -41,6 +41,6 @@ const fieldsWithComputed = createSchemaFromEntity(userMetadata, {
 
 // Custom filter
 const onlyStringFields = createSchemaFromEntity(userMetadata, {
-  fieldFilter: (field) => field.type === 'string'
+  fieldFilter: field => field.type === 'string'
 });
 ```

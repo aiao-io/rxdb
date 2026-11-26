@@ -1,5 +1,5 @@
 ---
-sidebar_label: "QueryConverter⟨T⟩"
+sidebar_label: 'QueryConverter⟨T⟩'
 ---
 
 # QueryConverter`<T>`
@@ -11,8 +11,8 @@ Handles bidirectional conversion between QueryBuilder state and RxDB queries
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
+| Type Parameter                    | Default type                        |
+| --------------------------------- | ----------------------------------- |
 | <a id="type-parameter-t"></a> `T` | `Record`&lt;`string`, `unknown`&gt; |
 
 ## Constructors
@@ -27,8 +27,8 @@ Defined in: [packages/rxdb-model/src/query-builder/services/query-converter.serv
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                              | Description      |
+| ---------- | ----------------------------------------------------------------- | ---------------- |
 | `options?` | [`QueryConverterOptions`](../interfaces/QueryConverterOptions.md) | Converter config |
 
 #### Returns
@@ -49,9 +49,9 @@ Converts an RxDB Query into QueryBuilder state
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `query` | [`RuleGroup`](../type-aliases/RuleGroup.md)&lt;`T`&gt; | RxDB RuleGroup query object |
+| Parameter | Type                                                   | Description                 |
+| --------- | ------------------------------------------------------ | --------------------------- |
+| `query`   | [`RuleGroup`](../type-aliases/RuleGroup.md)&lt;`T`&gt; | RxDB RuleGroup query object |
 
 #### Returns
 
@@ -66,7 +66,7 @@ const converter = new QueryConverter<User>();
 const state = converter.fromRxDBQuery(rxdbQuery);
 ```
 
-***
+---
 
 ### toRxDBQuery() \{#torxdbquery\}
 
@@ -80,9 +80,9 @@ Converts QueryBuilder state into an RxDB Query
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `state` | [`QueryBuilderState`](../interfaces/QueryBuilderState.md)&lt;`T`&gt; | QueryBuilder state |
+| Parameter | Type                                                                 | Description        |
+| --------- | -------------------------------------------------------------------- | ------------------ |
+| `state`   | [`QueryBuilderState`](../interfaces/QueryBuilderState.md)&lt;`T`&gt; | QueryBuilder state |
 
 #### Returns
 

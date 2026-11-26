@@ -22,7 +22,7 @@ Defined in: [packages/rxdb/src/entity/entity-field.utils.ts:221](https://github.
 
 `EntityFieldDescriptorBase.cardinality`
 
-***
+---
 
 ### displayName \{#displayname\}
 
@@ -36,7 +36,7 @@ Defined in: [packages/rxdb/src/entity/entity-field.utils.ts:220](https://github.
 
 `EntityFieldDescriptorBase.displayName`
 
-***
+---
 
 ### encrypted \{#encrypted\}
 
@@ -50,7 +50,7 @@ Defined in: [packages/rxdb/src/entity/entity-field.utils.ts:228](https://github.
 
 `EntityFieldDescriptorBase.encrypted`
 
-***
+---
 
 ### enum? \{#enum\}
 
@@ -64,7 +64,7 @@ Defined in: [packages/rxdb/src/entity/entity-field.utils.ts:232](https://github.
 
 `EntityFieldDescriptorBase.enum`
 
-***
+---
 
 ### field \{#field\}
 
@@ -78,7 +78,7 @@ Defined in: [packages/rxdb/src/entity/entity-field.utils.ts:219](https://github.
 
 `EntityFieldDescriptorBase.field`
 
-***
+---
 
 ### format? \{#format\}
 
@@ -92,7 +92,7 @@ Defined in: [packages/rxdb/src/entity/entity-field.utils.ts:223](https://github.
 
 `EntityFieldDescriptorBase.format`
 
-***
+---
 
 ### keyValueSchema? \{#keyvalueschema\}
 
@@ -106,7 +106,7 @@ Defined in: [packages/rxdb/src/entity/entity-field.utils.ts:234](https://github.
 
 `EntityFieldDescriptorBase.keyValueSchema`
 
-***
+---
 
 ### nullable \{#nullable\}
 
@@ -120,7 +120,7 @@ Defined in: [packages/rxdb/src/entity/entity-field.utils.ts:225](https://github.
 
 `EntityFieldDescriptorBase.nullable`
 
-***
+---
 
 ### options? \{#options\}
 
@@ -134,7 +134,7 @@ Defined in: [packages/rxdb/src/entity/entity-field.utils.ts:233](https://github.
 
 `EntityFieldDescriptorBase.options`
 
-***
+---
 
 ### primary? \{#primary\}
 
@@ -148,7 +148,7 @@ Defined in: [packages/rxdb/src/entity/entity-field.utils.ts:231](https://github.
 
 `EntityFieldDescriptorBase.primary`
 
-***
+---
 
 ### readonly \{#readonly\}
 
@@ -162,7 +162,7 @@ Defined in: [packages/rxdb/src/entity/entity-field.utils.ts:224](https://github.
 
 `EntityFieldDescriptorBase.readonly`
 
-***
+---
 
 ### relation? \{#relation\}
 
@@ -172,7 +172,7 @@ relation?: undefined;
 
 Defined in: [packages/rxdb/src/entity/entity-field.utils.ts:240](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-field.utils.ts#L240)
 
-***
+---
 
 ### required \{#required\}
 
@@ -186,7 +186,7 @@ Defined in: [packages/rxdb/src/entity/entity-field.utils.ts:226](https://github.
 
 `EntityFieldDescriptorBase.required`
 
-***
+---
 
 ### searchable? \{#searchable\}
 
@@ -200,7 +200,7 @@ Defined in: [packages/rxdb/src/entity/entity-field.utils.ts:230](https://github.
 
 `EntityFieldDescriptorBase.searchable`
 
-***
+---
 
 ### sortable? \{#sortable\}
 
@@ -214,17 +214,17 @@ Defined in: [packages/rxdb/src/entity/entity-field.utils.ts:229](https://github.
 
 `EntityFieldDescriptorBase.sortable`
 
-***
+---
 
 ### source \{#source\}
 
 ```ts
-source: "system" | "property";
+source: 'system' | 'property';
 ```
 
 Defined in: [packages/rxdb/src/entity/entity-field.utils.ts:239](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-field.utils.ts#L239)
 
-***
+---
 
 ### unique \{#unique\}
 
@@ -238,12 +238,12 @@ Defined in: [packages/rxdb/src/entity/entity-field.utils.ts:227](https://github.
 
 `EntityFieldDescriptorBase.unique`
 
-***
+---
 
 ### valueType \{#valuetype\}
 
 ```ts
-valueType: 
+valueType:
   | "string"
   | "number"
   | "bigint"

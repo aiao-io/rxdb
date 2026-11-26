@@ -10,10 +10,10 @@ Applies field ordering and visibility, and pins the positions of the selection c
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `columns` | readonly `ColumnDefine`[] |
-| `state` | [`ListViewState`](../interfaces/ListViewState.md) |
+| Parameter | Type                                              |
+| --------- | ------------------------------------------------- |
+| `columns` | readonly `ColumnDefine`[]                         |
+| `state`   | [`ListViewState`](../interfaces/ListViewState.md) |
 
 ## Returns
 

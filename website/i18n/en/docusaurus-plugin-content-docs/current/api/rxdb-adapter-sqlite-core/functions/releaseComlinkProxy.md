@@ -10,9 +10,9 @@ Releases the MessagePort held by a Comlink proxy.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `client` | `unknown` | The return value of [wrapWithComlink](wrapWithComlink.md) / [wrapWithComlinkEndpoint](wrapWithComlinkEndpoint.md), or `undefined` |
+| Parameter | Type      | Description                                                                                                                       |
+| --------- | --------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `client`  | `unknown` | The return value of [wrapWithComlink](wrapWithComlink.md) / [wrapWithComlinkEndpoint](wrapWithComlinkEndpoint.md), or `undefined` |
 
 ## Returns
 

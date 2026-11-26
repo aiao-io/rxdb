@@ -22,7 +22,7 @@ Defined in: [packages/rxdb/src/rxdb-plugin-system.ts:66](https://github.com/aiao
 
 The id of the branch just written
 
-***
+---
 
 ### executor \{#executor\}
 
@@ -34,7 +34,7 @@ Defined in: [packages/rxdb/src/rxdb-plugin-system.ts:63](https://github.com/aiao
 
 The transaction executor currently writing this branch
 
-***
+---
 
 ### fromCommitId? \{#fromcommitid\}
 

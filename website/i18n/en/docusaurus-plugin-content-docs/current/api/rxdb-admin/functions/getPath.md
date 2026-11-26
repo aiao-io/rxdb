@@ -10,10 +10,10 @@ Reads the value at a dotted path.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `tree` | `unknown` | The preferences tree. |
-| `path` | `string` | The dotted path. |
+| Parameter | Type      | Description           |
+| --------- | --------- | --------------------- |
+| `tree`    | `unknown` | The preferences tree. |
+| `path`    | `string`  | The dotted path.      |
 
 ## Returns
 

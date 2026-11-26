@@ -52,8 +52,8 @@ Defined in: [packages/rxdb/src/network/reachability.ts:152](https://github.com/a
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                          |
+| ---------- | ------------------------------------------------------------- |
 | `options?` | [`ReachabilityOptions`](../interfaces/ReachabilityOptions.md) |
 
 #### Returns
@@ -72,7 +72,7 @@ Defined in: [packages/rxdb/src/network/reachability.ts:135](https://github.com/a
 
 The change stream of the current reachability judgment (deduplicated, subscribing yields the current value immediately)
 
-***
+---
 
 ### wakeup$ \{#wakeup\}
 
@@ -128,7 +128,7 @@ Stops monitoring: removes the event listeners and cancels the pending beat
 
 Idempotent. After `destroy()`, [ReachabilityMonitor.report](#report) no longer changes the state.
 
-***
+---
 
 ### report() \{#report\}
 
@@ -142,9 +142,9 @@ Reports the result of one remote call
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `error` | `unknown` | The error thrown by the call; pass `null` when the call succeeded |
+| Parameter | Type      | Description                                                       |
+| --------- | --------- | ----------------------------------------------------------------- |
+| `error`   | `unknown` | The error thrown by the call; pass `null` when the call succeeded |
 
 #### Returns
 
@@ -155,7 +155,7 @@ Reports the result of one remote call
 Unrecognized errors (including all HTTP responses with a numeric `status`) **do not change the state**: getting a status code
 means the connection works, 401 / 422 / 503 are all answers given by the remote, not a broken cable.
 
-***
+---
 
 ### watch() \{#watch\}
 

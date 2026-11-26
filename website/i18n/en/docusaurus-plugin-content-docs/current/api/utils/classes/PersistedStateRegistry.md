@@ -36,8 +36,8 @@ Defined in: [packages/utils/src/@browser/persisted-state.ts:180](https://github.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                                              | Description                                                                         |
+| ---------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | `options?` | [`PersistedStateRegistryOptions`](../interfaces/PersistedStateRegistryOptions.md) | See [PersistedStateRegistryOptions](../interfaces/PersistedStateRegistryOptions.md) |
 
 #### Returns
@@ -50,8 +50,8 @@ Defined in: [packages/utils/src/@browser/persisted-state.ts:180](https://github.
 
 ```ts
 entry<T>(
-   namespace, 
-   name, 
+   namespace,
+   name,
    initialValue
 ): PersistedStateEntry<T>;
 ```
@@ -62,17 +62,17 @@ Gets (creating if necessary) the state entry for a key.
 
 #### Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                    | Description      |
+| --------------------------------- | ---------------- |
 | <a id="type-parameter-t"></a> `T` | State value type |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `namespace` | `string` | Namespace; combined with `name` after each is escaped to form the persistence key |
-| `name` | `string` | Key name |
-| `initialValue` | `T` | Initial value that takes effect **only on first registration**; when a value already exists on disk, the on-disk value wins |
+| Parameter      | Type     | Description                                                                                                                 |
+| -------------- | -------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `namespace`    | `string` | Namespace; combined with `name` after each is escaped to form the persistence key                                           |
+| `name`         | `string` | Key name                                                                                                                    |
+| `initialValue` | `T`      | Initial value that takes effect **only on first registration**; when a value already exists on disk, the on-disk value wins |
 
 #### Returns
 
@@ -88,12 +88,12 @@ Thrown when the same key was previously registered with a different **value type
 
 On first creation, the resolved initial value is **written to disk immediately**: this makes the "initial value as the contract" visible on disk, and lets an `undefined` initial value clean up a possibly stale legacy key.
 
-***
+---
 
 ### find() \{#find\}
 
 ```ts
-find<T>(namespace, name): 
+find<T>(namespace, name):
   | PersistedStateEntry<T>
   | undefined;
 ```
@@ -104,21 +104,21 @@ Looks up a registered state entry; returns `undefined` if none.
 
 #### Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                      | Description      |
+| ----------------------------------- | ---------------- |
 | <a id="type-parameter-t-1"></a> `T` | State value type |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `namespace` | `string` | Namespace |
-| `name` | `string` | Key name |
+| Parameter   | Type     | Description |
+| ----------- | -------- | ----------- |
+| `namespace` | `string` | Namespace   |
+| `name`      | `string` | Key name    |
 
 #### Returns
 
-  \| [`PersistedStateEntry`](../interfaces/PersistedStateEntry.md)&lt;`T`&gt;
-  \| `undefined`
+\| [`PersistedStateEntry`](../interfaces/PersistedStateEntry.md)&lt;`T`&gt;
+\| `undefined`
 
 The **same** object handed out by [PersistedStateRegistry.entry](#entry) when registered, otherwise `undefined`
 

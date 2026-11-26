@@ -2,13 +2,13 @@
 
 ```ts
 function transaction_sqlite_result<T>(
-   adapter, 
-   EntityType, 
-   sqliteSuccessResult, 
-   forcedUpdate?, 
-   skipCreate?, 
-   mergeExternalChanges?, 
-   submissions?
+  adapter,
+  EntityType,
+  sqliteSuccessResult,
+  forcedUpdate?,
+  skipCreate?,
+  mergeExternalChanges?,
+  submissions?
 ): Promise<InstanceType<T>[]>;
 ```
 
@@ -18,21 +18,21 @@ Handles a SQLite transaction result, returning an entity array
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                    |
+| ------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 ## Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `adapter` | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md) | `undefined` | - |
-| `EntityType` | `T` | `undefined` | - |
-| `sqliteSuccessResult` | [`SqliteSuccessResult`](../interfaces/SqliteSuccessResult.md) | `undefined` | - |
-| `forcedUpdate?` | `boolean` | `false` | - |
-| `skipCreate?` | `boolean` | `false` | Skip creating new entities (only update existing cache entries) |
-| `mergeExternalChanges?` | `boolean` | `false` | Merge database data while preserving unsaved fields |
-| `submissions?` | `SqliteWriteSubmissions`&lt;`T`&gt; | `undefined` | The submission records of this write (indexed by the written entity): matched cached entities are finalized via `EntityStatus.applyWriteResult`, advancing the baseline with the returned rows and preserving new edits made after the submission |
+| Parameter               | Type                                                           | Default value | Description                                                                                                                                                                                                                                       |
+| ----------------------- | -------------------------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `adapter`               | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md) | `undefined`   | -                                                                                                                                                                                                                                                 |
+| `EntityType`            | `T`                                                            | `undefined`   | -                                                                                                                                                                                                                                                 |
+| `sqliteSuccessResult`   | [`SqliteSuccessResult`](../interfaces/SqliteSuccessResult.md)  | `undefined`   | -                                                                                                                                                                                                                                                 |
+| `forcedUpdate?`         | `boolean`                                                      | `false`       | -                                                                                                                                                                                                                                                 |
+| `skipCreate?`           | `boolean`                                                      | `false`       | Skip creating new entities (only update existing cache entries)                                                                                                                                                                                   |
+| `mergeExternalChanges?` | `boolean`                                                      | `false`       | Merge database data while preserving unsaved fields                                                                                                                                                                                               |
+| `submissions?`          | `SqliteWriteSubmissions`&lt;`T`&gt;                            | `undefined`   | The submission records of this write (indexed by the written entity): matched cached entities are finalized via `EntityStatus.applyWriteResult`, advancing the baseline with the returned rows and preserving new edits made after the submission |
 
 ## Returns
 

@@ -1,21 +1,21 @@
 # SqliteBackupStorage
 
 ```ts
-type SqliteBackupStorage = 
+type SqliteBackupStorage =
   | {
-  kind: "memory";
-  label: string;
-}
+      kind: 'memory';
+      label: string;
+    }
   | {
-  kind: "persistent";
-  label: string;
-  storageKey: string;
-}
+      kind: 'persistent';
+      label: string;
+      storageKey: string;
+    }
   | {
-  actual: string;
-  field: string;
-  kind: "unsupported";
-};
+      actual: string;
+      field: string;
+      kind: 'unsupported';
+    };
 ```
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/backup/sqlite-backup.interface.ts:25](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/backup/sqlite-backup.interface.ts#L25)
@@ -32,7 +32,7 @@ The storage backend corresponding to the adapter's current configuration, decidi
 
 ```ts
 {
-  kind: "memory";
+  kind: 'memory';
   label: string;
 }
 ```
@@ -51,13 +51,13 @@ readonly label: string;
 
 The `adapter.storage` written into the manifest, for example `memory`.
 
-***
+---
 
 ### Type Literal
 
 ```ts
 {
-  kind: "persistent";
+  kind: 'persistent';
   label: string;
   storageKey: string;
 }
@@ -85,7 +85,7 @@ readonly storageKey: string;
 
 The unique key of the same persistent database; the lock name is based on it.
 
-***
+---
 
 ### Type Literal
 
@@ -93,7 +93,7 @@ The unique key of the same persistent database; the lock name is based on it.
 {
   actual: string;
   field: string;
-  kind: "unsupported";
+  kind: 'unsupported';
 }
 ```
 

@@ -1,23 +1,23 @@
 # WriteEntranceDecision
 
 ```ts
-type WriteEntranceDecision = 
+type WriteEntranceDecision =
   | {
-  kind: "capture";
-  origin: WriteEntryOrigin;
-  pushableChange: boolean;
-  revisionBump: true;
-}
+      kind: 'capture';
+      origin: WriteEntryOrigin;
+      pushableChange: boolean;
+      revisionBump: true;
+    }
   | {
-  kind: "no_capture";
-  reason: NoCaptureReason;
-  revisionBump: false;
-}
+      kind: 'no_capture';
+      reason: NoCaptureReason;
+      revisionBump: false;
+    }
   | {
-  code: typeof commit_capability_mismatch;
-  kind: "reject";
-  revisionBump: false;
-};
+      code: typeof commit_capability_mismatch;
+      kind: 'reject';
+      revisionBump: false;
+    };
 ```
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry-matrix.ts:125](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/write-entry-matrix.ts#L125)
@@ -30,7 +30,7 @@ Conclusion of [classifyWriteEntrance](../functions/classifyWriteEntrance.md).
 
 ```ts
 {
-  kind: "capture";
+  kind: 'capture';
   origin: WriteEntryOrigin;
   pushableChange: boolean;
   revisionBump: true;
@@ -69,13 +69,13 @@ readonly revisionBump: true;
 
 Always `true`: landing the unit and bumping the revision live and die together
 
-***
+---
 
 ### Type Literal
 
 ```ts
 {
-  kind: "no_capture";
+  kind: 'no_capture';
   reason: NoCaptureReason;
   revisionBump: false;
 }
@@ -105,14 +105,14 @@ readonly revisionBump: false;
 
 Always `false`
 
-***
+---
 
 ### Type Literal
 
 ```ts
 {
   code: typeof commit_capability_mismatch;
-  kind: "reject";
+  kind: 'reject';
   revisionBump: false;
 }
 ```

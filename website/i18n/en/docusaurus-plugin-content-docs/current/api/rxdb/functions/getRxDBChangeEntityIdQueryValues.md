@@ -12,9 +12,9 @@ String IDs are placed in both the raw value and the prefixed encoded form — th
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `ids` | readonly [`RxDBEntityId`](../type-aliases/RxDBEntityId.md)[] |
+| Parameter | Type                                                         |
+| --------- | ------------------------------------------------------------ |
+| `ids`     | readonly [`RxDBEntityId`](../type-aliases/RxDBEntityId.md)[] |
 
 ## Returns
 

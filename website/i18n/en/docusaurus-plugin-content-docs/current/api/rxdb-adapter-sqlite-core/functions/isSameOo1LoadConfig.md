@@ -10,10 +10,10 @@ Whether two loads point to the same WASM module.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `cached` | [`Oo1LoadFingerprint`](../interfaces/Oo1LoadFingerprint.md) | Fingerprint of the cached module |
-| `requested` | [`Oo1LoadFingerprint`](../interfaces/Oo1LoadFingerprint.md) | Fingerprint of the current call |
+| Parameter   | Type                                                        | Description                      |
+| ----------- | ----------------------------------------------------------- | -------------------------------- |
+| `cached`    | [`Oo1LoadFingerprint`](../interfaces/Oo1LoadFingerprint.md) | Fingerprint of the cached module |
+| `requested` | [`Oo1LoadFingerprint`](../interfaces/Oo1LoadFingerprint.md) | Fingerprint of the current call  |
 
 ## Returns
 

@@ -88,6 +88,7 @@ A write bypassed working tree capture — a raw write path or a bulk write metho
 #### Remarks
 
 Three places share this code:
+
 - step 3 of the adapter's 4-step bypass judgment (written target tables ∩ versioned business entity tables ≠ ∅ **and**
   the written column set ⊄ the untracked field domain), see contracts/adapter-contract.md;
 - `upsertMany()` / `deleteByIds()`, the two public bulk write methods that cannot reach `rawQuery`;

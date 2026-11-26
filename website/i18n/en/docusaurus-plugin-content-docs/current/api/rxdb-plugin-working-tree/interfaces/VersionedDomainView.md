@@ -55,9 +55,9 @@ Fetches the set of columns on a table that do not constitute a net business chan
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `table` | `string` | The table name; case-insensitive |
+| Parameter | Type     | Description                      |
+| --------- | -------- | -------------------------------- |
+| `table`   | `string` | The table name; case-insensitive |
 
 #### Returns
 

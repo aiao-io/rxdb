@@ -18,9 +18,9 @@ Changing the `PropertyType` of the same column after persistence breaks the deco
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `unknown` |
+| Parameter  | Type           |
+| ---------- | -------------- |
+| `value`    | `unknown`      |
 | `property` | `PropertyLike` |
 
 ## Returns

@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model/src/entity-field.utils.ts:46](https://github.co
 
 Display name of the key
 
-***
+---
 
 ### nullable? \{#nullable\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-model/src/entity-field.utils.ts:52](https://github.co
 
 Whether it can be null
 
-***
+---
 
 ### required? \{#required\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-model/src/entity-field.utils.ts:50](https://github.co
 
 Whether it is required
 
-***
+---
 
 ### type? \{#type\}
 

@@ -5,6 +5,7 @@ Defined in: [packages/rxdb/src/entity/entity-manager.ts:88](https://github.com/a
 Entity manager
 
 Manages the entire lifecycle of entities, including:
+
 1. Creation, update, and deletion of entities
 2. Entity cache management
 3. Entity relation handling
@@ -41,15 +42,15 @@ Adds the entity instance to the cache map of the corresponding type
 
 #### Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) | The entity type |
+| Type Parameter                                                                            | Description     |
+| ----------------------------------------------------------------------------------------- | --------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) | The entity type |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The entity instance to cache |
+| Parameter | Type                      | Description                  |
+| --------- | ------------------------- | ---------------------------- |
+| `entity`  | `InstanceType`&lt;`T`&gt; | The entity instance to cache |
 
 #### Returns
 
@@ -62,7 +63,7 @@ Before, they were written in anyway, so all id-less entities shared the single `
 and `getEntityRef(T, undefined)` returned a random one of them — sparse hydration updated through it, modifying a different record.
 When the primary key is assigned later, [reindexEntityCache](#reindexentitycache) registers it (triggered by the Proxy set interception), so nothing is missed.
 
-***
+---
 
 ### cleanAllCache() \{#cleanallcache\}
 
@@ -83,7 +84,7 @@ Clears all caches
 Destroys repository by repository in isolation: a `destroy()` throw from one repository must neither let later repositories skip destruction
 nor let the cache clearing itself be skipped. The first exception is kept and re-thrown together after the clearing finishes, so callers still see the original error.
 
-***
+---
 
 ### create() \{#create\}
 
@@ -98,15 +99,15 @@ Creates a new entity in the database and dispatches the related events
 
 #### Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
-| <a id="type-parameter-t-1"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) | The entity type |
+| Type Parameter                                                                              | Description     |
+| ------------------------------------------------------------------------------------------- | --------------- |
+| <a id="type-parameter-t-1"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) | The entity type |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `data` | `InstanceType`&lt;`T`&gt; | The entity instance to create |
+| Parameter | Type                      | Description                   |
+| --------- | ------------------------- | ----------------------------- |
+| `data`    | `InstanceType`&lt;`T`&gt; | The entity instance to create |
 
 #### Returns
 
@@ -118,14 +119,14 @@ The created entity instance
 
 Throws an error if creation fails
 
-***
+---
 
 ### createEntityRef() \{#createentityref\}
 
 ```ts
 createEntityRef<T>(
-   EntityType, 
-   data, 
+   EntityType,
+   data,
    status?
 ): EntityInstanceType<T>;
 ```
@@ -138,17 +139,17 @@ If the entity already exists in the cache, the cached instance is returned
 
 #### Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
-| <a id="type-parameter-t-2"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) | The entity type |
+| Type Parameter                                                                              | Description     |
+| ------------------------------------------------------------------------------------------- | --------------- |
+| <a id="type-parameter-t-2"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) | The entity type |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `EntityType` | `T` | The entity type |
-| `data` | [`EntityUpdateData`](../type-aliases/EntityUpdateData.md)&lt;`T`&gt; | Entity data; must contain the id |
-| `status?` | `EntityStatusOptions`&lt;`T`&gt; | Optional entity status configuration |
+| Parameter    | Type                                                                 | Description                          |
+| ------------ | -------------------------------------------------------------------- | ------------------------------------ |
+| `EntityType` | `T`                                                                  | The entity type                      |
+| `data`       | [`EntityUpdateData`](../type-aliases/EntityUpdateData.md)&lt;`T`&gt; | Entity data; must contain the id     |
+| `status?`    | `EntityStatusOptions`&lt;`T`&gt;                                     | Optional entity status configuration |
 
 #### Returns
 
@@ -156,7 +157,7 @@ If the entity already exists in the cache, the cached instance is returned
 
 The created or fetched entity instance
 
-***
+---
 
 ### destroy() \{#destroy\}
 
@@ -181,12 +182,12 @@ wrongly blocked by "registered with multiple RxDB instances". The original error
 The unbinding targets the entity classes actually bound at `init()`, not the current `config.entities`:
 entities removed by plugins when their scope is released must also be unbound, otherwise the entity class stays permanently bound to a torn-down instance.
 
-***
+---
 
 ### getEntityRef() \{#getentityref\}
 
 ```ts
-getEntityRef<T>(EntityType, id): 
+getEntityRef<T>(EntityType, id):
   | EntityInstanceType<T>
   | undefined;
 ```
@@ -198,25 +199,25 @@ Fetches the entity instance with the given ID from the cache
 
 #### Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
-| <a id="type-parameter-t-3"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) | The entity type |
+| Type Parameter                                                                              | Description     |
+| ------------------------------------------------------------------------------------------- | --------------- |
+| <a id="type-parameter-t-3"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) | The entity type |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `EntityType` | `T` | The entity type |
-| `id` | [`EntityStaticType`](../type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | The entity ID |
+| Parameter    | Type                                                                             | Description     |
+| ------------ | -------------------------------------------------------------------------------- | --------------- |
+| `EntityType` | `T`                                                                              | The entity type |
+| `id`         | [`EntityStaticType`](../type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | The entity ID   |
 
 #### Returns
 
-  \| [`EntityInstanceType`](../type-aliases/EntityInstanceType.md)&lt;`T`&gt;
-  \| `undefined`
+\| [`EntityInstanceType`](../type-aliases/EntityInstanceType.md)&lt;`T`&gt;
+\| `undefined`
 
 The entity instance, or undefined if it does not exist
 
-***
+---
 
 ### getRepository() \{#getrepository\}
 
@@ -231,16 +232,16 @@ Fetches the repository instance of the given entity type
 
 #### Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
-| <a id="type-parameter-t-4"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) | The entity type |
-| <a id="type-parameter-rt"></a> `RT` *extends* [`Repository`](../classes/Repository.md)&lt;`T`, [`IRepository`](IRepository.md)&lt;`T`&gt;&gt; | - |
+| Type Parameter                                                                                                                                | Description     |
+| --------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
+| <a id="type-parameter-t-4"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md)                                                   | The entity type |
+| <a id="type-parameter-rt"></a> `RT` _extends_ [`Repository`](../classes/Repository.md)&lt;`T`, [`IRepository`](IRepository.md)&lt;`T`&gt;&gt; | -               |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `EntityType` | `T` | The entity type |
+| Parameter    | Type | Description     |
+| ------------ | ---- | --------------- |
+| `EntityType` | `T`  | The entity type |
 
 #### Returns
 
@@ -248,7 +249,7 @@ Fetches the repository instance of the given entity type
 
 The entity repository instance
 
-***
+---
 
 ### hasEntityRef() \{#hasentityref\}
 
@@ -263,16 +264,16 @@ Determines whether the entity with the given ID has been initialized in the cach
 
 #### Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
-| <a id="type-parameter-t-5"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) | The entity type |
+| Type Parameter                                                                              | Description     |
+| ------------------------------------------------------------------------------------------- | --------------- |
+| <a id="type-parameter-t-5"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) | The entity type |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `EntityType` | `T` | The entity type |
-| `id` | [`EntityStaticType`](../type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | The entity ID |
+| Parameter    | Type                                                                             | Description     |
+| ------------ | -------------------------------------------------------------------------------- | --------------- |
+| `EntityType` | `T`                                                                              | The entity type |
+| `id`         | [`EntityStaticType`](../type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | The entity ID   |
 
 #### Returns
 
@@ -280,7 +281,7 @@ Determines whether the entity with the given ID has been initialized in the cach
 
 Returns true if the entity exists in the cache
 
-***
+---
 
 ### init() \{#init\}
 
@@ -294,7 +295,7 @@ Defined in: [packages/rxdb/src/entity/entity-manager.ts:129](https://github.com/
 
 `void`
 
-***
+---
 
 ### instantiate() \{#instantiate\}
 
@@ -310,22 +311,22 @@ use this method to preserve the entity constructor's defaults and custom initial
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-6"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                              |
+| ------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-6"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `EntityType` | `T` |
-| `initData?` | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; |
+| Parameter    | Type                                       |
+| ------------ | ------------------------------------------ |
+| `EntityType` | `T`                                        |
+| `initData?`  | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; |
 
 #### Returns
 
 `InstanceType`&lt;`T`&gt;
 
-***
+---
 
 ### mutations() \{#mutations\}
 
@@ -339,14 +340,14 @@ Mutates entities in bulk (create/update/delete)
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-7"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                              |
+| ------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-7"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                 | Description           |
+| --------- | ---------------------------------------------------- | --------------------- |
 | `options` | [`RxDBMutationsMap`](RxDBMutationsMap.md)&lt;`T`&gt; | Bulk mutation options |
 
 #### Returns
@@ -369,14 +370,14 @@ Mutates entities in bulk (create/update/delete)
 
 [WorktreeTableSetMismatchError](../classes/WorktreeTableSetMismatchError.md) The batch contains entities not created or read from the table set this instance is currently attached to; nothing is written
 
-***
+---
 
 ### notifyExternalUpdate() \{#notifyexternalupdate\}
 
 ```ts
 notifyExternalUpdate<T>(
-   EntityType, 
-   id, 
+   EntityType,
+   id,
    patch
 ): void;
 ```
@@ -389,17 +390,17 @@ call this method to trigger the standard event flow (QueryCache update + cross-t
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-8"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                              |
+| ------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-8"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `EntityType` | `T` | The entity type |
-| `id` | [`EntityStaticType`](../type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | The entity ID |
-| `patch` | `Readonly`&lt;`Partial`&lt;`InstanceType`&lt;`T`&gt;&gt;&gt; | The changed fields; the cross-tab broadcast only carries the plain fields among them (see the "cross-tab contract" in remarks) |
+| Parameter    | Type                                                                             | Description                                                                                                                    |
+| ------------ | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `EntityType` | `T`                                                                              | The entity type                                                                                                                |
+| `id`         | [`EntityStaticType`](../type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | The entity ID                                                                                                                  |
+| `patch`      | `Readonly`&lt;`Partial`&lt;`InstanceType`&lt;`T`&gt;&gt;&gt;                     | The changed fields; the cross-tab broadcast only carries the plain fields among them (see the "cross-tab contract" in remarks) |
 
 #### Returns
 
@@ -412,7 +413,7 @@ call this method to trigger the standard event flow (QueryCache update + cross-t
 #### Throws
 
 On libraries with the commit capability enabled, when the target is a versioned business entity, the capture hook throws a write rejection error;
-  in that case not a single event is dispatched
+in that case not a single event is dispatched
 
 #### Remarks
 
@@ -430,6 +431,7 @@ Adding an invented "not connected" error to them would violate FR-046's zero beh
 
 **The cross-tab contract.** This event is also broadcast to other tabs via `RxDBTabsGateway`. Before broadcasting, `patch` is copied into
 a snapshot containing only plain fields (subscribers in this tab still receive the original `patch`):
+
 - Relation properties whose value is an entity instance (or an array holding entity instances) do **not travel cross-tab** — entity instances are Proxies
   that cannot be structured-cloned, and on the other tab they would only be plain objects masquerading as entities. For relation changes, **also provide the foreign key column**
   (e.g. `authorId`); the other side restores the relation from the foreign key column. When `patch` contains only the relation object and no foreign key column,
@@ -437,7 +439,7 @@ a snapshot containing only plain fields (subscribers in this tab still receive t
 - Only top-level keys are filtered: entity instances nested inside a json value are not supported, and `postMessage` throws
   `DataCloneError` because it cannot be structured-cloned.
 
-***
+---
 
 ### reindexEntityCache() \{#reindexentitycache\}
 
@@ -451,16 +453,16 @@ Rebuilds the identity cache index after the primary key is written
 
 #### Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
-| <a id="type-parameter-t-9"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) | The entity type |
+| Type Parameter                                                                              | Description     |
+| ------------------------------------------------------------------------------------------- | --------------- |
+| <a id="type-parameter-t-9"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) | The entity type |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The entity instance whose primary key already holds the new value (must be the proxy instance, the same reference stored in the cache) |
-| `previousId` | [`RxDBEntityId`](../type-aliases/RxDBEntityId.md) \| `undefined` | The primary key value before the write; `undefined` on the first assignment after construction |
+| Parameter    | Type                                                             | Description                                                                                                                            |
+| ------------ | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `entity`     | `InstanceType`&lt;`T`&gt;                                        | The entity instance whose primary key already holds the new value (must be the proxy instance, the same reference stored in the cache) |
+| `previousId` | [`RxDBEntityId`](../type-aliases/RxDBEntityId.md) \| `undefined` | The primary key value before the write; `undefined` on the first assignment after construction                                         |
 
 #### Returns
 
@@ -469,6 +471,7 @@ Rebuilds the identity cache index after the primary key is written
 #### Remarks
 
 Called by the `set` interception of `createEntityProxy`, covering two cases:
+
 - **Identity only after construction** (primary key without a default, e.g. `RxDBBranch.id`): the old slot does not exist, so only the new slot needs registering.
   Without this step, the instance in the caller's hands never enters the identity cache, and a later hydrate creates another instance to update,
   with the two objects each holding their own state (RXD-070).
@@ -477,7 +480,7 @@ Called by the `set` interception of `createEntityProxy`, covering two cases:
 
 The old slot is deleted only when it really holds **this one** instance: other references with the same id should not be affected by this rename.
 
-***
+---
 
 ### remove() \{#remove\}
 
@@ -492,15 +495,15 @@ Deletes the entity from the database and dispatches the related events
 
 #### Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
-| <a id="type-parameter-t-10"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) | The entity type |
+| Type Parameter                                                                               | Description     |
+| -------------------------------------------------------------------------------------------- | --------------- |
+| <a id="type-parameter-t-10"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) | The entity type |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `data` | `InstanceType`&lt;`T`&gt; | The entity instance to delete |
+| Parameter | Type                      | Description                   |
+| --------- | ------------------------- | ----------------------------- |
+| `data`    | `InstanceType`&lt;`T`&gt; | The entity instance to delete |
 
 #### Returns
 
@@ -512,7 +515,7 @@ The deleted entity instance
 
 Throws an error if deletion fails
 
-***
+---
 
 ### removeEntityCache() \{#removeentitycache\}
 
@@ -527,21 +530,21 @@ Removes the entity instance from the cache map
 
 #### Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
-| <a id="type-parameter-t-11"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) | The entity type |
+| Type Parameter                                                                               | Description     |
+| -------------------------------------------------------------------------------------------- | --------------- |
+| <a id="type-parameter-t-11"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) | The entity type |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The entity instance to remove |
+| Parameter | Type                      | Description                   |
+| --------- | ------------------------- | ----------------------------- |
+| `entity`  | `InstanceType`&lt;`T`&gt; | The entity instance to remove |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### removeMany() \{#removemany\}
 
@@ -555,21 +558,21 @@ Deletes in bulk
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-12"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                               |
+| -------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-12"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                        |
+| ---------- | --------------------------- |
 | `entities` | `InstanceType`&lt;`T`&gt;[] |
 
 #### Returns
 
 `Promise`&lt;`any`[]&gt;
 
-***
+---
 
 ### reset() \{#reset\}
 
@@ -583,15 +586,15 @@ Resets an entity
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-13"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                               |
+| -------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-13"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `data` | `InstanceType`&lt;`T`&gt; |
+| Parameter | Type                      |
+| --------- | ------------------------- |
+| `data`    | `InstanceType`&lt;`T`&gt; |
 
 #### Returns
 
@@ -605,7 +608,7 @@ This method only rolls `status` back to `origin` and **touches no I/O**,
 so the right fix is to make the implementation synchronous to match the declaration, not to change the 4 declarations to `Promise<void>`:
 the latter would give every existing `entity.reset()` call site an unhandled Promise out of thin air.
 
-***
+---
 
 ### resetForWorktreeTableSet() \{#resetforworktreetableset\}
 
@@ -627,7 +630,7 @@ The same id in two table sets is two copies of data: without clearing the identi
 It does not go through [EntityManager.cleanAllCache](#cleanallcache): that would destroy repositories, completing the live queries' observers so subscribers never get results again.
 Repositories without `refreshAllQueries` (custom repositories that do not extend the core `Repository`) have no live queries handed to the QueryManager, and are skipped.
 
-***
+---
 
 ### save() \{#save\}
 
@@ -643,15 +646,15 @@ If related entities need saving, a transaction is used for the batch save
 
 #### Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
-| <a id="type-parameter-t-14"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) | The entity type |
+| Type Parameter                                                                               | Description     |
+| -------------------------------------------------------------------------------------------- | --------------- |
+| <a id="type-parameter-t-14"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) | The entity type |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; |
+| Parameter | Type                      |
+| --------- | ------------------------- |
+| `entity`  | `InstanceType`&lt;`T`&gt; |
 
 #### Returns
 
@@ -659,7 +662,7 @@ If related entities need saving, a transaction is used for the batch save
 
 The saved entity instance
 
-***
+---
 
 ### saveMany() \{#savemany\}
 
@@ -673,21 +676,21 @@ Saves in bulk
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-15"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                               |
+| -------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-15"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                        |
+| ---------- | --------------------------- |
 | `entities` | `InstanceType`&lt;`T`&gt;[] |
 
 #### Returns
 
 `Promise`&lt;`InstanceType`&lt;`T`&gt;[]&gt;
 
-***
+---
 
 ### update() \{#update\}
 
@@ -702,15 +705,15 @@ Updates the entity in the database, only updating modified properties, and dispa
 
 #### Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
-| <a id="type-parameter-t-16"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) | The entity type |
+| Type Parameter                                                                               | Description     |
+| -------------------------------------------------------------------------------------------- | --------------- |
+| <a id="type-parameter-t-16"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) | The entity type |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `data` | `InstanceType`&lt;`T`&gt; | The entity instance to update |
+| Parameter | Type                      | Description                   |
+| --------- | ------------------------- | ----------------------------- |
+| `data`    | `InstanceType`&lt;`T`&gt; | The entity instance to update |
 
 #### Returns
 

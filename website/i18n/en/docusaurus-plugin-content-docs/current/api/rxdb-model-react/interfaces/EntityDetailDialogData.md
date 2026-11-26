@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model-react/src/entity-detail/entity-detail.tsx:113](
 
 Entity types in the creation chain (namespace:name), used to block circular creation
 
-***
+---
 
 ### delegateSave? \{#delegatesave\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-model-react/src/entity-detail/entity-detail.tsx:111](
 
 Delegate saving: no draft entity is created, only emit formSubmitted for the caller to handle
 
-***
+---
 
 ### editChain? \{#editchain\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-model-react/src/entity-detail/entity-detail.tsx:105](
 
 Stack of record ids with detail dialogs already open (including the current record); the relation tab list blocks infinite nesting based on this
 
-***
+---
 
 ### entityId? \{#entityid\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb-model-react/src/entity-detail/entity-detail.tsx:103](
 
 Edit mode: loads the entity instance from the Repository by id; when absent, the form data is passed through as-is
 
-***
+---
 
 ### fixedFormData? \{#fixedformdata\}
 
@@ -64,7 +64,7 @@ Defined in: [packages/rxdb-model-react/src/entity-detail/entity-detail.tsx:109](
 
 Pre-filled foreign-key data (not editable), for cascade-create scenarios
 
-***
+---
 
 ### formData \{#formdata\}
 
@@ -74,7 +74,7 @@ formData: EntityFormData;
 
 Defined in: [packages/rxdb-model-react/src/entity-detail/entity-detail.tsx:100](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-react/src/entity-detail/entity-detail.tsx#L100)
 
-***
+---
 
 ### formFields \{#formfields\}
 
@@ -84,7 +84,7 @@ formFields: FormFieldConfig[];
 
 Defined in: [packages/rxdb-model-react/src/entity-detail/entity-detail.tsx:99](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-react/src/entity-detail/entity-detail.tsx#L99)
 
-***
+---
 
 ### formMode \{#formmode\}
 
@@ -94,7 +94,7 @@ formMode: FormMode;
 
 Defined in: [packages/rxdb-model-react/src/entity-detail/entity-detail.tsx:101](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-react/src/entity-detail/entity-detail.tsx#L101)
 
-***
+---
 
 ### metadata \{#metadata\}
 
@@ -104,7 +104,7 @@ metadata: EntityMetadata;
 
 Defined in: [packages/rxdb-model-react/src/entity-detail/entity-detail.tsx:98](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-react/src/entity-detail/entity-detail.tsx#L98)
 
-***
+---
 
 ### relatedEntityProvider? \{#relatedentityprovider\}
 

@@ -12,17 +12,17 @@ Returns an empty object when the input is null/undefined
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* `object` | The input object's type |
-| <a id="type-parameter-keys"></a> `Keys` *extends* `string` \| `number` \| `symbol` | The set of property keys to pick |
+| Type Parameter                                                                     | Description                      |
+| ---------------------------------------------------------------------------------- | -------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ `object`                               | The input object's type          |
+| <a id="type-parameter-keys"></a> `Keys` _extends_ `string` \| `number` \| `symbol` | The set of property keys to pick |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `obj` | `T` | Source object; returns an empty object when null/undefined |
-| `keys` | `Keys`[] | Array of property keys to pick |
+| Parameter | Type     | Description                                                |
+| --------- | -------- | ---------------------------------------------------------- |
+| `obj`     | `T`      | Source object; returns an empty object when null/undefined |
+| `keys`    | `Keys`[] | Array of property keys to pick                             |
 
 ## Returns
 

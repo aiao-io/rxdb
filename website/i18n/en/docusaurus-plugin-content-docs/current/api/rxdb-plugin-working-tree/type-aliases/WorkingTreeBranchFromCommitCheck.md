@@ -1,14 +1,14 @@
 # WorkingTreeBranchFromCommitCheck
 
 ```ts
-type WorkingTreeBranchFromCommitCheck = 
+type WorkingTreeBranchFromCommitCheck =
   | {
-  ok: true;
-}
+      ok: true;
+    }
   | {
-  ok: false;
-  reason: WorkingTreeBranchFromCommitRejection;
-};
+      ok: false;
+      reason: WorkingTreeBranchFromCommitRejection;
+    };
 ```
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/branch-from-commit.ts:38](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/branch-from-commit.ts#L38)
@@ -33,7 +33,7 @@ readonly ok: true;
 
 Discriminator: can be used to create a branch
 
-***
+---
 
 ### Type Literal
 

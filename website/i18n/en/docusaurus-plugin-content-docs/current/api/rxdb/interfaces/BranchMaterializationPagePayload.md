@@ -20,7 +20,7 @@ Defined in: [packages/rxdb/src/sync-contract/branch-materialization-source.ts:38
 
 The value computed by [branchMaterializationPageFingerprint](../functions/branchMaterializationPageFingerprint.md) over `payload`
 
-***
+---
 
 ### payload \{#payload\}
 

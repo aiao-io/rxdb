@@ -1,12 +1,7 @@
 # handle_array_in()
 
 ```ts
-function handle_array_in(
-   entityMetadata, 
-   originalField, 
-   rule, 
-   tableAlias?
-): string | null;
+function handle_array_in(entityMetadata, originalField, rule, tableAlias?): string | null;
 ```
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/query/query\_sql.utils.ts:530](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/query/query_sql.utils.ts#L530)
@@ -15,12 +10,12 @@ Handles in/notIn queries on array fields
 
 ## Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `entityMetadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | `undefined` | - |
-| `originalField` | `string` | `undefined` | - |
-| `rule` | `QueryRuleValue` | `undefined` | - |
-| `tableAlias?` | `string` | `MAIN_TABLE_ALIAS` | The alias of the table the column lives on: inside an EXISTS subquery it is the subquery root table, not the top-level main table `_` |
+| Parameter        | Type                                                          | Default value      | Description                                                                                                                           |
+| ---------------- | ------------------------------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| `entityMetadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | `undefined`        | -                                                                                                                                     |
+| `originalField`  | `string`                                                      | `undefined`        | -                                                                                                                                     |
+| `rule`           | `QueryRuleValue`                                              | `undefined`        | -                                                                                                                                     |
+| `tableAlias?`    | `string`                                                      | `MAIN_TABLE_ALIAS` | The alias of the table the column lives on: inside an EXISTS subquery it is the subquery root table, not the top-level main table `_` |
 
 ## Returns
 

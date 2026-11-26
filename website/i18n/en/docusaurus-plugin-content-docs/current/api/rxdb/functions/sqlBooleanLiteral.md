@@ -10,9 +10,9 @@ Formats a boolean as an SQL boolean literal.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `boolean` | The boolean value |
+| Parameter | Type      | Description       |
+| --------- | --------- | ----------------- |
+| `value`   | `boolean` | The boolean value |
 
 ## Returns
 

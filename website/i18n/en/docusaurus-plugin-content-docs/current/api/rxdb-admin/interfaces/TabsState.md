@@ -16,7 +16,7 @@ Defined in: [tabs/tabs-ops.ts:18](https://github.com/aiao-io/rxdb/blob/b52320402
 
 The current tab key.
 
-***
+---
 
 ### history \{#history\}
 
@@ -28,7 +28,7 @@ Defined in: [tabs/tabs-ops.ts:20](https://github.com/aiao-io/rxdb/blob/b52320402
 
 The visit history, most recently visited first.
 
-***
+---
 
 ### tabs \{#tabs\}
 

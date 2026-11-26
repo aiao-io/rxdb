@@ -11,9 +11,9 @@ Uses setTimeout(fn, 0) to defer the function until the current execution stack i
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `fn` | () => `unknown` | The function to defer |
+| Parameter | Type            | Description           |
+| --------- | --------------- | --------------------- |
+| `fn`      | () => `unknown` | The function to defer |
 
 ## Returns
 

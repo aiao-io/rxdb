@@ -14,9 +14,9 @@ Determined by the `Object.prototype.toString` tag rather than calling `value.val
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | The value to check |
+| Parameter | Type      | Description        |
+| --------- | --------- | ------------------ |
+| `value`   | `unknown` | The value to check |
 
 ## Returns
 
@@ -28,5 +28,5 @@ Whether it is a boolean primitive or a boolean wrapper object
 
 ```ts
 const raw: unknown = new Boolean(false);
-if (isBooleanLike(raw) && raw.valueOf() === false) `{ ... }`
+if (isBooleanLike(raw) && raw.valueOf() === false) `{ ... }`;
 ```

@@ -1,5 +1,5 @@
 ---
-sidebar_label: "PersistedStateEntry⟨T⟩"
+sidebar_label: 'PersistedStateEntry⟨T⟩'
 ---
 
 # PersistedStateEntry`<T>`
@@ -14,8 +14,8 @@ The same `namespace + name` is **always the same object** within a [PersistedSta
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                    | Description          |
+| --------------------------------- | -------------------- |
 | <a id="type-parameter-t"></a> `T` | The state value type |
 
 ## Properties
@@ -48,7 +48,7 @@ Reads the current value.
 
 The current value in memory; the reference stays stable between two [PersistedStateEntry.set](#set) calls and can be used directly as the snapshot for React's `useSyncExternalStore`.
 
-***
+---
 
 ### persistError() \{#persisterror\}
 
@@ -71,7 +71,7 @@ The failure reason, or `undefined`
 Quota exceeded, circular references, `BigInt`, etc. can all make the disk write fail while the in-memory value updates normally —
 only this field lets callers know the data did not reach disk (RAN-010).
 
-***
+---
 
 ### set() \{#set\}
 
@@ -85,9 +85,9 @@ Writes and synchronously persists to disk, then notifies all subscribers.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `next` | `T` | The new value |
+| Parameter | Type | Description   |
+| --------- | ---- | ------------- |
+| `next`    | `T`  | The new value |
 
 #### Returns
 
@@ -99,7 +99,7 @@ Writes and synchronously persists to disk, then notifies all subscribers.
 (RAN-010). Subscribers are notified whether or not the write reached disk —
 a change to `persistError` is itself a state change subscribers care about.
 
-***
+---
 
 ### subscribe() \{#subscribe\}
 
@@ -113,8 +113,8 @@ Subscribes to changes of this state.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type         | Description                                                                                                  |
+| ---------- | ------------ | ------------------------------------------------------------------------------------------------------------ |
 | `listener` | () => `void` | Called after the value or `persistError` changes; receives no arguments — call `get()` again in the callback |
 
 #### Returns

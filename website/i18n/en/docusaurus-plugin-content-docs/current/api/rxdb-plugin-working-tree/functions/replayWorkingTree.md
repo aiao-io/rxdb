@@ -10,10 +10,10 @@ Replays the net state using `HEAD projection + all working tree units`
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `head` | [`ColdReplaySnapshot`](../type-aliases/ColdReplaySnapshot.md) | The business data projection of HEAD |
-| `entries` | readonly `WorkingTreeEntry`[] | All uncommitted units on that branch, **order-independent** |
+| Parameter | Type                                                          | Description                                                 |
+| --------- | ------------------------------------------------------------- | ----------------------------------------------------------- |
+| `head`    | [`ColdReplaySnapshot`](../type-aliases/ColdReplaySnapshot.md) | The business data projection of HEAD                        |
+| `entries` | readonly `WorkingTreeEntry`[]                                 | All uncommitted units on that branch, **order-independent** |
 
 ## Returns
 

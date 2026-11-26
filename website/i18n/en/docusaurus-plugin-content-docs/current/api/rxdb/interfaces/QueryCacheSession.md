@@ -1,5 +1,5 @@
 ---
-sidebar_label: "QueryCacheSession⟨T⟩"
+sidebar_label: 'QueryCacheSession⟨T⟩'
 ---
 
 # QueryCacheSession`<T>`
@@ -15,9 +15,9 @@ is **rebuilt on every emission** of the adapter stream, and putting the memory o
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) | Entity type |
+| Type Parameter                                                                            | Description |
+| ----------------------------------------------------------------------------------------- | ----------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) | Entity type |
 
 ## Methods
 
@@ -41,7 +41,7 @@ Two call sites: remote invalidation reporting (must clear **synchronously**, oth
 `Repository.destroy()` (every entry of the memory table holds a `setTimeout`; not clearing it pins the repository together with its closures
 onto the event loop until the window runs out on its own).
 
-***
+---
 
 ### createPrimary() \{#createprimary\}
 
@@ -55,9 +55,9 @@ Builds a primary repository.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `localAdapter` | `object` | The local adapter of this emission |
+| Parameter       | Type     | Description                         |
+| --------------- | -------- | ----------------------------------- |
+| `localAdapter`  | `object` | The local adapter of this emission  |
 | `remoteAdapter` | `object` | The remote adapter of this emission |
 
 #### Returns

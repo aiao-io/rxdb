@@ -21,7 +21,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/commit/change-unit.ts:85](htt
 
 The entity name
 
-***
+---
 
 ### entityId \{#entityid\}
 
@@ -33,7 +33,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/commit/change-unit.ts:87](htt
 
 The entity primary key
 
-***
+---
 
 ### inversePatch \{#inversepatch\}
 
@@ -45,7 +45,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/commit/change-unit.ts:93](htt
 
 The reverse field change package, used for restore; `null` for NEW, which has no reverse content
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -57,7 +57,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/commit/change-unit.ts:83](htt
 
 The entity namespace
 
-***
+---
 
 ### operation \{#operation\}
 
@@ -69,7 +69,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/commit/change-unit.ts:89](htt
 
 The operation type
 
-***
+---
 
 ### origin \{#origin\}
 
@@ -81,7 +81,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/commit/change-unit.ts:95](htt
 
 The change origin; uncommitted changes produced by remote sync are `remote_sync`
 
-***
+---
 
 ### patch \{#patch\}
 
@@ -93,7 +93,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/commit/change-unit.ts:91](htt
 
 The forward field change package; `null` for DELETE, which has no forward content
 
-***
+---
 
 ### transactionId \{#transactionid\}
 
@@ -105,7 +105,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/commit/change-unit.ts:81](htt
 
 The owning transaction id; `null` for non-transactional writes
 
-***
+---
 
 ### unitId \{#unitid\}
 

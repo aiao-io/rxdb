@@ -10,8 +10,8 @@ Joins validated segments back into a logical path.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                | Description                                                                                                       |
+| ---------- | ------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | `segments` | readonly `string`[] | Segments that have passed [parseLogicalPath](parseLogicalPath.md) or [isValidPathSegment](isValidPathSegment.md). |
 
 ## Returns

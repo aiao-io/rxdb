@@ -10,15 +10,15 @@ Checks whether a value has a callable then method.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` | `unknown` |
+| Type Parameter                    | Default type |
+| --------------------------------- | ------------ |
+| <a id="type-parameter-t"></a> `T` | `unknown`    |
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `value`   | `unknown` |
 
 ## Returns
 

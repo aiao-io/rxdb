@@ -1,5 +1,5 @@
 ---
-sidebar_label: "WorkingTreeSuccessState⟨T⟩"
+sidebar_label: 'WorkingTreeSuccessState⟨T⟩'
 ---
 
 # WorkingTreeSuccessState`<T>`
@@ -10,8 +10,8 @@ The call succeeded, and `value` is its return value.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Properties
@@ -26,7 +26,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts:6
 
 The discriminator bit
 
-***
+---
 
 ### value \{#value\}
 

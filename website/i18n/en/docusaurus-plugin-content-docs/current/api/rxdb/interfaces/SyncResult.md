@@ -16,7 +16,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:144](ht
 
 The result of the Pull operation
 
-***
+---
 
 ### pushResult \{#pushresult\}
 

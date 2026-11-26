@@ -10,16 +10,16 @@ Converts a SQLite entity value to a JS object value
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* `object` | [`EntityData`](../../rxdb/type-aliases/EntityData.md) |
+| Type Parameter                                       | Default type                                          |
+| ---------------------------------------------------- | ----------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ `object` | [`EntityData`](../../rxdb/type-aliases/EntityData.md) |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `metadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | Entity metadata |
-| `entity` | [`EntityData`](../../rxdb/type-aliases/EntityData.md) | The entity object, keyed by database column name |
+| Parameter  | Type                                                          | Description                                      |
+| ---------- | ------------------------------------------------------------- | ------------------------------------------------ |
+| `metadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | Entity metadata                                  |
+| `entity`   | [`EntityData`](../../rxdb/type-aliases/EntityData.md)         | The entity object, keyed by database column name |
 
 ## Returns
 

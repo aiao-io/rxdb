@@ -16,7 +16,7 @@ Defined in: [preferences/store.ts:52](https://github.com/aiao-io/rxdb/blob/b5232
 
 Leaf value constraints, usually derived by `deriveConstraints`.
 
-***
+---
 
 ### debounceMs? \{#debouncems\}
 
@@ -28,7 +28,7 @@ Defined in: [preferences/store.ts:58](https://github.com/aiao-io/rxdb/blob/b5232
 
 The persistence debounce in milliseconds, 150 by default.
 
-***
+---
 
 ### defaults? \{#defaults\}
 
@@ -40,7 +40,7 @@ Defined in: [preferences/store.ts:50](https://github.com/aiao-io/rxdb/blob/b5232
 
 The application-level defaults tree, defaulting to [defaultPreferences](../variables/defaultPreferences.md).
 
-***
+---
 
 ### extensions? \{#extensions\}
 
@@ -52,7 +52,7 @@ Defined in: [preferences/store.ts:54](https://github.com/aiao-io/rxdb/blob/b5232
 
 Business extension preferences, whose defaults merge into the defaults tree.
 
-***
+---
 
 ### host? \{#host\}
 
@@ -64,12 +64,12 @@ Defined in: [preferences/store.ts:60](https://github.com/aiao-io/rxdb/blob/b5232
 
 The host event source: cross-tab sync and flushing to storage when the page hides; no listening by default.
 
-***
+---
 
 ### migrateLegacy? \{#migratelegacy\}
 
 ```ts
-readonly migrateLegacy?: (storage) => 
+readonly migrateLegacy?: (storage) =>
   | DeepPartial<AdminPreferences>
   | null;
 ```
@@ -80,16 +80,16 @@ Reads the legacy version key on first use (when storage is empty) and returns th
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                            |
+| --------- | ------------------------------- |
 | `storage` | [`StorageLike`](StorageLike.md) |
 
 #### Returns
 
-  \| [`DeepPartial`](../type-aliases/DeepPartial.md)&lt;[`AdminPreferences`](AdminPreferences.md)&gt;
-  \| `null`
+\| [`DeepPartial`](../type-aliases/DeepPartial.md)&lt;[`AdminPreferences`](AdminPreferences.md)&gt;
+\| `null`
 
-***
+---
 
 ### storage \{#storage\}
 
@@ -101,7 +101,7 @@ Defined in: [preferences/store.ts:46](https://github.com/aiao-io/rxdb/blob/b5232
 
 The persistence medium.
 
-***
+---
 
 ### storageKey? \{#storagekey\}
 

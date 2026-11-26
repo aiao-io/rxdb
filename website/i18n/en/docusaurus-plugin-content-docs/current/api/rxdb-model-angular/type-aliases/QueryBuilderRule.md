@@ -1,5 +1,5 @@
 ---
-sidebar_label: "QueryBuilderRule⟨T⟩"
+sidebar_label: 'QueryBuilderRule⟨T⟩'
 ---
 
 # QueryBuilderRule`<T>`
@@ -14,8 +14,8 @@ Query rule (reuses the RxDB Rule type + UI metadata)
 
 ## Type Parameters
 
-| Type Parameter | Default type | Description |
-| ------ | ------ | ------ |
+| Type Parameter                    | Default type                        | Description |
+| --------------------------------- | ----------------------------------- | ----------- |
 | <a id="type-parameter-t"></a> `T` | `Record`&lt;`string`, `unknown`&gt; | Entity type |
 
 ## Type Declaration
@@ -62,8 +62,8 @@ interface User {
 
 const rule: QueryBuilderRule<User> = {
   id: 'rule-1',
-  field: 'name',      // ✅ Type-safe: can only be 'name' | 'age' | 'active'
+  field: 'name', // ✅ Type-safe: can only be 'name' | 'age' | 'active'
   operator: 'contains',
-  value: 'John'       // ✅ Type inferred as string
+  value: 'John' // ✅ Type inferred as string
 };
 ```

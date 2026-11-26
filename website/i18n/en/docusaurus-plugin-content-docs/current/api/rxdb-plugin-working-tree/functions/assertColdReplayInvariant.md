@@ -10,9 +10,9 @@ Verifies the cold replay invariant
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `input` | [`ColdReplayInvariantInput`](../interfaces/ColdReplayInvariantInput.md) | HEAD projection, all units, actual business table content |
+| Parameter | Type                                                                    | Description                                               |
+| --------- | ----------------------------------------------------------------------- | --------------------------------------------------------- |
+| `input`   | [`ColdReplayInvariantInput`](../interfaces/ColdReplayInvariantInput.md) | HEAD projection, all units, actual business table content |
 
 ## Returns
 

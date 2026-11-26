@@ -57,9 +57,9 @@ Whether this entity is under version control
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entityName` | `string` | The entity name |
+| Parameter    | Type     | Description                                                                               |
+| ------------ | -------- | ----------------------------------------------------------------------------------------- |
+| `entityName` | `string` | The entity name                                                                           |
 | `namespace?` | `string` | When known, matched exactly by identity; when omitted, matched by bare name (see remarks) |
 
 #### Returns
@@ -78,7 +78,7 @@ When a bare name (mount point 4 only has the entity name, and `RxDBAdapter.upser
 registrations, only **agreement** among them counts; different answers fall back to `'tracked'`. Judging untracked on ambiguity
 would silently drop one of those business tables out of version control, while tracked is the discoverable, fixable direction.
 
-***
+---
 
 ### createTransactionGuard() \{#createtransactionguard\}
 
@@ -100,7 +100,7 @@ A new instance unaffected by other guards
 
 A new instance on every call: the guard holds the categories seen by **one particular transaction**, and sharing an instance would let one transaction's mixing pollute the next.
 
-***
+---
 
 ### hasEntity() \{#hasentity\}
 
@@ -114,9 +114,9 @@ Has this database registered this entity?
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entityName` | `string` | The entity name |
+| Parameter    | Type     | Description                                                                                          |
+| ------------ | -------- | ---------------------------------------------------------------------------------------------------- |
+| `entityName` | `string` | The entity name                                                                                      |
 | `namespace?` | `string` | When known, matched exactly by identity; when omitted, matched by bare name against any registration |
 
 #### Returns
@@ -131,14 +131,14 @@ A separate member from [classifyEntity](#classifyentity) because the two answer 
 The capture side relies on exactly this difference to judge system tables — a name the domain recognizes is guaranteed to be a business entity (system tables were removed when the domain was built),
 so "it is in the domain" is itself proof of "it is not a system table", and the system table list only speaks for names the domain does not recognize.
 
-***
+---
 
 ### isUntrackedField() \{#isuntrackedfield\}
 
 ```ts
 isUntrackedField(
-   entityName, 
-   field, 
+   entityName,
+   field,
    namespace?
 ): boolean;
 ```
@@ -149,10 +149,10 @@ Whether a change to this field constitutes a net business change
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entityName` | `string` | The entity name |
-| `field` | `string` | The entity property name |
+| Parameter    | Type     | Description                                                                                                                      |
+| ------------ | -------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `entityName` | `string` | The entity name                                                                                                                  |
+| `field`      | `string` | The entity property name                                                                                                         |
 | `namespace?` | `string` | When known, matched exactly by identity; when omitted, matched by bare name, same criterion as [classifyEntity](#classifyentity) |
 
 #### Returns
@@ -161,7 +161,7 @@ Whether a change to this field constitutes a net business change
 
 `true` when it matches any of the four untracked classes
 
-***
+---
 
 ### untrackedFieldsOf() \{#untrackedfieldsof\}
 
@@ -175,9 +175,9 @@ Fetches the set of columns on a table that do not constitute a net business chan
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `table` | `string` | The table name; case-insensitive |
+| Parameter | Type     | Description                      |
+| --------- | -------- | -------------------------------- |
+| `table`   | `string` | The table name; case-insensitive |
 
 #### Returns
 

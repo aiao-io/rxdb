@@ -19,10 +19,10 @@ Whether to delete the source branch after the merge
 #### Default
 
 ```ts
-false
+false;
 ```
 
-***
+---
 
 ### strategy? \{#strategy\}
 
@@ -37,5 +37,5 @@ Merge strategy
 #### Default
 
 ```ts
-'squash'
+'squash';
 ```

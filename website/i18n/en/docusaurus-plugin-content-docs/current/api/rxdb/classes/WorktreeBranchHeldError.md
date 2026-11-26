@@ -33,9 +33,9 @@ Defined in: [packages/rxdb/src/system/active-branch-guard.ts:222](https://github
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `branchId` | `string` | The id of the held branch |
+| Parameter   | Type     | Description                                        |
+| ----------- | -------- | -------------------------------------------------- |
+| `branchId`  | `string` | The id of the held branch                          |
 | `holderKey` | `string` | The hold key written by the checkout that holds it |
 
 #### Returns
@@ -58,7 +58,7 @@ Defined in: [packages/rxdb/src/system/active-branch-guard.ts:224](https://github
 
 The id of the held branch
 
-***
+---
 
 ### cause? \{#cause\}
 
@@ -72,7 +72,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](RxDBError.md).[`cause`](RxDBError.md#cause)
 
-***
+---
 
 ### code \{#code\}
 
@@ -84,7 +84,7 @@ Defined in: [packages/rxdb/src/system/active-branch-guard.ts:220](https://github
 
 Stable error code, always `'worktree_branch_held'`; see [AmbiguousActiveBranchError.code](AmbiguousActiveBranchError.md#code) for the rationale of the literal
 
-***
+---
 
 ### holderKey \{#holderkey\}
 
@@ -96,7 +96,7 @@ Defined in: [packages/rxdb/src/system/active-branch-guard.ts:226](https://github
 
 The hold key written by the checkout that holds it
 
-***
+---
 
 ### message \{#message\}
 
@@ -110,7 +110,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](RxDBError.md).[`message`](RxDBError.md#message)
 
-***
+---
 
 ### name \{#name\}
 
@@ -124,7 +124,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](RxDBError.md).[`name`](RxDBError.md#name)
 
-***
+---
 
 ### stack? \{#stack\}
 
@@ -138,7 +138,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](RxDBError.md).[`stack`](RxDBError.md#stack)
 
-***
+---
 
 ### stackTraceLimit \{#stacktracelimit\}
 
@@ -179,7 +179,7 @@ a string representing the location in the code at which
 ```js
 const myObject = {};
 Error.captureStackTrace(myObject);
-myObject.stack;  // Similar to `new Error().stack`
+myObject.stack; // Similar to `new Error().stack`
 ```
 
 The first line of the trace will be prefixed with
@@ -218,9 +218,9 @@ a();
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `targetObject` | `object` |
+| Parameter         | Type       |
+| ----------------- | ---------- |
+| `targetObject`    | `object`   |
 | `constructorOpt?` | `Function` |
 
 #### Returns
@@ -231,14 +231,14 @@ a();
 
 [`RxDBError`](RxDBError.md).[`captureStackTrace`](RxDBError.md#capturestacktrace)
 
-***
+---
 
 ### heldBy() \{#heldby\}
 
 ```ts
 static heldBy(
-   branchId, 
-   activeKey, 
+   branchId,
+   activeKey,
    ownKey?
 ): WorktreeBranchHeldError | null;
 ```
@@ -249,11 +249,11 @@ Judges whether `branchId` is in someone else's hands: returns `null` when nobody
 
 #### Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `branchId` | `string` | `undefined` | The branch to hold (or to delete) |
-| `activeKey` | `string` \| `null` \| `undefined` | `undefined` | This branch's current `activeKey`; both `null` and `undefined` (the row does not exist, or the entity has no value for this column) mean nobody holds it |
-| `ownKey?` | `string` | `ACTIVE_BRANCH_KEY` | The caller's own hold key, defaulting to the main checkout's [ACTIVE\_BRANCH\_KEY](../variables/ACTIVE_BRANCH_KEY.md); a writable checkout passes its own table set's hold key |
+| Parameter   | Type                              | Default value       | Description                                                                                                                                                                    |
+| ----------- | --------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `branchId`  | `string`                          | `undefined`         | The branch to hold (or to delete)                                                                                                                                              |
+| `activeKey` | `string` \| `null` \| `undefined` | `undefined`         | This branch's current `activeKey`; both `null` and `undefined` (the row does not exist, or the entity has no value for this column) mean nobody holds it                       |
+| `ownKey?`   | `string`                          | `ACTIVE_BRANCH_KEY` | The caller's own hold key, defaulting to the main checkout's [ACTIVE\_BRANCH\_KEY](../variables/ACTIVE_BRANCH_KEY.md); a writable checkout passes its own table set's hold key |
 
 #### Returns
 
@@ -273,7 +273,7 @@ Returns instead of throwing in place: the branch-deletion check must **return** 
 Mounted on the error class instead of exporting a separate function: new core exports must pass the SC-014 prefix gate (`Worktree*`),
 a lowercase-leading function name cannot satisfy the case-sensitive prefix check, and the check and the error it throws are the same thing anyway.
 
-***
+---
 
 ### prepareStackTrace() \{#preparestacktrace\}
 
@@ -285,9 +285,9 @@ Defined in: node\_modules/.pnpm/@types+node@26.6.6/node\_modules/@types/node/glo
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `err` | `Error` |
+| Parameter     | Type         |
+| ------------- | ------------ |
+| `err`         | `Error`      |
 | `stackTraces` | `CallSite`[] |
 
 #### Returns
@@ -302,14 +302,14 @@ https://v8.dev/docs/stack-trace-api#customizing-stack-traces
 
 [`RxDBError`](RxDBError.md).[`prepareStackTrace`](RxDBError.md#preparestacktrace)
 
-***
+---
 
 ### throwIfHeld() \{#throwifheld\}
 
 ```ts
 static throwIfHeld(
-   branchId, 
-   activeKey, 
+   branchId,
+   activeKey,
    ownKey?
 ): void;
 ```
@@ -320,11 +320,11 @@ The check before holding `branchId`: throws when it is in someone else's hands; 
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `branchId` | `string` | The branch to hold |
-| `activeKey` | `string` \| `null` \| `undefined` | This branch's current `activeKey` |
-| `ownKey?` | `string` | The caller's own hold key, defaulting to the main checkout's [ACTIVE\_BRANCH\_KEY](../variables/ACTIVE_BRANCH_KEY.md) |
+| Parameter   | Type                              | Description                                                                                                           |
+| ----------- | --------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `branchId`  | `string`                          | The branch to hold                                                                                                    |
+| `activeKey` | `string` \| `null` \| `undefined` | This branch's current `activeKey`                                                                                     |
+| `ownKey?`   | `string`                          | The caller's own hold key, defaulting to the main checkout's [ACTIVE\_BRANCH\_KEY](../variables/ACTIVE_BRANCH_KEY.md) |
 
 #### Returns
 

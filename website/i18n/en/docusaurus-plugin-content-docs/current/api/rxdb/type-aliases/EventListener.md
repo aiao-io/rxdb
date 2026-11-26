@@ -1,5 +1,5 @@
 ---
-sidebar_label: "EventListener⟨T⟩"
+sidebar_label: 'EventListener⟨T⟩'
 ---
 
 # EventListener`<T>`
@@ -12,15 +12,15 @@ Defined in: [packages/rxdb/src/rxdb.types.ts:8](https://github.com/aiao-io/rxdb/
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Parameters
 
 | Parameter | Type |
-| ------ | ------ |
-| `event` | `T` |
+| --------- | ---- |
+| `event`   | `T`  |
 
 ## Returns
 

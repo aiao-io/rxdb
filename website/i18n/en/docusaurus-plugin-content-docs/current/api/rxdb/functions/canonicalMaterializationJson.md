@@ -12,9 +12,9 @@ Folds a JSON value into a **key-order-independent** string — the canonical for
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | Any JSON-expressible value |
+| Parameter | Type      | Description                |
+| --------- | --------- | -------------------------- |
+| `value`   | `unknown` | Any JSON-expressible value |
 
 ## Returns
 

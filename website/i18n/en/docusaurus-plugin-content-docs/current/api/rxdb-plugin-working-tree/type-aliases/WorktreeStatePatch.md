@@ -10,16 +10,16 @@ Writes a new phase into one state slot.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-__typek"></a> `K` *extends* keyof [`WorktreeAsyncStates`](../interfaces/WorktreeAsyncStates.md) |
+| Type Parameter                                                                                                        |
+| --------------------------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-__typek"></a> `K` _extends_ keyof [`WorktreeAsyncStates`](../interfaces/WorktreeAsyncStates.md) |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | `K` | Which slot |
-| `state` | [`WorktreeAsyncStates`](../interfaces/WorktreeAsyncStates.md)\[`K`\] | The new phase |
+| Parameter | Type                                                                 | Description   |
+| --------- | -------------------------------------------------------------------- | ------------- |
+| `key`     | `K`                                                                  | Which slot    |
+| `state`   | [`WorktreeAsyncStates`](../interfaces/WorktreeAsyncStates.md)\[`K`\] | The new phase |
 
 ## Returns
 

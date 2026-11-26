@@ -29,7 +29,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/commit-conflict.
 
 The active branch identity at capture time
 
-***
+---
 
 ### expectedHeadRevision \{#expectedheadrevision\}
 
@@ -41,7 +41,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/commit-conflict.
 
 The HEAD advance revision at capture time
 
-***
+---
 
 ### expectedWorkingTreeRevision \{#expectedworkingtreerevision\}
 

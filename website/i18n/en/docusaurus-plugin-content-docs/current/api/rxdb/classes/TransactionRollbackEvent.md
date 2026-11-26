@@ -16,8 +16,8 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:407](https://github.com/aiao-io/rx
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter        | Type     | Description                                                                                                                       |
+| ---------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | `transactionId?` | `string` | The identity of the transaction being rolled back, must match the corresponding [TransactionBeginEvent](TransactionBeginEvent.md) |
 
 #### Returns
@@ -36,12 +36,12 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:407](https://github.com/aiao-io/rx
 
 The identity of the transaction being rolled back, must match the corresponding [TransactionBeginEvent](TransactionBeginEvent.md)
 
-***
+---
 
 ### type \{#type\}
 
 ```ts
-type: "TRANSACTION_ROLLBACK" = TRANSACTION_ROLLBACK;
+type: 'TRANSACTION_ROLLBACK' = TRANSACTION_ROLLBACK;
 ```
 
 Defined in: [packages/rxdb/src/rxdb-events.ts:404](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-events.ts#L404)

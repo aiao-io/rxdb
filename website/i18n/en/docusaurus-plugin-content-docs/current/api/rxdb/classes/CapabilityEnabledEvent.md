@@ -21,8 +21,8 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:659](https://github.com/aiao-io/rx
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter    | Type     | Description                                                                |
+| ------------ | -------- | -------------------------------------------------------------------------- |
 | `capability` | `string` | The capability name, the same value as `RxDBSystemContribution.capability` |
 
 #### Returns
@@ -41,7 +41,7 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:661](https://github.com/aiao-io/rx
 
 The capability name, the same value as `RxDBSystemContribution.capability`
 
-***
+---
 
 ### type \{#type\}
 

@@ -10,9 +10,9 @@ Defers editor initialization (registers the outside-click listener + focus) to a
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `fn` | () => `void` | The deferred initialization callback |
+| Parameter | Type         | Description                          |
+| --------- | ------------ | ------------------------------------ |
+| `fn`      | () => `void` | The deferred initialization callback |
 
 ## Returns
 

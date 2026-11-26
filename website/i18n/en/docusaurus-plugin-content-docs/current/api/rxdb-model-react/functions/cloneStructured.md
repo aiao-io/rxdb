@@ -10,16 +10,16 @@ Deep-clones a structured value from model state, preserving dates, byte sequence
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `T` |
-| `seen?` | `WeakMap`&lt;`object`, `unknown`&gt; |
+| Parameter | Type                                 |
+| --------- | ------------------------------------ |
+| `value`   | `T`                                  |
+| `seen?`   | `WeakMap`&lt;`object`, `unknown`&gt; |
 
 ## Returns
 

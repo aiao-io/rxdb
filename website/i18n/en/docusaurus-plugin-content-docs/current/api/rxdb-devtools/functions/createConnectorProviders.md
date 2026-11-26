@@ -10,9 +10,9 @@ Assembles the provider seams according to what this page actually supports.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `ports?` | [`ConnectorProviderPorts`](../interfaces/ConnectorProviderPorts.md) | The host entry points available on this page. |
+| Parameter | Type                                                                | Description                                   |
+| --------- | ------------------------------------------------------------------- | --------------------------------------------- |
+| `ports?`  | [`ConnectorProviderPorts`](../interfaces/ConnectorProviderPorts.md) | The host entry points available on this page. |
 
 ## Returns
 

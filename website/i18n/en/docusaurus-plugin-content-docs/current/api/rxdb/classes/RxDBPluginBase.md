@@ -29,9 +29,9 @@ Defined in: [packages/rxdb/src/rxdb-plugin.ts:195](https://github.com/aiao-io/rx
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rxdb` | [`RxDB`](RxDB.md) |
+| Parameter | Type              |
+| --------- | ----------------- |
+| `rxdb`    | [`RxDB`](RxDB.md) |
 
 #### Returns
 

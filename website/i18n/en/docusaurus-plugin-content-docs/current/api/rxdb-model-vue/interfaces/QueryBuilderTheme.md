@@ -6,6 +6,7 @@ QueryBuilder theme interface (aligned with `QueryBuilderTheme` on the Angular si
 
 Defines the component type of each UI slot, allowing them to be replaced with implementations from a different UI library.
 Theme components must follow these conventions:
+
 - accept standard props (field, operator, value, etc.);
 - support both emit events and an optional `xxxFn` callback prop (for injection into dynamic components).
 
@@ -21,7 +22,7 @@ Defined in: [packages/rxdb-model-vue/src/query-builder/theme/query-builder-theme
 
 Field selector component
 
-***
+---
 
 ### operatorSelector \{#operatorselector\}
 
@@ -33,7 +34,7 @@ Defined in: [packages/rxdb-model-vue/src/query-builder/theme/query-builder-theme
 
 Operator selector component
 
-***
+---
 
 ### valueInput \{#valueinput\}
 

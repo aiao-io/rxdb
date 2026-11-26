@@ -8,9 +8,9 @@ Defined in: [packages/utils/src/types/isInt.ts:1](https://github.com/aiao-io/rxd
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `value`   | `unknown` |
 
 ## Returns
 

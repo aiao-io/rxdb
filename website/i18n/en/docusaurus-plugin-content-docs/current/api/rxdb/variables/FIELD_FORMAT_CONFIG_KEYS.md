@@ -1,7 +1,7 @@
 # FIELD_FORMAT_CONFIG_KEYS
 
 ```ts
-const FIELD_FORMAT_CONFIG_KEYS: Record<FieldFormat["kind"], readonly string[]>;
+const FIELD_FORMAT_CONFIG_KEYS: Record<FieldFormat['kind'], readonly string[]>;
 ```
 
 Defined in: [packages/rxdb/src/entity/metadata-validate.ts:142](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/metadata-validate.ts#L142)

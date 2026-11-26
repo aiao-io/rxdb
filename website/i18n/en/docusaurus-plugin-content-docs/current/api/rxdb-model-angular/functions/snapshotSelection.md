@@ -12,9 +12,9 @@ Skips: the header row, readonly rows, new rows, and meta-field columns (`_` pref
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `table` | `ListTableAll` | The target table instance |
+| Parameter  | Type                                           | Description                                                                   |
+| ---------- | ---------------------------------------------- | ----------------------------------------------------------------------------- |
+| `table`    | `ListTableAll`                                 | The target table instance                                                     |
 | `columns?` | readonly `Record`&lt;`string`, `unknown`&gt;[] | The column definition list (optional), used to read the column property types |
 
 ## Returns

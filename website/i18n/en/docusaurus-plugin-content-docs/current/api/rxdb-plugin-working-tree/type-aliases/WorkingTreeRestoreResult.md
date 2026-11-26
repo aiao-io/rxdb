@@ -1,31 +1,31 @@
 # WorkingTreeRestoreResult
 
 ```ts
-type WorkingTreeRestoreResult = 
+type WorkingTreeRestoreResult =
   | {
-  ok: true;
-  restoredCount: number;
-  sessionId: string | null;
-  workingTreeRevision: number;
-}
+      ok: true;
+      restoredCount: number;
+      sessionId: string | null;
+      workingTreeRevision: number;
+    }
   | {
-  conflict: CommitConflict;
-  ok: false;
-  reason: "conflict";
-}
+      conflict: CommitConflict;
+      ok: false;
+      reason: 'conflict';
+    }
   | {
-  ok: false;
-  reason: "dirty_working_tree";
-}
+      ok: false;
+      reason: 'dirty_working_tree';
+    }
   | {
-  incompatible: RestoreIncompatibility;
-  ok: false;
-  reason: "incompatible_schema";
-}
+      incompatible: RestoreIncompatibility;
+      ok: false;
+      reason: 'incompatible_schema';
+    }
   | {
-  ok: false;
-  reason: "unreachable_target";
-};
+      ok: false;
+      reason: 'unreachable_target';
+    };
 ```
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/restore-command.ts:102](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/restore-command.ts#L102)
@@ -77,7 +77,7 @@ readonly workingTreeRevision: number;
 
 The working tree revision after this call; on a no-op it equals the value before the call
 
-***
+---
 
 ### Type Literal
 
@@ -85,7 +85,7 @@ The working tree revision after this call; on a no-op it equals the value before
 {
   conflict: CommitConflict;
   ok: false;
-  reason: "conflict";
+  reason: 'conflict';
 }
 ```
 
@@ -113,14 +113,14 @@ readonly reason: "conflict";
 
 Discriminator
 
-***
+---
 
 ### Type Literal
 
 ```ts
 {
   ok: false;
-  reason: "dirty_working_tree";
+  reason: 'dirty_working_tree';
 }
 ```
 
@@ -140,7 +140,7 @@ readonly reason: "dirty_working_tree";
 
 Discriminator
 
-***
+---
 
 ### Type Literal
 
@@ -148,7 +148,7 @@ Discriminator
 {
   incompatible: RestoreIncompatibility;
   ok: false;
-  reason: "incompatible_schema";
+  reason: 'incompatible_schema';
 }
 ```
 
@@ -176,14 +176,14 @@ readonly reason: "incompatible_schema";
 
 Discriminator
 
-***
+---
 
 ### Type Literal
 
 ```ts
 {
   ok: false;
-  reason: "unreachable_target";
+  reason: 'unreachable_target';
 }
 ```
 

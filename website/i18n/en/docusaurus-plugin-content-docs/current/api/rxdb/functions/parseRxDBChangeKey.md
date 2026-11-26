@@ -10,8 +10,8 @@ Parses an entity key.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type     | Description           |
+| ----------- | -------- | --------------------- |
 | `entityKey` | `string` | The entity key string |
 
 ## Returns

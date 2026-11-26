@@ -10,8 +10,8 @@ Field selector component: tree-structured fields + filtering + expand/collapse o
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter           | Type                                                        |
+| ------------------- | ----------------------------------------------------------- |
 | `__namedParameters` | [`FieldSelectorProps`](../interfaces/FieldSelectorProps.md) |
 
 ## Returns

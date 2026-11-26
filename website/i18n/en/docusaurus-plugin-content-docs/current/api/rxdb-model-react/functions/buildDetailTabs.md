@@ -10,10 +10,10 @@ Builds the detail page tab list from entity metadata
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                          | Description     |
+| ---------- | ------------------------------------------------------------- | --------------- |
 | `metadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | Entity metadata |
-| `i18n?` | [`ModelI18n`](../interfaces/ModelI18n.md) | - |
+| `i18n?`    | [`ModelI18n`](../interfaces/ModelI18n.md)                     | -               |
 
 ## Returns
 

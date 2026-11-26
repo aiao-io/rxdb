@@ -45,7 +45,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](RxDBError.md).[`cause`](RxDBError.md#cause)
 
-***
+---
 
 ### code \{#code\}
 
@@ -57,7 +57,7 @@ Defined in: [packages/rxdb/src/system/active-branch-guard.ts:194](https://github
 
 Stable error code, always `'no_active_branch'`; see [AmbiguousActiveBranchError.code](AmbiguousActiveBranchError.md#code) for the rationale of the literal
 
-***
+---
 
 ### message \{#message\}
 
@@ -71,7 +71,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](RxDBError.md).[`message`](RxDBError.md#message)
 
-***
+---
 
 ### name \{#name\}
 
@@ -85,7 +85,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](RxDBError.md).[`name`](RxDBError.md#name)
 
-***
+---
 
 ### stack? \{#stack\}
 
@@ -99,7 +99,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](RxDBError.md).[`stack`](RxDBError.md#stack)
 
-***
+---
 
 ### stackTraceLimit \{#stacktracelimit\}
 
@@ -140,7 +140,7 @@ a string representing the location in the code at which
 ```js
 const myObject = {};
 Error.captureStackTrace(myObject);
-myObject.stack;  // Similar to `new Error().stack`
+myObject.stack; // Similar to `new Error().stack`
 ```
 
 The first line of the trace will be prefixed with
@@ -179,9 +179,9 @@ a();
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `targetObject` | `object` |
+| Parameter         | Type       |
+| ----------------- | ---------- |
+| `targetObject`    | `object`   |
 | `constructorOpt?` | `Function` |
 
 #### Returns
@@ -192,7 +192,7 @@ a();
 
 [`RxDBError`](RxDBError.md).[`captureStackTrace`](RxDBError.md#capturestacktrace)
 
-***
+---
 
 ### prepareStackTrace() \{#preparestacktrace\}
 
@@ -204,9 +204,9 @@ Defined in: node\_modules/.pnpm/@types+node@26.6.6/node\_modules/@types/node/glo
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `err` | `Error` |
+| Parameter     | Type         |
+| ------------- | ------------ |
+| `err`         | `Error`      |
 | `stackTraces` | `CallSite`[] |
 
 #### Returns

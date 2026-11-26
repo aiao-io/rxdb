@@ -1,5 +1,5 @@
 ---
-sidebar_label: "IRepositoryConfig⟨RT⟩"
+sidebar_label: 'IRepositoryConfig⟨RT⟩'
 ---
 
 # IRepositoryConfig`<RT>`
@@ -17,9 +17,9 @@ which sync strategies cannot hold up" is declared.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-rt"></a> `RT` *extends* [`RepositoryInstance`](RepositoryInstance.md) | [`RepositoryInstance`](RepositoryInstance.md) |
+| Type Parameter                                                                              | Default type                                  |
+| ------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| <a id="type-parameter-rt"></a> `RT` _extends_ [`RepositoryInstance`](RepositoryInstance.md) | [`RepositoryInstance`](RepositoryInstance.md) |
 
 ## Properties
 
@@ -31,12 +31,12 @@ class: RepositoryConstructor<RT>;
 
 Defined in: [packages/rxdb/src/rxdb.types.ts:58](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb.types.ts#L58)
 
-***
+---
 
 ### entityGenerator? \{#entitygenerator\}
 
 ```ts
-entityGenerator?: (metadata) => 
+entityGenerator?: (metadata) =>
   | EntityType
   | EntityType[];
 ```
@@ -47,16 +47,16 @@ Dynamically generates Entity classes from [EntityMetadata](../type-aliases/Entit
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                  |
+| ---------- | ----------------------------------------------------- |
 | `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) |
 
 #### Returns
 
-  \| [`EntityType`](../type-aliases/EntityType.md)
-  \| [`EntityType`](../type-aliases/EntityType.md)[]
+\| [`EntityType`](../type-aliases/EntityType.md)
+\| [`EntityType`](../type-aliases/EntityType.md)[]
 
-***
+---
 
 ### unsupportedSyncTypes? \{#unsupportedsynctypes\}
 
@@ -82,7 +82,8 @@ hard-coded in core; plugin-registered repositories and core's built-in repositor
 rxdb.repository('TreeRepository', {
   class: TreeRepository, // from @aiao/rxdb-plugin-tree
   unsupportedSyncTypes: {
-    [SyncType.QueryCache]: 'Tree queries depend on the complete local ancestor chain, while the cache only covers rows hit by queried where clauses.'
+    [SyncType.QueryCache]:
+      'Tree queries depend on the complete local ancestor chain, while the cache only covers rows hit by queried where clauses.'
   }
 });
 ```

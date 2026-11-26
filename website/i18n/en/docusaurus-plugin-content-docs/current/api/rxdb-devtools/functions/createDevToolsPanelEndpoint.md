@@ -10,9 +10,9 @@ Creates the panel-side data plane client.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `ports` | [`DevToolsPanelEndpointPorts`](../interfaces/DevToolsPanelEndpointPorts.md) | The send/receive callbacks and the clock. |
+| Parameter | Type                                                                        | Description                               |
+| --------- | --------------------------------------------------------------------------- | ----------------------------------------- |
+| `ports`   | [`DevToolsPanelEndpointPorts`](../interfaces/DevToolsPanelEndpointPorts.md) | The send/receive callbacks and the clock. |
 
 ## Returns
 

@@ -32,7 +32,7 @@ The current time, in milliseconds.
 Only for computing how much time has passed; it must not be used as an identity source other
 than the `timestamp` on the wire.
 
-***
+---
 
 ### setTimeout() \{#settimeout\}
 
@@ -46,10 +46,10 @@ Registers a one-shot delayed callback.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type         | Description                                                                           |
+| --------- | ------------ | ------------------------------------------------------------------------------------- |
 | `handler` | () => `void` | Callback invoked on expiry; the implementation must not swallow exceptions it throws. |
-| `delayMs` | `number` | Delay in milliseconds; must be a non-negative safe integer. |
+| `delayMs` | `number`     | Delay in milliseconds; must be a non-negative safe integer.                           |
 
 #### Returns
 

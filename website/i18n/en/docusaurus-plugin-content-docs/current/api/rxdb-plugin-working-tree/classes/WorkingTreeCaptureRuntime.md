@@ -27,8 +27,8 @@ Constructed by [createWorkingTreeCaptureRuntime](../functions/createWorkingTreeC
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                                    | Description                                                                                                 |
+| --------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | `options` | [`WorkingTreeCaptureRuntimeOptions`](../interfaces/WorkingTreeCaptureRuntimeOptions.md) | All dependencies, see [WorkingTreeCaptureRuntimeOptions](../interfaces/WorkingTreeCaptureRuntimeOptions.md) |
 
 #### Returns
@@ -82,9 +82,9 @@ Claims the installation host and its unintercepted primitives; called once immed
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `target` | [`WorkingTreeCaptureMountTarget`](../../rxdb/type-aliases/WorkingTreeCaptureMountTarget.md) | The adapter instance the mount points are installed on; also the scope key for adapter-level write intent declarations |
+| Parameter | Type                                                                                        | Description                                                                                                            |
+| --------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `target`  | [`WorkingTreeCaptureMountTarget`](../../rxdb/type-aliases/WorkingTreeCaptureMountTarget.md) | The adapter instance the mount points are installed on; also the scope key for adapter-level write intent declarations |
 
 #### Returns
 
@@ -101,14 +101,14 @@ since going through the intercepted one would immediately recurse back into the 
 
 [`WorkingTreeCaptureHook`](../../rxdb/interfaces/WorkingTreeCaptureHook.md).[`bindMountTarget`](../../rxdb/interfaces/WorkingTreeCaptureHook.md#bindmounttarget)
 
-***
+---
 
 ### gateExternalNotify() \{#gateexternalnotify\}
 
 ```ts
 gateExternalNotify<T>(
-   entityName, 
-   namespace, 
+   entityName,
+   namespace,
    notify
 ): T;
 ```
@@ -119,17 +119,17 @@ Hand-off gate 2: one `notifyExternalUpdate()` (write entrance semantics matrix r
 
 #### Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                    | Description                                                             |
+| --------------------------------- | ----------------------------------------------------------------------- |
 | <a id="type-parameter-t"></a> `T` | Return type of the notification body; passed through as-is when allowed |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entityName` | `string` | Name of the entity being notified |
-| `namespace` | `string` \| `undefined` | Used directly when known; `rxdb` means system tables |
-| `notify` | () => `T` | The notification body, **not yet called** |
+| Parameter    | Type                    | Description                                          |
+| ------------ | ----------------------- | ---------------------------------------------------- |
+| `entityName` | `string`                | Name of the entity being notified                    |
+| `namespace`  | `string` \| `undefined` | Used directly when known; `rxdb` means system tables |
+| `notify`     | () => `T`               | The notification body, **not yet called**            |
 
 #### Returns
 
@@ -154,7 +154,7 @@ the only possible formulation at the type level; written as dispatch-first-check
 
 [`WorkingTreeCaptureHook`](../../rxdb/interfaces/WorkingTreeCaptureHook.md).[`gateExternalNotify`](../../rxdb/interfaces/WorkingTreeCaptureHook.md#gateexternalnotify)
 
-***
+---
 
 ### gateRawWrite() \{#gaterawwrite\}
 
@@ -168,16 +168,16 @@ Hand-off gate 1: one raw write statement (the 4-step judgment of adapter-contrac
 
 #### Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                      | Description                                                                    |
+| ----------------------------------- | ------------------------------------------------------------------------------ |
 | <a id="type-parameter-t-1"></a> `T` | Return type of the statement execution body; passed through as-is when allowed |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `sql` | `string` | The original text of the statement to judge |
-| `execute` | () => `T` \| `Promise`&lt;`T`&gt; | The execution body, **not yet called** |
+| Parameter | Type                              | Description                                 |
+| --------- | --------------------------------- | ------------------------------------------- |
+| `sql`     | `string`                          | The original text of the statement to judge |
+| `execute` | () => `T` \| `Promise`&lt;`T`&gt; | The execution body, **not yet called**      |
 
 #### Returns
 
@@ -200,15 +200,15 @@ the six physical forms of table names, and trusted intent, all three of which ch
 
 [`WorkingTreeCaptureHook`](../../rxdb/interfaces/WorkingTreeCaptureHook.md).[`gateRawWrite`](../../rxdb/interfaces/WorkingTreeCaptureHook.md#gaterawwrite)
 
-***
+---
 
 ### interceptBulkWrite() \{#interceptbulkwrite\}
 
 ```ts
 interceptBulkWrite(
-   _host, 
-   next, 
-   entityName, 
+   _host,
+   next,
+   entityName,
    operation
 ): Observable<void>;
 ```
@@ -219,12 +219,12 @@ Mount point 4: the gate for `upsertMany` / `deleteByIds`
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `_host` | [`WorkingTreeWriteHost`](../../rxdb/interfaces/WorkingTreeWriteHost.md) |
-| `next` | () => `Observable`&lt;`void`&gt; |
-| `entityName` | `string` |
-| `operation` | [`InterceptedBulkWrite`](../../rxdb/type-aliases/InterceptedBulkWrite.md) |
+| Parameter    | Type                                                                      |
+| ------------ | ------------------------------------------------------------------------- |
+| `_host`      | [`WorkingTreeWriteHost`](../../rxdb/interfaces/WorkingTreeWriteHost.md)   |
+| `next`       | () => `Observable`&lt;`void`&gt;                                          |
+| `entityName` | `string`                                                                  |
+| `operation`  | [`InterceptedBulkWrite`](../../rxdb/type-aliases/InterceptedBulkWrite.md) |
 
 #### Returns
 
@@ -242,16 +242,16 @@ and the qualified name is the established form (`resolveQueryCacheTarget` parses
 
 [`WorkingTreeCaptureHook`](../../rxdb/interfaces/WorkingTreeCaptureHook.md).[`interceptBulkWrite`](../../rxdb/interfaces/WorkingTreeCaptureHook.md#interceptbulkwrite)
 
-***
+---
 
 ### interceptMergeChanges() \{#interceptmergechanges\}
 
 ```ts
 interceptMergeChanges(
-   host, 
-   next, 
-   actions, 
-   localChanges?, 
+   host,
+   next,
+   actions,
+   localChanges?,
    disableTriggers?
 ): Promise<number | void>;
 ```
@@ -262,13 +262,13 @@ Mount point 2: local `mergeChanges`
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `host` | [`WorkingTreeWriteHost`](../../rxdb/interfaces/WorkingTreeWriteHost.md) |
-| `next` | [`MergeChangesNext`](../../rxdb/type-aliases/MergeChangesNext.md) |
-| `actions` | [`SwitchVersionActions`](../../rxdb/interfaces/SwitchVersionActions.md) |
-| `localChanges?` | `Omit`&lt;[`RxDBChange`](../../rxdb/classes/RxDBChange.md), `"id"`&gt;[] |
-| `disableTriggers?` | `boolean` |
+| Parameter          | Type                                                                     |
+| ------------------ | ------------------------------------------------------------------------ |
+| `host`             | [`WorkingTreeWriteHost`](../../rxdb/interfaces/WorkingTreeWriteHost.md)  |
+| `next`             | [`MergeChangesNext`](../../rxdb/type-aliases/MergeChangesNext.md)        |
+| `actions`          | [`SwitchVersionActions`](../../rxdb/interfaces/SwitchVersionActions.md)  |
+| `localChanges?`    | `Omit`&lt;[`RxDBChange`](../../rxdb/classes/RxDBChange.md), `"id"`&gt;[] |
+| `disableTriggers?` | `boolean`                                                                |
 
 #### Returns
 
@@ -288,14 +288,14 @@ When not in the nested shape the slot does not exist, `has()` is false, and even
 
 [`WorkingTreeCaptureHook`](../../rxdb/interfaces/WorkingTreeCaptureHook.md).[`interceptMergeChanges`](../../rxdb/interfaces/WorkingTreeCaptureHook.md#interceptmergechanges)
 
-***
+---
 
 ### interceptSwitchBranch() \{#interceptswitchbranch\}
 
 ```ts
 interceptSwitchBranch(
-   host, 
-   next, 
+   host,
+   next,
    options
 ): Promise<void>;
 ```
@@ -306,11 +306,11 @@ Mount point 3: `switchBranch`
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `host` | [`WorkingTreeWriteHost`](../../rxdb/interfaces/WorkingTreeWriteHost.md) |
-| `next` | (`options`) => `Promise`&lt;`void`&gt; |
-| `options` | [`SwitchBranchOptions`](../../rxdb/interfaces/SwitchBranchOptions.md) |
+| Parameter | Type                                                                    |
+| --------- | ----------------------------------------------------------------------- |
+| `host`    | [`WorkingTreeWriteHost`](../../rxdb/interfaces/WorkingTreeWriteHost.md) |
+| `next`    | (`options`) => `Promise`&lt;`void`&gt;                                  |
+| `options` | [`SwitchBranchOptions`](../../rxdb/interfaces/SwitchBranchOptions.md)   |
 
 #### Returns
 
@@ -326,15 +326,15 @@ See the note about the §5 deviation at the top of this file.
 
 [`WorkingTreeCaptureHook`](../../rxdb/interfaces/WorkingTreeCaptureHook.md).[`interceptSwitchBranch`](../../rxdb/interfaces/WorkingTreeCaptureHook.md#interceptswitchbranch)
 
-***
+---
 
 ### interceptTransaction() \{#intercepttransaction\}
 
 ```ts
 interceptTransaction(
-   _host, 
-   next, 
-   fun, 
+   _host,
+   next,
+   fun,
    transactionLog?
 ): Promise<unknown>;
 ```
@@ -345,12 +345,12 @@ Mount point 1: the whole transaction shares one `unitId`
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `_host` | [`WorkingTreeWriteHost`](../../rxdb/interfaces/WorkingTreeWriteHost.md) |
-| `next` | (`fun`, `transactionLog?`) => `Promise`&lt;`unknown`&gt; |
-| `fun` | [`TransactionFun`](../../rxdb/type-aliases/TransactionFun.md) |
-| `transactionLog?` | `boolean` |
+| Parameter         | Type                                                                    |
+| ----------------- | ----------------------------------------------------------------------- |
+| `_host`           | [`WorkingTreeWriteHost`](../../rxdb/interfaces/WorkingTreeWriteHost.md) |
+| `next`            | (`fun`, `transactionLog?`) => `Promise`&lt;`unknown`&gt;                |
+| `fun`             | [`TransactionFun`](../../rxdb/type-aliases/TransactionFun.md)           |
+| `transactionLog?` | `boolean`                                                               |
 
 #### Returns
 
@@ -371,7 +371,7 @@ the business writes inside have already been captured over there under a trusted
 
 [`WorkingTreeCaptureHook`](../../rxdb/interfaces/WorkingTreeCaptureHook.md).[`interceptTransaction`](../../rxdb/interfaces/WorkingTreeCaptureHook.md#intercepttransaction)
 
-***
+---
 
 ### targetClassOf() \{#targetclassof\}
 
@@ -385,9 +385,9 @@ Entity name → target class in the write entrance semantics matrix
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entityName` | `string` | Entity name (without namespace) |
+| Parameter    | Type     | Description                                                               |
+| ------------ | -------- | ------------------------------------------------------------------------- |
+| `entityName` | `string` | Entity name (without namespace)                                           |
 | `namespace?` | `string` | Judged precisely by identity when known; judged by bare name when omitted |
 
 #### Returns

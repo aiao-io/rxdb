@@ -10,8 +10,8 @@ A target onto which keyboard listeners can be mounted, which `window` / `documen
 
 ```ts
 addEventListener(
-   type, 
-   listener, 
+   type,
+   listener,
    capture
 ): void;
 ```
@@ -22,24 +22,24 @@ Registers a listener.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `type` | `"keydown"` |
+| Parameter  | Type                |
+| ---------- | ------------------- |
+| `type`     | `"keydown"`         |
 | `listener` | (`event`) => `void` |
-| `capture` | `boolean` |
+| `capture`  | `boolean`           |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### removeEventListener() \{#removeeventlistener\}
 
 ```ts
 removeEventListener(
-   type, 
-   listener, 
+   type,
+   listener,
    capture
 ): void;
 ```
@@ -50,11 +50,11 @@ Removes the listener.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `type` | `"keydown"` |
+| Parameter  | Type                |
+| ---------- | ------------------- |
+| `type`     | `"keydown"`         |
 | `listener` | (`event`) => `void` |
-| `capture` | `boolean` |
+| `capture`  | `boolean`           |
 
 #### Returns
 

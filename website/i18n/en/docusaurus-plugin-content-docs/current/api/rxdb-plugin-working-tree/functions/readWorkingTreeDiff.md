@@ -1,11 +1,7 @@
 # readWorkingTreeDiff()
 
 ```ts
-function readWorkingTreeDiff(
-   executor, 
-   branchId, 
-   options?
-): Promise<WorkingTreeDiff>;
+function readWorkingTreeDiff(executor, branchId, options?): Promise<WorkingTreeDiff>;
 ```
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/diff.ts:272](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/diff.ts#L272)
@@ -14,11 +10,11 @@ Flattens a branch's `HEAD ↔ working tree` difference (FR-005).
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                                  | Description                                                                               |
+| ---------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md) | The executor of the caller's transaction; this function does not open its own transaction |
-| `branchId` | `string` | The branch to flatten |
-| `options?` | [`WorkingTreeDiffOptions`](../interfaces/WorkingTreeDiffOptions.md) | See [WorkingTreeDiffOptions](../interfaces/WorkingTreeDiffOptions.md) |
+| `branchId` | `string`                                                              | The branch to flatten                                                                     |
+| `options?` | [`WorkingTreeDiffOptions`](../interfaces/WorkingTreeDiffOptions.md)   | See [WorkingTreeDiffOptions](../interfaces/WorkingTreeDiffOptions.md)                     |
 
 ## Returns
 
@@ -29,7 +25,7 @@ See [WorkingTreeDiff](../interfaces/WorkingTreeDiff.md)
 ## Throws
 
 RxDBError when the working tree state row is missing, or when pagination keys are given at transaction granularity
-  (see assertPageableGranularity)
+(see assertPageableGranularity)
 
 ## Remarks
 

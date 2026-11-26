@@ -27,7 +27,7 @@ Field names masked in this result.
 #### errorCode?
 
 ```ts
-errorCode?: 
+errorCode?:
   | "ENTITY_NOT_FOUND"
   | "ENTITY_AMBIGUOUS"
   | "RXDB_NOT_READY"
@@ -40,7 +40,7 @@ The type narrows to [DevToolsEntityErrorCode](../type-aliases/DevToolsEntityErro
 runtime validation stays lenient — the panel may connect to a connector newer than itself, and
 unknown codes must be able to land safely.
 
-***
+---
 
 ### data \{#data\}
 
@@ -52,7 +52,7 @@ Defined in: [types.ts:352](https://github.com/aiao-io/rxdb/blob/b5232040240cf1cc
 
 The list of documents, serialized and masked; an empty array on failure.
 
-***
+---
 
 ### entityName \{#entityname\}
 
@@ -64,7 +64,7 @@ Defined in: [types.ts:346](https://github.com/aiao-io/rxdb/blob/b5232040240cf1cc
 
 Echoes the entity name of the request so the panel can match the response back to the request.
 
-***
+---
 
 ### error \{#error\}
 
@@ -76,7 +76,7 @@ Defined in: [types.ts:350](https://github.com/aiao-io/rxdb/blob/b5232040240cf1cc
 
 A human-readable description when the query fails; `null` on success.
 
-***
+---
 
 ### namespace? \{#namespace\}
 

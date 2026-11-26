@@ -32,8 +32,8 @@ Defined in: [packages/rxdb/src/sync-state.ts:181](https://github.com/aiao-io/rxd
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                    |
+| --------- | ------------------------------------------------------- |
 | `sources` | [`SyncStateSources`](../interfaces/SyncStateSources.md) |
 
 #### Returns
@@ -86,7 +86,7 @@ A push-back round begins
 
 `void`
 
-***
+---
 
 ### bindPullableRefresh() \{#bindpullablerefresh\}
 
@@ -100,8 +100,8 @@ Wires up the executor of "recompute the pending pull count" and returns an unbin
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type         | Description                                                                                             |
+| --------- | ------------ | ------------------------------------------------------------------------------------------------------- |
 | `refresh` | () => `void` | The callback that performs the recomputation, usually a wrapper of `SyncManager.refreshPullableCount()` |
 
 #### Returns
@@ -118,7 +118,7 @@ while this aggregator follows the instance, so it can only be wired up by plugin
 The callback **must not throw and must not return pending rejections**: this is a fire-and-forget signal hop,
 with neither a caller to catch errors nor a place to retry. Error handling belongs to the executor itself.
 
-***
+---
 
 ### bindPushableCount() \{#bindpushablecount\}
 
@@ -132,8 +132,8 @@ Wires up the pending push count stream of the changelog path and returns an unbi
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                         | Description                                                            |
+| --------- | ---------------------------- | ---------------------------------------------------------------------- |
 | `source$` | `Observable`&lt;`number`&gt; | The pending push count stream, usually `HistoryManager.pushableCount$` |
 
 #### Returns
@@ -153,7 +153,7 @@ On unbind it **zeroes instead of keeping the last number**: once the plugin is g
 keeping it would make "history plugin not installed" and "installed but nothing pending" look identical on the panel.
 The QueryCache outbox count goes through [reportOutboxCount](#reportoutboxcount) and is not affected here.
 
-***
+---
 
 ### destroy() \{#destroy\}
 
@@ -169,7 +169,7 @@ Disconnects the upstream subscriptions; [state$](#state) keeps the last snapshot
 
 `void`
 
-***
+---
 
 ### endRound() \{#endround\}
 
@@ -185,7 +185,7 @@ A push-back round ends, whether it succeeded or not
 
 `void`
 
-***
+---
 
 ### reportConflict() \{#reportconflict\}
 
@@ -199,15 +199,15 @@ Reports one conflict determination
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `report` | [`SyncConflictReport`](../interfaces/SyncConflictReport.md) |
+| Parameter | Type                                                        |
+| --------- | ----------------------------------------------------------- |
+| `report`  | [`SyncConflictReport`](../interfaces/SyncConflictReport.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### reportError() \{#reporterror\}
 
@@ -221,15 +221,15 @@ Reports one failure of this round
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `error` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `error`   | `unknown` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### reportOfflineWrite() \{#reportofflinewrite\}
 
@@ -250,7 +250,7 @@ Reports one offline write enqueued
 The write path only knows it just enqueued one and not the total — counting the whole table again for a certain `+1` means trading a database read for an already-known answer.
 The authoritative value is given by the recomputation when the push-back finishes.
 
-***
+---
 
 ### reportOutboxCount() \{#reportoutboxcount\}
 
@@ -264,9 +264,9 @@ Reports the current outbox pending push count of the QueryCache path (absolute v
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `count` | `number` |
+| Parameter | Type     |
+| --------- | -------- |
+| `count`   | `number` |
 
 #### Returns
 
@@ -280,7 +280,7 @@ advancing the watermark. Both report, so "reporting per event" is complete here 
 The division of labor with [reportOfflineWrite](#reportofflinewrite): that one only knows "one more"; this is the authoritative value recounted
 when the push-back finishes and entirely overwrites the previously accumulated number.
 
-***
+---
 
 ### reportRejections() \{#reportrejections\}
 
@@ -294,8 +294,8 @@ Reports one push round's rejection list
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter    | Type                                                         | Description                                                                  |
+| ------------ | ------------------------------------------------------------ | ---------------------------------------------------------------------------- |
 | `rejections` | readonly [`SyncRejection`](../interfaces/SyncRejection.md)[] | The entities rejected this round; stored into the snapshot as-is, not copied |
 
 #### Returns
@@ -307,7 +307,7 @@ Reports one push round's rejection list
 Called by `@aiao/rxdb-plugin-sync`'s push repository after the local commit succeeds; not reported when the commit fails.
 An empty array means "nothing rejected this round", not "cleared": a rejection is a historical fact and, like [reportConflict](#reportconflict), is kept until the next round's rejection.
 
-***
+---
 
 ### reportSuccess() \{#reportsuccess\}
 
@@ -323,7 +323,7 @@ Reports a round with no failures throughout and clears the previous error
 
 `void`
 
-***
+---
 
 ### requestPullableRefresh() \{#requestpullablerefresh\}
 

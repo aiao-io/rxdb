@@ -16,7 +16,7 @@ Defined in: [preferences/drawer-model.ts:88](https://github.com/aiao-io/rxdb/blo
 
 The preference items (built-in + extensions).
 
-***
+---
 
 ### prefs \{#prefs\}
 
@@ -28,7 +28,7 @@ Defined in: [preferences/drawer-model.ts:86](https://github.com/aiao-io/rxdb/blo
 
 The current preferences.
 
-***
+---
 
 ### sources \{#sources\}
 
@@ -40,7 +40,7 @@ Defined in: [preferences/drawer-model.ts:92](https://github.com/aiao-io/rxdb/blo
 
 Option sources that can only be determined at runtime.
 
-***
+---
 
 ### translate \{#translate\}
 
@@ -54,15 +54,15 @@ The translation function.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `key` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `key`     | `string` |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### write \{#write\}
 
@@ -76,10 +76,10 @@ Writes a preference.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `string` |
-| `value` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `path`    | `string`  |
+| `value`   | `unknown` |
 
 #### Returns
 

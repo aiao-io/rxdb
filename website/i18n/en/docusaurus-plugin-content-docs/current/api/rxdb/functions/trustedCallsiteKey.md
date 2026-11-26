@@ -10,8 +10,8 @@ Registry key: file + symbol + intent.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                                                                      | Description                                                                   |
+| ---------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
 | `callsite` | `Pick`&lt;[`TrustedCallsite`](../interfaces/TrustedCallsite.md), `"file"` \| `"symbol"` \| `"intent"`&gt; | A row of the registry, or any declaration that self-reports these three parts |
 
 ## Returns

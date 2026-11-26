@@ -29,7 +29,7 @@ half of the target branch's data while active still points at the source branch.
 
 [`BranchMaterializationBarrierContext`](BranchMaterializationBarrierContext.md).[`executor`](BranchMaterializationBarrierContext.md#executor)
 
-***
+---
 
 ### intent \{#intent\}
 
@@ -45,7 +45,7 @@ The intent frozen on the staging
 
 [`BranchMaterializationBarrierContext`](BranchMaterializationBarrierContext.md).[`intent`](BranchMaterializationBarrierContext.md#intent)
 
-***
+---
 
 ### page \{#page\}
 
@@ -57,7 +57,7 @@ Defined in: [packages/rxdb/src/sync-contract/branch-materialization-source.ts:95
 
 This page
 
-***
+---
 
 ### targetBranchId \{#targetbranchid\}
 

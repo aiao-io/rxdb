@@ -62,7 +62,7 @@ readonly storage: string;
 
 Source storage backend, e.g. `memory` / `idb`, recorded for reference only.
 
-***
+---
 
 ### constraintFingerprint? \{#constraintfingerprint\}
 
@@ -78,7 +78,7 @@ Entity-level storage constraint fingerprint (the result of [getRxDBBackupConstra
 
 Archives written by 0.0.28 or earlier do not have this field: on restore only the remaining fields are compared (the upper bound of what such archives can verify), and a configuration that differs only in constraints is only caught later by the constraint-drift check in `connect()`. Older versions ignore this field when reading an archive that has it; the format version is unchanged.
 
-***
+---
 
 ### createdAt \{#createdat\}
 
@@ -90,12 +90,12 @@ Defined in: [packages/rxdb/src/backup/backup.interface.ts:40](https://github.com
 
 Time the snapshot was captured (ISO 8601).
 
-***
+---
 
 ### encryption \{#encryption\}
 
 ```ts
-readonly encryption: 
+readonly encryption:
   | {
   authDomain: string;
 }
@@ -106,7 +106,7 @@ Defined in: [packages/rxdb/src/backup/backup.interface.ts:73](https://github.com
 
 Encryption auth domain; `null` when there are no encrypted columns.
 
-***
+---
 
 ### format \{#format\}
 
@@ -116,7 +116,7 @@ readonly format: "rxdb-backup";
 
 Defined in: [packages/rxdb/src/backup/backup.interface.ts:37](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/backup/backup.interface.ts#L37)
 
-***
+---
 
 ### formatVersion \{#formatversion\}
 
@@ -126,7 +126,7 @@ readonly formatVersion: 1;
 
 Defined in: [packages/rxdb/src/backup/backup.interface.ts:38](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/backup/backup.interface.ts#L38)
 
-***
+---
 
 ### rxdb \{#rxdb\}
 
@@ -156,7 +156,7 @@ readonly version: string;
 
 Source RxDB version, recorded for reference only; data compatibility is determined by the two version numbers below.
 
-***
+---
 
 ### schemaFingerprint \{#schemafingerprint\}
 
@@ -168,7 +168,7 @@ Defined in: [packages/rxdb/src/backup/backup.interface.ts:63](https://github.com
 
 The result of [computeRxDBSchemaFingerprint](../functions/computeRxDBSchemaFingerprint.md).
 
-***
+---
 
 ### scope \{#scope\}
 

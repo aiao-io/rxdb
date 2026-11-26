@@ -16,7 +16,7 @@ Defined in: [shortcuts/combo.ts:152](https://github.com/aiao-io/rxdb/blob/b52320
 
 The deprecated but widely available platform name.
 
-***
+---
 
 ### userAgent? \{#useragent\}
 
@@ -28,7 +28,7 @@ Defined in: [shortcuts/combo.ts:154](https://github.com/aiao-io/rxdb/blob/b52320
 
 The UA string.
 
-***
+---
 
 ### userAgentData? \{#useragentdata\}
 

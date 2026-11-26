@@ -1,5 +1,5 @@
 ---
-sidebar_label: "Store⟨T⟩"
+sidebar_label: 'Store⟨T⟩'
 ---
 
 # Store`<T>`
@@ -10,8 +10,8 @@ Writable reactive store, deduplicated by reference.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Implements
@@ -32,9 +32,9 @@ Creates the store.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `initial` | `T` | The initial value. |
+| Parameter | Type | Description        |
+| --------- | ---- | ------------------ |
+| `initial` | `T`  | The initial value. |
 
 #### Returns
 
@@ -94,15 +94,15 @@ Writes the new value; no notification when it shares the same reference as the c
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `next` | `T` | The new value. |
+| Parameter | Type | Description    |
+| --------- | ---- | -------------- |
+| `next`    | `T`  | The new value. |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### subscribe() \{#subscribe\}
 
@@ -116,8 +116,8 @@ Subscribes to subsequent changes.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                | Description      |
+| ---------- | ------------------- | ---------------- |
 | `listener` | (`value`) => `void` | Change callback. |
 
 #### Returns
@@ -130,7 +130,7 @@ An unsubscribe function.
 
 [`ReadableStore`](../interfaces/ReadableStore.md).[`subscribe`](../interfaces/ReadableStore.md#subscribe)
 
-***
+---
 
 ### update() \{#update\}
 
@@ -144,8 +144,8 @@ Computes the next value from the current one.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type               | Description      |
+| --------- | ------------------ | ---------------- |
 | `project` | (`current`) => `T` | A pure function. |
 
 #### Returns

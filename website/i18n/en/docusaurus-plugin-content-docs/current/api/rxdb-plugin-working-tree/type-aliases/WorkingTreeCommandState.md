@@ -1,15 +1,12 @@
 ---
-sidebar_label: "WorkingTreeCommandState⟨T⟩"
+sidebar_label: 'WorkingTreeCommandState⟨T⟩'
 ---
 
 # WorkingTreeCommandState`<T>`
 
 ```ts
-type WorkingTreeCommandState<T> = 
-  | WorkingTreeIdleState
-  | WorkingTreeLoadingState
-  | WorkingTreeSuccessState<T>
-  | WorkingTreeErrorState;
+type WorkingTreeCommandState<T> =
+  WorkingTreeIdleState | WorkingTreeLoadingState | WorkingTreeSuccessState<T> | WorkingTreeErrorState;
 ```
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts:100](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts#L100)
@@ -18,8 +15,8 @@ Observable state of a command: **no empty** (§4).
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Remarks

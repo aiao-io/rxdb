@@ -10,8 +10,8 @@ Determines whether a write should become a working tree unit
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                            | Description                                      |
+| --------- | --------------------------------------------------------------- | ------------------------------------------------ |
 | `request` | [`WriteEntranceRequest`](../interfaces/WriteEntranceRequest.md) | Who is writing, which table class, which columns |
 
 ## Returns

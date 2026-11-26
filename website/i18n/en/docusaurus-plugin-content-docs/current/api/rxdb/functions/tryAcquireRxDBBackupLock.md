@@ -10,10 +10,10 @@ Tries to acquire the lock immediately; returns `null` when unavailable, without 
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `name` | `string` | The lock name |
-| `mode` | `LockMode` | `exclusive` for restore, `shared` for normal connections |
+| Parameter | Type       | Description                                              |
+| --------- | ---------- | -------------------------------------------------------- |
+| `name`    | `string`   | The lock name                                            |
+| `mode`    | `LockMode` | `exclusive` for restore, `shared` for normal connections |
 
 ## Returns
 

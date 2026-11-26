@@ -29,8 +29,8 @@ Freezes the intent of this materialization.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter        | Type     | Description                                |
+| ---------------- | -------- | ------------------------------------------ |
 | `targetBranchId` | `string` | The id of the target branch to materialize |
 
 #### Returns
@@ -43,7 +43,7 @@ See [BranchMaterializationIntent](BranchMaterializationIntent.md)
 
 Runs **outside any transaction**: it must ask the remote, and network I/O holding a write transaction would lock the whole database until timeout.
 
-***
+---
 
 ### pages() \{#pages\}
 
@@ -57,8 +57,8 @@ Hands out this snapshot page by page.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                      | Description                                                                 |
+| --------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | `request` | [`BranchMaterializationPageRequest`](BranchMaterializationPageRequest.md) | See [BranchMaterializationPageRequest](BranchMaterializationPageRequest.md) |
 
 #### Returns
@@ -75,7 +75,7 @@ would cancel out FR-044's page-by-page persistence. Each page is one request beh
 **Each page is persisted by the working tree in its own transaction**, so when the sequence throws on page N, the first N pages are already in the database
 — the next switch continues pulling from page N.
 
-***
+---
 
 ### projectPage() \{#projectpage\}
 
@@ -89,8 +89,8 @@ Projects one snapshot page into local write operations.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                                  | Description                                                                             |
+| --------- | ------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
 | `context` | [`BranchMaterializationProjectionContext`](BranchMaterializationProjectionContext.md) | See [BranchMaterializationProjectionContext](BranchMaterializationProjectionContext.md) |
 
 #### Returns
@@ -104,7 +104,7 @@ The inserts/updates/deletes of this page to land on the entity tables
 Runs **inside the barrier transaction**, called page by page in page order; computes only, never writes — writes are persisted uniformly by the working tree through its trusted call sites,
 so the source never needs another ticket for a trusted entry just for the writes inside the barrier.
 
-***
+---
 
 ### resolveIntentDrift() \{#resolveintentdrift\}
 
@@ -118,8 +118,8 @@ Judges whether the local sync configuration has drifted since the freeze.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                            | Description                                                                       |
+| --------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
 | `context` | [`BranchMaterializationBarrierContext`](BranchMaterializationBarrierContext.md) | See [BranchMaterializationBarrierContext](BranchMaterializationBarrierContext.md) |
 
 #### Returns
@@ -133,7 +133,7 @@ A readable reason when drifted; `undefined` when not drifted
 Called once before continuing an old staging and once at the barrier re-verification, both read-only against local state and **never asking the remote**:
 the barrier holds a write transaction. A drifted staging cannot be projected — it was pulled under a different scope or filter conditions.
 
-***
+---
 
 ### settle() \{#settle\}
 
@@ -147,8 +147,8 @@ Settles the source's own state inside the barrier (for example the sync watermar
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                            | Description                                                                       |
+| --------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
 | `context` | [`BranchMaterializationBarrierContext`](BranchMaterializationBarrierContext.md) | See [BranchMaterializationBarrierContext](BranchMaterializationBarrierContext.md) |
 
 #### Returns

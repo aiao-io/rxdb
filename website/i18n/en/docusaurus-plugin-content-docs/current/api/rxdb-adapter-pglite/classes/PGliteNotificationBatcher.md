@@ -20,8 +20,8 @@ Defined in: [packages/rxdb-adapter-pglite/src/notify/notification-batcher.ts:87]
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                                    |
+| --------- | --------------------------------------------------------------------------------------- |
 | `options` | [`PGliteNotificationBatcherOptions`](../interfaces/PGliteNotificationBatcherOptions.md) |
 
 #### Returns
@@ -46,7 +46,7 @@ Trailing debounce interval (milliseconds).
 
 `number`
 
-***
+---
 
 ### hasScheduledFlush \{#hasscheduledflush\}
 
@@ -64,7 +64,7 @@ Whether there is currently a debounce timer that has not yet expired.
 
 `boolean`
 
-***
+---
 
 ### pendingCount \{#pendingcount\}
 
@@ -96,16 +96,16 @@ Accepts a NOTIFY message.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type     | Description                                |
+| --------- | -------- | ------------------------------------------ |
 | `channel` | `string` | Channel name, shaped like `<table>_notify` |
-| `payload` | `string` | JSON text written by the trigger |
+| `payload` | `string` | JSON text written by the trigger           |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### clear() \{#clear\}
 
@@ -121,7 +121,7 @@ Discards all events in the window without dispatching. Used on disconnect.
 
 `void`
 
-***
+---
 
 ### flush() \{#flush\}
 

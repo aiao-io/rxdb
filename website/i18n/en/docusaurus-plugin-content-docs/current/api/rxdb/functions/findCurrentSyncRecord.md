@@ -1,12 +1,7 @@
 # findCurrentSyncRecord()
 
 ```ts
-function findCurrentSyncRecord(
-   rxdb, 
-   namespace, 
-   entity, 
-   tableSet?
-): Promise<RxDBSync | undefined>;
+function findCurrentSyncRecord(rxdb, namespace, entity, tableSet?): Promise<RxDBSync | undefined>;
 ```
 
 Defined in: [packages/rxdb/src/sync-contract/sync-record-utils.ts:50](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/sync-record-utils.ts#L50)
@@ -17,11 +12,11 @@ Reads a repository's sync record on the **current branch** (read-only, does not 
 
 ## Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `rxdb` | [`RxDB`](../classes/RxDB.md) | `undefined` | The RxDB instance |
-| `namespace` | `string` | `undefined` | The namespace |
-| `entity` | `string` | `undefined` | The entity name |
+| Parameter   | Type                                                 | Default value           | Description                                                                                                                                                       |
+| ----------- | ---------------------------------------------------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rxdb`      | [`RxDB`](../classes/RxDB.md)                         | `undefined`             | The RxDB instance                                                                                                                                                 |
+| `namespace` | `string`                                             | `undefined`             | The namespace                                                                                                                                                     |
+| `entity`    | `string`                                             | `undefined`             | The entity name                                                                                                                                                   |
 | `tableSet?` | [`WorktreeTableSet`](../classes/WorktreeTableSet.md) | `rxdb.worktreeTableSet` | Which table set's held branch to look the record up by; defaults to the set this instance is attached to; the QueryCache outbound queue passes the main table set |
 
 ## Returns

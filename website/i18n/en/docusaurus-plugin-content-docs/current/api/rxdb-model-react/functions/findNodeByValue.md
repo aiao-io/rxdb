@@ -10,10 +10,10 @@ Finds a node in the tree
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `nodes` | [`FieldTreeNode`](../interfaces/FieldTreeNode.md)[] | List of tree nodes |
-| `value` | `string` | The value to look up (full path) |
+| Parameter | Type                                                | Description                      |
+| --------- | --------------------------------------------------- | -------------------------------- |
+| `nodes`   | [`FieldTreeNode`](../interfaces/FieldTreeNode.md)[] | List of tree nodes               |
+| `value`   | `string`                                            | The value to look up (full path) |
 
 ## Returns
 

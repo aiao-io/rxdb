@@ -10,16 +10,16 @@ Orders a batch of results by `orderBy`.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `result` | `T`[] | The results to order; **not modified in place** — a new array is returned |
-| `orderBy` | [`OrderBy`](../interfaces/OrderBy.md)&lt;`string`&gt;[] | Ordering fields and directions, compared level by level in array order |
+| Parameter | Type                                                    | Description                                                               |
+| --------- | ------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `result`  | `T`[]                                                   | The results to order; **not modified in place** — a new array is returned |
+| `orderBy` | [`OrderBy`](../interfaces/OrderBy.md)&lt;`string`&gt;[] | Ordering fields and directions, compared level by level in array order    |
 
 ## Returns
 

@@ -45,7 +45,7 @@ The transaction identifier, used for logging and assertions.
 
 Do **not** use it to judge whether two executors are the same transaction — use object identity (`a === b`).
 
-***
+---
 
 ### state \{#state\}
 
@@ -57,7 +57,7 @@ Defined in: [packages/rxdb/src/transaction/transaction-executor.interface.ts:53]
 
 Lifecycle state.
 
-***
+---
 
 ### tableSet \{#tableset\}
 
@@ -88,15 +88,15 @@ Gets a repository within this transaction.
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                            |
+| ----------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `EntityType` | `T` | Entity type |
+| Parameter    | Type | Description |
+| ------------ | ---- | ----------- |
+| `EntityType` | `T`  | Entity type |
 
 #### Returns
 
@@ -123,14 +123,14 @@ await adapter.transaction(async executor => {
 });
 ```
 
-***
+---
 
 ### mergeChanges() \{#mergechanges\}
 
 ```ts
 mergeChanges(
-   actions, 
-   localChanges?, 
+   actions,
+   localChanges?,
    disableTriggers?
 ): Promise<void>;
 ```
@@ -141,11 +141,11 @@ Applies compacted changes within this transaction.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `actions` | [`SwitchVersionActions`](SwitchVersionActions.md) | The compacted change operation set |
-| `localChanges?` | `Omit`&lt;[`RxDBChange`](../classes/RxDBChange.md), `"id"`&gt;[] | Records to write into the local `RxDBChange` table along the way |
-| `disableTriggers?` | `boolean` | Whether to disable change triggers (pull and similar scenarios) |
+| Parameter          | Type                                                             | Description                                                      |
+| ------------------ | ---------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `actions`          | [`SwitchVersionActions`](SwitchVersionActions.md)                | The compacted change operation set                               |
+| `localChanges?`    | `Omit`&lt;[`RxDBChange`](../classes/RxDBChange.md), `"id"`&gt;[] | Records to write into the local `RxDBChange` table along the way |
+| `disableTriggers?` | `boolean`                                                        | Whether to disable change triggers (pull and similar scenarios)  |
 
 #### Returns
 
@@ -160,7 +160,7 @@ the criterion "holding the executor means inside this transaction" must exist in
 It is the main writer of the 4 transaction bodies in the sync chain (`merge-branch` / `cleanup-expired` /
 `pull-batch` / `pull-repository`).
 
-***
+---
 
 ### mutations() \{#mutations\}
 
@@ -174,21 +174,21 @@ Executes entity mutations within this transaction.
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-1"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                              |
+| ------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-1"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                 | Description           |
+| --------- | ---------------------------------------------------- | --------------------- |
 | `options` | [`RxDBMutationsMap`](RxDBMutationsMap.md)&lt;`T`&gt; | The bulk mutation set |
 
 #### Returns
 
 `Promise`&lt;`InstanceType`&lt;`T`&gt;[]&gt;
 
-***
+---
 
 ### query() \{#query\}
 
@@ -202,16 +202,16 @@ Executes a raw query within this transaction, without re-enqueueing.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `sql` | `string` | SQL statement |
+| Parameter | Type                 | Description      |
+| --------- | -------------------- | ---------------- |
+| `sql`     | `string`             | SQL statement    |
 | `params?` | readonly `unknown`[] | Bound parameters |
 
 #### Returns
 
 `Promise`&lt;[`RawQueryResult`](RawQueryResult.md)&gt;
 
-***
+---
 
 ### removeMany() \{#removemany\}
 
@@ -225,21 +225,21 @@ Removes multiple entities within this transaction.
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-2"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                              |
+| ------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-2"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                        | Description            |
+| ---------- | --------------------------- | ---------------------- |
 | `entities` | `InstanceType`&lt;`T`&gt;[] | The entities to remove |
 
 #### Returns
 
 `Promise`&lt;`InstanceType`&lt;`T`&gt;[]&gt;
 
-***
+---
 
 ### run() \{#run\}
 
@@ -253,15 +253,15 @@ Nests inner work: reuses this transaction, neither opening a new one nor enqueue
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                      |
+| ----------------------------------- |
 | <a id="type-parameter-t-3"></a> `T` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `fun` | (`executor`) => `Promise`&lt;`T`&gt; | The inner work; its argument is the same transaction's executor |
+| Parameter | Type                                 | Description                                                     |
+| --------- | ------------------------------------ | --------------------------------------------------------------- |
+| `fun`     | (`executor`) => `Promise`&lt;`T`&gt; | The inner work; its argument is the same transaction's executor |
 
 #### Returns
 
@@ -272,7 +272,7 @@ Nests inner work: reuses this transaction, neither opening a new one nor enqueue
 Replaces the old `runInTransaction()` — the latter judged "already in a transaction" by ambient state,
 and using it to open a semantically independent concurrent transaction would silently merge into the current one.
 
-***
+---
 
 ### saveMany() \{#savemany\}
 
@@ -286,14 +286,14 @@ Saves multiple entities within this transaction.
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-4"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                              |
+| ------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-4"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                        | Description          |
+| ---------- | --------------------------- | -------------------- |
 | `entities` | `InstanceType`&lt;`T`&gt;[] | The entities to save |
 
 #### Returns
@@ -305,7 +305,7 @@ Saves multiple entities within this transaction.
 Same semantics as `adapter.saveMany()`; the difference is only belonging: this copy belongs to this transaction.
 Calling `adapter.saveMany()` inside a transaction body is an **outside call** that re-enqueues behind this transaction.
 
-***
+---
 
 ### tableRef() \{#tableref\}
 
@@ -319,8 +319,8 @@ Resolves an entity into this backend's **physical table reference**, already quo
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter    | Type                                          | Description |
+| ------------ | --------------------------------------------- | ----------- |
 | `EntityType` | [`EntityType`](../type-aliases/EntityType.md) | Entity type |
 
 #### Returns

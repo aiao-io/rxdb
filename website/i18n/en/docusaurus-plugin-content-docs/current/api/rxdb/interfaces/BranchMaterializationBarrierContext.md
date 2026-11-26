@@ -25,7 +25,7 @@ The executor of the barrier transaction; **reads and writes must go through it**
 Anything written by an implementation that opens its own transaction stays in the database if any later step of the barrier fails — the user sees
 half of the target branch's data while active still points at the source branch.
 
-***
+---
 
 ### intent \{#intent\}
 
@@ -37,7 +37,7 @@ Defined in: [packages/rxdb/src/sync-contract/branch-materialization-source.ts:80
 
 The intent frozen on the staging
 
-***
+---
 
 ### targetBranchId \{#targetbranchid\}
 

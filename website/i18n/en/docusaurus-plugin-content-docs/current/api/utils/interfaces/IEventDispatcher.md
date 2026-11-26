@@ -1,5 +1,5 @@
 ---
-sidebar_label: "IEventDispatcher⟨Events⟩"
+sidebar_label: 'IEventDispatcher⟨Events⟩'
 ---
 
 # IEventDispatcher`<Events>`
@@ -8,9 +8,9 @@ Defined in: [packages/utils/src/tools/event.ts:9](https://github.com/aiao-io/rxd
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-events"></a> `Events` *extends* `object` | [`EventMap`](EventMap.md) |
+| Type Parameter                                                 | Default type              |
+| -------------------------------------------------------------- | ------------------------- |
+| <a id="type-parameter-events"></a> `Events` _extends_ `object` | [`EventMap`](EventMap.md) |
 
 ## Methods
 
@@ -24,22 +24,22 @@ Defined in: [packages/utils/src/tools/event.ts:10](https://github.com/aiao-io/rx
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* `string` \| `number` \| `symbol` |
+| Type Parameter                                                               |
+| ---------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ `string` \| `number` \| `symbol` |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `type` | `T` |
+| Parameter  | Type                                                                       |
+| ---------- | -------------------------------------------------------------------------- |
+| `type`     | `T`                                                                        |
 | `listener` | [`EventListener`](../type-aliases/EventListener.md)&lt;`Events`\[`T`\]&gt; |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### dispatchEvent() \{#dispatchevent\}
 
@@ -51,22 +51,22 @@ Defined in: [packages/utils/src/tools/event.ts:13](https://github.com/aiao-io/rx
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-1"></a> `T` *extends* `string` \| `number` \| `symbol` |
+| Type Parameter                                                                 |
+| ------------------------------------------------------------------------------ |
+| <a id="type-parameter-t-1"></a> `T` _extends_ `string` \| `number` \| `symbol` |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `type` | `T` |
-| `data` | `Events`\[`T`\] |
+| Parameter | Type            |
+| --------- | --------------- |
+| `type`    | `T`             |
+| `data`    | `Events`\[`T`\] |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### hasEventListener() \{#haseventlistener\}
 
@@ -78,22 +78,22 @@ Defined in: [packages/utils/src/tools/event.ts:11](https://github.com/aiao-io/rx
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-2"></a> `T` *extends* `string` \| `number` \| `symbol` |
+| Type Parameter                                                                 |
+| ------------------------------------------------------------------------------ |
+| <a id="type-parameter-t-2"></a> `T` _extends_ `string` \| `number` \| `symbol` |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `type` | `T` |
+| Parameter  | Type                                                                       |
+| ---------- | -------------------------------------------------------------------------- |
+| `type`     | `T`                                                                        |
 | `listener` | [`EventListener`](../type-aliases/EventListener.md)&lt;`Events`\[`T`\]&gt; |
 
 #### Returns
 
 `boolean`
 
-***
+---
 
 ### removeAllEventListeners() \{#removealleventlisteners\}
 
@@ -107,7 +107,7 @@ Defined in: [packages/utils/src/tools/event.ts:14](https://github.com/aiao-io/rx
 
 `void`
 
-***
+---
 
 ### removeEventListener() \{#removeeventlistener\}
 
@@ -119,15 +119,15 @@ Defined in: [packages/utils/src/tools/event.ts:12](https://github.com/aiao-io/rx
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-3"></a> `T` *extends* `string` \| `number` \| `symbol` |
+| Type Parameter                                                                 |
+| ------------------------------------------------------------------------------ |
+| <a id="type-parameter-t-3"></a> `T` _extends_ `string` \| `number` \| `symbol` |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `type` | `T` |
+| Parameter  | Type                                                                       |
+| ---------- | -------------------------------------------------------------------------- |
+| `type`     | `T`                                                                        |
 | `listener` | [`EventListener`](../type-aliases/EventListener.md)&lt;`Events`\[`T`\]&gt; |
 
 #### Returns

@@ -16,7 +16,7 @@ Defined in: packages/rxdb-model/dist/entity-table/columns/column-utils.d.ts:36
 
 Full definition of the enum items (used when type=enum; supports text internationalization and icons; takes precedence over enumValues)
 
-***
+---
 
 ### enumValues? \{#enumvalues\}
 
@@ -28,7 +28,7 @@ Defined in: packages/rxdb-model/dist/entity-table/columns/column-utils.d.ts:34
 
 Enum value list (used when type=enum; the short form without icons/i18n)
 
-***
+---
 
 ### field \{#field\}
 
@@ -40,7 +40,7 @@ Defined in: packages/rxdb-model/dist/entity-table/columns/column-utils.d.ts:26
 
 Field name (the key in the record)
 
-***
+---
 
 ### format? \{#format\}
 
@@ -52,7 +52,7 @@ Defined in: packages/rxdb-model/dist/entity-table/columns/column-utils.d.ts:48
 
 Semantic annotation of the field (determines the display form and editor selection, not the runtime value type)
 
-***
+---
 
 ### i18n? \{#i18n\}
 
@@ -64,7 +64,7 @@ Defined in: packages/rxdb-model/dist/entity-table/columns/column-utils.d.ts:24
 
 Component translation and formatting runtime.
 
-***
+---
 
 ### keyValueSchema? \{#keyvalueschema\}
 
@@ -76,7 +76,7 @@ Defined in: packages/rxdb-model/dist/entity-table/columns/column-utils.d.ts:44
 
 keyValue property schema — defines the allowed keys and their value types
 
-***
+---
 
 ### nullable? \{#nullable\}
 
@@ -88,7 +88,7 @@ Defined in: packages/rxdb-model/dist/entity-table/columns/column-utils.d.ts:38
 
 Whether null is allowed (used when type=enum)
 
-***
+---
 
 ### options? \{#options\}
 
@@ -100,7 +100,7 @@ Defined in: packages/rxdb-model/dist/entity-table/columns/column-utils.d.ts:52
 
 Display metadata for enum/multi-select values (label / color / disabled); the keys are a subset of `enum`
 
-***
+---
 
 ### readonly? \{#readonly\}
 
@@ -112,7 +112,7 @@ Defined in: packages/rxdb-model/dist/entity-table/columns/column-utils.d.ts:32
 
 Property-level readonly: no editor is attached to the whole column (the switch is disabled for boolean columns); keyboard toggles, clipboard pastes and Delete clearing are also rejected
 
-***
+---
 
 ### relatedItems? \{#relateditems\}
 
@@ -127,7 +127,7 @@ Candidate list of related entities (used for oneToOne / manyToOne types)
 Each item contains `id` (the foreign key value) and `displayName` (the cell display text).
 Pass a new list when the column updates to refresh the editor options.
 
-***
+---
 
 ### relatedItemsProvider? \{#relateditemsprovider\}
 
@@ -146,7 +146,7 @@ Suitable for scenarios where the business layer needs to query related entities 
 
 [`RelatedEntityItem`](RelatedEntityItem.md)[]
 
-***
+---
 
 ### sort? \{#sort\}
 
@@ -158,7 +158,7 @@ Defined in: packages/rxdb-model/dist/entity-table/columns/column-utils.d.ts:42
 
 Whether ordering is enabled
 
-***
+---
 
 ### title? \{#title\}
 
@@ -170,7 +170,7 @@ Defined in: packages/rxdb-model/dist/entity-table/columns/column-utils.d.ts:28
 
 Column title (defaults to field)
 
-***
+---
 
 ### type \{#type\}
 
@@ -182,7 +182,7 @@ Defined in: packages/rxdb-model/dist/entity-table/columns/column-utils.d.ts:30
 
 Property type
 
-***
+---
 
 ### width? \{#width\}
 

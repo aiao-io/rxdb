@@ -16,7 +16,7 @@ Defined in: [preferences/drawer-model.ts:52](https://github.com/aiao-io/rxdb/blo
 
 The control.
 
-***
+---
 
 ### enabled \{#enabled\}
 
@@ -28,7 +28,7 @@ Defined in: [preferences/drawer-model.ts:56](https://github.com/aiao-io/rxdb/blo
 
 Whether it can be operated.
 
-***
+---
 
 ### hint? \{#hint\}
 
@@ -40,7 +40,7 @@ Defined in: [preferences/drawer-model.ts:50](https://github.com/aiao-io/rxdb/blo
 
 The description.
 
-***
+---
 
 ### id \{#id\}
 
@@ -52,7 +52,7 @@ Defined in: [preferences/drawer-model.ts:44](https://github.com/aiao-io/rxdb/blo
 
 The preference item identifier.
 
-***
+---
 
 ### label \{#label\}
 
@@ -64,7 +64,7 @@ Defined in: [preferences/drawer-model.ts:48](https://github.com/aiao-io/rxdb/blo
 
 The title.
 
-***
+---
 
 ### labelHidden \{#labelhidden\}
 
@@ -76,7 +76,7 @@ Defined in: [preferences/drawer-model.ts:58](https://github.com/aiao-io/rxdb/blo
 
 `true` when the title duplicates the title of the group it belongs to (the group has only this row): the title is visually hidden but kept for assistive technology.
 
-***
+---
 
 ### path \{#path\}
 
@@ -88,7 +88,7 @@ Defined in: [preferences/drawer-model.ts:46](https://github.com/aiao-io/rxdb/blo
 
 The preference path.
 
-***
+---
 
 ### value \{#value\}
 
@@ -114,9 +114,9 @@ Writes a new value; an empty string of a nullable segmented control is written a
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `value`   | `unknown` |
 
 #### Returns
 

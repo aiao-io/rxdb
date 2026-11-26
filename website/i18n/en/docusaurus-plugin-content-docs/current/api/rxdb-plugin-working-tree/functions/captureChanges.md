@@ -1,11 +1,7 @@
 # captureChanges()
 
 ```ts
-function captureChanges(
-   executor, 
-   host, 
-   options
-): Promise<number>;
+function captureChanges(executor, host, options): Promise<number>;
 ```
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/capture-runtime.ts:565](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/capture-runtime.ts#L565)
@@ -14,16 +10,16 @@ Captures a batch of change log entries into working tree units (**the whole batc
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md) | The transaction the business write is in |
-| `host` | [`WorkingTreeCaptureHost`](../interfaces/WorkingTreeCaptureHost.md) | The entity manager host for building instances |
-| `options` | \{ `changes`: readonly [`ChangeCaptureSource`](../interfaces/ChangeCaptureSource.md)[]; `origin`: [`WriteEntryOrigin`](../type-aliases/WriteEntryOrigin.md); `shouldCapture`: (`change`) => `boolean`; `token`: [`ActiveBranchToken`](../interfaces/ActiveBranchToken.md); `unitId`: `string`; \} | Token, origin, and change list |
-| `options.changes` | readonly [`ChangeCaptureSource`](../interfaces/ChangeCaptureSource.md)[] | The change log entries to capture |
-| `options.origin` | [`WriteEntryOrigin`](../type-aliases/WriteEntryOrigin.md) | Origin of the units |
-| `options.shouldCapture` | (`change`) => `boolean` | Should this entity enter the working tree; the untracked domain is filtered out here |
-| `options.token` | [`ActiveBranchToken`](../interfaces/ActiveBranchToken.md) | The active branch token held by this write |
-| `options.unitId` | `string` | The unit id shared by the whole batch |
+| Parameter               | Type                                                                                                                                                                                                                                                                                              | Description                                                                          |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `executor`              | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md)                                                                                                                                                                                                                             | The transaction the business write is in                                             |
+| `host`                  | [`WorkingTreeCaptureHost`](../interfaces/WorkingTreeCaptureHost.md)                                                                                                                                                                                                                               | The entity manager host for building instances                                       |
+| `options`               | \{ `changes`: readonly [`ChangeCaptureSource`](../interfaces/ChangeCaptureSource.md)[]; `origin`: [`WriteEntryOrigin`](../type-aliases/WriteEntryOrigin.md); `shouldCapture`: (`change`) => `boolean`; `token`: [`ActiveBranchToken`](../interfaces/ActiveBranchToken.md); `unitId`: `string`; \} | Token, origin, and change list                                                       |
+| `options.changes`       | readonly [`ChangeCaptureSource`](../interfaces/ChangeCaptureSource.md)[]                                                                                                                                                                                                                          | The change log entries to capture                                                    |
+| `options.origin`        | [`WriteEntryOrigin`](../type-aliases/WriteEntryOrigin.md)                                                                                                                                                                                                                                         | Origin of the units                                                                  |
+| `options.shouldCapture` | (`change`) => `boolean`                                                                                                                                                                                                                                                                           | Should this entity enter the working tree; the untracked domain is filtered out here |
+| `options.token`         | [`ActiveBranchToken`](../interfaces/ActiveBranchToken.md)                                                                                                                                                                                                                                         | The active branch token held by this write                                           |
+| `options.unitId`        | `string`                                                                                                                                                                                                                                                                                          | The unit id shared by the whole batch                                                |
 
 ## Returns
 

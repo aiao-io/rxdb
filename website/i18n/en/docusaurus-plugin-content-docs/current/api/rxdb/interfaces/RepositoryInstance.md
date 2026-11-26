@@ -1,5 +1,5 @@
 ---
-sidebar_label: "RepositoryInstance⟨T⟩"
+sidebar_label: 'RepositoryInstance⟨T⟩'
 ---
 
 # RepositoryInstance`<T>`
@@ -10,9 +10,9 @@ Repository constructor type — must be instantiable (a concrete class), not an 
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) | [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                            | Default type                                  |
+| ----------------------------------------------------------------------------------------- | --------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) | [`EntityType`](../type-aliases/EntityType.md) |
 
 ## Properties
 

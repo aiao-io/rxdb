@@ -10,8 +10,8 @@ Issues the next branch generation: makes the database increment `branchGeneratio
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                                  | Description                                                                                                                   |
+| ---------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md) | The executor of the **caller's write transaction**; issuing and persisting the new branch must belong to the same transaction |
 
 ## Returns

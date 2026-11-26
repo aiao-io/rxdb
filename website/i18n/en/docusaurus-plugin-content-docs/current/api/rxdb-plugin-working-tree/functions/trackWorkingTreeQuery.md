@@ -1,11 +1,7 @@
 # trackWorkingTreeQuery()
 
 ```ts
-function trackWorkingTreeQuery<T>(
-   emit, 
-   isEmpty, 
-   run
-): Promise<T>;
+function trackWorkingTreeQuery<T>(emit, isEmpty, run): Promise<T>;
 ```
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts:250](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts#L250)
@@ -14,17 +10,17 @@ Runs a query once, emitting loading → success | empty | error along the way.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `emit` | [`WorkingTreeStateSink`](../type-aliases/WorkingTreeStateSink.md)&lt;[`WorkingTreeQueryState`](../type-aliases/WorkingTreeQueryState.md)&lt;`T`&gt;&gt; | Where the state goes |
-| `isEmpty` | (`value`) => `boolean` | The emptiness predicate; evaluated only on successful results |
-| `run` | () => `Promise`&lt;`T`&gt; | The actual call |
+| Parameter | Type                                                                                                                                                    | Description                                                   |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `emit`    | [`WorkingTreeStateSink`](../type-aliases/WorkingTreeStateSink.md)&lt;[`WorkingTreeQueryState`](../type-aliases/WorkingTreeQueryState.md)&lt;`T`&gt;&gt; | Where the state goes                                          |
+| `isEmpty` | (`value`) => `boolean`                                                                                                                                  | The emptiness predicate; evaluated only on successful results |
+| `run`     | () => `Promise`&lt;`T`&gt;                                                                                                                              | The actual call                                               |
 
 ## Returns
 

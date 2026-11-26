@@ -1,5 +1,5 @@
 ---
-sidebar_label: "RepositoryBase⟨T⟩"
+sidebar_label: 'RepositoryBase⟨T⟩'
 ---
 
 # RepositoryBase`<T>`
@@ -26,9 +26,9 @@ otherwise its complexity would grow linearly with every repository feature.
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) | The entity type constructor, determining the derivation paths of static types like `findOptions` / `idType`. |
+| Type Parameter                                                                            | Description                                                                                                  |
+| ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) | The entity type constructor, determining the derivation paths of static types like `findOptions` / `idType`. |
 
 ## Constructors
 
@@ -42,10 +42,10 @@ Defined in: [packages/rxdb/src/repository/RepositoryBase.ts:42](https://github.c
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rxdb` | [`RxDB`](RxDB.md) |
-| `EntityType` | `T` |
+| Parameter    | Type              |
+| ------------ | ----------------- |
+| `rxdb`       | [`RxDB`](RxDB.md) |
+| `EntityType` | `T`               |
 
 #### Returns
 
@@ -61,7 +61,7 @@ readonly EntityType: T;
 
 Defined in: [packages/rxdb/src/repository/RepositoryBase.ts:44](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/RepositoryBase.ts#L44)
 
-***
+---
 
 ### rxdb \{#rxdb\}
 
@@ -71,7 +71,7 @@ protected readonly rxdb: RxDB;
 
 Defined in: [packages/rxdb/src/repository/RepositoryBase.ts:43](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/RepositoryBase.ts#L43)
 
-***
+---
 
 ### \_STATIC\_METHODS \{#_static_methods\}
 
@@ -126,9 +126,9 @@ Creates (or reuses) an entity reference
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `data` | [`EntityUpdateData`](../type-aliases/EntityUpdateData.md)&lt;`T`&gt; | The initial field values; `id` is auto-generated when omitted |
+| Parameter | Type                                                                 | Description                                                   |
+| --------- | -------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `data`    | [`EntityUpdateData`](../type-aliases/EntityUpdateData.md)&lt;`T`&gt; | The initial field values; `id` is auto-generated when omitted |
 
 #### Returns
 
@@ -142,12 +142,12 @@ Regardless of whether the input `id` already exists in the cache, the cached ins
 it goes through `rxdb.entityManager.createEntityRef` to reuse the same reference semantics and avoid
 different call stacks getting two out-of-sync clones.
 
-***
+---
 
 ### getEntityRef() \{#getentityref\}
 
 ```ts
-getEntityRef(id): 
+getEntityRef(id):
   | EntityInstanceType<T>
   | undefined;
 ```
@@ -158,18 +158,18 @@ Looks up an entity by ID in the current process's entity cache
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `id` | [`EntityStaticType`](../type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | Entity primary key |
+| Parameter | Type                                                                             | Description        |
+| --------- | -------------------------------------------------------------------------------- | ------------------ |
+| `id`      | [`EntityStaticType`](../type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | Entity primary key |
 
 #### Returns
 
-  \| [`EntityInstanceType`](../type-aliases/EntityInstanceType.md)&lt;`T`&gt;
-  \| `undefined`
+\| [`EntityInstanceType`](../type-aliases/EntityInstanceType.md)&lt;`T`&gt;
+\| `undefined`
 
 Returns the instance on a cache hit, `undefined` on a miss (**does not** trigger a database query)
 
-***
+---
 
 ### hasEntityRef() \{#hasentityref\}
 
@@ -183,9 +183,9 @@ Determines whether the given ID exists in the current process's entity cache
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `id` | [`EntityStaticType`](../type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | Entity primary key |
+| Parameter | Type                                                                             | Description        |
+| --------- | -------------------------------------------------------------------------------- | ------------------ |
+| `id`      | [`EntityStaticType`](../type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | Entity primary key |
 
 #### Returns
 
@@ -198,7 +198,7 @@ Determines whether the given ID exists in the current process's entity cache
 Equivalent to `getEntityRef(id) !== undefined`; provided separately so that hot paths like "bulk preheating" and
 "diff sync" save the cost of one reference creation / state fetch.
 
-***
+---
 
 ### updateEntity() \{#updateentity\}
 
@@ -212,10 +212,10 @@ Overwrites the entity fields with `update`
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The target entity |
-| `update` | `InstanceType`&lt;`T`&gt; | The fields to write; the primary key `id` is also assigned (for hydration scenarios) |
+| Parameter | Type                      | Description                                                                          |
+| --------- | ------------------------- | ------------------------------------------------------------------------------------ |
+| `entity`  | `InstanceType`&lt;`T`&gt; | The target entity                                                                    |
+| `update`  | `InstanceType`&lt;`T`&gt; | The fields to write; the primary key `id` is also assigned (for hydration scenarios) |
 
 #### Returns
 

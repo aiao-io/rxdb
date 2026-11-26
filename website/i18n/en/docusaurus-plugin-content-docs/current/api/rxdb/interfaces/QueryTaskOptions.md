@@ -1,5 +1,5 @@
 ---
-sidebar_label: "QueryTaskOptions⟨T, RT⟩"
+sidebar_label: 'QueryTaskOptions⟨T, RT⟩'
 ---
 
 # QueryTaskOptions`<T, RT>`
@@ -10,10 +10,10 @@ Query task options interface
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
-| <a id="type-parameter-rt"></a> `RT` |
+| Type Parameter                                                                            |
+| ----------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
+| <a id="type-parameter-rt"></a> `RT`                                                       |
 
 ## Properties
 
@@ -27,7 +27,7 @@ Defined in: [packages/rxdb/src/repository/QueryTask.ts:76](https://github.com/ai
 
 Whether to automatically cache the query result as an entity array
 
-***
+---
 
 ### cacheKey \{#cachekey\}
 
@@ -39,7 +39,7 @@ Defined in: [packages/rxdb/src/repository/QueryTask.ts:42](https://github.com/ai
 
 Cache key
 
-***
+---
 
 ### depEntityTypeMap \{#depentitytypemap\}
 
@@ -51,7 +51,7 @@ Defined in: [packages/rxdb/src/repository/QueryTask.ts:66](https://github.com/ai
 
 The map of depended-on entity types
 
-***
+---
 
 ### entityType \{#entitytype\}
 
@@ -63,7 +63,7 @@ Defined in: [packages/rxdb/src/repository/QueryTask.ts:56](https://github.com/ai
 
 The entity type
 
-***
+---
 
 ### getFingerprint \{#getfingerprint\}
 
@@ -78,14 +78,14 @@ The method for computing the result fingerprint
 #### Parameters
 
 | Parameter | Type |
-| ------ | ------ |
-| `result` | `RT` |
+| --------- | ---- |
+| `result`  | `RT` |
 
 #### Returns
 
 [`Fingerprint`](../type-aliases/Fingerprint.md)[]
 
-***
+---
 
 ### onClean \{#onclean\}
 
@@ -99,10 +99,10 @@ Cleanup function
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `cacheKey` | `string` |
-| `task` | [`QueryTask`](../classes/QueryTask.md)&lt;`T`, `RT`&gt; |
+| Parameter  | Type                                                    |
+| ---------- | ------------------------------------------------------- |
+| `cacheKey` | `string`                                                |
+| `task`     | [`QueryTask`](../classes/QueryTask.md)&lt;`T`, `RT`&gt; |
 
 #### Returns
 
@@ -113,7 +113,7 @@ Cleanup function
 The second parameter is the task being cleaned up itself: under the same `cacheKey` there may already be a new task that has taken over (see `onError`),
 so compare identities before deleting by key — the old task's cleanup must not remove the new task.
 
-***
+---
 
 ### onError? \{#onerror\}
 
@@ -127,10 +127,10 @@ Called when one round of the query fails, **before** the error is delivered to t
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `cacheKey` | `string` |
-| `task` | [`QueryTask`](../classes/QueryTask.md)&lt;`T`, `RT`&gt; |
+| Parameter  | Type                                                    |
+| ---------- | ------------------------------------------------------- |
+| `cacheKey` | `string`                                                |
+| `task`     | [`QueryTask`](../classes/QueryTask.md)&lt;`T`, `RT`&gt; |
 
 #### Returns
 
@@ -141,7 +141,7 @@ Called when one round of the query fails, **before** the error is delivered to t
 The error terminates all observers of this generation; those that synchronously re-subscribe during dispatch (e.g. `retry()`) belong to the next generation,
 and the host uses this to resolve them to a new task that re-executes the query, rather than attaching them back to this old task that is dispatching the failure.
 
-***
+---
 
 ### options \{#options\}
 
@@ -153,7 +153,7 @@ Defined in: [packages/rxdb/src/repository/QueryTask.ts:46](https://github.com/ai
 
 Query options
 
-***
+---
 
 ### relationEntityTypes? \{#relationentitytypes\}
 
@@ -165,7 +165,7 @@ Defined in: [packages/rxdb/src/repository/QueryTask.ts:71](https://github.com/ai
 
 Additional entity types the query depends on
 
-***
+---
 
 ### runner \{#runner\}
 
@@ -181,7 +181,7 @@ The query execution function
 
 `Observable`&lt;`RT`&gt;
 
-***
+---
 
 ### rxdb \{#rxdb\}
 
@@ -193,12 +193,12 @@ Defined in: [packages/rxdb/src/repository/QueryTask.ts:61](https://github.com/ai
 
 The RxDB instance
 
-***
+---
 
 ### serialize \{#serialize\}
 
 ```ts
-serialize: (data) => InstanceType<T>;
+serialize: data => InstanceType<T>;
 ```
 
 Defined in: [packages/rxdb/src/repository/QueryTask.ts:81](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/QueryTask.ts#L81)
@@ -207,9 +207,9 @@ Serialization function
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `data` | [`RxDBEntityLocalEventData`](../type-aliases/RxDBEntityLocalEventData.md)&lt;`T`&gt; |
+| Parameter | Type                                                                                 |
+| --------- | ------------------------------------------------------------------------------------ |
+| `data`    | [`RxDBEntityLocalEventData`](../type-aliases/RxDBEntityLocalEventData.md)&lt;`T`&gt; |
 
 #### Returns
 

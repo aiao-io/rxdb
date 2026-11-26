@@ -21,8 +21,8 @@ Re-read (or re-create) on the currently mounted table set before saving; mountin
 
 ```ts
 new WorktreeTableSetMismatchError(
-   entity, 
-   entityTableSet, 
+   entity,
+   entityTableSet,
    mountedTableSet
 ): WorktreeTableSetMismatchError;
 ```
@@ -31,10 +31,10 @@ Defined in: [packages/rxdb/src/system/worktree-table-set.ts:253](https://github.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `string` | The entity, `<namespace>.<name>` |
-| `entityTableSet` | `string` \| `null` | Which table set this entity's writes originally landed on: the shadow table set's suffix, `null` for the main table set |
+| Parameter         | Type               | Description                                                                                                                                         |
+| ----------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `entity`          | `string`           | The entity, `<namespace>.<name>`                                                                                                                    |
+| `entityTableSet`  | `string` \| `null` | Which table set this entity's writes originally landed on: the shadow table set's suffix, `null` for the main table set                             |
 | `mountedTableSet` | `string` \| `null` | Which table set its writes land on under the table set this instance currently mounts: the shadow table set's suffix, `null` for the main table set |
 
 #### Returns
@@ -59,7 +59,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](RxDBError.md).[`cause`](RxDBError.md#cause)
 
-***
+---
 
 ### code \{#code\}
 
@@ -71,7 +71,7 @@ Defined in: [packages/rxdb/src/system/worktree-table-set.ts:251](https://github.
 
 Stable error code, always `'worktree_table_set_mismatch'`
 
-***
+---
 
 ### entity \{#entity\}
 
@@ -83,7 +83,7 @@ Defined in: [packages/rxdb/src/system/worktree-table-set.ts:255](https://github.
 
 The entity, `<namespace>.<name>`
 
-***
+---
 
 ### entityTableSet \{#entitytableset\}
 
@@ -95,7 +95,7 @@ Defined in: [packages/rxdb/src/system/worktree-table-set.ts:257](https://github.
 
 Which table set this entity's writes originally landed on: the shadow table set's suffix, `null` for the main table set
 
-***
+---
 
 ### message \{#message\}
 
@@ -109,7 +109,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](RxDBError.md).[`message`](RxDBError.md#message)
 
-***
+---
 
 ### mountedTableSet \{#mountedtableset\}
 
@@ -121,7 +121,7 @@ Defined in: [packages/rxdb/src/system/worktree-table-set.ts:259](https://github.
 
 Which table set its writes land on under the table set this instance currently mounts: the shadow table set's suffix, `null` for the main table set
 
-***
+---
 
 ### name \{#name\}
 
@@ -135,7 +135,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](RxDBError.md).[`name`](RxDBError.md#name)
 
-***
+---
 
 ### stack? \{#stack\}
 
@@ -149,7 +149,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](RxDBError.md).[`stack`](RxDBError.md#stack)
 
-***
+---
 
 ### stackTraceLimit \{#stacktracelimit\}
 
@@ -190,7 +190,7 @@ a string representing the location in the code at which
 ```js
 const myObject = {};
 Error.captureStackTrace(myObject);
-myObject.stack;  // Similar to `new Error().stack`
+myObject.stack; // Similar to `new Error().stack`
 ```
 
 The first line of the trace will be prefixed with
@@ -229,9 +229,9 @@ a();
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `targetObject` | `object` |
+| Parameter         | Type       |
+| ----------------- | ---------- |
+| `targetObject`    | `object`   |
 | `constructorOpt?` | `Function` |
 
 #### Returns
@@ -242,7 +242,7 @@ a();
 
 [`RxDBError`](RxDBError.md).[`captureStackTrace`](RxDBError.md#capturestacktrace)
 
-***
+---
 
 ### prepareStackTrace() \{#preparestacktrace\}
 
@@ -254,9 +254,9 @@ Defined in: node\_modules/.pnpm/@types+node@26.6.6/node\_modules/@types/node/glo
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `err` | `Error` |
+| Parameter     | Type         |
+| ------------- | ------------ |
+| `err`         | `Error`      |
 | `stackTraces` | `CallSite`[] |
 
 #### Returns

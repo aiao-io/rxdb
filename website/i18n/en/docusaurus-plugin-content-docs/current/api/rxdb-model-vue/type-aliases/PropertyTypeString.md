@@ -1,23 +1,23 @@
 # PropertyTypeString
 
 ```ts
-type PropertyTypeString = 
-  | "uuid"
-  | "string"
-  | "enum"
-  | "number"
-  | "integer"
-  | "bigint"
-  | "boolean"
-  | "date"
-  | "binary"
-  | "stringArray"
-  | "numberArray"
-  | "keyValue"
-  | "json"
-  | "oneToOne"
-  | "manyToOne"
-  | "computed";
+type PropertyTypeString =
+  | 'uuid'
+  | 'string'
+  | 'enum'
+  | 'number'
+  | 'integer'
+  | 'bigint'
+  | 'boolean'
+  | 'date'
+  | 'binary'
+  | 'stringArray'
+  | 'numberArray'
+  | 'keyValue'
+  | 'json'
+  | 'oneToOne'
+  | 'manyToOne'
+  | 'computed';
 ```
 
 Defined in: packages/rxdb-model/dist/entity-table/columns/column-utils.d.ts:12

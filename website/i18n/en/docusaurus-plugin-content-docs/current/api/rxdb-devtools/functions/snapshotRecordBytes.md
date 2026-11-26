@@ -10,9 +10,9 @@ The byte count of one canonical record.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `record` | [`DevToolsSnapshotRecord`](../type-aliases/DevToolsSnapshotRecord.md) | The canonical record tuple. |
+| Parameter | Type                                                                  | Description                 |
+| --------- | --------------------------------------------------------------------- | --------------------------- |
+| `record`  | [`DevToolsSnapshotRecord`](../type-aliases/DevToolsSnapshotRecord.md) | The canonical record tuple. |
 
 ## Returns
 

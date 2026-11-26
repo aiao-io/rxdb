@@ -39,9 +39,9 @@ Resolves the effective sync configuration of the target entity.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `target` | [`EntitySyncTarget`](../type-aliases/EntitySyncTarget.md) | An entity class or entity metadata |
+| Parameter | Type                                                      | Description                        |
+| --------- | --------------------------------------------------------- | ---------------------------------- |
+| `target`  | [`EntitySyncTarget`](../type-aliases/EntitySyncTarget.md) | An entity class or entity metadata |
 
 #### Returns
 
@@ -55,7 +55,7 @@ Returns the selected configuration as-is, without the inheritance special case o
 when inheriting the database default `None + local + remote`, the `type` here is still `None`, while `resolveType`
 judges it as `full`. Use `resolveType` to determine the sync type; do not read `.type` here.
 
-***
+---
 
 ### resolveType() \{#resolvetype\}
 
@@ -69,9 +69,9 @@ Resolves the effective sync type of the target entity.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `target` | [`EntitySyncTarget`](../type-aliases/EntitySyncTarget.md) | An entity class or entity metadata |
+| Parameter | Type                                                      | Description                        |
+| --------- | --------------------------------------------------------- | ---------------------------------- |
+| `target`  | [`EntitySyncTarget`](../type-aliases/EntitySyncTarget.md) | An entity class or entity metadata |
 
 #### Returns
 

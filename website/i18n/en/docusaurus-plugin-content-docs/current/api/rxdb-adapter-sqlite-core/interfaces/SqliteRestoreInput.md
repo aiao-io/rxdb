@@ -14,7 +14,7 @@ readonly adapterName: string;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/backup/restore-sqlite-database.ts:52](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/backup/restore-sqlite-database.ts#L52)
 
-***
+---
 
 ### createClient \{#createclient\}
 
@@ -30,7 +30,7 @@ Opens a new connection to the target database with the adapter's current configu
 
 `Promise`&lt;[`SqliteClientLike`](SqliteClientLike.md)&gt;
 
-***
+---
 
 ### rxdb \{#rxdb\}
 
@@ -42,7 +42,7 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/backup/restore-sqlite-databas
 
 The target instance: will be `init()`-ed, but must not be connected yet.
 
-***
+---
 
 ### shadowTablesWritable \{#shadowtableswritable\}
 
@@ -54,7 +54,7 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/backup/restore-sqlite-databas
 
 Whether the target can write shadow tables; when it cannot, archives containing shadow tables are rejected before being written to the target.
 
-***
+---
 
 ### storage \{#storage\}
 

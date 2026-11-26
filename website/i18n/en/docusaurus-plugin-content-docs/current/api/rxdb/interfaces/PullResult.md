@@ -20,7 +20,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:68](htt
 
 The number of changes successfully applied locally (after compaction)
 
-***
+---
 
 ### compacted \{#compacted\}
 
@@ -33,7 +33,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:63](htt
 The number of changes compacted/discarded
 Example: an INSERT → DELETE change is discarded
 
-***
+---
 
 ### conflictsDeferred \{#conflictsdeferred\}
 
@@ -45,7 +45,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:83](htt
 
 The number of conflicts deferred for later handling
 
-***
+---
 
 ### conflictsResolved \{#conflictsresolved\}
 
@@ -57,7 +57,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:78](htt
 
 The number of conflicts resolved automatically
 
-***
+---
 
 ### failures \{#failures\}
 
@@ -71,7 +71,7 @@ All repositories that failed in this pull (in repository order); an empty array 
 
 With multi-repository aggregation you cannot keep only the first error, otherwise the failures of the later repositories would be nowhere to be found.
 
-***
+---
 
 ### hasMore \{#hasmore\}
 
@@ -83,7 +83,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:73](htt
 
 Whether there is more data to pull
 
-***
+---
 
 ### historyInvalidated \{#historyinvalidated\}
 
@@ -101,7 +101,7 @@ When true, the undo/redo history boundary has been invalidated and the undo hist
 
 [`SyncProgress`](SyncProgress.md).[`historyInvalidated`](SyncProgress.md#historyinvalidated)
 
-***
+---
 
 ### persistedProgress \{#persistedprogress\}
 
@@ -119,7 +119,7 @@ When true, part of this sync's results will **not** be rolled back, and a retry 
 
 [`SyncProgress`](SyncProgress.md).[`persistedProgress`](SyncProgress.md#persistedprogress)
 
-***
+---
 
 ### pulled \{#pulled\}
 

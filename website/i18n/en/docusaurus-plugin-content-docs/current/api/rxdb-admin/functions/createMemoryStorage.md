@@ -10,8 +10,8 @@ Creates an in-memory store, for SSR, tests, or in-session persistence when stora
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                 | Description           |
+| ---------- | ---------------------------------------------------- | --------------------- |
 | `initial?` | `Readonly`&lt;`Record`&lt;`string`, `string`&gt;&gt; | The initial contents. |
 
 ## Returns

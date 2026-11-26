@@ -8,8 +8,9 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/sqlite-client.utils.ts:23](ht
 
 Change event batching timeout tiers (milliseconds).
 The shorter, the lower the latency but the more frequent CPU wakeups; the longer, the more power saved but the more delayed UI response.
+
 - `IMMEDIATE` (0): synchronous dispatch, for test scenarios only
-- `FAST` (4):     merged within about one frame
+- `FAST` (4): merged within about one frame
 - `BALANCED` (16): the default, about one frame (60fps)
 - `POWER_SAVE` (50): mobile / background scenarios
 

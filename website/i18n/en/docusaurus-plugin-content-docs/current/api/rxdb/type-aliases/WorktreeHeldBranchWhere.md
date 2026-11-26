@@ -1,23 +1,27 @@
 # WorktreeHeldBranchWhere
 
 ```ts
-type WorktreeHeldBranchWhere = 
+type WorktreeHeldBranchWhere =
   | {
-  combinator: "and";
-  rules: [{
-     field: "activated";
-     operator: "=";
-     value: true;
-  }];
-}
+      combinator: 'and';
+      rules: [
+        {
+          field: 'activated';
+          operator: '=';
+          value: true;
+        }
+      ];
+    }
   | {
-  combinator: "and";
-  rules: [{
-     field: "activeKey";
-     operator: "=";
-     value: string;
-  }];
-};
+      combinator: 'and';
+      rules: [
+        {
+          field: 'activeKey';
+          operator: '=';
+          value: string;
+        }
+      ];
+    };
 ```
 
 Defined in: [packages/rxdb/src/system/worktree-table-set.ts:67](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/worktree-table-set.ts#L67)

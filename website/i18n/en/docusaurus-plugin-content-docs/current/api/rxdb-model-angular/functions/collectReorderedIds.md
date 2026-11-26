@@ -10,10 +10,10 @@ Collects the IDs of non-readonly rows after drag-and-drop reordering.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `table` | `ListTableAll` | The target table instance |
-| `idField` | `string` | The name of the record ID field |
+| Parameter | Type           | Description                     |
+| --------- | -------------- | ------------------------------- |
+| `table`   | `ListTableAll` | The target table instance       |
+| `idField` | `string`       | The name of the record ID field |
 
 ## Returns
 

@@ -10,8 +10,8 @@ Extracts the sub-field list from the properties of a keyValue property
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter    | Type                                                                                | Description                                                 |
+| ------------ | ----------------------------------------------------------------------------------- | ----------------------------------------------------------- |
 | `properties` | [`KeyValuePropertyMetadata`](../../rxdb/type-aliases/KeyValuePropertyMetadata.md)[] | The metadata list of the keyValue property's sub-properties |
 
 ## Returns

@@ -10,9 +10,9 @@ Filters out fields marked as hidden
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `fields` | [`FormFieldConfig`](../interfaces/FormFieldConfig.md)[] | Form field configuration |
+| Parameter | Type                                                    | Description              |
+| --------- | ------------------------------------------------------- | ------------------------ |
+| `fields`  | [`FormFieldConfig`](../interfaces/FormFieldConfig.md)[] | Form field configuration |
 
 ## Returns
 

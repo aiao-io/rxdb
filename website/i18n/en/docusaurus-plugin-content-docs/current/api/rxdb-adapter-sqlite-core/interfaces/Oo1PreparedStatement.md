@@ -7,6 +7,7 @@ Structural type alias of the `oo1` API, shared by `@sqlite.org/sqlite-wasm` and 
 ## Naming origin
 
 `oo1` is **not** an rxdb-coined abbreviation; it is the upstream official SQLite WASM API naming:
+
 - `oo` = **Object Oriented** (object-oriented wrapper)
 - `1` = the **1st generation** OO API
 
@@ -26,15 +27,15 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/oo1-types.ts:20](https://gith
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type        |
+| --------- | ----------- |
 | `binding` | `unknown`[] |
 
 #### Returns
 
 `this`
 
-***
+---
 
 ### finalize() \{#finalize\}
 
@@ -48,7 +49,7 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/oo1-types.ts:24](https://gith
 
 `number` \| `undefined`
 
-***
+---
 
 ### get() \{#get\}
 
@@ -60,15 +61,15 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/oo1-types.ts:21](https://gith
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `target` | `unknown`[] |
+| Parameter | Type        |
+| --------- | ----------- |
+| `target`  | `unknown`[] |
 
 #### Returns
 
 `unknown`[]
 
-***
+---
 
 ### getColumnNames() \{#getcolumnnames\}
 
@@ -80,15 +81,15 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/oo1-types.ts:22](https://gith
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type       |
+| --------- | ---------- |
 | `target?` | `string`[] |
 
 #### Returns
 
 `string`[]
 
-***
+---
 
 ### step() \{#step\}
 

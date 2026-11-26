@@ -35,7 +35,7 @@ protected readonly activeIndex: WritableSignal<number>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/popover-select/popover-select.component.ts:117](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/popover-select/popover-select.component.ts#L117)
 
-***
+---
 
 ### activeItemId \{#activeitemid\}
 
@@ -45,7 +45,7 @@ readonly activeItemId: Signal<string | null>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/popover-select/popover-select.component.ts:136](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/popover-select/popover-select.component.ts#L136)
 
-***
+---
 
 ### currentLabel \{#currentlabel\}
 
@@ -55,7 +55,7 @@ readonly currentLabel: Signal<string>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/popover-select/popover-select.component.ts:126](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/popover-select/popover-select.component.ts#L126)
 
-***
+---
 
 ### filteredOptions \{#filteredoptions\}
 
@@ -65,7 +65,7 @@ readonly filteredOptions: Signal<readonly object[]>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/popover-select/popover-select.component.ts:130](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/popover-select/popover-select.component.ts#L130)
 
-***
+---
 
 ### filterText \{#filtertext\}
 
@@ -75,7 +75,7 @@ protected readonly filterText: WritableSignal<string>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/popover-select/popover-select.component.ts:116](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/popover-select/popover-select.component.ts#L116)
 
-***
+---
 
 ### listId \{#listid\}
 
@@ -85,7 +85,7 @@ protected readonly listId: string;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/popover-select/popover-select.component.ts:115](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/popover-select/popover-select.component.ts#L115)
 
-***
+---
 
 ### minWidth \{#minwidth\}
 
@@ -95,7 +95,7 @@ readonly minWidth: InputSignal<string>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/popover-select/popover-select.component.ts:122](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/popover-select/popover-select.component.ts#L122)
 
-***
+---
 
 ### options \{#options\}
 
@@ -105,7 +105,7 @@ readonly options: InputSignal<readonly object[]>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/popover-select/popover-select.component.ts:119](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/popover-select/popover-select.component.ts#L119)
 
-***
+---
 
 ### placeholder \{#placeholder\}
 
@@ -115,7 +115,7 @@ readonly placeholder: InputSignal<string | undefined>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/popover-select/popover-select.component.ts:121](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/popover-select/popover-select.component.ts#L121)
 
-***
+---
 
 ### selectChange \{#selectchange\}
 
@@ -125,7 +125,7 @@ readonly selectChange: OutputEmitterRef<string>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/popover-select/popover-select.component.ts:124](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/popover-select/popover-select.component.ts#L124)
 
-***
+---
 
 ### selected \{#selected\}
 
@@ -135,7 +135,7 @@ readonly selected: InputSignal<string>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/popover-select/popover-select.component.ts:120](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/popover-select/popover-select.component.ts#L120)
 
-***
+---
 
 ### uid \{#uid\}
 
@@ -161,7 +161,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/popover-select/popove
 
 [`ModelI18n`](../interfaces/ModelI18n.md)
 
-***
+---
 
 ### t \{#t\}
 
@@ -189,15 +189,15 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/popover-select/popove
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `Event` |
+| Parameter | Type    |
+| --------- | ------- |
+| `event`   | `Event` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onKeydown() \{#onkeydown\}
 
@@ -209,15 +209,15 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/popover-select/popove
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `KeyboardEvent` |
+| Parameter | Type            |
+| --------- | --------------- |
+| `event`   | `KeyboardEvent` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onSelect() \{#onselect\}
 
@@ -229,15 +229,15 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/popover-select/popove
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `value`   | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onToggle() \{#ontoggle\}
 
@@ -249,9 +249,9 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/popover-select/popove
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `Event` |
+| Parameter | Type    |
+| --------- | ------- |
+| `event`   | `Event` |
 
 #### Returns
 

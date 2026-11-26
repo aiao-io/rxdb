@@ -10,9 +10,9 @@ Creates the connector-side negotiation state machine.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `ports` | [`DevToolsConnectorNegotiationPorts`](../interfaces/DevToolsConnectorNegotiationPorts.md) | Send/receive callbacks, the clock, local trusted configuration, and the eager legacy handshake. |
+| Parameter | Type                                                                                      | Description                                                                                     |
+| --------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `ports`   | [`DevToolsConnectorNegotiationPorts`](../interfaces/DevToolsConnectorNegotiationPorts.md) | Send/receive callbacks, the clock, local trusted configuration, and the eager legacy handshake. |
 
 ## Returns
 

@@ -1,11 +1,7 @@
 # getOrCreateSyncRecord()
 
 ```ts
-function getOrCreateSyncRecord(
-   repoSyncRepo, 
-   params, 
-   instantiate
-): Promise<RxDBSync>;
+function getOrCreateSyncRecord(repoSyncRepo, params, instantiate): Promise<RxDBSync>;
 ```
 
 Defined in: [packages/rxdb/src/sync-contract/sync-record-utils.ts:124](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/sync-record-utils.ts#L124)
@@ -14,11 +10,11 @@ Fetches (or creates on first use) the sync watermark record for a repository/bra
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `repoSyncRepo` | [`IRepository`](../interfaces/IRepository.md)&lt;*typeof* [`RxDBSync`](../classes/RxDBSync.md)&gt; |
-| `params` | `GetOrCreateSyncRecordParams` |
-| `instantiate` | () => [`RxDBSync`](../classes/RxDBSync.md) |
+| Parameter      | Type                                                                                               |
+| -------------- | -------------------------------------------------------------------------------------------------- |
+| `repoSyncRepo` | [`IRepository`](../interfaces/IRepository.md)&lt;_typeof_ [`RxDBSync`](../classes/RxDBSync.md)&gt; |
+| `params`       | `GetOrCreateSyncRecordParams`                                                                      |
+| `instantiate`  | () => [`RxDBSync`](../classes/RxDBSync.md)                                                         |
 
 ## Returns
 

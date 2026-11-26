@@ -1,5 +1,5 @@
 ---
-sidebar_label: "TransactionExecutorFun⟨T⟩"
+sidebar_label: 'TransactionExecutorFun⟨T⟩'
 ---
 
 # TransactionExecutorFun`<T>`
@@ -14,14 +14,14 @@ Transaction callback: the parameter is the executor of this transaction.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` | `unknown` |
+| Type Parameter                    | Default type |
+| --------------------------------- | ------------ |
+| <a id="type-parameter-t"></a> `T` | `unknown`    |
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                          |
+| ---------- | ------------------------------------------------------------- |
 | `executor` | [`TransactionExecutor`](../interfaces/TransactionExecutor.md) |
 
 ## Returns

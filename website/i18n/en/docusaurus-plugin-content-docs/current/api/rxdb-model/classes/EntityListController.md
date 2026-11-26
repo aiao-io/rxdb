@@ -1,5 +1,5 @@
 ---
-sidebar_label: "EntityListController⟨T⟩"
+sidebar_label: 'EntityListController⟨T⟩'
 ---
 
 # EntityListController`<T>`
@@ -14,9 +14,9 @@ Shared controller for list filtering, pagination, selection, and data state.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityInstance`](../type-aliases/EntityInstance.md) | [`EntityInstance`](../type-aliases/EntityInstance.md) |
+| Type Parameter                                                                                    | Default type                                          |
+| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityInstance`](../type-aliases/EntityInstance.md) | [`EntityInstance`](../type-aliases/EntityInstance.md) |
 
 ## Constructors
 
@@ -30,8 +30,8 @@ Defined in: [packages/rxdb-model/src/entity-list/headless.ts:127](https://github
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                                     |
+| ---------- | ---------------------------------------------------------------------------------------- |
 | `options?` | [`EntityListControllerOptions`](../interfaces/EntityListControllerOptions.md)&lt;`T`&gt; |
 
 #### Returns
@@ -72,7 +72,7 @@ Clears the current selection.
 
 `void`
 
-***
+---
 
 ### create() \{#create\}
 
@@ -86,9 +86,9 @@ Creates an entity; reloads the current page after a successful save when a query
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `data` | `Record`&lt;`string`, `unknown`&gt; |
+| Parameter | Type                                |
+| --------- | ----------------------------------- |
+| `data`    | `Record`&lt;`string`, `unknown`&gt; |
 
 #### Returns
 
@@ -99,7 +99,7 @@ Creates an entity; reloads the current page after a successful save when a query
 Without a data source, an unconstrained view (the first page with no query and no ordering) matches the default list's `id desc` (UUID v7, newest first):
 the new record goes first and the page size is preserved, so the oldest record pushed off this page is removed together with its selection; a constrained view cannot tell where the new record belongs, so it clears the current page and waits for the host to supply data.
 
-***
+---
 
 ### dispose() \{#dispose\}
 
@@ -115,7 +115,7 @@ Aborts the query and removes subscriptions; late results after disposal are not 
 
 `void`
 
-***
+---
 
 ### refresh() \{#refresh\}
 
@@ -129,15 +129,15 @@ Runs the current query; keeps the old page while refreshing, replaces it on succ
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                                                                                                                                                            |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `loader?` | \| ((`context`) => \| [`EntityListLoadResult`](../interfaces/EntityListLoadResult.md)&lt;`T`&gt; \| `Promise`&lt;[`EntityListLoadResult`](../interfaces/EntityListLoadResult.md)&lt;`T`&gt;&gt;) \| `undefined` |
 
 #### Returns
 
 `Promise`&lt;readonly `T`[]&gt;
 
-***
+---
 
 ### remove() \{#remove\}
 
@@ -151,15 +151,15 @@ Deletes entities; on partial success, converges the successful items first and t
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `ids` | readonly `string`[] |
+| Parameter | Type                |
+| --------- | ------------------- |
+| `ids`     | readonly `string`[] |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### select() \{#select\}
 
@@ -173,15 +173,15 @@ Selects entities that exist in the current page, deduplicating and filtering out
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `ids` | readonly `string`[] |
+| Parameter | Type                |
+| --------- | ------------------- |
+| `ids`     | readonly `string`[] |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### setCapabilities() \{#setcapabilities\}
 
@@ -195,15 +195,15 @@ Replaces the existing capability constraints; subsequent write actions are judge
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter      | Type                                                                       |
+| -------------- | -------------------------------------------------------------------------- |
 | `capabilities` | [`EntityCapabilities`](../interfaces/EntityCapabilities.md) \| `undefined` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### setError() \{#seterror\}
 
@@ -217,15 +217,15 @@ Exposes an error from the host data source or a write action.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `error` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `error`   | `unknown` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### setLoading() \{#setloading\}
 
@@ -239,15 +239,15 @@ Updates the host-managed data source loading state.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type      |
+| --------- | --------- |
 | `loading` | `boolean` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### setPage() \{#setpage\}
 
@@ -261,16 +261,16 @@ Sets the zero-based page number and page size, discarding the old page; does not
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `page` | `number` |
+| Parameter   | Type     |
+| ----------- | -------- |
+| `page`      | `number` |
 | `pageSize?` | `number` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### setQuery() \{#setquery\}
 
@@ -284,15 +284,15 @@ Switches the query and clears the old page and pending requests; refresh can the
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `query` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `query`   | `unknown` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### setRecords() \{#setrecords\}
 
@@ -306,16 +306,16 @@ Replaces the current page with host records, optionally providing the total coun
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type           |
+| --------- | -------------- |
 | `records` | readonly `T`[] |
-| `total?` | `number` |
+| `total?`  | `number`       |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### setSorts() \{#setsorts\}
 
@@ -329,15 +329,15 @@ Replaces the ordering rules and returns to the first page, discarding the old qu
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `sorts` | readonly [`OrderBy`](../../rxdb/interfaces/OrderBy.md)&lt;`string`&gt;[] |
+| Parameter | Type                                                                     |
+| --------- | ------------------------------------------------------------------------ |
+| `sorts`   | readonly [`OrderBy`](../../rxdb/interfaces/OrderBy.md)&lt;`string`&gt;[] |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### subscribe() \{#subscribe\}
 
@@ -351,15 +351,15 @@ Subscribes to subsequent state changes and returns an unsubscribe function.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                      |
+| ---------- | ------------------------- |
 | `listener` | `ListListener`&lt;`T`&gt; |
 
 #### Returns
 
 () => `void`
 
-***
+---
 
 ### syncInput() \{#syncinput\}
 
@@ -373,9 +373,9 @@ Syncs the host input, forwarding only the items that really changed relative to 
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `input` | [`EntityListInput`](../type-aliases/EntityListInput.md)&lt;`T`&gt; |
+| Parameter | Type                                                               |
+| --------- | ------------------------------------------------------------------ |
+| `input`   | [`EntityListInput`](../type-aliases/EntityListInput.md)&lt;`T`&gt; |
 
 #### Returns
 
@@ -386,7 +386,7 @@ Syncs the host input, forwarding only the items that really changed relative to 
 Applied in the order of query, ordering, pagination, records, capabilities, so new records in the same batch of input are not cleared by the subsequent page change.
 When query, ordering, pagination, or records are omitted the current state is kept; capabilities are synced as-is from the input, so omitting them removes the constraint.
 
-***
+---
 
 ### toggleSelection() \{#toggleselection\}
 
@@ -400,15 +400,15 @@ Toggles the selection state of one entity.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `id` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `id`      | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### update() \{#update\}
 
@@ -422,9 +422,9 @@ Updates an entity; concurrent updates of the same entity run in call order and k
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `id` | `string` |
+| Parameter | Type                                |
+| --------- | ----------------------------------- |
+| `id`      | `string`                            |
 | `changes` | `Record`&lt;`string`, `unknown`&gt; |
 
 #### Returns

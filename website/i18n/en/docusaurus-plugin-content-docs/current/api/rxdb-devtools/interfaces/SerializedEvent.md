@@ -14,7 +14,7 @@ data: Record<string, unknown>;
 
 Defined in: [types.ts:132](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/types.ts#L132)
 
-***
+---
 
 ### eventType \{#eventtype\}
 
@@ -24,7 +24,7 @@ eventType: string;
 
 Defined in: [types.ts:129](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/types.ts#L129)
 
-***
+---
 
 ### id \{#id\}
 
@@ -34,7 +34,7 @@ id: string;
 
 Defined in: [types.ts:128](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/types.ts#L128)
 
-***
+---
 
 ### sequence \{#sequence\}
 
@@ -44,7 +44,7 @@ sequence: number;
 
 Defined in: [types.ts:131](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/types.ts#L131)
 
-***
+---
 
 ### timestamp \{#timestamp\}
 

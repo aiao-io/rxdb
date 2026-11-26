@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model/src/entity-form/headless.ts:36](https://github.
 
 Current form values.
 
-***
+---
 
 ### dirty \{#dirty\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-model/src/entity-form/headless.ts:44](https://github.
 
 Whether the data has changed relative to the most recent input.
 
-***
+---
 
 ### errors \{#errors\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-model/src/entity-form/headless.ts:40](https://github.
 
 Current field errors.
 
-***
+---
 
 ### fields \{#fields\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb-model/src/entity-form/headless.ts:32](https://github.
 
 Full field configuration.
 
-***
+---
 
 ### fieldStates \{#fieldstates\}
 
@@ -64,7 +64,7 @@ Defined in: [packages/rxdb-model/src/entity-form/headless.ts:34](https://github.
 
 Current value, error, read-only state, and default display text for each field.
 
-***
+---
 
 ### initialData \{#initialdata\}
 
@@ -76,7 +76,7 @@ Defined in: [packages/rxdb-model/src/entity-form/headless.ts:38](https://github.
 
 The most recent input data, used for canceling.
 
-***
+---
 
 ### mode \{#mode\}
 
@@ -88,7 +88,7 @@ Defined in: [packages/rxdb-model/src/entity-form/headless.ts:30](https://github.
 
 Current mode.
 
-***
+---
 
 ### readonly \{#readonly\}
 
@@ -100,7 +100,7 @@ Defined in: [packages/rxdb-model/src/entity-form/headless.ts:46](https://github.
 
 true in view mode or when the field is read-only.
 
-***
+---
 
 ### valid \{#valid\}
 

@@ -10,10 +10,10 @@ Constructs an entity sync configuration resolver.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `databaseSync` | [`SyncOptions`](../type-aliases/SyncOptions.md) \| `undefined` | The database-level default `sync` |
-| `overrides?` | `ReadonlyMap`&lt;`Readonly`&lt;[`EntityMetadataType`](../interfaces/EntityMetadataType.md)&gt;, [`SyncOptions`](../type-aliases/SyncOptions.md)&gt; | Instance-level overrides keyed by entity metadata; internally looked up by `namespace:name`, omitted means no overrides |
+| Parameter      | Type                                                                                                                                                | Description                                                                                                             |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `databaseSync` | [`SyncOptions`](../type-aliases/SyncOptions.md) \| `undefined`                                                                                      | The database-level default `sync`                                                                                       |
+| `overrides?`   | `ReadonlyMap`&lt;`Readonly`&lt;[`EntityMetadataType`](../interfaces/EntityMetadataType.md)&gt;, [`SyncOptions`](../type-aliases/SyncOptions.md)&gt; | Instance-level overrides keyed by entity metadata; internally looked up by `namespace:name`, omitted means no overrides |
 
 ## Returns
 

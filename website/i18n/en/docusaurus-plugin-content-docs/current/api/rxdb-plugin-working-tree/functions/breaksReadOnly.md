@@ -10,9 +10,9 @@ Whether this batch of statements should be rejected on a read-only connection: s
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `sql` | `string` | The raw statement, which may be a semicolon-separated batch |
+| Parameter | Type     | Description                                                 |
+| --------- | -------- | ----------------------------------------------------------- |
+| `sql`     | `string` | The raw statement, which may be a semicolon-separated batch |
 
 ## Returns
 

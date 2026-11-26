@@ -16,7 +16,7 @@ Defined in: [packages/rxdb/src/RxDBError.ts:339](https://github.com/aiao-io/rxdb
 
 Range bounds: `[)` left-closed right-open, `[]` closed at both ends
 
-***
+---
 
 ### existing \{#existing\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb/src/RxDBError.ts:343](https://github.com/aiao-io/rxdb
 
 The existing conflicting row's `[start, end]` in this dimension; `null` means that side is unbounded
 
-***
+---
 
 ### from \{#from\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb/src/RxDBError.ts:335](https://github.com/aiao-io/rxdb
 
 The range start column (property name)
 
-***
+---
 
 ### incoming \{#incoming\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb/src/RxDBError.ts:341](https://github.com/aiao-io/rxdb
 
 This write's row `[start, end]` in this dimension; `null` means that side is unbounded
 
-***
+---
 
 ### to \{#to\}
 

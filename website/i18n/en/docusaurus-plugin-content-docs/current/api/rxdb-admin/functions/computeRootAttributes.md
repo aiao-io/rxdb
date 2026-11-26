@@ -10,10 +10,10 @@ Computes the attributes to write onto the root element: theme, grayscale / low-c
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `prefs` | [`AdminPreferences`](../interfaces/AdminPreferences.md) | The preferences. |
-| `resolvedTheme` | `string` | The resolved concrete theme name. |
+| Parameter       | Type                                                    | Description                       |
+| --------------- | ------------------------------------------------------- | --------------------------------- |
+| `prefs`         | [`AdminPreferences`](../interfaces/AdminPreferences.md) | The preferences.                  |
+| `resolvedTheme` | `string`                                                | The resolved concrete theme name. |
 
 ## Returns
 

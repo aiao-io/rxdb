@@ -10,10 +10,10 @@ Merges a SQL template and parameters into a complete SQL statement
 
 ## Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `sql` | `string` | `undefined` | The SQL template string |
-| `params?` | readonly `unknown`[] | `[]` | The parameter array |
+| Parameter | Type                 | Default value | Description             |
+| --------- | -------------------- | ------------- | ----------------------- |
+| `sql`     | `string`             | `undefined`   | The SQL template string |
+| `params?` | readonly `unknown`[] | `[]`          | The parameter array     |
 
 ## Returns
 

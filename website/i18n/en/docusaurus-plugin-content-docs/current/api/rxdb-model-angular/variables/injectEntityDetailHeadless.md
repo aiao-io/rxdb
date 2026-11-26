@@ -12,8 +12,8 @@ Injects a reactive entity detail controller; fields, mode, and host data follow 
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                                                                                                           |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `options` | [`AngularHeadlessOptions`](../type-aliases/AngularHeadlessOptions.md)&lt;[`EntityDetailControllerOptions`](../interfaces/EntityDetailControllerOptions.md)&gt; |
 
 ## Returns

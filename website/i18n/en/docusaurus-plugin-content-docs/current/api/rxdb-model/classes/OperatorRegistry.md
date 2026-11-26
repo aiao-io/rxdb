@@ -17,8 +17,8 @@ Defined in: [packages/rxdb-model/src/query-builder/services/operator-registry.se
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                                  | Description                           |
+| ---------- | --------------------------------------------------------------------- | ------------------------------------- |
 | `options?` | [`OperatorRegistryOptions`](../interfaces/OperatorRegistryOptions.md) | Set of operators registered initially |
 
 #### Returns
@@ -59,7 +59,7 @@ Clears all operators
 
 `void`
 
-***
+---
 
 ### get() \{#get\}
 
@@ -73,9 +73,9 @@ Gets an operator definition
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | [`OperatorName`](../type-aliases/OperatorName.md) | Operator key |
+| Parameter | Type                                              | Description  |
+| --------- | ------------------------------------------------- | ------------ |
+| `key`     | [`OperatorName`](../type-aliases/OperatorName.md) | Operator key |
 
 #### Returns
 
@@ -83,7 +83,7 @@ Gets an operator definition
 
 The operator definition or undefined
 
-***
+---
 
 ### getAll() \{#getall\}
 
@@ -101,7 +101,7 @@ Gets all operators
 
 Array of all operator definitions
 
-***
+---
 
 ### getForField() \{#getforfield\}
 
@@ -115,9 +115,9 @@ Gets the operators applicable to the field metadata
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `field` | [`FieldMetadata`](../interfaces/FieldMetadata.md) | Field metadata |
+| Parameter | Type                                              | Description    |
+| --------- | ------------------------------------------------- | -------------- |
+| `field`   | [`FieldMetadata`](../interfaces/FieldMetadata.md) | Field metadata |
 
 #### Returns
 
@@ -125,7 +125,7 @@ Gets the operators applicable to the field metadata
 
 Array of applicable operators
 
-***
+---
 
 ### getForType() \{#getfortype\}
 
@@ -139,9 +139,9 @@ Gets the operators applicable to the field type
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `fieldType` | [`PropertyType`](../type-aliases/PropertyType.md) | Field type |
+| Parameter   | Type                                              | Description |
+| ----------- | ------------------------------------------------- | ----------- |
+| `fieldType` | [`PropertyType`](../type-aliases/PropertyType.md) | Field type  |
 
 #### Returns
 
@@ -156,7 +156,7 @@ const stringOperators = registry.getForType('string');
 // [{ key: '=', ... }, { key: 'contains', ... }, ...]
 ```
 
-***
+---
 
 ### getValueType() \{#getvaluetype\}
 
@@ -170,8 +170,8 @@ Gets the value type of an operator
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter     | Type                                              | Description  |
+| ------------- | ------------------------------------------------- | ------------ |
 | `operatorKey` | [`OperatorName`](../type-aliases/OperatorName.md) | Operator key |
 
 #### Returns
@@ -180,7 +180,7 @@ Gets the value type of an operator
 
 The value type
 
-***
+---
 
 ### isOperatorSupportedForField() \{#isoperatorsupportedforfield\}
 
@@ -194,10 +194,10 @@ Checks whether the operator supports the given field
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `operatorKey` | [`OperatorName`](../type-aliases/OperatorName.md) | Operator key |
-| `field` | [`FieldMetadata`](../interfaces/FieldMetadata.md) | Field metadata |
+| Parameter     | Type                                              | Description    |
+| ------------- | ------------------------------------------------- | -------------- |
+| `operatorKey` | [`OperatorName`](../type-aliases/OperatorName.md) | Operator key   |
+| `field`       | [`FieldMetadata`](../interfaces/FieldMetadata.md) | Field metadata |
 
 #### Returns
 
@@ -205,7 +205,7 @@ Checks whether the operator supports the given field
 
 Whether it is supported
 
-***
+---
 
 ### isOperatorSupportedForType() \{#isoperatorsupportedfortype\}
 
@@ -219,10 +219,10 @@ Checks whether the operator supports the given type
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter     | Type                                              | Description  |
+| ------------- | ------------------------------------------------- | ------------ |
 | `operatorKey` | [`OperatorName`](../type-aliases/OperatorName.md) | Operator key |
-| `fieldType` | [`PropertyType`](../type-aliases/PropertyType.md) | Field type |
+| `fieldType`   | [`PropertyType`](../type-aliases/PropertyType.md) | Field type   |
 
 #### Returns
 
@@ -230,7 +230,7 @@ Checks whether the operator supports the given type
 
 Whether it is supported
 
-***
+---
 
 ### register() \{#register\}
 
@@ -244,8 +244,8 @@ Registers a new operator
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                        | Description         |
+| ---------- | ----------------------------------------------------------- | ------------------- |
 | `operator` | [`OperatorDefinition`](../interfaces/OperatorDefinition.md) | Operator definition |
 
 #### Returns
@@ -263,7 +263,7 @@ registry.register({
 });
 ```
 
-***
+---
 
 ### registerMany() \{#registermany\}
 
@@ -277,15 +277,15 @@ Registers operators in bulk
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type                                                          | Description                   |
+| ----------- | ------------------------------------------------------------- | ----------------------------- |
 | `operators` | [`OperatorDefinition`](../interfaces/OperatorDefinition.md)[] | Array of operator definitions |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### reset() \{#reset\}
 
@@ -301,7 +301,7 @@ Resets to the default operators
 
 `void`
 
-***
+---
 
 ### unregister() \{#unregister\}
 
@@ -315,9 +315,9 @@ Removes an operator
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | [`OperatorName`](../type-aliases/OperatorName.md) | Operator key |
+| Parameter | Type                                              | Description  |
+| --------- | ------------------------------------------------- | ------------ |
+| `key`     | [`OperatorName`](../type-aliases/OperatorName.md) | Operator key |
 
 #### Returns
 

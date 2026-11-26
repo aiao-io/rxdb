@@ -10,15 +10,15 @@ Picks a random element from an array.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `array` | readonly `T`[] | Candidate array |
+| Parameter | Type           | Description     |
+| --------- | -------------- | --------------- |
+| `array`   | readonly `T`[] | Candidate array |
 
 ## Returns
 

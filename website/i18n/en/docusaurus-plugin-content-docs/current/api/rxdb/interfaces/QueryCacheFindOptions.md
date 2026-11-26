@@ -1,5 +1,5 @@
 ---
-sidebar_label: "QueryCacheFindOptions⟨T⟩"
+sidebar_label: 'QueryCacheFindOptions⟨T⟩'
 ---
 
 # QueryCacheFindOptions`<T>`
@@ -10,9 +10,9 @@ Query options
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityBaseType`](../type-aliases/EntityBaseType.md) |
+| Type Parameter                                                                                    |
+| ------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityBaseType`](../type-aliases/EntityBaseType.md) |
 
 ## Properties
 
@@ -27,6 +27,7 @@ Defined in: [packages/rxdb/src/repository/query-cache.interface.ts:126](https://
 Local-cache-first mode (Stale-While-Revalidate)
 
 When set to true:
+
 1. Returns the local cache data immediately (if present)
 2. Validates and updates asynchronously in the background
 3. Emits the updated data if anything changed
@@ -34,10 +35,10 @@ When set to true:
 #### Default
 
 ```ts
-false
+false;
 ```
 
-***
+---
 
 ### offlineFallback? \{#offlinefallback\}
 
@@ -50,16 +51,17 @@ Defined in: [packages/rxdb/src/repository/query-cache.interface.ts:136](https://
 Offline fallback mode
 
 When set to true:
+
 - Returns local cache data on network errors
 - Throws NetworkOfflineError if there is no local cache
 
 #### Default
 
 ```ts
-false
+false;
 ```
 
-***
+---
 
 ### onRemoteError? \{#onremoteerror\}
 
@@ -73,9 +75,9 @@ The reporting channel for remote validation failures that are **swallowed** in S
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `error` | `Error` |
+| Parameter | Type    |
+| --------- | ------- |
+| `error`   | `Error` |
 
 #### Returns
 
@@ -88,7 +90,7 @@ But "the remote did not validate successfully this time" is a fact internal book
 the "just synced" memory would record a failed validation as a success, and no retry would happen for the whole window.
 This callback only reports; it does not change the behavior of the stream.
 
-***
+---
 
 ### onSyncStats? \{#onsyncstats\}
 
@@ -102,15 +104,15 @@ Sync completion callback, used to collect performance statistics
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `stats` | [`SyncStats`](SyncStats.md) |
+| Parameter | Type                        |
+| --------- | --------------------------- |
+| `stats`   | [`SyncStats`](SyncStats.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### where \{#where\}
 

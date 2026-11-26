@@ -16,7 +16,7 @@ Defined in: packages/rxdb-model/dist/entity-table/vtable/table-clipboard.d.ts:12
 
 Cell type
 
-***
+---
 
 ### col \{#col\}
 
@@ -28,7 +28,7 @@ Defined in: packages/rxdb-model/dist/entity-table/vtable/table-clipboard.d.ts:6
 
 Column index
 
-***
+---
 
 ### field \{#field\}
 
@@ -40,7 +40,7 @@ Defined in: packages/rxdb-model/dist/entity-table/vtable/table-clipboard.d.ts:8
 
 Field name
 
-***
+---
 
 ### propertyType? \{#propertytype\}
 
@@ -52,7 +52,7 @@ Defined in: packages/rxdb-model/dist/entity-table/vtable/table-clipboard.d.ts:14
 
 Property type
 
-***
+---
 
 ### value \{#value\}
 

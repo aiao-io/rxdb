@@ -1,11 +1,11 @@
 # splitLogicalPath()
 
 ```ts
-function splitLogicalPath(path): 
+function splitLogicalPath(path):
   | {
-  name: string;
-  parent: readonly string[];
-}
+      name: string;
+      parent: readonly string[];
+    }
   | undefined;
 ```
 
@@ -15,17 +15,17 @@ Splits a path into "parent segments + last segment".
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `path` | `unknown` | The path value on the wire. |
+| Parameter | Type      | Description                 |
+| --------- | --------- | --------------------------- |
+| `path`    | `unknown` | The path value on the wire. |
 
 ## Returns
 
-  \| \{
-  `name`: `string`;
-  `parent`: readonly `string`[];
+\| \{
+`name`: `string`;
+`parent`: readonly `string`[];
 \}
-  \| `undefined`
+\| `undefined`
 
 The parent segments and the last segment; `undefined` when the path is invalid or points at the root.
 

@@ -20,10 +20,10 @@ Entity name
 #### Example
 
 ```ts
-"Todo"
+'Todo';
 ```
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -38,5 +38,5 @@ Entity namespace
 #### Example
 
 ```ts
-"public"
+'public';
 ```

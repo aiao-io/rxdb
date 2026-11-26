@@ -25,7 +25,7 @@ The adapter name, same as the key used when registering with `RxDB.adapter()`; e
 
 [`IRxDBAdapter`](IRxDBAdapter.md).[`name`](IRxDBAdapter.md#name)
 
-***
+---
 
 ### repository\_cache \{#repository_cache\}
 
@@ -39,7 +39,7 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:378](https://github.com/aiao-io/r
 
 [`RxDBAdapterRemoteBase`](../classes/RxDBAdapterRemoteBase.md).[`repository_cache`](../classes/RxDBAdapterRemoteBase.md#repository_cache)
 
-***
+---
 
 ### repository\_map \{#repository_map\}
 
@@ -53,7 +53,7 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:377](https://github.com/aiao-io/r
 
 [`RxDBAdapterRemoteBase`](../classes/RxDBAdapterRemoteBase.md).[`repository_map`](../classes/RxDBAdapterRemoteBase.md#repository_map)
 
-***
+---
 
 ### rxdb \{#rxdb\}
 
@@ -98,20 +98,20 @@ Adapters that do not support change log sync throw an unsupported error directly
 
 [`RxDBAdapterRemoteBase`](../classes/RxDBAdapterRemoteBase.md).[`backendId`](../classes/RxDBAdapterRemoteBase.md#backendid)
 
-***
+---
 
 ### branchExists()? \{#branchexists\}
 
 ```ts
-branchExists?(branchId): Promise<boolean>;
+branchExists ? branchId : Promise<boolean>;
 ```
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:1107](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L1107)
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `branchId` | `string` |
 
 #### Returns
@@ -122,7 +122,7 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:1107](https://github.com/aiao-io/
 
 [`RxDBAdapterRemoteBase`](../classes/RxDBAdapterRemoteBase.md).[`branchExists`](../classes/RxDBAdapterRemoteBase.md#branchexists)
 
-***
+---
 
 ### connect() \{#connect\}
 
@@ -149,7 +149,7 @@ and it may throw `UnsupportedRxDBSystemVersionError` because the database is new
 
 [`IRxDBAdapter`](IRxDBAdapter.md).[`connect`](IRxDBAdapter.md#connect)
 
-***
+---
 
 ### count() \{#count\}
 
@@ -163,9 +163,9 @@ count query
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | [`CountOptions`](CountOptions.md)&lt;*typeof* [`RxDBChange`](../classes/RxDBChange.md), [`RxDBChangeRuleGroup`](../type-aliases/RxDBChangeRuleGroup.md)&gt; | Query options |
+| Parameter | Type                                                                                                                                                        | Description   |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| `options` | [`CountOptions`](CountOptions.md)&lt;_typeof_ [`RxDBChange`](../classes/RxDBChange.md), [`RxDBChangeRuleGroup`](../type-aliases/RxDBChangeRuleGroup.md)&gt; | Query options |
 
 #### Returns
 
@@ -173,7 +173,7 @@ count query
 
 Returns the number of query results
 
-***
+---
 
 ### create() \{#create\}
 
@@ -187,9 +187,9 @@ Creates an entity
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | [`RxDBChange`](../classes/RxDBChange.md) | The entity to create |
+| Parameter | Type                                     | Description          |
+| --------- | ---------------------------------------- | -------------------- |
+| `entity`  | [`RxDBChange`](../classes/RxDBChange.md) | The entity to create |
 
 #### Returns
 
@@ -197,7 +197,7 @@ Creates an entity
 
 Returns the created entity
 
-***
+---
 
 ### disconnect() \{#disconnect\}
 
@@ -222,7 +222,7 @@ Implementations must be idempotent — calling it while not connected is a no-op
 
 [`IRxDBAdapter`](IRxDBAdapter.md).[`disconnect`](IRxDBAdapter.md#disconnect)
 
-***
+---
 
 ### fetchMetadata() \{#fetchmetadata\}
 
@@ -239,10 +239,10 @@ This is the core capability of the QueryCache sync strategy.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entityName` | `string` | Entity name |
-| `query` | [`RuleGroup`](../type-aliases/RuleGroup.md)&lt;`unknown`&gt; | Query conditions |
+| Parameter    | Type                                                         | Description      |
+| ------------ | ------------------------------------------------------------ | ---------------- |
+| `entityName` | `string`                                                     | Entity name      |
+| `query`      | [`RuleGroup`](../type-aliases/RuleGroup.md)&lt;`unknown`&gt; | Query conditions |
 
 #### Returns
 
@@ -253,10 +253,9 @@ This is the core capability of the QueryCache sync strategy.
 #### Example
 
 ```typescript
-adapter.fetchMetadata('Product', { where: { status: 'active' } })
-  .subscribe(metadata => {
-    // metadata: [{ id: 'p1', updatedAt: '2026-01-12T10:00:00Z' }, ...]
-  });
+adapter.fetchMetadata('Product', { where: { status: 'active' } }).subscribe(metadata => {
+  // metadata: [{ id: 'p1', updatedAt: '2026-01-12T10:00:00Z' }, ...]
+});
 ```
 
 #### Remarks
@@ -265,6 +264,7 @@ Implementations must satisfy the following two contracts; both are preconditions
 
 **1. Emit the full result exactly once, then `complete`.**
 Paged implementations must stitch all pages together and emit once, not once per page. The reason is that the two call sites have exactly opposite semantics:
+
 - `QueryCacheEngine` (`#syncQuery` / `#syncAndReadLocal`) uses `forkJoin` — only the **last**
   emission is kept, and **without `complete` it never produces at all**. Emitting page by page would silently drop all metadata except the last page,
   which would then be misjudged as orphans and evicted from the local cache.
@@ -287,7 +287,7 @@ getting it backwards (treating an RLS rejection as offline) leaves the caller wi
 
 [`RxDBAdapterRemoteBase`](../classes/RxDBAdapterRemoteBase.md).[`fetchMetadata`](../classes/RxDBAdapterRemoteBase.md#fetchmetadata)
 
-***
+---
 
 ### find() \{#find\}
 
@@ -301,9 +301,9 @@ find query
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | [`FindOptions`](FindOptions.md)&lt;*typeof* [`RxDBChange`](../classes/RxDBChange.md), [`RxDBChangeRuleGroup`](../type-aliases/RxDBChangeRuleGroup.md), [`RxDBChangeOrderByField`](../type-aliases/RxDBChangeOrderByField.md)&gt; | Query options |
+| Parameter | Type                                                                                                                                                                                                                             | Description   |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| `options` | [`FindOptions`](FindOptions.md)&lt;_typeof_ [`RxDBChange`](../classes/RxDBChange.md), [`RxDBChangeRuleGroup`](../type-aliases/RxDBChangeRuleGroup.md), [`RxDBChangeOrderByField`](../type-aliases/RxDBChangeOrderByField.md)&gt; | Query options |
 
 #### Returns
 
@@ -311,7 +311,7 @@ find query
 
 Returns the query result array
 
-***
+---
 
 ### findByIds() \{#findbyids\}
 
@@ -327,16 +327,16 @@ Used to pull stale or missing data, avoiding the N+1 problem.
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entityName` | `string` | Entity name |
-| `ids` | `string`[] | The list of entity IDs to fetch |
+| Parameter    | Type       | Description                     |
+| ------------ | ---------- | ------------------------------- |
+| `entityName` | `string`   | Entity name                     |
+| `ids`        | `string`[] | The list of entity IDs to fetch |
 
 #### Returns
 
@@ -347,10 +347,9 @@ Used to pull stale or missing data, avoiding the N+1 problem.
 #### Example
 
 ```typescript
-adapter.findByIds('Product', ['p1', 'p2', 'p3'])
-  .subscribe(products => {
-    // products: [{ id: 'p1', name: 'Product A', ... }, ...]
-  });
+adapter.findByIds('Product', ['p1', 'p2', 'p3']).subscribe(products => {
+  // products: [{ id: 'p1', name: 'Product A', ... }, ...]
+});
 ```
 
 #### Remarks
@@ -362,14 +361,14 @@ the caller also uses `forkJoin`) and `complete`; transport failures must throw a
 
 [`RxDBAdapterRemoteBase`](../classes/RxDBAdapterRemoteBase.md).[`findByIds`](../classes/RxDBAdapterRemoteBase.md#findbyids)
 
-***
+---
 
 ### getChangeCount() \{#getchangecount\}
 
 ```ts
 abstract getChangeCount(
-   sinceId, 
-   repositoryFilter?, 
+   sinceId,
+   repositoryFilter?,
    branchId?
 ): Promise<{
   count: number;
@@ -386,17 +385,17 @@ Used to implement the checkRepositoryUpdates() feature, saving bandwidth.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `sinceId` | `number` | The starting changeId (exclusive) |
-| `repositoryFilter?` | `string`[] | Optional entity filter list |
-| `branchId?` | `string` | Optional branch ID (counts changes of that branch only) |
+| Parameter           | Type       | Description                                             |
+| ------------------- | ---------- | ------------------------------------------------------- |
+| `sinceId`           | `number`   | The starting changeId (exclusive)                       |
+| `repositoryFilter?` | `string`[] | Optional entity filter list                             |
+| `branchId?`         | `string`   | Optional branch ID (counts changes of that branch only) |
 
 #### Returns
 
 `Promise`&lt;\{
-  `count`: `number`;
-  `latestChangeId`: `number`;
+`count`: `number`;
+`latestChangeId`: `number`;
 \}&gt;
 
 The change count and the latest changeId
@@ -405,7 +404,7 @@ The change count and the latest changeId
 
 [`RxDBAdapterRemoteBase`](../classes/RxDBAdapterRemoteBase.md).[`getChangeCount`](../classes/RxDBAdapterRemoteBase.md#getchangecount)
 
-***
+---
 
 ### getRepository() \{#getrepository\}
 
@@ -419,16 +418,16 @@ Gets the repository instance of this entity on **this adapter**.
 
 #### Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t-1"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) | - |
-| <a id="type-parameter-rt"></a> `RT` *extends* [`IRepository`](IRepository.md)&lt;`T`&gt; | [`IRepository`](IRepository.md)&lt;`T`&gt; |
+| Type Parameter                                                                              | Default type                               |
+| ------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| <a id="type-parameter-t-1"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) | -                                          |
+| <a id="type-parameter-rt"></a> `RT` _extends_ [`IRepository`](IRepository.md)&lt;`T`&gt;    | [`IRepository`](IRepository.md)&lt;`T`&gt; |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `EntityType` | `T` |
+| Parameter    | Type |
+| ------------ | ---- |
+| `EntityType` | `T`  |
 
 #### Returns
 
@@ -443,7 +442,7 @@ not the same object as the facade repository `RxDB.getRepository()` that users n
 
 [`RxDBAdapterRemoteBase`](../classes/RxDBAdapterRemoteBase.md).[`getRepository`](../classes/RxDBAdapterRemoteBase.md#getrepository)
 
-***
+---
 
 ### isTableExisted() \{#istableexisted\}
 
@@ -457,8 +456,8 @@ Whether the table for this entity already exists in the database.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter    | Type                                          |
+| ------------ | --------------------------------------------- |
 | `EntityType` | [`EntityType`](../type-aliases/EntityType.md) |
 
 #### Returns
@@ -473,14 +472,14 @@ It asks about the **physical table**, not whether the entity is registered in th
 
 [`IRxDBAdapter`](IRxDBAdapter.md).[`isTableExisted`](IRxDBAdapter.md#istableexisted)
 
-***
+---
 
 ### mergeChanges() \{#mergechanges\}
 
 ```ts
 abstract mergeChanges(
-   actions, 
-   branchId?, 
+   actions,
+   branchId?,
    changes?
 ): Promise<RemoteMergeResult>;
 ```
@@ -490,6 +489,7 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:1020](https://github.com/aiao-io/
 Applies compacted changes to the remote entity tables
 
 Implementation strategy (Supabase):
+
 1. Convert actions (Map) into RemoteChange records
 2. Within a transaction:
    a) Write into the remote RemoteChange table (for other clients to pull)
@@ -497,11 +497,11 @@ Implementation strategy (Supabase):
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `actions` | [`SwitchVersionActions`](SwitchVersionActions.md) | The compacted change operation set (pushed from local) |
-| `branchId?` | `string` | Branch ID (used to set branchId in the remote change records) |
-| `changes?` | [`IRxDBChange`](IRxDBChange.md)[] | The complete original change records (optional, for keeping the full change history) |
+| Parameter   | Type                                              | Description                                                                          |
+| ----------- | ------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `actions`   | [`SwitchVersionActions`](SwitchVersionActions.md) | The compacted change operation set (pushed from local)                               |
+| `branchId?` | `string`                                          | Branch ID (used to set branchId in the remote change records)                        |
+| `changes?`  | [`IRxDBChange`](IRxDBChange.md)[]                 | The complete original change records (optional, for keeping the full change history) |
 
 #### Returns
 
@@ -518,7 +518,7 @@ the entity side effects, and must return, for each local change ID, the same rem
 
 [`RxDBAdapterRemoteBase`](../classes/RxDBAdapterRemoteBase.md).[`mergeChanges`](../classes/RxDBAdapterRemoteBase.md#mergechanges)
 
-***
+---
 
 ### mutations() \{#mutations\}
 
@@ -532,14 +532,14 @@ Mutates entities in bulk (create/update/remove)
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-2"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                              |
+| ------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-2"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                 |
+| --------- | ---------------------------------------------------- |
 | `options` | [`RxDBMutationsMap`](RxDBMutationsMap.md)&lt;`T`&gt; |
 
 #### Returns
@@ -550,7 +550,7 @@ Mutates entities in bulk (create/update/remove)
 
 [`IRxDBAdapter`](IRxDBAdapter.md).[`mutations`](IRxDBAdapter.md#mutations)
 
-***
+---
 
 ### pullBranches()? \{#pullbranches\}
 
@@ -568,16 +568,16 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:1109](https://github.com/aiao-io/
 
 [`RxDBAdapterRemoteBase`](../classes/RxDBAdapterRemoteBase.md).[`pullBranches`](../classes/RxDBAdapterRemoteBase.md#pullbranches)
 
-***
+---
 
 ### pullChanges() \{#pullchanges\}
 
 ```ts
 abstract pullChanges(
-   sinceId, 
-   limit?, 
-   repositoryFilter?, 
-   filter?, 
+   sinceId,
+   limit?,
+   repositoryFilter?,
+   filter?,
    branchId?
 ): Promise<RemoteChange[]>;
 ```
@@ -588,13 +588,13 @@ Pulls change records from the remote
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `sinceId` | `number` | Pulls changes after this ID (exclusive) |
-| `limit?` | `number` | Maximum number to pull |
-| `repositoryFilter?` | `string`[] | Optional entity filter list (for repository-level sync) |
-| `filter?` | [`RuleGroup`](../type-aliases/RuleGroup.md) | Optional row-level filter conditions (for SyncType.Filter) |
-| `branchId?` | `string` | Optional branch ID (pulls changes of that branch only) |
+| Parameter           | Type                                        | Description                                                |
+| ------------------- | ------------------------------------------- | ---------------------------------------------------------- |
+| `sinceId`           | `number`                                    | Pulls changes after this ID (exclusive)                    |
+| `limit?`            | `number`                                    | Maximum number to pull                                     |
+| `repositoryFilter?` | `string`[]                                  | Optional entity filter list (for repository-level sync)    |
+| `filter?`           | [`RuleGroup`](../type-aliases/RuleGroup.md) | Optional row-level filter conditions (for SyncType.Filter) |
+| `branchId?`         | `string`                                    | Optional branch ID (pulls changes of that branch only)     |
 
 #### Returns
 
@@ -611,14 +611,14 @@ returning only the change records corresponding to entities that match the condi
 
 [`RxDBAdapterRemoteBase`](../classes/RxDBAdapterRemoteBase.md).[`pullChanges`](../classes/RxDBAdapterRemoteBase.md#pullchanges)
 
-***
+---
 
 ### pullChangesBatch()? \{#pullchangesbatch\}
 
 ```ts
 pullChangesBatch?(
-   requests, 
-   limit, 
+   requests,
+   limit,
    branchIds?
 ): Promise<RemoteChange[]>;
 ```
@@ -632,11 +632,11 @@ to fetch the changes of all entities in one request.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `requests` | [`PullBatchRequest`](PullBatchRequest.md)[] | The pull request for each entity (namespace + entity name + sinceId) |
-| `limit` | `number` | Maximum number to pull |
-| `branchIds?` | `string`[] | Branch ID list (ancestor branches are supported) |
+| Parameter    | Type                                        | Description                                                          |
+| ------------ | ------------------------------------------- | -------------------------------------------------------------------- |
+| `requests`   | [`PullBatchRequest`](PullBatchRequest.md)[] | The pull request for each entity (namespace + entity name + sinceId) |
+| `limit`      | `number`                                    | Maximum number to pull                                               |
+| `branchIds?` | `string`[]                                  | Branch ID list (ancestor branches are supported)                     |
 
 #### Returns
 
@@ -648,37 +648,39 @@ Change record array, ordered by id ASC
 
 [`RxDBAdapterRemoteBase`](../classes/RxDBAdapterRemoteBase.md).[`pullChangesBatch`](../classes/RxDBAdapterRemoteBase.md#pullchangesbatch)
 
-***
+---
 
 ### pushBranches()? \{#pushbranches\}
 
 ```ts
-pushBranches?(branches): Promise<{
-  skipped: string[];
-  synced: number;
-}>;
+pushBranches ? branches : (
+  Promise<{
+    skipped: string[];
+    synced: number;
+  }>
+);
 ```
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:1105](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L1105)
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                  |
+| ---------- | ------------------------------------- |
 | `branches` | `Record`&lt;`string`, `unknown`&gt;[] |
 
 #### Returns
 
 `Promise`&lt;\{
-  `skipped`: `string`[];
-  `synced`: `number`;
+`skipped`: `string`[];
+`synced`: `number`;
 \}&gt;
 
 #### Inherited from
 
 [`RxDBAdapterRemoteBase`](../classes/RxDBAdapterRemoteBase.md).[`pushBranches`](../classes/RxDBAdapterRemoteBase.md#pushbranches)
 
-***
+---
 
 ### rawQuery()? \{#rawquery\}
 
@@ -692,9 +694,9 @@ Executes a raw SQL query (for scenarios like conditional UPDATE that bypass the 
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `sql` | `string` |
+| Parameter | Type        |
+| --------- | ----------- |
+| `sql`     | `string`    |
 | `params?` | `unknown`[] |
 
 #### Returns
@@ -715,7 +717,7 @@ Writes going through here do not pass the entity Proxy, so they produce no entit
 
 [`IRxDBAdapter`](IRxDBAdapter.md).[`rawQuery`](IRxDBAdapter.md#rawquery)
 
-***
+---
 
 ### remove() \{#remove\}
 
@@ -729,9 +731,9 @@ Removes an entity
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | [`RxDBChange`](../classes/RxDBChange.md) | The entity to remove |
+| Parameter | Type                                     | Description          |
+| --------- | ---------------------------------------- | -------------------- |
+| `entity`  | [`RxDBChange`](../classes/RxDBChange.md) | The entity to remove |
 
 #### Returns
 
@@ -739,7 +741,7 @@ Removes an entity
 
 Returns the removed entity
 
-***
+---
 
 ### removeMany() \{#removemany\}
 
@@ -753,14 +755,14 @@ Removes entities in bulk.
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-3"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                              |
+| ------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-3"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                        |
+| ---------- | --------------------------- |
 | `entities` | `InstanceType`&lt;`T`&gt;[] |
 
 #### Returns
@@ -773,7 +775,7 @@ The removed entities
 
 [`IRxDBAdapter`](IRxDBAdapter.md).[`removeMany`](IRxDBAdapter.md#removemany)
 
-***
+---
 
 ### repository() \{#repository\}
 
@@ -785,15 +787,15 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:384](https://github.com/aiao-io/r
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-rt-1"></a> `RT` *extends* [`RepositoryInstance`](RepositoryInstance.md)&lt;[`EntityType`](../type-aliases/EntityType.md)&gt; |
+| Type Parameter                                                                                                                                     |
+| -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-rt-1"></a> `RT` _extends_ [`RepositoryInstance`](RepositoryInstance.md)&lt;[`EntityType`](../type-aliases/EntityType.md)&gt; |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `repositoryName` | `string` |
+| Parameter         | Type                                                                                                                        |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `repositoryName`  | `string`                                                                                                                    |
 | `RepositoryClass` | [`AdapterRepositoryConstructor`](../type-aliases/AdapterRepositoryConstructor.md)&lt;`RemoteRxDBChangeRepository`, `RT`&gt; |
 
 #### Returns
@@ -804,7 +806,7 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:384](https://github.com/aiao-io/r
 
 [`RxDBAdapterRemoteBase`](../classes/RxDBAdapterRemoteBase.md).[`repository`](../classes/RxDBAdapterRemoteBase.md#repository)
 
-***
+---
 
 ### saveMany() \{#savemany\}
 
@@ -818,14 +820,14 @@ Writes entities in bulk (insert if absent, update if present).
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-4"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                              |
+| ------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-4"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                        |
+| ---------- | --------------------------- |
 | `entities` | `InstanceType`&lt;`T`&gt;[] |
 
 #### Returns
@@ -838,7 +840,7 @@ The entities after persistence; fields backfilled by the database, such as prima
 
 [`IRxDBAdapter`](IRxDBAdapter.md).[`saveMany`](IRxDBAdapter.md#savemany)
 
-***
+---
 
 ### update() \{#update\}
 
@@ -852,10 +854,10 @@ Updates an entity
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | [`RxDBChange`](../classes/RxDBChange.md) | The entity to update |
-| `patch` | `Partial`&lt;`InstanceType`&lt;*typeof* [`RxDBChange`](../classes/RxDBChange.md)&gt;&gt; | Update data |
+| Parameter | Type                                                                                     | Description          |
+| --------- | ---------------------------------------------------------------------------------------- | -------------------- |
+| `entity`  | [`RxDBChange`](../classes/RxDBChange.md)                                                 | The entity to update |
+| `patch`   | `Partial`&lt;`InstanceType`&lt;_typeof_ [`RxDBChange`](../classes/RxDBChange.md)&gt;&gt; | Update data          |
 
 #### Returns
 
@@ -863,7 +865,7 @@ Updates an entity
 
 Returns the updated entity
 
-***
+---
 
 ### version() \{#version\}
 

@@ -14,16 +14,16 @@ When `predicate` is written as `(value, key): key is K`, the return type is prec
 
 ### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* `object` |
-| <a id="type-parameter-k"></a> `K` *extends* `string` |
+| Type Parameter                                       |
+| ---------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ `object` |
+| <a id="type-parameter-k"></a> `K` _extends_ `string` |
 
 ### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `object` | `T` | The source object |
+| Parameter   | Type                           | Description                             |
+| ----------- | ------------------------------ | --------------------------------------- |
+| `object`    | `T`                            | The source object                       |
 | `predicate` | (`value`, `key`) => `key is K` | The type predicate that narrows the key |
 
 ### Returns
@@ -46,15 +46,15 @@ Returns `Partial<T>` rather than `T`: any key may be filtered out by `predicate`
 
 ### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-1"></a> `T` *extends* `object` |
+| Type Parameter                                         |
+| ------------------------------------------------------ |
+| <a id="type-parameter-t-1"></a> `T` _extends_ `object` |
 
 ### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `object` | `T` | The source object |
+| Parameter   | Type                          | Description                                 |
+| ----------- | ----------------------------- | ------------------------------------------- |
+| `object`    | `T`                           | The source object                           |
 | `predicate` | (`value`, `key`) => `boolean` | The property is kept when this returns true |
 
 ### Returns

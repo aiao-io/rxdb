@@ -10,10 +10,10 @@ Reads all current uncommitted entries of a branch, ascending by `id`
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                                  | Description                              |
+| ---------- | --------------------------------------------------------------------- | ---------------------------------------- |
 | `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md) | The executor of the caller's transaction |
-| `branchId` | `string` | Id of the branch to read |
+| `branchId` | `string`                                                              | Id of the branch to read                 |
 
 ## Returns
 

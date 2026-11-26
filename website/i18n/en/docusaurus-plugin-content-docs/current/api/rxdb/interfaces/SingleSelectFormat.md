@@ -9,7 +9,7 @@ Single selection. Its carrier is [EnumProperty](EnumProperty.md), and the option
 ### kind \{#kind\}
 
 ```ts
-kind: "singleSelect";
+kind: 'singleSelect';
 ```
 
 Defined in: [packages/rxdb/src/entity/cascade-options.interface.ts:129](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/cascade-options.interface.ts#L129)

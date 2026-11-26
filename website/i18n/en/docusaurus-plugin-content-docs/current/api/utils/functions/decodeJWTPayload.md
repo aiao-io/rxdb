@@ -12,15 +12,15 @@ Decoding only — the signature is **not verified**, so the result must not be u
 
 ## Type Parameters
 
-| Type Parameter | Default type | Description |
-| ------ | ------ | ------ |
+| Type Parameter                    | Default type                        | Description                                                                                |
+| --------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------ |
 | <a id="type-parameter-t"></a> `T` | `Record`&lt;`string`, `unknown`&gt; | The expected payload shape, declared by the caller (defaults to `Record<string, unknown>`) |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `token` | `string` | A JWT string of the form `header.payload.signature` |
+| Parameter | Type     | Description                                         |
+| --------- | -------- | --------------------------------------------------- |
+| `token`   | `string` | A JWT string of the form `header.payload.signature` |
 
 ## Returns
 

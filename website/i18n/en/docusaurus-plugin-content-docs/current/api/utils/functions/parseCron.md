@@ -11,13 +11,14 @@ Parses a cron expression and returns its fields
 Supports the standard 5-segment format (minute hour day month dow) and the 6-segment format (second minute hour day month dow).
 
 Every field is validated for **syntax and range**:
+
 - Grammar: `field := '*' | item (',' item)*`, `item := ('*' | n | n '-' n) ['/' step]`, `step ≥ 1`; a range's start must not exceed its end; `*` cannot be combined with other items.
 - Ranges: seconds `0-59`, minutes `0-59`, hours `0-23`, day `1-31`, month `1-12`, day-of-week `0-7` (0 and 7 are both Sunday).
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter    | Type     | Description            |
+| ------------ | -------- | ---------------------- |
 | `expression` | `string` | Cron expression string |
 
 ## Returns

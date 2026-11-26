@@ -26,9 +26,9 @@ new OpfsRouteSync(): OpfsRouteSync;
 
 ```ts
 sync(
-   available, 
-   routePath, 
-   getCurrentPath, 
+   available,
+   routePath,
+   getCurrentPath,
    actions
 ): Promise<void>;
 ```
@@ -39,16 +39,16 @@ Requests a sync to `routePath`.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `available` | `boolean` | Whether OPFS is available; when `false`, resolves immediately without recording the path or triggering any callbacks |
-| `routePath` | `string` | Target path |
-| `getCurrentPath` | () => `string` | Reads the currently displayed path, used to skip navigation with no change; read once per drain round |
-| `actions` | [`OpfsRouteActions`](../interfaces/OpfsRouteActions.md) | See [OpfsRouteActions](../interfaces/OpfsRouteActions.md) |
+| Parameter        | Type                                                    | Description                                                                                                          |
+| ---------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `available`      | `boolean`                                               | Whether OPFS is available; when `false`, resolves immediately without recording the path or triggering any callbacks |
+| `routePath`      | `string`                                                | Target path                                                                                                          |
+| `getCurrentPath` | () => `string`                                          | Reads the currently displayed path, used to skip navigation with no change; read once per drain round                |
+| `actions`        | [`OpfsRouteActions`](../interfaces/OpfsRouteActions.md) | See [OpfsRouteActions](../interfaces/OpfsRouteActions.md)                                                            |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
 The Promise of this drain round; concurrent calls share the same instance.
-         When `actions` throws, it rejects with the same error — **all callers sharing this round reject together**
+When `actions` throws, it rejects with the same error — **all callers sharing this round reject together**

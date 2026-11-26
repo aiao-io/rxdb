@@ -10,9 +10,9 @@ Checks whether a value is a valid `maxTransferBytes` (a non-negative safe intege
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | The value to check. |
+| Parameter | Type      | Description         |
+| --------- | --------- | ------------------- |
+| `value`   | `unknown` | The value to check. |
 
 ## Returns
 

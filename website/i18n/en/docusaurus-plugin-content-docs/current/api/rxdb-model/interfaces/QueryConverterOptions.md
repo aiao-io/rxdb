@@ -23,5 +23,5 @@ ID generator
 #### Default
 
 ```ts
-generateId()
+generateId();
 ```

@@ -1,12 +1,7 @@
 # commitWorkingTree()
 
 ```ts
-function commitWorkingTree(
-   executor, 
-   context, 
-   message, 
-   options
-): Promise<CommitResult>;
+function commitWorkingTree(executor, context, message, options): Promise<CommitResult>;
 ```
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/commit-command.ts:275](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/commit-command.ts#L275)
@@ -15,12 +10,12 @@ Commits all uncommitted units in the current branch's working tree (FR-041).
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md) | The caller's write-transaction executor; this function does **not open its own transaction** |
-| `context` | `CommitWriteContext` | See CommitWriteContext: the entity manager for creating commit rows and the at-rest judgment context |
-| `message` | `string` | The user message; trimmed before persisting, an empty message is rejected by `writeCommit()` |
-| `options` | [`CommitOptions`](../interfaces/CommitOptions.md) | See [CommitOptions](../interfaces/CommitOptions.md); all three capture positions are required |
+| Parameter  | Type                                                                  | Description                                                                                          |
+| ---------- | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md) | The caller's write-transaction executor; this function does **not open its own transaction**         |
+| `context`  | `CommitWriteContext`                                                  | See CommitWriteContext: the entity manager for creating commit rows and the at-rest judgment context |
+| `message`  | `string`                                                              | The user message; trimmed before persisting, an empty message is rejected by `writeCommit()`         |
+| `options`  | [`CommitOptions`](../interfaces/CommitOptions.md)                     | See [CommitOptions](../interfaces/CommitOptions.md); all three capture positions are required        |
 
 ## Returns
 

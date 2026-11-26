@@ -1,5 +1,5 @@
 ---
-sidebar_label: "AdminShell⟨TIcon⟩"
+sidebar_label: 'AdminShell⟨TIcon⟩'
 ---
 
 # AdminShell`<TIcon>`
@@ -10,9 +10,9 @@ The admin shell runtime: aggregates preferences, theme, layout, tabs, shortcuts,
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-ticon"></a> `TIcon` | `unknown` |
+| Type Parameter                            | Default type |
+| ----------------------------------------- | ------------ |
+| <a id="type-parameter-ticon"></a> `TIcon` | `unknown`    |
 
 ## Properties
 
@@ -26,7 +26,7 @@ Defined in: [shell/types.ts:129](https://github.com/aiao-io/rxdb/blob/b523204024
 
 The application brand name.
 
-***
+---
 
 ### breadcrumb \{#breadcrumb\}
 
@@ -38,7 +38,7 @@ Defined in: [shell/types.ts:117](https://github.com/aiao-io/rxdb/blob/b523204024
 
 The breadcrumb.
 
-***
+---
 
 ### currentUrl \{#currenturl\}
 
@@ -50,7 +50,7 @@ Defined in: [shell/types.ts:111](https://github.com/aiao-io/rxdb/blob/b523204024
 
 The current URL.
 
-***
+---
 
 ### drawer \{#drawer\}
 
@@ -62,7 +62,7 @@ Defined in: [shell/types.ts:121](https://github.com/aiao-io/rxdb/blob/b523204024
 
 The view model of the preferences drawer.
 
-***
+---
 
 ### fullscreen \{#fullscreen\}
 
@@ -74,7 +74,7 @@ Defined in: [shell/types.ts:145](https://github.com/aiao-io/rxdb/blob/b523204024
 
 The fullscreen.
 
-***
+---
 
 ### homeUrl \{#homeurl\}
 
@@ -86,7 +86,7 @@ Defined in: [shell/types.ts:131](https://github.com/aiao-io/rxdb/blob/b523204024
 
 The home page URL.
 
-***
+---
 
 ### i18n \{#i18n\}
 
@@ -98,7 +98,7 @@ Defined in: [shell/types.ts:133](https://github.com/aiao-io/rxdb/blob/b523204024
 
 The i18n runtime.
 
-***
+---
 
 ### isMobile \{#ismobile\}
 
@@ -110,7 +110,7 @@ Defined in: [shell/types.ts:115](https://github.com/aiao-io/rxdb/blob/b523204024
 
 The mobile width.
 
-***
+---
 
 ### layout \{#layout\}
 
@@ -122,7 +122,7 @@ Defined in: [shell/types.ts:113](https://github.com/aiao-io/rxdb/blob/b523204024
 
 The layout derived from preferences / viewport / menu.
 
-***
+---
 
 ### lock \{#lock\}
 
@@ -134,7 +134,7 @@ Defined in: [shell/types.ts:143](https://github.com/aiao-io/rxdb/blob/b523204024
 
 The lock screen.
 
-***
+---
 
 ### menu \{#menu\}
 
@@ -146,7 +146,7 @@ Defined in: [shell/types.ts:109](https://github.com/aiao-io/rxdb/blob/b523204024
 
 The navigation menu.
 
-***
+---
 
 ### palette \{#palette\}
 
@@ -158,7 +158,7 @@ Defined in: [shell/types.ts:141](https://github.com/aiao-io/rxdb/blob/b523204024
 
 The command palette.
 
-***
+---
 
 ### preferences \{#preferences\}
 
@@ -170,7 +170,7 @@ Defined in: [shell/types.ts:105](https://github.com/aiao-io/rxdb/blob/b523204024
 
 The preferences state tree.
 
-***
+---
 
 ### shortcuts \{#shortcuts\}
 
@@ -182,7 +182,7 @@ Defined in: [shell/types.ts:137](https://github.com/aiao-io/rxdb/blob/b523204024
 
 The shortcut registry.
 
-***
+---
 
 ### tabs \{#tabs\}
 
@@ -194,7 +194,7 @@ Defined in: [shell/types.ts:139](https://github.com/aiao-io/rxdb/blob/b523204024
 
 The tabs.
 
-***
+---
 
 ### text \{#text\}
 
@@ -206,7 +206,7 @@ Defined in: [shell/types.ts:127](https://github.com/aiao-io/rxdb/blob/b523204024
 
 The copy revision number, incremented when the language or catalog changes; bindings re-render based on it.
 
-***
+---
 
 ### theme \{#theme\}
 
@@ -218,7 +218,7 @@ Defined in: [shell/types.ts:135](https://github.com/aiao-io/rxdb/blob/b523204024
 
 The theme.
 
-***
+---
 
 ### timezone \{#timezone\}
 
@@ -230,7 +230,7 @@ Defined in: [shell/types.ts:125](https://github.com/aiao-io/rxdb/blob/b523204024
 
 The effective timezone (IANA).
 
-***
+---
 
 ### ui \{#ui\}
 
@@ -242,7 +242,7 @@ Defined in: [shell/types.ts:107](https://github.com/aiao-io/rxdb/blob/b523204024
 
 The transient UI state and actions.
 
-***
+---
 
 ### watermark \{#watermark\}
 
@@ -254,7 +254,7 @@ Defined in: [shell/types.ts:123](https://github.com/aiao-io/rxdb/blob/b523204024
 
 The CSS `background-image` value of the watermark; empty string when not enabled.
 
-***
+---
 
 ### widgets \{#widgets\}
 
@@ -280,15 +280,15 @@ Activates a tab (navigates to its URL).
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | `string` | The tab key. |
+| Parameter | Type     | Description  |
+| --------- | -------- | ------------ |
+| `key`     | `string` | The tab key. |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### attach() \{#attach\}
 
@@ -306,7 +306,7 @@ The unbind function.
 
 () => `void`
 
-***
+---
 
 ### closeAllTabs() \{#closealltabs\}
 
@@ -322,7 +322,7 @@ Closes all unpinned tabs.
 
 `void`
 
-***
+---
 
 ### closeLeftTabs() \{#closelefttabs\}
 
@@ -336,15 +336,15 @@ Closes the tabs to the left.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | `string` | The reference tab key. |
+| Parameter | Type     | Description            |
+| --------- | -------- | ---------------------- |
+| `key`     | `string` | The reference tab key. |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### closeOtherTabs() \{#closeothertabs\}
 
@@ -358,15 +358,15 @@ Closes the other tabs.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | `string` | The tab key to keep. |
+| Parameter | Type     | Description          |
+| --------- | -------- | -------------------- |
+| `key`     | `string` | The tab key to keep. |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### closeRightTabs() \{#closerighttabs\}
 
@@ -380,15 +380,15 @@ Closes the tabs to the right.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | `string` | The reference tab key. |
+| Parameter | Type     | Description            |
+| --------- | -------- | ---------------------- |
+| `key`     | `string` | The reference tab key. |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### closeTab() \{#closetab\}
 
@@ -402,15 +402,15 @@ Closes a tab; closing the current tab navigates to the next one.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | `string` | The tab key. |
+| Parameter | Type     | Description  |
+| --------- | -------- | ------------ |
+| `key`     | `string` | The tab key. |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### destroy() \{#destroy\}
 
@@ -426,7 +426,7 @@ Unbinds and releases listeners, flushes pending writes; closes the command palet
 
 `void`
 
-***
+---
 
 ### formatDate() \{#formatdate\}
 
@@ -440,16 +440,16 @@ Formats a date in the selected timezone and language.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `date` | `Date` | The moment. |
+| Parameter  | Type                    | Description                        |
+| ---------- | ----------------------- | ---------------------------------- |
+| `date`     | `Date`                  | The moment.                        |
 | `options?` | `DateTimeFormatOptions` | The `Intl.DateTimeFormat` options. |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### navigate() \{#navigate\}
 
@@ -463,15 +463,15 @@ Navigates to a URL (via `options.navigate`).
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `url` | `string` | The target URL. |
+| Parameter | Type     | Description     |
+| --------- | -------- | --------------- |
+| `url`     | `string` | The target URL. |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### openTabInNewWindow() \{#opentabinnewwindow\}
 
@@ -485,15 +485,15 @@ Opens a tab in a new window.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | `string` | The tab key. |
+| Parameter | Type     | Description  |
+| --------- | -------- | ------------ |
+| `key`     | `string` | The tab key. |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### registerCommand() \{#registercommand\}
 
@@ -507,8 +507,8 @@ Registers a command palette command.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                              | Description  |
+| --------- | --------------------------------- | ------------ |
 | `command` | [`ShellCommand`](ShellCommand.md) | The command. |
 
 #### Returns
@@ -517,7 +517,7 @@ The unregister function.
 
 () => `void`
 
-***
+---
 
 ### setMenu() \{#setmenu\}
 
@@ -531,15 +531,15 @@ Updates the navigation menu (after a language switch or entity registration chan
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `nodes` | readonly [`MenuNode`](MenuNode.md)&lt;`TIcon`&gt;[] | The menu tree. |
+| Parameter | Type                                                | Description    |
+| --------- | --------------------------------------------------- | -------------- |
+| `nodes`   | readonly [`MenuNode`](MenuNode.md)&lt;`TIcon`&gt;[] | The menu tree. |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### syncRoute() \{#syncroute\}
 
@@ -553,15 +553,15 @@ Called after a route change: syncs the current URL, opens the tab, collapses the
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `url` | `string` | The current URL. |
+| Parameter | Type     | Description      |
+| --------- | -------- | ---------------- |
+| `url`     | `string` | The current URL. |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### t() \{#t\}
 
@@ -575,16 +575,16 @@ Translates shell copy.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | `string` | The copy key. |
+| Parameter | Type                                | Description         |
+| --------- | ----------------------------------- | ------------------- |
+| `key`     | `string`                            | The copy key.       |
 | `params?` | `Record`&lt;`string`, `unknown`&gt; | The ICU parameters. |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### toggleSidebar() \{#togglesidebar\}
 

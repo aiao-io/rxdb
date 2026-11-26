@@ -12,8 +12,8 @@ Priority: `locateFile` \> `wasmPath` (wrapped into a function) \> undefined (use
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                | Description      |
+| ---------- | --------------------------------------------------- | ---------------- |
 | `options?` | [`Oo1LoadOptions`](../interfaces/Oo1LoadOptions.md) | The load options |
 
 ## Returns

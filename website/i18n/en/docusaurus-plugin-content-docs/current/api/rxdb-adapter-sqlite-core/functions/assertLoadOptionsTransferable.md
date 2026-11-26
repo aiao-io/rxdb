@@ -17,10 +17,10 @@ nor degrading back to the main thread (which would fake the appearance of thread
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `loadOptions` | `Readonly`&lt;`Record`&lt;`string`, `unknown`&gt;&gt; | The runtime options to be passed to `client.init` |
-| `options` | [`CreateSqliteClientOptions`](../interfaces/CreateSqliteClientOptions.md) | The transport configuration, used to judge whether a worker is really crossed |
+| Parameter     | Type                                                                      | Description                                                                   |
+| ------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `loadOptions` | `Readonly`&lt;`Record`&lt;`string`, `unknown`&gt;&gt;                     | The runtime options to be passed to `client.init`                             |
+| `options`     | [`CreateSqliteClientOptions`](../interfaces/CreateSqliteClientOptions.md) | The transport configuration, used to judge whether a worker is really crossed |
 
 ## Returns
 

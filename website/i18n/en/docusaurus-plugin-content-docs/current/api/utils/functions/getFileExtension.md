@@ -12,8 +12,8 @@ First strips the directory part before `/` or `\`, then finds the last dot. File
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type     | Description           |
+| ---------- | -------- | --------------------- |
 | `filename` | `string` | The file name or path |
 
 ## Returns
@@ -26,5 +26,5 @@ The lowercased extension; returns the empty string `''` when there is no extensi
 
 ```ts
 getFileExtension('a/b/C.PNG'); // 'png'
-getFileExtension('.bashrc');   // ''
+getFileExtension('.bashrc'); // ''
 ```

@@ -8,7 +8,7 @@ Defined in: [packages/utils/src/date/msTimeToMilliseconds.ts:79](https://github.
 
 Converts an ms time to milliseconds
 
-value   https://github.com/vercel/ms
+value https://github.com/vercel/ms
 
 The input accepts both an `MSTime` string and a number that is already milliseconds — `ms(200)` takes the **reverse formatting** branch and returns the string `'200ms'`, while this function's declared return type is number (UTL-005). Numbers are therefore returned as-is instead of being handed to `ms()`.
 
@@ -16,9 +16,9 @@ Strings are first validated against MS\_TIME\_PATTERN (the same definition as `i
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `number` \| [`MSTime`](../type-aliases/MSTime.md) | ms time string or millisecond count |
+| Parameter | Type                                              | Description                         |
+| --------- | ------------------------------------------------- | ----------------------------------- |
+| `value`   | `number` \| [`MSTime`](../type-aliases/MSTime.md) | ms time string or millisecond count |
 
 ## Returns
 
@@ -33,5 +33,5 @@ When the value cannot be parsed as a finite millisecond count
 ## Example
 
 ```ts
-'2 days', '1d', '10h', 200
+('2 days', '1d', '10h', 200);
 ```

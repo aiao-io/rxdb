@@ -10,8 +10,8 @@ The lock name protecting the same persistent SQLite database.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter    | Type     | Description                                                                       |
+| ------------ | -------- | --------------------------------------------------------------------------------- |
 | `storageKey` | `string` | The `storageKey` of [SqliteBackupStorage](../type-aliases/SqliteBackupStorage.md) |
 
 ## Returns

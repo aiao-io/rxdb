@@ -22,7 +22,7 @@ Defined in: [packages/rxdb/src/system/system.interface.ts:11](https://github.com
 
 [`IRxDBChange`](IRxDBChange.md).[`branchId`](IRxDBChange.md#branchid)
 
-***
+---
 
 ### clientId? \{#clientid\}
 
@@ -36,7 +36,7 @@ Defined in: [packages/rxdb/src/system/system.interface.ts:17](https://github.com
 
 [`IRxDBChange`](IRxDBChange.md).[`clientId`](IRxDBChange.md#clientid)
 
-***
+---
 
 ### createdAt \{#createdat\}
 
@@ -53,7 +53,7 @@ when pushing, and `LWWConflictResolver` compares exactly this.
 
 [`IRxDBChange`](IRxDBChange.md).[`createdAt`](IRxDBChange.md#createdat)
 
-***
+---
 
 ### entity \{#entity\}
 
@@ -67,7 +67,7 @@ Defined in: [packages/rxdb/src/system/system.interface.ts:9](https://github.com/
 
 [`IRxDBChange`](IRxDBChange.md).[`entity`](IRxDBChange.md#entity)
 
-***
+---
 
 ### entityId \{#entityid\}
 
@@ -81,7 +81,7 @@ Defined in: [packages/rxdb/src/system/system.interface.ts:10](https://github.com
 
 [`IRxDBChange`](IRxDBChange.md).[`entityId`](IRxDBChange.md#entityid)
 
-***
+---
 
 ### id \{#id\}
 
@@ -95,7 +95,7 @@ Defined in: [packages/rxdb/src/system/system.interface.ts:28](https://github.com
 
 [`IRxDBChange`](IRxDBChange.md).[`id`](IRxDBChange.md#id)
 
-***
+---
 
 ### inversePatch? \{#inversepatch\}
 
@@ -109,7 +109,7 @@ Defined in: [packages/rxdb/src/system/system.interface.ts:14](https://github.com
 
 [`IRxDBChange`](IRxDBChange.md).[`inversePatch`](IRxDBChange.md#inversepatch)
 
-***
+---
 
 ### localId? \{#localid\}
 
@@ -123,7 +123,7 @@ Defined in: [packages/rxdb/src/system/system.interface.ts:16](https://github.com
 
 [`IRxDBChange`](IRxDBChange.md).[`localId`](IRxDBChange.md#localid)
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -137,7 +137,7 @@ Defined in: [packages/rxdb/src/system/system.interface.ts:8](https://github.com/
 
 [`IRxDBChange`](IRxDBChange.md).[`namespace`](IRxDBChange.md#namespace)
 
-***
+---
 
 ### patch? \{#patch\}
 
@@ -151,7 +151,7 @@ Defined in: [packages/rxdb/src/system/system.interface.ts:13](https://github.com
 
 [`IRxDBChange`](IRxDBChange.md).[`patch`](IRxDBChange.md#patch)
 
-***
+---
 
 ### transactionId? \{#transactionid\}
 
@@ -165,12 +165,12 @@ Defined in: [packages/rxdb/src/system/system.interface.ts:15](https://github.com
 
 [`IRxDBChange`](IRxDBChange.md).[`transactionId`](IRxDBChange.md#transactionid)
 
-***
+---
 
 ### type \{#type\}
 
 ```ts
-type: "INSERT" | "UPDATE" | "DELETE";
+type: 'INSERT' | 'UPDATE' | 'DELETE';
 ```
 
 Defined in: [packages/rxdb/src/system/system.interface.ts:12](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/system.interface.ts#L12)
@@ -179,7 +179,7 @@ Defined in: [packages/rxdb/src/system/system.interface.ts:12](https://github.com
 
 [`IRxDBChange`](IRxDBChange.md).[`type`](IRxDBChange.md#type)
 
-***
+---
 
 ### updatedAt \{#updatedat\}
 

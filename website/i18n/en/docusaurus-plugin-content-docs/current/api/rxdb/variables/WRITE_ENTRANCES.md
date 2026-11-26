@@ -1,7 +1,19 @@
 # WRITE_ENTRANCES
 
 ```ts
-const WRITE_ENTRANCES: readonly ["crud", "domain_recompute", "remote_entity_apply", "cleanup_expired", "projection_rewrite", "metadata_only_prefetch", "query_cache_maintenance", "raw_write", "bulk_write", "notify_external_update", "unknown"];
+const WRITE_ENTRANCES: readonly [
+  'crud',
+  'domain_recompute',
+  'remote_entity_apply',
+  'cleanup_expired',
+  'projection_rewrite',
+  'metadata_only_prefetch',
+  'query_cache_maintenance',
+  'raw_write',
+  'bulk_write',
+  'notify_external_update',
+  'unknown'
+];
 ```
 
 Defined in: [packages/rxdb/src/trusted-write/write-entrance.ts:28](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/trusted-write/write-entrance.ts#L28)

@@ -21,7 +21,7 @@ Defined in: [packages/rxdb/src/backup/backup.interface.ts:101](https://github.co
 
 Total byte count of the file data.
 
-***
+---
 
 ### entries \{#entries\}
 
@@ -33,7 +33,7 @@ Defined in: [packages/rxdb/src/backup/backup.interface.ts:99](https://github.com
 
 Entry count (files + directories).
 
-***
+---
 
 ### sha256 \{#sha256\}
 

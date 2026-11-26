@@ -10,15 +10,15 @@ Opens an OPFS database; retries on a backoff sequence when the open fails with c
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `open` | () => `Promise`&lt;`T`&gt; | One complete open (creates a new VFS and connection each time) |
+| Parameter | Type                                                            | Description                                                       |
+| --------- | --------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `open`    | () => `Promise`&lt;`T`&gt;                                      | One complete open (creates a new VFS and connection each time)    |
 | `options` | [`OpfsOpenRetryOptions`](../interfaces/OpfsOpenRetryOptions.md) | See [OpfsOpenRetryOptions](../interfaces/OpfsOpenRetryOptions.md) |
 
 ## Returns

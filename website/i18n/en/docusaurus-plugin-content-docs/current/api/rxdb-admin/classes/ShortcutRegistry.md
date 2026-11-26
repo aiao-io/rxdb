@@ -23,11 +23,11 @@ Creates the registry.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | \{ `platform`: [`ShortcutPlatform`](../type-aliases/ShortcutPlatform.md); `preferences`: [`ShortcutPreferences`](../interfaces/ShortcutPreferences.md); \} | Preferences and the running platform. |
-| `options.platform` | [`ShortcutPlatform`](../type-aliases/ShortcutPlatform.md) | - |
-| `options.preferences` | [`ShortcutPreferences`](../interfaces/ShortcutPreferences.md) | - |
+| Parameter             | Type                                                                                                                                                       | Description                           |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| `options`             | \{ `platform`: [`ShortcutPlatform`](../type-aliases/ShortcutPlatform.md); `preferences`: [`ShortcutPreferences`](../interfaces/ShortcutPreferences.md); \} | Preferences and the running platform. |
+| `options.platform`    | [`ShortcutPlatform`](../type-aliases/ShortcutPlatform.md)                                                                                                  | -                                     |
+| `options.preferences` | [`ShortcutPreferences`](../interfaces/ShortcutPreferences.md)                                                                                              | -                                     |
 
 #### Returns
 
@@ -59,9 +59,9 @@ Listens for keydown on the target in the capture phase, ahead of app components.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `target` | [`ShortcutTarget`](../interfaces/ShortcutTarget.md) | Usually `window`. |
+| Parameter | Type                                                | Description       |
+| --------- | --------------------------------------------------- | ----------------- |
+| `target`  | [`ShortcutTarget`](../interfaces/ShortcutTarget.md) | Usually `window`. |
 
 #### Returns
 
@@ -69,7 +69,7 @@ A function that removes the listener.
 
 () => `void`
 
-***
+---
 
 ### handle() \{#handle\}
 
@@ -83,9 +83,9 @@ Handles one keyboard event.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `event` | [`ShortcutKeyboardEvent`](../interfaces/ShortcutKeyboardEvent.md) | The keyboard event. |
+| Parameter | Type                                                              | Description         |
+| --------- | ----------------------------------------------------------------- | ------------------- |
+| `event`   | [`ShortcutKeyboardEvent`](../interfaces/ShortcutKeyboardEvent.md) | The keyboard event. |
 
 #### Returns
 
@@ -93,7 +93,7 @@ Handles one keyboard event.
 
 `true` when matched and handled.
 
-***
+---
 
 ### isEnabled() \{#isenabled\}
 
@@ -107,9 +107,9 @@ Whether the shortcut is currently enabled.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `id` | `string` | The shortcut id. |
+| Parameter | Type     | Description      |
+| --------- | -------- | ---------------- |
+| `id`      | `string` | The shortcut id. |
 
 #### Returns
 
@@ -117,7 +117,7 @@ Whether the shortcut is currently enabled.
 
 `true` when the master switch is on and the shortcut is not individually disabled.
 
-***
+---
 
 ### register() \{#register\}
 
@@ -131,8 +131,8 @@ Registers a shortcut.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter    | Type                                                        | Description      |
+| ------------ | ----------------------------------------------------------- | ---------------- |
 | `definition` | [`ShortcutDefinition`](../interfaces/ShortcutDefinition.md) | The declaration. |
 
 #### Returns
@@ -146,7 +146,7 @@ An unregister function.
 Throws when the combo is invalid, the id is duplicated, or it matches the same keystroke as an
 already registered entry on this instance's platform (`Mod` is `Meta` on mac and `Ctrl` elsewhere).
 
-***
+---
 
 ### setEnabled() \{#setenabled\}
 
@@ -160,9 +160,9 @@ Enables or disables a single shortcut.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `id` | `string` | The shortcut id. |
+| Parameter | Type      | Description            |
+| --------- | --------- | ---------------------- |
+| `id`      | `string`  | The shortcut id.       |
 | `enabled` | `boolean` | Whether it is enabled. |
 
 #### Returns

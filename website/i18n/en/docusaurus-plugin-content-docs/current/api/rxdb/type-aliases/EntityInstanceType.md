@@ -1,5 +1,5 @@
 ---
-sidebar_label: "EntityInstanceType⟨T⟩"
+sidebar_label: 'EntityInstanceType⟨T⟩'
 ---
 
 # EntityInstanceType`<T>`
@@ -16,9 +16,9 @@ Extracts the shape of the instance produced by `new` from [EntityType](EntityTyp
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](EntityType.md) | The entity type (constructor side) |
+| Type Parameter                                                            | Description                        |
+| ------------------------------------------------------------------------- | ---------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](EntityType.md) | The entity type (constructor side) |
 
 ## Remarks
 

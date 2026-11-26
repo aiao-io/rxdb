@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts
 
 The state of `add()`: the registration row of the created writable checkout
 
-***
+---
 
 ### attachState \{#attachstate\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts
 
 The state of `attach()`; **no empty**
 
-***
+---
 
 ### listState \{#liststate\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts
 
 The state of `list()`; empty means "no registered checkouts"
 
-***
+---
 
 ### mountMainState \{#mountmainstate\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts
 
 The state of `mountMain()`
 
-***
+---
 
 ### mountState \{#mountstate\}
 
@@ -64,7 +64,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts
 
 The state of `mount()`
 
-***
+---
 
 ### openState \{#openstate\}
 
@@ -76,7 +76,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts
 
 The state of `open()`; **no empty**
 
-***
+---
 
 ### pruneState \{#prunestate\}
 
@@ -88,7 +88,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts
 
 The state of `prune()`; reclaiming zero is also a result, not empty
 
-***
+---
 
 ### releaseState \{#releasestate\}
 
@@ -100,7 +100,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts
 
 The state of `release()`
 
-***
+---
 
 ### removeState \{#removestate\}
 
@@ -112,7 +112,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts
 
 The state of `remove()`
 
-***
+---
 
 ### renameState \{#renamestate\}
 

@@ -10,9 +10,9 @@ Deletes an IndexedDB database; does nothing when the database does not exist.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `name` | `string` | IndexedDB database name |
+| Parameter | Type     | Description             |
+| --------- | -------- | ----------------------- |
+| `name`    | `string` | IndexedDB database name |
 
 ## Returns
 

@@ -13,9 +13,9 @@ bigint and date are all strictly validated, to avoid silently rewriting a corrup
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `bytes` | `Uint8Array` |
+| Parameter  | Type           |
+| ---------- | -------------- |
+| `bytes`    | `Uint8Array`   |
 | `property` | `PropertyLike` |
 
 ## Returns

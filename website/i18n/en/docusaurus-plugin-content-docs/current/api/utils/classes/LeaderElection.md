@@ -42,9 +42,9 @@ Defined in: [packages/utils/src/@browser/leader-election.ts:68](https://github.c
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `name` | `string` | Lock name; instances with the same name compete for the same leader position |
+| Parameter | Type     | Description                                                                  |
+| --------- | -------- | ---------------------------------------------------------------------------- |
+| `name`    | `string` | Lock name; instances with the same name compete for the same leader position |
 
 #### Returns
 
@@ -84,7 +84,7 @@ Releases the leader role and cleans up resources
 
 `void`
 
-***
+---
 
 ### elect() \{#elect\}
 
@@ -98,8 +98,8 @@ Participates in leader election
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                   | Description                                                        |
+| ---------- | ---------------------- | ------------------------------------------------------------------ |
 | `callback` | (`isLeader`) => `void` | Called when this instance becomes the leader, with argument `true` |
 
 #### Returns

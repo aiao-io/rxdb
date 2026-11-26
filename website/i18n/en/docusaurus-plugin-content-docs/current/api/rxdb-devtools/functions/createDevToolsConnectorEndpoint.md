@@ -10,9 +10,9 @@ Creates the connector-side v2 endpoint.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `ports` | [`DevToolsConnectorEndpointPorts`](../interfaces/DevToolsConnectorEndpointPorts.md) | Send/receive, the clock, the local authorization configuration and the provider seams. |
+| Parameter | Type                                                                                | Description                                                                            |
+| --------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `ports`   | [`DevToolsConnectorEndpointPorts`](../interfaces/DevToolsConnectorEndpointPorts.md) | Send/receive, the clock, the local authorization configuration and the provider seams. |
 
 ## Returns
 

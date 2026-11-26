@@ -1,5 +1,5 @@
 ---
-sidebar_label: "QueryManager⟨T⟩"
+sidebar_label: 'QueryManager⟨T⟩'
 ---
 
 # QueryManager`<T>`
@@ -9,11 +9,13 @@ Defined in: [packages/rxdb/src/repository/QueryManager.ts:171](https://github.co
 Query cache manager
 
 Used to manage the caching and execution of query tasks
+
 - Records the dependency relationships of observed tables according to query conditions
 - Uniformly decides when to compute in JS and when to re-execute SQL, reducing the difficulty of adapter development
 - In the future, configures rules in the Repository for pull/push with the remote
 
 Core functions:
+
 1. Query result caching: reuse cached results for the same query conditions
 2. Subscription management: manages subscriptions and unsubscriptions of multiple observers
 3. Automatic cleanup: automatically cleans up the cache when there are no observers
@@ -21,9 +23,9 @@ Core functions:
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                            |
+| ----------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 ## Properties
 
@@ -37,7 +39,7 @@ Defined in: [packages/rxdb/src/repository/QueryManager.ts:204](https://github.co
 
 The entity type, used to identify the entity currently managed
 
-***
+---
 
 ### rxdb \{#rxdb\}
 
@@ -62,20 +64,21 @@ Defined in: [packages/rxdb/src/repository/QueryManager.ts:236](https://github.co
 Creates a query task
 
 This method creates or reuses a cached query task based on the query options
+
 - Uses the hash of the query type and options as the cache key
 - If the same query already exists in the cache, returns the cached task directly
 - Each query task manages multiple observers, and cleans itself up automatically when the last observer unsubscribes
 
 #### Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-rt"></a> `RT` | `unknown` |
+| Type Parameter                      | Default type |
+| ----------------------------------- | ------------ |
+| <a id="type-parameter-rt"></a> `RT` | `unknown`    |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter     | Type                                 | Description        |
+| ------------- | ------------------------------------ | ------------------ |
 | `taskOptions` | `CreateTaskOptions`&lt;`T`, `RT`&gt; | Query task options |
 
 #### Returns
@@ -84,7 +87,7 @@ This method creates or reuses a cached query task based on the query options
 
 The query task object, containing result$ for subscribing to query results
 
-***
+---
 
 ### destroy() \{#destroy\}
 
@@ -98,7 +101,7 @@ Defined in: [packages/rxdb/src/repository/QueryManager.ts:211](https://github.co
 
 `void`
 
-***
+---
 
 ### hasDependency() \{#hasdependency\}
 
@@ -112,8 +115,8 @@ Whether this manager currently has a query depending on the given entity type (U
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter    | Type                                          | Description             |
+| ------------ | --------------------------------------------- | ----------------------- |
 | `entityType` | [`EntityType`](../type-aliases/EntityType.md) | The entity type to test |
 
 #### Returns
@@ -130,7 +133,7 @@ counted once at construction and is always `true`.
 
 Internal interface: used by `Repository` to decide whether an invalidation report should go further; not part of the public API.
 
-***
+---
 
 ### refreshAllTasks() \{#refreshalltasks\}
 
@@ -151,7 +154,7 @@ Reruns all query tasks (US-314 B1.4).
 This instance has remounted a business table set, and every result may have been swapped — there is no such thing as "only rerun the related ones".
 Internal interface: called by `Repository.refreshAllQueries`; not part of the public API.
 
-***
+---
 
 ### refreshDependentTasks() \{#refreshdependenttasks\}
 
@@ -165,8 +168,8 @@ Reruns the query tasks depending on one of the given entity types (US-023).
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter     | Type                                                               | Description                                  |
+| ------------- | ------------------------------------------------------------------ | -------------------------------------------- |
 | `entityTypes` | `ReadonlySet`&lt;[`EntityType`](../type-aliases/EntityType.md)&gt; | The set of entity types reported invalidated |
 
 #### Returns
@@ -181,7 +184,7 @@ queries with different `where` clauses only go back to the remote when they genu
 
 Internal interface: called by `Repository`'s invalidation listener; not part of the public API.
 
-***
+---
 
 ### registerMergeCreateFn() \{#registermergecreatefn\}
 
@@ -193,16 +196,16 @@ Defined in: [packages/rxdb/src/repository/QueryManager.ts:296](https://github.co
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `taskType` | `string` |
-| `fn` | `MergeQueryTaskCreateFn`&lt;`T`&gt; |
+| Parameter  | Type                                |
+| ---------- | ----------------------------------- |
+| `taskType` | `string`                            |
+| `fn`       | `MergeQueryTaskCreateFn`&lt;`T`&gt; |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### registerMergeRemoveFn() \{#registermergeremovefn\}
 
@@ -214,16 +217,16 @@ Defined in: [packages/rxdb/src/repository/QueryManager.ts:304](https://github.co
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `taskType` | `string` |
-| `fn` | `MergeQueryTaskRemoveFn`&lt;`T`&gt; |
+| Parameter  | Type                                |
+| ---------- | ----------------------------------- |
+| `taskType` | `string`                            |
+| `fn`       | `MergeQueryTaskRemoveFn`&lt;`T`&gt; |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### registerMergeUpdateFn() \{#registermergeupdatefn\}
 
@@ -235,10 +238,10 @@ Defined in: [packages/rxdb/src/repository/QueryManager.ts:300](https://github.co
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `taskType` | `string` |
-| `fn` | `MergeQueryTaskUpdateFn`&lt;`T`&gt; |
+| Parameter  | Type                                |
+| ---------- | ----------------------------------- |
+| `taskType` | `string`                            |
+| `fn`       | `MergeQueryTaskUpdateFn`&lt;`T`&gt; |
 
 #### Returns
 

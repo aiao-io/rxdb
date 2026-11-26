@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model/src/query-builder/models/validation.interface.t
 
 Field name
 
-***
+---
 
 ### message \{#message\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-model/src/query-builder/models/validation.interface.t
 
 Error message
 
-***
+---
 
 ### rule \{#rule\}
 

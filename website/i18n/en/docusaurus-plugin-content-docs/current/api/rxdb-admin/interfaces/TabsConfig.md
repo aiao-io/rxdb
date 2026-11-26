@@ -16,7 +16,7 @@ Defined in: [tabs/tabs-store.ts:32](https://github.com/aiao-io/rxdb/blob/b523204
 
 The tab limit; 0 means unlimited.
 
-***
+---
 
 ### persist \{#persist\}
 
@@ -28,7 +28,7 @@ Defined in: [tabs/tabs-store.ts:30](https://github.com/aiao-io/rxdb/blob/b523204
 
 The persistence location.
 
-***
+---
 
 ### visitHistory \{#visithistory\}
 

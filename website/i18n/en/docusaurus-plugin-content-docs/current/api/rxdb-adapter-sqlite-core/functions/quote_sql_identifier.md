@@ -10,9 +10,9 @@ Escapes an identifier (table name, column name, trigger name, etc.) into a doubl
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `name` | `string` | The identifier string |
+| Parameter | Type     | Description           |
+| --------- | -------- | --------------------- |
+| `name`    | `string` | The identifier string |
 
 ## Returns
 

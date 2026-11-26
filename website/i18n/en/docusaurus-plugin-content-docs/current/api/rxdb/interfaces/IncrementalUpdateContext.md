@@ -1,5 +1,5 @@
 ---
-sidebar_label: "IncrementalUpdateContext⟨T⟩"
+sidebar_label: 'IncrementalUpdateContext⟨T⟩'
 ---
 
 # IncrementalUpdateContext`<T>`
@@ -10,9 +10,9 @@ The context of one incremental merge: the full entity cache + match state classi
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                            |
+| ----------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 ## Properties
 
@@ -26,7 +26,7 @@ Defined in: [packages/rxdb/src/query/merge-update.utils.ts:268](https://github.c
 
 Lazy cache of the full entities before/after the update, for handlers to fetch the before/after states
 
-***
+---
 
 ### classification \{#classification\}
 

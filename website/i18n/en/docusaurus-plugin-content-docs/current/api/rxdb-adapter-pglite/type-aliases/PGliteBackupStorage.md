@@ -1,15 +1,15 @@
 # PGliteBackupStorage
 
 ```ts
-type PGliteBackupStorage = 
+type PGliteBackupStorage =
   | {
-  kind: "memory";
-}
+      kind: 'memory';
+    }
   | {
-  kind: "idb";
-  name: string;
-  storageKey: string;
-};
+      kind: 'idb';
+      name: string;
+      storageKey: string;
+    };
 ```
 
 Defined in: [packages/rxdb-adapter-pglite/src/backup/pglite-backup-compat.ts:39](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-pglite/src/backup/pglite-backup-compat.ts#L39)
@@ -22,17 +22,17 @@ The storage backend where the data directory lives; only these two variants supp
 
 ```ts
 {
-  kind: "memory";
+  kind: 'memory';
 }
 ```
 
-***
+---
 
 ### Type Literal
 
 ```ts
 {
-  kind: "idb";
+  kind: 'idb';
   name: string;
   storageKey: string;
 }

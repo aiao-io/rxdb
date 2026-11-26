@@ -1,5 +1,5 @@
 ---
-sidebar_label: "QueryMethod()⟨TResult⟩"
+sidebar_label: 'QueryMethod()⟨TResult⟩'
 ---
 
 # QueryMethod()`<TResult>`
@@ -11,8 +11,8 @@ Accepts arbitrary options and returns an Observable
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                                |
+| --------------------------------------------- |
 | <a id="type-parameter-tresult"></a> `TResult` |
 
 ```ts
@@ -26,8 +26,8 @@ Accepts arbitrary options and returns an Observable
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type      |
+| --------- | --------- |
 | `options` | `unknown` |
 
 ## Returns

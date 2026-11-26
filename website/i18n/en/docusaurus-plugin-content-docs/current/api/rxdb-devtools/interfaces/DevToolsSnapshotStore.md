@@ -32,7 +32,7 @@ Aborts the in-flight materialization and releases the active snapshot. Idempoten
 
 `void`
 
-***
+---
 
 ### dispose() \{#dispose\}
 
@@ -48,7 +48,7 @@ Tears down the store: aborts the in-flight materialization, releases the snapsho
 
 `void`
 
-***
+---
 
 ### open() \{#open\}
 
@@ -62,8 +62,8 @@ Materializes a new snapshot and returns its first page.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type     | Description                                         |
+| ----------- | -------- | --------------------------------------------------- |
 | `pageSize?` | `number` | The number of records per page, 1–500, default 100. |
 
 #### Returns
@@ -76,7 +76,7 @@ The first page, a cancellation, or `invalid_message` / `snapshot_busy` / `snapsh
 
 An existing active snapshot is released first — its cursor will only get `snapshot_expired` afterwards, never data of the new snapshot.
 
-***
+---
 
 ### page() \{#page\}
 
@@ -90,9 +90,9 @@ Reads a subsequent page of the active snapshot.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `cursor` | [`DevToolsSnapshotCursor`](DevToolsSnapshotCursor.md) | Must be bound to the current snapshot and fall on a page boundary. |
+| Parameter | Type                                                  | Description                                                        |
+| --------- | ----------------------------------------------------- | ------------------------------------------------------------------ |
+| `cursor`  | [`DevToolsSnapshotCursor`](DevToolsSnapshotCursor.md) | Must be bound to the current snapshot and fall on a page boundary. |
 
 #### Returns
 
@@ -100,7 +100,7 @@ Reads a subsequent page of the active snapshot.
 
 That page, or `snapshot_expired` / `invalid_message`. When rejected, the idle timer is **not** refreshed.
 
-***
+---
 
 ### release() \{#release\}
 

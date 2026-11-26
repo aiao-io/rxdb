@@ -10,9 +10,9 @@ Provides a custom theme
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `theme` | [`QueryBuilderTheme`](../interfaces/QueryBuilderTheme.md) |
+| Parameter | Type                                                      |
+| --------- | --------------------------------------------------------- |
+| `theme`   | [`QueryBuilderTheme`](../interfaces/QueryBuilderTheme.md) |
 
 ## Returns
 

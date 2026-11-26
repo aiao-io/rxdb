@@ -26,7 +26,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/raw-write-judgme
 
 Whether this database has the commit capability enabled; when not enabled, step 1 lets it through
 
-***
+---
 
 ### domain \{#domain\}
 

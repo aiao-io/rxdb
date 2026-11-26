@@ -1,5 +1,5 @@
 ---
-sidebar_label: "EntityStatus⟨T⟩"
+sidebar_label: 'EntityStatus⟨T⟩'
 ---
 
 # EntityStatus`<T>`
@@ -9,21 +9,23 @@ Defined in: [packages/rxdb/src/entity/entity-status.ts:38](https://github.com/ai
 Entity status manager
 
 Responsibilities:
+
 1. State tracking: local/remote/modified/removed mark the lifecycle state of the entity
 2. Change recording: records all change history (patches) of the entity, supporting undo/redo
 3. Relation management: maintains relation caches between entities, handling cascade operations
 4. Change notification: publishes entity change events through RxJS Subjects
 
 Architecture:
+
 - Uses a Proxy to intercept property modifications and record changes automatically
 - Relation caches are managed by the EntityRelationCache submodule (including lazy many-to-many Junction deletion)
 - Lazy-loaded caches (patch/fingerprint), computed on demand to avoid wasted work
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) | Entity type |
+| Type Parameter                                                                            | Description |
+| ----------------------------------------------------------------------------------------- | ----------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) | Entity type |
 
 ## Implements
 
@@ -42,7 +44,7 @@ Defined in: [packages/rxdb/src/entity/entity-status.ts:135](https://github.com/a
 Entity fingerprint
 Used to uniquely identify the version of an entity
 
-***
+---
 
 ### \_local \{#_local\}
 
@@ -54,7 +56,7 @@ Defined in: [packages/rxdb/src/entity/entity-status.ts:103](https://github.com/a
 
 Marks whether the entity exists in the local database
 
-***
+---
 
 ### \_modified \{#_modified\}
 
@@ -66,7 +68,7 @@ Defined in: [packages/rxdb/src/entity/entity-status.ts:108](https://github.com/a
 
 Marks whether the entity has been modified
 
-***
+---
 
 ### \_origin \{#_origin\}
 
@@ -79,7 +81,7 @@ Defined in: [packages/rxdb/src/entity/entity-status.ts:129](https://github.com/a
 The original data of the entity
 Used for comparing changes and restoring
 
-***
+---
 
 ### \_patch\_cache? \{#_patch_cache\}
 
@@ -91,7 +93,7 @@ Defined in: [packages/rxdb/src/entity/entity-status.ts:123](https://github.com/a
 
 Entity change cache
 
-***
+---
 
 ### \_patches \{#_patches\}
 
@@ -103,7 +105,7 @@ Defined in: [packages/rxdb/src/entity/entity-status.ts:118](https://github.com/a
 
 Entity change record array
 
-***
+---
 
 ### \_remote \{#_remote\}
 
@@ -115,7 +117,7 @@ Defined in: [packages/rxdb/src/entity/entity-status.ts:98](https://github.com/ai
 
 Marks whether the entity exists in the remote database
 
-***
+---
 
 ### \_removed \{#_removed\}
 
@@ -127,7 +129,7 @@ Defined in: [packages/rxdb/src/entity/entity-status.ts:113](https://github.com/a
 
 Marks whether the entity has been deleted
 
-***
+---
 
 ### patches$ \{#patches\}
 
@@ -140,7 +142,7 @@ Defined in: [packages/rxdb/src/entity/entity-status.ts:160](https://github.com/a
 Observable stream of entity change records
 Used to subscribe to entity changes
 
-***
+---
 
 ### proxyTarget \{#proxytarget\}
 
@@ -153,7 +155,7 @@ Defined in: [packages/rxdb/src/entity/entity-status.ts:154](https://github.com/a
 The entity proxy object
 Used to intercept and record property access and modification on the object
 
-***
+---
 
 ### rxdb \{#rxdb\}
 
@@ -165,7 +167,7 @@ Defined in: [packages/rxdb/src/entity/entity-status.ts:325](https://github.com/a
 
 RxDB instance
 
-***
+---
 
 ### tableSet \{#tableset\}
 
@@ -181,7 +183,7 @@ The table set this instance was mounted on when this entity was created or read 
 
 Checked against the table set the instance is currently mounted on before writing: after a remount, an old entity object cannot be written into a different table set (see `WorktreeTableSetMismatchError`).
 
-***
+---
 
 ### target \{#target\}
 
@@ -213,6 +215,7 @@ Entity fingerprint (identifies the content version of **the same reference**)
 Format: `${id}@${updatedAt.getTime()}@${content revision}`
 
 Uses:
+
 - Judging whether the content of the same entity reference has been changed (`QueryTask.#next` decides whether to emit based on it)
 - Cache key generation
 - Conflict detection
@@ -237,7 +240,7 @@ Lazy-loaded: generated and cached on first access; reading itself does not advan
 
 `string`
 
-***
+---
 
 ### generation \{#generation\}
 
@@ -256,7 +259,7 @@ Used by proxy.ts to judge whether a debounced, queued checkChange has gone stale
 
 `number`
 
-***
+---
 
 ### inversePatch \{#inversepatch\}
 
@@ -271,7 +274,7 @@ Defined in: [packages/rxdb/src/entity/entity-status.ts:254](https://github.com/a
 Reverse change content (used for undo operations)
 Returns the property values in origin corresponding to the patch
 
-For example: patch = \{ name: 'new' \}  →  inversePatch = \{ name: 'old' \}
+For example: patch = \{ name: 'new' \} → inversePatch = \{ name: 'old' \}
 
 Note: returns `{}` to mean "no real change", not null.
 
@@ -279,7 +282,7 @@ Note: returns `{}` to mean "no real change", not null.
 
 `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt;
 
-***
+---
 
 ### local \{#local\}
 
@@ -309,9 +312,9 @@ Whether it is local
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `boolean` |
+| Parameter | Type      |
+| --------- | --------- |
+| `value`   | `boolean` |
 
 ##### Returns
 
@@ -321,7 +324,7 @@ Whether it is local
 
 `IEntityStatus.local`
 
-***
+---
 
 ### modified \{#modified\}
 
@@ -357,9 +360,9 @@ Advancing here would make tree queries see their own backfill as "the result cha
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `boolean` |
+| Parameter | Type      |
+| --------- | --------- |
+| `value`   | `boolean` |
 
 ##### Returns
 
@@ -369,7 +372,7 @@ Advancing here would make tree queries see their own backfill as "the result cha
 
 `IEntityStatus.modified`
 
-***
+---
 
 ### origin \{#origin\}
 
@@ -397,15 +400,15 @@ Sets the original value
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `InstanceType`&lt;`T`&gt; |
+| Parameter | Type                      |
+| --------- | ------------------------- |
+| `value`   | `InstanceType`&lt;`T`&gt; |
 
 ##### Returns
 
 `void`
 
-***
+---
 
 ### patch \{#patch\}
 
@@ -438,7 +441,7 @@ The type signature drops `| null`, aligned with the runtime behavior.
 
 `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt;
 
-***
+---
 
 ### patches \{#patches-1\}
 
@@ -460,7 +463,7 @@ Gets the changes
 
 `IEntityStatus.patches`
 
-***
+---
 
 ### remote \{#remote\}
 
@@ -490,9 +493,9 @@ Whether it is on the remote
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `boolean` |
+| Parameter | Type      |
+| --------- | --------- |
+| `value`   | `boolean` |
 
 ##### Returns
 
@@ -502,7 +505,7 @@ Whether it is on the remote
 
 `IEntityStatus.remote`
 
-***
+---
 
 ### removed \{#removed\}
 
@@ -530,9 +533,9 @@ Defined in: [packages/rxdb/src/entity/entity-status.ts:189](https://github.com/a
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `boolean` |
+| Parameter | Type      |
+| --------- | --------- |
+| `value`   | `boolean` |
 
 ##### Returns
 
@@ -552,16 +555,16 @@ Delegates to EntityRelationCache.add — see relation-cache.ts
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                  |
+| ---------- | --------------------------------------------------------------------- |
 | `relation` | [`EntityRelationMetadata`](../type-aliases/EntityRelationMetadata.md) |
-| `entity` | `any` |
+| `entity`   | `any`                                                                 |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### applyExternal() \{#applyexternal\}
 
@@ -575,9 +578,9 @@ Applies a piece of external data, automatically choosing the merge strategy base
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `data` | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; | External data (a whole-row backfill or an incremental patch are both fine) |
+| Parameter | Type                                       | Description                                                                |
+| --------- | ------------------------------------------ | -------------------------------------------------------------------------- |
+| `data`    | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; | External data (a whole-row backfill or an incremental patch are both fine) |
 
 #### Returns
 
@@ -597,14 +600,14 @@ and remote live-query batch backfills all hit cached entities, and one missed ju
 
 This method does **no staleness judgment**. Callers that may receive late events must first intercept with `isStaleEventPayload`.
 
-***
+---
 
 ### applyWriteResult() \{#applywriteresult\}
 
 ```ts
 applyWriteResult(
-   row, 
-   submitted, 
+   row,
+   submitted,
    mark
 ): void;
 ```
@@ -615,11 +618,11 @@ The wrap-up after a successful write: advances the baseline with the row returne
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `row` | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; | The row returned by the database (the new baseline) |
-| `submitted` | `object` | The field values submitted by this write: for an update the submitted patch, for a create the entire row at the moment the INSERT was generated |
-| `mark` | `number` | The edit sequence number at submission, taken from [writeMark](#writemark) |
+| Parameter   | Type                                       | Description                                                                                                                                     |
+| ----------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `row`       | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; | The row returned by the database (the new baseline)                                                                                             |
+| `submitted` | `object`                                   | The field values submitted by this write: for an update the submitted patch, for a create the entire row at the moment the INSERT was generated |
+| `mark`      | `number`                                   | The edit sequence number at submission, taken from [writeMark](#writemark)                                                                      |
 
 #### Returns
 
@@ -628,9 +631,10 @@ The wrap-up after a successful write: advances the baseline with the row returne
 #### Remarks
 
 Writes are asynchronous, and the user may keep editing while waiting. Two kinds of local edits are kept; all other fields take the values returned by the database:
+
 - fields changed after the submission (edit sequence number greater than `mark`);
 - fields not in this submission that still differ from the old baseline (when only some fields were submitted, the remaining unsaved edits wait for the next save).
-Kept fields recompute patch / `modified` against the new baseline, and the next `save()` writes them out.
+  Kept fields recompute patch / `modified` against the new baseline, and the next `save()` writes them out.
 
 The criterion is "changed after the submission" rather than "current value differs from the submitted value": callers may submit values that were never written on the instance
 (for example handing the repository a newly computed count derived from increments), in which case the instance's old value is not a new edit and must not overwrite the value the database just wrote.
@@ -639,7 +643,7 @@ The difference from [replace](#replace): `replace` overwrites the whole row and 
 and the next `save()` is still a no-op. The difference from [mergeExternal](#mergeexternal): the latter always keeps local values for keys still in patch,
 so a just-submitted value rewritten by the database (triggers, type normalization) would linger as a fake diff; here the database wins.
 
-***
+---
 
 ### checkChange() \{#checkchange\}
 
@@ -652,25 +656,27 @@ Defined in: [packages/rxdb/src/entity/entity-status.ts:592](https://github.com/a
 Records an entity change
 
 Mechanism:
+
 1. Computes the current patch and inversePatch
 2. Appends the change record to the patches array
 3. Publishes the change event through the Subject
 
 Timestamp notes:
+
 - recordAt: business time (Date), used for display and ordering
 - timeStamp: performance time (performance.now), used for high-precision timing and ordering
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type   | Description                                      |
+| ----------- | ------ | ------------------------------------------------ |
 | `recordAt?` | `Date` | Change record time, defaults to the current time |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### checkpoint() \{#checkpoint\}
 
@@ -690,7 +696,7 @@ A wrap-up function that takes the commit result; repeated calls have no side eff
 
 (`committed`) => `void`
 
-***
+---
 
 ### cleanRelationEntity() \{#cleanrelationentity\}
 
@@ -704,15 +710,15 @@ Delegates to EntityRelationCache.clean — see relation-cache.ts
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                  |
+| ---------- | --------------------------------------------------------------------- |
 | `relation` | [`EntityRelationMetadata`](../type-aliases/EntityRelationMetadata.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### forgetRemovedJunctions() \{#forgetremovedjunctions\}
 
@@ -726,15 +732,15 @@ Junctions deleted by a save are no longer pending deletion; delegates to EntityR
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type                       | Description                        |
+| ----------- | -------------------------- | ---------------------------------- |
 | `junctions` | `Iterable`&lt;`object`&gt; | The Junctions deleted by this save |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### getNeedRemoveEntities() \{#getneedremoveentities\}
 
@@ -747,15 +753,18 @@ Defined in: [packages/rxdb/src/entity/entity-status.ts:655](https://github.com/a
 Gets the list of entities to remove
 
 Removal strategy:
+
 - Many-to-many relations: remove Junction entities (join table records)
 - Other relations: related entities are not removed automatically (decided by the business layer)
 
 Junction entity handling:
+
 1. Added to #remove_junction_set on removeRelationEntity
 2. Deleted together on save (guaranteeing transactional consistency)
 3. Only local=true ones are deleted (unsaved ones need no deletion)
 
 Design rationale:
+
 - ONE_TO_MANY/MANY_TO_ONE cascade deletion is handled by database foreign key constraints
 - MANY_TO_MANY has no direct foreign key, so the application layer must delete the Junctions
 
@@ -765,7 +774,7 @@ Design rationale:
 
 The array of Junction entities pending deletion
 
-***
+---
 
 ### getNeedSaveEntities() \{#getneedsaveentities\}
 
@@ -778,12 +787,14 @@ Defined in: [packages/rxdb/src/entity/entity-status.ts:624](https://github.com/a
 Gets the list of entities to save
 
 Logic:
+
 1. Always includes the current entity (this.proxyTarget)
 2. Traverses the caches of all relation types
 3. Picks out related entities with modified=true
 4. Adds the child entities of one-to-many collections whose `remove()` unbound them and whose foreign keys are set to null but not yet persisted
 
 Notes:
+
 - This method only looks up directly related entities, no recursion
 - Recursive lookup is handled by getNeedSaveEntities in entity.utils.ts
 - The returned entities need further filtering (ordering by dependency)
@@ -794,7 +805,7 @@ Notes:
 
 The array of entities to save (including itself and modified related entities)
 
-***
+---
 
 ### getRelationCache() \{#getrelationcache\}
 
@@ -808,15 +819,15 @@ Delegates to EntityRelationCache.get — see relation-cache.ts
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                  |
+| ---------- | --------------------------------------------------------------------- |
 | `relation` | [`EntityRelationMetadata`](../type-aliases/EntityRelationMetadata.md) |
 
 #### Returns
 
 `Set`&lt;`any`&gt;
 
-***
+---
 
 ### getRelationObservableEntry() \{#getrelationobservableentry\}
 
@@ -830,15 +841,15 @@ Delegates to EntityRelationCache.getObservableEntry — see relation-cache.ts
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                  |
+| ---------- | --------------------------------------------------------------------- |
 | `relation` | [`EntityRelationMetadata`](../type-aliases/EntityRelationMetadata.md) |
 
 #### Returns
 
 `RelationObservableEntry` \| `undefined`
 
-***
+---
 
 ### invalidateCache() \{#invalidatecache\}
 
@@ -852,7 +863,7 @@ Defined in: [packages/rxdb/src/entity/entity-status.ts:718](https://github.com/a
 
 `void`
 
-***
+---
 
 ### markChanged() \{#markchanged\}
 
@@ -867,16 +878,16 @@ Called on Proxy set interception, synchronously recording which properties were 
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | keyof `InstanceType`&lt;`T`&gt; | The key of the modified property |
-| `value?` | `unknown` | The value of this edit; kept until the database backfill overwrites the field |
+| Parameter | Type                            | Description                                                                   |
+| --------- | ------------------------------- | ----------------------------------------------------------------------------- |
+| `key`     | keyof `InstanceType`&lt;`T`&gt; | The key of the modified property                                              |
+| `value?`  | `unknown`                       | The value of this edit; kept until the database backfill overwrites the field |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### markContentChanged() \{#markcontentchanged\}
 
@@ -901,7 +912,7 @@ the caller is equally responsible for first confirming that the visible value re
 
 `void`
 
-***
+---
 
 ### mergeExternal() \{#mergeexternal\}
 
@@ -915,9 +926,9 @@ Applies an external update, but **yields field by field** to local unsaved edits
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `data` | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; | The external event payload (incremental fields) |
+| Parameter | Type                                       | Description                                     |
+| --------- | ------------------------------------------ | ----------------------------------------------- |
+| `data`    | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; | The external event payload (incremental fields) |
 
 #### Returns
 
@@ -930,6 +941,7 @@ and resets `_origin`, zeroing `_modified` — the user's unsaved edits are writt
 the UI looks unchanged, yet the next `save()` silently no-ops and the edits are lost forever.
 
 The semantics here are:
+
 - the `_origin` baseline **always moves forward** to the external value (undo should return to the state after the external push, not an earlier stale value);
 - keys that still have real differences in the current patch **keep the local value** and are not overwritten by the external value;
 - all other keys sync to the external value.
@@ -937,7 +949,7 @@ The semantics here are:
 `patch` is then recomputed as "current value vs new baseline", so when the external value happens to equal the local edit it naturally converges to empty
 (indeed nothing needs to be written); `_modified` is also recomputed from this, rather than unconditionally zeroed.
 
-***
+---
 
 ### removeRelationEntity() \{#removerelationentity\}
 
@@ -951,16 +963,16 @@ Delegates to EntityRelationCache.remove — see relation-cache.ts
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                  |
+| ---------- | --------------------------------------------------------------------- |
 | `relation` | [`EntityRelationMetadata`](../type-aliases/EntityRelationMetadata.md) |
-| `entity` | `any` |
+| `entity`   | `any`                                                                 |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### replace() \{#replace\}
 
@@ -978,15 +990,15 @@ A state where the user has actively marked deletion should not be overwritten by
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `data` | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; |
+| Parameter | Type                                       |
+| --------- | ------------------------------------------ |
+| `data`    | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### reset() \{#reset\}
 
@@ -999,6 +1011,7 @@ Defined in: [packages/rxdb/src/entity/entity-status.ts:419](https://github.com/a
 Resets the entity state to the initial state (origin)
 
 Operations:
+
 1. Deletes keys on proxyTarget that origin does not have ( ：in the `createEntityRef` sparse hydration scenario,
    properties added after construction never existed in origin, and Object.assign alone cannot clear them)
 2. Restores all properties of proxyTarget to the values in origin
@@ -1013,7 +1026,7 @@ Use case: undoing all unsaved modifications
 
 `void`
 
-***
+---
 
 ### setRelationObservableEntry() \{#setrelationobservableentry\}
 
@@ -1027,16 +1040,16 @@ Delegates to EntityRelationCache.setObservableEntry — see relation-cache.ts
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                  |
+| ---------- | --------------------------------------------------------------------- |
 | `relation` | [`EntityRelationMetadata`](../type-aliases/EntityRelationMetadata.md) |
-| `entry` | `RelationObservableEntry` |
+| `entry`    | `RelationObservableEntry`                                             |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### writeMark() \{#writemark\}
 
@@ -1050,8 +1063,8 @@ The edit sequence number at the moment of submission; handed to [applyWriteResul
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type     | Description                         |
+| ----------- | -------- | ----------------------------------- |
 | `submitted` | `object` | The field values of this submission |
 
 #### Returns

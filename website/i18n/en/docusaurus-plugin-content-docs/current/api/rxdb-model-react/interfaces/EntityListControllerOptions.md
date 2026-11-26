@@ -1,5 +1,5 @@
 ---
-sidebar_label: "EntityListControllerOptions⟨T⟩"
+sidebar_label: 'EntityListControllerOptions⟨T⟩'
 ---
 
 # EntityListControllerOptions`<T>`
@@ -14,9 +14,9 @@ Initial list state, query data source, and persistence actions.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityInstance`](../type-aliases/EntityInstance.md) | [`EntityInstance`](../type-aliases/EntityInstance.md) |
+| Type Parameter                                                                                    | Default type                                          |
+| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityInstance`](../type-aliases/EntityInstance.md) | [`EntityInstance`](../type-aliases/EntityInstance.md) |
 
 ## Properties
 
@@ -28,12 +28,12 @@ readonly capabilities?: EntityCapabilities;
 
 Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:71
 
-***
+---
 
 ### load? \{#load\}
 
 ```ts
-readonly load?: (context) => 
+readonly load?: (context) =>
   | EntityListLoadResult<T>
   | Promise<EntityListLoadResult<T>>;
 ```
@@ -44,16 +44,16 @@ Query data source; stale return values are discarded automatically.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                |
+| --------- | --------------------------------------------------- |
 | `context` | [`EntityListLoadContext`](EntityListLoadContext.md) |
 
 #### Returns
 
-  \| [`EntityListLoadResult`](EntityListLoadResult.md)&lt;`T`&gt;
-  \| `Promise`&lt;[`EntityListLoadResult`](EntityListLoadResult.md)&lt;`T`&gt;&gt;
+\| [`EntityListLoadResult`](EntityListLoadResult.md)&lt;`T`&gt;
+\| `Promise`&lt;[`EntityListLoadResult`](EntityListLoadResult.md)&lt;`T`&gt;&gt;
 
-***
+---
 
 ### onCreate? \{#oncreate\}
 
@@ -65,15 +65,15 @@ Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:74
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `data` | `Record`&lt;`string`, `unknown`&gt; |
+| Parameter | Type                                |
+| --------- | ----------------------------------- |
+| `data`    | `Record`&lt;`string`, `unknown`&gt; |
 
 #### Returns
 
 `T` \| `Promise`&lt;`T`&gt;
 
-***
+---
 
 ### onDelete? \{#ondelete\}
 
@@ -86,14 +86,14 @@ Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:76
 #### Parameters
 
 | Parameter | Type |
-| ------ | ------ |
-| `record` | `T` |
+| --------- | ---- |
+| `record`  | `T`  |
 
 #### Returns
 
 `void` \| `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### onUpdate? \{#onupdate\}
 
@@ -105,16 +105,16 @@ Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:75
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `record` | `T` |
+| Parameter | Type                                |
+| --------- | ----------------------------------- |
+| `record`  | `T`                                 |
 | `changes` | `Record`&lt;`string`, `unknown`&gt; |
 
 #### Returns
 
 `void` \| `T` \| `Promise`&lt;`void` \| `T`&gt;
 
-***
+---
 
 ### page? \{#page\}
 
@@ -124,7 +124,7 @@ readonly page?: number;
 
 Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:68
 
-***
+---
 
 ### pageSize? \{#pagesize\}
 
@@ -134,7 +134,7 @@ readonly pageSize?: number;
 
 Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:69
 
-***
+---
 
 ### query? \{#query\}
 
@@ -144,7 +144,7 @@ readonly query?: unknown;
 
 Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:66
 
-***
+---
 
 ### records? \{#records\}
 
@@ -154,7 +154,7 @@ readonly records?: readonly T[];
 
 Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:70
 
-***
+---
 
 ### sorts? \{#sorts\}
 

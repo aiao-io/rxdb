@@ -1,12 +1,7 @@
 # createMessage()
 
 ```ts
-function createMessage<T>(
-   type, 
-   direction, 
-   payload, 
-   sequence
-): MessageOfType<T>;
+function createMessage<T>(type, direction, payload, sequence): MessageOfType<T>;
 ```
 
 Defined in: [types.ts:730](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/types.ts#L730)
@@ -15,18 +10,18 @@ Creates an RxDB DevTools message.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`MessageType`](../type-aliases/MessageType.md) |
+| Type Parameter                                                                              |
+| ------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`MessageType`](../type-aliases/MessageType.md) |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `type` | `T` | The message type; it also determines the legal values of `direction` and `payload`. |
-| `direction` | [`MessageOfType`](../type-aliases/MessageOfType.md)&lt;`T`&gt;\[`"direction"`\] | The direction allowed for this type. |
-| `payload` | [`MessageOfType`](../type-aliases/MessageOfType.md)&lt;`T`&gt;\[`"payload"`\] | The payload defined by this type. |
-| `sequence` | `number` | A monotonically increasing sequence number within the session; must be a non-negative safe integer. |
+| Parameter   | Type                                                                            | Description                                                                                         |
+| ----------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `type`      | `T`                                                                             | The message type; it also determines the legal values of `direction` and `payload`.                 |
+| `direction` | [`MessageOfType`](../type-aliases/MessageOfType.md)&lt;`T`&gt;\[`"direction"`\] | The direction allowed for this type.                                                                |
+| `payload`   | [`MessageOfType`](../type-aliases/MessageOfType.md)&lt;`T`&gt;\[`"payload"`\]   | The payload defined by this type.                                                                   |
+| `sequence`  | `number`                                                                        | A monotonically increasing sequence number within the session; must be a non-negative safe integer. |
 
 ## Returns
 

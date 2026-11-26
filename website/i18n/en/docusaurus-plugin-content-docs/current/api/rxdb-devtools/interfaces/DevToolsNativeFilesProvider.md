@@ -38,8 +38,8 @@ Gets the disk receiver of a registered upload.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter    | Type     | Description                                       |
+| ------------ | -------- | ------------------------------------------------- |
 | `transferId` | `string` | The transfer ID declared in the `upload` request. |
 
 #### Returns
@@ -56,7 +56,7 @@ Throws when no upload has been registered for that ID — an ownerless sink woul
 
 [`DevToolsFilesProviderWithSource`](DevToolsFilesProviderWithSource.md).[`createChunkSink`](DevToolsFilesProviderWithSource.md#createchunksink)
 
-***
+---
 
 ### createChunkSource() \{#createchunksource\}
 
@@ -70,8 +70,8 @@ Gets the byte source of a registered download.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type     | Description                       |
+| ----------- | -------- | --------------------------------- |
 | `requestId` | `string` | The ID of the `download` request. |
 
 #### Returns
@@ -84,7 +84,7 @@ The byte source of that download; `undefined` when no download has been register
 
 [`DevToolsFilesProviderWithSource`](DevToolsFilesProviderWithSource.md).[`createChunkSource`](DevToolsFilesProviderWithSource.md#createchunksource)
 
-***
+---
 
 ### dispose() \{#dispose\}
 
@@ -104,7 +104,7 @@ Releases the diagnostic snapshot store and its timers.
 
 Idempotent. The snapshot store holds two timer paths — the 15 s deadline and the 60 s cursor idle — and both must be reclaimed when the session is torn down: the provider is assembled per session, so the store is a session-level resource too.
 
-***
+---
 
 ### invoke() \{#invoke\}
 
@@ -118,10 +118,10 @@ Executes an operation.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `operation` | `string` | The authorized operation name. |
-| `params` | `unknown` | Parameters that have passed the wire layer's generic validation but have not been interpreted per operation; the implementation is responsible for domain-level validation (e.g. path validity → `invalid_path`). |
+| Parameter   | Type      | Description                                                                                                                                                                                                       |
+| ----------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `operation` | `string`  | The authorized operation name.                                                                                                                                                                                    |
+| `params`    | `unknown` | Parameters that have passed the wire layer's generic validation but have not been interpreted per operation; the implementation is responsible for domain-level validation (e.g. path validity → `invalid_path`). |
 
 #### Returns
 

@@ -24,7 +24,7 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/query/sql\_alias.utils.ts:27]
 
 Alias of this layer's main table
 
-***
+---
 
 ### reservedAliases \{#reservedaliases\}
 

@@ -10,9 +10,9 @@ Encodes a capability claim into a migration row name.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `claim` | [`RxDBCapabilityClaim`](../interfaces/RxDBCapabilityClaim.md) | The capability, version and package specifier |
+| Parameter | Type                                                          | Description                                   |
+| --------- | ------------------------------------------------------------- | --------------------------------------------- |
+| `claim`   | [`RxDBCapabilityClaim`](../interfaces/RxDBCapabilityClaim.md) | The capability, version and package specifier |
 
 ## Returns
 

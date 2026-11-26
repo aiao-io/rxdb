@@ -10,10 +10,10 @@ Wraps browser storage.
 
 ## Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `kind` | `"session"` \| `"local"` | `undefined` | `local` or `session`. |
-| `host?` | `WebStorageHost` | `globalThis` | The host object, `globalThis` by default. |
+| Parameter | Type                     | Default value | Description                               |
+| --------- | ------------------------ | ------------- | ----------------------------------------- |
+| `kind`    | `"session"` \| `"local"` | `undefined`   | `local` or `session`.                     |
+| `host?`   | `WebStorageHost`         | `globalThis`  | The host object, `globalThis` by default. |
 
 ## Returns
 

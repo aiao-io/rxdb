@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/backup/restore-sqlite-databas
 
 The connection restored for an in-memory target (change event collection already resumed), taken over by the adapter; empty for persistent targets.
 
-***
+---
 
 ### result \{#result\}
 

@@ -1,5 +1,5 @@
 ---
-sidebar_label: "RxDBPartialSyncError⟨T⟩"
+sidebar_label: 'RxDBPartialSyncError⟨T⟩'
 ---
 
 # RxDBPartialSyncError`<T>`
@@ -16,6 +16,7 @@ have already landed and the watermark has moved forward. Previously this situati
 a retry would continue from the new watermark, and the span in between was neither replayed nor warned about.
 
 On receiving this error:
+
 - `result` is the real statistics of the part completed before the failure, directly usable for display/accounting;
 - `cause` is the original error that interrupted the sync;
 - do **not** assume the data is back to the pre-sync state.
@@ -40,9 +41,9 @@ try {
 
 ## Type Parameters
 
-| Type Parameter | Default type | Description |
-| ------ | ------ | ------ |
-| <a id="type-parameter-t"></a> `T` | `unknown` | The result type of that sync (e.g. `PullResult`) |
+| Type Parameter                    | Default type | Description                                      |
+| --------------------------------- | ------------ | ------------------------------------------------ |
+| <a id="type-parameter-t"></a> `T` | `unknown`    | The result type of that sync (e.g. `PullResult`) |
 
 ## Constructors
 
@@ -56,10 +57,10 @@ Defined in: [packages/rxdb/src/RxDBError.ts:38](https://github.com/aiao-io/rxdb/
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `result` | `T` | The statistics of the part completed before the failure |
-| `cause` | `Error` | The original error that interrupted the sync |
+| Parameter | Type    | Description                                             |
+| --------- | ------- | ------------------------------------------------------- |
+| `result`  | `T`     | The statistics of the part completed before the failure |
+| `cause`   | `Error` | The original error that interrupted the sync            |
 
 #### Returns
 
@@ -85,7 +86,7 @@ The original error that interrupted the sync
 
 [`RxDBError`](RxDBError.md).[`cause`](RxDBError.md#cause)
 
-***
+---
 
 ### message \{#message\}
 
@@ -99,7 +100,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](RxDBError.md).[`message`](RxDBError.md#message)
 
-***
+---
 
 ### name \{#name\}
 
@@ -113,7 +114,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](RxDBError.md).[`name`](RxDBError.md#name)
 
-***
+---
 
 ### result \{#result\}
 
@@ -125,7 +126,7 @@ Defined in: [packages/rxdb/src/RxDBError.ts:40](https://github.com/aiao-io/rxdb/
 
 The statistics of the part completed before the failure
 
-***
+---
 
 ### stack? \{#stack\}
 
@@ -139,7 +140,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](RxDBError.md).[`stack`](RxDBError.md#stack)
 
-***
+---
 
 ### stackTraceLimit \{#stacktracelimit\}
 
@@ -180,7 +181,7 @@ a string representing the location in the code at which
 ```js
 const myObject = {};
 Error.captureStackTrace(myObject);
-myObject.stack;  // Similar to `new Error().stack`
+myObject.stack; // Similar to `new Error().stack`
 ```
 
 The first line of the trace will be prefixed with
@@ -219,9 +220,9 @@ a();
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `targetObject` | `object` |
+| Parameter         | Type       |
+| ----------------- | ---------- |
+| `targetObject`    | `object`   |
 | `constructorOpt?` | `Function` |
 
 #### Returns
@@ -232,7 +233,7 @@ a();
 
 [`RxDBError`](RxDBError.md).[`captureStackTrace`](RxDBError.md#capturestacktrace)
 
-***
+---
 
 ### prepareStackTrace() \{#preparestacktrace\}
 
@@ -244,9 +245,9 @@ Defined in: node\_modules/.pnpm/@types+node@26.6.6/node\_modules/@types/node/glo
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `err` | `Error` |
+| Parameter     | Type         |
+| ------------- | ------------ |
+| `err`         | `Error`      |
 | `stackTraces` | `CallSite`[] |
 
 #### Returns

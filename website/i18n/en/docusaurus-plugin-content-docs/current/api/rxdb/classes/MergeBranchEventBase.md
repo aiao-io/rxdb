@@ -27,8 +27,8 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:447](https://github.com/aiao-io/rx
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter      | Type     | Description        |
+| -------------- | -------- | ------------------ |
 | `sourceBranch` | `string` | Source branch name |
 | `targetBranch` | `string` | Target branch name |
 
@@ -48,7 +48,7 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:449](https://github.com/aiao-io/rx
 
 Source branch name
 
-***
+---
 
 ### targetBranch \{#targetbranch\}
 

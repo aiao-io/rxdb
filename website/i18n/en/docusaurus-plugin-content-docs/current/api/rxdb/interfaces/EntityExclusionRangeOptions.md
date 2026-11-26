@@ -9,14 +9,14 @@ One range dimension of a range exclusion: the start and end columns and the boun
 ### bounds \{#bounds\}
 
 ```ts
-bounds: "[)" | "[]";
+bounds: '[)' | '[]';
 ```
 
 Defined in: [packages/rxdb/src/entity/exclusion-constraint.ts:43](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/exclusion-constraint.ts#L43)
 
 Range bounds.
 
-***
+---
 
 ### from \{#from\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb/src/entity/exclusion-constraint.ts:39](https://github
 
 The range start column (a property name); a NULL value means that side is unbounded.
 
-***
+---
 
 ### to \{#to\}
 

@@ -11,9 +11,9 @@ Returns an array of numbers when fieldType is 'number', otherwise an array of st
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `text` | `string` | The comma-separated string |
+| Parameter   | Type     | Description                                                                                              |
+| ----------- | -------- | -------------------------------------------------------------------------------------------------------- |
+| `text`      | `string` | The comma-separated string                                                                               |
 | `fieldType` | `string` | The field type; when it is 'number', each item is parsed as a number and invalid values are filtered out |
 
 ## Returns

@@ -17,7 +17,7 @@ When a parent table record changes, the database automatically handles the child
 ### onDelete? \{#ondelete\}
 
 ```ts
-onDelete?: 
+onDelete?:
   | "NO ACTION"
   | "RESTRICT"
   | "CASCADE"
@@ -35,13 +35,13 @@ Defines how the child table's foreign key is handled when the parent table recor
 
 ```typescript
 // Cascade-delete orders when the user is deleted
-onDelete: OnDeleteAction.CASCADE
+onDelete: OnDeleteAction.CASCADE;
 
 // Set the product's category ID to NULL when the category is deleted
-onDelete: OnDeleteAction.SET_NULL
+onDelete: OnDeleteAction.SET_NULL;
 
 // Do not allow deleting a user who still has orders
-onDelete: OnDeleteAction.RESTRICT
+onDelete: OnDeleteAction.RESTRICT;
 ```
 
 #### Default
@@ -50,12 +50,12 @@ onDelete: OnDeleteAction.RESTRICT
 Inferred automatically from the relation type
 ```
 
-***
+---
 
 ### onUpdate? \{#onupdate\}
 
 ```ts
-onUpdate?: 
+onUpdate?:
   | "NO ACTION"
   | "RESTRICT"
   | "CASCADE"
@@ -73,10 +73,10 @@ Defines how the child table's foreign key is handled when the parent table's pri
 
 ```typescript
 // Cascade-update the order's user_id when the user ID is updated
-onUpdate: OnUpdateAction.CASCADE
+onUpdate: OnUpdateAction.CASCADE;
 
 // Do not allow updating the primary key (recommended)
-onUpdate: OnUpdateAction.RESTRICT
+onUpdate: OnUpdateAction.RESTRICT;
 ```
 
 #### Default

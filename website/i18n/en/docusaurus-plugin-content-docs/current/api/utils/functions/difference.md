@@ -12,16 +12,16 @@ The result preserves the order of appearance in the original array
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                    | Description              |
+| --------------------------------- | ------------------------ |
 | <a id="type-parameter-t"></a> `T` | The array element's type |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `array1` | `T`[] | Source array from which the differing elements are taken |
-| `array2` | `T`[] | Comparison array used to decide which elements to exclude |
+| Parameter | Type  | Description                                               |
+| --------- | ----- | --------------------------------------------------------- |
+| `array1`  | `T`[] | Source array from which the differing elements are taken  |
+| `array2`  | `T`[] | Comparison array used to decide which elements to exclude |
 
 ## Returns
 

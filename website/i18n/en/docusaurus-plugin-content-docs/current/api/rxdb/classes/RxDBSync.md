@@ -5,6 +5,7 @@ Defined in: [packages/rxdb/src/system/sync.ts:126](https://github.com/aiao-io/rx
 Repository sync metadata table
 
 Tracks the sync state of every repository on every branch, including:
+
 - Sync type (full/remote/local/none)
 - Last push/pull time
 - Last pushed/pulled changeId
@@ -35,7 +36,7 @@ Defined in: [packages/rxdb/src/system/sync.ts:210](https://github.com/aiao-io/rx
 
 The related branch
 
-***
+---
 
 ### branchId \{#branchid\}
 
@@ -47,7 +48,7 @@ Defined in: [packages/rxdb/src/system/sync.ts:149](https://github.com/aiao-io/rx
 
 The ID of the branch it belongs to
 
-***
+---
 
 ### createdAt \{#createdat\}
 
@@ -59,7 +60,7 @@ Defined in: [packages/rxdb/src/system/sync.ts:200](https://github.com/aiao-io/rx
 
 Creation time
 
-***
+---
 
 ### enabled \{#enabled\}
 
@@ -71,7 +72,7 @@ Defined in: [packages/rxdb/src/system/sync.ts:195](https://github.com/aiao-io/rx
 
 Whether sync is enabled (the manual disable switch)
 
-***
+---
 
 ### entity \{#entity\}
 
@@ -86,10 +87,10 @@ Entity name
 #### Example
 
 ```ts
-"Todo"
+'Todo';
 ```
 
-***
+---
 
 ### id \{#id\}
 
@@ -105,10 +106,10 @@ Format: \{namespace\}:\{entity\}:\{branchId\}
 #### Example
 
 ```ts
-"public:Todo:main"
+'public:Todo:main';
 ```
 
-***
+---
 
 ### lastPulledAt \{#lastpulledat\}
 
@@ -120,7 +121,7 @@ Defined in: [packages/rxdb/src/system/sync.ts:175](https://github.com/aiao-io/rx
 
 Last pull time
 
-***
+---
 
 ### lastPullRemoteChangeId \{#lastpullremotechangeid\}
 
@@ -132,7 +133,7 @@ Defined in: [packages/rxdb/src/system/sync.ts:180](https://github.com/aiao-io/rx
 
 The last pulled remote changeId
 
-***
+---
 
 ### lastPushedAt \{#lastpushedat\}
 
@@ -144,7 +145,7 @@ Defined in: [packages/rxdb/src/system/sync.ts:170](https://github.com/aiao-io/rx
 
 Last push time
 
-***
+---
 
 ### lastPushedChangeId \{#lastpushedchangeid\}
 
@@ -156,7 +157,7 @@ Defined in: [packages/rxdb/src/system/sync.ts:165](https://github.com/aiao-io/rx
 
 The last pushed local changeId
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -171,10 +172,10 @@ Entity namespace
 #### Example
 
 ```ts
-"public"
+'public';
 ```
 
-***
+---
 
 ### remoteBackendId \{#remotebackendid\}
 
@@ -192,7 +193,7 @@ Remote change ids are only monotonic within the same remote database: after the 
 all of the new database's ids, making pulls silently come up empty. The cursor is only valid on the remote recorded in this column, and the sync entrance refuses to continue
 when it finds the remote identity has changed. `null` means not yet bound (rows written before system schema 9, or never exchanged data with the remote), bound on the first sync.
 
-***
+---
 
 ### remove \{#remove\}
 
@@ -208,7 +209,7 @@ Delete
 
 `Promise`&lt;`RxDBSync`&gt;
 
-***
+---
 
 ### reset \{#reset\}
 
@@ -224,7 +225,7 @@ Reset data
 
 `void`
 
-***
+---
 
 ### save \{#save\}
 
@@ -240,17 +241,18 @@ Save
 
 `Promise`&lt;`RxDBSync`&gt;
 
-***
+---
 
 ### syncType \{#synctype\}
 
 ```ts
-syncType: "local" | "remote" | "filter" | "full" | "querycache" | "none";
+syncType: 'local' | 'remote' | 'filter' | 'full' | 'querycache' | 'none';
 ```
 
 Defined in: [packages/rxdb/src/system/sync.ts:160](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/sync.ts#L160)
 
 Sync type
+
 - full: local ↔ remote full sync
 - filter: local ↔ remote filtered sync (only syncs data matching the conditions)
 - querycache: query cache sync (maintains consistency between the local cache and remote data by query result sets)
@@ -258,7 +260,7 @@ Sync type
 - local: local only (push only, no pull)
 - none: no sync (system tables or temporary data)
 
-***
+---
 
 ### updatedAt \{#updatedat\}
 
@@ -270,7 +272,7 @@ Defined in: [packages/rxdb/src/system/sync.ts:205](https://github.com/aiao-io/rx
 
 Update time
 
-***
+---
 
 ### count \{#count\}
 
@@ -282,15 +284,15 @@ Defined in: [packages/rxdb/src/system/sync.ts:233](https://github.com/aiao-io/rx
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `options` | [`CountOptions`](../interfaces/CountOptions.md)&lt;*typeof* `RxDBSync`, [`RxDBSyncRuleGroup`](../type-aliases/RxDBSyncRuleGroup.md)&gt; |
+| Parameter | Type                                                                                                                                    |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `options` | [`CountOptions`](../interfaces/CountOptions.md)&lt;_typeof_ `RxDBSync`, [`RxDBSyncRuleGroup`](../type-aliases/RxDBSyncRuleGroup.md)&gt; |
 
 #### Returns
 
 `Observable`&lt;`number`&gt;
 
-***
+---
 
 ### find \{#find\}
 
@@ -302,15 +304,15 @@ Defined in: [packages/rxdb/src/system/sync.ts:213](https://github.com/aiao-io/rx
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `options` | [`FindOptions`](../interfaces/FindOptions.md)&lt;*typeof* `RxDBSync`, [`RxDBSyncRuleGroup`](../type-aliases/RxDBSyncRuleGroup.md), [`RxDBSyncOrderByField`](../type-aliases/RxDBSyncOrderByField.md)&gt; |
+| Parameter | Type                                                                                                                                                                                                     |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `options` | [`FindOptions`](../interfaces/FindOptions.md)&lt;_typeof_ `RxDBSync`, [`RxDBSyncRuleGroup`](../type-aliases/RxDBSyncRuleGroup.md), [`RxDBSyncOrderByField`](../type-aliases/RxDBSyncOrderByField.md)&gt; |
 
 #### Returns
 
 `Observable`&lt;`RxDBSync`[]&gt;
 
-***
+---
 
 ### findAll \{#findall\}
 
@@ -322,15 +324,15 @@ Defined in: [packages/rxdb/src/system/sync.ts:217](https://github.com/aiao-io/rx
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `options` | [`FindAllOptions`](../interfaces/FindAllOptions.md)&lt;*typeof* `RxDBSync`, [`RxDBSyncRuleGroup`](../type-aliases/RxDBSyncRuleGroup.md), [`RxDBSyncOrderByField`](../type-aliases/RxDBSyncOrderByField.md)&gt; |
+| Parameter | Type                                                                                                                                                                                                           |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `options` | [`FindAllOptions`](../interfaces/FindAllOptions.md)&lt;_typeof_ `RxDBSync`, [`RxDBSyncRuleGroup`](../type-aliases/RxDBSyncRuleGroup.md), [`RxDBSyncOrderByField`](../type-aliases/RxDBSyncOrderByField.md)&gt; |
 
 #### Returns
 
 `Observable`&lt;`RxDBSync`[]&gt;
 
-***
+---
 
 ### findByCursor \{#findbycursor\}
 
@@ -342,15 +344,15 @@ Defined in: [packages/rxdb/src/system/sync.ts:229](https://github.com/aiao-io/rx
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `options` | [`FindByCursorOptions`](../interfaces/FindByCursorOptions.md)&lt;*typeof* `RxDBSync`, [`RxDBSyncRuleGroup`](../type-aliases/RxDBSyncRuleGroup.md), [`RxDBSyncOrderByField`](../type-aliases/RxDBSyncOrderByField.md)&gt; |
+| Parameter | Type                                                                                                                                                                                                                     |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `options` | [`FindByCursorOptions`](../interfaces/FindByCursorOptions.md)&lt;_typeof_ `RxDBSync`, [`RxDBSyncRuleGroup`](../type-aliases/RxDBSyncRuleGroup.md), [`RxDBSyncOrderByField`](../type-aliases/RxDBSyncOrderByField.md)&gt; |
 
 #### Returns
 
 `Observable`&lt;`RxDBSync`[]&gt;
 
-***
+---
 
 ### findOne \{#findone\}
 
@@ -362,15 +364,15 @@ Defined in: [packages/rxdb/src/system/sync.ts:221](https://github.com/aiao-io/rx
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `options` | [`FindOneOptions`](../interfaces/FindOneOptions.md)&lt;*typeof* `RxDBSync`, [`RxDBSyncRuleGroup`](../type-aliases/RxDBSyncRuleGroup.md), [`RxDBSyncOrderByField`](../type-aliases/RxDBSyncOrderByField.md)&gt; |
+| Parameter | Type                                                                                                                                                                                                           |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `options` | [`FindOneOptions`](../interfaces/FindOneOptions.md)&lt;_typeof_ `RxDBSync`, [`RxDBSyncRuleGroup`](../type-aliases/RxDBSyncRuleGroup.md), [`RxDBSyncOrderByField`](../type-aliases/RxDBSyncOrderByField.md)&gt; |
 
 #### Returns
 
 `Observable`&lt;`RxDBSync` \| `null`&gt;
 
-***
+---
 
 ### findOneOrFail \{#findoneorfail\}
 
@@ -382,9 +384,9 @@ Defined in: [packages/rxdb/src/system/sync.ts:225](https://github.com/aiao-io/rx
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `options` | [`FindOneOrFailOptions`](../interfaces/FindOneOrFailOptions.md)&lt;*typeof* `RxDBSync`, [`RxDBSyncRuleGroup`](../type-aliases/RxDBSyncRuleGroup.md), [`RxDBSyncOrderByField`](../type-aliases/RxDBSyncOrderByField.md)&gt; |
+| Parameter | Type                                                                                                                                                                                                                       |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `options` | [`FindOneOrFailOptions`](../interfaces/FindOneOrFailOptions.md)&lt;_typeof_ `RxDBSync`, [`RxDBSyncRuleGroup`](../type-aliases/RxDBSyncRuleGroup.md), [`RxDBSyncOrderByField`](../type-aliases/RxDBSyncOrderByField.md)&gt; |
 
 #### Returns
 

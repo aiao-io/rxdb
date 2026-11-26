@@ -10,8 +10,8 @@ Retrieves the entity class from entity metadata.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                  | Description                                                                                     |
+| ---------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) | The entity metadata (obtained via [getEntityMetadata](getEntityMetadata.md) or `SchemaManager`) |
 
 ## Returns

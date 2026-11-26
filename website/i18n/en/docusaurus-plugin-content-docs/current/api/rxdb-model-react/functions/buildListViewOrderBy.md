@@ -10,9 +10,9 @@ Builds the database cursor ordering, with grouping fields first and a unique key
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `state` | [`ListViewState`](../interfaces/ListViewState.md) |
+| Parameter  | Type                                                                                                    |
+| ---------- | ------------------------------------------------------------------------------------------------------- |
+| `state`    | [`ListViewState`](../interfaces/ListViewState.md)                                                       |
 | `metadata` | \| `Readonly`&lt;[`EntityMetadataType`](../../rxdb/interfaces/EntityMetadataType.md)&gt; \| `undefined` |
 
 ## Returns

@@ -10,10 +10,10 @@ Determines whether a value is an [RxDBBackupError](../classes/RxDBBackupError.md
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `error` | `unknown` | Any caught value |
-| `code?` | [`RxDBBackupErrorCode`](../type-aliases/RxDBBackupErrorCode.md) | The expected classification; when omitted, only the type is checked |
+| Parameter | Type                                                            | Description                                                         |
+| --------- | --------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `error`   | `unknown`                                                       | Any caught value                                                    |
+| `code?`   | [`RxDBBackupErrorCode`](../type-aliases/RxDBBackupErrorCode.md) | The expected classification; when omitted, only the type is checked |
 
 ## Returns
 

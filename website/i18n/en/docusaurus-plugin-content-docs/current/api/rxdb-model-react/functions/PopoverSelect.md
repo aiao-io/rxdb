@@ -10,8 +10,8 @@ Dropdown select component based on the Popover API.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter           | Type                                                        |
+| ------------------- | ----------------------------------------------------------- |
 | `__namedParameters` | [`PopoverSelectProps`](../interfaces/PopoverSelectProps.md) |
 
 ## Returns

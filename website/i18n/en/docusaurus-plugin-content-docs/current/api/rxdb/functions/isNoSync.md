@@ -10,9 +10,9 @@ Checks whether a repository does not sync at all.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) | The entity metadata |
+| Parameter     | Type                                                                                                              | Description                                                                                                                                         |
+| ------------- | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `metadata`    | [`EntityMetadata`](../type-aliases/EntityMetadata.md)                                                             | The entity metadata                                                                                                                                 |
 | `globalSync?` | \| [`SyncOptions`](../type-aliases/SyncOptions.md) \| [`EntitySyncResolver`](../interfaces/EntitySyncResolver.md) | Global sync configuration (optional); when an instance resolver `rxdb.entitySync` is passed, instance-level overrides are resolved together with it |
 
 ## Returns
@@ -24,8 +24,8 @@ Whether it does not sync
 ## Example
 
 ```ts
-isNoSync(metadataFull);   // false
+isNoSync(metadataFull); // false
 isNoSync(metadataRemote); // false
-isNoSync(metadataLocal);  // false
-isNoSync(metadataNone);   // true (system tables)
+isNoSync(metadataLocal); // false
+isNoSync(metadataNone); // true (system tables)
 ```

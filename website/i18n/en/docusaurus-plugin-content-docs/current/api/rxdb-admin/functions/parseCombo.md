@@ -10,9 +10,9 @@ Parses key combo text such as `Mod+K`, `Alt+Shift+L`, `Mod+,`.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `combo` | `string` | Modifiers joined to a main key with `+`; write `Plus` when the main key is the plus sign. |
+| Parameter | Type     | Description                                                                               |
+| --------- | -------- | ----------------------------------------------------------------------------------------- |
+| `combo`   | `string` | Modifiers joined to a main key with `+`; write `Plus` when the main key is the plus sign. |
 
 ## Returns
 

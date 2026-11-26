@@ -16,8 +16,8 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:370](https://github.com/aiao-io/rx
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                                                                                           |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | `entities` | [`RxDBEntityRemoteUpdatedEventData`](../interfaces/RxDBEntityRemoteUpdatedEventData.md)&lt;[`EntityType`](../type-aliases/EntityType.md)&gt;[] |
 
 #### Returns
@@ -34,12 +34,12 @@ readonly entities: RxDBEntityRemoteUpdatedEventData<EntityType>[];
 
 Defined in: [packages/rxdb/src/rxdb-events.ts:370](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-events.ts#L370)
 
-***
+---
 
 ### type \{#type\}
 
 ```ts
-type: "ENTITY_REMOTE_UPDATE" = ENTITY_REMOTE_UPDATE_EVENT;
+type: 'ENTITY_REMOTE_UPDATE' = ENTITY_REMOTE_UPDATE_EVENT;
 ```
 
 Defined in: [packages/rxdb/src/rxdb-events.ts:369](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-events.ts#L369)

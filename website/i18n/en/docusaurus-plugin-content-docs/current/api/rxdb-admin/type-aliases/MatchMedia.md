@@ -10,9 +10,9 @@ A function that creates a `MediaQueryLike`; `window.matchMedia` satisfies it as-
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `query` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `query`   | `string` |
 
 ## Returns
 

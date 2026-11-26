@@ -16,7 +16,7 @@ Defined in: [i18n-port.ts:20](https://github.com/aiao-io/rxdb/blob/b5232040240cf
 
 The currently highest-priority row of the same message identity.
 
-***
+---
 
 ### key \{#key\}
 
@@ -28,7 +28,7 @@ Defined in: [i18n-port.ts:14](https://github.com/aiao-io/rxdb/blob/b5232040240cf
 
 The message key.
 
-***
+---
 
 ### locale \{#locale\}
 
@@ -40,7 +40,7 @@ Defined in: [i18n-port.ts:10](https://github.com/aiao-io/rxdb/blob/b5232040240cf
 
 The normalized language.
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -52,7 +52,7 @@ Defined in: [i18n-port.ts:12](https://github.com/aiao-io/rxdb/blob/b5232040240cf
 
 The catalog namespace.
 
-***
+---
 
 ### source \{#source\}
 
@@ -64,7 +64,7 @@ Defined in: [i18n-port.ts:18](https://github.com/aiao-io/rxdb/blob/b5232040240cf
 
 The layer the message text comes from.
 
-***
+---
 
 ### value \{#value\}
 

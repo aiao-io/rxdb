@@ -1,5 +1,5 @@
 ---
-sidebar_label: "QueryBuilderProps⟨T⟩"
+sidebar_label: 'QueryBuilderProps⟨T⟩'
 ---
 
 # QueryBuilderProps`<T>`
@@ -10,9 +10,9 @@ Props of [QueryBuilder](../functions/QueryBuilder.md).
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* `object` | `Record`&lt;`string`, `unknown`&gt; |
+| Type Parameter                                       | Default type                        |
+| ---------------------------------------------------- | ----------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ `object` | `Record`&lt;`string`, `unknown`&gt; |
 
 ## Properties
 
@@ -26,7 +26,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/query-builder/query-bui
 
 Whether to enable group expand/collapse, defaults to `true`.
 
-***
+---
 
 ### enableDrag? \{#enabledrag\}
 
@@ -38,7 +38,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/query-builder/query-bui
 
 Whether to enable drag reordering, defaults to `true`.
 
-***
+---
 
 ### fields? \{#fields\}
 
@@ -50,7 +50,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/query-builder/query-bui
 
 Field list (passed in directly, takes precedence over schema).
 
-***
+---
 
 ### height? \{#height\}
 
@@ -62,7 +62,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/query-builder/query-bui
 
 Maximum height of the content area (scrolls beyond it), accepts any CSS length value such as `'400px'` or `'50vh'`, defaults to `'80vh'`.
 
-***
+---
 
 ### initialQuery? \{#initialquery\}
 
@@ -74,7 +74,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/query-builder/query-bui
 
 Initial query condition (optional).
 
-***
+---
 
 ### maxDepth? \{#maxdepth\}
 
@@ -86,7 +86,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/query-builder/query-bui
 
 Maximum nesting level, defaults to `5`.
 
-***
+---
 
 ### onQueryChange? \{#onquerychange\}
 
@@ -100,15 +100,15 @@ Query condition change event.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `query` | [`RxDBQueryOutput`](RxDBQueryOutput.md)&lt;`T`&gt; |
+| Parameter | Type                                               |
+| --------- | -------------------------------------------------- |
+| `query`   | [`RxDBQueryOutput`](RxDBQueryOutput.md)&lt;`T`&gt; |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onValidationChange? \{#onvalidationchange\}
 
@@ -122,15 +122,15 @@ Validation state change event.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `result` | [`ValidationResult`](ValidationResult.md) |
+| Parameter | Type                                      |
+| --------- | ----------------------------------------- |
+| `result`  | [`ValidationResult`](ValidationResult.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### schema? \{#schema\}
 

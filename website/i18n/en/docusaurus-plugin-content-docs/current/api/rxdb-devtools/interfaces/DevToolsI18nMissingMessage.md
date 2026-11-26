@@ -16,7 +16,7 @@ Defined in: [i18n-port.ts:26](https://github.com/aiao-io/rxdb/blob/b5232040240cf
 
 The diagnostic row identity.
 
-***
+---
 
 ### key \{#key\}
 
@@ -28,7 +28,7 @@ Defined in: [i18n-port.ts:32](https://github.com/aiao-io/rxdb/blob/b5232040240cf
 
 The missing key.
 
-***
+---
 
 ### locale \{#locale\}
 
@@ -40,7 +40,7 @@ Defined in: [i18n-port.ts:28](https://github.com/aiao-io/rxdb/blob/b5232040240cf
 
 The language at the time of the miss.
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -52,7 +52,7 @@ Defined in: [i18n-port.ts:30](https://github.com/aiao-io/rxdb/blob/b5232040240cf
 
 The catalog namespace.
 
-***
+---
 
 ### updatedAt \{#updatedat\}
 

@@ -16,7 +16,7 @@ Defined in: [connector-providers.ts:126](https://github.com/aiao-io/rxdb/blob/b5
 
 The diagnostic-clear permission already computed from the connector capability tier and write policy.
 
-***
+---
 
 ### database? \{#database\}
 
@@ -28,7 +28,7 @@ Defined in: [connector-providers.ts:98](https://github.com/aiao-io/rxdb/blob/b52
 
 The RxDB entry ports; when omitted, the `database` domain is not declared.
 
-***
+---
 
 ### getRootDirectory? \{#getrootdirectory\}
 
@@ -44,7 +44,7 @@ The OPFS root directory entry point; when omitted, this page has no OPFS and the
 
 `Promise`&lt;`FileSystemDirectoryHandle`&gt;
 
-***
+---
 
 ### i18n? \{#i18n\}
 
@@ -56,7 +56,7 @@ Defined in: [connector-providers.ts:124](https://github.com/aiao-io/rxdb/blob/b5
 
 The i18n structural port explicitly injected by the application.
 
-***
+---
 
 ### nativeFiles? \{#nativefiles\}
 
@@ -72,7 +72,7 @@ The native files backend ports; when given, `files` uses `native-files` instead 
 
 Does not include `runtime`: it is fed uniformly to every descriptor by [ConnectorProviderPorts.runtime](#runtime) at this layer. Collecting it here again would leave an entry point for "files and database reporting different hosts".
 
-***
+---
 
 ### runtime? \{#runtime\}
 
@@ -92,7 +92,7 @@ The only one outside this list is `settings` — it is injected whole by the hos
 
 Note that runtime is not bound to kind: `kind: 'native-files'` itself is host-independent, Electron and Tauri use the same kind, the same operations and the same limits, and runtime only says "which host this data comes from".
 
-***
+---
 
 ### saveToDisk? \{#savetodisk\}
 
@@ -106,16 +106,16 @@ Hands a file to the page's own save path; see item 2 in the OPFS provider module
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `file` | `File` |
-| `name` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `file`    | `File`   |
+| `name`    | `string` |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### settings? \{#settings\}
 

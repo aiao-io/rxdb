@@ -26,7 +26,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/restore-precheck
 
 The id of the target commit; must be on the reachable parent chain of the current branch HEAD (FR-033)
 
-***
+---
 
 ### entities? \{#entities\}
 

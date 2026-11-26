@@ -1,17 +1,17 @@
 # RemoteChangeResult
 
 ```ts
-type RemoteChangeResult = 
+type RemoteChangeResult =
   | {
-  localId: number;
-  remoteId: number;
-  status: "applied";
-}
+      localId: number;
+      remoteId: number;
+      status: 'applied';
+    }
   | {
-  localId: number;
-  rejection: RemoteChangeRejection;
-  status: "rejected";
-};
+      localId: number;
+      rejection: RemoteChangeRejection;
+      status: 'rejected';
+    };
 ```
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:65](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L65)

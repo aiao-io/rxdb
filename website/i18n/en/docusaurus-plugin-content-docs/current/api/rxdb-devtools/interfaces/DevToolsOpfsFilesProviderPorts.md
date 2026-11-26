@@ -16,7 +16,7 @@ Defined in: [browser/opfs-files-provider.ts:56](https://github.com/aiao-io/rxdb/
 
 The per-transfer limit declared by the descriptor.
 
-***
+---
 
 ### runtime? \{#runtime\}
 
@@ -52,12 +52,12 @@ directly.
 
 `Promise`&lt;`FileSystemDirectoryHandle`&gt;
 
-***
+---
 
 ### saveToDisk()? \{#savetodisk\}
 
 ```ts
-saveToDisk?(file, name): Promise<void>;
+saveToDisk ? (file, name) : Promise<void>;
 ```
 
 Defined in: [browser/opfs-files-provider.ts:72](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/browser/opfs-files-provider.ts#L72)
@@ -66,10 +66,10 @@ Hands a file to the page's own save path.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `file` | `File` |
-| `name` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `file`    | `File`   |
+| `name`    | `string` |
 
 #### Returns
 

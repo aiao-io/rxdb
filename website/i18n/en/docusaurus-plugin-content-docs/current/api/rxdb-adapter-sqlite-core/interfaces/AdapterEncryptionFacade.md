@@ -14,7 +14,7 @@ readonly isLocked: boolean;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/sqlite-core.types.ts:111](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/sqlite-core.types.ts#L111)
 
-***
+---
 
 ### lockChange$ \{#lockchange\}
 
@@ -38,7 +38,7 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/sqlite-core.types.ts:110](htt
 
 `Promise`&lt;`boolean`&gt;
 
-***
+---
 
 ### lock() \{#lock\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/sqlite-core.types.ts:109](htt
 
 `void`
 
-***
+---
 
 ### unlock() \{#unlock\}
 
@@ -64,9 +64,9 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/sqlite-core.types.ts:108](htt
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `opts` | [`UnlockOptions`](../../rxdb-adapter-encrypted/type-aliases/UnlockOptions.md) |
+| Parameter | Type                                                                          |
+| --------- | ----------------------------------------------------------------------------- |
+| `opts`    | [`UnlockOptions`](../../rxdb-adapter-encrypted/type-aliases/UnlockOptions.md) |
 
 #### Returns
 

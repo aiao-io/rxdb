@@ -10,9 +10,9 @@ Completes the current cell edit
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `table` | `ListTableAll` | Target table instance |
+| Parameter | Type           | Description           |
+| --------- | -------------- | --------------------- |
+| `table`   | `ListTableAll` | Target table instance |
 
 ## Returns
 

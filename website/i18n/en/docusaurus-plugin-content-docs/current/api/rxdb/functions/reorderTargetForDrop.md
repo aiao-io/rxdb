@@ -1,12 +1,7 @@
 # reorderTargetForDrop()
 
 ```ts
-function reorderTargetForDrop<Id>(
-   groupIds, 
-   movedId, 
-   targetId, 
-   position
-): ReorderBetween<Id> | null;
+function reorderTargetForDrop<Id>(groupIds, movedId, targetId, position): ReorderBetween<Id> | null;
 ```
 
 Defined in: [packages/rxdb/src/sortable/sortable.utils.ts:146](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sortable/sortable.utils.ts#L146)
@@ -15,18 +10,18 @@ Converts "drop above / below the target row" into the neighbor target for `Repos
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                      | Description                 |
+| ----------------------------------- | --------------------------- |
 | <a id="type-parameter-id"></a> `Id` | The entity primary key type |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `groupIds` | readonly `Id`[] | The **complete** sequence of the group the target row belongs to (matching the manual order in the database, ids unique, including rows that are filtered out or outside the render window in the UI) |
-| `movedId` | `Id` | The id of the dragged row; not present in `groupIds` when dropped across groups |
-| `targetId` | `Id` | The id of the target row the drop lands on |
-| `position` | `"before"` \| `"after"` | Whether to place it above (`before`) or below (`after`) the target row |
+| Parameter  | Type                    | Description                                                                                                                                                                                           |
+| ---------- | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `groupIds` | readonly `Id`[]         | The **complete** sequence of the group the target row belongs to (matching the manual order in the database, ids unique, including rows that are filtered out or outside the render window in the UI) |
+| `movedId`  | `Id`                    | The id of the dragged row; not present in `groupIds` when dropped across groups                                                                                                                       |
+| `targetId` | `Id`                    | The id of the target row the drop lands on                                                                                                                                                            |
+| `position` | `"before"` \| `"after"` | Whether to place it above (`before`) or below (`after`) the target row                                                                                                                                |
 
 ## Returns
 

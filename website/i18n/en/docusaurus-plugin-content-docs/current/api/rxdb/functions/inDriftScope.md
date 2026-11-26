@@ -10,9 +10,9 @@ Whether the name is within the comparison scope (starts with `ck_` / `uq_` / `ex
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `name` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `name`    | `string` |
 
 ## Returns
 

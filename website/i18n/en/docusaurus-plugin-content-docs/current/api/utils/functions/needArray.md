@@ -10,15 +10,15 @@ Normalizes any value to an array
 
 ## Type Parameters
 
-| Type Parameter | Default type | Description |
-| ------ | ------ | ------ |
-| <a id="type-parameter-t"></a> `T` | `unknown` | The input value's type |
+| Type Parameter                    | Default type | Description            |
+| --------------------------------- | ------------ | ---------------------- |
+| <a id="type-parameter-t"></a> `T` | `unknown`    | The input value's type |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `T` | The value to normalize to an array |
+| Parameter | Type | Description                        |
+| --------- | ---- | ---------------------------------- |
+| `value`   | `T`  | The value to normalize to an array |
 
 ## Returns
 

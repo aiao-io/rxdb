@@ -10,8 +10,8 @@ The primary key of a table set's activation state row: WORKING\_TREE\_ACTIVATION
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                         | Description                               |
+| ---------- | ------------------------------------------------------------ | ----------------------------------------- |
 | `tableSet` | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md) | The table set this instance is mounted on |
 
 ## Returns

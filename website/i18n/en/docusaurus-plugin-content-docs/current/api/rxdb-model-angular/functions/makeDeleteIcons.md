@@ -10,9 +10,9 @@ Generates the icon options for the delete button (SVG icon + text label)
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `label` | `string` | The delete button text |
+| Parameter | Type     | Description            |
+| --------- | -------- | ---------------------- |
+| `label`   | `string` | The delete button text |
 
 ## Returns
 

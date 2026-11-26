@@ -11,9 +11,9 @@ Uses the TextDecoder API to decode, ensuring multi-byte characters are handled c
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `u8` | `Uint8Array` | The Uint8Array instance to convert |
+| Parameter | Type         | Description                        |
+| --------- | ------------ | ---------------------------------- |
+| `u8`      | `Uint8Array` | The Uint8Array instance to convert |
 
 ## Returns
 

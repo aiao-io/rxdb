@@ -5,6 +5,7 @@ Defined in: [packages/rxdb-model/src/entity-table/editors/tags-editor.ts:21](htt
 Tags (array) input editor
 
 The overlay shows tag chips + an input box, suitable for editing stringArray / numberArray types.
+
 - Enter or comma: add the current input as a new tag
 - Backspace (when the input box is empty): remove the last tag
 - Clicking ×: remove the corresponding tag
@@ -31,9 +32,9 @@ Creates a tags editor
 
 #### Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `mode?` | [`TagsMode`](../type-aliases/TagsMode.md) | `'string'` | Tags mode, 'string' (default) or 'number' |
+| Parameter | Type                                      | Default value | Description                               |
+| --------- | ----------------------------------------- | ------------- | ----------------------------------------- |
+| `mode?`   | [`TagsMode`](../type-aliases/TagsMode.md) | `'string'`    | Tags mode, 'string' (default) or 'number' |
 
 #### Returns
 
@@ -71,7 +72,7 @@ Returns the tags array; returns a number array in number mode
 
 `IEditor.getValue`
 
-***
+---
 
 ### isEditorElement() \{#iseditorelement\}
 
@@ -85,9 +86,9 @@ Checks whether the target element is inside this editor's overlay
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `el` | `HTMLElement` \| `EventTarget` |
+| Parameter | Type                           |
+| --------- | ------------------------------ |
+| `el`      | `HTMLElement` \| `EventTarget` |
 
 #### Returns
 
@@ -97,7 +98,7 @@ Checks whether the target element is inside this editor's overlay
 
 `IEditor.isEditorElement`
 
-***
+---
 
 ### onEnd() \{#onend\}
 
@@ -117,7 +118,7 @@ Removes the overlay and unbinds the global click events
 
 `IEditor.onEnd`
 
-***
+---
 
 ### onStart() \{#onstart\}
 
@@ -131,9 +132,9 @@ Pops up the tag editing overlay, parses the initial tags from the cell value, an
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `ctx` | `EditContext`&lt;`unknown`&gt; |
+| Parameter | Type                           |
+| --------- | ------------------------------ |
+| `ctx`     | `EditContext`&lt;`unknown`&gt; |
 
 #### Returns
 

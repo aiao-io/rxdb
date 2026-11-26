@@ -22,7 +22,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/restore-precheck
 
 The **first** incompatible commit id in replay order
 
-***
+---
 
 ### direction \{#direction\}
 
@@ -34,7 +34,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/restore-precheck
 
 The replay direction of this step, see [RestoreReplayDirection](../type-aliases/RestoreReplayDirection.md)
 
-***
+---
 
 ### entity \{#entity\}
 
@@ -46,7 +46,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/restore-precheck
 
 The target entity name of this ChangeSet
 
-***
+---
 
 ### manifest \{#manifest\}
 
@@ -58,7 +58,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/restore-precheck
 
 The version manifest, see [RestoreVersionManifest](RestoreVersionManifest.md)
 
-***
+---
 
 ### namespace \{#namespace\}
 

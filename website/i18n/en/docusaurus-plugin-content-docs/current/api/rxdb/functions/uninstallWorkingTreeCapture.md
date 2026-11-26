@@ -10,9 +10,9 @@ Uninstalls the capture mount points, restoring the five write primitives to thei
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `target` | [`WorkingTreeCaptureMountTarget`](../type-aliases/WorkingTreeCaptureMountTarget.md) | The adapter instance previously rewritten by [installWorkingTreeCapture](installWorkingTreeCapture.md) |
+| Parameter | Type                                                                                | Description                                                                                            |
+| --------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `target`  | [`WorkingTreeCaptureMountTarget`](../type-aliases/WorkingTreeCaptureMountTarget.md) | The adapter instance previously rewritten by [installWorkingTreeCapture](installWorkingTreeCapture.md) |
 
 ## Returns
 

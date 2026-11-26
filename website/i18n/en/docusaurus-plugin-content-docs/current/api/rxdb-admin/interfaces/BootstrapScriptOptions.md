@@ -16,7 +16,7 @@ Defined in: [bootstrap.ts:8](https://github.com/aiao-io/rxdb/blob/b5232040240cf1
 
 The theme name `system` maps to under a dark system, `dark` by default.
 
-***
+---
 
 ### lightTheme? \{#lighttheme\}
 
@@ -28,7 +28,7 @@ Defined in: [bootstrap.ts:6](https://github.com/aiao-io/rxdb/blob/b5232040240cf1
 
 The theme name `system` maps to under a light system, `light` by default.
 
-***
+---
 
 ### storageKey \{#storagekey\}
 

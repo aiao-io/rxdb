@@ -25,8 +25,8 @@ Increments `workingTreeRevision` and adds the delta to `entryCount`
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter         | Type     | Description                                  |
+| ----------------- | -------- | -------------------------------------------- |
 | `entryCountDelta` | `number` | The entry count change produced by this fold |
 
 #### Returns
@@ -35,7 +35,7 @@ Increments `workingTreeRevision` and adds the delta to `entryCount`
 
 The `workingTreeRevision` after the increment
 
-***
+---
 
 ### persistEntry() \{#persistentry\}
 
@@ -49,16 +49,16 @@ Persists the fold result
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `row` | [`WorkingTreeEntryRow`](WorkingTreeEntryRow.md) \| `undefined` | The folded row; `undefined` means **delete** the entity's unit (net no change) |
-| `entryCountDelta` | `number` | Comes from the same fold as `row`, passed through as-is |
+| Parameter         | Type                                                           | Description                                                                    |
+| ----------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `row`             | [`WorkingTreeEntryRow`](WorkingTreeEntryRow.md) \| `undefined` | The folded row; `undefined` means **delete** the entity's unit (net no change) |
+| `entryCountDelta` | `number`                                                       | Comes from the same fold as `row`, passed through as-is                        |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### readActiveBranchToken() \{#readactivebranchtoken\}
 
@@ -80,7 +80,7 @@ The current branch identity
 
 Must read the **persisted** state. A `BroadcastChannel` or an in-memory copy does not survive a process restart, and what this validation must catch is exactly "another realm switched branches in the meantime".
 
-***
+---
 
 ### readEntry() \{#readentry\}
 
@@ -94,9 +94,9 @@ Reads the entity's existing uncommitted unit
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | [`WorkingTreeEntryKey`](WorkingTreeEntryKey.md) | The entity identity triple |
+| Parameter | Type                                            | Description                |
+| --------- | ----------------------------------------------- | -------------------------- |
+| `key`     | [`WorkingTreeEntryKey`](WorkingTreeEntryKey.md) | The entity identity triple |
 
 #### Returns
 

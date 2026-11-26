@@ -10,8 +10,8 @@ Splits a physical name back into `[namespace, rest]`: cuts at the first `$`; wit
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type     | Description   |
+| ----------- | -------- | ------------- |
 | `tableName` | `string` | Physical name |
 
 ## Returns

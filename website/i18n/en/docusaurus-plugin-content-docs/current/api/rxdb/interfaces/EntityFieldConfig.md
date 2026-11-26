@@ -17,7 +17,7 @@ displayName: string;
 
 Defined in: [packages/rxdb/src/entity/entity-field.utils.ts:59](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-field.utils.ts#L59)
 
-***
+---
 
 ### ~~enumValues?~~ \{#enumvalues\}
 
@@ -27,7 +27,7 @@ enumValues?: readonly string[];
 
 Defined in: [packages/rxdb/src/entity/entity-field.utils.ts:65](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-field.utils.ts#L65)
 
-***
+---
 
 ### ~~field~~ \{#field\}
 
@@ -37,7 +37,7 @@ field: string;
 
 Defined in: [packages/rxdb/src/entity/entity-field.utils.ts:58](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-field.utils.ts#L58)
 
-***
+---
 
 ### ~~keyValueSchema?~~ \{#keyvalueschema\}
 
@@ -47,7 +47,7 @@ keyValueSchema?: Record<string, KeyValueSchemaEntry>;
 
 Defined in: [packages/rxdb/src/entity/entity-field.utils.ts:66](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-field.utils.ts#L66)
 
-***
+---
 
 ### ~~nullable?~~ \{#nullable\}
 
@@ -57,7 +57,7 @@ nullable?: boolean;
 
 Defined in: [packages/rxdb/src/entity/entity-field.utils.ts:62](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-field.utils.ts#L62)
 
-***
+---
 
 ### ~~readonly?~~ \{#readonly\}
 
@@ -67,7 +67,7 @@ readonly?: boolean;
 
 Defined in: [packages/rxdb/src/entity/entity-field.utils.ts:61](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-field.utils.ts#L61)
 
-***
+---
 
 ### ~~relatedEntityName?~~ \{#relatedentityname\}
 
@@ -77,7 +77,7 @@ relatedEntityName?: string;
 
 Defined in: [packages/rxdb/src/entity/entity-field.utils.ts:67](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-field.utils.ts#L67)
 
-***
+---
 
 ### ~~relatedNamespace?~~ \{#relatednamespace\}
 
@@ -87,7 +87,7 @@ relatedNamespace?: string;
 
 Defined in: [packages/rxdb/src/entity/entity-field.utils.ts:68](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-field.utils.ts#L68)
 
-***
+---
 
 ### ~~required?~~ \{#required\}
 
@@ -97,7 +97,7 @@ required?: boolean;
 
 Defined in: [packages/rxdb/src/entity/entity-field.utils.ts:63](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-field.utils.ts#L63)
 
-***
+---
 
 ### ~~type~~ \{#type\}
 
@@ -107,7 +107,7 @@ type: EntityFieldType;
 
 Defined in: [packages/rxdb/src/entity/entity-field.utils.ts:60](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-field.utils.ts#L60)
 
-***
+---
 
 ### ~~unique?~~ \{#unique\}
 

@@ -1,5 +1,5 @@
 ---
-sidebar_label: "QueryBuilderComponent⟨T⟩"
+sidebar_label: 'QueryBuilderComponent⟨T⟩'
 ---
 
 # QueryBuilderComponent`<T>`
@@ -11,6 +11,7 @@ Angular Query Builder root component
 ## Description
 
 Provides a visual query condition building interface, supporting:
+
 - Passing SchemaInfo or FieldMetadata[] to define available fields
 - Drag reordering of rules and groups
 - Nested grouping (up to 5 levels)
@@ -19,17 +20,14 @@ Provides a visual query condition building interface, supporting:
 ## Example
 
 ```html
-<rxdb-query-builder
-  [schema]="schema"
-  (queryChange)="onQueryChange($event)"
-/>
+<rxdb-query-builder (queryChange)="onQueryChange($event)" [schema]="schema" />
 ```
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* `object` |
+| Type Parameter                                       |
+| ---------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ `object` |
 
 ## Implements
 
@@ -59,7 +57,7 @@ readonly dragDropHandler: QueryDragDropHandler;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/query-builder/query-builder.component.ts:181](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/query-builder/query-builder.component.ts#L181)
 
-***
+---
 
 ### enableCollapse \{#enablecollapse\}
 
@@ -71,7 +69,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-builder/query-b
 
 Whether group expand/collapse is enabled (enabled by default)
 
-***
+---
 
 ### enableDrag \{#enabledrag\}
 
@@ -83,7 +81,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-builder/query-b
 
 Whether drag reordering is enabled (enabled by default)
 
-***
+---
 
 ### fields \{#fields\}
 
@@ -95,7 +93,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-builder/query-b
 
 Field list (passed directly, takes priority over schema)
 
-***
+---
 
 ### fieldsComputed \{#fieldscomputed\}
 
@@ -107,7 +105,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-builder/query-b
 
 The computed field list
 
-***
+---
 
 ### hasRules \{#hasrules\}
 
@@ -119,7 +117,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-builder/query-b
 
 Whether there are rules
 
-***
+---
 
 ### height \{#height\}
 
@@ -131,7 +129,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-builder/query-b
 
 Maximum height of the content area (scrolls when exceeded), accepts any CSS length value, e.g. `'400px'`, `'50vh'`
 
-***
+---
 
 ### initialQuery \{#initialquery\}
 
@@ -145,7 +143,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-builder/query-b
 
 Initial query conditions (optional)
 
-***
+---
 
 ### maxDepth \{#maxdepth\}
 
@@ -157,7 +155,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-builder/query-b
 
 Maximum nesting level (default 5)
 
-***
+---
 
 ### queryChange \{#querychange\}
 
@@ -169,7 +167,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-builder/query-b
 
 Query condition change event
 
-***
+---
 
 ### rootGroup \{#rootgroup\}
 
@@ -181,7 +179,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-builder/query-b
 
 Root rule group
 
-***
+---
 
 ### schema \{#schema\}
 
@@ -193,7 +191,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-builder/query-b
 
 Schema information, including the field definitions
 
-***
+---
 
 ### validationChange \{#validationchange\}
 
@@ -205,7 +203,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-builder/query-b
 
 Validation state change event
 
-***
+---
 
 ### validationErrors \{#validationerrors\}
 
@@ -233,7 +231,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-builder/query-b
 
 [`ModelI18n`](../interfaces/ModelI18n.md)
 
-***
+---
 
 ### t \{#t\}
 
@@ -265,7 +263,7 @@ Adds the first rule
 
 `void`
 
-***
+---
 
 ### clearAll() \{#clearall\}
 
@@ -281,7 +279,7 @@ Clears all rules
 
 `void`
 
-***
+---
 
 ### ngOnDestroy() \{#ngondestroy\}
 
@@ -301,7 +299,7 @@ Destroys the service
 
 `OnDestroy.ngOnDestroy`
 
-***
+---
 
 ### onAddGroup() \{#onaddgroup\}
 
@@ -315,15 +313,15 @@ Adds a subgroup to the given group
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `parentId` | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onAddRule() \{#onaddrule\}
 
@@ -337,17 +335,17 @@ Adds a rule to the given group
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | \{ `parentId`: `string`; `rule`: `Omit`&lt;[`UIRule`](../interfaces/UIRule.md), `"id"`&gt;; \} |
-| `event.parentId` | `string` |
-| `event.rule` | `Omit`&lt;[`UIRule`](../interfaces/UIRule.md), `"id"`&gt; |
+| Parameter        | Type                                                                                           |
+| ---------------- | ---------------------------------------------------------------------------------------------- |
+| `event`          | \{ `parentId`: `string`; `rule`: `Omit`&lt;[`UIRule`](../interfaces/UIRule.md), `"id"`&gt;; \} |
+| `event.parentId` | `string`                                                                                       |
+| `event.rule`     | `Omit`&lt;[`UIRule`](../interfaces/UIRule.md), `"id"`&gt;                                      |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onKeyDown() \{#onkeydown\}
 
@@ -361,15 +359,15 @@ Keyboard shortcut handling
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `KeyboardEvent` |
+| Parameter | Type            |
+| --------- | --------------- |
+| `event`   | `KeyboardEvent` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onRemoveItem() \{#onremoveitem\}
 
@@ -383,15 +381,15 @@ Deletes a rule or group
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `id` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `id`      | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onUpdateCombinator() \{#onupdatecombinator\}
 
@@ -405,17 +403,17 @@ Updates the combinator
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | \{ `combinator`: `"and"` \| `"or"`; `id`: `string`; \} |
-| `event.combinator` | `"and"` \| `"or"` |
-| `event.id` | `string` |
+| Parameter          | Type                                                   |
+| ------------------ | ------------------------------------------------------ |
+| `event`            | \{ `combinator`: `"and"` \| `"or"`; `id`: `string`; \} |
+| `event.combinator` | `"and"` \| `"or"`                                      |
+| `event.id`         | `string`                                               |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onUpdateRule() \{#onupdaterule\}
 
@@ -429,11 +427,11 @@ Updates a rule
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | \{ `id`: `string`; `updates`: `Partial`&lt;[`UIRule`](../interfaces/UIRule.md)&gt;; \} |
-| `event.id` | `string` |
-| `event.updates` | `Partial`&lt;[`UIRule`](../interfaces/UIRule.md)&gt; |
+| Parameter       | Type                                                                                   |
+| --------------- | -------------------------------------------------------------------------------------- |
+| `event`         | \{ `id`: `string`; `updates`: `Partial`&lt;[`UIRule`](../interfaces/UIRule.md)&gt;; \} |
+| `event.id`      | `string`                                                                               |
+| `event.updates` | `Partial`&lt;[`UIRule`](../interfaces/UIRule.md)&gt;                                   |
 
 #### Returns
 

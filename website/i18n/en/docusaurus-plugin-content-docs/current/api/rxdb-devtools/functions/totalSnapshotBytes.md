@@ -10,8 +10,8 @@ The total byte count of a batch of canonical records.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                             | Description            |
+| --------- | -------------------------------------------------------------------------------- | ---------------------- |
 | `records` | readonly [`DevToolsSnapshotRecord`](../type-aliases/DevToolsSnapshotRecord.md)[] | The canonical records. |
 
 ## Returns

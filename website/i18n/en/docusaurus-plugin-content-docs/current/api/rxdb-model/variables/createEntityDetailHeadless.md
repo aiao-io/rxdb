@@ -12,8 +12,8 @@ Creates a controller for the shared form draft and detail lifecycle.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                              |
+| --------- | --------------------------------------------------------------------------------- |
 | `options` | [`EntityDetailControllerOptions`](../interfaces/EntityDetailControllerOptions.md) |
 
 ## Returns

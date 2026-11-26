@@ -11,15 +11,15 @@ Used by queries that return primitive values such as count.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`Fingerprint`](../type-aliases/Fingerprint.md) |
+| Type Parameter                                                                              |
+| ------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`Fingerprint`](../type-aliases/Fingerprint.md) |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `T` \| `T`[] | The value to fingerprint |
+| Parameter | Type         | Description              |
+| --------- | ------------ | ------------------------ |
+| `value`   | `T` \| `T`[] | The value to fingerprint |
 
 ## Returns
 

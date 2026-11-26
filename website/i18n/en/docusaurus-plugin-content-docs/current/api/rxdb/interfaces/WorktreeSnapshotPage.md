@@ -16,12 +16,12 @@ Defined in: [packages/rxdb/src/worktree-snapshot.interface.ts:28](https://github
 
 The number of rows in this page
 
-***
+---
 
 ### next \{#next\}
 
 ```ts
-readonly next: 
+readonly next:
   | WorktreeSnapshotCursor
   | null;
 ```
@@ -30,7 +30,7 @@ Defined in: [packages/rxdb/src/worktree-snapshot.interface.ts:30](https://github
 
 Where to continue reading for the next page; `null` means this table has been fully read
 
-***
+---
 
 ### rows \{#rows\}
 

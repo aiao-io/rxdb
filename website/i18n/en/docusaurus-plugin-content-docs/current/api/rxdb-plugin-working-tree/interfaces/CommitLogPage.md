@@ -22,7 +22,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-log.ts:96](http
 
 Which branch this page reads; always the active branch at read time
 
-***
+---
 
 ### entries \{#entries\}
 
@@ -34,7 +34,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-log.ts:102](htt
 
 The commit nodes, newest first
 
-***
+---
 
 ### headCommitId \{#headcommitid\}
 

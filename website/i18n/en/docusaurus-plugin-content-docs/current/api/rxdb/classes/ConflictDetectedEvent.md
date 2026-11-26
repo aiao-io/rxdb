@@ -12,8 +12,8 @@ Fired when a conflict between local unsynced changes and remote changes is detec
 
 ```ts
 new ConflictDetectedEvent(
-   conflicts, 
-   resolved, 
+   conflicts,
+   resolved,
    deferred
 ): ConflictDetectedEvent;
 ```
@@ -22,11 +22,11 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:534](https://github.com/aiao-io/rx
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `conflicts` | [`Conflict`](../interfaces/Conflict.md)[] | The discovered conflict list |
-| `resolved` | `number` | The number automatically resolved |
-| `deferred` | `number` | The number deferred |
+| Parameter   | Type                                      | Description                       |
+| ----------- | ----------------------------------------- | --------------------------------- |
+| `conflicts` | [`Conflict`](../interfaces/Conflict.md)[] | The discovered conflict list      |
+| `resolved`  | `number`                                  | The number automatically resolved |
+| `deferred`  | `number`                                  | The number deferred               |
 
 #### Returns
 
@@ -44,7 +44,7 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:536](https://github.com/aiao-io/rx
 
 The discovered conflict list
 
-***
+---
 
 ### deferred \{#deferred\}
 
@@ -56,7 +56,7 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:540](https://github.com/aiao-io/rx
 
 The number deferred
 
-***
+---
 
 ### resolved \{#resolved\}
 
@@ -68,7 +68,7 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:538](https://github.com/aiao-io/rx
 
 The number automatically resolved
 
-***
+---
 
 ### type \{#type\}
 

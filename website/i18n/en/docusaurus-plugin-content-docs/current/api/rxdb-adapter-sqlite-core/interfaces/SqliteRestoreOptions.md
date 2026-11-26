@@ -22,9 +22,9 @@ Stage callback; will be `await`-ed.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `stage` | [`SqliteRestoreStage`](../type-aliases/SqliteRestoreStage.md) |
+| Parameter | Type                                                          |
+| --------- | ------------------------------------------------------------- |
+| `stage`   | [`SqliteRestoreStage`](../type-aliases/SqliteRestoreStage.md) |
 
 #### Returns
 
@@ -34,7 +34,7 @@ Stage callback; will be `await`-ed.
 
 Used for progress display and crash-injection tests; a callback throwing is equivalent to a restore failure and goes through the full failure cleanup.
 
-***
+---
 
 ### signal? \{#signal\}
 

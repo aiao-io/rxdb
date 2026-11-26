@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/field-selector/field-se
 
 List of available fields.
 
-***
+---
 
 ### onFieldChange? \{#onfieldchange\}
 
@@ -30,15 +30,15 @@ Selection callback.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `field` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `field`   | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### placeholder? \{#placeholder\}
 
@@ -50,7 +50,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/field-selector/field-se
 
 Placeholder text; defaults to 'Select field'.
 
-***
+---
 
 ### selectedField? \{#selectedfield\}
 

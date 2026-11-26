@@ -1,5 +1,5 @@
 ---
-sidebar_label: "FixedRowDrop⟨Id⟩"
+sidebar_label: 'FixedRowDrop⟨Id⟩'
 ---
 
 # FixedRowDrop`<Id>`
@@ -12,8 +12,8 @@ It is only called when the id sequence at release is still item-by-item identica
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                      |
+| ----------------------------------- |
 | <a id="type-parameter-id"></a> `Id` |
 
 ## Properties
@@ -28,7 +28,7 @@ Defined in: [packages/utils/src/@browser/fixed-row-drag.ts:21](https://github.co
 
 The index of the dragged row
 
-***
+---
 
 ### id \{#id\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/utils/src/@browser/fixed-row-drag.ts:17](https://github.co
 
 The id of the dragged row
 
-***
+---
 
 ### ids \{#ids\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/utils/src/@browser/fixed-row-drag.ts:19](https://github.co
 
 The id sequence at drag start (which equals the one at release)
 
-***
+---
 
 ### toIndex \{#toindex\}
 

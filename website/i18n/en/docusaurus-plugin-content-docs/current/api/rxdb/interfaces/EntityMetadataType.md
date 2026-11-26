@@ -26,7 +26,7 @@ Abstract classes cannot be instantiated
 
 [`EntityMetadataOptions`](EntityMetadataOptions.md).[`abstract`](EntityMetadataOptions.md#abstract)
 
-***
+---
 
 ### checkMap \{#checkmap\}
 
@@ -39,7 +39,7 @@ Defined in: [packages/rxdb/src/entity/metadata.interface.ts:107](https://github.
 The map of all CHECK constraints of the entity (the full set after inheritance merging, including the items compiled from property-level `check`)
 The key is the constraint `name` given by the author, the value is the CHECK metadata
 
-***
+---
 
 ### checks \{#checks\}
 
@@ -68,7 +68,13 @@ backfill is written by users into `migrations`, which runs exactly before the dr
       rule: {
         combinator: 'or',
         rules: [
-          { combinator: 'and', rules: [{ field: 'qty', operator: 'notNull' }, { field: 'qtyFormula', operator: 'null' }] },
+          {
+            combinator: 'and',
+            rules: [
+              { field: 'qty', operator: 'notNull' },
+              { field: 'qtyFormula', operator: 'null' }
+            ]
+          },
           `{ combinator: 'and', rules: [{ field: 'qty', operator: 'null' }, { field: 'qtyFormula', operator: 'notNull' }] }`
         ]
       }
@@ -86,7 +92,7 @@ class Item extends EntityBase {}
 
 [`EntityMetadataOptions`](EntityMetadataOptions.md).[`checks`](EntityMetadataOptions.md#checks)
 
-***
+---
 
 ### columnNameToPropertyName \{#columnnametopropertyname\}
 
@@ -99,7 +105,7 @@ Defined in: [packages/rxdb/src/entity/metadata.interface.ts:95](https://github.c
 Reverse mapping from column names to property names
 Used to map database column names back to JS property names
 
-***
+---
 
 ### computedProperties \{#computedproperties\}
 
@@ -113,10 +119,12 @@ Computed properties
 Dynamically computed read-only properties, not stored in the database
 
 ## Usage conditions
+
 - The corresponding feature must be enabled in `features` (such as `tree:{ hasChildren: true }`)
 - Readable on the entity only, not modifiable
 
 ## Computation sources
+
 1. **Database query**: for example the `hasChildren` property of a tree structure
 2. **Class method**: computed through a getter, such as `fullName = firstName + lastName`
 3. **Complex logic**: generated dynamically from business rules (to be implemented)
@@ -125,9 +133,7 @@ Dynamically computed read-only properties, not stored in the database
 
 ```typescript
 // Computed properties in a tree structure
-computedProperties: [
-  `{ name: 'hasChildren', type: PropertyType.boolean }`
-]
+computedProperties: [`{ name: 'hasChildren', type: PropertyType.boolean }`];
 ```
 
 **Note:** currently only used in tree structures (the `tree` feature)
@@ -136,7 +142,7 @@ computedProperties: [
 
 [`EntityMetadataOptions`](EntityMetadataOptions.md).[`computedProperties`](EntityMetadataOptions.md#computedproperties)
 
-***
+---
 
 ### computedPropertyMap \{#computedpropertymap\}
 
@@ -149,7 +155,7 @@ Defined in: [packages/rxdb/src/entity/metadata.interface.ts:54](https://github.c
 The map of all computed properties of the entity
 The key is the property name, the value is the property metadata
 
-***
+---
 
 ### defaultValueProperties \{#defaultvalueproperties\}
 
@@ -162,7 +168,7 @@ Defined in: [packages/rxdb/src/entity/metadata.interface.ts:60](https://github.c
 The list of properties with default values
 Contains all property metadata with defaults set
 
-***
+---
 
 ### displayName \{#displayname\}
 
@@ -177,14 +183,14 @@ Display name
 #### Example
 
 ```ts
-"User", "Order item"
+('User', 'Order item');
 ```
 
 #### Inherited from
 
 [`EntityMetadataOptions`](EntityMetadataOptions.md).[`displayName`](EntityMetadataOptions.md#displayname)
 
-***
+---
 
 ### encryptedPropertyMap \{#encryptedpropertymap\}
 
@@ -198,7 +204,7 @@ Encrypted property map (added in 004-local-field-encryption)
 Contains only properties with `encrypted: true`, keyed by property name.
 Size is 0 if the entity has no encrypted properties.
 
-***
+---
 
 ### exclusionMap \{#exclusionmap\}
 
@@ -211,7 +217,7 @@ Defined in: [packages/rxdb/src/entity/metadata.interface.ts:113](https://github.
 The map of all range exclusion constraints of the entity (the full set after inheritance merging)
 The key is the constraint `name` given by the author, the value is the range exclusion metadata
 
-***
+---
 
 ### exclusions \{#exclusions\}
 
@@ -254,7 +260,7 @@ class BomLineOccurrence extends EntityBase {}
 
 [`EntityMetadataOptions`](EntityMetadataOptions.md).[`exclusions`](EntityMetadataOptions.md#exclusions)
 
-***
+---
 
 ### extends \{#extends\}
 
@@ -271,7 +277,7 @@ Indicates which entities the current entity inherits from
 
 [`EntityMetadataOptions`](EntityMetadataOptions.md).[`extends`](EntityMetadataOptions.md#extends)
 
-***
+---
 
 ### features? \{#features\}
 
@@ -287,7 +293,7 @@ Features
 
 [`EntityMetadataOptions`](EntityMetadataOptions.md).[`features`](EntityMetadataOptions.md#features)
 
-***
+---
 
 ### foreignKeyColumnNames \{#foreignkeycolumnnames\}
 
@@ -300,7 +306,7 @@ Defined in: [packages/rxdb/src/entity/metadata.interface.ts:89](https://github.c
 The list of the entity's foreign key column names (database column names)
 Contains the database column names of all foreign key fields
 
-***
+---
 
 ### foreignKeyNames \{#foreignkeynames\}
 
@@ -313,7 +319,7 @@ Defined in: [packages/rxdb/src/entity/metadata.interface.ts:83](https://github.c
 The list of the entity's foreign key names (JS property names)
 Contains the JS property names of all foreign key fields
 
-***
+---
 
 ### foreignKeyRelationMap \{#foreignkeyrelationmap\}
 
@@ -325,7 +331,7 @@ Defined in: [packages/rxdb/src/entity/metadata.interface.ts:71](https://github.c
 
 The map of the entity's foreign key relations
 
-***
+---
 
 ### foreignKeyRelations \{#foreignkeyrelations\}
 
@@ -338,7 +344,7 @@ Defined in: [packages/rxdb/src/entity/metadata.interface.ts:77](https://github.c
 The list of the entity's foreign key relations
 Contains all relation metadata involving foreign keys
 
-***
+---
 
 ### foreignKeys \{#foreignkeys\}
 
@@ -387,7 +393,7 @@ Constraint name.
 #### onDelete?
 
 ```ts
-onDelete?: 
+onDelete?:
   | "NO ACTION"
   | "RESTRICT"
   | "CASCADE"
@@ -403,13 +409,13 @@ Defines how the foreign keys of child tables are handled when a parent record is
 
 ```typescript
 // Cascade-delete orders when the user is deleted
-onDelete: OnDeleteAction.CASCADE
+onDelete: OnDeleteAction.CASCADE;
 
 // Set the category ID of products to NULL when the category is deleted
-onDelete: OnDeleteAction.SET_NULL
+onDelete: OnDeleteAction.SET_NULL;
 
 // Forbid deleting a user that still has orders
-onDelete: OnDeleteAction.RESTRICT
+onDelete: OnDeleteAction.RESTRICT;
 ```
 
 ##### Default
@@ -421,7 +427,7 @@ Inferred automatically from the relation type
 #### onUpdate?
 
 ```ts
-onUpdate?: 
+onUpdate?:
   | "NO ACTION"
   | "RESTRICT"
   | "CASCADE"
@@ -437,10 +443,10 @@ Defines how the foreign keys of child tables are handled when the parent primary
 
 ```typescript
 // Cascade-update the user_id of orders when the user ID is updated
-onUpdate: OnUpdateAction.CASCADE
+onUpdate: OnUpdateAction.CASCADE;
 
 // Forbid updating the primary key (recommended)
-onUpdate: OnUpdateAction.RESTRICT
+onUpdate: OnUpdateAction.RESTRICT;
 ```
 
 ##### Default
@@ -461,7 +467,7 @@ The properties or relation ID fields of the current entity.
 
 [`EntityMetadataOptions`](EntityMetadataOptions.md).[`foreignKeys`](EntityMetadataOptions.md#foreignkeys)
 
-***
+---
 
 ### indexes \{#indexes\}
 
@@ -478,7 +484,7 @@ Indexes defined by itself, not including inherited ones
 
 [`EntityMetadataOptions`](EntityMetadataOptions.md).[`indexes`](EntityMetadataOptions.md#indexes)
 
-***
+---
 
 ### indexMap \{#indexmap\}
 
@@ -491,7 +497,7 @@ Defined in: [packages/rxdb/src/entity/metadata.interface.ts:101](https://github.
 The map of all indexes of the entity
 The key is the index name, the value is the index metadata
 
-***
+---
 
 ### log? \{#log\}
 
@@ -518,14 +524,14 @@ Suitable for data the database maintains itself and needs no retrospection (such
 #### Default
 
 ```ts
-true
+true;
 ```
 
 #### Inherited from
 
 [`EntityMetadataOptions`](EntityMetadataOptions.md).[`log`](EntityMetadataOptions.md#log)
 
-***
+---
 
 ### manualOrder? \{#manualorder\}
 
@@ -552,7 +558,7 @@ It is not called `sortable`: property-level / relation-level `sortable` already 
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### Example
@@ -578,7 +584,7 @@ class Todo extends EntityBase implements ISortableEntity {
 
 [`EntityMetadataOptions`](EntityMetadataOptions.md).[`manualOrder`](EntityMetadataOptions.md#manualorder)
 
-***
+---
 
 ### name \{#name\}
 
@@ -594,7 +600,7 @@ Name
 
 [`EntityMetadataOptions`](EntityMetadataOptions.md).[`name`](EntityMetadataOptions.md#name)
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -612,20 +618,20 @@ In sqlite it becomes the table prefix
 #### Example
 
 ```ts
-"app", "system"
+('app', 'system');
 ```
 
 #### Default
 
 ```ts
-"public"
+'public';
 ```
 
 #### Inherited from
 
 [`EntityMetadataOptions`](EntityMetadataOptions.md).[`namespace`](EntityMetadataOptions.md#namespace)
 
-***
+---
 
 ### permissions? \{#permissions\}
 
@@ -645,7 +651,7 @@ If any layer of the chain has declared, all three keys are filled in; when the w
 
 [`EntityMetadataOptions`](EntityMetadataOptions.md).[`permissions`](EntityMetadataOptions.md#permissions)
 
-***
+---
 
 ### properties \{#properties\}
 
@@ -662,7 +668,7 @@ Properties defined by itself, not including inherited ones
 
 [`EntityMetadataOptions`](EntityMetadataOptions.md).[`properties`](EntityMetadataOptions.md#properties)
 
-***
+---
 
 ### propertyMap \{#propertymap\}
 
@@ -675,7 +681,7 @@ Defined in: [packages/rxdb/src/entity/metadata.interface.ts:48](https://github.c
 The map of all properties of the entity
 The key is the property name, the value is the property metadata
 
-***
+---
 
 ### relationMap \{#relationmap\}
 
@@ -688,7 +694,7 @@ Defined in: [packages/rxdb/src/entity/metadata.interface.ts:66](https://github.c
 The map of all relations of the entity
 The key is the relation property name, the value is the relation metadata
 
-***
+---
 
 ### relations \{#relations\}
 
@@ -702,6 +708,7 @@ The relation configuration of the entity
 Relations defined by itself, not including inherited ones
 
 Defines the associations between this entity and other entities, supporting four relation types:
+
 - ONE_TO_ONE: a one-to-one relation, such as a user and their profile
 - ONE_TO_MANY: a one-to-many relation, such as a user and their many posts
 - MANY_TO_ONE: a many-to-one relation, such as many posts and one author
@@ -713,7 +720,7 @@ The system handles foreign keys, queries and association operations automaticall
 
 [`EntityMetadataOptions`](EntityMetadataOptions.md).[`relations`](EntityMetadataOptions.md#relations)
 
-***
+---
 
 ### repository \{#repository\}
 
@@ -735,14 +742,14 @@ When the name has never been registered through `RxDB.repository()`, `EntityMana
 #### Default
 
 ```ts
-"Repository"
+'Repository';
 ```
 
 #### Inherited from
 
 [`EntityMetadataOptions`](EntityMetadataOptions.md).[`repository`](EntityMetadataOptions.md#repository)
 
-***
+---
 
 ### sync? \{#sync\}
 
@@ -758,7 +765,7 @@ Entity sync configuration
 
 [`EntityMetadataOptions`](EntityMetadataOptions.md).[`sync`](EntityMetadataOptions.md#sync)
 
-***
+---
 
 ### tableName \{#tablename\}
 
@@ -790,9 +797,9 @@ Judges whether a property name is a foreign key
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `name` | `string` | The property name to check |
+| Parameter | Type     | Description                |
+| --------- | -------- | -------------------------- |
+| `name`    | `string` | The property name to check |
 
 #### Returns
 

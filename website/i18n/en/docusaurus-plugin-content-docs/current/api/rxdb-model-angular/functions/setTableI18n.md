@@ -10,9 +10,9 @@ Binds the component runtime to a table instance; editors read it through the tab
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `table` | `object` |
+| Parameter | Type                                      |
+| --------- | ----------------------------------------- |
+| `table`   | `object`                                  |
 | `runtime` | [`ModelI18n`](../interfaces/ModelI18n.md) |
 
 ## Returns

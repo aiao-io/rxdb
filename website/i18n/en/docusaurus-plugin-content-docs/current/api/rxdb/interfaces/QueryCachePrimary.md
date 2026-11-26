@@ -1,5 +1,5 @@
 ---
-sidebar_label: "QueryCachePrimary⟨T⟩"
+sidebar_label: 'QueryCachePrimary⟨T⟩'
 ---
 
 # QueryCachePrimary`<T>`
@@ -21,9 +21,9 @@ in-flight queries before returning (US-023 D13), and that is a concept only a re
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) | Entity type |
+| Type Parameter                                                                            | Description |
+| ----------------------------------------------------------------------------------------- | ----------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) | Entity type |
 
 ## Methods
 
@@ -39,8 +39,8 @@ Counts entities.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                                   | Description                                         |
+| --------- | -------------------------------------------------------------------------------------- | --------------------------------------------------- |
 | `options` | [`EntityStaticType`](../type-aliases/EntityStaticType.md)&lt;`T`, `"countOptions"`&gt; | Query options (see [CountOptions](CountOptions.md)) |
 
 #### Returns
@@ -53,7 +53,7 @@ The number of rows matching the condition.
 
 [`IRepository`](IRepository.md).[`count`](IRepository.md#count)
 
-***
+---
 
 ### create() \{#create\}
 
@@ -67,9 +67,9 @@ Creates an entity.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | Entity instance (usually created via [EntityManager.instantiate](EntityManager.md#instantiate)) |
+| Parameter | Type                      | Description                                                                                     |
+| --------- | ------------------------- | ----------------------------------------------------------------------------------------------- |
+| `entity`  | `InstanceType`&lt;`T`&gt; | Entity instance (usually created via [EntityManager.instantiate](EntityManager.md#instantiate)) |
 
 #### Returns
 
@@ -81,7 +81,7 @@ The entity after persistence; it is **not** the same reference as the argument (
 
 [`IRepository`](IRepository.md).[`create`](IRepository.md#create)
 
-***
+---
 
 ### find() \{#find\}
 
@@ -95,8 +95,8 @@ Queries multiple entities.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                                  | Description                                       |
+| --------- | ------------------------------------------------------------------------------------- | ------------------------------------------------- |
 | `options` | [`EntityStaticType`](../type-aliases/EntityStaticType.md)&lt;`T`, `"findOptions"`&gt; | Query options (see [FindOptions](FindOptions.md)) |
 
 #### Returns
@@ -114,7 +114,7 @@ operations by the caller reuse the same state object, avoiding "context lost rig
 
 [`IRepository`](IRepository.md).[`find`](IRepository.md#find)
 
-***
+---
 
 ### invalidateInflight() \{#invalidateinflight\}
 
@@ -135,7 +135,7 @@ Invalidates the sync queries that are in flight right now.
 After the call, the batch of sync queries already sent out but not yet returned must not write their
 results back to the local projection: what they queried is the remote state from **before** the invalidation.
 
-***
+---
 
 ### remove() \{#remove\}
 
@@ -149,9 +149,9 @@ Deletes an entity.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The entity to delete (located by `id`) |
+| Parameter | Type                      | Description                            |
+| --------- | ------------------------- | -------------------------------------- |
+| `entity`  | `InstanceType`&lt;`T`&gt; | The entity to delete (located by `id`) |
 
 #### Returns
 
@@ -163,7 +163,7 @@ The entity after deletion (fields cleared, `local` set to `false`).
 
 [`IRepository`](IRepository.md).[`remove`](IRepository.md#remove)
 
-***
+---
 
 ### update() \{#update\}
 
@@ -177,10 +177,10 @@ Updates an entity.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The entity to update (provides the `id` and the latest fields) |
-| `patch` | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; | Field-level patch; fields not listed are left unchanged |
+| Parameter | Type                                       | Description                                                    |
+| --------- | ------------------------------------------ | -------------------------------------------------------------- |
+| `entity`  | `InstanceType`&lt;`T`&gt;                  | The entity to update (provides the `id` and the latest fields) |
+| `patch`   | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; | Field-level patch; fields not listed are left unchanged        |
 
 #### Returns
 

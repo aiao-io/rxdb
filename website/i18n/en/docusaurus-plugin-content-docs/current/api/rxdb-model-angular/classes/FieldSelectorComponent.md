@@ -11,6 +11,7 @@ Provides full keyboard navigation and accessibility support based on the CDK `Ac
 Does not depend on any third-party UI library.
 
 Supports two usage styles:
+
 1. Direct template use: listen for the `(fieldChange)` output event
 2. Injection via NgComponentOutlet: pass the `fieldChangeFn` callback input
 
@@ -38,7 +39,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/field-selector/field-
 
 Output event for direct template use
 
-***
+---
 
 ### fieldChangeFn \{#fieldchangefn\}
 
@@ -50,7 +51,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/field-selector/field-
 
 Callback input used when injected via NgComponentOutlet
 
-***
+---
 
 ### fields \{#fields\}
 
@@ -60,7 +61,7 @@ readonly fields: InputSignal<FieldMetadata[]>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/field-selector/field-selector.component.ts:36](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/field-selector/field-selector.component.ts#L36)
 
-***
+---
 
 ### fieldTree \{#fieldtree\}
 
@@ -70,7 +71,7 @@ readonly fieldTree: Signal<FieldTreeNode[]>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/field-selector/field-selector.component.ts:46](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/field-selector/field-selector.component.ts#L46)
 
-***
+---
 
 ### placeholder \{#placeholder\}
 
@@ -80,7 +81,7 @@ readonly placeholder: InputSignal<string | undefined>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/field-selector/field-selector.component.ts:38](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/field-selector/field-selector.component.ts#L38)
 
-***
+---
 
 ### selectedField \{#selectedfield\}
 
@@ -106,7 +107,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/field-selector/field-
 
 [`ModelI18n`](../interfaces/ModelI18n.md)
 
-***
+---
 
 ### t \{#t\}
 
@@ -134,9 +135,9 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/field-selector/field-
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `field` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `field`   | `string` |
 
 #### Returns
 

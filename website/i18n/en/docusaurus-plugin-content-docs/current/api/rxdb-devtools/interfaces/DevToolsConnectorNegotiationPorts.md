@@ -16,7 +16,7 @@ Defined in: [v2/negotiation-connector.ts:54](https://github.com/aiao-io/rxdb/blo
 
 The tier of the owner's locally trusted configuration; in the HANDSHAKE it is only **informing**, not a permission input.
 
-***
+---
 
 ### clock \{#clock\}
 
@@ -28,7 +28,7 @@ Defined in: [v2/negotiation-connector.ts:52](https://github.com/aiao-io/rxdb/blo
 
 The timestamp source.
 
-***
+---
 
 ### descriptors \{#descriptors\}
 
@@ -40,7 +40,7 @@ Defined in: [v2/negotiation-connector.ts:56](https://github.com/aiao-io/rxdb/blo
 
 The provider descriptors existing in this session.
 
-***
+---
 
 ### legacyHandshake \{#legacyhandshake\}
 
@@ -52,7 +52,7 @@ Defined in: [v2/negotiation-connector.ts:58](https://github.com/aiao-io/rxdb/blo
 
 The eager v1 handshake constructed by the owner; this module only decides when it goes out.
 
-***
+---
 
 ### send \{#send\}
 
@@ -66,15 +66,15 @@ The outbound callback.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                                            |
+| --------- | ----------------------------------------------------------------------------------------------- |
 | `message` | [`DevToolsConnectorNegotiationMessage`](../type-aliases/DevToolsConnectorNegotiationMessage.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### supportedVersions? \{#supportedversions\}
 

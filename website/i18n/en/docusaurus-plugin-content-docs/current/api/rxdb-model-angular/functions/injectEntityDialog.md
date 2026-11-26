@@ -10,15 +10,15 @@ Injects a reactive dialog lifecycle controller.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-tresult"></a> `TResult` | `unknown` |
-| <a id="type-parameter-tdata"></a> `TData` | `unknown` |
+| Type Parameter                                | Default type |
+| --------------------------------------------- | ------------ |
+| <a id="type-parameter-tresult"></a> `TResult` | `unknown`    |
+| <a id="type-parameter-tdata"></a> `TData`     | `unknown`    |
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                                                                                                                          |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `options?` | [`AngularHeadlessOptions`](../type-aliases/AngularHeadlessOptions.md)&lt;[`EntityDialogControllerOptions`](../interfaces/EntityDialogControllerOptions.md)&lt;`TData`&gt;&gt; |
 
 ## Returns

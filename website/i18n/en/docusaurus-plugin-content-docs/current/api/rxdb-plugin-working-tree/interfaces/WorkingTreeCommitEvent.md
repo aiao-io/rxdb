@@ -23,7 +23,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/working-tree-com
 
 Which branch this commit landed on
 
-***
+---
 
 ### commitId \{#commitid\}
 

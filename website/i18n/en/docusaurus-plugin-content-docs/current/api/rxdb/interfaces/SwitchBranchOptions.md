@@ -31,7 +31,7 @@ Required but may be an empty action set. Being in the same transaction as the br
 the actions change the visibility of the change log, while the branch switch changes where the triggers point —
 if the two were in separate transactions, writes in between would be mislabeled.
 
-***
+---
 
 ### branchId? \{#branchid\}
 
@@ -52,12 +52,12 @@ caller queried the current branch first and then passed it in, a real switch hap
 would make this late call roll `activated` and all the change-log triggers back to the old branch, mislabeling
 every subsequent write.
 
-***
+---
 
 ### prepare \{#prepare\}
 
 ```ts
-prepare: (context) => Promise<void>;
+prepare: context => Promise<void>;
 ```
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:225](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L225)
@@ -67,8 +67,8 @@ touching the first row.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                          |
+| --------- | ------------------------------------------------------------- |
 | `context` | [`SwitchBranchPrepareContext`](SwitchBranchPrepareContext.md) |
 
 #### Returns

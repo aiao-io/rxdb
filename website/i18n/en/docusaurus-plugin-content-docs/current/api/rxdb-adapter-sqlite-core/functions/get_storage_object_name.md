@@ -1,11 +1,7 @@
 # get_storage_object_name()
 
 ```ts
-function get_storage_object_name(
-   constraintName, 
-   metadata, 
-   tableSet
-): string;
+function get_storage_object_name(constraintName, metadata, tableSet): string;
 ```
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/table-name-resolver.ts:156](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/table-name-resolver.ts#L156)
@@ -14,11 +10,11 @@ The object name of database-level constraint objects (conditional unique indexes
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `constraintName` | `string` | The deterministic constraint name given by the core (`storageConstraintName`) |
-| `metadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | The metadata of the entity the constraint belongs to |
-| `tableSet` | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md) | The table set |
+| Parameter        | Type                                                          | Description                                                                   |
+| ---------------- | ------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `constraintName` | `string`                                                      | The deterministic constraint name given by the core (`storageConstraintName`) |
+| `metadata`       | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | The metadata of the entity the constraint belongs to                          |
+| `tableSet`       | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md)  | The table set                                                                 |
 
 ## Returns
 

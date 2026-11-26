@@ -1,7 +1,7 @@
 # SKIP_BRANCH_SWITCH_PREPARE
 
 ```ts
-const SKIP_BRANCH_SWITCH_PREPARE: SwitchBranchOptions["prepare"];
+const SKIP_BRANCH_SWITCH_PREPARE: SwitchBranchOptions['prepare'];
 ```
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:244](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L244)

@@ -10,10 +10,10 @@ Computes the content key of query options and projects cursor entities into dete
 
 ## Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `options` | `unknown` | `undefined` | The query options; `after` / `before` may be real entity instances |
-| `label?` | `string` | `'Query options'` | The error message prefix, carrying the caller's context into errors (e.g. `'RxDB query options'`) |
+| Parameter | Type      | Default value     | Description                                                                                       |
+| --------- | --------- | ----------------- | ------------------------------------------------------------------------------------------------- |
+| `options` | `unknown` | `undefined`       | The query options; `after` / `before` may be real entity instances                                |
+| `label?`  | `string`  | `'Query options'` | The error message prefix, carrying the caller's context into errors (e.g. `'RxDB query options'`) |
 
 ## Returns
 
@@ -39,7 +39,14 @@ Projection only happens at the **top level** of `after` / `before`: a self-refer
 
 ```ts
 const key = createQueryOptionsKey(
-  { where, orderBy: [{ field: 'createdAt', sort: 'desc' }, { field: 'id', sort: 'asc' }], after: entity },
+  {
+    where,
+    orderBy: [
+      { field: 'createdAt', sort: 'desc' },
+      { field: 'id', sort: 'asc' }
+    ],
+    after: entity
+  },
   'RxDB query options'
 );
 // a new instance with the same identity computes the same key; it only changes when the cursor changes

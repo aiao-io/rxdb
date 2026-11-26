@@ -12,9 +12,9 @@ Converts a value to a plain object containing only own enumerable properties
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | The value to convert |
+| Parameter | Type      | Description          |
+| --------- | --------- | -------------------- |
+| `value`   | `unknown` | The value to convert |
 
 ## Returns
 

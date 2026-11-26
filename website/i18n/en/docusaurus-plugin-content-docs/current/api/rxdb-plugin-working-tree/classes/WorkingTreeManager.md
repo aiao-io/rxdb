@@ -29,9 +29,9 @@ Called by the plugin constructor, one per RxDB instance.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `rxdb` | [`RxDB`](../../rxdb/classes/RxDB.md) | The host instance; the whole facade holds only this one reference |
+| Parameter    | Type                                                  | Description                                                                           |
+| ------------ | ----------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `rxdb`       | [`RxDB`](../../rxdb/classes/RxDB.md)                  | The host instance; the whole facade holds only this one reference                     |
 | `worktrees?` | [`WorktreeOptions`](../interfaces/WorktreeOptions.md) | The plugin's `worktrees` option, handed to [WorkingTreeManager.checkouts](#checkouts) |
 
 #### Returns
@@ -62,7 +62,7 @@ Read-only checkouts (US-313): open the complete data of another branch read-only
 An instance field rather than a method, same reason as [WorkingTreeManager.commits$](#commits): members on the prototype are all managed commands,
 and prototype method names must not match `/checkout|detach/i` (the commit suite's guard).
 
-***
+---
 
 ### commits$ \{#commits\}
 
@@ -101,8 +101,8 @@ Judges whether a commit can be used to create a branch (US-314 phase A); writes 
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type     | Description                              |
+| ---------- | -------- | ---------------------------------------- |
 | `commitId` | `string` | A commit in the current branch's history |
 
 #### Returns
@@ -124,7 +124,7 @@ CommitGraphCorruptedError the current branch's commit graph is corrupted (FR-051
 Lets the UI ask once before asking for a name: for a commit that cannot be branched from, the dialog states the reason directly. The judgment is the same one as in [createBranchFromCommit](#createbranchfromcommit),
 but the database may have changed between the two calls, and the creating call re-judges.
 
-***
+---
 
 ### commit() \{#commit\}
 
@@ -138,9 +138,9 @@ Commits **all** uncommitted units in the current branch's working tree into hist
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `message` | `string` | Commit message |
+| Parameter | Type                                              | Description                                                                                                                     |
+| --------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `message` | `string`                                          | Commit message                                                                                                                  |
 | `options` | [`CommitOptions`](../interfaces/CommitOptions.md) | See [CommitOptions](../interfaces/CommitOptions.md); the three captured positions plus author and operation id are all required |
 
 #### Returns
@@ -169,7 +169,7 @@ Writing the commit and clearing the working tree happen in the **same transactio
 
 When a new commit is written, emits once via [commits$](#commits) before returning.
 
-***
+---
 
 ### commitChanges() \{#commitchanges\}
 
@@ -183,8 +183,8 @@ Reads all change units of one commit (the detail side of FR-012).
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type     | Description           |
+| ---------- | -------- | --------------------- |
 | `commitId` | `string` | The commit id to read |
 
 #### Returns
@@ -208,7 +208,7 @@ The caller clicks on a node it just saw in the reachable history; and a dangling
 at write time, not something fabricated — "is this commit in the current branch's history" is answered by the list side,
 the detail side only answers "what did it write".
 
-***
+---
 
 ### createBranchFromCommit() \{#createbranchfromcommit\}
 
@@ -222,9 +222,9 @@ Creates a branch from a commit in the current branch's history (US-314 phase A);
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `branchId` | `string` | Id of the new branch |
+| Parameter  | Type     | Description                              |
+| ---------- | -------- | ---------------------------------------- |
+| `branchId` | `string` | Id of the new branch                     |
 | `commitId` | `string` | A commit in the current branch's history |
 
 #### Returns
@@ -256,7 +256,7 @@ the first transaction puts the capability gate, parameter validation, and the ju
 
 Writes that do not enter the log (pulls, expiration cleanup) are not undone on switch: if such writes happened after the commit, the new branch carries them, consistent with today's switch-branch behavior.
 
-***
+---
 
 ### diff() \{#diff\}
 
@@ -270,8 +270,8 @@ The current branch's uncommitted changes relative to HEAD (FR-005).
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                                | Description                                              |
+| ---------- | ------------------------------------------------------------------- | -------------------------------------------------------- |
 | `options?` | [`WorkingTreeDiffOptions`](../interfaces/WorkingTreeDiffOptions.md) | Granularity, entity filter, and pagination; all optional |
 
 #### Returns
@@ -292,7 +292,7 @@ those three parameters belong to the "compare any two refs" model, and v1 has no
 Like [status](#status), it does **not take `branchId`**: uncommitted changes of another branch cannot be committed
 or discarded once fetched; the three captured positions are only valid for the active branch (FR-048).
 
-***
+---
 
 ### discard() \{#discard\}
 
@@ -306,8 +306,8 @@ Reverts the current branch's entire working tree back to the current HEAD (FR-01
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                | Description                                                                                                              |
+| --------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `options` | [`WorkingTreeCredentials`](../interfaces/WorkingTreeCredentials.md) | See [WorkingTreeDiscardOptions](../type-aliases/WorkingTreeDiscardOptions.md); the three captured positions are required |
 
 #### Returns
@@ -332,7 +332,7 @@ legal usage — what is read internally always equals the current value, the CAS
 The parameter itself is **not validated here**: a non-enabled database should hear "go call enable()", not
 "expectedBranch cannot be empty" — the latter is meaningless on this database.
 
-***
+---
 
 ### enable() \{#enable\}
 
@@ -375,7 +375,7 @@ belongs to HEAD, not to the working tree.
 When the migration throws, the whole transaction rolls back and the capability bit returns to not-enabled; at that point `transaction()` rethrows upward, and the install line
 is never reached — the shape "not enabled yet capturing" cannot remain.
 
-***
+---
 
 ### enableIfEmpty() \{#enableifempty\}
 
@@ -396,7 +396,7 @@ See [WorkingTreeEnableIfEmptyResult](../type-aliases/WorkingTreeEnableIfEmptyRes
 #### Throws
 
 BranchNotMaterializableError when any local branch cannot be materialized along the `rxdb_change` chain
-  (only happens after the "empty" judgment passes and the enable migration starts running, same shape as [enable](#enable))
+(only happens after the "empty" judgment passes and the enable migration starts running, same shape as [enable](#enable))
 
 #### Remarks
 
@@ -418,7 +418,7 @@ The capture runtime is installed after the two enabling outcomes as usual, consi
 **A missing capability row throws as usual** (`readCommitCapability` throws itself), not continuing as "not enabled and empty":
 that is the corruption scene of the `0004` migration not finishing, and auto-enable would bury the corruption as one normal startup.
 
-***
+---
 
 ### isEnabled() \{#isenabled\}
 
@@ -441,7 +441,7 @@ Returns `true` when enabled
 Along with [enable](#enable) / [enableIfEmpty](#enableifempty), it is one of the only three members usable on a non-enabled database, so it does **not** pass
 [runEnabled](#runenabled) — passing it would become "only enabled databases can query whether they are enabled".
 
-***
+---
 
 ### listCommits() \{#listcommits\}
 
@@ -455,8 +455,8 @@ The current branch's commit history reachable from HEAD along the full parent ch
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                    | Description                                               |
+| ---------- | ------------------------------------------------------- | --------------------------------------------------------- |
 | `options?` | [`CommitLogOptions`](../interfaces/CommitLogOptions.md) | Entry limit, time window, and entity filter; all optional |
 
 #### Returns
@@ -483,7 +483,7 @@ History ≠ the whole `rxdb_commit` table: commits lost to CAS and nodes left by
 ref points at them. The reachability traversal is in `commit/list-commits.ts`, translation into public entries in
 `commit/commit-log.ts`.
 
-***
+---
 
 ### restore() \{#restore\}
 
@@ -497,10 +497,10 @@ Writes the contents of a reachable historical commit back into the current worki
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `target` | [`WorkingTreeRestoreTarget`](../interfaces/WorkingTreeRestoreTarget.md) | See [WorkingTreeRestoreTarget](../interfaces/WorkingTreeRestoreTarget.md); with `entities` omitted it is the whole commit |
-| `options` | [`WorkingTreeCredentials`](../interfaces/WorkingTreeCredentials.md) | See [WorkingTreeRestoreOptions](../type-aliases/WorkingTreeRestoreOptions.md); the three captured positions are required |
+| Parameter | Type                                                                    | Description                                                                                                               |
+| --------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `target`  | [`WorkingTreeRestoreTarget`](../interfaces/WorkingTreeRestoreTarget.md) | See [WorkingTreeRestoreTarget](../interfaces/WorkingTreeRestoreTarget.md); with `entities` omitted it is the whole commit |
+| `options` | [`WorkingTreeCredentials`](../interfaces/WorkingTreeCredentials.md)     | See [WorkingTreeRestoreOptions](../type-aliases/WorkingTreeRestoreOptions.md); the three captured positions are required  |
 
 #### Returns
 
@@ -526,7 +526,7 @@ is void on the spot.
 it does not "move HEAD over". After restore the working tree is dirty; the next step is `commit()` or `discard()`, the same path as hand-written changes
 (FR-015).
 
-***
+---
 
 ### restoreSession() \{#restoresession\}
 
@@ -543,8 +543,8 @@ The current branch's not-yet-finished restore session (contracts/core-api.md §5
 #### Returns
 
 `Promise`&lt;
-  \| [`WorkingTreeRestoreSessionInfo`](../interfaces/WorkingTreeRestoreSessionInfo.md)
-  \| `null`&gt;
+\| [`WorkingTreeRestoreSessionInfo`](../interfaces/WorkingTreeRestoreSessionInfo.md)
+\| `null`&gt;
 
 See [WorkingTreeRestoreSessionInfo](../interfaces/WorkingTreeRestoreSessionInfo.md); `null` when there is no unfinished session
 
@@ -560,7 +560,7 @@ Like [status](#status) / [listCommits](#listcommits), it does **not take `branch
 "Whether it still holds" is not answered here: that is the `restoring` / `conflicted` two bits of `status()`, and the judgment exists only there.
 This member only answers "is there one, and from which commit".
 
-***
+---
 
 ### runEnabled() \{#runenabled\}
 
@@ -574,16 +574,16 @@ The **only** entry of managed members: opens a write transaction, passes the cap
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `run` | (`executor`, `adapter`) => `Promise`&lt;`T`&gt; | The command body; the executor it receives is the same one the gate reads the capability row with; the second parameter is this epoch's local adapter |
-| `signal?` | `AbortSignal` | - |
+| Parameter | Type                                            | Description                                                                                                                                           |
+| --------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `run`     | (`executor`, `adapter`) => `Promise`&lt;`T`&gt; | The command body; the executor it receives is the same one the gate reads the capability row with; the second parameter is this epoch's local adapter |
+| `signal?` | `AbortSignal`                                   | -                                                                                                                                                     |
 
 #### Returns
 
@@ -639,7 +639,7 @@ at-rest judgment slot (`createCommitWriteContext()`, FR-038); the command body g
 **another epoch** — that instance's judger would write to a different database than this transaction. Only one parameter is added:
 callbacks with fewer parameters remain assignable in TS; members that do not need it change not one word.
 
-***
+---
 
 ### status() \{#status\}
 

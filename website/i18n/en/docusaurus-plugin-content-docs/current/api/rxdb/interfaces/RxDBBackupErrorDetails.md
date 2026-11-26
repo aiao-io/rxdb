@@ -16,7 +16,7 @@ Defined in: [packages/rxdb/src/backup/backup-error.ts:53](https://github.com/aia
 
 The actual value in the archive or on site.
 
-***
+---
 
 ### expected? \{#expected\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb/src/backup/backup-error.ts:51](https://github.com/aia
 
 The value the target expects.
 
-***
+---
 
 ### field? \{#field\}
 

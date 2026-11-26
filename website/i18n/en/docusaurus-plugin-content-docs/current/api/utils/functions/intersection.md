@@ -12,14 +12,14 @@ A single input array returns its deduplicated version
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type             | Description          |
+| ----------- | ---------------- | -------------------- |
 | ...`arrays` | readonly `T`[][] | Any number of arrays |
 
 ## Returns

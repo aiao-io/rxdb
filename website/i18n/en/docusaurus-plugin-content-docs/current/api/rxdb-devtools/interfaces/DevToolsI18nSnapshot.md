@@ -16,7 +16,7 @@ Defined in: [i18n-port.ts:42](https://github.com/aiao-io/rxdb/blob/b5232040240cf
 
 The available catalog languages.
 
-***
+---
 
 ### canClearMissing \{#canclearmissing\}
 
@@ -28,7 +28,7 @@ Defined in: [i18n-port.ts:48](https://github.com/aiao-io/rxdb/blob/b5232040240cf
 
 The current session simultaneously satisfies the capability tier, the write policy, the provider and the clear port.
 
-***
+---
 
 ### locale \{#locale\}
 
@@ -40,7 +40,7 @@ Defined in: [i18n-port.ts:40](https://github.com/aiao-io/rxdb/blob/b5232040240cf
 
 The currently active language.
 
-***
+---
 
 ### messages \{#messages\}
 
@@ -52,7 +52,7 @@ Defined in: [i18n-port.ts:44](https://github.com/aiao-io/rxdb/blob/b5232040240cf
 
 The catalog rows including overridden versions.
 
-***
+---
 
 ### missingMessages \{#missingmessages\}
 

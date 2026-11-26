@@ -10,10 +10,10 @@ Checks whether an operation changes persistent state.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `domain` | `"database"` \| `"files"` \| `"settings"` | The provider domain. |
-| `operation` | `string` | The operation name. |
+| Parameter   | Type                                      | Description          |
+| ----------- | ----------------------------------------- | -------------------- |
+| `domain`    | `"database"` \| `"files"` \| `"settings"` | The provider domain. |
+| `operation` | `string`                                  | The operation name.  |
 
 ## Returns
 

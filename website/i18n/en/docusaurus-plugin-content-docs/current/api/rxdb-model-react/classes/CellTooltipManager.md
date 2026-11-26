@@ -32,7 +32,7 @@ Cleans up timers on destruction
 
 `void`
 
-***
+---
 
 ### hide() \{#hide\}
 
@@ -46,25 +46,25 @@ Hides the tooltip
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter    | Type              |
+| ------------ | ----------------- |
 | `setTooltip` | (`tip`) => `void` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### showError() \{#showerror\}
 
 ```ts
 showError(
-   table, 
-   col, 
-   row, 
-   content, 
-   setTooltip, 
+   table,
+   col,
+   row,
+   content,
+   setTooltip,
    delay?
 ): void;
 ```
@@ -75,14 +75,14 @@ Shows an error tooltip after a delay
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `table` | `ListTableAll` |
-| `col` | `number` |
-| `row` | `number` |
-| `content` | `string` |
+| Parameter    | Type              |
+| ------------ | ----------------- |
+| `table`      | `ListTableAll`    |
+| `col`        | `number`          |
+| `row`        | `number`          |
+| `content`    | `string`          |
 | `setTooltip` | (`tip`) => `void` |
-| `delay?` | `number` |
+| `delay?`     | `number`          |
 
 #### Returns
 

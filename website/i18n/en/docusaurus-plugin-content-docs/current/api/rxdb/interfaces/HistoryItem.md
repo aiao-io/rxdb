@@ -15,7 +15,7 @@ changeId: number;
 
 Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:273](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/VersionManager.interface.ts#L273)
 
-***
+---
 
 ### changes \{#changes\}
 
@@ -27,7 +27,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:312](ht
 
 All changes contained in this history item
 
-***
+---
 
 ### count \{#count\}
 
@@ -39,7 +39,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:317](ht
 
 Change count
 
-***
+---
 
 ### createdAt \{#createdat\}
 
@@ -51,7 +51,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:322](ht
 
 Timestamp of the latest change
 
-***
+---
 
 ### description \{#description\}
 
@@ -70,7 +70,7 @@ Description text (for UI display)
 - Multiple changes: "Transaction: 2 created, 3 updated"
 ```
 
-***
+---
 
 ### entity \{#entity\}
 
@@ -82,7 +82,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:288](ht
 
 Entity name
 
-***
+---
 
 ### fingerprint \{#fingerprint\}
 
@@ -94,7 +94,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:278](ht
 
 Unique fingerprint, used to identify this history item
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -106,7 +106,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:283](ht
 
 Namespace
 
-***
+---
 
 ### redoInvalidated \{#redoinvalidated\}
 
@@ -119,7 +119,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:334](ht
 Whether redo is invalidated
 true means the redo operation of this history item has been discarded (true as soon as any one change is discarded)
 
-***
+---
 
 ### reverted \{#reverted\}
 
@@ -132,7 +132,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:328](ht
 Whether it has been undone
 true means this history item has been undone (true as soon as any one change is undone)
 
-***
+---
 
 ### transactionId \{#transactionid\}
 
@@ -144,12 +144,12 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:307](ht
 
 Transaction ID
 
-***
+---
 
 ### type \{#type\}
 
 ```ts
-type: "INSERT" | "UPDATE" | "DELETE" | "TRANSACTION";
+type: 'INSERT' | 'UPDATE' | 'DELETE' | 'TRANSACTION';
 ```
 
 Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:293](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/VersionManager.interface.ts#L293)

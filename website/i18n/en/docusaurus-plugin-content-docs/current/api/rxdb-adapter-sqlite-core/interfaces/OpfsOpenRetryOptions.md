@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/opfs-open-retry.ts:43](https:
 
 Backoff delay sequence; defaults to six steps starting at 50 ms and doubling each time (about 3 seconds in total)
 
-***
+---
 
 ### fileName \{#filename\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/opfs-open-retry.ts:39](https:
 
 The database file named in error messages
 
-***
+---
 
 ### isAccessHandleBusy \{#isaccesshandlebusy\}
 
@@ -44,7 +44,7 @@ Whether the database file's synchronous access handle is currently held by anoth
 
 `Promise`&lt;`boolean`&gt;
 
-***
+---
 
 ### sleep? \{#sleep\}
 
@@ -58,9 +58,9 @@ The wait implementation; injected by tests
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `ms` | `number` |
+| Parameter | Type     |
+| --------- | -------- |
+| `ms`      | `number` |
 
 #### Returns
 

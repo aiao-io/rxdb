@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-manager.ts:
 
 The checkout id, i.e. the primary key of the registration row
 
-***
+---
 
 ### owner \{#owner\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-manager.ts:
 
 The ownership
 
-***
+---
 
 ### rxdb \{#rxdb\}
 
@@ -44,7 +44,7 @@ The read-only instance.
 
 Public write entry points throw `RxDBReadOnlyError`. Entity classes are clones of the main instance's: queries must use the classes swapped in by [WorktreeView.entityOf](#entityof).
 
-***
+---
 
 ### target \{#target\}
 
@@ -72,7 +72,7 @@ Closes the read-only instance and deletes the snapshot database and the registra
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### entityOf() \{#entityof\}
 
@@ -86,15 +86,15 @@ The counterpart class on the read-only instance of a main-instance entity class.
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                    |
+| ------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `EntityClass` | `T` | The entity class on the main instance |
+| Parameter     | Type | Description                           |
+| ------------- | ---- | ------------------------------------- |
+| `EntityClass` | `T`  | The entity class on the main instance |
 
 #### Returns
 
@@ -106,7 +106,7 @@ The clone class with the same namespace and name
 
 [WorktreeUnavailableError](../classes/WorktreeUnavailableError.md) `incomplete_entities`: the snapshot does not have this entity
 
-***
+---
 
 ### refresh() \{#refresh\}
 
@@ -124,7 +124,7 @@ Rebuilds from the main database's current state, ownership unchanged.
 
 The new view; this view closes with it
 
-***
+---
 
 ### release() \{#release\}
 

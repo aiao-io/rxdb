@@ -24,10 +24,10 @@ only way out.
 #### Default Value
 
 ```ts
-30000
+30000;
 ```
 
-***
+---
 
 ### signal? \{#signal\}
 

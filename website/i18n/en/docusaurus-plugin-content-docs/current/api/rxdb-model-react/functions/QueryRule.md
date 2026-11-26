@@ -10,8 +10,8 @@ Single query rule component: field / operator / value inputs + a delete button; 
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter           | Type                                                |
+| ------------------- | --------------------------------------------------- |
 | `__namedParameters` | [`QueryRuleProps`](../interfaces/QueryRuleProps.md) |
 
 ## Returns

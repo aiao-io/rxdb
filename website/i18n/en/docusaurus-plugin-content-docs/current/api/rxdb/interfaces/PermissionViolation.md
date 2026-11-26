@@ -16,7 +16,7 @@ Defined in: [packages/rxdb/src/entity/entity-permissions.ts:81](https://github.c
 
 The entity name (the `name` in the metadata)
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb/src/entity/entity-permissions.ts:79](https://github.c
 
 The entity's namespace
 
-***
+---
 
 ### operation \{#operation\}
 

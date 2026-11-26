@@ -10,9 +10,9 @@ A wide outer guard: checks whether a value is the shell of a v2 message, and **d
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | The value to check, usually from `postMessage` / Port / IPC. |
+| Parameter | Type      | Description                                                  |
+| --------- | --------- | ------------------------------------------------------------ |
+| `value`   | `unknown` | The value to check, usually from `postMessage` / Port / IPC. |
 
 ## Returns
 

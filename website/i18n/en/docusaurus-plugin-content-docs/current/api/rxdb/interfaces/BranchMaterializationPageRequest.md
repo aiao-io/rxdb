@@ -21,7 +21,7 @@ Which page to start giving from; not 0 on a continuation
 This one cell is the whole of "resumable pull": without it a continuation could only pull from the start again, and the 900 pages left by an attempt
 that crashed on page 900 would be rewritten as-is — keeping them would then be pointless.
 
-***
+---
 
 ### intent \{#intent\}
 
@@ -33,7 +33,7 @@ Defined in: [packages/rxdb/src/sync-contract/branch-materialization-source.ts:53
 
 The intent frozen by this run; when continuing an old staging, it is verbatim the same as the one frozen on that row
 
-***
+---
 
 ### previousPage \{#previouspage\}
 
@@ -50,7 +50,7 @@ The last page in the staging; `null` when pulling from the start
 Page order only says "which page", not "up to where". The cursor lives in the source's own payload and is handed back as-is on continuation,
 so the source never keeps a second copy of progress elsewhere that could drift from the staging.
 
-***
+---
 
 ### targetBranchId \{#targetbranchid\}
 

@@ -13,10 +13,10 @@ Time complexity: O(n), n = max(remote.length, local.size)
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter        | Type                                                                      | Description                                                                                |
+| ---------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | `remoteMetadata` | [`QueryCacheEntityMetadata`](../interfaces/QueryCacheEntityMetadata.md)[] | Metadata from the remote adapter (id + updatedAt, any time string `Date.parse` recognizes) |
-| `localMetadata` | `Map`&lt;`string`, `string`&gt; | Map\<id, updatedAt\> from the local adapter |
+| `localMetadata`  | `Map`&lt;`string`, `string`&gt;                                           | Map\<id, updatedAt\> from the local adapter                                                |
 
 ## Returns
 
@@ -31,10 +31,7 @@ TypeError when either side's `updatedAt` cannot be parsed into a point in time.
 ## Example
 
 ```typescript
-const diff = diffMetadata(
-  [{ id: '1', updatedAt: '2024-01-02T00:00:00Z' }],
-  new Map([['1', '2024-01-01T00:00:00Z']])
-);
+const diff = diffMetadata([{ id: '1', updatedAt: '2024-01-02T00:00:00Z' }], new Map([['1', '2024-01-01T00:00:00Z']]));
 // diff.staleIds = ['1'] - remote is newer
 ```
 

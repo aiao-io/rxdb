@@ -22,10 +22,10 @@ Defined in: [packages/rxdb-adapter-pglite/src/change-pipeline.types.ts:23](https
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter     | Type                                                                                            |
+| ------------- | ----------------------------------------------------------------------------------------------- |
 | `diagnostics` | [`RxDBChangePipelineTimeoutDiagnostics`](../interfaces/RxDBChangePipelineTimeoutDiagnostics.md) |
-| `cause` | `Error` |
+| `cause`       | `Error`                                                                                         |
 
 #### Returns
 
@@ -49,7 +49,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxdbAdapterPGliteError`](RxdbAdapterPGliteError.md).[`cause`](RxdbAdapterPGliteError.md#cause)
 
-***
+---
 
 ### code? \{#code\}
 
@@ -65,7 +65,7 @@ Error code (for example: [INVALID\_QUERY\_ERROR\_CODE](../variables/INVALID_QUER
 
 [`RxdbAdapterPGliteError`](RxdbAdapterPGliteError.md).[`code`](RxdbAdapterPGliteError.md#code)
 
-***
+---
 
 ### diagnostics \{#diagnostics\}
 
@@ -75,7 +75,7 @@ readonly diagnostics: RxDBChangePipelineTimeoutDiagnostics;
 
 Defined in: [packages/rxdb-adapter-pglite/src/change-pipeline.types.ts:21](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-pglite/src/change-pipeline.types.ts#L21)
 
-***
+---
 
 ### message \{#message\}
 
@@ -89,7 +89,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxdbAdapterPGliteError`](RxdbAdapterPGliteError.md).[`message`](RxdbAdapterPGliteError.md#message)
 
-***
+---
 
 ### name \{#name\}
 
@@ -103,7 +103,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxdbAdapterPGliteError`](RxdbAdapterPGliteError.md).[`name`](RxdbAdapterPGliteError.md#name)
 
-***
+---
 
 ### originalError? \{#originalerror\}
 
@@ -119,7 +119,7 @@ The original error object (if converted from another error)
 
 [`RxdbAdapterPGliteError`](RxdbAdapterPGliteError.md).[`originalError`](RxdbAdapterPGliteError.md#originalerror)
 
-***
+---
 
 ### stack? \{#stack\}
 
@@ -133,7 +133,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxdbAdapterPGliteError`](RxdbAdapterPGliteError.md).[`stack`](RxdbAdapterPGliteError.md#stack)
 
-***
+---
 
 ### stackTraceLimit \{#stacktracelimit\}
 
@@ -174,7 +174,7 @@ a string representing the location in the code at which
 ```js
 const myObject = {};
 Error.captureStackTrace(myObject);
-myObject.stack;  // Similar to `new Error().stack`
+myObject.stack; // Similar to `new Error().stack`
 ```
 
 The first line of the trace will be prefixed with
@@ -213,9 +213,9 @@ a();
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `targetObject` | `object` |
+| Parameter         | Type       |
+| ----------------- | ---------- |
+| `targetObject`    | `object`   |
 | `constructorOpt?` | `Function` |
 
 #### Returns
@@ -226,7 +226,7 @@ a();
 
 [`RxdbAdapterPGliteError`](RxdbAdapterPGliteError.md).[`captureStackTrace`](RxdbAdapterPGliteError.md#capturestacktrace)
 
-***
+---
 
 ### prepareStackTrace() \{#preparestacktrace\}
 
@@ -238,9 +238,9 @@ Defined in: node\_modules/.pnpm/@types+node@26.6.6/node\_modules/@types/node/glo
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `err` | `Error` |
+| Parameter     | Type         |
+| ------------- | ------------ |
+| `err`         | `Error`      |
 | `stackTraces` | `CallSite`[] |
 
 #### Returns

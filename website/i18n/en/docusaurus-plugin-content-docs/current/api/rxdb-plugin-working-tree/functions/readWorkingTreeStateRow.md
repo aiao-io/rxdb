@@ -10,10 +10,10 @@ Reads this branch's working tree state row.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                                  | Description                       |
+| ---------- | --------------------------------------------------------------------- | --------------------------------- |
 | `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md) | The caller's transaction executor |
-| `branchId` | `string` | The target branch id |
+| `branchId` | `string`                                                              | The target branch id              |
 
 ## Returns
 

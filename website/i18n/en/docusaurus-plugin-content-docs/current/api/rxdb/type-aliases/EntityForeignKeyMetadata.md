@@ -1,7 +1,7 @@
 # EntityForeignKeyMetadata
 
 ```ts
-type EntityForeignKeyMetadata = SetRequired<EntityForeignKeyMetadataOptions, "mappedNamespace">;
+type EntityForeignKeyMetadata = SetRequired<EntityForeignKeyMetadataOptions, 'mappedNamespace'>;
 ```
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:597](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L597)

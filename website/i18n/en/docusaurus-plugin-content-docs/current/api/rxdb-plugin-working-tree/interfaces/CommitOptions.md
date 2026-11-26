@@ -29,7 +29,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/commit-command.t
 
 The commit author; lands in `Commit.author` of the immutable history
 
-***
+---
 
 ### expectedBranch \{#expectedbranch\}
 
@@ -45,7 +45,7 @@ The active branch identity at capture time
 
 [`WorkingTreeCredentials`](WorkingTreeCredentials.md).[`expectedBranch`](WorkingTreeCredentials.md#expectedbranch)
 
-***
+---
 
 ### expectedHeadRevision \{#expectedheadrevision\}
 
@@ -61,7 +61,7 @@ The HEAD advance revision at capture time
 
 [`WorkingTreeCredentials`](WorkingTreeCredentials.md).[`expectedHeadRevision`](WorkingTreeCredentials.md#expectedheadrevision)
 
-***
+---
 
 ### expectedWorkingTreeRevision \{#expectedworkingtreerevision\}
 
@@ -77,7 +77,7 @@ The working tree revision at capture time
 
 [`WorkingTreeCredentials`](WorkingTreeCredentials.md).[`expectedWorkingTreeRevision`](WorkingTreeCredentials.md#expectedworkingtreerevision)
 
-***
+---
 
 ### operationId \{#operationid\}
 

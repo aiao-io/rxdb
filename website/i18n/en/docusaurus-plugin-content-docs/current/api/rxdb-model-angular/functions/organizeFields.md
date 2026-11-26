@@ -10,9 +10,9 @@ Groups and sorts the fields
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `fields` | [`FieldMetadata`](../interfaces/FieldMetadata.md)[] | List of field metadata |
+| Parameter | Type                                                | Description            |
+| --------- | --------------------------------------------------- | ---------------------- |
+| `fields`  | [`FieldMetadata`](../interfaces/FieldMetadata.md)[] | List of field metadata |
 
 ## Returns
 
@@ -23,6 +23,7 @@ The sorted list of fields
 ## Remarks
 
 Sorting rules:
+
 1. Sort by nesting depth (the number of '.' in the field name)
 2. Within the same depth, sort by field name alphabetically
 

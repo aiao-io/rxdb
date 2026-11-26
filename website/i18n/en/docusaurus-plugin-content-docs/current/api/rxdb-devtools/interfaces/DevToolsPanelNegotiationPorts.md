@@ -16,7 +16,7 @@ Defined in: [v2/negotiation-panel.ts:50](https://github.com/aiao-io/rxdb/blob/b5
 
 The sole timing source for the 1,000 ms decision window.
 
-***
+---
 
 ### send \{#send\}
 
@@ -30,15 +30,15 @@ Outbound callback; wired to the concrete transport by the thin driver from 904c.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                                    |
+| --------- | --------------------------------------------------------------------------------------- |
 | `message` | [`DevToolsPanelNegotiationMessage`](../type-aliases/DevToolsPanelNegotiationMessage.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### supportedVersions? \{#supportedversions\}
 

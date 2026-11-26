@@ -30,7 +30,7 @@ Promotes the temporary file to the real file. Called only after a COMPLETE that 
 
 Resolves after the target file has actually been promoted; on reject the caller moves to [discard](#discard).
 
-***
+---
 
 ### discard() \{#discard\}
 
@@ -52,7 +52,7 @@ Resolves after cleanup completes.
 
 Must be idempotent: cancellation, the two timeouts, write failures and dispose can all trigger it.
 
-***
+---
 
 ### write() \{#write\}
 
@@ -66,9 +66,9 @@ Writes one chunk of decoded bytes.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `data` | `Uint8Array` | The bytes of this chunk; the caller no longer holds it. |
+| Parameter | Type         | Description                                             |
+| --------- | ------------ | ------------------------------------------------------- |
+| `data`    | `Uint8Array` | The bytes of this chunk; the caller no longer holds it. |
 
 #### Returns
 

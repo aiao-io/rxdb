@@ -30,14 +30,14 @@ compiled into an entity-level CHECK with the property name as its `name`, and pa
 #### Example
 
 ```typescript
-properties: [{ name: 'qty', type: PropertyType.integer, check: { operator: '>', value: 0 } }]
+properties: [{ name: 'qty', type: PropertyType.integer, check: { operator: '>', value: 0 } }];
 ```
 
 #### Inherited from
 
 `IEntityObject.check`
 
-***
+---
 
 ### columnName? \{#columnname\}
 
@@ -54,7 +54,7 @@ Same as name when not provided
 
 `IEntityObject.columnName`
 
-***
+---
 
 ### default? \{#default\}
 
@@ -64,7 +64,7 @@ default?: bigint | (() => bigint);
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:335](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L335)
 
-***
+---
 
 ### displayName? \{#displayname\}
 
@@ -79,14 +79,14 @@ Display name
 #### Example
 
 ```ts
-"User", "Order item"
+('User', 'Order item');
 ```
 
 #### Inherited from
 
 `IEntityObject.displayName`
 
-***
+---
 
 ### encrypted? \{#encrypted\}
 
@@ -105,14 +105,14 @@ primary key / foreign key / unique / sortable / index / computed property / FTS 
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### Inherited from
 
 `IEntityObject.encrypted`
 
-***
+---
 
 ### name \{#name\}
 
@@ -129,7 +129,7 @@ A lowercase-initial English word; may only contain English words and underscores
 
 `IEntityObject.name`
 
-***
+---
 
 ### nullable? \{#nullable\}
 
@@ -144,14 +144,14 @@ Whether NULL is allowed
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### Inherited from
 
 `IEntityObject.nullable`
 
-***
+---
 
 ### primary? \{#primary\}
 
@@ -161,7 +161,7 @@ primary?: boolean;
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:333](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L333)
 
-***
+---
 
 ### readonly? \{#readonly\}
 
@@ -178,14 +178,14 @@ If false, the value of this column is updated when updating data
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### Inherited from
 
 `IEntityObject.readonly`
 
-***
+---
 
 ### required? \{#required\}
 
@@ -203,14 +203,14 @@ Empty strings and empty arrays are not allowed; the number 0 is allowed
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### Inherited from
 
 `IEntityObject.required`
 
-***
+---
 
 ### sortable? \{#sortable\}
 
@@ -225,24 +225,24 @@ Whether it is sortable
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### Inherited from
 
 `ISortable.sortable`
 
-***
+---
 
 ### type \{#type\}
 
 ```ts
-type: "bigint" | bigint;
+type: 'bigint' | bigint;
 ```
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:334](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L334)
 
-***
+---
 
 ### unique? \{#unique\}
 
@@ -258,7 +258,7 @@ If true, the value of this data must not repeat
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### Inherited from

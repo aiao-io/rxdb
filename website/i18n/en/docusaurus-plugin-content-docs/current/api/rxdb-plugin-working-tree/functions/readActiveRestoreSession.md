@@ -1,9 +1,7 @@
 # readActiveRestoreSession()
 
 ```ts
-function readActiveRestoreSession(executor, branchId): Promise<
-  | WorkingTreeRestoreSessionInfo
-  | null>;
+function readActiveRestoreSession(executor, branchId): Promise<WorkingTreeRestoreSessionInfo | null>;
 ```
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/restore-command.ts:471](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/restore-command.ts#L471)
@@ -12,16 +10,16 @@ Reads the current branch's unfinished restore session; `null` when there is none
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                                  | Description                      |
+| ---------- | --------------------------------------------------------------------- | -------------------------------- |
 | `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md) | The current transaction executor |
-| `branchId` | `string` | The target branch |
+| `branchId` | `string`                                                              | The target branch                |
 
 ## Returns
 
 `Promise`&lt;
-  \| [`WorkingTreeRestoreSessionInfo`](../interfaces/WorkingTreeRestoreSessionInfo.md)
-  \| `null`&gt;
+\| [`WorkingTreeRestoreSessionInfo`](../interfaces/WorkingTreeRestoreSessionInfo.md)
+\| `null`&gt;
 
 See [WorkingTreeRestoreSessionInfo](../interfaces/WorkingTreeRestoreSessionInfo.md); `null` when there is no unfinished session
 

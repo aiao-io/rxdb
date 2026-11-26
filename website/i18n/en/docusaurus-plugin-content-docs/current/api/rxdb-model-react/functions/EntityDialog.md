@@ -10,8 +10,8 @@ Dialog shell component: title bar (drag / fullscreen / close) + eight-direction 
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter           | Type                                                      |
+| ------------------- | --------------------------------------------------------- |
 | `__namedParameters` | [`EntityDialogProps`](../interfaces/EntityDialogProps.md) |
 
 ## Returns

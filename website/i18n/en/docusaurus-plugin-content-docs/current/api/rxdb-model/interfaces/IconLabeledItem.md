@@ -20,7 +20,7 @@ Defined in: [packages/rxdb-model/src/entity-table/editors/icon-list-editor.ts:16
 
 Icon stroke color (optional, used together with icon)
 
-***
+---
 
 ### ~~icon?~~ \{#icon\}
 
@@ -32,7 +32,7 @@ Defined in: [packages/rxdb-model/src/entity-table/editors/icon-list-editor.ts:14
 
 Lucide icon data (optional, used together with color)
 
-***
+---
 
 ### ~~text~~ \{#text\}
 
@@ -44,7 +44,7 @@ Defined in: [packages/rxdb-model/src/entity-table/editors/icon-list-editor.ts:10
 
 Display text
 
-***
+---
 
 ### ~~value~~ \{#value\}
 

@@ -10,8 +10,8 @@ The names of the two triggers for one exclusion on the SQLite side: the constrai
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter        | Type     |
+| ---------------- | -------- |
 | `constraintName` | `string` |
 
 ## Returns

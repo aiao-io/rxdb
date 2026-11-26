@@ -1,5 +1,5 @@
 ---
-sidebar_label: "RelationExistsRules⟨K, SubRG⟩"
+sidebar_label: 'RelationExistsRules⟨K, SubRG⟩'
 ---
 
 # RelationExistsRules`<K, SubRG>`
@@ -15,7 +15,7 @@ The `SubRG` type parameter should be the `RuleGroup` type of the related entity
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-k"></a> `K` *extends* `string` |
-| <a id="type-parameter-subrg"></a> `SubRG` |
+| Type Parameter                                       |
+| ---------------------------------------------------- |
+| <a id="type-parameter-k"></a> `K` _extends_ `string` |
+| <a id="type-parameter-subrg"></a> `SubRG`            |

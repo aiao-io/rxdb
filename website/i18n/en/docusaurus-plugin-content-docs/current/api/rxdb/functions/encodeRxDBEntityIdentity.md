@@ -14,14 +14,15 @@ Encodes an entity identity for AAD (Additional Authenticated Data) and identity 
   by prefix alone, with no external schema hint needed.
 
 Use cases:
+
 1. The encryption adapter uses these bytes as AES-GCM AAD, participating in integrity verification;
 2. [getRxDBEntityIdentityKey](getRxDBEntityIdentityKey.md) hex-encodes them into a stable "identity key" string.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `id` | [`RxDBEntityId`](../type-aliases/RxDBEntityId.md) |
+| Parameter | Type                                              |
+| --------- | ------------------------------------------------- |
+| `id`      | [`RxDBEntityId`](../type-aliases/RxDBEntityId.md) |
 
 ## Returns
 

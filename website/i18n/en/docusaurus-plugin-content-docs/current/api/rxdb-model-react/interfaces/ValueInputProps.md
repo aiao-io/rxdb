@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/value-input/value-input
 
 Enum option list.
 
-***
+---
 
 ### errorMessage? \{#errormessage\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/value-input/value-input
 
 Validation error message (shown as a tooltip and error styling).
 
-***
+---
 
 ### fieldType? \{#fieldtype\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/value-input/value-input
 
 Field type, defaults to `'string'`.
 
-***
+---
 
 ### onValueChange? \{#onvaluechange\}
 
@@ -54,15 +54,15 @@ Value change callback.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `value`   | `unknown` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onWhereChange? \{#onwherechange\}
 
@@ -76,15 +76,15 @@ Subquery change callback.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `where` | \| [`QueryBuilderRuleGroup`](QueryBuilderRuleGroup.md)&lt;`Record`&lt;`string`, `unknown`&gt;&gt; \| `undefined` |
+| Parameter | Type                                                                                                             |
+| --------- | ---------------------------------------------------------------------------------------------------------------- |
+| `where`   | \| [`QueryBuilderRuleGroup`](QueryBuilderRuleGroup.md)&lt;`Record`&lt;`string`, `unknown`&gt;&gt; \| `undefined` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### operator? \{#operator\}
 
@@ -96,7 +96,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/value-input/value-input
 
 Operator, defaults to `'='`.
 
-***
+---
 
 ### relationFields? \{#relationfields\}
 
@@ -108,7 +108,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/value-input/value-input
 
 Target field list of a relation field (used for exists subqueries).
 
-***
+---
 
 ### value? \{#value\}
 
@@ -120,7 +120,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/value-input/value-input
 
 Current value, defaults to `''`.
 
-***
+---
 
 ### where? \{#where\}
 

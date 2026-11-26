@@ -30,7 +30,7 @@ automatically generates a UUID and fixes it as part of the singleton lifecycle. 
 with another tab, the "own-message filter" of pull/push breaks, causing this tab to misjudge the changes it just
 pushed as someone else's and pull them back.
 
-***
+---
 
 ### userId? \{#userid\}
 

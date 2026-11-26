@@ -12,7 +12,7 @@ judging whether data needs updating by comparing local and remote `updatedAt`.
 ```typescript
 const remoteMetadata: QueryCacheEntityMetadata[] = [
   { id: 'entity-1', updatedAt: '2026-01-12T10:00:00Z' },
-  { id: 'entity-2', updatedAt: '2026-01-12T09:30:00Z' },
+  { id: 'entity-2', updatedAt: '2026-01-12T09:30:00Z' }
 ];
 ```
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb/src/entity/sync-options.interface.ts:175](https://git
 
 The entity's unique identifier
 
-***
+---
 
 ### updatedAt \{#updatedat\}
 

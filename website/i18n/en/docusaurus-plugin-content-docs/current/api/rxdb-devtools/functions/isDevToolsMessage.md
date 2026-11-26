@@ -10,9 +10,9 @@ Strictly validates the message envelope, direction, known type, and command payl
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `data` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `data`    | `unknown` |
 
 ## Returns
 

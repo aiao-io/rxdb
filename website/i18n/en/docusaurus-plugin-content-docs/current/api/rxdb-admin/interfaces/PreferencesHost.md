@@ -18,16 +18,16 @@ Registers a listener.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `type` | `"storage"` \| `"pagehide"` |
-| `listener` | (`event`) => `void` |
+| Parameter  | Type                        |
+| ---------- | --------------------------- |
+| `type`     | `"storage"` \| `"pagehide"` |
+| `listener` | (`event`) => `void`         |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### removeEventListener() \{#removeeventlistener\}
 
@@ -41,10 +41,10 @@ Removes the listener.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `type` | `"storage"` \| `"pagehide"` |
-| `listener` | (`event`) => `void` |
+| Parameter  | Type                        |
+| ---------- | --------------------------- |
+| `type`     | `"storage"` \| `"pagehide"` |
+| `listener` | (`event`) => `void`         |
 
 #### Returns
 

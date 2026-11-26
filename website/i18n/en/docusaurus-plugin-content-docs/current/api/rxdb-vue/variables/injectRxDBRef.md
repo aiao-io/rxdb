@@ -1,7 +1,7 @@
 # injectRxDBRef
 
 ```ts
-injectRxDBRef: (quiet?) => 
+injectRxDBRef: (quiet?) =>
   | Readonly<Ref<RxDB | undefined, RxDB | undefined>>
   | undefined;
 ```
@@ -10,11 +10,11 @@ Defined in: [rxdb-vue/src/rxdb-vue.ts:202](https://github.com/aiao-io/rxdb/blob/
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `quiet?` | `boolean` |
+| Parameter | Type      |
+| --------- | --------- |
+| `quiet?`  | `boolean` |
 
 ## Returns
 
-  \| `Readonly`&lt;`Ref`&lt;[`RxDB`](../../rxdb/classes/RxDB.md) \| `undefined`, [`RxDB`](../../rxdb/classes/RxDB.md) \| `undefined`&gt;&gt;
-  \| `undefined`
+\| `Readonly`&lt;`Ref`&lt;[`RxDB`](../../rxdb/classes/RxDB.md) \| `undefined`, [`RxDB`](../../rxdb/classes/RxDB.md) \| `undefined`&gt;&gt;
+\| `undefined`

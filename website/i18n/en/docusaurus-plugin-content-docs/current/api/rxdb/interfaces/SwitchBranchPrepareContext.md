@@ -23,7 +23,7 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:173](https://github.com/aiao-io/r
 
 The executor of the switch transaction; the callback's reads and writes here are in the same transaction as this switch
 
-***
+---
 
 ### targetBranchId \{#targetbranchid\}
 

@@ -1,11 +1,7 @@
 # validateEntityFieldValue()
 
 ```ts
-function validateEntityFieldValue(
-   field, 
-   value, 
-   i18n?
-): FieldValidationError | null;
+function validateEntityFieldValue(field, value, i18n?): FieldValidationError | null;
 ```
 
 Defined in: packages/rxdb-model/dist/entity-value.utils.d.ts:58
@@ -14,11 +10,11 @@ Validates whether a single field value satisfies the field configuration constra
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `field` | [`EntityFieldConfig`](../interfaces/EntityFieldConfig.md) | Field configuration |
-| `value` | `unknown` | The field value to validate |
-| `i18n?` | [`ModelI18n`](../interfaces/ModelI18n.md) | - |
+| Parameter | Type                                                      | Description                 |
+| --------- | --------------------------------------------------------- | --------------------------- |
+| `field`   | [`EntityFieldConfig`](../interfaces/EntityFieldConfig.md) | Field configuration         |
+| `value`   | `unknown`                                                 | The field value to validate |
+| `i18n?`   | [`ModelI18n`](../interfaces/ModelI18n.md)                 | -                           |
 
 ## Returns
 

@@ -10,9 +10,9 @@ Groups repositories by sync type.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entities` | `Readonly`&lt;[`EntityMetadataType`](../interfaces/EntityMetadataType.md)&gt;[] | An array of entity metadata |
+| Parameter     | Type                                                                                                              | Description                                                                                                                                         |
+| ------------- | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `entities`    | `Readonly`&lt;[`EntityMetadataType`](../interfaces/EntityMetadataType.md)&gt;[]                                   | An array of entity metadata                                                                                                                         |
 | `globalSync?` | \| [`SyncOptions`](../type-aliases/SyncOptions.md) \| [`EntitySyncResolver`](../interfaces/EntitySyncResolver.md) | Global sync configuration (optional); when an instance resolver `rxdb.entitySync` is passed, instance-level overrides are resolved together with it |
 
 ## Returns

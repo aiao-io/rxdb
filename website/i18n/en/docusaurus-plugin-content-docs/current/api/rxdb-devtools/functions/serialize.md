@@ -10,10 +10,10 @@ Serializes an RxDB event.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `object` & `Record`&lt;`string`, `unknown`&gt; |
-| `sequence` | `number` |
+| Parameter  | Type                                           |
+| ---------- | ---------------------------------------------- |
+| `event`    | `object` & `Record`&lt;`string`, `unknown`&gt; |
+| `sequence` | `number`                                       |
 
 ## Returns
 

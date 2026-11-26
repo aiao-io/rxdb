@@ -10,8 +10,8 @@ Renders a repository identifier as `namespace:entity` (the key format shared by 
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter    | Type                                                            | Description               |
+| ------------ | --------------------------------------------------------------- | ------------------------- |
 | `repository` | [`RepositoryIdentifier`](../interfaces/RepositoryIdentifier.md) | The repository identifier |
 
 ## Returns

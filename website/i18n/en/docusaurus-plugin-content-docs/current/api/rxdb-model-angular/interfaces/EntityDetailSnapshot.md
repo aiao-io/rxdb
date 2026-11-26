@@ -14,7 +14,7 @@ readonly activeTab: string;
 
 Defined in: packages/rxdb-model/dist/entity-detail/headless.d.ts:6
 
-***
+---
 
 ### error \{#error\}
 
@@ -24,7 +24,7 @@ readonly error: unknown;
 
 Defined in: packages/rxdb-model/dist/entity-detail/headless.d.ts:11
 
-***
+---
 
 ### form \{#form\}
 
@@ -36,7 +36,7 @@ Defined in: packages/rxdb-model/dist/entity-detail/headless.d.ts:9
 
 The form snapshot of the same detail draft.
 
-***
+---
 
 ### mode \{#mode\}
 
@@ -46,7 +46,7 @@ readonly mode: "view" | "edit" | "create";
 
 Defined in: packages/rxdb-model/dist/entity-detail/headless.d.ts:5
 
-***
+---
 
 ### open \{#open\}
 
@@ -56,7 +56,7 @@ readonly open: boolean;
 
 Defined in: packages/rxdb-model/dist/entity-detail/headless.d.ts:12
 
-***
+---
 
 ### saving \{#saving\}
 
@@ -66,7 +66,7 @@ readonly saving: boolean;
 
 Defined in: packages/rxdb-model/dist/entity-detail/headless.d.ts:10
 
-***
+---
 
 ### tabs \{#tabs\}
 

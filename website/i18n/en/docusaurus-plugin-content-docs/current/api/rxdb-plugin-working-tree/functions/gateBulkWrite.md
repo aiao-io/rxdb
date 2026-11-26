@@ -10,16 +10,16 @@ Judges one bulk write, invoking the write primitive factory only when allowed
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                                | Description                                                                               |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | <a id="type-parameter-tresult"></a> `TResult` | The write primitive's return type; the gate passes it through as-is, without any wrapping |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                            | Description                                          |
+| --------- | --------------------------------------------------------------- | ---------------------------------------------------- |
 | `request` | [`BulkWriteGateRequest`](../interfaces/BulkWriteGateRequest.md) | Entity name, method, target class and capability bit |
-| `run` | () => `TResult` | The **not-yet-invoked** write primitive factory |
+| `run`     | () => `TResult`                                                 | The **not-yet-invoked** write primitive factory      |
 
 ## Returns
 
@@ -30,7 +30,7 @@ Judges one bulk write, invoking the write primitive factory only when allowed
 ## Throws
 
 [WorkingTreeWriteRejectedError](../classes/WorkingTreeWriteRejectedError.md) thrown **synchronously** when the target is a versioned business entity table and the commit capability is enabled;
-  in that case `run` is never invoked
+in that case `run` is never invoked
 
 ## Remarks
 

@@ -10,9 +10,9 @@ Whether this is a commit view.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `target` | [`WorktreeTarget`](../type-aliases/WorktreeTarget.md) | The HEAD of a checkout |
+| Parameter | Type                                                  | Description            |
+| --------- | ----------------------------------------------------- | ---------------------- |
+| `target`  | [`WorktreeTarget`](../type-aliases/WorktreeTarget.md) | The HEAD of a checkout |
 
 ## Returns
 

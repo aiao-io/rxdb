@@ -19,7 +19,7 @@ color?: string;
 
 Defined in: [packages/rxdb/src/entity/cascade-options.interface.ts:170](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/cascade-options.interface.ts#L170)
 
-***
+---
 
 ### disabled? \{#disabled\}
 
@@ -29,7 +29,7 @@ disabled?: boolean;
 
 Defined in: [packages/rxdb/src/entity/cascade-options.interface.ts:171](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/cascade-options.interface.ts#L171)
 
-***
+---
 
 ### label? \{#label\}
 

@@ -30,12 +30,12 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/working-tree-pat
 
 Looks up the peer entity metadata for foreign key columns; when omitted, foreign key columns are handled with the types already declared on this entity
 
-***
+---
 
 ### resolveTargetMetadata \{#resolvetargetmetadata\}
 
 ```ts
-readonly resolveTargetMetadata: (entity, namespace) => 
+readonly resolveTargetMetadata: (entity, namespace) =>
   | Readonly<EntityMetadataType>
   | undefined;
 ```
@@ -46,12 +46,12 @@ Resolves the metadata of the entity a patch belongs to by `(entity, namespace)`
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `entity` | `string` |
+| Parameter   | Type     |
+| ----------- | -------- |
+| `entity`    | `string` |
 | `namespace` | `string` |
 
 #### Returns
 
-  \| `Readonly`&lt;[`EntityMetadataType`](../../rxdb/interfaces/EntityMetadataType.md)&gt;
-  \| `undefined`
+\| `Readonly`&lt;[`EntityMetadataType`](../../rxdb/interfaces/EntityMetadataType.md)&gt;
+\| `undefined`

@@ -20,8 +20,8 @@ no longer inferred from the `#transaction_lock` boolean ambient state on the ada
 
 ```ts
 new SqliteTransactionExecutor(
-   adapter, 
-   client, 
+   adapter,
+   client,
    id
 ): SqliteTransactionExecutor;
 ```
@@ -30,11 +30,11 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/transaction/SqliteTransaction
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `adapter` | [`RxDBAdapterSqliteBase`](RxDBAdapterSqliteBase.md) |
-| `client` | [`SqliteClientLike`](../interfaces/SqliteClientLike.md) |
-| `id` | `string` |
+| Parameter | Type                                                    |
+| --------- | ------------------------------------------------------- |
+| `adapter` | [`RxDBAdapterSqliteBase`](RxDBAdapterSqliteBase.md)     |
+| `client`  | [`SqliteClientLike`](../interfaces/SqliteClientLike.md) |
+| `id`      | `string`                                                |
 
 #### Returns
 
@@ -80,7 +80,7 @@ The adapter facade scoped to this transaction: hand it to internal helpers, and 
 
 [`RxDBAdapterSqliteBase`](RxDBAdapterSqliteBase.md)
 
-***
+---
 
 ### state \{#state\}
 
@@ -104,7 +104,7 @@ The lifecycle state.
 
 [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md).[`state`](../../rxdb/interfaces/TransactionExecutor.md#state)
 
-***
+---
 
 ### tableSet \{#tableset\}
 
@@ -147,9 +147,9 @@ Executes a statement directly on this transaction's connection.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `sql` | `string` |
+| Parameter   | Type                                                                |
+| ----------- | ------------------------------------------------------------------- |
+| `sql`       | `string`                                                            |
 | `bindings?` | [`SQLiteCompatibleType`](../type-aliases/SQLiteCompatibleType.md)[] |
 
 #### Returns
@@ -161,7 +161,7 @@ Executes a statement directly on this transaction's connection.
 The passthrough entry specific to the SQLite side, kept compatible with the existing `transaction(async tx => tx.execute(sql))` style.
 The cross-adapter portable entry is [query](#query).
 
-***
+---
 
 ### getRepository() \{#getrepository\}
 
@@ -175,15 +175,15 @@ Gets a repository inside this transaction.
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                    |
+| ------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `EntityType` | `T` | The entity type |
+| Parameter    | Type | Description     |
+| ------------ | ---- | --------------- |
+| `EntityType` | `T`  | The entity type |
 
 #### Returns
 
@@ -214,14 +214,14 @@ await adapter.transaction(async executor => {
 
 [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md).[`getRepository`](../../rxdb/interfaces/TransactionExecutor.md#getrepository)
 
-***
+---
 
 ### mergeChanges() \{#mergechanges\}
 
 ```ts
 mergeChanges(
-   actions, 
-   localChanges?, 
+   actions,
+   localChanges?,
    disableTriggers?
 ): Promise<void>;
 ```
@@ -232,11 +232,11 @@ Applies compressed changes inside this transaction.
 
 #### Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `actions` | [`SwitchVersionActions`](../../rxdb/interfaces/SwitchVersionActions.md) | `undefined` | The set of compressed change operations |
-| `localChanges?` | `Omit`&lt;[`RxDBChange`](../../rxdb/classes/RxDBChange.md), `"id"`&gt;[] | `undefined` | Records to write into the local `RxDBChange` table as well |
-| `disableTriggers?` | `boolean` | `false` | Whether to disable change triggers (pull and similar scenarios) |
+| Parameter          | Type                                                                     | Default value | Description                                                     |
+| ------------------ | ------------------------------------------------------------------------ | ------------- | --------------------------------------------------------------- |
+| `actions`          | [`SwitchVersionActions`](../../rxdb/interfaces/SwitchVersionActions.md)  | `undefined`   | The set of compressed change operations                         |
+| `localChanges?`    | `Omit`&lt;[`RxDBChange`](../../rxdb/classes/RxDBChange.md), `"id"`&gt;[] | `undefined`   | Records to write into the local `RxDBChange` table as well      |
+| `disableTriggers?` | `boolean`                                                                | `false`       | Whether to disable change triggers (pull and similar scenarios) |
 
 #### Returns
 
@@ -255,7 +255,7 @@ It is the main write of the 4 transaction bodies in the sync pipeline (`merge-br
 
 [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md).[`mergeChanges`](../../rxdb/interfaces/TransactionExecutor.md#mergechanges)
 
-***
+---
 
 ### mutations() \{#mutations\}
 
@@ -269,14 +269,14 @@ Executes entity mutations inside this transaction.
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-1"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                      |
+| --------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-1"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                       | Description                   |
+| --------- | -------------------------------------------------------------------------- | ----------------------------- |
 | `options` | [`RxDBMutationsMap`](../../rxdb/interfaces/RxDBMutationsMap.md)&lt;`T`&gt; | The batch mutation collection |
 
 #### Returns
@@ -287,7 +287,7 @@ Executes entity mutations inside this transaction.
 
 [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md).[`mutations`](../../rxdb/interfaces/TransactionExecutor.md#mutations)
 
-***
+---
 
 ### query() \{#query\}
 
@@ -301,10 +301,10 @@ Executes a raw query inside this transaction, without enqueueing again.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `sql` | `string` | The SQL statement |
-| `params?` | readonly `unknown`[] | Bound parameters |
+| Parameter | Type                 | Description       |
+| --------- | -------------------- | ----------------- |
+| `sql`     | `string`             | The SQL statement |
+| `params?` | readonly `unknown`[] | Bound parameters  |
 
 #### Returns
 
@@ -314,7 +314,7 @@ Executes a raw query inside this transaction, without enqueueing again.
 
 [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md).[`query`](../../rxdb/interfaces/TransactionExecutor.md#query)
 
-***
+---
 
 ### removeMany() \{#removemany\}
 
@@ -328,14 +328,14 @@ Deletes multiple entities inside this transaction.
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-2"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                      |
+| --------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-2"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                        | Description            |
+| ---------- | --------------------------- | ---------------------- |
 | `entities` | `InstanceType`&lt;`T`&gt;[] | The entities to delete |
 
 #### Returns
@@ -346,7 +346,7 @@ Deletes multiple entities inside this transaction.
 
 [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md).[`removeMany`](../../rxdb/interfaces/TransactionExecutor.md#removemany)
 
-***
+---
 
 ### run() \{#run\}
 
@@ -360,15 +360,15 @@ Nested inner work: reuses this transaction — neither opens a new one nor enque
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                      |
+| ----------------------------------- |
 | <a id="type-parameter-t-3"></a> `T` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `fun` | (`executor`) => `Promise`&lt;`T`&gt; | The inner work; its parameter is the executor of the same transaction |
+| Parameter | Type                                 | Description                                                           |
+| --------- | ------------------------------------ | --------------------------------------------------------------------- |
+| `fun`     | (`executor`) => `Promise`&lt;`T`&gt; | The inner work; its parameter is the executor of the same transaction |
 
 #### Returns
 
@@ -383,7 +383,7 @@ so using it to open a semantically independent concurrent transaction would be s
 
 [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md).[`run`](../../rxdb/interfaces/TransactionExecutor.md#run)
 
-***
+---
 
 ### saveMany() \{#savemany\}
 
@@ -397,14 +397,14 @@ Saves multiple entities inside this transaction.
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-4"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                      |
+| --------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-4"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                        | Description          |
+| ---------- | --------------------------- | -------------------- |
 | `entities` | `InstanceType`&lt;`T`&gt;[] | The entities to save |
 
 #### Returns
@@ -420,7 +420,7 @@ Calling `adapter.saveMany()` inside a transaction body is an **external call**, 
 
 [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md).[`saveMany`](../../rxdb/interfaces/TransactionExecutor.md#savemany)
 
-***
+---
 
 ### settle() \{#settle\}
 
@@ -436,15 +436,15 @@ Pushes the executor into a terminal state. Only callable by the adapter's transa
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `state` | `"committed"` \| `"rolled-back"` |
+| Parameter | Type                             |
+| --------- | -------------------------------- |
+| `state`   | `"committed"` \| `"rolled-back"` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### tableRef() \{#tableref\}
 
@@ -458,8 +458,8 @@ The physical table reference of the SQLite family: `namespace` is the table name
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter    | Type                                                  |
+| ------------ | ----------------------------------------------------- |
 | `EntityType` | [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 #### Returns

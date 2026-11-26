@@ -10,10 +10,10 @@ Converts an entity object to form data
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `Record`&lt;`string`, `unknown`&gt; | The source entity object |
-| `fields` | [`FormFieldConfig`](../interfaces/FormFieldConfig.md)[] | Form field configuration |
+| Parameter | Type                                                    | Description              |
+| --------- | ------------------------------------------------------- | ------------------------ |
+| `entity`  | `Record`&lt;`string`, `unknown`&gt;                     | The source entity object |
+| `fields`  | [`FormFieldConfig`](../interfaces/FormFieldConfig.md)[] | Form field configuration |
 
 ## Returns
 

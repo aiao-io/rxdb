@@ -1,21 +1,21 @@
 # FoldOutcome
 
 ```ts
-type FoldOutcome = 
+type FoldOutcome =
   | {
-  entry: WorkingTreeEntryRow;
-  entryCountDelta: 1;
-  kind: "insert";
-}
+      entry: WorkingTreeEntryRow;
+      entryCountDelta: 1;
+      kind: 'insert';
+    }
   | {
-  entry: WorkingTreeEntryRow;
-  entryCountDelta: 0;
-  kind: "update";
-}
+      entry: WorkingTreeEntryRow;
+      entryCountDelta: 0;
+      kind: 'update';
+    }
   | {
-  entryCountDelta: -1;
-  kind: "remove";
-};
+      entryCountDelta: -1;
+      kind: 'remove';
+    };
 ```
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:111](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts#L111)
@@ -30,7 +30,7 @@ The conclusion of a fold; the three `kind`s correspond one-to-one with `entryCou
 {
   entry: WorkingTreeEntryRow;
   entryCountDelta: 1;
-  kind: "insert";
+  kind: 'insert';
 }
 ```
 
@@ -58,7 +58,7 @@ readonly kind: "insert";
 
 This entity had no uncommitted unit before
 
-***
+---
 
 ### Type Literal
 
@@ -66,7 +66,7 @@ This entity had no uncommitted unit before
 {
   entry: WorkingTreeEntryRow;
   entryCountDelta: 0;
-  kind: "update";
+  kind: 'update';
 }
 ```
 
@@ -94,14 +94,14 @@ readonly kind: "update";
 
 Folded into an existing unit
 
-***
+---
 
 ### Type Literal
 
 ```ts
 {
   entryCountDelta: -1;
-  kind: "remove";
+  kind: 'remove';
 }
 ```
 

@@ -18,16 +18,16 @@ Acquires the exclusive lock and runs `task` inside it.
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                              |
+| ------------------------------------------- |
 | <a id="type-parameter-tvalue"></a> `TValue` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `signal` | `AbortSignal` | The abort signal. |
-| `task` | () => `Promise`&lt;`TValue`&gt; | The materialization executed inside the lock. |
+| Parameter | Type                            | Description                                   |
+| --------- | ------------------------------- | --------------------------------------------- |
+| `signal`  | `AbortSignal`                   | The abort signal.                             |
+| `task`    | () => `Promise`&lt;`TValue`&gt; | The materialization executed inside the lock. |
 
 #### Returns
 

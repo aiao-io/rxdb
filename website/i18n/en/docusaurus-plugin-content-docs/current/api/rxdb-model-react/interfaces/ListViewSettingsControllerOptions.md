@@ -20,7 +20,7 @@ The current field sequence, in the same order as the field rows in the panel.
 
 readonly `string`[]
 
-***
+---
 
 ### onReorder \{#onreorder\}
 
@@ -34,9 +34,9 @@ Commits the new field ordering.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `fields` | `string`[] |
+| Parameter | Type       |
+| --------- | ---------- |
+| `fields`  | `string`[] |
 
 #### Returns
 

@@ -10,9 +10,9 @@ Safely gets the current row record from VTable callback arguments
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `args` | `StylePropertyFunctionArg` | VTable callback arguments |
+| Parameter | Type                       | Description               |
+| --------- | -------------------------- | ------------------------- |
+| `args`    | `StylePropertyFunctionArg` | VTable callback arguments |
 
 ## Returns
 

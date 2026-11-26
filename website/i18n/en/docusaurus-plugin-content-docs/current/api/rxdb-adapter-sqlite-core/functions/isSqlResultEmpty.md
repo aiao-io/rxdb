@@ -10,9 +10,9 @@ Checks whether a sqlite result is empty
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `result` | [`SqliteSuccessResult`](../interfaces/SqliteSuccessResult.md) | The SQLite query result |
+| Parameter | Type                                                          | Description             |
+| --------- | ------------------------------------------------------------- | ----------------------- |
+| `result`  | [`SqliteSuccessResult`](../interfaces/SqliteSuccessResult.md) | The SQLite query result |
 
 ## Returns
 

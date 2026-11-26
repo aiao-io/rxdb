@@ -18,8 +18,8 @@ When no initial selection is passed explicitly, it is read from the cell origin 
 
 ```ts
 new MultiSelectEditor(
-   options, 
-   selectedIds?, 
+   options,
+   selectedIds?,
    onCommit?
 ): MultiSelectEditor;
 ```
@@ -30,11 +30,11 @@ Creates a multi-select editor
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | [`MultiSelectOption`](../interfaces/MultiSelectOption.md)[] | All selectable options |
-| `selectedIds?` | `string`[] \| `null` | Initially selected option IDs; read from the cell origin value when omitted (null / undefined) |
-| `onCommit?` | (`ids`) => `void` | Commit callback on end of editing, receives the currently selected ID list |
+| Parameter      | Type                                                        | Description                                                                                    |
+| -------------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `options`      | [`MultiSelectOption`](../interfaces/MultiSelectOption.md)[] | All selectable options                                                                         |
+| `selectedIds?` | `string`[] \| `null`                                        | Initially selected option IDs; read from the cell origin value when omitted (null / undefined) |
+| `onCommit?`    | (`ids`) => `void`                                           | Commit callback on end of editing, receives the currently selected ID list                     |
 
 #### Returns
 
@@ -58,7 +58,7 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/global-overlay-editor.
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`container`](GlobalOverlayEditor.md#container)
 
-***
+---
 
 ### editCol \{#editcol\}
 
@@ -72,7 +72,7 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/global-overlay-editor.
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`editCol`](GlobalOverlayEditor.md#editcol)
 
-***
+---
 
 ### editorType \{#editortype\}
 
@@ -88,7 +88,7 @@ VTable editor type identifier (the editor name registered with VTable)
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`editorType`](GlobalOverlayEditor.md#editortype)
 
-***
+---
 
 ### editRow \{#editrow\}
 
@@ -102,7 +102,7 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/global-overlay-editor.
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`editRow`](GlobalOverlayEditor.md#editrow)
 
-***
+---
 
 ### messages \{#messages\}
 
@@ -116,12 +116,12 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/global-overlay-editor.
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`messages`](GlobalOverlayEditor.md#messages)
 
-***
+---
 
 ### table \{#table\}
 
 ```ts
-protected table: 
+protected table:
   | {
   getCellOriginValue(col, row): unknown;
 }
@@ -154,7 +154,7 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/global-overlay-editor.
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`focusedIndex`](GlobalOverlayEditor.md#focusedindex)
 
-***
+---
 
 ### initialFocusIndex \{#initialfocusindex\}
 
@@ -174,7 +174,7 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/multiselect-editor.d.t
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`initialFocusIndex`](GlobalOverlayEditor.md#initialfocusindex)
 
-***
+---
 
 ### itemCount \{#itemcount\}
 
@@ -208,9 +208,9 @@ Repositions the overlay panel according to the new cell rectangle
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rect` | `RectProps` |
+| Parameter | Type        |
+| --------- | ----------- |
+| `rect`    | `RectProps` |
 
 #### Returns
 
@@ -220,7 +220,7 @@ Repositions the overlay panel according to the new cell rectangle
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`adjustPosition`](GlobalOverlayEditor.md#adjustposition)
 
-***
+---
 
 ### buildRows() \{#buildrows\}
 
@@ -232,9 +232,9 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/multiselect-editor.d.t
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `panel` | `HTMLDivElement` |
+| Parameter | Type             |
+| --------- | ---------------- |
+| `panel`   | `HTMLDivElement` |
 
 #### Returns
 
@@ -244,7 +244,7 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/multiselect-editor.d.t
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`buildRows`](GlobalOverlayEditor.md#buildrows)
 
-***
+---
 
 ### close() \{#close\}
 
@@ -262,7 +262,7 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/global-overlay-editor.
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`close`](GlobalOverlayEditor.md#close)
 
-***
+---
 
 ### getValue() \{#getvalue\}
 
@@ -282,7 +282,7 @@ Returns the ids of the currently selected options joined by a comma and a space 
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`getValue`](GlobalOverlayEditor.md#getvalue)
 
-***
+---
 
 ### isEditorElement() \{#iseditorelement\}
 
@@ -296,9 +296,9 @@ Determines whether the target element belongs to the overlay panel
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `target` | `HTMLElement` |
+| Parameter | Type          |
+| --------- | ------------- |
+| `target`  | `HTMLElement` |
 
 #### Returns
 
@@ -308,7 +308,7 @@ Determines whether the target element belongs to the overlay panel
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`isEditorElement`](GlobalOverlayEditor.md#iseditorelement)
 
-***
+---
 
 ### onDeleteKey() \{#ondeletekey\}
 
@@ -326,7 +326,7 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/global-overlay-editor.
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`onDeleteKey`](GlobalOverlayEditor.md#ondeletekey)
 
-***
+---
 
 ### onEnd() \{#onend\}
 
@@ -346,7 +346,7 @@ On end of editing, fires the commit callback with the currently selected ID list
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`onEnd`](GlobalOverlayEditor.md#onend)
 
-***
+---
 
 ### onFocusChange() \{#onfocuschange\}
 
@@ -358,10 +358,10 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/multiselect-editor.d.t
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `idx` | `number` |
-| `prev` | `number` |
+| Parameter | Type     |
+| --------- | -------- |
+| `idx`     | `number` |
+| `prev`    | `number` |
 
 #### Returns
 
@@ -371,7 +371,7 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/multiselect-editor.d.t
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`onFocusChange`](GlobalOverlayEditor.md#onfocuschange)
 
-***
+---
 
 ### onRowClick() \{#onrowclick\}
 
@@ -383,9 +383,9 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/multiselect-editor.d.t
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `idx` | `number` |
+| Parameter | Type     |
+| --------- | -------- |
+| `idx`     | `number` |
 
 #### Returns
 
@@ -395,7 +395,7 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/multiselect-editor.d.t
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`onRowClick`](GlobalOverlayEditor.md#onrowclick)
 
-***
+---
 
 ### onStart() \{#onstart\}
 
@@ -409,9 +409,9 @@ Opens the overlay: parses the selected ids from the cell origin value when there
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `ctx` | `EditContext`&lt;`string`, `any`&gt; |
+| Parameter | Type                                 |
+| --------- | ------------------------------------ |
+| `ctx`     | `EditContext`&lt;`string`, `any`&gt; |
 
 #### Returns
 
@@ -421,7 +421,7 @@ Opens the overlay: parses the selected ids from the cell origin value when there
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`onStart`](GlobalOverlayEditor.md#onstart)
 
-***
+---
 
 ### refocusTable() \{#refocustable\}
 
@@ -439,7 +439,7 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/global-overlay-editor.
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`refocusTable`](GlobalOverlayEditor.md#refocustable)
 
-***
+---
 
 ### rowAt() \{#rowat\}
 
@@ -451,9 +451,9 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/global-overlay-editor.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `idx` | `number` |
+| Parameter | Type     |
+| --------- | -------- |
+| `idx`     | `number` |
 
 #### Returns
 
@@ -463,7 +463,7 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/global-overlay-editor.
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`rowAt`](GlobalOverlayEditor.md#rowat)
 
-***
+---
 
 ### setFocused() \{#setfocused\}
 
@@ -475,9 +475,9 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/global-overlay-editor.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `idx` | `number` |
+| Parameter | Type     |
+| --------- | -------- |
+| `idx`     | `number` |
 
 #### Returns
 

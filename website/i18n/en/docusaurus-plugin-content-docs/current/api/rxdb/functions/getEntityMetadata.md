@@ -10,15 +10,15 @@ Gets the entity metadata.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                            |
+| ----------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `target` | `T` \| `InstanceType`&lt;`T`&gt; | The entity class or entity instance |
+| Parameter | Type                             | Description                         |
+| --------- | -------------------------------- | ----------------------------------- |
+| `target`  | `T` \| `InstanceType`&lt;`T`&gt; | The entity class or entity instance |
 
 ## Returns
 

@@ -10,9 +10,9 @@ Decodes RFC 4648 standard base64 and requires the input to be the **canonical** 
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | The value to decode; anything that is not a string is treated as invalid. |
+| Parameter | Type      | Description                                                               |
+| --------- | --------- | ------------------------------------------------------------------------- |
+| `value`   | `unknown` | The value to decode; anything that is not a string is treated as invalid. |
 
 ## Returns
 

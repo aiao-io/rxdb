@@ -25,7 +25,7 @@ Defined in: [packages/rxdb/src/system/migration.ts:151](https://github.com/aiao-
 
 The capability name, same as the `IRxDBPlugin.name` of the plugin that contributes it
 
-***
+---
 
 ### kind \{#kind\}
 

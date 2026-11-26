@@ -21,7 +21,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/diff.ts:55](http
 
 The previous page's [WorkingTreeDiff.nextCursor](WorkingTreeDiff.md#nextcursor); read on from after it. **Only available with `granularity: 'entity'`**
 
-***
+---
 
 ### entities? \{#entities\}
 
@@ -33,7 +33,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/diff.ts:49](http
 
 Only look at these entity names; an empty array means "look at none", not "no filter"
 
-***
+---
 
 ### granularity? \{#granularity\}
 
@@ -45,7 +45,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/diff.ts:46](http
 
 The granularity to spread out at, defaults to `'entity'`
 
-***
+---
 
 ### limit? \{#limit\}
 

@@ -16,7 +16,7 @@ Defined in: [widgets/watermark.ts:6](https://github.com/aiao-io/rxdb/blob/b52320
 
 The opacity.
 
-***
+---
 
 ### height \{#height\}
 
@@ -28,7 +28,7 @@ Defined in: [widgets/watermark.ts:10](https://github.com/aiao-io/rxdb/blob/b5232
 
 The unit height (px).
 
-***
+---
 
 ### rotate \{#rotate\}
 
@@ -40,7 +40,7 @@ Defined in: [widgets/watermark.ts:4](https://github.com/aiao-io/rxdb/blob/b52320
 
 The rotation angle (degrees).
 
-***
+---
 
 ### width \{#width\}
 

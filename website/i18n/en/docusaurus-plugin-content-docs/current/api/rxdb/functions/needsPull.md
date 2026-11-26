@@ -10,9 +10,9 @@ Checks whether a repository needs pull.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) | The entity metadata |
+| Parameter     | Type                                                                                                              | Description                                                                                                                                         |
+| ------------- | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `metadata`    | [`EntityMetadata`](../type-aliases/EntityMetadata.md)                                                             | The entity metadata                                                                                                                                 |
 | `globalSync?` | \| [`SyncOptions`](../type-aliases/SyncOptions.md) \| [`EntitySyncResolver`](../interfaces/EntitySyncResolver.md) | Global sync configuration (optional); when an instance resolver `rxdb.entitySync` is passed, instance-level overrides are resolved together with it |
 
 ## Returns
@@ -30,10 +30,10 @@ guarded by `pullIneligibility` at the scheduling entry point.
 ## Example
 
 ```ts
-needsPull(metadataFull);       // true  (full)
-needsPull(metadataFilter);     // true  (filter)
+needsPull(metadataFull); // true  (full)
+needsPull(metadataFilter); // true  (filter)
 needsPull(metadataQueryCache); // true  (querycache — batch pull keeps pulling it)
-needsPull(metadataRemote);     // true  (remote)
-needsPull(metadataLocal);      // false (local)
-needsPull(metadataNone);       // false (none)
+needsPull(metadataRemote); // true  (remote)
+needsPull(metadataLocal); // false (local)
+needsPull(metadataNone); // false (none)
 ```

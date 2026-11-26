@@ -10,9 +10,9 @@ Waits for the given number of milliseconds
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `ms` | `number` | Number of milliseconds to wait |
+| Parameter | Type     | Description                    |
+| --------- | -------- | ------------------------------ |
+| `ms`      | `number` | Number of milliseconds to wait |
 
 ## Returns
 

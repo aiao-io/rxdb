@@ -1,12 +1,7 @@
 # withTriggersDisabled()
 
 ```ts
-function withTriggersDisabled<T>(
-   adapter, 
-   tx, 
-   body, 
-   tableSet?
-): Promise<T>;
+function withTriggersDisabled<T>(adapter, tx, body, tableSet?): Promise<T>;
 ```
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/version/with\_triggers\_disabled.ts:93](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/version/with_triggers_disabled.ts#L93)
@@ -15,18 +10,18 @@ Executes a block of writes inside a window with triggers disabled: drop triggers
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `adapter` | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md) | `undefined` | The SQLite adapter |
-| `tx` | [`SqlExecutor`](../type-aliases/SqlExecutor.md) | `undefined` | The executor of the **current** transaction; the three sandwich steps must land in the same transaction |
-| `body` | () => `Promise`&lt;`T`&gt; | `undefined` | The writes to execute inside the window; the return value is passed through as-is |
-| `tableSet?` | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md) | `adapter.tableSet` | Which table set's triggers to drop and reattach; default is the one this instance is mounted on; QueryCache writes pass the main table set (see below) |
+| Parameter   | Type                                                           | Default value      | Description                                                                                                                                            |
+| ----------- | -------------------------------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `adapter`   | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md) | `undefined`        | The SQLite adapter                                                                                                                                     |
+| `tx`        | [`SqlExecutor`](../type-aliases/SqlExecutor.md)                | `undefined`        | The executor of the **current** transaction; the three sandwich steps must land in the same transaction                                                |
+| `body`      | () => `Promise`&lt;`T`&gt;                                     | `undefined`        | The writes to execute inside the window; the return value is passed through as-is                                                                      |
+| `tableSet?` | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md)   | `adapter.tableSet` | Which table set's triggers to drop and reattach; default is the one this instance is mounted on; QueryCache writes pass the main table set (see below) |
 
 ## Returns
 
@@ -77,8 +72,5 @@ preserve both sides with `AggregateError` when both fail), and this one reuses t
 ## Example
 
 ```typescript
-await adapter.runInTransaction(
-  tx => withTriggersDisabled(adapter, tx, () => writeRemoteRows(tx, rows)),
-  false
-);
+await adapter.runInTransaction(tx => withTriggersDisabled(adapter, tx, () => writeRemoteRows(tx, rows)), false);
 ```

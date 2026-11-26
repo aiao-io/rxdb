@@ -10,8 +10,8 @@ Binds the shared form state to the React lifecycle.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                          |
+| --------- | ----------------------------------------------------------------------------- |
 | `options` | [`EntityFormControllerOptions`](../interfaces/EntityFormControllerOptions.md) |
 
 ## Returns

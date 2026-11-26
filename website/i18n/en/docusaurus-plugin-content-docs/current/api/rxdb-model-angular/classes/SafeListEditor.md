@@ -22,8 +22,8 @@ Defined in: node\_modules/.pnpm/@visactor+vtable-editors@1.26.8/node\_modules/@v
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter      | Type               |
+| -------------- | ------------------ |
 | `editorConfig` | `ListEditorConfig` |
 
 #### Returns
@@ -48,7 +48,7 @@ Defined in: node\_modules/.pnpm/@visactor+vtable-editors@1.26.8/node\_modules/@v
 
 `ListEditor.container`
 
-***
+---
 
 ### editorConfig? \{#editorconfig\}
 
@@ -62,7 +62,7 @@ Defined in: node\_modules/.pnpm/@visactor+vtable-editors@1.26.8/node\_modules/@v
 
 `ListEditor.editorConfig`
 
-***
+---
 
 ### editorType \{#editortype\}
 
@@ -76,7 +76,7 @@ Defined in: node\_modules/.pnpm/@visactor+vtable-editors@1.26.8/node\_modules/@v
 
 `ListEditor.editorType`
 
-***
+---
 
 ### element? \{#element\}
 
@@ -90,7 +90,7 @@ Defined in: node\_modules/.pnpm/@visactor+vtable-editors@1.26.8/node\_modules/@v
 
 `ListEditor.element`
 
-***
+---
 
 ### input? \{#input\}
 
@@ -104,7 +104,7 @@ Defined in: node\_modules/.pnpm/@visactor+vtable-editors@1.26.8/node\_modules/@v
 
 `ListEditor.input`
 
-***
+---
 
 ### successCallback? \{#successcallback\}
 
@@ -140,7 +140,7 @@ Defined in: node\_modules/.pnpm/@visactor+vtable-editors@1.26.8/node\_modules/@v
 
 `ListEditor._bindSelectChangeEvent`
 
-***
+---
 
 ### adjustPosition() \{#adjustposition\}
 
@@ -152,9 +152,9 @@ Defined in: node\_modules/.pnpm/@visactor+vtable-editors@1.26.8/node\_modules/@v
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rect` | `RectProps` |
+| Parameter | Type        |
+| --------- | ----------- |
+| `rect`    | `RectProps` |
 
 #### Returns
 
@@ -164,7 +164,7 @@ Defined in: node\_modules/.pnpm/@visactor+vtable-editors@1.26.8/node\_modules/@v
 
 `ListEditor.adjustPosition`
 
-***
+---
 
 ### createElement() \{#createelement\}
 
@@ -176,9 +176,9 @@ Defined in: node\_modules/.pnpm/@visactor+vtable-editors@1.26.8/node\_modules/@v
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `value`   | `string` |
 
 #### Returns
 
@@ -188,7 +188,7 @@ Defined in: node\_modules/.pnpm/@visactor+vtable-editors@1.26.8/node\_modules/@v
 
 `ListEditor.createElement`
 
-***
+---
 
 ### endEditing() \{#endediting\}
 
@@ -206,7 +206,7 @@ Defined in: node\_modules/.pnpm/@visactor+vtable-editors@1.26.8/node\_modules/@v
 
 `ListEditor.endEditing`
 
-***
+---
 
 ### getValue() \{#getvalue\}
 
@@ -224,7 +224,7 @@ Defined in: node\_modules/.pnpm/@visactor+vtable-editors@1.26.8/node\_modules/@v
 
 `ListEditor.getValue`
 
-***
+---
 
 ### isEditorElement() \{#iseditorelement\}
 
@@ -236,9 +236,9 @@ Defined in: node\_modules/.pnpm/@visactor+vtable-editors@1.26.8/node\_modules/@v
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `target` | `HTMLElement` |
+| Parameter | Type          |
+| --------- | ------------- |
+| `target`  | `HTMLElement` |
 
 #### Returns
 
@@ -248,7 +248,7 @@ Defined in: node\_modules/.pnpm/@visactor+vtable-editors@1.26.8/node\_modules/@v
 
 `ListEditor.isEditorElement`
 
-***
+---
 
 ### onEnd() \{#onend\}
 
@@ -268,7 +268,7 @@ Calls the parent onEnd, swallowing the TypeError caused by a null parentNode in 
 
 `ListEditor.onEnd`
 
-***
+---
 
 ### onStart() \{#onstart\}
 
@@ -280,8 +280,8 @@ Defined in: node\_modules/.pnpm/@visactor+vtable-editors@1.26.8/node\_modules/@v
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter           | Type          |
+| ------------------- | ------------- |
 | `__namedParameters` | `EditContext` |
 
 #### Returns
@@ -292,7 +292,7 @@ Defined in: node\_modules/.pnpm/@visactor+vtable-editors@1.26.8/node\_modules/@v
 
 `ListEditor.onStart`
 
-***
+---
 
 ### setValue() \{#setvalue\}
 
@@ -304,9 +304,9 @@ Defined in: node\_modules/.pnpm/@visactor+vtable-editors@1.26.8/node\_modules/@v
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `value`   | `string` |
 
 #### Returns
 

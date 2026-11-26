@@ -10,9 +10,9 @@ Encodes a byte sequence as RFC 4648 standard base64 (with canonical padding).
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `bytes` | `Uint8Array` | The bytes to encode. |
+| Parameter | Type         | Description          |
+| --------- | ------------ | -------------------- |
+| `bytes`   | `Uint8Array` | The bytes to encode. |
 
 ## Returns
 

@@ -10,9 +10,9 @@ Creates the root element binding.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `root` | [`RootTarget`](../interfaces/RootTarget.md) | The root element. |
+| Parameter | Type                                        | Description       |
+| --------- | ------------------------------------------- | ----------------- |
+| `root`    | [`RootTarget`](../interfaces/RootTarget.md) | The root element. |
 
 ## Returns
 

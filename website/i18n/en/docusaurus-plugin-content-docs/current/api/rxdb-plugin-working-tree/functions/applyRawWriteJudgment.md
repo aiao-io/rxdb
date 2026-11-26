@@ -1,11 +1,7 @@
 # applyRawWriteJudgment()
 
 ```ts
-function applyRawWriteJudgment<T>(
-   sql, 
-   context, 
-   execute
-): Promise<T>;
+function applyRawWriteJudgment<T>(sql, context, execute): Promise<T>;
 ```
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/raw-write-judgment.ts:836](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/raw-write-judgment.ts#L836)
@@ -14,17 +10,17 @@ Judges, and executes the statement when allowed; implementation of the capture r
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                    | Description                 |
+| --------------------------------- | --------------------------- |
 | <a id="type-parameter-t"></a> `T` | Return type of the executor |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `sql` | `string` | The original statement |
-| `context` | [`RawWriteJudgmentContext`](../interfaces/RawWriteJudgmentContext.md) | Judgment context |
-| `execute` | () => `T` \| `Promise`&lt;`T`&gt; | The executor that actually issues the statement |
+| Parameter | Type                                                                  | Description                                     |
+| --------- | --------------------------------------------------------------------- | ----------------------------------------------- |
+| `sql`     | `string`                                                              | The original statement                          |
+| `context` | [`RawWriteJudgmentContext`](../interfaces/RawWriteJudgmentContext.md) | Judgment context                                |
+| `execute` | () => `T` \| `Promise`&lt;`T`&gt;                                     | The executor that actually issues the statement |
 
 ## Returns
 

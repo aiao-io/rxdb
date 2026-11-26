@@ -10,8 +10,8 @@ Subquery builder component: nested query conditions for EXISTS / NOT EXISTS.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter           | Type                                                            |
+| ------------------- | --------------------------------------------------------------- |
 | `__namedParameters` | [`SubqueryBuilderProps`](../interfaces/SubqueryBuilderProps.md) |
 
 ## Returns

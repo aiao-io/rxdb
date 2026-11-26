@@ -5,6 +5,7 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/global-overlay-editor.
 Abstract base class for global overlay list editors
 
 Provides the common infrastructure; subclasses only need to care about content rendering and selection logic:
+
 - fixed overlay on `document.body` + smart upward/downward flip positioning
 - close on outside click, close on Escape
 - keyboard navigation (↑ ↓ Enter)
@@ -12,6 +13,7 @@ Provides the common infrastructure; subclasses only need to care about content r
 - `refocusTable` focus restoration
 
 ### Subclass implementation requirements
+
 1. Declare `readonly editorType: string`
 2. Implement `buildRows(panel)` — renders rows into the panel; rows must set `data-idx`
 3. Implement `get itemCount()` — total row count
@@ -55,7 +57,7 @@ protected container: HTMLElement | null;
 
 Defined in: packages/rxdb-model/dist/entity-table/editors/global-overlay-editor.d.ts:67
 
-***
+---
 
 ### editCol \{#editcol\}
 
@@ -65,7 +67,7 @@ protected editCol: number;
 
 Defined in: packages/rxdb-model/dist/entity-table/editors/global-overlay-editor.d.ts:71
 
-***
+---
 
 ### editorType \{#editortype\}
 
@@ -77,7 +79,7 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/global-overlay-editor.
 
 VTable editor type identifier (the editor name registered with VTable, assigned by subclasses)
 
-***
+---
 
 ### editRow \{#editrow\}
 
@@ -87,7 +89,7 @@ protected editRow: number;
 
 Defined in: packages/rxdb-model/dist/entity-table/editors/global-overlay-editor.d.ts:72
 
-***
+---
 
 ### messages \{#messages\}
 
@@ -97,12 +99,12 @@ protected readonly messages: ModelEditorI18n;
 
 Defined in: packages/rxdb-model/dist/entity-table/editors/global-overlay-editor.d.ts:66
 
-***
+---
 
 ### table \{#table\}
 
 ```ts
-protected table: 
+protected table:
   | {
   getCellOriginValue(col, row): unknown;
 }
@@ -127,7 +129,7 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/global-overlay-editor.
 
 `number`
 
-***
+---
 
 ### initialFocusIndex \{#initialfocusindex\}
 
@@ -143,7 +145,7 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/global-overlay-editor.
 
 `number`
 
-***
+---
 
 ### itemCount \{#itemcount\}
 
@@ -173,9 +175,9 @@ Repositions the overlay panel to the new cell rectangle
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rect` | `RectProps` |
+| Parameter | Type        |
+| --------- | ----------- |
+| `rect`    | `RectProps` |
 
 #### Returns
 
@@ -185,7 +187,7 @@ Repositions the overlay panel to the new cell rectangle
 
 `IEditor.adjustPosition`
 
-***
+---
 
 ### buildRows() \{#buildrows\}
 
@@ -197,15 +199,15 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/global-overlay-editor.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `panel` | `HTMLDivElement` |
+| Parameter | Type             |
+| --------- | ---------------- |
+| `panel`   | `HTMLDivElement` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### close() \{#close\}
 
@@ -219,7 +221,7 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/global-overlay-editor.
 
 `void`
 
-***
+---
 
 ### getValue() \{#getvalue\}
 
@@ -239,7 +241,7 @@ Returns the edited result value
 
 `IEditor.getValue`
 
-***
+---
 
 ### isEditorElement() \{#iseditorelement\}
 
@@ -253,9 +255,9 @@ Determines whether the target element belongs to the overlay panel
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `target` | `HTMLElement` |
+| Parameter | Type          |
+| --------- | ------------- |
+| `target`  | `HTMLElement` |
 
 #### Returns
 
@@ -265,7 +267,7 @@ Determines whether the target element belongs to the overlay panel
 
 `IEditor.isEditorElement`
 
-***
+---
 
 ### onDeleteKey() \{#ondeletekey\}
 
@@ -279,7 +281,7 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/global-overlay-editor.
 
 `void`
 
-***
+---
 
 ### onEnd() \{#onend\}
 
@@ -299,7 +301,7 @@ Closes the overlay: removes the panel and unregisters global mouse/keyboard list
 
 `IEditor.onEnd`
 
-***
+---
 
 ### onFocusChange() \{#onfocuschange\}
 
@@ -311,16 +313,16 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/global-overlay-editor.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `idx` | `number` |
-| `prev` | `number` |
+| Parameter | Type     |
+| --------- | -------- |
+| `idx`     | `number` |
+| `prev`    | `number` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onRowClick() \{#onrowclick\}
 
@@ -332,15 +334,15 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/global-overlay-editor.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `idx` | `number` |
+| Parameter | Type     |
+| --------- | -------- |
+| `idx`     | `number` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onStart() \{#onstart\}
 
@@ -354,9 +356,9 @@ Opens the overlay: renders rows, positions the panel and registers global mouse/
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `ctx` | `EditContext`&lt;`string`&gt; |
+| Parameter | Type                          |
+| --------- | ----------------------------- |
+| `ctx`     | `EditContext`&lt;`string`&gt; |
 
 #### Returns
 
@@ -366,7 +368,7 @@ Opens the overlay: renders rows, positions the panel and registers global mouse/
 
 `IEditor.onStart`
 
-***
+---
 
 ### refocusTable() \{#refocustable\}
 
@@ -380,7 +382,7 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/global-overlay-editor.
 
 `void`
 
-***
+---
 
 ### rowAt() \{#rowat\}
 
@@ -392,15 +394,15 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/global-overlay-editor.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `idx` | `number` |
+| Parameter | Type     |
+| --------- | -------- |
+| `idx`     | `number` |
 
 #### Returns
 
 `HTMLElement` \| `null`
 
-***
+---
 
 ### setFocused() \{#setfocused\}
 
@@ -412,9 +414,9 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/global-overlay-editor.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `idx` | `number` |
+| Parameter | Type     |
+| --------- | -------- |
+| `idx`     | `number` |
 
 #### Returns
 

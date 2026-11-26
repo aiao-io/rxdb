@@ -19,10 +19,10 @@ Execution time
 #### Default
 
 ```ts
-new Date()
+new Date();
 ```
 
-***
+---
 
 ### id? \{#id\}
 
@@ -34,7 +34,7 @@ Defined in: [packages/rxdb/src/system/types.ts:602](https://github.com/aiao-io/r
 
 id
 
-***
+---
 
 ### name? \{#name\}
 

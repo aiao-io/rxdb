@@ -18,15 +18,15 @@ Reads a key, returning `null` when it does not exist.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `key` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `key`     | `string` |
 
 #### Returns
 
 `string` \| `null`
 
-***
+---
 
 ### removeItem() \{#removeitem\}
 
@@ -40,15 +40,15 @@ Deletes a key.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `key` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `key`     | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### setItem() \{#setitem\}
 
@@ -62,10 +62,10 @@ Writes a key.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `key` | `string` |
-| `value` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `key`     | `string` |
+| `value`   | `string` |
 
 #### Returns
 

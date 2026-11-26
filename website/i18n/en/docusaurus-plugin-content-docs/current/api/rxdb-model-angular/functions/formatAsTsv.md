@@ -10,8 +10,8 @@ Serializes ClipboardContent to a TSV string
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type                                                      | Description                    |
+| ----------- | --------------------------------------------------------- | ------------------------------ |
 | `clipboard` | [`ClipboardContent`](../type-aliases/ClipboardContent.md) | The internal clipboard content |
 
 ## Returns

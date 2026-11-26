@@ -16,7 +16,7 @@ Defined in: packages/rxdb-model/dist/entity-form/interfaces.d.ts:77
 
 List of errors
 
-***
+---
 
 ### valid \{#valid\}
 

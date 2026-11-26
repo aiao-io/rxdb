@@ -25,9 +25,9 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/version/with\_triggers\_disab
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `sql` | `string` |
+| Parameter   | Type                                                |
+| ----------- | --------------------------------------------------- |
+| `sql`       | `string`                                            |
 | `bindings?` | [`SQLiteCompatibleType`](SQLiteCompatibleType.md)[] |
 
 #### Returns

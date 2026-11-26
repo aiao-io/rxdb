@@ -24,7 +24,7 @@ The increment from the main checkout's branch to the held branch.
 
 The patches are in the change log's storage form, and encrypted columns are envelopes; only the member entities of this table set are included, and keys falling outside the table set reject the whole write.
 
-***
+---
 
 ### branchId \{#branchid\}
 

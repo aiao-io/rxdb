@@ -10,9 +10,9 @@ Determines whether a string contains continuous CJK text.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `string` | The text to inspect |
+| Parameter | Type     | Description         |
+| --------- | -------- | ------------------- |
+| `value`   | `string` | The text to inspect |
 
 ## Returns
 

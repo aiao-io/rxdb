@@ -2,11 +2,11 @@
 
 ```ts
 function generate_entity_inserts_sql<T>(
-   metadata, 
-   tableSet, 
-   entities, 
-   context?, 
-   encryption?
+  metadata,
+  tableSet,
+  entities,
+  context?,
+  encryption?
 ): Promise<{
   params: SQLiteCompatibleType[];
   sql: string;
@@ -19,23 +19,23 @@ Generates parameterized SQL for batch-creating entities
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                    |
+| ------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `metadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) |
-| `tableSet` | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md) |
-| `entities` | `InstanceType`&lt;`T`&gt;[] |
-| `context?` | [`RxDBContext`](../../rxdb/interfaces/RxDBContext.md) |
-| `encryption?` | [`EncryptionContext`](../interfaces/EncryptionContext.md) |
+| Parameter     | Type                                                          |
+| ------------- | ------------------------------------------------------------- |
+| `metadata`    | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) |
+| `tableSet`    | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md)  |
+| `entities`    | `InstanceType`&lt;`T`&gt;[]                                   |
+| `context?`    | [`RxDBContext`](../../rxdb/interfaces/RxDBContext.md)         |
+| `encryption?` | [`EncryptionContext`](../interfaces/EncryptionContext.md)     |
 
 ## Returns
 
 `Promise`&lt;\{
-  `params`: [`SQLiteCompatibleType`](../type-aliases/SQLiteCompatibleType.md)[];
-  `sql`: `string`;
+`params`: [`SQLiteCompatibleType`](../type-aliases/SQLiteCompatibleType.md)[];
+`sql`: `string`;
 \}&gt;

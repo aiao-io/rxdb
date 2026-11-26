@@ -22,7 +22,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:2
 
 The activation revision captured or asserted by the caller
 
-***
+---
 
 ### branchId \{#branchid\}
 

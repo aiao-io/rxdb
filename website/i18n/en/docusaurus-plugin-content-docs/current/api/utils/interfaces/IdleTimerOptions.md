@@ -21,5 +21,5 @@ Must be a **non-negative safe integer**; `0` is valid and means idle is determin
 #### Default
 
 ```ts
-2000
+2000;
 ```

@@ -1,5 +1,5 @@
 ---
-sidebar_label: "QueryBuilderService⟨T⟩"
+sidebar_label: 'QueryBuilderService⟨T⟩'
 ---
 
 # QueryBuilderService`<T>`
@@ -11,8 +11,8 @@ RxJS-based reactive state management
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
+| Type Parameter                    | Default type                        |
+| --------------------------------- | ----------------------------------- |
 | <a id="type-parameter-t"></a> `T` | `Record`&lt;`string`, `unknown`&gt; |
 
 ## Constructors
@@ -27,8 +27,8 @@ Defined in: [packages/rxdb-model/src/query-builder/services/query-builder.servic
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                                                   | Description                                                        |
+| ---------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | `options?` | [`QueryBuilderServiceOptions`](../interfaces/QueryBuilderServiceOptions.md)&lt;`T`&gt; | Query builder config (schema / initialQuery / nesting limit, etc.) |
 
 #### Returns
@@ -47,7 +47,7 @@ Defined in: [packages/rxdb-model/src/query-builder/services/query-builder.servic
 
 Observable in RxDB Query format
 
-***
+---
 
 ### rootGroup$ \{#rootgroup\}
 
@@ -59,7 +59,7 @@ Defined in: [packages/rxdb-model/src/query-builder/services/query-builder.servic
 
 Observable of the root rule group
 
-***
+---
 
 ### state$ \{#state\}
 
@@ -71,7 +71,7 @@ Defined in: [packages/rxdb-model/src/query-builder/services/query-builder.servic
 
 Observable stream of state changes
 
-***
+---
 
 ### validation$ \{#validation\}
 
@@ -97,16 +97,16 @@ Adds a rule group
 
 #### Parameters
 
-| Parameter | Type | Default value |
-| ------ | ------ | ------ |
-| `parentGroupId?` | `string` \| `null` | `null` |
-| `combinator?` | `"and"` \| `"or"` | `DEFAULT_COMBINATOR` |
+| Parameter        | Type               | Default value        |
+| ---------------- | ------------------ | -------------------- |
+| `parentGroupId?` | `string` \| `null` | `null`               |
+| `combinator?`    | `"and"` \| `"or"`  | `DEFAULT_COMBINATOR` |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### addRule() \{#addrule\}
 
@@ -120,16 +120,16 @@ Adds a rule
 
 #### Parameters
 
-| Parameter | Type | Default value |
-| ------ | ------ | ------ |
-| `parentGroupId?` | `string` \| `null` | `null` |
-| `rule?` | `Partial`&lt;`Omit`&lt;[`UIRule`](../interfaces/UIRule.md), `"id"`&gt;&gt; | `undefined` |
+| Parameter        | Type                                                                       | Default value |
+| ---------------- | -------------------------------------------------------------------------- | ------------- |
+| `parentGroupId?` | `string` \| `null`                                                         | `null`        |
+| `rule?`          | `Partial`&lt;`Omit`&lt;[`UIRule`](../interfaces/UIRule.md), `"id"`&gt;&gt; | `undefined`   |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### clear() \{#clear\}
 
@@ -145,7 +145,7 @@ Clears all rules
 
 `void`
 
-***
+---
 
 ### destroy() \{#destroy\}
 
@@ -161,7 +161,7 @@ Destroys the service
 
 `void`
 
-***
+---
 
 ### fromRxDBQuery() \{#fromrxdbquery\}
 
@@ -178,15 +178,15 @@ Ids are reassigned internally; the original ids are ignored.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `query` | \| [`QueryBuilderRuleGroup`](../interfaces/QueryBuilderRuleGroup.md)&lt;`T`&gt; \| [`RuleGroup`](../type-aliases/RuleGroup.md)&lt;`T`&gt; |
+| Parameter | Type                                                                                                                                      |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `query`   | \| [`QueryBuilderRuleGroup`](../interfaces/QueryBuilderRuleGroup.md)&lt;`T`&gt; \| [`RuleGroup`](../type-aliases/RuleGroup.md)&lt;`T`&gt; |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### getConfig() \{#getconfig\}
 
@@ -202,7 +202,7 @@ Gets the current config
 
 [`QueryBuilderConfig`](../interfaces/QueryBuilderConfig.md)&lt;`T`&gt;
 
-***
+---
 
 ### getFields() \{#getfields\}
 
@@ -218,7 +218,7 @@ Gets the field list
 
 [`FieldMetadata`](../interfaces/FieldMetadata.md)[]
 
-***
+---
 
 ### getMaxNestingLevel() \{#getmaxnestinglevel\}
 
@@ -234,7 +234,7 @@ Gets the maximum nesting level
 
 `number`
 
-***
+---
 
 ### getOperatorRegistry() \{#getoperatorregistry\}
 
@@ -250,7 +250,7 @@ Gets the operator registry
 
 [`OperatorRegistry`](OperatorRegistry.md)
 
-***
+---
 
 ### getState() \{#getstate\}
 
@@ -266,7 +266,7 @@ Gets the current state snapshot
 
 [`QueryBuilderState`](../interfaces/QueryBuilderState.md)&lt;`T`&gt;
 
-***
+---
 
 ### isValid() \{#isvalid\}
 
@@ -282,14 +282,14 @@ Checks whether the current state is valid
 
 `boolean`
 
-***
+---
 
 ### moveItem() \{#moveitem\}
 
 ```ts
 moveItem(
-   itemId, 
-   targetGroupId, 
+   itemId,
+   targetGroupId,
    targetIndex
 ): void;
 ```
@@ -300,17 +300,17 @@ Moves a rule or group to the given position in the target group
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `itemId` | `string` |
+| Parameter       | Type     |
+| --------------- | -------- |
+| `itemId`        | `string` |
 | `targetGroupId` | `string` |
-| `targetIndex` | `number` |
+| `targetIndex`   | `number` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### remove() \{#remove\}
 
@@ -324,15 +324,15 @@ Deletes a rule or group
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `itemId` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `itemId`  | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### setFields() \{#setfields\}
 
@@ -347,15 +347,15 @@ A subscribed validation$ is recomputed immediately with the new fields; the quer
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `fields` | [`FieldMetadata`](../interfaces/FieldMetadata.md)[] |
+| Parameter | Type                                                |
+| --------- | --------------------------------------------------- |
+| `fields`  | [`FieldMetadata`](../interfaces/FieldMetadata.md)[] |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### setMaxNestingLevel() \{#setmaxnestinglevel\}
 
@@ -369,15 +369,15 @@ Updates the maximum nesting level dynamically
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `level` | `number` |
+| Parameter | Type     |
+| --------- | -------- |
+| `level`   | `number` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### toRxDBQuery() \{#torxdbquery\}
 
@@ -393,7 +393,7 @@ Gets the RxDB Query format
 
 [`RuleGroup`](../type-aliases/RuleGroup.md)&lt;`T`&gt;
 
-***
+---
 
 ### updateGroupCombinator() \{#updategroupcombinator\}
 
@@ -407,16 +407,16 @@ Updates the combinator of a group
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `groupId` | `string` |
+| Parameter    | Type              |
+| ------------ | ----------------- |
+| `groupId`    | `string`          |
 | `combinator` | `"and"` \| `"or"` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### updateRule() \{#updaterule\}
 
@@ -430,16 +430,16 @@ Updates a rule
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `ruleId` | `string` |
+| Parameter | Type                                                                       |
+| --------- | -------------------------------------------------------------------------- |
+| `ruleId`  | `string`                                                                   |
 | `updates` | `Partial`&lt;`Omit`&lt;[`UIRule`](../interfaces/UIRule.md), `"id"`&gt;&gt; |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### validate() \{#validate\}
 

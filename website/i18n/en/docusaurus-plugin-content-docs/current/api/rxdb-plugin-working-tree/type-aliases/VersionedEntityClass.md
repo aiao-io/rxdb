@@ -1,7 +1,7 @@
 # VersionedEntityClass
 
 ```ts
-type VersionedEntityClass = "tracked" | "untracked";
+type VersionedEntityClass = 'tracked' | 'untracked';
 ```
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/versioned-domain.ts:61](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/versioned-domain.ts#L61)

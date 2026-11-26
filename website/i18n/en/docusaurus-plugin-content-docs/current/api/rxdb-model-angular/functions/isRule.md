@@ -10,15 +10,15 @@ Type guard: determines whether it is a rule
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `item` | \| [`QueryBuilderRule`](../type-aliases/QueryBuilderRule.md)&lt;`T`&gt; \| [`QueryBuilderRuleGroup`](../interfaces/QueryBuilderRuleGroup.md)&lt;`T`&gt; | The rule or rule group to test |
+| Parameter | Type                                                                                                                                                    | Description                    |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------ |
+| `item`    | \| [`QueryBuilderRule`](../type-aliases/QueryBuilderRule.md)&lt;`T`&gt; \| [`QueryBuilderRuleGroup`](../interfaces/QueryBuilderRuleGroup.md)&lt;`T`&gt; | The rule or rule group to test |
 
 ## Returns
 

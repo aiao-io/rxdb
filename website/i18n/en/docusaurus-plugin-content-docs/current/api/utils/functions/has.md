@@ -10,10 +10,10 @@ Checks whether an object has the given nested own property.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | The value to check |
-| `path` | `string` | Dot-separated path |
+| Parameter | Type      | Description        |
+| --------- | --------- | ------------------ |
+| `value`   | `unknown` | The value to check |
+| `path`    | `string`  | Dot-separated path |
 
 ## Returns
 

@@ -1,11 +1,7 @@
 # gateRawWrite()
 
 ```ts
-function gateRawWrite<T>(
-   sql, 
-   context, 
-   execute
-): Promise<T>;
+function gateRawWrite<T>(sql, context, execute): Promise<T>;
 ```
 
 Defined in: [packages/rxdb/src/capture/raw-write-gate.ts:79](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/capture/raw-write-gate.ts#L79)
@@ -14,17 +10,17 @@ Adjudicates a raw write; the statement is executed only when it is allowed throu
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                    | Description                                                                                           |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | <a id="type-parameter-t"></a> `T` | The return type of the statement executor; the gate passes it through unchanged, without any wrapping |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `sql` | `string` | The raw text of the statement to be adjudicated |
+| Parameter | Type                                                    | Description                                                  |
+| --------- | ------------------------------------------------------- | ------------------------------------------------------------ |
+| `sql`     | `string`                                                | The raw text of the statement to be adjudicated              |
 | `context` | [`RawWriteContext`](../type-aliases/RawWriteContext.md) | Taken from `RxDBAdapterLocalBase.workingTreeRawWriteContext` |
-| `execute` | () => `T` \| `Promise`&lt;`T`&gt; | The statement executor, **not yet invoked** |
+| `execute` | () => `T` \| `Promise`&lt;`T`&gt;                       | The statement executor, **not yet invoked**                  |
 
 ## Returns
 

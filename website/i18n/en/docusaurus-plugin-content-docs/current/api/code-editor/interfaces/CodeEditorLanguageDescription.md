@@ -12,7 +12,7 @@ readonly alias: readonly string[];
 
 Defined in: [languages.ts:18](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/code-editor/src/languages.ts#L18)
 
-***
+---
 
 ### extensions \{#extensions\}
 
@@ -22,7 +22,7 @@ readonly extensions: readonly string[];
 
 Defined in: [languages.ts:19](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/code-editor/src/languages.ts#L19)
 
-***
+---
 
 ### filename \{#filename\}
 
@@ -32,7 +32,7 @@ readonly filename: RegExp | undefined;
 
 Defined in: [languages.ts:20](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/code-editor/src/languages.ts#L20)
 
-***
+---
 
 ### name \{#name\}
 
@@ -42,7 +42,7 @@ readonly name: string;
 
 Defined in: [languages.ts:17](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/code-editor/src/languages.ts#L17)
 
-***
+---
 
 ### support \{#support\}
 

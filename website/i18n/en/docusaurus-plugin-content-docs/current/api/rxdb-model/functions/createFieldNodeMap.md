@@ -10,9 +10,9 @@ Creates the field-name-to-node mapping
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `tree` | [`FieldTreeNode`](../interfaces/FieldTreeNode.md)[] | Field tree |
+| Parameter | Type                                                | Description |
+| --------- | --------------------------------------------------- | ----------- |
+| `tree`    | [`FieldTreeNode`](../interfaces/FieldTreeNode.md)[] | Field tree  |
 
 ## Returns
 

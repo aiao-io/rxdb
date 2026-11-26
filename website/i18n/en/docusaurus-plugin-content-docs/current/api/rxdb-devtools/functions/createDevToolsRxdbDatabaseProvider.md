@@ -10,9 +10,9 @@ Creates an RxDB `database` provider.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `ports` | [`DevToolsRxdbDatabaseProviderPorts`](../interfaces/DevToolsRxdbDatabaseProviderPorts.md) | The RxDB instance entry point, the metadata reading functions, the runtime used for display, and the event push port. |
+| Parameter | Type                                                                                      | Description                                                                                                           |
+| --------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `ports`   | [`DevToolsRxdbDatabaseProviderPorts`](../interfaces/DevToolsRxdbDatabaseProviderPorts.md) | The RxDB instance entry point, the metadata reading functions, the runtime used for display, and the event push port. |
 
 ## Returns
 

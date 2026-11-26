@@ -10,9 +10,9 @@ Sorts by the fields' order in ascending order
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `fields` | [`FormFieldConfig`](../interfaces/FormFieldConfig.md)[] | Form field configuration |
+| Parameter | Type                                                    | Description              |
+| --------- | ------------------------------------------------------- | ------------------------ |
+| `fields`  | [`FormFieldConfig`](../interfaces/FormFieldConfig.md)[] | Form field configuration |
 
 ## Returns
 

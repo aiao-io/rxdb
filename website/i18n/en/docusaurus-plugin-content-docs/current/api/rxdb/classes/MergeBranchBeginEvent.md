@@ -20,8 +20,8 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:447](https://github.com/aiao-io/rx
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter      | Type     | Description        |
+| -------------- | -------- | ------------------ |
 | `sourceBranch` | `string` | Source branch name |
 | `targetBranch` | `string` | Target branch name |
 
@@ -49,7 +49,7 @@ Source branch name
 
 [`MergeBranchEventBase`](MergeBranchEventBase.md).[`sourceBranch`](MergeBranchEventBase.md#sourcebranch)
 
-***
+---
 
 ### targetBranch \{#targetbranch\}
 
@@ -65,7 +65,7 @@ Target branch name
 
 [`MergeBranchEventBase`](MergeBranchEventBase.md).[`targetBranch`](MergeBranchEventBase.md#targetbranch)
 
-***
+---
 
 ### type \{#type\}
 

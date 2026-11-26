@@ -10,9 +10,9 @@ Clones a group of entity classes, isolating registration side effects across ins
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entities` | [`EntityType`](../type-aliases/EntityType.md)[] | The entity classes to clone, order preserved |
+| Parameter  | Type                                                                      | Description                                                                 |
+| ---------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `entities` | [`EntityType`](../type-aliases/EntityType.md)[]                           | The entity classes to clone, order preserved                                |
 | `options?` | [`CloneEntityClassesOptions`](../interfaces/CloneEntityClassesOptions.md) | See [CloneEntityClassesOptions](../interfaces/CloneEntityClassesOptions.md) |
 
 ## Returns

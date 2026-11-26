@@ -1,11 +1,15 @@
 ---
-sidebar_label: "DeepPartial⟨T⟩"
+sidebar_label: 'DeepPartial⟨T⟩'
 ---
 
 # DeepPartial`<T>`
 
 ```ts
-type DeepPartial<T> = { [P in keyof T]?: T[P] extends (infer U)[] ? DeepPartial<U>[] : T[P] extends ReadonlyArray<infer UE> ? ReadonlyArray<DeepPartial<UE>> : DeepPartial<T[P]> };
+type DeepPartial<T> = {
+  [P in keyof T]?: T[P] extends (infer U)[] ? DeepPartial<U>[]
+  : T[P] extends ReadonlyArray<infer UE> ? ReadonlyArray<DeepPartial<UE>>
+  : DeepPartial<T[P]>;
+};
 ```
 
 Defined in: [packages/utils/src/types/DeepPartial.ts:46](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/utils/src/types/DeepPartial.ts#L46)
@@ -15,8 +19,8 @@ All properties (including those of nested objects and array elements) become opt
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                    | Description                                   |
+| --------------------------------- | --------------------------------------------- |
 | <a id="type-parameter-t"></a> `T` | The original type to create a deep partial of |
 
 ## Examples
@@ -37,9 +41,9 @@ interface User {
 const partialUser: DeepPartial<User> = {
   name: 'John',
   address: {
-    street: 'Main St',
+    street: 'Main St'
   },
-  hobbies: ['reading'],
+  hobbies: ['reading']
 };
 ```
 

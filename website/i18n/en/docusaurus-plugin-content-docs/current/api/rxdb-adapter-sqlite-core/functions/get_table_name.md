@@ -10,10 +10,10 @@ Assembles the physical name of the main table set: `<namespace>$<logical name>`.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `name` | `string` | The logical name |
-| `namespace` | `string` | The namespace |
+| Parameter   | Type     | Description      |
+| ----------- | -------- | ---------------- |
+| `name`      | `string` | The logical name |
+| `namespace` | `string` | The namespace    |
 
 ## Returns
 

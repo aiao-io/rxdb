@@ -11,10 +11,10 @@ and every new range dimension falls within the old range (endpoint comparison; a
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) | The entity metadata |
-| `change` | [`ExclusionUpdateChange`](../interfaces/ExclusionUpdateChange.md) | The old and new values of the update (keyed by property name) |
+| Parameter  | Type                                                              | Description                                                   |
+| ---------- | ----------------------------------------------------------------- | ------------------------------------------------------------- |
+| `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md)             | The entity metadata                                           |
+| `change`   | [`ExclusionUpdateChange`](../interfaces/ExclusionUpdateChange.md) | The old and new values of the update (keyed by property name) |
 
 ## Returns
 

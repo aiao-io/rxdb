@@ -40,7 +40,7 @@ Rolls back
 RxDB does not currently trigger `down()` on its own; it is kept to prepare for future "reverse migrations".
 Integrators should implement an idempotent rollback path, to make it easy to undo unfinished changes when merging branches.
 
-***
+---
 
 ### up() \{#up\}
 
@@ -54,8 +54,8 @@ Migrates forward.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                            | Description                                            |
+| ---------- | ----------------------------------------------- | ------------------------------------------------------ |
 | `executor` | [`TransactionExecutor`](TransactionExecutor.md) | The executor of the transaction this migration runs in |
 
 #### Returns

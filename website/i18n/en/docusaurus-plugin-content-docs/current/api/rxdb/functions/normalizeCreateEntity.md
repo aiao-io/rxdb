@@ -10,10 +10,10 @@ Normalizes creation data (filtering out unassigned fields).
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) | The entity metadata |
-| `entity` | `object` | The entity instance or data object to be written |
+| Parameter  | Type                                                  | Description                                      |
+| ---------- | ----------------------------------------------------- | ------------------------------------------------ |
+| `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) | The entity metadata                              |
+| `entity`   | `object`                                              | The entity instance or data object to be written |
 
 ## Returns
 

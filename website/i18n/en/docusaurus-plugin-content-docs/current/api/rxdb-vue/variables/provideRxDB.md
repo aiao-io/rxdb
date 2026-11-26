@@ -8,9 +8,9 @@ Defined in: [rxdb-vue/src/rxdb-vue.ts:202](https://github.com/aiao-io/rxdb/blob/
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `db` | [`RxDBInput`](../type-aliases/RxDBInput.md)&lt;[`RxDB`](../../rxdb/classes/RxDB.md)&gt; |
+| Parameter | Type                                                                                    |
+| --------- | --------------------------------------------------------------------------------------- |
+| `db`      | [`RxDBInput`](../type-aliases/RxDBInput.md)&lt;[`RxDB`](../../rxdb/classes/RxDB.md)&gt; |
 
 ## Returns
 

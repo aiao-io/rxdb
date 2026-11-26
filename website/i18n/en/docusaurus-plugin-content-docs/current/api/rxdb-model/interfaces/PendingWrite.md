@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model/src/entity-table/interfaces.ts:59](https://gith
 
 Target column index
 
-***
+---
 
 ### field \{#field\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-model/src/entity-table/interfaces.ts:65](https://gith
 
 Target column field name
 
-***
+---
 
 ### record \{#record\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-model/src/entity-table/interfaces.ts:67](https://gith
 
 Snapshot of the target row record (at write time)
 
-***
+---
 
 ### row \{#row\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb-model/src/entity-table/interfaces.ts:61](https://gith
 
 Target row index
 
-***
+---
 
 ### value \{#value\}
 

@@ -10,8 +10,8 @@ Runtime validation: there must be **exactly** one active row; fixes nothing.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                          | Description                              |
+| ---------- | ------------------------------------------------------------- | ---------------------------------------- |
 | `executor` | [`TransactionExecutor`](../interfaces/TransactionExecutor.md) | The executor of the caller's transaction |
 
 ## Returns

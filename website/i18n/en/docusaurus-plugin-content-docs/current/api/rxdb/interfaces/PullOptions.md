@@ -22,7 +22,7 @@ Called when a pull detects that a local unsynced change and a remote change targ
 
 Passed through on both the batch path and the per-repository path; both paths give the same result for the same conflict. At runtime only `KEEP_LOCAL` and `KEEP_REMOTE` resolutions can be applied automatically; see [ConflictResolution](../type-aliases/ConflictResolution.md).
 
-***
+---
 
 ### fetchAll? \{#fetchall\}
 
@@ -37,10 +37,10 @@ Whether to handle pagination automatically and pull all data
 #### Default
 
 ```ts
-false
+false;
 ```
 
-***
+---
 
 ### limit? \{#limit\}
 
@@ -55,10 +55,10 @@ Maximum number of items per pull
 #### Default
 
 ```ts
-1000
+1000;
 ```
 
-***
+---
 
 ### repositoryFilter? \{#repositoryfilter\}
 
@@ -74,9 +74,9 @@ Only pulls changes of the specified entities
 #### Examples
 
 ```ts
-['Todo', 'User']
+['Todo', 'User'];
 ```
 
 ```ts
-[{ namespace: 'public', entity: 'Todo' }]
+[{ namespace: 'public', entity: 'Todo' }];
 ```

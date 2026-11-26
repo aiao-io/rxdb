@@ -1,11 +1,7 @@
 # formDataToEntityChanges()
 
 ```ts
-function formDataToEntityChanges(
-   original, 
-   formData, 
-   fields
-): Record<string, unknown>;
+function formDataToEntityChanges(original, formData, fields): Record<string, unknown>;
 ```
 
 Defined in: [packages/rxdb-model/src/entity-form/form-data.ts:34](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model/src/entity-form/form-data.ts#L34)
@@ -14,11 +10,11 @@ Computes the set of changes between the form data and the original entity object
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `original` | `Record`&lt;`string`, `unknown`&gt; | The original entity object |
-| `formData` | [`EntityFormData`](../interfaces/EntityFormData.md) | The form data |
-| `fields` | [`FormFieldConfig`](../interfaces/FormFieldConfig.md)[] | The form field configurations |
+| Parameter  | Type                                                    | Description                   |
+| ---------- | ------------------------------------------------------- | ----------------------------- |
+| `original` | `Record`&lt;`string`, `unknown`&gt;                     | The original entity object    |
+| `formData` | [`EntityFormData`](../interfaces/EntityFormData.md)     | The form data                 |
+| `fields`   | [`FormFieldConfig`](../interfaces/FormFieldConfig.md)[] | The form field configurations |
 
 ## Returns
 

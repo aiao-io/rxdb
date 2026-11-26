@@ -10,9 +10,9 @@ Creates the panel-side negotiation machine.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `ports` | [`DevToolsPanelNegotiationPorts`](../interfaces/DevToolsPanelNegotiationPorts.md) | The send/receive callbacks and the clock. |
+| Parameter | Type                                                                              | Description                               |
+| --------- | --------------------------------------------------------------------------------- | ----------------------------------------- |
+| `ports`   | [`DevToolsPanelNegotiationPorts`](../interfaces/DevToolsPanelNegotiationPorts.md) | The send/receive callbacks and the clock. |
 
 ## Returns
 

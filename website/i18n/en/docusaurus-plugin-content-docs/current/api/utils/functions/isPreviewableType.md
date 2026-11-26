@@ -12,8 +12,8 @@ Looks only at the extension and does not read file contents, so renaming changes
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type     | Description       |
+| ---------- | -------- | ----------------- |
 | `filename` | `string` | File name or path |
 
 ## Returns

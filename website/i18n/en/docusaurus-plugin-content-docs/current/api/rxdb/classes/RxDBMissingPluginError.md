@@ -38,10 +38,10 @@ await rxdb.connect('sqlite');
 
 ```ts
 new RxDBMissingPluginError(
-   entity, 
-   capability, 
-   packageName, 
-   registration, 
+   entity,
+   capability,
+   packageName,
+   registration,
    subject?
 ): RxDBMissingPluginError;
 ```
@@ -50,13 +50,13 @@ Defined in: [packages/rxdb/src/RxDBError.ts:159](https://github.com/aiao-io/rxdb
 
 #### Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `entity` | `string` | `undefined` | The name of the entity that triggered this error (the `name` in metadata) |
-| `capability` | `string` | `undefined` | The capability this entity declares and needs plugin support for |
-| `packageName` | `string` | `undefined` | The package name to install |
-| `registration` | `string` | `undefined` | The registration spelling after installation |
-| `subject?` | `string` | `'engine'` | What the missing half is called, embedded into `no ${subject} is installed`. |
+| Parameter      | Type     | Default value | Description                                                                  |
+| -------------- | -------- | ------------- | ---------------------------------------------------------------------------- |
+| `entity`       | `string` | `undefined`   | The name of the entity that triggered this error (the `name` in metadata)    |
+| `capability`   | `string` | `undefined`   | The capability this entity declares and needs plugin support for             |
+| `packageName`  | `string` | `undefined`   | The package name to install                                                  |
+| `registration` | `string` | `undefined`   | The registration spelling after installation                                 |
+| `subject?`     | `string` | `'engine'`    | What the missing half is called, embedded into `no ${subject} is installed`. |
 
 #### Returns
 
@@ -78,7 +78,7 @@ Defined in: [packages/rxdb/src/RxDBError.ts:163](https://github.com/aiao-io/rxdb
 
 The capability this entity declares and needs plugin support for
 
-***
+---
 
 ### cause? \{#cause\}
 
@@ -92,7 +92,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](RxDBError.md).[`cause`](RxDBError.md#cause)
 
-***
+---
 
 ### entity \{#entity\}
 
@@ -104,7 +104,7 @@ Defined in: [packages/rxdb/src/RxDBError.ts:161](https://github.com/aiao-io/rxdb
 
 The name of the entity that triggered this error (the `name` in metadata)
 
-***
+---
 
 ### message \{#message\}
 
@@ -118,7 +118,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](RxDBError.md).[`message`](RxDBError.md#message)
 
-***
+---
 
 ### name \{#name\}
 
@@ -132,7 +132,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](RxDBError.md).[`name`](RxDBError.md#name)
 
-***
+---
 
 ### packageName \{#packagename\}
 
@@ -144,7 +144,7 @@ Defined in: [packages/rxdb/src/RxDBError.ts:165](https://github.com/aiao-io/rxdb
 
 The package name to install
 
-***
+---
 
 ### registration \{#registration\}
 
@@ -156,7 +156,7 @@ Defined in: [packages/rxdb/src/RxDBError.ts:167](https://github.com/aiao-io/rxdb
 
 The registration spelling after installation
 
-***
+---
 
 ### stack? \{#stack\}
 
@@ -170,7 +170,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](RxDBError.md).[`stack`](RxDBError.md#stack)
 
-***
+---
 
 ### subject \{#subject\}
 
@@ -186,7 +186,7 @@ What the missing half is called, embedded into `no ${subject} is installed`.
 
 `'engine'`
 
-***
+---
 
 ### stackTraceLimit \{#stacktracelimit\}
 
@@ -227,7 +227,7 @@ a string representing the location in the code at which
 ```js
 const myObject = {};
 Error.captureStackTrace(myObject);
-myObject.stack;  // Similar to `new Error().stack`
+myObject.stack; // Similar to `new Error().stack`
 ```
 
 The first line of the trace will be prefixed with
@@ -266,9 +266,9 @@ a();
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `targetObject` | `object` |
+| Parameter         | Type       |
+| ----------------- | ---------- |
+| `targetObject`    | `object`   |
 | `constructorOpt?` | `Function` |
 
 #### Returns
@@ -279,7 +279,7 @@ a();
 
 [`RxDBError`](RxDBError.md).[`captureStackTrace`](RxDBError.md#capturestacktrace)
 
-***
+---
 
 ### prepareStackTrace() \{#preparestacktrace\}
 
@@ -291,9 +291,9 @@ Defined in: node\_modules/.pnpm/@types+node@26.6.6/node\_modules/@types/node/glo
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `err` | `Error` |
+| Parameter     | Type         |
+| ------------- | ------------ |
+| `err`         | `Error`      |
 | `stackTraces` | `CallSite`[] |
 
 #### Returns

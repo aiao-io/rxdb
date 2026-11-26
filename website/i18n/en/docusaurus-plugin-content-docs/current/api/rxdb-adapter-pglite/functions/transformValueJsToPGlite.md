@@ -8,9 +8,9 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.utils.ts:355](https://githu
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `unknown` |
+| Parameter  | Type                                                                          |
+| ---------- | ----------------------------------------------------------------------------- |
+| `value`    | `unknown`                                                                     |
 | `property` | [`EntityPropertyMetadata`](../../rxdb/type-aliases/EntityPropertyMetadata.md) |
 
 ## Returns

@@ -30,16 +30,16 @@ Listens for match state changes.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `type` | `"change"` |
+| Parameter  | Type                |
+| ---------- | ------------------- |
+| `type`     | `"change"`          |
 | `listener` | (`event`) => `void` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### removeEventListener() \{#removeeventlistener\}
 
@@ -53,9 +53,9 @@ Removes the listener.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `type` | `"change"` |
+| Parameter  | Type                |
+| ---------- | ------------------- |
+| `type`     | `"change"`          |
 | `listener` | (`event`) => `void` |
 
 #### Returns

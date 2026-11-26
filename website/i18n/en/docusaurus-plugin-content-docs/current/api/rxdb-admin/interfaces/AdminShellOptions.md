@@ -1,5 +1,5 @@
 ---
-sidebar_label: "AdminShellOptions⟨TIcon⟩"
+sidebar_label: 'AdminShellOptions⟨TIcon⟩'
 ---
 
 # AdminShellOptions`<TIcon>`
@@ -10,9 +10,9 @@ The options for creating the shell.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-ticon"></a> `TIcon` | `unknown` |
+| Type Parameter                            | Default type |
+| ----------------------------------------- | ------------ |
+| <a id="type-parameter-ticon"></a> `TIcon` | `unknown`    |
 
 ## Properties
 
@@ -48,7 +48,7 @@ readonly titleKey?: string;
 
 The brand translation key in the application runtime's default namespace.
 
-***
+---
 
 ### defaults? \{#defaults\}
 
@@ -60,7 +60,7 @@ Defined in: [shell/types.ts:49](https://github.com/aiao-io/rxdb/blob/b5232040240
 
 The application-level default preferences, overriding the in-package defaults.
 
-***
+---
 
 ### extensions? \{#extensions\}
 
@@ -72,7 +72,7 @@ Defined in: [shell/types.ts:51](https://github.com/aiao-io/rxdb/blob/b5232040240
 
 The business extension preferences, shown in the "Extensions" tab.
 
-***
+---
 
 ### homeUrl? \{#homeurl\}
 
@@ -84,7 +84,7 @@ Defined in: [shell/types.ts:35](https://github.com/aiao-io/rxdb/blob/b5232040240
 
 The home page URL: go back here after the last tab is closed, `/` by default.
 
-***
+---
 
 ### host? \{#host\}
 
@@ -96,7 +96,7 @@ Defined in: [shell/types.ts:63](https://github.com/aiao-io/rxdb/blob/b5232040240
 
 The host object, taking the globals by default.
 
-***
+---
 
 ### i18n? \{#i18n\}
 
@@ -108,7 +108,7 @@ Defined in: [shell/types.ts:45](https://github.com/aiao-io/rxdb/blob/b5232040240
 
 The application's own i18n runtime; `adminMessages` needs to be added to its `catalogs`. Defaults to a static runtime containing only the shell catalog (Chinese).
 
-***
+---
 
 ### initialUrl? \{#initialurl\}
 
@@ -120,7 +120,7 @@ Defined in: [shell/types.ts:33](https://github.com/aiao-io/rxdb/blob/b5232040240
 
 The initial URL, `window.location.pathname` by default.
 
-***
+---
 
 ### lockHasher? \{#lockhasher\}
 
@@ -132,7 +132,7 @@ Defined in: [shell/types.ts:61](https://github.com/aiao-io/rxdb/blob/b5232040240
 
 The lock screen password hashing, PBKDF2-SHA256 (Web Crypto) by default.
 
-***
+---
 
 ### menu? \{#menu\}
 
@@ -144,12 +144,12 @@ Defined in: [shell/types.ts:31](https://github.com/aiao-io/rxdb/blob/b5232040240
 
 The initial navigation menu, later updated via [AdminShell.setMenu](AdminShell.md#setmenu).
 
-***
+---
 
 ### migrateLegacy? \{#migratelegacy\}
 
 ```ts
-readonly migrateLegacy?: (storage) => 
+readonly migrateLegacy?: (storage) =>
   | DeepPartial<AdminPreferences>
   | null;
 ```
@@ -160,16 +160,16 @@ Migrates preferences from the legacy storage key on first use.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                            |
+| --------- | ------------------------------- |
 | `storage` | [`StorageLike`](StorageLike.md) |
 
 #### Returns
 
-  \| [`DeepPartial`](../type-aliases/DeepPartial.md)&lt;[`AdminPreferences`](AdminPreferences.md)&gt;
-  \| `null`
+\| [`DeepPartial`](../type-aliases/DeepPartial.md)&lt;[`AdminPreferences`](AdminPreferences.md)&gt;
+\| `null`
 
-***
+---
 
 ### mobileBreakpoint? \{#mobilebreakpoint\}
 
@@ -181,7 +181,7 @@ Defined in: [shell/types.ts:59](https://github.com/aiao-io/rxdb/blob/b5232040240
 
 The mobile breakpoint (px), 768 by default.
 
-***
+---
 
 ### navigate \{#navigate\}
 
@@ -195,15 +195,15 @@ The route navigation; the shell itself is router-agnostic.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `url` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `url`     | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### storage? \{#storage\}
 
@@ -227,7 +227,7 @@ readonly local?: StorageLike;
 readonly session?: StorageLike;
 ```
 
-***
+---
 
 ### storagePrefix? \{#storageprefix\}
 
@@ -239,7 +239,7 @@ Defined in: [shell/types.ts:57](https://github.com/aiao-io/rxdb/blob/b5232040240
 
 The storage key prefix, used for isolation when multiple apps share an origin, `aiao.admin` by default.
 
-***
+---
 
 ### themes? \{#themes\}
 

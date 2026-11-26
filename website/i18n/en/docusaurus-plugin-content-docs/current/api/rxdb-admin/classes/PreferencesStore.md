@@ -28,8 +28,8 @@ Creates the preferences store and synchronously loads saved preferences.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                  | Description                                     |
+| --------- | --------------------------------------------------------------------- | ----------------------------------------------- |
 | `options` | [`PreferencesStoreOptions`](../interfaces/PreferencesStoreOptions.md) | Storage, defaults, constraints, and extensions. |
 
 #### Returns
@@ -52,7 +52,7 @@ Defined in: [preferences/store.ts:94](https://github.com/aiao-io/rxdb/blob/b5232
 
 The effective default tree (app defaults + extension defaults).
 
-***
+---
 
 ### hasDiff \{#hasdiff\}
 
@@ -88,7 +88,7 @@ An observable that replays the current value and pushes subsequent changes.
 
 [`ReadableStore`](../interfaces/ReadableStore.md).[`changes$`](../interfaces/ReadableStore.md#changes)
 
-***
+---
 
 ### value \{#value\}
 
@@ -128,12 +128,12 @@ Flushes to storage and removes host listeners.
 
 `void`
 
-***
+---
 
 ### diff() \{#diff\}
 
 ```ts
-diff(): 
+diff():
   | DeepPartial<AdminPreferences>
   | null;
 ```
@@ -144,12 +144,12 @@ The diff against the defaults.
 
 #### Returns
 
-  \| [`DeepPartial`](../type-aliases/DeepPartial.md)&lt;[`AdminPreferences`](../interfaces/AdminPreferences.md)&gt;
-  \| `null`
+\| [`DeepPartial`](../type-aliases/DeepPartial.md)&lt;[`AdminPreferences`](../interfaces/AdminPreferences.md)&gt;
+\| `null`
 
 The diff; `null` when there is no diff.
 
-***
+---
 
 ### exportJson() \{#exportjson\}
 
@@ -167,7 +167,7 @@ Exports a copyable / shareable preferences config.
 
 The diff JSON against the defaults; `{}` when there is no diff.
 
-***
+---
 
 ### flush() \{#flush\}
 
@@ -183,7 +183,7 @@ Immediately flushes pending writes to storage; writes nothing when this instance
 
 `void`
 
-***
+---
 
 ### importJson() \{#importjson\}
 
@@ -197,9 +197,9 @@ Imports a preferences config: replaces the current preferences (relative to the 
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `json` | `string` | Text produced by [exportJson](#exportjson). |
+| Parameter | Type     | Description                                 |
+| --------- | -------- | ------------------------------------------- |
+| `json`    | `string` | Text produced by [exportJson](#exportjson). |
 
 #### Returns
 
@@ -207,7 +207,7 @@ Imports a preferences config: replaces the current preferences (relative to the 
 
 Success, or the failure reason; on failure the current preferences are unchanged.
 
-***
+---
 
 ### reset() \{#reset\}
 
@@ -223,7 +223,7 @@ Returns to the default tree and clears the saved diff.
 
 `void`
 
-***
+---
 
 ### setPath() \{#setpath\}
 
@@ -237,16 +237,16 @@ Writes a single value at a dot-separated path.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `path` | `string` | Preference path, e.g. `theme.colorPrimary`. |
-| `value` | `unknown` | The new value. |
+| Parameter | Type      | Description                                 |
+| --------- | --------- | ------------------------------------------- |
+| `path`    | `string`  | Preference path, e.g. `theme.colorPrimary`. |
+| `value`   | `unknown` | The new value.                              |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### subscribe() \{#subscribe\}
 
@@ -260,8 +260,8 @@ Subscribes to subsequent changes.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                | Description      |
+| ---------- | ------------------- | ---------------- |
 | `listener` | (`value`) => `void` | Change callback. |
 
 #### Returns
@@ -274,7 +274,7 @@ An unsubscribe function.
 
 [`ReadableStore`](../interfaces/ReadableStore.md).[`subscribe`](../interfaces/ReadableStore.md#subscribe)
 
-***
+---
 
 ### update() \{#update\}
 
@@ -288,9 +288,9 @@ Deep-merge patch, committed after sanitization and persisted with debouncing.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `patch` | [`DeepPartial`](../type-aliases/DeepPartial.md)&lt;[`AdminPreferences`](../interfaces/AdminPreferences.md)&gt; | Preference patch; arrays are replaced wholesale. |
+| Parameter | Type                                                                                                           | Description                                      |
+| --------- | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| `patch`   | [`DeepPartial`](../type-aliases/DeepPartial.md)&lt;[`AdminPreferences`](../interfaces/AdminPreferences.md)&gt; | Preference patch; arrays are replaced wholesale. |
 
 #### Returns
 

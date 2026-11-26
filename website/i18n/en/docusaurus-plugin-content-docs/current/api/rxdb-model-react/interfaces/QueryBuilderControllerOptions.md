@@ -1,5 +1,5 @@
 ---
-sidebar_label: "QueryBuilderControllerOptions⟨T⟩"
+sidebar_label: 'QueryBuilderControllerOptions⟨T⟩'
 ---
 
 # QueryBuilderControllerOptions`<T>`
@@ -14,8 +14,8 @@ Options for creating the query state machine.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
+| Type Parameter                    | Default type                        |
+| --------------------------------- | ----------------------------------- |
 | <a id="type-parameter-t"></a> `T` | `Record`&lt;`string`, `unknown`&gt; |
 
 ## Properties
@@ -34,7 +34,7 @@ Configuration options
 
 [`QueryBuilderServiceOptions`](QueryBuilderServiceOptions.md).[`config`](QueryBuilderServiceOptions.md#config)
 
-***
+---
 
 ### fields? \{#fields\}
 
@@ -50,7 +50,7 @@ Field metadata
 
 [`QueryBuilderServiceOptions`](QueryBuilderServiceOptions.md).[`fields`](QueryBuilderServiceOptions.md#fields)
 
-***
+---
 
 ### i18n? \{#i18n\}
 
@@ -66,7 +66,7 @@ Text runtime.
 
 [`QueryBuilderServiceOptions`](QueryBuilderServiceOptions.md).[`i18n`](QueryBuilderServiceOptions.md#i18n)
 
-***
+---
 
 ### initialQuery? \{#initialquery\}
 
@@ -82,7 +82,7 @@ Initial RxDB Query
 
 [`QueryBuilderServiceOptions`](QueryBuilderServiceOptions.md).[`initialQuery`](QueryBuilderServiceOptions.md#initialquery)
 
-***
+---
 
 ### initialState? \{#initialstate\}
 
@@ -98,7 +98,7 @@ Initial query state
 
 [`QueryBuilderServiceOptions`](QueryBuilderServiceOptions.md).[`initialState`](QueryBuilderServiceOptions.md#initialstate)
 
-***
+---
 
 ### operatorRegistry? \{#operatorregistry\}
 
@@ -114,7 +114,7 @@ Custom operator registry
 
 [`QueryBuilderServiceOptions`](QueryBuilderServiceOptions.md).[`operatorRegistry`](QueryBuilderServiceOptions.md#operatorregistry)
 
-***
+---
 
 ### queryConverter? \{#queryconverter\}
 
@@ -130,7 +130,7 @@ Custom converter
 
 [`QueryBuilderServiceOptions`](QueryBuilderServiceOptions.md).[`queryConverter`](QueryBuilderServiceOptions.md#queryconverter)
 
-***
+---
 
 ### readonly? \{#readonly\}
 
@@ -140,7 +140,7 @@ readonly readonly?: boolean;
 
 Defined in: packages/rxdb-model/dist/query-builder/services/headless.d.ts:27
 
-***
+---
 
 ### validationService? \{#validationservice\}
 

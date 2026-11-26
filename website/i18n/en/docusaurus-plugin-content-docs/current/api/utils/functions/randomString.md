@@ -10,10 +10,10 @@ Generates an unbiased random string using Web Crypto and rejection sampling.
 
 ## Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `size?` | `number` | `16` | Result length |
-| `alphabet?` | `string` | `URL_ALL` | Optional character set |
+| Parameter   | Type     | Default value | Description            |
+| ----------- | -------- | ------------- | ---------------------- |
+| `size?`     | `number` | `16`          | Result length          |
+| `alphabet?` | `string` | `URL_ALL`     | Optional character set |
 
 ## Returns
 

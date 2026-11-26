@@ -30,16 +30,16 @@ Copies the current selection to the system clipboard and writes the internal bac
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `table` | `ListTableAll` |
+| Parameter  | Type                                           |
+| ---------- | ---------------------------------------------- |
+| `table`    | `ListTableAll`                                 |
 | `columns?` | readonly `Record`&lt;`string`, `unknown`&gt;[] |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### paste() \{#paste\}
 
@@ -53,9 +53,9 @@ Pastes: when the system clipboard text differs from the last write, parses it as
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `table` | `ListTableAll` |
+| Parameter  | Type                                           |
+| ---------- | ---------------------------------------------- |
+| `table`    | `ListTableAll`                                 |
 | `columns?` | readonly `Record`&lt;`string`, `unknown`&gt;[] |
 
 #### Returns

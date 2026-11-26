@@ -12,8 +12,8 @@ Reads the reason a sync type lacks a capability in a given direction.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                          | Description   |
+| ---------- | ------------------------------------------------------------- | ------------- |
 | `syncType` | [`RepositorySyncType`](../type-aliases/RepositorySyncType.md) | The sync type |
 
 ## Returns

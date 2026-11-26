@@ -33,7 +33,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts:1
 
 The state of `checkBranchFromCommit()`; **no empty** — creatable and the three rejection causes are all results
 
-***
+---
 
 ### commitChangesState \{#commitchangesstate\}
 
@@ -45,7 +45,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts:1
 
 The state of `commitChanges()`; empty means "this commit has no change units" (a baseline node)
 
-***
+---
 
 ### commitState \{#commitstate\}
 
@@ -57,7 +57,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts:1
 
 The state of `commit()`; **no empty**
 
-***
+---
 
 ### createBranchFromCommitState \{#createbranchfromcommitstate\}
 
@@ -69,7 +69,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts:1
 
 The state of `createBranchFromCommit()`; **no empty** — created and the three rejection causes are all results
 
-***
+---
 
 ### diffState \{#diffstate\}
 
@@ -81,7 +81,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts:1
 
 The state of `diff()`; empty means "no changes to display"
 
-***
+---
 
 ### discardState \{#discardstate\}
 
@@ -93,7 +93,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts:1
 
 The state of `discard()`; **no empty**
 
-***
+---
 
 ### enableIfEmptyState \{#enableifemptystate\}
 
@@ -105,7 +105,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts:1
 
 The state of `enableIfEmpty()`; **no empty** — `not_empty` is a result, not "there is no content"
 
-***
+---
 
 ### enableState \{#enablestate\}
 
@@ -117,7 +117,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts:1
 
 The state of `enable()`
 
-***
+---
 
 ### isEnabledState \{#isenabledstate\}
 
@@ -129,7 +129,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts:1
 
 The state of `isEnabled()`
 
-***
+---
 
 ### listCommitsState \{#listcommitsstate\}
 
@@ -141,7 +141,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts:1
 
 The state of `listCommits()`; empty means "this branch has no history yet"
 
-***
+---
 
 ### restoreSessionState \{#restoresessionstate\}
 
@@ -155,7 +155,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts:1
 
 The state of `restoreSession()`; empty means "the current branch has no unfinished restore session"
 
-***
+---
 
 ### restoreState \{#restorestate\}
 
@@ -167,7 +167,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts:1
 
 The state of `restore()`; **no empty** — the four rejection causes and `restoredCount: 0` are all results
 
-***
+---
 
 ### statusState \{#statusstate\}
 
@@ -179,7 +179,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts:1
 
 The state of `status()`; empty means "no uncommitted changes"
 
-***
+---
 
 ### switchBranchState \{#switchbranchstate\}
 

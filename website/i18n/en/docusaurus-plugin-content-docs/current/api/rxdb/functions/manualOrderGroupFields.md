@@ -10,8 +10,8 @@ The grouping fields of a manually ordered entity.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                                                 | Description         |
+| ---------- | ------------------------------------------------------------------------------------ | ------------------- |
 | `metadata` | `Pick`&lt;[`EntityMetadata`](../type-aliases/EntityMetadata.md), `"manualOrder"`&gt; | The entity metadata |
 
 ## Returns

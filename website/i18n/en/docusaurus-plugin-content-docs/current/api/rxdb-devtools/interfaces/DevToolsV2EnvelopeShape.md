@@ -14,7 +14,7 @@ readonly direction: DevToolsV2Direction;
 
 Defined in: [v2/wire.ts:217](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/v2/wire.ts#L217)
 
-***
+---
 
 ### payload \{#payload\}
 
@@ -24,7 +24,7 @@ readonly payload: unknown;
 
 Defined in: [v2/wire.ts:220](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/v2/wire.ts#L220)
 
-***
+---
 
 ### protocol \{#protocol\}
 
@@ -34,7 +34,7 @@ readonly protocol: 2;
 
 Defined in: [v2/wire.ts:216](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/v2/wire.ts#L216)
 
-***
+---
 
 ### sequence \{#sequence\}
 
@@ -44,7 +44,7 @@ readonly sequence: number;
 
 Defined in: [v2/wire.ts:222](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/v2/wire.ts#L222)
 
-***
+---
 
 ### sessionId \{#sessionid\}
 
@@ -54,7 +54,7 @@ readonly sessionId: string | null;
 
 Defined in: [v2/wire.ts:219](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/v2/wire.ts#L219)
 
-***
+---
 
 ### source \{#source\}
 
@@ -64,7 +64,7 @@ readonly source: "@aiao/rxdb-devtools";
 
 Defined in: [v2/wire.ts:215](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/v2/wire.ts#L215)
 
-***
+---
 
 ### timestamp \{#timestamp\}
 
@@ -74,12 +74,12 @@ readonly timestamp: number;
 
 Defined in: [v2/wire.ts:221](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/v2/wire.ts#L221)
 
-***
+---
 
 ### type \{#type\}
 
 ```ts
-readonly type: 
+readonly type:
   | "HANDSHAKE"
   | "HANDSHAKE_ACK"
   | "EVENT"

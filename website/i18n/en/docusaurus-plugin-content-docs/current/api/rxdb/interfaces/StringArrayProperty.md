@@ -24,14 +24,14 @@ Property-level CHECK constraint (syntactic sugar): a [PropertyCheckRule](../type
 #### Example
 
 ```typescript
-properties: [{ name: 'qty', type: PropertyType.integer, check: { operator: '>', value: 0 } }]
+properties: [{ name: 'qty', type: PropertyType.integer, check: { operator: '>', value: 0 } }];
 ```
 
 #### Inherited from
 
 `IEntityObject.check`
 
-***
+---
 
 ### columnName? \{#columnname\}
 
@@ -48,7 +48,7 @@ Defaults to the `name` when omitted
 
 `IEntityObject.columnName`
 
-***
+---
 
 ### default? \{#default\}
 
@@ -58,7 +58,7 @@ default?: string[] | (() => string[]);
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:389](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L389)
 
-***
+---
 
 ### displayName? \{#displayname\}
 
@@ -73,14 +73,14 @@ Display name
 #### Example
 
 ```ts
-"User", "Order item"
+('User', 'Order item');
 ```
 
 #### Inherited from
 
 `IEntityObject.displayName`
 
-***
+---
 
 ### encrypted? \{#encrypted\}
 
@@ -97,14 +97,14 @@ Encrypted with AES-GCM-256 by `@aiao/rxdb-adapter-encrypted` before writes and t
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### Inherited from
 
 `IEntityObject.encrypted`
 
-***
+---
 
 ### enum? \{#enum\}
 
@@ -116,7 +116,7 @@ Defined in: [packages/rxdb/src/entity/property-types.interface.ts:399](https://g
 
 The set of allowed values for the string array. Required when `multiSelect` or `options` is declared
 
-***
+---
 
 ### format? \{#format\}
 
@@ -134,7 +134,7 @@ Field semantic annotation. A string array can only declare multi-select
 Array semantics of { kind: 'plainText' } (i.e. no format)
 ```
 
-***
+---
 
 ### name \{#name\}
 
@@ -151,7 +151,7 @@ An English word not starting with an uppercase letter; may only contain English 
 
 `IEntityObject.name`
 
-***
+---
 
 ### nullable? \{#nullable\}
 
@@ -166,14 +166,14 @@ Whether the value can be NULL
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### Inherited from
 
 `IEntityObject.nullable`
 
-***
+---
 
 ### options? \{#options\}
 
@@ -185,7 +185,7 @@ Defined in: [packages/rxdb/src/entity/property-types.interface.ts:408](https://g
 
 Display metadata for the enum values; keys must be a subset of `enum`
 
-***
+---
 
 ### readonly? \{#readonly\}
 
@@ -202,14 +202,14 @@ If false, the column's value is updated when data is updated
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### Inherited from
 
 `IEntityObject.readonly`
 
-***
+---
 
 ### required? \{#required\}
 
@@ -227,14 +227,14 @@ Empty strings and empty arrays are not allowed; the number 0 is allowed
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### Inherited from
 
 `IEntityObject.required`
 
-***
+---
 
 ### searchable? \{#searchable\}
 
@@ -249,14 +249,14 @@ Whether to include in global search (array elements are joined by `\n` before in
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### See
 
 @aiao/rxdb-plugin-search
 
-***
+---
 
 ### sortable? \{#sortable\}
 
@@ -271,26 +271,26 @@ Whether it is sortable
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### Inherited from
 
 `ISortable.sortable`
 
-***
+---
 
 ### type \{#type\}
 
 ```ts
-type: 
+type:
   | "stringArray"
   | stringArray;
 ```
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:388](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L388)
 
-***
+---
 
 ### unique? \{#unique\}
 
@@ -306,7 +306,7 @@ If true, duplicate values are not allowed for this data
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### Inherited from

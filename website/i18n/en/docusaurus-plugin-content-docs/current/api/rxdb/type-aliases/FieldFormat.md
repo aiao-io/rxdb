@@ -1,7 +1,7 @@
 # FieldFormat
 
 ```ts
-type FieldFormat = 
+type FieldFormat =
   | ColorFormat
   | CodeFormat
   | CurrencyFormat

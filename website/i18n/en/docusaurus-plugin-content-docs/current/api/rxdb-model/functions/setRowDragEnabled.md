@@ -10,10 +10,10 @@ Toggles the table's row drag handle at runtime
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `table` | `ListTableAll` | Target table instance (`rowSeriesNumber.dragOrder` must be enabled at table creation) |
-| `enabled` | `boolean` | When `false`, no row shows the handle |
+| Parameter | Type           | Description                                                                           |
+| --------- | -------------- | ------------------------------------------------------------------------------------- |
+| `table`   | `ListTableAll` | Target table instance (`rowSeriesNumber.dragOrder` must be enabled at table creation) |
+| `enabled` | `boolean`      | When `false`, no row shows the handle                                                 |
 
 ## Returns
 

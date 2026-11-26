@@ -16,7 +16,7 @@ Defined in: [packages/rxdb/src/repository/diff-metadata.ts:37](https://github.co
 
 Both exist and local is the latest — pull skipped
 
-***
+---
 
 ### missingIds \{#missingids\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb/src/repository/diff-metadata.ts:33](https://github.co
 
 Exists on the remote but not locally — needs pulling
 
-***
+---
 
 ### orphanIds \{#orphanids\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb/src/repository/diff-metadata.ts:39](https://github.co
 
 Exists locally but not in the remote result set — possibly already deleted or outside the filter range
 
-***
+---
 
 ### staleIds \{#staleids\}
 

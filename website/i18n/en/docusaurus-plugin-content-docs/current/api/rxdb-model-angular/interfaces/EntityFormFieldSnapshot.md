@@ -14,7 +14,7 @@ readonly config: FormFieldConfig;
 
 Defined in: packages/rxdb-model/dist/entity-form/headless.d.ts:27
 
-***
+---
 
 ### displayValue \{#displayvalue\}
 
@@ -24,7 +24,7 @@ readonly displayValue: string;
 
 Defined in: packages/rxdb-model/dist/entity-form/headless.d.ts:31
 
-***
+---
 
 ### error? \{#error\}
 
@@ -34,7 +34,7 @@ readonly error?: FormFieldValidationError;
 
 Defined in: packages/rxdb-model/dist/entity-form/headless.d.ts:29
 
-***
+---
 
 ### readonly \{#readonly\}
 
@@ -44,7 +44,7 @@ readonly readonly: boolean;
 
 Defined in: packages/rxdb-model/dist/entity-form/headless.d.ts:30
 
-***
+---
 
 ### value \{#value\}
 

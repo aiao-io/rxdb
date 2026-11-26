@@ -10,16 +10,16 @@ Managed transaction of the working tree facade: reads the capability bit, passes
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                          |
+| --------------------------------------- |
 | <a id="type-parameter-__typet"></a> `T` |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `run` | (`executor`, `adapter`) => `Promise`&lt;`T`&gt; | The command body |
-| `signal?` | `AbortSignal` | Cancels the wait for the adapter; a command already inside the transaction still needs to finish |
+| Parameter | Type                                            | Description                                                                                      |
+| --------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `run`     | (`executor`, `adapter`) => `Promise`&lt;`T`&gt; | The command body                                                                                 |
+| `signal?` | `AbortSignal`                                   | Cancels the wait for the adapter; a command already inside the transaction still needs to finish |
 
 ## Returns
 

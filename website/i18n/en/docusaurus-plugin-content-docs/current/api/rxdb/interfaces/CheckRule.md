@@ -20,12 +20,12 @@ Defined in: [packages/rxdb/src/entity/check-constraint.ts:85](https://github.com
 
 The field participating in the comparison (a property name; relation paths are not supported).
 
-***
+---
 
 ### operator \{#operator\}
 
 ```ts
-operator: 
+operator:
   | "="
   | "!="
   | "<"
@@ -44,7 +44,7 @@ Defined in: [packages/rxdb/src/entity/check-constraint.ts:87](https://github.com
 
 The operator, limited to [CHECK\_OPERATORS](../variables/CHECK_OPERATORS.md).
 
-***
+---
 
 ### ref? \{#ref\}
 
@@ -56,7 +56,7 @@ Defined in: [packages/rxdb/src/entity/check-constraint.ts:91](https://github.com
 
 The target field of the field-to-field comparison (another column of the same entity).
 
-***
+---
 
 ### value? \{#value\}
 

@@ -10,9 +10,9 @@ Provides a custom query builder theme (must be called during the component's `se
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `theme` | [`QueryBuilderTheme`](../interfaces/QueryBuilderTheme.md) | Theme config |
+| Parameter | Type                                                      | Description  |
+| --------- | --------------------------------------------------------- | ------------ |
+| `theme`   | [`QueryBuilderTheme`](../interfaces/QueryBuilderTheme.md) | Theme config |
 
 ## Returns
 

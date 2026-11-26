@@ -10,9 +10,9 @@ Gets the entity ID.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `entity` | `Record`&lt;`string`, `unknown`&gt; \| `null` \| `undefined` |
+| Parameter | Type                                                         |
+| --------- | ------------------------------------------------------------ |
+| `entity`  | `Record`&lt;`string`, `unknown`&gt; \| `null` \| `undefined` |
 
 ## Returns
 

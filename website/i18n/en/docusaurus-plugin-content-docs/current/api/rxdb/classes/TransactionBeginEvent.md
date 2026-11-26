@@ -16,8 +16,8 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:391](https://github.com/aiao-io/rx
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter        | Type     | Description                      |
+| ---------------- | -------- | -------------------------------- |
 | `transactionId?` | `string` | The identity of this transaction |
 
 #### Returns
@@ -42,12 +42,12 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:391](https://github.com/aiao-io/rx
 
 The identity of this transaction
 
-***
+---
 
 ### type \{#type\}
 
 ```ts
-type: "TRANSACTION_BEGIN" = TRANSACTION_BEGIN;
+type: 'TRANSACTION_BEGIN' = TRANSACTION_BEGIN;
 ```
 
 Defined in: [packages/rxdb/src/rxdb-events.ts:381](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-events.ts#L381)

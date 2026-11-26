@@ -10,9 +10,9 @@ Prints error information in table form
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `err` | `unknown` | Error object or error message |
+| Parameter | Type        | Description                            |
+| --------- | ----------- | -------------------------------------- |
+| `err`     | `unknown`   | Error object or error message          |
 | ...`args` | `unknown`[] | Context printed before the error table |
 
 ## Returns

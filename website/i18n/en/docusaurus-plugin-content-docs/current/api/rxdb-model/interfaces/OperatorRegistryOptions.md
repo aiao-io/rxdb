@@ -19,10 +19,10 @@ The initial operator set
 #### Default
 
 ```ts
-DEFAULT_OPERATORS
+DEFAULT_OPERATORS;
 ```
 
-***
+---
 
 ### useDefaultOperators? \{#usedefaultoperators\}
 
@@ -37,5 +37,5 @@ Whether the default operators are used as the base
 #### Default
 
 ```ts
-true
+true;
 ```

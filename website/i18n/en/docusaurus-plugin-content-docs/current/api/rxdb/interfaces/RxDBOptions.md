@@ -23,7 +23,7 @@ Environment context.
 `userId` is used to fill the `createdBy` / `updatedBy` audit fields, and `clientId` is used to recognize changes originating from this client during sync.
 At runtime the whole object can be replaced via the `RxDB.context` setter (`clientId` is merged and preserved).
 
-***
+---
 
 ### dbName \{#dbname\}
 
@@ -40,7 +40,7 @@ Database name.
 The namespace of the same physical SQLite file. RxDB automatically appends an `@<RXDB_DB_NAME_SUFFIX>`
 suffix to avoid colliding with older databases as versions evolve — what the business side passes in is the user-readable "logical name".
 
-***
+---
 
 ### entities \{#entities\}
 
@@ -56,7 +56,7 @@ All entities.
 Many-to-many junction tables (see `./entity/many-to-many-entity.ts`) do not need to appear here —
 `SchemaManager.init()` appends them automatically while resolving relations.
 
-***
+---
 
 ### migrations? \{#migrations\}
 
@@ -71,7 +71,7 @@ Upgrade scripts.
 Executed in `name.localeCompare` order; ones that have already run are skipped;
 idempotency is controlled by the records in the `RxDBMigration` table.
 
-***
+---
 
 ### multiInstance? \{#multiinstance\}
 
@@ -88,7 +88,7 @@ Whether to enable database event coordination between multiple JavaScript realms
 Defaults to `true`; coordinates multiple browser tabs via `BroadcastChannel` and Web Locks.
 The WeChat Mini Program logic layer has only a single realm and lacks these Web APIs, so it must be explicitly set to `false`.
 
-***
+---
 
 ### readOnly? \{#readonly\}
 
@@ -115,7 +115,7 @@ code running in a read-only instance assigns the entity to the writable instance
 the read-only instance's write guard never sees it. To create an entity on the read-only instance, go through its
 `entityManager.instantiate()` / `createEntityRef()`.
 
-***
+---
 
 ### sync \{#sync\}
 
@@ -129,7 +129,7 @@ Default sync configuration.
 
 Each repository's [SyncType](../enumerations/SyncType.md) inherits from this, and undeclared fields fall through to the global defaults.
 
-***
+---
 
 ### syncOverrides? \{#syncoverrides\}
 

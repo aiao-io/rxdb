@@ -1,7 +1,7 @@
 # EntityFieldType
 
 ```ts
-type EntityFieldType = 
+type EntityFieldType =
   | PropertyType
   | `${bigint}`
   | `${binary}`
@@ -16,9 +16,9 @@ type EntityFieldType =
   | `${stringArray}`
   | `${keyValue}`
   | `${json}`
-  | "oneToOne"
-  | "manyToOne"
-  | "computed";
+  | 'oneToOne'
+  | 'manyToOne'
+  | 'computed';
 ```
 
 Defined in: packages/rxdb-model/dist/entity-field.utils.d.ts:7

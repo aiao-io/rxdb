@@ -12,9 +12,9 @@ Checks whether a value is a boolean primitive.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | The value to check |
+| Parameter | Type      | Description        |
+| --------- | --------- | ------------------ |
+| `value`   | `unknown` | The value to check |
 
 ## Returns
 
@@ -25,6 +25,6 @@ Whether the value is a boolean primitive
 ## Example
 
 ```ts
-isBoolean(false);              // true
+isBoolean(false); // true
 isBoolean(new Boolean(false)); // false
 ```

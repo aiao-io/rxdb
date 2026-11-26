@@ -1,5 +1,5 @@
 ---
-sidebar_label: "QueryCacheSessionContext⟨T⟩"
+sidebar_label: 'QueryCacheSessionContext⟨T⟩'
 ---
 
 # QueryCacheSessionContext`<T>`
@@ -10,9 +10,9 @@ Everything needed to build a session, all prepared and injected by the core.
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) | The entity type |
+| Type Parameter                                                                            | Description     |
+| ----------------------------------------------------------------------------------------- | --------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) | The entity type |
 
 ## Properties
 
@@ -26,7 +26,7 @@ Defined in: [packages/rxdb/src/repository/query-cache-engine.interface.ts:95](ht
 
 The entity name in the metadata (`EntityType.name` is unreliable after bundling/minification)
 
-***
+---
 
 ### EntityType \{#entitytype\}
 
@@ -38,7 +38,7 @@ Defined in: [packages/rxdb/src/repository/query-cache-engine.interface.ts:93](ht
 
 The entity class
 
-***
+---
 
 ### localCacheFirst \{#localcachefirst\}
 
@@ -50,7 +50,7 @@ Defined in: [packages/rxdb/src/repository/query-cache-engine.interface.ts:97](ht
 
 `sync.local.localCacheFirst`, taken out by the call site where the union type has already been narrowed
 
-***
+---
 
 ### pendingWriteIds \{#pendingwriteids\}
 
@@ -70,7 +70,7 @@ on the local adapter via `localAdapter$` (no longer through
 is the whole content of B5: the read-path plugin keeps zero dependency on the write-back-to-outbox implementation — the two plugins don't know each other
 and only meet at the `Repository` line.
 
-***
+---
 
 ### reachability \{#reachability\}
 
@@ -82,7 +82,7 @@ Defined in: [packages/rxdb/src/repository/query-cache-engine.interface.ts:101](h
 
 Remote reachability monitor
 
-***
+---
 
 ### syncStaleTime \{#syncstaletime\}
 
@@ -94,7 +94,7 @@ Defined in: [packages/rxdb/src/repository/query-cache-engine.interface.ts:99](ht
 
 `sync.local.syncStaleTime`; `undefined` means the implementation side's default window is used
 
-***
+---
 
 ### syncState \{#syncstate\}
 

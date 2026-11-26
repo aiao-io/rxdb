@@ -10,10 +10,10 @@ Generates the triggers for a table.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entityMetadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | - |
-| `options` | `TriggerOptions` | Trigger options; see TriggerOptions |
+| Parameter        | Type                                                          | Description                         |
+| ---------------- | ------------------------------------------------------------- | ----------------------------------- |
+| `entityMetadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | -                                   |
+| `options`        | `TriggerOptions`                                              | Trigger options; see TriggerOptions |
 
 ## Returns
 

@@ -16,7 +16,7 @@ Defined in: packages/rxdb-model/dist/entity-capabilities.d.ts:7
 
 Can create: `create` is `'both'`
 
-***
+---
 
 ### canDelete \{#candelete\}
 
@@ -28,7 +28,7 @@ Defined in: packages/rxdb-model/dist/entity-capabilities.d.ts:11
 
 Existing rows can be deleted: `delete` is `'both'`
 
-***
+---
 
 ### canEdit \{#canedit\}
 

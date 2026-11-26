@@ -21,7 +21,7 @@ Defined in: packages/rxdb-model/dist/query-builder/models/query-builder-state.d.
 
 Field name
 
-***
+---
 
 ### id \{#id\}
 
@@ -33,7 +33,7 @@ Defined in: packages/rxdb-model/dist/query-builder/models/query-builder-state.d.
 
 Unique identifier of the rule
 
-***
+---
 
 ### operator \{#operator\}
 
@@ -45,7 +45,7 @@ Defined in: packages/rxdb-model/dist/query-builder/models/query-builder-state.d.
 
 Operator
 
-***
+---
 
 ### value? \{#value\}
 
@@ -57,7 +57,7 @@ Defined in: packages/rxdb-model/dist/query-builder/models/query-builder-state.d.
 
 Rule value (optional)
 
-***
+---
 
 ### where? \{#where\}
 

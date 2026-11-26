@@ -1,19 +1,19 @@
 # FieldFormatConfigKey
 
 ```ts
-type FieldFormatConfigKey = 
-  | "colorSpace"
-  | "contentType"
-  | "currency"
-  | "display"
-  | "language"
-  | "max"
-  | "min"
-  | "scale"
-  | "schemes"
-  | "step"
-  | "timezone"
-  | "unit";
+type FieldFormatConfigKey =
+  | 'colorSpace'
+  | 'contentType'
+  | 'currency'
+  | 'display'
+  | 'language'
+  | 'max'
+  | 'min'
+  | 'scale'
+  | 'schemes'
+  | 'step'
+  | 'timezone'
+  | 'unit';
 ```
 
 Defined in: [packages/rxdb/src/entity/metadata-validate.ts:121](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/metadata-validate.ts#L121)

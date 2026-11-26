@@ -41,7 +41,7 @@ Issues no statement when no change has gone through `bumpWorkingTreeRevision()`.
 and after all entries are persisted: the other way around, if the entry writes fail, the revision has already been incremented,
 and it is the CAS basis of commit.
 
-***
+---
 
 ### portFor() \{#portfor\}
 
@@ -55,9 +55,9 @@ Creates a port for **one** change in this batch
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | [`WorkingTreeEntryKey`](WorkingTreeEntryKey.md) | The entity identity of this change |
+| Parameter | Type                                            | Description                        |
+| --------- | ----------------------------------------------- | ---------------------------------- |
+| `key`     | [`WorkingTreeEntryKey`](WorkingTreeEntryKey.md) | The entity identity of this change |
 
 #### Returns
 

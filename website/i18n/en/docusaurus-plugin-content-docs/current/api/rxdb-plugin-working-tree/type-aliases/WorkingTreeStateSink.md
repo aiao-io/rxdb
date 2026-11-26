@@ -1,5 +1,5 @@
 ---
-sidebar_label: "WorkingTreeStateSink⟨S⟩"
+sidebar_label: 'WorkingTreeStateSink⟨S⟩'
 ---
 
 # WorkingTreeStateSink`<S>`
@@ -14,15 +14,15 @@ Where the state goes; each of the three frameworks wires it to its own reactive 
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-s"></a> `S` |
 
 ## Parameters
 
 | Parameter | Type |
-| ------ | ------ |
-| `state` | `S` |
+| --------- | ---- |
+| `state`   | `S`  |
 
 ## Returns
 

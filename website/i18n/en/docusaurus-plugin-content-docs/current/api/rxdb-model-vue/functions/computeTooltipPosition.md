@@ -1,12 +1,13 @@
 # computeTooltipPosition()
 
 ```ts
-function computeTooltipPosition(container, rect): 
-  | {
+function computeTooltipPosition(
+  container,
+  rect
+): {
   x: number;
   y: number;
-}
-  | null;
+} | null;
 ```
 
 Defined in: packages/rxdb-model/dist/entity-table/vtable/table-tooltip.d.ts:9
@@ -15,17 +16,17 @@ Computes the tooltip's absolute position on the page
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `container` | `HTMLElement` \| `null` \| `undefined` | The container element the tooltip belongs to |
-| `rect` | `Record`&lt;`string`, `number`&gt; \| `null` \| `undefined` | Cell rectangle info (x/left, y/top, height/bottom) |
+| Parameter   | Type                                                        | Description                                        |
+| ----------- | ----------------------------------------------------------- | -------------------------------------------------- |
+| `container` | `HTMLElement` \| `null` \| `undefined`                      | The container element the tooltip belongs to       |
+| `rect`      | `Record`&lt;`string`, `number`&gt; \| `null` \| `undefined` | Cell rectangle info (x/left, y/top, height/bottom) |
 
 ## Returns
 
-  \| \{
-  `x`: `number`;
-  `y`: `number`;
+\| \{
+`x`: `number`;
+`y`: `number`;
 \}
-  \| `null`
+\| `null`
 
 Page coordinates (below the cell); returns null when the container, rectangle or position info is missing

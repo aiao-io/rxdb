@@ -10,10 +10,10 @@ Generates a deterministic constraint name: `ck_<table name>_<author name>_<8-cha
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) |
-| `check` | [`EntityCheckMetadataOptions`](../interfaces/EntityCheckMetadataOptions.md) |
+| Parameter  | Type                                                                        |
+| ---------- | --------------------------------------------------------------------------- |
+| `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md)                       |
+| `check`    | [`EntityCheckMetadataOptions`](../interfaces/EntityCheckMetadataOptions.md) |
 
 ## Returns
 

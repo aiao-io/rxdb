@@ -10,8 +10,8 @@ Computes the fingerprint of one page of snapshot payload — **this is the publi
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                | Description                                    |
+| --------- | ----------------------------------- | ---------------------------------------------- |
 | `payload` | `Record`&lt;`string`, `unknown`&gt; | The payload that is stored as-is for this page |
 
 ## Returns

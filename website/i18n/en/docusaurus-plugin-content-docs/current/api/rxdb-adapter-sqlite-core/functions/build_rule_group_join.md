@@ -1,13 +1,7 @@
 # build_rule_group_join()
 
 ```ts
-function build_rule_group_join(
-   adapter, 
-   entityMetadata, 
-   ruleGroup, 
-   orderBy?, 
-   options?
-): object;
+function build_rule_group_join(adapter, entityMetadata, ruleGroup, orderBy?, options?): object;
 ```
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/query/join\_sql.ts:512](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/query/join_sql.ts#L512)
@@ -16,13 +10,13 @@ Computes the JOIN string needed by a query
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `adapter` | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md) | The adapter |
-| `entityMetadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | The metadata of the entity to query |
-| `ruleGroup` | [`RuleGroup`](../../rxdb/type-aliases/RuleGroup.md) | The query conditions |
-| `orderBy?` | [`OrderBy`](../../rxdb/interfaces/OrderBy.md)&lt;`string`&gt;[] | Ordering conditions; dotted fields in it also participate in JOIN planning |
-| `options?` | [`RuleGroupJoinOptions`](../interfaces/RuleGroupJoinOptions.md) | Planning context rewrites for subquery / recursive member scenarios |
+| Parameter        | Type                                                            | Description                                                                |
+| ---------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `adapter`        | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md)  | The adapter                                                                |
+| `entityMetadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md)   | The metadata of the entity to query                                        |
+| `ruleGroup`      | [`RuleGroup`](../../rxdb/type-aliases/RuleGroup.md)             | The query conditions                                                       |
+| `orderBy?`       | [`OrderBy`](../../rxdb/interfaces/OrderBy.md)&lt;`string`&gt;[] | Ordering conditions; dotted fields in it also participate in JOIN planning |
+| `options?`       | [`RuleGroupJoinOptions`](../interfaces/RuleGroupJoinOptions.md) | Planning context rewrites for subquery / recursive member scenarios        |
 
 ## Returns
 

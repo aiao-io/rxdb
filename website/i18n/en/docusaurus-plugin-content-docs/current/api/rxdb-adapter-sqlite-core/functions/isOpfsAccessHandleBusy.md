@@ -10,8 +10,8 @@ Whether the database file under the OPFS root is currently held by a synchronous
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type     | Description            |
+| ---------- | -------- | ---------------------- |
 | `fileName` | `string` | The database file name |
 
 ## Returns

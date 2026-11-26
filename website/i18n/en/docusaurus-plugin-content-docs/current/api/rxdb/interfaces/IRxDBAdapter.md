@@ -44,7 +44,7 @@ Itself, for chaining
 Both table creation and system migrations happen here (see `isCurrentRxDBSystemVersion`), so it may be slow
 and may throw `UnsupportedRxDBSystemVersionError` because the database is newer than this process.
 
-***
+---
 
 ### disconnect() \{#disconnect\}
 
@@ -65,7 +65,7 @@ Disconnects and releases the underlying handle.
 Unlike `RxDB.destroy()`, disconnecting is **reversible**: the same adapter instance can `connect()` again afterwards.
 Implementations must be idempotent — calling while not connected is a no-op, not an error.
 
-***
+---
 
 ### getRepository() \{#getrepository\}
 
@@ -79,16 +79,16 @@ Fetches the repository instance of this entity on **this adapter**.
 
 #### Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) | - |
-| <a id="type-parameter-rt"></a> `RT` *extends* [`IRepository`](IRepository.md)&lt;`T`&gt; | [`IRepository`](IRepository.md)&lt;`T`&gt; |
+| Type Parameter                                                                            | Default type                               |
+| ----------------------------------------------------------------------------------------- | ------------------------------------------ |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) | -                                          |
+| <a id="type-parameter-rt"></a> `RT` _extends_ [`IRepository`](IRepository.md)&lt;`T`&gt;  | [`IRepository`](IRepository.md)&lt;`T`&gt; |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `EntityType` | `T` |
+| Parameter    | Type |
+| ------------ | ---- |
+| `EntityType` | `T`  |
 
 #### Returns
 
@@ -99,7 +99,7 @@ Fetches the repository instance of this entity on **this adapter**.
 What comes back is the adapter-axis repository (see [AdapterRepositoryConstructor](../type-aliases/AdapterRepositoryConstructor.md)),
 not the same object as the facade repository users usually get from `RxDB.getRepository()`.
 
-***
+---
 
 ### isTableExisted() \{#istableexisted\}
 
@@ -113,8 +113,8 @@ Whether the table for this entity already exists in the database.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter    | Type                                          |
+| ------------ | --------------------------------------------- |
 | `EntityType` | [`EntityType`](../type-aliases/EntityType.md) |
 
 #### Returns
@@ -125,7 +125,7 @@ Whether the table for this entity already exists in the database.
 
 It asks about the **physical table**, not whether this entity is registered in the metadata.
 
-***
+---
 
 ### mutations() \{#mutations\}
 
@@ -139,21 +139,21 @@ Mutates entities in bulk (create/update/delete)
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-1"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                              |
+| ------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-1"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                 |
+| --------- | ---------------------------------------------------- |
 | `options` | [`RxDBMutationsMap`](RxDBMutationsMap.md)&lt;`T`&gt; |
 
 #### Returns
 
 `Promise`&lt;`InstanceType`&lt;`T`&gt;[]&gt;
 
-***
+---
 
 ### rawQuery()? \{#rawquery\}
 
@@ -167,9 +167,9 @@ Executes a raw SQL query (conditional UPDATE and other scenarios that bypass the
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `sql` | `string` |
+| Parameter | Type        |
+| --------- | ----------- |
+| `sql`     | `string`    |
 | `params?` | `unknown`[] |
 
 #### Returns
@@ -186,7 +186,7 @@ means all writes on this path bypass change capture.
 
 Writes through here do not go through the entity Proxy, so they produce no entity events and cached instances are not refreshed automatically.
 
-***
+---
 
 ### removeMany() \{#removemany\}
 
@@ -200,14 +200,14 @@ Deletes entities in bulk.
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-2"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                              |
+| ------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-2"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                        |
+| ---------- | --------------------------- |
 | `entities` | `InstanceType`&lt;`T`&gt;[] |
 
 #### Returns
@@ -216,7 +216,7 @@ Deletes entities in bulk.
 
 The deleted entities
 
-***
+---
 
 ### saveMany() \{#savemany\}
 
@@ -230,14 +230,14 @@ Writes entities in bulk (inserts when absent, updates when present).
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-3"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                              |
+| ------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-3"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                        |
+| ---------- | --------------------------- |
 | `entities` | `InstanceType`&lt;`T`&gt;[] |
 
 #### Returns
@@ -246,7 +246,7 @@ Writes entities in bulk (inserts when absent, updates when present).
 
 The entities after being persisted; fields backfilled by the database, such as the primary key and database-side defaults, only have values here
 
-***
+---
 
 ### version() \{#version\}
 

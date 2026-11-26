@@ -11,9 +11,9 @@ Trims leading/trailing whitespace and replaces runs of whitespace with a single 
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `string` | The string to process |
+| Parameter | Type     | Description           |
+| --------- | -------- | --------------------- |
+| `value`   | `string` | The string to process |
 
 ## Returns
 

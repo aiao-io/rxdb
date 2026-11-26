@@ -18,9 +18,9 @@ count query
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | [`CountOptions`](CountOptions.md)&lt;*typeof* [`RxDBBranch`](../classes/RxDBBranch.md), [`RxDBBranchRuleGroup`](../type-aliases/RxDBBranchRuleGroup.md)&gt; | Query options |
+| Parameter | Type                                                                                                                                                        | Description   |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| `options` | [`CountOptions`](CountOptions.md)&lt;_typeof_ [`RxDBBranch`](../classes/RxDBBranch.md), [`RxDBBranchRuleGroup`](../type-aliases/RxDBBranchRuleGroup.md)&gt; | Query options |
 
 #### Returns
 
@@ -28,7 +28,7 @@ count query
 
 Returns the number of query results
 
-***
+---
 
 ### create() \{#create\}
 
@@ -42,9 +42,9 @@ Creates an entity
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | [`RxDBBranch`](../classes/RxDBBranch.md) | The entity to create |
+| Parameter | Type                                     | Description          |
+| --------- | ---------------------------------------- | -------------------- |
+| `entity`  | [`RxDBBranch`](../classes/RxDBBranch.md) | The entity to create |
 
 #### Returns
 
@@ -52,7 +52,7 @@ Creates an entity
 
 Returns the created entity
 
-***
+---
 
 ### find() \{#find\}
 
@@ -66,9 +66,9 @@ find query
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | [`FindOptions`](FindOptions.md)&lt;*typeof* [`RxDBBranch`](../classes/RxDBBranch.md), [`RxDBBranchRuleGroup`](../type-aliases/RxDBBranchRuleGroup.md), [`RxDBBranchOrderByField`](../type-aliases/RxDBBranchOrderByField.md)&gt; | Query options |
+| Parameter | Type                                                                                                                                                                                                                             | Description   |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| `options` | [`FindOptions`](FindOptions.md)&lt;_typeof_ [`RxDBBranch`](../classes/RxDBBranch.md), [`RxDBBranchRuleGroup`](../type-aliases/RxDBBranchRuleGroup.md), [`RxDBBranchOrderByField`](../type-aliases/RxDBBranchOrderByField.md)&gt; | Query options |
 
 #### Returns
 
@@ -76,7 +76,7 @@ find query
 
 Returns the query result array
 
-***
+---
 
 ### remove() \{#remove\}
 
@@ -90,9 +90,9 @@ Removes an entity
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | [`RxDBBranch`](../classes/RxDBBranch.md) | The entity to remove |
+| Parameter | Type                                     | Description          |
+| --------- | ---------------------------------------- | -------------------- |
+| `entity`  | [`RxDBBranch`](../classes/RxDBBranch.md) | The entity to remove |
 
 #### Returns
 
@@ -100,7 +100,7 @@ Removes an entity
 
 Returns the removed entity
 
-***
+---
 
 ### update() \{#update\}
 
@@ -114,10 +114,10 @@ Updates an entity
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | [`RxDBBranch`](../classes/RxDBBranch.md) | The entity to update |
-| `patch` | `Partial`&lt;`InstanceType`&lt;*typeof* [`RxDBBranch`](../classes/RxDBBranch.md)&gt;&gt; | Update data |
+| Parameter | Type                                                                                     | Description          |
+| --------- | ---------------------------------------------------------------------------------------- | -------------------- |
+| `entity`  | [`RxDBBranch`](../classes/RxDBBranch.md)                                                 | The entity to update |
+| `patch`   | `Partial`&lt;`InstanceType`&lt;_typeof_ [`RxDBBranch`](../classes/RxDBBranch.md)&gt;&gt; | Update data          |
 
 #### Returns
 

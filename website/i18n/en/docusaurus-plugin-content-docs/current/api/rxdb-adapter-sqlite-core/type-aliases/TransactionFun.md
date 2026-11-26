@@ -10,8 +10,8 @@ Transaction callback.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                   |
+| ---------- | ---------------------------------------------------------------------- |
 | `executor` | [`SqliteTransactionExecutor`](../classes/SqliteTransactionExecutor.md) |
 
 ## Returns

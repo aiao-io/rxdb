@@ -1,11 +1,7 @@
 # isRemoteNewer()
 
 ```ts
-function isRemoteNewer(
-   remoteUpdatedAt, 
-   localUpdatedAt, 
-   context
-): boolean;
+function isRemoteNewer(remoteUpdatedAt, localUpdatedAt, context): boolean;
 ```
 
 Defined in: [packages/rxdb/src/repository/updated-at.utils.ts:47](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/updated-at.utils.ts#L47)
@@ -14,11 +10,11 @@ Determines whether the remote record is newer than the local one.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `remoteUpdatedAt` | `string` | The remote time string |
-| `localUpdatedAt` | `string` | The local time string |
-| `context` | `string` | The context used to locate the error |
+| Parameter         | Type     | Description                          |
+| ----------------- | -------- | ------------------------------------ |
+| `remoteUpdatedAt` | `string` | The remote time string               |
+| `localUpdatedAt`  | `string` | The local time string                |
+| `context`         | `string` | The context used to locate the error |
 
 ## Returns
 

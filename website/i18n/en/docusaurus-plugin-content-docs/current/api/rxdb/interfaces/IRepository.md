@@ -1,5 +1,5 @@
 ---
-sidebar_label: "IRepository⟨T⟩"
+sidebar_label: 'IRepository⟨T⟩'
 ---
 
 # IRepository`<T>`
@@ -27,9 +27,9 @@ and `Repository` ([Repository](../classes/Repository.md)) layers "sync + transac
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                            |
+| ----------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 ## Methods
 
@@ -45,8 +45,8 @@ Counts entities
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                                   | Description                                                     |
+| --------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
 | `options` | [`EntityStaticType`](../type-aliases/EntityStaticType.md)&lt;`T`, `"countOptions"`&gt; | Query options (see [CountOptions](CountOptions.md) for details) |
 
 #### Returns
@@ -55,7 +55,7 @@ Counts entities
 
 The number of rows matching the conditions
 
-***
+---
 
 ### create() \{#create\}
 
@@ -69,9 +69,9 @@ Creates an entity
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The entity instance (usually created by [EntityManager.instantiate](EntityManager.md#instantiate)) |
+| Parameter | Type                      | Description                                                                                        |
+| --------- | ------------------------- | -------------------------------------------------------------------------------------------------- |
+| `entity`  | `InstanceType`&lt;`T`&gt; | The entity instance (usually created by [EntityManager.instantiate](EntityManager.md#instantiate)) |
 
 #### Returns
 
@@ -79,7 +79,7 @@ Creates an entity
 
 The entity after persistence; **not** the same reference as the argument (implementations may swap in a new instance)
 
-***
+---
 
 ### find() \{#find\}
 
@@ -93,8 +93,8 @@ Queries multiple entities
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                                  | Description                                                   |
+| --------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
 | `options` | [`EntityStaticType`](../type-aliases/EntityStaticType.md)&lt;`T`, `"findOptions"`&gt; | Query options (see [FindOptions](FindOptions.md) for details) |
 
 #### Returns
@@ -108,7 +108,7 @@ The array of entities matching the conditions; no match returns an empty array (
 Returns entity instances (with the state machine), not bare data — the caller's subsequent `save()` / `remove()`
 operations reuse the same state object, avoiding "context lost right after the query".
 
-***
+---
 
 ### remove() \{#remove\}
 
@@ -122,9 +122,9 @@ Removes an entity
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The entity to remove (located by `id`) |
+| Parameter | Type                      | Description                            |
+| --------- | ------------------------- | -------------------------------------- |
+| `entity`  | `InstanceType`&lt;`T`&gt; | The entity to remove (located by `id`) |
 
 #### Returns
 
@@ -132,7 +132,7 @@ Removes an entity
 
 The entity after removal (fields cleared, `local` set to `false`)
 
-***
+---
 
 ### update() \{#update\}
 
@@ -146,10 +146,10 @@ Updates an entity
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The entity to update (provides the `id` and the latest fields) |
-| `patch` | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; | Field-level patch; fields not listed are not modified |
+| Parameter | Type                                       | Description                                                    |
+| --------- | ------------------------------------------ | -------------------------------------------------------------- |
+| `entity`  | `InstanceType`&lt;`T`&gt;                  | The entity to update (provides the `id` and the latest fields) |
+| `patch`   | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; | Field-level patch; fields not listed are not modified          |
 
 #### Returns
 

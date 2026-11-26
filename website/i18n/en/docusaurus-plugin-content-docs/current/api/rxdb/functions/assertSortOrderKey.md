@@ -10,10 +10,10 @@ Asserts that a user-written sort key is valid.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `string` | The entity name, used in the error message |
-| `key` | `unknown` | The key to validate |
+| Parameter | Type      | Description                                |
+| --------- | --------- | ------------------------------------------ |
+| `entity`  | `string`  | The entity name, used in the error message |
+| `key`     | `unknown` | The key to validate                        |
 
 ## Returns
 

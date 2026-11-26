@@ -10,8 +10,8 @@ The table set this instance currently has mounted: the set `worktreeTableSet$` h
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                 | Description       |
+| ---------- | ------------------------------------ | ----------------- |
 | `database` | [`RxDB`](../../rxdb/classes/RxDB.md) | The main instance |
 
 ## Returns

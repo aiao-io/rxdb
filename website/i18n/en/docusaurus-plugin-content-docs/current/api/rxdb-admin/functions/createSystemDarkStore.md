@@ -10,8 +10,8 @@ Observes whether the system is in dark mode.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter    | Type                                                         | Description                                                                  |
+| ------------ | ------------------------------------------------------------ | ---------------------------------------------------------------------------- |
 | `matchMedia` | [`MatchMedia`](../type-aliases/MatchMedia.md) \| `undefined` | The host's `matchMedia`; when absent (SSR / tests) the mode is always light. |
 
 ## Returns

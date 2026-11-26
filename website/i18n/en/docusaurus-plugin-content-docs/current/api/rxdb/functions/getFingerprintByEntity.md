@@ -10,15 +10,15 @@ Computes the fingerprint of a single entity.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                            |
+| ----------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; \| `null` \| `undefined` | The entity whose fingerprint to compute |
+| Parameter | Type                                               | Description                             |
+| --------- | -------------------------------------------------- | --------------------------------------- |
+| `entity`  | `InstanceType`&lt;`T`&gt; \| `null` \| `undefined` | The entity whose fingerprint to compute |
 
 ## Returns
 

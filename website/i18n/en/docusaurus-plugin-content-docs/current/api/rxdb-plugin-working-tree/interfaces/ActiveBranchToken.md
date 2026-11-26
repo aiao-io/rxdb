@@ -21,7 +21,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:2
 
 The activation revision at capture time; +1 on every branch switch
 
-***
+---
 
 ### branchId \{#branchid\}
 

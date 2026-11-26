@@ -1,12 +1,7 @@
 # executeOo1Helper()
 
 ```ts
-function executeOo1Helper(
-   clientName, 
-   db, 
-   sql, 
-   bindings?
-): SqliteSuccessResult;
+function executeOo1Helper(clientName, db, sql, bindings?): SqliteSuccessResult;
 ```
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/execute\_oo1\_helper.ts:84](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/execute_oo1_helper.ts#L84)
@@ -25,12 +20,12 @@ Both `@sqlite.org/sqlite-wasm` and `@sqliteai/sqlite-wasm` expose a synchronous
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `clientName` | `string` |
-| `db` | [`Oo1Database`](../interfaces/Oo1Database.md) |
-| `sql` | `string` |
-| `bindings?` | [`SQLiteCompatibleType`](../type-aliases/SQLiteCompatibleType.md)[] |
+| Parameter    | Type                                                                |
+| ------------ | ------------------------------------------------------------------- |
+| `clientName` | `string`                                                            |
+| `db`         | [`Oo1Database`](../interfaces/Oo1Database.md)                       |
+| `sql`        | `string`                                                            |
+| `bindings?`  | [`SQLiteCompatibleType`](../type-aliases/SQLiteCompatibleType.md)[] |
 
 ## Returns
 

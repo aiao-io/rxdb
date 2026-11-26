@@ -16,7 +16,7 @@ Defined in: [packages/rxdb/src/entity/check-constraint.ts:460](https://github.co
 
 The normalized SQL expression (can be embedded directly in `CONSTRAINT ... CHECK (...)`).
 
-***
+---
 
 ### name \{#name\}
 

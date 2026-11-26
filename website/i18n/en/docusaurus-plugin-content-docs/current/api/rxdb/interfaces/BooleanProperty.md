@@ -30,14 +30,14 @@ compiled into an entity-level CHECK named after the property, and — like entit
 #### Example
 
 ```typescript
-properties: [{ name: 'qty', type: PropertyType.integer, check: { operator: '>', value: 0 } }]
+properties: [{ name: 'qty', type: PropertyType.integer, check: { operator: '>', value: 0 } }];
 ```
 
 #### Inherited from
 
 `IEntityObject.check`
 
-***
+---
 
 ### columnName? \{#columnname\}
 
@@ -54,7 +54,7 @@ If not provided it is the same as name
 
 `IEntityObject.columnName`
 
-***
+---
 
 ### default? \{#default\}
 
@@ -64,7 +64,7 @@ default?: boolean | (() => boolean);
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:382](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L382)
 
-***
+---
 
 ### displayName? \{#displayname\}
 
@@ -79,14 +79,14 @@ Display name
 #### Example
 
 ```ts
-"User", "Order item"
+('User', 'Order item');
 ```
 
 #### Inherited from
 
 `IEntityObject.displayName`
 
-***
+---
 
 ### encrypted? \{#encrypted\}
 
@@ -105,14 +105,14 @@ primary key / foreign key / unique / sortable / index / computed field / FTS col
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### Inherited from
 
 `IEntityObject.encrypted`
 
-***
+---
 
 ### name \{#name\}
 
@@ -129,7 +129,7 @@ An English word not starting with an uppercase letter; may only contain English 
 
 `IEntityObject.name`
 
-***
+---
 
 ### nullable? \{#nullable\}
 
@@ -144,14 +144,14 @@ Whether it can be NULL
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### Inherited from
 
 `IEntityObject.nullable`
 
-***
+---
 
 ### readonly? \{#readonly\}
 
@@ -168,14 +168,14 @@ If false, the column is updated when the data is updated
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### Inherited from
 
 `IEntityObject.readonly`
 
-***
+---
 
 ### required? \{#required\}
 
@@ -193,14 +193,14 @@ Empty strings and empty arrays are not allowed; the number 0 is allowed
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### Inherited from
 
 `IEntityObject.required`
 
-***
+---
 
 ### sortable? \{#sortable\}
 
@@ -215,24 +215,24 @@ Whether it is sortable
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### Inherited from
 
 `ISortable.sortable`
 
-***
+---
 
 ### type \{#type\}
 
 ```ts
-type: "boolean" | boolean;
+type: 'boolean' | boolean;
 ```
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:381](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L381)
 
-***
+---
 
 ### unique? \{#unique\}
 
@@ -248,7 +248,7 @@ If true, the value of this column must not repeat
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### Inherited from

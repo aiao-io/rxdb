@@ -16,7 +16,7 @@ Defined in: packages/rxdb-model/dist/entity-field.utils.d.ts:13
 
 Display name of the key
 
-***
+---
 
 ### nullable? \{#nullable\}
 
@@ -28,7 +28,7 @@ Defined in: packages/rxdb-model/dist/entity-field.utils.d.ts:19
 
 Whether the value can be null
 
-***
+---
 
 ### required? \{#required\}
 
@@ -40,7 +40,7 @@ Defined in: packages/rxdb-model/dist/entity-field.utils.d.ts:17
 
 Whether the key is required
 
-***
+---
 
 ### type? \{#type\}
 

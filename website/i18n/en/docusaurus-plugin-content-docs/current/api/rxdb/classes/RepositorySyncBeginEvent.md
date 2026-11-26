@@ -12,9 +12,9 @@ Fired when pullRepository(), pushRepository() or syncRepository() begins executi
 
 ```ts
 new RepositorySyncBeginEvent(
-   direction, 
-   namespace, 
-   entity, 
+   direction,
+   namespace,
+   entity,
    includeRelated
 ): RepositorySyncBeginEvent;
 ```
@@ -23,12 +23,12 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:571](https://github.com/aiao-io/rx
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `direction` | [`RepositorySyncDirection`](../type-aliases/RepositorySyncDirection.md) | Sync direction |
-| `namespace` | `string` | Namespace |
-| `entity` | `string` | Entity name |
-| `includeRelated` | `boolean` | Whether related entities are included |
+| Parameter        | Type                                                                    | Description                           |
+| ---------------- | ----------------------------------------------------------------------- | ------------------------------------- |
+| `direction`      | [`RepositorySyncDirection`](../type-aliases/RepositorySyncDirection.md) | Sync direction                        |
+| `namespace`      | `string`                                                                | Namespace                             |
+| `entity`         | `string`                                                                | Entity name                           |
+| `includeRelated` | `boolean`                                                               | Whether related entities are included |
 
 #### Returns
 
@@ -46,7 +46,7 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:573](https://github.com/aiao-io/rx
 
 Sync direction
 
-***
+---
 
 ### entity \{#entity\}
 
@@ -58,7 +58,7 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:577](https://github.com/aiao-io/rx
 
 Entity name
 
-***
+---
 
 ### includeRelated \{#includerelated\}
 
@@ -70,7 +70,7 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:579](https://github.com/aiao-io/rx
 
 Whether related entities are included
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -82,7 +82,7 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:575](https://github.com/aiao-io/rx
 
 Namespace
 
-***
+---
 
 ### type \{#type\}
 

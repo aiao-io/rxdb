@@ -30,8 +30,8 @@ Defined in: [packages/utils/src/@browser/IdleTimer.ts:71](https://github.com/aia
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                    | Description                                                                                |
+| ---------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | `options?` | [`IdleTimerOptions`](../interfaces/IdleTimerOptions.md) | See [IdleTimerOptions](../interfaces/IdleTimerOptions.md); when omitted, `timeout` is 2000 |
 
 #### Returns
@@ -74,7 +74,7 @@ Idempotent; repeated calls are safe no-ops. **Irreversible** — afterwards [Idl
 
 `void`
 
-***
+---
 
 ### start() \{#start\}
 
@@ -96,7 +96,7 @@ Idempotent — repeated calls do not bind listeners twice; they only reset the t
 
 `Error` when the instance has been [IdleTimer.destroy](#destroy)-ed; a destroyed instance cannot be revived, create a new one
 
-***
+---
 
 ### stop() \{#stop\}
 

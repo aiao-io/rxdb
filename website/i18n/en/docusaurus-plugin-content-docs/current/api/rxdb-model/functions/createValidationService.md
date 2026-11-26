@@ -10,8 +10,8 @@ Factory function that creates a ValidationService instance.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                                    | Description                    |
+| ---------- | ----------------------------------------------------------------------- | ------------------------------ |
 | `options?` | [`ValidationServiceOptions`](../interfaces/ValidationServiceOptions.md) | The validation service options |
 
 ## Returns

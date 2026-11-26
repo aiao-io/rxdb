@@ -23,16 +23,16 @@ A writable checkout's tables have just been created and seeded, still inside the
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `executor` | [`TransactionExecutor`](TransactionExecutor.md) | The table-creating transaction; build the auxiliary objects on it, and throwing rolls back the whole transaction |
+| Parameter  | Type                                                 | Description                                                                                                                                                        |
+| ---------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `executor` | [`TransactionExecutor`](TransactionExecutor.md)      | The table-creating transaction; build the auxiliary objects on it, and throwing rolls back the whole transaction                                                   |
 | `tableSet` | [`WorktreeTableSet`](../classes/WorktreeTableSet.md) | The table set just created. The executor's `tableSet` is the one mounted by the instance that initiated the transaction (usually the main table set), not this one |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### fingerprint() \{#fingerprint\}
 
@@ -46,8 +46,8 @@ What the auxiliary objects this plugin built on this table set look like (US-314
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                 | Description                                               |
+| ---------- | ---------------------------------------------------- | --------------------------------------------------------- |
 | `tableSet` | [`WorktreeTableSet`](../classes/WorktreeTableSet.md) | That table set; looks only at its members, not the suffix |
 
 #### Returns

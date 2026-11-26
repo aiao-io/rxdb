@@ -10,9 +10,9 @@ Normalizes the legacy `databaseSync` parameter into a resolver.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `source` | \| [`SyncOptions`](../type-aliases/SyncOptions.md) \| [`EntitySyncResolver`](../interfaces/EntitySyncResolver.md) \| `undefined` | A resolver, or the database-level `sync` passed by old call sites |
+| Parameter | Type                                                                                                                             | Description                                                       |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `source`  | \| [`SyncOptions`](../type-aliases/SyncOptions.md) \| [`EntitySyncResolver`](../interfaces/EntitySyncResolver.md) \| `undefined` | A resolver, or the database-level `sync` passed by old call sites |
 
 ## Returns
 

@@ -10,10 +10,10 @@ Updates tab titles via the resolve function (re-fetches menu titles after a lang
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `state` | [`TabsState`](../interfaces/TabsState.md) | The current state. |
-| `resolve` | (`url`) => `string` \| `undefined` | Returns a title for a URL; returning `undefined` keeps the original title. |
+| Parameter | Type                                      | Description                                                                |
+| --------- | ----------------------------------------- | -------------------------------------------------------------------------- |
+| `state`   | [`TabsState`](../interfaces/TabsState.md) | The current state.                                                         |
+| `resolve` | (`url`) => `string` \| `undefined`        | Returns a title for a URL; returning `undefined` keeps the original title. |
 
 ## Returns
 

@@ -25,12 +25,12 @@ Defined in: [packages/rxdb/src/sync-state.ts:57](https://github.com/aiao-io/rxdb
 
 The database SQLSTATE, e.g. `42501`, `RX001`, `23503`
 
-***
+---
 
 ### dependsOn? \{#dependson\}
 
 ```ts
-dependsOn?: 
+dependsOn?:
   | RemoteEntityRef
   | {
   constraint: string;
@@ -41,7 +41,7 @@ Defined in: [packages/rxdb/src/sync-state.ts:63](https://github.com/aiao-io/rxdb
 
 Points to the parent entity when a dependency failed; gives the constraint name when the parent entity cannot be located
 
-***
+---
 
 ### entity \{#entity\}
 
@@ -53,7 +53,7 @@ Defined in: [packages/rxdb/src/sync-state.ts:51](https://github.com/aiao-io/rxdb
 
 Entity name
 
-***
+---
 
 ### entityId \{#entityid\}
 
@@ -65,7 +65,7 @@ Defined in: [packages/rxdb/src/sync-state.ts:53](https://github.com/aiao-io/rxdb
 
 The primary key of the rejected entity
 
-***
+---
 
 ### message \{#message\}
 
@@ -77,7 +77,7 @@ Defined in: [packages/rxdb/src/sync-state.ts:61](https://github.com/aiao-io/rxdb
 
 The remote's raw message
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -89,24 +89,24 @@ Defined in: [packages/rxdb/src/sync-state.ts:49](https://github.com/aiao-io/rxdb
 
 Entity namespace
 
-***
+---
 
 ### op \{#op\}
 
 ```ts
-op: "INSERT" | "UPDATE" | "DELETE";
+op: 'INSERT' | 'UPDATE' | 'DELETE';
 ```
 
 Defined in: [packages/rxdb/src/sync-state.ts:55](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-state.ts#L55)
 
 The merged remote operation (taken from the remote's receipt, not the type of a single source change)
 
-***
+---
 
 ### reason \{#reason\}
 
 ```ts
-reason: "denied" | "gone" | "dependency";
+reason: 'denied' | 'gone' | 'dependency';
 ```
 
 Defined in: [packages/rxdb/src/sync-state.ts:59](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-state.ts#L59)

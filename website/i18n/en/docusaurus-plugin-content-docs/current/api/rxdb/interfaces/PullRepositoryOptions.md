@@ -19,7 +19,7 @@ The conflict resolver used during repository-level pull.
 The current runtime only supports the automatic KEEP_LOCAL and KEEP_REMOTE resolution strategies.
 MERGE and DEFER are not implemented yet and remain as to-dos.
 
-***
+---
 
 ### fetchAll? \{#fetchall\}
 
@@ -34,10 +34,10 @@ Whether to make multiple requests to pull all changes
 #### Default
 
 ```ts
-false
+false;
 ```
 
-***
+---
 
 ### filter? \{#filter\}
 
@@ -61,7 +61,7 @@ filter: {
 }
 ```
 
-***
+---
 
 ### includeRelated? \{#includerelated\}
 
@@ -74,21 +74,23 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:419](ht
 Whether to include related entities (cascade sync)
 
 When true:
+
 - Automatically pulls all parent entities (foreign key references)
 - In topological order: parent -\> child
 - Example: pulling Post automatically pulls User
 
 When false:
+
 - Only the specified repository is synced
 - If a parent entity is not synced, foreign key constraint errors may result
 
 #### Default
 
 ```ts
-true
+true;
 ```
 
-***
+---
 
 ### limit? \{#limit\}
 
@@ -103,5 +105,5 @@ The maximum number of changes per pull request
 #### Default
 
 ```ts
-1000
+1000;
 ```

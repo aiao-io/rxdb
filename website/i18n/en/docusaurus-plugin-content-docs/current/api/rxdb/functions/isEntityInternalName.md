@@ -11,9 +11,9 @@ including base class fields, private fields and fields starting with an undersco
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | `string` | The field name to check |
+| Parameter | Type     | Description             |
+| --------- | -------- | ----------------------- |
+| `key`     | `string` | The field name to check |
 
 ## Returns
 

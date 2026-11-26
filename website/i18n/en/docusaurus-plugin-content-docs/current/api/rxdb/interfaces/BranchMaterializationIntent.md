@@ -23,7 +23,7 @@ Defined in: [packages/rxdb/src/sync-contract/branch-materialization-source.ts:26
 
 The frozen terminal watermark for this run; the shape is defined by the source side, and the working tree only compares it key-order-insensitively
 
-***
+---
 
 ### syncScope \{#syncscope\}
 

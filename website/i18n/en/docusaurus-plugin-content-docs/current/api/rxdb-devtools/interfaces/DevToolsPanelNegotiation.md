@@ -16,7 +16,7 @@ Defined in: [v2/negotiation-panel.ts:62](https://github.com/aiao-io/rxdb/blob/b5
 
 Already entered the v1 facade yet saw that the peer actually speaks v2 — hints the user to reconnect to upgrade.
 
-***
+---
 
 ### rejectedFrames \{#rejectedframes\}
 
@@ -28,7 +28,7 @@ Defined in: [v2/negotiation-panel.ts:68](https://github.com/aiao-io/rxdb/blob/b5
 
 The number of frames rejected by the state machine; "rejection" is countable, "silence" is not.
 
-***
+---
 
 ### rejection \{#rejection\}
 
@@ -40,7 +40,7 @@ Defined in: [v2/negotiation-panel.ts:66](https://github.com/aiao-io/rxdb/blob/b5
 
 The error reported by the peer during negotiation, such as `protocol_unsupported`.
 
-***
+---
 
 ### sessionId \{#sessionid\}
 
@@ -52,7 +52,7 @@ Defined in: [v2/negotiation-panel.ts:60](https://github.com/aiao-io/rxdb/blob/b5
 
 The session after successful negotiation; `null` in all other states.
 
-***
+---
 
 ### stashedHandshake \{#stashedhandshake\}
 
@@ -64,7 +64,7 @@ Defined in: [v2/negotiation-panel.ts:64](https://github.com/aiao-io/rxdb/blob/b5
 
 The most recently stashed legacy handshake; within the window it is replaced by a later handshake.
 
-***
+---
 
 ### state \{#state\}
 
@@ -92,7 +92,7 @@ Cancels the pending window and stops responding.
 
 `void`
 
-***
+---
 
 ### receive() \{#receive\}
 
@@ -106,15 +106,15 @@ Processes one frame of inbound messages.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `frame` | `unknown` | A parsed, unvalidated inbound value. |
+| Parameter | Type      | Description                          |
+| --------- | --------- | ------------------------------------ |
+| `frame`   | `unknown` | A parsed, unvalidated inbound value. |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### start() \{#start\}
 

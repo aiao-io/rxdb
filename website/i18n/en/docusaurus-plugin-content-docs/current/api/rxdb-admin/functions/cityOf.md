@@ -10,9 +10,9 @@ The city name: takes the last segment of the IANA name, underscores replaced wit
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `zone` | `string` | The IANA name. |
+| Parameter | Type     | Description    |
+| --------- | -------- | -------------- |
+| `zone`    | `string` | The IANA name. |
 
 ## Returns
 

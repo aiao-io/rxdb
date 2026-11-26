@@ -18,7 +18,7 @@ readonly activeTab?: string;
 
 Defined in: packages/rxdb-model/dist/entity-detail/headless.d.ts:17
 
-***
+---
 
 ### data? \{#data\}
 
@@ -32,7 +32,7 @@ Defined in: packages/rxdb-model/dist/entity-form/headless.d.ts:74
 
 [`EntityFormControllerOptions`](EntityFormControllerOptions.md).[`data`](EntityFormControllerOptions.md#data)
 
-***
+---
 
 ### entity? \{#entity\}
 
@@ -46,7 +46,7 @@ Defined in: packages/rxdb-model/dist/entity-form/headless.d.ts:75
 
 [`EntityFormControllerOptions`](EntityFormControllerOptions.md).[`entity`](EntityFormControllerOptions.md#entity)
 
-***
+---
 
 ### fields \{#fields\}
 
@@ -60,7 +60,7 @@ Defined in: packages/rxdb-model/dist/entity-form/headless.d.ts:73
 
 [`EntityFormControllerOptions`](EntityFormControllerOptions.md).[`fields`](EntityFormControllerOptions.md#fields)
 
-***
+---
 
 ### i18n? \{#i18n\}
 
@@ -74,7 +74,7 @@ Defined in: packages/rxdb-model/dist/entity-form/headless.d.ts:77
 
 [`EntityFormControllerOptions`](EntityFormControllerOptions.md).[`i18n`](EntityFormControllerOptions.md#i18n)
 
-***
+---
 
 ### mode? \{#mode\}
 
@@ -88,7 +88,7 @@ Defined in: packages/rxdb-model/dist/entity-form/headless.d.ts:76
 
 [`EntityFormControllerOptions`](EntityFormControllerOptions.md).[`mode`](EntityFormControllerOptions.md#mode)
 
-***
+---
 
 ### open? \{#open\}
 
@@ -98,7 +98,7 @@ readonly open?: boolean;
 
 Defined in: packages/rxdb-model/dist/entity-detail/headless.d.ts:18
 
-***
+---
 
 ### relatedEntityProvider? \{#relatedentityprovider\}
 
@@ -112,7 +112,7 @@ Defined in: packages/rxdb-model/dist/entity-form/headless.d.ts:78
 
 [`EntityFormControllerOptions`](EntityFormControllerOptions.md).[`relatedEntityProvider`](EntityFormControllerOptions.md#relatedentityprovider)
 
-***
+---
 
 ### tabs? \{#tabs\}
 

@@ -17,9 +17,9 @@ with the prefix, both are encoded independently.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `id` | [`RxDBEntityId`](../type-aliases/RxDBEntityId.md) |
+| Parameter | Type                                              |
+| --------- | ------------------------------------------------- |
+| `id`      | [`RxDBEntityId`](../type-aliases/RxDBEntityId.md) |
 
 ## Returns
 

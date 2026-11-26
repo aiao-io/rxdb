@@ -7,6 +7,7 @@ Single query rule component
 ## Description
 
 Shows the editing UI for a single query rule:
+
 - Field selector
 - Operator selector
 - Value input box
@@ -36,7 +37,7 @@ readonly currentEnumOptions: Signal<unknown[]>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/query-rule/query-rule.component.ts:132](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/query-rule/query-rule.component.ts#L132)
 
-***
+---
 
 ### currentField \{#currentfield\}
 
@@ -46,7 +47,7 @@ readonly currentField: Signal<FieldMetadata | undefined>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/query-rule/query-rule.component.ts:126](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/query-rule/query-rule.component.ts#L126)
 
-***
+---
 
 ### currentFieldType \{#currentfieldtype\}
 
@@ -56,7 +57,7 @@ readonly currentFieldType: Signal<PropertyType>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/query-rule/query-rule.component.ts:131](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/query-rule/query-rule.component.ts#L131)
 
-***
+---
 
 ### currentRelationFields \{#currentrelationfields\}
 
@@ -68,7 +69,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-rule/query-rule
 
 Field list of the current field's relation target entity
 
-***
+---
 
 ### errors \{#errors\}
 
@@ -78,7 +79,7 @@ readonly errors: InputSignal<ValidationError[]>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/query-rule/query-rule.component.ts:88](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/query-rule/query-rule.component.ts#L88)
 
-***
+---
 
 ### errorTooltip \{#errortooltip\}
 
@@ -88,7 +89,7 @@ readonly errorTooltip: Signal<string>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/query-rule/query-rule.component.ts:103](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/query-rule/query-rule.component.ts#L103)
 
-***
+---
 
 ### fieldAsString \{#fieldasstring\}
 
@@ -98,7 +99,7 @@ readonly fieldAsString: Signal<string>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/query-rule/query-rule.component.ts:93](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/query-rule/query-rule.component.ts#L93)
 
-***
+---
 
 ### fields \{#fields\}
 
@@ -108,7 +109,7 @@ readonly fields: InputSignal<FieldMetadata[]>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/query-rule/query-rule.component.ts:87](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/query-rule/query-rule.component.ts#L87)
 
-***
+---
 
 ### fieldSelectorInputs \{#fieldselectorinputs\}
 
@@ -124,7 +125,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-rule/query-rule
 
 NgComponentOutlet inputs: field selector (fieldChangeCb is a lazy reference; declaration order does not affect the runtime)
 
-***
+---
 
 ### isExistsOperator \{#isexistsoperator\}
 
@@ -134,7 +135,7 @@ readonly isExistsOperator: Signal<boolean>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/query-rule/query-rule.component.ts:108](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/query-rule/query-rule.component.ts#L108)
 
-***
+---
 
 ### isNoValueOperator \{#isnovalueoperator\}
 
@@ -144,7 +145,7 @@ readonly isNoValueOperator: Signal<boolean>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/query-rule/query-rule.component.ts:109](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/query-rule/query-rule.component.ts#L109)
 
-***
+---
 
 ### operatorSelectorInputs \{#operatorselectorinputs\}
 
@@ -161,7 +162,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-rule/query-rule
 
 NgComponentOutlet inputs: operator selector
 
-***
+---
 
 ### remove \{#remove\}
 
@@ -171,7 +172,7 @@ readonly remove: OutputEmitterRef<void>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/query-rule/query-rule.component.ts:91](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/query-rule/query-rule.component.ts#L91)
 
-***
+---
 
 ### rule \{#rule\}
 
@@ -181,7 +182,7 @@ readonly rule: InputSignal<UIRuleWithWhere>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/query-rule/query-rule.component.ts:86](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/query-rule/query-rule.component.ts#L86)
 
-***
+---
 
 ### ruleErrors \{#ruleerrors\}
 
@@ -191,7 +192,7 @@ readonly ruleErrors: Signal<ValidationError[]>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/query-rule/query-rule.component.ts:94](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/query-rule/query-rule.component.ts#L94)
 
-***
+---
 
 ### ruleWhere \{#rulewhere\}
 
@@ -205,7 +206,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-rule/query-rule
 
 The rule's where subquery
 
-***
+---
 
 ### showSubquery \{#showsubquery\}
 
@@ -217,7 +218,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-rule/query-rule
 
 Whether the subquery panel is expanded (auto-expanded when there are existing where rules)
 
-***
+---
 
 ### subqueryVisible \{#subqueryvisible\}
 
@@ -230,7 +231,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-rule/query-rule
 Auto-expands when the rule's where already has content.
 Wraps the check in a computed that watches rule().where, checked before the button is shown.
 
-***
+---
 
 ### theme \{#theme\}
 
@@ -242,7 +243,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-rule/query-rule
 
 The injected theme (falls back to the default theme)
 
-***
+---
 
 ### update \{#update\}
 
@@ -255,7 +256,7 @@ readonly update: OutputEmitterRef<{
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/query-rule/query-rule.component.ts:90](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/query-rule/query-rule.component.ts#L90)
 
-***
+---
 
 ### valueInputInputs \{#valueinputinputs\}
 
@@ -294,7 +295,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-rule/query-rule
 
 [`ModelI18n`](../interfaces/ModelI18n.md)
 
-***
+---
 
 ### t \{#t\}
 
@@ -328,7 +329,7 @@ Adds a sub-condition: expands the panel and creates a default sub-rule
 
 `void`
 
-***
+---
 
 ### onFieldChange() \{#onfieldchange\}
 
@@ -342,15 +343,15 @@ Field change
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter   | Type     |
+| ----------- | -------- |
 | `fieldName` | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onOperatorChange() \{#onoperatorchange\}
 
@@ -364,15 +365,15 @@ Operator change
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `operator` | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onRemove() \{#onremove\}
 
@@ -388,7 +389,7 @@ Deletes the rule
 
 `void`
 
-***
+---
 
 ### onValueChange() \{#onvaluechange\}
 
@@ -402,15 +403,15 @@ Value change
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `value`   | `unknown` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onWhereChange() \{#onwherechange\}
 
@@ -424,9 +425,9 @@ Subquery condition change
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `where` | \| [`QueryBuilderRuleGroup`](../interfaces/QueryBuilderRuleGroup.md)&lt;`Record`&lt;`string`, `unknown`&gt;&gt; \| `undefined` |
+| Parameter | Type                                                                                                                           |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `where`   | \| [`QueryBuilderRuleGroup`](../interfaces/QueryBuilderRuleGroup.md)&lt;`Record`&lt;`string`, `unknown`&gt;&gt; \| `undefined` |
 
 #### Returns
 

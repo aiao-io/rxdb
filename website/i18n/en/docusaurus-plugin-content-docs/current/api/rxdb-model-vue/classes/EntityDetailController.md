@@ -16,8 +16,8 @@ Defined in: packages/rxdb-model/dist/entity-detail/headless.d.ts:30
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                              |
+| --------- | --------------------------------------------------------------------------------- |
 | `options` | [`EntityDetailControllerOptions`](../interfaces/EntityDetailControllerOptions.md) |
 
 #### Returns
@@ -70,7 +70,7 @@ Restores the most recent host input and invalidates any old session that is savi
 
 `void`
 
-***
+---
 
 ### close() \{#close\}
 
@@ -86,7 +86,7 @@ Closes the current detail session so that a late save cannot close later session
 
 `void`
 
-***
+---
 
 ### dispose() \{#dispose\}
 
@@ -102,7 +102,7 @@ Releases form subscriptions and resources, blocking late tasks from updating.
 
 `void`
 
-***
+---
 
 ### open() \{#open\}
 
@@ -118,7 +118,7 @@ Opens a new detail session.
 
 `void`
 
-***
+---
 
 ### save() \{#save\}
 
@@ -132,15 +132,15 @@ Persists the current draft; re-entrant calls, expired sessions and late results 
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                            |
+| --------- | ----------------------------------------------- |
 | `onSave?` | (`result`) => `void` \| `Promise`&lt;`void`&gt; |
 
 #### Returns
 
 `Promise`&lt;[`EntityFormSubmitResult`](../type-aliases/EntityFormSubmitResult.md)&gt;
 
-***
+---
 
 ### selectTab() \{#selecttab\}
 
@@ -154,20 +154,20 @@ Activates a declared tab; unknown keys throw.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `key` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `key`     | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### setField() \{#setfield\}
 
 ```ts
-setField(field, value): 
+setField(field, value):
   | {
   event: FormFieldChangeEvent;
   ok: true;
@@ -184,23 +184,23 @@ Modifies a field using the form's strict parsing and read-only constraints.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `field` | `string` |
-| `value` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `field`   | `string`  |
+| `value`   | `unknown` |
 
 #### Returns
 
-  \| \{
-  `event`: [`FormFieldChangeEvent`](../interfaces/FormFieldChangeEvent.md);
-  `ok`: `true`;
+\| \{
+`event`: [`FormFieldChangeEvent`](../interfaces/FormFieldChangeEvent.md);
+`ok`: `true`;
 \}
-  \| \{
-  `ok`: `false`;
-  `result`: [`FormValidationResult`](../interfaces/FormValidationResult.md);
+\| \{
+`ok`: `false`;
+`result`: [`FormValidationResult`](../interfaces/FormValidationResult.md);
 \}
 
-***
+---
 
 ### subscribe() \{#subscribe\}
 
@@ -214,15 +214,15 @@ Subscribes to detail state events and returns an unsubscribe function.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type             |
+| ---------- | ---------------- |
 | `listener` | `DetailListener` |
 
 #### Returns
 
 () => `void`
 
-***
+---
 
 ### validate() \{#validate\}
 

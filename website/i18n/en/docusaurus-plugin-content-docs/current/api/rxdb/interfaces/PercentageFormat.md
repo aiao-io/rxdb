@@ -9,12 +9,12 @@ Percentage. `scale` determines the inherent value range: `0..1` is `[0, 1]`, `0.
 ### kind \{#kind\}
 
 ```ts
-kind: "percentage";
+kind: 'percentage';
 ```
 
 Defined in: [packages/rxdb/src/entity/cascade-options.interface.ts:96](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/cascade-options.interface.ts#L96)
 
-***
+---
 
 ### max? \{#max\}
 
@@ -24,7 +24,7 @@ max?: number;
 
 Defined in: [packages/rxdb/src/entity/cascade-options.interface.ts:99](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/cascade-options.interface.ts#L99)
 
-***
+---
 
 ### min? \{#min\}
 
@@ -34,17 +34,17 @@ min?: number;
 
 Defined in: [packages/rxdb/src/entity/cascade-options.interface.ts:98](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/cascade-options.interface.ts#L98)
 
-***
+---
 
 ### scale \{#scale\}
 
 ```ts
-scale: "0..1" | "0..100";
+scale: '0..1' | '0..100';
 ```
 
 Defined in: [packages/rxdb/src/entity/cascade-options.interface.ts:97](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/cascade-options.interface.ts#L97)
 
-***
+---
 
 ### step? \{#step\}
 

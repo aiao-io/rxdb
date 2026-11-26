@@ -1,11 +1,14 @@
 ---
-sidebar_label: "EntityListInput⟨T⟩"
+sidebar_label: 'EntityListInput⟨T⟩'
 ---
 
 # EntityListInput`<T>`
 
 ```ts
-type EntityListInput<T> = Pick<EntityListControllerOptions<T>, "query" | "sorts" | "page" | "pageSize" | "records" | "capabilities">;
+type EntityListInput<T> = Pick<
+  EntityListControllerOptions<T>,
+  'query' | 'sorts' | 'page' | 'pageSize' | 'records' | 'capabilities'
+>;
 ```
 
 Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:79
@@ -14,6 +17,6 @@ List inputs that can follow host updates, synchronized via `syncInput`; `load` a
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityInstance`](EntityInstance.md) | [`EntityInstance`](EntityInstance.md) |
+| Type Parameter                                                                    | Default type                          |
+| --------------------------------------------------------------------------------- | ------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityInstance`](EntityInstance.md) | [`EntityInstance`](EntityInstance.md) |

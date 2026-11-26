@@ -16,7 +16,7 @@ Defined in: packages/rxdb-model/dist/entity-field.utils.d.ts:28
 
 Display name
 
-***
+---
 
 ### encrypted? \{#encrypted\}
 
@@ -29,7 +29,7 @@ Defined in: packages/rxdb-model/dist/entity-field.utils.d.ts:61
 Whether this is an encrypted column
 this key is only emitted when the metadata declares `encrypted: true`
 
-***
+---
 
 ### enumValues? \{#enumvalues\}
 
@@ -41,7 +41,7 @@ Defined in: packages/rxdb-model/dist/entity-field.utils.d.ts:40
 
 The allowed values of an enum type
 
-***
+---
 
 ### field \{#field\}
 
@@ -53,7 +53,7 @@ Defined in: packages/rxdb-model/dist/entity-field.utils.d.ts:26
 
 Field name
 
-***
+---
 
 ### format? \{#format\}
 
@@ -66,7 +66,7 @@ Defined in: packages/rxdb-model/dist/entity-field.utils.d.ts:51
 Semantic annotation of the field (only affects display and control selection, not the runtime value type)
 this key is only emitted when the metadata declares `format`
 
-***
+---
 
 ### keyValueSchema? \{#keyvalueschema\}
 
@@ -78,7 +78,7 @@ Defined in: packages/rxdb-model/dist/entity-field.utils.d.ts:42
 
 Schema of a key-value type field
 
-***
+---
 
 ### nullable? \{#nullable\}
 
@@ -90,7 +90,7 @@ Defined in: packages/rxdb-model/dist/entity-field.utils.d.ts:34
 
 Whether the field is nullable
 
-***
+---
 
 ### options? \{#options\}
 
@@ -103,7 +103,7 @@ Defined in: packages/rxdb-model/dist/entity-field.utils.d.ts:56
 Display metadata for enum/multi-select values (label / color / disabled); the keys are a subset of `enum`
 this key is only emitted when the metadata declares `options`
 
-***
+---
 
 ### readonly? \{#readonly\}
 
@@ -115,7 +115,7 @@ Defined in: packages/rxdb-model/dist/entity-field.utils.d.ts:32
 
 Whether the field is readonly
 
-***
+---
 
 ### relatedEntityName? \{#relatedentityname\}
 
@@ -127,7 +127,7 @@ Defined in: packages/rxdb-model/dist/entity-field.utils.d.ts:44
 
 The name of the entity the relation field points to
 
-***
+---
 
 ### relatedNamespace? \{#relatednamespace\}
 
@@ -139,7 +139,7 @@ Defined in: packages/rxdb-model/dist/entity-field.utils.d.ts:46
 
 The namespace of the entity the relation field points to
 
-***
+---
 
 ### required? \{#required\}
 
@@ -151,7 +151,7 @@ Defined in: packages/rxdb-model/dist/entity-field.utils.d.ts:36
 
 Whether the field is required
 
-***
+---
 
 ### type \{#type\}
 
@@ -163,7 +163,7 @@ Defined in: packages/rxdb-model/dist/entity-field.utils.d.ts:30
 
 Field type
 
-***
+---
 
 ### unique? \{#unique\}
 

@@ -10,16 +10,16 @@ Creates an independent Comlink sub-port for one client connection.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`SqliteClientLike`](../interfaces/SqliteClientLike.md) |
+| Type Parameter                                                                                      |
+| --------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`SqliteClientLike`](../interfaces/SqliteClientLike.md) |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `directClient` | `T` | The main-thread client instance, returned as-is when no transport is configured |
-| `options` | [`CreateSqliteClientOptions`](../interfaces/CreateSqliteClientOptions.md) | The transport and ownership configuration |
+| Parameter      | Type                                                                      | Description                                                                     |
+| -------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `directClient` | `T`                                                                       | The main-thread client instance, returned as-is when no transport is configured |
+| `options`      | [`CreateSqliteClientOptions`](../interfaces/CreateSqliteClientOptions.md) | The transport and ownership configuration                                       |
 
 ## Returns
 

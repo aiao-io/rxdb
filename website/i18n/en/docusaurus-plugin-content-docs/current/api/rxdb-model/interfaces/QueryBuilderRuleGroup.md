@@ -1,5 +1,5 @@
 ---
-sidebar_label: "QueryBuilderRuleGroup⟨T⟩"
+sidebar_label: 'QueryBuilderRuleGroup⟨T⟩'
 ---
 
 # QueryBuilderRuleGroup`<T>`
@@ -10,8 +10,8 @@ Rule group (reuses the RxDB RuleGroup type plus UI metadata)
 
 ## Type Parameters
 
-| Type Parameter | Default type | Description |
-| ------ | ------ | ------ |
+| Type Parameter                    | Default type                        | Description |
+| --------------------------------- | ----------------------------------- | ----------- |
 | <a id="type-parameter-t"></a> `T` | `Record`&lt;`string`, `unknown`&gt; | Entity type |
 
 ## Properties
@@ -19,14 +19,14 @@ Rule group (reuses the RxDB RuleGroup type plus UI metadata)
 ### combinator \{#combinator\}
 
 ```ts
-combinator: "and" | "or";
+combinator: 'and' | 'or';
 ```
 
 Defined in: [packages/rxdb-model/src/query-builder/models/query-builder-state.ts:90](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model/src/query-builder/models/query-builder-state.ts#L90)
 
 Logical combinator
 
-***
+---
 
 ### id \{#id\}
 
@@ -38,7 +38,7 @@ Defined in: [packages/rxdb-model/src/query-builder/models/query-builder-state.ts
 
 Unique identifier of the rule group
 
-***
+---
 
 ### rules \{#rules\}
 

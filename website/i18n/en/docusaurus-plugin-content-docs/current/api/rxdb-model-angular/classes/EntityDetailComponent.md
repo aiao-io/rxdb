@@ -33,7 +33,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:293]
 
 The relationName of the currently active relation tab (used to register relations for child entities)
 
-***
+---
 
 ### activeTab \{#activetab\}
 
@@ -43,7 +43,7 @@ readonly activeTab: Signal<DetailTab | undefined>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:316](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-detail/entity-detail.ts#L316)
 
-***
+---
 
 ### activeTabKey \{#activetabkey\}
 
@@ -53,7 +53,7 @@ readonly activeTabKey: WritableSignal<string>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:311](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-detail/entity-detail.ts#L311)
 
-***
+---
 
 ### creationChain \{#creationchain\}
 
@@ -65,7 +65,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:280]
 
 Creation chain: the current entity + the ancestor chain, passed to the child entity-list to block circular creation (the ancestor chain input takes priority, falling back to DIALOG_DATA)
 
-***
+---
 
 ### creationChainInput \{#creationchaininput\}
 
@@ -82,7 +82,7 @@ Input of the ancestor creation chain (entity types `namespace:name`), used to bl
 The binding name is `creationChain`, aligned with the same-named prop in React / Vue; the same-named class member `creationChain`
 is the effective chain after appending the current entity (public since main), so the input is declared under an alias.
 
-***
+---
 
 ### delegateSave \{#delegatesave\}
 
@@ -94,7 +94,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:237]
 
 Delegated save: does not create a draft entity, only emits formSubmitted for the caller to handle
 
-***
+---
 
 ### dialogTitle \{#dialogtitle\}
 
@@ -106,7 +106,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:272]
 
 Dialog title
 
-***
+---
 
 ### draftEntitySignal \{#draftentitysignal\}
 
@@ -118,7 +118,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:259]
 
 Exposes the draft entity to the template (needed by the entity-list of relation tabs)
 
-***
+---
 
 ### draftFormData \{#draftformdata\}
 
@@ -130,7 +130,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:256]
 
 Current form edit data (tracks user input in create mode)
 
-***
+---
 
 ### editChain \{#editchain\}
 
@@ -142,7 +142,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:290]
 
 Stack of record ids of open detail dialogs (input takes priority, falling back to DIALOG_DATA, including the current record); the relation tab lists use this to block infinite nesting
 
-***
+---
 
 ### editChainInput \{#editchaininput\}
 
@@ -159,7 +159,7 @@ Input of the stack of record ids (including the current record) of open detail d
 The binding name is `editChain`, aligned with the same-named prop in React / Vue; the same-named class member `editChain`
 is the effective value after merging the input with DIALOG_DATA (public since main), so the input is declared under an alias.
 
-***
+---
 
 ### entityId \{#entityid\}
 
@@ -169,7 +169,7 @@ readonly entityId: InputSignal<string | undefined>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:213](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-detail/entity-detail.ts#L213)
 
-***
+---
 
 ### fieldChanged \{#fieldchanged\}
 
@@ -179,7 +179,7 @@ readonly fieldChanged: OutputEmitterRef<FormFieldChangeEvent>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:249](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-detail/entity-detail.ts#L249)
 
-***
+---
 
 ### fixedFormData \{#fixedformdata\}
 
@@ -191,7 +191,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:234]
 
 Pre-filled foreign key data (not editable), used in cascading creation
 
-***
+---
 
 ### formCancelled \{#formcancelled\}
 
@@ -201,7 +201,7 @@ readonly formCancelled: OutputEmitterRef<void>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:248](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-detail/entity-detail.ts#L248)
 
-***
+---
 
 ### formData \{#formdata\}
 
@@ -211,7 +211,7 @@ readonly formData: InputSignal<EntityFormData | undefined>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:221](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-detail/entity-detail.ts#L221)
 
-***
+---
 
 ### formErrors \{#formerrors\}
 
@@ -223,7 +223,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:262]
 
 Validation error panel: the validation result of the most recent submission (same semantics as React/Vue, US-104).
 
-***
+---
 
 ### formFields \{#formfields\}
 
@@ -233,7 +233,7 @@ readonly formFields: InputSignal<FormFieldConfig[] | undefined>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:220](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-detail/entity-detail.ts#L220)
 
-***
+---
 
 ### formMode \{#formmode\}
 
@@ -243,7 +243,7 @@ readonly formMode: InputSignal<FormMode | undefined>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:222](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-detail/entity-detail.ts#L222)
 
-***
+---
 
 ### formSubmitted \{#formsubmitted\}
 
@@ -253,7 +253,7 @@ readonly formSubmitted: OutputEmitterRef<EntityFormData>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:247](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-detail/entity-detail.ts#L247)
 
-***
+---
 
 ### isCreateMode \{#iscreatemode\}
 
@@ -265,7 +265,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:253]
 
 Whether the external save mode is used (in create mode, the save/cancel buttons are below the tabs instead of inside the form)
 
-***
+---
 
 ### isEditPending \{#iseditpending\}
 
@@ -278,7 +278,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:206]
 The edit target is not ready (the query has not emitted or has failed): blocks submission, hides the internal form actions, leaving only cancel below the tabs.
 Without an injected database there is nothing to load from, and `entityId` only passes through with the form data, which does not count as pending.
 
-***
+---
 
 ### loadError \{#loaderror\}
 
@@ -290,7 +290,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:200]
 
 Reason for the load failure (the edit entity query errored): while the entity is not ready only cancel remains available, so the reason must be visible.
 
-***
+---
 
 ### metadata \{#metadata\}
 
@@ -302,7 +302,7 @@ readonly metadata: InputSignal<
 
 Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:219](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-detail/entity-detail.ts#L219)
 
-***
+---
 
 ### name \{#name\}
 
@@ -312,7 +312,7 @@ readonly name: InputSignal<string | undefined>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:212](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-detail/entity-detail.ts#L212)
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -322,7 +322,7 @@ readonly namespace: InputSignal<string | undefined>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:211](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-detail/entity-detail.ts#L211)
 
-***
+---
 
 ### parentEntityForRelation \{#parententityforrelation\}
 
@@ -334,7 +334,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:267]
 
 Parent entity (draft or saved instance), used for the entity-list of relation tabs
 
-***
+---
 
 ### relatedEntityProvider \{#relatedentityprovider\}
 
@@ -346,7 +346,7 @@ readonly relatedEntityProvider: InputSignal<
 
 Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:223](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-detail/entity-detail.ts#L223)
 
-***
+---
 
 ### saveError \{#saveerror\}
 
@@ -358,7 +358,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:264]
 
 Reason for the save failure (persistence errors other than validation errors).
 
-***
+---
 
 ### tabGroupName \{#tabgroupname\}
 
@@ -370,7 +370,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:216]
 
 Unique radio group name, avoiding radio conflicts between multiple EntityDetailComponent instances
 
-***
+---
 
 ### tabs \{#tabs\}
 
@@ -380,7 +380,7 @@ readonly tabs: Signal<DetailTab[]>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:298](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-detail/entity-detail.ts#L298)
 
-***
+---
 
 ### validationErrors \{#validationerrors\}
 
@@ -408,7 +408,7 @@ Whether saving is delegated (input takes priority, falling back to DIALOG_DATA)
 
 `boolean`
 
-***
+---
 
 ### displayedFormErrors \{#displayedformerrors\}
 
@@ -424,7 +424,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:335]
 
 [`FormValidationResult`](../interfaces/FormValidationResult.md) \| `null`
 
-***
+---
 
 ### fixedFormDataValue \{#fixedformdatavalue\}
 
@@ -442,7 +442,7 @@ Pre-filled foreign key data (input takes priority, falling back to DIALOG_DATA)
 
 [`EntityFormData`](../interfaces/EntityFormData.md) \| `undefined`
 
-***
+---
 
 ### formDataValue \{#formdatavalue\}
 
@@ -458,7 +458,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:340]
 
 [`EntityFormData`](../interfaces/EntityFormData.md)
 
-***
+---
 
 ### formFieldsValue \{#formfieldsvalue\}
 
@@ -474,7 +474,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:326]
 
 [`FormFieldConfig`](../interfaces/FormFieldConfig.md)[]
 
-***
+---
 
 ### formModeValue \{#formmodevalue\}
 
@@ -490,14 +490,14 @@ Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:344]
 
 [`FormMode`](../type-aliases/FormMode.md)
 
-***
+---
 
 ### metadataValue \{#metadatavalue\}
 
 #### Get Signature
 
 ```ts
-get metadataValue(): 
+get metadataValue():
   | Readonly<EntityMetadataType>
   | undefined;
 ```
@@ -506,10 +506,10 @@ Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:321]
 
 ##### Returns
 
-  \| `Readonly`&lt;[`EntityMetadataType`](../../rxdb/interfaces/EntityMetadataType.md)&gt;
-  \| `undefined`
+\| `Readonly`&lt;[`EntityMetadataType`](../../rxdb/interfaces/EntityMetadataType.md)&gt;
+\| `undefined`
 
-***
+---
 
 ### modelI18n \{#modeli18n\}
 
@@ -525,14 +525,14 @@ Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:365]
 
 [`ModelI18n`](../interfaces/ModelI18n.md)
 
-***
+---
 
 ### relatedEntityProviderValue \{#relatedentityprovidervalue\}
 
 #### Get Signature
 
 ```ts
-get relatedEntityProviderValue(): 
+get relatedEntityProviderValue():
   | RelatedEntityProvider
   | undefined;
 ```
@@ -541,10 +541,10 @@ Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:348]
 
 ##### Returns
 
-  \| [`RelatedEntityProvider`](../interfaces/RelatedEntityProvider.md)
-  \| `undefined`
+\| [`RelatedEntityProvider`](../interfaces/RelatedEntityProvider.md)
+\| `undefined`
 
-***
+---
 
 ### t \{#t\}
 
@@ -572,20 +572,20 @@ Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:519]
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `tab` | [`DetailTableTab`](../interfaces/DetailTableTab.md) |
+| Parameter | Type                                                |
+| --------- | --------------------------------------------------- |
+| `tab`     | [`DetailTableTab`](../interfaces/DetailTableTab.md) |
 
 #### Returns
 
 [`EntityFormData`](../interfaces/EntityFormData.md) \| `undefined`
 
-***
+---
 
 ### buildFixedQuery() \{#buildfixedquery\}
 
 ```ts
-buildFixedQuery(tab): 
+buildFixedQuery(tab):
   | {
   combinator: "and";
   rules: unknown[];
@@ -597,19 +597,19 @@ Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:504]
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `tab` | [`DetailTableTab`](../interfaces/DetailTableTab.md) |
+| Parameter | Type                                                |
+| --------- | --------------------------------------------------- |
+| `tab`     | [`DetailTableTab`](../interfaces/DetailTableTab.md) |
 
 #### Returns
 
-  \| \{
-  `combinator`: `"and"`;
-  `rules`: `unknown`[];
+\| \{
+`combinator`: `"and"`;
+`rules`: `unknown`[];
 \}
-  \| `undefined`
+\| `undefined`
 
-***
+---
 
 ### onCancel() \{#oncancel\}
 
@@ -623,7 +623,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:500]
 
 `void`
 
-***
+---
 
 ### onFieldChanged() \{#onfieldchanged\}
 
@@ -635,15 +635,15 @@ Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:450]
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | [`FormFieldChangeEvent`](../interfaces/FormFieldChangeEvent.md) |
+| Parameter | Type                                                            |
+| --------- | --------------------------------------------------------------- |
+| `event`   | [`FormFieldChangeEvent`](../interfaces/FormFieldChangeEvent.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onFormCancelled() \{#onformcancelled\}
 
@@ -657,7 +657,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:443]
 
 `void`
 
-***
+---
 
 ### onFormDataChanged() \{#onformdatachanged\}
 
@@ -669,15 +669,15 @@ Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:407]
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `data` | [`EntityFormData`](../interfaces/EntityFormData.md) |
+| Parameter | Type                                                |
+| --------- | --------------------------------------------------- |
+| `data`    | [`EntityFormData`](../interfaces/EntityFormData.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onFormSubmitted() \{#onformsubmitted\}
 
@@ -689,15 +689,15 @@ Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:411]
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `data` | [`EntityFormData`](../interfaces/EntityFormData.md) |
+| Parameter | Type                                                |
+| --------- | --------------------------------------------------- |
+| `data`    | [`EntityFormData`](../interfaces/EntityFormData.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onSave() \{#onsave\}
 
@@ -713,7 +713,7 @@ External save button (create mode)
 
 `void`
 
-***
+---
 
 ### onValidationErrors() \{#onvalidationerrors\}
 
@@ -725,15 +725,15 @@ Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:459]
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `result` | [`FormValidationResult`](../interfaces/FormValidationResult.md) |
+| Parameter | Type                                                            |
+| --------- | --------------------------------------------------------------- |
+| `result`  | [`FormValidationResult`](../interfaces/FormValidationResult.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### selectTab() \{#selecttab\}
 
@@ -745,9 +745,9 @@ Defined in: [packages/rxdb-model-angular/src/entity-detail/entity-detail.ts:390]
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `key` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `key`     | `string` |
 
 #### Returns
 

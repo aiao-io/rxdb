@@ -1,12 +1,7 @@
 # captureCrudWrite()
 
 ```ts
-function captureCrudWrite<TResult>(
-   port, 
-   token, 
-   write, 
-   businessWrite
-): Promise<TResult>;
+function captureCrudWrite<TResult>(port, token, write, businessWrite): Promise<TResult>;
 ```
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:448](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts#L448)
@@ -15,18 +10,18 @@ Wraps one ordinary CRUD write into the four steps of working tree capture (FR-03
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                                | Description                       |
+| --------------------------------------------- | --------------------------------- |
 | <a id="type-parameter-tresult"></a> `TResult` | Return type of the business write |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `port` | [`WorkingTreeCapturePort`](../interfaces/WorkingTreeCapturePort.md) | The capture port, bound to the current transaction by the caller |
-| `token` | [`ActiveBranchToken`](../interfaces/ActiveBranchToken.md) | The active branch token captured by the caller at entity read / instantiation time |
-| `write` | [`CapturedWrite`](../interfaces/CapturedWrite.md) | The write to capture this time |
-| `businessWrite` | () => `Promise`&lt;`TResult`&gt; | The business write, **not yet executed** |
+| Parameter       | Type                                                                | Description                                                                        |
+| --------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `port`          | [`WorkingTreeCapturePort`](../interfaces/WorkingTreeCapturePort.md) | The capture port, bound to the current transaction by the caller                   |
+| `token`         | [`ActiveBranchToken`](../interfaces/ActiveBranchToken.md)           | The active branch token captured by the caller at entity read / instantiation time |
+| `write`         | [`CapturedWrite`](../interfaces/CapturedWrite.md)                   | The write to capture this time                                                     |
+| `businessWrite` | () => `Promise`&lt;`TResult`&gt;                                    | The business write, **not yet executed**                                           |
 
 ## Returns
 

@@ -22,8 +22,8 @@ Defined in: [packages/rxdb-model-react/src/query-builder/query-group/query-group
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter     | Type                                                 |
+| ------------- | ---------------------------------------------------- |
 | `moveItemFn?` | (`itemId`, `targetGroupId`, `targetIndex`) => `void` |
 
 #### Returns
@@ -36,8 +36,8 @@ Defined in: [packages/rxdb-model-react/src/query-builder/query-group/query-group
 
 ```ts
 drop(
-   itemId, 
-   targetGroupId, 
+   itemId,
+   targetGroupId,
    targetIndex
 ): void;
 ```
@@ -48,17 +48,17 @@ Drops: calls moveItemFn and resets; resets silently when moveItemFn throws (e.g.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `itemId` | `string` |
+| Parameter       | Type     |
+| --------------- | -------- |
+| `itemId`        | `string` |
 | `targetGroupId` | `string` |
-| `targetIndex` | `number` |
+| `targetIndex`   | `number` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### end() \{#end\}
 
@@ -74,7 +74,7 @@ Ends the drag (resets state).
 
 `void`
 
-***
+---
 
 ### getState() \{#getstate\}
 
@@ -90,7 +90,7 @@ Current state snapshot.
 
 [`QueryDragDropState`](../interfaces/QueryDragDropState.md)
 
-***
+---
 
 ### leave() \{#leave\}
 
@@ -106,15 +106,15 @@ Clears the target but keeps the dragged item.
 
 `void`
 
-***
+---
 
 ### over() \{#over\}
 
 ```ts
 over(
-   targetItemId, 
-   dropMode, 
-   isValid, 
+   targetItemId,
+   dropMode,
+   isValid,
    depth
 ): void;
 ```
@@ -125,18 +125,18 @@ Records the target and drop mode (a deeper over wins: shallow events do not over
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `targetItemId` | `string` |
-| `dropMode` | [`QueryDropMode`](../type-aliases/QueryDropMode.md) |
-| `isValid` | `boolean` |
-| `depth` | `number` |
+| Parameter      | Type                                                |
+| -------------- | --------------------------------------------------- |
+| `targetItemId` | `string`                                            |
+| `dropMode`     | [`QueryDropMode`](../type-aliases/QueryDropMode.md) |
+| `isValid`      | `boolean`                                           |
+| `depth`        | `number`                                            |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### reset() \{#reset\}
 
@@ -150,7 +150,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/query-group/query-group
 
 `void`
 
-***
+---
 
 ### setMoveItemFn() \{#setmoveitemfn\}
 
@@ -164,15 +164,15 @@ Binds / replaces the moveItem implementation.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter    | Type                                                 |
+| ------------ | ---------------------------------------------------- |
 | `moveItemFn` | (`itemId`, `targetGroupId`, `targetIndex`) => `void` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### start() \{#start\}
 
@@ -186,15 +186,15 @@ Records the dragged item.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `itemId` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `itemId`  | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### subscribe() \{#subscribe\}
 
@@ -208,8 +208,8 @@ Subscribes to state changes (useSyncExternalStore's subscribe).
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type         |
+| ---------- | ------------ |
 | `listener` | () => `void` |
 
 #### Returns

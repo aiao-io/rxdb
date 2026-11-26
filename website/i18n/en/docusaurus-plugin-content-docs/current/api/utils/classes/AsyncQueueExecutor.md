@@ -26,9 +26,9 @@ Defined in: [packages/utils/src/async/AsyncQueueExecutor.ts:49](https://github.c
 
 #### Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `maxConcurrent?` | `number` | `3` | Concurrency limit; defaults to 3 |
+| Parameter        | Type     | Default value | Description                      |
+| ---------------- | -------- | ------------- | -------------------------------- |
+| `maxConcurrent?` | `number` | `3`           | Concurrency limit; defaults to 3 |
 
 #### Returns
 
@@ -54,26 +54,26 @@ When an `id` is given and a task with the same id has not settled yet, the exist
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `task` | () => `T` \| `Promise`&lt;`T`&gt; | Task function; may return a sync value or a Promise |
-| `id?` | [`TaskId`](../type-aliases/TaskId.md) | Optional deduplication id |
+| Parameter | Type                                  | Description                                         |
+| --------- | ------------------------------------- | --------------------------------------------------- |
+| `task`    | () => `T` \| `Promise`&lt;`T`&gt;     | Task function; may return a sync value or a Promise |
+| `id?`     | [`TaskId`](../type-aliases/TaskId.md) | Optional deduplication id                           |
 
 #### Returns
 
 `Promise`&lt;`T`&gt;
 
 The task result; rejects with the same error when the task throws;
-         rejects with `Error('Task cancelled: queue cleared')` when cancelled
-         while queued by [AsyncQueueExecutor.clearQueue](#clearqueue)
+rejects with `Error('Task cancelled: queue cleared')` when cancelled
+while queued by [AsyncQueueExecutor.clearQueue](#clearqueue)
 
-***
+---
 
 ### clearQueue() \{#clearqueue\}
 
@@ -91,7 +91,7 @@ Each cancelled task's Promise rejects with `Error('Task cancelled: queue cleared
 
 `void`
 
-***
+---
 
 ### getQueuedCount() \{#getqueuedcount\}
 
@@ -109,7 +109,7 @@ Number of tasks still queued.
 
 Number of queued tasks; equivalent to `getStatus().queued`
 
-***
+---
 
 ### getRunningCount() \{#getrunningcount\}
 
@@ -127,7 +127,7 @@ Number of tasks currently running.
 
 Number of running tasks; equivalent to `getStatus().running`
 
-***
+---
 
 ### getStatus() \{#getstatus\}
 
@@ -145,7 +145,7 @@ Reads a snapshot of the current queue state.
 
 Running / queued counts and the current concurrency limit; returns a plain object that does not update with later changes
 
-***
+---
 
 ### setMaxConcurrent() \{#setmaxconcurrent\}
 
@@ -161,9 +161,9 @@ Raising it immediately starts more queued tasks; lowering it does not interrupt 
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `newMax` | `number` | New concurrency limit |
+| Parameter | Type     | Description           |
+| --------- | -------- | --------------------- |
+| `newMax`  | `number` | New concurrency limit |
 
 #### Returns
 
@@ -173,7 +173,7 @@ Raising it immediately starts more queued tasks; lowering it does not interrupt 
 
 `RangeError` when `newMax` is not a positive safe integer
 
-***
+---
 
 ### waitForAll() \{#waitforall\}
 

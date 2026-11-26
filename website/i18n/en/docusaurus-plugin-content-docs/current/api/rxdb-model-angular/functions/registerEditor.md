@@ -12,10 +12,10 @@ The business layer calls this function to register domain-specific editors (e.g.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `name` | `string` | Editor name |
-| `editor` | `unknown` | Editor instance |
+| Parameter | Type      | Description     |
+| --------- | --------- | --------------- |
+| `name`    | `string`  | Editor name     |
+| `editor`  | `unknown` | Editor instance |
 
 ## Returns
 

@@ -10,9 +10,9 @@ Checks whether a path segment is valid.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `name` | `unknown` | The segment to check. |
+| Parameter | Type      | Description           |
+| --------- | --------- | --------------------- |
+| `name`    | `unknown` | The segment to check. |
 
 ## Returns
 

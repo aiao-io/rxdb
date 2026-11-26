@@ -10,10 +10,10 @@ Validates an optional non-negative safe integer, without giving the default valu
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `number` \| `undefined` | The value to validate |
-| `errorMessage` | `string` | Error message used when validation fails |
+| Parameter      | Type                    | Description                              |
+| -------------- | ----------------------- | ---------------------------------------- |
+| `value`        | `number` \| `undefined` | The value to validate                    |
+| `errorMessage` | `string`                | Error message used when validation fails |
 
 ## Returns
 

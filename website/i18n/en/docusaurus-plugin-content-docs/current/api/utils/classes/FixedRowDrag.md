@@ -1,5 +1,5 @@
 ---
-sidebar_label: "FixedRowDrag⟨Id⟩"
+sidebar_label: 'FixedRowDrag⟨Id⟩'
 ---
 
 # FixedRowDrag`<Id>`
@@ -30,9 +30,9 @@ handle.addEventListener('pointerdown', event => drag.start(event, index));
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-id"></a> `Id` | `unknown` |
+| Type Parameter                      | Default type |
+| ----------------------------------- | ------------ |
+| <a id="type-parameter-id"></a> `Id` | `unknown`    |
 
 ## Constructors
 
@@ -46,8 +46,8 @@ Defined in: [packages/utils/src/@browser/fixed-row-drag.ts:85](https://github.co
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                      |
+| --------- | ------------------------------------------------------------------------- |
 | `options` | [`FixedRowDragOptions`](../interfaces/FixedRowDragOptions.md)&lt;`Id`&gt; |
 
 #### Returns
@@ -88,7 +88,7 @@ Cancels the current drag without calling `onDrop`
 
 `void`
 
-***
+---
 
 ### dispose() \{#dispose\}
 
@@ -104,7 +104,7 @@ Releases the listeners; equivalent to [FixedRowDrag.cancel](#cancel), for use wh
 
 `void`
 
-***
+---
 
 ### start() \{#start\}
 
@@ -120,10 +120,10 @@ Ignored on non-primary-button press or when a drag is already in progress; throw
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `PointerEvent` |
-| `fromIndex` | `number` |
+| Parameter   | Type           |
+| ----------- | -------------- |
+| `event`     | `PointerEvent` |
+| `fromIndex` | `number`       |
 
 #### Returns
 

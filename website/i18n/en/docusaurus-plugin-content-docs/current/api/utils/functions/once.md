@@ -11,15 +11,15 @@ Suitable for initialization functions, resource loading, and other run-once scen
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
-| <a id="type-parameter-f"></a> `F` *extends* () => `unknown` | The wrapped function type; must be a zero-argument function |
+| Type Parameter                                              | Description                                                 |
+| ----------------------------------------------------------- | ----------------------------------------------------------- |
+| <a id="type-parameter-f"></a> `F` _extends_ () => `unknown` | The wrapped function type; must be a zero-argument function |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `func` | `F` | The function to restrict to a single execution |
+| Parameter | Type | Description                                    |
+| --------- | ---- | ---------------------------------------------- |
+| `func`    | `F`  | The function to restrict to a single execution |
 
 ## Returns
 

@@ -34,8 +34,8 @@ try {
 
 ```ts
 new RxDBQueryCacheCapabilityError(
-   entity, 
-   side, 
+   entity,
+   side,
    missing
 ): RxDBQueryCacheCapabilityError;
 ```
@@ -44,11 +44,11 @@ Defined in: [packages/rxdb/src/RxDBError.ts:72](https://github.com/aiao-io/rxdb/
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `string` | Entity name (the `name` in metadata) |
-| `side` | `"local"` \| `"remote"` | Which side's adapter lacks the capability |
-| `missing` | readonly `string`[] | The missing duck names, in declaration order |
+| Parameter | Type                    | Description                                  |
+| --------- | ----------------------- | -------------------------------------------- |
+| `entity`  | `string`                | Entity name (the `name` in metadata)         |
+| `side`    | `"local"` \| `"remote"` | Which side's adapter lacks the capability    |
+| `missing` | readonly `string`[]     | The missing duck names, in declaration order |
 
 #### Returns
 
@@ -72,7 +72,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](RxDBError.md).[`cause`](RxDBError.md#cause)
 
-***
+---
 
 ### entity \{#entity\}
 
@@ -84,7 +84,7 @@ Defined in: [packages/rxdb/src/RxDBError.ts:74](https://github.com/aiao-io/rxdb/
 
 Entity name (the `name` in metadata)
 
-***
+---
 
 ### message \{#message\}
 
@@ -98,7 +98,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](RxDBError.md).[`message`](RxDBError.md#message)
 
-***
+---
 
 ### missing \{#missing\}
 
@@ -110,7 +110,7 @@ Defined in: [packages/rxdb/src/RxDBError.ts:78](https://github.com/aiao-io/rxdb/
 
 The missing duck names, in declaration order
 
-***
+---
 
 ### name \{#name\}
 
@@ -124,7 +124,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](RxDBError.md).[`name`](RxDBError.md#name)
 
-***
+---
 
 ### side \{#side\}
 
@@ -136,7 +136,7 @@ Defined in: [packages/rxdb/src/RxDBError.ts:76](https://github.com/aiao-io/rxdb/
 
 Which side's adapter lacks the capability
 
-***
+---
 
 ### stack? \{#stack\}
 
@@ -150,7 +150,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](RxDBError.md).[`stack`](RxDBError.md#stack)
 
-***
+---
 
 ### stackTraceLimit \{#stacktracelimit\}
 
@@ -191,7 +191,7 @@ a string representing the location in the code at which
 ```js
 const myObject = {};
 Error.captureStackTrace(myObject);
-myObject.stack;  // Similar to `new Error().stack`
+myObject.stack; // Similar to `new Error().stack`
 ```
 
 The first line of the trace will be prefixed with
@@ -230,9 +230,9 @@ a();
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `targetObject` | `object` |
+| Parameter         | Type       |
+| ----------------- | ---------- |
+| `targetObject`    | `object`   |
 | `constructorOpt?` | `Function` |
 
 #### Returns
@@ -243,7 +243,7 @@ a();
 
 [`RxDBError`](RxDBError.md).[`captureStackTrace`](RxDBError.md#capturestacktrace)
 
-***
+---
 
 ### prepareStackTrace() \{#preparestacktrace\}
 
@@ -255,9 +255,9 @@ Defined in: node\_modules/.pnpm/@types+node@26.6.6/node\_modules/@types/node/glo
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `err` | `Error` |
+| Parameter     | Type         |
+| ------------- | ------------ |
+| `err`         | `Error`      |
 | `stackTraces` | `CallSite`[] |
 
 #### Returns

@@ -18,16 +18,16 @@ Opens a writable checkout: registers it, holds the branch, creates tables, seeds
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `branchId` | `string` |
+| Parameter  | Type                                          |
+| ---------- | --------------------------------------------- |
+| `branchId` | `string`                                      |
 | `options?` | [`WorktreeAddOptions`](WorktreeAddOptions.md) |
 
 #### Returns
 
 `Promise`&lt;[`Worktree`](../classes/Worktree.md)&gt;
 
-***
+---
 
 ### attach \{#attach\}
 
@@ -41,15 +41,15 @@ Reopens a persistently owned checkout
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `id` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `id`      | `string` |
 
 #### Returns
 
 `Promise`&lt;[`WorktreeView`](WorktreeView.md)&gt;
 
-***
+---
 
 ### list \{#list\}
 
@@ -65,7 +65,7 @@ The registered checkouts; re-read after a successful open, reopen, close, releas
 
 `Promise`&lt;readonly [`Worktree`](../classes/Worktree.md)[]&gt;
 
-***
+---
 
 ### mount \{#mount\}
 
@@ -79,15 +79,15 @@ Makes the main instance mount a writable checkout; rebuilt within the mounting t
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `id` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `id`      | `string` |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### mountMain \{#mountmain\}
 
@@ -103,7 +103,7 @@ Makes the main instance mount back the primary checkout
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### open \{#open\}
 
@@ -117,16 +117,16 @@ Opens a read-only checkout; the registry is likewise re-read after the returned 
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `target` | [`WorktreeTarget`](../type-aliases/WorktreeTarget.md) |
-| `options?` | [`WorktreeOpenOptions`](WorktreeOpenOptions.md) |
+| Parameter  | Type                                                  |
+| ---------- | ----------------------------------------------------- |
+| `target`   | [`WorktreeTarget`](../type-aliases/WorktreeTarget.md) |
+| `options?` | [`WorktreeOpenOptions`](WorktreeOpenOptions.md)       |
 
 #### Returns
 
 `Promise`&lt;[`WorktreeView`](WorktreeView.md)&gt;
 
-***
+---
 
 ### prune \{#prune\}
 
@@ -142,7 +142,7 @@ Reclaims checkouts nobody is using (including orphan table sets without a regist
 
 `Promise`&lt;readonly `string`[]&gt;
 
-***
+---
 
 ### release \{#release\}
 
@@ -156,15 +156,15 @@ Gives up the claim on a writable checkout
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `id` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `id`      | `string` |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### remove \{#remove\}
 
@@ -178,15 +178,15 @@ Deletes a writable checkout; uncommitted changes stay on the branch it holds
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `id` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `id`      | `string` |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### rename \{#rename\}
 
@@ -200,10 +200,10 @@ Renames a writable checkout
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `id` | `string` |
-| `name` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `id`      | `string` |
+| `name`    | `string` |
 
 #### Returns
 

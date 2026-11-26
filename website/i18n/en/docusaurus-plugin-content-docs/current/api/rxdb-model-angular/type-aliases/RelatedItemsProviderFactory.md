@@ -1,9 +1,7 @@
 # RelatedItemsProviderFactory
 
 ```ts
-type RelatedItemsProviderFactory = (fkField, relatedEntityName) => 
-  | (() => RelatedEntityItem[])
-  | undefined;
+type RelatedItemsProviderFactory = (fkField, relatedEntityName) => (() => RelatedEntityItem[]) | undefined;
 ```
 
 Defined in: packages/rxdb-model/dist/entity-table/columns/build-editable-columns.d.ts:11
@@ -12,12 +10,12 @@ Factory for related entity candidate providers: returns a provider function base
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `fkField` | `string` |
+| Parameter           | Type     |
+| ------------------- | -------- |
+| `fkField`           | `string` |
 | `relatedEntityName` | `string` |
 
 ## Returns
 
-  \| (() => [`RelatedEntityItem`](../interfaces/RelatedEntityItem.md)[])
-  \| `undefined`
+\| (() => [`RelatedEntityItem`](../interfaces/RelatedEntityItem.md)[])
+\| `undefined`

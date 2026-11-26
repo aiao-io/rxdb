@@ -10,16 +10,16 @@ Judges an external update notification, executing the notification body only whe
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                                | Description                                                                                     |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | <a id="type-parameter-tresult"></a> `TResult` | The return type of the notification body; the gate passes it through as-is without any wrapping |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                      | Description                                      |
+| --------- | ------------------------------------------------------------------------- | ------------------------------------------------ |
 | `request` | [`ExternalNotifyGateRequest`](../interfaces/ExternalNotifyGateRequest.md) | The entity name, target class and capability bit |
-| `notify` | () => `TResult` | The **not-yet-invoked** notification body |
+| `notify`  | () => `TResult`                                                           | The **not-yet-invoked** notification body        |
 
 ## Returns
 
@@ -30,7 +30,7 @@ The return value of `notify()` itself
 ## Throws
 
 [WorkingTreeWriteRejectedError](../classes/WorkingTreeWriteRejectedError.md) thrown when the target is a versioned business entity and the commit capability is enabled;
-  in that case `notify` is never invoked
+in that case `notify` is never invoked
 
 ## Remarks
 

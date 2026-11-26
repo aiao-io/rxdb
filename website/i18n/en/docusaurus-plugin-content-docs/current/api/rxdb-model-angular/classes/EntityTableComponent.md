@@ -5,6 +5,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-table/entity-table/entity-ta
 Generic entity data table component
 
 Provides high-performance table rendering based on VTable, supporting:
+
 - Cell editing (text, switch, checkbox, dropdown)
 - Clipboard operations (Ctrl+C/V, TSV format)
 - Drag reordering
@@ -41,7 +42,7 @@ readonly batchUpdated: OutputEmitterRef<BatchChangeItem[]>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts:124](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts#L124)
 
-***
+---
 
 ### cellChanged \{#cellchanged\}
 
@@ -51,7 +52,7 @@ readonly cellChanged: OutputEmitterRef<CellChangeEvent>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts:121](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts#L121)
 
-***
+---
 
 ### cellClearable \{#cellclearable\}
 
@@ -63,7 +64,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-table/entity-table/entity-ta
 
 Business-layer callback that decides whether a cell can be cleared (return false to skip), replacing domain-specific hardcoded logic
 
-***
+---
 
 ### cellErrorDetector \{#cellerrordetector\}
 
@@ -73,7 +74,7 @@ readonly cellErrorDetector: InputSignal<((record, field) => string | null) | und
 
 Defined in: [packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts:109](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts#L109)
 
-***
+---
 
 ### cellTooltip \{#celltooltip\}
 
@@ -89,7 +90,7 @@ readonly cellTooltip: WritableSignal<
 
 Defined in: [packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts:132](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts#L132)
 
-***
+---
 
 ### columns \{#columns\}
 
@@ -99,7 +100,7 @@ readonly columns: InputSignal<ColumnsDefine | undefined>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts:104](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts#L104)
 
-***
+---
 
 ### headerHeight \{#headerheight\}
 
@@ -109,7 +110,7 @@ readonly headerHeight: WritableSignal<number>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts:133](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts#L133)
 
-***
+---
 
 ### iconClicked \{#iconclicked\}
 
@@ -122,7 +123,7 @@ readonly iconClicked: OutputEmitterRef<{
 
 Defined in: [packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts:123](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts#L123)
 
-***
+---
 
 ### idField \{#idfield\}
 
@@ -132,7 +133,7 @@ readonly idField: InputSignal<string>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts:106](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts#L106)
 
-***
+---
 
 ### isDarkMode \{#isdarkmode\}
 
@@ -142,7 +143,7 @@ readonly isDarkMode: InputSignal<boolean | undefined>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts:105](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts#L105)
 
-***
+---
 
 ### loading \{#loading\}
 
@@ -152,7 +153,7 @@ readonly loading: InputSignal<boolean>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts:110](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts#L110)
 
-***
+---
 
 ### loadingMore \{#loadingmore\}
 
@@ -164,7 +165,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-table/entity-table/entity-ta
 
 Loading-more state (data already present, small spinner at the bottom, does not block scrolling)
 
-***
+---
 
 ### loadMore \{#loadmore\}
 
@@ -176,7 +177,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-table/entity-table/entity-ta
 
 Callback to load more data when the bottom is reached, invoked internally by the table when scrolled to the bottom
 
-***
+---
 
 ### nonClearableFields \{#nonclearablefields\}
 
@@ -186,7 +187,7 @@ readonly nonClearableFields: InputSignal<ReadonlySet<string>>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts:107](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts#L107)
 
-***
+---
 
 ### records \{#records\}
 
@@ -196,7 +197,7 @@ readonly records: InputSignal<EntityTableRecord[]>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts:103](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts#L103)
 
-***
+---
 
 ### rowDeleted \{#rowdeleted\}
 
@@ -206,7 +207,7 @@ readonly rowDeleted: OutputEmitterRef<EntityTableRecord>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts:122](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts#L122)
 
-***
+---
 
 ### rowDragEnabled \{#rowdragenabled\}
 
@@ -218,7 +219,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-table/entity-table/entity-ta
 
 Whether to show the row drag handles, default `true`; runtime toggling takes effect immediately (table creation requires `rowSeriesNumber.dragOrder` enabled)
 
-***
+---
 
 ### rowMoved \{#rowmoved\}
 
@@ -230,7 +231,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-table/entity-table/entity-ta
 
 Single row drag-and-drop: the dragged row and its neighbors around the drop point (US-028)
 
-***
+---
 
 ### rowReordered \{#rowreordered\}
 
@@ -240,7 +241,7 @@ readonly rowReordered: OutputEmitterRef<string[]>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts:125](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts#L125)
 
-***
+---
 
 ### scrollNearBottom \{#scrollnearbottom\}
 
@@ -250,7 +251,7 @@ readonly scrollNearBottom: OutputEmitterRef<void>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts:128](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts#L128)
 
-***
+---
 
 ### sortClicked \{#sortclicked\}
 
@@ -265,7 +266,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-table/entity-table/entity-ta
 
 Column header sort click; the business layer takes over query ordering, the table performs no client-side sorting
 
-***
+---
 
 ### tableContainer \{#tablecontainer\}
 
@@ -275,7 +276,7 @@ readonly tableContainer: Signal<ElementRef<HTMLDivElement> | undefined>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts:100](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts#L100)
 
-***
+---
 
 ### tableOptions \{#tableoptions\}
 
@@ -301,7 +302,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-table/entity-table/entity-ta
 
 [`ModelI18n`](../interfaces/ModelI18n.md)
 
-***
+---
 
 ### t \{#t\}
 
@@ -317,7 +318,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-table/entity-table/entity-ta
 
 (`key`, `params?`) => `string`
 
-***
+---
 
 ### tableInstance \{#tableinstance\}
 
@@ -347,8 +348,8 @@ The current VTable instance; `null` before initialization.
 
 ```ts
 changeCellValue(
-   col, 
-   row, 
+   col,
+   row,
    value
 ): void;
 ```
@@ -360,11 +361,11 @@ Avoids external direct access to tableInstance.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `col` | `number` |
-| `row` | `number` |
-| `value` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `col`     | `number`  |
+| `row`     | `number`  |
+| `value`   | `unknown` |
 
 #### Returns
 
@@ -374,7 +375,7 @@ Avoids external direct access to tableInstance.
 
 [`EntityTableHandle`](../interfaces/EntityTableHandle.md).[`changeCellValue`](../interfaces/EntityTableHandle.md#changecellvalue)
 
-***
+---
 
 ### ngOnDestroy() \{#ngondestroy\}
 
@@ -395,7 +396,7 @@ before a directive, pipe, or service instance is destroyed.
 
 `OnDestroy.ngOnDestroy`
 
-***
+---
 
 ### redrawTheme() \{#redrawtheme\}
 
@@ -415,7 +416,7 @@ Redraws the theme with the current dark mode and CSS variables.
 
 [`EntityTableHandle`](../interfaces/EntityTableHandle.md).[`redrawTheme`](../interfaces/EntityTableHandle.md#redrawtheme)
 
-***
+---
 
 ### restoreRecords() \{#restorerecords\}
 

@@ -19,8 +19,8 @@ transition so the sidebar tracks the pointer instead of lagging behind the anima
 
 ```ts
 new SidebarDrag(
-   preferences, 
-   handle, 
+   preferences,
+   handle,
    startX
 ): SidebarDrag;
 ```
@@ -31,11 +31,11 @@ Starts a drag; the width begins at the preference width at this moment.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `preferences` | [`PreferencesStore`](PreferencesStore.md) | The preferences store that receives the width on release. |
-| `handle` | `Element` | The drag handle; must be rendered inside the sidebar placeholder element (`.admin-sidebar-slot`). |
-| `startX` | `number` | The pointer's horizontal position at press. |
+| Parameter     | Type                                      | Description                                                                                       |
+| ------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `preferences` | [`PreferencesStore`](PreferencesStore.md) | The preferences store that receives the width on release.                                         |
+| `handle`      | `Element`                                 | The drag handle; must be rendered inside the sidebar placeholder element (`.admin-sidebar-slot`). |
+| `startX`      | `number`                                  | The pointer's horizontal position at press.                                                       |
 
 #### Returns
 
@@ -79,7 +79,7 @@ Aborts: removes the preview, and preferences keep the pre-drag width. Repeat cal
 
 `void`
 
-***
+---
 
 ### end() \{#end\}
 
@@ -95,7 +95,7 @@ Releases: commits the preview width to preferences and removes the preview. Repe
 
 `void`
 
-***
+---
 
 ### move() \{#move\}
 
@@ -109,8 +109,8 @@ Pointer move: converts the delta into a width (clamped to [SIDEBAR\_WIDTH\_RANGE
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type     | Description                                |
+| --------- | -------- | ------------------------------------------ |
 | `clientX` | `number` | The pointer's current horizontal position. |
 
 #### Returns

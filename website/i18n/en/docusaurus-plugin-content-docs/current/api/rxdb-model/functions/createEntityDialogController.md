@@ -10,15 +10,15 @@ Creates a lifecycle controller that is independent of any specific dialog implem
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-tresult"></a> `TResult` | `unknown` |
-| <a id="type-parameter-tdata"></a> `TData` | `unknown` |
+| Type Parameter                                | Default type |
+| --------------------------------------------- | ------------ |
+| <a id="type-parameter-tresult"></a> `TResult` | `unknown`    |
+| <a id="type-parameter-tdata"></a> `TData`     | `unknown`    |
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                                             |
+| ---------- | ------------------------------------------------------------------------------------------------ |
 | `options?` | [`EntityDialogControllerOptions`](../interfaces/EntityDialogControllerOptions.md)&lt;`TData`&gt; |
 
 ## Returns

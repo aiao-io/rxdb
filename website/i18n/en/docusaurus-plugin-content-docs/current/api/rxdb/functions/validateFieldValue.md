@@ -10,10 +10,10 @@ Validates a single field value against an [EntityFieldDescriptor](../type-aliase
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter    | Type                                                                | Description                                                                           |
+| ------------ | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | `descriptor` | [`EntityFieldDescriptor`](../type-aliases/EntityFieldDescriptor.md) | The field descriptor from `describeEntityFields()` or `parseEntityFieldsDescriptor()` |
-| `value` | `unknown` | The value to validate |
+| `value`      | `unknown`                                                           | The value to validate                                                                 |
 
 ## Returns
 

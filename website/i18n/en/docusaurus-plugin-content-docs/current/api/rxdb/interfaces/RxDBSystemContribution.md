@@ -55,7 +55,7 @@ The capability name, same as [IRxDBPlugin.name](IRxDBPlugin.md#name)
 
 Watermark rows are attributed by it, so it **must not contain `:`** — the row name is `:`-separated, and a capability name containing colons would be sliced apart by the guard.
 
-***
+---
 
 ### entities \{#entities\}
 
@@ -67,7 +67,7 @@ Defined in: [packages/rxdb/src/rxdb-plugin-system.ts:260](https://github.com/aia
 
 The contributed system entities; the order is the table creation order
 
-***
+---
 
 ### packageSpecifier \{#packagespecifier\}
 
@@ -79,7 +79,7 @@ Defined in: [packages/rxdb/src/rxdb-plugin-system.ts:257](https://github.com/aia
 
 The package specifier, such as `@aiao/rxdb-plugin-working-tree`; reported to the user as-is when unclaimed
 
-***
+---
 
 ### version \{#version\}
 
@@ -110,8 +110,8 @@ At the end of an existing database's bootstrap, connects this capability onto th
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                            | Description                                                                             |
+| --------- | --------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
 | `context` | [`RxDBSystemActivationContext`](RxDBSystemActivationContext.md) | The local adapter with tables created, migrations run, and `completeBootstrap()` called |
 
 #### Returns
@@ -134,7 +134,7 @@ The call site comes after `reconcileEntityIndexes()` and **before** the adapter'
 the readiness flag doubles as the criterion for `adapter:local`, and plugins declaring that dependency are only installed after it — moving this hook
 past it would open a window where "other plugins are already writing and this capability is not yet connected", and those writes leave no trace.
 
-***
+---
 
 ### createInitialRows() \{#createinitialrows\}
 
@@ -148,10 +148,10 @@ The initial rows written together with the tables when a new database creates th
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entityManager` | [`EntityManager`](EntityManager.md) | Used to `instantiate()` row objects |
-| `context` | [`RxDBSystemBootstrapContext`](RxDBSystemBootstrapContext.md) | The facts already in place at table creation time |
+| Parameter       | Type                                                          | Description                                       |
+| --------------- | ------------------------------------------------------------- | ------------------------------------------------- |
+| `entityManager` | [`EntityManager`](EntityManager.md)                           | Used to `instantiate()` row objects               |
+| `context`       | [`RxDBSystemBootstrapContext`](RxDBSystemBootstrapContext.md) | The facts already in place at table creation time |
 
 #### Returns
 
@@ -159,7 +159,7 @@ readonly `any`[]
 
 Rows written in the same batch as [RxDBSystemContribution.entities](#entities); an empty array when there are no initial rows
 
-***
+---
 
 ### createMigrations() \{#createmigrations\}
 
@@ -173,8 +173,8 @@ The migrations an existing database must run
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter       | Type                                | Description                                       |
+| --------------- | ----------------------------------- | ------------------------------------------------- |
 | `entityManager` | [`EntityManager`](EntityManager.md) | Used by migrations to `instantiate()` row objects |
 
 #### Returns
@@ -183,7 +183,7 @@ The migrations an existing database must run
 
 The migration list; for a new database `createMigrationWatermarks()` writes them directly as executed watermarks, and `up()` is not run
 
-***
+---
 
 ### prepareBranchSwitch() \{#preparebranchswitch\}
 
@@ -197,8 +197,8 @@ Validates this capability's preconditions **inside the switch transaction**, and
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                    | Description                                                                                                    |
+| --------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | `context` | [`RxDBBranchSwitchContext`](RxDBBranchSwitchContext.md) | The switch transaction's executor, the current/target branch ids, and the preconditions proposed by the caller |
 
 #### Returns
@@ -233,7 +233,7 @@ and `assert*` reads like a check that leaves no trace, which would make the next
 It is not called `canSwitchBranch` either: `can*` reads like returning a `boolean`, while the reason for "cannot switch"
 must be reportable to the user together with the branch id, the entry count and the expected/actual revision — only an exception can carry that.
 
-***
+---
 
 ### removeBranchRows() \{#removebranchrows\}
 
@@ -247,8 +247,8 @@ Every time a branch is removed, clears the rows this capability hangs under its 
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                      | Description                                                                    |
+| --------- | --------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | `context` | [`RxDBBranchRemovalContext`](RxDBBranchRemovalContext.md) | The caller's transaction executor and the id of the branch about to be deleted |
 
 #### Returns
@@ -271,7 +271,7 @@ delete explicitly, even though that table also has cascades attached.
 **Does not touch the `rxdb_branch` row** — that is deleted by the caller itself at the end. Nor any database-wide singleton rows: those rows do not belong
 to any branch, and deleting them along with a branch would make the whole database fail permanently the next time they are read.
 
-***
+---
 
 ### settleBranchSwitchFailure() \{#settlebranchswitchfailure\}
 
@@ -285,8 +285,8 @@ After the switch transaction **rolls back**, persists the durable diagnostics of
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                  | Description                                  |
+| --------- | --------------------------------------------------------------------- | -------------------------------------------- |
 | `context` | [`RxDBBranchSwitchFailureContext`](RxDBBranchSwitchFailureContext.md) | The current/target branch ids and that error |
 
 #### Returns
@@ -313,7 +313,7 @@ and covering up the original error is the real loss.
 Only called on the **rollback** path. A failure after the switch has committed (the bookkeeping steps) does not call it: active has already switched by then,
 and this is not a "did not switch".
 
-***
+---
 
 ### takeOverBranchSwitch() \{#takeoverbranchswitch\}
 
@@ -327,8 +327,8 @@ Defined in: [packages/rxdb/src/rxdb-plugin-system.ts:399](https://github.com/aia
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                    | Description                                                                                                                                                            |
+| --------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `context` | [`RxDBBranchSwitchTakeoverContext`](RxDBBranchSwitchTakeoverContext.md) | The current/target branch ids and the preconditions proposed by the caller; **no executor**, see [RxDBBranchSwitchTakeoverContext](RxDBBranchSwitchTakeoverContext.md) |
 
 #### Returns
@@ -363,7 +363,7 @@ with the switch transaction, and active stays where it was.
 The name is `takeOver` rather than `beforeSwitch`: `before*` reads like a pre-hook that does not change the main flow,
 while this hook's return value **decides whether the main flow runs at all**.
 
-***
+---
 
 ### writeBranchRows() \{#writebranchrows\}
 
@@ -377,10 +377,10 @@ Every time a branch is created, writes this capability's rows **inside the calle
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entityManager` | [`EntityManager`](EntityManager.md) | Used to `instantiate()` row objects |
-| `context` | [`RxDBBranchCreationContext`](RxDBBranchCreationContext.md) | The caller's transaction executor and the id of the branch just written |
+| Parameter       | Type                                                        | Description                                                             |
+| --------------- | ----------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `entityManager` | [`EntityManager`](EntityManager.md)                         | Used to `instantiate()` row objects                                     |
+| `context`       | [`RxDBBranchCreationContext`](RxDBBranchCreationContext.md) | The caller's transaction executor and the id of the branch just written |
 
 #### Returns
 

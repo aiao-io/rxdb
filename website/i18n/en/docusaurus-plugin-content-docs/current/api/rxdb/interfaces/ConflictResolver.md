@@ -37,8 +37,8 @@ Resolves a single conflict
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                      | Description          |
+| ---------- | ------------------------- | -------------------- |
 | `conflict` | [`Conflict`](Conflict.md) | Conflict information |
 
 #### Returns
@@ -47,12 +47,12 @@ Resolves a single conflict
 
 The conflict resolution result
 
-***
+---
 
 ### resolveAll()? \{#resolveall\}
 
 ```ts
-resolveAll?(conflicts): Promise<ConflictResolution[]>;
+resolveAll ? conflicts : Promise<ConflictResolution[]>;
 ```
 
 Defined in: [packages/rxdb/src/sync-contract/conflict.ts:89](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/conflict.ts#L89)
@@ -63,8 +63,8 @@ The default implementation calls resolve() one by one
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type                        | Description       |
+| ----------- | --------------------------- | ----------------- |
 | `conflicts` | [`Conflict`](Conflict.md)[] | The conflict list |
 
 #### Returns

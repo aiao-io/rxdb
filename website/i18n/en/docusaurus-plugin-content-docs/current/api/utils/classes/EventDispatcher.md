@@ -1,5 +1,5 @@
 ---
-sidebar_label: "EventDispatcher⟨Events⟩"
+sidebar_label: 'EventDispatcher⟨Events⟩'
 ---
 
 # EventDispatcher`<Events>`
@@ -9,6 +9,7 @@ Defined in: [packages/utils/src/tools/event.ts:27](https://github.com/aiao-io/rx
 A type-safe synchronous event dispatcher.
 
 Dispatch semantics align with the DOM `EventTarget`:
+
 - `dispatchEvent` takes a **snapshot** of the listener set before iterating. Listeners added during dispatch do not receive the current event — they wait for the next dispatch; listeners removed during dispatch **are still** invoked this time.
 - Exceptions thrown by a listener are not swallowed; they bubble up to the caller and subsequent listeners do not run.
 - Only `addEventListener` creates a set for an event name; once the set is emptied it is immediately collected for that name, preventing unbounded Map growth for unbounded event names.
@@ -21,9 +22,9 @@ Dispatch semantics align with the DOM `EventTarget`:
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-events"></a> `Events` *extends* `object` | [`EventMap`](../interfaces/EventMap.md) |
+| Type Parameter                                                 | Default type                            |
+| -------------------------------------------------------------- | --------------------------------------- |
+| <a id="type-parameter-events"></a> `Events` _extends_ `object` | [`EventMap`](../interfaces/EventMap.md) |
 
 ## Implements
 
@@ -55,16 +56,16 @@ Registers a listener. Registering the same `listener` again keeps only one copy 
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* `string` \| `number` \| `symbol` |
+| Type Parameter                                                               |
+| ---------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ `string` \| `number` \| `symbol` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `type` | `T` | Event name |
-| `listener` | [`EventListener`](../type-aliases/EventListener.md)&lt;`Events`\[`T`\]&gt; | Listener |
+| Parameter  | Type                                                                       | Description |
+| ---------- | -------------------------------------------------------------------------- | ----------- |
+| `type`     | `T`                                                                        | Event name  |
+| `listener` | [`EventListener`](../type-aliases/EventListener.md)&lt;`Events`\[`T`\]&gt; | Listener    |
 
 #### Returns
 
@@ -74,7 +75,7 @@ Registers a listener. Registering the same `listener` again keeps only one copy 
 
 [`IEventDispatcher`](../interfaces/IEventDispatcher.md).[`addEventListener`](../interfaces/IEventDispatcher.md#addeventlistener)
 
-***
+---
 
 ### dispatchEvent() \{#dispatchevent\}
 
@@ -90,16 +91,16 @@ Iterates a snapshot, not the live set: `addEventListener` calls made by a listen
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-1"></a> `T` *extends* `string` \| `number` \| `symbol` |
+| Type Parameter                                                                 |
+| ------------------------------------------------------------------------------ |
+| <a id="type-parameter-t-1"></a> `T` _extends_ `string` \| `number` \| `symbol` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `type` | `T` | Event name |
-| `data` | `Events`\[`T`\] | Event data |
+| Parameter | Type            | Description |
+| --------- | --------------- | ----------- |
+| `type`    | `T`             | Event name  |
+| `data`    | `Events`\[`T`\] | Event data  |
 
 #### Returns
 
@@ -113,7 +114,7 @@ Any exception thrown by a listener bubbles up as-is; listeners after it do not r
 
 [`IEventDispatcher`](../interfaces/IEventDispatcher.md).[`dispatchEvent`](../interfaces/IEventDispatcher.md#dispatchevent)
 
-***
+---
 
 ### hasEventListener() \{#haseventlistener\}
 
@@ -127,16 +128,16 @@ Checks whether a listener is registered. Does not create a set for unknown event
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-2"></a> `T` *extends* `string` \| `number` \| `symbol` |
+| Type Parameter                                                                 |
+| ------------------------------------------------------------------------------ |
+| <a id="type-parameter-t-2"></a> `T` _extends_ `string` \| `number` \| `symbol` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `type` | `T` | Event name |
-| `listener` | [`EventListener`](../type-aliases/EventListener.md)&lt;`Events`\[`T`\]&gt; | Listener |
+| Parameter  | Type                                                                       | Description |
+| ---------- | -------------------------------------------------------------------------- | ----------- |
+| `type`     | `T`                                                                        | Event name  |
+| `listener` | [`EventListener`](../type-aliases/EventListener.md)&lt;`Events`\[`T`\]&gt; | Listener    |
 
 #### Returns
 
@@ -148,7 +149,7 @@ Whether it is registered
 
 [`IEventDispatcher`](../interfaces/IEventDispatcher.md).[`hasEventListener`](../interfaces/IEventDispatcher.md#haseventlistener)
 
-***
+---
 
 ### removeAllEventListeners() \{#removealleventlisteners\}
 
@@ -168,7 +169,7 @@ Removes all listeners under all event names.
 
 [`IEventDispatcher`](../interfaces/IEventDispatcher.md).[`removeAllEventListeners`](../interfaces/IEventDispatcher.md#removealleventlisteners)
 
-***
+---
 
 ### removeEventListener() \{#removeeventlistener\}
 
@@ -184,16 +185,16 @@ If removed during `dispatchEvent`, the removed listener **still** receives the c
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-3"></a> `T` *extends* `string` \| `number` \| `symbol` |
+| Type Parameter                                                                 |
+| ------------------------------------------------------------------------------ |
+| <a id="type-parameter-t-3"></a> `T` _extends_ `string` \| `number` \| `symbol` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `type` | `T` | Event name |
-| `listener` | [`EventListener`](../type-aliases/EventListener.md)&lt;`Events`\[`T`\]&gt; | Listener |
+| Parameter  | Type                                                                       | Description |
+| ---------- | -------------------------------------------------------------------------- | ----------- |
+| `type`     | `T`                                                                        | Event name  |
+| `listener` | [`EventListener`](../type-aliases/EventListener.md)&lt;`Events`\[`T`\]&gt; | Listener    |
 
 #### Returns
 

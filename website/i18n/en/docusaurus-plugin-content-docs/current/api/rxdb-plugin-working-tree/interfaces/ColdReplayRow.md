@@ -24,7 +24,7 @@ The entity name
 
 [`ColdReplayIdentity`](ColdReplayIdentity.md).[`entity`](ColdReplayIdentity.md#entity)
 
-***
+---
 
 ### entityId \{#entityid\}
 
@@ -40,7 +40,7 @@ The entity primary key
 
 [`ColdReplayIdentity`](ColdReplayIdentity.md).[`entityId`](ColdReplayIdentity.md#entityid)
 
-***
+---
 
 ### fields \{#fields\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/cold-replay.ts:4
 
 Column name → column value; a missing key and a key with `null` are **two different things**
 
-***
+---
 
 ### namespace \{#namespace\}
 

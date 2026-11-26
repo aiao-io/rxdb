@@ -53,7 +53,7 @@ Applies the styles for an active item to this item.
 
 `Highlightable.setActiveStyles`
 
-***
+---
 
 ### setInactiveStyles() \{#setinactivestyles\}
 

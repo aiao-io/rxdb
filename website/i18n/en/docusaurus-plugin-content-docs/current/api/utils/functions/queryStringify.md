@@ -10,9 +10,9 @@ Serializes into URL query parameters
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `query` | `IQuery` |
+| Parameter | Type     |
+| --------- | -------- |
+| `query`   | `IQuery` |
 
 ## Returns
 

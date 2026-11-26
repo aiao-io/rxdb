@@ -10,9 +10,9 @@ Formats a string as an SQL string literal.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `string` | The raw string (possibly from a caller, such as a branch ID) |
+| Parameter | Type     | Description                                                  |
+| --------- | -------- | ------------------------------------------------------------ |
+| `value`   | `string` | The raw string (possibly from a caller, such as a branch ID) |
 
 ## Returns
 
@@ -29,4 +29,4 @@ and neither side **should** apply, any processing of backslashes.
 ## Throws
 
 [RxDBError](../classes/RxDBError.md) when the value contains NUL: PostgreSQL would reject the whole statement and SQLite would silently truncate it,
-  both of which are harder to diagnose than an exception
+both of which are harder to diagnose than an exception

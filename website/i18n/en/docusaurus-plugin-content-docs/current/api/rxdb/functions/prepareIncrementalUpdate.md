@@ -20,17 +20,17 @@ Once in the baseline it is subject to compatibility commitments, see `website/do
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) | - |
-| <a id="type-parameter-rt"></a> `RT` | `unknown` |
+| Type Parameter                                                                            | Default type |
+| ----------------------------------------------------------------------------------------- | ------------ |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) | -            |
+| <a id="type-parameter-rt"></a> `RT`                                                       | `unknown`    |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `task` | [`QueryTask`](../classes/QueryTask.md)&lt;`T`, `RT`&gt; | The query task being merged; an empty `task.options.where` is treated as match-all |
-| `data` | [`RxDBEntityLocalUpdatedEventData`](../interfaces/RxDBEntityLocalUpdatedEventData.md)&lt;`T`&gt;[] | The batch of local UPDATE events |
+| Parameter | Type                                                                                               | Description                                                                        |
+| --------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `task`    | [`QueryTask`](../classes/QueryTask.md)&lt;`T`, `RT`&gt;                                            | The query task being merged; an empty `task.options.where` is treated as match-all |
+| `data`    | [`RxDBEntityLocalUpdatedEventData`](../interfaces/RxDBEntityLocalUpdatedEventData.md)&lt;`T`&gt;[] | The batch of local UPDATE events                                                   |
 
 ## Returns
 

@@ -10,8 +10,8 @@ Operator selector component: derives the available options from the operator reg
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter           | Type                                                              |
+| ------------------- | ----------------------------------------------------------------- |
 | `__namedParameters` | [`OperatorSelectorProps`](../interfaces/OperatorSelectorProps.md) |
 
 ## Returns

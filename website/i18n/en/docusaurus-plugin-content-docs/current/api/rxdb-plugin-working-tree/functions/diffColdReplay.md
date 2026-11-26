@@ -10,10 +10,10 @@ Compares the replay result against the business tables' actual content
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                          | Description                                             |
+| ---------- | ------------------------------------------------------------- | ------------------------------------------------------- |
 | `replayed` | [`ColdReplaySnapshot`](../type-aliases/ColdReplaySnapshot.md) | The result of [replayWorkingTree](replayWorkingTree.md) |
-| `actual` | [`ColdReplaySnapshot`](../type-aliases/ColdReplaySnapshot.md) | The actual content read from the business tables |
+| `actual`   | [`ColdReplaySnapshot`](../type-aliases/ColdReplaySnapshot.md) | The actual content read from the business tables        |
 
 ## Returns
 

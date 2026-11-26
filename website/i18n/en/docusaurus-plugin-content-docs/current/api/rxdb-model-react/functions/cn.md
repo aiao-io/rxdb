@@ -14,8 +14,8 @@ trimming, producing concatenation bugs like `flex-coloverflow-auto`; this functi
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type           | Description                                                                                |
+| ----------- | -------------- | ------------------------------------------------------------------------------------------ |
 | ...`inputs` | `ClassValue`[] | String class names, conditional objects, or arrays; falsy values are ignored automatically |
 
 ## Returns
@@ -27,6 +27,6 @@ The class name string joined with single spaces
 ## Example
 
 ```ts
-cn('tab-content flex-col', isForm ? 'overflow-auto p-4' : 'overflow-hidden')
+cn('tab-content flex-col', isForm ? 'overflow-auto p-4' : 'overflow-hidden');
 // 'tab-content flex-col overflow-auto p-4'
 ```

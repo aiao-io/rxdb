@@ -6,6 +6,7 @@ Entity definition metadata options interface
 Configures the full options of the `@Entity` decorator, defining the structure and behavior of an entity
 
 This interface is the core of entity definition and contains all configuration information of an entity:
+
 - Basic information: name, namespace, display name
 - Structural information: properties, relations, indexes
 - Behavioral information: abstract class marker, log configuration, sync strategy
@@ -41,7 +42,7 @@ Defined in: [packages/rxdb/src/entity/entity-options.interface.ts:188](https://g
 Whether this is an abstract entity
 Abstract classes cannot be instantiated
 
-***
+---
 
 ### checks? \{#checks\}
 
@@ -70,7 +71,13 @@ creating it is written into `migrations` by the user, which conveniently runs ri
       rule: {
         combinator: 'or',
         rules: [
-          { combinator: 'and', rules: [{ field: 'qty', operator: 'notNull' }, { field: 'qtyFormula', operator: 'null' }] },
+          {
+            combinator: 'and',
+            rules: [
+              { field: 'qty', operator: 'notNull' },
+              { field: 'qtyFormula', operator: 'null' }
+            ]
+          },
           `{ combinator: 'and', rules: [{ field: 'qty', operator: 'null' }, { field: 'qtyFormula', operator: 'notNull' }] }`
         ]
       }
@@ -84,7 +91,7 @@ creating it is written into `migrations` by the user, which conveniently runs ri
 class Item extends EntityBase {}
 ```
 
-***
+---
 
 ### computedProperties? \{#computedproperties\}
 
@@ -98,10 +105,12 @@ Computed properties
 Dynamically computed read-only properties, not stored in the database
 
 ## Usage conditions
+
 - The corresponding feature must be enabled in `features` (e.g. `tree:{ hasChildren: true }`)
 - Readable on the entity only; not modifiable
 
 ## Computation sources
+
 1. **Database query**: e.g. the `hasChildren` property of tree structures
 2. **Class methods**: computed via getter methods, e.g. `fullName = firstName + lastName`
 3. **Complex logic**: generated dynamically from business rules (to be implemented)
@@ -110,14 +119,12 @@ Dynamically computed read-only properties, not stored in the database
 
 ```typescript
 // A computed property in a tree structure
-computedProperties: [
-  `{ name: 'hasChildren', type: PropertyType.boolean }`
-]
+computedProperties: [`{ name: 'hasChildren', type: PropertyType.boolean }`];
 ```
 
 **Note:** Currently only used in tree structures (the `tree` feature)
 
-***
+---
 
 ### displayName? \{#displayname\}
 
@@ -132,10 +139,10 @@ Display name
 #### Example
 
 ```ts
-"User", "Order item"
+('User', 'Order item');
 ```
 
-***
+---
 
 ### exclusions? \{#exclusions\}
 
@@ -174,7 +181,7 @@ are not supported and must be written in two steps through an intermediate value
 class BomLineOccurrence extends EntityBase {}
 ```
 
-***
+---
 
 ### extends? \{#extends\}
 
@@ -187,7 +194,7 @@ Defined in: [packages/rxdb/src/entity/entity-options.interface.ts:146](https://g
 List of inherited entity names
 Indicates which entities the current entity inherits from
 
-***
+---
 
 ### features? \{#features\}
 
@@ -199,7 +206,7 @@ Defined in: [packages/rxdb/src/entity/entity-options.interface.ts:317](https://g
 
 Features
 
-***
+---
 
 ### foreignKeys? \{#foreignkeys\}
 
@@ -213,7 +220,7 @@ Entity-level multi-column foreign key constraints.
 
 Single-column relations still use `relations`; use this configuration only when multiple columns need to be validated as a whole.
 
-***
+---
 
 ### indexes? \{#indexes\}
 
@@ -226,7 +233,7 @@ Defined in: [packages/rxdb/src/entity/entity-options.interface.ts:239](https://g
 The entity's index configuration
 Self-defined indexes, not including inherited ones
 
-***
+---
 
 ### log? \{#log\}
 
@@ -253,10 +260,10 @@ Suitable for data the library maintains itself that needs no lookback (e.g. the 
 #### Default
 
 ```ts
-true
+true;
 ```
 
-***
+---
 
 ### manualOrder? \{#manualorder\}
 
@@ -283,7 +290,7 @@ Not named `sortable`: property-level / relation-level `sortable` already means "
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### Example
@@ -305,7 +312,7 @@ class Todo extends EntityBase implements ISortableEntity {
 }
 ```
 
-***
+---
 
 ### name \{#name\}
 
@@ -317,7 +324,7 @@ Defined in: [packages/rxdb/src/entity/entity-options.interface.ts:127](https://g
 
 Name
 
-***
+---
 
 ### namespace? \{#namespace\}
 
@@ -335,16 +342,16 @@ In sqlite it becomes the table prefix
 #### Example
 
 ```ts
-"app", "system"
+('app', 'system');
 ```
 
 #### Default
 
 ```ts
-"public"
+'public';
 ```
 
-***
+---
 
 ### permissions? \{#permissions\}
 
@@ -360,7 +367,7 @@ Write operation permissions, see [EntityPermissionOptions](EntityPermissionOptio
 
 All three operations are `'both'`
 
-***
+---
 
 ### properties? \{#properties\}
 
@@ -373,7 +380,7 @@ Defined in: [packages/rxdb/src/entity/entity-options.interface.ts:194](https://g
 The entity's property table
 Self-defined properties, not including inherited ones
 
-***
+---
 
 ### relations? \{#relations\}
 
@@ -387,6 +394,7 @@ The entity's relation configuration
 Self-defined relations, not including inherited ones
 
 Defines the associations between this entity and other entities, supporting four relation types:
+
 - ONE_TO_ONE: one-to-one relation, e.g. a user and a user profile
 - ONE_TO_MANY: one-to-many relation, e.g. a user and the user's posts
 - MANY_TO_ONE: many-to-one relation, e.g. many posts and one author
@@ -394,7 +402,7 @@ Defines the associations between this entity and other entities, supporting four
 
 The system handles foreign keys, queries, and association operations automatically according to the relation configuration
 
-***
+---
 
 ### repository? \{#repository\}
 
@@ -416,10 +424,10 @@ If the name has not been registered through `RxDB.repository()`, `EntityManager.
 #### Default
 
 ```ts
-"Repository"
+'Repository';
 ```
 
-***
+---
 
 ### sync? \{#sync\}
 
@@ -431,7 +439,7 @@ Defined in: [packages/rxdb/src/entity/entity-options.interface.ts:182](https://g
 
 Entity sync configuration
 
-***
+---
 
 ### tableName? \{#tablename\}
 

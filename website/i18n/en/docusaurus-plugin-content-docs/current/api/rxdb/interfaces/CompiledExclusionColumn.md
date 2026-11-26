@@ -16,7 +16,7 @@ Defined in: [packages/rxdb/src/entity/exclusion-constraint.ts:84](https://github
 
 Physical column name.
 
-***
+---
 
 ### field \{#field\}
 

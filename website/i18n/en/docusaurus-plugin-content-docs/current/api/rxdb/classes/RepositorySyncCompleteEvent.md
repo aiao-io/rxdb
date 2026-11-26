@@ -12,9 +12,9 @@ Fired when a repository sync operation completes successfully
 
 ```ts
 new RepositorySyncCompleteEvent(
-   direction, 
-   namespace, 
-   entity, 
+   direction,
+   namespace,
+   entity,
    result
 ): RepositorySyncCompleteEvent;
 ```
@@ -23,18 +23,18 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:591](https://github.com/aiao-io/rx
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `direction` | [`RepositorySyncDirection`](../type-aliases/RepositorySyncDirection.md) | Sync direction |
-| `namespace` | `string` | Namespace |
-| `entity` | `string` | Entity name |
-| `result` | \{ `compacted?`: `number`; `conflictsDeferred?`: `number`; `conflictsResolved?`: `number`; `failed?`: `number`; `pulled?`: `number`; `pushed?`: `number`; \} | Sync result statistics |
-| `result.compacted?` | `number` | - |
-| `result.conflictsDeferred?` | `number` | - |
-| `result.conflictsResolved?` | `number` | - |
-| `result.failed?` | `number` | - |
-| `result.pulled?` | `number` | - |
-| `result.pushed?` | `number` | - |
+| Parameter                   | Type                                                                                                                                                         | Description            |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------- |
+| `direction`                 | [`RepositorySyncDirection`](../type-aliases/RepositorySyncDirection.md)                                                                                      | Sync direction         |
+| `namespace`                 | `string`                                                                                                                                                     | Namespace              |
+| `entity`                    | `string`                                                                                                                                                     | Entity name            |
+| `result`                    | \{ `compacted?`: `number`; `conflictsDeferred?`: `number`; `conflictsResolved?`: `number`; `failed?`: `number`; `pulled?`: `number`; `pushed?`: `number`; \} | Sync result statistics |
+| `result.compacted?`         | `number`                                                                                                                                                     | -                      |
+| `result.conflictsDeferred?` | `number`                                                                                                                                                     | -                      |
+| `result.conflictsResolved?` | `number`                                                                                                                                                     | -                      |
+| `result.failed?`            | `number`                                                                                                                                                     | -                      |
+| `result.pulled?`            | `number`                                                                                                                                                     | -                      |
+| `result.pushed?`            | `number`                                                                                                                                                     | -                      |
 
 #### Returns
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:593](https://github.com/aiao-io/rx
 
 Sync direction
 
-***
+---
 
 ### entity \{#entity\}
 
@@ -64,7 +64,7 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:597](https://github.com/aiao-io/rx
 
 Entity name
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -76,7 +76,7 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:595](https://github.com/aiao-io/rx
 
 Namespace
 
-***
+---
 
 ### result \{#result\}
 
@@ -124,7 +124,7 @@ pulled?: number;
 pushed?: number;
 ```
 
-***
+---
 
 ### type \{#type\}
 

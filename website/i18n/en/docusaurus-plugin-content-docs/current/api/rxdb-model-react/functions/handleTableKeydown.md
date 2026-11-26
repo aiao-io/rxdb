@@ -11,10 +11,10 @@ Clipboard shortcuts and the delete key are not intercepted while editing.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `ctx` | [`KeyboardHandlerContext`](../interfaces/KeyboardHandlerContext.md) | Keyboard handling context |
-| `e` | `KeyboardEvent` | The keyboard event |
+| Parameter | Type                                                                | Description               |
+| --------- | ------------------------------------------------------------------- | ------------------------- |
+| `ctx`     | [`KeyboardHandlerContext`](../interfaces/KeyboardHandlerContext.md) | Keyboard handling context |
+| `e`       | `KeyboardEvent`                                                     | The keyboard event        |
 
 ## Returns
 

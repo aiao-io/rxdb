@@ -23,7 +23,7 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:51](https://github.com/aiao-io/rx
 
 The maximum remote change id of this round
 
-***
+---
 
 ### results \{#results\}
 

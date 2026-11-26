@@ -10,8 +10,8 @@ Gets the SQL operator.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `operator` | `string` |
 
 ## Returns

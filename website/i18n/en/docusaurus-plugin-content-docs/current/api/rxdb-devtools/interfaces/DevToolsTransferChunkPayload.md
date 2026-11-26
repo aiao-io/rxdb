@@ -14,7 +14,7 @@ readonly chunkIndex: number;
 
 Defined in: [v2/wire.ts:165](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/v2/wire.ts#L165)
 
-***
+---
 
 ### dataBase64 \{#database64\}
 
@@ -26,7 +26,7 @@ Defined in: [v2/wire.ts:168](https://github.com/aiao-io/rxdb/blob/b5232040240cf1
 
 RFC 4648 standard alphabet + canonical padding; **canonicity is judged by the transfer state machine**, see the note below.
 
-***
+---
 
 ### offset \{#offset\}
 
@@ -36,7 +36,7 @@ readonly offset: number;
 
 Defined in: [v2/wire.ts:166](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/v2/wire.ts#L166)
 
-***
+---
 
 ### transferId \{#transferid\}
 

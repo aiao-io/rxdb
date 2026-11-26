@@ -1,11 +1,7 @@
 # assertQueryCacheRowContract()
 
 ```ts
-function assertQueryCacheRowContract(
-   entityName, 
-   rows, 
-   metadata
-): void;
+function assertQueryCacheRowContract(entityName, rows, metadata): void;
 ```
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/query-cache-row-contract.ts:266](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/query-cache-row-contract.ts#L266)
@@ -14,11 +10,11 @@ Validates the column set of remote rows before writing them; fails fast when the
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entityName` | `string` | The logical entity name passed in by `QueryCacheEngine`; appears verbatim in error messages |
-| `rows` | readonly `object`[] | The remote rows about to be written |
-| `metadata` | \| `Readonly`&lt;[`EntityMetadataType`](../../rxdb/interfaces/EntityMetadataType.md)&gt; \| `undefined` | Entity metadata; when not found, the first two criteria are skipped (the local table's NOT NULL column set cannot be computed), the third still applies |
+| Parameter    | Type                                                                                                    | Description                                                                                                                                             |
+| ------------ | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `entityName` | `string`                                                                                                | The logical entity name passed in by `QueryCacheEngine`; appears verbatim in error messages                                                             |
+| `rows`       | readonly `object`[]                                                                                     | The remote rows about to be written                                                                                                                     |
+| `metadata`   | \| `Readonly`&lt;[`EntityMetadataType`](../../rxdb/interfaces/EntityMetadataType.md)&gt; \| `undefined` | Entity metadata; when not found, the first two criteria are skipped (the local table's NOT NULL column set cannot be computed), the third still applies |
 
 ## Returns
 

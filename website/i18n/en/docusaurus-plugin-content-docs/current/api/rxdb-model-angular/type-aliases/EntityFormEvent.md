@@ -1,27 +1,27 @@
 # EntityFormEvent
 
 ```ts
-type EntityFormEvent = 
+type EntityFormEvent =
   | {
-  event: FormFieldChangeEvent;
-  type: "fieldChanged";
-}
+      event: FormFieldChangeEvent;
+      type: 'fieldChanged';
+    }
   | {
-  result: FormValidationResult;
-  type: "validationErrors";
-}
+      result: FormValidationResult;
+      type: 'validationErrors';
+    }
   | {
-  data: EntityFormData;
-  type: "reset";
-}
+      data: EntityFormData;
+      type: 'reset';
+    }
   | {
-  data: EntityFormData;
-  type: "submitted";
-}
+      data: EntityFormData;
+      type: 'submitted';
+    }
   | {
-  data: EntityFormData;
-  type: "cancelled";
-};
+      data: EntityFormData;
+      type: 'cancelled';
+    };
 ```
 
 Defined in: packages/rxdb-model/dist/entity-form/headless.d.ts:38

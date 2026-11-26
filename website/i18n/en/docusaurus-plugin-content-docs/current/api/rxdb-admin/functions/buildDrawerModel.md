@@ -10,9 +10,9 @@ Builds the drawer's tab / group / setting-row view model from preference items: 
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `input` | [`DrawerModelInput`](../interfaces/DrawerModelInput.md) | Preferences, preference items, translations, and the write function. |
+| Parameter | Type                                                    | Description                                                          |
+| --------- | ------------------------------------------------------- | -------------------------------------------------------------------- |
+| `input`   | [`DrawerModelInput`](../interfaces/DrawerModelInput.md) | Preferences, preference items, translations, and the write function. |
 
 ## Returns
 

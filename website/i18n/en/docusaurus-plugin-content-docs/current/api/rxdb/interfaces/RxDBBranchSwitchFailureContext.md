@@ -16,7 +16,7 @@ Defined in: [packages/rxdb/src/rxdb-plugin-system.ts:192](https://github.com/aia
 
 The current branch id; this failure did not switch away, so it is still the active one
 
-***
+---
 
 ### error \{#error\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb/src/rxdb-plugin-system.ts:198](https://github.com/aia
 
 The error that made this switch fail; contributors recognize it by the types they know and do nothing when they cannot
 
-***
+---
 
 ### targetBranchId \{#targetbranchid\}
 

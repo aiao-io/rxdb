@@ -17,7 +17,7 @@ Defined in: [provider/snapshot.ts:82](https://github.com/aiao-io/rxdb/blob/b5232
 The time port; both the 15-second end-to-end deadline and the 60-second cursor expiry go
 through it.
 
-***
+---
 
 ### source \{#source\}
 

@@ -1,5 +1,5 @@
 ---
-sidebar_label: "EntityStaticType⟨T, K⟩"
+sidebar_label: 'EntityStaticType⟨T, K⟩'
 ---
 
 # EntityStaticType`<T, K>`
@@ -12,7 +12,7 @@ Defined in: [packages/rxdb/src/entity/entity.interface.ts:87](https://github.com
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](EntityType.md) |
-| <a id="type-parameter-k"></a> `K` *extends* `PropertyKey` |
+| Type Parameter                                                            |
+| ------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](EntityType.md) |
+| <a id="type-parameter-k"></a> `K` _extends_ `PropertyKey`                 |

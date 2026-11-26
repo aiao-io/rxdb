@@ -19,10 +19,10 @@ Creation time
 #### Default
 
 ```ts
-new Date()
+new Date();
 ```
 
-***
+---
 
 ### entity? \{#entity\}
 
@@ -34,7 +34,7 @@ Defined in: [packages/rxdb/src/system/types.ts:679](https://github.com/aiao-io/r
 
 Entity
 
-***
+---
 
 ### entityId? \{#entityid\}
 
@@ -46,7 +46,7 @@ Defined in: [packages/rxdb/src/system/types.ts:683](https://github.com/aiao-io/r
 
 Entity ID
 
-***
+---
 
 ### id? \{#id\}
 
@@ -58,7 +58,7 @@ Defined in: [packages/rxdb/src/system/types.ts:659](https://github.com/aiao-io/r
 
 id
 
-***
+---
 
 ### inversePatch? \{#inversepatch\}
 
@@ -70,7 +70,7 @@ Defined in: [packages/rxdb/src/system/types.ts:687](https://github.com/aiao-io/r
 
 Inverse patch
 
-***
+---
 
 ### namespace? \{#namespace\}
 
@@ -82,7 +82,7 @@ Defined in: [packages/rxdb/src/system/types.ts:675](https://github.com/aiao-io/r
 
 Namespace
 
-***
+---
 
 ### patch? \{#patch\}
 
@@ -94,7 +94,7 @@ Defined in: [packages/rxdb/src/system/types.ts:691](https://github.com/aiao-io/r
 
 Patch
 
-***
+---
 
 ### redoInvalidatedAt? \{#redoinvalidatedat\}
 
@@ -106,7 +106,7 @@ Defined in: [packages/rxdb/src/system/types.ts:713](https://github.com/aiao-io/r
 
 Redo invalidation time
 
-***
+---
 
 ### remoteId? \{#remoteid\}
 
@@ -118,7 +118,7 @@ Defined in: [packages/rxdb/src/system/types.ts:663](https://github.com/aiao-io/r
 
 Remote ID
 
-***
+---
 
 ### revertChangedAt? \{#revertchangedat\}
 
@@ -130,7 +130,7 @@ Defined in: [packages/rxdb/src/system/types.ts:705](https://github.com/aiao-io/r
 
 Revert time
 
-***
+---
 
 ### revertChangeId? \{#revertchangeid\}
 
@@ -142,7 +142,7 @@ Defined in: [packages/rxdb/src/system/types.ts:709](https://github.com/aiao-io/r
 
 Revert change ID
 
-***
+---
 
 ### transactionId? \{#transactionid\}
 
@@ -154,7 +154,7 @@ Defined in: [packages/rxdb/src/system/types.ts:671](https://github.com/aiao-io/r
 
 Transaction ID
 
-***
+---
 
 ### type? \{#type\}
 
@@ -166,7 +166,7 @@ Defined in: [packages/rxdb/src/system/types.ts:667](https://github.com/aiao-io/r
 
 Type
 
-***
+---
 
 ### updatedAt? \{#updatedat\}
 
@@ -181,5 +181,5 @@ Update time
 #### Default
 
 ```ts
-new Date()
+new Date();
 ```

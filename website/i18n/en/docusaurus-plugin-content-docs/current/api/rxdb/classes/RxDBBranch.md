@@ -59,7 +59,7 @@ Defined in: [packages/rxdb/src/system/branch.ts:157](https://github.com/aiao-io/
 
 Whether it is active
 
-***
+---
 
 ### activeKey? \{#activekey\}
 
@@ -86,7 +86,7 @@ Hold keys are the third kind of value added by US-314 B1.2, with the correspondi
 `WorktreeBranchHeldError.throwIfHeld` runs first: lighting up writes the sentinel, which just overwrites the hold key, so the unique constraint never collides.
 Old sentinels can also only be cleared by value — clearing by "non-null" would wipe out hold keys too.
 
-***
+---
 
 ### changes$ \{#changes\}
 
@@ -98,7 +98,7 @@ Defined in: [packages/rxdb/src/system/branch.ts:208](https://github.com/aiao-io/
 
 Changes
 
-***
+---
 
 ### children$ \{#children\}
 
@@ -110,7 +110,7 @@ Defined in: [packages/rxdb/src/system/branch.ts:218](https://github.com/aiao-io/
 
 Child branches
 
-***
+---
 
 ### createdAt? \{#createdat\}
 
@@ -125,10 +125,10 @@ Creation time
 #### Default
 
 ```ts
-new Date()
+new Date();
 ```
 
-***
+---
 
 ### fromChangeId? \{#fromchangeid\}
 
@@ -140,7 +140,7 @@ Defined in: [packages/rxdb/src/system/branch.ts:186](https://github.com/aiao-io/
 
 Source change ID
 
-***
+---
 
 ### id \{#id\}
 
@@ -152,7 +152,7 @@ Defined in: [packages/rxdb/src/system/branch.ts:143](https://github.com/aiao-io/
 
 id
 
-***
+---
 
 ### local \{#local\}
 
@@ -164,7 +164,7 @@ Defined in: [packages/rxdb/src/system/branch.ts:147](https://github.com/aiao-io/
 
 Local branch
 
-***
+---
 
 ### parent$ \{#parent\}
 
@@ -176,7 +176,7 @@ Defined in: [packages/rxdb/src/system/branch.ts:203](https://github.com/aiao-io/
 
 Parent branch
 
-***
+---
 
 ### parentId? \{#parentid\}
 
@@ -188,7 +188,7 @@ Defined in: [packages/rxdb/src/system/branch.ts:181](https://github.com/aiao-io/
 
 Parent branch ID
 
-***
+---
 
 ### remote \{#remote\}
 
@@ -200,7 +200,7 @@ Defined in: [packages/rxdb/src/system/branch.ts:152](https://github.com/aiao-io/
 
 Branch already existing online
 
-***
+---
 
 ### remove \{#remove\}
 
@@ -216,7 +216,7 @@ Delete
 
 `Promise`&lt;`RxDBBranch`&gt;
 
-***
+---
 
 ### reset \{#reset\}
 
@@ -232,7 +232,7 @@ Reset data
 
 `void`
 
-***
+---
 
 ### save \{#save\}
 
@@ -248,7 +248,7 @@ Save
 
 `Promise`&lt;`RxDBBranch`&gt;
 
-***
+---
 
 ### syncs$ \{#syncs\}
 
@@ -260,7 +260,7 @@ Defined in: [packages/rxdb/src/system/branch.ts:213](https://github.com/aiao-io/
 
 syncs - this branch's Repository sync records
 
-***
+---
 
 ### updatedAt? \{#updatedat\}
 
@@ -275,10 +275,10 @@ Update time
 #### Default
 
 ```ts
-new Date()
+new Date();
 ```
 
-***
+---
 
 ### \[ENTITY\_STATIC\_TYPES\] \{#entity_static_types\}
 
@@ -288,7 +288,7 @@ static [ENTITY_STATIC_TYPES]: RxDBBranchStaticTypes;
 
 Defined in: [packages/rxdb/src/system/branch.ts:139](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/branch.ts#L139)
 
-***
+---
 
 ### count \{#count\}
 
@@ -302,15 +302,15 @@ count query
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | [`CountOptions`](../interfaces/CountOptions.md)&lt;*typeof* `RxDBBranch`, [`RxDBBranchRuleGroup`](../type-aliases/RxDBBranchRuleGroup.md)&gt; | Query options |
+| Parameter | Type                                                                                                                                          | Description   |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| `options` | [`CountOptions`](../interfaces/CountOptions.md)&lt;_typeof_ `RxDBBranch`, [`RxDBBranchRuleGroup`](../type-aliases/RxDBBranchRuleGroup.md)&gt; | Query options |
 
 #### Returns
 
 `Observable`&lt;`number`&gt;
 
-***
+---
 
 ### find \{#find\}
 
@@ -324,15 +324,15 @@ find query
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | [`FindOptions`](../interfaces/FindOptions.md)&lt;*typeof* `RxDBBranch`, [`RxDBBranchRuleGroup`](../type-aliases/RxDBBranchRuleGroup.md), [`RxDBBranchOrderByField`](../type-aliases/RxDBBranchOrderByField.md)&gt; | Query options |
+| Parameter | Type                                                                                                                                                                                                               | Description   |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- |
+| `options` | [`FindOptions`](../interfaces/FindOptions.md)&lt;_typeof_ `RxDBBranch`, [`RxDBBranchRuleGroup`](../type-aliases/RxDBBranchRuleGroup.md), [`RxDBBranchOrderByField`](../type-aliases/RxDBBranchOrderByField.md)&gt; | Query options |
 
 #### Returns
 
 `Observable`&lt;`RxDBBranch`[]&gt;
 
-***
+---
 
 ### findAll \{#findall\}
 
@@ -346,15 +346,15 @@ findAll query
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | [`FindAllOptions`](../interfaces/FindAllOptions.md)&lt;*typeof* `RxDBBranch`, [`RxDBBranchRuleGroup`](../type-aliases/RxDBBranchRuleGroup.md), [`RxDBBranchOrderByField`](../type-aliases/RxDBBranchOrderByField.md)&gt; | Query options |
+| Parameter | Type                                                                                                                                                                                                                     | Description   |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- |
+| `options` | [`FindAllOptions`](../interfaces/FindAllOptions.md)&lt;_typeof_ `RxDBBranch`, [`RxDBBranchRuleGroup`](../type-aliases/RxDBBranchRuleGroup.md), [`RxDBBranchOrderByField`](../type-aliases/RxDBBranchOrderByField.md)&gt; | Query options |
 
 #### Returns
 
 `Observable`&lt;`RxDBBranch`[]&gt;
 
-***
+---
 
 ### findByCursor \{#findbycursor\}
 
@@ -368,15 +368,15 @@ findByCursor query
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | [`FindByCursorOptions`](../interfaces/FindByCursorOptions.md)&lt;*typeof* `RxDBBranch`, [`RxDBBranchRuleGroup`](../type-aliases/RxDBBranchRuleGroup.md), [`RxDBBranchOrderByField`](../type-aliases/RxDBBranchOrderByField.md)&gt; | Query options |
+| Parameter | Type                                                                                                                                                                                                                               | Description   |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| `options` | [`FindByCursorOptions`](../interfaces/FindByCursorOptions.md)&lt;_typeof_ `RxDBBranch`, [`RxDBBranchRuleGroup`](../type-aliases/RxDBBranchRuleGroup.md), [`RxDBBranchOrderByField`](../type-aliases/RxDBBranchOrderByField.md)&gt; | Query options |
 
 #### Returns
 
 `Observable`&lt;`RxDBBranch`[]&gt;
 
-***
+---
 
 ### findOne \{#findone\}
 
@@ -390,15 +390,15 @@ findOne query
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | [`FindOneOptions`](../interfaces/FindOneOptions.md)&lt;*typeof* `RxDBBranch`, [`RxDBBranchRuleGroup`](../type-aliases/RxDBBranchRuleGroup.md), [`RxDBBranchOrderByField`](../type-aliases/RxDBBranchOrderByField.md)&gt; | Query options |
+| Parameter | Type                                                                                                                                                                                                                     | Description   |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- |
+| `options` | [`FindOneOptions`](../interfaces/FindOneOptions.md)&lt;_typeof_ `RxDBBranch`, [`RxDBBranchRuleGroup`](../type-aliases/RxDBBranchRuleGroup.md), [`RxDBBranchOrderByField`](../type-aliases/RxDBBranchOrderByField.md)&gt; | Query options |
 
 #### Returns
 
 `Observable`&lt;`RxDBBranch` \| `null`&gt;
 
-***
+---
 
 ### findOneOrFail \{#findoneorfail\}
 
@@ -412,15 +412,15 @@ findOneOrFail query
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | [`FindOneOrFailOptions`](../interfaces/FindOneOrFailOptions.md)&lt;*typeof* `RxDBBranch`, [`RxDBBranchRuleGroup`](../type-aliases/RxDBBranchRuleGroup.md), [`RxDBBranchOrderByField`](../type-aliases/RxDBBranchOrderByField.md)&gt; | Query options |
+| Parameter | Type                                                                                                                                                                                                                                 | Description   |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- |
+| `options` | [`FindOneOrFailOptions`](../interfaces/FindOneOrFailOptions.md)&lt;_typeof_ `RxDBBranch`, [`RxDBBranchRuleGroup`](../type-aliases/RxDBBranchRuleGroup.md), [`RxDBBranchOrderByField`](../type-aliases/RxDBBranchOrderByField.md)&gt; | Query options |
 
 #### Returns
 
 `Observable`&lt;`RxDBBranch`&gt;
 
-***
+---
 
 ### get \{#get\}
 
@@ -434,8 +434,8 @@ get query
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type     | Description   |
+| --------- | -------- | ------------- |
 | `options` | `string` | Query options |
 
 #### Returns

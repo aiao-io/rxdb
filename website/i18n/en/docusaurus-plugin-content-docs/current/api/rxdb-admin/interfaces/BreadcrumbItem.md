@@ -1,5 +1,5 @@
 ---
-sidebar_label: "BreadcrumbItem⟨TIcon⟩"
+sidebar_label: 'BreadcrumbItem⟨TIcon⟩'
 ---
 
 # BreadcrumbItem`<TIcon>`
@@ -10,9 +10,9 @@ A breadcrumb item.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-ticon"></a> `TIcon` | `unknown` |
+| Type Parameter                            | Default type |
+| ----------------------------------------- | ------------ |
+| <a id="type-parameter-ticon"></a> `TIcon` | `unknown`    |
 
 ## Properties
 
@@ -26,7 +26,7 @@ Defined in: [layout/menu.ts:28](https://github.com/aiao-io/rxdb/blob/b5232040240
 
 The icon.
 
-***
+---
 
 ### id \{#id\}
 
@@ -38,7 +38,7 @@ Defined in: [layout/menu.ts:24](https://github.com/aiao-io/rxdb/blob/b5232040240
 
 The identifier.
 
-***
+---
 
 ### label \{#label\}
 
@@ -50,7 +50,7 @@ Defined in: [layout/menu.ts:26](https://github.com/aiao-io/rxdb/blob/b5232040240
 
 The text.
 
-***
+---
 
 ### route? \{#route\}
 

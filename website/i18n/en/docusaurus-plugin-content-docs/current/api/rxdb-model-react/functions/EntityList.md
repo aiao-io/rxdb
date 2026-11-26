@@ -10,8 +10,8 @@ Entity list component: infinite-scroll table + inline editing + undo/redo + filt
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter           | Type                                                  |
+| ------------------- | ----------------------------------------------------- |
 | `__namedParameters` | [`EntityListProps`](../interfaces/EntityListProps.md) |
 
 ## Returns

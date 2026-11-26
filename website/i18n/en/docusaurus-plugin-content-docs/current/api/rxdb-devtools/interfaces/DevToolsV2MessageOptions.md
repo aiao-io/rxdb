@@ -16,7 +16,7 @@ Defined in: [v2/wire.ts:231](https://github.com/aiao-io/rxdb/blob/b5232040240cf1
 
 Only bidirectional messages need it and must provide it; providing an inconsistent value for a unidirectional message throws.
 
-***
+---
 
 ### sequence \{#sequence\}
 
@@ -26,7 +26,7 @@ readonly sequence: number;
 
 Defined in: [v2/wire.ts:228](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/v2/wire.ts#L228)
 
-***
+---
 
 ### sessionId \{#sessionid\}
 
@@ -36,7 +36,7 @@ readonly sessionId: string | null;
 
 Defined in: [v2/wire.ts:227](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/v2/wire.ts#L227)
 
-***
+---
 
 ### timestamp \{#timestamp\}
 

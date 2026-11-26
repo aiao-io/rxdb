@@ -17,7 +17,7 @@ Defined in: [provider/snapshot.ts:64](https://github.com/aiao-io/rxdb/blob/b5232
 `true` only when this page is the last one; **only when it is true may the panel conclude on
 the "two kinds of missing"**.
 
-***
+---
 
 ### offset \{#offset\}
 
@@ -29,7 +29,7 @@ Defined in: [provider/snapshot.ts:62](https://github.com/aiao-io/rxdb/blob/b5232
 
 Starting index of this page within the full set of records.
 
-***
+---
 
 ### records \{#records\}
 
@@ -41,7 +41,7 @@ Defined in: [provider/snapshot.ts:60](https://github.com/aiao-io/rxdb/blob/b5232
 
 The records of this page, preserving the `(logicalPath, id)` order at materialization time.
 
-***
+---
 
 ### snapshotId \{#snapshotid\}
 

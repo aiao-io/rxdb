@@ -1,5 +1,5 @@
 ---
-sidebar_label: "QueryBuilderState⟨T⟩"
+sidebar_label: 'QueryBuilderState⟨T⟩'
 ---
 
 # QueryBuilderState`<T>`
@@ -10,8 +10,8 @@ Query builder state (simplified version, contains only the necessary fields)
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
+| Type Parameter                    | Default type                        |
+| --------------------------------- | ----------------------------------- |
 | <a id="type-parameter-t"></a> `T` | `Record`&lt;`string`, `unknown`&gt; |
 
 ## Properties

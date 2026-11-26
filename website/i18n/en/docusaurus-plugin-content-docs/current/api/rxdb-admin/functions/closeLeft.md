@@ -10,10 +10,10 @@ Closes the unpinned tabs to the left of the given tab.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `state` | [`TabsState`](../interfaces/TabsState.md) | The current state. |
-| `key` | `string` | The reference tab key. |
+| Parameter | Type                                      | Description            |
+| --------- | ----------------------------------------- | ---------------------- |
+| `state`   | [`TabsState`](../interfaces/TabsState.md) | The current state.     |
+| `key`     | `string`                                  | The reference tab key. |
 
 ## Returns
 

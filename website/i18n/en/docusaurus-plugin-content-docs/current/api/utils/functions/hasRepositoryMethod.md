@@ -10,10 +10,10 @@ Checks whether an object has the specified query method
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `obj` | `unknown` | The object to check |
-| `methodName` | `string` | The method name |
+| Parameter    | Type      | Description         |
+| ------------ | --------- | ------------------- |
+| `obj`        | `unknown` | The object to check |
+| `methodName` | `string`  | The method name     |
 
 ## Returns
 

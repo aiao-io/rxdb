@@ -23,15 +23,15 @@ Judges whether a reachable commit can be used to create a branch; the three reje
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `commitId` | `string` |
 
 #### Returns
 
 `Promise`&lt;[`WorkingTreeBranchFromCommitCheck`](../type-aliases/WorkingTreeBranchFromCommitCheck.md)&gt;
 
-***
+---
 
 ### commit \{#commit\}
 
@@ -45,16 +45,16 @@ Commits all uncommitted units in the working tree; **there is no "empty success"
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `message` | `string` |
+| Parameter | Type                                |
+| --------- | ----------------------------------- |
+| `message` | `string`                            |
 | `options` | [`CommitOptions`](CommitOptions.md) |
 
 #### Returns
 
 `Promise`&lt;[`CommitResult`](../type-aliases/CommitResult.md)&gt;
 
-***
+---
 
 ### commitChanges \{#commitchanges\}
 
@@ -68,15 +68,15 @@ All change units of a commit; the zero units of a baseline node are the `empty` 
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `commitId` | `string` |
 
 #### Returns
 
 `Promise`&lt;[`CommitChangeSetPage`](CommitChangeSetPage.md)&gt;
 
-***
+---
 
 ### createBranchFromCommit \{#createbranchfromcommit\}
 
@@ -90,8 +90,8 @@ Creates a branch from a reachable commit without switching; the three rejection 
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `branchId` | `string` |
 | `commitId` | `string` |
 
@@ -99,7 +99,7 @@ Creates a branch from a reachable commit without switching; the three rejection 
 
 `Promise`&lt;[`WorkingTreeCreateBranchFromCommitResult`](../type-aliases/WorkingTreeCreateBranchFromCommitResult.md)&gt;
 
-***
+---
 
 ### diff \{#diff\}
 
@@ -113,15 +113,15 @@ The uncommitted changes of the current branch relative to HEAD; zero entries are
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                  |
+| ---------- | ----------------------------------------------------- |
 | `options?` | [`WorkingTreeDiffOptions`](WorkingTreeDiffOptions.md) |
 
 #### Returns
 
 `Promise`&lt;[`WorkingTreeDiff`](WorkingTreeDiff.md)&gt;
 
-***
+---
 
 ### discard \{#discard\}
 
@@ -135,15 +135,15 @@ Resets the working tree as a whole back to HEAD; `discardedCount: 0` is a no-op,
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                  |
+| --------- | ----------------------------------------------------- |
 | `options` | [`WorkingTreeCredentials`](WorkingTreeCredentials.md) |
 
 #### Returns
 
 `Promise`&lt;[`WorkingTreeDiscardResult`](../type-aliases/WorkingTreeDiscardResult.md)&gt;
 
-***
+---
 
 ### enable \{#enable\}
 
@@ -159,7 +159,7 @@ Enables the commit capability; on success, also re-reads status once
 
 `Promise`&lt;[`CommitCapabilityInfo`](CommitCapabilityInfo.md)&gt;
 
-***
+---
 
 ### enableIfEmpty \{#enableifempty\}
 
@@ -175,7 +175,7 @@ Enables automatically when the database is empty, skips when it has content; aft
 
 `Promise`&lt;[`WorkingTreeEnableIfEmptyResult`](../type-aliases/WorkingTreeEnableIfEmptyResult.md)&gt;
 
-***
+---
 
 ### isEnabled \{#isenabled\}
 
@@ -191,7 +191,7 @@ Whether this database has the commit capability enabled; `boolean` has no empty 
 
 `Promise`&lt;`boolean`&gt;
 
-***
+---
 
 ### listCommits \{#listcommits\}
 
@@ -205,15 +205,15 @@ The reachable commit history of the current branch; an empty history is the `emp
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                      |
+| ---------- | ----------------------------------------- |
 | `options?` | [`CommitLogOptions`](CommitLogOptions.md) |
 
 #### Returns
 
 `Promise`&lt;[`CommitLogPage`](CommitLogPage.md)&gt;
 
-***
+---
 
 ### restore \{#restore\}
 
@@ -227,16 +227,16 @@ Writes the content of a reachable history commit back into the working tree; the
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `target` | [`WorkingTreeRestoreTarget`](WorkingTreeRestoreTarget.md) |
-| `options` | [`WorkingTreeCredentials`](WorkingTreeCredentials.md) |
+| Parameter | Type                                                      |
+| --------- | --------------------------------------------------------- |
+| `target`  | [`WorkingTreeRestoreTarget`](WorkingTreeRestoreTarget.md) |
+| `options` | [`WorkingTreeCredentials`](WorkingTreeCredentials.md)     |
 
 #### Returns
 
 `Promise`&lt;[`WorkingTreeRestoreResult`](../type-aliases/WorkingTreeRestoreResult.md)&gt;
 
-***
+---
 
 ### restoreSession \{#restoresession\}
 
@@ -253,10 +253,10 @@ The current branch's unfinished restore session; `null` when there is none, whic
 #### Returns
 
 `Promise`&lt;
-  \| [`WorkingTreeRestoreSessionInfo`](WorkingTreeRestoreSessionInfo.md)
-  \| `null`&gt;
+\| [`WorkingTreeRestoreSessionInfo`](WorkingTreeRestoreSessionInfo.md)
+\| `null`&gt;
 
-***
+---
 
 ### status \{#status\}
 
@@ -272,7 +272,7 @@ The working tree summary of the current branch; a clean working tree is the `emp
 
 `Promise`&lt;[`WorkingTreeStatus`](WorkingTreeStatus.md)&gt;
 
-***
+---
 
 ### switchBranch \{#switchbranch\}
 
@@ -286,9 +286,9 @@ Switches to another branch; on success, also re-reads status once. When rejected
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `branchId` | `string` |
+| Parameter  | Type                                                                                        |
+| ---------- | ------------------------------------------------------------------------------------------- |
+| `branchId` | `string`                                                                                    |
 | `options?` | [`RxDBBranchSwitchPreconditions`](../../rxdb/type-aliases/RxDBBranchSwitchPreconditions.md) |
 
 #### Returns

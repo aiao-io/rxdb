@@ -18,7 +18,7 @@ Defined in: [packages/rxdb-model-vue/src/entity-detail/entity-detail-types.ts:29
 
 Entity types in the creation chain (namespace:name), used to block circular creation
 
-***
+---
 
 ### delegateSave? \{#delegatesave\}
 
@@ -30,7 +30,7 @@ Defined in: [packages/rxdb-model-vue/src/entity-detail/entity-detail-types.ts:27
 
 Delegated save: do not create a draft entity; only emit formSubmitted and let the caller handle it
 
-***
+---
 
 ### editChain? \{#editchain\}
 
@@ -42,7 +42,7 @@ Defined in: [packages/rxdb-model-vue/src/entity-detail/entity-detail-types.ts:21
 
 Stack of record ids of already-open detail dialogs (including the current record); the relation tab list uses it to block infinite nesting
 
-***
+---
 
 ### entityId? \{#entityid\}
 
@@ -54,7 +54,7 @@ Defined in: [packages/rxdb-model-vue/src/entity-detail/entity-detail-types.ts:19
 
 Edit mode: loads the entity instance from the Repository by id; when absent, the form data is passed through as-is
 
-***
+---
 
 ### fixedFormData? \{#fixedformdata\}
 
@@ -66,7 +66,7 @@ Defined in: [packages/rxdb-model-vue/src/entity-detail/entity-detail-types.ts:25
 
 Pre-filled foreign key data (not editable), used for cascading creation scenarios
 
-***
+---
 
 ### formData \{#formdata\}
 
@@ -78,7 +78,7 @@ Defined in: [packages/rxdb-model-vue/src/entity-detail/entity-detail-types.ts:15
 
 Form data
 
-***
+---
 
 ### formFields \{#formfields\}
 
@@ -90,7 +90,7 @@ Defined in: [packages/rxdb-model-vue/src/entity-detail/entity-detail-types.ts:13
 
 Form field configuration
 
-***
+---
 
 ### formMode \{#formmode\}
 
@@ -102,7 +102,7 @@ Defined in: [packages/rxdb-model-vue/src/entity-detail/entity-detail-types.ts:17
 
 Form mode
 
-***
+---
 
 ### metadata \{#metadata\}
 
@@ -114,7 +114,7 @@ Defined in: [packages/rxdb-model-vue/src/entity-detail/entity-detail-types.ts:11
 
 Entity metadata
 
-***
+---
 
 ### relatedEntityProvider? \{#relatedentityprovider\}
 

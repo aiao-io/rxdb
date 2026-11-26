@@ -45,9 +45,9 @@ Opens a chunked disk sink for one transfer; only a legal COMPLETE commits it.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `name` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `name`    | `string` |
 
 #### Returns
 
@@ -57,7 +57,7 @@ Opens a chunked disk sink for one transfer; only a legal COMPLETE commits it.
 
 [`DevToolsProviderRegistry`](DevToolsProviderRegistry.md).[`createChunkSink`](DevToolsProviderRegistry.md#createchunksink)
 
-***
+---
 
 ### createChunkSource() \{#createchunksource\}
 
@@ -71,8 +71,8 @@ Opens a byte source for one successful `files.download`.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type     | Description                                  |
+| ----------- | -------- | -------------------------------------------- |
 | `requestId` | `string` | The REQUEST ID that triggered this download. |
 
 #### Returns
@@ -99,7 +99,7 @@ returns).
 
 [`DevToolsProviderRegistry`](DevToolsProviderRegistry.md).[`createChunkSource`](DevToolsProviderRegistry.md#createchunksource)
 
-***
+---
 
 ### dispose() \{#dispose\}
 
@@ -115,7 +115,7 @@ Releases all subscriptions held by this assembly; idempotent.
 
 `void`
 
-***
+---
 
 ### provider() \{#provider\}
 
@@ -129,9 +129,9 @@ Fetches the provider of a domain.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `domain` | `"database"` \| `"files"` \| `"settings"` |
+| Parameter | Type                                      |
+| --------- | ----------------------------------------- |
+| `domain`  | `"database"` \| `"files"` \| `"settings"` |
 
 #### Returns
 

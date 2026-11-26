@@ -26,10 +26,10 @@ Defined in: [packages/rxdb/src/backup/backup-archive.ts:320](https://github.com/
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `source` | `ReadableStreamDefaultReader`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt; |
-| `signal?` | `AbortSignal` |
+| Parameter | Type                                                                       |
+| --------- | -------------------------------------------------------------------------- |
+| `source`  | `ReadableStreamDefaultReader`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt; |
+| `signal?` | `AbortSignal`                                                              |
 
 #### Returns
 
@@ -53,7 +53,7 @@ Reads the next item.
 
 An entry header, a data chunk or the end
 
-***
+---
 
 ### readManifest() \{#readmanifest\}
 

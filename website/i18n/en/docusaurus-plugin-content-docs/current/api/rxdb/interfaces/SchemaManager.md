@@ -51,21 +51,21 @@ Finds the mapped relation of the current relation property
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `meta` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) | - |
+| Parameter  | Type                                                                  | Description                   |
+| ---------- | --------------------------------------------------------------------- | ----------------------------- |
+| `meta`     | [`EntityMetadata`](../type-aliases/EntityMetadata.md)                 | -                             |
 | `relation` | [`EntityRelationMetadata`](../type-aliases/EntityRelationMetadata.md) | The current relation property |
 
 #### Returns
 
 `FindMappedRelationResult`&lt;[`EntityRelationMetadata`](../type-aliases/EntityRelationMetadata.md)&gt;
 
-***
+---
 
 ### getEntityMetadata() \{#getentitymetadata\}
 
 ```ts
-getEntityMetadata(name, namespace): 
+getEntityMetadata(name, namespace):
   | Readonly<EntityMetadataType>
   | undefined;
 ```
@@ -76,22 +76,22 @@ Fetches entity metadata
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `name` | `string` |
+| Parameter   | Type     |
+| ----------- | -------- |
+| `name`      | `string` |
 | `namespace` | `string` |
 
 #### Returns
 
-  \| `Readonly`&lt;[`EntityMetadataType`](EntityMetadataType.md)&gt;
-  \| `undefined`
+\| `Readonly`&lt;[`EntityMetadataType`](EntityMetadataType.md)&gt;
+\| `undefined`
 
-***
+---
 
 ### getEntityMetadataByTableName() \{#getentitymetadatabytablename\}
 
 ```ts
-getEntityMetadataByTableName(tableName, namespace): 
+getEntityMetadataByTableName(tableName, namespace):
   | Readonly<EntityMetadataType>
   | undefined;
 ```
@@ -102,17 +102,17 @@ Fetches entity metadata by tableName
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type     | Description         |
+| ----------- | -------- | ------------------- |
 | `tableName` | `string` | Database table name |
-| `namespace` | `string` | Namespace |
+| `namespace` | `string` | Namespace           |
 
 #### Returns
 
-  \| `Readonly`&lt;[`EntityMetadataType`](EntityMetadataType.md)&gt;
-  \| `undefined`
+\| `Readonly`&lt;[`EntityMetadataType`](EntityMetadataType.md)&gt;
+\| `undefined`
 
-***
+---
 
 ### getEntityType() \{#getentitytype\}
 
@@ -126,22 +126,22 @@ Fetches entity metadata
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                            |
+| ----------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `name` | `string` |
+| Parameter   | Type     |
+| ----------- | -------- |
+| `name`      | `string` |
 | `namespace` | `string` |
 
 #### Returns
 
 `T` \| `undefined`
 
-***
+---
 
 ### getEntityTypeByTableName() \{#getentitytypebytablename\}
 
@@ -155,22 +155,22 @@ Fetches the entity type by tableName
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-1"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                              |
+| ------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-1"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type     | Description         |
+| ----------- | -------- | ------------------- |
 | `tableName` | `string` | Database table name |
-| `namespace` | `string` | Namespace |
+| `namespace` | `string` | Namespace           |
 
 #### Returns
 
 `T` \| `undefined`
 
-***
+---
 
 ### getFieldRelations() \{#getfieldrelations\}
 
@@ -184,16 +184,16 @@ Finds the relation array via the query condition's field
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) | - |
-| `field` | `string` | The query condition's field |
+| Parameter  | Type                                                  | Description                 |
+| ---------- | ----------------------------------------------------- | --------------------------- |
+| `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) | -                           |
+| `field`    | `string`                                              | The query condition's field |
 
 #### Returns
 
 `GetFieldRelationsResult`
 
-***
+---
 
 ### init() \{#init\}
 

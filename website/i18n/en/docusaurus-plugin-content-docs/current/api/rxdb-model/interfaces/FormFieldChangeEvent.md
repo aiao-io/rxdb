@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model/src/entity-form/interfaces.ts:62](https://githu
 
 Field name
 
-***
+---
 
 ### previousValue \{#previousvalue\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-model/src/entity-form/interfaces.ts:68](https://githu
 
 Value before the change
 
-***
+---
 
 ### type \{#type\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-model/src/entity-form/interfaces.ts:64](https://githu
 
 Field type
 
-***
+---
 
 ### value \{#value\}
 

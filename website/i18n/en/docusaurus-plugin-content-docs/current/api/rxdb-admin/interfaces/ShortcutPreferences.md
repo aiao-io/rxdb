@@ -24,7 +24,7 @@ An observable that replays the current value and pushes subsequent changes.
 
 [`ReadableStore`](ReadableStore.md).[`changes$`](ReadableStore.md#changes)
 
-***
+---
 
 ### value \{#value\}
 
@@ -54,16 +54,16 @@ Writes a preference by dotted path.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `string` |
-| `value` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `path`    | `string`  |
+| `value`   | `unknown` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### subscribe() \{#subscribe\}
 
@@ -77,8 +77,8 @@ Subscribes to subsequent changes without replaying the current value.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                | Description          |
+| ---------- | ------------------- | -------------------- |
 | `listener` | (`value`) => `void` | The change callback. |
 
 #### Returns

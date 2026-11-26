@@ -10,8 +10,8 @@ Aggregates the extension defaults.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter    | Type                                                                     | Description                 |
+| ------------ | ------------------------------------------------------------------------ | --------------------------- |
 | `extensions` | readonly [`PreferenceExtension`](../interfaces/PreferenceExtension.md)[] | The extension declarations. |
 
 ## Returns

@@ -1,5 +1,5 @@
 ---
-sidebar_label: "SuccessResult⟨T⟩"
+sidebar_label: 'SuccessResult⟨T⟩'
 ---
 
 # SuccessResult`<T>`
@@ -10,9 +10,9 @@ A success result.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` | `unknown` |
+| Type Parameter                    | Default type |
+| --------------------------------- | ------------ |
+| <a id="type-parameter-t"></a> `T` | `unknown`    |
 
 ## Properties
 

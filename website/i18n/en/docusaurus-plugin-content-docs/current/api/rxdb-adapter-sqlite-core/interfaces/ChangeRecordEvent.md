@@ -14,7 +14,7 @@ dbName: string;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/sqlite-client.utils.ts:10](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/sqlite-client.utils.ts#L10)
 
-***
+---
 
 ### rowId \{#rowid\}
 
@@ -24,7 +24,7 @@ rowId: bigint;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/sqlite-client.utils.ts:12](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/sqlite-client.utils.ts#L12)
 
-***
+---
 
 ### tableName \{#tablename\}
 
@@ -34,7 +34,7 @@ tableName: string;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/sqlite-client.utils.ts:11](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/sqlite-client.utils.ts#L11)
 
-***
+---
 
 ### type \{#type\}
 

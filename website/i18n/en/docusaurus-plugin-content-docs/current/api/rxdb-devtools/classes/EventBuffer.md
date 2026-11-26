@@ -19,8 +19,8 @@ Defined in: [buffer.ts:36](https://github.com/aiao-io/rxdb/blob/b5232040240cf1cc
 
 #### Parameters
 
-| Parameter | Type | Default value |
-| ------ | ------ | ------ |
+| Parameter  | Type     | Default value      |
+| ---------- | -------- | ------------------ |
 | `maxSize?` | `number` | `DEFAULT_MAX_SIZE` |
 
 #### Returns
@@ -45,7 +45,7 @@ Whether the buffer is empty
 
 `boolean`
 
-***
+---
 
 ### isFull \{#isfull\}
 
@@ -63,7 +63,7 @@ Whether the buffer is full
 
 `boolean`
 
-***
+---
 
 ### length \{#length\}
 
@@ -81,7 +81,7 @@ Current buffer size
 
 `number`
 
-***
+---
 
 ### maxSize \{#maxsize\}
 
@@ -115,7 +115,7 @@ Empties the buffer
 
 `void`
 
-***
+---
 
 ### flush() \{#flush\}
 
@@ -131,7 +131,7 @@ Empties and returns all buffered events
 
 [`SerializedEvent`](../interfaces/SerializedEvent.md)[]
 
-***
+---
 
 ### push() \{#push\}
 
@@ -145,9 +145,9 @@ Adds an event to the buffer
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | [`SerializedEvent`](../interfaces/SerializedEvent.md) |
+| Parameter | Type                                                  |
+| --------- | ----------------------------------------------------- |
+| `event`   | [`SerializedEvent`](../interfaces/SerializedEvent.md) |
 
 #### Returns
 

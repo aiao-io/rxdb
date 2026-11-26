@@ -12,9 +12,9 @@ Used as the directory bucket primary key of encrypted adapters (`Map<identityKey
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `id` | [`RxDBEntityId`](../type-aliases/RxDBEntityId.md) |
+| Parameter | Type                                              |
+| --------- | ------------------------------------------------- |
+| `id`      | [`RxDBEntityId`](../type-aliases/RxDBEntityId.md) |
 
 ## Returns
 

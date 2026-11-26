@@ -12,16 +12,16 @@ Splits a large task into chunks, executing a small portion each time and then yi
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                    | Description        |
+| --------------------------------- | ------------------ |
 | <a id="type-parameter-t"></a> `T` | Array element type |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `array` | `T`[] | The data array to process |
-| `consumer` | (`data`, `index`) => `void` | Consumer function |
+| Parameter  | Type                        | Description               |
+| ---------- | --------------------------- | ------------------------- |
+| `array`    | `T`[]                       | The data array to process |
+| `consumer` | (`data`, `index`) => `void` | Consumer function         |
 
 ## Returns
 

@@ -11,15 +11,15 @@ Recursively walks all properties of the object and calls Object.freeze() on ever
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* `object` | The object type |
+| Type Parameter                                       | Description     |
+| ---------------------------------------------------- | --------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ `object` | The object type |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `target` | `T` | The object to deeply freeze |
+| Parameter | Type | Description                 |
+| --------- | ---- | --------------------------- |
+| `target`  | `T`  | The object to deeply freeze |
 
 ## Returns
 

@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/popover-select/popover-
 
 Display text.
 
-***
+---
 
 ### value \{#value\}
 

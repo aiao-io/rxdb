@@ -20,7 +20,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry-matr
 
 Whether this database has the commit capability enabled
 
-***
+---
 
 ### columns \{#columns\}
 
@@ -32,12 +32,12 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry-matr
 
 Which columns this write touched
 
-***
+---
 
 ### entrance \{#entrance\}
 
 ```ts
-readonly entrance: 
+readonly entrance:
   | "unknown"
   | "crud"
   | "domain_recompute"
@@ -55,7 +55,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry-matr
 
 Who is writing
 
-***
+---
 
 ### operation \{#operation\}
 
@@ -67,7 +67,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry-matr
 
 Which kind of operation is being written
 
-***
+---
 
 ### targetClass \{#targetclass\}
 
@@ -79,7 +79,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry-matr
 
 Which class of table is being written
 
-***
+---
 
 ### untrackedFields \{#untrackedfields\}
 

@@ -1,5 +1,5 @@
 ---
-sidebar_label: "EntityDialogController⟨TResult, TData⟩"
+sidebar_label: 'EntityDialogController⟨TResult, TData⟩'
 ---
 
 # EntityDialogController`<TResult, TData>`
@@ -10,10 +10,10 @@ Connects the consumer's dialog shell with open, close, and result state.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-tresult"></a> `TResult` | `unknown` |
-| <a id="type-parameter-tdata"></a> `TData` | `unknown` |
+| Type Parameter                                | Default type |
+| --------------------------------------------- | ------------ |
+| <a id="type-parameter-tresult"></a> `TResult` | `unknown`    |
+| <a id="type-parameter-tdata"></a> `TData`     | `unknown`    |
 
 ## Constructors
 
@@ -27,8 +27,8 @@ Defined in: [packages/rxdb-model/src/entity-dialog/headless.ts:34](https://githu
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                                             |
+| ---------- | ------------------------------------------------------------------------------------------------ |
 | `options?` | [`EntityDialogControllerOptions`](../interfaces/EntityDialogControllerOptions.md)&lt;`TData`&gt; |
 
 #### Returns
@@ -67,15 +67,15 @@ Closes the dialog, optionally with a close result.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type      |
+| --------- | --------- |
 | `result?` | `TResult` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### dispose() \{#dispose\}
 
@@ -91,7 +91,7 @@ Cleans up all listeners and rejects subsequent lifecycle actions.
 
 `void`
 
-***
+---
 
 ### open() \{#open\}
 
@@ -105,15 +105,15 @@ Opens the dialog and clears the previous result.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `data?` | `TData` |
+| Parameter | Type    |
+| --------- | ------- |
+| `data?`   | `TData` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### resolve() \{#resolve\}
 
@@ -127,15 +127,15 @@ Commits the result and closes the dialog.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `result` | `TResult` |
+| Parameter | Type      |
+| --------- | --------- |
+| `result`  | `TResult` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### setData() \{#setdata\}
 
@@ -149,9 +149,9 @@ Replaces the data used by the consumer's dialog; does nothing when it is structu
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `data` | `TData` \| `undefined` |
+| Parameter | Type                   |
+| --------- | ---------------------- |
+| `data`    | `TData` \| `undefined` |
 
 #### Returns
 
@@ -161,7 +161,7 @@ Replaces the data used by the consumer's dialog; does nothing when it is structu
 
 Compared with `structuralEqual` (functions by reference), so bindings that rebuild an equal object on every render do not publish repeatedly and cause re-render loops.
 
-***
+---
 
 ### subscribe() \{#subscribe\}
 
@@ -175,8 +175,8 @@ Subscribes to open, close, data, and result events.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                       |
+| ---------- | ------------------------------------------ |
 | `listener` | `DialogListener`&lt;`TResult`, `TData`&gt; |
 
 #### Returns

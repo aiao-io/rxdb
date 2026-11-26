@@ -1,17 +1,17 @@
 # CommitResult
 
 ```ts
-type CommitResult = 
+type CommitResult =
   | {
-  changeSetCount: number;
-  commitId: string;
-  headRevision: number;
-  ok: true;
-}
+      changeSetCount: number;
+      commitId: string;
+      headRevision: number;
+      ok: true;
+    }
   | {
-  conflict: CommitConflict;
-  ok: false;
-};
+      conflict: CommitConflict;
+      ok: false;
+    };
 ```
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/commit-command.ts:74](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/commit-command.ts#L74)
@@ -63,7 +63,7 @@ readonly ok: true;
 
 This commit has landed in the database
 
-***
+---
 
 ### Type Literal
 

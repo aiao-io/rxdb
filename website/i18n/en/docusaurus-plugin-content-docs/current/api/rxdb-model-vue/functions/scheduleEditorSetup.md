@@ -10,9 +10,9 @@ Defers editor initialization (registering the outside-click listener + focusing)
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `fn` | () => `void` | Initialization callback executed after a delay |
+| Parameter | Type         | Description                                    |
+| --------- | ------------ | ---------------------------------------------- |
+| `fn`      | () => `void` | Initialization callback executed after a delay |
 
 ## Returns
 

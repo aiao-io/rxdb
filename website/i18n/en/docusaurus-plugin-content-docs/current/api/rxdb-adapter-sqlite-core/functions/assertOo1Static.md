@@ -10,9 +10,9 @@ Asserts that a third-party sqlite-wasm initialization result satisfies the minim
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | The unknown value returned by the sqlite-wasm initialization function |
+| Parameter | Type      | Description                                                           |
+| --------- | --------- | --------------------------------------------------------------------- |
+| `value`   | `unknown` | The unknown value returned by the sqlite-wasm initialization function |
 
 ## Returns
 

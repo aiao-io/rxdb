@@ -10,10 +10,10 @@ Coordinates persisting one row drag and drop
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `move` | [`RowMoveEvent`](../interfaces/RowMoveEvent.md) | The drag and drop result read from the table |
-| `hooks` | [`RowMoveCommitHooks`](../interfaces/RowMoveCommitHooks.md) | UI hooks |
+| Parameter | Type                                                        | Description                                  |
+| --------- | ----------------------------------------------------------- | -------------------------------------------- |
+| `move`    | [`RowMoveEvent`](../interfaces/RowMoveEvent.md)             | The drag and drop result read from the table |
+| `hooks`   | [`RowMoveCommitHooks`](../interfaces/RowMoveCommitHooks.md) | UI hooks                                     |
 
 ## Returns
 

@@ -1,11 +1,7 @@
 # reorderTargetForMove()
 
 ```ts
-function reorderTargetForMove<Id>(
-   ids, 
-   fromIndex, 
-   toIndex
-): ReorderBetween<Id> | null;
+function reorderTargetForMove<Id>(ids, fromIndex, toIndex): ReorderBetween<Id> | null;
 ```
 
 Defined in: [packages/rxdb/src/sortable/sortable.utils.ts:109](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sortable/sortable.utils.ts#L109)
@@ -14,17 +10,17 @@ Converts "drag the row at `fromIndex` to `toIndex`" into the neighbor target of 
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                      | Description                 |
+| ----------------------------------- | --------------------------- |
 | <a id="type-parameter-id"></a> `Id` | The entity primary key type |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `ids` | readonly `Id`[] | The id sequence of the current ordering domain before the drag (matching the display order) |
-| `fromIndex` | `number` | The index of the dragged row in `ids` |
-| `toIndex` | `number` | The final index of the dragged row after it is dropped |
+| Parameter   | Type            | Description                                                                                 |
+| ----------- | --------------- | ------------------------------------------------------------------------------------------- |
+| `ids`       | readonly `Id`[] | The id sequence of the current ordering domain before the drag (matching the display order) |
+| `fromIndex` | `number`        | The index of the dragged row in `ids`                                                       |
+| `toIndex`   | `number`        | The final index of the dragged row after it is dropped                                      |
 
 ## Returns
 
@@ -43,6 +39,10 @@ The todo pages of all three frameworks and `EntityList` share this conversion: w
 ## Example
 
 ```typescript
-const target = reorderTargetForMove(rows.map(row => row.id), from, to);
+const target = reorderTargetForMove(
+  rows.map(row => row.id),
+  from,
+  to
+);
 if (target) await repository.reorder(rows[from].id, target);
 ```

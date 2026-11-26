@@ -16,7 +16,7 @@ Defined in: [shortcuts/combo.ts:125](https://github.com/aiao-io/rxdb/blob/b52320
 
 The individual key caps, for the UI to render one by one.
 
-***
+---
 
 ### text \{#text\}
 

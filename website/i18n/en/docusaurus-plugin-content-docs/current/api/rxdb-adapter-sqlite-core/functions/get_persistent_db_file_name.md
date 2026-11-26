@@ -13,9 +13,9 @@ so the same dbName yields a consistent file name across different backends.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `dbName` | `string` | The database logical name, must not contain `/` or `\` @returns a path starting with `/` and ending with `.sqlite3` |
+| Parameter | Type     | Description                                                                                                         |
+| --------- | -------- | ------------------------------------------------------------------------------------------------------------------- |
+| `dbName`  | `string` | The database logical name, must not contain `/` or `\` @returns a path starting with `/` and ending with `.sqlite3` |
 
 ## Returns
 

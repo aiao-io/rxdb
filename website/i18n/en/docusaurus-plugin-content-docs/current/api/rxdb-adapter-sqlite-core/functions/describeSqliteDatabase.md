@@ -10,9 +10,9 @@ Describes a database's structure and all rows, so restore can judge whether the 
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `executor` | `SqliteBackupExecutor` | The client |
+| Parameter  | Type                   | Description |
+| ---------- | ---------------------- | ----------- |
+| `executor` | `SqliteBackupExecutor` | The client  |
 
 ## Returns
 

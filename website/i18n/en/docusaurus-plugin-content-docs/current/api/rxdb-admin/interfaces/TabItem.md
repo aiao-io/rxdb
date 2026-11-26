@@ -16,7 +16,7 @@ Defined in: [tabs/tabs-ops.ts:4](https://github.com/aiao-io/rxdb/blob/b523204024
 
 The unique key, equal to the path with the query string and hash removed.
 
-***
+---
 
 ### pinned \{#pinned\}
 
@@ -28,7 +28,7 @@ Defined in: [tabs/tabs-ops.ts:10](https://github.com/aiao-io/rxdb/blob/b52320402
 
 Pinned: cannot be closed and is ordered first.
 
-***
+---
 
 ### title \{#title\}
 
@@ -40,7 +40,7 @@ Defined in: [tabs/tabs-ops.ts:8](https://github.com/aiao-io/rxdb/blob/b523204024
 
 The title.
 
-***
+---
 
 ### url \{#url\}
 

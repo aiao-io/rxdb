@@ -1,6 +1,6 @@
 ---
 id: admin-workbench-cost
-title: "Integration cost log: React Admin app template"
+title: 'Integration cost log: React Admin app template'
 sidebar_label: Integration cost (admin-workbench-cost)
 description: Source baseline, dependencies, style entry points, and the pending real-world integration cost validation for the React Admin app template (US-528)
 ---

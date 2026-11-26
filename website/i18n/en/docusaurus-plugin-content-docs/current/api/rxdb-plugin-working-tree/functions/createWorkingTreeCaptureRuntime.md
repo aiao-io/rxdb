@@ -1,12 +1,7 @@
 # createWorkingTreeCaptureRuntime()
 
 ```ts
-function createWorkingTreeCaptureRuntime(
-   adapter, 
-   entityManager, 
-   entities, 
-   databaseSync
-): WorkingTreeCaptureRuntime;
+function createWorkingTreeCaptureRuntime(adapter, entityManager, entities, databaseSync): WorkingTreeCaptureRuntime;
 ```
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/capture-hook.ts:666](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/capture-hook.ts#L666)
@@ -15,12 +10,12 @@ Builds the capture runtime from one database's entity registrations
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `adapter` | `PhysicalTableNameSource` | - |
-| `entityManager` | [`EntityManager`](../../rxdb/interfaces/EntityManager.md) | Used to instantiate working tree units during capture |
-| `entities` | readonly [`EntityType`](../../rxdb/type-aliases/EntityType.md)[] | All business entities registered in this database (`rxdb.config.entities`) |
-| `databaseSync` | \| [`SyncOptions`](../../rxdb/type-aliases/SyncOptions.md) \| [`EntitySyncResolver`](../../rxdb/interfaces/EntitySyncResolver.md) | The instance resolver `rxdb.entitySync` (including instance overrides); when the database-level `rxdb.config.sync` is passed, resolution follows "entity first, otherwise inherit database-level" only |
+| Parameter       | Type                                                                                                                              | Description                                                                                                                                                                                            |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `adapter`       | `PhysicalTableNameSource`                                                                                                         | -                                                                                                                                                                                                      |
+| `entityManager` | [`EntityManager`](../../rxdb/interfaces/EntityManager.md)                                                                         | Used to instantiate working tree units during capture                                                                                                                                                  |
+| `entities`      | readonly [`EntityType`](../../rxdb/type-aliases/EntityType.md)[]                                                                  | All business entities registered in this database (`rxdb.config.entities`)                                                                                                                             |
+| `databaseSync`  | \| [`SyncOptions`](../../rxdb/type-aliases/SyncOptions.md) \| [`EntitySyncResolver`](../../rxdb/interfaces/EntitySyncResolver.md) | The instance resolver `rxdb.entitySync` (including instance overrides); when the database-level `rxdb.config.sync` is passed, resolution follows "entity first, otherwise inherit database-level" only |
 
 ## Returns
 

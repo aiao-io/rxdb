@@ -8,9 +8,9 @@ Defined in: [packages/utils/src/string/capitalize.ts:12](https://github.com/aiao
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `lower` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `lower`   | `string` |
 
 ## Returns
 

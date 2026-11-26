@@ -1,7 +1,7 @@
 # PGliteRestoreStage
 
 ```ts
-type PGliteRestoreStage = "marker-written" | "files-written" | "verified" | "persisted";
+type PGliteRestoreStage = 'marker-written' | 'files-written' | 'verified' | 'persisted';
 ```
 
 Defined in: [packages/rxdb-adapter-pglite/src/backup/restore-pglite-database.ts:62](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-pglite/src/backup/restore-pglite-database.ts#L62)

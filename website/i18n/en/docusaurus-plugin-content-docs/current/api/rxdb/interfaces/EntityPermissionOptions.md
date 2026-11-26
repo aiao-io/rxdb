@@ -36,7 +36,7 @@ Defined in: [packages/rxdb/src/entity/entity-options.interface.ts:80](https://gi
 
 Create
 
-***
+---
 
 ### delete? \{#delete\}
 
@@ -48,7 +48,7 @@ Defined in: [packages/rxdb/src/entity/entity-options.interface.ts:84](https://gi
 
 Delete
 
-***
+---
 
 ### update? \{#update\}
 

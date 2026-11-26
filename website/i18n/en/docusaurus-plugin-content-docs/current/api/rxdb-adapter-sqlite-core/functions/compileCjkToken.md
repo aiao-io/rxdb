@@ -10,9 +10,9 @@ Query-side transform: compiles a query token into an FTS5 MATCH fragment.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `token` | `string` | The already-cleaned query token (without FTS5 reserved characters) |
+| Parameter | Type     | Description                                                        |
+| --------- | -------- | ------------------------------------------------------------------ |
+| `token`   | `string` | The already-cleaned query token (without FTS5 reserved characters) |
 
 ## Returns
 

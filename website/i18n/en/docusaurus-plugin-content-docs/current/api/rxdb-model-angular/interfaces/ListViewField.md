@@ -16,7 +16,7 @@ Defined in: packages/rxdb-model/dist/entity-list/list-view.d.ts:20
 
 Field name.
 
-***
+---
 
 ### sortable \{#sortable\}
 
@@ -28,7 +28,7 @@ Defined in: packages/rxdb-model/dist/entity-list/list-view.d.ts:24
 
 Whether database ordering and grouping are supported.
 
-***
+---
 
 ### title \{#title\}
 

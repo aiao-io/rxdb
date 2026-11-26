@@ -10,10 +10,10 @@ Resets the current branch's whole working tree back to the current HEAD (FR-016)
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md) | The caller's write-transaction executor; this function does **not open its own transaction** |
-| `options` | [`WorkingTreeCredentials`](../interfaces/WorkingTreeCredentials.md) | See [WorkingTreeDiscardOptions](../type-aliases/WorkingTreeDiscardOptions.md); all three capture positions are required |
+| Parameter  | Type                                                                  | Description                                                                                                             |
+| ---------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md) | The caller's write-transaction executor; this function does **not open its own transaction**                            |
+| `options`  | [`WorkingTreeCredentials`](../interfaces/WorkingTreeCredentials.md)   | See [WorkingTreeDiscardOptions](../type-aliases/WorkingTreeDiscardOptions.md); all three capture positions are required |
 
 ## Returns
 

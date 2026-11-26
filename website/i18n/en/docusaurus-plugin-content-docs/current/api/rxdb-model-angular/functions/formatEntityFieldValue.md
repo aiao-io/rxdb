@@ -1,11 +1,7 @@
 # formatEntityFieldValue()
 
 ```ts
-function formatEntityFieldValue(
-   type, 
-   value, 
-   format?
-): string;
+function formatEntityFieldValue(type, value, format?): string;
 ```
 
 Defined in: packages/rxdb-model/dist/entity-value.utils.d.ts:40
@@ -14,10 +10,10 @@ Formats a field value into a display string
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `type` | `string` | Field type |
-| `value` | `unknown` | Field value |
+| Parameter | Type                                                    | Description                          |
+| --------- | ------------------------------------------------------- | ------------------------------------ |
+| `type`    | `string`                                                | Field type                           |
+| `value`   | `unknown`                                               | Field value                          |
 | `format?` | [`FieldFormat`](../../rxdb/type-aliases/FieldFormat.md) | Field semantic annotation (optional) |
 
 ## Returns

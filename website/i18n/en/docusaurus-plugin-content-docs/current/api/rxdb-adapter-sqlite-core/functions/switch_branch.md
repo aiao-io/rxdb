@@ -14,9 +14,9 @@ When `branchId` is omitted (stay on the current branch, only applying actions), 
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `adapter` | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md) | The SQLite adapter |
+| Parameter | Type                                                                  | Description                                                                                                    |
+| --------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `adapter` | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md)        | The SQLite adapter                                                                                             |
 | `options` | [`SwitchBranchOptions`](../../rxdb/interfaces/SwitchBranchOptions.md) | Contains the optional target branchId (omitted = "stay on the current active branch") and SwitchVersionActions |
 
 ## Returns

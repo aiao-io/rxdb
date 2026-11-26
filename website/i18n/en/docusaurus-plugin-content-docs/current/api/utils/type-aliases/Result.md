@@ -1,5 +1,5 @@
 ---
-sidebar_label: "Result⟨T, ErrorDataType⟩"
+sidebar_label: 'Result⟨T, ErrorDataType⟩'
 ---
 
 # Result`<T, ErrorDataType>`
@@ -14,7 +14,7 @@ A result type where success data and error data are mutually exclusive.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` | `unknown` |
-| <a id="type-parameter-errordatatype"></a> `ErrorDataType` | `unknown` |
+| Type Parameter                                            | Default type |
+| --------------------------------------------------------- | ------------ |
+| <a id="type-parameter-t"></a> `T`                         | `unknown`    |
+| <a id="type-parameter-errordatatype"></a> `ErrorDataType` | `unknown`    |

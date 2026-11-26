@@ -1,5 +1,5 @@
 ---
-sidebar_label: "DevToolsMessage⟨T⟩"
+sidebar_label: 'DevToolsMessage⟨T⟩'
 ---
 
 # DevToolsMessage`<T>`
@@ -30,9 +30,9 @@ The base message structure.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` | `unknown` |
+| Type Parameter                    | Default type |
+| --------------------------------- | ------------ |
+| <a id="type-parameter-t"></a> `T` | `unknown`    |
 
 ## Properties
 
@@ -44,7 +44,7 @@ direction: MessageDirection;
 
 Defined in: [types.ts:91](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/types.ts#L91)
 
-***
+---
 
 ### payload \{#payload\}
 
@@ -54,7 +54,7 @@ payload: T;
 
 Defined in: [types.ts:93](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/types.ts#L93)
 
-***
+---
 
 ### sequence \{#sequence\}
 
@@ -64,17 +64,17 @@ sequence: number;
 
 Defined in: [types.ts:95](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/types.ts#L95)
 
-***
+---
 
 ### source \{#source\}
 
 ```ts
-source: "@aiao/rxdb-devtools";
+source: '@aiao/rxdb-devtools';
 ```
 
 Defined in: [types.ts:90](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/types.ts#L90)
 
-***
+---
 
 ### tabId? \{#tabid\}
 
@@ -84,7 +84,7 @@ tabId?: number;
 
 Defined in: [types.ts:96](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/types.ts#L96)
 
-***
+---
 
 ### timestamp \{#timestamp\}
 
@@ -94,7 +94,7 @@ timestamp: number;
 
 Defined in: [types.ts:94](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/types.ts#L94)
 
-***
+---
 
 ### type \{#type\}
 

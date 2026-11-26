@@ -1,7 +1,7 @@
 # EntityPropertyMetadataOptions
 
 ```ts
-type EntityPropertyMetadataOptions = 
+type EntityPropertyMetadataOptions =
   | UUIDProperty
   | StringProperty
   | EnumProperty

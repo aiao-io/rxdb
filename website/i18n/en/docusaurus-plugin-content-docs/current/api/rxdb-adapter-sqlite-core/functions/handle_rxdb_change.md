@@ -12,16 +12,16 @@ Designed as fire-and-forget: called synchronously by update_hook, its internal a
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                    |
+| ------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                           |
+| --------- | -------------------------------------------------------------- |
 | `adapter` | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md) |
-| `event` | [`SqliteChangeEvent`](../interfaces/SqliteChangeEvent.md) |
+| `event`   | [`SqliteChangeEvent`](../interfaces/SqliteChangeEvent.md)      |
 
 ## Returns
 

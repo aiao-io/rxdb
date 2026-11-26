@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:3
 
 The entity name
 
-***
+---
 
 ### entityId \{#entityid\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:3
 
 The entity primary key
 
-***
+---
 
 ### namespace \{#namespace\}
 

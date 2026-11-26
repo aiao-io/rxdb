@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model/src/entity-table/vtable/table-theme.ts:12](http
 
 The base-100 panel background color
 
-***
+---
 
 ### base200 \{#base200\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-model/src/entity-table/vtable/table-theme.ts:14](http
 
 The base-200 secondary background color
 
-***
+---
 
 ### base300 \{#base300\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-model/src/entity-table/vtable/table-theme.ts:16](http
 
 The base-300 border/divider color
 
-***
+---
 
 ### baseContent \{#basecontent\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb-model/src/entity-table/vtable/table-theme.ts:18](http
 
 The base content text color
 
-***
+---
 
 ### primary \{#primary\}
 
@@ -64,7 +64,7 @@ Defined in: [packages/rxdb-model/src/entity-table/vtable/table-theme.ts:20](http
 
 The primary color
 
-***
+---
 
 ### primaryContent \{#primarycontent\}
 
@@ -76,7 +76,7 @@ Defined in: [packages/rxdb-model/src/entity-table/vtable/table-theme.ts:22](http
 
 The text color on the primary color
 
-***
+---
 
 ### radiusBox \{#radiusbox\}
 
@@ -88,7 +88,7 @@ Defined in: [packages/rxdb-model/src/entity-table/vtable/table-theme.ts:24](http
 
 The corner radius size
 
-***
+---
 
 ### rootBg \{#rootbg\}
 

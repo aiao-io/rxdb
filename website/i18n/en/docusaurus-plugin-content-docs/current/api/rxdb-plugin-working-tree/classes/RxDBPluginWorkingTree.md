@@ -33,9 +33,9 @@ Builds the plugin object and mounts `rxdb.workingTree`.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `rxdb` | [`RxDB`](../../rxdb/classes/RxDB.md) | The host instance |
+| Parameter  | Type                                                                            | Description                                            |
+| ---------- | ------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `rxdb`     | [`RxDB`](../../rxdb/classes/RxDB.md)                                            | The host instance                                      |
 | `options?` | [`RxDBPluginWorkingTreeOptions`](../interfaces/RxDBPluginWorkingTreeOptions.md) | Plugin options; `worktrees` is for read-only checkouts |
 
 #### Returns
@@ -94,7 +94,7 @@ stop: () => void;
 
 [`IRxDBPlugin`](../../rxdb/interfaces/IRxDBPlugin.md).[`instanceLifecycle`](../../rxdb/interfaces/IRxDBPlugin.md#instancelifecycle)
 
-***
+---
 
 ### lifecycle \{#lifecycle\}
 
@@ -110,7 +110,7 @@ Migrated to scope-based teardown; the host no longer calls `destroy()`.
 
 [`IRxDBPlugin`](../../rxdb/interfaces/IRxDBPlugin.md).[`lifecycle`](../../rxdb/interfaces/IRxDBPlugin.md#lifecycle)
 
-***
+---
 
 ### name \{#name\}
 
@@ -126,7 +126,7 @@ Unique name of the RxDB plugin.
 
 [`IRxDBPlugin`](../../rxdb/interfaces/IRxDBPlugin.md).[`name`](../../rxdb/interfaces/IRxDBPlugin.md#name)
 
-***
+---
 
 ### rxdb \{#rxdb\}
 
@@ -140,7 +140,7 @@ Defined in: packages/rxdb/dist/rxdb-plugin.d.ts:183
 
 [`RxDBPluginBase`](../../rxdb/classes/RxDBPluginBase.md).[`rxdb`](../../rxdb/classes/RxDBPluginBase.md#rxdb)
 
-***
+---
 
 ### system \{#system\}
 
@@ -170,9 +170,9 @@ Registers exactly one thing: the cross-connection capability-enabled notificatio
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `scope` | [`LifecycleScope`](../../utils/classes/LifecycleScope.md) | The activation scope of this connection epoch |
+| Parameter | Type                                                      | Description                                   |
+| --------- | --------------------------------------------------------- | --------------------------------------------- |
+| `scope`   | [`LifecycleScope`](../../utils/classes/LifecycleScope.md) | The activation scope of this connection epoch |
 
 #### Returns
 

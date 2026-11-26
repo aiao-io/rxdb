@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-options.ts:
 
 The adapter factory of the snapshot database, see [WorktreeAdapterFactory](../type-aliases/WorktreeAdapterFactory.md)
 
-***
+---
 
 ### plugins? \{#plugins\}
 

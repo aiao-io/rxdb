@@ -1,5 +1,5 @@
 ---
-sidebar_label: "Repository⟨T, RT⟩"
+sidebar_label: 'Repository⟨T, RT⟩'
 ---
 
 # Repository`<T, RT>`
@@ -20,10 +20,10 @@ Decides the concrete operations of an entity based on configuration
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) | - |
-| <a id="type-parameter-rt"></a> `RT` *extends* [`IRepository`](../interfaces/IRepository.md)&lt;`T`&gt; | [`IRepository`](../interfaces/IRepository.md)&lt;`T`&gt; |
+| Type Parameter                                                                                         | Default type                                             |
+| ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md)              | -                                                        |
+| <a id="type-parameter-rt"></a> `RT` _extends_ [`IRepository`](../interfaces/IRepository.md)&lt;`T`&gt; | [`IRepository`](../interfaces/IRepository.md)&lt;`T`&gt; |
 
 ## Constructors
 
@@ -37,10 +37,10 @@ Defined in: [packages/rxdb/src/repository/Repository.ts:169](https://github.com/
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rxdb` | [`RxDB`](RxDB.md) |
-| `EntityType` | `T` |
+| Parameter    | Type              |
+| ------------ | ----------------- |
+| `rxdb`       | [`RxDB`](RxDB.md) |
+| `EntityType` | `T`               |
 
 #### Returns
 
@@ -64,7 +64,7 @@ Defined in: [packages/rxdb/src/repository/RepositoryBase.ts:44](https://github.c
 
 [`RepositoryBase`](RepositoryBase.md).[`EntityType`](RepositoryBase.md#entitytype)
 
-***
+---
 
 ### local$ \{#local\}
 
@@ -76,7 +76,7 @@ Defined in: [packages/rxdb/src/repository/Repository.ts:141](https://github.com/
 
 Local repository
 
-***
+---
 
 ### primary$ \{#primary\}
 
@@ -87,10 +87,11 @@ protected readonly primary$: Observable<RT>;
 Defined in: [packages/rxdb/src/repository/Repository.ts:153](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/Repository.ts#L153)
 
 Primary repository (chooses local or remote based on SyncOptions)
+
 - SyncType.None + remote only: uses remote$
 - Otherwise: uses local$
 
-***
+---
 
 ### queryManager \{#querymanager\}
 
@@ -102,7 +103,7 @@ Defined in: [packages/rxdb/src/repository/Repository.ts:158](https://github.com/
 
 Query cache manager
 
-***
+---
 
 ### remote$ \{#remote\}
 
@@ -114,7 +115,7 @@ Defined in: [packages/rxdb/src/repository/Repository.ts:146](https://github.com/
 
 Remote repository
 
-***
+---
 
 ### rxdb \{#rxdb\}
 
@@ -128,7 +129,7 @@ Defined in: [packages/rxdb/src/repository/RepositoryBase.ts:43](https://github.c
 
 [`RepositoryBase`](RepositoryBase.md).[`rxdb`](RepositoryBase.md#rxdb)
 
-***
+---
 
 ### sync \{#sync\}
 
@@ -145,7 +146,7 @@ This instance's effective sync configuration for the entity (resolved via `rxdb.
 Read-only: entities covered by `syncOverrides` get an instance-frozen snapshot, and mutating its fields at runtime throws `TypeError`.
 For uncovered entities this happens to be the decorator or database-level config object itself — do not mutate it either, other instances are reading it.
 
-***
+---
 
 ### \_STATIC\_METHODS \{#_static_methods\}
 
@@ -208,15 +209,15 @@ Sets the state to local
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; |
+| Parameter | Type                      |
+| --------- | ------------------------- |
+| `entity`  | `InstanceType`&lt;`T`&gt; |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### \_setLocals() \{#_setlocals\}
 
@@ -228,15 +229,15 @@ Defined in: [packages/rxdb/src/repository/Repository.ts:575](https://github.com/
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                        |
+| ---------- | --------------------------- |
 | `entities` | `InstanceType`&lt;`T`&gt;[] |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### count() \{#count\}
 
@@ -250,15 +251,15 @@ Queries the number of entities
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                       | Description                                  |
+| --------- | ---------------------------------------------------------- | -------------------------------------------- |
 | `options` | [`CountOptions`](../interfaces/CountOptions.md)&lt;`T`&gt; | Query options, including the where condition |
 
 #### Returns
 
 `Observable`&lt;`number`&gt;
 
-***
+---
 
 ### create() \{#create\}
 
@@ -272,9 +273,9 @@ Creates an entity
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The entity instance to create |
+| Parameter | Type                      | Description                   |
+| --------- | ------------------------- | ----------------------------- |
+| `entity`  | `InstanceType`&lt;`T`&gt; | The entity instance to create |
 
 #### Returns
 
@@ -292,7 +293,7 @@ Creates an entity
 
 [WorktreeTableSetMismatchError](WorktreeTableSetMismatchError.md) the entity was not created on the table set this instance currently mounts (delivered as a rejected Promise)
 
-***
+---
 
 ### createEntityRef() \{#createentityref\}
 
@@ -306,9 +307,9 @@ Creates (or reuses) an entity reference
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `data` | [`EntityUpdateData`](../type-aliases/EntityUpdateData.md)&lt;`T`&gt; | The initial field values; `id` is auto-generated when omitted |
+| Parameter | Type                                                                 | Description                                                   |
+| --------- | -------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `data`    | [`EntityUpdateData`](../type-aliases/EntityUpdateData.md)&lt;`T`&gt; | The initial field values; `id` is auto-generated when omitted |
 
 #### Returns
 
@@ -326,7 +327,7 @@ different call stacks getting two out-of-sync clones.
 
 [`RepositoryBase`](RepositoryBase.md).[`createEntityRef`](RepositoryBase.md#createentityref)
 
-***
+---
 
 ### destroy() \{#destroy\}
 
@@ -340,7 +341,7 @@ Defined in: [packages/rxdb/src/repository/Repository.ts:230](https://github.com/
 
 `void`
 
-***
+---
 
 ### find() \{#find\}
 
@@ -354,15 +355,15 @@ Queries multiple entities
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                     | Description                                                       |
+| --------- | -------------------------------------------------------- | ----------------------------------------------------------------- |
 | `options` | [`FindOptions`](../interfaces/FindOptions.md)&lt;`T`&gt; | Query options, including the where condition, limit, offset, etc. |
 
 #### Returns
 
 `Observable`&lt;`InstanceType`&lt;`T`&gt;[]&gt;
 
-***
+---
 
 ### findAll() \{#findall\}
 
@@ -376,15 +377,15 @@ Queries all entities
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                           | Description                                                                   |
+| --------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------- |
 | `options` | [`FindAllOptions`](../interfaces/FindAllOptions.md)&lt;`T`&gt; | Query options, including the where condition and ordering (no quantity limit) |
 
 #### Returns
 
 `Observable`&lt;`InstanceType`&lt;`T`&gt;[]&gt;
 
-***
+---
 
 ### findByCursor() \{#findbycursor\}
 
@@ -398,8 +399,8 @@ Paginated query via cursor
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                     | Description                                                              |
+| --------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------------ |
 | `options` | [`FindByCursorOptions`](../interfaces/FindByCursorOptions.md)&lt;`T`&gt; | Cursor pagination options, including orderBy and the before/after cursor |
 
 #### Returns
@@ -417,7 +418,7 @@ so both sides must be in the same order.
 The cursor anchors on the **row** `after` / `before`, not on its value at call time: each execution slices the window by that row's currently
 persisted ordering key; after the anchor row's ordering key is edited, the adjacent pages move with it without needing to be reopened.
 
-***
+---
 
 ### findOne() \{#findone\}
 
@@ -431,15 +432,15 @@ Finds one entity
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                           | Description                                  |
+| --------- | -------------------------------------------------------------- | -------------------------------------------- |
 | `options` | [`FindOneOptions`](../interfaces/FindOneOptions.md)&lt;`T`&gt; | Query options, including the where condition |
 
 #### Returns
 
 `Observable`&lt;`InstanceType`&lt;`T`&gt; \| `null`&gt;
 
-***
+---
 
 ### findOneOrFail() \{#findoneorfail\}
 
@@ -453,15 +454,15 @@ Finds one entity, throws when not found
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                       | Description                                  |
+| --------- | -------------------------------------------------------------------------- | -------------------------------------------- |
 | `options` | [`FindOneOrFailOptions`](../interfaces/FindOneOrFailOptions.md)&lt;`T`&gt; | Query options, including the where condition |
 
 #### Returns
 
 `Observable`&lt;`InstanceType`&lt;`T`&gt;&gt;
 
-***
+---
 
 ### get() \{#get\}
 
@@ -475,20 +476,20 @@ Gets an entity by id
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `id` | [`EntityStaticType`](../type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | The entity's unique identifier |
+| Parameter | Type                                                                             | Description                    |
+| --------- | -------------------------------------------------------------------------------- | ------------------------------ |
+| `id`      | [`EntityStaticType`](../type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | The entity's unique identifier |
 
 #### Returns
 
 `Observable`&lt;`InstanceType`&lt;`T`&gt;&gt;
 
-***
+---
 
 ### getEntityRef() \{#getentityref\}
 
 ```ts
-getEntityRef(id): 
+getEntityRef(id):
   | EntityInstanceType<T>
   | undefined;
 ```
@@ -499,14 +500,14 @@ Looks up an entity by ID in the current process's entity cache
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `id` | [`EntityStaticType`](../type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | Entity primary key |
+| Parameter | Type                                                                             | Description        |
+| --------- | -------------------------------------------------------------------------------- | ------------------ |
+| `id`      | [`EntityStaticType`](../type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | Entity primary key |
 
 #### Returns
 
-  \| [`EntityInstanceType`](../type-aliases/EntityInstanceType.md)&lt;`T`&gt;
-  \| `undefined`
+\| [`EntityInstanceType`](../type-aliases/EntityInstanceType.md)&lt;`T`&gt;
+\| `undefined`
 
 Returns the instance on a cache hit, `undefined` on a miss (**does not** trigger a database query)
 
@@ -514,7 +515,7 @@ Returns the instance on a cache hit, `undefined` on a miss (**does not** trigger
 
 [`RepositoryBase`](RepositoryBase.md).[`getEntityRef`](RepositoryBase.md#getentityref)
 
-***
+---
 
 ### hasEntityRef() \{#hasentityref\}
 
@@ -528,9 +529,9 @@ Determines whether the given ID exists in the current process's entity cache
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `id` | [`EntityStaticType`](../type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | Entity primary key |
+| Parameter | Type                                                                             | Description        |
+| --------- | -------------------------------------------------------------------------------- | ------------------ |
+| `id`      | [`EntityStaticType`](../type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | Entity primary key |
 
 #### Returns
 
@@ -547,7 +548,7 @@ Equivalent to `getEntityRef(id) !== undefined`; provided separately so that hot 
 
 [`RepositoryBase`](RepositoryBase.md).[`hasEntityRef`](RepositoryBase.md#hasentityref)
 
-***
+---
 
 ### rawQuery() \{#rawquery\}
 
@@ -562,16 +563,16 @@ Used for scenarios like conditional UPDATE that need to bypass the ORM
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `sql` | `string` | SQL statement |
+| Parameter | Type        | Description     |
+| --------- | ----------- | --------------- |
+| `sql`     | `string`    | SQL statement   |
 | `params?` | `unknown`[] | Bind parameters |
 
 #### Returns
 
 `Promise`&lt;[`RawQueryResult`](../interfaces/RawQueryResult.md)&gt;
 
-***
+---
 
 ### refreshAllQueries() \{#refreshallqueries\}
 
@@ -589,7 +590,7 @@ Re-runs all live queries of this repository (US-314 B1.4): this instance re-moun
 
 `void`
 
-***
+---
 
 ### remove() \{#remove\}
 
@@ -603,9 +604,9 @@ Deletes an entity
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The entity instance to delete |
+| Parameter | Type                      | Description                   |
+| --------- | ------------------------- | ----------------------------- |
+| `entity`  | `InstanceType`&lt;`T`&gt; | The entity instance to delete |
 
 #### Returns
 
@@ -623,7 +624,7 @@ Deletes an entity
 
 [WorktreeTableSetMismatchError](WorktreeTableSetMismatchError.md) the entity was not read from the table set this instance currently mounts (delivered as a rejected Promise)
 
-***
+---
 
 ### reorder() \{#reorder\}
 
@@ -637,10 +638,10 @@ Moves a row to the target position (only for entities with `manualOrder` enabled
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `id` | [`EntityStaticType`](../type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | The id of the row being moved |
-| `target` | [`ReorderTarget`](../type-aliases/ReorderTarget.md)&lt;[`EntityStaticType`](../type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt;&gt; | The target position: the neighboring pair `{ prevId, nextId }`, or appending to the end of a group `{ group }` (the key happens to be the grouping field, `{}` for whole-table ordering); a neighbor target may carry `expectedGroup`, rejecting neighbors that already changed groups inside the transaction. Fields of the two target kinds cannot be mixed (`{ group, expectedGroup }` is rejected as `invalidTarget`) |
+| Parameter | Type                                                                                                                                        | Description                                                                                                                                                                                                                                                                                                                                                                                                               |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`      | [`EntityStaticType`](../type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt;                                                            | The id of the row being moved                                                                                                                                                                                                                                                                                                                                                                                             |
+| `target`  | [`ReorderTarget`](../type-aliases/ReorderTarget.md)&lt;[`EntityStaticType`](../type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt;&gt; | The target position: the neighboring pair `{ prevId, nextId }`, or appending to the end of a group `{ group }` (the key happens to be the grouping field, `{}` for whole-table ordering); a neighbor target may carry `expectedGroup`, rejecting neighbors that already changed groups inside the transaction. Fields of the two target kinds cannot be mixed (`{ group, expectedGroup }` is rejected as `invalidTarget`) |
 
 #### Returns
 
@@ -659,7 +660,7 @@ The entity after the move; returned as-is with zero writes when already at the t
 #### Throws
 
 [SortOrderError](SortOrderError.md) see [SortOrderErrorReason](../type-aliases/SortOrderErrorReason.md) (`'staleTarget'` when a neighbor is no longer in `expectedGroup`);
-  when thrown, not a single write has been committed
+when thrown, not a single write has been committed
 
 #### Remarks
 
@@ -676,7 +677,7 @@ await repository.reorder(movedId, { group: {} }); // whole-table ordering: move 
 await todos.reorder(todoId, { group: { completed: true } }); // grouped ordering: move to the end of the "completed" group
 ```
 
-***
+---
 
 ### update() \{#update\}
 
@@ -690,10 +691,10 @@ Updates an entity
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The entity instance to update |
-| `patch` | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; | Partial update data |
+| Parameter | Type                                       | Description                   |
+| --------- | ------------------------------------------ | ----------------------------- |
+| `entity`  | `InstanceType`&lt;`T`&gt;                  | The entity instance to update |
+| `patch`   | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; | Partial update data           |
 
 #### Returns
 
@@ -719,7 +720,7 @@ Updates an entity
 
 When a grouped manually ordered entity changes its grouping field without providing `sortOrder`, it is appended to the end of the new group inside the primary adapter's transaction (US-028 AC#16).
 
-***
+---
 
 ### updateEntity() \{#updateentity\}
 
@@ -733,10 +734,10 @@ Overwrites the entity fields with `update`
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The target entity |
-| `update` | `InstanceType`&lt;`T`&gt; | The fields to write; the primary key `id` is also assigned (for hydration scenarios) |
+| Parameter | Type                      | Description                                                                          |
+| --------- | ------------------------- | ------------------------------------------------------------------------------------ |
+| `entity`  | `InstanceType`&lt;`T`&gt; | The target entity                                                                    |
+| `update`  | `InstanceType`&lt;`T`&gt; | The fields to write; the primary key `id` is also assigned (for hydration scenarios) |
 
 #### Returns
 

@@ -10,8 +10,8 @@ Injects a reactive entity detail controller; the fields, schema and host data up
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                                                                                                           |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `options` | [`AngularHeadlessOptions`](../type-aliases/AngularHeadlessOptions.md)&lt;[`EntityDetailControllerOptions`](../interfaces/EntityDetailControllerOptions.md)&gt; |
 
 ## Returns

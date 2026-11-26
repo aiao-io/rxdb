@@ -23,7 +23,7 @@ batchTimeout?: number;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/sqlite-oo1-load.utils.ts:30](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/sqlite-oo1-load.utils.ts#L30)
 
-***
+---
 
 ### cacheSizeKb? \{#cachesizekb\}
 
@@ -33,7 +33,7 @@ cacheSizeKb?: number;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/sqlite-oo1-load.utils.ts:29](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/sqlite-oo1-load.utils.ts#L29)
 
-***
+---
 
 ### locateFile? \{#locatefile\}
 
@@ -45,15 +45,15 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/sqlite-oo1-load.utils.ts:26](
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `name` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `name`    | `string` |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### opfs? \{#opfs\}
 
@@ -63,7 +63,7 @@ opfs?: boolean;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/sqlite-oo1-load.utils.ts:23](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/sqlite-oo1-load.utils.ts#L23)
 
-***
+---
 
 ### opfsProxyPath? \{#opfsproxypath\}
 
@@ -73,7 +73,7 @@ opfsProxyPath?: string;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/sqlite-oo1-load.utils.ts:25](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/sqlite-oo1-load.utils.ts#L25)
 
-***
+---
 
 ### print? \{#print\}
 
@@ -85,15 +85,15 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/sqlite-oo1-load.utils.ts:27](
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `msg` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `msg`     | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### printErr? \{#printerr\}
 
@@ -105,15 +105,15 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/sqlite-oo1-load.utils.ts:28](
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `msg` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `msg`     | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### wasmPath? \{#wasmpath\}
 

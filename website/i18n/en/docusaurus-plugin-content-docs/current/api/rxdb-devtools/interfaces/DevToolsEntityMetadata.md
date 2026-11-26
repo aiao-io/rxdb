@@ -24,7 +24,7 @@ Defined in: [connector-types.ts:81](https://github.com/aiao-io/rxdb/blob/b523204
 
 Computed-property metadata; the connector only reads names and display names.
 
-***
+---
 
 ### displayName? \{#displayname\}
 
@@ -36,7 +36,7 @@ Defined in: [connector-types.ts:85](https://github.com/aiao-io/rxdb/blob/b523204
 
 The entity's display name.
 
-***
+---
 
 ### encryptedPropertyMap? \{#encryptedpropertymap\}
 
@@ -48,7 +48,7 @@ Defined in: [connector-types.ts:77](https://github.com/aiao-io/rxdb/blob/b523204
 
 The set of field names declared as encrypted columns; only the keys are read.
 
-***
+---
 
 ### foreignKeyRelationMap? \{#foreignkeyrelationmap\}
 
@@ -60,7 +60,7 @@ Defined in: [connector-types.ts:83](https://github.com/aiao-io/rxdb/blob/b523204
 
 Foreign key relation metadata; the connector only reads relation types and display names.
 
-***
+---
 
 ### name \{#name\}
 
@@ -72,7 +72,7 @@ Defined in: [connector-types.ts:73](https://github.com/aiao-io/rxdb/blob/b523204
 
 The entity name.
 
-***
+---
 
 ### namespace? \{#namespace\}
 
@@ -84,7 +84,7 @@ Defined in: [connector-types.ts:75](https://github.com/aiao-io/rxdb/blob/b523204
 
 The namespace the entity belongs to; treated as `'public'` when omitted.
 
-***
+---
 
 ### propertyMap? \{#propertymap\}
 

@@ -18,8 +18,8 @@ Defined in: [connector.ts:201](https://github.com/aiao-io/rxdb/blob/b5232040240c
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                  | Description                                                                                                                      |
+| ---------- | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | `options?` | [`DevToolsOptions`](../interfaces/DevToolsOptions.md) | Connector configuration; for defaults see the `@defaultValue` of each [DevToolsOptions](../interfaces/DevToolsOptions.md) member |
 
 #### Returns
@@ -52,7 +52,7 @@ For semantics see [DevToolsCapability](../type-aliases/DevToolsCapability.md); i
 
 [`DevToolsCapability`](../type-aliases/DevToolsCapability.md)
 
-***
+---
 
 ### connected \{#connected\}
 
@@ -75,7 +75,7 @@ the buffer is flushed all at once. Both [disconnect](#disconnect) and the `DISCO
 
 `boolean`
 
-***
+---
 
 ### enabled \{#enabled\}
 
@@ -124,14 +124,14 @@ After the call, [init](#init) can be invoked again (the sequence restarts from 0
 `DISCONNECT` is sent **before** the port closes, and deliberately over the current channel (the private port if still shaken hands) —
 closing the port first would drop this farewell message into a closed channel, and the peer could only wait for a timeout.
 
-***
+---
 
 ### init() \{#init\}
 
 ```ts
 init(
-   rxdb, 
-   getEntityMetadata?, 
+   rxdb,
+   getEntityMetadata?,
    options?
 ): void;
 ```
@@ -142,11 +142,11 @@ Initializes the connector and registers the sole RxDB instance.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `rxdb` | [`DevToolsRxDB`](../type-aliases/DevToolsRxDB.md) | The RxDB instance to observe; the `RxDB` of `@aiao/rxdb` can be passed directly, no assertion needed |
-| `getEntityMetadata?` | [`GetEntityMetadataFn`](../type-aliases/GetEntityMetadataFn.md) | Entity metadata reader function (usually `getEntityMetadata` from `@aiao/rxdb`). When omitted the connector knows no entities: `INSPECT_DB` returns `null`, `QUERY_ENTITY` returns "entity not found", and **encrypted fields are not masked** (there is no way to know which fields are ciphertext) |
-| `options?` | `Pick`&lt;[`DevToolsOptions`](../interfaces/DevToolsOptions.md), `"i18n"` \| `"mutationPolicy"`&gt; | Can supplement the i18n port and write policy at runtime after construction; changing them rebuilds the debug session. |
+| Parameter            | Type                                                                                                | Description                                                                                                                                                                                                                                                                                          |
+| -------------------- | --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rxdb`               | [`DevToolsRxDB`](../type-aliases/DevToolsRxDB.md)                                                   | The RxDB instance to observe; the `RxDB` of `@aiao/rxdb` can be passed directly, no assertion needed                                                                                                                                                                                                 |
+| `getEntityMetadata?` | [`GetEntityMetadataFn`](../type-aliases/GetEntityMetadataFn.md)                                     | Entity metadata reader function (usually `getEntityMetadata` from `@aiao/rxdb`). When omitted the connector knows no entities: `INSPECT_DB` returns `null`, `QUERY_ENTITY` returns "entity not found", and **encrypted fields are not masked** (there is no way to know which fields are ciphertext) |
+| `options?`           | `Pick`&lt;[`DevToolsOptions`](../interfaces/DevToolsOptions.md), `"i18n"` \| `"mutationPolicy"`&gt; | Can supplement the i18n port and write policy at runtime after construction; changing them rebuilds the debug session.                                                                                                                                                                               |
 
 #### Returns
 

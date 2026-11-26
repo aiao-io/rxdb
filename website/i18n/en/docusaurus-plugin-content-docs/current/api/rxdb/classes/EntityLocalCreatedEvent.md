@@ -18,8 +18,8 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:338](https://github.com/aiao-io/rx
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                                                                                         |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | `entities` | [`RxDBEntityLocalCreatedEventData`](../interfaces/RxDBEntityLocalCreatedEventData.md)&lt;[`EntityType`](../type-aliases/EntityType.md)&gt;[] |
 
 #### Returns
@@ -36,12 +36,12 @@ readonly entities: RxDBEntityLocalCreatedEventData<EntityType>[];
 
 Defined in: [packages/rxdb/src/rxdb-events.ts:338](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-events.ts#L338)
 
-***
+---
 
 ### type \{#type\}
 
 ```ts
-type: "ENTITY_LOCAL_CREATE" = ENTITY_LOCAL_CREATE_EVENT;
+type: 'ENTITY_LOCAL_CREATE' = ENTITY_LOCAL_CREATE_EVENT;
 ```
 
 Defined in: [packages/rxdb/src/rxdb-events.ts:337](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-events.ts#L337)

@@ -5,6 +5,7 @@ Defined in: [packages/rxdb-model/src/entity-table/editors/enum-editor.ts:37](htt
 Enum dropdown select editor
 
 Reads the selectable options dynamically from the column definition's `menuList`, supports keyboard navigation.
+
 - ↑ ↓: move the selected item
 - Enter / click: confirm the selection and close
 - Delete / Backspace: clear the value and close
@@ -30,8 +31,8 @@ Creates an enum editor
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter      | Type                                      | Description                                                                         |
+| -------------- | ----------------------------------------- | ----------------------------------------------------------------------------------- |
 | `presetItems?` | [`EnumItem`](../interfaces/EnumItem.md)[] | Preset options; when omitted, read from the column definition's menuList in onStart |
 
 #### Returns
@@ -56,7 +57,7 @@ Defined in: [packages/rxdb-model/src/entity-table/editors/global-overlay-editor.
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`container`](GlobalOverlayEditor.md#container)
 
-***
+---
 
 ### editCol \{#editcol\}
 
@@ -70,7 +71,7 @@ Defined in: [packages/rxdb-model/src/entity-table/editors/global-overlay-editor.
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`editCol`](GlobalOverlayEditor.md#editcol)
 
-***
+---
 
 ### editorType \{#editortype\}
 
@@ -86,7 +87,7 @@ VTable editor type identifier (the editor name registered with VTable)
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`editorType`](GlobalOverlayEditor.md#editortype)
 
-***
+---
 
 ### editRow \{#editrow\}
 
@@ -100,7 +101,7 @@ Defined in: [packages/rxdb-model/src/entity-table/editors/global-overlay-editor.
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`editRow`](GlobalOverlayEditor.md#editrow)
 
-***
+---
 
 ### messages \{#messages\}
 
@@ -114,12 +115,12 @@ Defined in: [packages/rxdb-model/src/entity-table/editors/global-overlay-editor.
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`messages`](GlobalOverlayEditor.md#messages)
 
-***
+---
 
 ### table \{#table\}
 
 ```ts
-protected table: 
+protected table:
   | {
   getCellOriginValue(col, row): unknown;
 }
@@ -152,7 +153,7 @@ Defined in: [packages/rxdb-model/src/entity-table/editors/global-overlay-editor.
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`focusedIndex`](GlobalOverlayEditor.md#focusedindex)
 
-***
+---
 
 ### initialFocusIndex \{#initialfocusindex\}
 
@@ -172,7 +173,7 @@ Defined in: [packages/rxdb-model/src/entity-table/editors/enum-editor.ts:42](htt
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`initialFocusIndex`](GlobalOverlayEditor.md#initialfocusindex)
 
-***
+---
 
 ### itemCount \{#itemcount\}
 
@@ -206,9 +207,9 @@ Repositions the overlay panel to the new cell rectangle
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rect` | `RectProps` |
+| Parameter | Type        |
+| --------- | ----------- |
+| `rect`    | `RectProps` |
 
 #### Returns
 
@@ -218,7 +219,7 @@ Repositions the overlay panel to the new cell rectangle
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`adjustPosition`](GlobalOverlayEditor.md#adjustposition)
 
-***
+---
 
 ### buildRows() \{#buildrows\}
 
@@ -230,9 +231,9 @@ Defined in: [packages/rxdb-model/src/entity-table/editors/enum-editor.ts:98](htt
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `panel` | `HTMLDivElement` |
+| Parameter | Type             |
+| --------- | ---------------- |
+| `panel`   | `HTMLDivElement` |
 
 #### Returns
 
@@ -242,7 +243,7 @@ Defined in: [packages/rxdb-model/src/entity-table/editors/enum-editor.ts:98](htt
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`buildRows`](GlobalOverlayEditor.md#buildrows)
 
-***
+---
 
 ### close() \{#close\}
 
@@ -260,7 +261,7 @@ Defined in: [packages/rxdb-model/src/entity-table/editors/global-overlay-editor.
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`close`](GlobalOverlayEditor.md#close)
 
-***
+---
 
 ### getValue() \{#getvalue\}
 
@@ -280,7 +281,7 @@ Returns the currently selected enum value
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`getValue`](GlobalOverlayEditor.md#getvalue)
 
-***
+---
 
 ### isEditorElement() \{#iseditorelement\}
 
@@ -294,9 +295,9 @@ Checks whether the target element belongs to the overlay panel
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `target` | `HTMLElement` |
+| Parameter | Type          |
+| --------- | ------------- |
+| `target`  | `HTMLElement` |
 
 #### Returns
 
@@ -306,7 +307,7 @@ Checks whether the target element belongs to the overlay panel
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`isEditorElement`](GlobalOverlayEditor.md#iseditorelement)
 
-***
+---
 
 ### onDeleteKey() \{#ondeletekey\}
 
@@ -324,7 +325,7 @@ Defined in: [packages/rxdb-model/src/entity-table/editors/enum-editor.ts:90](htt
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`onDeleteKey`](GlobalOverlayEditor.md#ondeletekey)
 
-***
+---
 
 ### onEnd() \{#onend\}
 
@@ -344,7 +345,7 @@ Closes the overlay: removes the panel and unregisters the global mouse/keyboard 
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`onEnd`](GlobalOverlayEditor.md#onend)
 
-***
+---
 
 ### onFocusChange() \{#onfocuschange\}
 
@@ -356,10 +357,10 @@ Defined in: [packages/rxdb-model/src/entity-table/editors/enum-editor.ts:160](ht
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `idx` | `number` |
-| `prev` | `number` |
+| Parameter | Type     |
+| --------- | -------- |
+| `idx`     | `number` |
+| `prev`    | `number` |
 
 #### Returns
 
@@ -369,7 +370,7 @@ Defined in: [packages/rxdb-model/src/entity-table/editors/enum-editor.ts:160](ht
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`onFocusChange`](GlobalOverlayEditor.md#onfocuschange)
 
-***
+---
 
 ### onRowClick() \{#onrowclick\}
 
@@ -381,9 +382,9 @@ Defined in: [packages/rxdb-model/src/entity-table/editors/enum-editor.ts:153](ht
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `idx` | `number` |
+| Parameter | Type     |
+| --------- | -------- |
+| `idx`     | `number` |
 
 #### Returns
 
@@ -393,7 +394,7 @@ Defined in: [packages/rxdb-model/src/entity-table/editors/enum-editor.ts:153](ht
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`onRowClick`](GlobalOverlayEditor.md#onrowclick)
 
-***
+---
 
 ### onStart() \{#onstart\}
 
@@ -407,9 +408,9 @@ Initializes editing: parses the original value and loads the selectable options 
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `ctx` | `EditContext`&lt;`string`, `any`&gt; |
+| Parameter | Type                                 |
+| --------- | ------------------------------------ |
+| `ctx`     | `EditContext`&lt;`string`, `any`&gt; |
 
 #### Returns
 
@@ -419,7 +420,7 @@ Initializes editing: parses the original value and loads the selectable options 
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`onStart`](GlobalOverlayEditor.md#onstart)
 
-***
+---
 
 ### refocusTable() \{#refocustable\}
 
@@ -437,7 +438,7 @@ Defined in: [packages/rxdb-model/src/entity-table/editors/global-overlay-editor.
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`refocusTable`](GlobalOverlayEditor.md#refocustable)
 
-***
+---
 
 ### rowAt() \{#rowat\}
 
@@ -449,9 +450,9 @@ Defined in: [packages/rxdb-model/src/entity-table/editors/global-overlay-editor.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `idx` | `number` |
+| Parameter | Type     |
+| --------- | -------- |
+| `idx`     | `number` |
 
 #### Returns
 
@@ -461,7 +462,7 @@ Defined in: [packages/rxdb-model/src/entity-table/editors/global-overlay-editor.
 
 [`GlobalOverlayEditor`](GlobalOverlayEditor.md).[`rowAt`](GlobalOverlayEditor.md#rowat)
 
-***
+---
 
 ### setFocused() \{#setfocused\}
 
@@ -473,9 +474,9 @@ Defined in: [packages/rxdb-model/src/entity-table/editors/global-overlay-editor.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `idx` | `number` |
+| Parameter | Type     |
+| --------- | -------- |
+| `idx`     | `number` |
 
 #### Returns
 

@@ -10,8 +10,8 @@ Cursor ordering when the list is not sorted by a column
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                                                                                                   | Description                                            |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
 | `metadata` | \| `Pick`&lt;`Readonly`&lt;[`EntityMetadataType`](../../rxdb/interfaces/EntityMetadataType.md)&gt;, `"manualOrder"`&gt; \| `undefined` | Entity metadata; `undefined` for unregistered entities |
 
 ## Returns

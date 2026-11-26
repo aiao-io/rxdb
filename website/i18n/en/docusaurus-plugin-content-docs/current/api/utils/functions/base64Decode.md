@@ -10,9 +10,9 @@ Base64 decode
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `string` | The string |
+| Parameter | Type     | Description |
+| --------- | -------- | ----------- |
+| `value`   | `string` | The string  |
 
 ## Returns
 

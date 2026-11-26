@@ -26,7 +26,7 @@ requestFullscreen(): Promise<void>;
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### fullscreenElement \{#fullscreenelement\}
 
@@ -38,7 +38,7 @@ Defined in: [widgets/fullscreen.ts:6](https://github.com/aiao-io/rxdb/blob/b5232
 
 The element currently in fullscreen.
 
-***
+---
 
 ### fullscreenEnabled \{#fullscreenenabled\}
 
@@ -64,16 +64,16 @@ Listens for fullscreen changes.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `type` | `"fullscreenchange"` |
-| `listener` | () => `void` |
+| Parameter  | Type                 |
+| ---------- | -------------------- |
+| `type`     | `"fullscreenchange"` |
+| `listener` | () => `void`         |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### exitFullscreen() \{#exitfullscreen\}
 
@@ -89,7 +89,7 @@ Exits fullscreen.
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### removeEventListener() \{#removeeventlistener\}
 
@@ -103,10 +103,10 @@ Removes the listener.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `type` | `"fullscreenchange"` |
-| `listener` | () => `void` |
+| Parameter  | Type                 |
+| ---------- | -------------------- |
+| `type`     | `"fullscreenchange"` |
+| `listener` | () => `void`         |
 
 #### Returns
 

@@ -10,10 +10,10 @@ Checks whether a message type can be sent or received under a given tier.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `type` | \| `"HANDSHAKE"` \| `"HANDSHAKE_ACK"` \| `"EVENT"` \| `"DISCONNECT"` \| `"PING"` \| `"PROTOCOL_HELLO"` \| `"PONG"` \| `"CLEAR_EVENT_BUFFER"` \| `"REQUEST"` \| `"RESPONSE"` \| `"ERROR"` \| `"TRANSFER_START"` \| `"TRANSFER_CHUNK"` \| `"TRANSFER_COMPLETE"` \| `"TRANSFER_CANCEL"` | The v2 message type. |
-| `capability` | [`DevToolsCapability`](../type-aliases/DevToolsCapability.md) | The locally configured tier. |
+| Parameter    | Type                                                                                                                                                                                                                                                                                 | Description                  |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------- |
+| `type`       | \| `"HANDSHAKE"` \| `"HANDSHAKE_ACK"` \| `"EVENT"` \| `"DISCONNECT"` \| `"PING"` \| `"PROTOCOL_HELLO"` \| `"PONG"` \| `"CLEAR_EVENT_BUFFER"` \| `"REQUEST"` \| `"RESPONSE"` \| `"ERROR"` \| `"TRANSFER_START"` \| `"TRANSFER_CHUNK"` \| `"TRANSFER_COMPLETE"` \| `"TRANSFER_CANCEL"` | The v2 message type.         |
+| `capability` | [`DevToolsCapability`](../type-aliases/DevToolsCapability.md)                                                                                                                                                                                                                        | The locally configured tier. |
 
 ## Returns
 

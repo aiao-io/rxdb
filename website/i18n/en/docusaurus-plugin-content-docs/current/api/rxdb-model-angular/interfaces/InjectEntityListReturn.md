@@ -1,5 +1,5 @@
 ---
-sidebar_label: "InjectEntityListReturn⟨T⟩"
+sidebar_label: 'InjectEntityListReturn⟨T⟩'
 ---
 
 # InjectEntityListReturn`<T>`
@@ -10,9 +10,9 @@ The controller and reactive snapshot of InjectEntityListReturn.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityInstance`](../type-aliases/EntityInstance.md) | [`EntityInstance`](../type-aliases/EntityInstance.md) |
+| Type Parameter                                                                                    | Default type                                          |
+| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityInstance`](../type-aliases/EntityInstance.md) | [`EntityInstance`](../type-aliases/EntityInstance.md) |
 
 ## Properties
 
@@ -24,7 +24,7 @@ readonly controller: EntityListController<T>;
 
 Defined in: [packages/rxdb-model-angular/src/headless/bindings.ts:122](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/headless/bindings.ts#L122)
 
-***
+---
 
 ### snapshot \{#snapshot\}
 

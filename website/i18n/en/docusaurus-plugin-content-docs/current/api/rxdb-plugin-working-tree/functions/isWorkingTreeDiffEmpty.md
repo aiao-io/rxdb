@@ -10,9 +10,9 @@ The empty form of `diff()`: this page has no changes to display.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `diff` | [`WorkingTreeDiff`](../interfaces/WorkingTreeDiff.md) |
+| Parameter | Type                                                  |
+| --------- | ----------------------------------------------------- |
+| `diff`    | [`WorkingTreeDiff`](../interfaces/WorkingTreeDiff.md) |
 
 ## Returns
 

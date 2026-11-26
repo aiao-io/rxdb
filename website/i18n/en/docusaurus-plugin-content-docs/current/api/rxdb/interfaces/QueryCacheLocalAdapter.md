@@ -18,21 +18,21 @@ Deletes data in bulk
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `entityName` | `string` |
-| `ids` | `string`[] |
+| Parameter    | Type       |
+| ------------ | ---------- |
+| `entityName` | `string`   |
+| `ids`        | `string`[] |
 
 #### Returns
 
 `Observable`&lt;`void`&gt;
 
-***
+---
 
 ### ~~findAll()?~~ \{#findall\}
 
 ```ts
-findAll?<T>(entityName): Observable<T[]>;
+findAll ? <T>entityName : Observable<T[]>;
 ```
 
 Defined in: [packages/rxdb/src/repository/query-cache.interface.ts:71](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query-cache.interface.ts#L71)
@@ -41,14 +41,14 @@ Fetches all locally cached data
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter    | Type     |
+| ------------ | -------- |
 | `entityName` | `string` |
 
 #### Returns
@@ -60,12 +60,12 @@ Fetches all locally cached data
 Same as [QueryCacheLocalAdapter.findByIds](#findbyids). The cache-first read of SWR is now handled by
 [QueryCacheLocalReader](QueryCacheLocalReader.md), pushed down by `where`, no longer "load the whole table into memory and filter in JS".
 
-***
+---
 
 ### ~~findByIds()?~~ \{#findbyids\}
 
 ```ts
-findByIds?<T>(entityName, ids): Observable<T[]>;
+findByIds ? <T>(entityName, ids) : Observable<T[]>;
 ```
 
 Defined in: [packages/rxdb/src/repository/query-cache.interface.ts:64](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query-cache.interface.ts#L64)
@@ -74,16 +74,16 @@ Fetches full data by ID
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                      |
+| ----------------------------------- |
 | <a id="type-parameter-t-1"></a> `T` |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `entityName` | `string` |
-| `ids` | `string`[] |
+| Parameter    | Type       |
+| ------------ | ---------- |
+| `entityName` | `string`   |
+| `ids`        | `string`[] |
 
 #### Returns
 
@@ -96,7 +96,7 @@ This duck is no longer called by `QueryCacheEngine`: it returns raw rows rather 
 and the "adapter not implemented means not found" fallback would disguise cache failures as "the remote has no data".
 Kept only to avoid breaking adapters that implement it; to be removed in the next major version.
 
-***
+---
 
 ### getMetadataByIds() \{#getmetadatabyids\}
 
@@ -110,16 +110,16 @@ Fetches the local metadata for the given IDs
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `entityName` | `string` |
-| `ids` | `string`[] |
+| Parameter    | Type       |
+| ------------ | ---------- |
+| `entityName` | `string`   |
+| `ids`        | `string`[] |
 
 #### Returns
 
 `Observable`&lt;`Map`&lt;`string`, `string`&gt;&gt;
 
-***
+---
 
 ### upsertMany() \{#upsertmany\}
 
@@ -133,16 +133,16 @@ Writes/updates data in bulk
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                      |
+| ----------------------------------- |
 | <a id="type-parameter-t-2"></a> `T` |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter    | Type     |
+| ------------ | -------- |
 | `entityName` | `string` |
-| `data` | `T`[] |
+| `data`       | `T`[]    |
 
 #### Returns
 

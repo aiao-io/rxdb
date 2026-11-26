@@ -1,11 +1,7 @@
 # restoreSqliteDatabase()
 
 ```ts
-function restoreSqliteDatabase(
-   source, 
-   input, 
-   options
-): Promise<SqliteRestoreOutcome>;
+function restoreSqliteDatabase(source, input, options): Promise<SqliteRestoreOutcome>;
 ```
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/backup/restore-sqlite-database.ts:726](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/backup/restore-sqlite-database.ts#L726)
@@ -14,10 +10,10 @@ Restores the archive produced by [writeSqliteBackup](writeSqliteBackup.md) into 
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `source` | `ReadableStream`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt; | The archive byte stream |
-| `input` | [`SqliteRestoreInput`](../interfaces/SqliteRestoreInput.md) | The adapter context |
+| Parameter | Type                                                            | Description                             |
+| --------- | --------------------------------------------------------------- | --------------------------------------- |
+| `source`  | `ReadableStream`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt;   | The archive byte stream                 |
+| `input`   | [`SqliteRestoreInput`](../interfaces/SqliteRestoreInput.md)     | The adapter context                     |
 | `options` | [`SqliteRestoreOptions`](../interfaces/SqliteRestoreOptions.md) | Cancellation signal and stage callbacks |
 
 ## Returns

@@ -14,17 +14,17 @@ currency: string;
 
 Defined in: [packages/rxdb/src/entity/cascade-options.interface.ts:88](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/cascade-options.interface.ts#L88)
 
-***
+---
 
 ### kind \{#kind\}
 
 ```ts
-kind: "currency";
+kind: 'currency';
 ```
 
 Defined in: [packages/rxdb/src/entity/cascade-options.interface.ts:87](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/cascade-options.interface.ts#L87)
 
-***
+---
 
 ### max? \{#max\}
 
@@ -34,7 +34,7 @@ max?: number;
 
 Defined in: [packages/rxdb/src/entity/cascade-options.interface.ts:90](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/cascade-options.interface.ts#L90)
 
-***
+---
 
 ### min? \{#min\}
 
@@ -44,7 +44,7 @@ min?: number;
 
 Defined in: [packages/rxdb/src/entity/cascade-options.interface.ts:89](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/cascade-options.interface.ts#L89)
 
-***
+---
 
 ### step? \{#step\}
 

@@ -10,15 +10,15 @@ Constructs the unique key of a business entity (used for the deletes/updates/ins
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`IRxDBChange`](../interfaces/IRxDBChange.md) |
+| Type Parameter                                                                            |
+| ----------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`IRxDBChange`](../interfaces/IRxDBChange.md) |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `change` | `T` | The RxDBChange instance |
+| Parameter | Type | Description             |
+| --------- | ---- | ----------------------- |
+| `change`  | `T`  | The RxDBChange instance |
 
 ## Returns
 

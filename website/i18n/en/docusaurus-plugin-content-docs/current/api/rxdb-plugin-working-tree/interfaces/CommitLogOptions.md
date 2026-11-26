@@ -21,7 +21,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-log.ts:48](http
 
 Only commits that touched this entity
 
-***
+---
 
 ### limit? \{#limit\}
 
@@ -33,7 +33,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-log.ts:39](http
 
 At most how many entries to return from the HEAD end; when omitted, the whole reachable history is returned
 
-***
+---
 
 ### since? \{#since\}
 
@@ -45,7 +45,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-log.ts:42](http
 
 Only commits whose database time is ≥ this
 
-***
+---
 
 ### until? \{#until\}
 

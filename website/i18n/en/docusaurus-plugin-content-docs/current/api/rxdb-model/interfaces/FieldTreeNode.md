@@ -20,7 +20,7 @@ Defined in: [packages/rxdb-model/src/query-builder/utils/field-tree.ts:42](https
 
 Child nodes
 
-***
+---
 
 ### description? \{#description\}
 
@@ -32,7 +32,7 @@ Defined in: [packages/rxdb-model/src/query-builder/utils/field-tree.ts:44](https
 
 Field description
 
-***
+---
 
 ### displayName \{#displayname\}
 
@@ -44,7 +44,7 @@ Defined in: [packages/rxdb-model/src/query-builder/utils/field-tree.ts:36](https
 
 Display name
 
-***
+---
 
 ### enum? \{#enum\}
 
@@ -56,7 +56,7 @@ Defined in: [packages/rxdb-model/src/query-builder/utils/field-tree.ts:48](https
 
 Enum values
 
-***
+---
 
 ### isExistsOption? \{#isexistsoption\}
 
@@ -68,7 +68,7 @@ Defined in: [packages/rxdb-model/src/query-builder/utils/field-tree.ts:52](https
 
 Whether it is an existence-check option (used to resolve duplicate key issues)
 
-***
+---
 
 ### isNullCheckOption? \{#isnullcheckoption\}
 
@@ -80,7 +80,7 @@ Defined in: [packages/rxdb-model/src/query-builder/utils/field-tree.ts:54](https
 
 Whether it is a null-check option (whole-value null query of keyValue fields)
 
-***
+---
 
 ### isRelation \{#isrelation\}
 
@@ -92,7 +92,7 @@ Defined in: [packages/rxdb-model/src/query-builder/utils/field-tree.ts:40](https
 
 Whether it is a relation field
 
-***
+---
 
 ### label \{#label\}
 
@@ -104,7 +104,7 @@ Defined in: [packages/rxdb-model/src/query-builder/utils/field-tree.ts:32](https
 
 Field name at the current level
 
-***
+---
 
 ### relationFields? \{#relationfields\}
 
@@ -116,7 +116,7 @@ Defined in: [packages/rxdb-model/src/query-builder/utils/field-tree.ts:50](https
 
 Field list of the relation target entity (used for EXISTS subqueries)
 
-***
+---
 
 ### required? \{#required\}
 
@@ -128,7 +128,7 @@ Defined in: [packages/rxdb-model/src/query-builder/utils/field-tree.ts:46](https
 
 Whether it is required
 
-***
+---
 
 ### type \{#type\}
 
@@ -140,7 +140,7 @@ Defined in: [packages/rxdb-model/src/query-builder/utils/field-tree.ts:38](https
 
 Field type
 
-***
+---
 
 ### value \{#value\}
 

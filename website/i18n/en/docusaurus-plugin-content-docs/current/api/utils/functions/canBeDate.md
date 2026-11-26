@@ -10,9 +10,9 @@ Checks whether a value can represent a valid date.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value?` | `unknown` | A Date, timestamp, or date string |
+| Parameter | Type      | Description                       |
+| --------- | --------- | --------------------------------- |
+| `value?`  | `unknown` | A Date, timestamp, or date string |
 
 ## Returns
 

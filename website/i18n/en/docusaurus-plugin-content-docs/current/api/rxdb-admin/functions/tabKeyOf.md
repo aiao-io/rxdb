@@ -10,9 +10,9 @@ Normalizes a URL into a tab key: strips the query string, hash, and trailing sla
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `url` | `string` | The URL. |
+| Parameter | Type     | Description |
+| --------- | -------- | ----------- |
+| `url`     | `string` | The URL.    |
 
 ## Returns
 

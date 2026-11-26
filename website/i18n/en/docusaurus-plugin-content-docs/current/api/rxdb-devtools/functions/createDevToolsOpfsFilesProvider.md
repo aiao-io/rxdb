@@ -10,9 +10,9 @@ Creates a `files` provider for browser OPFS.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `ports` | [`DevToolsOpfsFilesProviderPorts`](../interfaces/DevToolsOpfsFilesProviderPorts.md) | The OPFS root entry point, the transfer limit and the optional page save path. |
+| Parameter | Type                                                                                | Description                                                                    |
+| --------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `ports`   | [`DevToolsOpfsFilesProviderPorts`](../interfaces/DevToolsOpfsFilesProviderPorts.md) | The OPFS root entry point, the transfer limit and the optional page save path. |
 
 ## Returns
 

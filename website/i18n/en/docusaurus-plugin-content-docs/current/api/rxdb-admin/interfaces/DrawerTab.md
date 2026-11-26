@@ -16,7 +16,7 @@ Defined in: [preferences/drawer-model.ts:76](https://github.com/aiao-io/rxdb/blo
 
 The tab identifier.
 
-***
+---
 
 ### label \{#label\}
 
@@ -28,7 +28,7 @@ Defined in: [preferences/drawer-model.ts:78](https://github.com/aiao-io/rxdb/blo
 
 The tab title.
 
-***
+---
 
 ### sections \{#sections\}
 

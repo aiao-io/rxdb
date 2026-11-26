@@ -16,7 +16,7 @@ Defined in: [palette/fuzzy.ts:117](https://github.com/aiao-io/rxdb/blob/b5232040
 
 Extra keywords (routes, aliases).
 
-***
+---
 
 ### label \{#label\}
 
@@ -28,7 +28,7 @@ Defined in: [palette/fuzzy.ts:113](https://github.com/aiao-io/rxdb/blob/b5232040
 
 The primary text, highlighted when matched.
 
-***
+---
 
 ### sublabel? \{#sublabel\}
 

@@ -10,10 +10,10 @@ RSA decryption
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `cipherText` | `string` | Base64-encoded ciphertext |
-| `privateKeyPem` | `string` | PEM-format private key |
+| Parameter       | Type     | Description               |
+| --------------- | -------- | ------------------------- |
+| `cipherText`    | `string` | Base64-encoded ciphertext |
+| `privateKeyPem` | `string` | PEM-format private key    |
 
 ## Returns
 

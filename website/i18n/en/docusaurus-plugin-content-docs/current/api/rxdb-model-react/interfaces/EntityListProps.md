@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model-react/src/entity-list/entity-list.tsx:185](http
 
 Set of entity IDs that are already linked (filtered out in selection mode).
 
-***
+---
 
 ### creationChain? \{#creationchain\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-model-react/src/entity-list/entity-list.tsx:175](http
 
 Entity types in the creation chain (namespace:name), used to prevent circular creation.
 
-***
+---
 
 ### draftParentEntity? \{#draftparententity\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-model-react/src/entity-list/entity-list.tsx:171](http
 
 Draft parent entity (cascade creation scenarios).
 
-***
+---
 
 ### editChain? \{#editchain\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb-model-react/src/entity-list/entity-list.tsx:177](http
 
 Stack of record IDs with an open detail dialog (including ancestor records), to prevent infinite nesting.
 
-***
+---
 
 ### fixedFormData? \{#fixedformdata\}
 
@@ -64,7 +64,7 @@ Defined in: [packages/rxdb-model-react/src/entity-list/entity-list.tsx:169](http
 
 Pre-filled foreign key data (passed to the child entity dialog on cascade creation).
 
-***
+---
 
 ### fixedQuery? \{#fixedquery\}
 
@@ -76,7 +76,7 @@ Defined in: [packages/rxdb-model-react/src/entity-list/entity-list.tsx:165](http
 
 Fixed query condition, AND-combined with the user's filter condition (used for relationship property filtering).
 
-***
+---
 
 ### initialFilter? \{#initialfilter\}
 
@@ -88,7 +88,7 @@ Defined in: [packages/rxdb-model-react/src/entity-list/entity-list.tsx:167](http
 
 Initial filter condition passed in from external navigation (a JSON string).
 
-***
+---
 
 ### mode? \{#mode\}
 
@@ -100,7 +100,7 @@ Defined in: [packages/rxdb-model-react/src/entity-list/entity-list.tsx:183](http
 
 List mode: default = normal list, select = selection mode (with a checkbox column).
 
-***
+---
 
 ### name \{#name\}
 
@@ -112,7 +112,7 @@ Defined in: [packages/rxdb-model-react/src/entity-list/entity-list.tsx:163](http
 
 Entity name (required).
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -124,7 +124,7 @@ Defined in: [packages/rxdb-model-react/src/entity-list/entity-list.tsx:161](http
 
 Entity namespace (required).
 
-***
+---
 
 ### onSelectionCancelled? \{#onselectioncancelled\}
 
@@ -140,7 +140,7 @@ Selection mode: fired when the selection is cancelled.
 
 `void`
 
-***
+---
 
 ### onSelectionConfirmed? \{#onselectionconfirmed\}
 
@@ -154,15 +154,15 @@ Selection mode: fired when the selection is confirmed, carrying the selected ent
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                    |
+| ---------- | ------------------------------------------------------- |
 | `entities` | [`EntityInstance`](../type-aliases/EntityInstance.md)[] |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onViewEntity? \{#onviewentity\}
 
@@ -176,15 +176,15 @@ Fired when the "View" button is clicked, carrying the corresponding row record.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `record` | [`EntityTableRecord`](EntityTableRecord.md) |
+| Parameter | Type                                        |
+| --------- | ------------------------------------------- |
+| `record`  | [`EntityTableRecord`](EntityTableRecord.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### parentEntity? \{#parententity\}
 
@@ -196,7 +196,7 @@ Defined in: [packages/rxdb-model-react/src/entity-list/entity-list.tsx:181](http
 
 Parent entity instance (used for M2M relationship operations).
 
-***
+---
 
 ### parentRelationName? \{#parentrelationname\}
 
@@ -208,7 +208,7 @@ Defined in: [packages/rxdb-model-react/src/entity-list/entity-list.tsx:173](http
 
 Name of the relationship property on the parent entity (e.g. 'children').
 
-***
+---
 
 ### relationKind? \{#relationkind\}
 

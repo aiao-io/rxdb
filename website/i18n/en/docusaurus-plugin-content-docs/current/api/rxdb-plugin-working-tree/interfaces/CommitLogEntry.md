@@ -20,7 +20,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-log.ts:77](http
 
 The committer; `null` when not recorded
 
-***
+---
 
 ### changeSetCount \{#changesetcount\}
 
@@ -32,7 +32,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-log.ts:83](http
 
 The number of change units in this commit
 
-***
+---
 
 ### commitId \{#commitid\}
 
@@ -44,7 +44,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-log.ts:62](http
 
 The commit id
 
-***
+---
 
 ### createdAt \{#createdat\}
 
@@ -56,7 +56,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-log.ts:80](http
 
 The database time
 
-***
+---
 
 ### firstParentId \{#firstparentid\}
 
@@ -68,7 +68,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-log.ts:68](http
 
 The first parent; `null` for the root node
 
-***
+---
 
 ### kind \{#kind\}
 
@@ -80,7 +80,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-log.ts:71](http
 
 The commit kind; `baseline` / `branch_baseline` are system root nodes, not user commits
 
-***
+---
 
 ### message \{#message\}
 
@@ -92,7 +92,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-log.ts:74](http
 
 The commit message
 
-***
+---
 
 ### parentIds \{#parentids\}
 

@@ -10,7 +10,7 @@ Locates the RxDB entity via the `namespace` and `name` inputs, implementing lazy
 ## Example
 
 ```html
-<rxdb-entity-list [namespace]="namespace()" [name]="name()" />
+<rxdb-entity-list [name]="name()" [namespace]="namespace()" />
 ```
 
 ## Constructors
@@ -37,7 +37,7 @@ readonly $isFilterQuery: Signal<boolean>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:432](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L432)
 
-***
+---
 
 ### alreadyLinkedIds \{#alreadylinkedids\}
 
@@ -49,7 +49,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 The set of already-linked entity IDs (filtered out in selection mode, no longer shown)
 
-***
+---
 
 ### baseTableColumns \{#basetablecolumns\}
 
@@ -59,7 +59,7 @@ protected readonly baseTableColumns: Signal<ColumnsDefine>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:340](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L340)
 
-***
+---
 
 ### canRedo \{#canredo\}
 
@@ -69,7 +69,7 @@ readonly canRedo: Signal<boolean>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:474](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L474)
 
-***
+---
 
 ### canUndo \{#canundo\}
 
@@ -79,7 +79,7 @@ readonly canUndo: Signal<boolean>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:473](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L473)
 
-***
+---
 
 ### createFormFieldConfigs \{#createformfieldconfigs\}
 
@@ -89,7 +89,7 @@ readonly createFormFieldConfigs: Signal<FormFieldConfig[]>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:492](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L492)
 
-***
+---
 
 ### creationChain \{#creationchain\}
 
@@ -101,7 +101,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 Entity types in the creation chain (namespace:name), used to block circular creation
 
-***
+---
 
 ### deleteConfirmTpl \{#deleteconfirmtpl\}
 
@@ -113,7 +113,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 Delete confirmation popover template (accidental deletion is costly and the undo entry is not prominent).
 
-***
+---
 
 ### deleteError \{#deleteerror\}
 
@@ -125,7 +125,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 Reason the most recent delete was rejected by the storage layer (e.g. still referenced by other records); cleared on the next delete or entity switch, `null` means no error
 
-***
+---
 
 ### displayName \{#displayname\}
 
@@ -135,7 +135,7 @@ readonly displayName: Signal<string>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:446](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L446)
 
-***
+---
 
 ### draftParentEntity \{#draftparententity\}
 
@@ -147,7 +147,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 Draft parent entity (used in cascading creation, where the child entity registers to the parent entity via the relation API)
 
-***
+---
 
 ### editChain \{#editchain\}
 
@@ -159,7 +159,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 Stack of record ids (including ancestor records) of open detail dialogs, checked before "view" to prevent infinite nesting
 
-***
+---
 
 ### filteredCount \{#filteredcount\}
 
@@ -169,7 +169,7 @@ readonly filteredCount: Signal<number>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:459](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L459)
 
-***
+---
 
 ### filterQuery \{#filterquery\}
 
@@ -179,7 +179,7 @@ readonly filterQuery: WritableSignal<FilterQuery>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:426](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L426)
 
-***
+---
 
 ### fixedFormData \{#fixedformdata\}
 
@@ -191,7 +191,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 Pre-filled foreign key data (passed to the child entity dialog in cascading creation)
 
-***
+---
 
 ### fixedQuery \{#fixedquery\}
 
@@ -203,7 +203,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 Fixed query conditions, AND-combined with the user filter conditions (used for relation property filtering, e.g. ownerId = currentId)
 
-***
+---
 
 ### Funnel \{#funnel\}
 
@@ -213,7 +213,7 @@ protected readonly Funnel: typeof LucideFunnel;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:315](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L315)
 
-***
+---
 
 ### initialFilter \{#initialfilter\}
 
@@ -225,7 +225,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 Initial filter conditions passed in by external navigation (JSON string), e.g. Query Builder "apply to entity browsing"
 
-***
+---
 
 ### isBrowser \{#isbrowser\}
 
@@ -235,7 +235,7 @@ readonly isBrowser: boolean;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:444](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L444)
 
-***
+---
 
 ### isCreateBlocked \{#iscreateblocked\}
 
@@ -247,7 +247,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 The current entity does not accept creation from the list: `create` allows only system writes, or it is already in an ancestor creation chain (circular creation detection)
 
-***
+---
 
 ### isInitialLoading \{#isinitialloading\}
 
@@ -257,7 +257,7 @@ readonly isInitialLoading: Signal<boolean>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:461](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L461)
 
-***
+---
 
 ### isLoadingMore \{#isloadingmore\}
 
@@ -267,7 +267,7 @@ readonly isLoadingMore: Signal<boolean>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:466](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L466)
 
-***
+---
 
 ### isM2m \{#ism2m\}
 
@@ -277,7 +277,7 @@ readonly isM2m: Signal<boolean>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:507](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L507)
 
-***
+---
 
 ### isQueryActive \{#isqueryactive\}
 
@@ -287,7 +287,7 @@ readonly isQueryActive: Signal<boolean>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:458](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L458)
 
-***
+---
 
 ### isSelectMode \{#isselectmode\}
 
@@ -297,7 +297,7 @@ readonly isSelectMode: Signal<boolean>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:506](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L506)
 
-***
+---
 
 ### listTableOptions \{#listtableoptions\}
 
@@ -307,7 +307,7 @@ protected readonly listTableOptions: Signal<Partial<ListTableConstructorOptions>
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:351](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L351)
 
-***
+---
 
 ### loadMore \{#loadmore\}
 
@@ -317,7 +317,7 @@ protected readonly loadMore: Signal<(() => void) | undefined>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:374](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L374)
 
-***
+---
 
 ### m2mAlreadyLinkedIds \{#m2malreadylinkedids\}
 
@@ -327,7 +327,7 @@ readonly m2mAlreadyLinkedIds: Signal<Set<string>>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:545](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L545)
 
-***
+---
 
 ### m2mSelectTpl \{#m2mselecttpl\}
 
@@ -337,7 +337,7 @@ readonly m2mSelectTpl: Signal<TemplateRef<void> | undefined>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:509](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L509)
 
-***
+---
 
 ### mode \{#mode\}
 
@@ -349,7 +349,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 List mode: default=normal list, select=selection mode (with a checkbox column)
 
-***
+---
 
 ### name \{#name\}
 
@@ -359,7 +359,7 @@ readonly name: InputSignal<string>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:381](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L381)
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -369,7 +369,7 @@ readonly namespace: InputSignal<string>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:380](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L380)
 
-***
+---
 
 ### overlayPositions \{#overlaypositions\}
 
@@ -395,7 +395,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 CDK Overlay positioning strategy: prefer right-aligned below, then right-aligned above
 
-***
+---
 
 ### parentEntity \{#parententity\}
 
@@ -407,7 +407,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 Parent entity instance (used for M2M relation operations, includes drafts and saved entities)
 
-***
+---
 
 ### parentRelationName \{#parentrelationname\}
 
@@ -419,7 +419,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 Name of the relation property on the parent entity (e.g. 'children'), used to call parent.children$.add(child)
 
-***
+---
 
 ### pendingQuery \{#pendingquery\}
 
@@ -429,7 +429,7 @@ readonly pendingQuery: WritableSignal<FilterQuery>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:436](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L436)
 
-***
+---
 
 ### pendingQueryValid \{#pendingqueryvalid\}
 
@@ -439,7 +439,7 @@ readonly pendingQueryValid: WritableSignal<boolean>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:442](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L442)
 
-***
+---
 
 ### queryBuilderFields \{#querybuilderfields\}
 
@@ -449,7 +449,7 @@ readonly queryBuilderFields: Signal<FieldMetadata[]>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:484](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L484)
 
-***
+---
 
 ### Redo2 \{#redo2\}
 
@@ -459,7 +459,7 @@ protected readonly Redo2: typeof LucideRedo2;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:314](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L314)
 
-***
+---
 
 ### redoCount \{#redocount\}
 
@@ -469,7 +469,7 @@ readonly redoCount: Signal<number>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:472](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L472)
 
-***
+---
 
 ### redoHint \{#redohint\}
 
@@ -481,7 +481,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 Explanation shown when the redo button is disabled, same as [undoHint](#undohint)
 
-***
+---
 
 ### relationKind \{#relationkind\}
 
@@ -493,7 +493,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 Relation type (MANY_TO_MANY enables selection mode)
 
-***
+---
 
 ### reorderError \{#reordererror\}
 
@@ -505,7 +505,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 Hint that the most recent drag-reorder persistence failed; `null` means no error
 
-***
+---
 
 ### rowDragEnabled \{#rowdragenabled\}
 
@@ -517,7 +517,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 Whether the current list allows drag reordering (whether the row drag handles are shown)
 
-***
+---
 
 ### saveToast \{#savetoast\}
 
@@ -529,7 +529,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 Save-success toast (auto-dismisses after 2 seconds).
 
-***
+---
 
 ### selectedCount \{#selectedcount\}
 
@@ -539,7 +539,7 @@ readonly selectedCount: Signal<number>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:543](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L543)
 
-***
+---
 
 ### selectedIds \{#selectedids\}
 
@@ -549,7 +549,7 @@ readonly selectedIds: WritableSignal<Set<string>>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:542](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L542)
 
-***
+---
 
 ### selectionCancelled \{#selectioncancelled\}
 
@@ -561,7 +561,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 Selection mode: fired when the selection is cancelled
 
-***
+---
 
 ### selectionConfirmed \{#selectionconfirmed\}
 
@@ -573,7 +573,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 Selection mode: fired when the selection is confirmed, carrying the selected entity instances
 
-***
+---
 
 ### showFilterPopover \{#showfilterpopover\}
 
@@ -583,7 +583,7 @@ readonly showFilterPopover: WritableSignal<boolean>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:434](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L434)
 
-***
+---
 
 ### sourceTableRecords \{#sourcetablerecords\}
 
@@ -593,7 +593,7 @@ protected readonly sourceTableRecords: Signal<EntityTableRecord[]>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:321](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L321)
 
-***
+---
 
 ### tableColumns \{#tablecolumns\}
 
@@ -603,7 +603,7 @@ readonly tableColumns: Signal<ColumnDefine[]>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:499](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L499)
 
-***
+---
 
 ### tableRecords \{#tablerecords\}
 
@@ -613,7 +613,7 @@ readonly tableRecords: Signal<EntityTableRecord[]>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:503](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L503)
 
-***
+---
 
 ### Undo2 \{#undo2\}
 
@@ -623,7 +623,7 @@ protected readonly Undo2: typeof LucideUndo2;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:313](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L313)
 
-***
+---
 
 ### undoCount \{#undocount\}
 
@@ -633,7 +633,7 @@ readonly undoCount: Signal<number>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:471](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L471)
 
-***
+---
 
 ### undoHint \{#undohint\}
 
@@ -645,7 +645,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 Explanation shown when the undo button is disabled: the stack is stopped at the child-branch fork point (US-315); `null` when undo is possible or that is not the reason
 
-***
+---
 
 ### viewEntity \{#viewentity\}
 
@@ -657,7 +657,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 Fired when the "view" button is clicked, carrying the corresponding row record; the component also opens the built-in edit dialog (only emits when the record is already in editChain or is an unsaved draft)
 
-***
+---
 
 ### viewFields \{#viewfields\}
 
@@ -667,7 +667,7 @@ readonly viewFields: Signal<ListViewField[]>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:500](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L500)
 
-***
+---
 
 ### viewState \{#viewstate\}
 
@@ -677,7 +677,7 @@ protected readonly viewState: WritableSignal<ListViewState>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.ts:317](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts#L317)
 
-***
+---
 
 ### X \{#x\}
 
@@ -703,7 +703,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 [`ModelI18n`](../interfaces/ModelI18n.md)
 
-***
+---
 
 ### t \{#t\}
 
@@ -733,7 +733,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 `void`
 
-***
+---
 
 ### cancelDelete() \{#canceldelete\}
 
@@ -747,7 +747,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 `void`
 
-***
+---
 
 ### cancelSelection() \{#cancelselection\}
 
@@ -761,7 +761,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 `void`
 
-***
+---
 
 ### confirmDelete() \{#confirmdelete\}
 
@@ -777,7 +777,7 @@ Executes the delete from the confirmation popover (same path as the delete icon)
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### confirmSelection() \{#confirmselection\}
 
@@ -791,7 +791,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 `void`
 
-***
+---
 
 ### m2mCancelSelection() \{#m2mcancelselection\}
 
@@ -805,7 +805,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 `void`
 
-***
+---
 
 ### onBatchUpdated() \{#onbatchupdated\}
 
@@ -817,15 +817,15 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter   | Type                                                    |
+| ----------- | ------------------------------------------------------- |
 | `mutations` | [`BatchChangeItem`](../interfaces/BatchChangeItem.md)[] |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onCellChanged() \{#oncellchanged\}
 
@@ -837,15 +837,15 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | [`CellChangeEvent`](../interfaces/CellChangeEvent.md) |
+| Parameter | Type                                                  |
+| --------- | ----------------------------------------------------- |
+| `event`   | [`CellChangeEvent`](../interfaces/CellChangeEvent.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onIconClicked() \{#oniconclicked\}
 
@@ -857,17 +857,17 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | \{ `name`: `string`; `record`: [`EntityTableRecord`](../interfaces/EntityTableRecord.md); \} |
-| `event.name` | `string` |
-| `event.record` | [`EntityTableRecord`](../interfaces/EntityTableRecord.md) |
+| Parameter      | Type                                                                                         |
+| -------------- | -------------------------------------------------------------------------------------------- |
+| `event`        | \{ `name`: `string`; `record`: [`EntityTableRecord`](../interfaces/EntityTableRecord.md); \} |
+| `event.name`   | `string`                                                                                     |
+| `event.record` | [`EntityTableRecord`](../interfaces/EntityTableRecord.md)                                    |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### onKeydown() \{#onkeydown\}
 
@@ -879,15 +879,15 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `e` | `KeyboardEvent` |
+| Parameter | Type            |
+| --------- | --------------- |
+| `e`       | `KeyboardEvent` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onM2mSelectionConfirmed() \{#onm2mselectionconfirmed\}
 
@@ -899,15 +899,15 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                    |
+| ---------- | ------------------------------------------------------- |
 | `entities` | [`EntityInstance`](../type-aliases/EntityInstance.md)[] |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onQueryChange() \{#onquerychange\}
 
@@ -919,15 +919,15 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `query` | \| \{ `combinator`: `"and"` \| `"or"`; `rules`: `unknown`[]; \} \| `undefined` |
+| Parameter | Type                                                                           |
+| --------- | ------------------------------------------------------------------------------ |
+| `query`   | \| \{ `combinator`: `"and"` \| `"or"`; `rules`: `unknown`[]; \} \| `undefined` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onRowDeleted() \{#onrowdeleted\}
 
@@ -939,15 +939,15 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | [`EntityTableRecord`](../interfaces/EntityTableRecord.md) |
+| Parameter | Type                                                      |
+| --------- | --------------------------------------------------------- |
+| `event`   | [`EntityTableRecord`](../interfaces/EntityTableRecord.md) |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### onRowMoved() \{#onrowmoved\}
 
@@ -961,15 +961,15 @@ Single row drag-and-drop: when allowed, persists the reorder by the on-screen ne
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `move` | [`RowMoveEvent`](../interfaces/RowMoveEvent.md) |
+| Parameter | Type                                            |
+| --------- | ----------------------------------------------- |
+| `move`    | [`RowMoveEvent`](../interfaces/RowMoveEvent.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onSortClicked() \{#onsortclicked\}
 
@@ -983,17 +983,17 @@ Column header sort click: drives a cursor orderBy re-query (VTable client-side s
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | \{ `field`: `unknown`; `order`: `unknown`; \} |
-| `event.field` | `unknown` |
-| `event.order` | `unknown` |
+| Parameter     | Type                                          |
+| ------------- | --------------------------------------------- |
+| `event`       | \{ `field`: `unknown`; `order`: `unknown`; \} |
+| `event.field` | `unknown`                                     |
+| `event.order` | `unknown`                                     |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onValidationChange() \{#onvalidationchange\}
 
@@ -1005,15 +1005,15 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `result` | [`ValidationResult`](../interfaces/ValidationResult.md) |
+| Parameter | Type                                                    |
+| --------- | ------------------------------------------------------- |
+| `result`  | [`ValidationResult`](../interfaces/ValidationResult.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onViewSettingsChange() \{#onviewsettingschange\}
 
@@ -1027,15 +1027,15 @@ Applies the list view configuration and syncs the manual ordering constraints.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | [`ListViewState`](../interfaces/ListViewState.md) |
+| Parameter | Type                                              |
+| --------- | ------------------------------------------------- |
+| `value`   | [`ListViewState`](../interfaces/ListViewState.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### openCreateDialog() \{#opencreatedialog\}
 
@@ -1049,7 +1049,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### openM2mSelectDialog() \{#openm2mselectdialog\}
 
@@ -1063,7 +1063,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 `void`
 
-***
+---
 
 ### redo() \{#redo\}
 
@@ -1077,7 +1077,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 `void`
 
-***
+---
 
 ### resetFilter() \{#resetfilter\}
 
@@ -1091,7 +1091,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 `void`
 
-***
+---
 
 ### toggleFilterPopover() \{#togglefilterpopover\}
 
@@ -1105,7 +1105,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-list/entity-list.component.t
 
 `void`
 
-***
+---
 
 ### undo() \{#undo\}
 

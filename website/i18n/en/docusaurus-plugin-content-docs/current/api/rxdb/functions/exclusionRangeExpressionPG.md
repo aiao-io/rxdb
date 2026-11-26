@@ -10,9 +10,9 @@ The `EXCLUDE` element expression for a one-dimensional range on the PG side.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `range` | [`CompiledExclusionRange`](../interfaces/CompiledExclusionRange.md) |
+| Parameter | Type                                                                |
+| --------- | ------------------------------------------------------------------- |
+| `range`   | [`CompiledExclusionRange`](../interfaces/CompiledExclusionRange.md) |
 
 ## Returns
 

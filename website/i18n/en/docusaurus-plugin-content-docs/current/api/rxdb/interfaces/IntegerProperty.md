@@ -33,14 +33,14 @@ compiled into an entity-level CHECK with the property name as its `name`, and pa
 #### Example
 
 ```typescript
-properties: [{ name: 'qty', type: PropertyType.integer, check: { operator: '>', value: 0 } }]
+properties: [{ name: 'qty', type: PropertyType.integer, check: { operator: '>', value: 0 } }];
 ```
 
 #### Inherited from
 
 `IEntityObject.check`
 
-***
+---
 
 ### columnName? \{#columnname\}
 
@@ -57,7 +57,7 @@ Same as name when not provided
 
 `IEntityObject.columnName`
 
-***
+---
 
 ### default? \{#default\}
 
@@ -67,7 +67,7 @@ default?: number | (() => number);
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:314](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L314)
 
-***
+---
 
 ### displayName? \{#displayname\}
 
@@ -82,14 +82,14 @@ Display name
 #### Example
 
 ```ts
-"User", "Order item"
+('User', 'Order item');
 ```
 
 #### Inherited from
 
 `IEntityObject.displayName`
 
-***
+---
 
 ### encrypted? \{#encrypted\}
 
@@ -108,19 +108,19 @@ primary key / foreign key / unique / sortable / index / computed property / FTS 
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### Inherited from
 
 `IEntityObject.encrypted`
 
-***
+---
 
 ### format? \{#format\}
 
 ```ts
-format?: 
+format?:
   | NumberFormat
   | RatingFormat
   | DurationFormat;
@@ -133,10 +133,12 @@ Field semantics annotation. Integers do not accept `currency` / `percentage`, to
 #### Default
 
 ```ts
-{ kind: 'number' }
+{
+  kind: 'number';
+}
 ```
 
-***
+---
 
 ### name \{#name\}
 
@@ -153,7 +155,7 @@ A lowercase-initial English word; may only contain English words and underscores
 
 `IEntityObject.name`
 
-***
+---
 
 ### nullable? \{#nullable\}
 
@@ -168,14 +170,14 @@ Whether NULL is allowed
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### Inherited from
 
 `IEntityObject.nullable`
 
-***
+---
 
 ### primary? \{#primary\}
 
@@ -185,7 +187,7 @@ primary?: boolean;
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:312](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L312)
 
-***
+---
 
 ### readonly? \{#readonly\}
 
@@ -202,14 +204,14 @@ If false, the value of this column is updated when updating data
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### Inherited from
 
 `IEntityObject.readonly`
 
-***
+---
 
 ### required? \{#required\}
 
@@ -227,14 +229,14 @@ Empty strings and empty arrays are not allowed; the number 0 is allowed
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### Inherited from
 
 `IEntityObject.required`
 
-***
+---
 
 ### sortable? \{#sortable\}
 
@@ -249,24 +251,24 @@ Whether it is sortable
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### Inherited from
 
 `ISortable.sortable`
 
-***
+---
 
 ### type \{#type\}
 
 ```ts
-type: "integer" | integer;
+type: 'integer' | integer;
 ```
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:313](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L313)
 
-***
+---
 
 ### unique? \{#unique\}
 
@@ -282,7 +284,7 @@ If true, the value of this data must not repeat
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### Inherited from

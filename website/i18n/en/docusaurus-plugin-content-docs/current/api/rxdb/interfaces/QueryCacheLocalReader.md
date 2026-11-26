@@ -1,5 +1,5 @@
 ---
-sidebar_label: "QueryCacheLocalReader⟨T⟩"
+sidebar_label: 'QueryCacheLocalReader⟨T⟩'
 ---
 
 # QueryCacheLocalReader`<T>`
@@ -20,8 +20,8 @@ looks to callers exactly the same as "the remote truly has no data", which is on
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                    | Description              |
+| --------------------------------- | ------------------------ |
 | <a id="type-parameter-t"></a> `T` | The entity instance type |
 
 ## Methods
@@ -38,10 +38,10 @@ Reads local rows by query conditions.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | \{ `where`: [`RuleGroup`](../type-aliases/RuleGroup.md)&lt;`T`&gt;; \} | Only `where`; `limit` / `offset` / `orderBy` are the upper facade's responsibility |
-| `options.where` | [`RuleGroup`](../type-aliases/RuleGroup.md)&lt;`T`&gt; | - |
+| Parameter       | Type                                                                   | Description                                                                        |
+| --------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `options`       | \{ `where`: [`RuleGroup`](../type-aliases/RuleGroup.md)&lt;`T`&gt;; \} | Only `where`; `limit` / `offset` / `orderBy` are the upper facade's responsibility |
+| `options.where` | [`RuleGroup`](../type-aliases/RuleGroup.md)&lt;`T`&gt;                 | -                                                                                  |
 
 #### Returns
 

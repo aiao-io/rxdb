@@ -26,10 +26,10 @@ Creates a number editor
 
 #### Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `isInteger?` | `boolean` | `false` | true for integer mode, false (default) for decimal mode |
-| `options?` | [`NumberEditorOptions`](../interfaces/NumberEditorOptions.md) | `{}` | Optional behavior config (bigint mode and range constraints) |
+| Parameter    | Type                                                          | Default value | Description                                                  |
+| ------------ | ------------------------------------------------------------- | ------------- | ------------------------------------------------------------ |
+| `isInteger?` | `boolean`                                                     | `false`       | true for integer mode, false (default) for decimal mode      |
+| `options?`   | [`NumberEditorOptions`](../interfaces/NumberEditorOptions.md) | `{}`          | Optional behavior config (bigint mode and range constraints) |
 
 #### Returns
 
@@ -61,9 +61,9 @@ Repositions the input box and the error hint overlay to the new cell rectangle
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rect` | `RectProps` |
+| Parameter | Type        |
+| --------- | ----------- |
+| `rect`    | `RectProps` |
 
 #### Returns
 
@@ -73,7 +73,7 @@ Repositions the input box and the error hint overlay to the new cell rectangle
 
 `IEditor.adjustPosition`
 
-***
+---
 
 ### getValue() \{#getvalue\}
 
@@ -93,7 +93,7 @@ Returns the current numeric value (bigint in bigint mode); null for an empty val
 
 `IEditor.getValue`
 
-***
+---
 
 ### isEditorElement() \{#iseditorelement\}
 
@@ -107,9 +107,9 @@ Checks whether the target element belongs to this editor (the input box or the e
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `el` | `HTMLElement` \| `EventTarget` |
+| Parameter | Type                           |
+| --------- | ------------------------------ |
+| `el`      | `HTMLElement` \| `EventTarget` |
 
 #### Returns
 
@@ -119,7 +119,7 @@ Checks whether the target element belongs to this editor (the input box or the e
 
 `IEditor.isEditorElement`
 
-***
+---
 
 ### onEnd() \{#onend\}
 
@@ -139,7 +139,7 @@ Removes the input box and the hint overlay, unbinding the global click events
 
 `IEditor.onEnd`
 
-***
+---
 
 ### onStart() \{#onstart\}
 
@@ -153,9 +153,9 @@ Creates and shows the input box and the error hint overlay, binding input valida
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `ctx` | `EditContext`&lt;`unknown`&gt; |
+| Parameter | Type                           |
+| --------- | ------------------------------ |
+| `ctx`     | `EditContext`&lt;`unknown`&gt; |
 
 #### Returns
 

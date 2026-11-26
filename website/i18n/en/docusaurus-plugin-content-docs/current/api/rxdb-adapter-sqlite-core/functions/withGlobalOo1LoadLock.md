@@ -13,15 +13,15 @@ so that all steps rewriting global state land inside the lock, ruling out concur
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `run` | () => `Promise`&lt;`T`&gt; | The async function performing the actual load |
+| Parameter | Type                       | Description                                   |
+| --------- | -------------------------- | --------------------------------------------- |
+| `run`     | () => `Promise`&lt;`T`&gt; | The async function performing the actual load |
 
 ## Returns
 

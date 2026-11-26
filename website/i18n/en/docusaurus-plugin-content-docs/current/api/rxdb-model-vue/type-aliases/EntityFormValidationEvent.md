@@ -14,7 +14,7 @@ After the app language or catalog changes, existing validation errors are rebuil
 
 ## Properties
 
-| Property | Modifier | Type | Defined in |
-| ------ | ------ | ------ | ------ |
+| Property                              | Modifier   | Type                                                            | Defined in                                            |
+| ------------------------------------- | ---------- | --------------------------------------------------------------- | ----------------------------------------------------- |
 | <a id="property-result"></a> `result` | `readonly` | [`FormValidationResult`](../interfaces/FormValidationResult.md) | packages/rxdb-model/dist/entity-form/headless.d.ts:60 |
-| <a id="property-type"></a> `type` | `readonly` | `"validationChanged"` | packages/rxdb-model/dist/entity-form/headless.d.ts:59 |
+| <a id="property-type"></a> `type`     | `readonly` | `"validationChanged"`                                           | packages/rxdb-model/dist/entity-form/headless.d.ts:59 |

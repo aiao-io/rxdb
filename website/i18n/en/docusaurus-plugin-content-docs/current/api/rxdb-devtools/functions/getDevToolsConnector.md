@@ -10,8 +10,8 @@ Gets or creates the global RxDB DevTools connector.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                  |
+| ---------- | ----------------------------------------------------- |
 | `options?` | [`DevToolsOptions`](../interfaces/DevToolsOptions.md) |
 
 ## Returns

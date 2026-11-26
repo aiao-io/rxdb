@@ -1,5 +1,5 @@
 ---
-sidebar_label: "InjectQueryTableReturn⟨T⟩"
+sidebar_label: 'InjectQueryTableReturn⟨T⟩'
 ---
 
 # InjectQueryTableReturn`<T>`
@@ -10,9 +10,9 @@ The controller and reactive snapshot of InjectQueryTableReturn.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityInstance`](../type-aliases/EntityInstance.md) | [`EntityInstance`](../type-aliases/EntityInstance.md) |
+| Type Parameter                                                                                    | Default type                                          |
+| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityInstance`](../type-aliases/EntityInstance.md) | [`EntityInstance`](../type-aliases/EntityInstance.md) |
 
 ## Properties
 
@@ -24,7 +24,7 @@ readonly controller: QueryTableController<T>;
 
 Defined in: [packages/rxdb-model-angular/src/headless/bindings.ts:188](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/headless/bindings.ts#L188)
 
-***
+---
 
 ### snapshot \{#snapshot\}
 

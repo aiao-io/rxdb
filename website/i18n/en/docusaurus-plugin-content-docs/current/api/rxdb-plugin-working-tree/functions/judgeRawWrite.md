@@ -10,10 +10,10 @@ Determines whether one raw call should be issued
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `sql` | `string` | The original statement; may be a semicolon-separated batch of statements |
-| `context` | [`RawWriteJudgmentContext`](../interfaces/RawWriteJudgmentContext.md) | Capability bit and versioned domain |
+| Parameter | Type                                                                  | Description                                                              |
+| --------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| `sql`     | `string`                                                              | The original statement; may be a semicolon-separated batch of statements |
+| `context` | [`RawWriteJudgmentContext`](../interfaces/RawWriteJudgmentContext.md) | Capability bit and versioned domain                                      |
 
 ## Returns
 

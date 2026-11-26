@@ -30,16 +30,16 @@ Copies the current selection to the system clipboard and writes it to the intern
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `table` | `ListTableAll` |
+| Parameter  | Type                                           |
+| ---------- | ---------------------------------------------- |
+| `table`    | `ListTableAll`                                 |
 | `columns?` | readonly `Record`&lt;`string`, `unknown`&gt;[] |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### paste() \{#paste\}
 
@@ -53,9 +53,9 @@ Paste: parses by text when the system clipboard text differs from the last write
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `table` | `ListTableAll` |
+| Parameter  | Type                                           |
+| ---------- | ---------------------------------------------- |
+| `table`    | `ListTableAll`                                 |
 | `columns?` | readonly `Record`&lt;`string`, `unknown`&gt;[] |
 
 #### Returns

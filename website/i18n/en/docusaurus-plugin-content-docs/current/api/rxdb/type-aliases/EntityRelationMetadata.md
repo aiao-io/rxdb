@@ -1,7 +1,7 @@
 # EntityRelationMetadata
 
 ```ts
-type EntityRelationMetadata = 
+type EntityRelationMetadata =
   | EntityRelationOneToOneMetadata
   | EntityRelationOneToManyMetadata
   | EntityRelationManyToOneMetadata

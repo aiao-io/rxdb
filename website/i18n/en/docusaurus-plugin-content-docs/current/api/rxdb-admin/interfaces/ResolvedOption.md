@@ -16,7 +16,7 @@ Defined in: [preferences/drawer-model.ts:18](https://github.com/aiao-io/rxdb/blo
 
 The display text.
 
-***
+---
 
 ### value \{#value\}
 

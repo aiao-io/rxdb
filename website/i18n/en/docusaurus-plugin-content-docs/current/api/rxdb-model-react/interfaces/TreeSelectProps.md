@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/tree-select/tree-select
 
 Minimum width of the trigger and the popover, defaults to `'14rem'`.
 
-***
+---
 
 ### nodes \{#nodes\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/tree-select/tree-select
 
 Tree nodes.
 
-***
+---
 
 ### onSelectChange? \{#onselectchange\}
 
@@ -42,15 +42,15 @@ Selection callback.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `value`   | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### placeholder? \{#placeholder\}
 
@@ -62,7 +62,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/tree-select/tree-select
 
 Placeholder text, defaults to `'Select'`.
 
-***
+---
 
 ### selected? \{#selected\}
 

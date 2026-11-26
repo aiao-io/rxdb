@@ -1,5 +1,5 @@
 ---
-sidebar_label: "RelationBooleanRules⟨K, VT⟩"
+sidebar_label: 'RelationBooleanRules⟨K, VT⟩'
 ---
 
 # RelationBooleanRules`<K, VT>`
@@ -14,7 +14,7 @@ Boolean
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-k"></a> `K` |
+| Type Parameter                      |
+| ----------------------------------- |
+| <a id="type-parameter-k"></a> `K`   |
 | <a id="type-parameter-vt"></a> `VT` |

@@ -19,10 +19,10 @@ Creation time
 #### Default
 
 ```ts
-new Date()
+new Date();
 ```
 
-***
+---
 
 ### enabled? \{#enabled\}
 
@@ -34,7 +34,7 @@ Defined in: [packages/rxdb/src/system/types.ts:544](https://github.com/aiao-io/r
 
 Whether enabled
 
-***
+---
 
 ### entity? \{#entity\}
 
@@ -46,7 +46,7 @@ Defined in: [packages/rxdb/src/system/types.ts:519](https://github.com/aiao-io/r
 
 Entity
 
-***
+---
 
 ### id? \{#id\}
 
@@ -58,7 +58,7 @@ Defined in: [packages/rxdb/src/system/types.ts:511](https://github.com/aiao-io/r
 
 id
 
-***
+---
 
 ### lastPulledAt? \{#lastpulledat\}
 
@@ -70,7 +70,7 @@ Defined in: [packages/rxdb/src/system/types.ts:536](https://github.com/aiao-io/r
 
 Last pull time
 
-***
+---
 
 ### lastPullRemoteChangeId? \{#lastpullremotechangeid\}
 
@@ -82,7 +82,7 @@ Defined in: [packages/rxdb/src/system/types.ts:540](https://github.com/aiao-io/r
 
 ID of the last pulled remote change
 
-***
+---
 
 ### lastPushedAt? \{#lastpushedat\}
 
@@ -94,7 +94,7 @@ Defined in: [packages/rxdb/src/system/types.ts:532](https://github.com/aiao-io/r
 
 Last push time
 
-***
+---
 
 ### lastPushedChangeId? \{#lastpushedchangeid\}
 
@@ -106,7 +106,7 @@ Defined in: [packages/rxdb/src/system/types.ts:528](https://github.com/aiao-io/r
 
 ID of the last pushed change
 
-***
+---
 
 ### namespace? \{#namespace\}
 
@@ -118,7 +118,7 @@ Defined in: [packages/rxdb/src/system/types.ts:515](https://github.com/aiao-io/r
 
 Namespace
 
-***
+---
 
 ### syncType? \{#synctype\}
 
@@ -133,10 +133,10 @@ Sync type
 #### Default
 
 ```ts
-'none'
+'none';
 ```
 
-***
+---
 
 ### updatedAt? \{#updatedat\}
 
@@ -151,5 +151,5 @@ Update time
 #### Default
 
 ```ts
-new Date()
+new Date();
 ```

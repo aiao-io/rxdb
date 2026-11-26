@@ -16,7 +16,7 @@ Defined in: packages/rxdb-model/dist/entity-list/list-view.d.ts:9
 
 Field order specified by the user; remaining fields are appended in the order declared by the model.
 
-***
+---
 
 ### groupBy \{#groupby\}
 
@@ -28,7 +28,7 @@ Defined in: packages/rxdb-model/dist/entity-list/list-view.d.ts:15
 
 Field to group by; null means flat display.
 
-***
+---
 
 ### hiddenFields \{#hiddenfields\}
 
@@ -40,12 +40,12 @@ Defined in: packages/rxdb-model/dist/entity-list/list-view.d.ts:11
 
 Hidden data fields; the action column and selection column are always kept.
 
-***
+---
 
 ### sorts \{#sorts\}
 
 ```ts
-sorts: OrderBy<string>[];
+sorts: (OrderBy < string) > [];
 ```
 
 Defined in: packages/rxdb-model/dist/entity-list/list-view.d.ts:13

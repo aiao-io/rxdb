@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model/src/entity-list/manual-order-list.ts:42](https:
 
 Fixed query passed in externally
 
-***
+---
 
 ### fullyLoaded \{#fullyloaded\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-model/src/entity-list/manual-order-list.ts:44](https:
 
 The ordering domain is fully loaded: no next page and not currently loading
 
-***
+---
 
 ### hasDrafts \{#hasdrafts\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-model/src/entity-list/manual-order-list.ts:48](https:
 
 There are draft rows not yet committed to storage
 
-***
+---
 
 ### hasPendingEdits \{#haspendingedits\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb-model/src/entity-list/manual-order-list.ts:50](https:
 
 There are unfinished cell edit writes
 
-***
+---
 
 ### hasReadonlyRows \{#hasreadonlyrows\}
 
@@ -64,7 +64,7 @@ Defined in: [packages/rxdb-model/src/entity-list/manual-order-list.ts:46](https:
 
 There are read-only rows (no edit permission)
 
-***
+---
 
 ### hasUserFilter \{#hasuserfilter\}
 
@@ -76,12 +76,12 @@ Defined in: [packages/rxdb-model/src/entity-list/manual-order-list.ts:38](https:
 
 The user added conditions in the filter box
 
-***
+---
 
 ### metadata \{#metadata\}
 
 ```ts
-readonly metadata: 
+readonly metadata:
   | ManualOrderListMetadata
   | undefined;
 ```
@@ -90,7 +90,7 @@ Defined in: [packages/rxdb-model/src/entity-list/manual-order-list.ts:34](https:
 
 Current entity metadata; `undefined` for unregistered entities
 
-***
+---
 
 ### reorderPending \{#reorderpending\}
 
@@ -102,7 +102,7 @@ Defined in: [packages/rxdb-model/src/entity-list/manual-order-list.ts:52](https:
 
 The previous drag reorder has not settled yet
 
-***
+---
 
 ### selectMode \{#selectmode\}
 
@@ -114,7 +114,7 @@ Defined in: [packages/rxdb-model/src/entity-list/manual-order-list.ts:40](https:
 
 The list is in relation selection mode
 
-***
+---
 
 ### sortOrder \{#sortorder\}
 

@@ -16,9 +16,9 @@ Sparse arrays: middle holes produce no keys (they remain holes after restoration
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `object` | `object` | The object to flatten |
+| Parameter | Type     | Description           |
+| --------- | -------- | --------------------- |
+| `object`  | `object` | The object to flatten |
 
 ## Returns
 

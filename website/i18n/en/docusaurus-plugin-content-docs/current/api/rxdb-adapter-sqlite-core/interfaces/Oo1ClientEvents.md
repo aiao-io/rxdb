@@ -14,7 +14,7 @@ Event signature table dispatched by `Oo1ClientBase`, for EventDispatcher type in
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/Oo1ClientBase.ts:28](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/Oo1ClientBase.ts#L28)
 
-***
+---
 
 ### 23 \{#23\}
 
@@ -24,7 +24,7 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/Oo1ClientBase.ts:28](https://
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/Oo1ClientBase.ts:29](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/Oo1ClientBase.ts#L29)
 
-***
+---
 
 ### 9 \{#9\}
 

@@ -10,10 +10,10 @@ Reads the entity's permission for a write operation.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `metadata` | `Pick`&lt;[`EntityMetadata`](../type-aliases/EntityMetadata.md), `"permissions"`&gt; | The entity metadata |
-| `operation` | [`EntityOperation`](../type-aliases/EntityOperation.md) | The write operation |
+| Parameter   | Type                                                                                 | Description         |
+| ----------- | ------------------------------------------------------------------------------------ | ------------------- |
+| `metadata`  | `Pick`&lt;[`EntityMetadata`](../type-aliases/EntityMetadata.md), `"permissions"`&gt; | The entity metadata |
+| `operation` | [`EntityOperation`](../type-aliases/EntityOperation.md)                              | The write operation |
 
 ## Returns
 

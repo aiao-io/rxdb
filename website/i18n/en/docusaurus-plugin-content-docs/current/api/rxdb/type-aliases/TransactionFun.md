@@ -10,8 +10,8 @@ Transaction callback function.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                          |
+| ---------- | ------------------------------------------------------------- |
 | `executor` | [`TransactionExecutor`](../interfaces/TransactionExecutor.md) |
 
 ## Returns

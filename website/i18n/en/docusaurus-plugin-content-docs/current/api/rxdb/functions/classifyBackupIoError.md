@@ -10,10 +10,10 @@ Maps raw exceptions thrown by streams / storage onto a stable classification; al
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `error` | `unknown` | The raw exception |
-| `message` | `string` | Human-readable description |
+| Parameter | Type      | Description                |
+| --------- | --------- | -------------------------- |
+| `error`   | `unknown` | The raw exception          |
+| `message` | `string`  | Human-readable description |
 
 ## Returns
 

@@ -1,5 +1,5 @@
 ---
-sidebar_label: "ReorderBetween⟨Id⟩"
+sidebar_label: 'ReorderBetween⟨Id⟩'
 ---
 
 # ReorderBetween`<Id>`
@@ -15,8 +15,8 @@ to move to the end use [ReorderToGroupEnd](ReorderToGroupEnd.md).
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                      | Description                 |
+| ----------------------------------- | --------------------------- |
 | <a id="type-parameter-id"></a> `Id` | The entity primary key type |
 
 ## Properties
@@ -31,7 +31,7 @@ Defined in: [packages/rxdb/src/sortable/sortable.interface.ts:80](https://github
 
 Optional expected target group; the key set matches the grouping fields, and if the neighbors are found to have changed groups within the transaction, `staleTarget` is reported.
 
-***
+---
 
 ### nextId \{#nextid\}
 
@@ -43,7 +43,7 @@ Defined in: [packages/rxdb/src/sortable/sortable.interface.ts:78](https://github
 
 The row after the target position; `null` when moving to the tail
 
-***
+---
 
 ### prevId \{#previd\}
 

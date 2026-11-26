@@ -10,11 +10,11 @@ Converts an RxDB property type to a SQLite data type
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `property` | \{ `encrypted?`: `boolean`; `type`: `string`; \} |
-| `property.encrypted?` | `boolean` |
-| `property.type` | `string` |
+| Parameter             | Type                                             |
+| --------------------- | ------------------------------------------------ |
+| `property`            | \{ `encrypted?`: `boolean`; `type`: `string`; \} |
+| `property.encrypted?` | `boolean`                                        |
+| `property.type`       | `string`                                         |
 
 ## Returns
 

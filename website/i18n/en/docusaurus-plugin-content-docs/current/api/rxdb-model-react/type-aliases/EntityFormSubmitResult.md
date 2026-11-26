@@ -1,16 +1,16 @@
 # EntityFormSubmitResult
 
 ```ts
-type EntityFormSubmitResult = 
+type EntityFormSubmitResult =
   | {
-  changes: Record<string, unknown>;
-  data: EntityFormData;
-  valid: true;
-}
+      changes: Record<string, unknown>;
+      data: EntityFormData;
+      valid: true;
+    }
   | {
-  result: FormValidationResult;
-  valid: false;
-};
+      result: FormValidationResult;
+      valid: false;
+    };
 ```
 
 Defined in: packages/rxdb-model/dist/entity-form/headless.d.ts:63

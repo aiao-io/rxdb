@@ -10,9 +10,9 @@ Determines whether an error is a network failure (cannot reach the remote), rath
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `error` | `unknown` | Any caught value |
+| Parameter | Type      | Description      |
+| --------- | --------- | ---------------- |
+| `error`   | `unknown` | Any caught value |
 
 ## Returns
 
@@ -25,6 +25,7 @@ Determines whether an error is a network failure (cannot reach the remote), rath
 **The default direction is "not a network error"**: unrecognized errors always return `false` and are rethrown unchanged by the caller. The reverse would be more dangerous — 401s, unique-key conflicts and field validation failures treated as offline would hand the caller a stale cache instead of the reason for failure, deferring the problem to some unknown later time.
 
 Criteria, in priority order:
+
 1. [NetworkOfflineError](../classes/NetworkOfflineError.md) — already classified
 2. A numeric `status` → **not** a network error. Receiving an HTTP status code proves the connection works; 502 / 503 are also answers given by the remote, not a severed cable
 3. Node errno (NETWORK\_ERRNO)

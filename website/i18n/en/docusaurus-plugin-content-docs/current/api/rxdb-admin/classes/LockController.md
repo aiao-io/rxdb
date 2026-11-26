@@ -24,8 +24,8 @@ Creates the controller and reads the saved lock state.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                              | Description                |
+| --------- | ----------------------------------------------------------------- | -------------------------- |
 | `options` | [`LockControllerOptions`](../interfaces/LockControllerOptions.md) | Storage, hasher, and host. |
 
 #### Returns
@@ -66,7 +66,7 @@ Stops cross-tab listening.
 
 `void`
 
-***
+---
 
 ### hasPassword() \{#haspassword\}
 
@@ -82,7 +82,7 @@ Whether a lock screen password is set; when unset, the lock screen requires sett
 
 `boolean`
 
-***
+---
 
 ### lock() \{#lock\}
 
@@ -98,7 +98,7 @@ Locks the UI.
 
 `void`
 
-***
+---
 
 ### resetPassword() \{#resetpassword\}
 
@@ -114,7 +114,7 @@ Forgot password: clears the password and unlocks. Data is unaffected.
 
 `void`
 
-***
+---
 
 ### setPassword() \{#setpassword\}
 
@@ -128,8 +128,8 @@ Sets (or changes) the lock screen password and unlocks.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type     | Description             |
+| ---------- | -------- | ----------------------- |
 | `password` | `string` | The plaintext password. |
 
 #### Returns
@@ -140,7 +140,7 @@ Sets (or changes) the lock screen password and unlocks.
 
 Throws when the password is empty, or when the environment lacks Web Crypto.
 
-***
+---
 
 ### unlock() \{#unlock\}
 
@@ -156,7 +156,7 @@ Unlocks directly (no verification).
 
 `void`
 
-***
+---
 
 ### unlockWith() \{#unlockwith\}
 
@@ -170,8 +170,8 @@ Verifies the password and unlocks.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type     | Description             |
+| ---------- | -------- | ----------------------- |
 | `password` | `string` | The plaintext password. |
 
 #### Returns

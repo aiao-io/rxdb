@@ -16,7 +16,7 @@ Defined in: [v2/errors.ts:86](https://github.com/aiao-io/rxdb/blob/b5232040240cf
 
 A code from the exhaustive union.
 
-***
+---
 
 ### message? \{#message\}
 
@@ -28,7 +28,7 @@ Defined in: [v2/errors.ts:90](https://github.com/aiao-io/rxdb/blob/b5232040240cf
 
 An optional redacted description; must pass [isRedactedErrorMessage](../functions/isRedactedErrorMessage.md).
 
-***
+---
 
 ### retryable \{#retryable\}
 

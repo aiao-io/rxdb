@@ -10,9 +10,9 @@ Decides whether a row can be deleted; called per row by `actionsColumn`
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `record` | `Readonly`&lt;`Record`&lt;`string`, `unknown`&gt;&gt; |
+| Parameter | Type                                                  |
+| --------- | ----------------------------------------------------- |
+| `record`  | `Readonly`&lt;`Record`&lt;`string`, `unknown`&gt;&gt; |
 
 ## Returns
 

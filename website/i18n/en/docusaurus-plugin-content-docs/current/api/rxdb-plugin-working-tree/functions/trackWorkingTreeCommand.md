@@ -10,16 +10,16 @@ Runs a command, emitting loading → success | error along the way.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `emit` | [`WorkingTreeStateSink`](../type-aliases/WorkingTreeStateSink.md)&lt;[`WorkingTreeCommandState`](../type-aliases/WorkingTreeCommandState.md)&lt;`T`&gt;&gt; | Where the state goes |
-| `run` | () => `Promise`&lt;`T`&gt; | The real call |
+| Parameter | Type                                                                                                                                                        | Description          |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- |
+| `emit`    | [`WorkingTreeStateSink`](../type-aliases/WorkingTreeStateSink.md)&lt;[`WorkingTreeCommandState`](../type-aliases/WorkingTreeCommandState.md)&lt;`T`&gt;&gt; | Where the state goes |
+| `run`     | () => `Promise`&lt;`T`&gt;                                                                                                                                  | The real call        |
 
 ## Returns
 

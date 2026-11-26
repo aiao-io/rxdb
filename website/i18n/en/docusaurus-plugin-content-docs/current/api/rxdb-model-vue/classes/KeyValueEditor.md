@@ -28,8 +28,8 @@ Creates a KeyValue editor
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                                     | Description                                                                 |
+| --------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | `schema?` | \| `Record`&lt;`string`, [`KVSchemaEntry`](../interfaces/KVSchemaEntry.md)&gt; \| `null` | Optional key schema definition; when omitted or empty, free mode is entered |
 
 #### Returns
@@ -68,7 +68,7 @@ Returns the key-value object currently being edited
 
 `IEditor.getValue`
 
-***
+---
 
 ### isEditorElement() \{#iseditorelement\}
 
@@ -82,9 +82,9 @@ Determines whether the target element belongs to the editor overlay
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `el` | `EventTarget` \| `HTMLElement` |
+| Parameter | Type                           |
+| --------- | ------------------------------ |
+| `el`      | `EventTarget` \| `HTMLElement` |
 
 #### Returns
 
@@ -94,7 +94,7 @@ Determines whether the target element belongs to the editor overlay
 
 `IEditor.isEditorElement`
 
-***
+---
 
 ### onEnd() \{#onend\}
 
@@ -114,7 +114,7 @@ Ends editing: aborts pending listeners and cleans up the overlay
 
 `IEditor.onEnd`
 
-***
+---
 
 ### onStart() \{#onstart\}
 
@@ -128,9 +128,9 @@ Opens the editor: builds the key-value editing overlay and fills rows from the i
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `ctx` | `EditContext`&lt;`unknown`&gt; |
+| Parameter | Type                           |
+| --------- | ------------------------------ |
+| `ctx`     | `EditContext`&lt;`unknown`&gt; |
 
 #### Returns
 

@@ -10,8 +10,8 @@ Does this trusted path produce working tree units
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                          | Description             |
+| ---------- | ------------------------------------------------------------- | ----------------------- |
 | `callsite` | [`TrustedCallsite`](../../rxdb/interfaces/TrustedCallsite.md) | One row of the registry |
 
 ## Returns

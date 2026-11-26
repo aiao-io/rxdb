@@ -16,7 +16,7 @@ Defined in: [shell/types.ts:87](https://github.com/aiao-io/rxdb/blob/b5232040240
 
 The dark theme name used by the half-dark sidebar / top bar; `undefined` when the available themes have no dark theme.
 
-***
+---
 
 ### isDark \{#isdark\}
 
@@ -28,7 +28,7 @@ Defined in: [shell/types.ts:85](https://github.com/aiao-io/rxdb/blob/b5232040240
 
 Whether it is currently dark.
 
-***
+---
 
 ### options \{#options\}
 
@@ -40,7 +40,7 @@ Defined in: [shell/types.ts:81](https://github.com/aiao-io/rxdb/blob/b5232040240
 
 The available themes.
 
-***
+---
 
 ### resolved \{#resolved\}
 
@@ -68,7 +68,7 @@ Cycles through system → light → dark.
 
 `void`
 
-***
+---
 
 ### label() \{#label\}
 
@@ -82,15 +82,15 @@ The display name of a theme.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `name` | `string` | The theme name or `system`. |
+| Parameter | Type     | Description                 |
+| --------- | -------- | --------------------------- |
+| `name`    | `string` | The theme name or `system`. |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### set() \{#set\}
 
@@ -104,9 +104,9 @@ Selects a theme.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `name` | `string` | The theme name or `system`. |
+| Parameter | Type     | Description                 |
+| --------- | -------- | --------------------------- |
+| `name`    | `string` | The theme name or `system`. |
 
 #### Returns
 

@@ -10,9 +10,9 @@ Gets the optionGroupChildren configuration for CascadeSelect.
 
 ## Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `maxDepth?` | `number` | `10` | The maximum depth, default 10 |
+| Parameter   | Type     | Default value | Description                   |
+| ----------- | -------- | ------------- | ----------------------------- |
+| `maxDepth?` | `number` | `10`          | The maximum depth, default 10 |
 
 ## Returns
 

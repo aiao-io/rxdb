@@ -10,8 +10,8 @@ Creates a read-only `settings` provider from the given descriptor.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter    | Type                                                                        | Description                                                                      |
+| ------------ | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | `descriptor` | [`DevToolsProviderDescriptor`](../interfaces/DevToolsProviderDescriptor.md) | The settings descriptor of this side; `operations` should contain only `export`. |
 
 ## Returns

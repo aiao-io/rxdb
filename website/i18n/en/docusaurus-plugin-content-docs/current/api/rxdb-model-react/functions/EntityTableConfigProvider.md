@@ -10,11 +10,11 @@ Entity table configuration Provider component (equivalent to using ENTITY\_TABLE
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `props` | \{ `children?`: `ReactNode`; `value`: [`EntityTableConfig`](../interfaces/EntityTableConfig.md); \} | `value` is the table configuration and `children` is the consuming subtree |
-| `props.children?` | `ReactNode` | - |
-| `props.value` | [`EntityTableConfig`](../interfaces/EntityTableConfig.md) | - |
+| Parameter         | Type                                                                                                | Description                                                                |
+| ----------------- | --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `props`           | \{ `children?`: `ReactNode`; `value`: [`EntityTableConfig`](../interfaces/EntityTableConfig.md); \} | `value` is the table configuration and `children` is the consuming subtree |
+| `props.children?` | `ReactNode`                                                                                         | -                                                                          |
+| `props.value`     | [`EntityTableConfig`](../interfaces/EntityTableConfig.md)                                           | -                                                                          |
 
 ## Returns
 

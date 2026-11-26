@@ -21,7 +21,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/restore-precheck
 
 The current client's change codec version; equal to `RXDB_CHANGE_CODEC_VERSION`
 
-***
+---
 
 ### entityResolved \{#entityresolved\}
 

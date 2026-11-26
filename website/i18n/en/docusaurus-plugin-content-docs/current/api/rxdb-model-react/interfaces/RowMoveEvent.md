@@ -21,7 +21,7 @@ Defined in: packages/rxdb-model/dist/entity-table/vtable/table-row-move.d.ts:19
 
 Primary key of the dragged row
 
-***
+---
 
 ### nextId \{#nextid\}
 
@@ -33,7 +33,7 @@ Defined in: packages/rxdb-model/dist/entity-table/vtable/table-row-move.d.ts:23
 
 Primary key of the row after the drop point; `null` when dropped at the tail
 
-***
+---
 
 ### prevId \{#previd\}
 

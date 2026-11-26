@@ -10,8 +10,8 @@ Value input component: derives the input form from the field type + operator.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter           | Type                                                  |
+| ------------------- | ----------------------------------------------------- |
 | `__namedParameters` | [`ValueInputProps`](../interfaces/ValueInputProps.md) |
 
 ## Returns

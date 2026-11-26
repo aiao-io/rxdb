@@ -20,7 +20,7 @@ Defined in: [types.ts:85](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccf
 
 The capability tier this page grants to DevTools.
 
-***
+---
 
 ### protocolVersion \{#protocolversion\}
 

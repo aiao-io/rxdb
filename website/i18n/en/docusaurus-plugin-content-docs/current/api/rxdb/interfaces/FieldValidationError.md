@@ -21,7 +21,7 @@ Defined in: [packages/rxdb/src/entity/entity-value.utils.ts:236](https://github.
 
 The physical name of the field
 
-***
+---
 
 ### message \{#message\}
 
@@ -33,7 +33,7 @@ Defined in: [packages/rxdb/src/entity/entity-value.utils.ts:238](https://github.
 
 The user-facing error text
 
-***
+---
 
 ### rule? \{#rule\}
 
@@ -45,7 +45,7 @@ Defined in: [packages/rxdb/src/entity/entity-value.utils.ts:240](https://github.
 
 The identifier of the rule hit, for programmatic branching by callers
 
-***
+---
 
 ### value? \{#value\}
 

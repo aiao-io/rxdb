@@ -10,10 +10,10 @@ Builds a set of checkout commands.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `database` | [`RxDB`](../../rxdb/classes/RxDB.md) | The main instance |
-| `patch` | [`WorktreeStatePatch`](../type-aliases/WorktreeStatePatch.md) | Where the state lands |
+| Parameter  | Type                                                          | Description           |
+| ---------- | ------------------------------------------------------------- | --------------------- |
+| `database` | [`RxDB`](../../rxdb/classes/RxDB.md)                          | The main instance     |
+| `patch`    | [`WorktreeStatePatch`](../type-aliases/WorktreeStatePatch.md) | Where the state lands |
 
 ## Returns
 

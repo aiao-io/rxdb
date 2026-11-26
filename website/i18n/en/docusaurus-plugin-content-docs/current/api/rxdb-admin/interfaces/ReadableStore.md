@@ -1,5 +1,5 @@
 ---
-sidebar_label: "ReadableStore⟨T⟩"
+sidebar_label: 'ReadableStore⟨T⟩'
 ---
 
 # ReadableStore`<T>`
@@ -18,8 +18,8 @@ The three framework bindings bridge it to their own reactive primitives: React's
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Properties
@@ -34,7 +34,7 @@ Defined in: [store.ts:14](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccf
 
 An observable that replays the current value and pushes subsequent changes.
 
-***
+---
 
 ### value \{#value\}
 
@@ -60,8 +60,8 @@ Subscribes to subsequent changes without replaying the current value.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                | Description          |
+| ---------- | ------------------- | -------------------- |
 | `listener` | (`value`) => `void` | The change callback. |
 
 #### Returns

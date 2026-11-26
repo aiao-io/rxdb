@@ -16,7 +16,7 @@ Defined in: [theme/themes.ts:6](https://github.com/aiao-io/rxdb/blob/b5232040240
 
 Whether it is a dark theme.
 
-***
+---
 
 ### name \{#name\}
 

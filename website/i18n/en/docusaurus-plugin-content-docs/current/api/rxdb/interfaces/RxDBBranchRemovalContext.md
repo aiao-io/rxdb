@@ -30,7 +30,7 @@ Defined in: [packages/rxdb/src/rxdb-plugin-system.ts:98](https://github.com/aiao
 
 The id of the branch that is about to be deleted and is still in the database at this moment.
 
-***
+---
 
 ### executor \{#executor\}
 

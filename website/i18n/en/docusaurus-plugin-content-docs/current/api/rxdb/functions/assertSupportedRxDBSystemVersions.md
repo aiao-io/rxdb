@@ -10,9 +10,9 @@ Asserts that the library's version is not higher than what this process supports
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `state` | [`RxDBSystemVersionState`](../interfaces/RxDBSystemVersionState.md) | The result of [getRxDBSystemVersionState](getRxDBSystemVersionState.md) |
+| Parameter | Type                                                                | Description                                                             |
+| --------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `state`   | [`RxDBSystemVersionState`](../interfaces/RxDBSystemVersionState.md) | The result of [getRxDBSystemVersionState](getRxDBSystemVersionState.md) |
 
 ## Returns
 

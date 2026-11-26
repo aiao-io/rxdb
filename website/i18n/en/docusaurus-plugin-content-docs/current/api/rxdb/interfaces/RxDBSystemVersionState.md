@@ -23,7 +23,7 @@ Defined in: [packages/rxdb/src/system/migration.ts:122](https://github.com/aiao-
 
 The change codec version; `0` means the database has no watermark row yet
 
-***
+---
 
 ### schemaVersion \{#schemaversion\}
 

@@ -10,10 +10,10 @@ Turns a dotted-path value into a patch object.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `path` | `string` | The dotted path. |
-| `value` | `unknown` | The value. |
+| Parameter | Type      | Description      |
+| --------- | --------- | ---------------- |
+| `path`    | `string`  | The dotted path. |
+| `value`   | `unknown` | The value.       |
 
 ## Returns
 

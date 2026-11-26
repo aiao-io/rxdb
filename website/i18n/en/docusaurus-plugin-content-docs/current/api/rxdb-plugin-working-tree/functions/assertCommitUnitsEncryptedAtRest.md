@@ -10,10 +10,10 @@ Validates that the encrypted columns of a batch of change units are all in at-re
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `context` | [`CommitPatchCodecContext`](../interfaces/CommitPatchCodecContext.md) | Metadata resolution and at-rest judgment context |
-| `units` | readonly [`CommitChangeUnitContent`](../interfaces/CommitChangeUnitContent.md)[] | The change units to commit, **in write order**; baseline commits pass an empty array |
+| Parameter | Type                                                                             | Description                                                                          |
+| --------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `context` | [`CommitPatchCodecContext`](../interfaces/CommitPatchCodecContext.md)            | Metadata resolution and at-rest judgment context                                     |
+| `units`   | readonly [`CommitChangeUnitContent`](../interfaces/CommitChangeUnitContent.md)[] | The change units to commit, **in write order**; baseline commits pass an empty array |
 
 ## Returns
 

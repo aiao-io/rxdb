@@ -10,9 +10,9 @@ Judges whether a value is a registered commit error code
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | The value to judge, usually the `code` taken off an object caught from `catch` |
+| Parameter | Type      | Description                                                                    |
+| --------- | --------- | ------------------------------------------------------------------------------ |
+| `value`   | `unknown` | The value to judge, usually the `code` taken off an object caught from `catch` |
 
 ## Returns
 

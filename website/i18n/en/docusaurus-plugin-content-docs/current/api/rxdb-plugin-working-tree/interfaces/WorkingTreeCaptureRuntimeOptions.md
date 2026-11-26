@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/capture-hook.ts:
 
 The versioned domain: entity classification is fixed; a getter may return the raw SQL judgment domain including newly created shadow tables
 
-***
+---
 
 ### entityManager \{#entitymanager\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/capture-hook.ts:
 
 Used to create working tree unit instances
 
-***
+---
 
 ### newUnitId? \{#newunitid\}
 
@@ -44,7 +44,7 @@ The unit id generator; only tests need to inject a deterministic value
 
 `string`
 
-***
+---
 
 ### systemEntityIdentities \{#systementityidentities\}
 
@@ -56,7 +56,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/capture-hook.ts:
 
 The identity set of system entities (`namespace:name`, e.g. `rxdb:RxDBBranch`); used when the namespace is known
 
-***
+---
 
 ### systemEntityNames \{#systementitynames\}
 

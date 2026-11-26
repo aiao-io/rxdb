@@ -7,6 +7,7 @@ Tree dropdown select component
 ## Description
 
 Tree field selector based on the Popover API and `@angular/cdk/a11y`:
+
 - Uses the native Popover API, so it is not clipped inside `overflow` containers
 - Supports keyword filtering (automatically expands matching paths)
 - Supports expanding/collapsing relation nodes
@@ -17,10 +18,10 @@ Tree field selector based on the Popover API and `@angular/cdk/a11y`:
 
 ```html
 <rxdb-tree-select
+  (selectChange)="onFieldSelect($event)"
   [nodes]="fieldTree()"
   [selected]="selectedField()"
   placeholder="选择字段"
-  (selectChange)="onFieldSelect($event)"
 />
 ```
 
@@ -48,7 +49,7 @@ readonly activeItemId: Signal<string | null>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts:273](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts#L273)
 
-***
+---
 
 ### ChevronDownIcon \{#chevrondownicon\}
 
@@ -58,7 +59,7 @@ protected readonly ChevronDownIcon: typeof LucideChevronDown;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts:224](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts#L224)
 
-***
+---
 
 ### ChevronRightIcon \{#chevronrighticon\}
 
@@ -68,7 +69,7 @@ protected readonly ChevronRightIcon: typeof LucideChevronRight;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts:225](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts#L225)
 
-***
+---
 
 ### defaultTypeColor \{#defaulttypecolor\}
 
@@ -78,7 +79,7 @@ protected readonly defaultTypeColor: "text-base-content/40" = 'text-base-content
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts:249](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts#L249)
 
-***
+---
 
 ### defaultTypeIcon \{#defaulttypeicon\}
 
@@ -88,7 +89,7 @@ protected readonly defaultTypeIcon: typeof LucideType = TypeIcon;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts:248](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts#L248)
 
-***
+---
 
 ### displayValue \{#displayvalue\}
 
@@ -98,7 +99,7 @@ readonly displayValue: Signal<string>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts:257](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts#L257)
 
-***
+---
 
 ### filterText \{#filtertext\}
 
@@ -108,7 +109,7 @@ protected readonly filterText: WritableSignal<string>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts:223](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts#L223)
 
-***
+---
 
 ### listId \{#listid\}
 
@@ -118,7 +119,7 @@ protected readonly listId: string;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts:222](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts#L222)
 
-***
+---
 
 ### minWidth \{#minwidth\}
 
@@ -128,7 +129,7 @@ readonly minWidth: InputSignal<string>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts:254](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts#L254)
 
-***
+---
 
 ### nodes \{#nodes\}
 
@@ -138,7 +139,7 @@ readonly nodes: InputSignal<FieldTreeNode[]>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts:251](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts#L251)
 
-***
+---
 
 ### placeholder \{#placeholder\}
 
@@ -148,7 +149,7 @@ readonly placeholder: InputSignal<string | undefined>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts:253](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts#L253)
 
-***
+---
 
 ### selectChange \{#selectchange\}
 
@@ -158,7 +159,7 @@ readonly selectChange: OutputEmitterRef<string>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts:255](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts#L255)
 
-***
+---
 
 ### selected \{#selected\}
 
@@ -168,7 +169,7 @@ readonly selected: InputSignal<string>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts:252](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts#L252)
 
-***
+---
 
 ### selectedNode \{#selectednode\}
 
@@ -178,7 +179,7 @@ readonly selectedNode: Signal<FieldTreeNode | null | undefined>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts:262](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts#L262)
 
-***
+---
 
 ### typeColorMap \{#typecolormap\}
 
@@ -188,7 +189,7 @@ protected readonly typeColorMap: Partial<Record<string, string>>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts:237](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts#L237)
 
-***
+---
 
 ### typeIconMap \{#typeiconmap\}
 
@@ -198,7 +199,7 @@ protected readonly typeIconMap: Partial<Record<string, LucideIconInput>>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts:226](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts#L226)
 
-***
+---
 
 ### uid \{#uid\}
 
@@ -208,7 +209,7 @@ protected readonly uid: string;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts:221](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts#L221)
 
-***
+---
 
 ### visibleItems \{#visibleitems\}
 
@@ -234,7 +235,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/tree-select/tree-sele
 
 [`ModelI18n`](../interfaces/ModelI18n.md)
 
-***
+---
 
 ### t \{#t\}
 
@@ -262,15 +263,15 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/tree-select/tree-sele
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `Event` |
+| Parameter | Type    |
+| --------- | ------- |
+| `event`   | `Event` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onItemClick() \{#onitemclick\}
 
@@ -282,15 +283,15 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/tree-select/tree-sele
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `item` | `FlatItem` |
+| Parameter | Type       |
+| --------- | ---------- |
+| `item`    | `FlatItem` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onKeydown() \{#onkeydown\}
 
@@ -302,15 +303,15 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/tree-select/tree-sele
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `KeyboardEvent` |
+| Parameter | Type            |
+| --------- | --------------- |
+| `event`   | `KeyboardEvent` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onToggle() \{#ontoggle\}
 
@@ -322,15 +323,15 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/tree-select/tree-sele
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `Event` |
+| Parameter | Type    |
+| --------- | ------- |
+| `event`   | `Event` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### trackItem() \{#trackitem\}
 
@@ -344,9 +345,9 @@ Tracking function: uses value + isExistsOption to avoid duplicate keys
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `item` | `FlatItem` |
+| Parameter | Type       |
+| --------- | ---------- |
+| `item`    | `FlatItem` |
 
 #### Returns
 

@@ -35,7 +35,7 @@ it just pushed for someone else's and pull them back.
 
 [`RxDBContext`](RxDBContext.md).[`clientId`](RxDBContext.md#clientid)
 
-***
+---
 
 ### createdAt? \{#createdat\}
 
@@ -45,7 +45,7 @@ createdAt?: Date;
 
 Defined in: [packages/rxdb/src/repository/query.interface.ts:178](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query.interface.ts#L178)
 
-***
+---
 
 ### returning? \{#returning\}
 
@@ -57,7 +57,7 @@ Defined in: [packages/rxdb/src/repository/query.interface.ts:171](https://github
 
 Whether to return data.
 
-***
+---
 
 ### updatedAt? \{#updatedat\}
 
@@ -69,7 +69,7 @@ Defined in: [packages/rxdb/src/repository/query.interface.ts:176](https://github
 
 Custom update time.
 
-***
+---
 
 ### userId? \{#userid\}
 

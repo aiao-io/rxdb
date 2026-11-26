@@ -10,9 +10,9 @@ Converts a runtime value into a JSON-safe DevTools wire value detached from the 
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | A runtime value exposed as read-only diagnostic information. |
+| Parameter | Type      | Description                                                  |
+| --------- | --------- | ------------------------------------------------------------ |
+| `value`   | `unknown` | A runtime value exposed as read-only diagnostic information. |
 
 ## Returns
 

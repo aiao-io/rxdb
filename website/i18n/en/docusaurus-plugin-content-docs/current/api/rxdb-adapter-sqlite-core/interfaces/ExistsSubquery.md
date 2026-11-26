@@ -20,7 +20,7 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/query/query\_sql.utils.ts:66]
 
 The JOIN clause produced by relation paths inside the subquery (with its own leading space); the empty string when there are no relation paths
 
-***
+---
 
 ### where \{#where\}
 

@@ -1,5 +1,5 @@
 ---
-sidebar_label: "RepositoryConstructor⟨RT⟩"
+sidebar_label: 'RepositoryConstructor⟨RT⟩'
 ---
 
 # RepositoryConstructor`<RT>`
@@ -19,9 +19,9 @@ while adapter repositories take the adapter instance. The two axes register sepa
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-rt"></a> `RT` *extends* [`RepositoryInstance`](RepositoryInstance.md) | [`RepositoryInstance`](RepositoryInstance.md) |
+| Type Parameter                                                                              | Default type                                  |
+| ------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| <a id="type-parameter-rt"></a> `RT` _extends_ [`RepositoryInstance`](RepositoryInstance.md) | [`RepositoryInstance`](RepositoryInstance.md) |
 
 ## Constructors
 
@@ -35,8 +35,8 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:120](https://github.com/aiao-io/r
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type      |
+| --------- | --------- |
 | ...`args` | `never`[] |
 
 #### Returns
@@ -53,10 +53,10 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:121](https://github.com/aiao-io/r
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rxdb` | [`RxDB`](../classes/RxDB.md) |
-| `EntityType` | `RT`\[`"EntityType"`\] |
+| Parameter    | Type                         |
+| ------------ | ---------------------------- |
+| `rxdb`       | [`RxDB`](../classes/RxDB.md) |
+| `EntityType` | `RT`\[`"EntityType"`\]       |
 
 #### Returns
 

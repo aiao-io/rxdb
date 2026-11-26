@@ -1,7 +1,7 @@
 # RXDB_CHANGE_CODEC_WATERMARK_PREFIX
 
 ```ts
-const RXDB_CHANGE_CODEC_WATERMARK_PREFIX: "__rxdb_change_codec__:";
+const RXDB_CHANGE_CODEC_WATERMARK_PREFIX: '__rxdb_change_codec__:';
 ```
 
 Defined in: [packages/rxdb/src/system/migration.ts:88](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/migration.ts#L88)

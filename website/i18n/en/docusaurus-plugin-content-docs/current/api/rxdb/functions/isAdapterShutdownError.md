@@ -12,9 +12,9 @@ During RxDB.disconnect, in-flight queries hit the already-disconnected adapter a
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `err` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `err`     | `unknown` |
 
 ## Returns
 

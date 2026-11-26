@@ -1,5 +1,5 @@
 ---
-sidebar_label: "Plugin⟨Options⟩"
+sidebar_label: 'Plugin⟨Options⟩'
 ---
 
 # Plugin`<Options>`
@@ -14,16 +14,16 @@ RxDB plugin
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-options"></a> `Options` | `never` |
+| Type Parameter                                | Default type |
+| --------------------------------------------- | ------------ |
+| <a id="type-parameter-options"></a> `Options` | `never`      |
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rxDB` | [`RxDB`](../classes/RxDB.md) |
-| `options?` | `Options` |
+| Parameter  | Type                         |
+| ---------- | ---------------------------- |
+| `rxDB`     | [`RxDB`](../classes/RxDB.md) |
+| `options?` | `Options`                    |
 
 ## Returns
 

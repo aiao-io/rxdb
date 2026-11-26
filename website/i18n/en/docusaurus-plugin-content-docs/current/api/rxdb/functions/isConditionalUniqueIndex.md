@@ -10,9 +10,9 @@ Whether the index is a conditional unique index (one that declares `where`).
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `index` | [`EntityIndexMetadataOptions`](../interfaces/EntityIndexMetadataOptions.md) |
+| Parameter | Type                                                                        |
+| --------- | --------------------------------------------------------------------------- |
+| `index`   | [`EntityIndexMetadataOptions`](../interfaces/EntityIndexMetadataOptions.md) |
 
 ## Returns
 

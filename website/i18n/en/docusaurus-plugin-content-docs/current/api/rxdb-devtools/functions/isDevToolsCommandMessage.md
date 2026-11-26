@@ -10,8 +10,8 @@ Checks whether a legal message is a command allowed into the page handler.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                          |
+| --------- | ------------------------------------------------------------- |
 | `message` | [`AnyDevToolsMessage`](../type-aliases/AnyDevToolsMessage.md) |
 
 ## Returns

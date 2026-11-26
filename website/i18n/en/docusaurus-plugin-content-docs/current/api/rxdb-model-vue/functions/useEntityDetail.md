@@ -10,8 +10,8 @@ Vue entity detail binding; config changes do not discard the draft.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                              |
+| --------- | --------------------------------------------------------------------------------- |
 | `options` | [`EntityDetailControllerOptions`](../interfaces/EntityDetailControllerOptions.md) |
 
 ## Returns

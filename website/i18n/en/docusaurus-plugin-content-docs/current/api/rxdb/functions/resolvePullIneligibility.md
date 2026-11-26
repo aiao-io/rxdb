@@ -1,12 +1,7 @@
 # resolvePullIneligibility()
 
 ```ts
-function resolvePullIneligibility(
-   rxdb, 
-   namespace, 
-   entity, 
-   syncType
-): Promise<string | undefined>;
+function resolvePullIneligibility(rxdb, namespace, entity, syncType): Promise<string | undefined>;
 ```
 
 Defined in: [packages/rxdb/src/sync-contract/sync-record-utils.ts:76](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/sync-record-utils.ts#L76)
@@ -17,12 +12,12 @@ Judges whether a repository can currently pull (two gates: syncType + `RxDBSync.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `rxdb` | [`RxDB`](../classes/RxDB.md) | The RxDB instance |
-| `namespace` | `string` | The namespace |
-| `entity` | `string` | The entity name |
-| `syncType` | [`RepositorySyncType`](../type-aliases/RepositorySyncType.md) | The resolved sync type |
+| Parameter   | Type                                                          | Description            |
+| ----------- | ------------------------------------------------------------- | ---------------------- |
+| `rxdb`      | [`RxDB`](../classes/RxDB.md)                                  | The RxDB instance      |
+| `namespace` | `string`                                                      | The namespace          |
+| `entity`    | `string`                                                      | The entity name        |
+| `syncType`  | [`RepositorySyncType`](../type-aliases/RepositorySyncType.md) | The resolved sync type |
 
 ## Returns
 

@@ -16,7 +16,7 @@ Defined in: packages/rxdb-model/dist/query-builder/utils/metadata-field-extracto
 
 Example description
 
-***
+---
 
 ### modelName \{#modelname\}
 
@@ -28,7 +28,7 @@ Defined in: packages/rxdb-model/dist/query-builder/utils/metadata-field-extracto
 
 Name of the model the example belongs to
 
-***
+---
 
 ### name \{#name\}
 
@@ -40,7 +40,7 @@ Defined in: packages/rxdb-model/dist/query-builder/utils/metadata-field-extracto
 
 Example name
 
-***
+---
 
 ### query \{#query\}
 

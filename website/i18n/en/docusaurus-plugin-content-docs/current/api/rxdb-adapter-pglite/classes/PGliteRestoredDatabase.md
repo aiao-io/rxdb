@@ -22,8 +22,8 @@ await rxdb.connect('pglite');
 
 ```ts
 new PGliteRestoredDatabase(
-   pglite, 
-   rxdb, 
+   pglite,
+   rxdb,
    extensions
 ): PGliteRestoredDatabase;
 ```
@@ -34,11 +34,11 @@ Defined in: [packages/rxdb-adapter-pglite/src/backup/pglite-restored-database.ts
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `pglite` | `PGlite` |
-| `rxdb` | [`RxDB`](../../rxdb/classes/RxDB.md) |
-| `extensions` | readonly `string`[] |
+| Parameter    | Type                                 |
+| ------------ | ------------------------------------ |
+| `pglite`     | `PGlite`                             |
+| `rxdb`       | [`RxDB`](../../rxdb/classes/RxDB.md) |
+| `extensions` | readonly `string`[]                  |
 
 #### Returns
 
@@ -78,10 +78,10 @@ Admission check before the adapter connects: the claimant must be the RxDB insta
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `rxdb` | [`RxDB`](../../rxdb/classes/RxDB.md) | The claimant |
-| `extensions` | readonly `string`[] | The claimant adapter's extensions (result of `pgliteBackupExtensions`) |
+| Parameter    | Type                                 | Description                                                            |
+| ------------ | ------------------------------------ | ---------------------------------------------------------------------- |
+| `rxdb`       | [`RxDB`](../../rxdb/classes/RxDB.md) | The claimant                                                           |
+| `extensions` | readonly `string`[]                  | The claimant adapter's extensions (result of `pgliteBackupExtensions`) |
 
 #### Returns
 
@@ -95,7 +95,7 @@ The client only knows the database name; instance identity can only be judged by
 
 RxDBBackupError `invalid_state` when it is not the validated instance, the extensions differ, or it was already claimed
 
-***
+---
 
 ### close() \{#close\}
 
@@ -111,7 +111,7 @@ Discards an unclaimed instance; does nothing when already claimed (the instance 
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### take() \{#take\}
 
@@ -127,9 +127,9 @@ Claims the restored instance.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `dbName` | `string` | The claimant's database name (`rxdb.config.dbName`) |
+| Parameter    | Type                | Description                                                            |
+| ------------ | ------------------- | ---------------------------------------------------------------------- |
+| `dbName`     | `string`            | The claimant's database name (`rxdb.config.dbName`)                    |
 | `extensions` | readonly `string`[] | Extensions loaded by the claimant (result of `pgliteBackupExtensions`) |
 
 #### Returns

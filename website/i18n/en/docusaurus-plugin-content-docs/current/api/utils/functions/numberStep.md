@@ -11,10 +11,10 @@ Commonly used in form controls, grid layouts, and other scenarios that need valu
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `number` | The number to round |
-| `step` | `number` | Step interval; must be a positive finite number |
+| Parameter | Type     | Description                                     |
+| --------- | -------- | ----------------------------------------------- |
+| `value`   | `number` | The number to round                             |
+| `step`    | `number` | Step interval; must be a positive finite number |
 
 ## Returns
 
@@ -29,11 +29,11 @@ when step is not a positive finite number
 ## Examples
 
 ```ts
-numberStep(7, 5);   // returns 10 (2 times 5)
+numberStep(7, 5); // returns 10 (2 times 5)
 ```
 
 ```ts
-numberStep(5, 5);   // returns 5 (1 times 5)
+numberStep(5, 5); // returns 5 (1 times 5)
 ```
 
 ```ts

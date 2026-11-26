@@ -18,10 +18,10 @@ Hashes a password with a salt.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `password` | `string` | The plaintext. |
-| `salt` | `string` | The salt (hexadecimal). |
+| Parameter  | Type     | Description             |
+| ---------- | -------- | ----------------------- |
+| `password` | `string` | The plaintext.          |
+| `salt`     | `string` | The salt (hexadecimal). |
 
 #### Returns
 

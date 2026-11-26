@@ -10,10 +10,10 @@ Compiles an entity-level CHECK into a normalized SQL expression (without the `CH
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) | The entity metadata produced by `transitionMetadata()` |
-| `check` | [`EntityCheckMetadataOptions`](../interfaces/EntityCheckMetadataOptions.md) | The entity-level CHECK declaration |
+| Parameter  | Type                                                                        | Description                                            |
+| ---------- | --------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md)                       | The entity metadata produced by `transitionMetadata()` |
+| `check`    | [`EntityCheckMetadataOptions`](../interfaces/EntityCheckMetadataOptions.md) | The entity-level CHECK declaration                     |
 
 ## Returns
 
@@ -24,4 +24,4 @@ The normalized expression: column names double-quote delimited, literals compile
 ## Throws
 
 [RxDBError](../classes/RxDBError.md) for operators outside the whitelist, relation paths, JSON / key-value / binary / encrypted columns,
-  literals out of the value domain, etc.; the message names the constraint and the reason (AC#9 / AC#15)
+literals out of the value domain, etc.; the message names the constraint and the reason (AC#9 / AC#15)

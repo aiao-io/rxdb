@@ -16,7 +16,7 @@ Defined in: packages/rxdb-model/dist/query-builder/utils/metadata-field-extracto
 
 Entity display name
 
-***
+---
 
 ### entityClass \{#entityclass\}
 
@@ -30,15 +30,15 @@ Entity class constructor
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type      |
+| --------- | --------- |
 | ...`args` | `never`[] |
 
 #### Returns
 
 `unknown`
 
-***
+---
 
 ### metadata \{#metadata\}
 
@@ -50,7 +50,7 @@ Defined in: packages/rxdb-model/dist/query-builder/utils/metadata-field-extracto
 
 RxDB entity metadata
 
-***
+---
 
 ### name \{#name\}
 

@@ -1,5 +1,5 @@
 ---
-sidebar_label: "Oo1ClientBase⟨TLoadOptions⟩"
+sidebar_label: 'Oo1ClientBase⟨TLoadOptions⟩'
 ---
 
 # Oo1ClientBase`<TLoadOptions>`
@@ -35,9 +35,9 @@ custom function registration, OPFS fallback) lives here.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-tloadoptions"></a> `TLoadOptions` *extends* [`Oo1ClientLoadOptions`](../interfaces/Oo1ClientLoadOptions.md) | [`Oo1ClientLoadOptions`](../interfaces/Oo1ClientLoadOptions.md) |
+| Type Parameter                                                                                                                    | Default type                                                    |
+| --------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| <a id="type-parameter-tloadoptions"></a> `TLoadOptions` _extends_ [`Oo1ClientLoadOptions`](../interfaces/Oo1ClientLoadOptions.md) | [`Oo1ClientLoadOptions`](../interfaces/Oo1ClientLoadOptions.md) |
 
 ## Implements
 
@@ -69,7 +69,7 @@ protected db: Oo1Database;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/Oo1ClientBase.ts:100](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/Oo1ClientBase.ts#L100)
 
-***
+---
 
 ### sqlite3 \{#sqlite3\}
 
@@ -112,10 +112,10 @@ Delegates to the generic implementation in [EventDispatcher](../../utils/classes
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `type` | [`SQLiteChangeType`](../enumerations/SQLiteChangeType.md) |
-| `handler` | (`event`) => `void` |
+| Parameter | Type                                                      |
+| --------- | --------------------------------------------------------- |
+| `type`    | [`SQLiteChangeType`](../enumerations/SQLiteChangeType.md) |
+| `handler` | (`event`) => `void`                                       |
 
 #### Returns
 
@@ -129,7 +129,7 @@ Delegates to the generic implementation in [EventDispatcher](../../utils/classes
 
 [`EventDispatcher`](../../utils/classes/EventDispatcher.md).[`addEventListener`](../../utils/classes/EventDispatcher.md#addeventlistener)
 
-***
+---
 
 ### beginSystemMigrationTransactionSql() \{#beginsystemmigrationtransactionsql\}
 
@@ -149,7 +149,7 @@ Gets the strongest lock the backend supports for system schema upgrades.
 
 [`SqliteClientLike`](../interfaces/SqliteClientLike.md).[`beginSystemMigrationTransactionSql`](../interfaces/SqliteClientLike.md#beginsystemmigrationtransactionsql)
 
-***
+---
 
 ### beginTransactionSql() \{#begintransactionsql\}
 
@@ -178,7 +178,7 @@ A Comlink remote client returns a Promise even when the implementation is synchr
 
 [`SqliteClientLike`](../interfaces/SqliteClientLike.md).[`beginTransactionSql`](../interfaces/SqliteClientLike.md#begintransactionsql)
 
-***
+---
 
 ### describeBlankDatabase() \{#describeblankdatabase\}
 
@@ -200,7 +200,7 @@ The object list and description of the empty database
 
 [`SqliteClientLike`](../interfaces/SqliteClientLike.md).[`describeBlankDatabase`](../interfaces/SqliteClientLike.md#describeblankdatabase)
 
-***
+---
 
 ### disconnect() \{#disconnect\}
 
@@ -218,7 +218,7 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/Oo1ClientBase.ts:180](https:/
 
 [`SqliteClientLike`](../interfaces/SqliteClientLike.md).[`disconnect`](../interfaces/SqliteClientLike.md#disconnect)
 
-***
+---
 
 ### dispatchEvent() \{#dispatchevent\}
 
@@ -235,16 +235,16 @@ the current iteration (otherwise a single synchronous dispatch could be extended
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* keyof [`Oo1ClientEvents`](../interfaces/Oo1ClientEvents.md) |
+| Type Parameter                                                                                          |
+| ------------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ keyof [`Oo1ClientEvents`](../interfaces/Oo1ClientEvents.md) |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `type` | `T` | The event name |
-| `data` | [`Oo1ClientEvents`](../interfaces/Oo1ClientEvents.md)\[`T`\] | The event data |
+| Parameter | Type                                                         | Description    |
+| --------- | ------------------------------------------------------------ | -------------- |
+| `type`    | `T`                                                          | The event name |
+| `data`    | [`Oo1ClientEvents`](../interfaces/Oo1ClientEvents.md)\[`T`\] | The event data |
 
 #### Returns
 
@@ -258,7 +258,7 @@ Any exception thrown by a listener, bubbling up as-is; subsequent listeners do n
 
 [`EventDispatcher`](../../utils/classes/EventDispatcher.md).[`dispatchEvent`](../../utils/classes/EventDispatcher.md#dispatchevent)
 
-***
+---
 
 ### execute() \{#execute\}
 
@@ -272,10 +272,10 @@ Executes SQL.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `sql` | `string` | The SQL statement |
-| `bindings?` | [`SQLiteCompatibleType`](../type-aliases/SQLiteCompatibleType.md)[] | Bound parameters |
+| Parameter   | Type                                                                | Description       |
+| ----------- | ------------------------------------------------------------------- | ----------------- |
+| `sql`       | `string`                                                            | The SQL statement |
+| `bindings?` | [`SQLiteCompatibleType`](../type-aliases/SQLiteCompatibleType.md)[] | Bound parameters  |
 
 #### Returns
 
@@ -291,7 +291,7 @@ The client is disconnected, or `init` has not completed
 
 [`SqliteClientLike`](../interfaces/SqliteClientLike.md).[`execute`](../interfaces/SqliteClientLike.md#execute)
 
-***
+---
 
 ### hasEventListener() \{#haseventlistener\}
 
@@ -305,16 +305,16 @@ Queries whether a listener is registered. Does not create a collection for unkno
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-1"></a> `T` *extends* keyof [`Oo1ClientEvents`](../interfaces/Oo1ClientEvents.md) |
+| Type Parameter                                                                                            |
+| --------------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-1"></a> `T` _extends_ keyof [`Oo1ClientEvents`](../interfaces/Oo1ClientEvents.md) |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `type` | `T` | The event name |
-| `listener` | [`EventListener`](../../utils/type-aliases/EventListener.md)&lt;[`Oo1ClientEvents`](../interfaces/Oo1ClientEvents.md)\[`T`\]&gt; | The listener |
+| Parameter  | Type                                                                                                                             | Description    |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| `type`     | `T`                                                                                                                              | The event name |
+| `listener` | [`EventListener`](../../utils/type-aliases/EventListener.md)&lt;[`Oo1ClientEvents`](../interfaces/Oo1ClientEvents.md)\[`T`\]&gt; | The listener   |
 
 #### Returns
 
@@ -326,7 +326,7 @@ Whether it is registered
 
 [`EventDispatcher`](../../utils/classes/EventDispatcher.md).[`hasEventListener`](../../utils/classes/EventDispatcher.md#haseventlistener)
 
-***
+---
 
 ### init() \{#init\}
 
@@ -338,16 +338,16 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/Oo1ClientBase.ts:113](https:/
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `dbName` | `string` |
+| Parameter  | Type           |
+| ---------- | -------------- |
+| `dbName`   | `string`       |
 | `options?` | `TLoadOptions` |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### loadModule() \{#loadmodule\}
 
@@ -361,15 +361,15 @@ Loads and initializes the underlying sqlite-wasm module.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type           |
+| ---------- | -------------- |
 | `options?` | `TLoadOptions` |
 
 #### Returns
 
 `Promise`&lt;[`Oo1Static`](../interfaces/Oo1Static.md)&gt;
 
-***
+---
 
 ### normalizeRowId() \{#normalizerowid\}
 
@@ -386,15 +386,15 @@ the official client overrides this method to force a `bigint` conversion. Subcla
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rowId` | `number` \| `bigint` |
+| Parameter | Type                 |
+| --------- | -------------------- |
+| `rowId`   | `number` \| `bigint` |
 
 #### Returns
 
 `bigint`
 
-***
+---
 
 ### removeAllEventListeners() \{#removealleventlisteners\}
 
@@ -414,7 +414,7 @@ Clears all listeners under all event names.
 
 [`EventDispatcher`](../../utils/classes/EventDispatcher.md).[`removeAllEventListeners`](../../utils/classes/EventDispatcher.md#removealleventlisteners)
 
-***
+---
 
 ### removeEventListener() \{#removeeventlistener\}
 
@@ -430,16 +430,16 @@ If removed during a `dispatchEvent`, the removed listener **still** receives the
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-2"></a> `T` *extends* keyof [`Oo1ClientEvents`](../interfaces/Oo1ClientEvents.md) |
+| Type Parameter                                                                                            |
+| --------------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-2"></a> `T` _extends_ keyof [`Oo1ClientEvents`](../interfaces/Oo1ClientEvents.md) |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `type` | `T` | The event name |
-| `listener` | [`EventListener`](../../utils/type-aliases/EventListener.md)&lt;[`Oo1ClientEvents`](../interfaces/Oo1ClientEvents.md)\[`T`\]&gt; | The listener |
+| Parameter  | Type                                                                                                                             | Description    |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| `type`     | `T`                                                                                                                              | The event name |
+| `listener` | [`EventListener`](../../utils/type-aliases/EventListener.md)&lt;[`Oo1ClientEvents`](../interfaces/Oo1ClientEvents.md)\[`T`\]&gt; | The listener   |
 
 #### Returns
 
@@ -449,7 +449,7 @@ If removed during a `dispatchEvent`, the removed listener **still** receives the
 
 [`EventDispatcher`](../../utils/classes/EventDispatcher.md).[`removeEventListener`](../../utils/classes/EventDispatcher.md#removeeventlistener)
 
-***
+---
 
 ### setChangeEventsMuted() \{#setchangeeventsmuted\}
 
@@ -463,9 +463,9 @@ Pauses / resumes change event collection.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `muted` | `boolean` | When `true`, the update hook ignores writes outright — neither batched nor dispatched |
+| Parameter | Type      | Description                                                                           |
+| --------- | --------- | ------------------------------------------------------------------------------------- |
+| `muted`   | `boolean` | When `true`, the update hook ignores writes outright — neither batched nor dispatched |
 
 #### Returns
 
@@ -475,7 +475,7 @@ Pauses / resumes change event collection.
 
 [`SqliteClientLike`](../interfaces/SqliteClientLike.md).[`setChangeEventsMuted`](../interfaces/SqliteClientLike.md#setchangeeventsmuted)
 
-***
+---
 
 ### version() \{#version\}
 

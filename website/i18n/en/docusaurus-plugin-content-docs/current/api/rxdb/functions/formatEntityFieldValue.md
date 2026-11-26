@@ -8,10 +8,10 @@ Defined in: [packages/rxdb/src/entity/entity-value.utils.ts:199](https://github.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `type` | `string` |
-| `value` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `type`    | `string`  |
+| `value`   | `unknown` |
 
 ## Returns
 

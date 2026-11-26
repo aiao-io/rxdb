@@ -1,5 +1,5 @@
 ---
-sidebar_label: "IEntityStaticType⟨StaticTypes⟩"
+sidebar_label: 'IEntityStaticType⟨StaticTypes⟩'
 ---
 
 # IEntityStaticType`<StaticTypes>`
@@ -19,9 +19,9 @@ back-reference (`ENTITY_TYPE` slot) of [transitionMetadata](../functions/transit
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-statictypes"></a> `StaticTypes` *extends* `object` | `object` |
+| Type Parameter                                                           | Default type |
+| ------------------------------------------------------------------------ | ------------ |
+| <a id="type-parameter-statictypes"></a> `StaticTypes` _extends_ `object` | `object`     |
 
 ## Properties
 
