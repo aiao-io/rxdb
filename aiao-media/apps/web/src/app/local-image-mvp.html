@@ -1211,12 +1211,14 @@
       @if (modelMessage()) {
         <p role="status">{{ modelMessage() }}</p>
       }
-      <button class="secondary" [disabled]="settingsBusy()" (click)="refreshModels()" type="button">
-        刷新平台模型
-      </button>
-      <button class="secondary" [disabled]="settingsBusy()" (click)="openGenerationAccount()" type="button">
-        {{ authStatus() === 'signed-in' ? '我的账号与积分' : '登录平台账号' }}
-      </button>
+      <div class="provider-actions">
+        <button class="secondary" [disabled]="settingsBusy()" (click)="refreshModels()" type="button">
+          刷新平台模型
+        </button>
+        <button class="secondary" [disabled]="settingsBusy()" (click)="openGenerationAccount()" type="button">
+          {{ authStatus() === 'signed-in' ? '我的账号与积分' : '登录平台账号' }}
+        </button>
+      </div>
       <p>
         任务结果加密暂存于平台，结清后删除；未取回的结果最长保留 24 小时。任务令牌仅在本机，刷新后可在此设备继续取回。
       </p>
