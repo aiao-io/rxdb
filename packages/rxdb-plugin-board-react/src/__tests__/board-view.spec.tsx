@@ -21,6 +21,12 @@ import {
   withinAll
 } from './board-test-utils.js';
 
+// 视图文案已迁入 board 目录：注入 zh-Hans 运行时，断言保持 zh 逐字文案
+vi.mock('../board-i18n.js', async () => {
+  const { boardI18nZhMock } = await import('./board-test-utils.js');
+  return boardI18nZhMock();
+});
+
 /**
  * BoardView 组件（看板 v2 的 React 半边）：真实 PGlite + 历史插件上的渲染与交互闭环，
  * 与 Angular 同名用例同组验收语义。真实拖拽、axe 与跨页恢复在 demo e2e。

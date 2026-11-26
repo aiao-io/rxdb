@@ -182,7 +182,7 @@ export class TreeMenuLazyStore<C extends TreeMenuEntityConstructor>
    * ```typescript
    * const warning = store.searchWarning();
    * if (warning) {
-   *   console.log(warning.message);
+   *   console.log(warning.messageKey);
    *   console.log(`已加载: ${warning.loadedCount}, 已展开: ${warning.expandedCount}, 根节点: ${warning.rootCount}`);
    * }
    * ```
@@ -203,7 +203,7 @@ export class TreeMenuLazyStore<C extends TreeMenuEntityConstructor>
 
     if (hasCollapsedNodes) {
       return {
-        message: '搜索仅限于已加载的节点。展开更多节点以搜索其子节点。',
+        messageKey: 'page.tree.searchScopeHint',
         loadedCount,
         expandedCount,
         rootCount

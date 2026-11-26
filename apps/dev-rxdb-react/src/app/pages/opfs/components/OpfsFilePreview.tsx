@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-react';
 /**
  * OPFS 文件预览组件
  */
@@ -29,6 +30,7 @@ interface OpfsFilePreviewContentProps {
 }
 
 function OpfsFilePreviewContent({ entry, previewFile, onClose }: OpfsFilePreviewContentProps) {
+  const { t } = useI18n();
   const [loading, setLoading] = useState(true);
   const [content, setContent] = useState<string | null>(null);
   const [textContent, setTextContent] = useState('');
@@ -117,7 +119,12 @@ function OpfsFilePreviewContent({ entry, previewFile, onClose }: OpfsFilePreview
       <div className='modal-box flex h-[80vh] max-w-4xl flex-col' onClick={e => e.stopPropagation()}>
         <div className='mb-4 flex items-center justify-between'>
           <h3 className='text-lg font-bold'>{entry.name}</h3>
-          <button className='btn btn-sm btn-circle btn-ghost' onClick={handleClose} type='button'>
+          <button
+            className='btn btn-sm btn-circle btn-ghost'
+            aria-label={t('file.closePreview')}
+            onClick={handleClose}
+            type='button'
+          >
             <X size={16} />
           </button>
         </div>
@@ -136,14 +143,14 @@ function OpfsFilePreviewContent({ entry, previewFile, onClose }: OpfsFilePreview
               {fileType === 'audio' && content && (
                 <div className='flex items-center justify-center p-4'>
                   <audio className='w-full max-w-xl' src={content} controls>
-                    您的浏览器不支持音频播放
+                    {t('file.audioUnsupported')}
                   </audio>
                 </div>
               )}
               {fileType === 'video' && content && (
                 <div className='flex h-full items-center justify-center p-4'>
                   <video className='max-h-full max-w-full' src={content} controls>
-                    您的浏览器不支持视频播放
+                    {t('file.videoUnsupported')}
                   </video>
                 </div>
               )}
@@ -162,7 +169,7 @@ function OpfsFilePreviewContent({ entry, previewFile, onClose }: OpfsFilePreview
                 <pre className='bg-base-200 overflow-auto rounded p-4 text-xs'>{textContent}</pre>
               )}
               {fileType === 'unknown' && !content && !textContent && (
-                <div className='text-base-content/40 py-8 text-center'>无法预览此文件</div>
+                <div className='text-base-content/40 py-8 text-center'>{t('file.previewUnsupported')}</div>
               )}
             </>
           }
@@ -170,7 +177,7 @@ function OpfsFilePreviewContent({ entry, previewFile, onClose }: OpfsFilePreview
 
         <div className='modal-action'>
           <button className='btn btn-sm' onClick={handleClose} type='button'>
-            关闭
+            {t('file.close')}
           </button>
         </div>
       </div>

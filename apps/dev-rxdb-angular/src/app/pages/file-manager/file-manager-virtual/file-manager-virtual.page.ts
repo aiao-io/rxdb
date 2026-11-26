@@ -1,5 +1,7 @@
 import { RxDB } from '@aiao/rxdb';
 import { useFindAll } from '@aiao/rxdb-angular';
+import { resolveUiLocale } from '@aiao/rxdb-i18n';
+import { useI18nOptional } from '@aiao/rxdb-i18n-angular';
 import { SortableFileNode } from '@aiao/rxdb-test/entities';
 import { ScrollingModule } from '@angular/cdk/scrolling';
 import { AsyncPipe, CommonModule } from '@angular/common';
@@ -122,13 +124,16 @@ export default class FileManagerVirtualPage extends TreeFileDragDropBase<typeof 
       where: { combinator: 'and', rules: [] }
     });
     const history = rxdb.versionManager.history(SortableFileNode);
+    const i18n = useI18nOptional();
+    const uiLocale = () => i18n?.locale() ?? resolveUiLocale(globalThis.navigator?.language);
     const store = new TreeFileDragDropStore(
       rxdb,
       inject(FilePathValidatorService),
       inject(FileDragDropService),
       fileResource,
       SortableFileNode,
-      history
+      history,
+      uiLocale
     );
 
     super(store, fileResource, SortableFileNode, history);

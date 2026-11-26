@@ -1,4 +1,5 @@
-import { formatFileSize, STORAGE_TESTID } from '@aiao/utils';
+import { useI18nOptional } from '@aiao/rxdb-i18n-angular';
+import { STORAGE_TESTID } from '@aiao/utils';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, input, output } from '@angular/core';
 import {
@@ -9,6 +10,7 @@ import {
   LucidePen as Pen,
   LucideTrash2 as Trash2
 } from '@lucide/angular';
+import { formatFileDate, formatFileSize } from '@modules/demo-i18n/files';
 import { I18nPipe } from '../../../pipes/i18n.pipe';
 import { canPreviewFile, getFileIcon, getFileIconColor, StorageBrowserItem } from '../utils/storage-utils';
 
@@ -21,10 +23,10 @@ import { canPreviewFile, getFileIcon, getFileIconColor, StorageBrowserItem } fro
     <table class="table-zebra table select-none" [attr.data-testid]="TESTID.FILE_LIST">
       <thead>
         <tr>
-          <th>{{ 'page.storage.name' | i18n }}</th>
-          <th class="w-32">{{ 'page.storage.size' | i18n }}</th>
-          <th class="hidden w-40 md:table-cell">{{ 'page.storage.modified' | i18n }}</th>
-          <th class="w-24">{{ 'page.storage.actions' | i18n }}</th>
+          <th>{{ 'file.name' | i18n }}</th>
+          <th class="w-32">{{ 'file.size' | i18n }}</th>
+          <th class="hidden w-40 md:table-cell">{{ 'file.modified' | i18n }}</th>
+          <th class="w-24">{{ 'file.actions' | i18n }}</th>
         </tr>
       </thead>
       <tbody>
@@ -67,14 +69,14 @@ import { canPreviewFile, getFileIcon, getFileIconColor, StorageBrowserItem } fro
                 @if (entry.kind === 'directory') {
                   <button
                     class="btn btn-ghost btn-xs"
-                    [attr.title]="'common.open' | i18n"
+                    [attr.title]="'file.open' | i18n"
                     (click)="navigate.emit(entry); $event.stopPropagation()"
                   >
                     <svg [lucideIcon]="FolderOpen" size="14"></svg>
                   </button>
                   <button
                     class="btn btn-ghost btn-xs"
-                    [attr.title]="'common.downloadZip' | i18n"
+                    [attr.title]="'file.downloadZip' | i18n"
                     (click)="download.emit(entry); $event.stopPropagation()"
                   >
                     <svg [lucideIcon]="Download" size="14"></svg>
@@ -84,7 +86,7 @@ import { canPreviewFile, getFileIcon, getFileIconColor, StorageBrowserItem } fro
                     <button
                       class="btn btn-ghost btn-xs"
                       [attr.data-testid]="TESTID.PREVIEW_BTN"
-                      [attr.title]="'common.view' | i18n"
+                      [attr.title]="'file.view' | i18n"
                       (click)="preview.emit(entry); $event.stopPropagation()"
                     >
                       <svg [lucideIcon]="Eye" size="14"></svg>
@@ -93,7 +95,7 @@ import { canPreviewFile, getFileIcon, getFileIconColor, StorageBrowserItem } fro
                   <button
                     class="btn btn-ghost btn-xs"
                     [attr.data-testid]="TESTID.DOWNLOAD_BTN"
-                    [attr.title]="'common.download' | i18n"
+                    [attr.title]="'file.download' | i18n"
                     (click)="download.emit(entry); $event.stopPropagation()"
                   >
                     <svg [lucideIcon]="Download" size="14"></svg>
@@ -101,7 +103,7 @@ import { canPreviewFile, getFileIcon, getFileIconColor, StorageBrowserItem } fro
                 }
                 <button
                   class="btn btn-ghost btn-xs"
-                  [attr.title]="'common.rename' | i18n"
+                  [attr.title]="'file.rename' | i18n"
                   (click)="rename.emit(entry); $event.stopPropagation()"
                   data-testid="storage-rename-btn"
                 >
@@ -110,7 +112,7 @@ import { canPreviewFile, getFileIcon, getFileIconColor, StorageBrowserItem } fro
                 <button
                   class="btn btn-ghost btn-xs text-error"
                   [attr.data-testid]="entry.kind === 'file' ? TESTID.DELETE_BTN : null"
-                  [attr.title]="'common.delete' | i18n"
+                  [attr.title]="'file.delete' | i18n"
                   (click)="delete.emit(entry); $event.stopPropagation()"
                 >
                   <svg [lucideIcon]="Trash2" size="14"></svg>
@@ -124,6 +126,7 @@ import { canPreviewFile, getFileIcon, getFileIconColor, StorageBrowserItem } fro
   `
 })
 export class StorageFileListComponent {
+  readonly #i18n = useI18nOptional();
   private destroyRef = inject(DestroyRef);
   private clickTimeout: number | null = null;
 
@@ -148,7 +151,6 @@ export class StorageFileListComponent {
   readonly Pen = Pen;
   getFileIcon = getFileIcon;
   getFileIconColor = getFileIconColor;
-  formatFileSize = formatFileSize;
   canPreviewFile = canPreviewFile;
 
   constructor() {
@@ -156,18 +158,6 @@ export class StorageFileListComponent {
       if (this.clickTimeout) {
         clearTimeout(this.clickTimeout);
       }
-    });
-  }
-
-  formatDate(timestamp?: number): string {
-    if (!timestamp) return '-';
-
-    return new Date(timestamp).toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
     });
   }
 
@@ -199,5 +189,13 @@ export class StorageFileListComponent {
   handleContextMenu(event: MouseEvent, entry: StorageBrowserItem): void {
     event.preventDefault();
     this.contextMenu.emit({ event, entry });
+  }
+
+  formatFileSize(bytes: number): string {
+    return formatFileSize(bytes, this.#i18n?.locale() ?? 'zh-Hans');
+  }
+
+  formatDate(timestamp?: number): string {
+    return formatFileDate(timestamp, this.#i18n?.locale() ?? 'zh-Hans');
   }
 }

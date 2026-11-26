@@ -21,6 +21,7 @@ function RuleRow({
   fields: readonly FieldMetadata[];
 }): React.JSX.Element {
   const i18n = useI18nRuntime();
+  const { t } = useI18n();
   const field = fields.find(item => item.name === rule.field);
   const operators = operatorsFor(field);
   const inputType = getInputType(field?.type ?? 'string', rule.operator, field?.enum);
@@ -36,11 +37,11 @@ function RuleRow({
   if (inputType === 'enum') {
     valueControl = (
       <select
-        aria-label='值'
+        aria-label={t('page.headless.value')}
         value={valueText}
         onChange={event => controller.updateRule(rule.id, { value: event.target.value })}
       >
-        <option value=''>请选择</option>
+        <option value=''>{t('page.headless.pleaseSelect')}</option>
         {(field?.enum ?? []).map(option => (
           <option key={String(option)} value={String(option)}>
             {String(option)}
@@ -51,7 +52,7 @@ function RuleRow({
   } else if (inputType !== 'none') {
     valueControl = (
       <input
-        aria-label='值'
+        aria-label={t('page.headless.value')}
         inputMode={inputType === 'number' ? 'numeric' : undefined}
         value={valueText}
         onChange={event => controller.updateRule(rule.id, { value: ruleValueFromText(inputType, event.target.value) })}
@@ -61,8 +62,12 @@ function RuleRow({
 
   return (
     <div className='hl-rule' data-testid='qb-rule'>
-      <select aria-label='字段' value={rule.field} onChange={event => changeField(event.target.value)}>
-        <option value=''>选择字段</option>
+      <select
+        aria-label={t('page.headless.field')}
+        value={rule.field}
+        onChange={event => changeField(event.target.value)}
+      >
+        <option value=''>{t('page.headless.selectField')}</option>
         {fields.map(item => (
           <option key={item.name} value={item.name}>
             {item.displayName}
@@ -70,7 +75,7 @@ function RuleRow({
         ))}
       </select>
       <select
-        aria-label='操作符'
+        aria-label={t('page.headless.operator')}
         value={rule.operator}
         onChange={event =>
           controller.updateRule(rule.id, {
@@ -86,8 +91,8 @@ function RuleRow({
         ))}
       </select>
       {valueControl}
-      <button type='button' aria-label='删除规则' onClick={() => controller.remove(rule.id)}>
-        删除
+      <button type='button' aria-label={t('page.headless.deleteRule')} onClick={() => controller.remove(rule.id)}>
+        {t('common.delete')}
       </button>
     </div>
   );
@@ -104,16 +109,22 @@ function GroupView({
   fields: readonly FieldMetadata[];
   isRoot: boolean;
 }): React.JSX.Element {
+  const { t } = useI18n();
   return (
-    <div className='hl-group' role='group' aria-label={isRoot ? '筛选条件' : '子分组'} data-testid='qb-group'>
+    <div
+      className='hl-group'
+      role='group'
+      aria-label={isRoot ? t('page.headless.filterRoot') : t('page.headless.filterGroup')}
+      data-testid='qb-group'
+    >
       <div className='hl-group-head'>
         <select
-          aria-label='组合方式'
+          aria-label={t('page.headless.combinator')}
           value={group.combinator}
           onChange={event => controller.updateGroupCombinator(group.id, event.target.value as 'and' | 'or')}
         >
-          <option value='and'>全部满足 (AND)</option>
-          <option value='or'>任一满足 (OR)</option>
+          <option value='and'>{t('page.headless.combinatorAnd')}</option>
+          <option value='or'>{t('page.headless.combinatorOr')}</option>
         </select>
         <button
           type='button'
@@ -121,14 +132,14 @@ function GroupView({
             controller.addRule(group.id, { field: fields[0]?.name, operator: operatorsFor(fields[0])[0]?.key })
           }
         >
-          添加规则
+          {t('page.headless.addRule')}
         </button>
         <button type='button' onClick={() => controller.addGroup(group.id)}>
-          添加分组
+          {t('page.headless.addGroup')}
         </button>
         {!isRoot && (
-          <button type='button' aria-label='删除分组' onClick={() => controller.remove(group.id)}>
-            删除分组
+          <button type='button' aria-label={t('page.headless.deleteGroup')} onClick={() => controller.remove(group.id)}>
+            {t('page.headless.deleteGroup')}
           </button>
         )}
       </div>
@@ -149,13 +160,13 @@ function GroupView({
 export function QueryPanel({ onApply }: { onApply(query: RuleGroup): void }): React.JSX.Element {
   const i18n = useI18nRuntime();
   // 订阅语言变化：切换语言时规则行里的操作符文案随之重新渲染
-  useI18n();
+  const { t } = useI18n();
   const { controller, snapshot } = useQueryBuilder({ fields: queryFields, i18n });
   const errors = snapshot.validation.errors ?? [];
 
   return (
     <section className='hl-section' aria-labelledby='hl-query-title' data-testid='headless-query'>
-      <h2 id='hl-query-title'>筛选</h2>
+      <h2 id='hl-query-title'>{t('page.headless.queryTitle')}</h2>
       <GroupView group={snapshot.state.rootGroup} controller={controller} fields={snapshot.fields} isRoot />
       {errors.length > 0 && (
         <ul className='hl-error' role='alert' data-testid='qb-errors'>
@@ -166,7 +177,7 @@ export function QueryPanel({ onApply }: { onApply(query: RuleGroup): void }): Re
       )}
       <div className='hl-actions'>
         <button type='button' disabled={!snapshot.valid} onClick={() => onApply(controller.toRxDBQuery())}>
-          应用筛选
+          {t('page.headless.applyFilter')}
         </button>
         <button
           type='button'
@@ -175,10 +186,10 @@ export function QueryPanel({ onApply }: { onApply(query: RuleGroup): void }): Re
             onApply(controller.toRxDBQuery());
           }}
         >
-          清空筛选
+          {t('page.headless.clearFilter')}
         </button>
       </div>
-      <pre className='hl-output' aria-label='查询输出' data-testid='qb-query'>
+      <pre className='hl-output' aria-label={t('page.headless.queryOutput')} data-testid='qb-query'>
         {JSON.stringify(snapshot.query)}
       </pre>
     </section>

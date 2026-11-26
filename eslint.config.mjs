@@ -46,7 +46,10 @@ export default [
             // API 本地 Supabase 集成测试直接加载脚本模块；该模块不是 Nx library。
             '^\\.\\./\\.\\./\\.\\./scripts/supabase/supabase-local\\.mjs$',
             '^\\.\\./\\.\\./\\.\\./\\.\\./scripts/supabase/supabase-local\\.mjs$',
-            '^\\.\\./\\.\\./\\.\\./modules/e2e-parity/board-parity\\.mjs$'
+            '^\\.\\./\\.\\./\\.\\./modules/e2e-parity/board-parity\\.mjs$',
+            '^\\.\\./\\.\\./\\.\\./modules/e2e-parity/ag-grid-locale\\.mjs$',
+            '^\\.\\./\\.\\./\\.\\./modules/e2e-parity/file-history-locale\\.mjs$',
+            '^\\.\\./\\.\\./\\.\\./modules/e2e-parity/workspace-locale\\.mjs$'
           ],
           depConstraints: [
             {

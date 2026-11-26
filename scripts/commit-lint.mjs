@@ -221,7 +221,7 @@ function reportFailure(firstLine, message, allowedTypes, allowedScopes) {
   console.log('  body (optional)');
   console.log('\n');
   console.log(`✅ Allowed types: ${allowedTypes}`);
-  console.log(`✅ Allowed scopes: ${allowedScopes} (if unsure use "core")`);
+  console.log(`✅ Allowed scopes: ${allowedScopes} (if unsure use "aiao")`);
   console.log(`✅ Allowed prefixes: ${ALLOWED_PREFIXES.join(' / ')}`);
   console.log(
     '\n📝 EXAMPLES:\n' +

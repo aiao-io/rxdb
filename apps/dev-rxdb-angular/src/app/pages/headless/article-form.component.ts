@@ -2,6 +2,7 @@ import { RxDB } from '@aiao/rxdb';
 import { useI18nRuntime } from '@aiao/rxdb-i18n-angular';
 import { injectEntityForm } from '@aiao/rxdb-model-angular/headless';
 import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angular/core';
+import { I18nPipe } from '../../pipes/i18n.pipe';
 import { createBlankArticle, createFields, errorMessage } from './article-model';
 import { fieldId, injectFieldInputs } from './field-inputs';
 import { FieldRowComponent } from './field-row.component';
@@ -10,19 +11,21 @@ import { FieldRowComponent } from './field-row.component';
 @Component({
   selector: 'app-hl-article-form',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FieldRowComponent],
+  imports: [FieldRowComponent, I18nPipe],
   template: `
     <section class="hl-section" aria-labelledby="hl-form-title" data-testid="headless-form">
-      <h2 id="hl-form-title">新建文章</h2>
+      <h2 id="hl-form-title">{{ 'page.headless.newArticle' | i18n }}</h2>
       <form (submit)="submit($event)" aria-labelledby="hl-form-title" novalidate>
         @for (state of form.snapshot().fieldStates; track state.config.field) {
           <app-hl-field-row [inputs]="inputs" [state]="state" idPrefix="hl-form" />
         }
         <div class="hl-actions">
-          <button type="submit">提交</button>
-          <button (click)="form.controller.cancel()" type="button">取消</button>
+          <button type="submit">{{ 'page.headless.submit' | i18n }}</button>
+          <button (click)="form.controller.cancel()" type="button">{{ 'common.cancel' | i18n }}</button>
         </div>
-        <p data-testid="form-state" role="status">{{ form.snapshot().dirty ? '有未提交的修改' : '没有修改' }}</p>
+        <p data-testid="form-state" role="status">
+          {{ form.snapshot().dirty ? ('page.headless.dirtyState' | i18n) : ('page.headless.cleanState' | i18n) }}
+        </p>
         @if (failure(); as message) {
           <p class="hl-error" data-testid="form-failure" role="alert">{{ message }}</p>
         }

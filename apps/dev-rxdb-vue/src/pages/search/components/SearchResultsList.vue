@@ -1,6 +1,9 @@
 <script lang="ts" setup>
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import type { SearchResult, SearchState } from '@aiao/rxdb-plugin-search';
 import { collectionBadgeClass, localizeCollection, localizeField } from '../types';
+
+const { t } = useI18n();
 
 defineProps<{
   results: readonly SearchResult[];
@@ -79,7 +82,7 @@ const emit = defineEmits<{
       v-if="displayState === 'empty' && query.trim()"
       data-testid="search-empty"
     >
-      未找到 "{{ query }}" 相关结果
+      {{ t('page.search.empty', { query }) }}
     </p>
 
     <ul class="flex flex-col gap-2">
@@ -96,15 +99,18 @@ const emit = defineEmits<{
           <div class="min-w-0 flex-1">
             <div class="flex flex-wrap items-center gap-1.5 text-xs">
               <span :class="`badge badge-sm ${collectionBadgeClass(r.collection)}`">
-                {{ localizeCollection(r.collection) }}
+                {{ localizeCollection(t, r.collection) }}
               </span>
               <span class="text-base-content/80 font-mono">#{{ r.id }}</span>
               <span class="text-base-content/30">·</span>
               <span class="text-base-content/60">
-                匹配：<span class="text-base-content/90 font-medium">{{ localizeField(r.matchedField) }}</span>
+                {{ t('page.search.matchedField') }}
+                <span class="text-base-content/90 font-medium">{{ localizeField(t, r.matchedField) }}</span>
               </span>
               <span class="text-base-content/30">·</span>
-              <span class="badge badge-outline badge-sm font-mono">相关度 {{ (-r.rank).toFixed(4) }}</span>
+              <span class="badge badge-outline badge-sm font-mono">
+                {{ t('page.search.relevance', { value: (-r.rank).toFixed(4) }) }}
+              </span>
             </div>
             <p class="mt-1.5 text-sm leading-relaxed break-words">{{ r.snippet }}</p>
           </div>
@@ -117,8 +123,8 @@ const emit = defineEmits<{
               :data-testid="`search-result-update-${r.collection}`"
               :disabled="mutationBusy"
               @click="emit('update-result', r)"
-              aria-label="更新"
-              title="更新"
+              :aria-label="t('common.update')"
+              :title="t('common.update')"
               type="button"
             >
               <svg
@@ -143,8 +149,8 @@ const emit = defineEmits<{
               :data-testid="`search-result-delete-${r.collection}`"
               :disabled="mutationBusy"
               @click="emit('remove-result', r)"
-              aria-label="删除"
-              title="删除"
+              :aria-label="t('common.delete')"
+              :title="t('common.delete')"
               type="button"
             >
               <svg
@@ -175,7 +181,7 @@ const emit = defineEmits<{
       data-testid="search-load-more"
       type="button"
     >
-      加载更多
+      {{ t('page.search.loadMore') }}
     </button>
 
     <button
@@ -185,7 +191,7 @@ const emit = defineEmits<{
       data-testid="search-retry"
       type="button"
     >
-      重试
+      {{ t('page.search.retry') }}
     </button>
   </section>
 </template>

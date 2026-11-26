@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import { ref } from 'vue';
 import { formatTreeWriteError, type TreeWriteOperation } from '../utils/tree-write-error';
 
@@ -9,6 +10,7 @@ import { formatTreeWriteError, type TreeWriteOperation } from '../utils/tree-wri
  * 不再向外抛。失败后页面状态即库里已提交的状态，下一次操作照常可用。
  */
 export function useTreeWriteError() {
+  const { t } = useI18n();
   const writeError = ref<string | null>(null);
 
   const clearWriteError = () => {
@@ -21,7 +23,7 @@ export function useTreeWriteError() {
       await write();
       return true;
     } catch (error: unknown) {
-      writeError.value = formatTreeWriteError(operation, error);
+      writeError.value = formatTreeWriteError(operation, error, t);
       return false;
     }
   };

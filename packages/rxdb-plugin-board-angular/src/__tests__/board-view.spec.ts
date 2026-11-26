@@ -9,6 +9,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { BoardViewComponent } from '../board-view.js';
 
+// 文案适配器换成固定 zh-Hans 运行时：断言逐字中文（e2e 以 zh-CN 验收）
+vi.mock('../board-i18n.js', async () => {
+  const { boardI18nZhMock } = await import('./board-i18n-mock.js');
+  return boardI18nZhMock();
+});
+
 /**
  * BoardView 组件（看板 v2 的 Angular 半边）：真实 PGlite + 历史插件上的渲染与交互闭环。
  * 真实拖拽、axe 与跨页恢复在 demo e2e。

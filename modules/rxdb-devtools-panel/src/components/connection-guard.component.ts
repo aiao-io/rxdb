@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { DevToolsStateService } from '../services/devtools-state.service';
+import { PanelI18nService } from '../services/panel-i18n.service';
 import { DEVTOOLS_HOST_ACCESS } from '../transport';
 
 /**
@@ -12,7 +13,9 @@ import { DEVTOOLS_HOST_ACCESS } from '../transport';
   template: `
     @if (accessState() === 'required') {
       <div class="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
-        <button class="btn btn-primary btn-sm" (click)="requestAccess()" type="button">允许访问当前站点</button>
+        <button class="btn btn-primary btn-sm" (click)="requestAccess()" type="button">
+          {{ t('guard.allowAccess') }}
+        </button>
         @if (accessError()) {
           <p class="text-error text-sm">{{ accessError() }}</p>
         }
@@ -21,10 +24,9 @@ import { DEVTOOLS_HOST_ACCESS } from '../transport';
       <div class="flex h-full items-center justify-center"><div class="loading loading-spinner loading-lg"></div></div>
     } @else if (accessState() === 'unsupported') {
       <div class="flex h-full flex-col items-center justify-center gap-2 p-8 text-center">
-        <h2 class="text-base font-semibold">当前页面不支持扩展注入</h2>
+        <h2 class="text-base font-semibold">{{ t('guard.unsupportedTitle') }}</h2>
         <p class="max-w-md text-sm opacity-70">
-          扩展只能注入 {{ injectableSchemes }} 协议的页面，当前页面用的是别的协议。浏览器内部页与自定义 scheme
-          的应用入口都不在这个集合里 —— 这是 Chromium 对扩展 match pattern 的限制，面板侧绕不开。
+          {{ t('guard.unsupportedBody', { schemes: injectableSchemes }) }}
         </p>
       </div>
     } @else if (connected()) {
@@ -68,6 +70,7 @@ import { DEVTOOLS_HOST_ACCESS } from '../transport';
 export class ConnectionGuardComponent {
   private readonly devToolsState = inject(DevToolsStateService);
   private readonly access = inject(DEVTOOLS_HOST_ACCESS);
+  protected readonly t = inject(PanelI18nService).t;
 
   /**
    * Chromium 扩展 match pattern 认得的 scheme 集，供 `unsupported` 分支说明原因。

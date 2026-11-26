@@ -1,4 +1,5 @@
 import { RxDB, type RxDBEntityId, UUID } from '@aiao/rxdb';
+import { useI18nOptional } from '@aiao/rxdb-i18n-react';
 import { SortableFileLarge } from '@aiao/rxdb-test/entities';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { firstValueFrom } from 'rxjs';
@@ -50,6 +51,7 @@ export interface DeleteImpact {
 const NO_DELETE_IMPACT: DeleteImpact = { childrenCount: 0, descendantsCount: 0 };
 
 export function useFileManagerLazyStore(rxdb: RxDB) {
+  const uiLocale = useI18nOptional()?.locale ?? 'zh-CN';
   const [nodesMap, setNodesMap] = useState<Map<string, SortableFileLarge>>(new Map());
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
@@ -146,7 +148,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
   // Flatten visible nodes
   const treeNodes = useMemo(() => {
     const result: FileLazyNode[] = [];
-    const comparator = getSortComparator(sortMode);
+    const comparator = getSortComparator(sortMode, uiLocale);
 
     // 手动模式（comparator 为 null）保留查询顺序；其余模式按比较器排
     const orderIds = (ids: readonly string[]): readonly string[] => {
@@ -187,7 +189,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
 
     orderIds(rootIds).forEach(id => traverse(id, 0));
     return result;
-  }, [nodesMap, expandedIds, loadingIds, rootIds, childrenMap, matchedFileIds, sortMode]);
+  }, [nodesMap, expandedIds, loadingIds, rootIds, childrenMap, matchedFileIds, sortMode, uiLocale]);
 
   /** 折叠：清理该节点及子孙的订阅与数据。 */
   const collapseNode = (id: string) => {

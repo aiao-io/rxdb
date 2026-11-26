@@ -1,0 +1,65 @@
+# RxDBChangeRuleGroup
+
+```ts
+type RxDBChangeRuleGroup = RuleGroupBase<
+  typeof RxDBChange,
+  | 'id'
+  | 'remoteId'
+  | 'localId'
+  | 'type'
+  | 'transactionId'
+  | 'namespace'
+  | 'entity'
+  | 'entityId'
+  | 'createdAt'
+  | 'updatedAt'
+  | 'rejectedAt'
+  | 'revertChangedAt'
+  | 'revertChangeId'
+  | 'redoInvalidatedAt'
+  | 'branchId'
+  | 'branch'
+  | 'branch.id'
+  | 'branch.activated'
+  | 'branch.fromChangeId'
+  | 'branch.local'
+  | 'branch.remote'
+  | 'branch.createdAt'
+  | 'branch.updatedAt'
+  | 'branch.parentId'
+  | 'branch.syncs.id'
+  | 'branch.syncs.namespace'
+  | 'branch.syncs.entity'
+  | 'branch.syncs.syncType'
+  | 'branch.syncs.lastPushedChangeId'
+  | 'branch.syncs.lastPushedAt'
+  | 'branch.syncs.lastPulledAt'
+  | 'branch.syncs.lastPullRemoteChangeId'
+  | 'branch.syncs.remoteBackendId'
+  | 'branch.syncs.enabled'
+  | 'branch.syncs.createdAt'
+  | 'branch.syncs.updatedAt'
+  | 'branch.syncs.branchId'
+  | 'branch.children.id'
+  | 'branch.children.activated'
+  | 'branch.children.fromChangeId'
+  | 'branch.children.local'
+  | 'branch.children.remote'
+  | 'branch.children.createdAt'
+  | 'branch.children.updatedAt'
+  | 'branch.children.parentId'
+  | 'branch.parent.id'
+  | 'branch.parent.activated'
+  | 'branch.parent.fromChangeId'
+  | 'branch.parent.local'
+  | 'branch.parent.remote'
+  | 'branch.parent.createdAt'
+  | 'branch.parent.updatedAt'
+  | 'branch.parent.parentId',
+  RxDBChangeRule
+>;
+```
+
+Defined in: [packages/rxdb/src/system/types.ts:256](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L256)
+
+Rule group base

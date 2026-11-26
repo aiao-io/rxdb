@@ -2,8 +2,9 @@ import type { RxDB } from '@aiao/rxdb';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { firstValueFrom } from 'rxjs';
 import { getExpectation } from '../analysis/benchmark-rating';
-import { fitPerformanceCurve, type DataPoint } from '../analysis/curve-fitting';
-import type { BenchmarkResult } from '../constants';
+import { fitPerformanceCurve, type ComplexityType, type DataPoint } from '../analysis/curve-fitting';
+import type { BenchmarkResult, ScenarioRunOptions } from '../constants';
+import type { BenchmarksMessageKey } from '../i18n/messages';
 import { MemoryTracker } from '../utils/memory-tracker';
 import { measurePerformance, measureWithSamples } from '../utils/performance';
 import { generateTodos } from '../utils/todo-factory';
@@ -19,20 +20,26 @@ const DATA_SIZES = [1_000, 10_000, 100_000]; // 去掉 1M，因运行时间过�
 const QUERY_SAMPLE_COUNT = 5; // 每个规模下查询的采样次数（取 P50）
 const ALL_TODOS_QUERY = { where: { combinator: 'and' as const, rules: [] } };
 
+const COMPLEXITY_KEYS: Record<ComplexityType, BenchmarksMessageKey> = {
+  constant: 'scenario.scalability.complexityConstant',
+  logarithmic: 'scenario.scalability.complexityLogarithmic',
+  linear: 'scenario.scalability.complexityLinear',
+  quadratic: 'scenario.scalability.complexityQuadratic',
+  exponential: 'scenario.scalability.complexityExponential'
+};
+
 /**
  * 运行可扩展性测试
  * @param rxdb - RxDB 实例
- * @param onResult - 每条结果就绪时的回调
+ * @param options - 结果回调与翻译函数
  * @returns 基准测试结果数组
  */
-export async function runScalabilityTests(
-  rxdb: RxDB,
-  onResult?: (result: BenchmarkResult) => void
-): Promise<BenchmarkResult[]> {
+export async function runScalabilityTests(rxdb: RxDB, options: ScenarioRunOptions): Promise<BenchmarkResult[]> {
+  const { t } = options;
   const results: BenchmarkResult[] = [];
   const push = (result: BenchmarkResult) => {
     results.push(result);
-    onResult?.(result);
+    options.onResult?.(result);
   };
   const insertDataPoints: DataPoint[] = [];
   const queryDataPoints: DataPoint[] = [];
@@ -45,8 +52,8 @@ export async function runScalabilityTests(
   for (const [i, dataSize] of DATA_SIZES.entries()) {
     const sizeK = (dataSize / 1000).toFixed(0);
     const sizeKey = `${dataSize / 1000}k`;
-    const insertLabel = `插入 ${sizeK}K 条数据`;
-    const queryLabel = `查询 ${sizeK}K 条数据`;
+    const insertLabel = t('scenario.scalability.insertLabel', { sizeK });
+    const queryLabel = t('scenario.scalability.queryLabel', { sizeK });
 
     // 测试 1：在当前数据规模下的插入性能
     const { benchmark: insertBench } = await measurePerformance(insertLabel, async () => {
@@ -60,8 +67,8 @@ export async function runScalabilityTests(
       name: insertLabel,
       duration: insertBench.duration,
       memory: insertBench.memory,
-      extra: `批量插入 ${sizeK}K 条记录`,
-      expectation: `≤${insertExpectation.excellent}ms`,
+      extra: t('scenario.scalability.insertExtra', { sizeK }),
+      expectation: t('scenario.expectation.leMs', { value: String(insertExpectation.excellent) }),
       testId: `insert-${sizeKey}`,
       rawValue: insertBench.duration
     });
@@ -84,8 +91,8 @@ export async function runScalabilityTests(
       name: queryLabel,
       duration: queryP50,
       memory: queryPerf.memoryGrowth > 0 ? queryPerf.memoryGrowth : undefined,
-      extra: `全表查询 ${sizeK}K 条记录 | ${QUERY_SAMPLE_COUNT} 次采样 P50`,
-      expectation: `≤${queryExpectation.excellent}ms`,
+      extra: t('scenario.scalability.queryExtra', { sizeK, count: QUERY_SAMPLE_COUNT }),
+      expectation: t('scenario.expectation.leMs', { value: String(queryExpectation.excellent) }),
       testId: `query-${sizeKey}`,
       rawValue: queryP50
     });
@@ -104,31 +111,42 @@ export async function runScalabilityTests(
   const queryCurve = fitPerformanceCurve(queryDataPoints);
 
   push({
-    name: `插入操作时间复杂度分析`,
+    name: t('scenario.scalability.insertComplexity'),
     duration: -1, // 表示不适用
-    extra: `${insertCurve.complexity} 增长 | 拟合优度 R²=${insertCurve.rSquared.toFixed(3)}`,
-    expectation: `线性或更好`
+    extra: t('scenario.scalability.complexityExtra', {
+      complexity: t(COMPLEXITY_KEYS[insertCurve.complexity]),
+      r2: insertCurve.rSquared.toFixed(3)
+    }),
+    expectation: t('scenario.scalability.insertExpectation')
   });
 
   push({
-    name: `查询操作时间复杂度分析`,
+    name: t('scenario.scalability.queryComplexity'),
     duration: -1, // 表示不适用
-    extra: `${queryCurve.complexity} 增长 | 拟合优度 R²=${queryCurve.rSquared.toFixed(3)}`,
-    expectation: `对数或更好`
+    extra: t('scenario.scalability.complexityExtra', {
+      complexity: t(COMPLEXITY_KEYS[queryCurve.complexity]),
+      r2: queryCurve.rSquared.toFixed(3)
+    }),
+    expectation: t('scenario.scalability.queryExpectation')
   });
 
   // Analyze memory growth
   const memoryAnalysis = memoryTracker.analyze();
 
   push({
-    name: `内存增长模式分析`,
+    name: t('scenario.scalability.memoryAnalysis'),
     duration: -1, // 表示不适用
     memory: memoryAnalysis.supported ? memoryAnalysis.bytesPerRecord : undefined,
     extra:
       memoryAnalysis.supported ?
-        `${memoryAnalysis.isLinear ? '✓ 线性增长' : '✗ 非线性增长'} | 每条记录 ${(memoryAnalysis.bytesPerRecord / 1024).toFixed(2)}KB`
-      : `performance.memory 不可用（仅 Chromium 且开启精确内存信息时可测）`,
-    expectation: `线性增长`
+        t('scenario.scalability.memoryExtra', {
+          pattern: t(
+            memoryAnalysis.isLinear ? 'scenario.scalability.memoryLinear' : 'scenario.scalability.memoryNonLinear'
+          ),
+          kb: (memoryAnalysis.bytesPerRecord / 1024).toFixed(2)
+        })
+      : t('scenario.scalability.memoryUnavailable'),
+    expectation: t('scenario.scalability.memoryExpectation')
   });
 
   return results;

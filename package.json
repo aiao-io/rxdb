@@ -53,7 +53,8 @@
     "audit:package-graph": "nx run @aiao/source:audit-package-graph",
     "verify:ai-example": "nx run @aiao/source:ai-example",
     "verify:release-consumers": "nx run @aiao/source:release-consumers",
-    "verify:headless-consumer": "nx run @aiao/source:headless-consumer"
+    "verify:headless-consumer": "nx run @aiao/source:headless-consumer",
+    "audit:i18n": "node scripts/audit/i18n-catalogs.mjs"
   },
   "dependencies": {
     "@ai-sdk/angular": "3.0.64",

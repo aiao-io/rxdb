@@ -202,6 +202,6 @@ const { canCreate, canEdit, canDelete } = deriveEntityCapabilities(getEntityMeta
 
 ## 继续阅读
 
-- [模型定义](./README.md)
-- [模型修改](../model-mutation/README.md)
+- [模型定义](/model-definition/README.md)
+- [模型修改](/model-mutation/README.md)
 - [操作列删除判定迁移](../migration/actions-column-can-delete.md)

@@ -9,13 +9,13 @@
  */
 const DEMOS = ['angular', 'react', 'vue'];
 
-module.exports = function demoRoutesPlugin() {
+module.exports = function demoRoutesPlugin(context) {
   return {
     name: 'demo-routes-plugin',
     async contentLoaded({ actions }) {
       for (const demo of DEMOS) {
         actions.addRoute({
-          path: `/demos/${demo}`,
+          path: `${context.baseUrl}demos/${demo}`,
           component: `@site/src/demos/${demo}.tsx`,
           exact: false
         });

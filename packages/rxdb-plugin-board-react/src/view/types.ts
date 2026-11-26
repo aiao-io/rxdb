@@ -1,5 +1,11 @@
 import type { UUID } from '@aiao/rxdb';
-import type { BoardGridDirection, BoardMoveDirection, DeletePlan, LabelDeletePlan } from '@aiao/rxdb-plugin-board';
+import type {
+  BoardGridDirection,
+  BoardMessageKey,
+  BoardMoveDirection,
+  DeletePlan,
+  LabelDeletePlan
+} from '@aiao/rxdb-plugin-board';
 
 /** 弹层种类：菜单（板 / 列 / 卡片）与选择器（移到列 / 详情所在列 / 详情标签）。 */
 export type BoardPopoverKind =
@@ -100,37 +106,41 @@ export const MOVE_KEYS: Readonly<Record<string, BoardMoveDirection>> = {
   ArrowRight: 'right'
 };
 
-export const SHORTCUT_GROUPS = [
+/** 快捷键一览的分组与条目（`title` / `label` 为看板文案键，渲染时经 `boardT` 翻译）。 */
+export const SHORTCUT_GROUPS: readonly {
+  readonly title: BoardMessageKey;
+  readonly items: readonly { readonly label: BoardMessageKey; readonly keys: readonly string[] }[];
+}[] = [
   {
-    title: '导航',
+    title: 'view.shortcuts.group.navigation',
     items: [
-      { label: '在卡片间移动', keys: ['↑', '↓', '←', '→'] },
-      { label: '本列第一张 / 最后一张', keys: ['Home', 'End'] },
-      { label: '聚焦筛选', keys: ['/'] },
-      { label: '搜索任务', keys: ['⌘/Ctrl', 'K'] },
-      { label: '显示快捷键', keys: ['?'] }
+      { label: 'view.shortcuts.item.moveBetweenCards', keys: ['↑', '↓', '←', '→'] },
+      { label: 'view.shortcuts.item.firstLastCard', keys: ['Home', 'End'] },
+      { label: 'view.shortcuts.item.focusFilter', keys: ['/'] },
+      { label: 'view.shortcuts.item.searchTasks', keys: ['⌘/Ctrl', 'K'] },
+      { label: 'view.shortcuts.item.showShortcuts', keys: ['?'] }
     ]
   },
   {
-    title: '卡片',
+    title: 'view.shortcuts.group.cards',
     items: [
-      { label: '打开详情', keys: ['Enter'] },
-      { label: '编辑标题', keys: ['F2'] },
-      { label: '上移 / 下移', keys: ['⌥', '↑', '↓'] },
-      { label: '移到相邻列', keys: ['⌥', '←', '→'] },
-      { label: '删除', keys: ['Del'] },
-      { label: '更多操作', keys: ['⇧', 'F10'] }
+      { label: 'view.shortcuts.item.openDetail', keys: ['Enter'] },
+      { label: 'view.shortcuts.item.editTitle', keys: ['F2'] },
+      { label: 'view.shortcuts.item.moveUpDown', keys: ['⌥', '↑', '↓'] },
+      { label: 'view.shortcuts.item.moveAdjacent', keys: ['⌥', '←', '→'] },
+      { label: 'view.shortcuts.item.delete', keys: ['Del'] },
+      { label: 'view.shortcuts.item.moreActions', keys: ['⇧', 'F10'] }
     ]
   },
   {
-    title: '编辑',
+    title: 'view.shortcuts.group.editing',
     items: [
-      { label: '撤销', keys: ['⌘/Ctrl', 'Z'] },
-      { label: '重做', keys: ['⇧', '⌘/Ctrl', 'Z'] },
-      { label: '关闭菜单 / 对话框 / 详情', keys: ['Esc'] }
+      { label: 'view.shortcuts.item.undo', keys: ['⌘/Ctrl', 'Z'] },
+      { label: 'view.shortcuts.item.redo', keys: ['⇧', '⌘/Ctrl', 'Z'] },
+      { label: 'view.shortcuts.item.closeEsc', keys: ['Esc'] }
     ]
   }
-] as const;
+];
 
 /** 事件目标是否为可编辑元素（输入框内不响应全局单键快捷键）。 */
 export const isEditable = (target: EventTarget | null): boolean =>

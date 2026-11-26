@@ -44,7 +44,7 @@
                 {{ 'page.file.searchCount' | i18n: { count: matchedCount } }}
               </div>
             } @else {
-              <div class="badge badge-primary badge-sm">{{ fileCount }} 项</div>
+              <div class="badge badge-primary badge-sm">{{ 'page.tree.itemCount' | i18n: { count: fileCount } }}</div>
             }
           </div>
           <div class="flex items-center gap-2">
@@ -76,7 +76,7 @@
             <!-- History Toggle -->
             <button
               class="btn btn-sm"
-              [attr.aria-label]="'common.history' | i18n"
+              [attr.aria-label]="'history.open' | i18n"
               [class.btn-primary]="showHistory"
               (click)="toggle_history()"
             >
@@ -99,7 +99,7 @@
                 {{ 'page.file.searchCount' | i18n: { count: matchedCount } }}
               </div>
             } @else {
-              <div class="badge badge-primary">{{ fileCount }} 项</div>
+              <div class="badge badge-primary">{{ 'page.tree.itemCount' | i18n: { count: fileCount } }}</div>
             }
 
             <!-- 批量添加 -->
@@ -118,7 +118,7 @@
                       @if (add_many.isPending()) {
                         <span class="loading loading-spinner loading-xs"></span>
                       }
-                      添加 {{ option.label }}
+                      {{ option.labelKey | i18n: { count: option.count } }}
                     </button>
                   </li>
                 }
@@ -154,7 +154,7 @@
             <!-- History Toggle -->
             <button
               class="btn btn-sm"
-              [attr.aria-label]="'common.history' | i18n"
+              [attr.aria-label]="'history.open' | i18n"
               [class.btn-primary]="showHistory"
               (click)="toggle_history()"
             >
@@ -172,7 +172,7 @@
             </div>
             <button
               class="btn btn-sm btn-ghost btn-square"
-              [title]="isAllExpanded() ? '折叠全部' : '展开全部'"
+              [title]="(isAllExpanded() ? 'common.collapseAll' : 'common.expandAll') | i18n"
               (click)="toggleExpandAll()"
             >
               <svg [lucideIcon]="isAllExpanded() ? ChevronsUp : ChevronsDown" [size]="20" />
@@ -246,7 +246,7 @@
             <div class="bg-info/10 flex items-center gap-2 rounded px-3 py-1 text-sm">
               <svg class="text-info" [lucideIcon]="Folder" [size]="14" />
               <span class="flex-1">
-                将添加到:
+                {{ 'page.file.addTo' | i18n }}
                 <span class="font-semibold">{{ getSelectedFolderTitle() }}</span>
               </span>
               <button
@@ -334,7 +334,7 @@
             <div class="flex-1">
               <div class="font-semibold">{{ 'page.tree.pathConflict' | i18n }}</div>
               <div class="text-sm">
-                已存在同名文件/文件夹：
+                {{ 'page.file.pathConflictBody' | i18n }}
                 <strong>{{ warning.conflictPath }}</strong>
               </div>
             </div>
@@ -518,9 +518,7 @@
 
       <div class="py-4">
         <p class="mb-3">
-          确定要删除
-          <span class="text-primary font-semibold">"{{ getDisplayName(file) }}"</span>
-          吗？
+          {{ 'page.file.deleteOne' | i18n: { name: '"' + getDisplayName(file) + '"' } }}
         </p>
 
         @let impact = deleteImpact();
@@ -542,7 +540,7 @@
             <div class="flex flex-col gap-1 text-sm">
               <p class="font-medium">{{ 'page.tree.cascadeDelete' | i18n }}</p>
               <ul class="ml-4 list-disc">
-                <li>{{ impact.childrenCount }} 个直接子项</li>
+                <li>{{ 'page.file.directChildrenCount' | i18n: { count: impact.childrenCount } }}</li>
                 @if (impact.descendantsCount > impact.childrenCount) {
                   <li>{{ 'page.file.descendantsCount' | i18n: { count: impact.descendantsCount } }}</li>
                 }

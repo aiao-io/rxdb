@@ -1,0 +1,24 @@
+rxdb:
+  label: RxDB
+  permalink: /rxdb
+  description: Updates and thoughts related to the RxDB project
+
+Local-first:
+  label: Local-first
+  permalink: /local-first
+  description: Local-first architecture, sync, and offline-first practices
+
+WebAssembly:
+  label: WebAssembly
+  permalink: /webassembly
+  description: WebAssembly in practice for in-browser databases and application capabilities
+
+Frontend:
+  label: Frontend
+  permalink: /frontend
+  description: Frontend engineering practices for complex data-driven applications
+
+hello:
+  label: Hello
+  permalink: /hello
+  description: Hello tag description

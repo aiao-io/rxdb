@@ -1,7 +1,10 @@
 <script lang="ts" setup>
-import { formatFileSize } from '@aiao/utils';
+import { formatFileSize } from '@modules/demo-i18n/files';
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import { AlertTriangle } from '@lucide/vue';
 import type { StorageBrowserItem } from '../utils/storage-utils';
+
+const { t, locale } = useI18n();
 
 defineProps<{
   show: boolean;
@@ -27,19 +30,19 @@ const emit = defineEmits<{ (e: 'respond', overwrite: boolean): void }>();
           class="text-warning"
           :size="18"
         />
-        File Already Exists
+        {{ t('file.fileExists') }}
       </h3>
       <p class="mb-4">
-        File <span class="font-semibold">{{ file.name }}</span> already exists. Overwrite it?
+        {{ t('file.overwriteQuestion', { name: file.name }) }}
       </p>
       <div class="bg-base-200 mb-4 space-y-2 rounded-lg p-3">
         <div class="flex justify-between text-sm">
-          <span class="text-base-content/60">Existing file:</span>
-          <span class="font-mono">{{ formatFileSize(existingEntry.size || 0) }}</span>
+          <span class="text-base-content/60">{{ t('file.existingFile') }}</span>
+          <span class="font-mono">{{ formatFileSize(existingEntry.size || 0, locale) }}</span>
         </div>
         <div class="flex justify-between text-sm">
-          <span class="text-base-content/60">New file:</span>
-          <span class="font-mono">{{ formatFileSize(file.size) }}</span>
+          <span class="text-base-content/60">{{ t('file.newFile') }}</span>
+          <span class="font-mono">{{ formatFileSize(file.size, locale) }}</span>
         </div>
       </div>
       <div class="modal-action">
@@ -47,13 +50,13 @@ const emit = defineEmits<{ (e: 'respond', overwrite: boolean): void }>();
           class="btn btn-sm"
           @click="emit('respond', false)"
         >
-          Cancel
+          {{ t('file.cancel') }}
         </button>
         <button
           class="btn btn-sm btn-warning"
           @click="emit('respond', true)"
         >
-          Overwrite
+          {{ t('file.overwrite') }}
         </button>
       </div>
     </div>

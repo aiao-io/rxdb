@@ -48,7 +48,7 @@ describe('ConnectionGuardComponent', () => {
     const text = await render('unsupported');
 
     // 结论仍在：状态没有被改写成别的分支。
-    expect(text).toContain('不支持扩展注入');
+    expect(text).toContain('does not support extension injection');
     // 原因给全：合法 scheme 集逐个列出，开发者据此一眼判断自己这一页属不属于其中。
     for (const scheme of ['http', 'https', 'file', 'ftp']) expect(text).toContain(scheme);
   });
@@ -73,6 +73,6 @@ describe('ConnectionGuardComponent', () => {
     const text = await render('granted');
 
     // `granted` 但未连接时是等待态；这里只验守卫本身没有把内容永久扣住。
-    expect(text).not.toContain('不支持扩展注入');
+    expect(text).not.toContain('does not support extension injection');
   });
 });

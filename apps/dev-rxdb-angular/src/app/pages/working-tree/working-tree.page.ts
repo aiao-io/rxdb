@@ -38,6 +38,7 @@ import {
   LucideDynamicIcon,
   LucideRefreshCw as RefreshCw
 } from '@lucide/angular';
+import { I18nPipe } from '../../pipes/i18n.pipe';
 import { ResettableTimer } from '../opfs/utils/resettable-timer';
 import { WorkingTreeBranchMenuComponent } from './components/branch-menu.component';
 import {
@@ -123,6 +124,7 @@ const COMMIT_REJECTION_TEXT: Record<CommitValidationReason, string> = {
   host: { class: 'page-host' },
   imports: [
     CommonModule,
+    I18nPipe,
     LucideDynamicIcon,
     RouterLink,
     WorkingTreeBranchMenuComponent,

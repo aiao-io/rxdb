@@ -1865,6 +1865,12 @@ importers:
       '@aiao/rxdb-devtools':
         specifier: workspace:*
         version: link:../packages/rxdb-devtools
+      '@aiao/rxdb-i18n':
+        specifier: workspace:*
+        version: link:../packages/rxdb-i18n
+      '@aiao/rxdb-i18n-react':
+        specifier: workspace:*
+        version: link:../packages/rxdb-i18n-react
       '@aiao/rxdb-plugin-history':
         specifier: workspace:*
         version: link:../packages/rxdb-plugin-history
@@ -2853,6 +2859,9 @@ importers:
 
   packages/rxdb-plugin-board:
     dependencies:
+      '@aiao/rxdb-i18n':
+        specifier: workspace:^
+        version: link:../rxdb-i18n
       '@aiao/rxdb-plugin-search':
         specifier: workspace:^
         version: link:../rxdb-plugin-search

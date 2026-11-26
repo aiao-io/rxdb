@@ -31,7 +31,7 @@ async function addFolder(page: Page, name: string): Promise<ReturnType<typeof ge
 
 test.describe('File Manager Drag and Drop', () => {
   test.beforeEach(async ({ page }) => {
-    await openPage(page, '/file-manager-simple', 'File Manager - Simple');
+    await openPage(page, '/file-manager-simple', '文件管理器 - 简单模式');
   });
 
   test('should display drag handle on hover', async ({ page }) => {

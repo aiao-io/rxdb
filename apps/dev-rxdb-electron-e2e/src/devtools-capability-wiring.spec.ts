@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { attachPanel, PANEL_BUDGET_MS, readPanel } from './devtools-panel-driver';
 import {
   launchEnv,
+  PANEL_LOCALE_ARGS,
   realSandbox,
   resolveDesktopDevExtension,
   resolveExecutable,
@@ -50,7 +51,7 @@ function launchApp(
     executablePath: resolveExecutable(),
     // 必须真沙箱：--no-sandbox 会让扩展 devtools_page 一行不执行，面板永不进 tab 条。
     ...realSandbox(),
-    args: [`--user-data-dir=${userDataDir}`, '--serve', `--port=${String(port)}`],
+    args: [`--user-data-dir=${userDataDir}`, '--serve', `--port=${String(port)}`, ...PANEL_LOCALE_ARGS],
     env: devToolsEnv(capability, mutation)
   });
 }
@@ -182,13 +183,13 @@ test.describe('DevTools 授权配置从 env 一路到达页内 connector（US-90
       const panel = await readPanel(app, {
         inspected: INSPECTED,
         hash: '#/settings',
-        awaitPattern: '导出数据库',
+        awaitPattern: 'Export database',
         budgetMs: PANEL_BUDGET_MS
       });
 
       // 面板不是「按钮长得像能点」而是**常量禁用**，且说明了为什么停用。
-      expect(panel, `Settings 页没渲染出来：《${panel}》`).toContain('导出数据库');
-      expect(panel).toContain('导出已停用');
+      expect(panel, `Settings 页没渲染出来：《${panel}》`).toContain('Export database');
+      expect(panel).toContain('Export is disabled');
 
       const exportButtonDisabled = await app.evaluate(async ({ BrowserWindow }, origin) => {
         const win = BrowserWindow.getAllWindows().find(candidate => candidate.webContents.getURL().startsWith(origin));
@@ -198,7 +199,7 @@ test.describe('DevTools 授权配置从 env 一路到达页内 connector（US-90
         if (!frame) throw new Error('找不到面板帧');
         return frame.executeJavaScript(
           `(() => {
-            const button = [...document.querySelectorAll('button')].find(el => el.textContent.trim() === '导出数据库');
+            const button = [...document.querySelectorAll('button')].find(el => el.textContent.trim() === 'Export database');
             return button === undefined ? null : button.disabled;
           })()`
         );

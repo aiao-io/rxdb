@@ -1,4 +1,5 @@
 import { type EntityType, RxDB } from '@aiao/rxdb';
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { Article, Comment } from '@aiao/rxdb-test/entities';
 import { inject, Injectable, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
@@ -15,6 +16,7 @@ import { firstValueFrom } from 'rxjs';
 @Injectable()
 export class SearchRecordsService {
   private readonly rxdb = inject(RxDB);
+  private readonly i18n = useI18n();
 
   readonly articleRecords = signal<readonly Article[]>([]);
   readonly commentRecords = signal<readonly Comment[]>([]);
@@ -61,7 +63,7 @@ export class SearchRecordsService {
       });
       await this.rxdb.entityManager.getRepository(Article).create(article);
       await this.refreshCounts();
-      this.mutationMessage.set(`已创建文章 ${article.id}`);
+      this.mutationMessage.set(this.i18n.t('page.search.createdArticle', { id: article.id }));
       return String(article.id);
     });
   }
@@ -75,7 +77,7 @@ export class SearchRecordsService {
       });
       await this.rxdb.entityManager.getRepository(Comment).create(comment);
       await this.refreshCounts();
-      this.mutationMessage.set(`已创建评论 ${comment.id}`);
+      this.mutationMessage.set(this.i18n.t('page.search.createdComment', { id: comment.id }));
       return String(comment.id);
     });
   }
@@ -84,7 +86,7 @@ export class SearchRecordsService {
     await this.runMutation(async () => {
       const article = await this.findEntityById(Article, id);
       if (!article) {
-        this.mutationMessage.set(`未找到文章: ${id}`);
+        this.mutationMessage.set(this.i18n.t('page.search.notFoundArticle', { id }));
         return;
       }
       article.title = `${article.title} [updated]`;
@@ -93,7 +95,7 @@ export class SearchRecordsService {
       article.viewCount += 1;
       await article.save();
       await this.refreshCounts();
-      this.mutationMessage.set(`已更新文章 ${id}`);
+      this.mutationMessage.set(this.i18n.t('page.search.updatedArticle', { id }));
     });
   }
 
@@ -101,14 +103,14 @@ export class SearchRecordsService {
     await this.runMutation(async () => {
       const comment = await this.findEntityById(Comment, id);
       if (!comment) {
-        this.mutationMessage.set(`未找到评论: ${id}`);
+        this.mutationMessage.set(this.i18n.t('page.search.notFoundComment', { id }));
         return;
       }
       comment.content = `${comment.content} Updated with token ${token}.`;
       comment.authorName = `${comment.authorName}-updated`;
       await comment.save();
       await this.refreshCounts();
-      this.mutationMessage.set(`已更新评论 ${id}`);
+      this.mutationMessage.set(this.i18n.t('page.search.updatedComment', { id }));
     });
   }
 
@@ -116,12 +118,12 @@ export class SearchRecordsService {
     await this.runMutation(async () => {
       const article = await this.findEntityById(Article, id);
       if (!article) {
-        this.mutationMessage.set(`未找到文章: ${id}`);
+        this.mutationMessage.set(this.i18n.t('page.search.notFoundArticle', { id }));
         return;
       }
       await article.remove();
       await this.refreshCounts();
-      this.mutationMessage.set(`已删除文章 ${id}`);
+      this.mutationMessage.set(this.i18n.t('page.search.removedArticle', { id }));
     });
   }
 
@@ -129,12 +131,12 @@ export class SearchRecordsService {
     await this.runMutation(async () => {
       const comment = await this.findEntityById(Comment, id);
       if (!comment) {
-        this.mutationMessage.set(`未找到评论: ${id}`);
+        this.mutationMessage.set(this.i18n.t('page.search.notFoundComment', { id }));
         return;
       }
       await comment.remove();
       await this.refreshCounts();
-      this.mutationMessage.set(`已删除评论 ${id}`);
+      this.mutationMessage.set(this.i18n.t('page.search.removedComment', { id }));
     });
   }
 

@@ -43,7 +43,7 @@ describe('国际化检视页面', () => {
     expect(element.querySelector('[data-testid="i18n-current-locale"]')?.textContent).toBe('fr-CA');
     expect(element.textContent).toContain('remote');
     expect(element.textContent).toContain('bundle');
-    expect(element.textContent).toContain('已覆盖');
+    expect(element.textContent).toContain('Overridden');
     expect(element.textContent).toContain('missing-key');
     element.querySelector<HTMLButtonElement>('[data-testid="clear-i18n-missing"]')?.click();
     expect(state.clearMissing).toHaveBeenCalledTimes(1);
@@ -53,7 +53,7 @@ describe('国际化检视页面', () => {
     expect(element.querySelector('[data-testid="clear-i18n-missing"]')).toBeNull();
     TestBed.resetTestingModule();
     const old = await render(null);
-    expect(old.element.textContent).toContain('未提供国际化检视');
+    expect(old.element.textContent).toContain('does not expose i18n inspection');
     expect(old.element.querySelector('[data-testid="clear-i18n-missing"]')).toBeNull();
   });
 });

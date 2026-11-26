@@ -5,6 +5,8 @@ import RemoteCachePage from './RemoteCachePage.vue';
 const holder = vi.hoisted(() => ({ rxdb: null as unknown }));
 
 vi.mock('@aiao/rxdb-vue', () => ({ useRxDB: () => holder.rxdb }));
+// 本 spec 只关心预览地址的生命周期，不关心文案；恒等 t 免去挂载时的 I18n provider。
+vi.mock('@aiao/rxdb-i18n-vue', () => ({ useI18n: () => ({ t: (key: string) => key }) }));
 
 interface Meta {
   id: string;

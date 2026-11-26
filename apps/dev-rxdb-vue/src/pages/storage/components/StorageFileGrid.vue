@@ -1,6 +1,8 @@
 <script lang="ts" setup>
+import { formatFileSize } from '@modules/demo-i18n/files';
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import { injectRxDB } from '@aiao/rxdb-vue';
-import { formatFileSize, STORAGE_TESTID } from '@aiao/utils';
+import { STORAGE_TESTID } from '@aiao/utils';
 import { Download, Eye, FolderOpen, Pen, Trash2 } from '@lucide/vue';
 import { onUnmounted, ref, watch } from 'vue';
 import {
@@ -10,6 +12,8 @@ import {
   isImageFile,
   type StorageBrowserItem
 } from '../utils/storage-utils';
+
+const { t, locale } = useI18n();
 
 const props = defineProps<{
   entries: StorageBrowserItem[];
@@ -169,7 +173,7 @@ function handleContextMenu(event: MouseEvent, entry: StorageBrowserItem) {
           v-if="entry.kind === 'file'"
           :data-testid="T.FILE_SIZE"
         >
-          {{ formatFileSize(entry.size || 0) }}
+          {{ formatFileSize(entry.size || 0, locale) }}
         </p>
       </div>
 
@@ -180,14 +184,14 @@ function handleContextMenu(event: MouseEvent, entry: StorageBrowserItem) {
           <button
             class="btn btn-circle btn-ghost btn-xs bg-base-100/80 backdrop-blur"
             @click.stop="emit('navigate', entry)"
-            title="Open"
+            :title="t('file.open')"
           >
             <FolderOpen :size="12" />
           </button>
           <button
             class="btn btn-circle btn-ghost btn-xs bg-base-100/80 backdrop-blur"
             @click.stop="emit('download', entry)"
-            title="Download ZIP"
+            :title="t('file.downloadZip')"
           >
             <Download :size="12" />
           </button>
@@ -198,7 +202,7 @@ function handleContextMenu(event: MouseEvent, entry: StorageBrowserItem) {
             v-if="canPreviewFile(entry)"
             :data-testid="T.PREVIEW_BTN"
             @click.stop="emit('preview', entry)"
-            title="Preview"
+            :title="t('file.preview')"
           >
             <Eye :size="12" />
           </button>
@@ -206,7 +210,7 @@ function handleContextMenu(event: MouseEvent, entry: StorageBrowserItem) {
             class="btn btn-circle btn-ghost btn-xs bg-base-100/80 backdrop-blur"
             :data-testid="T.DOWNLOAD_BTN"
             @click.stop="emit('download', entry)"
-            title="Download"
+            :title="t('file.download')"
           >
             <Download :size="12" />
           </button>
@@ -215,7 +219,7 @@ function handleContextMenu(event: MouseEvent, entry: StorageBrowserItem) {
           class="btn btn-circle btn-ghost btn-xs bg-base-100/80 backdrop-blur"
           data-testid="storage-rename-btn"
           @click.stop="emit('rename', entry)"
-          title="Rename"
+          :title="t('file.rename')"
         >
           <Pen :size="12" />
         </button>
@@ -223,7 +227,7 @@ function handleContextMenu(event: MouseEvent, entry: StorageBrowserItem) {
           class="btn btn-circle btn-ghost btn-xs bg-base-100/80 text-error backdrop-blur"
           :data-testid="entry.kind === 'file' ? T.DELETE_BTN : undefined"
           @click.stop="emit('delete', entry)"
-          title="Delete"
+          :title="t('file.delete')"
         >
           <Trash2 :size="12" />
         </button>

@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { LucideGitBranch as GitBranch, LucideDynamicIcon, LucidePlus as Plus } from '@lucide/angular';
 import { DevToolsStateService } from '../services/devtools-state.service';
+import { PanelI18nService } from '../services/panel-i18n.service';
 
 @Component({
   selector: 'app-branch-selector',
@@ -26,29 +27,31 @@ import { DevToolsStateService } from '../services/devtools-state.service';
           <button
             class="btn btn-xs btn-ghost btn-circle"
             [disabled]="switching()"
+            [title]="t('branch.createTitle')"
             (click)="toggleBranchPopover()"
-            title="创建分支"
           >
             <svg [lucideIcon]="Plus" aria-hidden="true" size="14"></svg>
           </button>
           @if (showBranchPopover()) {
             <div class="bg-base-100 border-base-300 absolute top-8 left-0 z-50 rounded-lg border p-3 shadow-lg">
               <div class="flex flex-col gap-2">
-                <label class="text-xs font-medium" for="new-branch-name">创建新分支</label>
+                <label class="text-xs font-medium" for="new-branch-name">{{ t('branch.createLabel') }}</label>
                 <input
                   class="input input-sm input-bordered w-48"
                   id="new-branch-name"
+                  [placeholder]="t('branch.namePlaceholder')"
                   [value]="newBranchName()"
                   (input)="onBranchNameInput($event)"
                   (keydown.enter)="createBranch()"
                   (keydown.escape)="showBranchPopover.set(false)"
-                  placeholder="输入分支名称"
                   type="text"
                 />
                 <div class="flex justify-end gap-2">
-                  <button class="btn btn-ghost btn-sm" (click)="showBranchPopover.set(false)">取消</button>
+                  <button class="btn btn-ghost btn-sm" (click)="showBranchPopover.set(false)">
+                    {{ t('common.cancel') }}
+                  </button>
                   <button class="btn btn-primary btn-sm" [disabled]="!newBranchName().trim()" (click)="createBranch()">
-                    创建
+                    {{ t('common.create') }}
                   </button>
                 </div>
               </div>
@@ -64,6 +67,7 @@ import { DevToolsStateService } from '../services/devtools-state.service';
 })
 export class BranchSelectorComponent {
   private readonly devToolsState = inject(DevToolsStateService);
+  protected readonly t = inject(PanelI18nService).t;
 
   protected readonly GitBranch = GitBranch;
   protected readonly Plus = Plus;

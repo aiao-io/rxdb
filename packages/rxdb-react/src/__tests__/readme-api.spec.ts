@@ -12,21 +12,17 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import * as api from '../index.js';
 
-const readme = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../../README.md'), 'utf8');
-
-const hooksIn = (text: string): string[] => [...text.matchAll(/`(use\w+)`/g)].map(match => match[1]);
-
-/** README 清单里列出的 hook：列表项与「XXX API：」行。 */
-const listedHooks = (markdown: string): string[] => [
-  ...[...markdown.matchAll(/^- `(use\w+)`/gm)].map(match => match[1]),
-  ...[...markdown.matchAll(/^\S+ API：(.*)$/gm)].flatMap(match => hooksIn(match[1]))
-];
+const listedHooks = (markdown: string): string[] =>
+  markdown
+    .split('\n')
+    .filter(line => /^- `use\w+`|^\S+ API[：:]/.test(line))
+    .flatMap(line => [...line.matchAll(/`(use\w+)`/g)].map(match => match[1]));
 
 describe('README 查询 API 清单', () => {
-  it('清单里的每个 hook 都是包入口的具名导出', () => {
+  it.each(['README.md', 'README.zh-CN.md'])('%s 的清单覆盖基础与图查询，并与包入口一致', filename => {
+    const readme = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../..', filename), 'utf8');
     const listed = listedHooks(readme);
-
-    expect(listed.length).toBeGreaterThan(0);
+    expect(listed).toEqual(expect.arrayContaining(['useFind', 'useFindOneOrFail', 'useCount', 'useGraphPaths']));
     expect(listed.filter(name => !(name in api))).toEqual([]);
   });
 });

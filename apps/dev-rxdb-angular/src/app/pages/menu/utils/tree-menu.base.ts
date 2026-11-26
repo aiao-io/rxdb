@@ -1,6 +1,7 @@
 /* eslint-disable @angular-eslint/prefer-inject */
 import type { HistoryScopeAPI, RxDBEntityId } from '@aiao/rxdb';
 import { useAction } from '@aiao/rxdb-angular';
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { isPlatformBrowser } from '@angular/common';
 import {
   AfterViewInit,
@@ -24,6 +25,7 @@ import { TreeMenuStore as MenuStore } from './tree-menu.store';
 @Directive()
 export abstract class TreeMenuBase<C extends TreeMenuEntityConstructor> implements OnInit, AfterViewInit {
   private readonly destroyRef = inject(DestroyRef);
+  private readonly i18n = useI18n();
   readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   fullHeaderRef = viewChild<ElementRef<HTMLElement>>('fullHeader');
@@ -56,10 +58,10 @@ export abstract class TreeMenuBase<C extends TreeMenuEntityConstructor> implemen
   });
 
   readonly batchAddOptions = [
-    { count: 100, label: '添加 100 条', action: this.add_1 },
-    { count: 1000, label: '添加 1000 条', action: this.add_2 },
-    { count: 5000, label: '添加 5000 条', action: this.add_3 },
-    { count: 10000, label: '添加 10000 条', action: this.add_4 }
+    { count: 100, labelKey: 'page.tree.batchAddCount', action: this.add_1 },
+    { count: 1000, labelKey: 'page.tree.batchAddCount', action: this.add_2 },
+    { count: 5000, labelKey: 'page.tree.batchAddCount', action: this.add_3 },
+    { count: 10000, labelKey: 'page.tree.batchAddCount', action: this.add_4 }
   ];
 
   // Delegate Properties
@@ -305,7 +307,7 @@ export abstract class TreeMenuBase<C extends TreeMenuEntityConstructor> implemen
       await write();
       return true;
     } catch (error) {
-      this.writeError.set(formatTreeWriteError(operation, error));
+      this.writeError.set(formatTreeWriteError(operation, error, this.i18n.t));
       return false;
     }
   }

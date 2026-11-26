@@ -45,7 +45,7 @@ describe('useOpfsService', () => {
         handle: { kind: 'file', name: 'stale.txt' } as FileSystemFileHandle
       }
     ];
-    service.error.value = 'stale error';
+    service.error.value = { key: 'file.opfsUnsupported' };
 
     service.reset();
 

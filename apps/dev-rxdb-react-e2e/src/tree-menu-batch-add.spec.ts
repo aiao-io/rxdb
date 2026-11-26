@@ -36,7 +36,7 @@ async function clickAndObserveDisabled(locator: Locator) {
 
 test.describe('Tree Menu - Batch Add Functionality', () => {
   test.beforeEach(async ({ page }) => {
-    await openPage(page, '/menu-simple', 'Tree Menu - Simple');
+    await openPage(page, '/menu-simple', /Tree Menu - Simple|树菜单 - 简单模式/);
   });
 
   test('should have batch add dropdown button', async ({ page }) => {

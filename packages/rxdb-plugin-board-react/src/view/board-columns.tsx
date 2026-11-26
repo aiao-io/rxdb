@@ -1,6 +1,7 @@
 import { labelTextColor, type Column, type Task } from '@aiao/rxdb-plugin-board';
 import type { ReactNode } from 'react';
 
+import { boardT } from '../board-i18n.js';
 import type { BoardViewModel } from './model.js';
 import { cx } from './types.js';
 
@@ -27,7 +28,7 @@ function CardFields({ vm, task }: PartProps & { readonly task: Task }): ReactNod
           onClick={() => data.toggleLabelFilter(label.name)}
           data-testid='card-label'
           tabIndex={-1}
-          title='按此标签筛选'
+          title={boardT('view.task.filterByLabel')}
         >
           {label.name}
         </button>
@@ -55,7 +56,7 @@ function CardEditor({ vm, task }: PartProps & { readonly task: Task }): ReactNod
         value={cards.taskTitleDraft}
         onChange={event => cards.setTaskTitleDraft(event.target.value)}
         onKeyDown={event => cards.onTaskTitleKeydown(event, task)}
-        aria-label='任务标题'
+        aria-label={boardT('view.task.titleEditor')}
         data-autofocus
         data-testid='task-title-editor'
       />
@@ -63,18 +64,18 @@ function CardEditor({ vm, task }: PartProps & { readonly task: Task }): ReactNod
         <button
           className='rxb-btn rxb-btn-sm'
           onClick={() => cards.cancelTaskTitle()}
-          aria-label='取消'
+          aria-label={boardT('common.cancel')}
           data-testid='task-title-cancel'
         >
-          取消
+          {boardT('common.cancel')}
         </button>
         <button
           className='rxb-btn rxb-btn-sm rxb-btn-primary'
           onClick={() => void cards.commitTaskTitle(task)}
-          aria-label='保存标题'
+          aria-label={boardT('view.task.saveTitle')}
           data-testid='task-title-save'
         >
-          保存
+          {boardT('common.save')}
         </button>
       </div>
     </div>
@@ -94,7 +95,7 @@ function TaskCard({ vm, task }: PartProps & { readonly task: Task }): ReactNode 
         search.searchHighlightId === task.id && 'is-search-hit',
         detail.detailTaskId === task.id && 'is-selected'
       )}
-      aria-label={`任务：${task.title}`}
+      aria-label={boardT('view.task.ariaLabel', { title: task.title })}
       data-task-id={task.id}
       draggable={!core.writeLocked && cards.editingTaskId !== task.id}
       tabIndex={data.rovingTaskId === task.id ? 0 : -1}
@@ -120,7 +121,7 @@ function TaskCard({ vm, task }: PartProps & { readonly task: Task }): ReactNode 
             <button
               className='rxb-btn rxb-btn-sm rxb-btn-icon rxb-btn-invisible rxb-card-menu'
               aria-expanded={popover.isPopoverFor('task-menu', task.id)}
-              aria-label={`任务操作：${task.title}`}
+              aria-label={boardT('view.task.menu', { title: task.title })}
               onClick={event => cards.openTaskMenu(event, task)}
               aria-haspopup='menu'
               data-testid='task-menu-trigger'
@@ -147,20 +148,20 @@ function AddTaskForm({ vm }: PartProps): ReactNode {
         value={columns.addTaskTitle}
         onChange={event => columns.setAddTaskTitle(event.target.value)}
         onKeyDown={columns.onAddTaskKeydown}
-        aria-label='新任务标题'
+        aria-label={boardT('view.task.newTitle')}
         data-autofocus
         data-testid='add-task-input'
-        placeholder='输入标题后回车创建'
+        placeholder={boardT('view.task.createPlaceholder')}
       />
       <div className='rxb-composer-actions'>
         <button
           className='rxb-btn rxb-btn-sm'
           disabled={columns.creatingTask}
           onClick={() => columns.cancelAddTask()}
-          aria-label='取消'
+          aria-label={boardT('common.cancel')}
           data-testid='add-task-cancel'
         >
-          取消
+          {boardT('common.cancel')}
         </button>
         <button
           className='rxb-btn rxb-btn-sm rxb-btn-primary'
@@ -168,7 +169,7 @@ function AddTaskForm({ vm }: PartProps): ReactNode {
           onClick={() => void columns.commitAddTask()}
           data-testid='add-task-submit'
         >
-          添加
+          {boardT('view.task.add')}
         </button>
       </div>
     </div>
@@ -199,7 +200,7 @@ function ColumnHeader({ vm, column }: PartProps & { readonly column: Column }): 
           onBlur={() => void columns.commitColumnTitle()}
           onChange={event => columns.setColumnTitleDraft(event.target.value)}
           onKeyDown={columns.onColumnTitleKeydown}
-          aria-label='列标题'
+          aria-label={boardT('view.column.titleEditor')}
           data-autofocus
           data-testid='column-title-editor'
         />
@@ -212,7 +213,7 @@ function ColumnHeader({ vm, column }: PartProps & { readonly column: Column }): 
           </span>
           {overdue > 0 ?
             <span className='rxb-column-overdue' data-testid='column-overdue'>
-              逾期 {overdue}
+              {boardT('view.column.overdue', { count: overdue })}
             </span>
           : null}
         </>
@@ -221,7 +222,7 @@ function ColumnHeader({ vm, column }: PartProps & { readonly column: Column }): 
         <button
           className='rxb-btn rxb-btn-sm rxb-btn-icon rxb-btn-invisible'
           aria-expanded={popover.isPopoverFor('column-menu', column.id)}
-          aria-label={`列操作：${column.title}`}
+          aria-label={boardT('view.column.menu', { title: column.title })}
           onClick={event => columns.openColumnMenu(event, column)}
           aria-haspopup='menu'
           data-testid='column-menu-trigger'
@@ -230,7 +231,7 @@ function ColumnHeader({ vm, column }: PartProps & { readonly column: Column }): 
         </button>
         <button
           className='rxb-btn rxb-btn-sm rxb-btn-icon rxb-btn-invisible'
-          aria-label={`添加任务到 ${column.title}`}
+          aria-label={boardT('view.column.addTask', { title: column.title })}
           disabled={core.writeLocked}
           onClick={() => columns.openAddTask(column.id)}
           data-testid='column-add-task'
@@ -253,7 +254,7 @@ function BoardColumn({ vm, column }: PartProps & { readonly column: Column }): R
         drag.isDropEnd(column) && 'is-drop-end',
         drag.isDropColumn(column) && 'is-drop-target'
       )}
-      aria-label={`列：${column.title}`}
+      aria-label={boardT('view.column.ariaLabel', { title: column.title })}
       data-column-id={column.id}
       onDragOver={drag.onColumnDragOver}
       onDrop={event => void drag.onTaskDrop(event)}
@@ -264,7 +265,9 @@ function BoardColumn({ vm, column }: PartProps & { readonly column: Column }): R
         {visible.length > 0 ?
           visible.map(task => <TaskCard key={task.id} vm={vm} task={task} />)
         : <p className='rxb-column-empty' data-testid='column-empty'>
-            {data.filterActive && data.tasksOf(column).length > 0 ? '没有匹配筛选的任务' : '暂无任务'}
+            {data.filterActive && data.tasksOf(column).length > 0 ?
+              boardT('view.column.empty.filtered')
+            : boardT('view.column.empty.plain')}
           </p>
         }
         {columns.addTaskColumnId === column.id ?
@@ -276,7 +279,7 @@ function BoardColumn({ vm, column }: PartProps & { readonly column: Column }): R
             data-testid='add-task'
           >
             <span className='rxb-i rxb-i-plus' aria-hidden='true' />
-            添加任务
+            {boardT('view.task.addTask')}
           </button>
         }
       </div>
@@ -296,10 +299,10 @@ function AddColumn({ vm }: PartProps): ReactNode {
             value={columns.addColumnTitle}
             onChange={event => columns.setAddColumnTitle(event.target.value)}
             onKeyDown={columns.onAddColumnKeydown}
-            aria-label='新列标题'
+            aria-label={boardT('view.column.newTitle')}
             data-autofocus
             data-testid='column-composer-input'
-            placeholder='列名，如 In review'
+            placeholder={boardT('view.column.namePlaceholder')}
           />
           <div className='rxb-composer-actions'>
             <button
@@ -307,7 +310,7 @@ function AddColumn({ vm }: PartProps): ReactNode {
               onClick={() => columns.cancelAddColumn()}
               data-testid='column-composer-cancel'
             >
-              取消
+              {boardT('common.cancel')}
             </button>
             <button
               className='rxb-btn rxb-btn-sm rxb-btn-primary'
@@ -315,7 +318,7 @@ function AddColumn({ vm }: PartProps): ReactNode {
               onClick={() => void columns.commitAddColumn()}
               data-testid='column-composer-submit'
             >
-              添加列
+              {boardT('view.column.add')}
             </button>
           </div>
         </div>
@@ -326,7 +329,7 @@ function AddColumn({ vm }: PartProps): ReactNode {
           data-testid='create-column'
         >
           <span className='rxb-i rxb-i-plus' aria-hidden='true' />
-          添加列
+          {boardT('view.column.add')}
         </button>
       }
     </div>
@@ -350,15 +353,17 @@ export function EmptyBoard({ vm }: PartProps): ReactNode {
   const { core, dialog } = vm;
   return (
     <div className='rxb-empty' data-testid='empty-board'>
-      <p className='rxb-empty-title'>{core.board.boards.length === 0 ? '还没有看板' : '请选择看板'}</p>
-      <p>看板把任务按列组织；数据只保存在本地浏览器，可随时导出备份。</p>
+      <p className='rxb-empty-title'>
+        {core.board.boards.length === 0 ? boardT('view.empty.noBoards') : boardT('view.empty.selectBoard')}
+      </p>
+      <p>{boardT('view.empty.description')}</p>
       <button
         className='rxb-btn rxb-btn-primary'
         disabled={core.writeLocked}
         onClick={dialog.openBoardComposer}
         data-testid='create-board-empty'
       >
-        新建看板
+        {boardT('common.newBoard')}
       </button>
     </div>
   );

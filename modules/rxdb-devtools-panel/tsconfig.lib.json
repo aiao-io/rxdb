@@ -14,13 +14,16 @@
   "include": ["src/**/*.ts", "wire/**/*.ts"],
   "references": [
     {
-      "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
+      "path": "../../packages/rxdb-i18n/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-model-angular/tsconfig.lib.json"
     },
     {
       "path": "../../packages/rxdb-model/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/rxdb-model-angular/tsconfig.lib.json"
+      "path": "../../packages/rxdb-devtools/tsconfig.lib.json"
     }
   ]
 }

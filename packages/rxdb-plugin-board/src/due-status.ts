@@ -5,6 +5,8 @@
  * 不把日期解析成 UTC 时刻；三端卡片、详情与筛选共用这一份判定。
  */
 
+import { boardT } from './i18n/board-i18n.js';
+
 /** 截止日状态：逾期 / 今天到期 / 未到期。 */
 export type DueStatus = 'overdue' | 'today' | 'upcoming';
 
@@ -15,15 +17,13 @@ export const dueStatus = (dueDate: string | null, today: string): DueStatus | nu
   return dueDate === today ? 'today' : 'upcoming';
 };
 
-const DUE_PREFIX: Readonly<Record<DueStatus, string>> = {
-  overdue: '已逾期 ',
-  today: '今天到期 ',
-  upcoming: ''
-};
-
 /** 截止日文字：逾期 / 今天用文字说明，颜色只作辅助（US-539 交互约定「卡片」行）。 */
-export const dueStatusText = (dueDate: string, today: string): string =>
-  `${DUE_PREFIX[dueStatus(dueDate, today) ?? 'upcoming']}${dueDate}`;
+export const dueStatusText = (dueDate: string, today: string): string => {
+  const status = dueStatus(dueDate, today);
+  if (status === 'overdue') return boardT('view.due.overdue', { date: dueDate });
+  if (status === 'today') return boardT('view.due.today', { date: dueDate });
+  return dueDate;
+};
 
 /** 本地日期键 `YYYY-MM-DD`（取本地年月日，不经 UTC）。 */
 export const localDateKey = (now: Date): string => {

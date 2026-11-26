@@ -4,9 +4,33 @@ import { themes as prismThemes } from 'prism-react-renderer';
 
 // 这在 Node.js 中运行 - 请勿在此处使用客户端代码（浏览器 API、JSX...）
 
+// 站点配置的 title / tagline / 站点级描述没有官方的 code.json 翻译机制：Docusaurus
+// 3.10 的 write-translations 不提取 site.* 键，@docusaurus/core 与 theme-classic
+// 源码里也没有消费 site.tagline 的代码（siteConfig 原样序列化给客户端；
+// SiteMetadataDefaults 只输出 og:title，tagline 不会成为任何页面的
+// og:description / meta description 兜底）。官方给出的工作区是 buildLocale 按
+// locale 设置的 process.env.DOCUSAURUS_CURRENT_LOCALE（issue #4542），与
+// sidebars.ts 的做法一致。
+const tagline =
+  process.env.DOCUSAURUS_CURRENT_LOCALE === 'en' ?
+    'An in-browser database, reactive queries, and a unified entity model for Angular, React, and Vue'
+  : '面向 Angular、React、Vue 的浏览器内数据库、响应式查询与统一实体模型';
+
+// 站点级 <meta name="description"> 放在 themeConfig.metadata 里（见下），由
+// theme-classic 的 SiteMetadata 经 react-helmet-async 输出：与页面级 PageMetadata
+// （frontMatter/excerpt/Layout 属性）走同一条去重管线，helmet 按 meta 的 name
+// 属性去重、后渲染者胜，因此带自有描述的页面只有一条页面级描述，无自有描述的
+// 页面才落到这里。此前 src/plugins/site-meta.js 用 injectHtmlTags 注入的是绕过
+// helmet 的静态 HTML 片段，与页面级描述重复出现（en 首页两条互相冲突），已删除。
+// zh 文案与历史上静态 metadata 条目逐字节一致。
+const description =
+  process.env.DOCUSAURUS_CURRENT_LOCALE === 'en' ?
+    'RxDB provides Angular, React, and Vue with an in-browser database, reactive queries, and a type-safe unified entity model.'
+  : 'RxDB 为 Angular、React、Vue 提供浏览器内数据库、响应式查询与类型安全的统一实体模型。';
+
 const config: Config = {
   title: 'RxDB',
-  tagline: '面向 Angular、React、Vue 的浏览器内数据库、响应式查询与统一实体模型',
+  tagline,
   favicon: '/favicon.ico',
   // 未来标志，详见 https://docusaurus.io/docs/api/docusaurus-config#future
   future: {
@@ -33,12 +57,19 @@ const config: Config = {
   // 静态目录配置 - 从 public/ 复制到构建输出的根目录
   staticDirectories: ['public'],
 
-  // 即使不使用国际化，也可以使用此字段设置
-  // 有用的元数据，如 html lang。例如，如果您的站点是中文，
-  // 您可能希望将 "en" 替换为 "zh-Hans"
   i18n: {
     defaultLocale: 'zh-Hans',
-    locales: ['zh-Hans']
+    locales: ['zh-Hans', 'en'],
+    localeConfigs: {
+      'zh-Hans': {
+        label: '简体中文',
+        htmlLang: 'zh-CN'
+      },
+      en: {
+        label: 'English',
+        htmlLang: 'en'
+      }
+    }
   },
 
   trailingSlash: false,
@@ -46,7 +77,7 @@ const config: Config = {
   markdown: {
     mermaid: true,
     hooks: {
-      onBrokenMarkdownLinks: 'warn'
+      onBrokenMarkdownLinks: 'throw'
     }
   },
   themes: [
@@ -91,6 +122,7 @@ const config: Config = {
           // 请更改为您的仓库
           // 删除此项可移除"编辑此页面"链接
           editUrl: 'https://github.com/aiao-io/rxdb/tree/main/website/',
+          editLocalizedFiles: true,
           showLastUpdateAuthor: true,
           showLastUpdateTime: true,
           remarkPlugins: [[require('@docusaurus/remark-plugin-npm2yarn'), { sync: true }]],
@@ -108,12 +140,13 @@ const config: Config = {
     image: '/logo.svg',
     metadata: [
       {
-        name: 'keywords',
-        content: 'Aiao, Local-first, RxDB, RxJS, WebAssembly, SQLite, PGlite, Angular, React, Vue, TypeScript'
+        // 站点级描述兜底：helmet 按 name 去重，页面级 PageMetadata 的描述会覆盖它
+        name: 'description',
+        content: description
       },
       {
-        name: 'description',
-        content: 'RxDB 为 Angular、React、Vue 提供浏览器内数据库、响应式查询与类型安全的统一实体模型。'
+        name: 'keywords',
+        content: 'Aiao, Local-first, RxDB, RxJS, WebAssembly, SQLite, PGlite, Angular, React, Vue, TypeScript'
       }
     ],
     colorMode: {
@@ -134,6 +167,7 @@ const config: Config = {
         { to: '/demos', label: '演示', position: 'left' },
         { to: '/benchmarks', label: '基准测试', position: 'left' },
         { to: '/blog', label: '博客', position: 'left' },
+        { type: 'localeDropdown', position: 'right' },
         {
           href: 'https://github.com/aiao-io/rxdb',
           position: 'right',

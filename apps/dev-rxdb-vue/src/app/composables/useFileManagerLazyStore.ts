@@ -1,4 +1,5 @@
 import { RxDB, UUID, type RxDBEntityId } from '@aiao/rxdb';
+import { useI18nOptional } from '@aiao/rxdb-i18n-vue';
 import { SortableFileLarge } from '@aiao/rxdb-test/entities';
 import { firstValueFrom } from 'rxjs';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
@@ -46,6 +47,8 @@ export interface DeleteImpact {
 }
 
 export function useFileManagerLazyStore(rxdb: RxDB) {
+  const i18n = useI18nOptional();
+  const uiLocale = computed(() => i18n?.locale.value ?? 'zh-CN');
   const nodesMap = ref<Map<RxDBEntityId, SortableFileLarge>>(new Map());
   const expandedIds = ref<Set<RxDBEntityId>>(new Set());
   const loadingIds = ref<Set<RxDBEntityId>>(new Set());
@@ -138,7 +141,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
   // Flatten visible nodes
   const treeNodes = computed(() => {
     const result: FileLazyNode[] = [];
-    const comparator = getSortComparator(sortMode.value);
+    const comparator = getSortComparator(sortMode.value, uiLocale.value);
     // 手动模式 comparator 为 null：沿用查询顺序，不排序
     const sortIds = (ids: readonly RxDBEntityId[]): readonly RxDBEntityId[] => {
       if (!comparator) return ids;

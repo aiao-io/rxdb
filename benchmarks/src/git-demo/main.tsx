@@ -1,10 +1,16 @@
+import { I18nProvider, useI18n } from '@aiao/rxdb-i18n-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import type { BenchmarksMessageKey } from '../i18n/messages';
+import { createBenchmarksI18n, readStoredLocale } from '../i18n/runtime';
 import './styles.css';
 
 type DemoStep = {
-  name: string;
-  detail: string;
+  key: BenchmarksMessageKey;
+  params?: Record<string, unknown>;
+  detail?: string;
+  detailKey?: BenchmarksMessageKey;
+  detailParams?: Record<string, unknown>;
   status: 'passed' | 'info' | 'failed';
 };
 
@@ -18,7 +24,15 @@ type DemoResult = {
 type WorkerResponse = { result?: DemoResult; error?: string };
 type DevToolsState = 'loading' | 'loaded' | 'unavailable' | 'production';
 
+const runtime = createBenchmarksI18n({
+  storedLocale: readStoredLocale(),
+  deviceLocale: globalThis.navigator?.language
+});
+document.documentElement.lang = runtime.locale;
+document.title = runtime.t('gitDemo.title');
+
 function App() {
+  const { t } = useI18n();
   const workerRef = useRef<Worker | null>(null);
   const [steps, setSteps] = useState<DemoStep[]>([]);
   const [running, setRunning] = useState(false);
@@ -47,12 +61,12 @@ function App() {
     (action: 'demo' | 'reopen' | 'clear') =>
       new Promise<DemoResult>((resolve, reject) => {
         const worker = getWorker();
-        const timer = window.setTimeout(() => reject(new Error('Worker 超时')), 60_000);
+        const timer = window.setTimeout(() => reject(new Error(t('gitDemo.workerTimeout'))), 60_000);
         worker.onmessage = ({ data }: MessageEvent<WorkerResponse>) => {
           window.clearTimeout(timer);
           if (data.error) reject(new Error(data.error));
           else if (data.result) resolve(data.result);
-          else reject(new Error('Worker 返回空结果'));
+          else reject(new Error(t('gitDemo.workerEmptyResult')));
         };
         worker.onerror = event => {
           window.clearTimeout(timer);
@@ -60,7 +74,7 @@ function App() {
         };
         worker.postMessage({ action });
       }),
-    [getWorker]
+    [getWorker, t]
   );
 
   const applyResult = useCallback((result: DemoResult) => {
@@ -91,42 +105,42 @@ function App() {
 
   useEffect(() => () => workerRef.current?.terminate(), []);
 
+  const devToolsStatus =
+    devToolsState === 'loading' ? t('gitDemo.devtoolsLoading')
+    : devToolsState === 'loaded' ? t('gitDemo.devtoolsLoaded')
+    : devToolsState === 'unavailable' ? t('gitDemo.devtoolsUnavailable')
+    : t('gitDemo.devtoolsProduction');
+
   return (
     <main className='git-demo-shell'>
       <section className='git-demo-hero'>
-        <p className='git-demo-eyebrow'>AI 原生开发环境 · 研究 Demo</p>
-        <h1>浏览器 Git + OPFS</h1>
-        <p>
-          真实 Worker 使用 <code>wasm-git JSPI</code>，把工作区和 <code>.git</code> 写进 OPFS。 这个页面只演示已验证的
-          Git 闭环，不承诺任意 Node / Nx 运行时。
-        </p>
+        <p className='git-demo-eyebrow'>{t('gitDemo.eyebrow')}</p>
+        <h1>{t('gitDemo.heading')}</h1>
+        <p>{t('gitDemo.description')}</p>
         <div className='git-demo-actions'>
           <button disabled={running} onClick={() => void run('demo')} type='button'>
-            {running ? '运行中…' : '运行 Git 闭环'}
+            {running ? t('gitDemo.running') : t('gitDemo.run')}
           </button>
           <button disabled={running} onClick={() => void run('reopen')} type='button'>
-            重启 Worker
+            {t('gitDemo.reopenWorker')}
           </button>
           <button className='git-demo-danger' disabled={running} onClick={() => void run('clear')} type='button'>
-            清空 OPFS 仓库
+            {t('gitDemo.clearRepo')}
           </button>
         </div>
         <p className='git-demo-devtools-status'>
-          RxDB DevTools：
-          {devToolsState === 'loading' && '加载中…'}
-          {devToolsState === 'loaded' && '连接器已加载；当前 Demo 没有 RxDB 实例'}
-          {devToolsState === 'unavailable' && '未加载'}
-          {devToolsState === 'production' && '仅开发态启用'}
+          {t('gitDemo.devtoolsLabel')}
+          {devToolsStatus}
         </p>
       </section>
 
-      <section className='git-demo-stats' aria-label='仓库状态'>
+      <section className='git-demo-stats' aria-label={t('gitDemo.statsLabel')}>
         <div>
-          <span>引擎</span>
+          <span>{t('gitDemo.statEngine')}</span>
           <strong>wasm-git JSPI</strong>
         </div>
         <div>
-          <span>分支</span>
+          <span>{t('gitDemo.statBranch')}</span>
           <strong>{branch}</strong>
         </div>
         <div>
@@ -134,44 +148,49 @@ function App() {
           <strong>{head}</strong>
         </div>
         <div>
-          <span>持久化</span>
-          <strong>{persisted ? 'OPFS 已保存' : '尚未创建'}</strong>
+          <span>{t('gitDemo.statPersisted')}</span>
+          <strong>{persisted ? t('gitDemo.persistedSaved') : t('gitDemo.persistedNone')}</strong>
         </div>
       </section>
 
       <section className='git-demo-card'>
         <div className='git-demo-card-heading'>
-          <h2>执行日志</h2>
-          <span>clone → status → modify → commit → branch → checkout → reopen</span>
+          <h2>{t('gitDemo.logTitle')}</h2>
+          <span>{t('gitDemo.flow')}</span>
         </div>
-        {steps.length === 0 && !error && <p className='git-demo-empty'>点击“运行 Git 闭环”开始。</p>}
+        {steps.length === 0 && !error && <p className='git-demo-empty'>{t('gitDemo.emptyHint')}</p>}
         <ol className='git-demo-steps'>
-          {steps.map(step => (
-            <li className={`git-demo-step ${step.status}`} key={`${step.name}-${step.detail}`}>
-              <span className='git-demo-step-icon'>
-                {step.status === 'passed' ?
-                  '✓'
-                : step.status === 'failed' ?
-                  '!'
-                : '·'}
-              </span>
-              <div>
-                <strong>{step.name}</strong>
-                <p>{step.detail}</p>
-              </div>
-            </li>
-          ))}
+          {steps.map(step => {
+            const detail = step.detail ?? (step.detailKey ? t(step.detailKey, step.detailParams) : '');
+            return (
+              <li className={`git-demo-step ${step.status}`} key={`${step.key}-${detail}`}>
+                <span className='git-demo-step-icon'>
+                  {step.status === 'passed' ?
+                    '✓'
+                  : step.status === 'failed' ?
+                    '!'
+                  : '·'}
+                </span>
+                <div>
+                  <strong>{t(step.key, step.params)}</strong>
+                  <p>{detail}</p>
+                </div>
+              </li>
+            );
+          })}
         </ol>
         {error && <p className='git-demo-error'>{error}</p>}
       </section>
 
-      <p className='git-demo-footnote'>
-        OPFS 按 origin 隔离，清理站点数据会删除仓库。导出、远端认证、依赖安装和隔离预览仍是后续验收项。
-      </p>
+      <p className='git-demo-footnote'>{t('gitDemo.footnote')}</p>
     </main>
   );
 }
 
 const root = document.getElementById('git-demo-root');
 if (!root) throw new Error('git-demo-root is missing');
-createRoot(root).render(<App />);
+createRoot(root).render(
+  <I18nProvider value={runtime}>
+    <App />
+  </I18nProvider>
+);

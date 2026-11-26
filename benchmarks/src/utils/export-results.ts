@@ -1,4 +1,5 @@
 import type { BenchmarkResult } from '../constants';
+import type { BenchmarksTranslate } from '../i18n/messages';
 
 function triggerDownload(url: string, filename: string): void {
   const a = document.createElement('a');
@@ -56,9 +57,17 @@ export function exportResultsAsJSON(results: BenchmarkResult[]): void {
 
 /**
  * 将基准测试结果导出为 CSV 文件
+ * @param results - 基准测试结果
+ * @param t - 当前语言下的翻译函数（用于表头）
  */
-export function exportResultsAsCSV(results: BenchmarkResult[]): void {
-  const headers = ['测试场景', '耗时(ms)', '内存(MB)', '期望值', '备注'];
+export function exportResultsAsCSV(results: BenchmarkResult[], t: BenchmarksTranslate): void {
+  const headers = [
+    t('export.headerScenario'),
+    t('export.headerDuration'),
+    t('export.headerMemory'),
+    t('export.headerExpectation'),
+    t('export.headerNotes')
+  ];
   const rows = results.map(r => [
     r.name,
     r.duration.toFixed(2),
