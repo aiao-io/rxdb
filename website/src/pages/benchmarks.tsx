@@ -11,6 +11,7 @@ export default function BenchmarksPage() {
         url='/benchmarks-app/'
         title={copy('RxDB 基准测试')}
         allow='cross-origin-isolated'
+        sandbox='allow-popups allow-popups-to-escape-sandbox'
       />
     </Layout>
   );

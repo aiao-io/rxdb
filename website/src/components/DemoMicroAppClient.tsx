@@ -37,6 +37,7 @@ export default function DemoMicroAppClient({
   url,
   title,
   allow,
+  sandbox,
   basePath: hostPath
 }: DemoMicroAppProps): ReactElement {
   const copy = useSiteCopy();
@@ -84,6 +85,7 @@ export default function DemoMicroAppClient({
       url,
       title,
       allow,
+      sandbox,
       props: current.current
     });
     instance.current = app;
@@ -101,7 +103,7 @@ export default function DemoMicroAppClient({
       app.destroy();
       instance.current = undefined;
     };
-  }, [runtime, name, url, title, allow, attempt, armRouteSync, copy]);
+  }, [runtime, name, url, title, allow, sandbox, attempt, armRouteSync, copy]);
 
   useEffect(() => {
     const sync = () => {

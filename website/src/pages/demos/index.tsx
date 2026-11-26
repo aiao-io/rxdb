@@ -144,7 +144,7 @@ export default function DemosIndexPage() {
                   {whatToObserve.map(item => (
                     <div key={item} className='flex items-start gap-2 text-xs leading-5'>
                       <span className='text-primary mt-1 shrink-0 text-[8px]'>■</span>
-                      {item}
+                      {copy(item)}
                     </div>
                   ))}
                 </div>

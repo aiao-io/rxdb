@@ -1,0 +1,348 @@
+# rxdb-admin
+
+Headless core of the admin shell: a **preferences hub** (declarative schema), themes, layout derivation, tabs, shortcuts, the command palette, extension preference items, screen lock, watermark, and timezones. Independent of routing libraries and UI frameworks, the three bindings `@aiao/rxdb-admin-react` / `-vue` / `-angular` only handle rendering.
+
+```bash
+npm install @aiao/rxdb @aiao/rxdb-admin
+```
+
+The shell message catalogs depend on `@aiao/rxdb-i18n` (installed with this package), which has `@aiao/rxdb` as a peer, so install `@aiao/rxdb` as well.
+
+```ts
+import { createAdminShell, pickThemes } from '@aiao/rxdb-admin';
+
+export const shell = createAdminShell({
+  brand: { title: 'Workbench' },
+  navigate: url => router.navigate(url), // The shell does not depend on a routing library; navigation is provided by the app
+  storagePrefix: 'aiao.workbench', // Isolate storage keys when multiple apps share an origin
+  themes: pickThemes(['light', 'dark', 'material', 'material-dark', 'cupcake', 'dracula'])
+});
+```
+
+`material` / `material-dark` are provided by the shared `@aiao/rxdb-admin/admin.css`, carrying over the reference project's palette, 20px corner radius, and floating panel spacing, and work across all three frameworks; other daisyUI themes must be enabled in the app's styles. `ADMIN_THEMES` is the full catalog, while `DAISYUI_THEMES` only contains daisyUI built-in themes.
+
+Call `shell.syncRoute(url)` after route changes (the binding components do this for you); the shell then syncs tabs, titles, and breadcrumbs and collapses the mobile drawer. Menus are described with a `MenuNode` tree; the icon type is decided by the binding (React's `ReactNode`, Vue's `Component`, Angular's lucide icon data).
+
+## Preferences and persistence
+
+Preferences form a typed state tree (`AdminPreferences`: appearance, layout, sidebar, navigation, top bar, breadcrumbs, tabs, footer, copyright, logo, transition animations, shortcuts, widgets, extensions), each leaf declared by a `PreferenceItem`; the preferences drawer renders generically from the schema — no hand-written forms.
+
+- Only the **diff against the defaults** is persisted (`{ version: 1, values }`, keyed `<storagePrefix>.preferences`); when a new release adjusts defaults, users who never changed a value follow automatically.
+- Multiple tabs on the same origin sync through `storage` events and flush to disk when the page hides (`pagehide`); `exportJson()` exports the diff and `importJson()` replaces everything.
+- All writes (UI, imports, other tabs) go through the same constraint sanitization, so the state tree is always valid.
+- `defaults` overrides the package defaults; `migrateLegacy` migrates legacy storage keys on first use (the result is written to the new key immediately, and the new key wins from then on):
+
+```ts
+createAdminShell({
+  // ...
+  defaults: { navigation: { accordion: false } },
+  migrateLegacy: storage => (storage.getItem('theme') === 'dark' ? { theme: { name: 'dark' } } : null)
+});
+```
+
+## Extension preference items
+
+Your own settings are registered as extensions and appear under the "Extensions" tab of the preferences drawer, with values stored at `extension.<key>`:
+
+```ts
+createAdminShell({
+  // ...
+  extensions: [
+    {
+      key: 'searchPageSize',
+      type: 'number', // 'switch' | 'text' | 'select' | 'number'
+      label: 'Results per page for full-text search',
+      section: 'Full-text search',
+      defaultValue: 20,
+      min: 5,
+      max: 50,
+      step: 5
+    }
+  ]
+});
+
+shell.preferences.value.extension['searchPageSize']; // read
+shell.preferences.setPath('extension.searchPageSize', 10); // write (also sanitized, persisted, and synced across tabs)
+```
+
+## No flash on first paint
+
+Theme and layout variables must be in place before the framework renders. Inline the generated script into the `<head>` of `index.html`, and call `shell.attach()` in the entry point before rendering:
+
+```ts
+import { createBootstrapScript } from '@aiao/rxdb-admin';
+
+createBootstrapScript({ storageKey: 'aiao.workbench.preferences' }); // returns the script text to inline
+```
+
+Consider asserting in your unit tests that `index.html` contains this script, to guard against drift in the storage key or logic.
+
+## Command palette, shortcuts, commands
+
+```ts
+// Async source: e.g. backed by full-text search; navigate on a hit
+shell.palette.registerSource({
+  id: 'records',
+  groupLabelKey: 'palette.group.records',
+  minQueryLength: 1,
+  search: async (query, signal) => [{ id: 'r1', label: 'Matching record', run: () => shell.navigate('/records/1') }]
+});
+
+shell.registerCommand({ id: 'sync', label: 'Sync now', keywords: ['sync'], run: () => sync() });
+shell.shortcuts.register({ id: 'sync', combo: 'Mod+Shift+S', label: 'Sync now', handler: () => sync() });
+```
+
+`Mod` is ⌘ on macOS and Ctrl on other platforms; combinations with Alt match on physical key position (`event.code`) so ⌥L on macOS does not turn into `¬`. Built-in: `Mod+K` command palette, `Mod+,` preferences, `Alt+L` lock screen, `Mod+B` collapse sidebar, `Alt+W` close tab.
+
+## Layout and style contract
+
+The four layout modes (`sidebar-nav`, `header-sidebar-nav`, `header-nav`, `full-content`) are derived by `shell.layout`: collapsed icon rail, hover expansion, drag resizing, mobile drawer, content maximization, and the rest are all computed, and bindings only render from it.
+
+The three bindings share a single style contract, `@aiao/rxdb-admin/admin.css`: most of it lives in `@layer components` and only uses daisyUI theme variables, so apps can override it in a higher layer. The few overrides that must beat daisyUI (preferences drawer tabs, sidebar menu width / radius / icon rail) live in `@layer utilities` at the end of the file: daisyUI's rules sit in a sub-layer of `utilities`, so any specificity written in the `components` layer loses. Apps must enable Tailwind and daisyUI themselves, and import the binding package's `tailwind.css` in the entry point (so Tailwind scans the classes used in components) plus this file.
+
+## Internationalization
+
+Shell messages live under the `rxdb-admin` namespace, shipped with `zh-Hans` and `en`. By default a static runtime containing only the shell catalogs is used; when your app already runs `@aiao/rxdb-i18n`, add `adminMessages` to its `catalogs` and pass it through the `i18n` option, and language switching applies site-wide.
+
+`brand.titleKey` and `brand.documentTitleKey` read the brand and document title from the app runtime's default namespace and update with the language; when no translation key is provided, `brand.title` and the host's original title are used. Extension preferences' `sectionKey`, `labelKey`, and `hintKey` read the group, title, and hint from the `rxdb-admin` catalog.
+
+## Lock screen boundaries
+
+The lock screen is "anti-shoulder-surfing", not a security boundary: the password is stored locally as a salted PBKDF2-SHA256 hash (Web Crypto), and the data itself is not encrypted; when the environment lacks `crypto.subtle` (non-HTTPS and not localhost), setting a password errors out instead of degrading to a weak hash.
+
+## Testing
+
+`@aiao/rxdb-admin/testing` provides browser-free fake window / fake document and `createTestShell` for unit-testing shortcuts, tabs, preference persistence, and binding components.
+
+## Classes
+
+| Class | Description |
+| ------ | ------ |
+| [FullscreenController](classes/FullscreenController.md) | Browser fullscreen control; state syncs with `fullscreenchange` (even Esc exits are detected). |
+| [LockController](classes/LockController.md) | Lock screen: covers the UI and unlocks with a password. |
+| [PaletteController](classes/PaletteController.md) | Command palette controller: multi-source aggregation, synchronous fuzzy filtering, debouncing for async sources with stale-result protection, and recents. |
+| [PreferencesStore](classes/PreferencesStore.md) | Preferences state tree: deep-merge updates, constraint-based sanitization, debounced diff persistence, cross-tab sync. |
+| [ShellUi](classes/ShellUi.md) | Holder of the shell's transient UI state and its actions. |
+| [ShortcutRegistry](classes/ShortcutRegistry.md) | Shortcut registry: unified listening, platform differences, input and IME protection, preference toggles. |
+| [SidebarDrag](classes/SidebarDrag.md) | A single sidebar-width drag session. |
+| [Store](classes/Store.md) | Writable reactive store, deduplicated by reference. |
+| [TabsStore](classes/TabsStore.md) | Tab state: open / close / pin / reorder / visit history, persisted to session or device per preferences. |
+
+## Interfaces
+
+| Interface | Description |
+| ------ | ------ |
+| [AdminPreferences](interfaces/AdminPreferences.md) | Global preferences tree of the admin shell. |
+| [AdminShell](interfaces/AdminShell.md) | Admin shell runtime: aggregates preferences, themes, layout, tabs, shortcuts, the command palette, and the lock screen. The three bindings are thin wrappers around it. |
+| [AdminShellOptions](interfaces/AdminShellOptions.md) | Options for creating the shell. |
+| [BootstrapScriptOptions](interfaces/BootstrapScriptOptions.md) | Options for [createBootstrapScript](functions/createBootstrapScript.md). |
+| [BreadcrumbItem](interfaces/BreadcrumbItem.md) | A breadcrumb item. |
+| [DrawerModelInput](interfaces/DrawerModelInput.md) | Input for [buildDrawerModel](functions/buildDrawerModel.md). |
+| [DrawerRow](interfaces/DrawerRow.md) | A row of settings in the drawer. |
+| [DrawerSection](interfaces/DrawerSection.md) | A group in the drawer. |
+| [DrawerTab](interfaces/DrawerTab.md) | A tab in the drawer. |
+| [FormattedCombo](interfaces/FormattedCombo.md) | Formatted keycaps. |
+| [FullscreenDocument](interfaces/FullscreenDocument.md) | The document capabilities fullscreen needs; `document` satisfies it as-is. |
+| [KeyEventLike](interfaces/KeyEventLike.md) | Minimal contract for keyboard events; `KeyboardEvent` satisfies it as-is. |
+| [LayoutInput](interfaces/LayoutInput.md) | Input required to derive the layout. |
+| [LayoutState](interfaces/LayoutState.md) | The derived layout; the three bindings render from it instead of deciding on their own. |
+| [LockControllerOptions](interfaces/LockControllerOptions.md) | Constructor options for [LockController](classes/LockController.md). |
+| [MatchResult](interfaces/MatchResult.md) | The result of a single match. |
+| [MediaQueryLike](interfaces/MediaQueryLike.md) | Minimal contract for `MediaQueryList`. |
+| [MenuNode](interfaces/MenuNode.md) | A navigation menu node. |
+| [PaletteControllerOptions](interfaces/PaletteControllerOptions.md) | Constructor options for [PaletteController](classes/PaletteController.md). |
+| [PaletteEntry](interfaces/PaletteEntry.md) | A single result. |
+| [PaletteGroup](interfaces/PaletteGroup.md) | A result group. |
+| [PaletteItem](interfaces/PaletteItem.md) | An executable item in the command palette. |
+| [PaletteSource](interfaces/PaletteSource.md) | A result source. Synchronous sources provide the full candidate list for the palette to fuzzy-filter; asynchronous sources return results for the query themselves (e.g. full-text search). |
+| [PaletteState](interfaces/PaletteState.md) | Command palette state. |
+| [ParsedCombo](interfaces/ParsedCombo.md) | A parsed key combination. |
+| [PasswordHasher](interfaces/PasswordHasher.md) | Password hashing. |
+| [PlatformSource](interfaces/PlatformSource.md) | The platform-detection fields of `navigator`. |
+| [PreferenceExtension](interfaces/PreferenceExtension.md) | App-defined preferences: values are stored at `extension.<key>`. |
+| [PreferenceItem](interfaces/PreferenceItem.md) | A preference: one leaf in the preferences tree (special controls correspond to the subtree they own). |
+| [PreferenceOption](interfaces/PreferenceOption.md) | An option. `labelKey` goes through translation; `label` is a literal (dynamic options such as timezones and languages). |
+| [PreferencesHost](interfaces/PreferencesHost.md) | The host event source the preferences store listens to; `window` satisfies it as-is. |
+| [PreferencesStoreOptions](interfaces/PreferencesStoreOptions.md) | Constructor options for [PreferencesStore](classes/PreferencesStore.md). |
+| [Rankable](interfaces/Rankable.md) | A candidate that takes part in ranking. |
+| [Ranked](interfaces/Ranked.md) | A ranked candidate. |
+| [ReadableStore](interfaces/ReadableStore.md) | Synchronous snapshot + subscription source. |
+| [ResolvedOption](interfaces/ResolvedOption.md) | A translated option. |
+| [RootBinding](interfaces/RootBinding.md) | A binding that incrementally writes root-node attributes and styles. |
+| [RootTarget](interfaces/RootTarget.md) | Minimal contract for the root node (`<html>`). |
+| [ShellCommand](interfaces/ShellCommand.md) | A command registered to the command palette. |
+| [ShellHost](interfaces/ShellHost.md) | The browser host the shell depends on; defaults to the global object and can be omitted for SSR and tests. |
+| [ShellTheme](interfaces/ShellTheme.md) | Theme controls. |
+| [ShellUiState](interfaces/ShellUiState.md) | The shell's transient UI state; not persisted. |
+| [ShortcutDefinition](interfaces/ShortcutDefinition.md) | A shortcut declaration. |
+| [ShortcutInfo](interfaces/ShortcutInfo.md) | Shortcut info listed in the UI. |
+| [ShortcutKeyboardEvent](interfaces/ShortcutKeyboardEvent.md) | A keyboard event that, besides key info, must be able to prevent the default behavior. |
+| [ShortcutPreferences](interfaces/ShortcutPreferences.md) | Minimal contract for the shortcut registry's preference reads and writes; `PreferencesStore` satisfies it as-is. |
+| [ShortcutTarget](interfaces/ShortcutTarget.md) | A target to attach the keyboard listener to; `window` / `document` satisfy it as-is. |
+| [StorageLike](interfaces/StorageLike.md) | Minimal contract for string key-value storage; `Storage` satisfies it as-is. |
+| [TabItem](interfaces/TabItem.md) | A tab. |
+| [TabsConfig](interfaces/TabsConfig.md) | Tab bar configuration derived from preferences. |
+| [TabsResult](interfaces/TabsResult.md) | Result of a tab operation: the new state, plus the address to navigate to after the current tab is closed. |
+| [TabsState](interfaces/TabsState.md) | Tab state. |
+| [TabsStoreOptions](interfaces/TabsStoreOptions.md) | Constructor options for [TabsStore](classes/TabsStore.md). |
+| [TextSegment](interfaces/TextSegment.md) | A text segment with highlight markers. |
+| [ThemeOption](interfaces/ThemeOption.md) | An available theme: name and light/dark kind. The name must match a theme enabled in the app styles. |
+| [TimezoneEntry](interfaces/TimezoneEntry.md) | A timezone list entry. |
+| [WatermarkOptions](interfaces/WatermarkOptions.md) | Parameters for one watermark tile unit. |
+
+## Type Aliases
+
+| Type Alias | Description |
+| ------ | ------ |
+| [AdminMessageKey](type-aliases/AdminMessageKey.md) | Shell message keys. |
+| [BreadcrumbStyle](type-aliases/BreadcrumbStyle.md) | Breadcrumb styles. |
+| [CloseOutcome](type-aliases/CloseOutcome.md) | Return value of close-type operations: string = address to navigate to; `null` = no tab left to go to; `undefined` = no navigation needed. |
+| [ContentCompact](type-aliases/ContentCompact.md) | Content area width constraints. |
+| [DeepPartial](type-aliases/DeepPartial.md) | Deep partial type: array fields are replaced wholesale, object fields recurse. |
+| [ImportResult](type-aliases/ImportResult.md) | Result of [PreferencesStore.importJson](classes/PreferencesStore.md#importjson). |
+| [LayoutMode](type-aliases/LayoutMode.md) | Layout mode: sidebar / header+sidebar / top navigation / full content. |
+| [MatchMedia](type-aliases/MatchMedia.md) | A function that creates a `MediaQueryLike`; `window.matchMedia` satisfies it as-is. |
+| [MatchRange](type-aliases/MatchRange.md) | A match range, half-open `[start, end)`, measured in UTF-16 code units. |
+| [MenuAlign](type-aliases/MenuAlign.md) | Alignment of the top navigation menu. |
+| [NavigationStyle](type-aliases/NavigationStyle.md) | Navigation menu styles. |
+| [PreferenceConstraint](type-aliases/PreferenceConstraint.md) | Value constraints for a leaf, derived from the preferences schema. |
+| [PreferenceConstraints](type-aliases/PreferenceConstraints.md) | Map of dot-separated paths to constraints. |
+| [PreferenceControl](type-aliases/PreferenceControl.md) | A control. Generic controls render by kind; `themes` / `widgets` / `shortcuts` are special controls driven by shell data. |
+| [PreferenceOptions](type-aliases/PreferenceOptions.md) | Options: a static list, or a reference to a runtime source. |
+| [PreferenceOptionSource](type-aliases/PreferenceOptionSource.md) | An option source that can only be determined at runtime, resolved by the shell from configuration. |
+| [PreferencePreview](type-aliases/PreferencePreview.md) | Preview style of card options, rendered by each of the three bindings. |
+| [PreferenceTab](type-aliases/PreferenceTab.md) | Tabs of the preferences drawer. |
+| [Radius](type-aliases/Radius.md) | Theme corner-radius levels (rem). |
+| [ResolvedControl](type-aliases/ResolvedControl.md) | A control with resolved option labels; the three bindings render by `kind`. |
+| [ShortcutPlatform](type-aliases/ShortcutPlatform.md) | The running platform: decides the modifier behind `Mod` and the keycap rendering. |
+| [TabbarPersist](type-aliases/TabbarPersist.md) | Where tabs persist: off / current session / long-term on this device. |
+| [TabbarStyle](type-aliases/TabbarStyle.md) | Tab styles. |
+| [TimezoneRegion](type-aliases/TimezoneRegion.md) | Geographic timezone groups. |
+| [TransitionName](type-aliases/TransitionName.md) | Page transition animations. |
+| [WidgetKey](type-aliases/WidgetKey.md) | Top bar widget keys. |
+
+## Variables
+
+| Variable | Description |
+| ------ | ------ |
+| [ADMIN\_I18N\_NAMESPACE](variables/ADMIN_I18N_NAMESPACE.md) | Namespace of the shell message catalogs. |
+| [ADMIN\_THEMES](variables/ADMIN_THEMES.md) | Shell theme catalog: daisyUI built-in themes, plus the Material light/dark themes provided by `admin.css`. |
+| [adminEnMessages](variables/adminEnMessages.md) | Shell English catalog; its type guarantees the key set exactly matches the Chinese catalog. |
+| [adminMessages](variables/adminMessages.md) | Message catalogs (Chinese, English) shipped with the shell. Add them to `catalogs` when the app brings its own `I18n` runtime. |
+| [adminZhHansMessages](variables/adminZhHansMessages.md) | The shell's default Chinese catalog; its key set is the single source of [AdminMessageKey](type-aliases/AdminMessageKey.md). |
+| [BREADCRUMB\_STYLES](variables/BREADCRUMB_STYLES.md) | Breadcrumb style values. |
+| [BUILTIN\_PREFERENCE\_ITEMS](variables/BUILTIN_PREFERENCE_ITEMS.md) | Built-in preference items, in the order tabs and groups appear. |
+| [COLOR\_PRESETS](variables/COLOR_PRESETS.md) | Primary color presets. |
+| [CONTENT\_COMPACTS](variables/CONTENT_COMPACTS.md) | Content area width constraint values. |
+| [DAISYUI\_THEMES](variables/DAISYUI_THEMES.md) | Catalog of daisyUI 5 built-in themes; apps select the ones actually enabled in their styles via [pickThemes](functions/pickThemes.md). |
+| [DEFAULT\_WATERMARK\_OPTIONS](variables/DEFAULT_WATERMARK_OPTIONS.md) | Default watermark parameters. |
+| [DEFAULT\_WIDGET\_ORDER](variables/DEFAULT_WIDGET_ORDER.md) | Default order of top bar widgets. |
+| [defaultPreferences](variables/defaultPreferences.md) | Default preferences. |
+| [EMPTY\_TABS](variables/EMPTY_TABS.md) | The empty state. |
+| [HEX\_COLOR\_PATTERN](variables/HEX_COLOR_PATTERN.md) | Hex color (may be empty). |
+| [LAYOUT\_MODES](variables/LAYOUT_MODES.md) | Layout mode values. |
+| [LOCALE\_PATTERN](variables/LOCALE_PATTERN.md) | Loose match for BCP 47 language tags (may be empty). |
+| [LOCK\_PASSWORD\_KEY](variables/LOCK_PASSWORD_KEY.md) | Default storage key for the lock screen password. |
+| [LOCK\_STATE\_KEY](variables/LOCK_STATE_KEY.md) | Default storage key for the lock screen state. |
+| [MAX\_VISIT\_HISTORY](variables/MAX_VISIT_HISTORY.md) | Visit history cap. |
+| [MENU\_ALIGNS](variables/MENU_ALIGNS.md) | Top navigation alignment values. |
+| [NAVIGATION\_STYLES](variables/NAVIGATION_STYLES.md) | Navigation menu style values. |
+| [PALETTE\_RECENTS\_KEY](variables/PALETTE_RECENTS_KEY.md) | Storage key for recents. |
+| [PINNED\_WIDGETS](variables/PINNED_WIDGETS.md) | Widgets that may not be hidden: hiding them would leave only the shortcut as the settings entry point, and disabling the shortcut would make settings unreachable. |
+| [PREFERENCE\_TABS](variables/PREFERENCE_TABS.md) | Fixed order of the drawer's tabs. |
+| [PREFERENCES\_STORAGE\_KEY](variables/PREFERENCES_STORAGE_KEY.md) | Default key for preferences in storage. |
+| [PREFERENCES\_VERSION](variables/PREFERENCES_VERSION.md) | Version of the global preferences state tree; incremented on structurally incompatible changes. |
+| [RADII](variables/RADII.md) | Corner-radius level values. |
+| [SIDEBAR\_WIDTH\_RANGE](variables/SIDEBAR_WIDTH_RANGE.md) | Adjustable range of the sidebar width (px): the value constraint for the `sidebar.width` preference and the drag handle share the same source. |
+| [SYSTEM\_THEME](variables/SYSTEM_THEME.md) | Pseudo-theme name for following the system's light/dark mode. |
+| [TABBAR\_PERSISTS](variables/TABBAR_PERSISTS.md) | Tab persistence values. |
+| [TABBAR\_STYLES](variables/TABBAR_STYLES.md) | Tab style values. |
+| [TABS\_STORAGE\_KEY](variables/TABS_STORAGE_KEY.md) | Default key for tab storage. |
+| [TIMEZONE\_PATTERN](variables/TIMEZONE_PATTERN.md) | Loose match for IANA timezone names (may be empty). |
+| [TIMEZONE\_REGIONS](variables/TIMEZONE_REGIONS.md) | Display order of the groups. |
+| [TIMEZONE\_ZONES](variables/TIMEZONE_ZONES.md) | Common timezones, grouped geographically with ascending offsets within each group. |
+| [TRANSITIONS](variables/TRANSITIONS.md) | Page transition animation values. |
+| [webCryptoHasher](variables/webCryptoHasher.md) | PBKDF2-SHA256 hashing backed by Web Crypto. |
+
+## Functions
+
+| Function | Description |
+| ------ | ------ |
+| [activeGroupIds](functions/activeGroupIds.md) | Ids of the groups containing the current address, used to initially expand the sidebar. |
+| [applyPatch](functions/applyPatch.md) | Deep-merge patch: objects recurse, arrays and leaves are replaced wholesale, `undefined` is ignored, `null` is a valid value. |
+| [assertValidExtension](functions/assertValidExtension.md) | Validates the extension declaration itself; called on registration and throws immediately when invalid. |
+| [buildBreadcrumb](functions/buildBreadcrumb.md) | Builds the breadcrumbs. |
+| [buildDrawerModel](functions/buildDrawerModel.md) | Builds the drawer's tab / group / settings-row view model from preference items: labels are translated, options resolved, and current values plus actionable state computed, so the three bindings only render by `control.kind` instead of deciding on their own. |
+| [buildTimezoneEntries](functions/buildTimezoneEntries.md) | Computes the current offset for each common timezone. |
+| [buildWatermarkSvg](functions/buildWatermarkSvg.md) | Generates the SVG for one tile unit (with embedded rotated text). Pure function, never touches the DOM; text is XML-escaped. |
+| [builtinCommands](functions/builtinCommands.md) | The shell's built-in command palette commands. |
+| [cityOf](functions/cityOf.md) | City name: takes the last segment of the IANA name, underscores become spaces. |
+| [closeAll](functions/closeAll.md) | Closes all unpinned tabs; when the current tab is closed, falls back to the first pinned tab. |
+| [closeLeft](functions/closeLeft.md) | Closes the unpinned tabs to the left of the given tab. |
+| [closeOthers](functions/closeOthers.md) | Closes the remaining tabs (keeps pinned tabs and the given tab). |
+| [closeRight](functions/closeRight.md) | Closes the unpinned tabs to the right of the given tab. |
+| [closeTab](functions/closeTab.md) | Closes a tab; pinned tabs cannot be closed. When closing the current tab, the most recently visited tab becomes the next one; without history, the right neighbor, then the left neighbor. |
+| [commandSource](functions/commandSource.md) | Command source. |
+| [computeLayoutVars](functions/computeLayoutVars.md) | CSS variables the layout writes to the root node; the stylesheet and the three bindings share the same values. |
+| [computeRootAttributes](functions/computeRootAttributes.md) | Computes the attributes to write to the root node: theme, grayscale/low-contrast mode, transition name, compact density. |
+| [computeThemeStyle](functions/computeThemeStyle.md) | Computes the overrides to write to the root node's `style` (custom properties or plain CSS property names). |
+| [createAdminI18n](functions/createAdminI18n.md) | Creates a static runtime with only the shell catalogs, Chinese by default; used when the app has no `I18n` of its own. |
+| [createAdminShell](functions/createAdminShell.md) | Creates the admin shell runtime. |
+| [createBootstrapScript](functions/createBootstrapScript.md) | Generates the inline script for `<head>`: writes the saved theme, primary color, corner radius, font size, and grayscale / low-contrast mode to `<html>` before the JS bundle loads, avoiding a flash on first paint. The logic matches what the shell's `attach()` writes (guarded by differential tests). |
+| [createMediaQueryStore](functions/createMediaQueryStore.md) | Turns a media query's match state into a reactive store. |
+| [createMemoryStorage](functions/createMemoryStorage.md) | Creates an in-memory storage for SSR, tests, or in-session persistence when storage is unavailable. |
+| [createRootBinding](functions/createRootBinding.md) | Creates the root node binding. |
+| [createSystemDarkStore](functions/createSystemDarkStore.md) | Observes whether the system is in dark mode. |
+| [createWebStorage](functions/createWebStorage.md) | Wraps browser storage. |
+| [derive](functions/derive.md) | Derives a read-only store from multiple stores. |
+| [deriveConstraints](functions/deriveConstraints.md) | Derives sanitization constraints from preference items, so drawer inputs, imported files, and local storage share the same value rules. |
+| [deriveLayout](functions/deriveLayout.md) | Derives the layout from preferences, the viewport, and the menu. |
+| [detectPlatform](functions/detectPlatform.md) | Detects the running platform. |
+| [diffPreferences](functions/diffPreferences.md) | Computes the structural diff against the baseline. |
+| [extensionDefaults](functions/extensionDefaults.md) | Collects extension default values. |
+| [extensionToItem](functions/extensionToItem.md) | Turns an extension declaration into a preference item, rendered in the "Extensions" tab. |
+| [findActiveRoot](functions/findActiveRoot.md) | The top-level node the current address belongs to. |
+| [findMenuPath](functions/findMenuPath.md) | Finds the menu path (from root to leaf) containing the address. Longest route prefix wins; for the same route the deeper node is taken; the root path `/` only matches exactly. |
+| [flattenMenu](functions/flattenMenu.md) | Flattens into a list of nodes with routes (pre-order). |
+| [formatCombo](functions/formatCombo.md) | Formats a key combination into keycaps. |
+| [formatInTimezone](functions/formatInTimezone.md) | Formats a date in a timezone. |
+| [getPath](functions/getPath.md) | Reads a value at a dot-separated path. |
+| [groupIds](functions/groupIds.md) | Ids of all groups (nodes with children) in the menu, including nested groups, pre-order. |
+| [groupsToOpen](functions/groupsToOpen.md) | Groups that need to be newly expanded when the menu appears (first time or after a change): among groups not seen before, those declared `expanded`, or those on the current address's path. Groups already seen are not expanded again, so groups the user collapsed stay closed across menu updates; expanding the group of the current page on address changes still uses [activeGroupIds](functions/activeGroupIds.md). |
+| [isRecord](functions/isRecord.md) | Checks whether a value is a plain object. |
+| [landingRoute](functions/landingRoute.md) | The node's landing route: its own route, otherwise the first descendant's route. |
+| [matchesCombo](functions/matchesCombo.md) | Checks whether a keyboard event matches the combination; modifiers must match exactly, extra modifiers mean no match. |
+| [matchText](functions/matchText.md) | Fuzzy matching: the query is split on whitespace into words and every word must match; contiguous substrings beat scattered subsequences, with bonuses for start-of-string and word boundaries. |
+| [menuSource](functions/menuSource.md) | Menu source: one entry per menu item with a route (nodes with routes also include their descendants as usual), with the parent path as subtitle. |
+| [menuTitleOf](functions/menuTitleOf.md) | The menu title for the current address. |
+| [moveVisibleWidget](functions/moveVisibleWidget.md) | Reorders within the visible widget list: only visible items move; hidden items keep their relative order and stay at the tail. |
+| [nextThemeName](functions/nextThemeName.md) | Next state of the top bar theme button: system → light → dark → system. |
+| [offsetOf](functions/offsetOf.md) | The UTC offset (including DST) of a given timezone at a given moment. |
+| [openTab](functions/openTab.md) | Opens (or activates) a tab: updates the title and activates if it exists, otherwise appends to the end of the unpinned section; beyond the cap, evicts the oldest unpinned, non-current tab. |
+| [parseCombo](functions/parseCombo.md) | Parses key combination text such as `Mod+K`, `Alt+Shift+L`, `Mod+,`. |
+| [pathToPatch](functions/pathToPatch.md) | Turns a value at a dot-separated path into a patch object. |
+| [pickThemes](functions/pickThemes.md) | Picks themes from the shell catalog by name; daisyUI themes must be enabled by the app styles. |
+| [rankItems](functions/rankItems.md) | Ranks candidates by query: hits in the primary text weigh more than secondary text and keywords; ties keep the original order. |
+| [readableContentFor](functions/readableContentFor.md) | Picks the higher-contrast foreground for a background color by WCAG relative luminance. |
+| [recordVisit](functions/recordVisit.md) | Records a visit, most recent first, deduplicated and length-capped. |
+| [registerBuiltinShortcuts](functions/registerBuiltinShortcuts.md) | Registers the shell's built-in shortcuts. None of them respond while locked. |
+| [reorderTab](functions/reorderTab.md) | Moves a tab to a target position; the target is confined to the tab's group (pinned / unpinned). |
+| [resolveThemeName](functions/resolveThemeName.md) | Resolves the theme preference into a concrete theme name. |
+| [resolveTimezone](functions/resolveTimezone.md) | Resolves the timezone preference: an empty string means the browser timezone. |
+| [resolveWatermarkContent](functions/resolveWatermarkContent.md) | Watermark text: explicit content wins; when blank, the host-provided default text is used. |
+| [retitleTabs](functions/retitleTabs.md) | Updates tab titles with a resolver (re-fetches menu titles after language switches). |
+| [sanitizeExtensions](functions/sanitizeExtensions.md) | Sanitizes an open record: invalid values of registered extensions fall back to defaults, unregistered keys are kept as-is, so an app that happens not to have registered an extension yet does not wipe the user's saved settings. |
+| [sanitizePreferences](functions/sanitizePreferences.md) | Sanitizes arbitrary input against the shape of the default tree: unknown keys are dropped, leaves with wrong types or out-of-range values fall back to defaults, numbers are clamped to constraints, and widget order is completed into a full permutation. Never throws. |
+| [splitHighlight](functions/splitHighlight.md) | Splits text by match ranges so the UI can render highlights safely (no innerHTML). |
+| [systemTimezone](functions/systemTimezone.md) | The browser's timezone. |
+| [tabKeyOf](functions/tabKeyOf.md) | Normalizes an address into a tab key: strips the query string, hash, and trailing slash (except the root path). |
+| [themeDisplayName](functions/themeDisplayName.md) | Display name of a theme: light / dark / follow system go through translation; other theme names are proper nouns, split on hyphens and capitalized. |
+| [timeInZone](functions/timeInZone.md) | The local time of that moment in the given timezone. |
+| [timezoneOptions](functions/timezoneOptions.md) | Options for the "Timezone" dropdown in the preferences drawer: the first item follows the browser, then the common timezones; an extra entry is added when the current value is not in the common list (e.g. imported config). |
+| [toggleGroup](functions/toggleGroup.md) | Toggles a group's expanded state; in accordion mode only one sibling stays expanded. |
+| [togglePin](functions/togglePin.md) | Toggles pinned state; pinned tabs cluster at the front, keeping their relative order. |
+| [toggleWidgetHidden](functions/toggleWidgetHidden.md) | Toggles a widget's visibility; the settings entry point cannot be hidden. |
+| [translateAdmin](functions/translateAdmin.md) | Translates shell messages. |
+| [validateExtensionValue](functions/validateExtensionValue.md) | Validates an extension value against its declaration. |
+| [visibleWidgets](functions/visibleWidgets.md) | Widgets visible in the top bar, in the user's chosen order. |
+| [watermarkBackground](functions/watermarkBackground.md) | Generates a CSS `url(...)` usable directly as `background-image`. |

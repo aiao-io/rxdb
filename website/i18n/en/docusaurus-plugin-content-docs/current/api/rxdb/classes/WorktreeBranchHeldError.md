@@ -1,0 +1,335 @@
+# WorktreeBranchHeldError
+
+Defined in: [packages/rxdb/src/system/active-branch-guard.ts:218](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/active-branch-guard.ts#L218)
+
+The branch is already held by a writable checkout; the main checkout cannot hold it again.
+
+## Remarks
+
+"A branch is held by at most one checkout" (US-314 design point 2, corresponding to git's `already used by worktree`).
+`RxDBBranch.activeKey` therefore has three kinds of values: `NULL` means nobody holds it, [ACTIVE\_BRANCH\_KEY](../variables/ACTIVE_BRANCH_KEY.md) means the main checkout holds it,
+and everything else is some writable checkout's hold key. The shape of hold keys is up to the checkout-opening side; here only "not one of the first two" is recognized.
+
+A unique index cannot cover this: when the main checkout lights up a branch it writes the sentinel, which just **overwrites** the hold key — the index contains only
+one sentinel all along and never collides. So every write that lets the main checkout hold a branch (switching branches, lighting up `main` when there is no active branch,
+backfilling the sentinel in system migrations) must first go through [WorktreeBranchHeldError.throwIfHeld](#throwifheld). Paths that only re-mount triggers and do not touch the branch table
+(writes with triggers off, switching without a target branch, US-314 B1.3) take no branch and are not in this list.
+
+It only rejects — no grabbing and no swapping: grabbing would leave that checkout believing the branch is still its own; lighting up another branch would be switching branches on the user's behalf.
+
+## Extends
+
+- [`RxDBError`](RxDBError.md)
+
+## Constructors
+
+### Constructor
+
+```ts
+new WorktreeBranchHeldError(branchId, holderKey): WorktreeBranchHeldError;
+```
+
+Defined in: [packages/rxdb/src/system/active-branch-guard.ts:222](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/active-branch-guard.ts#L222)
+
+#### Parameters
+
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `branchId` | `string` | The id of the held branch |
+| `holderKey` | `string` | The hold key written by the checkout that holds it |
+
+#### Returns
+
+`WorktreeBranchHeldError`
+
+#### Overrides
+
+[`RxDBError`](RxDBError.md).[`constructor`](RxDBError.md#constructor)
+
+## Properties
+
+### branchId \{#branchid\}
+
+```ts
+readonly branchId: string;
+```
+
+Defined in: [packages/rxdb/src/system/active-branch-guard.ts:224](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/active-branch-guard.ts#L224)
+
+The id of the held branch
+
+***
+
+### cause? \{#cause\}
+
+```ts
+cause?: unknown;
+```
+
+Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node\_modules/typescript/lib/lib.es2022.error.d.ts:24
+
+#### Inherited from
+
+[`RxDBError`](RxDBError.md).[`cause`](RxDBError.md#cause)
+
+***
+
+### code \{#code\}
+
+```ts
+readonly code: "worktree_branch_held" = 'worktree_branch_held';
+```
+
+Defined in: [packages/rxdb/src/system/active-branch-guard.ts:220](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/active-branch-guard.ts#L220)
+
+Stable error code, always `'worktree_branch_held'`; see [AmbiguousActiveBranchError.code](AmbiguousActiveBranchError.md#code) for the rationale of the literal
+
+***
+
+### holderKey \{#holderkey\}
+
+```ts
+readonly holderKey: string;
+```
+
+Defined in: [packages/rxdb/src/system/active-branch-guard.ts:226](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/active-branch-guard.ts#L226)
+
+The hold key written by the checkout that holds it
+
+***
+
+### message \{#message\}
+
+```ts
+message: string;
+```
+
+Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node\_modules/typescript/lib/lib.es5.d.ts:1075
+
+#### Inherited from
+
+[`RxDBError`](RxDBError.md).[`message`](RxDBError.md#message)
+
+***
+
+### name \{#name\}
+
+```ts
+name: string;
+```
+
+Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node\_modules/typescript/lib/lib.es5.d.ts:1074
+
+#### Inherited from
+
+[`RxDBError`](RxDBError.md).[`name`](RxDBError.md#name)
+
+***
+
+### stack? \{#stack\}
+
+```ts
+stack?: string;
+```
+
+Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node\_modules/typescript/lib/lib.es5.d.ts:1076
+
+#### Inherited from
+
+[`RxDBError`](RxDBError.md).[`stack`](RxDBError.md#stack)
+
+***
+
+### stackTraceLimit \{#stacktracelimit\}
+
+```ts
+static stackTraceLimit: number;
+```
+
+Defined in: node\_modules/.pnpm/@types+node@26.6.6/node\_modules/@types/node/globals.d.ts:67
+
+The `Error.stackTraceLimit` property specifies the number of stack frames
+collected by a stack trace (whether generated by `new Error().stack` or
+`Error.captureStackTrace(obj)`).
+
+The default value is `10` but may be set to any valid JavaScript number. Changes
+will affect any stack trace captured _after_ the value has been changed.
+
+If set to a non-number value, or set to a negative number, stack traces will
+not capture any frames.
+
+#### Inherited from
+
+[`RxDBError`](RxDBError.md).[`stackTraceLimit`](RxDBError.md#stacktracelimit)
+
+## Methods
+
+### captureStackTrace() \{#capturestacktrace\}
+
+```ts
+static captureStackTrace(targetObject, constructorOpt?): void;
+```
+
+Defined in: node\_modules/.pnpm/@types+node@26.6.6/node\_modules/@types/node/globals.d.ts:51
+
+Creates a `.stack` property on `targetObject`, which when accessed returns
+a string representing the location in the code at which
+`Error.captureStackTrace()` was called.
+
+```js
+const myObject = {};
+Error.captureStackTrace(myObject);
+myObject.stack;  // Similar to `new Error().stack`
+```
+
+The first line of the trace will be prefixed with
+`${myObject.name}: ${myObject.message}`.
+
+The optional `constructorOpt` argument accepts a function. If given, all frames
+above `constructorOpt`, including `constructorOpt`, will be omitted from the
+generated stack trace.
+
+The `constructorOpt` argument is useful for hiding implementation
+details of error generation from the user. For instance:
+
+```js
+function a() {
+  b();
+}
+
+function b() {
+  c();
+}
+
+function c() {
+  // Create an error without stack trace to avoid calculating the stack trace twice.
+  const { stackTraceLimit } = Error;
+  Error.stackTraceLimit = 0;
+  const error = new Error();
+  Error.stackTraceLimit = stackTraceLimit;
+
+  // Capture the stack trace above function b
+  Error.captureStackTrace(error, b); // Neither function c, nor b is included in the stack trace
+  throw error;
+}
+
+a();
+```
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `targetObject` | `object` |
+| `constructorOpt?` | `Function` |
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+[`RxDBError`](RxDBError.md).[`captureStackTrace`](RxDBError.md#capturestacktrace)
+
+***
+
+### heldBy() \{#heldby\}
+
+```ts
+static heldBy(
+   branchId, 
+   activeKey, 
+   ownKey?
+): WorktreeBranchHeldError | null;
+```
+
+Defined in: [packages/rxdb/src/system/active-branch-guard.ts:250](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/active-branch-guard.ts#L250)
+
+Judges whether `branchId` is in someone else's hands: returns `null` when nobody holds it or the holder is `ownKey` itself, otherwise returns the error to throw.
+
+#### Parameters
+
+| Parameter | Type | Default value | Description |
+| ------ | ------ | ------ | ------ |
+| `branchId` | `string` | `undefined` | The branch to hold (or to delete) |
+| `activeKey` | `string` \| `null` \| `undefined` | `undefined` | This branch's current `activeKey`; both `null` and `undefined` (the row does not exist, or the entity has no value for this column) mean nobody holds it |
+| `ownKey?` | `string` | `ACTIVE_BRANCH_KEY` | The caller's own hold key, defaulting to the main checkout's [ACTIVE\_BRANCH\_KEY](../variables/ACTIVE_BRANCH_KEY.md); a writable checkout passes its own table set's hold key |
+
+#### Returns
+
+`WorktreeBranchHeldError` \| `null`
+
+The error when held by someone else, otherwise `null`
+
+#### Remarks
+
+"Which values count as occupied" can only have one copy: the core's two places lighting up `main`, both adapters' branch switching and system migrations,
+branch deletion and opening writable checkouts all judge through it. If each wrote its own comparison, some side treating a hold key as free would produce
+no error — it would just silently overwrite it.
+
+Returns instead of throwing in place: the branch-deletion check must **return** the rejection inside the transaction and throw outside it
+(throwing inside the transaction would get the error type replaced by the adapter's wrapping layer).
+
+Mounted on the error class instead of exporting a separate function: new core exports must pass the SC-014 prefix gate (`Worktree*`),
+a lowercase-leading function name cannot satisfy the case-sensitive prefix check, and the check and the error it throws are the same thing anyway.
+
+***
+
+### prepareStackTrace() \{#preparestacktrace\}
+
+```ts
+static prepareStackTrace(err, stackTraces): any;
+```
+
+Defined in: node\_modules/.pnpm/@types+node@26.6.6/node\_modules/@types/node/globals.d.ts:55
+
+#### Parameters
+
+| Parameter | Type |
+| ------ | ------ |
+| `err` | `Error` |
+| `stackTraces` | `CallSite`[] |
+
+#### Returns
+
+`any`
+
+#### See
+
+https://v8.dev/docs/stack-trace-api#customizing-stack-traces
+
+#### Inherited from
+
+[`RxDBError`](RxDBError.md).[`prepareStackTrace`](RxDBError.md#preparestacktrace)
+
+***
+
+### throwIfHeld() \{#throwifheld\}
+
+```ts
+static throwIfHeld(
+   branchId, 
+   activeKey, 
+   ownKey?
+): void;
+```
+
+Defined in: [packages/rxdb/src/system/active-branch-guard.ts:267](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/active-branch-guard.ts#L267)
+
+The check before holding `branchId`: throws when it is in someone else's hands; see [WorktreeBranchHeldError.heldBy](#heldby) for the judgment.
+
+#### Parameters
+
+| Parameter | Type | Description |
+| ------ | ------ | ------ |
+| `branchId` | `string` | The branch to hold |
+| `activeKey` | `string` \| `null` \| `undefined` | This branch's current `activeKey` |
+| `ownKey?` | `string` | The caller's own hold key, defaulting to the main checkout's [ACTIVE\_BRANCH\_KEY](../variables/ACTIVE_BRANCH_KEY.md) |
+
+#### Returns
+
+`void`
+
+#### Throws
+
+WorktreeBranchHeldError when the branch is held by someone else

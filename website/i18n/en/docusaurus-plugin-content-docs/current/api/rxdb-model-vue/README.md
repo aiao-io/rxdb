@@ -1,0 +1,473 @@
+# rxdb-model-vue
+
+## Headless bindings
+
+When there is no default presentation layer, use the shared controllers from `@aiao/rxdb-model-vue/headless`:
+
+```ts
+import { useEntityForm } from '@aiao/rxdb-model-vue/headless';
+
+const { controller, snapshot } = useEntityForm({ fields, data, mode: 'edit' });
+controller.setField('title', value);
+```
+
+`snapshot` is a reactive ref; pass reactive options to follow input changes, and subscriptions are cleaned up automatically when the component unmounts. Field, mode and relation-candidate updates keep the uncommitted draft; only `data` / `entity` content changes reset the inputs. Using only the headless entry requires neither VTable nor Tailwind.
+
+After switching query, ordering or page in the list, call `refresh()` to execute the data source; stale requests never write back. Bulk deletion may partially succeed and reports failed items via `AggregateError.errors`; detail save rejects duplicate calls, and late results after cancel/close or input switch never overwrite a new session. The default QueryBuilder, list and detail do not yet all reuse the new controllers; headless history/manual ordering and complete standalone UI examples remain to be done.
+
+The Vue component layer for [`@aiao/rxdb-model`](../rxdb-model/README.md): metadata-driven entity lists, details, forms, dialogs, editable tables and query builder.
+
+## Installation
+
+```bash
+pnpm add @aiao/rxdb @aiao/rxdb-vue @aiao/rxdb-model @aiao/rxdb-model-vue @aiao/rxdb-plugin-history vue rxjs @visactor/vtable @lucide/vue
+```
+
+## Usage
+
+```vue
+<script lang="ts" setup>
+import { EntityList } from '@aiao/rxdb-model-vue';
+</script>
+
+<template>
+  <EntityList name="Todo" namespace="public" />
+</template>
+```
+
+Custom controls can use `useEntityForm`, `useQueryBuilder`, `useEntityList`, `useEntityDetail`, `useEntityDialog` and `useQueryTable` from `@aiao/rxdb-model-vue/headless`. These composables return a shared `controller` and `snapshot`, clean up subscriptions when the component unmounts, and require neither Tailwind, daisyUI nor VTable.
+
+## Styling
+
+The components' scoped styles (dialog / table / drag indicators, etc.) are bundled in `dist/index.css`; import it once:
+
+```ts
+import '@aiao/rxdb-model-vue/index.css';
+```
+
+Templates use daisyUI utility classes (`btn` / `tabs` / `menu` / `fieldset`, etc.);
+consumers import this library's scan-registration file in their Tailwind entry:
+
+```css
+@import '@aiao/rxdb-model-vue/tailwind.css';
+```
+
+RxDB Model Vue — the RxDB entity component library for the Vue platform.
+Provides Vue components for entity details, dialogs, forms, lists, tables, and more.
+
+## Classes
+
+| Class | Description |
+| ------ | ------ |
+| [CellTooltipManager](classes/CellTooltipManager.md) | Lifecycle management for cell error tooltips |
+| [DateEditor](classes/DateEditor.md) | Date-time picker editor |
+| [EntityDetailController](classes/EntityDetailController.md) | Tab, draft, save and cancel state for the detail page. |
+| [EntityDialogController](classes/EntityDialogController.md) | Open, close and result state wired to the consumer's dialog shell. |
+| [EntityFormController](classes/EntityFormController.md) | Shared state and actions for the form. |
+| [EntityListController](classes/EntityListController.md) | Shared controller for list filtering, pagination, selection and data state. |
+| [EnumEditor](classes/EnumEditor.md) | Enum dropdown selection editor |
+| [GlobalOverlayEditor](classes/GlobalOverlayEditor.md) | Abstract base class for global overlay list editors |
+| [~~IconListEditor~~](classes/IconListEditor.md) | Single-select list editor supporting icon + text |
+| [JsonEditor](classes/JsonEditor.md) | JSON / KeyValue editor |
+| [KeyValueEditor](classes/KeyValueEditor.md) | KeyValue (`Record<string, unknown>`) editor — schema mode only |
+| [ListViewSettingsController](classes/ListViewSettingsController.md) | Popover positioning, pointer drag and keyboard reordering for list settings, shared across the three frameworks. |
+| [ModelEditorI18n](classes/ModelEditorI18n.md) | Manages translations and subscriptions for opened DOM editors. |
+| [MultiSelectEditor](classes/MultiSelectEditor.md) | VTable custom multi-select editor |
+| [NumberEditor](classes/NumberEditor.md) | Number input editor |
+| [OperatorRegistry](classes/OperatorRegistry.md) | Operator registry service; manages the available operators and their metadata |
+| [QueryBuilderController](classes/QueryBuilderController.md) | UI-free facade wrapper over the existing QueryBuilderService. |
+| [QueryBuilderService](classes/QueryBuilderService.md) | QueryBuilder core service; RxJS-based reactive state management |
+| [QueryConverter](classes/QueryConverter.md) | Query conversion service; responsible for bidirectional conversion between QueryBuilder state and RxDB queries |
+| [QueryDragDropHandler](classes/QueryDragDropHandler.md) | Drag-and-drop state machine: records the dragged item, target item and drop mode, calls the move function on `drop` and resets. |
+| [QueryTableController](classes/QueryTableController.md) | Query, pagination, ordering and selection state for QueryTable; rendering can be fully taken over by the consumer. |
+| [RelationEditor](classes/RelationEditor.md) | Search dropdown editor for relation fields (oneToOne / manyToOne) |
+| [SafeListEditor](classes/SafeListEditor.md) | Workaround for VTable `ListEditor` bug: `onEnd` throws TypeError when `element.parentNode` is null during keyboard-triggered cell navigation. |
+| [SchemaParser](classes/SchemaParser.md) | Schema parsing service; converts RxDB EntityMetadata into field metadata usable by QueryBuilder |
+| [TableClipboardManager](classes/TableClipboardManager.md) | Internal clipboard manager — wraps system clipboard API interaction + internal backup |
+| [TagsEditor](classes/TagsEditor.md) | Tags (array) input editor |
+| [TreeItemDirective](classes/TreeItemDirective.md) | Tree node highlight directive (the Vue equivalent of the Angular-side CDK `TreeItemDirective` / the same-named React class). |
+| [ValidationService](classes/ValidationService.md) | Validation service; validates QueryBuilder rules and values |
+
+## Interfaces
+
+| Interface | Description |
+| ------ | ------ |
+| [BatchChangeItem](interfaces/BatchChangeItem.md) | Batch change item |
+| [BuildEditableColumnsOptions](interfaces/BuildEditableColumnsOptions.md) | Options for building editable columns |
+| [CellChangeEvent](interfaces/CellChangeEvent.md) | Cell change event |
+| [ClipboardCell](interfaces/ClipboardCell.md) | Clipboard snapshot of a single cell |
+| [CSSVariables](interfaces/CSSVariables.md) | daisyUI theme CSS variable collection |
+| [DetailFormTab](interfaces/DetailFormTab.md) | Form tab configuration (shows the entity's basic information form) |
+| [DetailTabBase](interfaces/DetailTabBase.md) | Base configuration for detail page tabs |
+| [DetailTableTab](interfaces/DetailTableTab.md) | Table tab configuration (shows relation data of related entities) |
+| [EntityCapabilities](interfaces/EntityCapabilities.md) | Interface operations allowed for the entity at the public write entrances |
+| [EntityCapabilityContext](interfaces/EntityCapabilityContext.md) | Instance-side context for [deriveEntityCapabilities](variables/deriveEntityCapabilities.md). |
+| [EntityDetailControllerOptions](interfaces/EntityDetailControllerOptions.md) | Detail form inputs plus initial tab and open state. |
+| [EntityDetailDialogData](interfaces/EntityDetailDialogData.md) | Data structure passed into the detail dialog (aligned with the Angular-side CDK Dialog `EntityDetailDialogData`). |
+| [EntityDetailSnapshot](interfaces/EntityDetailSnapshot.md) | Snapshot of detail page mode, tabs, form draft and save lifecycle. |
+| [EntityDialogControllerOptions](interfaces/EntityDialogControllerOptions.md) | Initial dialog data and open state. |
+| [EntityDialogSnapshot](interfaces/EntityDialogSnapshot.md) | Dialog lifecycle state that does not depend on any specific dialog implementation. |
+| [EntityFieldConfig](interfaces/EntityFieldConfig.md) | Entity field configuration |
+| [EntityFormControllerOptions](interfaces/EntityFormControllerOptions.md) | Inputs required to create a headless form. |
+| [EntityFormData](interfaces/EntityFormData.md) | Form data (mapping of field names to field values) |
+| [EntityFormFieldSnapshot](interfaces/EntityFormFieldSnapshot.md) | Configuration, current value, errors and display state of a single field. |
+| [EntityFormSnapshot](interfaces/EntityFormSnapshot.md) | Form state snapshot that consumers can map directly to their own controls. |
+| [EntityListControllerOptions](interfaces/EntityListControllerOptions.md) | Initial list state, query data source and persistence actions. |
+| [EntityListLoadContext](interfaces/EntityListLoadContext.md) | Request context received by the query data source. |
+| [EntityListLoadResult](interfaces/EntityListLoadResult.md) | List query result. |
+| [EntityListSnapshot](interfaces/EntityListSnapshot.md) | List snapshot of the current query, pagination, selection, records and capability constraints. |
+| [EntityTableConfig](interfaces/EntityTableConfig.md) | Table configuration |
+| [EntityTableHandle](interfaces/EntityTableHandle.md) | Command surface of the entity table: the same set of commands exposed by the `EntityTable` components of all three frameworks. |
+| [EntityTableRecord](interfaces/EntityTableRecord.md) | Base interface for generic entity table records |
+| [EnumItem](interfaces/EnumItem.md) | Enum option configuration |
+| [FieldExtractorConfig](interfaces/FieldExtractorConfig.md) | Field extractor configuration |
+| [FieldMetadata](interfaces/FieldMetadata.md) | Field metadata |
+| [FieldTreeNode](interfaces/FieldTreeNode.md) | Field tree node (used by CascadeSelect) |
+| [FieldValidationError](interfaces/FieldValidationError.md) | Field validation error |
+| [FormFieldChangeEvent](interfaces/FormFieldChangeEvent.md) | Form field value change event |
+| [FormFieldConfig](interfaces/FormFieldConfig.md) | Form field configuration |
+| [FormFieldValidationError](interfaces/FormFieldValidationError.md) | Form field validation error |
+| [FormValidationResult](interfaces/FormValidationResult.md) | Form validation result |
+| [HeaderPositionChange](interfaces/HeaderPositionChange.md) | The parts of the VTable `change_header_position` event parameters used by this module |
+| [HeaderSortClick](interfaces/HeaderSortClick.md) | State handed over by VTable when a column header is clicked for sorting |
+| [~~IconLabeledItem~~](interfaces/IconLabeledItem.md) | List item with an icon |
+| [KeyboardHandlerContext](interfaces/KeyboardHandlerContext.md) | Keyboard handling context — callbacks provided by the component |
+| [KeyValueSchemaEntry](interfaces/KeyValueSchemaEntry.md) | Schema configuration of a single key in a key-value typed field |
+| [KVSchemaEntry](interfaces/KVSchemaEntry.md) | Property description of a single key in keyValue mode |
+| [ListFixedQuery](interfaces/ListFixedQuery.md) | Fixed query for the list (passed in by the detail page's relation tabs), structured like the query builder's rule groups |
+| [ListReorderState](interfaces/ListReorderState.md) | List state used when deciding whether the list supports drag reordering |
+| [ListViewField](interfaces/ListViewField.md) | Configurable data field with query capabilities. |
+| [ListViewSettingsControllerOptions](interfaces/ListViewSettingsControllerOptions.md) | Field order and reorder callbacks used by the list settings interaction controller. |
+| [ListViewState](interfaces/ListViewState.md) | Field configuration, query ordering and single-field grouping of the entity list. |
+| [ModelI18n](interfaces/ModelI18n.md) | Translation runtime consumed by the components. |
+| [ModelInfo](interfaces/ModelInfo.md) | Model information interface |
+| [MultiSelectOption](interfaces/MultiSelectOption.md) | Multi-select option: id + display name + optional color dot / disabled |
+| [NumberEditorOptions](interfaces/NumberEditorOptions.md) | Optional behavior configuration for the number editor |
+| [OperatorDefinition](interfaces/OperatorDefinition.md) | Operator definition; contains the operator's metadata and constraints |
+| [OperatorRegistryOptions](interfaces/OperatorRegistryOptions.md) | Operator registry options |
+| [PendingWrite](interfaces/PendingWrite.md) | Pending operation to be committed for clipboard/bulk writes |
+| [PropertyColumnConfig](interfaces/PropertyColumnConfig.md) | Configuration required to build a property column |
+| [QueryBuilderConfig](interfaces/QueryBuilderConfig.md) | Query builder configuration |
+| [QueryBuilderControllerOptions](interfaces/QueryBuilderControllerOptions.md) | Options for creating the query state machine. |
+| [QueryBuilderRuleGroup](interfaces/QueryBuilderRuleGroup.md) | Rule group (reuses the RxDB RuleGroup type + UI metadata) |
+| [QueryBuilderServiceOptions](interfaces/QueryBuilderServiceOptions.md) | QueryBuilderService options |
+| [QueryBuilderSnapshot](interfaces/QueryBuilderSnapshot.md) | Query builder snapshot. |
+| [QueryBuilderState](interfaces/QueryBuilderState.md) | Query builder state (simplified version, containing only the necessary fields) |
+| [QueryBuilderTheme](interfaces/QueryBuilderTheme.md) | QueryBuilder theme interface (aligned with the Angular-side `QueryBuilderTheme`). |
+| [QueryConverterOptions](interfaces/QueryConverterOptions.md) | Conversion options |
+| [QueryDragDropState](interfaces/QueryDragDropState.md) | Drag-and-drop state |
+| [QueryExample](interfaces/QueryExample.md) | Query example interface |
+| [QueryTableControllerOptions](interfaces/QueryTableControllerOptions.md) | Initial list state and data source actions for the query table. |
+| [QueryTableSnapshot](interfaces/QueryTableSnapshot.md) | Render-free snapshot of the query table reusing list state. |
+| [RelatedEntityItem](interfaces/RelatedEntityItem.md) | Related entity item |
+| [RelatedEntityProvider](interfaces/RelatedEntityProvider.md) | Related entity data provider |
+| [RowDeleteEvent](interfaces/RowDeleteEvent.md) | Row delete event |
+| [RowMoveCommitHooks](interfaces/RowMoveCommitHooks.md) | Hooks that interact with the UI when a row drag-and-drop is persisted |
+| [RowMoveEvent](interfaces/RowMoveEvent.md) | Result of a single-row drag-and-drop: the dragged row and its neighbors around the drop point |
+| [RowReorderEvent](interfaces/RowReorderEvent.md) | Row reorder event |
+| [RxDBQueryOutput](interfaces/RxDBQueryOutput.md) | RxDB query output format (aligned with the Angular-side `RxDBQueryOutput`). |
+| [SchemaInfo](interfaces/SchemaInfo.md) | Schema information |
+| [SchemaParserOptions](interfaces/SchemaParserOptions.md) | Parser configuration options |
+| [UIRule](interfaces/UIRule.md) | UI rule (loose type, used internally by the query builder components) |
+| [UIRuleGroup](interfaces/UIRuleGroup.md) | UI rule group (loose type) |
+| [UseEntityDetailResult](interfaces/UseEntityDetailResult.md) | Controller and reactive snapshot of UseEntityDetailResult. |
+| [UseEntityDialogResult](interfaces/UseEntityDialogResult.md) | Controller and reactive snapshot of UseEntityDialogResult. |
+| [UseEntityFormResult](interfaces/UseEntityFormResult.md) | Controller and reactive snapshot of UseEntityFormResult. |
+| [UseEntityListResult](interfaces/UseEntityListResult.md) | Controller and reactive snapshot of UseEntityListResult. |
+| [UseQueryBuilderResult](interfaces/UseQueryBuilderResult.md) | Controller and reactive snapshot of UseQueryBuilderResult. |
+| [UseQueryTableResult](interfaces/UseQueryTableResult.md) | Controller and reactive snapshot of UseQueryTableResult. |
+| [ValidationContext](interfaces/ValidationContext.md) | Validation context |
+| [ValidationError](interfaces/ValidationError.md) | Validation error item |
+| [ValidationResult](interfaces/ValidationResult.md) | Validation result |
+| [ValidationRule](interfaces/ValidationRule.md) | Validation rule |
+| [ValidationServiceOptions](interfaces/ValidationServiceOptions.md) | Validation service options |
+
+## Type Aliases
+
+| Type Alias | Description |
+| ------ | ------ |
+| [ClipboardContent](type-aliases/ClipboardContent.md) | Clipboard content: row-major two-dimensional array `[rowOffset][colOffset]` |
+| [DetailTab](type-aliases/DetailTab.md) | Detail page tab configuration |
+| [DetailTabType](type-aliases/DetailTabType.md) | Detail page tab type |
+| [EntityFieldType](type-aliases/EntityFieldType.md) | Entity field type |
+| [EntityFormEvent](type-aliases/EntityFormEvent.md) | Reasons for form state changes. |
+| [EntityFormSubmitResult](type-aliases/EntityFormSubmitResult.md) | Form submit result. |
+| [EntityFormValidationEvent](type-aliases/EntityFormValidationEvent.md) | Event emitted when validation completes (including when validation passes). |
+| [EntityInstance](type-aliases/EntityInstance.md) | RxDB entity instance (used for CRUD operations). |
+| [EntityListEvent](type-aliases/EntityListEvent.md) | Event emitted when a list action happens or the data source state advances. |
+| [EntityListInput](type-aliases/EntityListInput.md) | Inputs that the list can update with the host, synced via `syncInput`; `load` and write callbacks are only read at construction time. |
+| [FilterQuery](type-aliases/FilterQuery.md) | Filter query structure (AND-merged with the user's filter conditions). |
+| [FormMode](type-aliases/FormMode.md) | Form mode |
+| [IconData](type-aliases/IconData.md) | Lucide icon data — array of [tagName, attributes] tuples |
+| [ManualOrderListMetadata](type-aliases/ManualOrderListMetadata.md) | Entity metadata needed to decide list ordering |
+| [OperatorName](type-aliases/OperatorName.md) | All operators |
+| [PropertyType](type-aliases/PropertyType.md) | Property type |
+| [PropertyTypeString](type-aliases/PropertyTypeString.md) | String literal of entity property types; corresponds one-to-one with the `PropertyType` enum values of `@aiao/rxdb`, plus extensions for relation types and computed properties |
+| [QueryBuilderEvent](type-aliases/QueryBuilderEvent.md) | Change event for query state, field metadata or validation results. |
+| [QueryBuilderOperator](type-aliases/QueryBuilderOperator.md) | Operator type (reuses the RxDB definition directly) |
+| [QueryBuilderRule](type-aliases/QueryBuilderRule.md) | Query rule (reuses the RxDB Rule type + UI metadata) |
+| [QueryDropMode](type-aliases/QueryDropMode.md) | - |
+| [QueryTableHandle](type-aliases/QueryTableHandle.md) | Command surface of the query table: members are the same as [EntityTableHandle](interfaces/EntityTableHandle.md), all delegated to the internal entity table. |
+| [RecordDeletePredicate](type-aliases/RecordDeletePredicate.md) | Decides whether a row can be deleted; called per row by `actionsColumn` |
+| [RelatedItemsProviderFactory](type-aliases/RelatedItemsProviderFactory.md) | Factory for related-entity candidate providers: returns a provider function based on the foreign key field and the related entity name |
+| [Rule](type-aliases/Rule.md) | Query rule |
+| [RuleGroup](type-aliases/RuleGroup.md) | Query rule group (type computed automatically) |
+| [SwitchDisableCallback](type-aliases/SwitchDisableCallback.md) | Callback deciding the disabled state of a switch |
+| [TagsMode](type-aliases/TagsMode.md) | Tags editor mode: 'string' string tags / 'number' number tags |
+| [UIRuleWithWhere](type-aliases/UIRuleWithWhere.md) | UI rule with a where subquery (the shape of exists / notExists rules). |
+| [ValidationGroupInput](type-aliases/ValidationGroupInput.md) | Validation rule group input (loose recursive structure) |
+
+## Variables
+
+| Variable | Description |
+| ------ | ------ |
+| [BUILTIN\_VALIDATION\_RULES](variables/BUILTIN_VALIDATION_RULES.md) | Built-in validation rules |
+| [createEntityDetailHeadless](variables/createEntityDetailHeadless.md) | Headless alias of the detail controller factory. |
+| [createEntityDialogHeadless](variables/createEntityDialogHeadless.md) | Headless alias of the dialog controller factory. |
+| [createEntityFormHeadless](variables/createEntityFormHeadless.md) | Factory alias aligned with the other framework bindings. |
+| [createEntityListHeadless](variables/createEntityListHeadless.md) | Headless alias of the entity list controller factory. |
+| [createQueryBuilderHeadless](variables/createQueryBuilderHeadless.md) | Headless alias of the query builder controller factory. |
+| [createQueryTableHeadless](variables/createQueryTableHeadless.md) | Headless alias of the query table controller factory. |
+| [DAISY\_COLORS](variables/DAISY_COLORS.md) | daisyUI v5 theme color references (CSS variables, theme-adaptive) |
+| [DEFAULT\_COLUMN\_SIZES](variables/DEFAULT_COLUMN_SIZES.md) | Default column widths and min/max widths for each property type |
+| [DEFAULT\_OPERATORS](variables/DEFAULT_OPERATORS.md) | Default operator definition list |
+| [DEFAULT\_QUERY\_BUILDER\_THEME](variables/DEFAULT_QUERY_BUILDER_THEME.md) | Default theme (native HTML implementation, aligned with the Angular-side `DEFAULT_QUERY_BUILDER_THEME`). |
+| [defaultModelI18n](variables/defaultModelI18n.md) | Static Chinese catalog used when no runtime is provided. |
+| [DELETE\_COLOR](variables/DELETE_COLOR.md) | Default color of the delete icon |
+| [deriveEntityCapabilities](variables/deriveEntityCapabilities.md) | Derives interface capabilities from entity metadata |
+| [disabledEditorForReadonly](variables/disabledEditorForReadonly.md) | Non-editable rows: disable the editor |
+| [DISPLAY\_ONLY\_FIELDS](variables/DISPLAY_ONLY_FIELDS.md) | Display-only (non-editable) system fields |
+| [ENTITY\_TABLE\_CONFIG](variables/ENTITY_TABLE_CONFIG.md) | Entity table configuration injection key (aligned with the Angular-side `ENTITY_TABLE_CONFIG` DI token). |
+| [EntityList](variables/EntityList.md) | - |
+| [getCellRecord](variables/getCellRecord.md) | Safely gets the current row record from VTable callback parameters |
+| [isReadonly](variables/isReadonly.md) | Checks whether a record is a read-only row |
+| [isReadonlyOrAddRow](variables/isReadonlyOrAddRow.md) | Checks whether a record is a read-only row or the new-row template row |
+| [modelEnMessages](variables/modelEnMessages.md) | Built-in English catalog of the components. |
+| [modelMessages](variables/modelMessages.md) | Component catalog shipped with the package; apps can override entries one by one. |
+| [modelZhHansMessages](variables/modelZhHansMessages.md) | Built-in Chinese catalog of the components, preserving the existing default wording. |
+| [QUERY\_BUILDER\_THEME](variables/QUERY_BUILDER_THEME.md) | QueryBuilder theme injection key (aligned with the Angular-side `QUERY_BUILDER_THEME` DI token). |
+| [ROW\_SERIES\_COL\_OFFSET](variables/ROW_SERIES_COL_OFFSET.md) | VTable's rowSeriesNumber column occupies col=0; data columns start at col=1. Subtract this offset when mapping VTable column indexes to `columns` array indexes. |
+| [SKIP\_FIELDS](variables/SKIP_FIELDS.md) | System fields skipped (not shown as independent columns) |
+| [switchDisabledForReadonly](variables/switchDisabledForReadonly.md) | Disables the switch: read-only rows cannot be operated |
+| [useEntityDetailHeadless](variables/useEntityDetailHeadless.md) | Equivalent naming alias of useEntityDetailHeadless. |
+| [useEntityDialogHeadless](variables/useEntityDialogHeadless.md) | Equivalent naming alias of useEntityDialogHeadless. |
+| [useEntityFormHeadless](variables/useEntityFormHeadless.md) | Equivalent naming alias of useEntityFormHeadless. |
+| [useEntityListHeadless](variables/useEntityListHeadless.md) | Equivalent naming alias of useEntityListHeadless. |
+| [useQueryBuilderHeadless](variables/useQueryBuilderHeadless.md) | Equivalent naming alias of useQueryBuilderHeadless. |
+| [useQueryTableHeadless](variables/useQueryTableHeadless.md) | Equivalent naming alias of useQueryTableHeadless. |
+| [UUID\_RE](variables/UUID_RE.md) | Regular expression validating UUID string format (case-insensitive) |
+
+## Functions
+
+| Function | Description |
+| ------ | ------ |
+| [\_resetEditorRegistry](functions/resetEditorRegistry.md) | Resets the editor registration state (for tests only) |
+| [actionsColumn](functions/actionsColumn.md) | Actions column: optionally includes view and delete buttons |
+| [applyClipboard](functions/applyClipboard.md) | Collects pending write operations from the internal clipboard (matched by column position, Excel-like behavior). cellType must match; when rows/columns run short, it cycles and reuses. Skips read-only rows, new rows and non-writable columns (column-level read-only, system / selection / actions columns); if the target column defines a menuList, values outside the enum range are skipped. |
+| [applyListViewColumns](functions/applyListViewColumns.md) | Applies field order and visibility, pinning the positions of the selection and actions columns. |
+| [applyPopoverPosition](functions/applyPopoverPosition.md) | Applies the result of calcPopoverPosition directly to the popover DOM element. |
+| [applySystemText](functions/applySystemText.md) | Collects pending write operations from system clipboard text (TSV). Boolean columns automatically convert text to booleans (`true`/`1`/`yes`/`是` → true, `false`/`0`/`no`/`否`/empty → false); unrecognized values are skipped; enum columns skip values not in menuList; when rows/columns run short, it cycles and reuses. Skips read-only rows, new rows and non-writable columns (column-level read-only, system / selection / actions columns). |
+| [buildDetailTabs](functions/buildDetailTabs.md) | Builds the detail page tab list from entity metadata |
+| [buildEditableColumns](functions/buildEditableColumns.md) | Builds editable VTable column definitions from EntityMetadata |
+| [buildFieldTree](functions/buildFieldTree.md) | Converts a flat field list into a tree structure |
+| [buildFormFields](functions/buildFormFields.md) | Builds the form field list from entity metadata and form mode |
+| [buildListViewOrderBy](functions/buildListViewOrderBy.md) | Constructs database cursor ordering; grouped fields first, with a unique key ensuring stable pagination. |
+| [buildListViewRecords](functions/buildListViewRecords.md) | Normalizes unfilled grouping fields to null, so VTable does not drop undefined grouped records. |
+| [buildListViewTableOptions](functions/buildListViewTableOptions.md) | Constructs collapsible grouping and loaded record counts, without passing off the current page count as full statistics. |
+| [buildPropertyColumn](functions/buildPropertyColumn.md) | Builds a VTable ColumnDefine from the property type configuration |
+| [buildTableOptions](functions/buildTableOptions.md) | Builds ListTable initialization options |
+| [calcPopoverPosition](functions/calcPopoverPosition.md) | Calculates the popover position relative to the trigger element, preferring below, and flipping upward when space is insufficient. |
+| [calculateDropMode](functions/calculateDropMode.md) | Calculates the drop mode from the clientY position within the target rectangle (group mode includes an into range) |
+| [canReorderEntityList](functions/canReorderEntityList.md) | Whether the entity list currently allows drag reordering |
+| [changeCellValue](functions/changeCellValue.md) | Writes the cell value back (without triggering edit events) |
+| [cloneStructured](functions/cloneStructured.md) | Deep-copies structured values in model state, preserving dates, byte sequences and circular references. |
+| [cn](functions/cn.md) | Concatenates CSS class names (a thin wrapper over clsx). |
+| [collectDeleteWrites](functions/collectDeleteWrites.md) | Collects the cell write list for cells that Delete/Backspace needs to clear from the selection. Skips read-only rows, new rows and non-writable columns (column-level read-only, system / selection / actions columns); non-writable boolean columns are also excluded from boolCells, so a switch is not silently turned off without a write. |
+| [collectReorderedIds](functions/collectReorderedIds.md) | Collects the IDs of non-read-only rows after drag reordering |
+| [commitRowMove](functions/commitRowMove.md) | Coordinates persisting a single row drag-and-drop |
+| [completeTableEdit](functions/completeTableEdit.md) | Completes the current cell edit |
+| [computeTooltipPosition](functions/computeTooltipPosition.md) | Computes the absolute position of the tooltip on the page |
+| [createDefaultFormData](functions/createDefaultFormData.md) | Creates default form data from the field configuration |
+| [createEntityDetailController](functions/createEntityDetailController.md) | Creates a controller with a shared form draft and detail lifecycle. |
+| [createEntityDialogController](functions/createEntityDialogController.md) | Creates a lifecycle controller independent of any specific dialog implementation. |
+| [createEntityFormController](functions/createEntityFormController.md) | Factory entry for creating the form state machine. |
+| [createEntityListController](functions/createEntityListController.md) | Creates an entity list controller that does not depend on a presentation layer. |
+| [createFieldNodeMap](functions/createFieldNodeMap.md) | Creates a mapping from field names to nodes |
+| [createListTable](functions/createListTable.md) | Creates a VTable ListTable instance |
+| [createListViewState](functions/createListViewState.md) | Creates an independent initial list view state. |
+| [createOperatorRegistry](functions/createOperatorRegistry.md) | Factory function that creates an OperatorRegistry instance |
+| [createQueryBuilderController](functions/createQueryBuilderController.md) | Creates a headless controller reusing the existing query service. |
+| [createQueryBuilderService](functions/createQueryBuilderService.md) | Factory function that creates a QueryBuilderService instance |
+| [createQueryConverter](functions/createQueryConverter.md) | Factory function that creates a QueryConverter instance |
+| [createQueryTableController](functions/createQueryTableController.md) | Creates a query table controller without assembling VTable. |
+| [createSchemaFromEntities](functions/createSchemaFromEntities.md) | Creates field metadata in bulk from multiple EntityMetadata |
+| [createSchemaFromEntity](functions/createSchemaFromEntity.md) | Creates field metadata from EntityMetadata |
+| [createSchemaParser](functions/createSchemaParser.md) | Factory function that creates a SchemaParser instance |
+| [createTheme](functions/createTheme.md) | Builds a VTable theme from daisyUI CSS variables |
+| [createValidationService](functions/createValidationService.md) | Factory function that creates a ValidationService instance |
+| [defaultListOrderBy](functions/defaultListOrderBy.md) | Cursor ordering used when the list is not sorted by a column |
+| [describeHistoryBarrier](functions/describeHistoryBarrier.md) | Explanation shown when the undo / redo buttons are disabled. |
+| [ensureBaseEditorRegistered](functions/ensureBaseEditorRegistered.md) | Registers the VTable base editors (global singleton, registered only once on repeated calls) |
+| [entityToFormData](functions/entityToFormData.md) | Converts an entity object into form data |
+| [extractEntityFields](functions/extractEntityFields.md) | Extracts all business field configurations from entity metadata |
+| [extractFieldsFromMetadata](functions/extractFieldsFromMetadata.md) | Extracts fields from EntityMetadata (supports recursive relations) |
+| [extractKeyValueFields](functions/extractKeyValueFields.md) | Extracts the sub-field list from the properties of a keyValue property |
+| [extractRelationTargetFields](functions/extractRelationTargetFields.md) | Extracts the fields of the relation target entity (used for EXISTS subqueries) |
+| [extractSystemFields](functions/extractSystemFields.md) | Extracts system field configurations from entity metadata |
+| [filterVisibleFields](functions/filterVisibleFields.md) | Filters out fields marked as hidden |
+| [findNodeByValue](functions/findNodeByValue.md) | Finds a node in the tree |
+| [findOptionLabel](functions/findOptionLabel.md) | Finds the label of a matching item in the popover option list. |
+| [flattenFieldTree](functions/flattenFieldTree.md) | Flattens the field tree into an option list |
+| [formatAsTsv](functions/formatAsTsv.md) | Serializes ClipboardContent into a TSV string |
+| [formatDateToYmd](functions/formatDateToYmd.md) | Formats a date as a YYYY-MM-DD string. |
+| [formatDateValue](functions/formatDateValue.md) | Formats a date value as a locale string |
+| [formatEntityFieldValue](functions/formatEntityFieldValue.md) | Formats a field value as a display string |
+| [formDataToEntityChanges](functions/formDataToEntityChanges.md) | Computes the change set of form data relative to the original entity object |
+| [generateId](functions/generateId.md) | Generates a unique ID used to identify QueryBuilder rules and rule groups |
+| [getCSSVariables](functions/getCSSVariables.md) | Reads daisyUI theme colors from CSS custom properties |
+| [getCSSVariableValue](functions/getCSSVariableValue.md) | Reads a single CSS variable value, falling back to the default when empty |
+| [getDefaultColors](functions/getDefaultColors.md) | Returns the default color set |
+| [getDefaultOperatorRegistry](functions/getDefaultOperatorRegistry.md) | Gets the default operator registry |
+| [getDefaultValueForType](functions/getDefaultValueForType.md) | Returns the default value for the specified input control type. |
+| [getDisplayNamePath](functions/getDisplayNamePath.md) | Gets the full displayName path |
+| [getDocumentRootStyle](functions/getDocumentRootStyle.md) | Gets the computed style of the document root element |
+| [getInputType](functions/getInputType.md) | Determines the input control type for query condition values based on the field type and operator. |
+| [getListViewFields](functions/getListViewFields.md) | Extracts configurable fields from table columns, excluding actions and selection columns. |
+| [getOperatorsForType](functions/getOperatorsForType.md) | Gets the operators applicable to a field type |
+| [getOptionGroupChildren](functions/getOptionGroupChildren.md) | Gets the optionGroupChildren configuration for CascadeSelect |
+| [getRelationIgnoreKeys](functions/getRelationIgnoreKeys.md) | Gets the keys that relations need to ignore (to avoid circular references) |
+| [getTableContainer](functions/getTableContainer.md) | Gets the table DOM container element |
+| [handleTableKeydown](functions/handleTableKeydown.md) | keydown event handling for the table container — clipboard shortcuts + boolean toggling + delete. Clipboard shortcuts and the delete key are not intercepted while editing. |
+| [isDocumentDarkMode](functions/isDocumentDarkMode.md) | Determines whether the current document is in dark mode |
+| [isRowDragEnabled](functions/isRowDragEnabled.md) | Whether the table currently allows row dragging |
+| [isRule](functions/isRule.md) | Type guard: determines whether the value is a rule |
+| [isRuleGroup](functions/isRuleGroup.md) | Type guard: determines whether the value is a rule group |
+| [isTableEditing](functions/isTableEditing.md) | Checks whether the table is currently editing |
+| [localizeEntityFormFields](functions/localizeEntityFormFields.md) | Updates the display labels in an opened form, preserving the field configuration and the caller's data state. |
+| [localizeEntityMetadata](functions/localizeEntityMetadata.md) | Clones the display metadata and resolves entity, property and relation wording; the original entity declarations and storage contract remain unchanged. |
+| [lucideToSvgElement](functions/lucideToSvgElement.md) | Converts `LucideIconData` into an inline SVG element (constructed via DOM APIs, immune to markup injection) |
+| [makeDeleteIcons](functions/makeDeleteIcons.md) | Generates the delete button's icon options (SVG icon + text label) |
+| [makeEditorForReadonly](functions/makeEditorForReadonly.md) | Builds an editor function: non-read-only rows use the specified editor name, read-only rows return undefined |
+| [makeViewIcons](functions/makeViewIcons.md) | Generates the view button's icon options (SVG only, so text does not stretch the remaining width) |
+| [mapPropertyType](functions/mapPropertyType.md) | Maps PropertyType to the FieldMetadata type |
+| [modelText](functions/modelText.md) | Reads the component catalog; the configured catalog takes priority. |
+| [moveListViewItem](functions/moveListViewItem.md) | Moves a field or ordering rule, preserving the original order when crossing boundaries. |
+| [normalizeKVSchemaEntryType](functions/normalizeKVSchemaEntryType.md) | Normalizes an entity property type into a keyValue Schema value type |
+| [observeDocumentTheme](functions/observeDocumentTheme.md) | Observes document theme changes: the root node's `data-theme`, inline `style` (runtime overrides of primary color / border radius are written there), and system light/dark changes when there is no explicit `data-theme`. |
+| [organizeFields](functions/organizeFields.md) | Groups and sorts fields |
+| [parseCommaSeparatedInput](functions/parseCommaSeparatedInput.md) | Parses a comma-separated string into an array. When fieldType is 'number' it returns a number array, otherwise a string array. |
+| [parseEntityFieldValue](functions/parseEntityFieldValue.md) | Parses a raw value into the target value of the specified field type |
+| [parseEntityFieldValueStrict](functions/parseEntityFieldValueStrict.md) | Strictly parses form input; on failure returns a structured reason, and the caller must not overwrite the original input. |
+| [parsePropertyColumnValue](functions/parsePropertyColumnValue.md) | Parses the string value entered in an input-editor back to the property's primitive type |
+| [parseYmdToLocalDate](functions/parseYmdToLocalDate.md) | Parses a YYYY-MM-DD string into a Date in the local timezone. |
+| [patchDragIconForReadonlyRows](functions/patchDragIconForReadonlyRows.md) | HACK: VTable offers no API to disable dragging for specific rows; implemented by monkey-patching internal properties |
+| [pinsSingleOrderDomain](functions/pinsSingleOrderDomain.md) | Whether the pinned query pins exactly one complete ordering domain |
+| [positionOverlayPanel](functions/positionOverlayPanel.md) | Positions the overlay panel below the cell (flipping upward when space is insufficient) |
+| [provideQueryBuilderTheme](functions/provideQueryBuilderTheme.md) | Provides a custom query builder theme (must be called during the component's `setup` phase). |
+| [readRowMove](functions/readRowMove.md) | Reads the dragged row and drop-point neighbors from a row drag-and-drop |
+| [refocusTable](functions/refocusTable.md) | Returns focus to the VTable root element after editing (the .vtable div with tabindex=0 = ctx.container = table.getElement()), so arrow-key navigation keeps working |
+| [refreshFormValidationResult](functions/refreshFormValidationResult.md) | Replays the displayed validation errors with the current field labels and language, preserving the original input when parsing fails. |
+| [registerEditor](functions/registerEditor.md) | Registers a custom editor |
+| [restoreTableRecords](functions/restoreTableRecords.md) | Restores table rows to the order of the most recent commit |
+| [scheduleEditorSetup](functions/scheduleEditorSetup.md) | Defers editor initialization (registering the outside-click listener + focusing) to avoid VTable event interference |
+| [setCellSwitchState](functions/setCellSwitchState.md) | Sets the visual state of a switch/checkbox/radio cell |
+| [setRowDragEnabled](functions/setRowDragEnabled.md) | Toggles the table's row drag handles at runtime |
+| [setTableI18n](functions/setTableI18n.md) | Binds the component runtime to the table instance; editors read from their owning table. |
+| [snapshotSelection](functions/snapshotSelection.md) | Snapshots the current VTable selection as clipboard content. |
+| [sortFormFields](functions/sortFormFields.md) | Sorts by the fields' order in ascending order |
+| [structuralEqual](functions/structuralEqual.md) | Structured deep comparison, replacing JSON.stringify comparison. Recursively compares objects and arrays without depending on key serialization order. Supports circular reference detection, avoiding infinite recursion. |
+| [syncHeaderSortIcon](functions/syncHeaderSortIcon.md) | Synchronizes the column header sort icon without performing client-side sorting |
+| [updateTableRecords](functions/updateTableRecords.md) | Updates table data and restores column widths (matched by field name, tolerant of column additions/removals) |
+| [useEntityDetail](functions/useEntityDetail.md) | Vue entity detail binding; configuration changes do not discard the draft. |
+| [useEntityDialog](functions/useEntityDialog.md) | Vue dialog lifecycle binding. |
+| [useEntityForm](functions/useEntityForm.md) | Vue form binding; deeply syncs host data and releases the controller on unmount. |
+| [useEntityList](functions/useEntityList.md) | Vue entity list binding; only syncs query, ordering, pagination, record and capability inputs whose items actually changed. |
+| [useQueryBuilder](functions/useQueryBuilder.md) | Vue query builder binding, deeply syncing field metadata. |
+| [useQueryTable](functions/useQueryTable.md) | Vue query table state binding; input sync rules are the same as `useEntityList`. |
+| [validateEntityFieldValue](functions/validateEntityFieldValue.md) | Validates whether a single field value satisfies the field configuration constraints |
+| [validateField](functions/validateField.md) | Validates a single form field value |
+| [validateForm](functions/validateForm.md) | Validates the entire form data |
+
+## References
+
+### EntityDetail \{#entitydetail\}
+
+Renames and re-exports [EntityList](variables/EntityList.md)
+
+***
+
+### EntityDialog \{#entitydialog\}
+
+Renames and re-exports [EntityList](variables/EntityList.md)
+
+***
+
+### EntityForm \{#entityform\}
+
+Renames and re-exports [EntityList](variables/EntityList.md)
+
+***
+
+### EntityTable \{#entitytable\}
+
+Renames and re-exports [EntityList](variables/EntityList.md)
+
+***
+
+### FieldSelector \{#fieldselector\}
+
+Renames and re-exports [EntityList](variables/EntityList.md)
+
+***
+
+### OperatorSelector \{#operatorselector\}
+
+Renames and re-exports [EntityList](variables/EntityList.md)
+
+***
+
+### PopoverSelect \{#popoverselect\}
+
+Renames and re-exports [EntityList](variables/EntityList.md)
+
+***
+
+### QueryBuilder \{#querybuilder\}
+
+Renames and re-exports [EntityList](variables/EntityList.md)
+
+***
+
+### QueryGroup \{#querygroup\}
+
+Renames and re-exports [EntityList](variables/EntityList.md)
+
+***
+
+### QueryRule \{#queryrule\}
+
+Renames and re-exports [EntityList](variables/EntityList.md)
+
+***
+
+### QueryTable \{#querytable\}
+
+Renames and re-exports [EntityList](variables/EntityList.md)
+
+***
+
+### SubqueryBuilder \{#subquerybuilder\}
+
+Renames and re-exports [EntityList](variables/EntityList.md)
+
+***
+
+### TreeSelect \{#treeselect\}
+
+Renames and re-exports [EntityList](variables/EntityList.md)
+
+***
+
+### ValueInput \{#valueinput\}
+
+Renames and re-exports [EntityList](variables/EntityList.md)
