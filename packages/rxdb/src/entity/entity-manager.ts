@@ -548,8 +548,21 @@ export class EntityManager {
    */
   async remove<T extends EntityType>(data: InstanceType<T>): Promise<InstanceType<T>> {
     const EntityType = data.constructor as EntityType;
+    // 被引用的实体：本地外键会级联删除或置空引用它的行。走批量写入，源删除与级联写入在同一个带事务号的事务里，
+    // 记成一个事务、撤销一次整组恢复（US-318）；单条删除不开事务，级联写入会各记各的
+    if (this.#removes_in_transaction(EntityType)) {
+      await this.mutations(getEntityMutations({ needSaveEntities: [], needRemoveEntities: [data] }));
+      return data;
+    }
     const entity = await this.#get_entity_repository(EntityType).remove(data);
     return entity;
+  }
+
+  /** 删除要不要走批量写入的事务：实体被引用，且写的是本地库（远端与 QueryCache 的删除不经本地外键） */
+  #removes_in_transaction(EntityType: EntityType): boolean {
+    if (!this.rxdb.schemaManager.isReferenced(EntityType)) return false;
+    const primary = resolveBatchPrimaryAdapter([EntityType], this.rxdb.entitySync);
+    return primary?.kind === 'local' && !isQueryCacheBatch([EntityType], this.rxdb.entitySync);
   }
 
   /**

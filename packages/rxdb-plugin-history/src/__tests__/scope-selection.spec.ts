@@ -1,10 +1,11 @@
-import { type HistoryItem, type HistoryScope, RxDBChange, type UUID } from '@aiao/rxdb';
+import { type HistoryItem, type HistoryScope, RxDBChange, RxDBError, type UUID } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import { convertChangesToHistories } from '../history-item-builder.js';
 import {
   historyTouchesScope,
   isChangeInScope,
   isHistoryWithinScope,
+  repositoriesScopeOf,
   RxDBCrossScopeTransactionError,
   selectScopedHistories
 } from '../scope-selection.js';
@@ -137,6 +138,62 @@ describe('scope-selection', () => {
     it('survives instanceof across the transpiled prototype chain', () => {
       const error: unknown = new RxDBCrossScopeTransactionError(USER_1, [mixed]);
       expect(error instanceof RxDBCrossScopeTransactionError).toBe(true);
+    });
+  });
+
+  describe('repositories scope（US-316）', () => {
+    const USER = { namespace: 'public', entity: 'User' };
+    const POST = { namespace: 'public', entity: 'Post' };
+    const USER_AND_POST: HistoryScope = { type: 'repositories', repositories: [USER, POST] };
+
+    it('matches a change in any listed repository and nothing else', () => {
+      expect(isChangeInScope(createChange(1), USER_AND_POST)).toBe(true);
+      expect(isChangeInScope(createChange(1, { entity: 'Post' }), USER_AND_POST)).toBe(true);
+      expect(isChangeInScope(createChange(1, { entity: 'Tag' }), USER_AND_POST)).toBe(false);
+      expect(isChangeInScope(createChange(1, { namespace: 'tenant' }), USER_AND_POST)).toBe(false);
+    });
+
+    it('applies a transaction that spans the listed repositories as a whole', () => {
+      const spanning = createTransaction(createChange(2), createChange(1, { entity: 'Post', entityId: 'post-1' as UUID }));
+
+      expect(selectScopedHistories([spanning], USER_AND_POST, 1)).toEqual({ crossScope: [], selected: [spanning] });
+    });
+
+    it('still refuses a transaction that also writes outside the listed repositories, naming the outsider', () => {
+      const leaking = createTransaction(createChange(2), createChange(1, { entity: 'Tag', entityId: 'tag-1' as UUID }));
+      const { crossScope } = selectScopedHistories([leaking], USER_AND_POST, 1);
+      const error = new RxDBCrossScopeTransactionError(USER_AND_POST, crossScope);
+
+      expect(crossScope).toEqual([leaking]);
+      expect(error.message).toContain('public:User + public:Post');
+      expect(error.message).toContain('also changes public:Tag');
+    });
+  });
+
+  describe('repositoriesScopeOf（US-316）', () => {
+    const ORDER_ITEM = { namespace: 'public', entity: 'OrderItem' };
+    const CATEGORY = { namespace: 'public', entity: 'Category' };
+    const TAG = { namespace: 'public', entity: 'Tag' };
+    const CATEGORY_ORDER_ITEM = { namespace: 'public', entity: 'Category_OrderItem' };
+    const ORDER_ITEM_TAG = { namespace: 'public', entity: 'OrderItem_Tag' };
+    const junctions = [
+      { junction: CATEGORY_ORDER_ITEM, endpoints: [CATEGORY, ORDER_ITEM] },
+      { junction: ORDER_ITEM_TAG, endpoints: [ORDER_ITEM, TAG] }
+    ] as const;
+
+    it('lists the given repositories and adds the junctions whose both ends are listed', () => {
+      expect(repositoriesScopeOf([ORDER_ITEM, CATEGORY], junctions)).toEqual({
+        type: 'repositories',
+        repositories: [ORDER_ITEM, CATEGORY, CATEGORY_ORDER_ITEM]
+      });
+    });
+
+    it('leaves out a junction with only one end listed', () => {
+      expect(repositoriesScopeOf([ORDER_ITEM], junctions)).toEqual({ type: 'repositories', repositories: [ORDER_ITEM] });
+    });
+
+    it('rejects an empty list instead of widening to the database scope', () => {
+      expect(() => repositoriesScopeOf([], junctions)).toThrow(RxDBError);
     });
   });
 });

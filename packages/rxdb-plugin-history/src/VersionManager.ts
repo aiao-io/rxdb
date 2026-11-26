@@ -110,6 +110,28 @@ export class VersionManager {
   }
 
   /**
+   * 待推送清单流（US-317）
+   *
+   * 推送会推的本机修改，按 {@link VersionManager.pushableCount$} 同一口径成项：一个事务一项、不在事务里的变更各一项，
+   * 最新在前；每项的 `changes` 带着各自的 `patch` / `inversePatch`，可以直接画出改之前与改之后。
+   * 每次写入、撤销、重做、推送或拉取稳定之后，清单长度等于待推数。
+   *
+   * @remarks
+   * 与会话内的 `history().histories$` 不同：上次打开时没推的修改也在这里，只存本地（没有推送资格）的实体不在这里。
+   * 只在有人订阅时查询。
+   *
+   * @example
+   * ```ts
+   * rxdb.versionManager.pushableHistories$.subscribe(items => {
+   *   outgoing.textContent = `推送会带上 ${items.length} 项修改`;
+   * });
+   * ```
+   */
+  get pushableHistories$() {
+    return this.historyManager.pushableHistories$;
+  }
+
+  /**
    * 远程待 pull 的变更数量流
    *
    * 通过监听远程事件（INSERT/UPDATE/DELETE）累计：
@@ -541,8 +563,10 @@ export class VersionManager {
    * @param options - 作用域选项：
    *   - 不传参数 → database 作用域（整个数据库）
    *   - EntityType 类 → repository 作用域（该实体的所有记录）
+   *   - EntityType 类数组 → repositories 作用域（这几个实体合起来，两端都在其中的多对多中间表一并列入，US-316）
    *   - 实体实例 → entity 作用域（该实例的历史）
    * @returns 统一的历史记录 API 接口
+   * @throws {@link RxDBError} 传入空数组时：空数组不是整库作用域，要整库请不带参数
    *
    * @example
    * ```ts
@@ -552,11 +576,14 @@ export class VersionManager {
    * // 仓库级别（所有 User 记录）
    * const userHistory = versionManager.history(User);
    *
+   * // 几个仓库合起来：跨客户与证件的事务能整条撤销，别的实体不受影响
+   * const ordersHistory = versionManager.history([Customer, IdCard, Order]);
+   *
    * // 实体级别（单个用户）
    * const entityHistory = versionManager.history(userInstance);
    * ```
    */
-  history<T extends EntityType>(options?: T | InstanceType<T>): HistoryScopeAPI {
+  history<T extends EntityType>(options?: T | InstanceType<T> | readonly EntityType[]): HistoryScopeAPI {
     return this.historyManager.history(options);
   }
 

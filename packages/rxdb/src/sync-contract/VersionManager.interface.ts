@@ -217,14 +217,20 @@ export interface PushOptions {
 /**
  * 历史记录作用域类型
  */
-export type HistoryScopeType = 'database' | 'repository' | 'entity';
+export type HistoryScopeType = 'database' | 'repository' | 'repositories' | 'entity';
 
 /**
  * 历史记录作用域配置
+ *
+ * @remarks
+ * `repositories` 是几个仓库合起来的作用域（US-316）：一个页面同时编辑几张有外键关系的表时，
+ * 跨这几张表的事务能整条撤销，作用域外的数据不受影响。由 `history([A, B])` 生成时，
+ * 两端都在其中的多对多中间表一并列入。
  */
 export type HistoryScope =
   | { type: 'database' }
   | { type: 'repository'; namespace: string; entity: string }
+  | { type: 'repositories'; repositories: readonly RepositoryIdentifier[] }
   | { type: 'entity'; namespace: string; entity: string; entityId: RxDBEntityId };
 
 /**

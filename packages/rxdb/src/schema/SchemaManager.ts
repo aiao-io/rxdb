@@ -336,6 +336,25 @@ export class SchemaManager {
   }
 
   /**
+   * 有没有实体用外键引用它（US-318）
+   *
+   * @param target - 实体类或实体元数据，按 `namespace` + `name` 认
+   * @returns 有实体（包括生成的多对多中间表、指向自己的树）的多对一或一对一关系指向它时为 `true`
+   *
+   * @remarks
+   * 删除被引用的实体时，本地外键会级联删除或置空引用它的行。删除入口据此把删除放进带事务号的事务里，
+   * 源删除与级联写入记成同一个事务，撤销一次就能整组恢复。
+   */
+  isReferenced(target: EntityType | EntityMetadata): boolean {
+    const { name, namespace } = typeof target === 'function' ? getEntityMetadata(target) : target;
+    return [...this.#metadata_map.values()].some(metadata =>
+      metadata.foreignKeyRelations.some(
+        relation => relation.mappedEntity === name && (relation.mappedNamespace ?? metadata.namespace) === namespace
+      )
+    );
+  }
+
+  /**
    * 获取实体元数据
    */
   getEntityMetadata(name: string, namespace: string): EntityMetadata | undefined {

@@ -12,6 +12,7 @@ import {
   type RxDB,
   RxDBBranch,
   RxDBChange,
+  RxDBError,
   RxDBSync,
   type SwitchVersionActions,
   SyncType,
@@ -193,6 +194,8 @@ const createHarness = (
     worktreeTableSet: WorktreeTableSet.MAIN,
     worktreeTableSet$: of(WorktreeTableSet.MAIN),
     entityManager: { getRepository },
+    // 多仓库作用域（US-316）按两端找中间表：这组实体之间没有多对多
+    schemaManager: { generatedEntities: [], isJunctionEntity: () => false, junctionEndpointsOf: () => undefined },
     firstConnectedAt: options.firstConnectedAt,
     localAdapter$: of(localAdapter),
     removeEventListener,
@@ -376,6 +379,18 @@ describe('历史流、作用域与撤销重做执行', () => {
 
       databaseSub.unsubscribe();
       repositorySub.unsubscribe();
+    });
+
+    it('creates a repositories scope from an entity array, cached regardless of order（US-316）', () => {
+      const harness = createHarness();
+      const scope = harness.historyManager.history([User, Post]);
+      const subscription = scope.histories$.subscribe();
+
+      expect(scope.type).toBe('repositories');
+      expect(harness.historyManager.history([Post, User])).toBe(scope);
+      expect(() => harness.historyManager.history([])).toThrow(RxDBError);
+
+      subscription.unsubscribe();
     });
 
     it('keeps a cached scope until its final subscription is released', () => {
@@ -651,6 +666,17 @@ describe('历史流、作用域与撤销重做执行', () => {
       harness.changeFind.mockResolvedValue(crossScopeTransaction());
 
       await harness.historyManager.history().undo();
+
+      const call = harness.switchBranch.mock.calls[0][0] as SwitchBranchInput;
+      expect(call.actions.updates.has('rxdb:RxDBChange:2')).toBe(true);
+      expect(call.actions.updates.has('rxdb:RxDBChange:1')).toBe(true);
+    });
+
+    it('reverts the whole transaction from a scope listing both repositories（US-316）', async () => {
+      const harness = createHarness({ firstConnectedAt });
+      harness.changeFind.mockResolvedValue(crossScopeTransaction());
+
+      await harness.historyManager.history([User, Post]).undo();
 
       const call = harness.switchBranch.mock.calls[0][0] as SwitchBranchInput;
       expect(call.actions.updates.has('rxdb:RxDBChange:2')).toBe(true);

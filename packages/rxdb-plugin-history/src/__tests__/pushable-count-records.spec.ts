@@ -17,7 +17,7 @@ import {
 } from '@aiao/rxdb';
 import { BehaviorSubject, of, Subject } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
-import { updatePushableCount, type UndoRedoApplyHost } from '../undo-redo-apply.js';
+import { buildPendingPushWhere, updatePushableCount, type UndoRedoApplyHost } from '../undo-redo-apply.js';
 import { User } from './fixtures/test-entities.js';
 
 type ChangeCountOptions = CountOptions<typeof RxDBChange, RxDBChangeRuleGroup>;
@@ -85,5 +85,29 @@ describe('updatePushableCount：按记录数', () => {
     expect(pending.rules).toContainEqual({ field: 'revertChangeId', operator: '=', value: null });
     expect(pending.rules).toContainEqual({ field: 'remoteId', operator: '=', value: null });
     expect(pending.rules).toContainEqual(expect.objectContaining({ combinator: 'or' }));
+  });
+});
+
+describe('buildPendingPushWhere（US-317：计数与清单共用的待推条件）', () => {
+  const rxdbOf = (host: UndoRedoApplyHost, overrides: Record<string, unknown>) =>
+    ({ ...host.rxdb, ...overrides }) as unknown as RxDB;
+
+  it('连着、挂在主检出位、有可推送的仓库：给出分支、未回滚、未推送与仓库规则', async () => {
+    const { host } = createHost({ standalone: 0, transactions: 0 });
+
+    const where = await buildPendingPushWhere(host.rxdb);
+
+    expect(where?.rules).toContainEqual({ field: 'branchId', operator: '=', value: 'main' });
+    expect(where?.rules).toContainEqual(expect.objectContaining({ combinator: 'or' }));
+  });
+
+  it('没连上、挂在可写检出位上、或没有可推送的仓库时为 null（待推为空）', async () => {
+    const { host } = createHost({ standalone: 0, transactions: 0 });
+
+    await expect(buildPendingPushWhere(rxdbOf(host, { connected$: of(false) }))).resolves.toBeNull();
+    await expect(
+      buildPendingPushWhere(rxdbOf(host, { worktreeTableSet: { ...WorktreeTableSet.MAIN, isMain: false } }))
+    ).resolves.toBeNull();
+    await expect(buildPendingPushWhere(rxdbOf(host, { config: { entities: [] } }))).resolves.toBeNull();
   });
 });

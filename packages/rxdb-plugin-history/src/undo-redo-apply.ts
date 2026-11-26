@@ -308,13 +308,52 @@ export async function applyUndoRedoHistories(
 }
 
 /**
+ * 待推送变更的查询条件：当前分支上没撤销、没推上去，且落在有推送资格、水位线之后的仓库里
+ *
+ * @param rxdb - 数据库实例
+ * @returns 条件；没连上、挂在可写检出位上、读不到当前分支或没有可推送的仓库时为 `null`（待推为空）
+ *
+ * @remarks
+ * `pushableCount$` 的计数与 `pushableHistories$` 的清单都用它（US-317）：口径只有这一处，
+ * 各拼一份的那一刻就是两个数对不上的那一刻。被拒的变更推送时水位线已越过它们，不靠 `rejectedAt` 排除。
+ */
+export async function buildPendingPushWhere(rxdb: RxDB): Promise<RuleGroup<RxDBChange> | null> {
+  const connected = await firstValueFrom(rxdb.connected$);
+  // 挂在可写检出位上不同步（只有主检出位同步，US-314 B1.4b），推送一进门就抛：照分支累计只会显示一个推不出去的数（B2.1）。
+  // 挂载一换，当前分支流跟着换、计数跟着重算，挂回主检出位就是主检出位的数
+  if (!connected || !rxdb.worktreeTableSet.isMain) return null;
+
+  const localAdapter = await firstValueFrom(rxdb.localAdapter$);
+  const branch = await firstValueFrom(
+    rxdb.entityManager.getRepository(RxDBBranch).findOne({ where: rxdb.worktreeTableSet.heldBranchWhere })
+  );
+  if (!branch) return null;
+
+  const repoSyncs = await getLocalRxDBSyncRepository(localAdapter).find({
+    where: { combinator: 'and', rules: [{ field: 'branchId', operator: '=', value: branch.id }] }
+  });
+  const repoRules = buildPushableRepositoryRules(rxdb.config.entities, rxdb.entitySync, repoSyncs);
+  if (repoRules.length === 0) return null;
+
+  return {
+    combinator: 'and',
+    rules: [
+      { field: 'branchId', operator: '=', value: branch.id },
+      { field: 'revertChangeId', operator: '=', value: null },
+      { field: 'remoteId', operator: '=', value: null },
+      { combinator: 'or', rules: repoRules }
+    ]
+  };
+}
+
+/**
  * 按 repository 水位线异步刷新 pushableCount。
  *
  * 只有仍是最新那次刷新才有资格改写计数。失败字符串 `'[#updatePushableCount] error'` 不得改。
  *
  * @remarks
  * 数的是记录，不是变更行（{@link countRxDBChangeRecords}）：一次 `saveMany()` 是一个事务、一条记录，
- * 与操作历史的条数一致。
+ * 与操作历史的条数一致。条件见 {@link buildPendingPushWhere}。
  */
 export async function updatePushableCount(host: UndoRedoApplyHost): Promise<void> {
   const generation = ++host.pushableGeneration;
@@ -325,55 +364,12 @@ export async function updatePushableCount(host: UndoRedoApplyHost): Promise<void
   };
 
   try {
-    const connected = await firstValueFrom(host.rxdb.connected$);
-    if (!connected) {
+    const pending = await buildPendingPushWhere(host.rxdb);
+    if (!pending) {
       publish(0);
       return;
     }
-    // 挂在可写检出位上不同步（只有主检出位同步，US-314 B1.4b），推送一进门就抛：照分支累计只会显示一个推不出去的数（B2.1）。
-    // 挂载一换，当前分支流跟着换、计数跟着重算，挂回主检出位就是主检出位的数
-    if (!host.rxdb.worktreeTableSet.isMain) {
-      publish(0);
-      return;
-    }
-
-    const localAdapter = await firstValueFrom(host.rxdb.localAdapter$);
-    const RxDBSyncRepo = getLocalRxDBSyncRepository(localAdapter);
     const changeRepository = host.rxdb.entityManager.getRepository(RxDBChange);
-    const branch = await firstValueFrom(
-      host.rxdb.entityManager.getRepository(RxDBBranch).findOne({ where: host.rxdb.worktreeTableSet.heldBranchWhere })
-    );
-
-    if (!branch) {
-      publish(0);
-      return;
-    }
-
-    const repoSyncs = await RxDBSyncRepo.find({
-      where: {
-        combinator: 'and',
-        rules: [{ field: 'branchId', operator: '=', value: branch.id }]
-      }
-    });
-
-    const repoRules = buildPushableRepositoryRules(host.rxdb.config.entities, host.rxdb.entitySync, repoSyncs);
-    if (repoRules.length === 0) {
-      publish(0);
-      return;
-    }
-
-    const pending: RuleGroup<RxDBChange> = {
-      combinator: 'and',
-      rules: [
-        { field: 'branchId', operator: '=', value: branch.id },
-        { field: 'revertChangeId', operator: '=', value: null },
-        { field: 'remoteId', operator: '=', value: null },
-        {
-          combinator: 'or',
-          rules: repoRules
-        }
-      ]
-    };
     const count = await countRxDBChangeRecords(options => firstValueFrom(changeRepository.count(options)), pending);
 
     publish(count);

@@ -1,10 +1,13 @@
 import {
   declareTrustedWrite,
+  type EntityMetadata,
   EntityType,
+  getEntityMetadata,
   HistoryItem,
   HistoryScope,
   HistoryScopeAPI,
   isAdapterShutdownError,
+  type RepositoryIdentifier,
   REPOSITORY_SYNC_COMPLETE_EVENT,
   RxDB,
   RxDBBranch,
@@ -56,16 +59,23 @@ import {
 } from './history-undo-session.types.js';
 import { settledPullableCount } from './pullable-count.js';
 import { RedoStack } from './redo-stack.js';
-import { RxDBCrossScopeTransactionError, selectScopedHistories } from './scope-selection.js';
+import { repositoriesScopeOf, RxDBCrossScopeTransactionError, selectScopedHistories } from './scope-selection.js';
 import { get_switch_version_actions } from './switch-branch-actions.js';
 import {
   applyUndoRedoHistories,
+  buildPendingPushWhere,
   fetchChildForks,
   fetchLatestHistories,
   getLocalRxDBSyncRepository,
   updatePushableCount,
   type UndoRedoApplyHost
 } from './undo-redo-apply.js';
+
+/** 实体元数据 → 仓库标识 */
+const repositoryOf = ({ namespace, name }: Pick<EntityMetadata, 'namespace' | 'name'>): RepositoryIdentifier => ({
+  namespace,
+  entity: name
+});
 // 重新导出供测试和外部消费者使用（移动到独立文件后保持 API 兼容）
 export { filterHistoriesByScope, filterUndoableHistories, getScopeKey } from './history-filters.js';
 export { generateHistoryDescription } from './history-item-builder.js';
@@ -184,6 +194,19 @@ export class HistoryManager {
   readonly errors$ = new Subject<Error>();
   pushableCount$: Observable<number>;
   pullableCount$: Observable<number>;
+
+  /**
+   * 待推送清单（US-317）：推送会推的本机修改，一个事务一项、不在事务里的变更各一项，最新在前
+   *
+   * @remarks
+   * 与 {@link HistoryManager.pushableCount$} 共用一个查询条件（`buildPendingPushWhere`），在同样的时机重查：
+   * 写入与撤销重做改了变更表、推送或拉取结束、换分支或换挂之后。每次稳定之后长度等于待推数。
+   * 只在有人订阅时查询。
+   */
+  pushableHistories$: Observable<HistoryItem[]>;
+
+  /** 待推数每重算一次就发一次：清单跟着同一个时机重查 */
+  readonly #pushableRefresh$ = new Subject<void>();
 
   count$: Observable<number>;
 
@@ -374,6 +397,19 @@ export class HistoryManager {
 
     this.pushableCount$ = this.#pushableCount$.asObservable();
     this.pullableCount$ = this.#pullableCount$.asObservable();
+    this.pushableHistories$ = this.#pushableRefresh$.pipe(
+      startWith(undefined),
+      switchMap(() =>
+        from(this.#fetchPushableHistories()).pipe(
+          // 与计数同一策略：一次查询失败只报出去、保留上一份清单，不让整条流停摆
+          catchError((error: unknown) => {
+            this.#reportStreamError('pushableHistories 的待推送查询', error);
+            return EMPTY;
+          })
+        )
+      ),
+      shareReplay({ bufferSize: 1, refCount: true })
+    );
 
     const pushableCountSub = combineLatest({
       connected: this.rxdb.connected$,
@@ -429,6 +465,7 @@ export class HistoryManager {
     this.#subscriptions.length = 0;
     this.rxdb.removeEventListener(REPOSITORY_SYNC_COMPLETE_EVENT, this.#onRepositorySyncComplete);
     this.#revertStateWatermarks.clear();
+    this.#pushableRefresh$.complete();
     this.errors$.complete();
   }
 
@@ -693,8 +730,19 @@ export class HistoryManager {
   }
 
   /** 创建（或取出缓存的）作用域历史 API */
-  history<T extends EntityType>(options?: T | InstanceType<T> | HistoryScope): HistoryScopeAPI {
-    return createHistoryScopeApi(this.#scopeHost, options);
+  history<T extends EntityType>(options?: T | InstanceType<T> | readonly EntityType[] | HistoryScope): HistoryScopeAPI {
+    if (Array.isArray(options)) return createHistoryScopeApi(this.#scopeHost, this.#repositoriesScope(options));
+    return createHistoryScopeApi(this.#scopeHost, options as T | InstanceType<T> | HistoryScope | undefined);
+  }
+
+  /** 几个实体合起来的作用域（US-316）：两端都列出的多对多中间表一并算进来 */
+  #repositoriesScope(EntityTypes: readonly EntityType[]): HistoryScope {
+    const schema = this.rxdb.schemaManager;
+    const junctions = schema.generatedEntities.flatMap(Junction => {
+      const endpoints = schema.junctionEndpointsOf(Junction);
+      return endpoints ? [{ junction: repositoryOf(getEntityMetadata(Junction)), endpoints: endpoints.map(repositoryOf) }] : [];
+    });
+    return repositoriesScopeOf(EntityTypes.map(EntityType => repositoryOf(getEntityMetadata(EntityType))), junctions);
   }
 
   /** 选出完整事务；跨作用域则抛 {@link RxDBCrossScopeTransactionError} */
@@ -879,7 +927,17 @@ export class HistoryManager {
   }
 
   async #updatePushableCount(): Promise<void> {
+    this.#pushableRefresh$.next();
     return updatePushableCount(this.#applyHost);
+  }
+
+  /** 按待推条件查一次本地变更，按事务分组（US-317） */
+  async #fetchPushableHistories(): Promise<HistoryItem[]> {
+    const where = await buildPendingPushWhere(this.rxdb);
+    if (!where) return [];
+    const { changeRepository } = await this.rxdb.versionManager.getLocalRepositories();
+    const changes = await changeRepository.find({ where, orderBy: [{ field: 'id', sort: 'desc' }] });
+    return convertChangesToHistories(changes);
   }
 
   #createScopeHost(): HistoryScopeApiHost {

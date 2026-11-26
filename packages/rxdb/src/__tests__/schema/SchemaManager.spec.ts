@@ -173,6 +173,24 @@ describe('@Entity', () => {
       expect(rxdb.schemaManager.junctionEndpointsOf(OrderItem)).toBeUndefined();
     });
   });
+
+  describe('isReferenced（US-318）', () => {
+    it('被多对一、一对一或生成的中间表用外键指向的实体为 true；实体类与元数据都能查', () => {
+      expect(rxdb.schemaManager.isReferenced(Order)).toBe(true);
+      expect(rxdb.schemaManager.isReferenced(User)).toBe(true);
+      expect(rxdb.schemaManager.isReferenced(IdCard)).toBe(true);
+      expect(rxdb.schemaManager.isReferenced(Category)).toBe(true);
+      expect(rxdb.schemaManager.isReferenced(getEntityMetadata(OrderItem))).toBe(true);
+    });
+
+    it('只被一对多（反向、不带外键）指向、或谁都不指向的实体为 false', () => {
+      const junction = rxdb.schemaManager.getEntityType('Category_OrderItem', 'public');
+      if (!junction) throw new Error('多对多中间表没有生成');
+
+      expect(rxdb.schemaManager.isReferenced(SKUAttributes)).toBe(false);
+      expect(rxdb.schemaManager.isReferenced(junction)).toBe(false);
+    });
+  });
 });
 
 @Entity({
