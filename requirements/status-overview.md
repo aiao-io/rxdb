@@ -11,9 +11,9 @@
 | ✅ Done        | 100  |
 | 🚧 In Progress | 13   |
 | 👀 In Review   | 9    |
-| 📝 Backlog     | 28   |
+| 📝 Backlog     | 33   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 150  |
+| **合计**       | 155  |
 
 统计只包含带 story frontmatter 的文件。辅助证据和无故事文件的候选不计数；同编号的辅助文件不算另一条故事。
 Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关闭而自动通过。当前可开工条件见 roadmap 与各故事的阶段表。
@@ -251,6 +251,14 @@ US-704～US-707 已获 owner 授权，US-708 会话层由 owner 决定在 PR #17
 - ✅ [US-035 每个身份一个本地库：打开时核对身份，换账号不混数据](stories/core/US-035-identity-bound-local-database.md)
 - ✅ [US-036 规则之外的公开数据：在线浏览走只读浏览实体，不进同步子集](stories/core/US-036-browse-public-data-outside-sync-rule.md)
 - 👀 [US-229 Supabase 远端变更历史：每次业务写入记完整前后快照，只对能编辑的成员开放](stories/adapter/US-229-supabase-change-history.md)
+
+### [本机修改工作台：推送、拉取、撤销与历史的统一交互](epics/epic-016-local-change-workbench.md)
+
+- ⬜ [US-230 dev-rxdb-supabase 顶栏统一推送与拉取：整机同步只有一处入口，同步中心列出会推什么](stories/adapter/US-230-supabase-header-sync.md)
+- ⬜ [US-231 dev-rxdb-supabase 三页交互统一：撤销、重做与操作历史同一位置、作用域写在控件上](stories/adapter/US-231-supabase-unified-undo-history.md)
+- ⬜ [US-232 dev-rxdb-supabase 商品「模拟服务端变更」收进右侧抽屉：主界面先看本机数据，需要时再打开](stories/adapter/US-232-supabase-catalog-server-drawer.md)
+- ⬜ [US-316 撤销/重做的多仓库作用域：几个实体合起来撤，跨它们的事务整条撤](stories/collaboration/US-316-multi-repository-history-scope.md)
+- ⬜ [US-317 待推送清单：与待推数同一口径的历史项流](stories/collaboration/US-317-pushable-histories.md)
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 
