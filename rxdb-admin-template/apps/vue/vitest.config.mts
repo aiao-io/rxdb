@@ -11,6 +11,7 @@ export default defineConfig({
     watch: false,
     globals: true,
     environment: 'happy-dom',
+    setupFiles: ['src/test-setup.ts'],
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
     reporters: ['default'],
     coverage: {

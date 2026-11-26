@@ -80,6 +80,7 @@ export default defineConfig({
   timeout: 90000,
   use: {
     headless: true,
+    locale: 'zh-CN',
     actionTimeout: 10000,
     navigationTimeout: 20000,
     trace: 'retain-on-failure',

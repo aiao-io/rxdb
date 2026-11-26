@@ -99,5 +99,5 @@ const context: Parameters<typeof discardWorkingTree>[1] = {
 
 ## 相关
 
-- [工作树插件 · 放弃与恢复回写业务表](/plugins/rxdb-plugin-working-tree/README.md#放弃与恢复回写业务表)
+- [工作树插件 · 放弃与恢复回写业务表](/plugins/rxdb-plugin-working-tree/README.md)
 - [版本与 API 稳定性策略](/versioning.md)：破坏性变更流程
