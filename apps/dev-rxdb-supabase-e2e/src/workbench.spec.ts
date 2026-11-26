@@ -1,6 +1,15 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { switchIdentity } from './support/identity';
-import { expectNoHorizontalScroll, navigate, openSidePanel, pull, push } from './support/workbench';
+import {
+  boundsOf,
+  errorToasts,
+  expectNoHorizontalScroll,
+  navigate,
+  openHistory,
+  openSidePanel,
+  pull,
+  push
+} from './support/workbench';
 
 const isRemoteE2E = process.env['REMOTE_E2E'] === 'true';
 
@@ -67,7 +76,7 @@ if (isRemoteE2E) {
       return panel.locator(`[data-testid="sync-center-repository"][data-entity="${entity}"]`);
     }
 
-    test('US-230 AC#1、#6 / US-231 AC#1、#10：三页的顶栏一样、内容同宽，首页什么都不登记，页面里没有自己的推拉', async ({
+    test('US-230 AC#1、#6 / US-231 AC#1、#10：三页的顶栏一样、内容同宽、操作历史在左侧默认开着，首页什么都不登记，页面里没有自己的推拉', async ({
       page
     }) => {
       await page.goto('/todo', { timeout: 60_000, waitUntil: 'domcontentloaded' });
@@ -88,6 +97,13 @@ if (isRemoteE2E) {
           return getComputedStyle(column).maxWidth;
         });
         expect(maxWidth, `${title} 页的内容列`).toBe('1024px');
+        // 操作历史统一在左侧，宽屏默认开着，在页面内容的左边
+        const column = page.getByTestId('history-column');
+        await expect(column).toBeVisible();
+        const columnBox = await boundsOf(column);
+        expect(columnBox.x + columnBox.width).toBeLessThanOrEqual(
+          (await boundsOf(page.locator('#layout-content'))).x + 1
+        );
         for (const id of [
           'workbench-undo',
           'workbench-redo',
@@ -109,6 +125,7 @@ if (isRemoteE2E) {
       await expect(page).toHaveURL(/\/home$/u);
       await expect(page.getByTestId('workbench-edit-group')).toHaveCount(0);
       await expect(page.getByTestId('workbench-sync-group')).toHaveCount(0);
+      await expect(page.getByTestId('history-column')).toHaveCount(0);
     });
 
     test('US-230 AC#2、#17、#20、#21：在商品页推送，Todo 与订单页没推的修改一起推上去；另一个身份拉取后两页都看得到', async ({
@@ -125,7 +142,7 @@ if (isRemoteE2E) {
         await addCustomer(page, customer);
 
         // AC#21：操作历史里刚写的这条还没推，带 ↑
-        const history = await openSidePanel(page, 'history');
+        const history = await openHistory(page);
         const written = history.getByTestId('operation-history-item').filter({ hasText: '新建客户' });
         await expect(written.locator('[data-testid="history-chip"][data-chip="pending"]')).toBeVisible();
 
@@ -144,7 +161,7 @@ if (isRemoteE2E) {
 
         // AC#21：回到订单页，那条还在操作历史里，↑ 标记没了
         await navigate(page, ORDERS_LINK, '订单');
-        await openSidePanel(page, 'history');
+        await openHistory(page);
         await expect(written).toHaveCount(1);
         await expect(written.locator('[data-testid="history-chip"][data-chip="pending"]')).toHaveCount(0);
 
@@ -225,7 +242,7 @@ if (isRemoteE2E) {
       await page.getByTestId('workbench-undo').click();
       await expect(customerRow).toHaveCount(0);
       await expect(page.getByTestId('sync-pushable-count')).toHaveCount(0);
-      await expect(page.getByTestId('workbench-error')).toHaveCount(0);
+      await expect(errorToasts(page)).toHaveCount(0);
     });
 
     test('US-230 AC#12 / US-231 AC#11：375px 窄屏顶栏只剩图标与数字、三页不横向滚动；右侧面板是带遮罩的抽屉，Esc 与点遮罩都能关', async ({
@@ -248,10 +265,12 @@ if (isRemoteE2E) {
         await expect(center).toHaveCount(0);
         await expect(page.getByTestId('sync-center-toggle')).toBeFocused();
 
-        // 操作历史：点左边那条遮罩关上，焦点回到开关
-        const history = await openSidePanel(page, 'history');
+        // 操作历史在左侧：窄屏默认收起，打开是从左边盖住页面的抽屉；点右边那条遮罩关上，焦点回到开关
+        await expect(page.getByTestId('history-column')).toHaveCount(0);
+        const history = await openHistory(page);
         await expect(history).toHaveAttribute('aria-modal', 'true');
-        await page.getByTestId('side-panel-backdrop').click({ position: { x: 10, y: 400 } });
+        await expectNoHorizontalScroll(page);
+        await page.getByTestId('history-column-backdrop').click({ position: { x: 365, y: 400 } });
         await expect(history).toHaveCount(0);
         await expect(page.getByTestId('workbench-history-toggle')).toBeFocused();
       }

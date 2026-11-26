@@ -1,6 +1,15 @@
 import { useFindAll } from '@aiao/rxdb-angular';
 import { CatalogItem } from '@aiao/rxdb-test/entities';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked, viewChild } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  effect,
+  inject,
+  signal,
+  untracked,
+  viewChild
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DemoSession } from '../demo-session';
 import { CatalogItemEditor, type CatalogItemEdit } from './catalog-item-editor';

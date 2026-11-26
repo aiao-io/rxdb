@@ -1,5 +1,5 @@
 import { expect, test, type Browser, type Page } from '@playwright/test';
-import { openSidePanel, pull, push } from './support/workbench';
+import { openSidePanel, pull, push, toast } from './support/workbench';
 
 const isRemoteE2E = process.env['REMOTE_E2E'] === 'true';
 
@@ -38,7 +38,7 @@ if (isRemoteE2E) {
       await openSidePanel(page, 'server');
       if ((await serverRow(page, name).count()) === 0) return;
       await serverRow(page, name).getByRole('button', { name: '删除' }).click();
-      await expect(page.getByRole('status').filter({ hasText: `「${name}」已删除` })).toBeVisible({ timeout: 30_000 });
+      await expect(toast(page, `「${name}」已删除`)).toBeVisible({ timeout: 30_000 });
     }
 
     test('AC#10 访客：本机的新建、编辑、删除、撤销、重做与推送都不可用，打开并同步商品目录不发推送请求', async ({
@@ -88,7 +88,7 @@ if (isRemoteE2E) {
         await form.getByLabel('新商品所属租户').selectOption('xinghe');
         await form.getByLabel('新商品可见范围').selectOption('tenant');
         await form.getByRole('button', { name: '新建' }).click();
-        await expect(member.getByTestId('catalog-write-notice')).toHaveText(`「${name}」已在本机新建`);
+        await expect(toast(member, `「${name}」已在本机新建`)).toBeVisible();
         const row = member
           .locator('[data-bucket="tenant:xinghe"] [data-testid="synced-item"]')
           .filter({ hasText: name });

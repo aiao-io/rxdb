@@ -6,13 +6,14 @@ import { AppHeader } from './app-header';
 import { AppSidebar } from './app-sidebar';
 import { AppService } from './app.service';
 import { DemoSession } from './demo-session';
+import { HistoryColumnOutlet } from './history-column';
 import { PageWorkbench } from './page-workbench';
 import { SessionNotice } from './session-notice';
 import { SidePanelOutlet } from './side-panel';
 import { ToastOutlet } from './toast-outlet';
 
 @Component({
-  imports: [RouterOutlet, AppSidebar, AppHeader, SessionNotice, SidePanelOutlet, ToastOutlet],
+  imports: [RouterOutlet, AppSidebar, AppHeader, SessionNotice, HistoryColumnOutlet, SidePanelOutlet, ToastOutlet],
   selector: 'app-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -25,8 +26,9 @@ import { ToastOutlet } from './toast-outlet';
       <div class="flex h-full min-w-0 grow flex-col" id="layout-container">
         <app-header></app-header>
         <app-session-notice></app-session-notice>
-        <!-- 内容与右侧面板并排、各自滚动：宽屏面板占一栏不挡页面，窄屏面板是盖住页面的抽屉 -->
+        <!-- 左侧操作历史、内容与右侧面板并排、各自滚动：宽屏两侧各占一栏不挡页面，窄屏是盖住页面的抽屉 -->
         <div class="flex min-h-0 grow">
+          <app-history-column-outlet></app-history-column-outlet>
           <div class="min-w-0 grow overflow-auto" id="layout-content">
             <router-outlet></router-outlet>
           </div>

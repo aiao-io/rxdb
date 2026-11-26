@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { switchIdentity } from './support/identity';
-import { navigate, openSidePanel, pull, push } from './support/workbench';
+import { navigate, openSidePanel, pull, push, toast } from './support/workbench';
 
 /**
  * 顶栏 ↓N 的准数（US-230 阶段 B / US-233）：刷新之后不把自己推上去的修改算成待拉，分区仓库按真实条数数。
@@ -30,7 +30,7 @@ if (runsAlone) {
     /** 在「模拟服务端变更」里做一次操作，等这一次操作自己的提示出现 */
     async function serverAction(page: Page, run: () => Promise<void>, notice: string): Promise<void> {
       await run();
-      await expect(page.getByRole('status').filter({ hasText: notice })).toBeVisible({ timeout: 30_000 });
+      await expect(toast(page, notice)).toBeVisible({ timeout: 30_000 });
     }
 
     function serverRow(page: Page, name: string) {

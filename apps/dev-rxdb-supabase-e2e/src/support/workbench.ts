@@ -3,13 +3,12 @@ import { expect, type Locator, type Page } from '@playwright/test';
 /** 推或拉 */
 export type SyncDirection = 'pull' | 'push';
 
-/** 右侧面板：操作历史、同步中心、商品页的模拟服务端变更 */
-export type SidePanelView = 'history' | 'sync' | 'server';
+/** 右侧面板：同步中心、商品页的模拟服务端变更；操作历史在左侧，见 {@link openHistory} */
+export type SidePanelView = 'sync' | 'server';
 
 const SYNC_BUTTONS: Record<SyncDirection, string> = { pull: 'sync-pull', push: 'sync-push' };
 const SYNC_DONE: Record<SyncDirection, string> = { pull: '拉取完成', push: '推送完成' };
 const PANEL_TOGGLES: Record<SidePanelView, string> = {
-  history: 'workbench-history-toggle',
   sync: 'sync-center-toggle',
   server: 'catalog-server-toggle'
 };
@@ -19,10 +18,11 @@ const PANEL_TOGGLES: Record<SidePanelView, string> = {
  *
  * @param page - 页面
  * @param direction - 拉取或推送
- * @returns 这一轮的结果行（`sync-result`）
+ * @returns 这一轮结果的那条消息（toast，`data-source` 是 `sync-round-<轮次>`）
  *
  * @remarks
- * 同步组上的 `data-sync-round` 加一才算这一轮结束，成功失败都加：不会被上一轮留下的结果骗过。
+ * 同步组上的 `data-sync-round` 加一才算这一轮结束，成功失败都加；按轮次找消息，不会被上一轮留下的消息骗过。
+ * 成功的消息几秒后自己消失，拿到之后马上断言。
  * 按钮不可点时（`aria-disabled`，比如没有待推送的修改）点击会一直等到超时，用例写错了会以超时报出。
  */
 export async function syncRound(page: Page, direction: SyncDirection): Promise<Locator> {
@@ -30,7 +30,47 @@ export async function syncRound(page: Page, direction: SyncDirection): Promise<L
   const finished = Number(await group.getAttribute('data-sync-round', { timeout: 60_000 }));
   await page.getByTestId(SYNC_BUTTONS[direction]).click({ timeout: 60_000 });
   await expect(group).toHaveAttribute('data-sync-round', String(finished + 1), { timeout: 60_000 });
-  return page.getByTestId('sync-result');
+  return page.locator(`[data-testid="toast"][data-source="sync-round-${finished + 1}"]`);
+}
+
+/**
+ * 写着这段文字的消息（toast）
+ *
+ * @param page - 页面
+ * @param text - 消息里的文字
+ */
+export function toast(page: Page, text: string): Locator {
+  return page.getByTestId('toast').filter({ hasText: text });
+}
+
+/** 页面上的错误消息 */
+export function errorToasts(page: Page): Locator {
+  return page.locator('[data-testid="toast"][data-kind="error"]');
+}
+
+/**
+ * 元素在视口里的位置与大小
+ *
+ * @param locator - 元素
+ * @throws 元素不可见时直接报错，不拿空值往下比
+ */
+export async function boundsOf(locator: Locator): Promise<{ x: number; y: number; width: number; height: number }> {
+  const bounds = await locator.boundingBox();
+  if (!bounds) throw new Error('元素不可见，量不到位置');
+  return bounds;
+}
+
+/**
+ * 打开左侧的操作历史；已经开着就不动（宽屏默认开着）
+ *
+ * @param page - 页面
+ * @returns 操作历史那一栏
+ */
+export async function openHistory(page: Page): Promise<Locator> {
+  const column = page.getByTestId('history-column');
+  if ((await column.count()) === 0) await page.getByTestId('workbench-history-toggle').click();
+  await expect(column).toBeVisible();
+  return column;
 }
 
 /**

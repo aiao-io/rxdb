@@ -32,127 +32,127 @@ import { CATALOG_CATEGORIES } from './catalog-sync-rule';
   imports: [FormsModule, CatalogItemEditor],
   template: `
     <section class="flex flex-col gap-4" data-testid="catalog-server-panel">
-        @if (!session.signedIn) {
-          <p class="text-base-content/70 text-sm" data-testid="server-panel-visitor">
-            访客只能读公开数据。切换到 Alice、Bob 或匿名用户，就能加入租户、改租户的商品，模拟服务端那边的变化。
-          </p>
-        } @else {
-          <p class="text-base-content/60 text-sm">
-            以当前身份直接写远端（按 RLS 只能改所在租户的商品）。本机数据不会马上变：点顶栏的「拉取」，
-            或到别的身份的窗口里拉取，看分区同步怎么收到写入与移除。这个面板开着也能拉取。
-          </p>
+      @if (!session.signedIn) {
+        <p class="text-base-content/70 text-sm" data-testid="server-panel-visitor">
+          访客只能读公开数据。切换到 Alice、Bob 或匿名用户，就能加入租户、改租户的商品，模拟服务端那边的变化。
+        </p>
+      } @else {
+        <p class="text-base-content/60 text-sm">
+          以当前身份直接写远端（按 RLS 只能改所在租户的商品）。本机数据不会马上变：点顶栏的「拉取」，
+          或到别的身份的窗口里拉取，看分区同步怎么收到写入与移除。这个面板开着也能拉取。
+        </p>
 
-          <fieldset class="fieldset">
-            <legend class="fieldset-legend">成员关系（演示用的自助加入，模拟管理员调整）</legend>
-            <div class="flex flex-wrap gap-2">
-              @for (tenant of remote.$tenants(); track tenant.id) {
-                @if (remote.$myTenantIds().includes(tenant.id)) {
-                  <button class="btn btn-sm" [disabled]="$busy()" (click)="leave(tenant.id)" type="button">
-                    退出{{ tenant.name }}
-                  </button>
-                } @else {
-                  <button class="btn btn-sm btn-outline" [disabled]="$busy()" (click)="join(tenant.id)" type="button">
-                    加入{{ tenant.name }}
-                  </button>
-                }
+        <fieldset class="fieldset">
+          <legend class="fieldset-legend">成员关系（演示用的自助加入，模拟管理员调整）</legend>
+          <div class="flex flex-wrap gap-2">
+            @for (tenant of remote.$tenants(); track tenant.id) {
+              @if (remote.$myTenantIds().includes(tenant.id)) {
+                <button class="btn btn-sm" [disabled]="$busy()" (click)="leave(tenant.id)" type="button">
+                  退出{{ tenant.name }}
+                </button>
+              } @else {
+                <button class="btn btn-sm btn-outline" [disabled]="$busy()" (click)="join(tenant.id)" type="button">
+                  加入{{ tenant.name }}
+                </button>
               }
-            </div>
-            <p class="label whitespace-normal">
-              成员关系变了、业务行一行没改：下次同步时，加入的租户补快照，退出的租户整块从本机删掉。
-            </p>
-          </fieldset>
+            }
+          </div>
+          <p class="label whitespace-normal">
+            成员关系变了、业务行一行没改：下次同步时，加入的租户补快照，退出的租户整块从本机删掉。
+          </p>
+        </fieldset>
 
-          @if ($error(); as error) {
-            <div class="alert alert-error" role="alert">{{ error }}</div>
-          }
-
-          @if (remote.$myTenantIds().length === 0) {
-            <p class="text-base-content/60 text-sm">还不在任何租户里：加入一个租户后可以管理它的商品。</p>
-          } @else {
-            <ul class="divide-base-200 divide-y">
-              @for (item of $items(); track item.id) {
-                <li class="flex flex-wrap items-center justify-between gap-2 py-2" data-testid="server-item">
-                  <div class="flex min-w-0 flex-col gap-1">
-                    <span class="flex flex-wrap items-center gap-1">
-                      {{ item.name }}
-                      <span class="badge badge-ghost badge-sm">{{ item.category }}</span>
-                      <span class="badge badge-outline badge-sm">
-                        {{ item.visibility === 'public' ? '公开' : '仅租户内部' }}
-                      </span>
-                    </span>
-                    <span class="text-base-content/60 text-xs">
-                      {{ remote.tenantName(item.tenantId) }} · ¥{{ item.price }} · 成本
-                      {{ item.cost === null ? '未填' : '¥' + item.cost }}
-                    </span>
-                  </div>
-                  <div class="ml-auto flex gap-1">
-                    <button class="btn btn-xs" [disabled]="$busy()" (click)="edit(item)" type="button">编辑</button>
-                    <button class="btn btn-xs w-20" [disabled]="$busy()" (click)="toggleVisibility(item)" type="button">
-                      {{ item.visibility === 'public' ? '收回为内部' : '公开' }}
-                    </button>
-                    <button
-                      class="btn btn-xs btn-error btn-outline"
-                      [disabled]="$busy()"
-                      (click)="remove(item)"
-                      type="button"
-                    >
-                      删除
-                    </button>
-                  </div>
-                </li>
-              }
-            </ul>
-
-            <form class="flex flex-wrap items-end gap-2" (ngSubmit)="create()">
-              <label class="fieldset">
-                <span class="fieldset-legend">新增商品</span>
-                <input
-                  class="input input-sm"
-                  [ngModel]="draftName()"
-                  (ngModelChange)="draftName.set($event)"
-                  name="name"
-                  placeholder="名称"
-                  required
-                />
-              </label>
-              <select
-                class="select select-sm w-24"
-                [ngModel]="draftCategory()"
-                (ngModelChange)="draftCategory.set($event)"
-                aria-label="分类"
-                name="category"
-              >
-                @for (category of categories; track category) {
-                  <option [value]="category">{{ category }}</option>
-                }
-              </select>
-              <select
-                class="select select-sm w-32"
-                [ngModel]="draftTenantId()"
-                (ngModelChange)="draftTenantId.set($event)"
-                aria-label="所属租户"
-                name="tenant"
-              >
-                @for (tenantId of remote.$myTenantIds(); track tenantId) {
-                  <option [value]="tenantId">{{ remote.tenantName(tenantId) }}</option>
-                }
-              </select>
-              <select
-                class="select select-sm w-28"
-                [ngModel]="draftVisibility()"
-                (ngModelChange)="draftVisibility.set($event)"
-                aria-label="可见范围"
-                name="visibility"
-              >
-                <option value="public">公开</option>
-                <option value="tenant">仅租户内部</option>
-              </select>
-              <button class="btn btn-sm btn-primary" [disabled]="$busy() || !draftName().trim()" type="submit">
-                新增
-              </button>
-            </form>
-          }
+        @if ($error(); as error) {
+          <div class="alert alert-error" role="alert">{{ error }}</div>
         }
+
+        @if (remote.$myTenantIds().length === 0) {
+          <p class="text-base-content/60 text-sm">还不在任何租户里：加入一个租户后可以管理它的商品。</p>
+        } @else {
+          <ul class="divide-base-200 divide-y">
+            @for (item of $items(); track item.id) {
+              <li class="flex flex-wrap items-center justify-between gap-2 py-2" data-testid="server-item">
+                <div class="flex min-w-0 flex-col gap-1">
+                  <span class="flex flex-wrap items-center gap-1">
+                    {{ item.name }}
+                    <span class="badge badge-ghost badge-sm">{{ item.category }}</span>
+                    <span class="badge badge-outline badge-sm">
+                      {{ item.visibility === 'public' ? '公开' : '仅租户内部' }}
+                    </span>
+                  </span>
+                  <span class="text-base-content/60 text-xs">
+                    {{ remote.tenantName(item.tenantId) }} · ¥{{ item.price }} · 成本
+                    {{ item.cost === null ? '未填' : '¥' + item.cost }}
+                  </span>
+                </div>
+                <div class="ml-auto flex gap-1">
+                  <button class="btn btn-xs" [disabled]="$busy()" (click)="edit(item)" type="button">编辑</button>
+                  <button class="btn btn-xs w-20" [disabled]="$busy()" (click)="toggleVisibility(item)" type="button">
+                    {{ item.visibility === 'public' ? '收回为内部' : '公开' }}
+                  </button>
+                  <button
+                    class="btn btn-xs btn-error btn-outline"
+                    [disabled]="$busy()"
+                    (click)="remove(item)"
+                    type="button"
+                  >
+                    删除
+                  </button>
+                </div>
+              </li>
+            }
+          </ul>
+
+          <form class="flex flex-wrap items-end gap-2" (ngSubmit)="create()">
+            <label class="fieldset">
+              <span class="fieldset-legend">新增商品</span>
+              <input
+                class="input input-sm"
+                [ngModel]="draftName()"
+                (ngModelChange)="draftName.set($event)"
+                name="name"
+                placeholder="名称"
+                required
+              />
+            </label>
+            <select
+              class="select select-sm w-24"
+              [ngModel]="draftCategory()"
+              (ngModelChange)="draftCategory.set($event)"
+              aria-label="分类"
+              name="category"
+            >
+              @for (category of categories; track category) {
+                <option [value]="category">{{ category }}</option>
+              }
+            </select>
+            <select
+              class="select select-sm w-32"
+              [ngModel]="draftTenantId()"
+              (ngModelChange)="draftTenantId.set($event)"
+              aria-label="所属租户"
+              name="tenant"
+            >
+              @for (tenantId of remote.$myTenantIds(); track tenantId) {
+                <option [value]="tenantId">{{ remote.tenantName(tenantId) }}</option>
+              }
+            </select>
+            <select
+              class="select select-sm w-28"
+              [ngModel]="draftVisibility()"
+              (ngModelChange)="draftVisibility.set($event)"
+              aria-label="可见范围"
+              name="visibility"
+            >
+              <option value="public">公开</option>
+              <option value="tenant">仅租户内部</option>
+            </select>
+            <button class="btn btn-sm btn-primary" [disabled]="$busy() || !draftName().trim()" type="submit">
+              新增
+            </button>
+          </form>
+        }
+      }
     </section>
     <app-catalog-item-editor [busy]="$busy()" [error]="$error()" (save)="saveEdit($event)" />
   `,

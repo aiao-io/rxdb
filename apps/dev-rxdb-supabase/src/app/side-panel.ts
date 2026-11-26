@@ -5,19 +5,17 @@ import {
   Component,
   DestroyRef,
   effect,
-  ElementRef,
   inject,
   Injectable,
   Injector,
   signal,
   viewChild
 } from '@angular/core';
-import { LucideDynamicIcon, LucideX as X } from '@lucide/angular';
-import { OperationHistoryPanel } from './operation-history-panel';
+import { PanelFrame } from './panel-frame';
 import { SyncCenter } from './sync-center';
 
-/** 右侧面板的视图：操作历史与同步中心由顶栏打开，模拟服务端变更由商品页提供 */
-export type RightPanelView = 'history' | 'sync' | 'server';
+/** 右侧面板的视图：同步中心由顶栏打开，模拟服务端变更由商品页提供；操作历史在左侧（`HistoryColumn`） */
+export type RightPanelView = 'sync' | 'server';
 
 /** 页面提供的面板：内容在页面里声明，渲染在右侧面板的槽位里 */
 export interface PagePanel {
@@ -26,7 +24,6 @@ export interface PagePanel {
 }
 
 const SHELL_HEADINGS: Readonly<Record<Exclude<RightPanelView, 'server'>, string>> = {
-  history: '操作历史',
   sync: '同步中心'
 };
 
@@ -111,68 +108,31 @@ export class RightPanel {
   }
 }
 
-let nextHeadingId = 0;
-
 /** 应用壳里右侧面板的槽位 */
 @Component({
   selector: 'app-side-panel-outlet',
-  imports: [CdkPortalOutlet, LucideDynamicIcon, OperationHistoryPanel, SyncCenter],
-  host: { class: 'contents', '(keydown)': 'closeOnEscape($event)' },
+  imports: [CdkPortalOutlet, PanelFrame, SyncCenter],
+  host: { class: 'contents' },
   template: `
     @if (panel.active(); as view) {
-      @if (!panel.wide()) {
-        <!-- 只给指针用的关闭区：键盘走 Esc 与面板里的关闭按钮 -->
-        <button
-          class="bg-base-content/40 fixed inset-0 z-[60] cursor-default"
-          (click)="panel.close()"
-          aria-hidden="true"
-          data-testid="side-panel-backdrop"
-          tabindex="-1"
-          type="button"
-        ></button>
-      }
-      <aside
-        class="bg-base-100 border-base-300 flex flex-col overflow-hidden"
-        id="side-panel"
-        [attr.aria-labelledby]="headingId"
-        [attr.aria-modal]="panel.wide() ? null : 'true'"
-        [attr.data-view]="view"
-        [attr.role]="panel.wide() ? 'complementary' : 'dialog'"
-        [class]="
-          panel.wide() ?
-            'h-full w-96 shrink-0 border-l'
-          : 'fixed inset-y-0 right-0 z-[61] w-[calc(100%-3rem)] max-w-md shadow-2xl'
-        "
-        data-testid="side-panel"
+      <app-panel-frame
+        [heading]="panel.headingOf(view)"
+        [view]="view"
+        [wide]="panel.wide()"
+        (closed)="panel.close()"
+        panelId="side-panel"
+        side="right"
+        testId="side-panel"
       >
-        <div class="border-base-300 flex items-center justify-between gap-2 border-b px-4 py-2">
-          <h2 class="text-sm font-semibold outline-none" #heading [id]="headingId" tabindex="-1">
-            {{ panel.headingOf(view) }}
-          </h2>
-          <button
-            class="btn btn-ghost btn-sm btn-circle"
-            (click)="panel.close()"
-            aria-label="关闭面板"
-            data-testid="side-panel-close"
-            type="button"
-          >
-            <svg [lucideIcon]="X" size="16"></svg>
-          </button>
-        </div>
-        <div class="min-h-0 flex-1 overflow-y-auto p-4">
-          @switch (view) {
-            @case ('history') {
-              <app-operation-history-panel />
-            }
-            @case ('sync') {
-              <app-sync-center />
-            }
-            @default {
-              <ng-template [cdkPortalOutlet]="panel.pagePanel(view)?.portal ?? null" />
-            }
+        @switch (view) {
+          @case ('sync') {
+            <app-sync-center />
           }
-        </div>
-      </aside>
+          @default {
+            <ng-template [cdkPortalOutlet]="panel.pagePanel(view)?.portal ?? null" />
+          }
+        }
+      </app-panel-frame>
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -180,23 +140,14 @@ let nextHeadingId = 0;
 export class SidePanelOutlet {
   readonly #injector = inject(Injector);
   readonly panel = inject(RightPanel);
-  readonly headingId = `side-panel-heading-${nextHeadingId++}`;
-  readonly heading = viewChild<ElementRef<HTMLElement>>('heading');
-  readonly X = X;
+  readonly frame = viewChild(PanelFrame);
 
   constructor() {
     // 打开或换了面板：焦点进面板标题，读屏从标题读起
     effect(() => {
       if (this.panel.active() === null) return;
-      afterNextRender(() => this.heading()?.nativeElement.focus(), { injector: this.#injector });
+      afterNextRender(() => this.frame()?.focusHeading(), { injector: this.#injector });
     });
     inject(DestroyRef).onDestroy(() => this.panel.close());
-  }
-
-  /** Esc 关面板；面板里的对话框先处理自己的 Esc（第一次 Esc 关对话框，第二次才关面板） */
-  closeOnEscape(event: KeyboardEvent): void {
-    if (event.key !== 'Escape') return;
-    if (event.target instanceof Element && event.target.closest('dialog')) return;
-    this.panel.close();
   }
 }

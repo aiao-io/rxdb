@@ -1,6 +1,6 @@
 import { expect, test, type Browser, type Page } from '@playwright/test';
 import { switchIdentity } from './support/identity';
-import { openSidePanel, pull, push } from './support/workbench';
+import { errorToasts, openSidePanel, pull, push } from './support/workbench';
 
 const isRemoteE2E = process.env['REMOTE_E2E'] === 'true';
 
@@ -293,7 +293,7 @@ if (isRemoteE2E) {
       const alice = await openAs(browser, 'alice', 'Alice');
       const undo = alice.getByTestId('workbench-undo');
       const redo = alice.getByTestId('workbench-redo');
-      const workbenchError = alice.getByTestId('workbench-error');
+      const workbenchError = errorToasts(alice);
 
       // AC#12：客户与证件在同一批里新建，一次撤销连证件一起撤掉，不报跨作用域的错
       await createCustomerWithIdCard(alice, undoneCustomer, `${undoCode}-0`);

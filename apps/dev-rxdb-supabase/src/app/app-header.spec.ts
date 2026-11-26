@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppHeader } from './app-header';
 import { AppService } from './app.service';
 import { DemoSession } from './demo-session';
+import { HistoryColumn } from './history-column';
 import { PageWorkbench, type PageWorkbenchRegistration, type WorkbenchAction } from './page-workbench';
 import { RemoteSyncState } from './remote-sync-state';
 import { RightPanel } from './side-panel';
@@ -185,16 +186,22 @@ describe('AppHeader：按页面登记渲染（epic-016）', () => {
     expect(byTestId('sync-center-rejections')?.textContent?.trim()).toBe('2');
   });
 
-  it('操作历史开关打开右侧面板，再点一下关上', () => {
+  it('操作历史的开关在最左边（页面标题之前），开合左侧那一栏', () => {
     const { fixture, byTestId } = renderHeader(ALICE, { page: registration() });
-    const panel = TestBed.inject(RightPanel);
+    const column = TestBed.inject(HistoryColumn);
+    const toggle = byTestId('workbench-history-toggle')!;
+    const opened = column.open();
 
-    byTestId('workbench-history-toggle')!.click();
+    expect(
+      toggle.compareDocumentPosition(byTestId('workbench-title')!) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(toggle.getAttribute('aria-controls')).toBe('history-column');
+    expect(byTestId('workbench-edit-group')?.contains(toggle)).toBe(false);
+    toggle.click();
     fixture.detectChanges();
-    expect(panel.active()).toBe('history');
-    expect(byTestId('workbench-history-toggle')?.getAttribute('aria-pressed')).toBe('true');
 
-    byTestId('workbench-history-toggle')!.click();
-    expect(panel.active()).toBeNull();
+    expect(column.open()).toBe(!opened);
+    expect(toggle.getAttribute('aria-expanded')).toBe(String(!opened));
+    expect(TestBed.inject(RightPanel).active()).toBeNull();
   });
 });

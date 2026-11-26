@@ -86,7 +86,9 @@ describe('CatalogLocalWrites：本机写入', () => {
 
     expect(rxdb.entityManager.instantiate).toHaveBeenCalledWith(CatalogItem, draft);
     expect(created.save).toHaveBeenCalled();
-    expect(toasts.list()).toEqual([expect.objectContaining({ kind: 'success', message: '「星河 X3 耳机」已在本机新建' })]);
+    expect(toasts.list()).toEqual([
+      expect.objectContaining({ kind: 'success', message: '「星河 X3 耳机」已在本机新建' })
+    ]);
     expect(writes.$error()).toBeNull();
   });
 

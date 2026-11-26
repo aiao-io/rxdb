@@ -13,6 +13,7 @@ import {
 import { AppService } from './app.service';
 import { IDENTITY_CHOICES } from './demo-identity';
 import { DemoSession } from './demo-session';
+import { HISTORY_COLUMN_TOGGLE_ID, HistoryColumn } from './history-column';
 import { PageWorkbench, type WorkbenchAction } from './page-workbench';
 import { RemoteSecurityNotice } from './remote-security-notice';
 import { RightPanel, type RightPanelView } from './side-panel';
@@ -42,11 +43,28 @@ import { SyncCommands } from './sync-commands';
         <svg [lucideIcon]="Menu" size="20"></svg>
       </button>
       @if (workbench.current(); as page) {
+        <!-- 操作历史在左侧一栏，开关也在最左边，与那一栏上下对齐 -->
+        @if (page.history) {
+          <button
+            class="btn btn-sm btn-ghost"
+            [attr.aria-expanded]="historyColumn.open()"
+            [class.btn-active]="historyColumn.open()"
+            [id]="historyToggleId"
+            (click)="historyColumn.toggle()"
+            aria-controls="history-column"
+            aria-label="操作历史"
+            data-testid="workbench-history-toggle"
+            title="本页的操作历史"
+            type="button"
+          >
+            <svg [lucideIcon]="History" size="16"></svg>
+          </button>
+        }
         <span class="truncate font-semibold max-md:hidden" data-testid="workbench-title">{{ page.title }}</span>
-        @if (page.undo || page.redo || page.history) {
+        @if (page.undo || page.redo) {
           <div
             class="flex items-center gap-1"
-            [attr.aria-label]="'撤销与历史，' + page.scopeLabel"
+            [attr.aria-label]="'撤销与重做，' + page.scopeLabel"
             data-testid="workbench-edit-group"
             role="group"
           >
@@ -86,21 +104,6 @@ import { SyncCommands } from './sync-commands';
                 @if (redo.count()) {
                   <span class="badge badge-xs" data-testid="workbench-redo-count">{{ redo.count() }}</span>
                 }
-              </button>
-            }
-            @if (page.history) {
-              <button
-                class="btn btn-sm btn-ghost"
-                #historyToggle
-                [attr.aria-pressed]="panel.active() === 'history'"
-                [class.btn-active]="panel.active() === 'history'"
-                (click)="toggle('history', historyToggle)"
-                aria-label="操作历史"
-                data-testid="workbench-history-toggle"
-                title="本页的操作历史"
-                type="button"
-              >
-                <svg [lucideIcon]="History" size="16"></svg>
               </button>
             }
             <span class="text-base-content/60 text-xs max-xl:hidden" data-testid="workbench-scope">
@@ -220,6 +223,8 @@ export class AppHeader {
   readonly workbench = inject(PageWorkbench);
   readonly commands = inject(SyncCommands);
   readonly panel = inject(RightPanel);
+  readonly historyColumn = inject(HistoryColumn);
+  readonly historyToggleId = HISTORY_COLUMN_TOGGLE_ID;
   readonly syncState = useSyncState();
   readonly choices = IDENTITY_CHOICES;
   readonly Menu = Menu;

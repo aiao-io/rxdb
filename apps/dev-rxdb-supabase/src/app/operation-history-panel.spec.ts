@@ -8,7 +8,15 @@ import { PageWorkbench, type PageWorkbenchRegistration, type WorkbenchAction } f
 import { RemoteSyncState } from './remote-sync-state';
 
 const change = (id: number, overrides: Partial<RxDBChange> = {}) =>
-  ({ id, type: 'UPDATE', entity: 'CatalogItem', patch: { price: 199 }, inversePatch: { price: 299 }, rejectedAt: null, ...overrides }) as unknown as RxDBChange;
+  ({
+    id,
+    type: 'UPDATE',
+    entity: 'CatalogItem',
+    patch: { price: 199 },
+    inversePatch: { price: 299 },
+    rejectedAt: null,
+    ...overrides
+  }) as unknown as RxDBChange;
 
 const item = (fingerprint: string, changes: RxDBChange[], overrides: Partial<HistoryItem> = {}) =>
   ({
@@ -28,7 +36,10 @@ const action = (count: number): WorkbenchAction => ({
   disabledReason: signal(null)
 });
 
-function render(histories: HistoryItem[], options: { pendingIds?: number[]; connected?: boolean; page?: boolean } = {}) {
+function render(
+  histories: HistoryItem[],
+  options: { pendingIds?: number[]; connected?: boolean; page?: boolean } = {}
+) {
   TestBed.configureTestingModule({
     imports: [OperationHistoryPanel],
     providers: [
@@ -36,9 +47,7 @@ function render(histories: HistoryItem[], options: { pendingIds?: number[]; conn
         provide: RxDB,
         useValue: {
           versionManager: {
-            pushableHistories$: new BehaviorSubject(
-              (options.pendingIds ?? []).map(id => item(`p${id}`, [change(id)]))
-            )
+            pushableHistories$: new BehaviorSubject((options.pendingIds ?? []).map(id => item(`p${id}`, [change(id)])))
           }
         }
       }
@@ -71,10 +80,9 @@ describe('OperationHistoryPanel', () => {
     expect(element.querySelector('[data-testid="operation-history-scope"]')?.textContent).toContain(
       '本页：商品 · 可撤销 2 · 可重做 1'
     );
-    expect(allByTestId('operation-history-item').map(row => row.querySelector('summary span')?.textContent?.trim())).toEqual([
-      '修改商品',
-      '新建商品'
-    ]);
+    expect(
+      allByTestId('operation-history-item').map(row => row.querySelector('summary span')?.textContent?.trim())
+    ).toEqual(['修改商品', '新建商品']);
   });
 
   it('还在待推送里的标 ↑；已撤销、已失效、被拒各有标记', () => {

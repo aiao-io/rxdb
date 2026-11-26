@@ -1,6 +1,6 @@
 import { expect, test, type Browser, type Locator, type Page } from '@playwright/test';
 import { switchIdentity as switchTo } from './support/identity';
-import { expectNoHorizontalScroll, openSidePanel, pull } from './support/workbench';
+import { expectNoHorizontalScroll, openSidePanel, pull, toast } from './support/workbench';
 
 const isRemoteE2E = process.env['REMOTE_E2E'] === 'true';
 
@@ -69,7 +69,7 @@ if (isRemoteE2E) {
      */
     async function serverAction(page: Page, run: () => Promise<void>, notice: string): Promise<void> {
       await run();
-      await expect(page.getByRole('status').filter({ hasText: notice })).toBeVisible({ timeout: 30_000 });
+      await expect(toast(page, notice)).toBeVisible({ timeout: 30_000 });
     }
 
     function serverRow(page: Page, name: string) {

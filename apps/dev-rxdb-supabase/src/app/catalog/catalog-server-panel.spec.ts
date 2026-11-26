@@ -116,7 +116,10 @@ describe('CatalogServerPanel：编辑商品', () => {
     expect(dialog().open).toBe(false);
     expect(remote.fetchTenantItems).toHaveBeenCalledTimes(2);
     expect(TestBed.inject(Toasts).list()).toEqual([
-      expect.objectContaining({ kind: 'success', message: '「星河 X1 蓝牙耳机」已修改。点顶栏的「拉取」看本机数据怎么变。' })
+      expect.objectContaining({
+        kind: 'success',
+        message: '「星河 X1 蓝牙耳机」已修改。点顶栏的「拉取」看本机数据怎么变。'
+      })
     ]);
   });
 

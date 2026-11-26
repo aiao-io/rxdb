@@ -300,7 +300,7 @@ if (isRemoteE2E) {
       await expect(result).toContainText('拉取失败：身份不匹配');
       expect(mutationRequests).toEqual([]);
 
-      await result.getByTestId('sync-result-reload').click();
+      await result.getByTestId('toast-action').click();
       await expect(page.getByTestId('identity-title')).toHaveText('访客', { timeout: 60_000 });
     });
 

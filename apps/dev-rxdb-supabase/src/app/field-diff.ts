@@ -25,7 +25,9 @@ const BOOKKEEPING_FIELDS: ReadonlySet<string> = new Set(['id', 'createdAt', 'upd
 export function fieldDiffOf(change: Pick<RxDBChange, 'type' | 'patch' | 'inversePatch'>): FieldDiffLine[] {
   const before = change.type === 'INSERT' ? {} : (change.inversePatch ?? {});
   const after = change.type === 'DELETE' ? {} : (change.patch ?? {});
-  const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])].filter(key => !BOOKKEEPING_FIELDS.has(key));
+  const keys = [...new Set([...Object.keys(before), ...Object.keys(after)])].filter(
+    key => !BOOKKEEPING_FIELDS.has(key)
+  );
   return keys.map(key => ({
     key,
     before: key in before ? (before as Record<string, unknown>)[key] : undefined,

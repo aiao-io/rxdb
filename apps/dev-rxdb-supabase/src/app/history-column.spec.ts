@@ -2,7 +2,7 @@ import { RxDB, type HistoryScopeAPI } from '@aiao/rxdb';
 import { TestBed } from '@angular/core/testing';
 import { BehaviorSubject } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { HistoryColumn, HistoryColumnOutlet } from './history-column';
+import { HISTORY_COLUMN_TOGGLE_ID, HistoryColumn, HistoryColumnOutlet } from './history-column';
 import { PageWorkbench, type PageWorkbenchRegistration } from './page-workbench';
 
 /** 固定宽窄屏：HistoryColumn 构造时读一次 matchMedia */
@@ -71,36 +71,33 @@ describe('HistoryColumnOutlet', () => {
     expect(render(null).byTestId('history-column')).toBeNull();
   });
 
-  it('收起按钮关上它，焦点回到开关；再开从开关进', () => {
+  it('收起按钮关上它，焦点回到顶栏的开关', () => {
     viewport(true);
     const { fixture, byTestId, column } = render(page(scope));
-    const opener = document.body.appendChild(document.createElement('button'));
+    const toggle = document.body.appendChild(document.createElement('button'));
+    toggle.id = HISTORY_COLUMN_TOGGLE_ID;
 
-    column.toggle(opener);
-    fixture.detectChanges();
-    expect(byTestId('history-column')).toBeNull();
-    column.toggle(opener);
-    fixture.detectChanges();
     (byTestId('history-column-close') as HTMLButtonElement).click();
     fixture.detectChanges();
 
     expect(column.open()).toBe(false);
-    expect(document.activeElement).toBe(opener);
-    opener.remove();
+    expect(byTestId('history-column')).toBeNull();
+    expect(document.activeElement).toBe(toggle);
+    toggle.remove();
   });
 
   it('窄屏：开关打开盖住页面的抽屉，点遮罩或按 Esc 收起', () => {
     viewport(false);
     const { fixture, byTestId, column } = render(page(scope));
 
-    column.toggle(null);
+    column.toggle();
     fixture.detectChanges();
     expect(byTestId('history-column')?.getAttribute('aria-modal')).toBe('true');
     byTestId('history-column-backdrop')!.click();
     fixture.detectChanges();
     expect(column.open()).toBe(false);
 
-    column.toggle(null);
+    column.toggle();
     fixture.detectChanges();
     byTestId('history-column')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     expect(column.open()).toBe(false);

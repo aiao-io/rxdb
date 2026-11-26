@@ -1,7 +1,7 @@
 import type { RxDBChange } from '@aiao/rxdb';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { describeChange } from './history-describe';
 import { fieldDiffOf, formatFieldValue } from './field-diff';
+import { describeChange } from './history-describe';
 
 /**
  * 一条变更逐字段的改之前与改之后

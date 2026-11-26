@@ -48,7 +48,7 @@ describe('RightPanel', () => {
     viewport(true);
     const panel = TestBed.inject(RightPanel);
 
-    panel.open('history', null);
+    panel.open('server', null);
     panel.open('sync', null);
     expect(panel.active()).toBe('sync');
 
@@ -61,7 +61,7 @@ describe('RightPanel', () => {
     const panel = TestBed.inject(RightPanel);
     const opener = document.body.appendChild(document.createElement('button'));
 
-    panel.open('history', opener);
+    panel.open('sync', opener);
     panel.close();
 
     expect(document.activeElement).toBe(opener);

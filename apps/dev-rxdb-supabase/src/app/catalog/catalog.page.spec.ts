@@ -67,7 +67,13 @@ function renderCatalog(options: { blockedReason?: string | null } = {}) {
   const fixture = TestBed.createComponent(CatalogPage);
   fixture.detectChanges();
   const page = fixture.nativeElement as HTMLElement;
-  return { fixture, page, rxdb, history, toggle: page.querySelector('[data-testid="catalog-server-toggle"]') as HTMLButtonElement };
+  return {
+    fixture,
+    page,
+    rxdb,
+    history,
+    toggle: page.querySelector('[data-testid="catalog-server-toggle"]') as HTMLButtonElement
+  };
 }
 
 describe('CatalogPage', () => {

@@ -38,7 +38,11 @@ export function describePushOutcome(result: PushResult): SyncOutcome {
 export function describePullOutcome(result: PullResult): SyncOutcome {
   if (result.failures.length > 0)
     return { notice: null, error: `拉取没有全部完成：${describeFailures(result.failures)}`, needsAttention: true };
-  return { notice: `拉取完成：拉到 ${result.pulled} 条，落库 ${result.applied} 条`, error: null, needsAttention: false };
+  return {
+    notice: `拉取完成：拉到 ${result.pulled} 条，落库 ${result.applied} 条`,
+    error: null,
+    needsAttention: false
+  };
 }
 
 /** 按实体列出失败原因；整机推拉的失败总带着仓库，个别没有仓库的只报原因 */

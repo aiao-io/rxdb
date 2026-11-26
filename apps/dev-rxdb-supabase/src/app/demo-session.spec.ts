@@ -27,7 +27,9 @@ describe('DemoSession', () => {
 
     await session.switchTo('alice');
 
-    expect(toasts.list()).toEqual([expect.objectContaining({ kind: 'error', message: '切换身份失败：邮箱或口令不对' })]);
+    expect(toasts.list()).toEqual([
+      expect.objectContaining({ kind: 'error', message: '切换身份失败：邮箱或口令不对' })
+    ]);
     expect(session.$switching()).toBe(false);
   });
 });
