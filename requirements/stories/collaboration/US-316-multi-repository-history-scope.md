@@ -41,7 +41,11 @@ INVEST 检查清单:
    入口 [`VersionManager.history()`](../../../packages/rxdb-plugin-history/src/VersionManager.ts) 只收一个实体类或一个实例：`history<T extends EntityType>(options?: T | InstanceType<T>): HistoryScopeAPI`。
 
 2. 跨作用域的事务被拒：[`selectScopedHistories`](../../../packages/rxdb-plugin-history/src/scope-selection.ts) 把「触及作用域、但同时改了作用域外数据」的事务归进 `crossScope`，调用方抛 [`RxDBCrossScopeTransactionError`](../../../packages/rxdb-plugin-history/src/scope-selection.ts)。模块文档给的出路是「调用方改用 `history()`（database 作用域）就能完整撤销这个事务」——对只想撤本页的调用方，这条出路等于越权。
-3. 订单演示正好卡在中间（[US-231](../adapter/US-231-supabase-unified-undo-history.md) 阶段 B）：新建客户带证件是一个 `saveMany` 同时写客户与证件，给订单项挂分类同时写订单项与关联表。单仓库作用域撤不了这两类事务；整库作用域会撤到 Todo 与商品，违反 [US-034](../core/US-034-bucketed-entity-local-writes.md)「撤销只撤商品的修改，不会撤到 Todo 页」那一类约束。
+3. 订单演示正好卡在中间（[US-231](../adapter/US-231-supabase-unified-undo-history.md) 阶段 B）。dev 栈访客的订单页实测，`history().histories$` 里：
+   - 新建客户带证件是一个事务项，含 `INSERT DemoIdCard` 与 `INSERT DemoCustomer` 两个实体——单仓库作用域撤它必然越界；
+   - 给订单项挂分类是一个事务项，里面**只有** `INSERT DemoCategory_DemoOrderItem` 一条（订单项本身没有字段变化，不记）——作用域里只列订单项与分类，这一步既不显示也撤不到。
+
+   整库作用域又会撤到 Todo 与商品，违反 [US-034](../core/US-034-bucketed-entity-local-writes.md)「撤销只撤商品的修改，不会撤到 Todo 页」那一类约束。
 
 ## 范围边界
 
@@ -62,16 +66,16 @@ INVEST 检查清单:
 
 ## 验收标准
 
-| #   | 前置条件                                 | 操作                                                | 预期结果                                                                   | 状态 |
-| --- | ---------------------------------------- | --------------------------------------------------- | -------------------------------------------------------------------------- | ---- |
-| 1   | 作用域为客户、证件两个实体               | 一个 `saveMany` 新建客户与证件，然后 `undo()`       | 两行一起撤掉，不抛 `RxDBCrossScopeTransactionError`；`redo()` 两行一起回来 | ⬜   |
-| 2   | 同上，之后在 Todo 上写了一条             | 读 `undoCount$`，再 `undo()`                        | 计数不含 Todo 那条；撤的是作用域里最近的那个事务，Todo 不动                | ⬜   |
-| 3   | 作用域为订单项、分类两个实体             | 给订单项挂分类（订单项与关联表同一事务）后 `undo()` | 整条撤掉；关联表随两端在作用域内                                           | ⬜   |
-| 4   | 作用域只有客户                           | 一个事务同时写客户与 Todo，然后 `undo()`            | 按 `crossScope` 拒绝，报错写明越界的仓库是 Todo                            | ⬜   |
-| 5   | 同一组实体                               | 先后以不同顺序调用 `history([...])`                 | 拿到同一个作用域实例（缓存键与顺序无关）                                   | ⬜   |
-| 6   | —                                        | `history([])`                                       | 报参数错误，不退化成整库作用域                                             | ⬜   |
-| 7   | 作用域里最近一步已被子分支继承（US-315） | 读 `undoBarrier$`，再 `undo()`                      | 与单仓库作用域同样停在分叉点，`undoBarrier$` 给出继承它的分支              | ⬜   |
-| 8   | —                                        | 插件单测；`pnpm audit:api-surface`                  | 通过；新增的类型成员与重载有 TSDoc，基线已更新                             | ⬜   |
+| #   | 前置条件                                 | 操作                                              | 预期结果                                                                   | 状态 |
+| --- | ---------------------------------------- | ------------------------------------------------- | -------------------------------------------------------------------------- | ---- |
+| 1   | 作用域为客户、证件两个实体               | 一个 `saveMany` 新建客户与证件，然后 `undo()`     | 两行一起撤掉，不抛 `RxDBCrossScopeTransactionError`；`redo()` 两行一起回来 | ⬜   |
+| 2   | 同上，之后在 Todo 上写了一条             | 读 `undoCount$`，再 `undo()`                      | 计数不含 Todo 那条；撤的是作用域里最近的那个事务，Todo 不动                | ⬜   |
+| 3   | 作用域为订单项、分类两个实体             | 给订单项挂分类（事务里只有关联表一条）后 `undo()` | 这一步出现在作用域的历史里并整条撤掉；关联表随两端在作用域内               | ⬜   |
+| 4   | 作用域只有客户                           | 一个事务同时写客户与 Todo，然后 `undo()`          | 按 `crossScope` 拒绝，报错写明越界的仓库是 Todo                            | ⬜   |
+| 5   | 同一组实体                               | 先后以不同顺序调用 `history([...])`               | 拿到同一个作用域实例（缓存键与顺序无关）                                   | ⬜   |
+| 6   | —                                        | `history([])`                                     | 报参数错误，不退化成整库作用域                                             | ⬜   |
+| 7   | 作用域里最近一步已被子分支继承（US-315） | 读 `undoBarrier$`，再 `undo()`                    | 与单仓库作用域同样停在分叉点，`undoBarrier$` 给出继承它的分支              | ⬜   |
+| 8   | —                                        | 插件单测；`pnpm audit:api-surface`                | 通过；新增的类型成员与重载有 TSDoc，基线已更新                             | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -83,7 +87,8 @@ INVEST 检查清单:
 ## 技术笔记
 
 - 判定集中在 [`isChangeInScope`](../../../packages/rxdb-plugin-history/src/scope-selection.ts) 一处，加一支「仓库在集合里」；[`filterHistoriesByScope`](../../../packages/rxdb-plugin-history/src/history-filters.ts)、`selectScopedHistories` 与 [`getScopeKey`](../../../packages/rxdb-plugin-history/src/history-filters.ts) 跟着认新类型。缓存键把仓库按 `namespace:entity` 排序后拼接。
-- 关联表在不在作用域：由多对多元数据（`packages/rxdb/src/entity/many-to-many-entity.ts` 生成的关联实体）判断两端是否都在集合里。关联表变更行里记的实体名（**推断**为生成的关联实体名）以 AC#3 的单测为准。
+- 关联表在不在作用域：由多对多元数据（`packages/rxdb/src/entity/many-to-many-entity.ts` 生成的关联实体）判断两端是否都在集合里。关联实体按 `namespace` + 生成名注册，变更行里记的就是这个名字：dev 栈上 `syncManager.getAllRepositorySyncStatus()` 列出 `public:DemoCategory_DemoOrderItem`，挂分类那一步的变更 `entity` 也是 `DemoCategory_DemoOrderItem`。
+- 删除客户时级联删掉的订单、订单项、关联行与证件各自是独立的历史项（[US-318](US-318-cascade-delete-one-transaction.md)）：多仓库作用域能列出它们，但一次撤不回整组，那是 US-318 的范围。
 - 是否算破坏性：给公开的联合类型加成员，API 基线只记符号名、不会报；但对 `HistoryScopeType` 做穷举 `switch` 的消费者会编译失败。PR 里按 [versioning-policy](../../versioning-policy.md) 写明判定。
 - `describeScope`（报错文案）加集合的写法，越界报错要列出集合外的仓库。
 

@@ -99,5 +99,5 @@ INVEST 检查清单:
 
 ## References
 
-- 使用方：[US-230](../adapter/US-230-supabase-header-sync.md) 阶段 B 的同步中心；整体方案见 [epic-016](../../epics/epic-016-local-change-workbench.md)
+- 使用方：[US-230](../adapter/US-230-supabase-header-sync.md) 阶段 C 的同步中心；整体方案见 [epic-016](../../epics/epic-016-local-change-workbench.md)
 - [US-034 分区实体的本地写入](../core/US-034-bucketed-entity-local-writes.md)（推送后锁定撤销，清单随之清空）
