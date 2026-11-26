@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { plainTextMediaPackageLinks, rewriteMediaFileLinks, rewriteMediaPackageLinks } from './flatten-api-docs.mjs';
+import {
+  plainTextMediaPackageLinks,
+  rewriteMediaFileLinks,
+  rewriteMediaPackageLinks,
+  rewriteRelativeApiLinks
+} from './flatten-api-docs.mjs';
 
 test('importing the module does not run the flatten', () => {
   // 能执行到这一行本身就是断言：没有主入口守卫时，import 会同步跑完整个 flatten，
@@ -86,4 +91,39 @@ test('非 .md 的 media 文件链接原样保留', () => {
   const content = '见 [`build.mjs`](../_media/build.mjs)。';
 
   assert.equal(rewriteMediaFileLinks(content), content);
+});
+
+test('包内相对链接绝对化为 /api/<pkg>/…', () => {
+  const content =
+    '见 [CodeEditorSetup](type-aliases/CodeEditorSetup.md) 与 [CodeEditor](../code-editor/interfaces/CodeEditorLanguageDescription.md)。';
+
+  assert.equal(
+    rewriteRelativeApiLinks(content, 'code-editor-react/README.md'),
+    '见 [CodeEditorSetup](/api/code-editor-react/type-aliases/CodeEditorSetup.md) 与 [CodeEditor](/api/code-editor/interfaces/CodeEditorLanguageDescription.md)。'
+  );
+});
+
+test('跨包 ../../ 相对链接绝对化', () => {
+  const content =
+    '返回 [I18n](../../rxdb-i18n/classes/I18n.md) 与 [EntityType](../../rxdb/type-aliases/EntityType.md)。';
+
+  assert.equal(
+    rewriteRelativeApiLinks(content, 'rxdb-plugin-board/functions/createBoardI18n.md'),
+    '返回 [I18n](/api/rxdb-i18n/classes/I18n.md) 与 [EntityType](/api/rxdb/type-aliases/EntityType.md)。'
+  );
+});
+
+test('深层页面同包 ../ 相对链接绝对化', () => {
+  const content = '见 [CodeEditorLanguageDescription](../interfaces/CodeEditorLanguageDescription.md)。';
+
+  assert.equal(
+    rewriteRelativeApiLinks(content, 'code-editor/functions/resolveCodeEditorLanguage.md'),
+    '见 [CodeEditorLanguageDescription](/api/code-editor/interfaces/CodeEditorLanguageDescription.md)。'
+  );
+});
+
+test('已是绝对路径或外链的链接原样保留', () => {
+  const content = '见 [绝对链接](/api/rxdb/classes/RxDB.md)、[外部链接](https://example.com/a.md) 与 [锚点](#x.md)。';
+
+  assert.equal(rewriteRelativeApiLinks(content, 'rxdb/functions/foo.md'), content);
 });

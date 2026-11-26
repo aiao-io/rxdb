@@ -7,7 +7,7 @@
 
 import { existsSync } from 'node:fs';
 import { readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
-import { dirname, join, relative } from 'node:path';
+import { dirname, join, posix, relative } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -143,6 +143,29 @@ export function rewriteMediaFileLinks(content) {
   return result.replace(/\[([^\]]+)\]\(\.\.\/_media\/([^/)]+\.md)\)/g, (_, text) => text);
 }
 
+/**
+ * 把生成的 api 文档里的相对 `.md` 链接统一改成绝对路径（`/api/<pkg>/…`）。
+ *
+ * @remarks
+ * Docusaurus 对相对链接只按源文件所在目录解析（markdownLinks 的 `resolveMarkdownLinkPathname`），
+ * 不做跨语言树回退；en 构建把 zh 的 api 文档当回退内容编译时，回退文件里的相对链接
+ * （包内 `type-aliases/X.md`、跨包 `../../rxdb/…`）在 en 树里解析不到目标页，被判为坏链。
+ * 绝对路径从 contentPaths（en 树 → zh 树）逐树查找，两种语言的构建都能命中——
+ * 与 `MEDIA_FILE_LINK_MAP` 把 history-sync-plugins 改成绝对路径是同一个机制。
+ *
+ * @param content 待处理的 Markdown 内容
+ * @param relFilePath 文件相对 `docs/api/` 的路径（posix 分隔）
+ * @returns 相对 `.md` 链接改写为 `/api/…` 后的内容
+ */
+export function rewriteRelativeApiLinks(content, relFilePath) {
+  const dir = posix.dirname(relFilePath);
+  return content.replace(/\]\(([^)\s]+\.mdx?)\)/g, (match, target) => {
+    if (target.startsWith('/') || target.startsWith('http') || target.startsWith('#')) return match;
+    const resolved = posix.normalize(posix.join(dir, target));
+    return `](/${posix.join('api', resolved)})`;
+  });
+}
+
 async function postProcessRootDocs() {
   const candidates = ['README.md', 'index.md'];
 
@@ -267,14 +290,15 @@ async function flattenApiDocs() {
 }
 
 // 递归处理所有 .md 文件，修复标题
-async function fixHtmlEntities(dirPath, packageNames, mediaPackageNames) {
+async function fixHtmlEntities(dirPath, packageNames, mediaPackageNames, relDir = '') {
   const entries = await readdir(dirPath, { withFileTypes: true });
 
   for (const entry of entries) {
     const fullPath = join(dirPath, entry.name);
+    const relPath = relDir === '' ? entry.name : `${relDir}/${entry.name}`;
 
     if (entry.isDirectory()) {
-      await fixHtmlEntities(fullPath, packageNames, mediaPackageNames);
+      await fixHtmlEntities(fullPath, packageNames, mediaPackageNames, relPath);
     } else if (entry.name.endsWith('.md')) {
       let content = await readFile(fullPath, 'utf-8');
       const originalContent = content;
@@ -298,6 +322,10 @@ async function fixHtmlEntities(dirPath, packageNames, mediaPackageNames) {
         content = plainTextMediaPackageLinks(content, mediaPackageNames);
         content = rewriteMediaFileLinks(content);
       }
+
+      // 相对 .md 链接绝对化放在 media 重写之后：media 重写可能把链接改为绝对路径或纯文本，
+      // 剩下的相对 .md 链接都是跨包 / 包内交叉引用，统一绝对化以跨语言树解析。
+      content = rewriteRelativeApiLinks(content, relPath);
 
       // 在 h1 标题中处理特殊字符
       let sidebarLabel = null;
