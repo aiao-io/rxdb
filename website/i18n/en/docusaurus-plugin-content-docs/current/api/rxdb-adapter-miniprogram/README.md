@@ -147,7 +147,7 @@ If the platform changes any undocumented behavior, the bootstrap throws `AlipayU
 The code package must contain three things. Taro (Vite) projects should emit them with
 `miniProgramVitePlugins('alipay', appRoot)` from [`@aiao/rxdb-taro/vite`](../rxdb-taro/README.md),
 which also registers the real global object in the simulator. Other bundlers copy them manually per the table below;
-the esbuild approach in the repo at [`apps/dev-rxdb-miniprogram-alipay-probe/scripts/build.mjs`](../_media/build.mjs)
+the esbuild approach in the repo at `apps/dev-rxdb-miniprogram-alipay-probe/scripts/build.mjs`
 is only a reference implementation and is not published with any package:
 
 ```text
@@ -163,12 +163,12 @@ first reads `.wasm` and checks it against the pinned-version fingerprint, then f
 The simulator's logic layer has no `BigInt`; it is filled in by `prepareMiniProgramHostRuntime`. So the RxDB stack (`@aiao/rxdb`, the adapter main entry, rxjs)
 must stay in dynamically `import()`ed chunks that are evaluated only after bootstrap: in an es2018 bundle a module-top-level `BigInt("…")` throws as soon as it evaluates.
 This bites when a bundler splits them into a common chunk that pages statically `require` based on reference counts — Taro's `manualChunks` does exactly that;
-the Taro example uses [`config/lazy-chunk-vite-plugin.ts`](../_media/lazy-chunk-vite-plugin.ts) (ships with the demo, not published with the package) to merge modules reachable only through dynamic `import()` into a separate lazy chunk.
+the Taro example uses `config/lazy-chunk-vite-plugin.ts` (ships with the demo, not published with the package) to merge modules reachable only through dynamic `import()` into a separate lazy chunk.
 
 The developer tools' "real device debugging" does not use the native engine; it runs the logic layer on Boatman (a JavaScript interpreter written in JS). Its `var` hoisting ignores the inside of labeled statements (`label: {…}`):
 such `var`s are only registered into the function scope when actually executed. In a call that never reaches them, assignments to the same name write into the enclosing closure. React 18's
 reconciler hits exactly this (`beginWork` does `var o` inside `e:{…}`, writing `Symbol.for("react.element")` in the factory closure into the element object),
-so the page throws React #31 when rendering. Preview, trial versions and the simulator all use the native engine and are unaffected. The Taro example uses [`config/labeled-var-hoist-vite-plugin.ts`](../_media/labeled-var-hoist-vite-plugin.ts) (ships with the demo, not published with the package)
+so the page throws React #31 when rendering. Preview, trial versions and the simulator all use the native engine and are unaffected. The Taro example uses `config/labeled-var-hoist-vite-plugin.ts` (ships with the demo, not published with the package)
 to re-declare such `var`s at the top of the function when finalizing the bundle (ES semantics unchanged); other apps that must run in real device debugging need the same step.
 
 Boatman has one more deviation: a member assignment `o.x = v` calls the setter and then calls the getter once more, using the getter's return value as the value of the assignment expression.

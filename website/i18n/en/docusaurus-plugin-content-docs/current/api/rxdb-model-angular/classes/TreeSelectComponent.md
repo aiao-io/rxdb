@@ -21,7 +21,7 @@ Tree field selector based on the Popover API and `@angular/cdk/a11y`:
   (selectChange)="onFieldSelect($event)"
   [nodes]="fieldTree()"
   [selected]="selectedField()"
-  placeholder="选择字段"
+  placeholder="Select a field"
 />
 ```
 

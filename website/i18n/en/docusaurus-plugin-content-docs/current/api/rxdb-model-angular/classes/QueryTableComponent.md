@@ -14,7 +14,7 @@ Usage:
   <div filterBar>
     <rxdb-query-builder (queryChange)="onQueryChange($event)" [fields]="fields" />
   </div>
-  <div emptyState>暂无数据</div>
+  <div emptyState>No data</div>
 </rxdb-query-table>
 ```
 
