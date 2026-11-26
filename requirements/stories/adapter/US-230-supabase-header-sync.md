@@ -50,7 +50,7 @@ INVEST 检查清单:
 
 3. 被拒清单 [`SyncRejectionsPanel`](../../../apps/dev-rxdb-supabase/src/app/sync-rejections-panel.ts) 三页各挂一份（Todo 只在能同步时挂），自带 Todo 页的边距 `class="mx-auto mb-3 max-w-4xl px-4"`，嵌进商品卡片里也是这套边距。
 4. 结果反馈三种写法：Todo 只在失败时显示 `$syncError`，成功什么也不说；商品写「第 N 次同步完成：拉取 X 条变更，落库 Y 条。」；订单写「推送完成：推上去 N 条」。
-5. 待推数只有数字。口径在 [`HistoryManager`](../../../packages/rxdb-plugin-history/src/HistoryManager.ts) 里（`revertChangeId`、`remoteId`、`rejectedAt` 皆空，再按仓库的推送资格与水位线裁剪，一个事务算一条），没有对应的清单；应用自己拼查询会与待推数对不上，清单由 [US-317](../collaboration/US-317-pushable-histories.md) 补。
+5. 待推数只有数字。口径的唯一实现是 [`updatePushableCount`](../../../packages/rxdb-plugin-history/src/undo-redo-apply.ts)（当前分支上没撤销、没推上去的变更，再按仓库的推送资格与水位线裁剪，一个事务算一条），没有对应的清单；应用自己拼查询会与待推数对不上，清单由 [US-317](../collaboration/US-317-pushable-histories.md) 补。
 
 ## 交付阶段
 
