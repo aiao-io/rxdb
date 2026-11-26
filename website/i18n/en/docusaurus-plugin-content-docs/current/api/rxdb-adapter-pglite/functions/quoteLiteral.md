@@ -10,9 +10,9 @@ Builds a SQL string literal out of a string.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `string` | The string text |
+| Parameter | Type     | Description     |
+| --------- | -------- | --------------- |
+| `value`   | `string` | The string text |
 
 ## Returns
 

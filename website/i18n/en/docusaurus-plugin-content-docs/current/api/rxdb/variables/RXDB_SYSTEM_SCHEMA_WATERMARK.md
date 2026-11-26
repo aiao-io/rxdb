@@ -1,7 +1,7 @@
 # RXDB_SYSTEM_SCHEMA_WATERMARK
 
 ```ts
-const RXDB_SYSTEM_SCHEMA_WATERMARK: "__rxdb_system_schema__:9";
+const RXDB_SYSTEM_SCHEMA_WATERMARK: '__rxdb_system_schema__:9';
 ```
 
 Defined in: [packages/rxdb/src/system/migration.ts:97](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/migration.ts#L97)

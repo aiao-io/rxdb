@@ -21,7 +21,7 @@ Defined in: [packages/rxdb-plugin-history/src/branch-compare.ts:52](https://gith
 
 Entity name
 
-***
+---
 
 ### entityId \{#entityid\}
 
@@ -33,7 +33,7 @@ Defined in: [packages/rxdb-plugin-history/src/branch-compare.ts:55](https://gith
 
 Entity primary key
 
-***
+---
 
 ### inversePatch \{#inversepatch\}
 
@@ -45,7 +45,7 @@ Defined in: [packages/rxdb-plugin-history/src/branch-compare.ts:64](https://gith
 
 The value at the start point: the whole row for DELETE, the same fields for UPDATE, `null` for INSERT
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -57,7 +57,7 @@ Defined in: [packages/rxdb-plugin-history/src/branch-compare.ts:49](https://gith
 
 Entity namespace
 
-***
+---
 
 ### operation \{#operation\}
 
@@ -69,7 +69,7 @@ Defined in: [packages/rxdb-plugin-history/src/branch-compare.ts:58](https://gith
 
 This entity's net operation going from the start point to the endpoint
 
-***
+---
 
 ### patch \{#patch\}
 

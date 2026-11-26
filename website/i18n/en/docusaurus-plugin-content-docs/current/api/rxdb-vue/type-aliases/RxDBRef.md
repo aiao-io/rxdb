@@ -1,5 +1,5 @@
 ---
-sidebar_label: "RxDBRef⟨T⟩"
+sidebar_label: 'RxDBRef⟨T⟩'
 ---
 
 # RxDBRef`<T>`
@@ -14,6 +14,6 @@ The read-only database reference returned by the injector; `undefined` means the
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`RxDB`](../../rxdb/classes/RxDB.md) |
+| Type Parameter                                                                   |
+| -------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`RxDB`](../../rxdb/classes/RxDB.md) |

@@ -10,9 +10,9 @@ Checks whether a repository accepts local writes while the remote is unreachable
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) | The entity metadata |
+| Parameter     | Type                                                                                                              | Description                                                                                                                                         |
+| ------------- | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `metadata`    | [`EntityMetadata`](../type-aliases/EntityMetadata.md)                                                             | The entity metadata                                                                                                                                 |
 | `globalSync?` | \| [`SyncOptions`](../type-aliases/SyncOptions.md) \| [`EntitySyncResolver`](../interfaces/EntitySyncResolver.md) | Global sync configuration (optional); when an instance resolver `rxdb.entitySync` is passed, instance-level overrides are resolved together with it |
 
 ## Returns
@@ -24,11 +24,11 @@ Whether offline writes are supported
 ## Example
 
 ```ts
-needsOfflineWrite(metadataFull);       // true
+needsOfflineWrite(metadataFull); // true
 needsOfflineWrite(metadataQueryCache); // true  (replayed through REST verbs, not via changelog)
-needsOfflineWrite(metadataRemote);     // false (no local storage, nowhere to write)
-needsOfflineWrite(metadataLocal);      // false (no remote, nowhere to replay)
-needsOfflineWrite(metadataNone);       // false
+needsOfflineWrite(metadataRemote); // false (no local storage, nowhere to write)
+needsOfflineWrite(metadataLocal); // false (no remote, nowhere to replay)
+needsOfflineWrite(metadataNone); // false
 ```
 
 ## Remarks

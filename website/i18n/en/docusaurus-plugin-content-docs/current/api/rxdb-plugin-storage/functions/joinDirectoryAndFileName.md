@@ -10,10 +10,10 @@ Joins a storage directory and a file name, returning the OPFS-relative path.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter       | Type                    |
+| --------------- | ----------------------- |
 | `directoryPath` | `string` \| `undefined` |
-| `fileName` | `string` |
+| `fileName`      | `string`                |
 
 ## Returns
 

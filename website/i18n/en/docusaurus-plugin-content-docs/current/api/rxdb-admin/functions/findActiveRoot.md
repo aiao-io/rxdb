@@ -10,16 +10,16 @@ The top-level node that owns the current URL.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `nodes` | readonly [`MenuNode`](../interfaces/MenuNode.md)&lt;`T`&gt;[] | The menu tree. |
-| `url` | `string` | The current URL. |
+| Parameter | Type                                                          | Description      |
+| --------- | ------------------------------------------------------------- | ---------------- |
+| `nodes`   | readonly [`MenuNode`](../interfaces/MenuNode.md)&lt;`T`&gt;[] | The menu tree.   |
+| `url`     | `string`                                                      | The current URL. |
 
 ## Returns
 

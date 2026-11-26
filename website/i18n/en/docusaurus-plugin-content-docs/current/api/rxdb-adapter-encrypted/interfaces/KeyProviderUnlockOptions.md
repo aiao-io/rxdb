@@ -22,7 +22,7 @@ Defined in: [packages/rxdb-adapter-encrypted/src/keyring.ts:60](https://github.c
 
 `UnlockLifecycleOptions.idleTimeoutMs`
 
-***
+---
 
 ### keyProvider \{#keyprovider\}
 
@@ -36,7 +36,7 @@ Defined in: [packages/rxdb-adapter-encrypted/src/keyring.ts:81](https://github.c
 
 `Promise`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt; \| `CryptoKey`&gt;
 
-***
+---
 
 ### legacyEnvelopePolicy? \{#legacyenvelopepolicy\}
 

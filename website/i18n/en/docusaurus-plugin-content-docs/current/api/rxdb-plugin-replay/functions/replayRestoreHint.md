@@ -10,9 +10,9 @@ One-line English hint shown to the user when `restoreToCommit()` is rejected (`g
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `reason` | [`ReplayRestoreRejection`](../type-aliases/ReplayRestoreRejection.md) | The `reason` of `ReplayRestoreResult` |
+| Parameter | Type                                                                  | Description                           |
+| --------- | --------------------------------------------------------------------- | ------------------------------------- |
+| `reason`  | [`ReplayRestoreRejection`](../type-aliases/ReplayRestoreRejection.md) | The `reason` of `ReplayRestoreResult` |
 
 ## Returns
 

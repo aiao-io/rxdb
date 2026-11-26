@@ -16,7 +16,7 @@ Defined in: [layout/layout-state.ts:36](https://github.com/aiao-io/rxdb/blob/b52
 
 The logo goes in the top bar (top navigation and top bar + sidebar) instead of the sidebar header.
 
-***
+---
 
 ### contentMaxWidth \{#contentmaxwidth\}
 
@@ -28,7 +28,7 @@ Defined in: [layout/layout-state.ts:50](https://github.com/aiao-io/rxdb/blob/b52
 
 The content area's maximum width (px), `null` means unlimited.
 
-***
+---
 
 ### contentPadding \{#contentpadding\}
 
@@ -64,7 +64,7 @@ readonly right: number;
 readonly top: number;
 ```
 
-***
+---
 
 ### footerFixed \{#footerfixed\}
 
@@ -76,7 +76,7 @@ Defined in: [layout/layout-state.ts:46](https://github.com/aiao-io/rxdb/blob/b52
 
 The footer is fixed to the bottom of the viewport.
 
-***
+---
 
 ### footerHeight \{#footerheight\}
 
@@ -88,7 +88,7 @@ Defined in: [layout/layout-state.ts:48](https://github.com/aiao-io/rxdb/blob/b52
 
 The footer height (px).
 
-***
+---
 
 ### headerHeight \{#headerheight\}
 
@@ -100,7 +100,7 @@ Defined in: [layout/layout-state.ts:32](https://github.com/aiao-io/rxdb/blob/b52
 
 The top bar height (px).
 
-***
+---
 
 ### headerMenu \{#headermenu\}
 
@@ -112,7 +112,7 @@ Defined in: [layout/layout-state.ts:34](https://github.com/aiao-io/rxdb/blob/b52
 
 The top bar renders a horizontal menu.
 
-***
+---
 
 ### mode \{#mode\}
 
@@ -124,7 +124,7 @@ Defined in: [layout/layout-state.ts:18](https://github.com/aiao-io/rxdb/blob/b52
 
 The effective layout mode (on mobile everything follows sidebar navigation, with the sidebar presented as a drawer).
 
-***
+---
 
 ### semiDarkHeader \{#semidarkheader\}
 
@@ -136,7 +136,7 @@ Defined in: [layout/layout-state.ts:61](https://github.com/aiao-io/rxdb/blob/b52
 
 The top bar uses half-dark.
 
-***
+---
 
 ### semiDarkSidebar \{#semidarksidebar\}
 
@@ -148,7 +148,7 @@ Defined in: [layout/layout-state.ts:59](https://github.com/aiao-io/rxdb/blob/b52
 
 The sidebar uses half-dark.
 
-***
+---
 
 ### showBreadcrumb \{#showbreadcrumb\}
 
@@ -160,7 +160,7 @@ Defined in: [layout/layout-state.ts:40](https://github.com/aiao-io/rxdb/blob/b52
 
 Whether to show the breadcrumb.
 
-***
+---
 
 ### showFooter \{#showfooter\}
 
@@ -172,7 +172,7 @@ Defined in: [layout/layout-state.ts:44](https://github.com/aiao-io/rxdb/blob/b52
 
 Whether to show the footer.
 
-***
+---
 
 ### showHeader \{#showheader\}
 
@@ -184,7 +184,7 @@ Defined in: [layout/layout-state.ts:30](https://github.com/aiao-io/rxdb/blob/b52
 
 Whether to render the top bar.
 
-***
+---
 
 ### showMenuToggle \{#showmenutoggle\}
 
@@ -196,7 +196,7 @@ Defined in: [layout/layout-state.ts:38](https://github.com/aiao-io/rxdb/blob/b52
 
 The top bar shows the menu toggle button.
 
-***
+---
 
 ### showSidebar \{#showsidebar\}
 
@@ -208,7 +208,7 @@ Defined in: [layout/layout-state.ts:20](https://github.com/aiao-io/rxdb/blob/b52
 
 Whether to render the sidebar.
 
-***
+---
 
 ### showTabbar \{#showtabbar\}
 
@@ -220,7 +220,7 @@ Defined in: [layout/layout-state.ts:42](https://github.com/aiao-io/rxdb/blob/b52
 
 Whether to show the tab bar.
 
-***
+---
 
 ### sidebarCollapsed \{#sidebarcollapsed\}
 
@@ -232,7 +232,7 @@ Defined in: [layout/layout-state.ts:24](https://github.com/aiao-io/rxdb/blob/b52
 
 The sidebar collapses into an icon rail (desktop only).
 
-***
+---
 
 ### sidebarDrawer \{#sidebardrawer\}
 
@@ -244,7 +244,7 @@ Defined in: [layout/layout-state.ts:22](https://github.com/aiao-io/rxdb/blob/b52
 
 The sidebar is presented as a drawer (overlay).
 
-***
+---
 
 ### sidebarExpandedWidth \{#sidebarexpandedwidth\}
 
@@ -256,7 +256,7 @@ Defined in: [layout/layout-state.ts:28](https://github.com/aiao-io/rxdb/blob/b52
 
 The sidebar's expanded width (px), used by hover expansion and the drawer.
 
-***
+---
 
 ### sidebarWidth \{#sidebarwidth\}
 

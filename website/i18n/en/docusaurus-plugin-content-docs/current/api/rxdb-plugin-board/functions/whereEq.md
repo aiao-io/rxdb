@@ -10,17 +10,17 @@ Defined in: [packages/rxdb-plugin-board/src/query.ts:48](https://github.com/aiao
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-f"></a> `F` *extends* `string` |
-| <a id="type-parameter-v"></a> `V` *extends* `string` |
+| Type Parameter                                       |
+| ---------------------------------------------------- |
+| <a id="type-parameter-f"></a> `F` _extends_ `string` |
+| <a id="type-parameter-v"></a> `V` _extends_ `string` |
 
 ## Parameters
 
 | Parameter | Type |
-| ------ | ------ |
-| `field` | `F` |
-| `value` | `V` |
+| --------- | ---- |
+| `field`   | `F`  |
+| `value`   | `V`  |
 
 ## Returns
 
@@ -29,7 +29,7 @@ Defined in: [packages/rxdb-plugin-board/src/query.ts:48](https://github.com/aiao
 ### combinator
 
 ```ts
-combinator: "and";
+combinator: 'and';
 ```
 
 ### rules

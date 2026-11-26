@@ -20,8 +20,8 @@ Defined in: [packages/rxdb-plugin-storage/src/filesystem/opfs-filesystem.ts:153]
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type     | Description                                        |
+| --------- | -------- | -------------------------------------------------- |
 | `rootDir` | `string` | The already-normalized storage root relative path. |
 
 #### Returns
@@ -59,8 +59,8 @@ Checks whether a directory exists.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter       | Type     |
+| --------------- | -------- |
 | `directoryPath` | `string` |
 
 #### Returns
@@ -71,7 +71,7 @@ Checks whether a directory exists.
 
 [`StorageFilesystem`](../interfaces/StorageFilesystem.md).[`directoryExists`](../interfaces/StorageFilesystem.md#directoryexists)
 
-***
+---
 
 ### dispose() \{#dispose\}
 
@@ -91,7 +91,7 @@ Releases cached handles and connections; called once when the service is destroy
 
 [`StorageFilesystem`](../interfaces/StorageFilesystem.md).[`dispose`](../interfaces/StorageFilesystem.md#dispose)
 
-***
+---
 
 ### ensureDirectory() \{#ensuredirectory\}
 
@@ -105,8 +105,8 @@ Creates the directory and any missing parent directories; a no-op when it alread
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter       | Type     |
+| --------------- | -------- |
 | `directoryPath` | `string` |
 
 #### Returns
@@ -117,7 +117,7 @@ Creates the directory and any missing parent directories; a no-op when it alread
 
 [`StorageFilesystem`](../interfaces/StorageFilesystem.md).[`ensureDirectory`](../interfaces/StorageFilesystem.md#ensuredirectory)
 
-***
+---
 
 ### ensureRoot() \{#ensureroot\}
 
@@ -138,7 +138,7 @@ when the environment does not support it.
 
 [`StorageFilesystem`](../interfaces/StorageFilesystem.md).[`ensureRoot`](../interfaces/StorageFilesystem.md#ensureroot)
 
-***
+---
 
 ### fileExists() \{#fileexists\}
 
@@ -152,8 +152,8 @@ Checks whether a file exists.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `filePath` | `string` |
 
 #### Returns
@@ -164,7 +164,7 @@ Checks whether a file exists.
 
 [`StorageFilesystem`](../interfaces/StorageFilesystem.md).[`fileExists`](../interfaces/StorageFilesystem.md#fileexists)
 
-***
+---
 
 ### list() \{#list\}
 
@@ -178,8 +178,8 @@ Enumerates the direct entries of a directory.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter       | Type     |
+| --------------- | -------- |
 | `directoryPath` | `string` |
 
 #### Returns
@@ -196,7 +196,7 @@ materialize eagerly.
 
 [`StorageFilesystem`](../interfaces/StorageFilesystem.md).[`list`](../interfaces/StorageFilesystem.md#list)
 
-***
+---
 
 ### moveDirectory() \{#movedirectory\}
 
@@ -210,10 +210,10 @@ Moves a directory natively; only called when [StorageFilesystem.supportsDirector
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `fromPath` | `string` |
-| `toPath` | `string` |
+| `toPath`   | `string` |
 
 #### Returns
 
@@ -223,7 +223,7 @@ Moves a directory natively; only called when [StorageFilesystem.supportsDirector
 
 [`StorageFilesystem`](../interfaces/StorageFilesystem.md).[`moveDirectory`](../interfaces/StorageFilesystem.md#movedirectory)
 
-***
+---
 
 ### moveFile() \{#movefile\}
 
@@ -237,10 +237,10 @@ Moves a file natively; only called when [StorageFilesystem.supportsFileMove](../
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `fromPath` | `string` |
-| `toPath` | `string` |
+| `toPath`   | `string` |
 
 #### Returns
 
@@ -250,7 +250,7 @@ Moves a file natively; only called when [StorageFilesystem.supportsFileMove](../
 
 [`StorageFilesystem`](../interfaces/StorageFilesystem.md).[`moveFile`](../interfaces/StorageFilesystem.md#movefile)
 
-***
+---
 
 ### openRead() \{#openread\}
 
@@ -264,8 +264,8 @@ Opens a read stream for the file; throws NotFound when the file does not exist.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `filePath` | `string` |
 
 #### Returns
@@ -281,7 +281,7 @@ The read/write isolation guarantee is the same as [StorageFilesystem.readBlob](.
 
 [`StorageFilesystem`](../interfaces/StorageFilesystem.md).[`openRead`](../interfaces/StorageFilesystem.md#openread)
 
-***
+---
 
 ### openWrite() \{#openwrite\}
 
@@ -295,8 +295,8 @@ Opens a write handle for the file, creating missing parent directories along the
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `filePath` | `string` |
 
 #### Returns
@@ -307,7 +307,7 @@ Opens a write handle for the file, creating missing parent directories along the
 
 [`StorageFilesystem`](../interfaces/StorageFilesystem.md).[`openWrite`](../interfaces/StorageFilesystem.md#openwrite)
 
-***
+---
 
 ### readBlob() \{#readblob\}
 
@@ -321,8 +321,8 @@ Reads the full contents of a file.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `filePath` | `string` |
 
 #### Returns
@@ -348,7 +348,7 @@ and not keep the return value around as a long-term snapshot.
 
 [`StorageFilesystem`](../interfaces/StorageFilesystem.md).[`readBlob`](../interfaces/StorageFilesystem.md#readblob)
 
-***
+---
 
 ### removeDirectory() \{#removedirectory\}
 
@@ -362,8 +362,8 @@ Recursively deletes a directory; returns silently when the directory does not ex
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter       | Type     |
+| --------------- | -------- |
 | `directoryPath` | `string` |
 
 #### Returns
@@ -374,7 +374,7 @@ Recursively deletes a directory; returns silently when the directory does not ex
 
 [`StorageFilesystem`](../interfaces/StorageFilesystem.md).[`removeDirectory`](../interfaces/StorageFilesystem.md#removedirectory)
 
-***
+---
 
 ### removeFile() \{#removefile\}
 
@@ -388,8 +388,8 @@ Deletes a file; returns silently when the file does not exist.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `filePath` | `string` |
 
 #### Returns
@@ -400,7 +400,7 @@ Deletes a file; returns silently when the file does not exist.
 
 [`StorageFilesystem`](../interfaces/StorageFilesystem.md).[`removeFile`](../interfaces/StorageFilesystem.md#removefile)
 
-***
+---
 
 ### supportsDirectoryMove() \{#supportsdirectorymove\}
 
@@ -414,8 +414,8 @@ Checks whether the directory supports native moves; throws NotFound when the dir
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter       | Type     |
+| --------------- | -------- |
 | `directoryPath` | `string` |
 
 #### Returns
@@ -426,7 +426,7 @@ Checks whether the directory supports native moves; throws NotFound when the dir
 
 [`StorageFilesystem`](../interfaces/StorageFilesystem.md).[`supportsDirectoryMove`](../interfaces/StorageFilesystem.md#supportsdirectorymove)
 
-***
+---
 
 ### supportsFileMove() \{#supportsfilemove\}
 
@@ -440,8 +440,8 @@ Checks whether the file supports native moves.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `filePath` | `string` |
 
 #### Returns

@@ -179,65 +179,65 @@ MIT
 
 ## Classes
 
-| Class | Description |
-| ------ | ------ |
-| [EncryptedConfigurationError](classes/EncryptedConfigurationError.md) | Configuration errors in the schema / initialization / lifecycle phases. |
-| [EncryptedDecryptError](classes/EncryptedDecryptError.md) | Envelope-layer failure on read. |
-| [EncryptedError](classes/EncryptedError.md) | Abstract base class of all errors thrown by `@aiao/rxdb-adapter-encrypted`. |
-| [EncryptedLockedError](classes/EncryptedLockedError.md) | Triggered when the encrypt / decrypt path is entered while `Keyring.isLocked`. |
-| [EncryptedQueryError](classes/EncryptedQueryError.md) | A query references encrypted columns. |
-| [EncryptedUnlockError](classes/EncryptedUnlockError.md) | `unlock()` key verification or provider distribution failed, or was cancelled by `lock()`. |
-| [Keyring](classes/Keyring.md) | Database-level AES-GCM-256 key lifecycle and cell envelope encrypter / decrypter. |
+| Class                                                                 | Description                                                                                |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| [EncryptedConfigurationError](classes/EncryptedConfigurationError.md) | Configuration errors in the schema / initialization / lifecycle phases.                    |
+| [EncryptedDecryptError](classes/EncryptedDecryptError.md)             | Envelope-layer failure on read.                                                            |
+| [EncryptedError](classes/EncryptedError.md)                           | Abstract base class of all errors thrown by `@aiao/rxdb-adapter-encrypted`.                |
+| [EncryptedLockedError](classes/EncryptedLockedError.md)               | Triggered when the encrypt / decrypt path is entered while `Keyring.isLocked`.             |
+| [EncryptedQueryError](classes/EncryptedQueryError.md)                 | A query references encrypted columns.                                                      |
+| [EncryptedUnlockError](classes/EncryptedUnlockError.md)               | `unlock()` key verification or provider distribution failed, or was cancelled by `lock()`. |
+| [Keyring](classes/Keyring.md)                                         | Database-level AES-GCM-256 key lifecycle and cell envelope encrypter / decrypter.          |
 
 ## Interfaces
 
-| Interface | Description |
-| ------ | ------ |
-| [CryptoEnvelope](interfaces/CryptoEnvelope.md) | Fields of a decoded AES-GCM envelope. Binary fields are all independent `Uint8Array`s. |
-| [CryptoKeyUnlockOptions](interfaces/CryptoKeyUnlockOptions.md) | Unlock via an AES-GCM-256 `CryptoKey` with encrypt/decrypt usage. |
-| [DecryptArgs](interfaces/DecryptArgs.md) | Cell decryption parameters. The entity namespace, table, column and typed primary key must match the AAD identity used at encryption time. |
-| [EncryptArgs](interfaces/EncryptArgs.md) | Cell encryption parameters. Besides the plaintext bytes, the remaining fields together form the v2 AAD identity and must match exactly at decryption time. |
-| [EncryptedAwareEntity](interfaces/EncryptedAwareEntity.md) | Minimal entity metadata shape required for schema and query safety validation. |
-| [EncryptedErrorInit](interfaces/EncryptedErrorInit.md) | Structured context shared by all encryption errors. All fields are safe for error triage. |
-| [KeyBytesUnlockOptions](interfaces/KeyBytesUnlockOptions.md) | Unlock via exactly 32 bytes of raw AES-GCM-256 key. |
-| [KeyProviderUnlockOptions](interfaces/KeyProviderUnlockOptions.md) | Obtain a `CryptoKey` or 32-byte raw key through an async provider. Provider failures are wrapped structurally. |
-| [KeyringRow](interfaces/KeyringRow.md) | The row persisted in the `rxdb_db_keyring` table. |
-| [KeyringStorageBinding](interfaces/KeyringStorageBinding.md) | Implemented by each adapter (sqlite-core, pglite …) to read and write the keyring singleton row. |
-| [PassphraseUnlockOptions](interfaces/PassphraseUnlockOptions.md) | Unlock parameters that derive a PBKDF2 passphrase and verify the persisted keyring. |
-| [PatchWalkArgs](interfaces/PatchWalkArgs.md) | Entity identity, primary key and keyring needed to encrypt/decrypt undo/redo change patches. |
+| Interface                                                          | Description                                                                                                                                                |
+| ------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [CryptoEnvelope](interfaces/CryptoEnvelope.md)                     | Fields of a decoded AES-GCM envelope. Binary fields are all independent `Uint8Array`s.                                                                     |
+| [CryptoKeyUnlockOptions](interfaces/CryptoKeyUnlockOptions.md)     | Unlock via an AES-GCM-256 `CryptoKey` with encrypt/decrypt usage.                                                                                          |
+| [DecryptArgs](interfaces/DecryptArgs.md)                           | Cell decryption parameters. The entity namespace, table, column and typed primary key must match the AAD identity used at encryption time.                 |
+| [EncryptArgs](interfaces/EncryptArgs.md)                           | Cell encryption parameters. Besides the plaintext bytes, the remaining fields together form the v2 AAD identity and must match exactly at decryption time. |
+| [EncryptedAwareEntity](interfaces/EncryptedAwareEntity.md)         | Minimal entity metadata shape required for schema and query safety validation.                                                                             |
+| [EncryptedErrorInit](interfaces/EncryptedErrorInit.md)             | Structured context shared by all encryption errors. All fields are safe for error triage.                                                                  |
+| [KeyBytesUnlockOptions](interfaces/KeyBytesUnlockOptions.md)       | Unlock via exactly 32 bytes of raw AES-GCM-256 key.                                                                                                        |
+| [KeyProviderUnlockOptions](interfaces/KeyProviderUnlockOptions.md) | Obtain a `CryptoKey` or 32-byte raw key through an async provider. Provider failures are wrapped structurally.                                             |
+| [KeyringRow](interfaces/KeyringRow.md)                             | The row persisted in the `rxdb_db_keyring` table.                                                                                                          |
+| [KeyringStorageBinding](interfaces/KeyringStorageBinding.md)       | Implemented by each adapter (sqlite-core, pglite …) to read and write the keyring singleton row.                                                           |
+| [PassphraseUnlockOptions](interfaces/PassphraseUnlockOptions.md)   | Unlock parameters that derive a PBKDF2 passphrase and verify the persisted keyring.                                                                        |
+| [PatchWalkArgs](interfaces/PatchWalkArgs.md)                       | Entity identity, primary key and keyring needed to encrypt/decrypt undo/redo change patches.                                                               |
 
 ## Type Aliases
 
-| Type Alias | Description |
-| ------ | ------ |
+| Type Alias                                                         | Description                                                                                                                            |
+| ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
 | [EncryptedEntityResolver](type-aliases/EncryptedEntityResolver.md) | Resolves relation target metadata by entity name and optional namespace. Returning `undefined` makes cross-entity queries fail-closed. |
-| [EncryptedErrorCode](type-aliases/EncryptedErrorCode.md) | Union of all concrete subclasses' `code` literals. |
-| [EnvelopeVersion](type-aliases/EnvelopeVersion.md) | Envelope versions that can be parsed; new writes always use v2, v1 is read only for explicit migration. |
-| [LegacyEnvelopePolicy](type-aliases/LegacyEnvelopePolicy.md) | Read policy for v1 entity envelopes; all new writes always produce v2. |
-| [UnlockOptions](type-aliases/UnlockOptions.md) | One of four mutually exclusive key sources, optionally with idle-lock and legacy-envelope migration policies. |
+| [EncryptedErrorCode](type-aliases/EncryptedErrorCode.md)           | Union of all concrete subclasses' `code` literals.                                                                                     |
+| [EnvelopeVersion](type-aliases/EnvelopeVersion.md)                 | Envelope versions that can be parsed; new writes always use v2, v1 is read only for explicit migration.                                |
+| [LegacyEnvelopePolicy](type-aliases/LegacyEnvelopePolicy.md)       | Read policy for v1 entity envelopes; all new writes always produce v2.                                                                 |
+| [UnlockOptions](type-aliases/UnlockOptions.md)                     | One of four mutually exclusive key sources, optionally with idle-lock and legacy-envelope migration policies.                          |
 
 ## Variables
 
-| Variable | Description |
-| ------ | ------ |
-| [ENVELOPE\_ALG](variables/ENVELOPE_ALG.md) | The frozen current algorithm label. |
-| [ENVELOPE\_VERSION](variables/ENVELOPE_VERSION.md) | The frozen current envelope version. |
+| Variable                                             | Description                                                     |
+| ---------------------------------------------------- | --------------------------------------------------------------- |
+| [ENVELOPE\_ALG](variables/ENVELOPE_ALG.md)           | The frozen current algorithm label.                             |
+| [ENVELOPE\_VERSION](variables/ENVELOPE_VERSION.md)   | The frozen current envelope version.                            |
 | [VERIFIER\_SENTINEL](variables/VERIFIER_SENTINEL.md) | Fixed plaintext used for the keyring verifier probe encryption. |
 
 ## Functions
 
-| Function | Description |
-| ------ | ------ |
-| [buildAAD](functions/buildAAD.md) | - |
-| [createKeyring](functions/createKeyring.md) | Creates an initially locked [Keyring](classes/Keyring.md) bound to the given database authentication domain and persistent storage. |
-| [decodeEnvelope](functions/decodeEnvelope.md) | - |
-| [deserializeFromEnvelope](functions/deserializeFromEnvelope.md) | Restores authenticated plaintext bytes back to business values by the property type at persistence time. |
-| [encodeEnvelope](functions/encodeEnvelope.md) | - |
-| [envelopePlaintextPatches](functions/envelopePlaintextPatches.md) | Walks the top-level keys of a plaintext patch; for keys present in `entity.encryptedPropertyMap`, replaces the value with the envelope string produced by `keyring.encrypt`. Unencrypted keys are copied directly. |
-| [isEnvelope](functions/isEnvelope.md) | - |
-| [serializeForEnvelope](functions/serializeForEnvelope.md) | Encodes a single non-null business value into envelope plaintext bytes by property type. |
-| [unenvelopePlaintextPatches](functions/unenvelopePlaintextPatches.md) | Inverse of `envelopePlaintextPatches`: decrypts top-level envelope strings back to plaintext. Used when applying undo/redo `inversePatch`. |
-| [validateEncryptedPropertyMetadata](functions/validateEncryptedPropertyMetadata.md) | Validates that encrypted properties cannot participate in primary key, foreign key, index, unique, sortable, computed columns or FTS. |
-| [validateEncryptedQuery](functions/validateEncryptedQuery.md) | Maps RxDB query parameters to the generic encrypted-query validator. |
-| [validateFTSRegistrationAgainstEncryptedColumns](functions/validateFTSRegistrationAgainstEncryptedColumns.md) | Rejects registering encrypted columns into an FTS index. |
-| [validateQueryAgainstEncryptedColumns](functions/validateQueryAgainstEncryptedColumns.md) | Rejects filtering, ordering, grouping or explicit projection over encrypted columns. |
+| Function                                                                                                      | Description                                                                                                                                                                                                        |
+| ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [buildAAD](functions/buildAAD.md)                                                                             | -                                                                                                                                                                                                                  |
+| [createKeyring](functions/createKeyring.md)                                                                   | Creates an initially locked [Keyring](classes/Keyring.md) bound to the given database authentication domain and persistent storage.                                                                                |
+| [decodeEnvelope](functions/decodeEnvelope.md)                                                                 | -                                                                                                                                                                                                                  |
+| [deserializeFromEnvelope](functions/deserializeFromEnvelope.md)                                               | Restores authenticated plaintext bytes back to business values by the property type at persistence time.                                                                                                           |
+| [encodeEnvelope](functions/encodeEnvelope.md)                                                                 | -                                                                                                                                                                                                                  |
+| [envelopePlaintextPatches](functions/envelopePlaintextPatches.md)                                             | Walks the top-level keys of a plaintext patch; for keys present in `entity.encryptedPropertyMap`, replaces the value with the envelope string produced by `keyring.encrypt`. Unencrypted keys are copied directly. |
+| [isEnvelope](functions/isEnvelope.md)                                                                         | -                                                                                                                                                                                                                  |
+| [serializeForEnvelope](functions/serializeForEnvelope.md)                                                     | Encodes a single non-null business value into envelope plaintext bytes by property type.                                                                                                                           |
+| [unenvelopePlaintextPatches](functions/unenvelopePlaintextPatches.md)                                         | Inverse of `envelopePlaintextPatches`: decrypts top-level envelope strings back to plaintext. Used when applying undo/redo `inversePatch`.                                                                         |
+| [validateEncryptedPropertyMetadata](functions/validateEncryptedPropertyMetadata.md)                           | Validates that encrypted properties cannot participate in primary key, foreign key, index, unique, sortable, computed columns or FTS.                                                                              |
+| [validateEncryptedQuery](functions/validateEncryptedQuery.md)                                                 | Maps RxDB query parameters to the generic encrypted-query validator.                                                                                                                                               |
+| [validateFTSRegistrationAgainstEncryptedColumns](functions/validateFTSRegistrationAgainstEncryptedColumns.md) | Rejects registering encrypted columns into an FTS index.                                                                                                                                                           |
+| [validateQueryAgainstEncryptedColumns](functions/validateQueryAgainstEncryptedColumns.md)                     | Rejects filtering, ordering, grouping or explicit projection over encrypted columns.                                                                                                                               |

@@ -12,10 +12,10 @@ Page numbers are 0-based; empty queries are filtered out by the handle before in
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `query` | `string` |
-| `page` | `number` |
+| Parameter | Type          |
+| --------- | ------------- |
+| `query`   | `string`      |
+| `page`    | `number`      |
 | `signal?` | `AbortSignal` |
 
 ## Returns

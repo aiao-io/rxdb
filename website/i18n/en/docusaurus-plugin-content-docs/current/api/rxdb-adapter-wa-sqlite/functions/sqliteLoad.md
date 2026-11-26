@@ -10,8 +10,8 @@ Loads the wa-sqlite module and registers the selected VFS.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                        |
+| --------- | ----------------------------------------------------------- |
 | `options` | [`LoadModuleOptions`](../type-aliases/LoadModuleOptions.md) |
 
 ## Returns

@@ -10,10 +10,10 @@ Creates all initial rows of the epic-006 persistence layer (§8 steps 2–3)
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entityManager` | [`EntityManager`](../../rxdb/interfaces/EntityManager.md) | The entity manager used for `instantiate()` |
-| `branchIds` | readonly `string`[] | The branch ids to initialize, in the order generations are issued |
+| Parameter       | Type                                                      | Description                                                       |
+| --------------- | --------------------------------------------------------- | ----------------------------------------------------------------- |
+| `entityManager` | [`EntityManager`](../../rxdb/interfaces/EntityManager.md) | The entity manager used for `instantiate()`                       |
+| `branchIds`     | readonly `string`[]                                       | The branch ids to initialize, in the order generations are issued |
 
 ## Returns
 

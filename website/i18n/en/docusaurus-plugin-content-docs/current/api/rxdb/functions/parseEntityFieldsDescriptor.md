@@ -10,9 +10,9 @@ Parses and validates a fields descriptor coming from the network or storage.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | Any untrusted input |
+| Parameter | Type      | Description         |
+| --------- | --------- | ------------------- |
+| `value`   | `unknown` | Any untrusted input |
 
 ## Returns
 
@@ -23,7 +23,7 @@ A freshly constructed descriptor object; unknown keys at any level never appear 
 ## Throws
 
 [RxDBError](../classes/RxDBError.md) on `dtoVersion` mismatch, missing known keys or wrong types,
-  non-JSON-safe values, or field combinations violating INV-4 / INV-5 / INV-6
+non-JSON-safe values, or field combinations violating INV-4 / INV-5 / INV-6
 
 ## Remarks
 

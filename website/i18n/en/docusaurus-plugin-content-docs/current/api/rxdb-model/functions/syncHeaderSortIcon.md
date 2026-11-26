@@ -10,10 +10,10 @@ Syncs the column header sort icon, without performing client-side sorting.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `table` | `ListTableAll` | The target table instance |
-| `click` | [`HeaderSortClick`](../interfaces/HeaderSortClick.md) | The `sort_click` event arguments |
+| Parameter | Type                                                  | Description                      |
+| --------- | ----------------------------------------------------- | -------------------------------- |
+| `table`   | `ListTableAll`                                        | The target table instance        |
+| `click`   | [`HeaderSortClick`](../interfaces/HeaderSortClick.md) | The `sort_click` event arguments |
 
 ## Returns
 

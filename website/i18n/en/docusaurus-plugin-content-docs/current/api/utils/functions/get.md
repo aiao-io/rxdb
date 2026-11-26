@@ -1,11 +1,7 @@
 # get()
 
 ```ts
-function get<T>(
-   obj, 
-   path, 
-   defaultValue?
-): T;
+function get<T>(obj, path, defaultValue?): T;
 ```
 
 Defined in: [packages/utils/src/object/get.ts:35](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/utils/src/object/get.ts#L35)
@@ -18,17 +14,17 @@ Hits are decided segment by segment with `in`, independent of the value itself: 
 
 ## Type Parameters
 
-| Type Parameter | Default type | Description |
-| ------ | ------ | ------ |
-| <a id="type-parameter-t"></a> `T` | `unknown` | The return type the caller expects |
+| Type Parameter                    | Default type | Description                        |
+| --------------------------------- | ------------ | ---------------------------------- |
+| <a id="type-parameter-t"></a> `T` | `unknown`    | The return type the caller expects |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `obj` | `unknown` | The value to query |
-| `path` | `string` | Property path |
-| `defaultValue?` | `T` | Default value when the path does not exist |
+| Parameter       | Type      | Description                                |
+| --------------- | --------- | ------------------------------------------ |
+| `obj`           | `unknown` | The value to query                         |
+| `path`          | `string`  | Property path                              |
+| `defaultValue?` | `T`       | Default value when the path does not exist |
 
 ## Returns
 

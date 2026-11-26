@@ -10,10 +10,10 @@ Validates a field value against [EntityFieldConfig](../interfaces/EntityFieldCon
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `field` | [`EntityFieldConfig`](../interfaces/EntityFieldConfig.md) |
-| `value` | `unknown` |
+| Parameter | Type                                                      |
+| --------- | --------------------------------------------------------- |
+| `field`   | [`EntityFieldConfig`](../interfaces/EntityFieldConfig.md) |
+| `value`   | `unknown`                                                 |
 
 ## Returns
 

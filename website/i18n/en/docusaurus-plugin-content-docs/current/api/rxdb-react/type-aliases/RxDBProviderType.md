@@ -1,5 +1,5 @@
 ---
-sidebar_label: "RxDBProviderType⟨T⟩"
+sidebar_label: 'RxDBProviderType⟨T⟩'
 ---
 
 # RxDBProviderType`<T>`
@@ -14,15 +14,15 @@ RxDB Provider component type.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`RxDB`](../../rxdb/classes/RxDB.md) |
+| Type Parameter                                                                   |
+| -------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`RxDB`](../../rxdb/classes/RxDB.md) |
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `props` | [`ProviderProps`](../interfaces/ProviderProps.md)&lt;`T`&gt; |
+| Parameter | Type                                                         |
+| --------- | ------------------------------------------------------------ |
+| `props`   | [`ProviderProps`](../interfaces/ProviderProps.md)&lt;`T`&gt; |
 
 ## Returns
 

@@ -29,7 +29,7 @@ The at-rest shape recognizer; **absence is not permission**.
 It may only be omitted when "this batch of patches has no encrypted column values to judge". Once there is a value to judge and it is absent,
 [assertCommitUnitsEncryptedAtRest](../functions/assertCommitUnitsEncryptedAtRest.md) throws [CommitEncryptedAtRestError](../classes/CommitEncryptedAtRestError.md).
 
-***
+---
 
 ### resolveEntityMetadata? \{#resolveentitymetadata\}
 
@@ -45,12 +45,12 @@ Reverse-resolves the peer entity's metadata for foreign-key columns; when absent
 
 [`WorkingTreePatchCodecContext`](WorkingTreePatchCodecContext.md).[`resolveEntityMetadata`](WorkingTreePatchCodecContext.md#resolveentitymetadata)
 
-***
+---
 
 ### resolveTargetMetadata \{#resolvetargetmetadata\}
 
 ```ts
-readonly resolveTargetMetadata: (entity, namespace) => 
+readonly resolveTargetMetadata: (entity, namespace) =>
   | Readonly<EntityMetadataType>
   | undefined;
 ```
@@ -61,15 +61,15 @@ Resolves the patch's owning entity's metadata by `(entity, namespace)`
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `entity` | `string` |
+| Parameter   | Type     |
+| ----------- | -------- |
+| `entity`    | `string` |
 | `namespace` | `string` |
 
 #### Returns
 
-  \| `Readonly`&lt;[`EntityMetadataType`](../../rxdb/interfaces/EntityMetadataType.md)&gt;
-  \| `undefined`
+\| `Readonly`&lt;[`EntityMetadataType`](../../rxdb/interfaces/EntityMetadataType.md)&gt;
+\| `undefined`
 
 #### Inherited from
 

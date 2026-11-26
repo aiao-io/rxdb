@@ -1,5 +1,5 @@
 ---
-sidebar_label: "EdgeFilterOptionsWithProperties⟨EdgeProperties⟩"
+sidebar_label: 'EdgeFilterOptionsWithProperties⟨EdgeProperties⟩'
 ---
 
 # EdgeFilterOptionsWithProperties`<EdgeProperties>`
@@ -18,8 +18,8 @@ Edge filter conditions (with properties)
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
+| Type Parameter                                              | Default type                                                                |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------- |
 | <a id="type-parameter-edgeproperties"></a> `EdgeProperties` | [`GraphEdgePropertiesRecord`](../type-aliases/GraphEdgePropertiesRecord.md) |
 
 ## Properties

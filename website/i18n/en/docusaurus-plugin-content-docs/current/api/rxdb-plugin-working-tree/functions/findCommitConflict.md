@@ -10,10 +10,10 @@ Compares the three captured slots and produces the first mismatch (FR-031).
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `credentials` | [`WorkingTreeCredentials`](../interfaces/WorkingTreeCredentials.md) | The three slots captured by the caller |
-| `observed` | [`WorkingTreeRevisionSnapshot`](../interfaces/WorkingTreeRevisionSnapshot.md) | The current values the command read inside its write transaction |
+| Parameter     | Type                                                                          | Description                                                      |
+| ------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `credentials` | [`WorkingTreeCredentials`](../interfaces/WorkingTreeCredentials.md)           | The three slots captured by the caller                           |
+| `observed`    | [`WorkingTreeRevisionSnapshot`](../interfaces/WorkingTreeRevisionSnapshot.md) | The current values the command read inside its write transaction |
 
 ## Returns
 

@@ -30,15 +30,15 @@ Commit the reorder, usually `repository.reorder(move.id, { prevId, nextId })`
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `move` | [`RowMoveEvent`](RowMoveEvent.md) |
+| Parameter | Type                              |
+| --------- | --------------------------------- |
+| `move`    | [`RowMoveEvent`](RowMoveEvent.md) |
 
 #### Returns
 
 `Promise`&lt;`unknown`&gt;
 
-***
+---
 
 ### restore() \{#restore\}
 
@@ -54,7 +54,7 @@ Restore the table rows to the most recently committed order
 
 `void`
 
-***
+---
 
 ### setError() \{#seterror\}
 
@@ -68,15 +68,15 @@ Show (or clear with `null`) the commit error
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `error` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `error`   | `unknown` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### setPending() \{#setpending\}
 
@@ -90,8 +90,8 @@ Reorder-in-progress state change
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type      |
+| --------- | --------- |
 | `pending` | `boolean` |
 
 #### Returns

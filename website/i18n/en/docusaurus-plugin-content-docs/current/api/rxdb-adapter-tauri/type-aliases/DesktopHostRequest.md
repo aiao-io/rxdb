@@ -1,7 +1,7 @@
 # DesktopHostRequest
 
 ```ts
-type DesktopHostRequest = 
+type DesktopHostRequest =
   | DesktopHostHandshakeRequest
   | DesktopHostOpenRequest
   | DesktopHostExecuteRequest

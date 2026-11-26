@@ -54,36 +54,36 @@ export class EditorComponent {
 
 ## Inputs
 
-| Name                  | Type                                       | Default             | Description                                             |
-| --------------------- | ------------------------------------------ | ------------------- | ------------------------------------------------------- |
+| Name                  | Type                                       | Default             | Description                                                              |
+| --------------------- | ------------------------------------------ | ------------------- | ------------------------------------------------------------------------ |
 | `value`               | `string`                                   | `''`                | Document content; the form wins when used with `ngModel` / `formControl` |
-| `language`            | `string`                                   | `'sql'`             | Language name or alias; `''` and `'plaintext'` mean no highlighting |
-| `languages`           | `readonly CodeEditorLanguageDescription[]` | `SUPPORT_LANGUAGES` | Candidate language list |
-| `theme`               | `'light' \| 'dark'`                        | `'light'`           | Theme |
-| `setup`               | `'basic' \| 'minimal' \| null`             | `'basic'`           | CodeMirror preset extension set |
-| `placeholder`         | `string`                                   | `''`                | Placeholder text shown when the document is empty |
-| `disabled`            | `boolean`                                  | `false`             | Disabled (read-only and unfocusable) |
-| `readonly`            | `boolean`                                  | `false`             | Read-only (still focusable and selectable) |
-| `lineWrapping`        | `boolean`                                  | `false`             | Line wrapping |
-| `indentUnit`          | `string`                                   | `'  '`              | The string used for one level of indentation |
-| `indentWithTab`       | `boolean`                                  | `false`             | Allow Tab indentation (sacrifices keyboard accessibility) |
-| `highlightWhitespace` | `boolean`                                  | `false`             | Show whitespace characters |
-| `label`               | `string`                                   | `''`                | `aria-label` of the inner textbox |
-| `labelledBy`          | `string`                                   | `''`                | `aria-labelledby` of the inner textbox |
-| `describedBy`         | `string`                                   | `''`                | `aria-describedby` of the inner textbox |
-| `autoFocus`           | `boolean`                                  | `false`             | **Initialization only**, see below |
-| `root`                | `Document \| ShadowRoot`                   | —                   | **Initialization only**, see below |
+| `language`            | `string`                                   | `'sql'`             | Language name or alias; `''` and `'plaintext'` mean no highlighting      |
+| `languages`           | `readonly CodeEditorLanguageDescription[]` | `SUPPORT_LANGUAGES` | Candidate language list                                                  |
+| `theme`               | `'light' \| 'dark'`                        | `'light'`           | Theme                                                                    |
+| `setup`               | `'basic' \| 'minimal' \| null`             | `'basic'`           | CodeMirror preset extension set                                          |
+| `placeholder`         | `string`                                   | `''`                | Placeholder text shown when the document is empty                        |
+| `disabled`            | `boolean`                                  | `false`             | Disabled (read-only and unfocusable)                                     |
+| `readonly`            | `boolean`                                  | `false`             | Read-only (still focusable and selectable)                               |
+| `lineWrapping`        | `boolean`                                  | `false`             | Line wrapping                                                            |
+| `indentUnit`          | `string`                                   | `'  '`              | The string used for one level of indentation                             |
+| `indentWithTab`       | `boolean`                                  | `false`             | Allow Tab indentation (sacrifices keyboard accessibility)                |
+| `highlightWhitespace` | `boolean`                                  | `false`             | Show whitespace characters                                               |
+| `label`               | `string`                                   | `''`                | `aria-label` of the inner textbox                                        |
+| `labelledBy`          | `string`                                   | `''`                | `aria-labelledby` of the inner textbox                                   |
+| `describedBy`         | `string`                                   | `''`                | `aria-describedby` of the inner textbox                                  |
+| `autoFocus`           | `boolean`                                  | `false`             | **Initialization only**, see below                                       |
+| `root`                | `Document \| ShadowRoot`                   | —                   | **Initialization only**, see below                                       |
 
 The three `aria-*` inputs land on CodeMirror's `.cm-content` — that's the element carrying `role="textbox"`, not the host element. Empty strings are treated as "unset" and produce no attribute.
 
 ## Outputs
 
-| Name              | Payload                   | Description                                                |
-| ----------------- | ------------------------- | ---------------------------------------------------------- |
+| Name              | Payload                   | Description                                                                      |
+| ----------------- | ------------------------- | -------------------------------------------------------------------------------- |
 | `aoChange`        | `string`                  | Content change caused by user editing; programmatic writes do **not** trigger it |
-| `aoFocus`         | `void`                    | Gained focus |
-| `aoBlur`          | `void`                    | Lost focus; also marks the form as `touched` |
-| `aoLanguageError` | `CodeEditorLanguageError` | Language not found (`not-found`) or `load()` failed (`load-failed`) |
+| `aoFocus`         | `void`                    | Gained focus                                                                     |
+| `aoBlur`          | `void`                    | Lost focus; also marks the form as `touched`                                     |
+| `aoLanguageError` | `CodeEditorLanguageError` | Language not found (`not-found`) or `load()` failed (`load-failed`)              |
 
 On language failure the editor **degrades to plain text** and stays usable; the host can retry or prompt accordingly:
 
@@ -118,12 +118,12 @@ When `value` and a form are both present, the form wins: `ngModel` / `formContro
 
 The component instance exposes four members with the **same name and semantics** as React / Vue:
 
-| Member    | Type                  | Description                                      |
-| --------- | --------------------- | ------------------------------------------------ |
+| Member    | Type                  | Description                                                               |
+| --------- | --------------------- | ------------------------------------------------------------------------- |
 | `view`    | `EditorView \| null`  | The underlying CodeMirror instance; `null` when uninitialized / destroyed |
-| `host`    | `HTMLElement \| null` | The element CodeMirror is mounted in; same as above |
-| `focus()` | `void`                | Hands keyboard focus to the editor; no-op when uninitialized |
-| `blur()`  | `void`                | Removes keyboard focus; no-op when uninitialized |
+| `host`    | `HTMLElement \| null` | The element CodeMirror is mounted in; same as above                       |
+| `focus()` | `void`                | Hands keyboard focus to the editor; no-op when uninitialized              |
+| `blur()`  | `void`                | Removes keyboard focus; no-op when uninitialized                          |
 
 ```ts
 @Component({
@@ -159,13 +159,13 @@ import { CodeEditor } from '@aiao/code-editor-angular';
 
 ## Classes
 
-| Class | Description |
-| ------ | ------ |
+| Class                               | Description                  |
+| ----------------------------------- | ---------------------------- |
 | [CodeEditor](classes/CodeEditor.md) | CodeEditor Angular component |
 
 ## Type Aliases
 
-| Type Alias | Description |
-| ------ | ------ |
+| Type Alias                                         | Description                      |
+| -------------------------------------------------- | -------------------------------- |
 | [CodeEditorSetup](type-aliases/CodeEditorSetup.md) | CodeMirror preset configuration. |
-| [CodeEditorTheme](type-aliases/CodeEditorTheme.md) | CodeEditor theme type |
+| [CodeEditorTheme](type-aliases/CodeEditorTheme.md) | CodeEditor theme type            |

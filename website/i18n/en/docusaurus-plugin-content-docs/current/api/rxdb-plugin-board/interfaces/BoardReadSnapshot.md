@@ -14,7 +14,7 @@ readonly columns: readonly Column[];
 
 Defined in: [packages/rxdb-plugin-board/src/board-read.ts:12](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board/src/board-read.ts#L12)
 
-***
+---
 
 ### labels \{#labels\}
 
@@ -24,7 +24,7 @@ readonly labels: readonly BoardLabel[];
 
 Defined in: [packages/rxdb-plugin-board/src/board-read.ts:14](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board/src/board-read.ts#L14)
 
-***
+---
 
 ### taskLabels \{#tasklabels\}
 
@@ -34,7 +34,7 @@ readonly taskLabels: ReadonlyMap<`${string}-${string}-${string}-${string}-${stri
 
 Defined in: [packages/rxdb-plugin-board/src/board-read.ts:15](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board/src/board-read.ts#L15)
 
-***
+---
 
 ### tasks \{#tasks\}
 

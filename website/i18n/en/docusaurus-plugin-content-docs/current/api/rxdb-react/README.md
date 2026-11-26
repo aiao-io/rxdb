@@ -83,10 +83,7 @@ Query failures use stale-while-error semantics: `value` keeps the last successfu
 ```tsx
 const todos = useInfiniteScroll(Todo, {
   where: { combinator: 'and', rules: [] },
-  orderBy: [
-    { field: 'createdAt', sort: 'desc' },
-    `{ field: 'id', sort: 'asc' }`
-  ],
+  orderBy: [{ field: 'createdAt', sort: 'desc' }, `{ field: 'id', sort: 'asc' }`],
   limit: 50
 });
 ```
@@ -145,13 +142,13 @@ return <div>{live.value?.title}</div>;
 
 Same feature, same API is a hard constraint of this repository; framework conventions allow differences in container shape and naming, but not missing capabilities:
 
-| Capability        | React                                   | Angular                                                | Vue                                  |
-| ----------------- | --------------------------------------- | ------------------------------------------------------ | ------------------------------------ |
-| Queries           | `useGet` / `useFind` / …                | Same names                                             | Same names                           |
-| Infinite scroll   | `useInfiniteScroll`                     | `useInfiniteScroll`                                    | `useInfiniteScroll`                  |
-| Async actions     | `useAction` → render snapshot           | `useAction` → `Signal<boolean>`                        | `useAction` → `ComputedRef<boolean>` |
-| Persisted state   | `usePersistedState` → snapshot + `setValue` | `usePersistedState` / `useState` → `WritableSignal<T>` | `usePersistedState` → `Ref<T>`       |
-| Live entity changes | `useEntityChange`                     | `RxDBEntityChangeDirective` (`markForCheck`)           | `useEntityChange`                    |
+| Capability          | React                                       | Angular                                                | Vue                                  |
+| ------------------- | ------------------------------------------- | ------------------------------------------------------ | ------------------------------------ |
+| Queries             | `useGet` / `useFind` / …                    | Same names                                             | Same names                           |
+| Infinite scroll     | `useInfiniteScroll`                         | `useInfiniteScroll`                                    | `useInfiniteScroll`                  |
+| Async actions       | `useAction` → render snapshot               | `useAction` → `Signal<boolean>`                        | `useAction` → `ComputedRef<boolean>` |
+| Persisted state     | `usePersistedState` → snapshot + `setValue` | `usePersistedState` / `useState` → `WritableSignal<T>` | `usePersistedState` → `Ref<T>`       |
+| Live entity changes | `useEntityChange`                           | `RxDBEntityChangeDirective` (`markForCheck`)           | `useEntityChange`                    |
 
 The time-window logic (`withTimeWindows`) and the persistence core (`PersistedStateRegistry`) live in `@aiao/utils` and are shared by all three frameworks, so their semantics cannot drift apart. Angular's `usePersistedState` is a flat-signature adaptation of the existing `useState`; it has the **same key format** as the Vue / React sides but holds its own in-memory state.
 
@@ -162,58 +159,58 @@ Provides the React Hooks interface for RxDB databases
 
 ## Interfaces
 
-| Interface | Description |
-| ------ | ------ |
-| [ActionResource](interfaces/ActionResource.md) | The return value of [useAction](functions/useAction.md). |
-| [EntityChangeOptions](interfaces/EntityChangeOptions.md) | Time-window configuration of [useEntityChange](functions/useEntityChange.md). |
-| [EntityChangeResource](interfaces/EntityChangeResource.md) | The result of bridging entity patches into React rendering. |
-| [GraphPath](interfaces/GraphPath.md) | Graph path result |
-| [InfiniteScrollResource](interfaces/InfiniteScrollResource.md) | - |
-| [NeighborResult](interfaces/NeighborResult.md) | Graph neighbor query result (basic) |
-| [PersistedState](interfaces/PersistedState.md) | The persisted state of a given `namespace + name`. |
-| [ProviderProps](interfaces/ProviderProps.md) | The props of [RxDBProvider](variables/RxDBProvider.md). |
-| [RxDBProviderSet](interfaces/RxDBProviderSet.md) | A set of mutually isolated RxDB Providers and read hooks. |
-| [RxDBResource](interfaces/RxDBResource.md) | The resource snapshot returned by React query hooks in the current render. |
+| Interface                                                      | Description                                                                   |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| [ActionResource](interfaces/ActionResource.md)                 | The return value of [useAction](functions/useAction.md).                      |
+| [EntityChangeOptions](interfaces/EntityChangeOptions.md)       | Time-window configuration of [useEntityChange](functions/useEntityChange.md). |
+| [EntityChangeResource](interfaces/EntityChangeResource.md)     | The result of bridging entity patches into React rendering.                   |
+| [GraphPath](interfaces/GraphPath.md)                           | Graph path result                                                             |
+| [InfiniteScrollResource](interfaces/InfiniteScrollResource.md) | -                                                                             |
+| [NeighborResult](interfaces/NeighborResult.md)                 | Graph neighbor query result (basic)                                           |
+| [PersistedState](interfaces/PersistedState.md)                 | The persisted state of a given `namespace + name`.                            |
+| [ProviderProps](interfaces/ProviderProps.md)                   | The props of [RxDBProvider](variables/RxDBProvider.md).                       |
+| [RxDBProviderSet](interfaces/RxDBProviderSet.md)               | A set of mutually isolated RxDB Providers and read hooks.                     |
+| [RxDBResource](interfaces/RxDBResource.md)                     | The resource snapshot returned by React query hooks in the current render.    |
 
 ## Type Aliases
 
-| Type Alias | Description |
-| ------ | ------ |
-| [GraphQueryResult](type-aliases/GraphQueryResult.md) | Graph query array with a resource-truncation flag. |
-| [RxDBProviderType](type-aliases/RxDBProviderType.md) | RxDB Provider component type. |
-| [RxDBSource](type-aliases/RxDBSource.md) | Database forms accepted by `RxDBProvider`: an instance, a Promise, or a factory returning either. |
-| [SyncStateResource](type-aliases/SyncStateResource.md) | The sync state snapshot returned by [useSyncState](functions/useSyncState.md) in the current render. |
-| [UseOptions](type-aliases/UseOptions.md) | Option forms accepted by React query hooks. |
-| [UseRxDB](type-aliases/UseRxDB.md) | Hook type that reads RxDB from an explicit parameter or the nearest Provider; throws when not ready. |
-| [UseRxDBOptional](type-aliases/UseRxDBOptional.md) | Hook type that reads RxDB from an explicit parameter or the nearest Provider; returns `undefined` when not ready. |
+| Type Alias                                             | Description                                                                                                       |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| [GraphQueryResult](type-aliases/GraphQueryResult.md)   | Graph query array with a resource-truncation flag.                                                                |
+| [RxDBProviderType](type-aliases/RxDBProviderType.md)   | RxDB Provider component type.                                                                                     |
+| [RxDBSource](type-aliases/RxDBSource.md)               | Database forms accepted by `RxDBProvider`: an instance, a Promise, or a factory returning either.                 |
+| [SyncStateResource](type-aliases/SyncStateResource.md) | The sync state snapshot returned by [useSyncState](functions/useSyncState.md) in the current render.              |
+| [UseOptions](type-aliases/UseOptions.md)               | Option forms accepted by React query hooks.                                                                       |
+| [UseRxDB](type-aliases/UseRxDB.md)                     | Hook type that reads RxDB from an explicit parameter or the nearest Provider; throws when not ready.              |
+| [UseRxDBOptional](type-aliases/UseRxDBOptional.md)     | Hook type that reads RxDB from an explicit parameter or the nearest Provider; returns `undefined` when not ready. |
 
 ## Variables
 
-| Variable | Description |
-| ------ | ------ |
-| [RxDBProvider](variables/RxDBProvider.md) | The default RxDB Provider; `db` may be an instance, a Promise or a factory; see [RxDBSource](type-aliases/RxDBSource.md). |
-| [useHasRxDBProvider](variables/useHasRxDBProvider.md) | Whether there is a nearest [RxDBProvider](variables/RxDBProvider.md) in the component tree. |
-| [useRxDB](variables/useRxDB.md) | Reads the explicitly passed RxDB, or the nearest [RxDBProvider](variables/RxDBProvider.md). |
-| [useRxDBOptional](variables/useRxDBOptional.md) | Reads the explicitly passed RxDB, or the nearest [RxDBProvider](variables/RxDBProvider.md), returning `undefined` when unavailable. |
+| Variable                                              | Description                                                                                                                         |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| [RxDBProvider](variables/RxDBProvider.md)             | The default RxDB Provider; `db` may be an instance, a Promise or a factory; see [RxDBSource](type-aliases/RxDBSource.md).           |
+| [useHasRxDBProvider](variables/useHasRxDBProvider.md) | Whether there is a nearest [RxDBProvider](variables/RxDBProvider.md) in the component tree.                                         |
+| [useRxDB](variables/useRxDB.md)                       | Reads the explicitly passed RxDB, or the nearest [RxDBProvider](variables/RxDBProvider.md).                                         |
+| [useRxDBOptional](variables/useRxDBOptional.md)       | Reads the explicitly passed RxDB, or the nearest [RxDBProvider](variables/RxDBProvider.md), returning `undefined` when unavailable. |
 
 ## Functions
 
-| Function | Description |
-| ------ | ------ |
-| [makeRxDBProvider](functions/makeRxDBProvider.md) | Creates an isolated RxDB React context and access hook. |
-| [useAction](functions/useAction.md) | Wraps an async function into an action with an in-flight state. |
-| [useCount](functions/useCount.md) | Counts the matching entities. |
-| [useCountNeighbors](functions/useCountNeighbors.md) | Counts the neighbors of a graph entity. |
-| [useEntityChange](functions/useEntityChange.md) | Bridges the entity's patch stream into React rendering so in-place mutations are reflected in the view in real time. |
-| [useFind](functions/useFind.md) | Finds multiple matching entities. |
-| [useFindAll](functions/useFindAll.md) | Finds all entities. |
-| [useFindByCursor](functions/useFindByCursor.md) | Finds entities using cursor pagination. |
-| [useFindOne](functions/useFindOne.md) | Finds the first matching entity. |
-| [useFindOneOrFail](functions/useFindOneOrFail.md) | Finds the first matching entity, writing the error into the resource when the repository finds none. |
-| [useGet](functions/useGet.md) | Gets a single entity by ID. |
-| [useGraphNeighbors](functions/useGraphNeighbors.md) | Finds the neighbors of a graph entity. |
-| [useGraphPaths](functions/useGraphPaths.md) | Finds the paths between graph entities. |
-| [useInfiniteScroll](functions/useInfiniteScroll.md) | Provides infinite scroll state using RxDB cursor queries. |
-| [usePersistedState](functions/usePersistedState.md) | Creates (or reuses) a namespaced state persisted to `localStorage`. |
-| [useRepositoryQuery](functions/useRepositoryQuery.md) | Connects an entity static repository's Observable query into the React render lifecycle. |
-| [useSyncState](functions/useSyncState.md) | Reads the current database's sync state. |
+| Function                                              | Description                                                                                                          |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| [makeRxDBProvider](functions/makeRxDBProvider.md)     | Creates an isolated RxDB React context and access hook.                                                              |
+| [useAction](functions/useAction.md)                   | Wraps an async function into an action with an in-flight state.                                                      |
+| [useCount](functions/useCount.md)                     | Counts the matching entities.                                                                                        |
+| [useCountNeighbors](functions/useCountNeighbors.md)   | Counts the neighbors of a graph entity.                                                                              |
+| [useEntityChange](functions/useEntityChange.md)       | Bridges the entity's patch stream into React rendering so in-place mutations are reflected in the view in real time. |
+| [useFind](functions/useFind.md)                       | Finds multiple matching entities.                                                                                    |
+| [useFindAll](functions/useFindAll.md)                 | Finds all entities.                                                                                                  |
+| [useFindByCursor](functions/useFindByCursor.md)       | Finds entities using cursor pagination.                                                                              |
+| [useFindOne](functions/useFindOne.md)                 | Finds the first matching entity.                                                                                     |
+| [useFindOneOrFail](functions/useFindOneOrFail.md)     | Finds the first matching entity, writing the error into the resource when the repository finds none.                 |
+| [useGet](functions/useGet.md)                         | Gets a single entity by ID.                                                                                          |
+| [useGraphNeighbors](functions/useGraphNeighbors.md)   | Finds the neighbors of a graph entity.                                                                               |
+| [useGraphPaths](functions/useGraphPaths.md)           | Finds the paths between graph entities.                                                                              |
+| [useInfiniteScroll](functions/useInfiniteScroll.md)   | Provides infinite scroll state using RxDB cursor queries.                                                            |
+| [usePersistedState](functions/usePersistedState.md)   | Creates (or reuses) a namespaced state persisted to `localStorage`.                                                  |
+| [useRepositoryQuery](functions/useRepositoryQuery.md) | Connects an entity static repository's Observable query into the React render lifecycle.                             |
+| [useSyncState](functions/useSyncState.md)             | Reads the current database's sync state.                                                                             |

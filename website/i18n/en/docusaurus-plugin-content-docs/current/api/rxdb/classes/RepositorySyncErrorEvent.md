@@ -12,9 +12,9 @@ Fired when a repository sync operation fails
 
 ```ts
 new RepositorySyncErrorEvent(
-   direction, 
-   namespace, 
-   entity, 
+   direction,
+   namespace,
+   entity,
    error
 ): RepositorySyncErrorEvent;
 ```
@@ -23,12 +23,12 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:618](https://github.com/aiao-io/rx
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `direction` | [`RepositorySyncDirection`](../type-aliases/RepositorySyncDirection.md) | Sync direction |
-| `namespace` | `string` | Namespace |
-| `entity` | `string` | Entity name |
-| `error` | `Error` | Error information |
+| Parameter   | Type                                                                    | Description       |
+| ----------- | ----------------------------------------------------------------------- | ----------------- |
+| `direction` | [`RepositorySyncDirection`](../type-aliases/RepositorySyncDirection.md) | Sync direction    |
+| `namespace` | `string`                                                                | Namespace         |
+| `entity`    | `string`                                                                | Entity name       |
+| `error`     | `Error`                                                                 | Error information |
 
 #### Returns
 
@@ -46,7 +46,7 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:620](https://github.com/aiao-io/rx
 
 Sync direction
 
-***
+---
 
 ### entity \{#entity\}
 
@@ -58,7 +58,7 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:624](https://github.com/aiao-io/rx
 
 Entity name
 
-***
+---
 
 ### error \{#error\}
 
@@ -70,7 +70,7 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:626](https://github.com/aiao-io/rx
 
 Error information
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -82,7 +82,7 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:622](https://github.com/aiao-io/rx
 
 Namespace
 
-***
+---
 
 ### type \{#type\}
 

@@ -22,7 +22,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/raw-write-judgme
 
 Does this database have the commit capability enabled; not enabled means step 1 passes it through
 
-***
+---
 
 ### domain \{#domain\}
 

@@ -10,9 +10,9 @@ Computes the SHA-256 of a byte span and returns 64 lowercase hex characters.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `bytes` | `Uint8Array` |
+| Parameter | Type         |
+| --------- | ------------ |
+| `bytes`   | `Uint8Array` |
 
 ## Returns
 

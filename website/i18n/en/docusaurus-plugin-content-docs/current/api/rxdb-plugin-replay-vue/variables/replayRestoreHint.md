@@ -10,9 +10,9 @@ A one-line English hint shown to the user when `restoreToCommit()` is rejected (
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `reason` | [`ReplayRestoreRejection`](../../rxdb-plugin-replay/type-aliases/ReplayRestoreRejection.md) | The `reason` of `ReplayRestoreResult` |
+| Parameter | Type                                                                                        | Description                           |
+| --------- | ------------------------------------------------------------------------------------------- | ------------------------------------- |
+| `reason`  | [`ReplayRestoreRejection`](../../rxdb-plugin-replay/type-aliases/ReplayRestoreRejection.md) | The `reason` of `ReplayRestoreResult` |
 
 ## Returns
 

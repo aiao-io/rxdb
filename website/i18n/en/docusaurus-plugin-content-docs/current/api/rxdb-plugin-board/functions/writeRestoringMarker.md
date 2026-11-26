@@ -10,8 +10,8 @@ Restoring marker: all pages pause writes based on it (state source of the US-534
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                            |
+| --------- | ----------------------------------------------- |
 | `storage` | [`BoardStorage`](../interfaces/BoardStorage.md) |
 
 ## Returns

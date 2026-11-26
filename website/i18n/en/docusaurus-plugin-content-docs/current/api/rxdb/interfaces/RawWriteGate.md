@@ -16,15 +16,15 @@ Defined in: [packages/rxdb/src/capture/raw-write-gate.ts:34](https://github.com/
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                    | Description                                                                  |
+| --------------------------------- | ---------------------------------------------------------------------------- |
 | <a id="type-parameter-t"></a> `T` | Return type of the statement executor; passed through unchanged when allowed |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `sql` | `string` | The raw statement text to be judged |
+| Parameter | Type                              | Description                            |
+| --------- | --------------------------------- | -------------------------------------- |
+| `sql`     | `string`                          | The raw statement text to be judged    |
 | `execute` | () => `T` \| `Promise`&lt;`T`&gt; | The executor body, **not yet invoked** |
 
 ## Returns

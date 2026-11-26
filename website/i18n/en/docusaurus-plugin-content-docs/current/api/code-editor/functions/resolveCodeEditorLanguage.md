@@ -10,10 +10,10 @@ Resolves the language description that should currently be used.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `name` | `string` | Language name or alias; an empty string and `'plaintext'` mean no highlighting |
-| `languages` | readonly [`CodeEditorLanguageDescription`](../interfaces/CodeEditorLanguageDescription.md)[] | Candidate language list; an empty list means no highlighting |
+| Parameter   | Type                                                                                         | Description                                                                    |
+| ----------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `name`      | `string`                                                                                     | Language name or alias; an empty string and `'plaintext'` mean no highlighting |
+| `languages` | readonly [`CodeEditorLanguageDescription`](../interfaces/CodeEditorLanguageDescription.md)[] | Candidate language list; an empty list means no highlighting                   |
 
 ## Returns
 
@@ -28,7 +28,7 @@ A pure function that neither logs nor throws: "not found" is a branch of the ret
 ## Example
 
 ```ts
-resolveCodeEditorLanguage('ts', SUPPORT_LANGUAGES);   // `{ kind: 'found', description: … }`
+resolveCodeEditorLanguage('ts', SUPPORT_LANGUAGES); // `{ kind: 'found', description: … }`
 resolveCodeEditorLanguage('plaintext', SUPPORT_LANGUAGES); // `{ kind: 'none' }`
 resolveCodeEditorLanguage('nope', SUPPORT_LANGUAGES); // `{ kind: 'not-found', name: 'nope' }`
 ```

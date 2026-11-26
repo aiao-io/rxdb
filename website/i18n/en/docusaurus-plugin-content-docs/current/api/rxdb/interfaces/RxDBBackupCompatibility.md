@@ -15,7 +15,7 @@ readonly adapterName: string;
 
 Defined in: [packages/rxdb/src/backup/backup.interface.ts:80](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/backup/backup.interface.ts#L80)
 
-***
+---
 
 ### authDomain \{#authdomain\}
 
@@ -27,7 +27,7 @@ Defined in: [packages/rxdb/src/backup/backup.interface.ts:91](https://github.com
 
 The target's encryption auth domain; `null` when the target entity has no encrypted columns.
 
-***
+---
 
 ### changeCodecVersion \{#changecodecversion\}
 
@@ -37,7 +37,7 @@ readonly changeCodecVersion: number;
 
 Defined in: [packages/rxdb/src/backup/backup.interface.ts:86](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/backup/backup.interface.ts#L86)
 
-***
+---
 
 ### constraintFingerprint \{#constraintfingerprint\}
 
@@ -49,7 +49,7 @@ Defined in: [packages/rxdb/src/backup/backup.interface.ts:89](https://github.com
 
 The target's entity-level storage-constraint fingerprint ([getRxDBBackupConstraintFingerprint](../functions/getRxDBBackupConstraintFingerprint.md)).
 
-***
+---
 
 ### engine \{#engine\}
 
@@ -59,7 +59,7 @@ readonly engine: string;
 
 Defined in: [packages/rxdb/src/backup/backup.interface.ts:81](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/backup/backup.interface.ts#L81)
 
-***
+---
 
 ### engineCompatibility \{#enginecompatibility\}
 
@@ -69,7 +69,7 @@ readonly engineCompatibility: string;
 
 Defined in: [packages/rxdb/src/backup/backup.interface.ts:82](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/backup/backup.interface.ts#L82)
 
-***
+---
 
 ### extensions \{#extensions\}
 
@@ -81,7 +81,7 @@ Defined in: [packages/rxdb/src/backup/backup.interface.ts:84](https://github.com
 
 The extensions the target can provide.
 
-***
+---
 
 ### schemaFingerprint \{#schemafingerprint\}
 
@@ -91,7 +91,7 @@ readonly schemaFingerprint: string;
 
 Defined in: [packages/rxdb/src/backup/backup.interface.ts:87](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/backup/backup.interface.ts#L87)
 
-***
+---
 
 ### systemSchemaVersion \{#systemschemaversion\}
 

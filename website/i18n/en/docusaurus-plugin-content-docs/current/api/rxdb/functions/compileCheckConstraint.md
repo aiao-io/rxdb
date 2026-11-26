@@ -10,10 +10,10 @@ Compiles an entity-level CHECK.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) |
-| `check` | [`EntityCheckMetadataOptions`](../interfaces/EntityCheckMetadataOptions.md) |
+| Parameter  | Type                                                                        |
+| ---------- | --------------------------------------------------------------------------- |
+| `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md)                       |
+| `check`    | [`EntityCheckMetadataOptions`](../interfaces/EntityCheckMetadataOptions.md) |
 
 ## Returns
 

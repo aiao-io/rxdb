@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/notify/notification-batcher.ts:45]
 
 Trailing debounce interval (milliseconds), defaults to [DEFAULT\_NOTIFY\_BATCH\_TIMEOUT\_MS](../variables/DEFAULT_NOTIFY_BATCH_TIMEOUT_MS.md).
 
-***
+---
 
 ### emit \{#emit\}
 
@@ -30,15 +30,15 @@ Dispatches one aggregated change event at flush time.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | [`PGliteChangeEvent`](PGliteChangeEvent.md) |
+| Parameter | Type                                        |
+| --------- | ------------------------------------------- |
+| `event`   | [`PGliteChangeEvent`](PGliteChangeEvent.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### maxBatchWait? \{#maxbatchwait\}
 
@@ -50,7 +50,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/notify/notification-batcher.ts:47]
 
 Hard window limit (milliseconds), defaults to [DEFAULT\_NOTIFY\_MAX\_BATCH\_WAIT\_MS](../variables/DEFAULT_NOTIFY_MAX_BATCH_WAIT_MS.md).
 
-***
+---
 
 ### maxPendingEvents? \{#maxpendingevents\}
 
@@ -62,7 +62,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/notify/notification-batcher.ts:49]
 
 Window capacity limit, defaults to [DEFAULT\_NOTIFY\_MAX\_PENDING\_EVENTS](../variables/DEFAULT_NOTIFY_MAX_PENDING_EVENTS.md).
 
-***
+---
 
 ### onParseError? \{#onparseerror\}
 
@@ -76,15 +76,15 @@ Reporting hook for payload parse failures; dropped when not provided.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `error` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `error`   | `unknown` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### resolveDbName \{#resolvedbname\}
 

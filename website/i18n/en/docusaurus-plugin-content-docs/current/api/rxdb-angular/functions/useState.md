@@ -10,8 +10,8 @@ Creates a read/write entry point for persisted state under a namespace.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type     | Description                                                      |
+| ----------- | -------- | ---------------------------------------------------------------- |
 | `namespace` | `string` | State namespace; combined with name to form the localStorage key |
 
 ## Returns

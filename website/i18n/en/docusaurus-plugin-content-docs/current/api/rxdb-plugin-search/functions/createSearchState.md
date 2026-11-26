@@ -26,9 +26,7 @@ State machine rules (identical to data-model.md §6):
 ### error$
 
 ```ts
-error$: Observable<
-  | SearchExecutionError
-  | undefined>;
+error$: Observable<SearchExecutionError | undefined>;
 ```
 
 Derived error stream; undefined on empty query / normal completion
@@ -52,7 +50,7 @@ Derived results stream
 ### snapshot
 
 ```ts
-snapshot: () => SearchStateSnapshot = current;
+snapshot: () => (SearchStateSnapshot = current);
 ```
 
 The current frame (synchronous read)
@@ -79,9 +77,9 @@ Enters loading; an empty query (empty after trim) short-circuits back to idle an
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `query` | `string` | The raw query string (passed in after setQuery → debounce) |
+| Parameter | Type     | Description                                                |
+| --------- | -------- | ---------------------------------------------------------- |
+| `query`   | `string` | The raw query string (passed in after setQuery → debounce) |
 
 #### Returns
 
@@ -121,9 +119,9 @@ Query failed; enters `error`, keeps the previous results and hasMore.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `error` | [`SearchExecutionError`](../classes/SearchExecutionError.md) |
+| Parameter | Type                                                         |
+| --------- | ------------------------------------------------------------ |
+| `error`   | [`SearchExecutionError`](../classes/SearchExecutionError.md) |
 
 #### Returns
 
@@ -139,10 +137,10 @@ Query settled successfully; empty array → `empty`, otherwise → `success`.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                       |
+| --------- | ---------------------------------------------------------- |
 | `results` | readonly [`SearchResult`](../interfaces/SearchResult.md)[] |
-| `hasMore` | `boolean` |
+| `hasMore` | `boolean`                                                  |
 
 #### Returns
 

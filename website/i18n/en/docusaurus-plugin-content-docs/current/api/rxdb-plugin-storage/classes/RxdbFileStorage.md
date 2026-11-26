@@ -20,9 +20,9 @@ instance cannot be reinitialized.
 
 ```ts
 new RxdbFileStorage(
-   rxdb, 
-   options?, 
-   entityType?, 
+   rxdb,
+   options?,
+   entityType?,
    objectUrls?
 ): RxdbFileStorage;
 ```
@@ -33,12 +33,12 @@ Creates the file storage service.
 
 #### Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `rxdb` | [`RxDB`](../../rxdb/classes/RxDB.md) | `undefined` | The RxDB instance the metadata belongs to. |
-| `options?` | [`RxDBStoragePluginOptions`](../interfaces/RxDBStoragePluginOptions.md) | `{}` | The OPFS root directory and preview limits. |
-| `entityType?` | *typeof* [`StorageFileMeta`](StorageFileMeta.md) | `StorageFileMeta` | The metadata entity type; mainly for tests or custom entities. |
-| `objectUrls?` | [`ObjectUrlRegistry`](ObjectUrlRegistry.md) | `...` | The object URL ownership registry. |
+| Parameter     | Type                                                                    | Default value     | Description                                                    |
+| ------------- | ----------------------------------------------------------------------- | ----------------- | -------------------------------------------------------------- |
+| `rxdb`        | [`RxDB`](../../rxdb/classes/RxDB.md)                                    | `undefined`       | The RxDB instance the metadata belongs to.                     |
+| `options?`    | [`RxDBStoragePluginOptions`](../interfaces/RxDBStoragePluginOptions.md) | `{}`              | The OPFS root directory and preview limits.                    |
+| `entityType?` | _typeof_ [`StorageFileMeta`](StorageFileMeta.md)                        | `StorageFileMeta` | The metadata entity type; mainly for tests or custom entities. |
+| `objectUrls?` | [`ObjectUrlRegistry`](ObjectUrlRegistry.md)                             | `...`             | The object URL ownership registry.                             |
 
 #### Returns
 
@@ -62,7 +62,7 @@ The number of object URLs currently held by the service and not yet revoked.
 
 `number`
 
-***
+---
 
 ### changeEpoch \{#changeepoch\}
 
@@ -99,15 +99,15 @@ Clears the entire storage, or deletes the files and metadata in the subtree of t
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `path?` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `path?`   | `string` |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### createDirectory() \{#createdirectory\}
 
@@ -121,9 +121,9 @@ Creates the directory and any missing parent directories.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `name` | `string` |
+| Parameter  | Type                                                                |
+| ---------- | ------------------------------------------------------------------- |
+| `name`     | `string`                                                            |
 | `options?` | [`CreateDirectoryOptions`](../interfaces/CreateDirectoryOptions.md) |
 
 #### Returns
@@ -132,7 +132,7 @@ Creates the directory and any missing parent directories.
 
 The storage absolute path of the new directory.
 
-***
+---
 
 ### createObjectUrl() \{#createobjecturl\}
 
@@ -149,15 +149,15 @@ Callers should release it via [revokeObjectUrl](#revokeobjecturl);
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `fileId` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `fileId`  | `string` |
 
 #### Returns
 
 `Promise`&lt;`string`&gt;
 
-***
+---
 
 ### delete() \{#delete\}
 
@@ -171,15 +171,15 @@ Deletes the metadata and its OPFS file; runs compensation when either fails.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `fileId` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `fileId`  | `string` |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### destroy() \{#destroy\}
 
@@ -198,7 +198,7 @@ started, and then reclaims resources; repeated calls return the same Promise.
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### download() \{#download\}
 
@@ -215,16 +215,16 @@ phase are thrown unchanged.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `fileId` | `string` |
+| Parameter  | Type                                                  |
+| ---------- | ----------------------------------------------------- |
+| `fileId`   | `string`                                              |
 | `options?` | [`DownloadOptions`](../interfaces/DownloadOptions.md) |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### fetch() \{#fetch\}
 
@@ -237,6 +237,7 @@ Defined in: [packages/rxdb-plugin-storage/src/storage.service.ts:282](https://gi
 Fetches a resource from a remote URL and persists it into OPFS.
 
 Behavior:
+
 - If a cache already exists at `opfsPath`, returns the cached Blob directly with
   no request (permanent cache; no ETag/TTL judgment).
 - Concurrent calls for the same path share the same in-flight Promise; a later
@@ -253,10 +254,10 @@ Behavior:
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `opfsPath` | `string` | The relative path inside OPFS (e.g. `images/foo.png`); used as the cache key after normalization. |
-| `options` | [`FetchRemoteOptions`](../interfaces/FetchRemoteOptions.md) | See [FetchRemoteOptions](../interfaces/FetchRemoteOptions.md). |
+| Parameter  | Type                                                        | Description                                                                                       |
+| ---------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `opfsPath` | `string`                                                    | The relative path inside OPFS (e.g. `images/foo.png`); used as the cache key after normalization. |
+| `options`  | [`FetchRemoteOptions`](../interfaces/FetchRemoteOptions.md) | See [FetchRemoteOptions](../interfaces/FetchRemoteOptions.md).                                    |
 
 #### Returns
 
@@ -270,7 +271,7 @@ On the cached-hit branch: `options.mimeType` only affects **the type of the
 Blob returned this time** and does not modify the stored meta.mimeType; the next
 read via `read(meta.id)` still has the original mime.
 
-***
+---
 
 ### getMeta() \{#getmeta\}
 
@@ -284,15 +285,15 @@ Returns the metadata by ID; returns `null` when it does not exist.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `fileId` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `fileId`  | `string` |
 
 #### Returns
 
 `Promise`&lt;[`StorageFileMeta`](StorageFileMeta.md) \| `null`&gt;
 
-***
+---
 
 ### init() \{#init\}
 
@@ -318,7 +319,7 @@ current environment does not support the selected backend.
 [StorageDestroyedError](StorageDestroyedError.md) is thrown when the service has
 already started destroying.
 
-***
+---
 
 ### list() \{#list\}
 
@@ -336,8 +337,8 @@ Lists metadata.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                          |
+| ---------- | --------------------------------------------- |
 | `options?` | [`ListOptions`](../interfaces/ListOptions.md) |
 
 #### Returns
@@ -355,7 +356,7 @@ passed", and `''` and `'/'` behave identically. The README previously claimed
 this method "only returns the direct files of the current directory", which did
 not match the default behavior and has been corrected in sync.
 
-***
+---
 
 ### listAllMetas() \{#listallmetas\}
 
@@ -376,7 +377,7 @@ Reads all metadata for diagnostic snapshots (US-904 AC#48).
 Ordering is the same as [RxdbFileStorage.list](#list) (by `opfsPath`). The
 snapshot source materializes the "meta" side accordingly.
 
-***
+---
 
 ### listEntries() \{#listentries\}
 
@@ -393,15 +394,15 @@ directories first, then by ascending name.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                          |
+| ---------- | --------------------------------------------- |
 | `options?` | [`ListOptions`](../interfaces/ListOptions.md) |
 
 #### Returns
 
 `Promise`&lt;[`StorageBrowserEntry`](../type-aliases/StorageBrowserEntry.md)[]&gt;
 
-***
+---
 
 ### preview() \{#preview\}
 
@@ -415,9 +416,9 @@ Creates a preview result with explicit dispose ownership.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `fileId` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `fileId`  | `string` |
 
 #### Returns
 
@@ -428,7 +429,7 @@ Creates a preview result with explicit dispose ownership.
 [StoragePreviewLimitError](StoragePreviewLimitError.md) is thrown when the file
 exceeds the configured preview limit.
 
-***
+---
 
 ### read() \{#read\}
 
@@ -442,9 +443,9 @@ Reads the file snapshot corresponding to the metadata.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `fileId` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `fileId`  | `string` |
 
 #### Returns
 
@@ -457,14 +458,14 @@ The content Blob, with `type` always equal to the MIME recorded in the metadata.
 Thrown when the file ID does not exist, the backend file is missing, or the
 service has been destroyed.
 
-***
+---
 
 ### rename() \{#rename\}
 
 ```ts
 rename(
-   fileId, 
-   newName, 
+   fileId,
+   newName,
    options?
 ): Promise<StorageFileMeta>;
 ```
@@ -478,24 +479,24 @@ the target and keeps the source metadata ID.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `fileId` | `string` |
-| `newName` | `string` |
+| Parameter  | Type                                              |
+| ---------- | ------------------------------------------------- |
+| `fileId`   | `string`                                          |
+| `newName`  | `string`                                          |
 | `options?` | [`RenameOptions`](../interfaces/RenameOptions.md) |
 
 #### Returns
 
 `Promise`&lt;[`StorageFileMeta`](StorageFileMeta.md)&gt;
 
-***
+---
 
 ### renameDirectory() \{#renamedirectory\}
 
 ```ts
 renameDirectory(
-   directoryPath, 
-   newName, 
+   directoryPath,
+   newName,
    options?
 ): Promise<string>;
 ```
@@ -509,17 +510,17 @@ deleted and never merged with the source tree.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `directoryPath` | `string` |
-| `newName` | `string` |
-| `options?` | [`RenameOptions`](../interfaces/RenameOptions.md) |
+| Parameter       | Type                                              |
+| --------------- | ------------------------------------------------- |
+| `directoryPath` | `string`                                          |
+| `newName`       | `string`                                          |
+| `options?`      | [`RenameOptions`](../interfaces/RenameOptions.md) |
 
 #### Returns
 
 `Promise`&lt;`string`&gt;
 
-***
+---
 
 ### revokeObjectUrl() \{#revokeobjecturl\}
 
@@ -533,15 +534,15 @@ Releases a URL previously created by [createObjectUrl](#createobjecturl); revoki
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `url` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `url`     | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### runExclusive() \{#runexclusive\}
 
@@ -556,16 +557,16 @@ path-level write operations (US-904 AC#48).
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `fn` | () => `Promise`&lt;`T`&gt; | The critical section |
-| `signal?` | `AbortSignal` | Optional; aborting while waiting for the lock gives up the acquisition |
+| Parameter | Type                       | Description                                                            |
+| --------- | -------------------------- | ---------------------------------------------------------------------- |
+| `fn`      | () => `Promise`&lt;`T`&gt; | The critical section                                                   |
+| `signal?` | `AbortSignal`              | Optional; aborting while waiting for the lock gives up the acquisition |
 
 #### Returns
 
@@ -582,7 +583,7 @@ absences like "metadata present but file missing".
 rejects with `signal.reason` and `fn` never runs, leaving no waiter that would
 acquire the lock later (the snapshot source's `dispose()` / `cancel()` depends on this).
 
-***
+---
 
 ### upload() \{#upload\}
 
@@ -596,9 +597,9 @@ Writes the file into OPFS and commits the metadata.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `file` | `File` |
+| Parameter  | Type                                              |
+| ---------- | ------------------------------------------------- |
+| `file`     | `File`                                            |
 | `options?` | [`UploadOptions`](../interfaces/UploadOptions.md) |
 
 #### Returns
@@ -618,7 +619,7 @@ already exists and overwrite is not enabled.
 [StorageDestroyedError](StorageDestroyedError.md) is thrown when the service has
 already started destroying.
 
-***
+---
 
 ### watch() \{#watch\}
 
@@ -635,9 +636,9 @@ delete, and the stream completes after the service is destroyed.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `fileId` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `fileId`  | `string` |
 
 #### Returns
 

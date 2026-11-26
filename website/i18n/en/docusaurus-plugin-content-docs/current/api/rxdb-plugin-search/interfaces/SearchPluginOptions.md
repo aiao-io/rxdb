@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-search/src/types.ts:31](https://github.com/aia
 
 Global default debounce (ms); default 300, overridden by [SearchOptions.debounce](SearchOptions.md#debounce)
 
-***
+---
 
 ### excludedCollections? \{#excludedcollections\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-search/src/types.ts:37](https://github.com/aia
 
 Collection names globally excluded once the plugin is enabled (do not participate in indexing/querying even if fields are marked searchable)
 
-***
+---
 
 ### pageSize? \{#pagesize\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-plugin-search/src/types.ts:33](https://github.com/aia
 
 Global default page size; default 50, overridden by [SearchOptions.pageSize](SearchOptions.md#pagesize)
 
-***
+---
 
 ### snippetLength? \{#snippetlength\}
 

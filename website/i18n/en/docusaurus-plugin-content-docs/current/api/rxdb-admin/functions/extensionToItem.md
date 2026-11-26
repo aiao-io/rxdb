@@ -10,8 +10,8 @@ Converts an extension declaration into a preference item, rendered on the "Exten
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type                                                          | Description                |
+| ----------- | ------------------------------------------------------------- | -------------------------- |
 | `extension` | [`PreferenceExtension`](../interfaces/PreferenceExtension.md) | The extension declaration. |
 
 ## Returns

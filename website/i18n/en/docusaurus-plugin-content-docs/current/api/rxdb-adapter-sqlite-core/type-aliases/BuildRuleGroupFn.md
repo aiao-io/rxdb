@@ -10,14 +10,14 @@ Function form of `buildRuleGroup`: called back when recursively compiling WHERE 
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rg` | [`RuleGroup`](../../rxdb/type-aliases/RuleGroup.md) |
-| `fam` | `Map`&lt;`string`, `string`&gt; |
-| `em?` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) |
-| `ad?` | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md) |
-| `queryParams?` | [`SQLiteCompatibleType`](SQLiteCompatibleType.md)[] |
-| `scope?` | [`RuleScope`](../interfaces/RuleScope.md) |
+| Parameter      | Type                                                           |
+| -------------- | -------------------------------------------------------------- |
+| `rg`           | [`RuleGroup`](../../rxdb/type-aliases/RuleGroup.md)            |
+| `fam`          | `Map`&lt;`string`, `string`&gt;                                |
+| `em?`          | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md)  |
+| `ad?`          | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md) |
+| `queryParams?` | [`SQLiteCompatibleType`](SQLiteCompatibleType.md)[]            |
+| `scope?`       | [`RuleScope`](../interfaces/RuleScope.md)                      |
 
 ## Returns
 

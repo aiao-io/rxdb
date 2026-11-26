@@ -1,17 +1,17 @@
 # P2PSignalingMessage
 
 ```ts
-type P2PSignalingMessage = 
+type P2PSignalingMessage =
   | {
-  connectionId: string;
-  payload: unknown;
-  type: "offer" | "answer" | "ice";
-}
+      connectionId: string;
+      payload: unknown;
+      type: 'offer' | 'answer' | 'ice';
+    }
   | {
-  connectionId: string;
-  reason: "unauthorized" | "expired";
-  type: "reject";
-};
+      connectionId: string;
+      reason: 'unauthorized' | 'expired';
+      type: 'reject';
+    };
 ```
 
 Defined in: [packages/rxdb-plugin-p2p/src/discovery.ts:15](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-p2p/src/discovery.ts#L15)
@@ -26,7 +26,7 @@ A message relayed through the server's dedicated signaling route.
 {
   connectionId: string;
   payload: unknown;
-  type: "offer" | "answer" | "ice";
+  type: 'offer' | 'answer' | 'ice';
 }
 ```
 
@@ -54,15 +54,15 @@ readonly type: "offer" | "answer" | "ice";
 
 SDP offer / answer or an ICE candidate.
 
-***
+---
 
 ### Type Literal
 
 ```ts
 {
   connectionId: string;
-  reason: "unauthorized" | "expired";
-  type: "reject";
+  reason: 'unauthorized' | 'expired';
+  type: 'reject';
 }
 ```
 

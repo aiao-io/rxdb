@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-board/src/board-shell.ts:42](https://github.co
 
 Text of the confirm button.
 
-***
+---
 
 ### message \{#message\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-board/src/board-shell.ts:40](https://github.co
 
 What will happen after confirming (one sentence).
 
-***
+---
 
 ### title \{#title\}
 

@@ -21,7 +21,7 @@ Which page to start from; non-zero when resuming
 This field is the whole of "resumable pulling": without it, resumption could only pull from the start again,
 and the 900 pages left by an attempt that crashed at page 900 would be rewritten as-is — keeping them would then be pointless.
 
-***
+---
 
 ### intent \{#intent\}
 
@@ -33,7 +33,7 @@ Defined in: [packages/rxdb/src/sync-contract/branch-materialization-source.ts:53
 
 The intent frozen for this attempt; when resuming an old staging, it is byte-for-byte identical to the one frozen on that row
 
-***
+---
 
 ### previousPage \{#previouspage\}
 
@@ -50,7 +50,7 @@ The last page in the staging; `null` when pulling from the start
 The page order only says "which page", not "pulled up to where". The cursor lives in the source side's own payload and is handed back
 as-is on resumption, so the source side does not have to keep a second copy of the progress elsewhere that could drift from the staging.
 
-***
+---
 
 ### targetBranchId \{#targetbranchid\}
 

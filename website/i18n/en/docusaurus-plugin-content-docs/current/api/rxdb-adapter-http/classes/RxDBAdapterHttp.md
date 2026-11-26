@@ -18,19 +18,23 @@ const rxdb = new RxDB({
 });
 // the read engine comes with the plugin (`@aiao/rxdb-plugin-querycache`); if it's missing, `connect()` rejects outright
 rxdb.use(rxDBPluginQueryCache);
-rxdb.adapter('http', db => new RxDBAdapterHttp(db, {
-  baseUrl: 'https://api.example.com',
-  handlers: {
-    onFetchMetadata: {
-      request: ctx => ({ url: `${ctx.entityName}/metadata`, method: 'POST', body: ctx }),
-      parse: body => body as QueryCacheEntityMetadata[]
-    },
-    onFindByIds: {
-      request: ctx => ({ url: `${ctx.entityName}`, method: 'POST', body: { ids: ctx.ids } }),
-      parse: body => body as unknown[]
-    }
-  }
-}));
+rxdb.adapter(
+  'http',
+  db =>
+    new RxDBAdapterHttp(db, {
+      baseUrl: 'https://api.example.com',
+      handlers: {
+        onFetchMetadata: {
+          request: ctx => ({ url: `${ctx.entityName}/metadata`, method: 'POST', body: ctx }),
+          parse: body => body as QueryCacheEntityMetadata[]
+        },
+        onFindByIds: {
+          request: ctx => ({ url: `${ctx.entityName}`, method: 'POST', body: { ids: ctx.ids } }),
+          parse: body => body as unknown[]
+        }
+      }
+    })
+);
 ```
 
 ## Extends
@@ -53,9 +57,9 @@ Defined in: [packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts:172](https://gith
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `rxdb` | [`RxDB`](../../rxdb/classes/RxDB.md) | host RxDB instance |
+| Parameter | Type                                                        | Description                                               |
+| --------- | ----------------------------------------------------------- | --------------------------------------------------------- |
+| `rxdb`    | [`RxDB`](../../rxdb/classes/RxDB.md)                        | host RxDB instance                                        |
 | `options` | [`HttpAdapterOptions`](../interfaces/HttpAdapterOptions.md) | baseUrl, handlers and optional numeric/auth configuration |
 
 #### Returns
@@ -82,7 +86,7 @@ Defined in: [packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts:124](https://gith
 
 The validated numeric configuration, fixed at construction time
 
-***
+---
 
 ### create? \{#create\}
 
@@ -97,15 +101,15 @@ Creates an entity. Only **exists** when `onCreate` is configured.
 #### Type Parameters
 
 | Type Parameter |
-| ------ |
-| `R` |
+| -------------- |
+| `R`            |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter    | Type     |
+| ------------ | -------- |
 | `entityName` | `string` |
-| `data` | `R` |
+| `data`       | `R`      |
 
 #### Returns
 
@@ -117,7 +121,7 @@ Creates an entity. Only **exists** when `onCreate` is configured.
 
 That's why only the type is `declare`d here; the body is attached on demand by `#installWriteDucks()` at construction time.
 
-***
+---
 
 ### delete? \{#delete\}
 
@@ -131,16 +135,16 @@ Deletes entities. Only exists when `onDelete` is configured, for the same reason
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `entityName` | `string` |
-| `ids` | `string` \| `string`[] |
+| Parameter    | Type                   |
+| ------------ | ---------------------- |
+| `entityName` | `string`               |
+| `ids`        | `string` \| `string`[] |
 
 #### Returns
 
 `Observable`&lt;`void`&gt;
 
-***
+---
 
 ### name \{#name\}
 
@@ -156,7 +160,7 @@ The adapter name, identical to the key used when registering with `RxDB.adapter(
 
 [`IRxDBAdapter`](../../rxdb/interfaces/IRxDBAdapter.md).[`name`](../../rxdb/interfaces/IRxDBAdapter.md#name)
 
-***
+---
 
 ### options \{#options\}
 
@@ -168,7 +172,7 @@ Defined in: [packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts:174](https://gith
 
 baseUrl, handlers and optional numeric/auth configuration
 
-***
+---
 
 ### repository\_cache \{#repository_cache\}
 
@@ -182,7 +186,7 @@ Defined in: packages/rxdb/dist/rxdb-adapter.d.ts:349
 
 [`RxDBAdapterRemoteBase`](../../rxdb/classes/RxDBAdapterRemoteBase.md).[`repository_cache`](../../rxdb/classes/RxDBAdapterRemoteBase.md#repository_cache)
 
-***
+---
 
 ### repository\_map \{#repository_map\}
 
@@ -196,7 +200,7 @@ Defined in: packages/rxdb/dist/rxdb-adapter.d.ts:348
 
 [`RxDBAdapterRemoteBase`](../../rxdb/classes/RxDBAdapterRemoteBase.md).[`repository_map`](../../rxdb/classes/RxDBAdapterRemoteBase.md#repository_map)
 
-***
+---
 
 ### rxdb \{#rxdb\}
 
@@ -210,7 +214,7 @@ Defined in: packages/rxdb/dist/rxdb-adapter.d.ts:347
 
 [`RxDBAdapterRemoteBase`](../../rxdb/classes/RxDBAdapterRemoteBase.md).[`rxdb`](../../rxdb/classes/RxDBAdapterRemoteBase.md#rxdb)
 
-***
+---
 
 ### update? \{#update\}
 
@@ -225,16 +229,16 @@ Updates an entity. Only exists when `onUpdate` is configured, for the same reaso
 #### Type Parameters
 
 | Type Parameter |
-| ------ |
-| `R` |
+| -------------- |
+| `R`            |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `entityName` | `string` |
-| `id` | `string` |
-| `data` | `Partial`&lt;`R`&gt; |
+| Parameter    | Type                 |
+| ------------ | -------------------- |
+| `entityName` | `string`             |
+| `id`         | `string`             |
+| `data`       | `Partial`&lt;`R`&gt; |
 
 #### Returns
 
@@ -292,20 +296,20 @@ The remote identity is only used to validate changelog cursors; v1 has no change
 
 [`RxDBAdapterRemoteBase`](../../rxdb/classes/RxDBAdapterRemoteBase.md).[`backendId`](../../rxdb/classes/RxDBAdapterRemoteBase.md#backendid)
 
-***
+---
 
 ### branchExists()? \{#branchexists\}
 
 ```ts
-branchExists?(branchId): Promise<boolean>;
+branchExists ? branchId : Promise<boolean>;
 ```
 
 Defined in: packages/rxdb/dist/rxdb-adapter.d.ts:944
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `branchId` | `string` |
 
 #### Returns
@@ -316,7 +320,7 @@ Defined in: packages/rxdb/dist/rxdb-adapter.d.ts:944
 
 [`RxDBAdapterRemoteBase`](../../rxdb/classes/RxDBAdapterRemoteBase.md).[`branchExists`](../../rxdb/classes/RxDBAdapterRemoteBase.md#branchexists)
 
-***
+---
 
 ### connect() \{#connect\}
 
@@ -350,7 +354,7 @@ HttpUnsupportedWireTypeError a registered entity declares bigint / binary fields
 
 [`IRxDBAdapter`](../../rxdb/interfaces/IRxDBAdapter.md).[`connect`](../../rxdb/interfaces/IRxDBAdapter.md#connect)
 
-***
+---
 
 ### disconnect() \{#disconnect\}
 
@@ -382,7 +386,7 @@ But [RxDBAdapterHttp.changeFeedEnabled](#changefeedenabled) is **left alone**: a
 
 [`IRxDBAdapter`](../../rxdb/interfaces/IRxDBAdapter.md).[`disconnect`](../../rxdb/interfaces/IRxDBAdapter.md#disconnect)
 
-***
+---
 
 ### fetchMetadata() \{#fetchmetadata\}
 
@@ -396,10 +400,10 @@ Fetches metadata for all entities matching `query`.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entityName` | `string` | entity name |
-| `query` | [`RuleGroup`](../../rxdb/type-aliases/RuleGroup.md)&lt;`unknown`&gt; | the query condition, passed through to the handler as-is |
+| Parameter    | Type                                                                 | Description                                              |
+| ------------ | -------------------------------------------------------------------- | -------------------------------------------------------- |
+| `entityName` | `string`                                                             | entity name                                              |
+| `query`      | [`RuleGroup`](../../rxdb/type-aliases/RuleGroup.md)&lt;`unknown`&gt; | the query condition, passed through to the handler as-is |
 
 #### Returns
 
@@ -413,7 +417,7 @@ Fetches metadata for all entities matching `query`.
 
 [`RxDBAdapterRemoteBase`](../../rxdb/classes/RxDBAdapterRemoteBase.md).[`fetchMetadata`](../../rxdb/classes/RxDBAdapterRemoteBase.md#fetchmetadata)
 
-***
+---
 
 ### findByIds() \{#findbyids\}
 
@@ -427,16 +431,16 @@ Batch-fetches full rows by a list of ids.
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-r"></a> `R` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entityName` | `string` | entity name |
-| `ids` | `string`[] | the list of ids to fetch |
+| Parameter    | Type       | Description              |
+| ------------ | ---------- | ------------------------ |
+| `entityName` | `string`   | entity name              |
+| `ids`        | `string`[] | the list of ids to fetch |
 
 #### Returns
 
@@ -450,7 +454,7 @@ Same emission contract as [RxDBAdapterHttp.fetchMetadata](#fetchmetadata) (AC#33
 
 [`RxDBAdapterRemoteBase`](../../rxdb/classes/RxDBAdapterRemoteBase.md).[`findByIds`](../../rxdb/classes/RxDBAdapterRemoteBase.md#findbyids)
 
-***
+---
 
 ### getChangeCount() \{#getchangecount\}
 
@@ -466,8 +470,8 @@ Defined in: [packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts:494](https://gith
 #### Returns
 
 `Promise`&lt;\{
-  `count`: `number`;
-  `latestChangeId`: `number`;
+`count`: `number`;
+`latestChangeId`: `number`;
 \}&gt;
 
 #### Throws
@@ -478,7 +482,7 @@ HttpChangelogUnsupportedError always (returning `0` would likewise be read as "n
 
 [`RxDBAdapterRemoteBase`](../../rxdb/classes/RxDBAdapterRemoteBase.md).[`getChangeCount`](../../rxdb/classes/RxDBAdapterRemoteBase.md#getchangecount)
 
-***
+---
 
 ### getRepository() \{#getrepository\}
 
@@ -490,10 +494,10 @@ Defined in: [packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts:442](https://gith
 
 #### Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-e"></a> `E` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) | - |
-| <a id="type-parameter-rt"></a> `RT` *extends* [`IRepository`](../../rxdb/interfaces/IRepository.md)&lt;`E`&gt; | [`IRepository`](../../rxdb/interfaces/IRepository.md)&lt;`E`&gt; |
+| Type Parameter                                                                                                 | Default type                                                     |
+| -------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| <a id="type-parameter-e"></a> `E` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md)              | -                                                                |
+| <a id="type-parameter-rt"></a> `RT` _extends_ [`IRepository`](../../rxdb/interfaces/IRepository.md)&lt;`E`&gt; | [`IRepository`](../../rxdb/interfaces/IRepository.md)&lt;`E`&gt; |
 
 #### Returns
 
@@ -517,7 +521,7 @@ This group doesn't even declare parameters (same as [RxDBAdapterHttp.pullChanges
 
 [`RxDBAdapterRemoteBase`](../../rxdb/classes/RxDBAdapterRemoteBase.md).[`getRepository`](../../rxdb/classes/RxDBAdapterRemoteBase.md#getrepository)
 
-***
+---
 
 ### isTableExisted() \{#istableexisted\}
 
@@ -531,8 +535,8 @@ Answers by **remote resource reachability**, never fudges with a constant `true`
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter    | Type                                                  | Description               |
+| ------------ | ----------------------------------------------------- | ------------------------- |
 | `EntityType` | [`EntityType`](../../rxdb/type-aliases/EntityType.md) | the entity class to check |
 
 #### Returns
@@ -549,7 +553,7 @@ When `onIsTableExisted` is not configured, reuses `onFetchMetadata` with a `limi
 
 [`IRxDBAdapter`](../../rxdb/interfaces/IRxDBAdapter.md).[`isTableExisted`](../../rxdb/interfaces/IRxDBAdapter.md#istableexisted)
 
-***
+---
 
 ### mergeChanges() \{#mergechanges\}
 
@@ -571,7 +575,7 @@ HttpChangelogUnsupportedError always
 
 [`RxDBAdapterRemoteBase`](../../rxdb/classes/RxDBAdapterRemoteBase.md).[`mergeChanges`](../../rxdb/classes/RxDBAdapterRemoteBase.md#mergechanges)
 
-***
+---
 
 ### mutations() \{#mutations\}
 
@@ -583,9 +587,9 @@ Defined in: [packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts:463](https://gith
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-e-1"></a> `E` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                      |
+| --------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-e-1"></a> `E` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 #### Returns
 
@@ -603,7 +607,7 @@ Doesn't affect QueryCache bulk writes: once `EntityManager.mutations` classifies
 
 [`IRxDBAdapter`](../../rxdb/interfaces/IRxDBAdapter.md).[`mutations`](../../rxdb/interfaces/IRxDBAdapter.md#mutations)
 
-***
+---
 
 ### pullBranches()? \{#pullbranches\}
 
@@ -621,7 +625,7 @@ Defined in: packages/rxdb/dist/rxdb-adapter.d.ts:945
 
 [`RxDBAdapterRemoteBase`](../../rxdb/classes/RxDBAdapterRemoteBase.md).[`pullBranches`](../../rxdb/classes/RxDBAdapterRemoteBase.md#pullbranches)
 
-***
+---
 
 ### pullChanges() \{#pullchanges\}
 
@@ -647,14 +651,14 @@ Returning an empty array **counts as failure**: Full-sync would read it as "no r
 
 [`RxDBAdapterRemoteBase`](../../rxdb/classes/RxDBAdapterRemoteBase.md).[`pullChanges`](../../rxdb/classes/RxDBAdapterRemoteBase.md#pullchanges)
 
-***
+---
 
 ### pullChangesBatch()? \{#pullchangesbatch\}
 
 ```ts
 pullChangesBatch?(
-   requests, 
-   limit, 
+   requests,
+   limit,
    branchIds?
 ): Promise<RemoteChange[]>;
 ```
@@ -667,11 +671,11 @@ Each entity may have a different sinceId (watermark); server-side OR filtering f
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `requests` | [`PullBatchRequest`](../../rxdb/interfaces/PullBatchRequest.md)[] | per-entity pull request (namespace + entity name + sinceId) |
-| `limit` | `number` | maximum number to pull |
-| `branchIds?` | `string`[] | list of branch IDs (ancestor branches supported) |
+| Parameter    | Type                                                              | Description                                                 |
+| ------------ | ----------------------------------------------------------------- | ----------------------------------------------------------- |
+| `requests`   | [`PullBatchRequest`](../../rxdb/interfaces/PullBatchRequest.md)[] | per-entity pull request (namespace + entity name + sinceId) |
+| `limit`      | `number`                                                          | maximum number to pull                                      |
+| `branchIds?` | `string`[]                                                        | list of branch IDs (ancestor branches supported)            |
 
 #### Returns
 
@@ -683,37 +687,39 @@ array of change records, ordered by id ASC
 
 [`RxDBAdapterRemoteBase`](../../rxdb/classes/RxDBAdapterRemoteBase.md).[`pullChangesBatch`](../../rxdb/classes/RxDBAdapterRemoteBase.md#pullchangesbatch)
 
-***
+---
 
 ### pushBranches()? \{#pushbranches\}
 
 ```ts
-pushBranches?(branches): Promise<{
-  skipped: string[];
-  synced: number;
-}>;
+pushBranches ? branches : (
+  Promise<{
+    skipped: string[];
+    synced: number;
+  }>
+);
 ```
 
 Defined in: packages/rxdb/dist/rxdb-adapter.d.ts:940
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                  |
+| ---------- | ------------------------------------- |
 | `branches` | `Record`&lt;`string`, `unknown`&gt;[] |
 
 #### Returns
 
 `Promise`&lt;\{
-  `skipped`: `string`[];
-  `synced`: `number`;
+`skipped`: `string`[];
+`synced`: `number`;
 \}&gt;
 
 #### Inherited from
 
 [`RxDBAdapterRemoteBase`](../../rxdb/classes/RxDBAdapterRemoteBase.md).[`pushBranches`](../../rxdb/classes/RxDBAdapterRemoteBase.md#pushbranches)
 
-***
+---
 
 ### removeMany() \{#removemany\}
 
@@ -725,9 +731,9 @@ Defined in: [packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts:452](https://gith
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-e-2"></a> `E` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                      |
+| --------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-e-2"></a> `E` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 #### Returns
 
@@ -741,7 +747,7 @@ HttpUnsupportedOperationError always (same as [RxDBAdapterHttp.saveMany](#savema
 
 [`IRxDBAdapter`](../../rxdb/interfaces/IRxDBAdapter.md).[`removeMany`](../../rxdb/interfaces/IRxDBAdapter.md#removemany)
 
-***
+---
 
 ### repository() \{#repository\}
 
@@ -753,15 +759,15 @@ Defined in: packages/rxdb/dist/rxdb-adapter.d.ts:352
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-rt-1"></a> `RT` *extends* [`RepositoryInstance`](../../rxdb/interfaces/RepositoryInstance.md)&lt;[`EntityType`](../../rxdb/type-aliases/EntityType.md)&gt; |
+| Type Parameter                                                                                                                                                                   |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-rt-1"></a> `RT` _extends_ [`RepositoryInstance`](../../rxdb/interfaces/RepositoryInstance.md)&lt;[`EntityType`](../../rxdb/type-aliases/EntityType.md)&gt; |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `repositoryName` | `string` |
+| Parameter         | Type                                                                                                                     |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `repositoryName`  | `string`                                                                                                                 |
 | `RepositoryClass` | [`AdapterRepositoryConstructor`](../../rxdb/type-aliases/AdapterRepositoryConstructor.md)&lt;`RxDBAdapterHttp`, `RT`&gt; |
 
 #### Returns
@@ -772,7 +778,7 @@ Defined in: packages/rxdb/dist/rxdb-adapter.d.ts:352
 
 [`RxDBAdapterRemoteBase`](../../rxdb/classes/RxDBAdapterRemoteBase.md).[`repository`](../../rxdb/classes/RxDBAdapterRemoteBase.md#repository)
 
-***
+---
 
 ### saveMany() \{#savemany\}
 
@@ -784,9 +790,9 @@ Defined in: [packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts:447](https://gith
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-e-3"></a> `E` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                      |
+| --------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-e-3"></a> `E` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 #### Returns
 
@@ -800,7 +806,7 @@ HttpUnsupportedOperationError always (the Full/Filter write path; v1 has no Full
 
 [`IRxDBAdapter`](../../rxdb/interfaces/IRxDBAdapter.md).[`saveMany`](../../rxdb/interfaces/IRxDBAdapter.md#savemany)
 
-***
+---
 
 ### startChangeFeed() \{#startchangefeed\}
 
@@ -832,7 +838,7 @@ HttpDisconnectedError never `connect()`ed, or already `disconnect()`ed
 
 HttpUnsupportedOperationError `changeFeed` not configured
 
-***
+---
 
 ### stopChangeFeed() \{#stopchangefeed\}
 
@@ -858,7 +864,7 @@ Unlike [RxDBAdapterHttp.startChangeFeed](#startchangefeed), this method **doesn'
 
 HttpUnsupportedOperationError `changeFeed` not configured
 
-***
+---
 
 ### version() \{#version\}
 

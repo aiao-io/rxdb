@@ -1,14 +1,11 @@
 # DevToolsRxDB
 
 ```ts
-type DevToolsRxDB = Pick<RxDB, 
-  | "addEventListener"
-  | "removeEventListener"
-  | "disconnectAll"
-  | "getAdapter"
-  | "version"
-  | "config"
-  | "entityManager"> & object;
+type DevToolsRxDB = Pick<
+  RxDB,
+  'addEventListener' | 'removeEventListener' | 'disconnectAll' | 'getAdapter' | 'version' | 'config' | 'entityManager'
+> &
+  object;
 ```
 
 Defined in: [connector-types.ts:23](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/connector-types.ts#L23)

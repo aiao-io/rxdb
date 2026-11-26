@@ -16,7 +16,7 @@ Defined in: [context.tsx:19](https://github.com/aiao-io/rxdb/blob/b5232040240cf1
 
 The subtree.
 
-***
+---
 
 ### shell \{#shell\}
 

@@ -8,10 +8,10 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/query/join\_sql.ts:47](https:
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `context` | [`JoinContext`](../interfaces/JoinContext.md) |
-| `relationKey` | `string` |
+| Parameter     | Type                                          |
+| ------------- | --------------------------------------------- |
+| `context`     | [`JoinContext`](../interfaces/JoinContext.md) |
+| `relationKey` | `string`                                      |
 
 ## Returns
 

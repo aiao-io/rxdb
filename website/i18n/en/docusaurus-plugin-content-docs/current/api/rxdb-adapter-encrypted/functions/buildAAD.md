@@ -13,15 +13,15 @@ table, column, record and kid all participate in authentication; no string conte
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `parts` | \{ `columnName`: `string`; `databaseNamespace`: `string`; `entityNamespace`: `string`; `kid`: `string`; `primaryKey`: [`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md); `tableName`: `string`; \} |
-| `parts.columnName` | `string` |
-| `parts.databaseNamespace` | `string` |
-| `parts.entityNamespace` | `string` |
-| `parts.kid` | `string` |
-| `parts.primaryKey` | [`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md) |
-| `parts.tableName` | `string` |
+| Parameter                 | Type                                                                                                                                                                                                       |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `parts`                   | \{ `columnName`: `string`; `databaseNamespace`: `string`; `entityNamespace`: `string`; `kid`: `string`; `primaryKey`: [`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md); `tableName`: `string`; \} |
+| `parts.columnName`        | `string`                                                                                                                                                                                                   |
+| `parts.databaseNamespace` | `string`                                                                                                                                                                                                   |
+| `parts.entityNamespace`   | `string`                                                                                                                                                                                                   |
+| `parts.kid`               | `string`                                                                                                                                                                                                   |
+| `parts.primaryKey`        | [`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)                                                                                                                                                  |
+| `parts.tableName`         | `string`                                                                                                                                                                                                   |
 
 ## Returns
 

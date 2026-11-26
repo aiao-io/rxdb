@@ -10,8 +10,8 @@ Board shell (US-537 / US-539 AC#4 / #5): startup choice (create an empty board /
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter           | Type                                                  |
+| ------------------- | ----------------------------------------------------- |
 | `__namedParameters` | [`BoardShellProps`](../interfaces/BoardShellProps.md) |
 
 ## Returns

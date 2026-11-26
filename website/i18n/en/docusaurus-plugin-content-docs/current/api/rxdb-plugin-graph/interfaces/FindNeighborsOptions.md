@@ -1,5 +1,5 @@
 ---
-sidebar_label: "FindNeighborsOptions⟨T, U, V⟩"
+sidebar_label: 'FindNeighborsOptions⟨T, U, V⟩'
 ---
 
 # FindNeighborsOptions`<T, U, V>`
@@ -10,11 +10,11 @@ Graph neighbor query options (basic)
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) | [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
-| <a id="type-parameter-u"></a> `U` | [`GraphWhere`](../type-aliases/GraphWhere.md)&lt;`T`&gt; |
-| <a id="type-parameter-v"></a> `V` *extends* [`EdgeFilterOptions`](../type-aliases/EdgeFilterOptions.md) | [`EdgeFilterOptions`](../type-aliases/EdgeFilterOptions.md) |
+| Type Parameter                                                                                          | Default type                                                |
+| ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md)       | [`EntityType`](../../rxdb/type-aliases/EntityType.md)       |
+| <a id="type-parameter-u"></a> `U`                                                                       | [`GraphWhere`](../type-aliases/GraphWhere.md)&lt;`T`&gt;    |
+| <a id="type-parameter-v"></a> `V` _extends_ [`EdgeFilterOptions`](../type-aliases/EdgeFilterOptions.md) | [`EdgeFilterOptions`](../type-aliases/EdgeFilterOptions.md) |
 
 ## Properties
 
@@ -27,6 +27,7 @@ direction?: "in" | "out" | "both";
 Defined in: [rxdb-plugin-graph/src/graph-repository.interface.ts:170](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-graph/src/graph-repository.interface.ts#L170)
 
 Query direction
+
 - 'in': in-edge neighbors (nodes pointing at the current node)
 - 'out': out-edge neighbors (nodes pointed to from the current node)
 - 'both': neighbors in both directions (default)
@@ -34,10 +35,10 @@ Query direction
 #### Default
 
 ```ts
-'both'
+'both';
 ```
 
-***
+---
 
 ### edgeWhere? \{#edgewhere\}
 
@@ -54,25 +55,25 @@ Applied to the properties of connecting edges (weight, custom properties, etc.)
 
 ```typescript
 // Only query high-weight neighbors (requires weight enabled)
-edgeWhere: `{ weight: { min: 5 } }`
+edgeWhere: `{ weight: { min: 5 } }`;
 
 // Only query relations of a specific category
-edgeWhere: `{ properties: { category: 'business' } }`
+edgeWhere: `{ properties: { category: 'business' } }`;
 ```
 
-***
+---
 
 ### entityId \{#entityid\}
 
 ```ts
-entityId: EntityStaticType<T, "idType">;
+entityId: EntityStaticType<T, 'idType'>;
 ```
 
 Defined in: [rxdb-plugin-graph/src/graph-repository.interface.ts:161](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-graph/src/graph-repository.interface.ts#L161)
 
 ID of the starting node
 
-***
+---
 
 ### level? \{#level\}
 
@@ -83,6 +84,7 @@ level?: number;
 Defined in: [rxdb-plugin-graph/src/graph-repository.interface.ts:203](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-graph/src/graph-repository.interface.ts#L203)
 
 Maximum number of hops (excludes the starting node)
+
 - 0: query no neighbors (findNeighbors returns an empty array, countNeighbors returns 0)
 - 1: only direct neighbors (1 hop)
 - 2: 1-hop + 2-hop neighbors
@@ -91,7 +93,7 @@ Maximum number of hops (excludes the starting node)
 #### Default
 
 ```ts
-1
+1;
 ```
 
 #### Minimum
@@ -113,18 +115,18 @@ Maximum number of hops (excludes the starting node)
 
 ```typescript
 // Find direct friends (1 hop)
-findNeighbors({ entityId: 'user1', level: 1 })
+findNeighbors({ entityId: 'user1', level: 1 });
 // returns: [{ node: friend1, edge: {...}, level: 1 }, ...]
 
 // Find friends of friends (2nd-degree connections, 1 hop + 2 hops)
-findNeighbors({ entityId: 'user1', level: 2 })
+findNeighbors({ entityId: 'user1', level: 2 });
 // returns: [
 //   { node: friend1, edge: {...}, level: 1 },      // 1 hop
 //   { node: friendOfFriend, edge: {...}, level: 2 } // 2 hops
 // ]
 ```
 
-***
+---
 
 ### limit? \{#limit\}
 
@@ -139,14 +141,14 @@ Maximum number of nodes returned by findNeighbors; countNeighbors ignores this f
 #### Default
 
 ```ts
-1000
+1000;
 ```
 
 #### Maximum
 
 10000
 
-***
+---
 
 ### where? \{#where\}
 

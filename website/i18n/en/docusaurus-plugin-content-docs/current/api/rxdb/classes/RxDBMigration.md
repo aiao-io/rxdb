@@ -35,10 +35,10 @@ Execution time
 #### Default
 
 ```ts
-new Date()
+new Date();
 ```
 
-***
+---
 
 ### id \{#id\}
 
@@ -50,7 +50,7 @@ Defined in: [packages/rxdb/src/system/migration.ts:380](https://github.com/aiao-
 
 id
 
-***
+---
 
 ### name \{#name\}
 
@@ -62,7 +62,7 @@ Defined in: [packages/rxdb/src/system/migration.ts:389](https://github.com/aiao-
 
 Name
 
-***
+---
 
 ### remove \{#remove\}
 
@@ -78,7 +78,7 @@ Delete
 
 `Promise`&lt;`RxDBMigration`&gt;
 
-***
+---
 
 ### reset \{#reset\}
 
@@ -94,7 +94,7 @@ Reset data
 
 `void`
 
-***
+---
 
 ### save \{#save\}
 
@@ -110,7 +110,7 @@ Save
 
 `Promise`&lt;`RxDBMigration`&gt;
 
-***
+---
 
 ### \[ENTITY\_STATIC\_TYPES\] \{#entity_static_types\}
 
@@ -120,7 +120,7 @@ static [ENTITY_STATIC_TYPES]: RxDBMigrationStaticTypes;
 
 Defined in: [packages/rxdb/src/system/migration.ts:375](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/migration.ts#L375)
 
-***
+---
 
 ### count \{#count\}
 
@@ -134,15 +134,15 @@ count query
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | [`CountOptions`](../interfaces/CountOptions.md)&lt;*typeof* `RxDBMigration`, [`RxDBMigrationRuleGroup`](../type-aliases/RxDBMigrationRuleGroup.md)&gt; | Query options |
+| Parameter | Type                                                                                                                                                   | Description   |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- |
+| `options` | [`CountOptions`](../interfaces/CountOptions.md)&lt;_typeof_ `RxDBMigration`, [`RxDBMigrationRuleGroup`](../type-aliases/RxDBMigrationRuleGroup.md)&gt; | Query options |
 
 #### Returns
 
 `Observable`&lt;`number`&gt;
 
-***
+---
 
 ### find \{#find\}
 
@@ -156,15 +156,15 @@ find query
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | [`FindOptions`](../interfaces/FindOptions.md)&lt;*typeof* `RxDBMigration`, [`RxDBMigrationRuleGroup`](../type-aliases/RxDBMigrationRuleGroup.md), [`RxDBMigrationOrderByField`](../type-aliases/RxDBMigrationOrderByField.md)&gt; | Query options |
+| Parameter | Type                                                                                                                                                                                                                              | Description   |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| `options` | [`FindOptions`](../interfaces/FindOptions.md)&lt;_typeof_ `RxDBMigration`, [`RxDBMigrationRuleGroup`](../type-aliases/RxDBMigrationRuleGroup.md), [`RxDBMigrationOrderByField`](../type-aliases/RxDBMigrationOrderByField.md)&gt; | Query options |
 
 #### Returns
 
 `Observable`&lt;`RxDBMigration`[]&gt;
 
-***
+---
 
 ### findAll \{#findall\}
 
@@ -178,15 +178,15 @@ findAll query
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | [`FindAllOptions`](../interfaces/FindAllOptions.md)&lt;*typeof* `RxDBMigration`, [`RxDBMigrationRuleGroup`](../type-aliases/RxDBMigrationRuleGroup.md), [`RxDBMigrationOrderByField`](../type-aliases/RxDBMigrationOrderByField.md)&gt; | Query options |
+| Parameter | Type                                                                                                                                                                                                                                    | Description   |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| `options` | [`FindAllOptions`](../interfaces/FindAllOptions.md)&lt;_typeof_ `RxDBMigration`, [`RxDBMigrationRuleGroup`](../type-aliases/RxDBMigrationRuleGroup.md), [`RxDBMigrationOrderByField`](../type-aliases/RxDBMigrationOrderByField.md)&gt; | Query options |
 
 #### Returns
 
 `Observable`&lt;`RxDBMigration`[]&gt;
 
-***
+---
 
 ### findByCursor \{#findbycursor\}
 
@@ -200,15 +200,15 @@ findByCursor query
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | [`FindByCursorOptions`](../interfaces/FindByCursorOptions.md)&lt;*typeof* `RxDBMigration`, [`RxDBMigrationRuleGroup`](../type-aliases/RxDBMigrationRuleGroup.md), [`RxDBMigrationOrderByField`](../type-aliases/RxDBMigrationOrderByField.md)&gt; | Query options |
+| Parameter | Type                                                                                                                                                                                                                                              | Description   |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| `options` | [`FindByCursorOptions`](../interfaces/FindByCursorOptions.md)&lt;_typeof_ `RxDBMigration`, [`RxDBMigrationRuleGroup`](../type-aliases/RxDBMigrationRuleGroup.md), [`RxDBMigrationOrderByField`](../type-aliases/RxDBMigrationOrderByField.md)&gt; | Query options |
 
 #### Returns
 
 `Observable`&lt;`RxDBMigration`[]&gt;
 
-***
+---
 
 ### findOne \{#findone\}
 
@@ -222,15 +222,15 @@ findOne query
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | [`FindOneOptions`](../interfaces/FindOneOptions.md)&lt;*typeof* `RxDBMigration`, [`RxDBMigrationRuleGroup`](../type-aliases/RxDBMigrationRuleGroup.md), [`RxDBMigrationOrderByField`](../type-aliases/RxDBMigrationOrderByField.md)&gt; | Query options |
+| Parameter | Type                                                                                                                                                                                                                                    | Description   |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| `options` | [`FindOneOptions`](../interfaces/FindOneOptions.md)&lt;_typeof_ `RxDBMigration`, [`RxDBMigrationRuleGroup`](../type-aliases/RxDBMigrationRuleGroup.md), [`RxDBMigrationOrderByField`](../type-aliases/RxDBMigrationOrderByField.md)&gt; | Query options |
 
 #### Returns
 
 `Observable`&lt;`RxDBMigration` \| `null`&gt;
 
-***
+---
 
 ### findOneOrFail \{#findoneorfail\}
 
@@ -244,15 +244,15 @@ findOneOrFail query
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | [`FindOneOrFailOptions`](../interfaces/FindOneOrFailOptions.md)&lt;*typeof* `RxDBMigration`, [`RxDBMigrationRuleGroup`](../type-aliases/RxDBMigrationRuleGroup.md), [`RxDBMigrationOrderByField`](../type-aliases/RxDBMigrationOrderByField.md)&gt; | Query options |
+| Parameter | Type                                                                                                                                                                                                                                                | Description   |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| `options` | [`FindOneOrFailOptions`](../interfaces/FindOneOrFailOptions.md)&lt;_typeof_ `RxDBMigration`, [`RxDBMigrationRuleGroup`](../type-aliases/RxDBMigrationRuleGroup.md), [`RxDBMigrationOrderByField`](../type-aliases/RxDBMigrationOrderByField.md)&gt; | Query options |
 
 #### Returns
 
 `Observable`&lt;`RxDBMigration`&gt;
 
-***
+---
 
 ### get \{#get\}
 
@@ -266,8 +266,8 @@ get query
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type     | Description   |
+| --------- | -------- | ------------- |
 | `options` | `number` | Query options |
 
 #### Returns

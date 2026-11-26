@@ -9,6 +9,7 @@ Defined in: [packages/rxdb/src/entity/metadata-transition.ts:104](https://github
 Converts metadata options (metadataOptions) into entity metadata (metadata).
 
 The function performs the following operations:
+
 1. Collects all metadata options on the entity's prototype chain
 2. Creates the property map, relation map, and index map
 3. Handles entity inheritance relations
@@ -17,10 +18,10 @@ The function performs the following operations:
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `metadataOptions` | [`EntityMetadataOptions`](../interfaces/EntityMetadataOptions.md) | Entity metadata options, containing the basic configuration of the entity |
-| `options?` | \| [`EntityType`](../type-aliases/EntityType.md) \| [`EntityMetadataOptions`](../interfaces/EntityMetadataOptions.md) \| [`AbstractEntityType`](../type-aliases/AbstractEntityType.md) \| [`EntityMetadataOptions`](../interfaces/EntityMetadataOptions.md)[] | Optional target class, used to obtain metadata on the prototype chain |
+| Parameter         | Type                                                                                                                                                                                                                                                          | Description                                                               |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `metadataOptions` | [`EntityMetadataOptions`](../interfaces/EntityMetadataOptions.md)                                                                                                                                                                                             | Entity metadata options, containing the basic configuration of the entity |
+| `options?`        | \| [`EntityType`](../type-aliases/EntityType.md) \| [`EntityMetadataOptions`](../interfaces/EntityMetadataOptions.md) \| [`AbstractEntityType`](../type-aliases/AbstractEntityType.md) \| [`EntityMetadataOptions`](../interfaces/EntityMetadataOptions.md)[] | Optional target class, used to obtain metadata on the prototype chain     |
 
 ## Returns
 

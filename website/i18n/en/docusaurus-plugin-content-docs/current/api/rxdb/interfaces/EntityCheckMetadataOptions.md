@@ -8,10 +8,12 @@ Entity-level CHECK declaration.
 
 ```typescript
 @Entity({
-  checks: [{
-    name: 'unit_range',
-    rule: `{ combinator: 'and', rules: [{ field: 'unitFrom', operator: '<=', ref: 'unitTo' }] }`
-  }]
+  checks: [
+    {
+      name: 'unit_range',
+      rule: `{ combinator: 'and', rules: [{ field: 'unitFrom', operator: '<=', ref: 'unitTo' }] }`
+    }
+  ]
 })
 class Item extends EntityBase {}
 ```
@@ -28,7 +30,7 @@ Defined in: [packages/rxdb/src/entity/check-constraint.ts:118](https://github.co
 
 The constraint name given by the author, restricted to `[a-z][a-z0-9_]*`; it forms the middle segment of the deterministic constraint name.
 
-***
+---
 
 ### rule \{#rule\}
 

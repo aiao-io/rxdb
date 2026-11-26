@@ -22,7 +22,7 @@ Defined in: [types.ts:174](https://github.com/aiao-io/rxdb/blob/b5232040240cf1cc
 
 The failure reason; `null` on success.
 
-***
+---
 
 ### requestId \{#requestid\}
 
@@ -34,7 +34,7 @@ Defined in: [types.ts:170](https://github.com/aiao-io/rxdb/blob/b5232040240cf1cc
 
 Echoes the request's `requestId`, used to match the result back to the requester.
 
-***
+---
 
 ### status \{#status\}
 
@@ -46,7 +46,7 @@ Defined in: [types.ts:176](https://github.com/aiao-io/rxdb/blob/b5232040240cf1cc
 
 Which path the disconnect took.
 
-***
+---
 
 ### success \{#success\}
 

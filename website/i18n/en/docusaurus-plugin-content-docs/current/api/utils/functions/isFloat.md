@@ -10,9 +10,9 @@ Checks whether a value is a float (finite and with a fractional part).
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `value`   | `unknown` |
 
 ## Returns
 

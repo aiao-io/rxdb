@@ -20,10 +20,10 @@ Used within the tree structure; indicates whether the current node has child nod
 #### Default
 
 ```ts
-false
+false;
 ```
 
-***
+---
 
 ### type? \{#type\}
 
@@ -36,16 +36,18 @@ Defined in: [rxdb-plugin-tree/src/entity/tree-metadata.interface.ts:27](https://
 Tree structure type
 
 Currently only adjacency-list is supported; other models may be supported in the future:
+
 - 'closure-table': closure table model
 - 'nested-set': nested set model
 - 'materialized-path': materialized path model
 
 References:
+
 - https://www.slideshare.net/slideshow/models-for-hierarchical-data/4179181
 - https://schinckel.net/2014/09/13/long-live-adjacency-lists/
 
 #### Default
 
 ```ts
-'adjacency-list'
+'adjacency-list';
 ```

@@ -20,9 +20,9 @@ Defined in: [packages/rxdb-adapter-encrypted/src/keyring.ts:233](https://github.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `opts` | `CreateKeyringOptions` |
+| Parameter | Type                   |
+| --------- | ---------------------- |
+| `opts`    | `CreateKeyringOptions` |
 
 #### Returns
 
@@ -58,7 +58,7 @@ Whether no usable in-memory key is currently available.
 
 `boolean`
 
-***
+---
 
 ### kid \{#kid\}
 
@@ -76,7 +76,7 @@ Persistent ID of the currently unlocked key; `null` when locked.
 
 `string` \| `null`
 
-***
+---
 
 ### lockChange$ \{#lockchange\}
 
@@ -108,9 +108,9 @@ Returns the plaintext bytes after verifying the envelope, kid and AAD.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `args` | [`DecryptArgs`](../interfaces/DecryptArgs.md) |
+| Parameter | Type                                          |
+| --------- | --------------------------------------------- |
+| `args`    | [`DecryptArgs`](../interfaces/DecryptArgs.md) |
 
 #### Returns
 
@@ -124,7 +124,7 @@ Returns the plaintext bytes after verifying the envelope, kid and AAD.
 
 [EncryptedDecryptError](EncryptedDecryptError.md) Corrupted envelope, kid/AAD mismatch, authentication failure, or legacy reads not authorized
 
-***
+---
 
 ### encrypt() \{#encrypt\}
 
@@ -138,9 +138,9 @@ Encrypts with a random 96-bit IV and a v2 AAD binding the database, entity, tabl
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `args` | [`EncryptArgs`](../interfaces/EncryptArgs.md) |
+| Parameter | Type                                          |
+| --------- | --------------------------------------------- |
+| `args`    | [`EncryptArgs`](../interfaces/EncryptArgs.md) |
 
 #### Returns
 
@@ -150,7 +150,7 @@ Encrypts with a random 96-bit IV and a v2 AAD binding the database, entity, tabl
 
 [EncryptedLockedError](EncryptedLockedError.md) Already locked at call time, or the key was cleared before the operation completed (`lock()` or a new `unlock()`)
 
-***
+---
 
 ### isInitialized() \{#isinitialized\}
 
@@ -166,7 +166,7 @@ Whether the keyring singleton row has been initialized. This check neither unloc
 
 `Promise`&lt;`boolean`&gt;
 
-***
+---
 
 ### lock() \{#lock\}
 
@@ -182,7 +182,7 @@ Clears the in-memory key, cancels the idle timer, and cancels sensitive operatio
 
 `void`
 
-***
+---
 
 ### touch() \{#touch\}
 
@@ -200,7 +200,7 @@ Exposed for tests or advanced callers to extend the idle window without performi
 
 `void`
 
-***
+---
 
 ### unlock() \{#unlock\}
 
@@ -214,9 +214,9 @@ Unlocks serially and verifies the persisted verifier.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `opts` | [`UnlockOptions`](../type-aliases/UnlockOptions.md) |
+| Parameter | Type                                                |
+| --------- | --------------------------------------------------- |
+| `opts`    | [`UnlockOptions`](../type-aliases/UnlockOptions.md) |
 
 #### Returns
 

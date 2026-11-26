@@ -14,7 +14,7 @@ readonly cards: readonly object[];
 
 Defined in: [packages/rxdb-plugin-board/src/drop-resolution.ts:21](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board/src/drop-resolution.ts#L21)
 
-***
+---
 
 ### columnId \{#columnid\}
 
@@ -24,7 +24,7 @@ readonly columnId: `${string}-${string}-${string}-${string}-${string}`;
 
 Defined in: [packages/rxdb-plugin-board/src/drop-resolution.ts:19](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board/src/drop-resolution.ts#L19)
 
-***
+---
 
 ### rect \{#rect\}
 
@@ -58,7 +58,7 @@ readonly right: number;
 readonly top: number;
 ```
 
-***
+---
 
 ### taskIds \{#taskids\}
 

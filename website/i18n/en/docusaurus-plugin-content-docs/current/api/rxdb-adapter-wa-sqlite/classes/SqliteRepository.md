@@ -1,5 +1,5 @@
 ---
-sidebar_label: "SqliteRepository⟨T⟩"
+sidebar_label: 'SqliteRepository⟨T⟩'
 ---
 
 # SqliteRepository`<T>`
@@ -14,9 +14,9 @@ Repository for operating on entities
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                    |
+| ------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 ## Implements
 
@@ -34,10 +34,10 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/repository/SqliteRepositoryBa
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `adapter` | [`RxDBAdapterSqliteBase`](../interfaces/RxDBAdapterSqliteBase.md) |
-| `EntityType` | `T` |
+| Parameter    | Type                                                              |
+| ------------ | ----------------------------------------------------------------- |
+| `adapter`    | [`RxDBAdapterSqliteBase`](../interfaces/RxDBAdapterSqliteBase.md) |
+| `EntityType` | `T`                                                               |
 
 #### Returns
 
@@ -61,7 +61,7 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/repository/SqliteRepositoryBa
 
 [`SqliteRepositoryBase`](../../rxdb-adapter-sqlite-core/classes/SqliteRepositoryBase.md).[`adapter`](../../rxdb-adapter-sqlite-core/classes/SqliteRepositoryBase.md#adapter)
 
-***
+---
 
 ### EntityType \{#entitytype\}
 
@@ -75,7 +75,7 @@ Defined in: packages/rxdb/dist/repository/RepositoryBase.d.ts:20
 
 [`SqliteRepositoryBase`](../../rxdb-adapter-sqlite-core/classes/SqliteRepositoryBase.md).[`EntityType`](../../rxdb-adapter-sqlite-core/classes/SqliteRepositoryBase.md#entitytype)
 
-***
+---
 
 ### metadata \{#metadata\}
 
@@ -89,7 +89,7 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/repository/SqliteRepositoryBa
 
 [`SqliteRepositoryBase`](../../rxdb-adapter-sqlite-core/classes/SqliteRepositoryBase.md).[`metadata`](../../rxdb-adapter-sqlite-core/classes/SqliteRepositoryBase.md#metadata)
 
-***
+---
 
 ### rxdb \{#rxdb\}
 
@@ -103,7 +103,7 @@ Defined in: packages/rxdb/dist/repository/RepositoryBase.d.ts:19
 
 [`SqliteRepositoryBase`](../../rxdb-adapter-sqlite-core/classes/SqliteRepositoryBase.md).[`rxdb`](../../rxdb-adapter-sqlite-core/classes/SqliteRepositoryBase.md#rxdb)
 
-***
+---
 
 ### \_STATIC\_METHODS \{#_static_methods\}
 
@@ -160,8 +160,8 @@ by a descendant.
 
 ```ts
 addQueryCache(
-   sqliteSuccessResult, 
-   forcedUpdate?, 
+   sqliteSuccessResult,
+   forcedUpdate?,
    submissions?
 ): Promise<InstanceType<T>[]>;
 ```
@@ -172,11 +172,11 @@ Adds to the cache
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `sqliteSuccessResult` | [`SqliteSuccessResult`](../../rxdb-adapter-sqlite-core/interfaces/SqliteSuccessResult.md) | - |
-| `forcedUpdate?` | `boolean` | Forced refresh: updates the data even when it already exists; needed when the data has been modified |
-| `submissions?` | `SqliteWriteSubmissions`&lt;`T`&gt; | Write receipts only: submission records of this write (indexed by the written entities); preserves edits made after the submission when backfilling |
+| Parameter             | Type                                                                                      | Description                                                                                                                                         |
+| --------------------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sqliteSuccessResult` | [`SqliteSuccessResult`](../../rxdb-adapter-sqlite-core/interfaces/SqliteSuccessResult.md) | -                                                                                                                                                   |
+| `forcedUpdate?`       | `boolean`                                                                                 | Forced refresh: updates the data even when it already exists; needed when the data has been modified                                                |
+| `submissions?`        | `SqliteWriteSubmissions`&lt;`T`&gt;                                                       | Write receipts only: submission records of this write (indexed by the written entities); preserves edits made after the submission when backfilling |
 
 #### Returns
 
@@ -186,7 +186,7 @@ Adds to the cache
 
 [`SqliteRepositoryBase`](../../rxdb-adapter-sqlite-core/classes/SqliteRepositoryBase.md).[`addQueryCache`](../../rxdb-adapter-sqlite-core/classes/SqliteRepositoryBase.md#addquerycache)
 
-***
+---
 
 ### count() \{#count\}
 
@@ -200,8 +200,8 @@ Counts entities
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                                           | Description                                                               |
+| --------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
 | `options` | [`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"countOptions"`&gt; | Query options (see [CountOptions](../../rxdb/interfaces/CountOptions.md)) |
 
 #### Returns
@@ -214,7 +214,7 @@ Number of rows matching the condition
 
 [`IRepository`](../../rxdb/interfaces/IRepository.md).[`count`](../../rxdb/interfaces/IRepository.md#count)
 
-***
+---
 
 ### create() \{#create\}
 
@@ -228,9 +228,9 @@ Creates an entity
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | Entity instance (usually created by [EntityManager.instantiate](../../rxdb/interfaces/EntityManager.md#instantiate)) |
+| Parameter | Type                      | Description                                                                                                          |
+| --------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `entity`  | `InstanceType`&lt;`T`&gt; | Entity instance (usually created by [EntityManager.instantiate](../../rxdb/interfaces/EntityManager.md#instantiate)) |
 
 #### Returns
 
@@ -242,7 +242,7 @@ The entity after persistence; **not** the same reference as the argument (the im
 
 [`IRepository`](../../rxdb/interfaces/IRepository.md).[`create`](../../rxdb/interfaces/IRepository.md#create)
 
-***
+---
 
 ### createEntityRef() \{#createentityref\}
 
@@ -256,9 +256,9 @@ Creates (or reuses) an entity reference
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `data` | [`EntityUpdateData`](../../rxdb/type-aliases/EntityUpdateData.md)&lt;`T`&gt; | Initial field values; when `id` is absent it is generated automatically |
+| Parameter | Type                                                                         | Description                                                             |
+| --------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `data`    | [`EntityUpdateData`](../../rxdb/type-aliases/EntityUpdateData.md)&lt;`T`&gt; | Initial field values; when `id` is absent it is generated automatically |
 
 #### Returns
 
@@ -276,7 +276,7 @@ reference semantics, avoiding two out-of-sync clones on different call stacks.
 
 [`SqliteRepositoryBase`](../../rxdb-adapter-sqlite-core/classes/SqliteRepositoryBase.md).[`createEntityRef`](../../rxdb-adapter-sqlite-core/classes/SqliteRepositoryBase.md#createentityref)
 
-***
+---
 
 ### find() \{#find\}
 
@@ -290,8 +290,8 @@ Reads entities matching the query condition and merges the result rows into the 
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                                          | Description     |
+| --------- | --------------------------------------------------------------------------------------------- | --------------- |
 | `options` | [`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"findOptions"`&gt; | Query condition |
 
 #### Returns
@@ -316,7 +316,7 @@ unsaved edits into the baseline and then silently clears them (see `entity-statu
 
 [`IRepository`](../../rxdb/interfaces/IRepository.md).[`find`](../../rxdb/interfaces/IRepository.md#find)
 
-***
+---
 
 ### findByRowIds() \{#findbyrowids\}
 
@@ -328,10 +328,10 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/repository/SqliteRepositoryBa
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rowIds` | `bigint`[] |
-| `forceRefresh?` | `boolean` |
+| Parameter       | Type       |
+| --------------- | ---------- |
+| `rowIds`        | `bigint`[] |
+| `forceRefresh?` | `boolean`  |
 
 #### Returns
 
@@ -341,7 +341,7 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/repository/SqliteRepositoryBa
 
 [`SqliteRepositoryBase`](../../rxdb-adapter-sqlite-core/classes/SqliteRepositoryBase.md).[`findByRowIds`](../../rxdb-adapter-sqlite-core/classes/SqliteRepositoryBase.md#findbyrowids)
 
-***
+---
 
 ### findOne() \{#findone\}
 
@@ -353,15 +353,15 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/repository/SqliteRepository.d
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                                             |
+| --------- | ------------------------------------------------------------------------------------------------ |
 | `options` | [`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"findOneOptions"`&gt; |
 
 #### Returns
 
 `Promise`&lt;`InstanceType`&lt;`T`&gt; \| `undefined`&gt;
 
-***
+---
 
 ### get() \{#get\}
 
@@ -373,20 +373,20 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/repository/SqliteRepository.d
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `id` | [`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; |
+| Parameter | Type                                                                                     |
+| --------- | ---------------------------------------------------------------------------------------- |
+| `id`      | [`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; |
 
 #### Returns
 
 `Promise`&lt;`InstanceType`&lt;`T`&gt;&gt;
 
-***
+---
 
 ### getEntityRef() \{#getentityref\}
 
 ```ts
-getEntityRef(id): 
+getEntityRef(id):
   | EntityInstanceType<T>
   | undefined;
 ```
@@ -397,14 +397,14 @@ Looks up an entity in the current process's entity cache by ID
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `id` | [`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | Entity primary key |
+| Parameter | Type                                                                                     | Description        |
+| --------- | ---------------------------------------------------------------------------------------- | ------------------ |
+| `id`      | [`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | Entity primary key |
 
 #### Returns
 
-  \| [`EntityInstanceType`](../../rxdb/type-aliases/EntityInstanceType.md)&lt;`T`&gt;
-  \| `undefined`
+\| [`EntityInstanceType`](../../rxdb/type-aliases/EntityInstanceType.md)&lt;`T`&gt;
+\| `undefined`
 
 Returns the instance on a cache hit, `undefined` on a miss (**does not** trigger a database query)
 
@@ -412,7 +412,7 @@ Returns the instance on a cache hit, `undefined` on a miss (**does not** trigger
 
 [`SqliteRepositoryBase`](../../rxdb-adapter-sqlite-core/classes/SqliteRepositoryBase.md).[`getEntityRef`](../../rxdb-adapter-sqlite-core/classes/SqliteRepositoryBase.md#getentityref)
 
-***
+---
 
 ### hasEntityRef() \{#hasentityref\}
 
@@ -426,9 +426,9 @@ Determines whether the current process's entity cache contains the given ID
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `id` | [`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | Entity primary key |
+| Parameter | Type                                                                                     | Description        |
+| --------- | ---------------------------------------------------------------------------------------- | ------------------ |
+| `id`      | [`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | Entity primary key |
 
 #### Returns
 
@@ -445,7 +445,7 @@ Equivalent to `getEntityRef(id) !== undefined`; provided separately so hot paths
 
 [`SqliteRepositoryBase`](../../rxdb-adapter-sqlite-core/classes/SqliteRepositoryBase.md).[`hasEntityRef`](../../rxdb-adapter-sqlite-core/classes/SqliteRepositoryBase.md#hasentityref)
 
-***
+---
 
 ### mergeQueryCache() \{#mergequerycache\}
 
@@ -459,8 +459,8 @@ Merges the result rows into the identity map: clean entities are refreshed whole
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter             | Type                                                                                      | Description              |
+| --------------------- | ----------------------------------------------------------------------------------------- | ------------------------ |
 | `sqliteSuccessResult` | [`SqliteSuccessResult`](../../rxdb-adapter-sqlite-core/interfaces/SqliteSuccessResult.md) | Result set of one SELECT |
 
 #### Returns
@@ -481,7 +481,7 @@ as one of the three paths that must be diverted.
 
 [`SqliteRepositoryBase`](../../rxdb-adapter-sqlite-core/classes/SqliteRepositoryBase.md).[`mergeQueryCache`](../../rxdb-adapter-sqlite-core/classes/SqliteRepositoryBase.md#mergequerycache)
 
-***
+---
 
 ### remove() \{#remove\}
 
@@ -495,9 +495,9 @@ Deletes an entity
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The entity to delete (located by `id`) |
+| Parameter | Type                      | Description                            |
+| --------- | ------------------------- | -------------------------------------- |
+| `entity`  | `InstanceType`&lt;`T`&gt; | The entity to delete (located by `id`) |
 
 #### Returns
 
@@ -509,7 +509,7 @@ The entity after deletion (fields cleared, `local` set to `false`)
 
 [`IRepository`](../../rxdb/interfaces/IRepository.md).[`remove`](../../rxdb/interfaces/IRepository.md#remove)
 
-***
+---
 
 ### update() \{#update\}
 
@@ -523,10 +523,10 @@ Updates an entity
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The entity to update (provides the `id` and the latest fields) |
-| `patch` | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; | Field-level patch; fields not listed are left unchanged |
+| Parameter | Type                                       | Description                                                    |
+| --------- | ------------------------------------------ | -------------------------------------------------------------- |
+| `entity`  | `InstanceType`&lt;`T`&gt;                  | The entity to update (provides the `id` and the latest fields) |
+| `patch`   | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; | Field-level patch; fields not listed are left unchanged        |
 
 #### Returns
 
@@ -538,7 +538,7 @@ The entity after persistence
 
 [`IRepository`](../../rxdb/interfaces/IRepository.md).[`update`](../../rxdb/interfaces/IRepository.md#update)
 
-***
+---
 
 ### updateEntity() \{#updateentity\}
 
@@ -552,10 +552,10 @@ Overwrites entity fields with `update`
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | Target entity |
-| `update` | `InstanceType`&lt;`T`&gt; | Fields to write; the primary key `id` is also assigned (for hydrate scenarios) |
+| Parameter | Type                      | Description                                                                    |
+| --------- | ------------------------- | ------------------------------------------------------------------------------ |
+| `entity`  | `InstanceType`&lt;`T`&gt; | Target entity                                                                  |
+| `update`  | `InstanceType`&lt;`T`&gt; | Fields to write; the primary key `id` is also assigned (for hydrate scenarios) |
 
 #### Returns
 

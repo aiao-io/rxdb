@@ -16,7 +16,7 @@ Defined in: [widgets/timezone.ts:56](https://github.com/aiao-io/rxdb/blob/b52320
 
 The city name (taken from the IANA name).
 
-***
+---
 
 ### offset \{#offset\}
 
@@ -28,7 +28,7 @@ Defined in: [widgets/timezone.ts:58](https://github.com/aiao-io/rxdb/blob/b52320
 
 The UTC offset at the current moment, such as `GMT+8`.
 
-***
+---
 
 ### region \{#region\}
 
@@ -40,7 +40,7 @@ Defined in: [widgets/timezone.ts:54](https://github.com/aiao-io/rxdb/blob/b52320
 
 The geographic group.
 
-***
+---
 
 ### zone \{#zone\}
 

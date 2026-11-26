@@ -14,7 +14,7 @@ readonly kind: "close";
 
 Defined in: packages/rxdb-adapter-sqlite-core/dist/desktop/desktop-host-protocol.d.ts:129
 
-***
+---
 
 ### sessionId \{#sessionid\}
 

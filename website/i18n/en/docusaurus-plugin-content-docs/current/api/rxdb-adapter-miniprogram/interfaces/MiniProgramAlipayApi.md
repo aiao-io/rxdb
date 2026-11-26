@@ -32,15 +32,15 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/hosts/alipay-api.ts:36](https
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `buffer` | `ArrayBuffer` |
+| Parameter | Type          |
+| --------- | ------------- |
+| `buffer`  | `ArrayBuffer` |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### base64ToArrayBuffer() \{#base64toarraybuffer\}
 
@@ -52,15 +52,15 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/hosts/alipay-api.ts:37](https
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `base64` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `base64`  | `string` |
 
 #### Returns
 
 `ArrayBuffer`
 
-***
+---
 
 ### getFileSystemManager() \{#getfilesystemmanager\}
 

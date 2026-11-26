@@ -10,10 +10,10 @@ Converts a flat field list into a tree structure.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `fields` | [`FieldMetadata`](../interfaces/FieldMetadata.md)[] | The flat field metadata list |
-| `i18n?` | [`ModelI18n`](../interfaces/ModelI18n.md) | - |
+| Parameter | Type                                                | Description                  |
+| --------- | --------------------------------------------------- | ---------------------------- |
+| `fields`  | [`FieldMetadata`](../interfaces/FieldMetadata.md)[] | The flat field metadata list |
+| `i18n?`   | [`ModelI18n`](../interfaces/ModelI18n.md)           | -                            |
 
 ## Returns
 
@@ -24,6 +24,7 @@ Tree-structured field nodes
 ## Description
 
 Converts a flat path like `orders.items.productName` into a nested tree structure:
+
 ```
 orders
 └── items

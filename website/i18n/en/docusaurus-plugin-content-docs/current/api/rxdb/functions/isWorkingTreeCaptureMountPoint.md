@@ -10,8 +10,8 @@ Judges whether a write primitive signature is a capture mount point.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type                                                                                        | Description                            |
+| ----------- | ------------------------------------------------------------------------------------------- | -------------------------------------- |
 | `signature` | [`WorkingTreeWritePrimitiveSignature`](../interfaces/WorkingTreeWritePrimitiveSignature.md) | The write primitive signature to judge |
 
 ## Returns

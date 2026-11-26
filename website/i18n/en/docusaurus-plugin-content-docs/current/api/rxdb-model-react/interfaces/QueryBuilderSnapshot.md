@@ -1,5 +1,5 @@
 ---
-sidebar_label: "QueryBuilderSnapshot⟨T⟩"
+sidebar_label: 'QueryBuilderSnapshot⟨T⟩'
 ---
 
 # QueryBuilderSnapshot`<T>`
@@ -10,8 +10,8 @@ Query builder snapshot.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
+| Type Parameter                    | Default type                        |
+| --------------------------------- | ----------------------------------- |
 | <a id="type-parameter-t"></a> `T` | `Record`&lt;`string`, `unknown`&gt; |
 
 ## Properties
@@ -24,7 +24,7 @@ readonly fields: readonly FieldMetadata[];
 
 Defined in: packages/rxdb-model/dist/query-builder/services/headless.d.ts:8
 
-***
+---
 
 ### query \{#query\}
 
@@ -34,7 +34,7 @@ readonly query: RuleGroup<T>;
 
 Defined in: packages/rxdb-model/dist/query-builder/services/headless.d.ts:9
 
-***
+---
 
 ### readonly \{#readonly\}
 
@@ -44,7 +44,7 @@ readonly readonly: boolean;
 
 Defined in: packages/rxdb-model/dist/query-builder/services/headless.d.ts:12
 
-***
+---
 
 ### state \{#state\}
 
@@ -54,7 +54,7 @@ readonly state: QueryBuilderState<T>;
 
 Defined in: packages/rxdb-model/dist/query-builder/services/headless.d.ts:7
 
-***
+---
 
 ### valid \{#valid\}
 
@@ -64,7 +64,7 @@ readonly valid: boolean;
 
 Defined in: packages/rxdb-model/dist/query-builder/services/headless.d.ts:11
 
-***
+---
 
 ### validation \{#validation\}
 

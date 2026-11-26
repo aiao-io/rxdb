@@ -1,5 +1,5 @@
 ---
-sidebar_label: "TreeAdjacencyListEntityBase⟨Id⟩"
+sidebar_label: 'TreeAdjacencyListEntityBase⟨Id⟩'
 ---
 
 # TreeAdjacencyListEntityBase`<Id>`
@@ -15,9 +15,9 @@ Defines the parent-child relationship required by the tree structure
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-id"></a> `Id` *extends* [`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md) | [`UUID`](../../rxdb/type-aliases/UUID.md) |
+| Type Parameter                                                                                          | Default type                              |
+| ------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| <a id="type-parameter-id"></a> `Id` _extends_ [`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md) | [`UUID`](../../rxdb/type-aliases/UUID.md) |
 
 ## Implements
 
@@ -38,8 +38,8 @@ Subclasses enhance this constructor through the Entity decorator
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter   | Type      |
+| ----------- | --------- |
 | `initData?` | `unknown` |
 
 #### Returns
@@ -71,7 +71,7 @@ Automatically set to the current time when the entity is created
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`createdAt`](../../rxdb/classes/EntityBase.md#createdat)
 
-***
+---
 
 ### createdBy? \{#createdby\}
 
@@ -92,7 +92,7 @@ Records the user ID that created this entity
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`createdBy`](../../rxdb/classes/EntityBase.md#createdby)
 
-***
+---
 
 ### hasChildren? \{#haschildren\}
 
@@ -109,7 +109,7 @@ Whether there are child nodes, auto-filled by a database computed property.
 
 [`ITreeEntity`](../interfaces/ITreeEntity.md).[`hasChildren`](../interfaces/ITreeEntity.md#haschildren)
 
-***
+---
 
 ### id \{#id\}
 
@@ -130,7 +130,7 @@ An auto-generated UUID serving as the primary key
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`id`](../../rxdb/classes/EntityBase.md#id)
 
-***
+---
 
 ### parentId? \{#parentid\}
 
@@ -146,7 +146,7 @@ Parent node ID
 
 [`ITreeEntity`](../interfaces/ITreeEntity.md).[`parentId`](../interfaces/ITreeEntity.md#parentid)
 
-***
+---
 
 ### remove \{#remove\}
 
@@ -166,7 +166,7 @@ Deletes
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`remove`](../../rxdb/classes/EntityBase.md#remove)
 
-***
+---
 
 ### reset \{#reset\}
 
@@ -186,7 +186,7 @@ Resets data
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`reset`](../../rxdb/classes/EntityBase.md#reset)
 
-***
+---
 
 ### save \{#save\}
 
@@ -210,7 +210,7 @@ This entry point does not hold a transaction executor and re-enters the adapter 
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`save`](../../rxdb/classes/EntityBase.md#save)
 
-***
+---
 
 ### updatedAt \{#updatedat\}
 
@@ -231,7 +231,7 @@ Automatically set to the current time when the entity is created or updated
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`updatedAt`](../../rxdb/classes/EntityBase.md#updatedat)
 
-***
+---
 
 ### updatedBy? \{#updatedby\}
 
@@ -252,7 +252,7 @@ Records the user ID that last updated this entity
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`updatedBy`](../../rxdb/classes/EntityBase.md#updatedby)
 
-***
+---
 
 ### count \{#count\}
 
@@ -266,15 +266,15 @@ Counts entities
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| `T` *extends* [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
+| Type Parameter                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------- |
+| `T` _extends_ [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `this` | new () => `T` | - |
+| Parameter | Type                                                                         | Description                                  |
+| --------- | ---------------------------------------------------------------------------- | -------------------------------------------- |
+| `this`    | new () => `T`                                                                | -                                            |
 | `options` | [`CountOptions`](../../rxdb/interfaces/CountOptions.md)&lt;new () => `T`&gt; | Query options, including the where condition |
 
 #### Returns
@@ -287,7 +287,7 @@ The count wrapped in an Observable
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`count`](../../rxdb/classes/EntityBase.md#count)
 
-***
+---
 
 ### countAncestors \{#countancestors\}
 
@@ -301,15 +301,15 @@ Counts ancestor nodes
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| `T` *extends* `TreeAdjacencyListEntityBase`&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
+| Type Parameter                                                                                               |
+| ------------------------------------------------------------------------------------------------------------ |
+| `T` _extends_ `TreeAdjacencyListEntityBase`&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `this` | new () => `T` | - |
+| Parameter | Type                                                                       | Description                                            |
+| --------- | -------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `this`    | new () => `T`                                                              | -                                                      |
 | `options` | [`FindTreeOptions`](../interfaces/FindTreeOptions.md)&lt;new () => `T`&gt; | Query options, including the entity ID and level depth |
 
 #### Returns
@@ -318,7 +318,7 @@ Counts ancestor nodes
 
 The ancestor node count wrapped in an Observable
 
-***
+---
 
 ### countDescendants \{#countdescendants\}
 
@@ -332,15 +332,15 @@ Counts descendant nodes
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| `T` *extends* `TreeAdjacencyListEntityBase`&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
+| Type Parameter                                                                                               |
+| ------------------------------------------------------------------------------------------------------------ |
+| `T` _extends_ `TreeAdjacencyListEntityBase`&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `this` | new () => `T` | - |
+| Parameter | Type                                                                       | Description                                            |
+| --------- | -------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `this`    | new () => `T`                                                              | -                                                      |
 | `options` | [`FindTreeOptions`](../interfaces/FindTreeOptions.md)&lt;new () => `T`&gt; | Query options, including the entity ID and level depth |
 
 #### Returns
@@ -349,7 +349,7 @@ Counts descendant nodes
 
 The descendant node count wrapped in an Observable
 
-***
+---
 
 ### find \{#find\}
 
@@ -363,15 +363,15 @@ Finds multiple entities
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| `T` *extends* [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
+| Type Parameter                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------- |
+| `T` _extends_ [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `this` | new () => `T` | - |
+| Parameter | Type                                                                       | Description                                                       |
+| --------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `this`    | new () => `T`                                                              | -                                                                 |
 | `options` | [`FindOptions`](../../rxdb/interfaces/FindOptions.md)&lt;new () => `T`&gt; | Query options, including the where condition, limit, offset, etc. |
 
 #### Returns
@@ -384,7 +384,7 @@ The entity instance array wrapped in an Observable
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`find`](../../rxdb/classes/EntityBase.md#find)
 
-***
+---
 
 ### findAll \{#findall\}
 
@@ -398,15 +398,15 @@ Finds all entities
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| `T` *extends* [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
+| Type Parameter                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------- |
+| `T` _extends_ [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `this` | new () => `T` | - |
+| Parameter | Type                                                                             | Description                                                          |
+| --------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `this`    | new () => `T`                                                                    | -                                                                    |
 | `options` | [`FindAllOptions`](../../rxdb/interfaces/FindAllOptions.md)&lt;new () => `T`&gt; | Query options, including the where condition and ordering (no limit) |
 
 #### Returns
@@ -419,7 +419,7 @@ The entity instance array wrapped in an Observable
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`findAll`](../../rxdb/classes/EntityBase.md#findall)
 
-***
+---
 
 ### findAncestors \{#findancestors\}
 
@@ -433,15 +433,15 @@ Finds all ancestor nodes
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| `T` *extends* `TreeAdjacencyListEntityBase`&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
+| Type Parameter                                                                                               |
+| ------------------------------------------------------------------------------------------------------------ |
+| `T` _extends_ `TreeAdjacencyListEntityBase`&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `this` | new () => `T` | - |
+| Parameter | Type                                                                       | Description                                            |
+| --------- | -------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `this`    | new () => `T`                                                              | -                                                      |
 | `options` | [`FindTreeOptions`](../interfaces/FindTreeOptions.md)&lt;new () => `T`&gt; | Query options, including the entity ID and level depth |
 
 #### Returns
@@ -450,7 +450,7 @@ Finds all ancestor nodes
 
 The ancestor node array wrapped in an Observable
 
-***
+---
 
 ### findByCursor \{#findbycursor\}
 
@@ -464,15 +464,15 @@ Paginated query via cursor
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| `T` *extends* [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
+| Type Parameter                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------- |
+| `T` _extends_ [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `this` | new () => `T` | - |
+| Parameter | Type                                                                                       | Description                                                               |
+| --------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| `this`    | new () => `T`                                                                              | -                                                                         |
 | `options` | [`FindByCursorOptions`](../../rxdb/interfaces/FindByCursorOptions.md)&lt;new () => `T`&gt; | Cursor pagination options, including orderBy and the before/after cursors |
 
 #### Returns
@@ -485,7 +485,7 @@ The entity instance array wrapped in an Observable
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`findByCursor`](../../rxdb/classes/EntityBase.md#findbycursor)
 
-***
+---
 
 ### findDescendants \{#finddescendants\}
 
@@ -499,15 +499,15 @@ Finds all descendant nodes
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| `T` *extends* `TreeAdjacencyListEntityBase`&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
+| Type Parameter                                                                                               |
+| ------------------------------------------------------------------------------------------------------------ |
+| `T` _extends_ `TreeAdjacencyListEntityBase`&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `this` | new () => `T` | - |
+| Parameter | Type                                                                       | Description                                            |
+| --------- | -------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `this`    | new () => `T`                                                              | -                                                      |
 | `options` | [`FindTreeOptions`](../interfaces/FindTreeOptions.md)&lt;new () => `T`&gt; | Query options, including the entity ID and level depth |
 
 #### Returns
@@ -516,7 +516,7 @@ Finds all descendant nodes
 
 The descendant node array wrapped in an Observable
 
-***
+---
 
 ### findOne \{#findone\}
 
@@ -530,15 +530,15 @@ Finds one entity
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| `T` *extends* [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
+| Type Parameter                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------- |
+| `T` _extends_ [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `this` | new () => `T` | - |
+| Parameter | Type                                                                             | Description                                  |
+| --------- | -------------------------------------------------------------------------------- | -------------------------------------------- |
+| `this`    | new () => `T`                                                                    | -                                            |
 | `options` | [`FindOneOptions`](../../rxdb/interfaces/FindOneOptions.md)&lt;new () => `T`&gt; | Query options, including the where condition |
 
 #### Returns
@@ -551,7 +551,7 @@ The entity instance or null wrapped in an Observable
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`findOne`](../../rxdb/classes/EntityBase.md#findone)
 
-***
+---
 
 ### findOneOrFail \{#findoneorfail\}
 
@@ -565,15 +565,15 @@ Finds one entity, throws when none is found
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| `T` *extends* [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
+| Type Parameter                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------- |
+| `T` _extends_ [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `this` | new () => `T` | - |
+| Parameter | Type                                                                                         | Description                                  |
+| --------- | -------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| `this`    | new () => `T`                                                                                | -                                            |
 | `options` | [`FindOneOrFailOptions`](../../rxdb/interfaces/FindOneOrFailOptions.md)&lt;new () => `T`&gt; | Query options, including the where condition |
 
 #### Returns
@@ -586,7 +586,7 @@ The entity instance wrapped in an Observable
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`findOneOrFail`](../../rxdb/classes/EntityBase.md#findoneorfail)
 
-***
+---
 
 ### get \{#get\}
 
@@ -600,16 +600,16 @@ Gets an entity by id
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| `T` *extends* [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
+| Type Parameter                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------- |
+| `T` _extends_ [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `this` | new () => `T` | - |
-| `id` | `T`\[`"id"`\] | The entity's unique identifier |
+| Parameter | Type          | Description                    |
+| --------- | ------------- | ------------------------------ |
+| `this`    | new () => `T` | -                              |
+| `id`      | `T`\[`"id"`\] | The entity's unique identifier |
 
 #### Returns
 

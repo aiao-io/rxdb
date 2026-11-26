@@ -10,9 +10,9 @@ Judges whether the raw error is a CHECK violation declared in the metadata (used
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `cause` | `unknown` | The raw error thrown by the adapter |
+| Parameter  | Type                                                  | Description                          |
+| ---------- | ----------------------------------------------------- | ------------------------------------ |
+| `cause`    | `unknown`                                             | The raw error thrown by the adapter  |
 | `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) | Metadata of the entity being written |
 
 ## Returns

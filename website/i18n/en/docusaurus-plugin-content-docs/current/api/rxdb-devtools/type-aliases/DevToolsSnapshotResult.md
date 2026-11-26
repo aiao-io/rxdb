@@ -1,18 +1,18 @@
 # DevToolsSnapshotResult
 
 ```ts
-type DevToolsSnapshotResult = 
+type DevToolsSnapshotResult =
   | {
-  outcome: "page";
-  page: DevToolsSnapshotPage;
-}
+      outcome: 'page';
+      page: DevToolsSnapshotPage;
+    }
   | {
-  outcome: "cancelled";
-}
+      outcome: 'cancelled';
+    }
   | {
-  error: DevToolsErrorPayload;
-  outcome: "rejected";
-};
+      error: DevToolsErrorPayload;
+      outcome: 'rejected';
+    };
 ```
 
 Defined in: [provider/snapshot.ts:74](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/provider/snapshot.ts#L74)

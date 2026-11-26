@@ -1,11 +1,7 @@
 # moveListViewItem()
 
 ```ts
-function moveListViewItem<T>(
-   items, 
-   index, 
-   direction
-): T[];
+function moveListViewItem<T>(items, index, direction): T[];
 ```
 
 Defined in: packages/rxdb-model/dist/entity-list/list-view.d.ts:39
@@ -14,17 +10,17 @@ Moves a field or ordering rule, keeping the original order when the move would c
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `items` | readonly `T`[] |
-| `index` | `number` |
-| `direction` | `-1` \| `1` |
+| Parameter   | Type           |
+| ----------- | -------------- |
+| `items`     | readonly `T`[] |
+| `index`     | `number`       |
+| `direction` | `-1` \| `1`    |
 
 ## Returns
 

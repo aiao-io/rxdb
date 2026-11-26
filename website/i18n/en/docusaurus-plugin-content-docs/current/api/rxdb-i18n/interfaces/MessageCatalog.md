@@ -16,7 +16,7 @@ Defined in: [catalog.ts:7](https://github.com/aiao-io/rxdb/blob/b5232040240cf1cc
 
 BCP 47 language tag.
 
-***
+---
 
 ### messages \{#messages\}
 
@@ -28,7 +28,7 @@ Defined in: [catalog.ts:11](https://github.com/aiao-io/rxdb/blob/b5232040240cf1c
 
 Key to ICU source message; an empty string is valid.
 
-***
+---
 
 ### namespace \{#namespace\}
 

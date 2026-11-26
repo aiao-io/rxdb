@@ -8,9 +8,9 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/query/sql\_alias.utils.ts:59]
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `alias` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `alias`   | `string` |
 
 ## Returns
 

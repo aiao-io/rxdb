@@ -11,15 +11,15 @@ Unlike debounce, throttle executes periodically rather than waiting for the last
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
-| <a id="type-parameter-func"></a> `Func` *extends* [`AnyFunction`](../type-aliases/AnyFunction.md) | The throttled function's type |
+| Type Parameter                                                                                    | Description                   |
+| ------------------------------------------------------------------------------------------------- | ----------------------------- |
+| <a id="type-parameter-func"></a> `Func` _extends_ [`AnyFunction`](../type-aliases/AnyFunction.md) | The throttled function's type |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `func` | `Func` | The function to throttle |
+| Parameter   | Type     | Description                                                        |
+| ----------- | -------- | ------------------------------------------------------------------ |
+| `func`      | `Func`   | The function to throttle                                           |
 | `timeFrame` | `number` | Interval in milliseconds; the function runs at most once within it |
 
 ## Returns

@@ -14,7 +14,7 @@ readonly labelId: `${string}-${string}-${string}-${string}-${string}`;
 
 Defined in: packages/rxdb-plugin-board/dist/label-service.d.ts:16
 
-***
+---
 
 ### labelName \{#labelname\}
 
@@ -24,7 +24,7 @@ readonly labelName: string;
 
 Defined in: packages/rxdb-plugin-board/dist/label-service.d.ts:17
 
-***
+---
 
 ### taskLabelIds \{#tasklabelids\}
 

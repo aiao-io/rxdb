@@ -16,7 +16,7 @@ Defined in: [layout/sidebar.tsx:111](https://github.com/aiao-io/rxdb/blob/b52320
 
 Brand icon.
 
-***
+---
 
 ### menu \{#menu\}
 
@@ -28,7 +28,7 @@ Defined in: [layout/sidebar.tsx:109](https://github.com/aiao-io/rxdb/blob/b52320
 
 Menu tree.
 
-***
+---
 
 ### renderMenuExtra? \{#rendermenuextra\}
 

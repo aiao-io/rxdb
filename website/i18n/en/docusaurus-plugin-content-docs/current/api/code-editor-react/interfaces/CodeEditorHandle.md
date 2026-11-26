@@ -16,7 +16,7 @@ Defined in: [packages/code-editor-react/src/CodeEditor.tsx:46](https://github.co
 
 The host div element; null when unmounted or unloaded.
 
-***
+---
 
 ### view \{#view\}
 
@@ -42,7 +42,7 @@ Defined in: [packages/code-editor-react/src/CodeEditor.tsx:47](https://github.co
 
 `void`
 
-***
+---
 
 ### focus() \{#focus\}
 

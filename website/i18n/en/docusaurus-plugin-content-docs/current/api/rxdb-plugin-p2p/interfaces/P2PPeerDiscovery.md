@@ -20,7 +20,7 @@ Releases discovery resources.
 
 `void` \| `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### connect \{#connect\}
 
@@ -34,16 +34,16 @@ Connects to (probes) a holder; rejects when the record is revoked or the peer is
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `record` | [`P2PManifestRecord`](P2PManifestRecord.md) |
-| `signal?` | `AbortSignal` |
+| Parameter | Type                                        |
+| --------- | ------------------------------------------- |
+| `record`  | [`P2PManifestRecord`](P2PManifestRecord.md) |
+| `signal?` | `AbortSignal`                               |
 
 #### Returns
 
 `Promise`&lt;`unknown`&gt;
 
-***
+---
 
 ### discover \{#discover\}
 
@@ -57,10 +57,10 @@ Lists the peers declaring that they hold a content; a record does not mean the p
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `contentHash` | `string` |
-| `signal?` | `AbortSignal` |
+| Parameter     | Type          |
+| ------------- | ------------- |
+| `contentHash` | `string`      |
+| `signal?`     | `AbortSignal` |
 
 #### Returns
 

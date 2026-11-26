@@ -10,23 +10,23 @@ Adds the default ordering to queries against manually ordered entities.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-o"></a> `O` *extends* `object` |
+| Type Parameter                                       |
+| ---------------------------------------------------- |
+| <a id="type-parameter-o"></a> `O` _extends_ `object` |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `metadata` | `Pick`&lt;[`EntityMetadata`](../type-aliases/EntityMetadata.md), `"manualOrder"`&gt; | The entity metadata |
-| `options` | `O` | The caller's query options, never rewritten |
+| Parameter  | Type                                                                                 | Description                                 |
+| ---------- | ------------------------------------------------------------------------------------ | ------------------------------------------- |
+| `metadata` | `Pick`&lt;[`EntityMetadata`](../type-aliases/EntityMetadata.md), `"manualOrder"`&gt; | The entity metadata                         |
+| `options`  | `O`                                                                                  | The caller's query options, never rewritten |
 
 ## Returns
 
 `O`
 
 When no `orderBy` is given (or an empty array is given), a new object padded to `[grouping fields… asc, sortOrder asc, id asc]`;
-  otherwise returned unchanged
+otherwise returned unchanged
 
 ## Remarks
 

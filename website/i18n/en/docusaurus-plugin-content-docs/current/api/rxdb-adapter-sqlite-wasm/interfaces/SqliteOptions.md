@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-adapter-sqlite-wasm/src/sqlite.interface.ts:67](https
 
 `SqliteOptionsBase.batchTimeout`
 
-***
+---
 
 ### cacheSizeKb? \{#cachesizekb\}
 
@@ -45,14 +45,14 @@ https://www.sqlite.org/pragma.html#pragma_cache_size
 #### Default
 
 ```ts
-51200
+51200;
 ```
 
 #### Inherited from
 
 `SqliteOptionsBase.cacheSizeKb`
 
-***
+---
 
 ### fsRoot? \{#fsroot\}
 
@@ -68,7 +68,7 @@ Defined in: [packages/rxdb-adapter-sqlite-wasm/src/sqlite.interface.ts:36](https
 
 `SqliteOptionsBase.fsRoot`
 
-***
+---
 
 ### idbLockPolicy? \{#idblockpolicy\}
 
@@ -83,14 +83,14 @@ Defined in: [packages/rxdb-adapter-sqlite-wasm/src/sqlite.interface.ts:42](https
 #### Default
 
 ```ts
-'shared+hint'
+'shared+hint';
 ```
 
 #### Inherited from
 
 `SqliteOptions`.[`idbLockPolicy`](#idblockpolicy)
 
-***
+---
 
 ### idbLockTimeout? \{#idblocktimeout\}
 
@@ -105,14 +105,14 @@ Defined in: [packages/rxdb-adapter-sqlite-wasm/src/sqlite.interface.ts:48](https
 #### Default
 
 ```ts
-Infinity
+Infinity;
 ```
 
 #### Inherited from
 
 `SqliteOptionsBase.idbLockTimeout`
 
-***
+---
 
 ### readonly? \{#readonly\}
 
@@ -128,7 +128,7 @@ Open read-only (`SQLITE_OPEN_READONLY`)
 
 `SqliteOptionsBase.readonly`
 
-***
+---
 
 ### repositories? \{#repositories\}
 
@@ -138,7 +138,7 @@ repositories?: Record<string, SqliteRepositoryConstructor<RepositoryBase<Reposit
 
 Defined in: [packages/rxdb-adapter-sqlite-wasm/src/sqlite.interface.ts:81](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-wasm/src/sqlite.interface.ts#L81)
 
-***
+---
 
 ### sharedWorker? \{#sharedworker\}
 
@@ -152,7 +152,7 @@ Defined in: [packages/rxdb-adapter-sqlite-wasm/src/sqlite.interface.ts:52](https
 
 `SqliteOptionsBase.sharedWorker`
 
-***
+---
 
 ### sharedWorkerInstance? \{#sharedworkerinstance\}
 
@@ -166,7 +166,7 @@ Defined in: [packages/rxdb-adapter-sqlite-wasm/src/sqlite.interface.ts:53](https
 
 `SqliteOptionsBase.sharedWorkerInstance`
 
-***
+---
 
 ### vfs? \{#vfs\}
 
@@ -182,7 +182,7 @@ Storage preset. Defaults to `idb`
 
 `SqliteOptionsBase.vfs`
 
-***
+---
 
 ### wasmUrl? \{#wasmurl\}
 
@@ -198,7 +198,7 @@ URL of the wasm file. When not provided, @subframe7536/sqlite-wasm uses its buil
 
 `SqliteOptionsBase.wasmUrl`
 
-***
+---
 
 ### worker? \{#worker\}
 
@@ -212,7 +212,7 @@ Defined in: [packages/rxdb-adapter-sqlite-wasm/src/sqlite.interface.ts:50](https
 
 `SqliteOptionsBase.worker`
 
-***
+---
 
 ### workerInstance? \{#workerinstance\}
 
@@ -226,7 +226,7 @@ Defined in: [packages/rxdb-adapter-sqlite-wasm/src/sqlite.interface.ts:51](https
 
 `SqliteOptionsBase.workerInstance`
 
-***
+---
 
 ### workerOwnership? \{#workerownership\}
 

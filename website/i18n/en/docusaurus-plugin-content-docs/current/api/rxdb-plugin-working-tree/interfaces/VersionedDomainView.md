@@ -46,9 +46,9 @@ Gets the column set that does not constitute a net business change on some table
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `table` | `string` | The table name; case-insensitive |
+| Parameter | Type     | Description                      |
+| --------- | -------- | -------------------------------- |
+| `table`   | `string` | The table name; case-insensitive |
 
 #### Returns
 

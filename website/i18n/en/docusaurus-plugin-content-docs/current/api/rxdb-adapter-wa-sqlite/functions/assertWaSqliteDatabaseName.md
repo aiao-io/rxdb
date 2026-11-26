@@ -10,9 +10,9 @@ Validates the database name before loading the browser VFS.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `dbName` | `string` | The adapter's database name |
+| Parameter | Type     | Description                 |
+| --------- | -------- | --------------------------- |
+| `dbName`  | `string` | The adapter's database name |
 
 ## Returns
 
@@ -21,4 +21,4 @@ Validates the database name before loading the browser VFS.
 ## Throws
 
 [RxDBAdapterSqliteError](../classes/RxDBAdapterSqliteError.md) when the UTF-8 byte count exceeds [WA\_SQLITE\_MAX\_DATABASE\_NAME\_BYTES](../variables/WA_SQLITE_MAX_DATABASE_NAME_BYTES.md),
-  or when the name would land in the same VFS file as another name (e.g. `tenant alice` / `tenant%20alice`, `a?x` / `a?y`)
+or when the name would land in the same VFS file as another name (e.g. `tenant alice` / `tenant%20alice`, `a?x` / `a?y`)

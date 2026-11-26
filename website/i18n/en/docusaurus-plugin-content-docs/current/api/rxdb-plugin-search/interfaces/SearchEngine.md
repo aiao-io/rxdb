@@ -18,9 +18,9 @@ Executes a search on a single collection and returns results with `_prefixPenalt
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `query` | [`SearchEngineQuery`](SearchEngineQuery.md) |
+| Parameter | Type                                        |
+| --------- | ------------------------------------------- |
+| `query`   | [`SearchEngineQuery`](SearchEngineQuery.md) |
 
 #### Returns
 

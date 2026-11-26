@@ -17,5 +17,10 @@ Same set of inputs / outputs / commands as Angular `ao-replayer` and Vue `Replay
 
 ```tsx
 const replayer = useRef<ReplayerRef>(null);
-<Replayer ref={replayer} replay={rxdb.replay} sessionId={sessionId} onCommitRestore={event => console.log(event.result)} />;
+<Replayer
+  ref={replayer}
+  replay={rxdb.replay}
+  sessionId={sessionId}
+  onCommitRestore={event => console.log(event.result)}
+/>;
 ```

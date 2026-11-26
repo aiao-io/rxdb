@@ -10,10 +10,10 @@ Gets the full displayName path
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `tree` | [`FieldTreeNode`](../interfaces/FieldTreeNode.md)[] | Field tree |
-| `value` | `string` | Field path (e.g. `orders.createdAt`) |
+| Parameter | Type                                                | Description                          |
+| --------- | --------------------------------------------------- | ------------------------------------ |
+| `tree`    | [`FieldTreeNode`](../interfaces/FieldTreeNode.md)[] | Field tree                           |
+| `value`   | `string`                                            | Field path (e.g. `orders.createdAt`) |
 
 ## Returns
 

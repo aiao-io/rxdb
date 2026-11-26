@@ -10,10 +10,10 @@ Decodes a whole raw record into runtime values on the entity side, according to 
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                  | Description                                                   |
+| ---------- | ----------------------------------------------------- | ------------------------------------------------------------- |
 | `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) | Entity metadata; determines which type each key is decoded as |
-| `raw` | `Readonly`&lt;`Record`&lt;`string`, `unknown`&gt;&gt; | The raw record, typically JSON such as a remote REST response |
+| `raw`      | `Readonly`&lt;`Record`&lt;`string`, `unknown`&gt;&gt; | The raw record, typically JSON such as a remote REST response |
 
 ## Returns
 

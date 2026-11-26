@@ -20,7 +20,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:8
 
 The entity name
 
-***
+---
 
 ### entityId \{#entityid\}
 
@@ -32,7 +32,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:8
 
 The entity primary key
 
-***
+---
 
 ### fingerprint \{#fingerprint\}
 
@@ -44,7 +44,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:9
 
 The fingerprint after the latest write
 
-***
+---
 
 ### inversePatch \{#inversepatch\}
 
@@ -56,7 +56,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:9
 
 The inverse patch from the **first capture**
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -68,7 +68,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:7
 
 The namespace the entity belongs to
 
-***
+---
 
 ### operation \{#operation\}
 
@@ -80,7 +80,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:8
 
 The net operation relative to HEAD after folding
 
-***
+---
 
 ### origin \{#origin\}
 
@@ -92,7 +92,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:9
 
 The latest write's origin
 
-***
+---
 
 ### patch \{#patch\}
 
@@ -104,7 +104,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:8
 
 The latest composed forward patch
 
-***
+---
 
 ### sourceChangeId \{#sourcechangeid\}
 
@@ -116,7 +116,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:1
 
 The latest write's source change; diagnostics only
 
-***
+---
 
 ### transactionId \{#transactionid\}
 
@@ -128,7 +128,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:1
 
 The transaction the latest write belongs to
 
-***
+---
 
 ### unitId \{#unitid\}
 

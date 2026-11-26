@@ -14,7 +14,7 @@ readonly page: number;
 
 Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:55
 
-***
+---
 
 ### pageSize \{#pagesize\}
 
@@ -24,7 +24,7 @@ readonly pageSize: number;
 
 Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:56
 
-***
+---
 
 ### query \{#query\}
 
@@ -34,7 +34,7 @@ readonly query: unknown;
 
 Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:53
 
-***
+---
 
 ### signal \{#signal\}
 
@@ -44,7 +44,7 @@ readonly signal: AbortSignal;
 
 Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:57
 
-***
+---
 
 ### sorts \{#sorts\}
 

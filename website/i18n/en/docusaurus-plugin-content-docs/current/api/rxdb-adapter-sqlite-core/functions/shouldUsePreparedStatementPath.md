@@ -9,6 +9,7 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/execute-sql.utils.ts:34](http
 Determines whether to use the prepared statement path (instead of batch exec).
 
 Returns true only when all conditions are met:
+
 - It is a single statement (contains no `;` after normalization)
 - It is a SELECT/EXPLAIN, or DML with a RETURNING clause (a result set is needed)
 
@@ -16,9 +17,9 @@ Multi-statement / plain DML goes through the exec path, avoiding the extra prepa
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `sql` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `sql`     | `string` |
 
 ## Returns
 

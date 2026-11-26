@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-history/src/create-branch.ts:17](https://githu
 
 The new branch's id; the caller has already confirmed it is usable and absent locally
 
-***
+---
 
 ### fromChangeId \{#fromchangeid\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-history/src/create-branch.ts:21](https://githu
 
 The fork point: a change id on the parent branch; `null` stops at the parent branch's own fork point
 
-***
+---
 
 ### fromCommitId? \{#fromcommitid\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-plugin-history/src/create-branch.ts:23](https://githu
 
 The named source commit, passed to the contributors as-is (see `RxDBBranchCreationContext.fromCommitId`)
 
-***
+---
 
 ### parentId \{#parentid\}
 

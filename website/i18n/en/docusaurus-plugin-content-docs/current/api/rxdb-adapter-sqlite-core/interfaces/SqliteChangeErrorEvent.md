@@ -22,7 +22,7 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/sqlite-core.interface.ts:79](
 
 The failure cause, unwrapped
 
-***
+---
 
 ### phase \{#phase\}
 
@@ -34,7 +34,7 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/sqlite-core.interface.ts:85](
 
 The phase in which the failure occurred
 
-***
+---
 
 ### rowIds \{#rowids\}
 
@@ -46,7 +46,7 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/sqlite-core.interface.ts:83](
 
 The rows that could not be dispatched
 
-***
+---
 
 ### tableName \{#tablename\}
 

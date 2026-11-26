@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/theme/query-builder-the
 
 Consumer subtree.
 
-***
+---
 
 ### theme \{#theme\}
 

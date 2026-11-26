@@ -35,7 +35,7 @@ readonly common: object;
 readonly USER_DATA_PATH: string;
 ```
 
-***
+---
 
 ### getFileSystemManager() \{#getfilesystemmanager\}
 
@@ -49,20 +49,20 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts:42]
 
 [`MiniProgramFileSystemManager`](MiniProgramFileSystemManager.md)
 
-***
+---
 
 ### getRandomValues()? \{#getrandomvalues\}
 
 ```ts
-getRandomValues?(options): unknown;
+getRandomValues ? options : unknown;
 ```
 
 Defined in: [packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts:43](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts#L43)
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                             |
+| --------- | -------------------------------- |
 | `options` | `MiniProgramRandomValuesOptions` |
 
 #### Returns

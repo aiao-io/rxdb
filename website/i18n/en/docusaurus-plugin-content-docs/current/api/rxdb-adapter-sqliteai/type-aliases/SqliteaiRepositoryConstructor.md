@@ -1,5 +1,5 @@
 ---
-sidebar_label: "SqliteaiRepositoryConstructor⟨T⟩"
+sidebar_label: 'SqliteaiRepositoryConstructor⟨T⟩'
 ---
 
 # SqliteaiRepositoryConstructor`<T>`
@@ -14,16 +14,16 @@ The constructor signature of a custom Repository class (users can override the d
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`RepositoryBase`](../../rxdb/classes/RepositoryBase.md)&lt;`AnyEntityType`&gt; |
+| Type Parameter                                                                                                              |
+| --------------------------------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`RepositoryBase`](../../rxdb/classes/RepositoryBase.md)&lt;`AnyEntityType`&gt; |
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `adapter` | [`RxDBAdapterSqliteBase`](../../rxdb-adapter-wa-sqlite/interfaces/RxDBAdapterSqliteBase.md) |
-| `EntityType` | [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Parameter    | Type                                                                                        |
+| ------------ | ------------------------------------------------------------------------------------------- |
+| `adapter`    | [`RxDBAdapterSqliteBase`](../../rxdb-adapter-wa-sqlite/interfaces/RxDBAdapterSqliteBase.md) |
+| `EntityType` | [`EntityType`](../../rxdb/type-aliases/EntityType.md)                                       |
 
 ## Returns
 

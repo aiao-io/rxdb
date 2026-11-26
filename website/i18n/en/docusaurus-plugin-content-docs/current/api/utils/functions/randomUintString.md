@@ -10,9 +10,9 @@ Generates a digit string of the given length; the first digit of a non-empty res
 
 ## Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `length?` | `number` | `16` | Result length |
+| Parameter | Type     | Default value | Description   |
+| --------- | -------- | ------------- | ------------- |
+| `length?` | `number` | `16`          | Result length |
 
 ## Returns
 

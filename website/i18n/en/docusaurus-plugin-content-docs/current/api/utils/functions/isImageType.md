@@ -12,8 +12,8 @@ Only checks the extension; does not read file contents and does no MIME sniffing
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type     | Description           |
+| ---------- | -------- | --------------------- |
 | `filename` | `string` | The file name or path |
 
 ## Returns

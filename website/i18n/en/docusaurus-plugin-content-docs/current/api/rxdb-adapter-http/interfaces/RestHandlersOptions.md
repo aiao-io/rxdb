@@ -22,7 +22,7 @@ Values **may contain `/`** (`v1/recipes` is legal): they come from configuration
 
 Entities not listed use their entity name itself as the path segment.
 
-***
+---
 
 ### templates? \{#templates\}
 

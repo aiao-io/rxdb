@@ -16,7 +16,7 @@ Defined in: [types.ts:17](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccf
 
 Navigation menu.
 
-***
+---
 
 ### navigating? \{#navigating\}
 
@@ -28,7 +28,7 @@ Defined in: [types.ts:21](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccf
 
 Navigation in progress (lazy-loaded routes, loaders), drives the top progress bar and loading overlay.
 
-***
+---
 
 ### url \{#url\}
 

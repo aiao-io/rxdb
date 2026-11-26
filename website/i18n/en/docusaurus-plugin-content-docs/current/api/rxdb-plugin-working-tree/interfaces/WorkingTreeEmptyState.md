@@ -1,5 +1,5 @@
 ---
-sidebar_label: "WorkingTreeEmptyState⟨T⟩"
+sidebar_label: 'WorkingTreeEmptyState⟨T⟩'
 ---
 
 # WorkingTreeEmptyState`<T>`
@@ -14,8 +14,8 @@ The call succeeded, and the result is a **semantically meaningful empty**.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Properties
@@ -30,7 +30,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts:7
 
 The discriminant
 
-***
+---
 
 ### value \{#value\}
 

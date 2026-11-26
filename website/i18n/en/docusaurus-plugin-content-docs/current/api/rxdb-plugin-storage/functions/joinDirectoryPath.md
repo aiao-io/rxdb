@@ -10,10 +10,10 @@ Joins a parent directory and a subdirectory name, returning the storage absolute
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter       | Type                    |
+| --------------- | ----------------------- |
 | `directoryPath` | `string` \| `undefined` |
-| `directoryName` | `string` |
+| `directoryName` | `string`                |
 
 ## Returns
 

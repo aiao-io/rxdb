@@ -18,16 +18,16 @@ Registers the `online` / `offline` listeners; when omitted, the global `addEvent
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `type` | `"online"` \| `"offline"` |
-| `listener` | () => `void` |
+| Parameter  | Type                      |
+| ---------- | ------------------------- |
+| `type`     | `"online"` \| `"offline"` |
+| `listener` | () => `void`              |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### baseDelayMs? \{#basedelayms\}
 
@@ -39,7 +39,7 @@ Defined in: [packages/rxdb/src/network/reachability.ts:43](https://github.com/ai
 
 Backoff starting interval; defaults to 1000ms.
 
-***
+---
 
 ### maxDelayMs? \{#maxdelayms\}
 
@@ -51,7 +51,7 @@ Defined in: [packages/rxdb/src/network/reachability.ts:46](https://github.com/ai
 
 Backoff ceiling interval; defaults to 30000ms.
 
-***
+---
 
 ### navigatorOnLine? \{#navigatoronline\}
 
@@ -72,7 +72,7 @@ Reads `navigator.onLine`.
 When omitted, the global `navigator` is auto-detected; explicitly passing a value other than `undefined` can
 be used for tests and non-browser hosts.
 
-***
+---
 
 ### removeEventListener? \{#removeeventlistener\}
 
@@ -86,10 +86,10 @@ Unregisters the listener; must be provided as a pair with [ReachabilityOptions.a
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `type` | `"online"` \| `"offline"` |
-| `listener` | () => `void` |
+| Parameter  | Type                      |
+| ---------- | ------------------------- |
+| `type`     | `"online"` \| `"offline"` |
+| `listener` | () => `void`              |
 
 #### Returns
 

@@ -18,16 +18,16 @@ Business-layer callback to decide whether a cell can be cleared.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `record` | `Record`&lt;`string`, `unknown`&gt; |
-| `field` | `string` |
+| Parameter | Type                                |
+| --------- | ----------------------------------- |
+| `record`  | `Record`&lt;`string`, `unknown`&gt; |
+| `field`   | `string`                            |
 
 #### Returns
 
 `boolean`
 
-***
+---
 
 ### cellErrorDetector? \{#cellerrordetector\}
 
@@ -41,16 +41,16 @@ Cell error detector.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `record` | [`EntityTableRecord`](EntityTableRecord.md) |
-| `field` | `string` |
+| Parameter | Type                                        |
+| --------- | ------------------------------------------- |
+| `record`  | [`EntityTableRecord`](EntityTableRecord.md) |
+| `field`   | `string`                                    |
 
 #### Returns
 
 `string` \| `null`
 
-***
+---
 
 ### columns \{#columns\}
 
@@ -62,7 +62,7 @@ Defined in: [packages/rxdb-model-react/src/entity-table/query-table.tsx:27](http
 
 Column definitions.
 
-***
+---
 
 ### emptyState? \{#emptystate\}
 
@@ -74,7 +74,7 @@ Defined in: [packages/rxdb-model-react/src/entity-table/query-table.tsx:55](http
 
 Empty-state slot (corresponds to Angular's `[emptyState]` content projection).
 
-***
+---
 
 ### filterBar? \{#filterbar\}
 
@@ -86,7 +86,7 @@ Defined in: [packages/rxdb-model-react/src/entity-table/query-table.tsx:53](http
 
 Filter bar slot (corresponds to Angular's `[filterBar]` content projection).
 
-***
+---
 
 ### filteredCount? \{#filteredcount\}
 
@@ -98,7 +98,7 @@ Defined in: [packages/rxdb-model-react/src/entity-table/query-table.tsx:45](http
 
 Number of results after filtering.
 
-***
+---
 
 ### idField? \{#idfield\}
 
@@ -110,7 +110,7 @@ Defined in: [packages/rxdb-model-react/src/entity-table/query-table.tsx:29](http
 
 Primary key field name, defaults to `'id'`.
 
-***
+---
 
 ### isDarkMode? \{#isdarkmode\}
 
@@ -122,7 +122,7 @@ Defined in: [packages/rxdb-model-react/src/entity-table/query-table.tsx:37](http
 
 Dark mode; when absent, it is detected automatically.
 
-***
+---
 
 ### loading? \{#loading\}
 
@@ -134,7 +134,7 @@ Defined in: [packages/rxdb-model-react/src/entity-table/query-table.tsx:47](http
 
 Whether to show the loading state.
 
-***
+---
 
 ### loadingMore? \{#loadingmore\}
 
@@ -146,7 +146,7 @@ Defined in: [packages/rxdb-model-react/src/entity-table/query-table.tsx:49](http
 
 Loading more in progress.
 
-***
+---
 
 ### loadMore? \{#loadmore\}
 
@@ -162,7 +162,7 @@ Callback to load more data when the bottom is reached, passed through to EntityT
 
 `void`
 
-***
+---
 
 ### nonClearableFields? \{#nonclearablefields\}
 
@@ -174,7 +174,7 @@ Defined in: [packages/rxdb-model-react/src/entity-table/query-table.tsx:31](http
 
 Set of fields that cannot be cleared.
 
-***
+---
 
 ### onBatchUpdated? \{#onbatchupdated\}
 
@@ -188,15 +188,15 @@ Batch change.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter   | Type                                      |
+| ----------- | ----------------------------------------- |
 | `mutations` | [`BatchChangeItem`](BatchChangeItem.md)[] |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onCellChanged? \{#oncellchanged\}
 
@@ -210,15 +210,15 @@ Cell changed.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | [`CellChangeEvent`](CellChangeEvent.md) |
+| Parameter | Type                                    |
+| --------- | --------------------------------------- |
+| `event`   | [`CellChangeEvent`](CellChangeEvent.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onIconClicked? \{#oniconclicked\}
 
@@ -232,17 +232,17 @@ Non-delete icon click.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | \{ `name`: `string`; `record`: [`EntityTableRecord`](EntityTableRecord.md); \} |
-| `event.name` | `string` |
-| `event.record` | [`EntityTableRecord`](EntityTableRecord.md) |
+| Parameter      | Type                                                                           |
+| -------------- | ------------------------------------------------------------------------------ |
+| `event`        | \{ `name`: `string`; `record`: [`EntityTableRecord`](EntityTableRecord.md); \} |
+| `event.name`   | `string`                                                                       |
+| `event.record` | [`EntityTableRecord`](EntityTableRecord.md)                                    |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onRowDeleted? \{#onrowdeleted\}
 
@@ -256,15 +256,15 @@ Row deleted.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `record` | [`EntityTableRecord`](EntityTableRecord.md) |
+| Parameter | Type                                        |
+| --------- | ------------------------------------------- |
+| `record`  | [`EntityTableRecord`](EntityTableRecord.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onRowMoved? \{#onrowmoved\}
 
@@ -278,15 +278,15 @@ Single-row drag and drop: the dragged row and its neighbors around the drop poin
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `move` | [`RowMoveEvent`](RowMoveEvent.md) |
+| Parameter | Type                              |
+| --------- | --------------------------------- |
+| `move`    | [`RowMoveEvent`](RowMoveEvent.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onRowReordered? \{#onrowreordered\}
 
@@ -300,15 +300,15 @@ Rows reordered.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter    | Type       |
+| ------------ | ---------- |
 | `orderedIds` | `string`[] |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onScrollNearBottom? \{#onscrollnearbottom\}
 
@@ -324,7 +324,7 @@ Emitted when the bottom is reached and no loadMore is provided.
 
 `void`
 
-***
+---
 
 ### onSortClicked? \{#onsortclicked\}
 
@@ -338,17 +338,17 @@ Column header sort click.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | \{ `field`: `unknown`; `order`: `unknown`; \} |
-| `event.field` | `unknown` |
-| `event.order` | `unknown` |
+| Parameter     | Type                                          |
+| ------------- | --------------------------------------------- |
+| `event`       | \{ `field`: `unknown`; `order`: `unknown`; \} |
+| `event.field` | `unknown`                                     |
+| `event.order` | `unknown`                                     |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### queryActive? \{#queryactive\}
 
@@ -360,7 +360,7 @@ Defined in: [packages/rxdb-model-react/src/entity-table/query-table.tsx:41](http
 
 Whether the query condition is active (shows the filter status badge).
 
-***
+---
 
 ### records \{#records\}
 
@@ -372,7 +372,7 @@ Defined in: [packages/rxdb-model-react/src/entity-table/query-table.tsx:25](http
 
 Table records.
 
-***
+---
 
 ### rowDragEnabled? \{#rowdragenabled\}
 
@@ -384,7 +384,7 @@ Defined in: [packages/rxdb-model-react/src/entity-table/query-table.tsx:67](http
 
 Whether to show the row drag handle, defaults to `true`.
 
-***
+---
 
 ### tableOptions? \{#tableoptions\}
 
@@ -396,7 +396,7 @@ Defined in: [packages/rxdb-model-react/src/entity-table/query-table.tsx:33](http
 
 Additional table options passed through to VTable.
 
-***
+---
 
 ### totalCount? \{#totalcount\}
 

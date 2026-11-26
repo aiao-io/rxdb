@@ -11,15 +11,15 @@ If the value cannot become a valid number (NaN, infinity, etc.), returns the ori
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `T` | The value to try to convert |
+| Parameter | Type | Description                 |
+| --------- | ---- | --------------------------- |
+| `value`   | `T`  | The value to try to convert |
 
 ## Returns
 

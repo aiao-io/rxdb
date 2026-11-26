@@ -10,8 +10,8 @@ Builds the "language name not found" error payload.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type     | Description                                  |
+| ---------- | -------- | -------------------------------------------- |
 | `language` | `string` | The language name that could not be resolved |
 
 ## Returns

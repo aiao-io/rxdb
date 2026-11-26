@@ -1,11 +1,7 @@
 # write_new_branch()
 
 ```ts
-function write_new_branch(
-   rxdb, 
-   executor, 
-   input
-): Promise<RxDBBranch>;
+function write_new_branch(rxdb, executor, input): Promise<RxDBBranch>;
 ```
 
 Defined in: [packages/rxdb-plugin-history/src/create-branch.ts:44](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-history/src/create-branch.ts#L44)
@@ -16,11 +12,11 @@ Writes a new branch inside the caller's transaction: the branch row, plus the ro
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `rxdb` | [`RxDB`](../../rxdb/classes/RxDB.md) | The host; its entity manager and system contributors are taken from it |
-| `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md) | The executor of the caller's write transaction |
-| `input` | [`NewBranchRowInput`](../interfaces/NewBranchRowInput.md) | See [NewBranchRowInput](../interfaces/NewBranchRowInput.md) |
+| Parameter  | Type                                                                  | Description                                                            |
+| ---------- | --------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `rxdb`     | [`RxDB`](../../rxdb/classes/RxDB.md)                                  | The host; its entity manager and system contributors are taken from it |
+| `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md) | The executor of the caller's write transaction                         |
+| `input`    | [`NewBranchRowInput`](../interfaces/NewBranchRowInput.md)             | See [NewBranchRowInput](../interfaces/NewBranchRowInput.md)            |
 
 ## Returns
 

@@ -11,6 +11,7 @@ automatically filtering the available operators by field type or metadata.
 Supports search filtering and keyboard navigation.
 
 Supports two usage styles:
+
 1. Direct template use: listen for the `(operatorChange)` output event
 2. Injection via NgComponentOutlet: pass the `operatorChangeFn` callback input
 
@@ -36,7 +37,7 @@ readonly fieldMetadata: InputSignal<FieldMetadata | undefined>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/operator-selector/operator-selector.component.ts:45](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/operator-selector/operator-selector.component.ts#L45)
 
-***
+---
 
 ### fieldType \{#fieldtype\}
 
@@ -46,7 +47,7 @@ readonly fieldType: InputSignal<string>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/operator-selector/operator-selector.component.ts:46](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/operator-selector/operator-selector.component.ts#L46)
 
-***
+---
 
 ### operatorChange \{#operatorchange\}
 
@@ -58,7 +59,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/operator-selector/ope
 
 Output event for direct template use
 
-***
+---
 
 ### operatorChangeFn \{#operatorchangefn\}
 
@@ -70,7 +71,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/operator-selector/ope
 
 Callback input used when injected via NgComponentOutlet
 
-***
+---
 
 ### operatorOptions \{#operatoroptions\}
 
@@ -80,7 +81,7 @@ readonly operatorOptions: Signal<object[]>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/operator-selector/operator-selector.component.ts:38](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/operator-selector/operator-selector.component.ts#L38)
 
-***
+---
 
 ### selectedOperator \{#selectedoperator\}
 
@@ -106,7 +107,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/operator-selector/ope
 
 [`ModelI18n`](../interfaces/ModelI18n.md)
 
-***
+---
 
 ### t \{#t\}
 
@@ -134,9 +135,9 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/operator-selector/ope
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `op` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `op`      | `string` |
 
 #### Returns
 

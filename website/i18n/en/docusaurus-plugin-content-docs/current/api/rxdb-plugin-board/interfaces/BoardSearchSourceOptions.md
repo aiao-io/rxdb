@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-board/src/search/board-search-source.ts:48](ht
 
 Query debounce (defaults to the engine's 300ms).
 
-***
+---
 
 ### pageSize? \{#pagesize\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-board/src/search/board-search-source.ts:50](ht
 
 In-board page size (fixed, the same value in the cross-framework comparison).
 
-***
+---
 
 ### refreshAuditMs? \{#refreshauditms\}
 

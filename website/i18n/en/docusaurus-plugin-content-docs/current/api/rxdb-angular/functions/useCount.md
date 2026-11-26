@@ -10,16 +10,16 @@ Counts entities matching the condition
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                    |
+| ------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `EntityType` | `T` | Entity class |
-| `options` | [`UseOptions`](../type-aliases/UseOptions.md)&lt;[`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"countOptions"`&gt;&gt; | Query parameters |
+| Parameter    | Type                                                                                                                                                | Description      |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| `EntityType` | `T`                                                                                                                                                 | Entity class     |
+| `options`    | [`UseOptions`](../type-aliases/UseOptions.md)&lt;[`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"countOptions"`&gt;&gt; | Query parameters |
 
 ## Returns
 

@@ -30,16 +30,16 @@ Hands the archive to the browser for download.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `archive` | `Blob` |
+| Parameter  | Type     |
+| ---------- | -------- |
+| `archive`  | `Blob`   |
 | `fileName` | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### listDatabases() \{#listdatabases\}
 
@@ -55,7 +55,7 @@ The logical database names of existing databases: for avoiding new names and che
 
 `Promise`&lt;readonly `string`[]&gt;
 
-***
+---
 
 ### reload() \{#reload\}
 
@@ -71,7 +71,7 @@ Full page reload (switching databases only ever goes through a full page reload,
 
 `void`
 
-***
+---
 
 ### watchStorage() \{#watchstorage\}
 
@@ -85,15 +85,15 @@ Callback when another page rewrites the storage (browser `storage` event); retur
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                       |
+| ---------- | -------------------------- |
 | `listener` | (`key`, `value`) => `void` |
 
 #### Returns
 
 () => `void`
 
-***
+---
 
 ### withLock() \{#withlock\}
 
@@ -108,16 +108,16 @@ When `wait` is `false`, failing to get the lock fails immediately (another page 
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter   | Type                       |
+| ----------- | -------------------------- |
 | `operation` | () => `Promise`&lt;`T`&gt; |
-| `wait` | `boolean` |
+| `wait`      | `boolean`                  |
 
 #### Returns
 

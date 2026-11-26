@@ -1,11 +1,7 @@
 # restoreTableRecords()
 
 ```ts
-function restoreTableRecords(
-   table, 
-   records, 
-   committed
-): void;
+function restoreTableRecords(table, records, committed): void;
 ```
 
 Defined in: [packages/rxdb-model/src/entity-table/vtable/table-row-move.ts:115](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model/src/entity-table/vtable/table-row-move.ts#L115)
@@ -14,11 +10,11 @@ Restores the table rows to the order of the most recent commit.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `table` | `ListTableAll` | The target table instance |
-| `records` | [`EntityTableRecord`](../interfaces/EntityTableRecord.md)[] | The record array handed to the table (will be modified back in place) |
-| `committed` | readonly [`EntityTableRecord`](../interfaces/EntityTableRecord.md)[] | The order copy recorded at the most recent `setRecords` |
+| Parameter   | Type                                                                 | Description                                                           |
+| ----------- | -------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `table`     | `ListTableAll`                                                       | The target table instance                                             |
+| `records`   | [`EntityTableRecord`](../interfaces/EntityTableRecord.md)[]          | The record array handed to the table (will be modified back in place) |
+| `committed` | readonly [`EntityTableRecord`](../interfaces/EntityTableRecord.md)[] | The order copy recorded at the most recent `setRecords`               |
 
 ## Returns
 

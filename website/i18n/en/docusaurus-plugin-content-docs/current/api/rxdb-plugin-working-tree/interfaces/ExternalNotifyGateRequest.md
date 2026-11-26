@@ -21,7 +21,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/external-notify-
 
 Does this database have the commit capability enabled
 
-***
+---
 
 ### entityName \{#entityname\}
 
@@ -33,7 +33,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/external-notify-
 
 The name of the entity being notified; appears in the rejection message
 
-***
+---
 
 ### targetClass \{#targetclass\}
 

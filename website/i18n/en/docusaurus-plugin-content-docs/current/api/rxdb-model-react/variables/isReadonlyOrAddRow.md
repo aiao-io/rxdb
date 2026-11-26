@@ -10,9 +10,9 @@ Checks whether the record is a readonly row or a new-row template
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `record` | `unknown` | The row record to check |
+| Parameter | Type      | Description             |
+| --------- | --------- | ----------------------- |
+| `record`  | `unknown` | The row record to check |
 
 ## Returns
 

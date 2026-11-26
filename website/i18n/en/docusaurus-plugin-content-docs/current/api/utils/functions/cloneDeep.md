@@ -11,6 +11,7 @@ Deep-clones a value.
 A **single** object model: the prototype chain and property descriptors are always preserved, so `instanceof` is identical before and after cloning. The historical implementation was `try structuredClone / catch internal implementation`, and the same class would flip between "loses prototype" and "keeps prototype" as soon as it gained one function property (UTL-021); it has been removed.
 
 Handled by category:
+
 - Primitives and functions: returned as-is by reference (functions are not copied).
 - `Date` / `RegExp` / `ArrayBuffer` / `DataView` / TypedArray: rebuilt as same-type instances. `DataView` rebuilds a sliced buffer, so `byteOffset` becomes zero while the byte contents are unchanged.
 - `Map` / `Set` / `Array`: keys, values, and elements are copied recursively.
@@ -23,15 +24,15 @@ Circular and shared references are converged through a `WeakMap`, so shared stru
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `T` | The value to copy |
+| Parameter | Type | Description       |
+| --------- | ---- | ----------------- |
+| `value`   | `T`  | The value to copy |
 
 ## Returns
 

@@ -22,7 +22,7 @@ readonly kind: "mute";
 
 Defined in: packages/rxdb-adapter-sqlite-core/dist/desktop/desktop-host-protocol.d.ts:141
 
-***
+---
 
 ### muted \{#muted\}
 
@@ -32,7 +32,7 @@ readonly muted: boolean;
 
 Defined in: packages/rxdb-adapter-sqlite-core/dist/desktop/desktop-host-protocol.d.ts:143
 
-***
+---
 
 ### sessionId \{#sessionid\}
 

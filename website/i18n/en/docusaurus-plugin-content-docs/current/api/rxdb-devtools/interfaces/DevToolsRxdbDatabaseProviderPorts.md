@@ -16,7 +16,7 @@ Defined in: [rxdb/database-provider.ts:92](https://github.com/aiao-io/rxdb/blob/
 
 The current session indeed allows clearing the diagnostics.
 
-***
+---
 
 ### getEntityMetadata \{#getentitymetadata\}
 
@@ -28,7 +28,7 @@ Defined in: [rxdb/database-provider.ts:77](https://github.com/aiao-io/rxdb/blob/
 
 The entity metadata reading function; exceptions pass through with upstream semantics (not masking equals leaking plaintext).
 
-***
+---
 
 ### i18n? \{#i18n\}
 
@@ -40,7 +40,7 @@ Defined in: [rxdb/database-provider.ts:90](https://github.com/aiao-io/rxdb/blob/
 
 The i18n runtime explicitly provided by the application.
 
-***
+---
 
 ### runtime \{#runtime\}
 
@@ -66,16 +66,16 @@ Pushes an already-masked, already-serialized RxDB event to the peer.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `eventType` | `string` | A key of `RxDBEventMap`. |
-| `data` | `unknown` | The event payload; the caller no longer holds it. |
+| Parameter   | Type      | Description                                       |
+| ----------- | --------- | ------------------------------------------------- |
+| `eventType` | `string`  | A key of `RxDBEventMap`.                          |
+| `data`      | `unknown` | The event payload; the caller no longer holds it. |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### getRxDB() \{#getrxdb\}
 

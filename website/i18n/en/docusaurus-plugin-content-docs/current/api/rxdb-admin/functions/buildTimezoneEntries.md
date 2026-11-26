@@ -10,9 +10,9 @@ Computes the current offset for each commonly used time zone.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `now` | `Date` | The instant. |
+| Parameter | Type   | Description  |
+| --------- | ------ | ------------ |
+| `now`     | `Date` | The instant. |
 
 ## Returns
 

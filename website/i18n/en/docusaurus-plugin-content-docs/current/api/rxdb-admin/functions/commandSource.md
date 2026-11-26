@@ -10,8 +10,8 @@ A command source.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                             | Description                                                                          |
+| ---------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
 | `commands` | () => readonly [`ShellCommand`](../interfaces/ShellCommand.md)[] | The command read function; re-read each time the panel opens to follow the language. |
 
 ## Returns

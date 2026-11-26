@@ -10,9 +10,9 @@ Cleans up an unfinished restore (the page closed mid-restore, or the cleanup its
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `input` | [`SqliteRestoreInput`](../interfaces/SqliteRestoreInput.md) | Adapter context |
+| Parameter | Type                                                        | Description     |
+| --------- | ----------------------------------------------------------- | --------------- |
+| `input`   | [`SqliteRestoreInput`](../interfaces/SqliteRestoreInput.md) | Adapter context |
 
 ## Returns
 

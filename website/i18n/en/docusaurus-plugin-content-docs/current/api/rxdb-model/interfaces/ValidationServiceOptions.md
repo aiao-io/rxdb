@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model/src/query-builder/services/validation.service.t
 
 Custom validation rules
 
-***
+---
 
 ### i18n? \{#i18n\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-model/src/query-builder/services/validation.service.t
 
 Message runtime.
 
-***
+---
 
 ### operatorRegistry? \{#operatorregistry\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-model/src/query-builder/services/validation.service.t
 
 Operator registry
 
-***
+---
 
 ### useBuiltinRules? \{#usebuiltinrules\}
 
@@ -55,5 +55,5 @@ Whether to enable the built-in validation rules
 #### Default
 
 ```ts
-true
+true;
 ```

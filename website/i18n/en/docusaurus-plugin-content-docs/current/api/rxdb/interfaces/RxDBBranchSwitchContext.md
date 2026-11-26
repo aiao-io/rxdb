@@ -16,7 +16,7 @@ Defined in: [packages/rxdb/src/rxdb-plugin-system.ts:142](https://github.com/aia
 
 The current branch id; `null` when there is no active branch at all
 
-***
+---
 
 ### executor \{#executor\}
 
@@ -33,12 +33,12 @@ The executor of **the switch transaction itself**
 What is read and written here lives and dies with the switch that follows: throwing rolls back the whole thing, leaving no half-switched working tree behind.
 Being able to write does not mean one should — see [RxDBSystemContribution.prepareBranchSwitch](RxDBSystemContribution.md#preparebranchswitch).
 
-***
+---
 
 ### preconditions \{#preconditions\}
 
 ```ts
-readonly preconditions: 
+readonly preconditions:
   | RxDBBranchSwitchPreconditions
   | undefined;
 ```
@@ -47,7 +47,7 @@ Defined in: [packages/rxdb/src/rxdb-plugin-system.ts:148](https://github.com/aia
 
 The preconditions proposed by the caller; `undefined` when none were proposed, which is the same thing as an empty object
 
-***
+---
 
 ### targetBranchId \{#targetbranchid\}
 

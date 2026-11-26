@@ -18,9 +18,9 @@ Changing the `PropertyType` of the same column after landing in the database bre
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `unknown` |
+| Parameter  | Type           |
+| ---------- | -------------- |
+| `value`    | `unknown`      |
 | `property` | `PropertyLike` |
 
 ## Returns

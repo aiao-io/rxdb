@@ -34,7 +34,7 @@ Defined in: [packages/rxdb/src/entity/sync-override.ts:28](https://github.com/ai
 
 The override target: a business entity class registered in `entities`
 
-***
+---
 
 ### sync \{#sync\}
 

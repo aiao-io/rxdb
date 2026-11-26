@@ -37,7 +37,7 @@ The current capture epoch.
 Only requires that two calls at the same point in time are equal; no monotonicity or
 parsability is required — this module only performs equality comparisons.
 
-***
+---
 
 ### readCommittedFiles() \{#readcommittedfiles\}
 
@@ -52,15 +52,15 @@ must not appear.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `signal` | `AbortSignal` |
+| Parameter | Type          |
+| --------- | ------------- |
+| `signal`  | `AbortSignal` |
 
 #### Returns
 
 `Promise`&lt;readonly [`DevToolsSnapshotEntry`](DevToolsSnapshotEntry.md)[]&gt;
 
-***
+---
 
 ### readMetadata() \{#readmetadata\}
 
@@ -74,9 +74,9 @@ Reads all metadata rows under the lock.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `signal` | `AbortSignal` |
+| Parameter | Type          |
+| --------- | ------------- |
+| `signal`  | `AbortSignal` |
 
 #### Returns
 

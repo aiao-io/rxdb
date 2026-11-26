@@ -10,16 +10,16 @@ Whether drag-and-drop reordering is currently allowed for the entity list
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `state` | [`ListReorderState`](../interfaces/ListReorderState.md) | The list state |
+| Parameter | Type                                                    | Description    |
+| --------- | ------------------------------------------------------- | -------------- |
+| `state`   | [`ListReorderState`](../interfaces/ListReorderState.md) | The list state |
 
 ## Returns
 
 `boolean`
 
 `true` when all conditions are met: a manually ordered entity, string primary key, not sorted by a column, no user filter, not in selection mode,
-  a fixed query pinning a complete ordering domain, fully loaded, and no read-only rows / drafts / unfinished edits / unsettled reorders
+a fixed query pinning a complete ordering domain, fully loaded, and no read-only rows / drafts / unfinished edits / unsettled reorders
 
 ## Example
 

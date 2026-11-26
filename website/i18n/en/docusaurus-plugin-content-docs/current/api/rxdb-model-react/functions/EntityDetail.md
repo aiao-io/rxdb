@@ -10,8 +10,8 @@ Tab-based entity detail component: a base form tab + relation table tabs.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter           | Type                                                      |
+| ------------------- | --------------------------------------------------------- |
 | `__namedParameters` | [`EntityDetailProps`](../interfaces/EntityDetailProps.md) |
 
 ## Returns

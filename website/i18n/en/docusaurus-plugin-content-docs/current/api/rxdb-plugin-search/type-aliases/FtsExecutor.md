@@ -10,10 +10,10 @@ SQL execution adapter: accepts parameterized SQL and returns FTS rows.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `sql` | `string` |
-| `params` | readonly `unknown`[] |
+| Parameter | Type                 |
+| --------- | -------------------- |
+| `sql`     | `string`             |
+| `params`  | readonly `unknown`[] |
 
 ## Returns
 

@@ -10,16 +10,16 @@ Bridges the entity's patch stream into Vue's reactivity system so in-place mutat
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* `unknown` | Entity instance type |
+| Type Parameter                                        | Description          |
+| ----------------------------------------------------- | -------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ `unknown` | Entity instance type |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `MaybeRefOrGetter`&lt;`T` \| `undefined`&gt; | The entity instance to watch; may be a constant, a `Ref` or a getter. No subscription is established while it is `undefined` |
-| `options?` | [`EntityChangeOptions`](../interfaces/EntityChangeOptions.md) | See [EntityChangeOptions](../interfaces/EntityChangeOptions.md) |
+| Parameter  | Type                                                          | Description                                                                                                                  |
+| ---------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `entity`   | `MaybeRefOrGetter`&lt;`T` \| `undefined`&gt;                  | The entity instance to watch; may be a constant, a `Ref` or a getter. No subscription is established while it is `undefined` |
+| `options?` | [`EntityChangeOptions`](../interfaces/EntityChangeOptions.md) | See [EntityChangeOptions](../interfaces/EntityChangeOptions.md)                                                              |
 
 ## Returns
 

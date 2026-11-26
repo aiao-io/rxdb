@@ -1,5 +1,5 @@
 ---
-sidebar_label: "InfiniteScrollingList⟨T⟩"
+sidebar_label: 'InfiniteScrollingList⟨T⟩'
 ---
 
 # InfiniteScrollingList`<T>`
@@ -18,9 +18,9 @@ For a more idiomatic Angular entry point, see [useInfiniteScroll](../functions/u
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) | Entity constructor type |
+| Type Parameter                                                                                    | Description             |
+| ------------------------------------------------------------------------------------------------- | ----------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) | Entity constructor type |
 
 ## Constructors
 
@@ -28,8 +28,8 @@ For a more idiomatic Angular entry point, see [useInfiniteScroll](../functions/u
 
 ```ts
 new InfiniteScrollingList<T>(
-   rxdb, 
-   EntityType, 
+   rxdb,
+   EntityType,
    options
 ): InfiniteScrollingList<T>;
 ```
@@ -38,11 +38,11 @@ Defined in: [rxdb-angular/src/InfiniteScrollingList.ts:138](https://github.com/a
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `rxdb` | [`RxDB`](../../rxdb/classes/RxDB.md) | RxDB instance |
-| `EntityType` | `T` | Entity constructor |
-| `options` | [`InfiniteScrollOptions`](../type-aliases/InfiniteScrollOptions.md)&lt;`T`&gt; | Cursor pagination options; when a function is passed it is a reactive reader, and option changes reset and reload automatically |
+| Parameter    | Type                                                                           | Description                                                                                                                     |
+| ------------ | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| `rxdb`       | [`RxDB`](../../rxdb/classes/RxDB.md)                                           | RxDB instance                                                                                                                   |
+| `EntityType` | `T`                                                                            | Entity constructor                                                                                                              |
+| `options`    | [`InfiniteScrollOptions`](../type-aliases/InfiniteScrollOptions.md)&lt;`T`&gt; | Cursor pagination options; when a function is passed it is a reactive reader, and option changes reset and reload automatically |
 
 #### Returns
 
@@ -60,7 +60,7 @@ Defined in: [rxdb-angular/src/InfiniteScrollingList.ts:119](https://github.com/a
 
 The most recent load error; cleared by the next successful load.
 
-***
+---
 
 ### hasMore \{#hasmore\}
 
@@ -72,7 +72,7 @@ Defined in: [rxdb-angular/src/InfiniteScrollingList.ts:123](https://github.com/a
 
 Whether a next page may still exist; set to `false` once a page returns fewer than `limit` entries.
 
-***
+---
 
 ### hasValue \{#hasvalue\}
 
@@ -84,7 +84,7 @@ Defined in: [rxdb-angular/src/InfiniteScrollingList.ts:127](https://github.com/a
 
 Whether there is any data (unlike [isEmpty](#isempty), does not consider loading/error states).
 
-***
+---
 
 ### isEmpty \{#isempty\}
 
@@ -94,7 +94,7 @@ readonly isEmpty: Signal<boolean>;
 
 Defined in: [rxdb-angular/src/InfiniteScrollingList.ts:129](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-angular/src/InfiniteScrollingList.ts#L129)
 
-***
+---
 
 ### isLoading \{#isloading\}
 
@@ -106,7 +106,7 @@ Defined in: [rxdb-angular/src/InfiniteScrollingList.ts:121](https://github.com/a
 
 Whether a new page is currently being loaded.
 
-***
+---
 
 ### value \{#value\}
 
@@ -140,7 +140,7 @@ No-op while `isLoading` is true or `hasMore` is false — repeated calls never p
 
 RAN-002: the method body is wrapped entirely in untracked. It reads `isLoading` / `hasMore` / the reactive `options` / `#values` and then writes back to the same batch of signals; without isolation, a caller invoking it once inside an `effect` on its own trigger would register all of these internal signals as dependencies of that effect — a page `next` setting `isLoading` back to false would wake the effect and immediately request the next page, paging all the way to the end without the trigger ever changing again. With isolation, only the caller's own declared dependencies participate in triggering.
 
-***
+---
 
 ### refresh() \{#refresh\}
 

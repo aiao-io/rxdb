@@ -28,7 +28,7 @@ Defined in: [rxdb-admin-angular/src/layout/sidebar.component.ts:40](https://gith
 
 Brand icon template (shown when there is no Logo image).
 
-***
+---
 
 ### collapsed \{#collapsed\}
 
@@ -38,7 +38,7 @@ protected readonly collapsed: Signal<boolean>;
 
 Defined in: [rxdb-admin-angular/src/layout/sidebar.component.ts:27](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/sidebar.component.ts#L27)
 
-***
+---
 
 ### hoverExpanded \{#hoverexpanded\}
 
@@ -48,7 +48,7 @@ protected readonly hoverExpanded: Signal<boolean>;
 
 Defined in: [rxdb-admin-angular/src/layout/sidebar.component.ts:28](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/sidebar.component.ts#L28)
 
-***
+---
 
 ### isDark \{#isdark\}
 
@@ -58,7 +58,7 @@ protected readonly isDark: Signal<boolean>;
 
 Defined in: [rxdb-admin-angular/src/layout/sidebar.component.ts:25](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/sidebar.component.ts#L25)
 
-***
+---
 
 ### layout \{#layout\}
 
@@ -68,7 +68,7 @@ protected readonly layout: Signal<LayoutState>;
 
 Defined in: [rxdb-admin-angular/src/layout/sidebar.component.ts:22](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/sidebar.component.ts#L22)
 
-***
+---
 
 ### menu \{#menu\}
 
@@ -80,7 +80,7 @@ Defined in: [rxdb-admin-angular/src/layout/sidebar.component.ts:37](https://gith
 
 Menu tree.
 
-***
+---
 
 ### menuExtra \{#menuextra\}
 
@@ -92,7 +92,7 @@ Defined in: [rxdb-admin-angular/src/layout/sidebar.component.ts:43](https://gith
 
 Template for extra content on the right of menu items.
 
-***
+---
 
 ### mobile \{#mobile\}
 
@@ -102,7 +102,7 @@ protected readonly mobile: Signal<boolean>;
 
 Defined in: [rxdb-admin-angular/src/layout/sidebar.component.ts:26](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/sidebar.component.ts#L26)
 
-***
+---
 
 ### PanelLeftClose \{#panelleftclose\}
 
@@ -112,7 +112,7 @@ protected readonly PanelLeftClose: typeof LucidePanelLeftClose = LucidePanelLeft
 
 Defined in: [rxdb-admin-angular/src/layout/sidebar.component.ts:33](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/sidebar.component.ts#L33)
 
-***
+---
 
 ### PanelLeftOpen \{#panelleftopen\}
 
@@ -122,7 +122,7 @@ protected readonly PanelLeftOpen: typeof LucidePanelLeftOpen = LucidePanelLeftOp
 
 Defined in: [rxdb-admin-angular/src/layout/sidebar.component.ts:34](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/sidebar.component.ts#L34)
 
-***
+---
 
 ### prefs \{#prefs\}
 
@@ -132,7 +132,7 @@ protected readonly prefs: Signal<AdminPreferences>;
 
 Defined in: [rxdb-admin-angular/src/layout/sidebar.component.ts:24](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/sidebar.component.ts#L24)
 
-***
+---
 
 ### rail \{#rail\}
 
@@ -142,7 +142,7 @@ protected readonly rail: Signal<boolean>;
 
 Defined in: [rxdb-admin-angular/src/layout/sidebar.component.ts:29](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/sidebar.component.ts#L29)
 
-***
+---
 
 ### semiDark \{#semidark\}
 
@@ -152,7 +152,7 @@ protected readonly semiDark: Signal<string | undefined>;
 
 Defined in: [rxdb-admin-angular/src/layout/sidebar.component.ts:30](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/sidebar.component.ts#L30)
 
-***
+---
 
 ### shell \{#shell\}
 
@@ -162,7 +162,7 @@ protected readonly shell: AdminShell<LucideIconInput>;
 
 Defined in: [rxdb-admin-angular/src/layout/sidebar.component.ts:20](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/sidebar.component.ts#L20)
 
-***
+---
 
 ### t \{#t\}
 
@@ -176,16 +176,16 @@ Translates shell text.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | `string` | Text key. |
+| Parameter | Type                                | Description     |
+| --------- | ----------------------------------- | --------------- |
+| `key`     | `string`                            | Text key.       |
 | `params?` | `Record`&lt;`string`, `unknown`&gt; | ICU parameters. |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### ui \{#ui\}
 
@@ -209,7 +209,7 @@ Defined in: [rxdb-admin-angular/src/layout/sidebar.component.ts:45](https://gith
 
 `void`
 
-***
+---
 
 ### hoverOut() \{#hoverout\}
 

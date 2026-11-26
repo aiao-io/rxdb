@@ -22,7 +22,7 @@ Defined in: [packages/rxdb-plugin-sync/src/query-cache-outbox.ts:85](https://git
 
 The entity id that failed; `null` for whole-batch failures (e.g. metadata probe failure)
 
-***
+---
 
 ### error \{#error\}
 

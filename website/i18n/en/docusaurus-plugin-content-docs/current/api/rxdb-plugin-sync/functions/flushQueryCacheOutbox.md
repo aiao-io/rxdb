@@ -1,12 +1,7 @@
 # flushQueryCacheOutbox()
 
 ```ts
-function flushQueryCacheOutbox(
-   rxdb, 
-   namespace, 
-   entity, 
-   options?
-): Promise<QueryCacheOutboxResult>;
+function flushQueryCacheOutbox(rxdb, namespace, entity, options?): Promise<QueryCacheOutboxResult>;
 ```
 
 Defined in: [packages/rxdb-plugin-sync/src/query-cache-outbox.ts:239](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-sync/src/query-cache-outbox.ts#L239)
@@ -15,13 +10,13 @@ Replays the offline changes backlogged in a QueryCache repository back to the re
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `rxdb` | [`RxDB`](../../rxdb/classes/RxDB.md) | The RxDB instance, used to get branches, local/remote adapters, and entity configuration |
-| `namespace` | `string` | The entity namespace |
-| `entity` | `string` | The entity name |
-| `options?` | \{ `conflictResolver?`: [`ConflictResolver`](../../rxdb/interfaces/ConflictResolver.md); \} | The optional conflict resolver; defaults to [LWWConflictResolver](../../rxdb/classes/LWWConflictResolver.md) |
-| `options.conflictResolver?` | [`ConflictResolver`](../../rxdb/interfaces/ConflictResolver.md) | - |
+| Parameter                   | Type                                                                                        | Description                                                                                                  |
+| --------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `rxdb`                      | [`RxDB`](../../rxdb/classes/RxDB.md)                                                        | The RxDB instance, used to get branches, local/remote adapters, and entity configuration                     |
+| `namespace`                 | `string`                                                                                    | The entity namespace                                                                                         |
+| `entity`                    | `string`                                                                                    | The entity name                                                                                              |
+| `options?`                  | \{ `conflictResolver?`: [`ConflictResolver`](../../rxdb/interfaces/ConflictResolver.md); \} | The optional conflict resolver; defaults to [LWWConflictResolver](../../rxdb/classes/LWWConflictResolver.md) |
+| `options.conflictResolver?` | [`ConflictResolver`](../../rxdb/interfaces/ConflictResolver.md)                             | -                                                                                                            |
 
 ## Returns
 

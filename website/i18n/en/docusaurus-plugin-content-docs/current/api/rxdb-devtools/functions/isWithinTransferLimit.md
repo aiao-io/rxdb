@@ -10,10 +10,10 @@ Checks whether the declared total byte count is within the negotiated limit.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `totalBytes` | `unknown` | The `totalBytes` declared by `TRANSFER_START`. |
-| `negotiatedLimit` | `number` | The result of [resolveNegotiatedTransferLimit](resolveNegotiatedTransferLimit.md). |
+| Parameter         | Type      | Description                                                                        |
+| ----------------- | --------- | ---------------------------------------------------------------------------------- |
+| `totalBytes`      | `unknown` | The `totalBytes` declared by `TRANSFER_START`.                                     |
+| `negotiatedLimit` | `number`  | The result of [resolveNegotiatedTransferLimit](resolveNegotiatedTransferLimit.md). |
 
 ## Returns
 

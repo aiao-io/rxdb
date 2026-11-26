@@ -52,7 +52,7 @@ without the package name matching can only be done by class name, and a user-wri
 
 [`IRepositoryGenerator`](../interfaces/IRepositoryGenerator.md).[`abstractEntityMetadata`](../interfaces/IRepositoryGenerator.md#abstractentitymetadata)
 
-***
+---
 
 ### entityBaseModuleSpecifier? \{#entitybasemodulespecifier\}
 
@@ -68,7 +68,7 @@ Source module of the entity runtime base classes; @aiao/rxdb is used when unset.
 
 [`IRepositoryGenerator`](../interfaces/IRepositoryGenerator.md).[`entityBaseModuleSpecifier`](../interfaces/IRepositoryGenerator.md#entitybasemodulespecifier)
 
-***
+---
 
 ### name \{#name\}
 
@@ -84,7 +84,7 @@ Must match the EntityMetadata.repository field
 #### Example
 
 ```ts
-'Repository', 'TreeRepository', 'GraphRepository', 'GeoRepository'
+('Repository', 'TreeRepository', 'GraphRepository', 'GeoRepository');
 ```
 
 #### Implementation of
@@ -105,19 +105,19 @@ Shared utility: adds an instance method
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `context` | [`GeneratorContext`](../interfaces/GeneratorContext.md) |
-| `config` | \{ `docs`: `string`[]; `name`: `string`; `returnType`: `string`; \} |
-| `config.docs` | `string`[] |
-| `config.name` | `string` |
-| `config.returnType` | `string` |
+| Parameter           | Type                                                                |
+| ------------------- | ------------------------------------------------------------------- |
+| `context`           | [`GeneratorContext`](../interfaces/GeneratorContext.md)             |
+| `config`            | \{ `docs`: `string`[]; `name`: `string`; `returnType`: `string`; \} |
+| `config.docs`       | `string`[]                                                          |
+| `config.name`       | `string`                                                            |
+| `config.returnType` | `string`                                                            |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### addInstanceProperty() \{#addinstanceproperty\}
 
@@ -131,19 +131,19 @@ Shared utility: adds an instance function property
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `context` | [`GeneratorContext`](../interfaces/GeneratorContext.md) |
-| `config` | \{ `docs`: `string`[]; `name`: `string`; `type`: `string`; \} |
-| `config.docs` | `string`[] |
-| `config.name` | `string` |
-| `config.type` | `string` |
+| Parameter     | Type                                                          |
+| ------------- | ------------------------------------------------------------- |
+| `context`     | [`GeneratorContext`](../interfaces/GeneratorContext.md)       |
+| `config`      | \{ `docs`: `string`[]; `name`: `string`; `type`: `string`; \} |
+| `config.docs` | `string`[]                                                    |
+| `config.name` | `string`                                                      |
+| `config.type` | `string`                                                      |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### addStaticMethod() \{#addstaticmethod\}
 
@@ -157,29 +157,29 @@ Shared utility: adds a static query method
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `context` | [`GeneratorContext`](../interfaces/GeneratorContext.md) |
-| `config` | \{ `baseSignature?`: \{ `entityBase`: `string`; `options`: `string`; `parameterName?`: `string`; `returnType`: `string`; \}; `example?`: `string`; `method`: `string`; `metHodDoc?`: `string`; `options`: `string`; `optionsIsRequired?`: `boolean`; `registerOptions?`: `boolean`; `resultWrapper?`: `"Observable"` \| `"Promise"`; `returnType`: `string`; \} |
-| `config.baseSignature?` | \{ `entityBase`: `string`; `options`: `string`; `parameterName?`: `string`; `returnType`: `string`; \} |
-| `config.baseSignature.entityBase` | `string` |
-| `config.baseSignature.options` | `string` |
-| `config.baseSignature.parameterName?` | `string` |
-| `config.baseSignature.returnType` | `string` |
-| `config.example?` | `string` |
-| `config.method` | `string` |
-| `config.metHodDoc?` | `string` |
-| `config.options` | `string` |
-| `config.optionsIsRequired?` | `boolean` |
-| `config.registerOptions?` | `boolean` |
-| `config.resultWrapper?` | `"Observable"` \| `"Promise"` |
-| `config.returnType` | `string` |
+| Parameter                             | Type                                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `context`                             | [`GeneratorContext`](../interfaces/GeneratorContext.md)                                                                                                                                                                                                                                                                                                         |
+| `config`                              | \{ `baseSignature?`: \{ `entityBase`: `string`; `options`: `string`; `parameterName?`: `string`; `returnType`: `string`; \}; `example?`: `string`; `method`: `string`; `metHodDoc?`: `string`; `options`: `string`; `optionsIsRequired?`: `boolean`; `registerOptions?`: `boolean`; `resultWrapper?`: `"Observable"` \| `"Promise"`; `returnType`: `string`; \} |
+| `config.baseSignature?`               | \{ `entityBase`: `string`; `options`: `string`; `parameterName?`: `string`; `returnType`: `string`; \}                                                                                                                                                                                                                                                          |
+| `config.baseSignature.entityBase`     | `string`                                                                                                                                                                                                                                                                                                                                                        |
+| `config.baseSignature.options`        | `string`                                                                                                                                                                                                                                                                                                                                                        |
+| `config.baseSignature.parameterName?` | `string`                                                                                                                                                                                                                                                                                                                                                        |
+| `config.baseSignature.returnType`     | `string`                                                                                                                                                                                                                                                                                                                                                        |
+| `config.example?`                     | `string`                                                                                                                                                                                                                                                                                                                                                        |
+| `config.method`                       | `string`                                                                                                                                                                                                                                                                                                                                                        |
+| `config.metHodDoc?`                   | `string`                                                                                                                                                                                                                                                                                                                                                        |
+| `config.options`                      | `string`                                                                                                                                                                                                                                                                                                                                                        |
+| `config.optionsIsRequired?`           | `boolean`                                                                                                                                                                                                                                                                                                                                                       |
+| `config.registerOptions?`             | `boolean`                                                                                                                                                                                                                                                                                                                                                       |
+| `config.resultWrapper?`               | `"Observable"` \| `"Promise"`                                                                                                                                                                                                                                                                                                                                   |
+| `config.returnType`                   | `string`                                                                                                                                                                                                                                                                                                                                                        |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### addTypeImport() \{#addtypeimport\}
 
@@ -193,10 +193,10 @@ Registers a type import, routed by this generator's [entityBaseModuleSpecifier](
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                    |
+| --------- | ------------------------------------------------------- |
 | `context` | [`GeneratorContext`](../interfaces/GeneratorContext.md) |
-| `name` | `string` |
+| `name`    | `string`                                                |
 
 #### Returns
 
@@ -207,7 +207,7 @@ Registers a type import, routed by this generator's [entityBaseModuleSpecifier](
 The base class of tree entities and its companion option types (`TreeAdjacencyListEntityBase` / `FindTreeOptions`) live in
 `@aiao/rxdb-plugin-tree`; generators without a declared specifier always fall back to `@aiao/rxdb`.
 
-***
+---
 
 ### generate() \{#generate\}
 
@@ -221,8 +221,8 @@ Generates the properties and methods specific to the Repository
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                    | Description        |
+| --------- | ------------------------------------------------------- | ------------------ |
 | `context` | [`GeneratorContext`](../interfaces/GeneratorContext.md) | Generation context |
 
 #### Returns
@@ -233,7 +233,7 @@ Generates the properties and methods specific to the Repository
 
 [`IRepositoryGenerator`](../interfaces/IRepositoryGenerator.md).[`generate`](../interfaces/IRepositoryGenerator.md#generate)
 
-***
+---
 
 ### generateMethods() \{#generatemethods\}
 
@@ -247,15 +247,15 @@ Subclass implementation: generates the concrete Repository methods
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                    |
+| --------- | ------------------------------------------------------- |
 | `context` | [`GeneratorContext`](../interfaces/GeneratorContext.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### generateProperties() \{#generateproperties\}
 
@@ -270,8 +270,8 @@ Subclasses may optionally override this method to generate specific computed pro
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                    |
+| --------- | ------------------------------------------------------- |
 | `context` | [`GeneratorContext`](../interfaces/GeneratorContext.md) |
 
 #### Returns
@@ -291,7 +291,7 @@ protected generateProperties(context: GeneratorContext): void {
 }
 ```
 
-***
+---
 
 ### getIdType() \{#getidtype\}
 
@@ -305,8 +305,8 @@ Shared utility: gets the ID type
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                                  |
+| ---------- | ------------------------------------------------------------------------------------- |
 | `metadata` | `Readonly`&lt;[`EntityMetadataType`](../../rxdb/interfaces/EntityMetadataType.md)&gt; |
 
 #### Returns

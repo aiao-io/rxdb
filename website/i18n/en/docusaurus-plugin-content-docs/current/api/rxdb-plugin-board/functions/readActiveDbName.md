@@ -10,8 +10,8 @@ Current active database name; no record = first launch (show the startup selecti
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                            |
+| --------- | ----------------------------------------------- |
 | `storage` | [`BoardStorage`](../interfaces/BoardStorage.md) |
 
 ## Returns

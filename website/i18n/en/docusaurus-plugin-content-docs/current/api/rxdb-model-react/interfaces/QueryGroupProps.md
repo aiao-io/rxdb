@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/query-group/query-group
 
 Whether the group can be expanded/collapsed, defaults to `true`.
 
-***
+---
 
 ### depth? \{#depth\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/query-group/query-group
 
 Nesting depth, defaults to `0`.
 
-***
+---
 
 ### dragDropHandler? \{#dragdrophandler\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/query-group/query-group
 
 Drag state manager; when absent, the drag handle is not rendered.
 
-***
+---
 
 ### errors? \{#errors\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/query-group/query-group
 
 List of validation errors.
 
-***
+---
 
 ### fields \{#fields\}
 
@@ -64,7 +64,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/query-group/query-group
 
 Field list.
 
-***
+---
 
 ### group \{#group\}
 
@@ -76,7 +76,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/query-group/query-group
 
 Rule group.
 
-***
+---
 
 ### maxDepth? \{#maxdepth\}
 
@@ -88,7 +88,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/query-group/query-group
 
 Maximum nesting level, defaults to `5`.
 
-***
+---
 
 ### onAddGroup? \{#onaddgroup\}
 
@@ -102,15 +102,15 @@ Add a child group.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `parentId` | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onAddRule? \{#onaddrule\}
 
@@ -124,17 +124,17 @@ Add a rule.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | \{ `parentId`: `string`; `rule`: `Omit`&lt;[`UIRule`](UIRule.md), `"id"`&gt;; \} |
-| `event.parentId` | `string` |
-| `event.rule` | `Omit`&lt;[`UIRule`](UIRule.md), `"id"`&gt; |
+| Parameter        | Type                                                                             |
+| ---------------- | -------------------------------------------------------------------------------- |
+| `event`          | \{ `parentId`: `string`; `rule`: `Omit`&lt;[`UIRule`](UIRule.md), `"id"`&gt;; \} |
+| `event.parentId` | `string`                                                                         |
+| `event.rule`     | `Omit`&lt;[`UIRule`](UIRule.md), `"id"`&gt;                                      |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onRemoveItem? \{#onremoveitem\}
 
@@ -148,15 +148,15 @@ Delete a rule or group.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `id` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `id`      | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onUpdateCombinator? \{#onupdatecombinator\}
 
@@ -170,17 +170,17 @@ Update the combinator.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | \{ `combinator`: `"and"` \| `"or"`; `id`: `string`; \} |
-| `event.combinator` | `"and"` \| `"or"` |
-| `event.id` | `string` |
+| Parameter          | Type                                                   |
+| ------------------ | ------------------------------------------------------ |
+| `event`            | \{ `combinator`: `"and"` \| `"or"`; `id`: `string`; \} |
+| `event.combinator` | `"and"` \| `"or"`                                      |
+| `event.id`         | `string`                                               |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onUpdateRule? \{#onupdaterule\}
 
@@ -194,11 +194,11 @@ Update a rule.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | \{ `id`: `string`; `updates`: `Partial`&lt;[`UIRule`](UIRule.md)&gt;; \} |
-| `event.id` | `string` |
-| `event.updates` | `Partial`&lt;[`UIRule`](UIRule.md)&gt; |
+| Parameter       | Type                                                                     |
+| --------------- | ------------------------------------------------------------------------ |
+| `event`         | \{ `id`: `string`; `updates`: `Partial`&lt;[`UIRule`](UIRule.md)&gt;; \} |
+| `event.id`      | `string`                                                                 |
+| `event.updates` | `Partial`&lt;[`UIRule`](UIRule.md)&gt;                                   |
 
 #### Returns
 

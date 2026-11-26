@@ -14,14 +14,14 @@ Gets the system table repositories on the remote adapter.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `rxdb` | [`RxDB`](../classes/RxDB.md) | The RxDB instance |
+| Parameter | Type                         | Description       |
+| --------- | ---------------------------- | ----------------- |
+| `rxdb`    | [`RxDB`](../classes/RxDB.md) | The RxDB instance |
 
 ## Returns
 
 `Promise`&lt;\{
-  `adapter`: [`RemoteRxDBAdapter`](../type-aliases/RemoteRxDBAdapter.md);
-  `branchRepository`: [`RemoteRxDBBranchRepository`](../interfaces/RemoteRxDBBranchRepository.md);
-  `changeRepository`: [`RemoteRxDBChangeRepository`](../interfaces/RemoteRxDBChangeRepository.md);
+`adapter`: [`RemoteRxDBAdapter`](../type-aliases/RemoteRxDBAdapter.md);
+`branchRepository`: [`RemoteRxDBBranchRepository`](../interfaces/RemoteRxDBBranchRepository.md);
+`changeRepository`: [`RemoteRxDBChangeRepository`](../interfaces/RemoteRxDBChangeRepository.md);
 \}&gt;

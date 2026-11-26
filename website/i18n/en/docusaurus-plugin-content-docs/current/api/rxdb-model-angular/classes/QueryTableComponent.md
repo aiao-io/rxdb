@@ -8,10 +8,11 @@ Provides a filter area position above the entity table (via content projection),
 passing the query results of rxdb-query-builder down to the underlying EntityTableComponent.
 
 Usage:
+
 ```html
-<rxdb-query-table [records]="filteredRecords()" [columns]="columns">
+<rxdb-query-table [columns]="columns" [records]="filteredRecords()">
   <div filterBar>
-    <rxdb-query-builder [fields]="fields" (queryChange)="onQueryChange($event)" />
+    <rxdb-query-builder (queryChange)="onQueryChange($event)" [fields]="fields" />
   </div>
   <div emptyState>暂无数据</div>
 </rxdb-query-table>
@@ -43,7 +44,7 @@ readonly batchUpdated: OutputEmitterRef<BatchChangeItem[]>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts:68](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts#L68)
 
-***
+---
 
 ### cellChanged \{#cellchanged\}
 
@@ -53,7 +54,7 @@ readonly cellChanged: OutputEmitterRef<CellChangeEvent>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts:65](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts#L65)
 
-***
+---
 
 ### cellClearable \{#cellclearable\}
 
@@ -65,7 +66,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-table/query-table/query-tabl
 
 Business-layer callback that decides whether a cell can be cleared
 
-***
+---
 
 ### cellErrorDetector \{#cellerrordetector\}
 
@@ -75,7 +76,7 @@ readonly cellErrorDetector: InputSignal<((record, field) => string | null) | und
 
 Defined in: [packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts:45](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts#L45)
 
-***
+---
 
 ### columns \{#columns\}
 
@@ -85,7 +86,7 @@ readonly columns: InputSignal<ColumnsDefine | undefined>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts:41](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts#L41)
 
-***
+---
 
 ### entityTable \{#entitytable\}
 
@@ -95,7 +96,7 @@ readonly entityTable: Signal<EntityTableComponent | undefined>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts:75](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts#L75)
 
-***
+---
 
 ### filteredCount \{#filteredcount\}
 
@@ -107,7 +108,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-table/query-table/query-tabl
 
 Result count after filtering
 
-***
+---
 
 ### iconClicked \{#iconclicked\}
 
@@ -120,7 +121,7 @@ readonly iconClicked: OutputEmitterRef<{
 
 Defined in: [packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts:67](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts#L67)
 
-***
+---
 
 ### idField \{#idfield\}
 
@@ -130,7 +131,7 @@ readonly idField: InputSignal<string>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts:42](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts#L42)
 
-***
+---
 
 ### isDarkMode \{#isdarkmode\}
 
@@ -140,7 +141,7 @@ readonly isDarkMode: InputSignal<boolean | undefined>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts:46](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts#L46)
 
-***
+---
 
 ### loading \{#loading\}
 
@@ -152,7 +153,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-table/query-table/query-tabl
 
 Whether to show the loading state
 
-***
+---
 
 ### loadingMore \{#loadingmore\}
 
@@ -164,7 +165,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-table/query-table/query-tabl
 
 Loading more (data already present, small spinner at the bottom, does not block scrolling)
 
-***
+---
 
 ### loadMore \{#loadmore\}
 
@@ -176,7 +177,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-table/query-table/query-tabl
 
 Callback to load more data when the bottom is reached, passed through to EntityTableComponent
 
-***
+---
 
 ### nonClearableFields \{#nonclearablefields\}
 
@@ -186,7 +187,7 @@ readonly nonClearableFields: InputSignal<ReadonlySet<string>>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts:43](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts#L43)
 
-***
+---
 
 ### queryActive \{#queryactive\}
 
@@ -198,7 +199,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-table/query-table/query-tabl
 
 Whether the query conditions are active (shows the filter status label)
 
-***
+---
 
 ### records \{#records\}
 
@@ -208,7 +209,7 @@ readonly records: InputSignal<EntityTableRecord[]>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts:40](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts#L40)
 
-***
+---
 
 ### rowDeleted \{#rowdeleted\}
 
@@ -218,7 +219,7 @@ readonly rowDeleted: OutputEmitterRef<EntityTableRecord>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts:66](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts#L66)
 
-***
+---
 
 ### rowDragEnabled \{#rowdragenabled\}
 
@@ -230,7 +231,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-table/query-table/query-tabl
 
 Whether to show the row drag handles, default `true`, passed through to EntityTableComponent
 
-***
+---
 
 ### rowMoved \{#rowmoved\}
 
@@ -242,7 +243,7 @@ Defined in: [packages/rxdb-model-angular/src/entity-table/query-table/query-tabl
 
 Single row drag-and-drop: the dragged row and its neighbors around the drop point
 
-***
+---
 
 ### rowReordered \{#rowreordered\}
 
@@ -252,7 +253,7 @@ readonly rowReordered: OutputEmitterRef<string[]>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts:69](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts#L69)
 
-***
+---
 
 ### scrollNearBottom \{#scrollnearbottom\}
 
@@ -262,7 +263,7 @@ readonly scrollNearBottom: OutputEmitterRef<void>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts:72](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts#L72)
 
-***
+---
 
 ### sortClicked \{#sortclicked\}
 
@@ -275,7 +276,7 @@ readonly sortClicked: OutputEmitterRef<{
 
 Defined in: [packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts:73](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts#L73)
 
-***
+---
 
 ### statusText \{#statustext\}
 
@@ -285,7 +286,7 @@ readonly statusText: Signal<string>;
 
 Defined in: [packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts:77](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts#L77)
 
-***
+---
 
 ### tableOptions \{#tableoptions\}
 
@@ -295,7 +296,7 @@ readonly tableOptions: InputSignal<Partial<ListTableConstructorOptions> | undefi
 
 Defined in: [packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts:44](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts#L44)
 
-***
+---
 
 ### totalCount \{#totalcount\}
 
@@ -335,8 +336,8 @@ The current VTable instance; `null` before initialization.
 
 ```ts
 changeCellValue(
-   col, 
-   row, 
+   col,
+   row,
    value
 ): void;
 ```
@@ -347,11 +348,11 @@ Rolls back a cell value from the business layer (restores the original value whe
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `col` | `number` |
-| `row` | `number` |
-| `value` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `col`     | `number`  |
+| `row`     | `number`  |
+| `value`   | `unknown` |
 
 #### Returns
 
@@ -361,7 +362,7 @@ Rolls back a cell value from the business layer (restores the original value whe
 
 `QueryTableHandle.changeCellValue`
 
-***
+---
 
 ### redrawTheme() \{#redrawtheme\}
 
@@ -381,7 +382,7 @@ Redraws the theme with the current dark mode and CSS variables.
 
 `QueryTableHandle.redrawTheme`
 
-***
+---
 
 ### restoreRecords() \{#restorerecords\}
 

@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-search/src/backend/backend-registry.ts:41](htt
 
 adapter name, taken from the `ADAPTER_NAME` exported by each adapter package
 
-***
+---
 
 ### backend \{#backend\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-search/src/backend/backend-registry.ts:43](htt
 
 The backend corresponding to this adapter
 
-***
+---
 
 ### reason? \{#reason\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-plugin-search/src/backend/backend-registry.ts:47](htt
 
 A distinguishable reason that must be given when `unverified`
 
-***
+---
 
 ### status \{#status\}
 

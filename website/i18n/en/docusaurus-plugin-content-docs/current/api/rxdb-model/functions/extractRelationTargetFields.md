@@ -10,10 +10,10 @@ Extracts fields of the relation target entity (used by EXISTS subqueries)
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `metadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | Entity metadata |
-| `config?` | [`FieldExtractorConfig`](../interfaces/FieldExtractorConfig.md) | Field extractor config |
+| Parameter  | Type                                                            | Description            |
+| ---------- | --------------------------------------------------------------- | ---------------------- |
+| `metadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md)   | Entity metadata        |
+| `config?`  | [`FieldExtractorConfig`](../interfaces/FieldExtractorConfig.md) | Field extractor config |
 
 ## Returns
 

@@ -22,7 +22,7 @@ Defined in: [packages/rxdb/src/backup/backup.interface.ts:20](https://github.com
 
 All persisted database state (user tables, system tables, change history, non-secret keyring metadata).
 
-***
+---
 
 ### externalFiles \{#externalfiles\}
 

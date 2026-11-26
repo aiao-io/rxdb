@@ -10,8 +10,8 @@ Reads the activation state: `activationRevision` comes from the row of the table
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                                  | Description                      |
+| ---------- | --------------------------------------------------------------------- | -------------------------------- |
 | `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md) | The current transaction executor |
 
 ## Returns

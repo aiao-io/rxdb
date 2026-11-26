@@ -10,8 +10,8 @@ Minimal client interface for the SQLite adapter. Both wa-sqlite's SqliteClient a
 
 ```ts
 addEventListener(
-   type, 
-   handler, 
+   type,
+   handler,
    owner?
 ): void | Promise<void>;
 ```
@@ -22,17 +22,17 @@ Registers a change listener. Comlink remote clients return a Promise; the regist
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `type` | [`SQLiteChangeType`](../enumerations/SQLiteChangeType.md) | Change type |
-| `handler` | (`event`) => `void` | The listener |
-| `owner?` | `string` | The owner registering it (see [SqliteClientLike.release](#release)); clients that do not recognize owners ignore this |
+| Parameter | Type                                                      | Description                                                                                                           |
+| --------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `type`    | [`SQLiteChangeType`](../enumerations/SQLiteChangeType.md) | Change type                                                                                                           |
+| `handler` | (`event`) => `void`                                       | The listener                                                                                                          |
+| `owner?`  | `string`                                                  | The owner registering it (see [SqliteClientLike.release](#release)); clients that do not recognize owners ignore this |
 
 #### Returns
 
 `void` \| `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### beginSystemMigrationTransactionSql()? \{#beginsystemmigrationtransactionsql\}
 
@@ -48,7 +48,7 @@ Gets the strongest lock the backend supports when upgrading the system schema.
 
 `string` \| `Promise`&lt;`string`&gt;
 
-***
+---
 
 ### beginTransactionSql()? \{#begintransactionsql\}
 
@@ -70,7 +70,7 @@ A backend may override this to prepend its own lock-strategy statements — for 
 
 Comlink remote clients return a Promise even when the implementation is synchronous; the registrant must await.
 
-***
+---
 
 ### describeBlankDatabase()? \{#describeblankdatabase\}
 
@@ -90,7 +90,7 @@ Describes what a newly created empty database on the same engine looks like.
 
 Some engines (for example sqliteai's built-in extensions) automatically create tables and write initial rows on every new connection; such a database is still "empty". The implementation opens a temporary `:memory:` connection on the same loaded module, describes it with `describeSqliteDatabase()`, and closes it. Restore only treats a target exactly equal to this description as an empty database. Clients that do not implement this method do not support restore.
 
-***
+---
 
 ### disconnect() \{#disconnect\}
 
@@ -104,7 +104,7 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/sqlite-core.types.ts:14](http
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### execute() \{#execute\}
 
@@ -116,21 +116,21 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/sqlite-core.types.ts:13](http
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `sql` | `string` |
+| Parameter   | Type                                                                |
+| ----------- | ------------------------------------------------------------------- |
+| `sql`       | `string`                                                            |
 | `bindings?` | [`SQLiteCompatibleType`](../type-aliases/SQLiteCompatibleType.md)[] |
 
 #### Returns
 
 `Promise`&lt;[`SqliteSuccessResult`](SqliteSuccessResult.md)&gt;
 
-***
+---
 
 ### release()? \{#release\}
 
 ```ts
-release?(owner): Promise<void>;
+release ? owner : Promise<void>;
 ```
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/sqlite-core.types.ts:40](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/sqlite-core.types.ts#L40)
@@ -139,9 +139,9 @@ An owner exits the shared client: removes the listeners it registered with its `
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `owner` | `string` | The owner key given at `init` and `addEventListener` time; one that never held a share or already returned it is a no-op |
+| Parameter | Type     | Description                                                                                                              |
+| --------- | -------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `owner`   | `string` | The owner key given at `init` and `addEventListener` time; one that never held a share or already returned it is a no-op |
 
 #### Returns
 
@@ -151,7 +151,7 @@ An owner exits the shared client: removes the listeners it registered with its `
 
 In a SharedWorker there is only one client, and every connected tab gets that same one: a tab disconnecting can only return its own share, and cannot close the connection other tabs are still using, the way [SqliteClientLike.disconnect](#disconnect) would. Listeners must be removed per owner: each time Comlink passes a listener it creates a new proxy in the worker, so removal by reference is impossible. Clients that do not implement this method cannot be shared through a SharedWorker.
 
-***
+---
 
 ### rollbackOrphanTransaction()? \{#rollbackorphantransaction\}
 
@@ -171,7 +171,7 @@ If there is an unfinished transaction on the connection, rolls it back and repor
 
 If a tab sharing a connection dies mid-transaction, its transaction stays open forever: the statements were already sent to the connection, and `COMMIT` / `ROLLBACK` will never come. Cross-tab locks are released together with the tab, so the next holder of the lock calls this first. Only call while holding the cross-tab lock, otherwise it would roll back a transaction someone else is running.
 
-***
+---
 
 ### setChangeEventsMuted()? \{#setchangeeventsmuted\}
 
@@ -185,9 +185,9 @@ Pauses / resumes change event collection.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `muted` | `boolean` |
+| Parameter | Type      |
+| --------- | --------- |
+| `muted`   | `boolean` |
 
 #### Returns
 
@@ -199,7 +199,7 @@ Muted during a whole-database restore: system-table rows restored from backup ar
 
 Muting applies to the whole client, not per owner. A client shared over a SharedWorker is never muted: SharedWorker transport does not support backup and restore (`unsupported_combination`, with `field` set to `transport`).
 
-***
+---
 
 ### version() \{#version\}
 

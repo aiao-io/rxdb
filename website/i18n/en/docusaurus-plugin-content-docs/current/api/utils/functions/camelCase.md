@@ -12,9 +12,9 @@ Handles strings containing hyphens (-), underscores (_), spaces, or mixed case
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `str` | `string` | Input string; may contain various separators or mixed case |
+| Parameter | Type     | Description                                                |
+| --------- | -------- | ---------------------------------------------------------- |
+| `str`     | `string` | Input string; may contain various separators or mixed case |
 
 ## Returns
 
@@ -25,19 +25,19 @@ The converted camelCase string
 ## Examples
 
 ```ts
-camelCase('hello-world');      // returns 'helloWorld'
+camelCase('hello-world'); // returns 'helloWorld'
 ```
 
 ```ts
-camelCase('Hello_World');      // returns 'helloWorld'
+camelCase('Hello_World'); // returns 'helloWorld'
 ```
 
 ```ts
-camelCase('hello world');      // returns 'helloWorld'
+camelCase('hello world'); // returns 'helloWorld'
 ```
 
 ```ts
-camelCase('HelloWorld');       // returns 'helloWorld'
+camelCase('HelloWorld'); // returns 'helloWorld'
 ```
 
 ```ts

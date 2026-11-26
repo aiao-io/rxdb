@@ -10,10 +10,10 @@ Maps a platform exception to a provider error payload.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `origin` | [`DevToolsErrorOrigin`](../type-aliases/DevToolsErrorOrigin.md) | The platform the caller is on; no sniffing is performed. |
-| `error` | `unknown` | An arbitrary value thrown or returned by the platform. |
+| Parameter | Type                                                            | Description                                              |
+| --------- | --------------------------------------------------------------- | -------------------------------------------------------- |
+| `origin`  | [`DevToolsErrorOrigin`](../type-aliases/DevToolsErrorOrigin.md) | The platform the caller is on; no sniffing is performed. |
+| `error`   | `unknown`                                                       | An arbitrary value thrown or returned by the platform.   |
 
 ## Returns
 

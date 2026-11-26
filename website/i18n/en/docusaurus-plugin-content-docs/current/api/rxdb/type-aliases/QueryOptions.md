@@ -1,11 +1,11 @@
 ---
-sidebar_label: "QueryOptions⟨T⟩"
+sidebar_label: 'QueryOptions⟨T⟩'
 ---
 
 # QueryOptions`<T>`
 
 ```ts
-type QueryOptions<T> = 
+type QueryOptions<T> =
   | GetQuery<T>
   | FindOneQuery<T>
   | FindOneOrFailQuery<T>
@@ -22,9 +22,9 @@ The options union of a single query task
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](EntityType.md) | The entity class the query targets |
+| Type Parameter                                                            | Description                        |
+| ------------------------------------------------------------------------- | ---------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](EntityType.md) | The entity class the query targets |
 
 ## Remarks
 

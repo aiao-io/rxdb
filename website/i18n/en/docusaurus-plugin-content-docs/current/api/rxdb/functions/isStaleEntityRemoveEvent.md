@@ -14,16 +14,16 @@ Returns `false` when the entity is not in the cache — nothing to compare again
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                            |
+| ----------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `rxdb` | [`RxDB`](../classes/RxDB.md) | The RxDB instance, used to resolve the entity type and read the entity cache |
-| `event` | [`RxDBEntityLocalRemovedEventData`](../interfaces/RxDBEntityLocalRemovedEventData.md)&lt;`T`&gt; | The local entity deletion event |
+| Parameter | Type                                                                                             | Description                                                                  |
+| --------- | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| `rxdb`    | [`RxDB`](../classes/RxDB.md)                                                                     | The RxDB instance, used to resolve the entity type and read the entity cache |
+| `event`   | [`RxDBEntityLocalRemovedEventData`](../interfaces/RxDBEntityLocalRemovedEventData.md)&lt;`T`&gt; | The local entity deletion event                                              |
 
 ## Returns
 

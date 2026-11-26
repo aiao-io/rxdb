@@ -20,7 +20,7 @@ Revokes the object URL; calling again is a no-op.
 
 `void`
 
-***
+---
 
 ### type \{#type\}
 
@@ -32,7 +32,7 @@ Defined in: [packages/rxdb-plugin-storage/src/object-url.ts:13](https://github.c
 
 The MIME type the caller should use when rendering the preview.
 
-***
+---
 
 ### url \{#url\}
 

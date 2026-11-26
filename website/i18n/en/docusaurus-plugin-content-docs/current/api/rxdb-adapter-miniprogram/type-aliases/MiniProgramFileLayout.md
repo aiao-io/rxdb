@@ -1,14 +1,14 @@
 # MiniProgramFileLayout
 
 ```ts
-type MiniProgramFileLayout = 
+type MiniProgramFileLayout =
   | {
-  kind: "single";
-}
+      kind: 'single';
+    }
   | {
-  chunkBytes: number;
-  kind: "chunked";
-};
+      chunkBytes: number;
+      kind: 'chunked';
+    };
 ```
 
 Defined in: [packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts:77](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts#L77)

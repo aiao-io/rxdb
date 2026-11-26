@@ -16,7 +16,7 @@ Defined in: [i18n.ts:28](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfb
 
 Catalogs shipped with the application.
 
-***
+---
 
 ### defaultLocale? \{#defaultlocale\}
 
@@ -28,7 +28,7 @@ Defined in: [i18n.ts:22](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfb
 
 Default locale, zh-Hans by default.
 
-***
+---
 
 ### deviceLocale? \{#devicelocale\}
 
@@ -40,7 +40,7 @@ Defined in: [i18n.ts:24](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfb
 
 Host locale, navigator.language by default.
 
-***
+---
 
 ### locale? \{#locale\}
 
@@ -52,7 +52,7 @@ Defined in: [i18n.ts:26](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfb
 
 Initial explicit locale; a persisted user preference takes precedence.
 
-***
+---
 
 ### namespace? \{#namespace\}
 
@@ -64,7 +64,7 @@ Defined in: [i18n.ts:30](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfb
 
 Default namespace of t(), app by default.
 
-***
+---
 
 ### rxdb? \{#rxdb\}
 

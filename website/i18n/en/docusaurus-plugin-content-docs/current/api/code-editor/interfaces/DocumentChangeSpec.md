@@ -16,7 +16,7 @@ Defined in: [document-sync.ts:22](https://github.com/aiao-io/rxdb/blob/b52320402
 
 Replacement start (inclusive).
 
-***
+---
 
 ### insert \{#insert\}
 
@@ -28,7 +28,7 @@ Defined in: [document-sync.ts:26](https://github.com/aiao-io/rxdb/blob/b52320402
 
 The text to insert.
 
-***
+---
 
 ### to \{#to\}
 

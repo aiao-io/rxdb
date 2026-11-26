@@ -26,8 +26,8 @@ and is unrelated to this error.
 
 ```ts
 new StorageFetchUrlConflictError(
-   opfsPath, 
-   inFlightUrl, 
+   opfsPath,
+   inFlightUrl,
    requestedUrl
 ): StorageFetchUrlConflictError;
 ```
@@ -38,10 +38,10 @@ Creates a concurrent-URL-conflict error.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `opfsPath` | `string` |
-| `inFlightUrl` | `string` |
+| Parameter      | Type     |
+| -------------- | -------- |
+| `opfsPath`     | `string` |
+| `inFlightUrl`  | `string` |
 | `requestedUrl` | `string` |
 
 #### Returns
@@ -66,7 +66,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 `Error.cause`
 
-***
+---
 
 ### inFlightUrl \{#inflighturl\}
 
@@ -78,7 +78,7 @@ Defined in: [packages/rxdb-plugin-storage/src/errors.ts:125](https://github.com/
 
 The URL used by the in-progress fetch.
 
-***
+---
 
 ### message \{#message\}
 
@@ -92,7 +92,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 `Error.message`
 
-***
+---
 
 ### name \{#name\}
 
@@ -106,7 +106,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 `Error.name`
 
-***
+---
 
 ### opfsPath \{#opfspath\}
 
@@ -118,7 +118,7 @@ Defined in: [packages/rxdb-plugin-storage/src/errors.ts:123](https://github.com/
 
 The normalized OPFS-relative path where the conflict occurred.
 
-***
+---
 
 ### requestedUrl \{#requestedurl\}
 
@@ -130,7 +130,7 @@ Defined in: [packages/rxdb-plugin-storage/src/errors.ts:127](https://github.com/
 
 The URL requested by this call.
 
-***
+---
 
 ### stack? \{#stack\}
 
@@ -144,7 +144,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 `Error.stack`
 
-***
+---
 
 ### stackTraceLimit \{#stacktracelimit\}
 
@@ -185,7 +185,7 @@ a string representing the location in the code at which
 ```js
 const myObject = {};
 Error.captureStackTrace(myObject);
-myObject.stack;  // Similar to `new Error().stack`
+myObject.stack; // Similar to `new Error().stack`
 ```
 
 The first line of the trace will be prefixed with
@@ -224,9 +224,9 @@ a();
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `targetObject` | `object` |
+| Parameter         | Type       |
+| ----------------- | ---------- |
+| `targetObject`    | `object`   |
 | `constructorOpt?` | `Function` |
 
 #### Returns
@@ -237,7 +237,7 @@ a();
 
 `Error.captureStackTrace`
 
-***
+---
 
 ### prepareStackTrace() \{#preparestacktrace\}
 
@@ -249,9 +249,9 @@ Defined in: node\_modules/.pnpm/@types+node@26.6.6/node\_modules/@types/node/glo
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `err` | `Error` |
+| Parameter     | Type         |
+| ------------- | ------------ |
+| `err`         | `Error`      |
 | `stackTraces` | `CallSite`[] |
 
 #### Returns

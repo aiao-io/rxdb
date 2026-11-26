@@ -1,11 +1,7 @@
 # checkRestoreCompatibility()
 
 ```ts
-function checkRestoreCompatibility(
-   executor, 
-   codec, 
-   target
-): Promise<RestoreCompatibility>;
+function checkRestoreCompatibility(executor, codec, target): Promise<RestoreCompatibility>;
 ```
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/restore-precheck.ts:297](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/restore-precheck.ts#L297)
@@ -14,11 +10,11 @@ Judges whether "restoring the working tree to the target commit" is feasible on 
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md) | The current transaction executor |
-| `codec` | [`WorkingTreePatchCodecContext`](../interfaces/WorkingTreePatchCodecContext.md) | The metadata resolution context, see [WorkingTreePatchCodecContext](../interfaces/WorkingTreePatchCodecContext.md) |
-| `target` | [`WorkingTreeRestoreTarget`](../interfaces/WorkingTreeRestoreTarget.md) | The restore target, see [WorkingTreeRestoreTarget](../interfaces/WorkingTreeRestoreTarget.md) |
+| Parameter  | Type                                                                            | Description                                                                                                        |
+| ---------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md)           | The current transaction executor                                                                                   |
+| `codec`    | [`WorkingTreePatchCodecContext`](../interfaces/WorkingTreePatchCodecContext.md) | The metadata resolution context, see [WorkingTreePatchCodecContext](../interfaces/WorkingTreePatchCodecContext.md) |
+| `target`   | [`WorkingTreeRestoreTarget`](../interfaces/WorkingTreeRestoreTarget.md)         | The restore target, see [WorkingTreeRestoreTarget](../interfaces/WorkingTreeRestoreTarget.md)                      |
 
 ## Returns
 

@@ -103,43 +103,43 @@ Failures throw an error naming the specific case, handled by the host's existing
 
 ## Classes
 
-| Class | Description |
-| ------ | ------ |
-| [I18n](classes/I18n.md) | Internationalization runtime backed by RxDB language preferences and catalogs. |
-| [I18nSettings](classes/I18nSettings.md) | Language state of the current device; not synced across devices. |
-| [MessageEntry](classes/MessageEntry.md) | Local persistent override row, never cleaned by the remote catalog. |
-| [MissingMessageEntry](classes/MissingMessageEntry.md) | Local diagnostic row for missing keys. |
-| [RemoteMessageEntry](classes/RemoteMessageEntry.md) | Remote catalog cache, kept in a separate table from MessageEntry to isolate QueryCache orphan cleanup. |
+| Class                                                 | Description                                                                                            |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| [I18n](classes/I18n.md)                               | Internationalization runtime backed by RxDB language preferences and catalogs.                         |
+| [I18nSettings](classes/I18nSettings.md)               | Language state of the current device; not synced across devices.                                       |
+| [MessageEntry](classes/MessageEntry.md)               | Local persistent override row, never cleaned by the remote catalog.                                    |
+| [MissingMessageEntry](classes/MissingMessageEntry.md) | Local diagnostic row for missing keys.                                                                 |
+| [RemoteMessageEntry](classes/RemoteMessageEntry.md)   | Remote catalog cache, kept in a separate table from MessageEntry to isolate QueryCache orphan cleanup. |
 
 ## Interfaces
 
-| Interface | Description |
-| ------ | ------ |
-| [CatalogMessage](interfaces/CatalogMessage.md) | Structure of a single catalog message. |
-| [I18nInspectedMessage](interfaces/I18nInspectedMessage.md) | One catalog message and its storage layer. |
-| [I18nInspectedMissingMessage](interfaces/I18nInspectedMissingMessage.md) | One missing-message diagnostic. |
-| [I18nInspection](interfaces/I18nInspection.md) | Directly serializable inspection snapshot detached from runtime mutable state. |
-| [I18nOptions](interfaces/I18nOptions.md) | Options of the client-side internationalization runtime. |
-| [LocalePreferences](interfaces/LocalePreferences.md) | The single data contract of the locale fallback chain, shared by UI and data translation. |
-| [MessageCatalog](interfaces/MessageCatalog.md) | A set of ICU source messages belonging to one locale and namespace. |
-| [ResolvedMessage](interfaces/ResolvedMessage.md) | Lookup result; value is undefined on a miss. |
+| Interface                                                                | Description                                                                               |
+| ------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| [CatalogMessage](interfaces/CatalogMessage.md)                           | Structure of a single catalog message.                                                    |
+| [I18nInspectedMessage](interfaces/I18nInspectedMessage.md)               | One catalog message and its storage layer.                                                |
+| [I18nInspectedMissingMessage](interfaces/I18nInspectedMissingMessage.md) | One missing-message diagnostic.                                                           |
+| [I18nInspection](interfaces/I18nInspection.md)                           | Directly serializable inspection snapshot detached from runtime mutable state.            |
+| [I18nOptions](interfaces/I18nOptions.md)                                 | Options of the client-side internationalization runtime.                                  |
+| [LocalePreferences](interfaces/LocalePreferences.md)                     | The single data contract of the locale fallback chain, shared by UI and data translation. |
+| [MessageCatalog](interfaces/MessageCatalog.md)                           | A set of ICU source messages belonging to one locale and namespace.                       |
+| [ResolvedMessage](interfaces/ResolvedMessage.md)                         | Lookup result; value is undefined on a miss.                                              |
 
 ## Type Aliases
 
-| Type Alias | Description |
-| ------ | ------ |
+| Type Alias                                     | Description                                                   |
+| ---------------------------------------------- | ------------------------------------------------------------- |
 | [MessageSource](type-aliases/MessageSource.md) | Message source, prioritized by the storage layer it lives in. |
 
 ## Functions
 
-| Function | Description |
-| ------ | ------ |
-| [buildLocaleChain](functions/buildLocaleChain.md) | Each node tries the exact match first and then the parent language, finally deduplicated in order of first appearance. |
-| [canonicalizeLocale](functions/canonicalizeLocale.md) | Canonicalizes a non-empty BCP 47 tag; throws RangeError on invalid tags. |
-| [catalogMessages](functions/catalogMessages.md) | Returns rows only after fully validating the catalog, so callers can merge them atomically. |
-| [i18nEntities](functions/i18nEntities.md) | Add the returned entities to config.entities before RxDB.init(). |
-| [messageId](functions/messageId.md) | Encodes the identity as a JSON tuple; separators inside fields cannot collide. |
-| [resolveMessage](functions/resolveMessage.md) | Looks up a message along the locale chain; layer priority within one locale is decided by the caller's merged rows. |
+| Function                                              | Description                                                                                                            |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| [buildLocaleChain](functions/buildLocaleChain.md)     | Each node tries the exact match first and then the parent language, finally deduplicated in order of first appearance. |
+| [canonicalizeLocale](functions/canonicalizeLocale.md) | Canonicalizes a non-empty BCP 47 tag; throws RangeError on invalid tags.                                               |
+| [catalogMessages](functions/catalogMessages.md)       | Returns rows only after fully validating the catalog, so callers can merge them atomically.                            |
+| [i18nEntities](functions/i18nEntities.md)             | Add the returned entities to config.entities before RxDB.init().                                                       |
+| [messageId](functions/messageId.md)                   | Encodes the identity as a JSON tuple; separators inside fields cannot collide.                                         |
+| [resolveMessage](functions/resolveMessage.md)         | Looks up a message along the locale chain; layer priority within one locale is decided by the caller's merged rows.    |
 
 ## References
 

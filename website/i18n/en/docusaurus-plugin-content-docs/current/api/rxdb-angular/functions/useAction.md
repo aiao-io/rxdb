@@ -10,15 +10,15 @@ Wraps an async function into a callable action with a loading state.
 
 ## Type Parameters
 
-| Type Parameter | Default type | Description |
-| ------ | ------ | ------ |
-| <a id="type-parameter-options"></a> `Options` | `void` | Call argument type; default `void` means no arguments |
-| <a id="type-parameter-rt"></a> `RT` | `unknown` | Return type of the async function |
+| Type Parameter                                | Default type | Description                                           |
+| --------------------------------------------- | ------------ | ----------------------------------------------------- |
+| <a id="type-parameter-options"></a> `Options` | `void`       | Call argument type; default `void` means no arguments |
+| <a id="type-parameter-rt"></a> `RT`           | `unknown`    | Return type of the async function                     |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type                                 | Description                |
+| ----------- | ------------------------------------ | -------------------------- |
 | `promiseFn` | (`options`) => `Promise`&lt;`RT`&gt; | The wrapped async function |
 
 ## Returns

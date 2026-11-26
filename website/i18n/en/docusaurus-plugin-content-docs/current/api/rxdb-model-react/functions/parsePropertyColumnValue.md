@@ -12,10 +12,10 @@ Call this function in the cellChanged event handler to convert user input to the
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `type` | `string` | The property type |
-| `raw` | `unknown` | The raw value entered in the editor |
+| Parameter | Type      | Description                         |
+| --------- | --------- | ----------------------------------- |
+| `type`    | `string`  | The property type                   |
+| `raw`     | `unknown` | The raw value entered in the editor |
 
 ## Returns
 

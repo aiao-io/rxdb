@@ -1,7 +1,7 @@
 # SqliteRestoreStage
 
 ```ts
-type SqliteRestoreStage = "marker-written" | "rows-written" | "verified" | "persisted";
+type SqliteRestoreStage = 'marker-written' | 'rows-written' | 'verified' | 'persisted';
 ```
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/backup/sqlite-backup.interface.ts:59](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/backup/sqlite-backup.interface.ts#L59)

@@ -21,16 +21,16 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts:158
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `string` |
+| Parameter | Type                  |
+| --------- | --------------------- |
+| `path`    | `string`              |
 | `imports` | `WebAssembly.Imports` |
 
 #### Returns
 
 `Promise`&lt;
-  \| [`MiniProgramWasmInstance`](MiniProgramWasmInstance.md)
-  \| \{
-  `instance`: [`MiniProgramWasmInstance`](MiniProgramWasmInstance.md);
-  `module?`: `unknown`;
+\| [`MiniProgramWasmInstance`](MiniProgramWasmInstance.md)
+\| \{
+`instance`: [`MiniProgramWasmInstance`](MiniProgramWasmInstance.md);
+`module?`: `unknown`;
 \}&gt;

@@ -1,5 +1,5 @@
 ---
-sidebar_label: "FindByCursorOptions⟨T, U, W⟩"
+sidebar_label: 'FindByCursorOptions⟨T, U, W⟩'
 ---
 
 # FindByCursorOptions`<T, U, W>`
@@ -10,11 +10,11 @@ FindByCursor query options.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) | [`EntityType`](../type-aliases/EntityType.md) |
-| <a id="type-parameter-u"></a> `U` | [`RuleGroup`](../type-aliases/RuleGroup.md)&lt;`InstanceType`&lt;`T`&gt;&gt; |
-| <a id="type-parameter-w"></a> `W` *extends* `string` | `string` |
+| Type Parameter                                                                            | Default type                                                                 |
+| ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) | [`EntityType`](../type-aliases/EntityType.md)                                |
+| <a id="type-parameter-u"></a> `U`                                                         | [`RuleGroup`](../type-aliases/RuleGroup.md)&lt;`InstanceType`&lt;`T`&gt;&gt; |
+| <a id="type-parameter-w"></a> `W` _extends_ `string`                                      | `string`                                                                     |
 
 ## Properties
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb/src/repository/query-options.interface.ts:144](https:
 
 Fetches the entities after this entity.
 
-***
+---
 
 ### before? \{#before\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb/src/repository/query-options.interface.ts:139](https:
 
 Fetches the entities before this entity.
 
-***
+---
 
 ### limit? \{#limit\}
 
@@ -79,15 +79,15 @@ a different row, otherwise rows between the old and new boundaries are missed or
 #### Default
 
 ```ts
-100
+100;
 ```
 
-***
+---
 
 ### orderBy \{#orderby\}
 
 ```ts
-orderBy: OrderBy<W>[];
+orderBy: (OrderBy < W) > [];
 ```
 
 Defined in: [packages/rxdb/src/repository/query-options.interface.ts:134](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query-options.interface.ts#L134)
@@ -102,10 +102,10 @@ otherwise the cursor cannot be located.
 orderBy: [
   { field: 'createdAt', sort: 'DESC' },
   { field: 'id', sort: 'ASC' } // must include ordering by a unique value
-]
+];
 ```
 
-***
+---
 
 ### where \{#where\}
 

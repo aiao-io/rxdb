@@ -20,7 +20,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:519](ht
 
 The number of changes successfully applied locally (after compaction).
 
-***
+---
 
 ### compacted \{#compacted\}
 
@@ -32,7 +32,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:514](ht
 
 The number of changes compacted/discarded.
 
-***
+---
 
 ### conflictsDeferred \{#conflictsdeferred\}
 
@@ -44,7 +44,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:534](ht
 
 The number of conflicts deferred for manual handling.
 
-***
+---
 
 ### conflictsResolved \{#conflictsresolved\}
 
@@ -56,7 +56,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:529](ht
 
 The number of automatically resolved conflicts.
 
-***
+---
 
 ### error? \{#error\}
 
@@ -68,7 +68,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:499](ht
 
 The error when the repository sync failed.
 
-***
+---
 
 ### failures \{#failures\}
 
@@ -86,7 +86,7 @@ Required rather than optional: an optional field would make callers write `resul
 fallback, but "the field is missing" and "nothing failed" are two different things. Being skipped by strategy
 (`skipped`) does not count as a failure and does not enter this list.
 
-***
+---
 
 ### hasMore \{#hasmore\}
 
@@ -98,7 +98,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:524](ht
 
 Whether there are more changes to pull.
 
-***
+---
 
 ### historyInvalidated \{#historyinvalidated\}
 
@@ -116,7 +116,7 @@ When true, the undo/redo history boundary is no longer valid and the undo histor
 
 [`SyncProgress`](SyncProgress.md).[`historyInvalidated`](SyncProgress.md#historyinvalidated)
 
-***
+---
 
 ### persistedProgress \{#persistedprogress\}
 
@@ -135,7 +135,7 @@ When true, part of this sync's results will **not** be rolled back, and a retry 
 
 [`SyncProgress`](SyncProgress.md).[`persistedProgress`](SyncProgress.md#persistedprogress)
 
-***
+---
 
 ### pulled \{#pulled\}
 
@@ -147,7 +147,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:509](ht
 
 The number of changes pulled from the remote (before compaction).
 
-***
+---
 
 ### relatedResults? \{#relatedresults\}
 
@@ -159,7 +159,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:539](ht
 
 Results of the related repositories (when includeRelated=true).
 
-***
+---
 
 ### repository \{#repository\}
 
@@ -171,7 +171,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:489](ht
 
 Repository identifier.
 
-***
+---
 
 ### skipped? \{#skipped\}
 
@@ -183,7 +183,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:504](ht
 
 The reason the repository was skipped.
 
-***
+---
 
 ### success? \{#success\}
 

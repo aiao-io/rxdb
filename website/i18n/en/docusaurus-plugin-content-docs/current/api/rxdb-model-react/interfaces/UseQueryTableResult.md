@@ -1,5 +1,5 @@
 ---
-sidebar_label: "UseQueryTableResult⟨T⟩"
+sidebar_label: 'UseQueryTableResult⟨T⟩'
 ---
 
 # UseQueryTableResult`<T>`
@@ -10,9 +10,9 @@ Controller and reactive snapshot of UseQueryTableResult.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityInstance`](../type-aliases/EntityInstance.md) | [`EntityInstance`](../type-aliases/EntityInstance.md) |
+| Type Parameter                                                                                    | Default type                                          |
+| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityInstance`](../type-aliases/EntityInstance.md) | [`EntityInstance`](../type-aliases/EntityInstance.md) |
 
 ## Properties
 
@@ -24,7 +24,7 @@ readonly controller: QueryTableController<T>;
 
 Defined in: [packages/rxdb-model-react/src/headless.ts:156](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-react/src/headless.ts#L156)
 
-***
+---
 
 ### snapshot \{#snapshot\}
 

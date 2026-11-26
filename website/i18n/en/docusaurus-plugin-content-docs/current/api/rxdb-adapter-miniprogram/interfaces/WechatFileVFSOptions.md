@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/wechat-file-vfs.ts:101](https
 
 The name used to clean up the database file.
 
-***
+---
 
 ### fileSystem? \{#filesystem\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/wechat-file-vfs.ts:105](https
 
 A file system injected for tests or by the host.
 
-***
+---
 
 ### name? \{#name\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/wechat-file-vfs.ts:103](https
 
 The VFS name.
 
-***
+---
 
 ### root? \{#root\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/wechat-file-vfs.ts:99](https:
 
 The database file directory.
 
-***
+---
 
 ### wechat \{#wechat\}
 

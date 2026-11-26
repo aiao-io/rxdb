@@ -10,9 +10,9 @@ Gets the current branch: the branch held by the table set this instance is attac
 
 ## Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `rxdb` | [`RxDB`](../classes/RxDB.md) | `undefined` | The RxDB instance |
+| Parameter   | Type                                                 | Default value           | Description                                                                                                                                                                                                                                                                                                                    |
+| ----------- | ---------------------------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `rxdb`      | [`RxDB`](../classes/RxDB.md)                         | `undefined`             | The RxDB instance                                                                                                                                                                                                                                                                                                              |
 | `tableSet?` | [`WorktreeTableSet`](../classes/WorktreeTableSet.md) | `rxdb.worktreeTableSet` | Which table set's held branch to read; defaults to the set this instance is attached to. Entities of QueryCache sync exist only in the main table set, and their changes are recorded under the main checkout's branch name: an outbound queue attached to a writable checkout also reads via the main table set (US-314 B2.1) |
 
 ## Returns

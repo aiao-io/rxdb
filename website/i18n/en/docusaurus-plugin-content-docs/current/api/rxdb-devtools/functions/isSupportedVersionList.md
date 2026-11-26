@@ -10,9 +10,9 @@ Checks whether a value is a valid `PROTOCOL_HELLO.supportedVersions`.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | The value to check. |
+| Parameter | Type      | Description         |
+| --------- | --------- | ------------------- |
+| `value`   | `unknown` | The value to check. |
 
 ## Returns
 

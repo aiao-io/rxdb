@@ -16,15 +16,15 @@ Defined in: [packages/rxdb-plugin-board-react/src/use-board.ts:62](https://githu
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `key` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `key`     | `string` |
 
 #### Returns
 
 `string` \| `null`
 
-***
+---
 
 ### set() \{#set\}
 
@@ -36,10 +36,10 @@ Defined in: [packages/rxdb-plugin-board-react/src/use-board.ts:63](https://githu
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `key` | `string` |
-| `value` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `key`     | `string` |
+| `value`   | `string` |
 
 #### Returns
 

@@ -10,10 +10,10 @@ Toggles the pinned state; pinned tabs are grouped at the front, keeping their re
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `state` | [`TabsState`](../interfaces/TabsState.md) | The current state. |
-| `key` | `string` | The tab key. |
+| Parameter | Type                                      | Description        |
+| --------- | ----------------------------------------- | ------------------ |
+| `state`   | [`TabsState`](../interfaces/TabsState.md) | The current state. |
+| `key`     | `string`                                  | The tab key.       |
 
 ## Returns
 

@@ -16,7 +16,7 @@ Defined in: [inspection.ts:22](https://github.com/aiao-io/rxdb/blob/b5232040240c
 
 Identity of the diagnostic row.
 
-***
+---
 
 ### key \{#key\}
 
@@ -28,7 +28,7 @@ Defined in: [inspection.ts:28](https://github.com/aiao-io/rxdb/blob/b5232040240c
 
 The missing key.
 
-***
+---
 
 ### locale \{#locale\}
 
@@ -40,7 +40,7 @@ Defined in: [inspection.ts:24](https://github.com/aiao-io/rxdb/blob/b5232040240c
 
 Current locale at the time of the miss.
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -52,7 +52,7 @@ Defined in: [inspection.ts:26](https://github.com/aiao-io/rxdb/blob/b5232040240c
 
 Catalog namespace.
 
-***
+---
 
 ### updatedAt \{#updatedat\}
 

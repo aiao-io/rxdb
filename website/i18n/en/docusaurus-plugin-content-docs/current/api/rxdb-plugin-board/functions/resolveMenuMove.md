@@ -1,12 +1,7 @@
 # resolveMenuMove()
 
 ```ts
-function resolveMenuMove(
-   columns, 
-   movedId, 
-   targetColumnId, 
-   position
-): CardDropTarget | null;
+function resolveMenuMove(columns, movedId, targetColumnId, position): CardDropTarget | null;
 ```
 
 Defined in: [packages/rxdb-plugin-board/src/drop-resolution.ts:151](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board/src/drop-resolution.ts#L151)
@@ -15,12 +10,12 @@ Menu-based move target (US-539 AC#6 keyboard-equivalent path): insertion index w
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `columns` | readonly [`MenuMoveColumnView`](../interfaces/MenuMoveColumnView.md)[] |
-| `movedId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
-| `targetColumnId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
-| `position` | `number` |
+| Parameter        | Type                                                                   |
+| ---------------- | ---------------------------------------------------------------------- |
+| `columns`        | readonly [`MenuMoveColumnView`](../interfaces/MenuMoveColumnView.md)[] |
+| `movedId`        | `` `${string}-${string}-${string}-${string}-${string}` ``              |
+| `targetColumnId` | `` `${string}-${string}-${string}-${string}-${string}` ``              |
+| `position`       | `number`                                                               |
 
 ## Returns
 

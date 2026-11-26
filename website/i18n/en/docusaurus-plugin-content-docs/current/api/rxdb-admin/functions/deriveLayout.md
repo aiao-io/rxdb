@@ -10,9 +10,9 @@ Derives the layout from preferences, viewport and menu.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `input` | [`LayoutInput`](../interfaces/LayoutInput.md) | Preferences, viewport, maximized and menu state. |
+| Parameter | Type                                          | Description                                      |
+| --------- | --------------------------------------------- | ------------------------------------------------ |
+| `input`   | [`LayoutInput`](../interfaces/LayoutInput.md) | Preferences, viewport, maximized and menu state. |
 
 ## Returns
 

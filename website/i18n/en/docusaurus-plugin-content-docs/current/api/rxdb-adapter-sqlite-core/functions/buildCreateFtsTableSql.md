@@ -16,10 +16,10 @@ Business primary key values are restored at query time via `JOIN sourceTable src
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `table` | `string` | Business table name (without the `_fts_` prefix) |
-| `fields` | readonly [`FtsField`](../interfaces/FtsField.md)[] | Fields participating in the FTS5 index (order preserved, as the FTS5 column declaration order) |
+| Parameter | Type                                               | Description                                                                                    |
+| --------- | -------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `table`   | `string`                                           | Business table name (without the `_fts_` prefix)                                               |
+| `fields`  | readonly [`FtsField`](../interfaces/FtsField.md)[] | Fields participating in the FTS5 index (order preserved, as the FTS5 column declaration order) |
 
 ## Returns
 

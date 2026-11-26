@@ -29,7 +29,7 @@ protected readonly active: WritableSignal<PreferenceTab>;
 
 Defined in: [rxdb-admin-angular/src/preferences/preferences-drawer.component.ts:30](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/preferences/preferences-drawer.component.ts#L30)
 
-***
+---
 
 ### copyState \{#copystate\}
 
@@ -39,7 +39,7 @@ protected readonly copyState: WritableSignal<"copy" | "copied" | "copyFailed">;
 
 Defined in: [rxdb-admin-angular/src/preferences/preferences-drawer.component.ts:32](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/preferences/preferences-drawer.component.ts#L32)
 
-***
+---
 
 ### current \{#current\}
 
@@ -49,7 +49,7 @@ protected readonly current: Signal<DrawerTab>;
 
 Defined in: [rxdb-admin-angular/src/preferences/preferences-drawer.component.ts:33](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/preferences/preferences-drawer.component.ts#L33)
 
-***
+---
 
 ### hasDiff \{#hasdiff\}
 
@@ -59,7 +59,7 @@ protected readonly hasDiff: Signal<boolean>;
 
 Defined in: [rxdb-admin-angular/src/preferences/preferences-drawer.component.ts:29](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/preferences/preferences-drawer.component.ts#L29)
 
-***
+---
 
 ### importing \{#importing\}
 
@@ -69,7 +69,7 @@ protected readonly importing: WritableSignal<boolean>;
 
 Defined in: [rxdb-admin-angular/src/preferences/preferences-drawer.component.ts:31](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/preferences/preferences-drawer.component.ts#L31)
 
-***
+---
 
 ### shell \{#shell\}
 
@@ -79,7 +79,7 @@ protected readonly shell: AdminShell<LucideIconInput>;
 
 Defined in: [rxdb-admin-angular/src/preferences/preferences-drawer.component.ts:25](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/preferences/preferences-drawer.component.ts#L25)
 
-***
+---
 
 ### t \{#t\}
 
@@ -93,16 +93,16 @@ Translates shell text.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | `string` | Text key. |
+| Parameter | Type                                | Description     |
+| --------- | ----------------------------------- | --------------- |
+| `key`     | `string`                            | Text key.       |
 | `params?` | `Record`&lt;`string`, `unknown`&gt; | ICU parameters. |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### tabs \{#tabs\}
 
@@ -112,7 +112,7 @@ protected readonly tabs: Signal<readonly DrawerTab[]>;
 
 Defined in: [rxdb-admin-angular/src/preferences/preferences-drawer.component.ts:28](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/preferences/preferences-drawer.component.ts#L28)
 
-***
+---
 
 ### ui \{#ui\}
 
@@ -122,7 +122,7 @@ protected readonly ui: Signal<ShellUiState>;
 
 Defined in: [rxdb-admin-angular/src/preferences/preferences-drawer.component.ts:27](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/preferences/preferences-drawer.component.ts#L27)
 
-***
+---
 
 ### X \{#x\}
 
@@ -146,7 +146,7 @@ Defined in: [rxdb-admin-angular/src/preferences/preferences-drawer.component.ts:
 
 `void`
 
-***
+---
 
 ### copy() \{#copy\}
 
@@ -160,7 +160,7 @@ Defined in: [rxdb-admin-angular/src/preferences/preferences-drawer.component.ts:
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### isLabelled() \{#islabelled\}
 
@@ -174,15 +174,15 @@ The widget and shortcut lists come with their own labels for each item; the sett
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `row` | [`DrawerRow`](../../rxdb-admin/interfaces/DrawerRow.md) |
+| Parameter | Type                                                    |
+| --------- | ------------------------------------------------------- |
+| `row`     | [`DrawerRow`](../../rxdb-admin/interfaces/DrawerRow.md) |
 
 #### Returns
 
 `boolean`
 
-***
+---
 
 ### isStacked() \{#isstacked\}
 
@@ -196,15 +196,15 @@ Settings rows where the title and control each take their own line (control belo
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `row` | [`DrawerRow`](../../rxdb-admin/interfaces/DrawerRow.md) |
+| Parameter | Type                                                    |
+| --------- | ------------------------------------------------------- |
+| `row`     | [`DrawerRow`](../../rxdb-admin/interfaces/DrawerRow.md) |
 
 #### Returns
 
 `boolean`
 
-***
+---
 
 ### onBackdropClick() \{#onbackdropclick\}
 
@@ -216,9 +216,9 @@ Defined in: [rxdb-admin-angular/src/preferences/preferences-drawer.component.ts:
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `MouseEvent` |
+| Parameter | Type         |
+| --------- | ------------ |
+| `event`   | `MouseEvent` |
 
 #### Returns
 

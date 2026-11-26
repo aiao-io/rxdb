@@ -10,15 +10,15 @@ Gets the status of an entity.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                            |
+| ----------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `target` | `object` | The entity instance |
+| Parameter | Type     | Description         |
+| --------- | -------- | ------------------- |
+| `target`  | `object` | The entity instance |
 
 ## Returns
 

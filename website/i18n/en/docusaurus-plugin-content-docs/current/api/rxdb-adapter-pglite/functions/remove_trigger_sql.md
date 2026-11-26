@@ -12,10 +12,10 @@ Generates the SQL statements that drop the trigger and the trigger function for 
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter        | Type                                                          | Description     |
+| ---------------- | ------------------------------------------------------------- | --------------- |
 | `entityMetadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | Entity metadata |
-| `tableSet` | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md) | - |
+| `tableSet`       | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md)  | -               |
 
 ## Returns
 

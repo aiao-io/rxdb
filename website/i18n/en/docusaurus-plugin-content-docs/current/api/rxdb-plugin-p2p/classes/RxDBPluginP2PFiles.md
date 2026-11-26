@@ -30,9 +30,9 @@ Defined in: [packages/rxdb-plugin-p2p/src/plugin.ts:25](https://github.com/aiao-
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `rxdb` | [`RxDB`](../../rxdb/classes/RxDB.md) | The database instance to register the manifest entity into |
+| Parameter | Type                                 | Description                                                |
+| --------- | ------------------------------------ | ---------------------------------------------------------- |
+| `rxdb`    | [`RxDB`](../../rxdb/classes/RxDB.md) | The database instance to register the manifest entity into |
 
 #### Returns
 
@@ -62,7 +62,7 @@ Scoped lifecycle: no `destroy()` required.
 
 [`IRxDBPlugin`](../../rxdb/interfaces/IRxDBPlugin.md).[`lifecycle`](../../rxdb/interfaces/IRxDBPlugin.md#lifecycle)
 
-***
+---
 
 ### name \{#name\}
 
@@ -78,7 +78,7 @@ The plugin name.
 
 [`IRxDBPlugin`](../../rxdb/interfaces/IRxDBPlugin.md).[`name`](../../rxdb/interfaces/IRxDBPlugin.md#name)
 
-***
+---
 
 ### rxdb \{#rxdb\}
 

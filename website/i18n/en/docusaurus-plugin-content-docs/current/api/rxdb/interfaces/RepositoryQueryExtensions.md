@@ -1,5 +1,5 @@
 ---
-sidebar_label: "RepositoryQueryExtensions⟨T⟩"
+sidebar_label: 'RepositoryQueryExtensions⟨T⟩'
 ---
 
 # RepositoryQueryExtensions`<T>`
@@ -10,9 +10,9 @@ Query tasks appended by Repository plugins through module extension.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                            |
+| ----------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 ## Properties
 

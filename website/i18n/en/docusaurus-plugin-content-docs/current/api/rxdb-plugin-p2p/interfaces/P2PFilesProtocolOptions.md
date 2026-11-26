@@ -18,15 +18,15 @@ Validates this request before looking up or reading the local file; throwing rej
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                      |
+| --------- | --------------------------------------------------------- |
 | `context` | [`P2PFilesAuthorizeContext`](P2PFilesAuthorizeContext.md) |
 
 #### Returns
 
 `void` \| `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### contents? \{#contents\}
 
@@ -38,7 +38,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/files-protocol.ts:40](https://github.c
 
 The content table held by the local side.
 
-***
+---
 
 ### maxConcurrentRequests? \{#maxconcurrentrequests\}
 

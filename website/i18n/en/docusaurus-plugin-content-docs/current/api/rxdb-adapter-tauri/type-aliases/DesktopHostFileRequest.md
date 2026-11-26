@@ -1,7 +1,7 @@
 # DesktopHostFileRequest
 
 ```ts
-type DesktopHostFileRequest = 
+type DesktopHostFileRequest =
   | DesktopHostFileOpenRequest
   | DesktopHostFileCloseRequest
   | DesktopHostFilePathRequest

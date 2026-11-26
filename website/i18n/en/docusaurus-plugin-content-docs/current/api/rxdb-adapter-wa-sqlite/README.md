@@ -19,13 +19,13 @@ RxDB adapter that runs SQLite in the browser via wa-sqlite.
 
 ## Comparison with other adapters
 
-| Feature       | wa-sqlite                | sqlite-wasm | PGlite     |
-| ---------- | ------------------------ | ----------- | ---------- |
-| Database engine | SQLite               | SQLite      | PostgreSQL |
-| WASM size  | ~500KB                   | ~800KB      | ~3MB       |
-| Full-text search | FTS5              | FTS5        | tsvector   |
-| VFS options | Multiple (IDB/OPFS)      | Standard    | Fixed      |
-| Maturity   | Stable adapter, tiered VFS support | Official support | Newer |
+| Feature          | wa-sqlite                          | sqlite-wasm      | PGlite     |
+| ---------------- | ---------------------------------- | ---------------- | ---------- |
+| Database engine  | SQLite                             | SQLite           | PostgreSQL |
+| WASM size        | ~500KB                             | ~800KB           | ~3MB       |
+| Full-text search | FTS5                               | FTS5             | tsvector   |
+| VFS options      | Multiple (IDB/OPFS)                | Standard         | Fixed      |
+| Maturity         | Stable adapter, tiered VFS support | Official support | Newer      |
 
 ## Installation
 
@@ -69,17 +69,17 @@ await rxdb.connect('wa-sqlite');
 These VFS implementations come from wa-sqlite's `src/examples/*`; upstream does not declare them a stable production API. This package only ships
 `IDBBatchAtomicVFS` as the default, supported production backend; the other implementations must be explicitly selected after being evaluated against the table below.
 
-| VFS                   | Support level | Constraints                                                              |
-| --------------------- | -------- | ------------------------------------------------------------------- |
-| `IDBBatchAtomicVFS`   | Production | Default option; IndexedDB persistence, covers atomic writes and multi-connection regressions |
-| `MemoryVFS`           | Test only | Sync, non-persistent                                                      |
-| `MemoryAsyncVFS`      | Test only | asyncify, non-persistent                                                  |
-| `IDBMirrorVFS`        | Experimental | IndexedDB mirror implementation; persistence regressions must be re-run before upgrading |
-| `AccessHandlePoolVFS` | Experimental | dedicated Worker only; depends on the OPFS sync access handle             |
-| `OPFSAdaptiveVFS`     | Experimental | dedicated Worker only                                                 |
-| `OPFSAnyContextVFS`   | Experimental | Supports Window, dedicated Worker, SharedWorker; only recommended for read-only or near-read-only workloads |
-| `OPFSCoopSyncVFS`     | Experimental | dedicated Worker only; does not require SharedArrayBuffer                       |
-| `OPFSWriteAheadVFS`   | Experimental | dedicated Worker only; recovery and concurrency behavior must be re-validated before upgrading |
+| VFS                   | Support level | Constraints                                                                                                 |
+| --------------------- | ------------- | ----------------------------------------------------------------------------------------------------------- |
+| `IDBBatchAtomicVFS`   | Production    | Default option; IndexedDB persistence, covers atomic writes and multi-connection regressions                |
+| `MemoryVFS`           | Test only     | Sync, non-persistent                                                                                        |
+| `MemoryAsyncVFS`      | Test only     | asyncify, non-persistent                                                                                    |
+| `IDBMirrorVFS`        | Experimental  | IndexedDB mirror implementation; persistence regressions must be re-run before upgrading                    |
+| `AccessHandlePoolVFS` | Experimental  | dedicated Worker only; depends on the OPFS sync access handle                                               |
+| `OPFSAdaptiveVFS`     | Experimental  | dedicated Worker only                                                                                       |
+| `OPFSAnyContextVFS`   | Experimental  | Supports Window, dedicated Worker, SharedWorker; only recommended for read-only or near-read-only workloads |
+| `OPFSCoopSyncVFS`     | Experimental  | dedicated Worker only; does not require SharedArrayBuffer                                                   |
+| `OPFSWriteAheadVFS`   | Experimental  | dedicated Worker only; recovery and concurrency behavior must be re-validated before upgrading              |
 
 `worker` must be provided together with `workerInstance`, and `sharedWorker` must be provided together with `sharedWorkerInstance`;
 the two transports are mutually exclusive. Workers/SharedWorkers are created and owned by the caller; the adapter never calls `terminate()` on the caller's behalf.
@@ -115,10 +115,10 @@ re-audit the internal paths and capability matrix of the 9 VFS implementations i
 `backup()` / `restore()` / `cleanupIncompleteRestore()` are provided by [`@aiao/rxdb-adapter-sqlite-core`](../rxdb-adapter-sqlite-core/README.md); see there for the semantics and error codes.
 
 | VFS                            | Backup / restore                                     |
-| ------------------------------ | ----------------------------------------------- |
-| `MemoryVFS` / `MemoryAsyncVFS` | ✅ in-memory database                                        |
+| ------------------------------ | ---------------------------------------------------- |
+| `MemoryVFS` / `MemoryAsyncVFS` | ✅ in-memory database                                |
 | `IDBBatchAtomicVFS`            | ✅ IndexedDB, persisted with `journal_mode` `delete` |
-| Other VFS                      | ❌ `unsupported_combination` (`vfs`)           |
+| Other VFS                      | ❌ `unsupported_combination` (`vfs`)                 |
 
 The combinations in the table are only delivered for main-thread connections: when `worker` / `workerInstance` or `sharedWorker` / `sharedWorkerInstance` is set, all three entry points report `unsupported_combination` (`transport`, with `actual` `worker` or `sharedWorker`) and do not touch the output stream or the archive source.
 
@@ -137,6 +137,7 @@ adapter — both inherit from the same `RxDBAdapterSqliteBase` and are derived t
 `createSqliteClient` / VFS loading logic.
 
 Entry layering:
+
 - core shared types and functions (re-exported from `@aiao/rxdb-adapter-sqlite-core`)
 - the wa-sqlite adapter body `RxDBAdapterWaSqlite` (also exported under the alias `RxDBAdapterSqlite`, so sqlite-wasm / wa-sqlite share code paths)
 - the client `WaSqliteClient`, responsible for the SQLite connection, change interception and batch dispatch
@@ -144,52 +145,52 @@ Entry layering:
 
 ## Classes
 
-| Class | Description |
-| ------ | ------ |
-| [RxDBAdapterSqlite](classes/RxDBAdapterSqlite.md) | Browser wa-sqlite adapter. |
+| Class                                                       | Description                            |
+| ----------------------------------------------------------- | -------------------------------------- |
+| [RxDBAdapterSqlite](classes/RxDBAdapterSqlite.md)           | Browser wa-sqlite adapter.             |
 | [RxDBAdapterSqliteError](classes/RxDBAdapterSqliteError.md) | Error class of the RxDB SQLite adapter |
-| [SqliteClient](classes/SqliteClient.md) | Browser wa-sqlite client. |
-| [SqliteRepository](classes/SqliteRepository.md) | Repository for operating on entities |
+| [SqliteClient](classes/SqliteClient.md)                     | Browser wa-sqlite client.              |
+| [SqliteRepository](classes/SqliteRepository.md)             | Repository for operating on entities   |
 
 ## Interfaces
 
-| Interface | Description |
-| ------ | ------ |
-| [GenerateSqlResult](interfaces/GenerateSqlResult.md) | SQL generation result: the complete SQL statement and optional parameter bindings. |
-| [LoadedSqlite](interfaces/LoadedSqlite.md) | Return value of [waSqliteLoad](functions/sqliteLoad.md): the initialized SQLite API and its registered VFS. |
-| [ResolvedWaSqliteClientOptions](interfaces/ResolvedWaSqliteClientOptions.md) | Runtime parameters of the wa-sqlite client after normalization. |
-| [RxDBAdapterSqliteBase](interfaces/RxDBAdapterSqliteBase.md) | Backend-agnostic SQLite adapter base class. |
-| [SqliteOptions](interfaces/SqliteOptions.md) | wa-sqlite adapter configuration. |
-| [WaSqliteClientRuntime](interfaces/WaSqliteClientRuntime.md) | Platform runtime of the wa-sqlite client. |
-| [WaSqliteVfsConfig](interfaces/WaSqliteVfsConfig.md) | Read-only capabilities and loading configuration of a wa-sqlite VFS. |
-| [WaSqliteVfsFactory](interfaces/WaSqliteVfsFactory.md) | Minimal factory shape exposed by the upstream example VFS modules. |
+| Interface                                                                    | Description                                                                                                 |
+| ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| [GenerateSqlResult](interfaces/GenerateSqlResult.md)                         | SQL generation result: the complete SQL statement and optional parameter bindings.                          |
+| [LoadedSqlite](interfaces/LoadedSqlite.md)                                   | Return value of [waSqliteLoad](functions/sqliteLoad.md): the initialized SQLite API and its registered VFS. |
+| [ResolvedWaSqliteClientOptions](interfaces/ResolvedWaSqliteClientOptions.md) | Runtime parameters of the wa-sqlite client after normalization.                                             |
+| [RxDBAdapterSqliteBase](interfaces/RxDBAdapterSqliteBase.md)                 | Backend-agnostic SQLite adapter base class.                                                                 |
+| [SqliteOptions](interfaces/SqliteOptions.md)                                 | wa-sqlite adapter configuration.                                                                            |
+| [WaSqliteClientRuntime](interfaces/WaSqliteClientRuntime.md)                 | Platform runtime of the wa-sqlite client.                                                                   |
+| [WaSqliteVfsConfig](interfaces/WaSqliteVfsConfig.md)                         | Read-only capabilities and loading configuration of a wa-sqlite VFS.                                        |
+| [WaSqliteVfsFactory](interfaces/WaSqliteVfsFactory.md)                       | Minimal factory shape exposed by the upstream example VFS modules.                                          |
 
 ## Type Aliases
 
-| Type Alias | Description |
-| ------ | ------ |
-| [LoadModuleOptions](type-aliases/LoadModuleOptions.md) | Configuration required for loading the wa-sqlite module and initializing the client. |
-| [SqliteRepositoryConstructor](type-aliases/SqliteRepositoryConstructor.md) | Constructor type of the SQLite repository. |
-| [SupportVFS](type-aliases/SupportVFS.md) | Supported virtual filesystem types. |
+| Type Alias                                                                 | Description                                                                          |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| [LoadModuleOptions](type-aliases/LoadModuleOptions.md)                     | Configuration required for loading the wa-sqlite module and initializing the client. |
+| [SqliteRepositoryConstructor](type-aliases/SqliteRepositoryConstructor.md) | Constructor type of the SQLite repository.                                           |
+| [SupportVFS](type-aliases/SupportVFS.md)                                   | Supported virtual filesystem types.                                                  |
 
 ## Variables
 
-| Variable | Description |
-| ------ | ------ |
-| [BATCH\_TIMEOUT](variables/BATCH_TIMEOUT.md) | Change-event batch timeout tiers (milliseconds). Shorter means lower latency but more frequent CPU wakeups; longer saves power but delays UI responses. - `IMMEDIATE` (0): synchronous dispatch, only for test scenarios - `FAST` (4): coalesced within about one frame - `BALANCED` (16): default, about one frame (60fps) - `POWER_SAVE` (50): mobile / background scenarios |
-| [buildRuleGroup](variables/buildRuleGroup.md) | Builds the ruleGroup SQL query condition |
-| [ROWID](variables/ROWID.md) | Column name of the sqlite row id |
-| [sqliteGetTableName](variables/sqliteGetTableName.md) | Assembles the physical name of the main table set: `<namespace>$<logical name>`. |
-| [sqliteGetTableNameByMetadata](variables/sqliteGetTableNameByMetadata.md) | Physical table name of an entity in a given table set. |
-| [WA\_SQLITE\_MAX\_DATABASE\_NAME\_BYTES](variables/WA_SQLITE_MAX_DATABASE_NAME_BYTES.md) | Maximum UTF-8 bytes of the database name accepted by the wa-sqlite browser VFS. |
-| [WA\_SQLITE\_VFS\_LIST](variables/WA_SQLITE_VFS_LIST.md) | VFS supported by wa-sqlite and their runtime capabilities; the array, its entries and nested options are all immutable. |
+| Variable                                                                                 | Description                                                                                                                                                                                                                                                                                                                                                                    |
+| ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [BATCH\_TIMEOUT](variables/BATCH_TIMEOUT.md)                                             | Change-event batch timeout tiers (milliseconds). Shorter means lower latency but more frequent CPU wakeups; longer saves power but delays UI responses. - `IMMEDIATE` (0): synchronous dispatch, only for test scenarios - `FAST` (4): coalesced within about one frame - `BALANCED` (16): default, about one frame (60fps) - `POWER_SAVE` (50): mobile / background scenarios |
+| [buildRuleGroup](variables/buildRuleGroup.md)                                            | Builds the ruleGroup SQL query condition                                                                                                                                                                                                                                                                                                                                       |
+| [ROWID](variables/ROWID.md)                                                              | Column name of the sqlite row id                                                                                                                                                                                                                                                                                                                                               |
+| [sqliteGetTableName](variables/sqliteGetTableName.md)                                    | Assembles the physical name of the main table set: `<namespace>$<logical name>`.                                                                                                                                                                                                                                                                                               |
+| [sqliteGetTableNameByMetadata](variables/sqliteGetTableNameByMetadata.md)                | Physical table name of an entity in a given table set.                                                                                                                                                                                                                                                                                                                         |
+| [WA\_SQLITE\_MAX\_DATABASE\_NAME\_BYTES](variables/WA_SQLITE_MAX_DATABASE_NAME_BYTES.md) | Maximum UTF-8 bytes of the database name accepted by the wa-sqlite browser VFS.                                                                                                                                                                                                                                                                                                |
+| [WA\_SQLITE\_VFS\_LIST](variables/WA_SQLITE_VFS_LIST.md)                                 | VFS supported by wa-sqlite and their runtime capabilities; the array, its entries and nested options are all immutable.                                                                                                                                                                                                                                                        |
 
 ## Functions
 
-| Function | Description |
-| ------ | ------ |
+| Function                                                              | Description                                                 |
+| --------------------------------------------------------------------- | ----------------------------------------------------------- |
 | [assertWaSqliteDatabaseName](functions/assertWaSqliteDatabaseName.md) | Validates the database name before loading the browser VFS. |
-| [sqliteLoad](functions/sqliteLoad.md) | Loads the wa-sqlite module and registers the selected VFS. |
+| [sqliteLoad](functions/sqliteLoad.md)                                 | Loads the wa-sqlite module and registers the selected VFS.  |
 
 ## References
 
@@ -197,25 +198,25 @@ Entry layering:
 
 Renames and re-exports [RxDBAdapterSqlite](classes/RxDBAdapterSqlite.md)
 
-***
+---
 
 ### WaSqliteClient \{#wasqliteclient\}
 
 Renames and re-exports [SqliteClient](classes/SqliteClient.md)
 
-***
+---
 
 ### waSqliteLoad \{#wasqliteload\}
 
 Renames and re-exports [sqliteLoad](functions/sqliteLoad.md)
 
-***
+---
 
 ### WaSqliteOptions \{#wasqliteoptions\}
 
 Renames and re-exports [SqliteOptions](interfaces/SqliteOptions.md)
 
-***
+---
 
 ### WaSqliteRepositoryConstructor \{#wasqliterepositoryconstructor\}
 

@@ -24,7 +24,7 @@ Defined in: [rxdb-react/src/use-entity-change.ts:25](https://github.com/aiao-io/
 
 Sampling window in milliseconds: only the last patch within the window is let through, providing a stable refresh throttle for continuous input.
 
-***
+---
 
 ### debounceTime? \{#debouncetime\}
 

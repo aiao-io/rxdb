@@ -1,5 +1,5 @@
 ---
-sidebar_label: "UseQueryBuilderResult⟨T⟩"
+sidebar_label: 'UseQueryBuilderResult⟨T⟩'
 ---
 
 # UseQueryBuilderResult`<T>`
@@ -10,8 +10,8 @@ Controller and reactive snapshot of UseQueryBuilderResult.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
+| Type Parameter                    | Default type                        |
+| --------------------------------- | ----------------------------------- |
 | <a id="type-parameter-t"></a> `T` | `Record`&lt;`string`, `unknown`&gt; |
 
 ## Properties
@@ -24,7 +24,7 @@ readonly controller: QueryBuilderController<T>;
 
 Defined in: [packages/rxdb-model-react/src/headless.ts:44](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-react/src/headless.ts#L44)
 
-***
+---
 
 ### snapshot \{#snapshot\}
 

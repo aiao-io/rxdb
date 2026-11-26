@@ -12,9 +12,9 @@ Units stop at `GB`: larger values keep using GB; TB never appears. Values keep t
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `bytes` | `number` | Byte count |
+| Parameter | Type     | Description |
+| --------- | -------- | ----------- |
+| `bytes`   | `number` | Byte count  |
 
 ## Returns
 
@@ -26,5 +26,5 @@ A string like `'1.5 MB'`; returns `'0 B'` when `bytes` is `NaN` / `Infinity` / n
 
 ```ts
 formatFileSize(1536); // '1.5 KB'
-formatFileSize(-1);   // '0 B'
+formatFileSize(-1); // '0 B'
 ```

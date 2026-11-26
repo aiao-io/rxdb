@@ -18,7 +18,7 @@ onCreate?: CreateHandler;
 
 Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:241](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-http/src/http.interface.ts#L241)
 
-***
+---
 
 ### onDelete? \{#ondelete\}
 
@@ -28,7 +28,7 @@ onDelete?: DeleteHandler;
 
 Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:243](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-http/src/http.interface.ts#L243)
 
-***
+---
 
 ### onFetchMetadata \{#onfetchmetadata\}
 
@@ -38,7 +38,7 @@ onFetchMetadata: FetchMetadataHandler;
 
 Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:239](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-http/src/http.interface.ts#L239)
 
-***
+---
 
 ### onFindByIds \{#onfindbyids\}
 
@@ -48,7 +48,7 @@ onFindByIds: FindByIdsHandler;
 
 Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:240](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-http/src/http.interface.ts#L240)
 
-***
+---
 
 ### onIsTableExisted? \{#onistableexisted\}
 
@@ -60,7 +60,7 @@ Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:247](https://githu
 
 When unconfigured, reuses `onFetchMetadata` with a `limit: 1` probe
 
-***
+---
 
 ### onUpdate? \{#onupdate\}
 
@@ -70,7 +70,7 @@ onUpdate?: UpdateHandler;
 
 Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:242](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-http/src/http.interface.ts#L242)
 
-***
+---
 
 ### onVersion? \{#onversion\}
 

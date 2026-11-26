@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model/src/entity-form/interfaces.ts:122](https://gith
 
 Display name
 
-***
+---
 
 ### id \{#id\}
 

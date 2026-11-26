@@ -10,9 +10,9 @@ Creates a `files` provider backed by the native filesystem.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `ports` | [`DevToolsNativeFilesProviderPorts`](../interfaces/DevToolsNativeFilesProviderPorts.md) | Host file capabilities, the real transfer limit and (optionally) the diagnostic snapshot port. |
+| Parameter | Type                                                                                    | Description                                                                                    |
+| --------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `ports`   | [`DevToolsNativeFilesProviderPorts`](../interfaces/DevToolsNativeFilesProviderPorts.md) | Host file capabilities, the real transfer limit and (optionally) the diagnostic snapshot port. |
 
 ## Returns
 

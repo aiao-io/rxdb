@@ -1,7 +1,7 @@
 # SearchBackendStatus
 
 ```ts
-type SearchBackendStatus = "supported" | "unverified";
+type SearchBackendStatus = 'supported' | 'unverified';
 ```
 
 Defined in: [packages/rxdb-plugin-search/src/backend/backend-registry.ts:32](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-search/src/backend/backend-registry.ts#L32)

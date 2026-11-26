@@ -14,7 +14,7 @@ readonly kind: "version";
 
 Defined in: packages/rxdb-adapter-sqlite-core/dist/desktop/desktop-host-protocol.d.ts:124
 
-***
+---
 
 ### sessionId \{#sessionid\}
 

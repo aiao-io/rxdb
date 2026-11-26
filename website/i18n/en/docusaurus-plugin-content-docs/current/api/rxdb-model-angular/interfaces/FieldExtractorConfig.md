@@ -16,7 +16,7 @@ Defined in: packages/rxdb-model/dist/query-builder/utils/metadata-field-extracto
 
 Relation query depth, default 4
 
-***
+---
 
 ### systemFields? \{#systemfields\}
 

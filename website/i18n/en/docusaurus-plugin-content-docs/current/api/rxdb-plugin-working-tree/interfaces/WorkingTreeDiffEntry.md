@@ -24,7 +24,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/diff.ts:81](http
 
 The entity name
 
-***
+---
 
 ### entityId \{#entityid\}
 
@@ -36,7 +36,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/diff.ts:84](http
 
 The entity primary key
 
-***
+---
 
 ### inversePatch \{#inversepatch\}
 
@@ -48,7 +48,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/diff.ts:93](http
 
 The inverse patch
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -60,7 +60,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/diff.ts:78](http
 
 The entity namespace
 
-***
+---
 
 ### operation \{#operation\}
 
@@ -72,7 +72,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/diff.ts:87](http
 
 The operation type
 
-***
+---
 
 ### origin \{#origin\}
 
@@ -84,7 +84,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/diff.ts:96](http
 
 The change origin; `remote_sync` is **not exempt** (hard ruling 6)
 
-***
+---
 
 ### patch \{#patch\}
 
@@ -96,7 +96,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/diff.ts:90](http
 
 The forward patch
 
-***
+---
 
 ### transactionId \{#transactionid\}
 
@@ -108,7 +108,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/diff.ts:75](http
 
 The owning transaction id; `null` for a single `save()`
 
-***
+---
 
 ### unitId \{#unitid\}
 

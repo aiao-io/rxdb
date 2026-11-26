@@ -20,7 +20,7 @@ The most recent persistence failure; cleared automatically after a successful wr
 
 Quota exceeded, circular references, BigInt, etc. all make the disk write fail while the signal value still updates — this field is the only way callers can tell that the data did not reach disk (RAN-010).
 
-***
+---
 
 ### signal \{#signal\}
 
@@ -35,15 +35,15 @@ Obtains the signal for this key; always returns the same one for the same key.
 #### Type Parameters
 
 | Type Parameter |
-| ------ |
-| `T` |
+| -------------- |
+| `T`            |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `initialValue` | `T` | Initial value on first registration; when a value already exists on disk, the on-disk value wins |
-| `options?` | `CreateSignalOptions`&lt;`T`&gt; | Options passed to Angular `signal()`, effective only on first registration |
+| Parameter      | Type                             | Description                                                                                      |
+| -------------- | -------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `initialValue` | `T`                              | Initial value on first registration; when a value already exists on disk, the on-disk value wins |
+| `options?`     | `CreateSignalOptions`&lt;`T`&gt; | Options passed to Angular `signal()`, effective only on first registration                       |
 
 #### Returns
 

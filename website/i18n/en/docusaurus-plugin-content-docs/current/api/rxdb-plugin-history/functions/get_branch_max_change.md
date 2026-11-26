@@ -12,10 +12,10 @@ Reads a branch's current tip: the largest-id change among its own un-reverted ch
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter          | Type                 | Description            |
+| ------------------ | -------------------- | ---------------------- |
 | `changeRepository` | `BranchChangeReader` | See BranchChangeReader |
-| `branchId` | `string` | The branch id |
+| `branchId`         | `string`             | The branch id          |
 
 ## Returns
 

@@ -16,7 +16,7 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/desktop/desktop-host-protocol
 
 Strongest-lock SQL the host backend uses for system schema migrations.
 
-***
+---
 
 ### beginTransactionSql \{#begintransactionsql\}
 
@@ -28,7 +28,7 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/desktop/desktop-host-protocol
 
 SQL the host backend uses to begin an ordinary transaction.
 
-***
+---
 
 ### protocolVersion \{#protocolversion\}
 
@@ -47,7 +47,7 @@ is the **second** check: when a proxy sits in between, or the host is swapped be
 this copy still catches the mismatch. It is also the only check an old renderer has — remove it and
 a 0.0.x renderer connecting to a new host could never verify the version again.
 
-***
+---
 
 ### resolvedLocation \{#resolvedlocation\}
 
@@ -64,7 +64,7 @@ The resolved **logical** location, for diagnostics and logs only (AC#3).
 Deliberately not a physical absolute path: a renderer holding the physical root directory would be
 holding extra filesystem intelligence, and it does not need that intelligence to do its job.
 
-***
+---
 
 ### sessionId \{#sessionid\}
 

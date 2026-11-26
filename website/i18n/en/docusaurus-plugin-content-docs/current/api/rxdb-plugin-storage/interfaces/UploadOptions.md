@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-storage/src/storage.helpers.ts:49](https://git
 
 Whether to replace the content in place and increment `contentVersion` when the same path already exists.
 
-***
+---
 
 ### path? \{#path\}
 

@@ -10,9 +10,9 @@ Guard for unclaimed capabilities.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `migrationNames` | readonly `string`[] | All row names in the database's `rxdb_migration` |
+| Parameter             | Type                          | Description                                      |
+| --------------------- | ----------------------------- | ------------------------------------------------ |
+| `migrationNames`      | readonly `string`[]           | All row names in the database's `rxdb_migration` |
 | `claimedCapabilities` | `ReadonlySet`&lt;`string`&gt; | Names of capabilities registered in this process |
 
 ## Returns

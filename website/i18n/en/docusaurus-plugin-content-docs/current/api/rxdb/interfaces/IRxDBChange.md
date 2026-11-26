@@ -18,7 +18,7 @@ branchId?: string;
 
 Defined in: [packages/rxdb/src/system/system.interface.ts:11](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/system.interface.ts#L11)
 
-***
+---
 
 ### clientId? \{#clientid\}
 
@@ -28,7 +28,7 @@ clientId?: string;
 
 Defined in: [packages/rxdb/src/system/system.interface.ts:17](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/system.interface.ts#L17)
 
-***
+---
 
 ### createdAt \{#createdat\}
 
@@ -41,7 +41,7 @@ Defined in: [packages/rxdb/src/system/system.interface.ts:19](https://github.com
 The edit moment: when the change was written locally on the originating client. The remote adapter preserves it as-is
 when pushing, and `LWWConflictResolver` compares exactly this.
 
-***
+---
 
 ### entity \{#entity\}
 
@@ -51,7 +51,7 @@ entity: string;
 
 Defined in: [packages/rxdb/src/system/system.interface.ts:9](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/system.interface.ts#L9)
 
-***
+---
 
 ### entityId \{#entityid\}
 
@@ -61,7 +61,7 @@ entityId: RxDBEntityId;
 
 Defined in: [packages/rxdb/src/system/system.interface.ts:10](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/system.interface.ts#L10)
 
-***
+---
 
 ### id \{#id\}
 
@@ -71,7 +71,7 @@ id: number;
 
 Defined in: [packages/rxdb/src/system/system.interface.ts:7](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/system.interface.ts#L7)
 
-***
+---
 
 ### inversePatch? \{#inversepatch\}
 
@@ -81,7 +81,7 @@ inversePatch?: Record<string, unknown> | null;
 
 Defined in: [packages/rxdb/src/system/system.interface.ts:14](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/system.interface.ts#L14)
 
-***
+---
 
 ### localId? \{#localid\}
 
@@ -91,7 +91,7 @@ localId?: number | null;
 
 Defined in: [packages/rxdb/src/system/system.interface.ts:16](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/system.interface.ts#L16)
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -101,7 +101,7 @@ namespace: string;
 
 Defined in: [packages/rxdb/src/system/system.interface.ts:8](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/system.interface.ts#L8)
 
-***
+---
 
 ### patch? \{#patch\}
 
@@ -111,7 +111,7 @@ patch?: Record<string, unknown> | null;
 
 Defined in: [packages/rxdb/src/system/system.interface.ts:13](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/system.interface.ts#L13)
 
-***
+---
 
 ### transactionId? \{#transactionid\}
 
@@ -121,17 +121,17 @@ transactionId?: `${string}-${string}-${string}-${string}-${string}` | null;
 
 Defined in: [packages/rxdb/src/system/system.interface.ts:15](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/system.interface.ts#L15)
 
-***
+---
 
 ### type \{#type\}
 
 ```ts
-type: "INSERT" | "UPDATE" | "DELETE";
+type: 'INSERT' | 'UPDATE' | 'DELETE';
 ```
 
 Defined in: [packages/rxdb/src/system/system.interface.ts:12](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/system.interface.ts#L12)
 
-***
+---
 
 ### updatedAt \{#updatedat\}
 

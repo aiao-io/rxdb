@@ -11,9 +11,9 @@ Used when applying the `inversePatch` of undo/redo.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `args` | [`PatchWalkArgs`](../../rxdb-adapter-encrypted/interfaces/PatchWalkArgs.md) |
+| Parameter | Type                                                                        |
+| --------- | --------------------------------------------------------------------------- |
+| `args`    | [`PatchWalkArgs`](../../rxdb-adapter-encrypted/interfaces/PatchWalkArgs.md) |
 
 ## Returns
 

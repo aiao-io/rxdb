@@ -20,9 +20,9 @@ Translates shell copy.
 
 ### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | `string` | The copy key. |
+| Parameter | Type                                | Description     |
+| --------- | ----------------------------------- | --------------- |
+| `key`     | `string`                            | The copy key.   |
 | `params?` | `Record`&lt;`string`, `unknown`&gt; | ICU parameters. |
 
 ### Returns

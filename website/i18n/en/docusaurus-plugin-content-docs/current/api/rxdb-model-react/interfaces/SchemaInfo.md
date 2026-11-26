@@ -16,7 +16,7 @@ Defined in: packages/rxdb-model/dist/query-builder/models/query-builder-state.d.
 
 Entity name
 
-***
+---
 
 ### fields \{#fields\}
 

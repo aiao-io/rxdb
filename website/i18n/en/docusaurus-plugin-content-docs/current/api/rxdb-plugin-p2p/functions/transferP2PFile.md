@@ -13,8 +13,8 @@ Each chunk is verified independently; a bad chunk only counts toward the corresp
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                        |
+| --------- | ----------------------------------------------------------- |
 | `options` | [`P2PTransferOptions`](../interfaces/P2PTransferOptions.md) |
 
 ## Returns

@@ -1,50 +1,50 @@
 ---
-sidebar_label: "EntityListEvent⟨T⟩"
+sidebar_label: 'EntityListEvent⟨T⟩'
 ---
 
 # EntityListEvent`<T>`
 
 ```ts
-type EntityListEvent<T> = 
+type EntityListEvent<T> =
   | {
-  query: unknown;
-  type: "queryChanged";
-}
+      query: unknown;
+      type: 'queryChanged';
+    }
   | {
-  page: number;
-  pageSize: number;
-  type: "pageChanged";
-}
+      page: number;
+      pageSize: number;
+      type: 'pageChanged';
+    }
   | {
-  records: readonly T[];
-  type: "recordsChanged";
-}
+      records: readonly T[];
+      type: 'recordsChanged';
+    }
   | {
-  selectedIds: readonly string[];
-  type: "selectionChanged";
-}
+      selectedIds: readonly string[];
+      type: 'selectionChanged';
+    }
   | {
-  type: "loadStarted";
-}
+      type: 'loadStarted';
+    }
   | {
-  records: readonly T[];
-  type: "loadFinished";
-}
+      records: readonly T[];
+      type: 'loadFinished';
+    }
   | {
-  record: T;
-  type: "created";
-}
+      record: T;
+      type: 'created';
+    }
   | {
-  record: T;
-  type: "updated";
-}
+      record: T;
+      type: 'updated';
+    }
   | {
-  ids: readonly string[];
-  type: "deleted";
-}
+      ids: readonly string[];
+      type: 'deleted';
+    }
   | {
-  type: "statusChanged";
-};
+      type: 'statusChanged';
+    };
 ```
 
 Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:21
@@ -53,6 +53,6 @@ Event emitted when a list action happens or the data source advances state.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityInstance`](EntityInstance.md) | [`EntityInstance`](EntityInstance.md) |
+| Type Parameter                                                                    | Default type                          |
+| --------------------------------------------------------------------------------- | ------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityInstance`](EntityInstance.md) | [`EntityInstance`](EntityInstance.md) |

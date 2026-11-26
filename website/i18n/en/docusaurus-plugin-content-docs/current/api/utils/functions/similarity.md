@@ -10,10 +10,10 @@ Computes string similarity
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `a` | `string` |
-| `b` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `a`       | `string` |
+| `b`       | `string` |
 
 ## Returns
 

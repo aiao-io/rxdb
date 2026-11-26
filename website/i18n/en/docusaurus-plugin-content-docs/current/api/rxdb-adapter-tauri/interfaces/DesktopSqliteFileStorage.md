@@ -22,7 +22,7 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/desktop/desktop-storage.d.ts:
 
 Logical database name within the app scope, e.g. `app.sqlite3`.
 
-***
+---
 
 ### engine \{#engine\}
 

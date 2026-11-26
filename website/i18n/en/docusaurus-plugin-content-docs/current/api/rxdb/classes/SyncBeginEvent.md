@@ -18,8 +18,8 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:488](https://github.com/aiao-io/rx
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type                                                | Description    |
+| ----------- | --------------------------------------------------- | -------------- |
 | `direction` | [`SyncDirection`](../type-aliases/SyncDirection.md) | Sync direction |
 
 #### Returns
@@ -38,7 +38,7 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:490](https://github.com/aiao-io/rx
 
 Sync direction
 
-***
+---
 
 ### type \{#type\}
 

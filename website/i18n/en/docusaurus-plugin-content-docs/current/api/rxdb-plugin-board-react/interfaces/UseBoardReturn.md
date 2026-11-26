@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-board-react/src/use-board.ts:115](https://gith
 
 Domain actions (complete from the first frame; stable reference within the same `rxdb` instance).
 
-***
+---
 
 ### boards \{#boards\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-board-react/src/use-board.ts:83](https://githu
 
 All boards (ascending by creation time, ties broken by id).
 
-***
+---
 
 ### columns \{#columns\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-plugin-board-react/src/use-board.ts:89](https://githu
 
 Columns of the current board (in-board column order).
 
-***
+---
 
 ### currentBoard \{#currentboard\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb-plugin-board-react/src/use-board.ts:87](https://githu
 
 Current board; `null` when there is none.
 
-***
+---
 
 ### currentBoardId \{#currentboardid\}
 
@@ -64,7 +64,7 @@ Defined in: [packages/rxdb-plugin-board-react/src/use-board.ts:85](https://githu
 
 Current board id (persisted in local storage).
 
-***
+---
 
 ### labels \{#labels\}
 
@@ -76,7 +76,7 @@ Defined in: [packages/rxdb-plugin-board-react/src/use-board.ts:93](https://githu
 
 Board-level labels of the current board (ascending by creation time, ties broken by id).
 
-***
+---
 
 ### loading \{#loading\}
 
@@ -88,7 +88,7 @@ Defined in: [packages/rxdb-plugin-board-react/src/use-board.ts:99](https://githu
 
 Initial read or retry in progress: `true` until both the board list and the current board data are ready; `false` once the read fails.
 
-***
+---
 
 ### readError \{#readerror\}
 
@@ -100,7 +100,7 @@ Defined in: [packages/rxdb-plugin-board-react/src/use-board.ts:101](https://gith
 
 Read failure reason; `null` when reads are healthy.
 
-***
+---
 
 ### redoCount \{#redocount\}
 
@@ -112,7 +112,7 @@ Defined in: [packages/rxdb-plugin-board-react/src/use-board.ts:107](https://gith
 
 Depth of the redo stack (used to disable the redo entry).
 
-***
+---
 
 ### restoring \{#restoring\}
 
@@ -124,7 +124,7 @@ Defined in: [packages/rxdb-plugin-board-react/src/use-board.ts:97](https://githu
 
 Write gate during restore (US-534 / US-537).
 
-***
+---
 
 ### retryReads \{#retryreads\}
 
@@ -140,12 +140,12 @@ Clears the read failure and rebuilds all read subscriptions.
 
 `void`
 
-***
+---
 
 ### searchSource \{#searchsource\}
 
 ```ts
-readonly searchSource: 
+readonly searchSource:
   | BoardSearchSource
   | null;
 ```
@@ -154,12 +154,12 @@ Defined in: [packages/rxdb-plugin-board-react/src/use-board.ts:79](https://githu
 
 Board-level search source (US-539 phase B); `null` when the host has not injected an upstream, rebuilt with the upstream after injection.
 
-***
+---
 
 ### searchUnavailableReason \{#searchunavailablereason\}
 
 ```ts
-readonly searchUnavailableReason: 
+readonly searchUnavailableReason:
   | BoardSearchUnavailableReason
   | null;
 ```
@@ -168,7 +168,7 @@ Defined in: [packages/rxdb-plugin-board-react/src/use-board.ts:81](https://githu
 
 Stable reason when the search entry is unavailable.
 
-***
+---
 
 ### selectBoard \{#selectboard\}
 
@@ -182,15 +182,15 @@ Switch board: writes the local record and switches the data streams.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                      |
+| --------- | --------------------------------------------------------- |
 | `boardId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### setRestoring \{#setrestoring\}
 
@@ -204,15 +204,15 @@ Enter / leave the restoring state (restore orchestration is driven by the host; 
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `boolean` |
+| Parameter | Type      |
+| --------- | --------- |
+| `value`   | `boolean` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### taskLabels \{#tasklabels\}
 
@@ -224,7 +224,7 @@ Defined in: [packages/rxdb-plugin-board-react/src/use-board.ts:95](https://githu
 
 Task → its labels (in label creation order).
 
-***
+---
 
 ### tasks \{#tasks\}
 
@@ -236,7 +236,7 @@ Defined in: [packages/rxdb-plugin-board-react/src/use-board.ts:91](https://githu
 
 All tasks of the current board (store order within each column).
 
-***
+---
 
 ### undoCount \{#undocount\}
 
@@ -248,12 +248,12 @@ Defined in: [packages/rxdb-plugin-board-react/src/use-board.ts:105](https://gith
 
 Number of undoable transactions in this session (used to disable the undo entry).
 
-***
+---
 
 ### writeEvent \{#writeevent\}
 
 ```ts
-readonly writeEvent: 
+readonly writeEvent:
   | {
   kind: string;
   reason?: string;

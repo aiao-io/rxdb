@@ -10,10 +10,10 @@ Derives sanitization constraints from the preference items so that drawer inputs
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `items` | readonly [`PreferenceItem`](../interfaces/PreferenceItem.md)[] | The preference items (extensions excluded; extensions are handled by [sanitizeExtensions](sanitizeExtensions.md)). |
-| `themeNames` | readonly `string`[] | The theme names the shell offers (excluding `system`). |
+| Parameter    | Type                                                           | Description                                                                                                        |
+| ------------ | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `items`      | readonly [`PreferenceItem`](../interfaces/PreferenceItem.md)[] | The preference items (extensions excluded; extensions are handled by [sanitizeExtensions](sanitizeExtensions.md)). |
+| `themeNames` | readonly `string`[]                                            | The theme names the shell offers (excluding `system`).                                                             |
 
 ## Returns
 

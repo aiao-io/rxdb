@@ -27,9 +27,9 @@ integrity must call it **itself** and cannot expect `find_switch_branch_step` to
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `branch` | [`RxDBBranch`](../../rxdb/classes/RxDBBranch.md) | The start branch |
+| Parameter   | Type                                                                            | Description                              |
+| ----------- | ------------------------------------------------------------------------------- | ---------------------------------------- |
+| `branch`    | [`RxDBBranch`](../../rxdb/classes/RxDBBranch.md)                                | The start branch                         |
 | `branchMap` | `ReadonlyMap`&lt;`string`, [`RxDBBranch`](../../rxdb/classes/RxDBBranch.md)&gt; | Branch id → branch; must be the full set |
 
 ## Returns

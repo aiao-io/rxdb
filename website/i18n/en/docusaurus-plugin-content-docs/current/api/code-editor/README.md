@@ -73,53 +73,53 @@ For a real JSON5 editing experience, implement `CodeEditorLanguageDescription` y
 
 ## Interfaces
 
-| Interface | Description |
-| ------ | ------ |
-| [CodeEditorAccessibilityState](interfaces/CodeEditorAccessibilityState.md) | Input for computing the accessibility attributes of the inner textbox. |
-| [CodeEditorLanguageDescription](interfaces/CodeEditorLanguageDescription.md) | - |
-| [CodeEditorLanguageError](interfaces/CodeEditorLanguageError.md) | Structured description of a language failure. |
-| [CodeEditorLanguageSupport](interfaces/CodeEditorLanguageSupport.md) | - |
-| [DocumentChangeSpec](interfaces/DocumentChangeSpec.md) | Range and content of a document replacement; fields are compatible with CodeMirror's `ChangeSpec`. |
+| Interface                                                                    | Description                                                                                        |
+| ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| [CodeEditorAccessibilityState](interfaces/CodeEditorAccessibilityState.md)   | Input for computing the accessibility attributes of the inner textbox.                             |
+| [CodeEditorLanguageDescription](interfaces/CodeEditorLanguageDescription.md) | -                                                                                                  |
+| [CodeEditorLanguageError](interfaces/CodeEditorLanguageError.md)             | Structured description of a language failure.                                                      |
+| [CodeEditorLanguageSupport](interfaces/CodeEditorLanguageSupport.md)         | -                                                                                                  |
+| [DocumentChangeSpec](interfaces/DocumentChangeSpec.md)                       | Range and content of a document replacement; fields are compatible with CodeMirror's `ChangeSpec`. |
 
 ## Type Aliases
 
-| Type Alias | Description |
-| ------ | ------ |
-| [CodeEditorExtension](type-aliases/CodeEditorExtension.md) | - |
-| [CodeEditorLanguageErrorKind](type-aliases/CodeEditorLanguageErrorKind.md) | Category of a language failure. |
-| [CodeEditorTheme](type-aliases/CodeEditorTheme.md) | CodeEditor theme type |
-| [ResolvedCodeEditorLanguage](type-aliases/ResolvedCodeEditorLanguage.md) | Result of one language resolution. |
+| Type Alias                                                                 | Description                        |
+| -------------------------------------------------------------------------- | ---------------------------------- |
+| [CodeEditorExtension](type-aliases/CodeEditorExtension.md)                 | -                                  |
+| [CodeEditorLanguageErrorKind](type-aliases/CodeEditorLanguageErrorKind.md) | Category of a language failure.    |
+| [CodeEditorTheme](type-aliases/CodeEditorTheme.md)                         | CodeEditor theme type              |
+| [ResolvedCodeEditorLanguage](type-aliases/ResolvedCodeEditorLanguage.md)   | Result of one language resolution. |
 
 ## Variables
 
-| Variable | Description |
-| ------ | ------ |
-| [CSS](variables/CSS.md) | - |
-| [HTML](variables/HTML.md) | - |
-| [JavaScript](variables/JavaScript.md) | - |
-| [JSON](variables/JSON.md) | JSON language description backed by the **strict JSON** parser from `@codemirror/lang-json`. |
-| [JSX](variables/JSX.md) | - |
-| [Markdown](variables/Markdown.md) | - |
-| [PostgreSQL](variables/PostgreSQL.md) | - |
-| [Python](variables/Python.md) | - |
-| [Sass](variables/Sass.md) | - |
-| [SCSS](variables/SCSS.md) | - |
-| [SQL](variables/SQL.md) | - |
-| [SQLite](variables/SQLite.md) | - |
+| Variable                                             | Description                                                                                                          |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| [CSS](variables/CSS.md)                              | -                                                                                                                    |
+| [HTML](variables/HTML.md)                            | -                                                                                                                    |
+| [JavaScript](variables/JavaScript.md)                | -                                                                                                                    |
+| [JSON](variables/JSON.md)                            | JSON language description backed by the **strict JSON** parser from `@codemirror/lang-json`.                         |
+| [JSX](variables/JSX.md)                              | -                                                                                                                    |
+| [Markdown](variables/Markdown.md)                    | -                                                                                                                    |
+| [PostgreSQL](variables/PostgreSQL.md)                | -                                                                                                                    |
+| [Python](variables/Python.md)                        | -                                                                                                                    |
+| [Sass](variables/Sass.md)                            | -                                                                                                                    |
+| [SCSS](variables/SCSS.md)                            | -                                                                                                                    |
+| [SQL](variables/SQL.md)                              | -                                                                                                                    |
+| [SQLite](variables/SQLite.md)                        | -                                                                                                                    |
 | [SUPPORT\_LANGUAGES](variables/SUPPORT_LANGUAGES.md) | All built-in language descriptions: upstream `@codemirror/language-data` languages plus the 15 covered by this repo. |
-| [TSX](variables/TSX.md) | - |
-| [TypeScript](variables/TypeScript.md) | - |
-| [XML](variables/XML.md) | - |
+| [TSX](variables/TSX.md)                              | -                                                                                                                    |
+| [TypeScript](variables/TypeScript.md)                | -                                                                                                                    |
+| [XML](variables/XML.md)                              | -                                                                                                                    |
 
 ## Functions
 
-| Function | Description |
-| ------ | ------ |
-| [buildCodeEditorContentAttributes](functions/buildCodeEditorContentAttributes.md) | Converts accessibility state into an attribute dictionary for `EditorView.contentAttributes`. |
-| [codeEditorLanguageLoadFailed](functions/codeEditorLanguageLoadFailed.md) | Builds the "language load failed" error payload. |
-| [codeEditorLanguageNotFound](functions/codeEditorLanguageNotFound.md) | Builds the "language name not found" error payload. |
-| [computeMinimalDocumentChange](functions/computeMinimalDocumentChange.md) | Computes the minimal replacement range that turns `current` into `next`. |
-| [findLanguageByName](functions/findLanguageByName.md) | - |
-| [isSameResolvedLanguage](functions/isSameResolvedLanguage.md) | Determines whether two resolution results are equivalent — equivalent means "no need to reload or reconfigure the language". |
-| [resolveCodeEditorLanguage](functions/resolveCodeEditorLanguage.md) | Resolves the language description that should currently be used. |
-| [shouldAutoFocusCodeEditor](functions/shouldAutoFocusCodeEditor.md) | Determines whether `autoFocus` should run at initialization. |
+| Function                                                                          | Description                                                                                                                  |
+| --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| [buildCodeEditorContentAttributes](functions/buildCodeEditorContentAttributes.md) | Converts accessibility state into an attribute dictionary for `EditorView.contentAttributes`.                                |
+| [codeEditorLanguageLoadFailed](functions/codeEditorLanguageLoadFailed.md)         | Builds the "language load failed" error payload.                                                                             |
+| [codeEditorLanguageNotFound](functions/codeEditorLanguageNotFound.md)             | Builds the "language name not found" error payload.                                                                          |
+| [computeMinimalDocumentChange](functions/computeMinimalDocumentChange.md)         | Computes the minimal replacement range that turns `current` into `next`.                                                     |
+| [findLanguageByName](functions/findLanguageByName.md)                             | -                                                                                                                            |
+| [isSameResolvedLanguage](functions/isSameResolvedLanguage.md)                     | Determines whether two resolution results are equivalent — equivalent means "no need to reload or reconfigure the language". |
+| [resolveCodeEditorLanguage](functions/resolveCodeEditorLanguage.md)               | Resolves the language description that should currently be used.                                                             |
+| [shouldAutoFocusCodeEditor](functions/shouldAutoFocusCodeEditor.md)               | Determines whether `autoFocus` should run at initialization.                                                                 |

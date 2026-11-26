@@ -10,9 +10,9 @@ The watermark text: explicit content wins; when blank, the host-provided default
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `content` | `string` | The watermark content in the preferences. |
+| Parameter  | Type     | Description                                     |
+| ---------- | -------- | ----------------------------------------------- |
+| `content`  | `string` | The watermark content in the preferences.       |
 | `fallback` | `string` | The default text (user name, application name). |
 
 ## Returns

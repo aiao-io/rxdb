@@ -1,11 +1,7 @@
 # resolveKeyboardMove()
 
 ```ts
-function resolveKeyboardMove(
-   columns, 
-   movedId, 
-   direction
-): CardDropTarget | null;
+function resolveKeyboardMove(columns, movedId, direction): CardDropTarget | null;
 ```
 
 Defined in: [packages/rxdb-plugin-board/src/keyboard.ts:84](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board/src/keyboard.ts#L84)
@@ -14,11 +10,11 @@ Alt + arrow key move target: up/down skips adjacent visible cards in the same co
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `columns` | readonly [`BoardKeyboardColumn`](../interfaces/BoardKeyboardColumn.md)[] |
-| `movedId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
-| `direction` | [`BoardMoveDirection`](../type-aliases/BoardMoveDirection.md) |
+| Parameter   | Type                                                                     |
+| ----------- | ------------------------------------------------------------------------ |
+| `columns`   | readonly [`BoardKeyboardColumn`](../interfaces/BoardKeyboardColumn.md)[] |
+| `movedId`   | `` `${string}-${string}-${string}-${string}-${string}` ``                |
+| `direction` | [`BoardMoveDirection`](../type-aliases/BoardMoveDirection.md)            |
 
 ## Returns
 

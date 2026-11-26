@@ -25,7 +25,7 @@ The adapter name, same value as the key used when registering with `RxDB.adapter
 
 [`IRxDBAdapter`](IRxDBAdapter.md).[`name`](IRxDBAdapter.md#name)
 
-***
+---
 
 ### repository\_cache \{#repository_cache\}
 
@@ -39,7 +39,7 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:378](https://github.com/aiao-io/r
 
 [`RemoteRxDBChangeRepository`](RemoteRxDBChangeRepository.md).[`repository_cache`](RemoteRxDBChangeRepository.md#repository_cache)
 
-***
+---
 
 ### repository\_map \{#repository_map\}
 
@@ -53,7 +53,7 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:377](https://github.com/aiao-io/r
 
 [`RxDBAdapterLocalBase`](../classes/RxDBAdapterLocalBase.md).[`repository_map`](../classes/RxDBAdapterLocalBase.md#repository_map)
 
-***
+---
 
 ### rxdb \{#rxdb\}
 
@@ -93,7 +93,7 @@ Lives on the RxDB instance ([RxDB.worktreeTableSet](../classes/RxDB.md#worktreet
 
 [`RxDBAdapterLocalBase`](../classes/RxDBAdapterLocalBase.md).[`tableSet`](../classes/RxDBAdapterLocalBase.md#tableset)
 
-***
+---
 
 ### workingTreeCaptureHook \{#workingtreecapturehook\}
 
@@ -117,7 +117,7 @@ The capture runtime; always `undefined` on databases without the commit capabili
 
 `LocalRxDBChangeRepository`.[`workingTreeCaptureHook`](#workingtreecapturehook)
 
-***
+---
 
 ### workingTreeRawWriteContext \{#workingtreerawwritecontext\}
 
@@ -163,9 +163,9 @@ Adopts the primary database adapter's keyring (read-only checkout, US-313).
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `source` | [`LocalRxDBAdapter`](../type-aliases/LocalRxDBAdapter.md) | The primary database's adapter, same backend as this adapter |
+| Parameter | Type                                                      | Description                                                  |
+| --------- | --------------------------------------------------------- | ------------------------------------------------------------ |
+| `source`  | [`LocalRxDBAdapter`](../type-aliases/LocalRxDBAdapter.md) | The primary database's adapter, same backend as this adapter |
 
 #### Returns
 
@@ -179,7 +179,7 @@ The envelope's AAD binds the database name; the snapshot database's ciphertext i
 
 [`RxDBAdapterLocalBase`](../classes/RxDBAdapterLocalBase.md).[`adoptWorktreeEncryption`](../classes/RxDBAdapterLocalBase.md#adoptworktreeencryption)
 
-***
+---
 
 ### bootstrapTransaction() \{#bootstraptransaction\}
 
@@ -195,15 +195,15 @@ Executes a transaction in the **bootstrap phase** (table structure not yet ready
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`TransactionFun`](../type-aliases/TransactionFun.md) |
+| Type Parameter                                                                                    |
+| ------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`TransactionFun`](../type-aliases/TransactionFun.md) |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `fun` | `T` | Transaction callback function |
+| Parameter         | Type      | Description                                                                                                            |
+| ----------------- | --------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `fun`             | `T`       | Transaction callback function                                                                                          |
 | `transactionLog?` | `boolean` | Whether to write the transaction log. Defaults to `true`; pure DDL / metadata bootstrap should explicitly pass `false` |
 
 #### Returns
@@ -222,7 +222,7 @@ Callers are limited to two kinds: the bootstrap chain of `RxDB.connect()` itself
 
 [`RxDBAdapterLocalBase`](../classes/RxDBAdapterLocalBase.md).[`bootstrapTransaction`](../classes/RxDBAdapterLocalBase.md#bootstraptransaction)
 
-***
+---
 
 ### canDropStorage()? \{#candropstorage\}
 
@@ -248,12 +248,12 @@ Consults configuration only, never touches storage. Before creating the snapshot
 
 [`RxDBAdapterLocalBase`](../classes/RxDBAdapterLocalBase.md).[`canDropStorage`](../classes/RxDBAdapterLocalBase.md#candropstorage)
 
-***
+---
 
 ### checkEntityConstraints()? \{#checkentityconstraints\}
 
 ```ts
-checkEntityConstraints?(EntityTypes): Promise<void>;
+checkEntityConstraints ? EntityTypes : Promise<void>;
 ```
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:734](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L734)
@@ -262,8 +262,8 @@ Read-only drift check: throws [RxDBConstraintDriftError](../classes/RxDBConstrai
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter     | Type                                            |
+| ------------- | ----------------------------------------------- |
 | `EntityTypes` | [`EntityType`](../type-aliases/EntityType.md)[] |
 
 #### Returns
@@ -280,7 +280,7 @@ Absence is a contract-permitted shape (same as `reconcileEntityIndexes`); but wh
 
 [`RxDBAdapterLocalBase`](../classes/RxDBAdapterLocalBase.md).[`checkEntityConstraints`](../classes/RxDBAdapterLocalBase.md#checkentityconstraints)
 
-***
+---
 
 ### completeBootstrap() \{#completebootstrap\}
 
@@ -306,7 +306,7 @@ Adapters with their own readiness gate (SQLite family / PGlite) let `query()` / 
 
 [`RxDBAdapterLocalBase`](../classes/RxDBAdapterLocalBase.md).[`completeBootstrap`](../classes/RxDBAdapterLocalBase.md#completebootstrap)
 
-***
+---
 
 ### connect() \{#connect\}
 
@@ -332,7 +332,7 @@ Table creation and system migration both happen here (see `isCurrentRxDBSystemVe
 
 [`IRxDBAdapter`](IRxDBAdapter.md).[`connect`](IRxDBAdapter.md#connect)
 
-***
+---
 
 ### count() \{#count\}
 
@@ -346,9 +346,9 @@ count query
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | [`CountOptions`](CountOptions.md)&lt;*typeof* [`RxDBChange`](../classes/RxDBChange.md), [`RxDBChangeRuleGroup`](../type-aliases/RxDBChangeRuleGroup.md)&gt; | Query options |
+| Parameter | Type                                                                                                                                                        | Description   |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| `options` | [`CountOptions`](CountOptions.md)&lt;_typeof_ [`RxDBChange`](../classes/RxDBChange.md), [`RxDBChangeRuleGroup`](../type-aliases/RxDBChangeRuleGroup.md)&gt; | Query options |
 
 #### Returns
 
@@ -356,7 +356,7 @@ count query
 
 Returns the number of query results
 
-***
+---
 
 ### create() \{#create\}
 
@@ -370,9 +370,9 @@ Create an entity
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | [`RxDBChange`](../classes/RxDBChange.md) | The entity to create |
+| Parameter | Type                                     | Description          |
+| --------- | ---------------------------------------- | -------------------- |
+| `entity`  | [`RxDBChange`](../classes/RxDBChange.md) | The entity to create |
 
 #### Returns
 
@@ -380,7 +380,7 @@ Create an entity
 
 Returns the created entity
 
-***
+---
 
 ### createTables() \{#createtables\}
 
@@ -392,10 +392,10 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:716](https://github.com/aiao-io/r
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter     | Type                                            |
+| ------------- | ----------------------------------------------- |
 | `EntityTypes` | [`EntityType`](../type-aliases/EntityType.md)[] |
-| `entities?` | `any`[] |
+| `entities?`   | `any`[]                                         |
 
 #### Returns
 
@@ -405,16 +405,12 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:716](https://github.com/aiao-io/r
 
 [`RxDBAdapterLocalBase`](../classes/RxDBAdapterLocalBase.md).[`createTables`](../classes/RxDBAdapterLocalBase.md#createtables)
 
-***
+---
 
 ### createWorktreeTableSet()? \{#createworktreetableset\}
 
 ```ts
-createWorktreeTableSet?(
-   executor, 
-   tableSet, 
-   seed
-): Promise<void>;
+createWorktreeTableSet ? (executor, tableSet, seed) : Promise<void>;
 ```
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:825](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L825)
@@ -423,11 +419,11 @@ Creates and seeds a set of tables for a writable checkout inside the caller's tr
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `executor` | [`TransactionExecutor`](TransactionExecutor.md) | The executor of a transaction on the primary database; table creation, copying, increments and trigger attachment all happen in this one transaction, and the open flow writes the held key in the same transaction |
-| `tableSet` | [`WorktreeTableSet`](../classes/WorktreeTableSet.md) | The table set to create; must not be the primary table set; members must keep change logs |
-| `seed` | [`WorktreeTableSetSeed`](WorktreeTableSetSeed.md) | The held branch and the increments to apply on top |
+| Parameter  | Type                                                 | Description                                                                                                                                                                                                         |
+| ---------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `executor` | [`TransactionExecutor`](TransactionExecutor.md)      | The executor of a transaction on the primary database; table creation, copying, increments and trigger attachment all happen in this one transaction, and the open flow writes the held key in the same transaction |
+| `tableSet` | [`WorktreeTableSet`](../classes/WorktreeTableSet.md) | The table set to create; must not be the primary table set; members must keep change logs                                                                                                                           |
+| `seed`     | [`WorktreeTableSetSeed`](WorktreeTableSetSeed.md)    | The held branch and the increments to apply on top                                                                                                                                                                  |
 
 #### Returns
 
@@ -441,7 +437,7 @@ Rows of the primary table set are copied as-is (storage form, not decrypted), au
 
 [`RxDBAdapterLocalBase`](../classes/RxDBAdapterLocalBase.md).[`createWorktreeTableSet`](../classes/RxDBAdapterLocalBase.md#createworktreetableset)
 
-***
+---
 
 ### deleteByIds() \{#deletebyids\}
 
@@ -457,10 +453,10 @@ Used to clean up data already deleted remotely from the local cache.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entityName` | `string` | Entity name |
-| `ids` | `string`[] | The list of IDs to delete |
+| Parameter    | Type       | Description               |
+| ------------ | ---------- | ------------------------- |
+| `entityName` | `string`   | Entity name               |
+| `ids`        | `string`[] | The list of IDs to delete |
 
 #### Returns
 
@@ -478,7 +474,7 @@ adapter.deleteByIds('Product', ['p1', 'p2']).subscribe();
 
 [`RxDBAdapterLocalBase`](../classes/RxDBAdapterLocalBase.md).[`deleteByIds`](../classes/RxDBAdapterLocalBase.md#deletebyids)
 
-***
+---
 
 ### disconnect() \{#disconnect\}
 
@@ -502,7 +498,7 @@ Unlike `RxDB.destroy()`, disconnecting is **reversible**: the same adapter insta
 
 [`IRxDBAdapter`](IRxDBAdapter.md).[`disconnect`](IRxDBAdapter.md#disconnect)
 
-***
+---
 
 ### dropStorage()? \{#dropstorage\}
 
@@ -530,12 +526,12 @@ The storage location is derived with the same rules as at connection time (`rxdb
 
 [`RxDBAdapterLocalBase`](../classes/RxDBAdapterLocalBase.md).[`dropStorage`](../classes/RxDBAdapterLocalBase.md#dropstorage)
 
-***
+---
 
 ### dropWorktreeTableSet()? \{#dropworktreetableset\}
 
 ```ts
-dropWorktreeTableSet?(executor, tableSet): Promise<void>;
+dropWorktreeTableSet ? (executor, tableSet) : Promise<void>;
 ```
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:840](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L840)
@@ -544,10 +540,10 @@ Drops a set of tables for a writable checkout inside the caller's transaction (U
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `executor` | [`TransactionExecutor`](TransactionExecutor.md) | The executor of a transaction on the primary database; the close flow releases the held key and deletes the registry row in the same transaction |
-| `tableSet` | [`WorktreeTableSet`](../classes/WorktreeTableSet.md) | The table set to drop; must not be the primary table set |
+| Parameter  | Type                                                 | Description                                                                                                                                      |
+| ---------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `executor` | [`TransactionExecutor`](TransactionExecutor.md)      | The executor of a transaction on the primary database; the close flow releases the held key and deletes the registry row in the same transaction |
+| `tableSet` | [`WorktreeTableSet`](../classes/WorktreeTableSet.md) | The table set to drop; must not be the primary table set                                                                                         |
 
 #### Returns
 
@@ -561,7 +557,7 @@ Locates the table set by the database's catalog; half-built ones and ones whose 
 
 [`RxDBAdapterLocalBase`](../classes/RxDBAdapterLocalBase.md).[`dropWorktreeTableSet`](../classes/RxDBAdapterLocalBase.md#dropworktreetableset)
 
-***
+---
 
 ### find() \{#find\}
 
@@ -575,9 +571,9 @@ find query
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | [`FindOptions`](FindOptions.md)&lt;*typeof* [`RxDBChange`](../classes/RxDBChange.md), [`RxDBChangeRuleGroup`](../type-aliases/RxDBChangeRuleGroup.md), [`RxDBChangeOrderByField`](../type-aliases/RxDBChangeOrderByField.md)&gt; | Query options |
+| Parameter | Type                                                                                                                                                                                                                             | Description   |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| `options` | [`FindOptions`](FindOptions.md)&lt;_typeof_ [`RxDBChange`](../classes/RxDBChange.md), [`RxDBChangeRuleGroup`](../type-aliases/RxDBChangeRuleGroup.md), [`RxDBChangeOrderByField`](../type-aliases/RxDBChangeOrderByField.md)&gt; | Query options |
 
 #### Returns
 
@@ -585,7 +581,7 @@ find query
 
 Returns the array of query results
 
-***
+---
 
 ### getMetadataByIds() \{#getmetadatabyids\}
 
@@ -601,10 +597,10 @@ Used for local cache freshness checks; returns an ID → updatedAt map.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entityName` | `string` | Entity name |
-| `ids` | `string`[] | List of entity IDs |
+| Parameter    | Type       | Description        |
+| ------------ | ---------- | ------------------ |
+| `entityName` | `string`   | Entity name        |
+| `ids`        | `string`[] | List of entity IDs |
 
 #### Returns
 
@@ -615,17 +611,16 @@ Used for local cache freshness checks; returns an ID → updatedAt map.
 #### Example
 
 ```typescript
-adapter.getMetadataByIds('Product', ['p1', 'p2'])
-  .subscribe(map => {
-    // map: Map `{ 'p1' => '2026-01-12T10:00:00Z', 'p2' => '2026-01-12T09:30:00Z' }`
-  });
+adapter.getMetadataByIds('Product', ['p1', 'p2']).subscribe(map => {
+  // map: Map `{ 'p1' => '2026-01-12T10:00:00Z', 'p2' => '2026-01-12T09:30:00Z' }`
+});
 ```
 
 #### Inherited from
 
 [`RxDBAdapterLocalBase`](../classes/RxDBAdapterLocalBase.md).[`getMetadataByIds`](../classes/RxDBAdapterLocalBase.md#getmetadatabyids)
 
-***
+---
 
 ### getRepository() \{#getrepository\}
 
@@ -639,16 +634,16 @@ Gets the repository instance of this entity **on this adapter**.
 
 #### Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t-1"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) | - |
-| <a id="type-parameter-rt"></a> `RT` *extends* [`IRepository`](IRepository.md)&lt;`T`&gt; | [`IRepository`](IRepository.md)&lt;`T`&gt; |
+| Type Parameter                                                                              | Default type                               |
+| ------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| <a id="type-parameter-t-1"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) | -                                          |
+| <a id="type-parameter-rt"></a> `RT` _extends_ [`IRepository`](IRepository.md)&lt;`T`&gt;    | [`IRepository`](IRepository.md)&lt;`T`&gt; |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `EntityType` | `T` |
+| Parameter    | Type |
+| ------------ | ---- |
+| `EntityType` | `T`  |
 
 #### Returns
 
@@ -662,7 +657,7 @@ Returns the repository on the adapter axis (see [AdapterRepositoryConstructor](.
 
 [`RxDBAdapterLocalBase`](../classes/RxDBAdapterLocalBase.md).[`getRepository`](../classes/RxDBAdapterLocalBase.md#getrepository)
 
-***
+---
 
 ### getRxDBChangeSequence() \{#getrxdbchangesequence\}
 
@@ -680,12 +675,12 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:857](https://github.com/aiao-io/r
 
 [`RxDBAdapterLocalBase`](../classes/RxDBAdapterLocalBase.md).[`getRxDBChangeSequence`](../classes/RxDBAdapterLocalBase.md#getrxdbchangesequence)
 
-***
+---
 
 ### importWorktreeSnapshot()? \{#importworktreesnapshot\}
 
 ```ts
-importWorktreeSnapshot?(snapshot): Promise<void>;
+importWorktreeSnapshot ? snapshot : Promise<void>;
 ```
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:766](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L766)
@@ -694,8 +689,8 @@ Writes rows read from the primary database and the increments into this adapter'
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                  | Description                                           |
+| ---------- | ----------------------------------------------------- | ----------------------------------------------------- |
 | `snapshot` | [`WorktreeSnapshotImport`](WorktreeSnapshotImport.md) | The tables to copy and the increments to apply on top |
 
 #### Returns
@@ -710,12 +705,12 @@ One transaction: first insert each table's rows as-is, then apply the increments
 
 [`RxDBAdapterLocalBase`](../classes/RxDBAdapterLocalBase.md).[`importWorktreeSnapshot`](../classes/RxDBAdapterLocalBase.md#importworktreesnapshot)
 
-***
+---
 
 ### isEncryptedAtRest()? \{#isencryptedatrest\}
 
 ```ts
-isEncryptedAtRest?(value): boolean;
+isEncryptedAtRest ? value : boolean;
 ```
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:535](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L535)
@@ -724,9 +719,9 @@ Determines whether a persisted value is already in the "encrypted at-rest form" 
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | The value in the persisted column; the caller guarantees it is neither `null` nor `undefined` |
+| Parameter | Type      | Description                                                                                   |
+| --------- | --------- | --------------------------------------------------------------------------------------------- |
+| `value`   | `unknown` | The value in the persisted column; the caller guarantees it is neither `null` nor `undefined` |
 
 #### Returns
 
@@ -746,7 +741,7 @@ Same "optional capability slot" as [RxDBAdapterLocalBase.setWorkingTreeCaptureHo
 
 [`RxDBAdapterLocalBase`](../classes/RxDBAdapterLocalBase.md).[`isEncryptedAtRest`](../classes/RxDBAdapterLocalBase.md#isencryptedatrest)
 
-***
+---
 
 ### isTableExisted() \{#istableexisted\}
 
@@ -760,8 +755,8 @@ Whether the table for this entity already exists in the database.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter    | Type                                          |
+| ------------ | --------------------------------------------- |
 | `EntityType` | [`EntityType`](../type-aliases/EntityType.md) |
 
 #### Returns
@@ -776,12 +771,12 @@ Asks about the **physical table**, not whether the entity is registered in the m
 
 [`RxDBAdapterLocalBase`](../classes/RxDBAdapterLocalBase.md).[`isTableExisted`](../classes/RxDBAdapterLocalBase.md#istableexisted)
 
-***
+---
 
 ### listWorktreeTableSetSuffixes()? \{#listworktreetablesetsuffixes\}
 
 ```ts
-listWorktreeTableSetSuffixes?(executor): Promise<readonly string[]>;
+listWorktreeTableSetSuffixes ? executor : Promise<readonly string[]>;
 ```
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:853](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L853)
@@ -790,8 +785,8 @@ Lists the existing writable-checkout table sets by the database's catalog (US-31
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                            | Description              |
+| ---------- | ----------------------------------------------- | ------------------------ |
 | `executor` | [`TransactionExecutor`](TransactionExecutor.md) | The caller's transaction |
 
 #### Returns
@@ -808,14 +803,14 @@ Orphan reclamation needs to know which table sets still exist, including ones wh
 
 [`RxDBAdapterLocalBase`](../classes/RxDBAdapterLocalBase.md).[`listWorktreeTableSetSuffixes`](../classes/RxDBAdapterLocalBase.md#listworktreetablesetsuffixes)
 
-***
+---
 
 ### mergeChanges() \{#mergechanges\}
 
 ```ts
 abstract mergeChanges(
-   actions, 
-   localChanges?, 
+   actions,
+   localChanges?,
    disableTriggers?
 ): Promise<number | void>;
 ```
@@ -825,6 +820,7 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:873](https://github.com/aiao-io/r
 Applies compacted changes to the local entity tables
 
 Implementation strategy (SQLite):
+
 1. Convert actions into SQL operations
 2. In a transaction:
    a) Execute the SQL operations on the entity tables (INSERT/UPDATE/DELETE)
@@ -833,11 +829,11 @@ Implementation strategy (SQLite):
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `actions` | [`SwitchVersionActions`](SwitchVersionActions.md) | The compacted set of change operations (pulled from the remote) |
-| `localChanges?` | `Omit`&lt;[`RxDBChange`](../classes/RxDBChange.md), `"id"`&gt;[] | Records to save to the local RxDBChange table (optional) |
-| `disableTriggers?` | `boolean` | Whether to disable triggers (used for operations like pull, to avoid creating RxDBChange) |
+| Parameter          | Type                                                             | Description                                                                               |
+| ------------------ | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `actions`          | [`SwitchVersionActions`](SwitchVersionActions.md)                | The compacted set of change operations (pulled from the remote)                           |
+| `localChanges?`    | `Omit`&lt;[`RxDBChange`](../classes/RxDBChange.md), `"id"`&gt;[] | Records to save to the local RxDBChange table (optional)                                  |
+| `disableTriggers?` | `boolean`                                                        | Whether to disable triggers (used for operations like pull, to avoid creating RxDBChange) |
 
 #### Returns
 
@@ -847,7 +843,7 @@ Implementation strategy (SQLite):
 
 [`RxDBAdapterLocalBase`](../classes/RxDBAdapterLocalBase.md).[`mergeChanges`](../classes/RxDBAdapterLocalBase.md#mergechanges)
 
-***
+---
 
 ### migrateSystemSchema() \{#migratesystemschema\}
 
@@ -868,7 +864,7 @@ Adapters that do not need to persist system schema state keep the default no-op 
 
 [`RxDBAdapterLocalBase`](../classes/RxDBAdapterLocalBase.md).[`migrateSystemSchema`](../classes/RxDBAdapterLocalBase.md#migratesystemschema)
 
-***
+---
 
 ### mutations() \{#mutations\}
 
@@ -882,14 +878,14 @@ Bulk-modifies entities (create/update/delete)
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-2"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                              |
+| ------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-2"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                 |
+| --------- | ---------------------------------------------------- |
 | `options` | [`RxDBMutationsMap`](RxDBMutationsMap.md)&lt;`T`&gt; |
 
 #### Returns
@@ -900,7 +896,7 @@ Bulk-modifies entities (create/update/delete)
 
 [`IRxDBAdapter`](IRxDBAdapter.md).[`mutations`](IRxDBAdapter.md#mutations)
 
-***
+---
 
 ### physicalTableNames() \{#physicaltablenames\}
 
@@ -914,8 +910,8 @@ All names an entity table can be written as in the SQL this adapter emits.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                  | Description                                                                   |
+| ---------- | ----------------------------------------------------- | ----------------------------------------------------------------------------- |
 | `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) | Entity metadata; the answer is decided by it alone, reading no instance state |
 
 #### Returns
@@ -938,7 +934,7 @@ Without schema qualification: a shape like `"public"."post"` is already reduced 
 
 [`RxDBAdapterLocalBase`](../classes/RxDBAdapterLocalBase.md).[`physicalTableNames`](../classes/RxDBAdapterLocalBase.md#physicaltablenames)
 
-***
+---
 
 ### rawQuery()? \{#rawquery\}
 
@@ -952,9 +948,9 @@ Executes a raw SQL query (scenarios that bypass the ORM, such as conditional UPD
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `sql` | `string` |
+| Parameter | Type        |
+| --------- | ----------- |
+| `sql`     | `string`    |
 | `params?` | `unknown`[] |
 
 #### Returns
@@ -971,17 +967,12 @@ Writes through here do not go through the entity Proxy, so they produce no entit
 
 [`IRxDBAdapter`](IRxDBAdapter.md).[`rawQuery`](IRxDBAdapter.md#rawquery)
 
-***
+---
 
 ### readWorktreeSnapshotPage()? \{#readworktreesnapshotpage\}
 
 ```ts
-readWorktreeSnapshotPage?(
-   executor, 
-   EntityType, 
-   after, 
-   limit
-): Promise<WorktreeSnapshotPage>;
+readWorktreeSnapshotPage ? (executor, EntityType, after, limit) : Promise<WorktreeSnapshotPage>;
 ```
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:750](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L750)
@@ -990,12 +981,12 @@ Reads one page of an entity table in storage form (read-only checkout creates th
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `executor` | [`TransactionExecutor`](TransactionExecutor.md) | The executor of a transaction on the primary database; all pages of one snapshot are read from the same transaction, consistent with each other |
-| `EntityType` | [`EntityType`](../type-aliases/EntityType.md) | The entity class on the primary instance |
-| `after` | \| [`WorktreeSnapshotCursor`](../type-aliases/WorktreeSnapshotCursor.md) \| `null` | The previous page's [WorktreeSnapshotPage.next](WorktreeSnapshotPage.md#next); `null` reads from the start |
-| `limit` | `number` | Maximum rows in this page |
+| Parameter    | Type                                                                               | Description                                                                                                                                     |
+| ------------ | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `executor`   | [`TransactionExecutor`](TransactionExecutor.md)                                    | The executor of a transaction on the primary database; all pages of one snapshot are read from the same transaction, consistent with each other |
+| `EntityType` | [`EntityType`](../type-aliases/EntityType.md)                                      | The entity class on the primary instance                                                                                                        |
+| `after`      | \| [`WorktreeSnapshotCursor`](../type-aliases/WorktreeSnapshotCursor.md) \| `null` | The previous page's [WorktreeSnapshotPage.next](WorktreeSnapshotPage.md#next); `null` reads from the start                                      |
+| `limit`      | `number`                                                                           | Maximum rows in this page                                                                                                                       |
 
 #### Returns
 
@@ -1011,12 +1002,12 @@ Pairs with [RxDBAdapterLocalBase.importWorktreeSnapshot](../classes/RxDBAdapterL
 
 [`RxDBAdapterLocalBase`](../classes/RxDBAdapterLocalBase.md).[`readWorktreeSnapshotPage`](../classes/RxDBAdapterLocalBase.md#readworktreesnapshotpage)
 
-***
+---
 
 ### reconcileEntityIndexes()? \{#reconcileentityindexes\}
 
 ```ts
-reconcileEntityIndexes?(EntityTypes): Promise<void>;
+reconcileEntityIndexes ? EntityTypes : Promise<void>;
 ```
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:719](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L719)
@@ -1025,8 +1016,8 @@ Idempotently reconciles entity indexes after user migrations and missing-table b
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter     | Type                                            |
+| ------------- | ----------------------------------------------- |
 | `EntityTypes` | [`EntityType`](../type-aliases/EntityType.md)[] |
 
 #### Returns
@@ -1037,7 +1028,7 @@ Idempotently reconciles entity indexes after user migrations and missing-table b
 
 [`RxDBAdapterLocalBase`](../classes/RxDBAdapterLocalBase.md).[`reconcileEntityIndexes`](../classes/RxDBAdapterLocalBase.md#reconcileentityindexes)
 
-***
+---
 
 ### remove() \{#remove\}
 
@@ -1051,9 +1042,9 @@ Delete an entity
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | [`RxDBChange`](../classes/RxDBChange.md) | The entity to delete |
+| Parameter | Type                                     | Description          |
+| --------- | ---------------------------------------- | -------------------- |
+| `entity`  | [`RxDBChange`](../classes/RxDBChange.md) | The entity to delete |
 
 #### Returns
 
@@ -1061,7 +1052,7 @@ Delete an entity
 
 Returns the deleted entity
 
-***
+---
 
 ### removeMany() \{#removemany\}
 
@@ -1075,14 +1066,14 @@ Bulk-deletes entities.
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-3"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                              |
+| ------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-3"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                        |
+| ---------- | --------------------------- |
 | `entities` | `InstanceType`&lt;`T`&gt;[] |
 
 #### Returns
@@ -1095,7 +1086,7 @@ The deleted entities
 
 [`IRxDBAdapter`](IRxDBAdapter.md).[`removeMany`](IRxDBAdapter.md#removemany)
 
-***
+---
 
 ### repository() \{#repository\}
 
@@ -1107,15 +1098,15 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:384](https://github.com/aiao-io/r
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-rt-1"></a> `RT` *extends* [`RepositoryInstance`](RepositoryInstance.md)&lt;[`EntityType`](../type-aliases/EntityType.md)&gt; |
+| Type Parameter                                                                                                                                     |
+| -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-rt-1"></a> `RT` _extends_ [`RepositoryInstance`](RepositoryInstance.md)&lt;[`EntityType`](../type-aliases/EntityType.md)&gt; |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `repositoryName` | `string` |
+| Parameter         | Type                                                                                                                       |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `repositoryName`  | `string`                                                                                                                   |
 | `RepositoryClass` | [`AdapterRepositoryConstructor`](../type-aliases/AdapterRepositoryConstructor.md)&lt;`LocalRxDBChangeRepository`, `RT`&gt; |
 
 #### Returns
@@ -1126,7 +1117,7 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:384](https://github.com/aiao-io/r
 
 [`RxDBAdapterLocalBase`](../classes/RxDBAdapterLocalBase.md).[`repository`](../classes/RxDBAdapterLocalBase.md#repository)
 
-***
+---
 
 ### runInTransaction() \{#runintransaction\}
 
@@ -1140,16 +1131,16 @@ Opens a new transaction, **or** reuses the one the caller is already in.
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-4"></a> `T` *extends* [`TransactionFun`](../type-aliases/TransactionFun.md) |
+| Type Parameter                                                                                      |
+| --------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-4"></a> `T` _extends_ [`TransactionFun`](../type-aliases/TransactionFun.md) |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `fun` | `T` | The transaction work; the parameter is this transaction's executor |
-| `transactionLog?` | `boolean` | Whether to write the transaction log |
+| Parameter         | Type      | Description                                                        |
+| ----------------- | --------- | ------------------------------------------------------------------ |
+| `fun`             | `T`       | The transaction work; the parameter is this transaction's executor |
+| `transactionLog?` | `boolean` | Whether to write the transaction log                               |
 
 #### Returns
 
@@ -1167,7 +1158,7 @@ The capture runtime must have an executor to write working tree rows, and only t
 
 [`RxDBAdapterLocalBase`](../classes/RxDBAdapterLocalBase.md).[`runInTransaction`](../classes/RxDBAdapterLocalBase.md#runintransaction)
 
-***
+---
 
 ### saveMany() \{#savemany\}
 
@@ -1181,14 +1172,14 @@ Bulk-writes entities (inserts when absent, updates when present).
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-5"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                              |
+| ------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-5"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                        |
+| ---------- | --------------------------- |
 | `entities` | `InstanceType`&lt;`T`&gt;[] |
 
 #### Returns
@@ -1201,7 +1192,7 @@ The entities after persistence; fields backfilled by the database, such as prima
 
 [`IRxDBAdapter`](IRxDBAdapter.md).[`saveMany`](IRxDBAdapter.md#savemany)
 
-***
+---
 
 ### sealWorktreeReadOnly()? \{#sealworktreereadonly\}
 
@@ -1227,7 +1218,7 @@ The seal is a state on the connection (per transaction for PGlite); session sett
 
 [`RxDBAdapterLocalBase`](../classes/RxDBAdapterLocalBase.md).[`sealWorktreeReadOnly`](../classes/RxDBAdapterLocalBase.md#sealworktreereadonly)
 
-***
+---
 
 ### settleRepositoryTransaction() \{#settlerepositorytransaction\}
 
@@ -1241,10 +1232,10 @@ Commits or rolls back the public repositories' entity state; must be called befo
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `executor` | [`TransactionExecutor`](TransactionExecutor.md) |
-| `committed` | `boolean` |
+| Parameter   | Type                                            |
+| ----------- | ----------------------------------------------- |
+| `executor`  | [`TransactionExecutor`](TransactionExecutor.md) |
+| `committed` | `boolean`                                       |
 
 #### Returns
 
@@ -1254,7 +1245,7 @@ Commits or rolls back the public repositories' entity state; must be called befo
 
 [`RxDBAdapterLocalBase`](../classes/RxDBAdapterLocalBase.md).[`settleRepositoryTransaction`](../classes/RxDBAdapterLocalBase.md#settlerepositorytransaction)
 
-***
+---
 
 ### setWorkingTreeCaptureHook() \{#setworkingtreecapturehook\}
 
@@ -1270,9 +1261,9 @@ Installs or uninstalls the capture runtime (the four mount points of adapter-con
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `hook` | [`WorkingTreeCaptureHook`](WorkingTreeCaptureHook.md) \| `undefined` | The runtime taking over the four mount points; `undefined` uninstalls |
+| Parameter | Type                                                                 | Description                                                           |
+| --------- | -------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `hook`    | [`WorkingTreeCaptureHook`](WorkingTreeCaptureHook.md) \| `undefined` | The runtime taking over the four mount points; `undefined` uninstalls |
 
 #### Returns
 
@@ -1290,7 +1281,7 @@ Idempotent: if already installed, it uninstalls first and then installs, never s
 
 [`RxDBAdapterLocalBase`](../classes/RxDBAdapterLocalBase.md).[`setWorkingTreeCaptureHook`](../classes/RxDBAdapterLocalBase.md#setworkingtreecapturehook)
 
-***
+---
 
 ### switchBranch() \{#switchbranch\}
 
@@ -1302,8 +1293,8 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:855](https://github.com/aiao-io/r
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                            |
+| --------- | ----------------------------------------------- |
 | `options` | [`SwitchBranchOptions`](SwitchBranchOptions.md) |
 
 #### Returns
@@ -1314,7 +1305,7 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:855](https://github.com/aiao-io/r
 
 [`RxDBAdapterLocalBase`](../classes/RxDBAdapterLocalBase.md).[`switchBranch`](../classes/RxDBAdapterLocalBase.md#switchbranch)
 
-***
+---
 
 ### transaction() \{#transaction\}
 
@@ -1330,16 +1321,16 @@ Reads and writes within one transaction through the executor.
 
 ##### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-6"></a> `T` *extends* [`TransactionFun`](../type-aliases/TransactionFun.md) |
+| Type Parameter                                                                                      |
+| --------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-6"></a> `T` _extends_ [`TransactionFun`](../type-aliases/TransactionFun.md) |
 
 ##### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `fun` | `T` | The callback holding this transaction's executor |
-| `transactionLog?` | `boolean` | Whether to record the transaction log |
+| Parameter         | Type      | Description                                      |
+| ----------------- | --------- | ------------------------------------------------ |
+| `fun`             | `T`       | The callback holding this transaction's executor |
+| `transactionLog?` | `boolean` | Whether to record the transaction log            |
 
 ##### Returns
 
@@ -1388,10 +1379,10 @@ Reads and writes within one transaction through the executor.
 
 ##### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `fun` | [`TransactionFun`](../type-aliases/TransactionFun.md) | The callback holding this transaction's executor |
-| `transactionLog?` | `boolean` | Whether to record the transaction log |
+| Parameter         | Type                                                  | Description                                      |
+| ----------------- | ----------------------------------------------------- | ------------------------------------------------ |
+| `fun`             | [`TransactionFun`](../type-aliases/TransactionFun.md) | The callback holding this transaction's executor |
+| `transactionLog?` | `boolean`                                             | Whether to record the transaction log            |
 
 ##### Returns
 
@@ -1428,7 +1419,7 @@ await adapter.transaction(async () => {
 
 [`RxDBAdapterLocalBase`](../classes/RxDBAdapterLocalBase.md).[`transaction`](../classes/RxDBAdapterLocalBase.md#transaction)
 
-***
+---
 
 ### transactionalRepository() \{#transactionalrepository\}
 
@@ -1442,17 +1433,17 @@ Puts the public repository's whole operation into a transaction; not called when
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-7"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
-| <a id="type-parameter-r"></a> `R` *extends* `object` |
+| Type Parameter                                                                              |
+| ------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-7"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
+| <a id="type-parameter-r"></a> `R` _extends_ `object`                                        |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `EntityType` | `T` |
-| `repository` | `R` |
+| Parameter    | Type |
+| ------------ | ---- |
+| `EntityType` | `T`  |
+| `repository` | `R`  |
 
 #### Returns
 
@@ -1462,7 +1453,7 @@ Puts the public repository's whole operation into a transaction; not called when
 
 [`RxDBAdapterLocalBase`](../classes/RxDBAdapterLocalBase.md).[`transactionalRepository`](../classes/RxDBAdapterLocalBase.md#transactionalrepository)
 
-***
+---
 
 ### update() \{#update\}
 
@@ -1476,10 +1467,10 @@ Update an entity
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | [`RxDBChange`](../classes/RxDBChange.md) | The entity to update |
-| `patch` | `Partial`&lt;`InstanceType`&lt;*typeof* [`RxDBChange`](../classes/RxDBChange.md)&gt;&gt; | Update data |
+| Parameter | Type                                                                                     | Description          |
+| --------- | ---------------------------------------------------------------------------------------- | -------------------- |
+| `entity`  | [`RxDBChange`](../classes/RxDBChange.md)                                                 | The entity to update |
+| `patch`   | `Partial`&lt;`InstanceType`&lt;_typeof_ [`RxDBChange`](../classes/RxDBChange.md)&gt;&gt; | Update data          |
 
 #### Returns
 
@@ -1487,7 +1478,7 @@ Update an entity
 
 Returns the updated entity
 
-***
+---
 
 ### upsertMany() \{#upsertmany\}
 
@@ -1503,16 +1494,16 @@ Executes INSERT OR REPLACE semantics, used to cache remotely pulled data.
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                      |
+| ----------------------------------- |
 | <a id="type-parameter-t-8"></a> `T` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entityName` | `string` | Entity name |
-| `data` | `T`[] | The list of data to write |
+| Parameter    | Type     | Description               |
+| ------------ | -------- | ------------------------- |
+| `entityName` | `string` | Entity name               |
+| `data`       | `T`[]    | The list of data to write |
 
 #### Returns
 
@@ -1530,7 +1521,7 @@ adapter.upsertMany('Product', [product1, product2]).subscribe();
 
 [`RxDBAdapterLocalBase`](../classes/RxDBAdapterLocalBase.md).[`upsertMany`](../classes/RxDBAdapterLocalBase.md#upsertmany)
 
-***
+---
 
 ### version() \{#version\}
 
@@ -1554,7 +1545,7 @@ Unrelated to the system table watermark number (`RXDB_SYSTEM_SCHEMA_VERSION`), w
 
 [`IRxDBAdapter`](IRxDBAdapter.md).[`version`](IRxDBAdapter.md#version)
 
-***
+---
 
 ### worktreeTableSetMounted() \{#worktreetablesetmounted\}
 

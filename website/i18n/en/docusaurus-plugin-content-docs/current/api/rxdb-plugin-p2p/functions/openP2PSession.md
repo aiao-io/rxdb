@@ -10,8 +10,8 @@ Opens a session on an established byte channel: both sides exchange hello and au
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                      |
+| --------- | --------------------------------------------------------- |
 | `options` | [`P2PSessionOptions`](../interfaces/P2PSessionOptions.md) |
 
 ## Returns

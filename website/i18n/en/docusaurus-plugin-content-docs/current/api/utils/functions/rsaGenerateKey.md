@@ -13,15 +13,15 @@ Generates an RSA key pair
 
 ## Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `modulusLength?` | `number` | `2048` | The modulus length; defaults to 2048; allowed values: 1024, 2048, 4096 |
+| Parameter        | Type     | Default value | Description                                                            |
+| ---------------- | -------- | ------------- | ---------------------------------------------------------------------- |
+| `modulusLength?` | `number` | `2048`        | The modulus length; defaults to 2048; allowed values: 1024, 2048, 4096 |
 
 ## Returns
 
 `Promise`&lt;\{
-  `privateKey`: `string`;
-  `publicKey`: `string`;
+`privateKey`: `string`;
+`publicKey`: `string`;
 \}&gt;
 
 An object containing the public and private keys as PEM strings

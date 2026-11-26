@@ -16,7 +16,7 @@ Defined in: [rxdb-plugin-replay-react/src/replayer.tsx:16](https://github.com/ai
 
 The moment to land on after loading completes (ms relative to the session start, default 0); changing it afterwards is equivalent to `seek()`.
 
-***
+---
 
 ### onCommitRestore? \{#oncommitrestore\}
 
@@ -30,15 +30,15 @@ The restore result after clicking a commit marker (success, one of the four reje
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | [`ReplayerCommitRestoreEvent`](ReplayerCommitRestoreEvent.md) |
+| Parameter | Type                                                          |
+| --------- | ------------------------------------------------------------- |
+| `event`   | [`ReplayerCommitRestoreEvent`](ReplayerCommitRestoreEvent.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onTimeChange? \{#ontimechange\}
 
@@ -52,15 +52,15 @@ Fired when playback / seeking changes the replay time.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `timeMs` | `number` |
+| Parameter | Type     |
+| --------- | -------- |
+| `timeMs`  | `number` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### replay \{#replay\}
 
@@ -72,7 +72,7 @@ Defined in: [rxdb-plugin-replay-react/src/replayer.tsx:12](https://github.com/ai
 
 The recording facade (`rxdb.replay`). Switching instances reloads.
 
-***
+---
 
 ### sessionId \{#sessionid\}
 

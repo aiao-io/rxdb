@@ -28,15 +28,15 @@ Opens (real adapter) or reuses (executor facade) a transaction
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`TransactionFun`](../type-aliases/TransactionFun.md) |
+| Type Parameter                                                                                    |
+| ------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`TransactionFun`](../type-aliases/TransactionFun.md) |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `fun` | `T` |
+| Parameter         | Type      |
+| ----------------- | --------- |
+| `fun`             | `T`       |
 | `transactionLog?` | `boolean` |
 
 #### Returns

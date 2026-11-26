@@ -31,12 +31,12 @@ Constructed from the five rejection points: the gate at each of the four mount p
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `rejection` | \{ `entityName?`: `string`; `entrance`: \| `"unknown"` \| `"crud"` \| `"domain_recompute"` \| `"remote_entity_apply"` \| `"cleanup_expired"` \| `"projection_rewrite"` \| `"metadata_only_prefetch"` \| `"query_cache_maintenance"` \| `"raw_write"` \| `"bulk_write"` \| `"notify_external_update"`; `message`: `string`; \} | The rejection scene: the blocked entrance, the resolved entity name (may be unresolvable on the raw channel), and the already-composed message |
-| `rejection.entityName?` | `string` | - |
-| `rejection.entrance` | \| `"unknown"` \| `"crud"` \| `"domain_recompute"` \| `"remote_entity_apply"` \| `"cleanup_expired"` \| `"projection_rewrite"` \| `"metadata_only_prefetch"` \| `"query_cache_maintenance"` \| `"raw_write"` \| `"bulk_write"` \| `"notify_external_update"` | - |
-| `rejection.message` | `string` | - |
+| Parameter               | Type                                                                                                                                                                                                                                                                                                                          | Description                                                                                                                                    |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rejection`             | \{ `entityName?`: `string`; `entrance`: \| `"unknown"` \| `"crud"` \| `"domain_recompute"` \| `"remote_entity_apply"` \| `"cleanup_expired"` \| `"projection_rewrite"` \| `"metadata_only_prefetch"` \| `"query_cache_maintenance"` \| `"raw_write"` \| `"bulk_write"` \| `"notify_external_update"`; `message`: `string`; \} | The rejection scene: the blocked entrance, the resolved entity name (may be unresolvable on the raw channel), and the already-composed message |
+| `rejection.entityName?` | `string`                                                                                                                                                                                                                                                                                                                      | -                                                                                                                                              |
+| `rejection.entrance`    | \| `"unknown"` \| `"crud"` \| `"domain_recompute"` \| `"remote_entity_apply"` \| `"cleanup_expired"` \| `"projection_rewrite"` \| `"metadata_only_prefetch"` \| `"query_cache_maintenance"` \| `"raw_write"` \| `"bulk_write"` \| `"notify_external_update"`                                                                  | -                                                                                                                                              |
+| `rejection.message`     | `string`                                                                                                                                                                                                                                                                                                                      | -                                                                                                                                              |
 
 #### Returns
 
@@ -67,7 +67,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](../../rxdb/classes/RxDBError.md).[`cause`](../../rxdb/classes/RxDBError.md#cause)
 
-***
+---
 
 ### code \{#code\}
 
@@ -79,7 +79,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry-matr
 
 The stable error code specified by epic-006, taken from [CommitErrorCode](../variables/CommitErrorCode.md)
 
-***
+---
 
 ### entityName \{#entityname\}
 
@@ -91,12 +91,12 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry-matr
 
 The name of the entity being written; `undefined` when no entity can be resolved on the raw channel
 
-***
+---
 
 ### entrance \{#entrance\}
 
 ```ts
-readonly entrance: 
+readonly entrance:
   | "unknown"
   | "crud"
   | "domain_recompute"
@@ -114,7 +114,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry-matr
 
 The write entrance that was blocked
 
-***
+---
 
 ### message \{#message\}
 
@@ -128,7 +128,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](../../rxdb/classes/RxDBError.md).[`message`](../../rxdb/classes/RxDBError.md#message)
 
-***
+---
 
 ### name \{#name\}
 
@@ -142,7 +142,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](../../rxdb/classes/RxDBError.md).[`name`](../../rxdb/classes/RxDBError.md#name)
 
-***
+---
 
 ### stack? \{#stack\}
 
@@ -156,7 +156,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](../../rxdb/classes/RxDBError.md).[`stack`](../../rxdb/classes/RxDBError.md#stack)
 
-***
+---
 
 ### stackTraceLimit \{#stacktracelimit\}
 
@@ -197,7 +197,7 @@ a string representing the location in the code at which
 ```js
 const myObject = {};
 Error.captureStackTrace(myObject);
-myObject.stack;  // Similar to `new Error().stack`
+myObject.stack; // Similar to `new Error().stack`
 ```
 
 The first line of the trace will be prefixed with
@@ -236,9 +236,9 @@ a();
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `targetObject` | `object` |
+| Parameter         | Type       |
+| ----------------- | ---------- |
+| `targetObject`    | `object`   |
 | `constructorOpt?` | `Function` |
 
 #### Returns
@@ -249,7 +249,7 @@ a();
 
 [`RxDBError`](../../rxdb/classes/RxDBError.md).[`captureStackTrace`](../../rxdb/classes/RxDBError.md#capturestacktrace)
 
-***
+---
 
 ### prepareStackTrace() \{#preparestacktrace\}
 
@@ -261,9 +261,9 @@ Defined in: node\_modules/.pnpm/@types+node@26.6.6/node\_modules/@types/node/glo
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `err` | `Error` |
+| Parameter     | Type         |
+| ------------- | ------------ |
+| `err`         | `Error`      |
 | `stackTraces` | `CallSite`[] |
 
 #### Returns

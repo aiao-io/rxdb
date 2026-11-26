@@ -10,8 +10,8 @@ Default warn implementation: filters out known noise and forwards to `console.wa
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type        |
+| --------- | ----------- |
 | ...`args` | `unknown`[] |
 
 ## Returns

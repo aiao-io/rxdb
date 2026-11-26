@@ -19,8 +19,8 @@ and passed through uniformly: Angular / Vue via the package root `export *` chai
 
 ## Properties
 
-| Property | Modifier | Type | Defined in |
-| ------ | ------ | ------ | ------ |
+| Property                      | Modifier   | Type     | Defined in                                         |
+| ----------------------------- | ---------- | -------- | -------------------------------------------------- |
 | <a id="property-id"></a> `id` | `readonly` | `string` | packages/rxdb-model/dist/entity-list/types.d.ts:14 |
 
 ## Methods
@@ -37,7 +37,7 @@ Defined in: packages/rxdb-model/dist/entity-list/types.d.ts:16
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### save() \{#save\}
 

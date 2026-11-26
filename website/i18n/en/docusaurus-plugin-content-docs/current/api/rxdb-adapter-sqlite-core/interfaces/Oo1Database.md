@@ -26,16 +26,16 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/oo1-types.ts:55](https://gith
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `total?` | `boolean` |
+| Parameter    | Type      |
+| ------------ | --------- |
+| `total?`     | `boolean` |
 | `sixtyFour?` | `boolean` |
 
 #### Returns
 
 `number`
 
-***
+---
 
 ### close() \{#close\}
 
@@ -49,14 +49,14 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/oo1-types.ts:54](https://gith
 
 `void`
 
-***
+---
 
 ### createFunction() \{#createfunction\}
 
 ```ts
 createFunction(
-   name, 
-   func, 
+   name,
+   func,
    options?
 ): this;
 ```
@@ -65,17 +65,17 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/oo1-types.ts:56](https://gith
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `name` | `string` |
-| `func` | (...`args`) => `unknown` |
+| Parameter  | Type                       |
+| ---------- | -------------------------- |
+| `name`     | `string`                   |
+| `func`     | (...`args`) => `unknown`   |
 | `options?` | `Oo1CreateFunctionOptions` |
 
 #### Returns
 
 `this`
 
-***
+---
 
 ### exec() \{#exec\}
 
@@ -87,34 +87,34 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/oo1-types.ts:47](https://gith
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `opts` | \{ `bind?`: `unknown`[]; `columnNames?`: `string`[]; `resultRows?`: `unknown`[][]; `rowMode?`: `string`; `sql`: `string`; \} |
-| `opts.bind?` | `unknown`[] |
-| `opts.columnNames?` | `string`[] |
-| `opts.resultRows?` | `unknown`[][] |
-| `opts.rowMode?` | `string` |
-| `opts.sql` | `string` |
+| Parameter           | Type                                                                                                                         |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `opts`              | \{ `bind?`: `unknown`[]; `columnNames?`: `string`[]; `resultRows?`: `unknown`[][]; `rowMode?`: `string`; `sql`: `string`; \} |
+| `opts.bind?`        | `unknown`[]                                                                                                                  |
+| `opts.columnNames?` | `string`[]                                                                                                                   |
+| `opts.resultRows?`  | `unknown`[][]                                                                                                                |
+| `opts.rowMode?`     | `string`                                                                                                                     |
+| `opts.sql`          | `string`                                                                                                                     |
 
 #### Returns
 
 `this`
 
-***
+---
 
 ### prepare()? \{#prepare\}
 
 ```ts
-prepare?(sql): Oo1PreparedStatement;
+prepare ? sql : Oo1PreparedStatement;
 ```
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/oo1-types.ts:46](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/oo1-types.ts#L46)
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `sql` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `sql`     | `string` |
 
 #### Returns
 

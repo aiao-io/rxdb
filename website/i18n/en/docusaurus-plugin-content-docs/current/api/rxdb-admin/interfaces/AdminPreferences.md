@@ -92,7 +92,7 @@ watermarkContent: string;
 
 The watermark copy; an empty string uses the default copy provided by the host.
 
-***
+---
 
 ### breadcrumb \{#breadcrumb\}
 
@@ -144,7 +144,7 @@ styleType: BreadcrumbStyle;
 
 The style.
 
-***
+---
 
 ### content \{#content\}
 
@@ -204,7 +204,7 @@ right: number;
 top: number;
 ```
 
-***
+---
 
 ### copyright \{#copyright\}
 
@@ -264,7 +264,7 @@ icpLink: string;
 
 The filing (ICP) link.
 
-***
+---
 
 ### extension \{#extension\}
 
@@ -276,7 +276,7 @@ Defined in: [preferences/types.ts:220](https://github.com/aiao-io/rxdb/blob/b523
 
 The extension preferences registered by the application, keyed by extension key.
 
-***
+---
 
 ### footer \{#footer\}
 
@@ -312,7 +312,7 @@ height: number;
 
 The height (px).
 
-***
+---
 
 ### header \{#header\}
 
@@ -340,7 +340,7 @@ menuAlign: MenuAlign;
 
 The alignment of the top navigation menu.
 
-***
+---
 
 ### logo \{#logo\}
 
@@ -376,7 +376,7 @@ source: string;
 
 The image URL; an empty string shows only text.
 
-***
+---
 
 ### navigation \{#navigation\}
 
@@ -404,7 +404,7 @@ styleType: NavigationStyle;
 
 The menu style.
 
-***
+---
 
 ### palette \{#palette\}
 
@@ -432,7 +432,7 @@ recents: number;
 
 The number of recent usage entries shown on an empty query; 0 disables it.
 
-***
+---
 
 ### shortcuts \{#shortcuts\}
 
@@ -460,7 +460,7 @@ enable: boolean;
 
 The master switch.
 
-***
+---
 
 ### sidebar \{#sidebar\}
 
@@ -528,7 +528,7 @@ width: number;
 
 The expanded width (px).
 
-***
+---
 
 ### tabbar \{#tabbar\}
 
@@ -620,7 +620,7 @@ wheelable: boolean;
 
 Scroll tabs horizontally with the wheel.
 
-***
+---
 
 ### theme \{#theme\}
 
@@ -680,7 +680,7 @@ semiDarkSidebar: boolean;
 
 Half-dark sidebar.
 
-***
+---
 
 ### transition \{#transition\}
 
@@ -724,7 +724,7 @@ progress: boolean;
 
 The top progress bar.
 
-***
+---
 
 ### widget \{#widget\}
 

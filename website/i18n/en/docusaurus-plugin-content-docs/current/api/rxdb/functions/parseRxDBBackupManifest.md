@@ -10,9 +10,9 @@ Validates and normalizes a backup manifest.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | The result of `JSON.parse` |
+| Parameter | Type      | Description                |
+| --------- | --------- | -------------------------- |
+| `value`   | `unknown` | The result of `JSON.parse` |
 
 ## Returns
 

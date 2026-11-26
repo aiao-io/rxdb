@@ -5,6 +5,7 @@ Defined in: [packages/rxdb-adapter-supabase/src/supabase.interface.ts:34](https:
 Supabase Adapter configuration options
 
 Two initialization approaches are supported:
+
 1. Pass URL + Key; the adapter creates the client internally
 2. Pass an existing SupabaseClient instance to reuse the current client
 
@@ -24,7 +25,7 @@ Defined in: [packages/rxdb-adapter-supabase/src/supabase.interface.ts:42](https:
 
 The custom Supabase client (taking priority over URL + Key)
 
-***
+---
 
 ### rlsCheck? \{#rlscheck\}
 
@@ -48,7 +49,7 @@ and RLS policies are judged by the caller's identity, with no `FORCE ROW LEVEL
 SECURITY` requirement. The self-check does not verify policy contents, auth
 claims, tenant ownership, or table-level grants.
 
-***
+---
 
 ### supabaseKey? \{#supabasekey\}
 
@@ -60,7 +61,7 @@ Defined in: [packages/rxdb-adapter-supabase/src/supabase.interface.ts:39](https:
 
 The Supabase API key (used with supabaseUrl)
 
-***
+---
 
 ### supabaseUrl? \{#supabaseurl\}
 

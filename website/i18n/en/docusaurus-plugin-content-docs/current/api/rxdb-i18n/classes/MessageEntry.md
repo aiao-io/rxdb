@@ -28,7 +28,7 @@ Defined in: [entities.ts:52](https://github.com/aiao-io/rxdb/blob/b5232040240cf1
 
 Deterministic JSON encoding of locale, namespace and key.
 
-***
+---
 
 ### key \{#key\}
 
@@ -40,7 +40,7 @@ Defined in: [entities.ts:58](https://github.com/aiao-io/rxdb/blob/b5232040240cf1
 
 Message key.
 
-***
+---
 
 ### locale \{#locale\}
 
@@ -52,7 +52,7 @@ Defined in: [entities.ts:54](https://github.com/aiao-io/rxdb/blob/b5232040240cf1
 
 Canonicalized locale.
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -64,7 +64,7 @@ Defined in: [entities.ts:56](https://github.com/aiao-io/rxdb/blob/b5232040240cf1
 
 Namespace.
 
-***
+---
 
 ### source \{#source\}
 
@@ -76,7 +76,7 @@ Defined in: [entities.ts:62](https://github.com/aiao-io/rxdb/blob/b5232040240cf1
 
 Source marker of the local override.
 
-***
+---
 
 ### updatedAt \{#updatedat\}
 
@@ -88,7 +88,7 @@ Defined in: [entities.ts:64](https://github.com/aiao-io/rxdb/blob/b5232040240cf1
 
 Most recent update time.
 
-***
+---
 
 ### value \{#value\}
 

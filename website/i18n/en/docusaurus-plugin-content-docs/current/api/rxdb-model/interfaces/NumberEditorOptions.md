@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model/src/entity-table/editors/number-editor.ts:9](ht
 
 true means 64-bit big integer mode (value type bigint)
 
-***
+---
 
 ### max? \{#max\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-model/src/entity-table/editors/number-editor.ts:13](h
 
 The maximum value (inclusive)
 
-***
+---
 
 ### min? \{#min\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-model/src/entity-table/editors/number-editor.ts:11](h
 
 The minimum value (inclusive)
 
-***
+---
 
 ### step? \{#step\}
 

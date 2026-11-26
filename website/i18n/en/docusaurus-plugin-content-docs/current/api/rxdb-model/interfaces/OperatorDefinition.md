@@ -17,7 +17,7 @@ Defined in: [packages/rxdb-model/src/query-builder/models/operator.interface.ts:
 
 The applicable field types
 
-***
+---
 
 ### key \{#key\}
 
@@ -29,7 +29,7 @@ Defined in: [packages/rxdb-model/src/query-builder/models/operator.interface.ts:
 
 The operator key (using RxDB's OperatorName)
 
-***
+---
 
 ### label \{#label\}
 
@@ -41,7 +41,7 @@ Defined in: [packages/rxdb-model/src/query-builder/models/operator.interface.ts:
 
 The display label (supports internationalization)
 
-***
+---
 
 ### labelKey? \{#labelkey\}
 
@@ -53,17 +53,18 @@ Defined in: [packages/rxdb-model/src/query-builder/models/operator.interface.ts:
 
 Key in the built-in label catalog; a custom label keeps priority.
 
-***
+---
 
 ### valueType \{#valuetype\}
 
 ```ts
-valueType: "array" | "single" | "range" | "none" | "subquery";
+valueType: 'array' | 'single' | 'range' | 'none' | 'subquery';
 ```
 
 Defined in: [packages/rxdb-model/src/query-builder/models/operator.interface.ts:31](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model/src/query-builder/models/operator.interface.ts#L31)
 
 The value type
+
 - single: a single value (e.g. "=")
 - array: an array of values (e.g. "in")
 - range: a range value [min, max] (e.g. "between")

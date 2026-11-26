@@ -12,9 +12,9 @@ Persisting `null` / `undefined` is bypassed by the adapter and should not call t
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `unknown` |
+| Parameter  | Type           |
+| ---------- | -------------- |
+| `value`    | `unknown`      |
 | `property` | `PropertyLike` |
 
 ## Returns

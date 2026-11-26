@@ -18,7 +18,7 @@ Defined in: [packages/rxdb-plugin-history/src/find-switch-branch-step.ts:11](htt
 
 The branch object
 
-***
+---
 
 ### fromChangeId \{#fromchangeid\}
 
@@ -30,7 +30,7 @@ Defined in: [packages/rxdb-plugin-history/src/find-switch-branch-step.ts:15](htt
 
 Start change ID
 
-***
+---
 
 ### toChangeId \{#tochangeid\}
 

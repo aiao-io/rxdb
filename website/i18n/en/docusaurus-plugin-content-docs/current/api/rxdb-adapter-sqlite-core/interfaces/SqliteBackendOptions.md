@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/sqlite-backend.interface.ts:4
 
 SQLite page cache size (KB, default 51200)
 
-***
+---
 
 ### locateFile? \{#locatefile\}
 
@@ -30,15 +30,15 @@ WASM file path resolver
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `name` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `name`    | `string` |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### opfs? \{#opfs\}
 
@@ -50,7 +50,7 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/sqlite-backend.interface.ts:3
 
 Enables OPFS persistence (Worker only)
 
-***
+---
 
 ### vfs? \{#vfs\}
 
@@ -62,7 +62,7 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/sqlite-backend.interface.ts:3
 
 Virtual file system name
 
-***
+---
 
 ### wasmPath? \{#wasmpath\}
 

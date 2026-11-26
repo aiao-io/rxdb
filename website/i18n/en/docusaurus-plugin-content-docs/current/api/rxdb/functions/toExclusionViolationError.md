@@ -10,10 +10,10 @@ Normalizes the raw error of an exclusion-range violation into [RxDBExclusionViol
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `cause` | `unknown` | The raw error thrown by the adapter; returned unchanged when it is not an exclusion-range violation declared by this entity |
-| `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) | Metadata of the entity being written |
+| Parameter  | Type                                                  | Description                                                                                                                 |
+| ---------- | ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `cause`    | `unknown`                                             | The raw error thrown by the adapter; returned unchanged when it is not an exclusion-range violation declared by this entity |
+| `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) | Metadata of the entity being written                                                                                        |
 
 ## Returns
 

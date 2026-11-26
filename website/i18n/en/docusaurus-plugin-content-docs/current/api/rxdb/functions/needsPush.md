@@ -10,9 +10,9 @@ Checks whether a repository needs push.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) | The entity metadata |
+| Parameter     | Type                                                                                                              | Description                                                                                                                                         |
+| ------------- | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `metadata`    | [`EntityMetadata`](../type-aliases/EntityMetadata.md)                                                             | The entity metadata                                                                                                                                 |
 | `globalSync?` | \| [`SyncOptions`](../type-aliases/SyncOptions.md) \| [`EntitySyncResolver`](../interfaces/EntitySyncResolver.md) | Global sync configuration (optional); when an instance resolver `rxdb.entitySync` is passed, instance-level overrides are resolved together with it |
 
 ## Returns
@@ -24,11 +24,11 @@ Whether push is needed
 ## Example
 
 ```ts
-needsPush(metadataFull);   // true  (full)
+needsPush(metadataFull); // true  (full)
 needsPush(metadataFilter); // true  (filter - local changes are not limited by the filter)
 needsPush(metadataRemote); // false (remote)
-needsPush(metadataLocal);  // false (local — local only, does not sync with the remote)
-needsPush(metadataNone);   // false (none)
+needsPush(metadataLocal); // false (local — local only, does not sync with the remote)
+needsPush(metadataNone); // false (none)
 ```
 
 ## Remarks

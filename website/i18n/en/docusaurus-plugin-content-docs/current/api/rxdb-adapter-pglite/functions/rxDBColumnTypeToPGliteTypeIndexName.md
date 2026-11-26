@@ -11,8 +11,8 @@ http://www.postgres.cn/docs/current/indexes-opclass.html
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                          |
+| ---------- | ----------------------------------------------------------------------------- |
 | `property` | [`EntityPropertyMetadata`](../../rxdb/type-aliases/EntityPropertyMetadata.md) |
 
 ## Returns

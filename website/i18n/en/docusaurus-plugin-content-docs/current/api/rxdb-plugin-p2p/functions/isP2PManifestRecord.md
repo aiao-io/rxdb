@@ -10,9 +10,9 @@ Checks whether a synced row satisfies the manifest's content-addressing rules.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `value`   | `unknown` |
 
 ## Returns
 

@@ -16,15 +16,15 @@ Defined in: [packages/rxdb-plugin-board/src/board-storage.ts:11](https://github.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `key` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `key`     | `string` |
 
 #### Returns
 
 `string` \| `null`
 
-***
+---
 
 ### remove() \{#remove\}
 
@@ -36,15 +36,15 @@ Defined in: [packages/rxdb-plugin-board/src/board-storage.ts:13](https://github.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `key` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `key`     | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### set() \{#set\}
 
@@ -56,10 +56,10 @@ Defined in: [packages/rxdb-plugin-board/src/board-storage.ts:12](https://github.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `key` | `string` |
-| `value` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `key`     | `string` |
+| `value`   | `string` |
 
 #### Returns
 

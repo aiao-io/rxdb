@@ -10,15 +10,15 @@ Checks whether a value is a callable function, preserving the existing function 
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Parameters
 
 | Parameter | Type |
-| ------ | ------ |
-| `value` | `T` |
+| --------- | ---- |
+| `value`   | `T`  |
 
 ## Returns
 

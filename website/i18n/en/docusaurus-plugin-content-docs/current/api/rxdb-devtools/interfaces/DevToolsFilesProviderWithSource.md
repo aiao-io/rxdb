@@ -42,8 +42,8 @@ Fetches the disk sink of a registered upload.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter    | Type     | Description                                       |
+| ------------ | -------- | ------------------------------------------------- |
 | `transferId` | `string` | The transfer ID declared in the `upload` request. |
 
 #### Returns
@@ -57,7 +57,7 @@ The sink of that transfer.
 Thrown when no upload is registered under that ID — an ownerless sink would turn a wiring
 error into a real file.
 
-***
+---
 
 ### createChunkSource() \{#createchunksource\}
 
@@ -71,8 +71,8 @@ Fetches the byte source of a registered download.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type     | Description                       |
+| ----------- | -------- | --------------------------------- |
 | `requestId` | `string` | The ID of the `download` request. |
 
 #### Returns
@@ -81,7 +81,7 @@ Fetches the byte source of a registered download.
 
 The byte source of that download; `undefined` when no download is registered under that ID.
 
-***
+---
 
 ### invoke() \{#invoke\}
 
@@ -95,10 +95,10 @@ Executes an operation.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `operation` | `string` | The authorized operation name. |
-| `params` | `unknown` | Parameters that have passed the generic wire-layer validation but are not yet interpreted per operation; the implementation is responsible for domain-level validation (e.g. path validity → `invalid_path`). |
+| Parameter   | Type      | Description                                                                                                                                                                                                   |
+| ----------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `operation` | `string`  | The authorized operation name.                                                                                                                                                                                |
+| `params`    | `unknown` | Parameters that have passed the generic wire-layer validation but are not yet interpreted per operation; the implementation is responsible for domain-level validation (e.g. path validity → `invalid_path`). |
 
 #### Returns
 

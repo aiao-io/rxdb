@@ -16,7 +16,7 @@ Defined in: packages/rxdb-model/dist/entity-table/columns/build-editable-columns
 
 Action column title (default "Actions")
 
-***
+---
 
 ### createdAtTitle? \{#createdattitle\}
 
@@ -28,7 +28,7 @@ Defined in: packages/rxdb-model/dist/entity-table/columns/build-editable-columns
 
 Created-at column title (default "Created at")
 
-***
+---
 
 ### deleteLabel? \{#deletelabel\}
 
@@ -40,7 +40,7 @@ Defined in: packages/rxdb-model/dist/entity-table/columns/build-editable-columns
 
 Delete button copy (default "Delete")
 
-***
+---
 
 ### i18n? \{#i18n\}
 
@@ -52,7 +52,7 @@ Defined in: packages/rxdb-model/dist/entity-table/columns/build-editable-columns
 
 Component translation and formatting runtime.
 
-***
+---
 
 ### readOnly? \{#readonly\}
 
@@ -64,7 +64,7 @@ Defined in: packages/rxdb-model/dist/entity-table/columns/build-editable-columns
 
 The instance the entity lives in is read-only (`rxdb.readOnly`): no column is editable and the action column only keeps the view action
 
-***
+---
 
 ### relatedItemsProviderFactory? \{#relateditemsproviderfactory\}
 
@@ -76,7 +76,7 @@ Defined in: packages/rxdb-model/dist/entity-table/columns/build-editable-columns
 
 Provider factory for related entity candidates (returns a provider by foreign key field and related entity name)
 
-***
+---
 
 ### updatedAtTitle? \{#updatedattitle\}
 
@@ -88,7 +88,7 @@ Defined in: packages/rxdb-model/dist/entity-table/columns/build-editable-columns
 
 Updated-at column title (default "Updated at")
 
-***
+---
 
 ### viewLabel? \{#viewlabel\}
 

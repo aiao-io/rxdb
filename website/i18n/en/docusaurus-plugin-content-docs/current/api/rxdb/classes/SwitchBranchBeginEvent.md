@@ -20,8 +20,8 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:418](https://github.com/aiao-io/rx
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter    | Type     | Description |
+| ------------ | -------- | ----------- |
 | `branchName` | `string` | Branch name |
 
 #### Returns
@@ -48,12 +48,12 @@ Branch name
 
 [`SwitchBranchEventBase`](SwitchBranchEventBase.md).[`branchName`](SwitchBranchEventBase.md#branchname)
 
-***
+---
 
 ### type \{#type\}
 
 ```ts
-type: "SWITCH_BRANCH_BEGIN" = SWITCH_BRANCH_BEGIN;
+type: 'SWITCH_BRANCH_BEGIN' = SWITCH_BRANCH_BEGIN;
 ```
 
 Defined in: [packages/rxdb/src/rxdb-events.ts:426](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-events.ts#L426)

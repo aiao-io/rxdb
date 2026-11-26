@@ -10,8 +10,8 @@ Whether the entity's writes are ordered as "delete → update → insert" (which
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                  | Description         |
+| ---------- | ----------------------------------------------------- | ------------------- |
 | `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) | The entity metadata |
 
 ## Returns

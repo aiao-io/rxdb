@@ -5,17 +5,18 @@ Defined in: [packages/rxdb-plugin-search/src/plugin.ts:181](https://github.com/a
 The main class of `@aiao/rxdb-plugin-search`.
 
 Responsibilities:
- - Validates the adapter at the `createRxDatabase` stage (fail-fast)
- - Installs FTS5 + backfill + caches the searchable index at the `install()`
-   stage (the timing is decided by the host per [RxDBPluginSearch.inject](#inject);
-   the plugin itself does not wait on dependencies)
- - Mounts the `search` / `searchCollection` entries on [RxDB](../../rxdb/classes/RxDB.md)
- - Subscribes to `ENTITY_LOCAL_CREATE/UPDATE/REMOVE_EVENT` to dispatch silent re-queries to registered handles
- - The shadow tables of writable checkouts each have their own full-text index
-   (US-314 B2.5): built in the same transaction when the table set is created,
-   backfilled when a table set without one is mounted; queries resolve table
-   names by the table set this instance has mounted, and registered handles
-   re-query after a mount switch
+
+- Validates the adapter at the `createRxDatabase` stage (fail-fast)
+- Installs FTS5 + backfill + caches the searchable index at the `install()`
+  stage (the timing is decided by the host per [RxDBPluginSearch.inject](#inject);
+  the plugin itself does not wait on dependencies)
+- Mounts the `search` / `searchCollection` entries on [RxDB](../../rxdb/classes/RxDB.md)
+- Subscribes to `ENTITY_LOCAL_CREATE/UPDATE/REMOVE_EVENT` to dispatch silent re-queries to registered handles
+- The shadow tables of writable checkouts each have their own full-text index
+  (US-314 B2.5): built in the same transaction when the table set is created,
+  backfilled when a table set without one is mounted; queries resolve table
+  names by the table set this instance has mounted, and registered handles
+  re-query after a mount switch
 
 ## Extends
 
@@ -37,9 +38,9 @@ Defined in: [packages/rxdb-plugin-search/src/plugin.ts:292](https://github.com/a
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rxdb` | [`RxDB`](../../rxdb/classes/RxDB.md) |
+| Parameter  | Type                                                          |
+| ---------- | ------------------------------------------------------------- |
+| `rxdb`     | [`RxDB`](../../rxdb/classes/RxDB.md)                          |
 | `options?` | [`SearchPluginOptions`](../interfaces/SearchPluginOptions.md) |
 
 #### Returns
@@ -77,7 +78,7 @@ take the instance directly from [RxDB.localAdapterSync](../../rxdb/classes/RxDB.
 
 [`IRxDBPlugin`](../../rxdb/interfaces/IRxDBPlugin.md).[`inject`](../../rxdb/interfaces/IRxDBPlugin.md#inject)
 
-***
+---
 
 ### lifecycle \{#lifecycle\}
 
@@ -101,7 +102,7 @@ one more `destroy()`" converges into one step.
 
 [`IRxDBPlugin`](../../rxdb/interfaces/IRxDBPlugin.md).[`lifecycle`](../../rxdb/interfaces/IRxDBPlugin.md#lifecycle)
 
-***
+---
 
 ### name \{#name\}
 
@@ -117,7 +118,7 @@ The plugin name, used for logging and host-side error attribution
 
 [`IRxDBPlugin`](../../rxdb/interfaces/IRxDBPlugin.md).[`name`](../../rxdb/interfaces/IRxDBPlugin.md#name)
 
-***
+---
 
 ### options \{#options\}
 
@@ -129,7 +130,7 @@ Defined in: [packages/rxdb-plugin-search/src/plugin.ts:238](https://github.com/a
 
 The plugin-level defaults (page size, debounce, snippet, excluded collections)
 
-***
+---
 
 ### rxdb \{#rxdb\}
 
@@ -143,7 +144,7 @@ Defined in: packages/rxdb/dist/rxdb-plugin.d.ts:183
 
 [`RxDBPluginBase`](../../rxdb/classes/RxDBPluginBase.md).[`rxdb`](../../rxdb/classes/RxDBPluginBase.md#rxdb)
 
-***
+---
 
 ### worktreeTableSet \{#worktreetableset\}
 
@@ -197,13 +198,13 @@ explicitly `await`ing this promise.
 
 One deferred per connection epoch, with these states:
 
-| Moment                                  | `ready`                       |
-| --------------------------------------- | ----------------------------- |
-| Before `connect()` / dependency not ready | **pending**                   |
-| Installing                              | pending                       |
-| Installation succeeded                  | resolve                       |
-| Installation failed                     | reject (the original installation error) |
-| Scope released (disconnect / rollback)  | reject (`destroyed`)          |
+| Moment                                    | `ready`                                  |
+| ----------------------------------------- | ---------------------------------------- |
+| Before `connect()` / dependency not ready | **pending**                              |
+| Installing                                | pending                                  |
+| Installation succeeded                    | resolve                                  |
+| Installation failed                       | reject (the original installation error) |
+| Scope released (disconnect / rollback)    | reject (`destroyed`)                     |
 
 The old convention of "reject before installed" being replaced by pending is
 deliberate: once dependency scheduling landed, "not yet my turn to install" and
@@ -236,16 +237,16 @@ production paths should use [search](#search) / [searchCollection](#searchcollec
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter       | Type                                                | Description                                                                                      |
+| --------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | `performSearch` | [`PerformSearch`](../type-aliases/PerformSearch.md) | The real query execution function; its inputs are the normalized query terms and the page number |
-| `options?` | [`SearchOptions`](../interfaces/SearchOptions.md) | Per-call overrides (debounce / initialQuery) |
+| `options?`      | [`SearchOptions`](../interfaces/SearchOptions.md)   | Per-call overrides (debounce / initialQuery)                                                     |
 
 #### Returns
 
 [`SearchHandle`](../interfaces/SearchHandle.md)
 
-***
+---
 
 ### install() \{#install\}
 
@@ -259,9 +260,9 @@ Installs the plugin.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `scope` | [`LifecycleScope`](../../utils/classes/LifecycleScope.md) | This connection epoch's plugin activation scope; one `acquire()` wraps only one acquisition step that may throw |
+| Parameter | Type                                                      | Description                                                                                                     |
+| --------- | --------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| `scope`   | [`LifecycleScope`](../../utils/classes/LifecycleScope.md) | This connection epoch's plugin activation scope; one `acquire()` wraps only one acquisition step that may throw |
 
 #### Returns
 
@@ -281,7 +282,7 @@ An implementor not writing the parameter breaks no contract — `install()` and
 
 [`IRxDBPlugin`](../../rxdb/interfaces/IRxDBPlugin.md).[`install`](../../rxdb/interfaces/IRxDBPlugin.md#install)
 
-***
+---
 
 ### search() \{#search\}
 
@@ -301,9 +302,9 @@ names, or being empty after intersecting with the plugin-level
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `query` | `string` \| `Observable`&lt;`string`&gt; |
+| Parameter  | Type                                              |
+| ---------- | ------------------------------------------------- |
+| `query`    | `string` \| `Observable`&lt;`string`&gt;          |
 | `options?` | [`SearchOptions`](../interfaces/SearchOptions.md) |
 
 #### Returns
@@ -320,14 +321,14 @@ degrade into an empty-result handle, see `#assertInstalled`.
 
 The original installation error when `install()` failed.
 
-***
+---
 
 ### searchCollection() \{#searchcollection\}
 
 ```ts
 searchCollection(
-   collection, 
-   query, 
+   collection,
+   query,
    options?
 ): SearchHandle;
 ```
@@ -342,11 +343,11 @@ by `excludedCollections`, it throws; the host should confirm installation via
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `collection` | `string` |
-| `query` | `string` \| `Observable`&lt;`string`&gt; |
-| `options?` | [`SearchOptions`](../interfaces/SearchOptions.md) |
+| Parameter    | Type                                              |
+| ------------ | ------------------------------------------------- |
+| `collection` | `string`                                          |
+| `query`      | `string` \| `Observable`&lt;`string`&gt;          |
+| `options?`   | [`SearchOptions`](../interfaces/SearchOptions.md) |
 
 #### Returns
 

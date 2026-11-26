@@ -1,7 +1,7 @@
 # TAURI_DESKTOP_REQUEST_COMMAND
 
 ```ts
-const TAURI_DESKTOP_REQUEST_COMMAND: "rxdb_desktop_request" = 'rxdb_desktop_request';
+const TAURI_DESKTOP_REQUEST_COMMAND: 'rxdb_desktop_request' = 'rxdb_desktop_request';
 ```
 
 Defined in: [packages/rxdb-adapter-tauri/src/tauri-host-transport.ts:26](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-tauri/src/tauri-host-transport.ts#L26)

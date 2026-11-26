@@ -10,8 +10,8 @@ Validates that a branch id is usable; throws when it is not.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type     | Description               |
+| ---------- | -------- | ------------------------- |
 | `branchId` | `string` | The branch id to validate |
 
 ## Returns

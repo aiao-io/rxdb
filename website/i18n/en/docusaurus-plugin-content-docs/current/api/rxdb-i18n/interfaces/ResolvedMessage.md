@@ -16,7 +16,7 @@ Defined in: [catalog.ts:34](https://github.com/aiao-io/rxdb/blob/b5232040240cf1c
 
 The locale that matched.
 
-***
+---
 
 ### source? \{#source\}
 
@@ -28,7 +28,7 @@ Defined in: [catalog.ts:36](https://github.com/aiao-io/rxdb/blob/b5232040240cf1c
 
 The source that matched.
 
-***
+---
 
 ### value \{#value\}
 

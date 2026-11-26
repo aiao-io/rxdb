@@ -10,9 +10,9 @@ Deletes a set of files under the OPFS root directory; skips ones that do not exi
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `names` | readonly `string`[] | File names (the database file and its journal side files) |
+| Parameter | Type                | Description                                               |
+| --------- | ------------------- | --------------------------------------------------------- |
+| `names`   | readonly `string`[] | File names (the database file and its journal side files) |
 
 ## Returns
 

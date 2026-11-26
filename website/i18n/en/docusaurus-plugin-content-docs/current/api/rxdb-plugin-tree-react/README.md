@@ -36,7 +36,7 @@ The four hooks depend on the `TreeRepository` registered by the plugin; the appl
 
 ## API
 
-| Hook                  | Repository method  | Result type                      | Default |
+| Hook                  | Repository method  | Result type                       | Default |
 | --------------------- | ------------------ | --------------------------------- | ------- |
 | `useFindDescendants`  | `findDescendants`  | `RxDBResource<InstanceType<T>[]>` | `[]`    |
 | `useCountDescendants` | `countDescendants` | `RxDBResource<number>`            | `0`     |
@@ -59,9 +59,9 @@ These four hooks used to be exported by `@aiao/rxdb-react`. Import them from thi
 
 ## Functions
 
-| Function | Description |
-| ------ | ------ |
-| [useCountAncestors](functions/useCountAncestors.md) | Counts the ancestors of a tree entity. |
+| Function                                                | Description                              |
+| ------------------------------------------------------- | ---------------------------------------- |
+| [useCountAncestors](functions/useCountAncestors.md)     | Counts the ancestors of a tree entity.   |
 | [useCountDescendants](functions/useCountDescendants.md) | Counts the descendants of a tree entity. |
-| [useFindAncestors](functions/useFindAncestors.md) | Finds all ancestors of a tree entity. |
-| [useFindDescendants](functions/useFindDescendants.md) | Finds all descendants of a tree entity. |
+| [useFindAncestors](functions/useFindAncestors.md)       | Finds all ancestors of a tree entity.    |
+| [useFindDescendants](functions/useFindDescendants.md)   | Finds all descendants of a tree entity.  |

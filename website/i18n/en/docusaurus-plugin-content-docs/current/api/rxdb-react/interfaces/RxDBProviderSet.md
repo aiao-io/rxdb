@@ -1,5 +1,5 @@
 ---
-sidebar_label: "RxDBProviderSet⟨T⟩"
+sidebar_label: 'RxDBProviderSet⟨T⟩'
 ---
 
 # RxDBProviderSet`<T>`
@@ -10,9 +10,9 @@ A set of mutually isolated RxDB Providers and read hooks.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`RxDB`](../../rxdb/classes/RxDB.md) |
+| Type Parameter                                                                   |
+| -------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`RxDB`](../../rxdb/classes/RxDB.md) |
 
 ## Properties
 
@@ -26,7 +26,7 @@ Defined in: [rxdb-react/src/rxdb-react.tsx:60](https://github.com/aiao-io/rxdb/b
 
 Provider component sharing a context with `useRxDB`.
 
-***
+---
 
 ### useHasRxDBProvider \{#usehasrxdbprovider\}
 
@@ -42,7 +42,7 @@ Whether this set's Provider exists in the component tree; independent of whether
 
 `boolean`
 
-***
+---
 
 ### useRxDB \{#userxdb\}
 
@@ -54,7 +54,7 @@ Defined in: [rxdb-react/src/rxdb-react.tsx:62](https://github.com/aiao-io/rxdb/b
 
 Reads the database instance passed explicitly or from context; throws when it is not ready.
 
-***
+---
 
 ### useRxDBOptional \{#userxdboptional\}
 

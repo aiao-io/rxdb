@@ -20,7 +20,7 @@ Closes the channel and releases the underlying connection; safe to call repeated
 
 `void` \| `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### receive \{#receive\}
 
@@ -34,15 +34,15 @@ Receives the next frame; rejects after the channel fails or closes.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type          |
+| --------- | ------------- |
 | `signal?` | `AbortSignal` |
 
 #### Returns
 
 `Promise`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt;
 
-***
+---
 
 ### send \{#send\}
 
@@ -56,9 +56,9 @@ Sends a frame; when the underlying buffer is full, completes once writing is pos
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `frame` | `Uint8Array` |
+| Parameter | Type         |
+| --------- | ------------ |
+| `frame`   | `Uint8Array` |
 
 #### Returns
 

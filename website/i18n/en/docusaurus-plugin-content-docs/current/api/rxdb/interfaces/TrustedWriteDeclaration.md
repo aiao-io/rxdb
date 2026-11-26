@@ -34,7 +34,7 @@ Carries neither package name nor directory, matching the `file` column of
 `packages/rxdb/src/version/` into `@aiao/rxdb-plugin-history` and `@aiao/rxdb-plugin-sync`; the basename key
 exists exactly for this: the move only changed directories, and not one cell of the key moved.
 
-***
+---
 
 ### intent \{#intent\}
 
@@ -46,7 +46,7 @@ Defined in: [packages/rxdb/src/trusted-write/trusted-write-scope.ts:53](https://
 
 The intent self-reported by the call site.
 
-***
+---
 
 ### symbol \{#symbol\}
 

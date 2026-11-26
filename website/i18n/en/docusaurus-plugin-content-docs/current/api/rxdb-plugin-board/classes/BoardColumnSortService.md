@@ -19,8 +19,8 @@ Only the local, fully-versioned primary endpoint is supported: remote-only / Que
 
 ```ts
 new BoardColumnSortService(
-   rxdb, 
-   ctx, 
+   rxdb,
+   ctx,
    notifier
 ): BoardColumnSortService;
 ```
@@ -29,11 +29,11 @@ Defined in: [packages/rxdb-plugin-board/src/column-sort-service.ts:67](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rxdb` | [`RxDB`](../../rxdb/classes/RxDB.md) |
-| `ctx` | () => [`BoardHostContext`](../interfaces/BoardHostContext.md) |
-| `notifier` | [`BoardWriteNotifier`](BoardWriteNotifier.md) |
+| Parameter  | Type                                                          |
+| ---------- | ------------------------------------------------------------- |
+| `rxdb`     | [`RxDB`](../../rxdb/classes/RxDB.md)                          |
+| `ctx`      | () => [`BoardHostContext`](../interfaces/BoardHostContext.md) |
+| `notifier` | [`BoardWriteNotifier`](BoardWriteNotifier.md)                 |
 
 #### Returns
 
@@ -51,10 +51,10 @@ Defined in: [packages/rxdb-plugin-board/src/column-sort-service.ts:73](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                      |
+| ---------- | --------------------------------------------------------- |
 | `columnId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
-| `mode` | [`ColumnSortMode`](../type-aliases/ColumnSortMode.md) |
+| `mode`     | [`ColumnSortMode`](../type-aliases/ColumnSortMode.md)     |
 
 #### Returns
 

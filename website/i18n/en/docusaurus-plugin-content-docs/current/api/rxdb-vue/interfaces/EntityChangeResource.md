@@ -1,5 +1,5 @@
 ---
-sidebar_label: "EntityChangeResource⟨T⟩"
+sidebar_label: 'EntityChangeResource⟨T⟩'
 ---
 
 # EntityChangeResource`<T>`
@@ -10,8 +10,8 @@ The result of bridging entity patches into Vue's reactivity system.
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                    | Description          |
+| --------------------------------- | -------------------- |
 | <a id="type-parameter-t"></a> `T` | Entity instance type |
 
 ## Properties
@@ -26,7 +26,7 @@ Defined in: [rxdb-vue/src/use-entity-change.ts:57](https://github.com/aiao-io/rx
 
 Error of the patch stream; reset when the entity switches.
 
-***
+---
 
 ### revision \{#revision\}
 
@@ -38,7 +38,7 @@ Defined in: [rxdb-vue/src/use-entity-change.ts:59](https://github.com/aiao-io/rx
 
 Number of patches received, counting from `0`; for debugging and test assertions.
 
-***
+---
 
 ### value \{#value\}
 

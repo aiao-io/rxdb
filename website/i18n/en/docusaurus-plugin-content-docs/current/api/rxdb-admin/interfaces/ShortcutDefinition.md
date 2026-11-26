@@ -16,7 +16,7 @@ Defined in: [shortcuts/registry.ts:54](https://github.com/aiao-io/rxdb/blob/b523
 
 Whether it responds inside an input field; by default combos containing Ctrl / Meta / Alt respond, plain character keys do not.
 
-***
+---
 
 ### combo \{#combo\}
 
@@ -28,7 +28,7 @@ Defined in: [shortcuts/registry.ts:44](https://github.com/aiao-io/rxdb/blob/b523
 
 The key combo text, such as `Mod+K`.
 
-***
+---
 
 ### handler \{#handler\}
 
@@ -42,15 +42,15 @@ Executed on a match.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | [`KeyEventLike`](KeyEventLike.md) |
+| Parameter | Type                              |
+| --------- | --------------------------------- |
+| `event`   | [`KeyEventLike`](KeyEventLike.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### id \{#id\}
 
@@ -62,7 +62,7 @@ Defined in: [shortcuts/registry.ts:42](https://github.com/aiao-io/rxdb/blob/b523
 
 The unique identifier, used for enabling / disabling and listing in the UI.
 
-***
+---
 
 ### label? \{#label\}
 
@@ -74,7 +74,7 @@ Defined in: [shortcuts/registry.ts:48](https://github.com/aiao-io/rxdb/blob/b523
 
 The literal description, used when there is no `labelKey`.
 
-***
+---
 
 ### labelKey? \{#labelkey\}
 
@@ -86,7 +86,7 @@ Defined in: [shortcuts/registry.ts:46](https://github.com/aiao-io/rxdb/blob/b523
 
 The translation key of the description.
 
-***
+---
 
 ### when? \{#when\}
 

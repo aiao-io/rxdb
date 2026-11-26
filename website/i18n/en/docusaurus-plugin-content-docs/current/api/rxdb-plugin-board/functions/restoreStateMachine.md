@@ -9,6 +9,7 @@ Defined in: [packages/rxdb-plugin-board/src/restore-machine.ts:66](https://githu
 Pure function state machine: `(snapshot, input) → new snapshot`.
 
 State transitions (the "switch uses full page reload" table in the US-537 tech notes):
+
 - Startup selection: with no active position record, choose create new, load demo data or restore; only create new and load connect;
   after a failed / cancelled restore, return here or to the original board (decided by the host based on whether an active position exists).
 - Selecting archive: the file selection itself does not write to the database; restoring over an existing database confirms first, and cancel does not start a restore.
@@ -21,10 +22,10 @@ State transitions (the "switch uses full page reload" table in the US-537 tech n
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                  |
+| ---------- | ----------------------------------------------------- |
 | `snapshot` | [`RestoreSnapshot`](../interfaces/RestoreSnapshot.md) |
-| `input` | [`RestoreInput`](../type-aliases/RestoreInput.md) |
+| `input`    | [`RestoreInput`](../type-aliases/RestoreInput.md)     |
 
 ## Returns
 

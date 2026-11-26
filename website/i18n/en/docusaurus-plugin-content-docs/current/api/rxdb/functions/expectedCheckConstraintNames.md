@@ -10,8 +10,8 @@ All CHECK constraint names deterministically generated from the metadata.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                  |
+| ---------- | ----------------------------------------------------- |
 | `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) |
 
 ## Returns

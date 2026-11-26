@@ -10,9 +10,9 @@ Returns the default value for the specified input control type.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `type` | `string` | The input control type (a return value of getInputType) |
+| Parameter | Type     | Description                                             |
+| --------- | -------- | ------------------------------------------------------- |
+| `type`    | `string` | The input control type (a return value of getInputType) |
 
 ## Returns
 

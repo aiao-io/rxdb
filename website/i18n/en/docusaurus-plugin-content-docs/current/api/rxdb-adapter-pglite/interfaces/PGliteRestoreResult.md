@@ -24,7 +24,7 @@ Total number of bytes of file data.
 
 [`RxDBRestoreResult`](../../rxdb/interfaces/RxDBRestoreResult.md).[`bytes`](../../rxdb/interfaces/RxDBRestoreResult.md#bytes)
 
-***
+---
 
 ### database? \{#database\}
 
@@ -36,7 +36,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/backup/restore-pglite-database.ts:
 
 The database restored to a memory target, to be claimed via [PGliteClientOptions.restoredDatabase](PGliteClientOptions.md#restoreddatabase); for IndexedDB targets the data is already in storage and this is empty.
 
-***
+---
 
 ### entries \{#entries\}
 
@@ -52,7 +52,7 @@ Number of entries (files + directories).
 
 [`RxDBRestoreResult`](../../rxdb/interfaces/RxDBRestoreResult.md).[`entries`](../../rxdb/interfaces/RxDBRestoreResult.md#entries)
 
-***
+---
 
 ### manifest \{#manifest\}
 
@@ -66,7 +66,7 @@ Defined in: packages/rxdb/dist/backup/backup.interface.d.ts:113
 
 [`RxDBRestoreResult`](../../rxdb/interfaces/RxDBRestoreResult.md).[`manifest`](../../rxdb/interfaces/RxDBRestoreResult.md#manifest)
 
-***
+---
 
 ### scope \{#scope\}
 
@@ -80,7 +80,7 @@ Defined in: packages/rxdb/dist/backup/backup.interface.d.ts:114
 
 [`RxDBRestoreResult`](../../rxdb/interfaces/RxDBRestoreResult.md).[`scope`](../../rxdb/interfaces/RxDBRestoreResult.md#scope)
 
-***
+---
 
 ### sha256 \{#sha256\}
 

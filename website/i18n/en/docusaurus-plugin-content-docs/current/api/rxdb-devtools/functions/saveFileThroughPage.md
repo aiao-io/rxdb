@@ -10,10 +10,10 @@ Saves a file through the page's own download path.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `file` | `File` | The file to save. |
-| `name` | `string` | The suggested file name. |
+| Parameter | Type     | Description              |
+| --------- | -------- | ------------------------ |
+| `file`    | `File`   | The file to save.        |
+| `name`    | `string` | The suggested file name. |
 
 ## Returns
 

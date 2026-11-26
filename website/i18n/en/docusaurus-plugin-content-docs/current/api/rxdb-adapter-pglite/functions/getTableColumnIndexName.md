@@ -10,9 +10,9 @@ Gets the table column index name
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `metadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) |
+| Parameter  | Type                                                                                                                                                              |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `metadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md)                                                                                                     |
 | `property` | \| [`EntityPropertyMetadata`](../../rxdb/type-aliases/EntityPropertyMetadata.md) \| [`EntityRelationMetadata`](../../rxdb/type-aliases/EntityRelationMetadata.md) |
 
 ## Returns

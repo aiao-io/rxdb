@@ -12,14 +12,14 @@ Vue query builder binding, deeply syncing field metadata.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
+| Type Parameter                          | Default type                        |
+| --------------------------------------- | ----------------------------------- |
 | <a id="type-parameter-__typet"></a> `T` | `Record`&lt;`string`, `unknown`&gt; |
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                                         |
+| ---------- | -------------------------------------------------------------------------------------------- |
 | `options?` | [`QueryBuilderControllerOptions`](../interfaces/QueryBuilderControllerOptions.md)&lt;`T`&gt; |
 
 ## Returns

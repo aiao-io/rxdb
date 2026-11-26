@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/operator-selector/opera
 
 Field metadata (takes precedence over fieldType when deriving operators).
 
-***
+---
 
 ### fieldType? \{#fieldtype\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/operator-selector/opera
 
 Field type (operators are derived from the type when no metadata is given), defaults to `'string'`.
 
-***
+---
 
 ### onOperatorChange? \{#onoperatorchange\}
 
@@ -42,15 +42,15 @@ Selection callback.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `operator` | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### selectedOperator? \{#selectedoperator\}
 

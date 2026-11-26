@@ -12,8 +12,8 @@ Passing both or neither is rejected outright: picking one to use would be hiding
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                      |
+| --------- | ------------------------------------------------------------------------- |
 | `options` | [`MiniProgramHostSelection`](../type-aliases/MiniProgramHostSelection.md) |
 
 ## Returns

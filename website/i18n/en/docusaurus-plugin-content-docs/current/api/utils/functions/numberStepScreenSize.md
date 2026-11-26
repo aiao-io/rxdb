@@ -1,11 +1,7 @@
 # numberStepScreenSize()
 
 ```ts
-function numberStepScreenSize(
-   value, 
-   step?, 
-   devicePixelRatio?
-): number;
+function numberStepScreenSize(value, step?, devicePixelRatio?): number;
 ```
 
 Defined in: [packages/utils/src/number/numberStepScreenSize.ts:16](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/utils/src/number/numberStepScreenSize.ts#L16)
@@ -15,11 +11,11 @@ Mainly for size calculations on screens with different DPI, keeping an appropria
 
 ## Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `value` | `number` | `undefined` | The original value |
-| `step?` | `number` | `80` | Step interval; defaults to 80 |
-| `devicePixelRatio?` | `number` | `1` | Device pixel ratio; defaults to 1, used for adjusting on high-DPI screens |
+| Parameter           | Type     | Default value | Description                                                               |
+| ------------------- | -------- | ------------- | ------------------------------------------------------------------------- |
+| `value`             | `number` | `undefined`   | The original value                                                        |
+| `step?`             | `number` | `80`          | Step interval; defaults to 80                                             |
+| `devicePixelRatio?` | `number` | `1`           | Device pixel ratio; defaults to 1, used for adjusting on high-DPI screens |
 
 ## Returns
 

@@ -10,10 +10,10 @@ Generates the sequence of SQL statements to execute when switching branches, ret
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `adapter` | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md) |
-| `branchId` | `string` |
+| Parameter  | Type                                                           |
+| ---------- | -------------------------------------------------------------- |
+| `adapter`  | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md) |
+| `branchId` | `string`                                                       |
 
 ## Returns
 

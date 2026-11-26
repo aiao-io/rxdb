@@ -30,7 +30,7 @@ auto-generates a UUID and pins it as part of the singleton lifecycle. If a manua
 with another tab's, the "own-message filtering" in pull/push breaks, causing this tab to mistake the changes
 it just pushed for someone else's and pull them back.
 
-***
+---
 
 ### userId? \{#userid\}
 

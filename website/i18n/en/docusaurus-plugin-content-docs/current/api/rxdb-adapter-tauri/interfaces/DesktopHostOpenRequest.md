@@ -22,7 +22,7 @@ Same meaning as the wasm client's option of the same name. Batching happens on t
 than the renderer side: the merge occurs before events cross processes, saving exactly the messages
 that would otherwise be moved across IPC one by one.
 
-***
+---
 
 ### kind \{#kind\}
 
@@ -32,7 +32,7 @@ readonly kind: "open";
 
 Defined in: packages/rxdb-adapter-sqlite-core/dist/desktop/desktop-host-protocol.d.ts:104
 
-***
+---
 
 ### storage \{#storage\}
 

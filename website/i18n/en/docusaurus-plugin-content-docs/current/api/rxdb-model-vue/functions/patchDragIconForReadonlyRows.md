@@ -14,9 +14,9 @@ TODO(vtable-upstream): track the VTable upstream API; remove this hack once a pe
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `table` | `ListTableAll` | The target table instance |
+| Parameter | Type           | Description               |
+| --------- | -------------- | ------------------------- |
+| `table`   | `ListTableAll` | The target table instance |
 
 ## Returns
 

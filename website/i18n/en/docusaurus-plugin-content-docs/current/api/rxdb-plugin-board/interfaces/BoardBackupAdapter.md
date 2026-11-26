@@ -18,15 +18,15 @@ Generates a complete archive into `sink`; returns only after the archive is full
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `sink` | `WritableStream`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt; |
+| Parameter | Type                                                          |
+| --------- | ------------------------------------------------------------- |
+| `sink`    | `WritableStream`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt; |
 
 #### Returns
 
 `Promise`&lt;`unknown`&gt;
 
-***
+---
 
 ### cleanupIncompleteRestore() \{#cleanupincompleterestore\}
 
@@ -42,7 +42,7 @@ Cleans up an unfinished restore; `true` when residue was actually cleaned.
 
 `Promise`&lt;`boolean`&gt;
 
-***
+---
 
 ### dropStorage() \{#dropstorage\}
 
@@ -58,7 +58,7 @@ Deletes this database's persistent storage (when not connected).
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### restore() \{#restore\}
 
@@ -72,9 +72,9 @@ Restores into an unconnected empty target (must be before `rxdb.connect()`).
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `source` | `ReadableStream`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt; |
+| Parameter | Type                                                          |
+| --------- | ------------------------------------------------------------- |
+| `source`  | `ReadableStream`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt; |
 
 #### Returns
 

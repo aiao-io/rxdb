@@ -14,7 +14,7 @@ readonly kind: "task";
 
 Defined in: [packages/rxdb-plugin-board/src/delete-service.ts:27](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board/src/delete-service.ts#L27)
 
-***
+---
 
 ### taskId \{#taskid\}
 
@@ -24,7 +24,7 @@ readonly taskId: `${string}-${string}-${string}-${string}-${string}`;
 
 Defined in: [packages/rxdb-plugin-board/src/delete-service.ts:28](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board/src/delete-service.ts#L28)
 
-***
+---
 
 ### taskLabelIds \{#tasklabelids\}
 
@@ -34,7 +34,7 @@ readonly taskLabelIds: readonly `${string}-${string}-${string}-${string}-${strin
 
 Defined in: [packages/rxdb-plugin-board/src/delete-service.ts:31](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board/src/delete-service.ts#L31)
 
-***
+---
 
 ### taskTitle \{#tasktitle\}
 

@@ -22,16 +22,16 @@ Parses the already-JSON-decoded response body. Throwing = this `fetchMetadata` f
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `body` | `unknown` |
-| `ctx` | [`FetchMetadataContext`](FetchMetadataContext.md) |
+| Parameter | Type                                              |
+| --------- | ------------------------------------------------- |
+| `body`    | `unknown`                                         |
+| `ctx`     | [`FetchMetadataContext`](FetchMetadataContext.md) |
 
 #### Returns
 
 [`FetchMetadataResult`](../type-aliases/FetchMetadataResult.md)
 
-***
+---
 
 ### request() \{#request\}
 
@@ -45,9 +45,9 @@ Produces the request description for this page. Pure function; no network.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `ctx` | [`FetchMetadataContext`](FetchMetadataContext.md) |
+| Parameter | Type                                              |
+| --------- | ------------------------------------------------- |
+| `ctx`     | [`FetchMetadataContext`](FetchMetadataContext.md) |
 
 #### Returns
 

@@ -16,7 +16,7 @@ Defined in: packages/rxdb-plugin-search/dist/types.d.ts:60
 
 The collection table name
 
-***
+---
 
 ### entity \{#entity\}
 
@@ -28,7 +28,7 @@ Defined in: packages/rxdb-plugin-search/dist/types.d.ts:58
 
 The name of the entity the hit record belongs to (e.g. `Article`, `Comment`)
 
-***
+---
 
 ### id \{#id\}
 
@@ -40,7 +40,7 @@ Defined in: packages/rxdb-plugin-search/dist/types.d.ts:62
 
 The record primary key (stringified)
 
-***
+---
 
 ### matchedField \{#matchedfield\}
 
@@ -52,7 +52,7 @@ Defined in: packages/rxdb-plugin-search/dist/types.d.ts:66
 
 The name of the matched field
 
-***
+---
 
 ### rank \{#rank\}
 
@@ -64,7 +64,7 @@ Defined in: packages/rxdb-plugin-search/dist/types.d.ts:64
 
 BM25 rank, smaller is more relevant
 
-***
+---
 
 ### snippet \{#snippet\}
 

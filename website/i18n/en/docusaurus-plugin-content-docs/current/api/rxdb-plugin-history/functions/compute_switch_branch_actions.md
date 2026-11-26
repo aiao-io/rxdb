@@ -1,11 +1,7 @@
 # compute_switch_branch_actions()
 
 ```ts
-function compute_switch_branch_actions(
-   readers, 
-   branchId, 
-   fromBranchId?
-): Promise<SwitchVersionActions<EntityType>>;
+function compute_switch_branch_actions(readers, branchId, fromBranchId?): Promise<SwitchVersionActions<EntityType>>;
 ```
 
 Defined in: [packages/rxdb-plugin-history/src/switch-branch-actions.ts:63](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-history/src/switch-branch-actions.ts#L63)
@@ -17,11 +13,11 @@ the body of switch\_branch\_actions.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `readers` | [`SwitchBranchActionReaders`](../interfaces/SwitchBranchActionReaders.md) | See [SwitchBranchActionReaders](../interfaces/SwitchBranchActionReaders.md) |
-| `branchId` | `string` | The id of the branch to switch to |
-| `fromBranchId?` | `string` | The start branch; without it, the one active on the main checkout |
+| Parameter       | Type                                                                      | Description                                                                 |
+| --------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `readers`       | [`SwitchBranchActionReaders`](../interfaces/SwitchBranchActionReaders.md) | See [SwitchBranchActionReaders](../interfaces/SwitchBranchActionReaders.md) |
+| `branchId`      | `string`                                                                  | The id of the branch to switch to                                           |
+| `fromBranchId?` | `string`                                                                  | The start branch; without it, the one active on the main checkout           |
 
 ## Returns
 

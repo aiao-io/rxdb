@@ -1,5 +1,5 @@
 ---
-sidebar_label: "QueryCacheLocalReader⟨T⟩"
+sidebar_label: 'QueryCacheLocalReader⟨T⟩'
 ---
 
 # QueryCacheLocalReader`<T>`
@@ -21,8 +21,8 @@ hardest class of failure to diagnose.
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                    | Description          |
+| --------------------------------- | -------------------- |
 | <a id="type-parameter-t"></a> `T` | Entity instance type |
 
 ## Methods
@@ -39,10 +39,10 @@ Reads local rows by query conditions.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | \{ `where`: [`RuleGroup`](../type-aliases/RuleGroup.md)&lt;`T`&gt;; \} | Only `where`; `limit` / `offset` / `orderBy` are handled by the upper-layer facade |
-| `options.where` | [`RuleGroup`](../type-aliases/RuleGroup.md)&lt;`T`&gt; | - |
+| Parameter       | Type                                                                   | Description                                                                        |
+| --------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `options`       | \{ `where`: [`RuleGroup`](../type-aliases/RuleGroup.md)&lt;`T`&gt;; \} | Only `where`; `limit` / `offset` / `orderBy` are handled by the upper-layer facade |
+| `options.where` | [`RuleGroup`](../type-aliases/RuleGroup.md)&lt;`T`&gt;                 | -                                                                                  |
 
 #### Returns
 

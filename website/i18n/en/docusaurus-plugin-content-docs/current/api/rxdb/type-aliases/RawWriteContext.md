@@ -1,14 +1,14 @@
 # RawWriteContext
 
 ```ts
-type RawWriteContext = 
+type RawWriteContext =
   | {
-  capabilityEnabled: false;
-}
+      capabilityEnabled: false;
+    }
   | {
-  capabilityEnabled: true;
-  gate: RawWriteGate;
-};
+      capabilityEnabled: true;
+      gate: RawWriteGate;
+    };
 ```
 
 Defined in: [packages/rxdb/src/capture/raw-write-gate.ts:45](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/capture/raw-write-gate.ts#L45)
@@ -33,7 +33,7 @@ readonly capabilityEnabled: false;
 
 This database does not have the commit capability enabled; raw writes are allowed unconditionally
 
-***
+---
 
 ### Type Literal
 

@@ -10,10 +10,10 @@ Horizontal menu of the top navigation: hover a group to expand its children.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `props` | \{ `nodes`: readonly `Node`[]; \} | Menu tree. |
-| `props.nodes` | readonly `Node`[] | - |
+| Parameter     | Type                              | Description |
+| ------------- | --------------------------------- | ----------- |
+| `props`       | \{ `nodes`: readonly `Node`[]; \} | Menu tree.  |
+| `props.nodes` | readonly `Node`[]                 | -           |
 
 ## Returns
 

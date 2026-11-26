@@ -1,5 +1,5 @@
 ---
-sidebar_label: "SqliteRepositoryConstructor⟨T⟩"
+sidebar_label: 'SqliteRepositoryConstructor⟨T⟩'
 ---
 
 # SqliteRepositoryConstructor`<T>`
@@ -14,16 +14,16 @@ Constructor type of the SQLite repository.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`RepositoryBase`](../../rxdb/classes/RepositoryBase.md)&lt;`AnyEntityType`&gt; |
+| Type Parameter                                                                                                              |
+| --------------------------------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`RepositoryBase`](../../rxdb/classes/RepositoryBase.md)&lt;`AnyEntityType`&gt; |
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `adapter` | [`RxDBAdapterSqliteBase`](../interfaces/RxDBAdapterSqliteBase.md) |
-| `EntityType` | [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Parameter    | Type                                                              |
+| ------------ | ----------------------------------------------------------------- |
+| `adapter`    | [`RxDBAdapterSqliteBase`](../interfaces/RxDBAdapterSqliteBase.md) |
+| `EntityType` | [`EntityType`](../../rxdb/type-aliases/EntityType.md)             |
 
 ## Returns
 

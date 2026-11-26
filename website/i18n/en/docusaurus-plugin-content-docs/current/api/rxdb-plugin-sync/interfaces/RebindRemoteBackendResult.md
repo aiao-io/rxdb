@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-sync/src/remote-backend.ts:53](https://github.
 
 The remote identity rebound to
 
-***
+---
 
 ### previousBackendIds \{#previousbackendids\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-sync/src/remote-backend.ts:55](https://github.
 
 The replaced old identities (de-duplicated); records that were originally unbound are not counted
 
-***
+---
 
 ### rebound \{#rebound\}
 

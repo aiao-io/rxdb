@@ -106,29 +106,29 @@ export function App() {
 }
 ```
 
-| Member | Type                     | Description                                        |
-| ------ | ------------------------ | -------------------------------------------------- |
-| `view` | `EditorView \| null`     | The underlying CodeMirror instance; `null` when unmounted or unloaded |
-| `host` | `HTMLDivElement \| null` | The host `div` element; `null` when unmounted or unloaded |
-| `focus` | `() => void`            | Focuses the editor content area                    |
-| `blur` | `() => void`            | Blurs the editor content area                      |
+| Member  | Type                     | Description                                                           |
+| ------- | ------------------------ | --------------------------------------------------------------------- |
+| `view`  | `EditorView \| null`     | The underlying CodeMirror instance; `null` when unmounted or unloaded |
+| `host`  | `HTMLDivElement \| null` | The host `div` element; `null` when unmounted or unloaded             |
+| `focus` | `() => void`             | Focuses the editor content area                                       |
+| `blur`  | `() => void`             | Blurs the editor content area                                         |
 
 ## Interfaces
 
-| Interface | Description |
-| ------ | ------ |
-| [CodeEditorHandle](interfaces/CodeEditorHandle.md) | CodeEditor imperative handle. |
-| [CodeEditorProps](interfaces/CodeEditorProps.md) | Props of `CodeEditor`. Unlisted props pass through to the host `div` (`className` / `style` / `data-*` / DOM events, etc.), except `children` / `dangerouslySetInnerHTML` / `onChange`. |
+| Interface                                          | Description                                                                                                                                                                             |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [CodeEditorHandle](interfaces/CodeEditorHandle.md) | CodeEditor imperative handle.                                                                                                                                                           |
+| [CodeEditorProps](interfaces/CodeEditorProps.md)   | Props of `CodeEditor`. Unlisted props pass through to the host `div` (`className` / `style` / `data-*` / DOM events, etc.), except `children` / `dangerouslySetInnerHTML` / `onChange`. |
 
 ## Type Aliases
 
-| Type Alias | Description |
-| ------ | ------ |
-| [CodeEditorSetup](type-aliases/CodeEditorSetup.md) | - |
+| Type Alias                                         | Description           |
+| -------------------------------------------------- | --------------------- |
+| [CodeEditorSetup](type-aliases/CodeEditorSetup.md) | -                     |
 | [CodeEditorTheme](type-aliases/CodeEditorTheme.md) | CodeEditor theme type |
 
 ## Functions
 
-| Function | Description |
-| ------ | ------ |
+| Function                              | Description             |
+| ------------------------------------- | ----------------------- |
 | [CodeEditor](functions/CodeEditor.md) | @aiao/code-editor-react |

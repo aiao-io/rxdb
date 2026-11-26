@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model/src/entity-table/interfaces.ts:25](https://gith
 
 Column index of the change
 
-***
+---
 
 ### field \{#field\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-model/src/entity-table/interfaces.ts:29](https://gith
 
 Field name of the change
 
-***
+---
 
 ### record \{#record\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-model/src/entity-table/interfaces.ts:33](https://gith
 
 Row record of the change
 
-***
+---
 
 ### row \{#row\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb-model/src/entity-table/interfaces.ts:27](https://gith
 
 Row index of the change
 
-***
+---
 
 ### value \{#value\}
 

@@ -13,16 +13,16 @@ Adapters can use `normalizeField` to restore SQL aliases back to logical propert
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `args` | \{ `entity`: [`EncryptedAwareEntity`](../interfaces/EncryptedAwareEntity.md); `group?`: readonly `string`[]; `normalizeField?`: `EncryptedFieldPathNormalizer`; `order?`: readonly `object`[]; `projection?`: readonly `string`[]; `resolveEntity?`: [`EncryptedEntityResolver`](../type-aliases/EncryptedEntityResolver.md); `where?`: `ParsedWhere`; \} |
-| `args.entity` | [`EncryptedAwareEntity`](../interfaces/EncryptedAwareEntity.md) |
-| `args.group?` | readonly `string`[] |
-| `args.normalizeField?` | `EncryptedFieldPathNormalizer` |
-| `args.order?` | readonly `object`[] |
-| `args.projection?` | readonly `string`[] |
-| `args.resolveEntity?` | [`EncryptedEntityResolver`](../type-aliases/EncryptedEntityResolver.md) |
-| `args.where?` | `ParsedWhere` |
+| Parameter              | Type                                                                                                                                                                                                                                                                                                                                                      |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `args`                 | \{ `entity`: [`EncryptedAwareEntity`](../interfaces/EncryptedAwareEntity.md); `group?`: readonly `string`[]; `normalizeField?`: `EncryptedFieldPathNormalizer`; `order?`: readonly `object`[]; `projection?`: readonly `string`[]; `resolveEntity?`: [`EncryptedEntityResolver`](../type-aliases/EncryptedEntityResolver.md); `where?`: `ParsedWhere`; \} |
+| `args.entity`          | [`EncryptedAwareEntity`](../interfaces/EncryptedAwareEntity.md)                                                                                                                                                                                                                                                                                           |
+| `args.group?`          | readonly `string`[]                                                                                                                                                                                                                                                                                                                                       |
+| `args.normalizeField?` | `EncryptedFieldPathNormalizer`                                                                                                                                                                                                                                                                                                                            |
+| `args.order?`          | readonly `object`[]                                                                                                                                                                                                                                                                                                                                       |
+| `args.projection?`     | readonly `string`[]                                                                                                                                                                                                                                                                                                                                       |
+| `args.resolveEntity?`  | [`EncryptedEntityResolver`](../type-aliases/EncryptedEntityResolver.md)                                                                                                                                                                                                                                                                                   |
+| `args.where?`          | `ParsedWhere`                                                                                                                                                                                                                                                                                                                                             |
 
 ## Returns
 

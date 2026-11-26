@@ -1,7 +1,12 @@
 # ALIPAY_UNDOCUMENTED_CAPABILITIES
 
 ```ts
-const ALIPAY_UNDOCUMENTED_CAPABILITIES: readonly ["logic-layer-webassembly", "logic-layer-bigint", "worker-crypto-random", "object-prototype-global"];
+const ALIPAY_UNDOCUMENTED_CAPABILITIES: readonly [
+  'logic-layer-webassembly',
+  'logic-layer-bigint',
+  'worker-crypto-random',
+  'object-prototype-global'
+];
 ```
 
 Defined in: [packages/rxdb-adapter-miniprogram/src/hosts/alipay-capability.ts:17](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-miniprogram/src/hosts/alipay-capability.ts#L17)

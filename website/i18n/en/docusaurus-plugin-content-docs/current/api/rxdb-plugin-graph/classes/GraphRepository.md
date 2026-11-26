@@ -1,5 +1,5 @@
 ---
-sidebar_label: "GraphRepository⟨T, U, V, RepositoryType⟩"
+sidebar_label: 'GraphRepository⟨T, U, V, RepositoryType⟩'
 ---
 
 # GraphRepository`<T, U, V, RepositoryType>`
@@ -15,12 +15,12 @@ Provides graph query capabilities: neighbor node queries, path queries, etc.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) & (new (...`args`) => [`IGraphEntity`](../type-aliases/IGraphEntity.md)) | - |
-| <a id="type-parameter-u"></a> `U` *extends* [`EdgeFilterOptions`](../type-aliases/EdgeFilterOptions.md) | [`EdgeFilterOptionsFull`](../interfaces/EdgeFilterOptionsFull.md) |
-| <a id="type-parameter-v"></a> `V` | [`GraphEdgeInfoType`](../type-aliases/GraphEdgeInfoType.md)&lt;`U`&gt; |
-| <a id="type-parameter-repositorytype"></a> `RepositoryType` *extends* [`IGraphRepository`](../interfaces/IGraphRepository.md)&lt;`T`, `U`, `V`&gt; | [`IGraphRepository`](../interfaces/IGraphRepository.md)&lt;`T`, `U`, `V`&gt; |
+| Type Parameter                                                                                                                                                             | Default type                                                                 |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) & (new (...`args`) => [`IGraphEntity`](../type-aliases/IGraphEntity.md)) | -                                                                            |
+| <a id="type-parameter-u"></a> `U` _extends_ [`EdgeFilterOptions`](../type-aliases/EdgeFilterOptions.md)                                                                    | [`EdgeFilterOptionsFull`](../interfaces/EdgeFilterOptionsFull.md)            |
+| <a id="type-parameter-v"></a> `V`                                                                                                                                          | [`GraphEdgeInfoType`](../type-aliases/GraphEdgeInfoType.md)&lt;`U`&gt;       |
+| <a id="type-parameter-repositorytype"></a> `RepositoryType` _extends_ [`IGraphRepository`](../interfaces/IGraphRepository.md)&lt;`T`, `U`, `V`&gt;                         | [`IGraphRepository`](../interfaces/IGraphRepository.md)&lt;`T`, `U`, `V`&gt; |
 
 ## Constructors
 
@@ -34,10 +34,10 @@ Defined in: [rxdb-plugin-graph/src/GraphRepository.ts:51](https://github.com/aia
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rxdb` | [`RxDB`](../../rxdb/classes/RxDB.md) |
-| `EntityType` | `T` |
+| Parameter    | Type                                 |
+| ------------ | ------------------------------------ |
+| `rxdb`       | [`RxDB`](../../rxdb/classes/RxDB.md) |
+| `EntityType` | `T`                                  |
 
 #### Returns
 
@@ -61,9 +61,9 @@ Sets the state to local
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; |
+| Parameter | Type                      |
+| --------- | ------------------------- |
+| `entity`  | `InstanceType`&lt;`T`&gt; |
 
 #### Returns
 
@@ -73,7 +73,7 @@ Sets the state to local
 
 [`Repository`](../../rxdb/classes/Repository.md).[`_setLocal`](../../rxdb/classes/Repository.md#_setlocal)
 
-***
+---
 
 ### \_setLocals \{#_setlocals\}
 
@@ -85,8 +85,8 @@ Defined in: rxdb/dist/repository/Repository.d.ts:175
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                        |
+| ---------- | --------------------------- |
 | `entities` | `InstanceType`&lt;`T`&gt;[] |
 
 #### Returns
@@ -97,7 +97,7 @@ Defined in: rxdb/dist/repository/Repository.d.ts:175
 
 [`Repository`](../../rxdb/classes/Repository.md).[`_setLocals`](../../rxdb/classes/Repository.md#_setlocals)
 
-***
+---
 
 ### EntityType \{#entitytype\}
 
@@ -111,7 +111,7 @@ Defined in: rxdb/dist/repository/RepositoryBase.d.ts:20
 
 [`Repository`](../../rxdb/classes/Repository.md).[`EntityType`](../../rxdb/classes/Repository.md#entitytype)
 
-***
+---
 
 ### local$ \{#local\}
 
@@ -127,7 +127,7 @@ Local repository
 
 [`Repository`](../../rxdb/classes/Repository.md).[`local$`](../../rxdb/classes/Repository.md#local)
 
-***
+---
 
 ### primary$ \{#primary\}
 
@@ -138,6 +138,7 @@ protected readonly primary$: Observable<RepositoryType>;
 Defined in: rxdb/dist/repository/Repository.d.ts:31
 
 Primary repository (chooses local or remote based on SyncOptions)
+
 - SyncType.None + remote only: uses remote$
 - Otherwise: uses local$
 
@@ -145,7 +146,7 @@ Primary repository (chooses local or remote based on SyncOptions)
 
 [`Repository`](../../rxdb/classes/Repository.md).[`primary$`](../../rxdb/classes/Repository.md#primary)
 
-***
+---
 
 ### queryManager \{#querymanager\}
 
@@ -161,7 +162,7 @@ Query cache manager
 
 [`Repository`](../../rxdb/classes/Repository.md).[`queryManager`](../../rxdb/classes/Repository.md#querymanager)
 
-***
+---
 
 ### remote$ \{#remote\}
 
@@ -177,7 +178,7 @@ Remote repository
 
 [`Repository`](../../rxdb/classes/Repository.md).[`remote$`](../../rxdb/classes/Repository.md#remote)
 
-***
+---
 
 ### rxdb \{#rxdb\}
 
@@ -191,7 +192,7 @@ Defined in: rxdb/dist/repository/RepositoryBase.d.ts:19
 
 [`Repository`](../../rxdb/classes/Repository.md).[`rxdb`](../../rxdb/classes/Repository.md#rxdb)
 
-***
+---
 
 ### sync \{#sync\}
 
@@ -211,7 +212,7 @@ Read-only: entities overridden by `syncOverrides` receive a frozen snapshot of t
 
 [`Repository`](../../rxdb/classes/Repository.md).[`sync`](../../rxdb/classes/Repository.md#sync)
 
-***
+---
 
 ### \_STATIC\_METHODS \{#_static_methods\}
 
@@ -263,9 +264,9 @@ Does **not** accumulate along the prototype chain: each subclass writes its own 
 
 ```ts
 addEdge(
-   from, 
-   to, 
-   weight?, 
+   from,
+   to,
+   weight?,
    properties?
 ): Promise<void>;
 ```
@@ -276,18 +277,18 @@ Adds an edge
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `from` | `InstanceType`&lt;`T`&gt; |
-| `to` | `InstanceType`&lt;`T`&gt; |
-| `weight?` | `number` \| `null` |
+| Parameter     | Type                                                                                    |
+| ------------- | --------------------------------------------------------------------------------------- |
+| `from`        | `InstanceType`&lt;`T`&gt;                                                               |
+| `to`          | `InstanceType`&lt;`T`&gt;                                                               |
+| `weight?`     | `number` \| `null`                                                                      |
 | `properties?` | \| [`GraphEdgeProperties`](../type-aliases/GraphEdgeProperties.md)&lt;`U`&gt; \| `null` |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### count() \{#count\}
 
@@ -301,8 +302,8 @@ Counts entities
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                               | Description                                  |
+| --------- | ------------------------------------------------------------------ | -------------------------------------------- |
 | `options` | [`CountOptions`](../../rxdb/interfaces/CountOptions.md)&lt;`T`&gt; | Query options, including the where condition |
 
 #### Returns
@@ -313,7 +314,7 @@ Counts entities
 
 [`Repository`](../../rxdb/classes/Repository.md).[`count`](../../rxdb/classes/Repository.md#count)
 
-***
+---
 
 ### countNeighbors() \{#countneighbors\}
 
@@ -325,15 +326,15 @@ Defined in: [rxdb-plugin-graph/src/GraphRepository.ts:119](https://github.com/ai
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                                                                                      |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `options` | [`FindNeighborsOptions`](../interfaces/FindNeighborsOptions.md)&lt;`T`, [`GraphWhere`](../type-aliases/GraphWhere.md)&lt;`T`&gt;, `U`&gt; |
 
 #### Returns
 
 `Promise`&lt;`number`&gt;
 
-***
+---
 
 ### countNeighbors$() \{#countneighbors-1\}
 
@@ -347,8 +348,8 @@ Counts neighbor nodes
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                                                                                      |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `options` | [`FindNeighborsOptions`](../interfaces/FindNeighborsOptions.md)&lt;`T`, [`GraphWhere`](../type-aliases/GraphWhere.md)&lt;`T`&gt;, `U`&gt; |
 
 #### Returns
@@ -367,7 +368,7 @@ Counts neighbor nodes
 const friendCount = await repo.countNeighbors({ entityId: 'alice-id', level: 1 });
 ```
 
-***
+---
 
 ### create() \{#create\}
 
@@ -381,9 +382,9 @@ Creates an entity
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The entity instance to create |
+| Parameter | Type                      | Description                   |
+| --------- | ------------------------- | ----------------------------- |
+| `entity`  | `InstanceType`&lt;`T`&gt; | The entity instance to create |
 
 #### Returns
 
@@ -405,7 +406,7 @@ Creates an entity
 
 [`Repository`](../../rxdb/classes/Repository.md).[`create`](../../rxdb/classes/Repository.md#create)
 
-***
+---
 
 ### createEntityRef() \{#createentityref\}
 
@@ -419,9 +420,9 @@ Creates (or reuses) an entity reference
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `data` | [`EntityUpdateData`](../../rxdb/type-aliases/EntityUpdateData.md)&lt;`T`&gt; | Initial field values; `id` is generated automatically when omitted |
+| Parameter | Type                                                                         | Description                                                        |
+| --------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `data`    | [`EntityUpdateData`](../../rxdb/type-aliases/EntityUpdateData.md)&lt;`T`&gt; | Initial field values; `id` is generated automatically when omitted |
 
 #### Returns
 
@@ -437,7 +438,7 @@ Whether or not the input `id` already exists in the cache, the cached instance i
 
 [`Repository`](../../rxdb/classes/Repository.md).[`createEntityRef`](../../rxdb/classes/Repository.md#createentityref)
 
-***
+---
 
 ### destroy() \{#destroy\}
 
@@ -455,7 +456,7 @@ Defined in: rxdb/dist/repository/Repository.d.ts:61
 
 [`Repository`](../../rxdb/classes/Repository.md).[`destroy`](../../rxdb/classes/Repository.md#destroy)
 
-***
+---
 
 ### find() \{#find\}
 
@@ -469,8 +470,8 @@ Finds multiple entities
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                             | Description                                                       |
+| --------- | ---------------------------------------------------------------- | ----------------------------------------------------------------- |
 | `options` | [`FindOptions`](../../rxdb/interfaces/FindOptions.md)&lt;`T`&gt; | Query options, including the where condition, limit, offset, etc. |
 
 #### Returns
@@ -481,7 +482,7 @@ Finds multiple entities
 
 [`Repository`](../../rxdb/classes/Repository.md).[`find`](../../rxdb/classes/Repository.md#find)
 
-***
+---
 
 ### findAll() \{#findall\}
 
@@ -495,8 +496,8 @@ Finds all entities
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                   | Description                                                          |
+| --------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------- |
 | `options` | [`FindAllOptions`](../../rxdb/interfaces/FindAllOptions.md)&lt;`T`&gt; | Query options, including the where condition and ordering (no limit) |
 
 #### Returns
@@ -507,7 +508,7 @@ Finds all entities
 
 [`Repository`](../../rxdb/classes/Repository.md).[`findAll`](../../rxdb/classes/Repository.md#findall)
 
-***
+---
 
 ### findByCursor() \{#findbycursor\}
 
@@ -521,8 +522,8 @@ Paginated query via cursor
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                             | Description                                                               |
+| --------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
 | `options` | [`FindByCursorOptions`](../../rxdb/interfaces/FindByCursorOptions.md)&lt;`T`&gt; | Cursor pagination options, including orderBy and the before/after cursors |
 
 #### Returns
@@ -539,7 +540,7 @@ The cursor anchors on the **row** of `after` / `before`, not on its value at cal
 
 [`Repository`](../../rxdb/classes/Repository.md).[`findByCursor`](../../rxdb/classes/Repository.md#findbycursor)
 
-***
+---
 
 ### findNeighbors() \{#findneighbors\}
 
@@ -551,15 +552,15 @@ Defined in: [rxdb-plugin-graph/src/GraphRepository.ts:96](https://github.com/aia
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                                                                                      |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `options` | [`FindNeighborsOptions`](../interfaces/FindNeighborsOptions.md)&lt;`T`, [`GraphWhere`](../type-aliases/GraphWhere.md)&lt;`T`&gt;, `U`&gt; |
 
 #### Returns
 
 `Promise`&lt;[`GraphQueryResult`](../type-aliases/GraphQueryResult.md)&lt;[`NeighborResult`](../interfaces/NeighborResult.md)&lt;`T`, `V`&gt;&gt;&gt;
 
-***
+---
 
 ### findNeighbors$() \{#findneighbors-1\}
 
@@ -573,8 +574,8 @@ Finds neighbor nodes
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                                                                                      |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `options` | [`FindNeighborsOptions`](../interfaces/FindNeighborsOptions.md)&lt;`T`, [`GraphWhere`](../type-aliases/GraphWhere.md)&lt;`T`&gt;, `U`&gt; |
 
 #### Returns
@@ -594,7 +595,7 @@ Finds neighbor nodes
 const friends = await repo.findNeighbors({ entityId: 'alice-id', level: 1 });
 ```
 
-***
+---
 
 ### findOne() \{#findone\}
 
@@ -608,8 +609,8 @@ Finds one entity
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                   | Description                                  |
+| --------- | ---------------------------------------------------------------------- | -------------------------------------------- |
 | `options` | [`FindOneOptions`](../../rxdb/interfaces/FindOneOptions.md)&lt;`T`&gt; | Query options, including the where condition |
 
 #### Returns
@@ -620,7 +621,7 @@ Finds one entity
 
 [`Repository`](../../rxdb/classes/Repository.md).[`findOne`](../../rxdb/classes/Repository.md#findone)
 
-***
+---
 
 ### findOneOrFail() \{#findoneorfail\}
 
@@ -634,8 +635,8 @@ Finds one entity, throws when none is found
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                               | Description                                  |
+| --------- | ---------------------------------------------------------------------------------- | -------------------------------------------- |
 | `options` | [`FindOneOrFailOptions`](../../rxdb/interfaces/FindOneOrFailOptions.md)&lt;`T`&gt; | Query options, including the where condition |
 
 #### Returns
@@ -646,7 +647,7 @@ Finds one entity, throws when none is found
 
 [`Repository`](../../rxdb/classes/Repository.md).[`findOneOrFail`](../../rxdb/classes/Repository.md#findoneorfail)
 
-***
+---
 
 ### findPaths() \{#findpaths\}
 
@@ -658,15 +659,15 @@ Defined in: [rxdb-plugin-graph/src/GraphRepository.ts:155](https://github.com/ai
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                                                                              |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | `options` | [`FindPathsOptions`](../interfaces/FindPathsOptions.md)&lt;`T`, [`GraphWhere`](../type-aliases/GraphWhere.md)&lt;`T`&gt;, `U`&gt; |
 
 #### Returns
 
 `Promise`&lt;[`GraphQueryResult`](../type-aliases/GraphQueryResult.md)&lt;[`GraphPath`](../interfaces/GraphPath.md)&lt;`T`&gt;&gt;&gt;
 
-***
+---
 
 ### findPaths$() \{#findpaths-1\}
 
@@ -680,8 +681,8 @@ Finds all paths between two nodes
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                                                                              |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | `options` | [`FindPathsOptions`](../interfaces/FindPathsOptions.md)&lt;`T`, [`GraphWhere`](../type-aliases/GraphWhere.md)&lt;`T`&gt;, `U`&gt; |
 
 #### Returns
@@ -701,7 +702,7 @@ Finds all paths between two nodes
 const paths = await repo.findPaths({ fromId: 'alice-id', toId: 'bob-id', maxDepth: 5 });
 ```
 
-***
+---
 
 ### get() \{#get\}
 
@@ -715,9 +716,9 @@ Gets an entity by id
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `id` | [`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | The entity's unique identifier |
+| Parameter | Type                                                                                     | Description                    |
+| --------- | ---------------------------------------------------------------------------------------- | ------------------------------ |
+| `id`      | [`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | The entity's unique identifier |
 
 #### Returns
 
@@ -727,12 +728,12 @@ Gets an entity by id
 
 [`Repository`](../../rxdb/classes/Repository.md).[`get`](../../rxdb/classes/Repository.md#get)
 
-***
+---
 
 ### getEntityRef() \{#getentityref\}
 
 ```ts
-getEntityRef(id): 
+getEntityRef(id):
   | EntityInstanceType<T>
   | undefined;
 ```
@@ -743,14 +744,14 @@ Looks up an entity in the current process's entity cache by ID
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `id` | [`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | Entity primary key |
+| Parameter | Type                                                                                     | Description        |
+| --------- | ---------------------------------------------------------------------------------------- | ------------------ |
+| `id`      | [`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | Entity primary key |
 
 #### Returns
 
-  \| [`EntityInstanceType`](../../rxdb/type-aliases/EntityInstanceType.md)&lt;`T`&gt;
-  \| `undefined`
+\| [`EntityInstanceType`](../../rxdb/type-aliases/EntityInstanceType.md)&lt;`T`&gt;
+\| `undefined`
 
 Returns the instance on cache hit, `undefined` on miss (**does not** trigger a database query)
 
@@ -758,7 +759,7 @@ Returns the instance on cache hit, `undefined` on miss (**does not** trigger a d
 
 [`Repository`](../../rxdb/classes/Repository.md).[`getEntityRef`](../../rxdb/classes/Repository.md#getentityref)
 
-***
+---
 
 ### hasEntityRef() \{#hasentityref\}
 
@@ -772,9 +773,9 @@ Determines whether the given ID is present in the current process's entity cache
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `id` | [`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | Entity primary key |
+| Parameter | Type                                                                                     | Description        |
+| --------- | ---------------------------------------------------------------------------------------- | ------------------ |
+| `id`      | [`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | Entity primary key |
 
 #### Returns
 
@@ -790,7 +791,7 @@ Equivalent to `getEntityRef(id) !== undefined`; provided separately so hot paths
 
 [`Repository`](../../rxdb/classes/Repository.md).[`hasEntityRef`](../../rxdb/classes/Repository.md#hasentityref)
 
-***
+---
 
 ### rawQuery() \{#rawquery\}
 
@@ -805,9 +806,9 @@ For scenarios like conditional UPDATE that need to bypass the ORM
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `sql` | `string` | SQL statement |
+| Parameter | Type        | Description     |
+| --------- | ----------- | --------------- |
+| `sql`     | `string`    | SQL statement   |
 | `params?` | `unknown`[] | Bind parameters |
 
 #### Returns
@@ -818,7 +819,7 @@ For scenarios like conditional UPDATE that need to bypass the ORM
 
 [`Repository`](../../rxdb/classes/Repository.md).[`rawQuery`](../../rxdb/classes/Repository.md#rawquery)
 
-***
+---
 
 ### refreshAllQueries() \{#refreshallqueries\}
 
@@ -840,7 +841,7 @@ Re-runs all live queries of this repository (US-314 B1.4): this instance switche
 
 [`Repository`](../../rxdb/classes/Repository.md).[`refreshAllQueries`](../../rxdb/classes/Repository.md#refreshallqueries)
 
-***
+---
 
 ### remove() \{#remove\}
 
@@ -854,9 +855,9 @@ Deletes an entity
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The entity instance to delete |
+| Parameter | Type                      | Description                   |
+| --------- | ------------------------- | ----------------------------- |
+| `entity`  | `InstanceType`&lt;`T`&gt; | The entity instance to delete |
 
 #### Returns
 
@@ -878,7 +879,7 @@ Deletes an entity
 
 [`Repository`](../../rxdb/classes/Repository.md).[`remove`](../../rxdb/classes/Repository.md#remove)
 
-***
+---
 
 ### removeEdge() \{#removeedge\}
 
@@ -892,16 +893,16 @@ Removes an edge
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `from` | `InstanceType`&lt;`T`&gt; |
-| `to` | `InstanceType`&lt;`T`&gt; |
+| Parameter | Type                      |
+| --------- | ------------------------- |
+| `from`    | `InstanceType`&lt;`T`&gt; |
+| `to`      | `InstanceType`&lt;`T`&gt; |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### reorder() \{#reorder\}
 
@@ -915,10 +916,10 @@ Moves a row to a target position (only for entities with `manualOrder` enabled)
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `id` | [`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | Id of the row being moved |
-| `target` | [`ReorderTarget`](../../rxdb/type-aliases/ReorderTarget.md)&lt;[`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt;&gt; | Target position: adjacent neighbors `{ prevId, nextId }`, or append to the end of a group `{ group }` (the key happens to be the grouping field; whole-table ordering is `{}`); neighbor targets may carry `expectedGroup`, which rejects neighbors that changed groups inside the transaction. Fields of the two target kinds must not be mixed (`{ group, expectedGroup }` is rejected as `invalidTarget`) |
+| Parameter | Type                                                                                                                                                        | Description                                                                                                                                                                                                                                                                                                                                                                                                  |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `id`      | [`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt;                                                                    | Id of the row being moved                                                                                                                                                                                                                                                                                                                                                                                    |
+| `target`  | [`ReorderTarget`](../../rxdb/type-aliases/ReorderTarget.md)&lt;[`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt;&gt; | Target position: adjacent neighbors `{ prevId, nextId }`, or append to the end of a group `{ group }` (the key happens to be the grouping field; whole-table ordering is `{}`); neighbor targets may carry `expectedGroup`, which rejects neighbors that changed groups inside the transaction. Fields of the two target kinds must not be mixed (`{ group, expectedGroup }` is rejected as `invalidTarget`) |
 
 #### Returns
 
@@ -937,7 +938,7 @@ The entity after the move; returned unchanged with zero writes when it is alread
 #### Throws
 
 [SortOrderError](../../rxdb/classes/SortOrderError.md) see [SortOrderErrorReason](../../rxdb/type-aliases/SortOrderErrorReason.md) (a neighbor no longer in `expectedGroup` is `'staleTarget'`);
-  thrown before any write is committed
+thrown before any write is committed
 
 #### Remarks
 
@@ -956,7 +957,7 @@ await todos.reorder(todoId, { group: { completed: true } }); // grouped ordering
 
 [`Repository`](../../rxdb/classes/Repository.md).[`reorder`](../../rxdb/classes/Repository.md#reorder)
 
-***
+---
 
 ### update() \{#update\}
 
@@ -970,10 +971,10 @@ Updates an entity
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The entity instance to update |
-| `patch` | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; | Partial update data |
+| Parameter | Type                                       | Description                   |
+| --------- | ------------------------------------------ | ----------------------------- |
+| `entity`  | `InstanceType`&lt;`T`&gt;                  | The entity instance to update |
+| `patch`   | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; | Partial update data           |
 
 #### Returns
 
@@ -1003,7 +1004,7 @@ When a grouped manual-ordering entity changes its grouping field without providi
 
 [`Repository`](../../rxdb/classes/Repository.md).[`update`](../../rxdb/classes/Repository.md#update)
 
-***
+---
 
 ### updateEntity() \{#updateentity\}
 
@@ -1017,10 +1018,10 @@ Overwrites entity fields with `update`
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | Target entity |
-| `update` | `InstanceType`&lt;`T`&gt; | Fields to write; the primary key `id` is also assigned (for hydrate scenarios) |
+| Parameter | Type                      | Description                                                                    |
+| --------- | ------------------------- | ------------------------------------------------------------------------------ |
+| `entity`  | `InstanceType`&lt;`T`&gt; | Target entity                                                                  |
+| `update`  | `InstanceType`&lt;`T`&gt; | Fields to write; the primary key `id` is also assigned (for hydrate scenarios) |
 
 #### Returns
 

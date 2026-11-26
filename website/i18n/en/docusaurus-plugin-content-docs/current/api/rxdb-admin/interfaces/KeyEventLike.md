@@ -20,7 +20,7 @@ Defined in: [shortcuts/combo.ts:17](https://github.com/aiao-io/rxdb/blob/b523204
 
 Whether Alt (Option) is pressed.
 
-***
+---
 
 ### code \{#code\}
 
@@ -32,7 +32,7 @@ Defined in: [shortcuts/combo.ts:11](https://github.com/aiao-io/rxdb/blob/b523204
 
 The physical key position.
 
-***
+---
 
 ### ctrlKey \{#ctrlkey\}
 
@@ -44,7 +44,7 @@ Defined in: [shortcuts/combo.ts:13](https://github.com/aiao-io/rxdb/blob/b523204
 
 Whether Ctrl is pressed.
 
-***
+---
 
 ### key \{#key\}
 
@@ -56,7 +56,7 @@ Defined in: [shortcuts/combo.ts:9](https://github.com/aiao-io/rxdb/blob/b5232040
 
 The produced character value.
 
-***
+---
 
 ### metaKey \{#metakey\}
 
@@ -68,7 +68,7 @@ Defined in: [shortcuts/combo.ts:15](https://github.com/aiao-io/rxdb/blob/b523204
 
 Whether Meta (Command / Windows) is pressed.
 
-***
+---
 
 ### shiftKey \{#shiftkey\}
 

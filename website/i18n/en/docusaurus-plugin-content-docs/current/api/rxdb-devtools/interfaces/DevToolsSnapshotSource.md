@@ -18,9 +18,9 @@ Materializes the metadata and committed logical files inside the storage-global 
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `signal` | `AbortSignal` | The abort signal; once aborted (or after aborting) it should stop waiting as soon as possible and reclaim temporary resources. |
+| Parameter | Type          | Description                                                                                                                    |
+| --------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `signal`  | `AbortSignal` | The abort signal; once aborted (or after aborting) it should stop waiting as soon as possible and reclaim temporary resources. |
 
 #### Returns
 

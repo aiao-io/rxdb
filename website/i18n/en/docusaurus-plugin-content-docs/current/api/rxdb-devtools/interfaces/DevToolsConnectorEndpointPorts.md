@@ -16,7 +16,7 @@ Defined in: [v2/endpoint.ts:97](https://github.com/aiao-io/rxdb/blob/b5232040240
 
 The tier locally configured by the connector owner; the value echoed on the wire does not count.
 
-***
+---
 
 ### clock \{#clock\}
 
@@ -28,7 +28,7 @@ Defined in: [v2/endpoint.ts:95](https://github.com/aiao-io/rxdb/blob/b5232040240
 
 The only injection point for all time limits.
 
-***
+---
 
 ### legacyHandshake \{#legacyhandshake\}
 
@@ -40,7 +40,7 @@ Defined in: [v2/endpoint.ts:103](https://github.com/aiao-io/rxdb/blob/b523204024
 
 The eager v1 handshake constructed by the owner; the endpoint only decides when it goes out.
 
-***
+---
 
 ### mutationPolicy \{#mutationpolicy\}
 
@@ -52,7 +52,7 @@ Defined in: [v2/endpoint.ts:99](https://github.com/aiao-io/rxdb/blob/b5232040240
 
 The write switch locally configured by the connector owner.
 
-***
+---
 
 ### providers \{#providers\}
 
@@ -64,7 +64,7 @@ Defined in: [v2/endpoint.ts:101](https://github.com/aiao-io/rxdb/blob/b523204024
 
 The provider seams.
 
-***
+---
 
 ### send \{#send\}
 
@@ -78,15 +78,15 @@ The outbound callback; both the v1 legacy handshake and v2 frames go through her
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                                            |
+| --------- | ----------------------------------------------------------------------------------------------- |
 | `message` | [`DevToolsConnectorNegotiationMessage`](../type-aliases/DevToolsConnectorNegotiationMessage.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### supportedVersions? \{#supportedversions\}
 

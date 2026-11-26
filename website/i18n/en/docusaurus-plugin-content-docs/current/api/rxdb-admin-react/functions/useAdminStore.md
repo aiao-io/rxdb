@@ -10,15 +10,15 @@ Subscribes to a shell store and returns the current snapshot; re-renders when th
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `store` | [`ReadableStore`](../../rxdb-admin/interfaces/ReadableStore.md)&lt;`T`&gt; | Any readable store exposed by the shell. |
+| Parameter | Type                                                                       | Description                              |
+| --------- | -------------------------------------------------------------------------- | ---------------------------------------- |
+| `store`   | [`ReadableStore`](../../rxdb-admin/interfaces/ReadableStore.md)&lt;`T`&gt; | Any readable store exposed by the shell. |
 
 ## Returns
 

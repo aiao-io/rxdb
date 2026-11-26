@@ -10,8 +10,8 @@ Each node tries the exact match first and then the parent language, finally dedu
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter     | Type                                                      |
+| ------------- | --------------------------------------------------------- |
 | `preferences` | [`LocalePreferences`](../interfaces/LocalePreferences.md) |
 
 ## Returns

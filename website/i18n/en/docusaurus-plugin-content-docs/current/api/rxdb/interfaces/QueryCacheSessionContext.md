@@ -1,5 +1,5 @@
 ---
-sidebar_label: "QueryCacheSessionContext⟨T⟩"
+sidebar_label: 'QueryCacheSessionContext⟨T⟩'
 ---
 
 # QueryCacheSessionContext`<T>`
@@ -10,9 +10,9 @@ Everything needed to build a session, prepared and injected by the core.
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) | Entity type |
+| Type Parameter                                                                            | Description |
+| ----------------------------------------------------------------------------------------- | ----------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) | Entity type |
 
 ## Properties
 
@@ -26,7 +26,7 @@ Defined in: [packages/rxdb/src/repository/query-cache-engine.interface.ts:95](ht
 
 The entity name in the metadata (`EntityType.name` is unreliable after bundling/minification).
 
-***
+---
 
 ### EntityType \{#entitytype\}
 
@@ -38,7 +38,7 @@ Defined in: [packages/rxdb/src/repository/query-cache-engine.interface.ts:93](ht
 
 The entity class.
 
-***
+---
 
 ### localCacheFirst \{#localcachefirst\}
 
@@ -50,7 +50,7 @@ Defined in: [packages/rxdb/src/repository/query-cache-engine.interface.ts:97](ht
 
 `sync.local.localCacheFirst`, taken by the call site where the union type has been narrowed.
 
-***
+---
 
 ### pendingWriteIds \{#pendingwriteids\}
 
@@ -71,7 +71,7 @@ the core** instead of letting the plugin ask by itself is the entire content of 
 zero dependency on the write-back-outbox implementation — the two plugins do not know each other and only meet
 at the single line of `Repository`.
 
-***
+---
 
 ### reachability \{#reachability\}
 
@@ -83,7 +83,7 @@ Defined in: [packages/rxdb/src/repository/query-cache-engine.interface.ts:101](h
 
 Remote reachability monitor.
 
-***
+---
 
 ### syncStaleTime \{#syncstaletime\}
 
@@ -95,7 +95,7 @@ Defined in: [packages/rxdb/src/repository/query-cache-engine.interface.ts:99](ht
 
 `sync.local.syncStaleTime`; `undefined` means using the implementation side's default window.
 
-***
+---
 
 ### syncState \{#syncstate\}
 

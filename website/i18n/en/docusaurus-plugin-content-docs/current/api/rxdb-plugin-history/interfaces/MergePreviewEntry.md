@@ -9,7 +9,7 @@ An entity a merge would land on the target branch.
 ### conflict \{#conflict\}
 
 ```ts
-readonly conflict: 
+readonly conflict:
   | MergePreviewConflict
   | null;
 ```
@@ -18,7 +18,7 @@ Defined in: [packages/rxdb-plugin-history/src/branch-compare.ts:122](https://git
 
 The annotation when the merge hits changes made on the target since the fork; `null` when it does not
 
-***
+---
 
 ### entity \{#entity\}
 
@@ -30,7 +30,7 @@ Defined in: [packages/rxdb-plugin-history/src/branch-compare.ts:105](https://git
 
 Entity name
 
-***
+---
 
 ### entityId \{#entityid\}
 
@@ -42,7 +42,7 @@ Defined in: [packages/rxdb-plugin-history/src/branch-compare.ts:108](https://git
 
 Entity primary key
 
-***
+---
 
 ### inversePatch \{#inversepatch\}
 
@@ -54,7 +54,7 @@ Defined in: [packages/rxdb-plugin-history/src/branch-compare.ts:119](https://git
 
 The target branch's current value: the fields the patch touches for UPDATE, the whole row for DELETE and INSERT; `null` when the target has no such entity
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -66,7 +66,7 @@ Defined in: [packages/rxdb-plugin-history/src/branch-compare.ts:102](https://git
 
 Entity namespace
 
-***
+---
 
 ### operation \{#operation\}
 
@@ -78,7 +78,7 @@ Defined in: [packages/rxdb-plugin-history/src/branch-compare.ts:111](https://git
 
 The operation the merge would land
 
-***
+---
 
 ### patch \{#patch\}
 

@@ -17,5 +17,5 @@ Suitable for lightweight scenarios or as a reference implementation for custom t
 
 ```typescript
 // No extra configuration needed for the default theme, works out of the box
-imports: [QueryBuilderComponent]
+imports: [QueryBuilderComponent];
 ```

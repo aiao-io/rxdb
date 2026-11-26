@@ -16,7 +16,7 @@ Defined in: [layout/header.tsx:135](https://github.com/aiao-io/rxdb/blob/b523204
 
 Brand icon.
 
-***
+---
 
 ### end? \{#end\}
 
@@ -28,7 +28,7 @@ Defined in: [layout/header.tsx:139](https://github.com/aiao-io/rxdb/blob/b523204
 
 Extension content after the header widget area.
 
-***
+---
 
 ### menu \{#menu\}
 
@@ -40,7 +40,7 @@ Defined in: [layout/header.tsx:133](https://github.com/aiao-io/rxdb/blob/b523204
 
 Menu tree (rendered as a horizontal menu in top navigation mode).
 
-***
+---
 
 ### start? \{#start\}
 

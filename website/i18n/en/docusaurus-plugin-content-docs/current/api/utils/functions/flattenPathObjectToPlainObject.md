@@ -12,9 +12,9 @@ The container type is determined by the path syntax: a container reached via a c
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `Record`&lt;`string`, `unknown`&gt; | An object whose keys are dot or bracket paths |
+| Parameter | Type                                | Description                                   |
+| --------- | ----------------------------------- | --------------------------------------------- |
+| `value`   | `Record`&lt;`string`, `unknown`&gt; | An object whose keys are dot or bracket paths |
 
 ## Returns
 

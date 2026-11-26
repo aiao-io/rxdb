@@ -10,10 +10,10 @@ Compiles an exclusion range declaration.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) | The entity metadata produced by `transitionMetadata()` |
-| `exclusion` | [`EntityExclusionMetadataOptions`](../interfaces/EntityExclusionMetadataOptions.md) | The exclusion range declaration |
+| Parameter   | Type                                                                                | Description                                            |
+| ----------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `metadata`  | [`EntityMetadata`](../type-aliases/EntityMetadata.md)                               | The entity metadata produced by `transitionMetadata()` |
+| `exclusion` | [`EntityExclusionMetadataOptions`](../interfaces/EntityExclusionMetadataOptions.md) | The exclusion range declaration                        |
 
 ## Returns
 
@@ -24,4 +24,4 @@ The deterministic constraint name, equality columns and range dimensions
 ## Throws
 
 [RxDBError](../classes/RxDBError.md) when the equality columns / range dimensions are empty, a column does not exist or has a mismatched type, `bounds` is invalid,
-  the same column appears twice, `name` does not match `[a-z][a-z0-9_]*` or the full name exceeds 63 bytes (AC#15)
+the same column appears twice, `name` does not match `[a-z][a-z0-9_]*` or the full name exceeds 63 bytes (AC#15)

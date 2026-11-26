@@ -1,5 +1,5 @@
 ---
-sidebar_label: "RxDBResource⟨T⟩"
+sidebar_label: 'RxDBResource⟨T⟩'
 ---
 
 # RxDBResource`<T>`
@@ -14,22 +14,22 @@ The reactive resource returned by the basic query hooks.
 It must be held as a whole, or destructured via `toRefs()`:
 
 ```typescript
-const user = useGet(User, 'user-1');            // ✅ Hold it as a whole
+const user = useGet(User, 'user-1'); // ✅ Hold it as a whole
 const { value } = toRefs(useGet(User, 'user-1')); // ✅ toRefs first, then destructure
-const { value } = useGet(User, 'user-1');       // ❌ One-time snapshot, never updates afterwards
+const { value } = useGet(User, 'user-1'); // ❌ One-time snapshot, never updates afterwards
 ```
 
 The same package's [InfiniteScrollResource](InfiniteScrollResource.md) has `ComputedRef` members and is destructuring-safe; the differing shapes are a historical contract (RVU-008) — don't extrapolate between the two.
 
 ### State combinations
 
-| Phase | isLoading | hasValue | isEmpty | error | value |
-| --- | --- | --- | --- | --- | --- |
-| Before first subscription | `true` | `false` | `undefined` | `undefined` | `defaultValue` |
-| Data received | `false` | `true` | whether empty | `undefined` | new value |
-| Error | `false` | `false` | `undefined` | error | previous value |
-| Options changed, new round in progress | `true` | `false` | `undefined` | `undefined` | previous value (stale) |
-| Completed without any next | `false` | `false` | `undefined` | `undefined` | previous value (stale) |
+| Phase                                  | isLoading | hasValue | isEmpty       | error       | value                  |
+| -------------------------------------- | --------- | -------- | ------------- | ----------- | ---------------------- |
+| Before first subscription              | `true`    | `false`  | `undefined`   | `undefined` | `defaultValue`         |
+| Data received                          | `false`   | `true`   | whether empty | `undefined` | new value              |
+| Error                                  | `false`   | `false`  | `undefined`   | error       | previous value         |
+| Options changed, new round in progress | `true`    | `false`  | `undefined`   | `undefined` | previous value (stale) |
+| Completed without any next             | `false`   | `false`  | `undefined`   | `undefined` | previous value (stale) |
 
 Key point: `value` **keeps the old value** during a re-query (stale-while-revalidate), but `hasValue` drops back to `false` synchronously — the old value is no longer claimed to belong to the new query conditions (RVU-003). To judge "the current value is trustworthy", look at `hasValue`, not `value !== defaultValue`.
 
@@ -41,8 +41,8 @@ Key point: `value` **keeps the old value** during a re-query (stale-while-revali
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                    | Description        |
+| --------------------------------- | ------------------ |
 | <a id="type-parameter-t"></a> `T` | Query result type. |
 
 ## Properties
@@ -57,7 +57,7 @@ Defined in: [rxdb-vue/src/hooks.ts:86](https://github.com/aiao-io/rxdb/blob/b523
 
 The current round's error; cleared on success or when a re-query starts. Non-`Error` payloads are wrapped into real `Error`s.
 
-***
+---
 
 ### hasValue \{#hasvalue\}
 
@@ -69,7 +69,7 @@ Defined in: [rxdb-vue/src/hooks.ts:99](https://github.com/aiao-io/rxdb/blob/b523
 
 Whether `value` belongs to the **current** query conditions. Drops back to `false` as soon as a re-query starts, and only becomes `true` when a next arrives.
 
-***
+---
 
 ### isEmpty \{#isempty\}
 
@@ -81,7 +81,7 @@ Defined in: [rxdb-vue/src/hooks.ts:95](https://github.com/aiao-io/rxdb/blob/b523
 
 Whether the result is empty: arrays by `length === 0`, single entities by `== null`. `undefined` means this round has no conclusion yet (loading, error, or completed without a next).
 
-***
+---
 
 ### isLoading \{#isloading\}
 
@@ -93,7 +93,7 @@ Defined in: [rxdb-vue/src/hooks.ts:90](https://github.com/aiao-io/rxdb/blob/b523
 
 Whether a query round is in progress (from the subscription entry until the first next / error / complete).
 
-***
+---
 
 ### value \{#value\}
 

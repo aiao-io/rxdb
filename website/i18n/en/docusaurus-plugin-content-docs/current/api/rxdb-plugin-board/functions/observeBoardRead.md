@@ -10,9 +10,9 @@ Observes all sub-collections of the current board; unsubscribing also cancels al
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `rxdb` | [`RxDB`](../../rxdb/classes/RxDB.md) | The connected board instance |
+| Parameter | Type                                                                | Description                                       |
+| --------- | ------------------------------------------------------------------- | ------------------------------------------------- |
+| `rxdb`    | [`RxDB`](../../rxdb/classes/RxDB.md)                                | The connected board instance                      |
 | `boardId` | `` `${string}-${string}-${string}-${string}-${string}` `` \| `null` | The current board, null when no board is selected |
 
 ## Returns

@@ -10,9 +10,9 @@ Generates the SVG of one tiling unit (with embedded rotated text). A pure functi
 
 ## Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `content` | `string` | `undefined` | The watermark text. |
+| Parameter  | Type                                                    | Default value               | Description          |
+| ---------- | ------------------------------------------------------- | --------------------------- | -------------------- |
+| `content`  | `string`                                                | `undefined`                 | The watermark text.  |
 | `options?` | [`WatermarkOptions`](../interfaces/WatermarkOptions.md) | `DEFAULT_WATERMARK_OPTIONS` | The unit parameters. |
 
 ## Returns

@@ -10,9 +10,9 @@ Whether the filter has no conditions.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `filter` | [`BoardFilter`](../interfaces/BoardFilter.md) |
+| Parameter | Type                                          |
+| --------- | --------------------------------------------- |
+| `filter`  | [`BoardFilter`](../interfaces/BoardFilter.md) |
 
 ## Returns
 

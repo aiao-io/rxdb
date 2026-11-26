@@ -22,7 +22,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/commit-conflict.
 
 The current value read inside the transaction
 
-***
+---
 
 ### branchId \{#branchid\}
 
@@ -34,7 +34,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/commit-conflict.
 
 The **current** active branch id; when it differs from the captured branch, this is evidence the caller got the wrong branch
 
-***
+---
 
 ### expected \{#expected\}
 
@@ -46,7 +46,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/commit-conflict.
 
 The value the caller captured
 
-***
+---
 
 ### kind \{#kind\}
 

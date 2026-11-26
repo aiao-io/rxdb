@@ -20,7 +20,7 @@ Alias of the query root table.
 
 The main query uses the main table alias `_`, an EXISTS subquery uses `child`, and the recursive member of a recursive CTE uses `children`. The first hop of a relation path attaches to this alias; otherwise JOINs inside a subquery would reference the outer table (SQLC-010).
 
-***
+---
 
 ### fieldAliasMap \{#fieldaliasmap\}
 
@@ -30,7 +30,7 @@ fieldAliasMap: Map<string, string>;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/query/join\_sql.ts:43](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/query/join_sql.ts#L43)
 
-***
+---
 
 ### joinMap \{#joinmap\}
 
@@ -40,7 +40,7 @@ joinMap: Map<Readonly<EntityMetadataType>, JoinOptions[]>;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/query/join\_sql.ts:41](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/query/join_sql.ts#L41)
 
-***
+---
 
 ### relationAliasMap \{#relationaliasmap\}
 
@@ -50,7 +50,7 @@ relationAliasMap: Map<string, string>;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/query/join\_sql.ts:44](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/query/join_sql.ts#L44)
 
-***
+---
 
 ### usedAliases \{#usedaliases\}
 

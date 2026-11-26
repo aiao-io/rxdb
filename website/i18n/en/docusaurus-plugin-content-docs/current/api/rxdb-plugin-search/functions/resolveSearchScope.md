@@ -9,6 +9,7 @@ Defined in: [packages/rxdb-plugin-search/src/core/scope-resolver.ts:32](https://
 Computes the final list of collection names that participate in search aggregation (same order as `candidates`, deduplicated).
 
 Semantics:
+
 - `excludedCollections` always takes effect first (plugin-level hard exclusion)
 - `requested` can only narrow further (intersected with the set remaining after `excluded`)
 - If `requested` contains names that don't exist in `candidates`, throws and lists all unknown names (fail-fast: a typo must surface, not masquerade as "no search results")
@@ -17,8 +18,8 @@ Semantics:
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter           | Type                                                      |
+| ------------------- | --------------------------------------------------------- |
 | `__namedParameters` | [`ResolveScopeInput`](../interfaces/ResolveScopeInput.md) |
 
 ## Returns

@@ -10,9 +10,9 @@ Picks themes from the shell catalog by name; daisyUI themes must be enabled by t
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `names` | readonly `string`[] | Theme names; the order is the display order. |
+| Parameter | Type                | Description                                  |
+| --------- | ------------------- | -------------------------------------------- |
+| `names`   | readonly `string`[] | Theme names; the order is the display order. |
 
 ## Returns
 

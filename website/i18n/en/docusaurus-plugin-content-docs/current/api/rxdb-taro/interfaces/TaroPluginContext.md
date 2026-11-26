@@ -42,9 +42,9 @@ Modifies the project configuration before the runner starts; Taro awaits it.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `hook` | (`args`) => `void` |
+| Parameter | Type               |
+| --------- | ------------------ |
+| `hook`    | (`args`) => `void` |
 
 #### Returns
 

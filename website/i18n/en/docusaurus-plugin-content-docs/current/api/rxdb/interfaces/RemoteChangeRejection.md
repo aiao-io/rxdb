@@ -16,12 +16,12 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:74](https://github.com/aiao-io/rx
 
 Database SQLSTATE, e.g. `42501`.
 
-***
+---
 
 ### dependsOn? \{#dependson\}
 
 ```ts
-dependsOn?: 
+dependsOn?:
   | RemoteEntityRef
   | {
   constraint: string;
@@ -32,7 +32,7 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:82](https://github.com/aiao-io/rx
 
 When `reason = 'dependency'`, points to the parent entity; gives the constraint name when it cannot be located.
 
-***
+---
 
 ### entity \{#entity\}
 
@@ -44,7 +44,7 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:80](https://github.com/aiao-io/rx
 
 The rejected entity.
 
-***
+---
 
 ### message \{#message\}
 
@@ -56,12 +56,12 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:78](https://github.com/aiao-io/rx
 
 The remote's raw message.
 
-***
+---
 
 ### reason \{#reason\}
 
 ```ts
-reason: "denied" | "gone" | "dependency";
+reason: 'denied' | 'gone' | 'dependency';
 ```
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:76](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L76)

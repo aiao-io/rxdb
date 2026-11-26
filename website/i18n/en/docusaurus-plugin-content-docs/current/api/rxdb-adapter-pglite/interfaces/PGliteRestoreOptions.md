@@ -22,9 +22,9 @@ Stage callback, which is `await`ed.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `stage` | [`PGliteRestoreStage`](../type-aliases/PGliteRestoreStage.md) |
+| Parameter | Type                                                          |
+| --------- | ------------------------------------------------------------- |
+| `stage`   | [`PGliteRestoreStage`](../type-aliases/PGliteRestoreStage.md) |
 
 #### Returns
 
@@ -34,7 +34,7 @@ Stage callback, which is `await`ed.
 
 Used for progress display and crash injection tests; an error thrown by the callback counts as a restore failure and goes through the full failure cleanup.
 
-***
+---
 
 ### signal? \{#signal\}
 

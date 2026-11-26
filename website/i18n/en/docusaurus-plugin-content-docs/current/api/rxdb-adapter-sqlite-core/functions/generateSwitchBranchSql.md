@@ -10,10 +10,10 @@ Generates the SQL for switching branches (one whole block assembled by [generate
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `adapter` | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md) |
-| `branchId` | `string` |
+| Parameter  | Type                                                           |
+| ---------- | -------------------------------------------------------------- |
+| `adapter`  | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md) |
+| `branchId` | `string`                                                       |
 
 ## Returns
 

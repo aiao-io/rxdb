@@ -10,10 +10,10 @@ Extracts the holder records of a content from sync results.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `records` | readonly [`P2PManifestRecord`](../interfaces/P2PManifestRecord.md)[] |
-| `contentHash` | `string` |
+| Parameter     | Type                                                                 |
+| ------------- | -------------------------------------------------------------------- |
+| `records`     | readonly [`P2PManifestRecord`](../interfaces/P2PManifestRecord.md)[] |
+| `contentHash` | `string`                                                             |
 
 ## Returns
 

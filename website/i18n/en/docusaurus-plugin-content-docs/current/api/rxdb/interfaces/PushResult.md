@@ -17,7 +17,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:119](ht
 Number of changes compacted/discarded
 For example: INSERT → DELETE changes are discarded
 
-***
+---
 
 ### failed \{#failed\}
 
@@ -29,7 +29,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:113](ht
 
 Number of changes that failed to push
 
-***
+---
 
 ### failures \{#failures\}
 
@@ -45,7 +45,7 @@ Same measure as [PullResult.failures](PullResult.md#failures): in multi-reposito
 nor convert "one repository failed" into `failed += 1` — the unit of `failed` is **change count**,
 and mixing in repository counts would directly break `originalCount = pushed + failed + rejected + compacted`.
 
-***
+---
 
 ### originalCount \{#originalcount\}
 
@@ -58,7 +58,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:125](ht
 Original change count before compaction
 Relation: originalCount = pushed + failed + rejected + compacted
 
-***
+---
 
 ### pushed \{#pushed\}
 
@@ -70,7 +70,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:100](ht
 
 Number of changes accepted (applied) by the remote (after compaction)
 
-***
+---
 
 ### rejected \{#rejected\}
 

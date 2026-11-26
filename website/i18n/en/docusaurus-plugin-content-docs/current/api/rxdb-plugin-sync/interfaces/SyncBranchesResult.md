@@ -22,7 +22,7 @@ Defined in: [packages/rxdb-plugin-sync/src/sync-branches.ts:21](https://github.c
 
 The number of remote branches newly created locally this round.
 
-***
+---
 
 ### skipped \{#skipped\}
 
@@ -56,7 +56,7 @@ kinds apart via [skipReasons](#skipreasons). Whether to keep a persistent
 "known bad row" mark is registered in `requirements/roadmap.md` under
 "architecture items deferred by the epic-006 review".
 
-***
+---
 
 ### skipReasons \{#skipreasons\}
 
@@ -74,7 +74,7 @@ as an "id list", and changing it to an object array is a breaking change;
 `Record<id, reason>` is purely additive, and existing callers reading only
 `skipped` are unaffected.
 
-***
+---
 
 ### total \{#total\}
 
@@ -86,7 +86,7 @@ Defined in: [packages/rxdb-plugin-sync/src/sync-branches.ts:25](https://github.c
 
 The total number of branches the remote handed back this round, including the skipped ones.
 
-***
+---
 
 ### updated \{#updated\}
 

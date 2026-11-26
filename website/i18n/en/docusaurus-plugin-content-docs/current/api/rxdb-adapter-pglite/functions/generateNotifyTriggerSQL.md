@@ -12,8 +12,8 @@ The trigger fires after INSERT, UPDATE, DELETE. The AFTER trigger ensures the ch
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type     | Description                                  |
+| ----------- | -------- | -------------------------------------------- |
 | `tableName` | `string` | Table name (for example "public$RxDBChange") |
 
 ## Returns

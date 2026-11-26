@@ -40,7 +40,7 @@ protected readonly activeSuggestion: WritableSignal<number>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:271](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L271)
 
-***
+---
 
 ### activeSuggestionId \{#activesuggestionid\}
 
@@ -50,7 +50,7 @@ protected readonly activeSuggestionId: Signal<string | null>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:344](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L344)
 
-***
+---
 
 ### addColumnTitle \{#addcolumntitle\}
 
@@ -60,7 +60,7 @@ protected readonly addColumnTitle: WritableSignal<string>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:252](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L252)
 
-***
+---
 
 ### addingColumn \{#addingcolumn\}
 
@@ -70,7 +70,7 @@ protected readonly addingColumn: WritableSignal<boolean>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:251](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L251)
 
-***
+---
 
 ### addTaskColumnId \{#addtaskcolumnid\}
 
@@ -80,7 +80,7 @@ protected readonly addTaskColumnId: WritableSignal<`${string}-${string}-${string
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:248](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L248)
 
-***
+---
 
 ### addTaskTitle \{#addtasktitle\}
 
@@ -90,7 +90,7 @@ protected readonly addTaskTitle: WritableSignal<string>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:249](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L249)
 
-***
+---
 
 ### board \{#board\}
 
@@ -100,7 +100,7 @@ protected readonly board: WritableSignal<UseBoardReturn | null>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:215](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L215)
 
-***
+---
 
 ### boardArea \{#boardarea\}
 
@@ -110,7 +110,7 @@ protected readonly boardArea: Signal<ElementRef<HTMLElement> | undefined>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:216](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L216)
 
-***
+---
 
 ### boardComposerTitle \{#boardcomposertitle\}
 
@@ -120,7 +120,7 @@ protected readonly boardComposerTitle: WritableSignal<string>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:253](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L253)
 
-***
+---
 
 ### boardDescriptionDraft \{#boarddescriptiondraft\}
 
@@ -130,7 +130,7 @@ protected readonly boardDescriptionDraft: WritableSignal<string>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:243](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L243)
 
-***
+---
 
 ### boardTitleDraft \{#boardtitledraft\}
 
@@ -140,7 +140,7 @@ protected readonly boardTitleDraft: WritableSignal<string>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:241](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L241)
 
-***
+---
 
 ### canCreateLabelFromPicker \{#cancreatelabelfrompicker\}
 
@@ -150,7 +150,7 @@ protected readonly canCreateLabelFromPicker: Signal<boolean>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:379](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L379)
 
-***
+---
 
 ### columnTitleDraft \{#columntitledraft\}
 
@@ -160,7 +160,7 @@ protected readonly columnTitleDraft: WritableSignal<string>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:245](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L245)
 
-***
+---
 
 ### creatingTask \{#creatingtask\}
 
@@ -170,7 +170,7 @@ protected readonly creatingTask: WritableSignal<boolean>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:250](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L250)
 
-***
+---
 
 ### detailBase \{#detailbase\}
 
@@ -180,7 +180,7 @@ protected readonly detailBase: WritableSignal<TaskDraftSnapshot | null>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:259](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L259)
 
-***
+---
 
 ### detailDescription \{#detaildescription\}
 
@@ -190,7 +190,7 @@ protected readonly detailDescription: WritableSignal<string>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:261](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L261)
 
-***
+---
 
 ### detailDescriptionId \{#detaildescriptionid\}
 
@@ -200,7 +200,7 @@ protected readonly detailDescriptionId: string;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:225](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L225)
 
-***
+---
 
 ### detailDueId \{#detaildueid\}
 
@@ -210,7 +210,7 @@ protected readonly detailDueId: string;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:226](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L226)
 
-***
+---
 
 ### detailLabels \{#detaillabels\}
 
@@ -220,7 +220,7 @@ protected readonly detailLabels: Signal<BoardLabel[]>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:357](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L357)
 
-***
+---
 
 ### detailStatus \{#detailstatus\}
 
@@ -230,7 +230,7 @@ protected readonly detailStatus: WritableSignal<string | null>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:262](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L262)
 
-***
+---
 
 ### detailTaskId \{#detailtaskid\}
 
@@ -240,7 +240,7 @@ protected readonly detailTaskId: WritableSignal<`${string}-${string}-${string}-$
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:258](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L258)
 
-***
+---
 
 ### detailTitle \{#detailtitle\}
 
@@ -250,7 +250,7 @@ protected readonly detailTitle: WritableSignal<string>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:260](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L260)
 
-***
+---
 
 ### dialog \{#dialog\}
 
@@ -260,7 +260,7 @@ protected readonly dialog: WritableSignal<DialogState | null>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:221](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L221)
 
-***
+---
 
 ### dialogTitleId \{#dialogtitleid\}
 
@@ -270,7 +270,7 @@ protected readonly dialogTitleId: string;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:224](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L224)
 
-***
+---
 
 ### dragging \{#dragging\}
 
@@ -285,7 +285,7 @@ protected readonly dragging: WritableSignal<
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:231](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L231)
 
-***
+---
 
 ### dropTarget \{#droptarget\}
 
@@ -311,7 +311,7 @@ protected readonly dropTarget: WritableSignal<
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:232](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L232)
 
-***
+---
 
 ### editingBoardDescription \{#editingboarddescription\}
 
@@ -321,7 +321,7 @@ protected readonly editingBoardDescription: WritableSignal<boolean>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:242](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L242)
 
-***
+---
 
 ### editingBoardTitle \{#editingboardtitle\}
 
@@ -331,7 +331,7 @@ protected readonly editingBoardTitle: WritableSignal<boolean>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:240](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L240)
 
-***
+---
 
 ### editingColumnId \{#editingcolumnid\}
 
@@ -341,7 +341,7 @@ protected readonly editingColumnId: WritableSignal<`${string}-${string}-${string
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:244](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L244)
 
-***
+---
 
 ### editingTaskId \{#editingtaskid\}
 
@@ -351,7 +351,7 @@ protected readonly editingTaskId: WritableSignal<`${string}-${string}-${string}-
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:246](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L246)
 
-***
+---
 
 ### exportBackup \{#exportbackup\}
 
@@ -364,7 +364,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:398](https://g
 Backup export callback (the US-537 orchestration is wired by the host; a placeholder notice shows when absent).
 It is the same callback as React / Vue's `onExportBackup`: the name follows each framework's property-binding convention (a binding-layer difference allowed by the US-539 tech note).
 
-***
+---
 
 ### filter \{#filter\}
 
@@ -374,7 +374,7 @@ protected readonly filter: Signal<BoardFilter>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:298](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L298)
 
-***
+---
 
 ### filterActive \{#filteractive\}
 
@@ -384,7 +384,7 @@ protected readonly filterActive: Signal<boolean>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:299](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L299)
 
-***
+---
 
 ### filterFocused \{#filterfocused\}
 
@@ -394,7 +394,7 @@ protected readonly filterFocused: WritableSignal<boolean>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:270](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L270)
 
-***
+---
 
 ### filterQuery \{#filterquery\}
 
@@ -404,7 +404,7 @@ protected readonly filterQuery: WritableSignal<string>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:269](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L269)
 
-***
+---
 
 ### focusedTaskId \{#focusedtaskid\}
 
@@ -414,7 +414,7 @@ protected readonly focusedTaskId: WritableSignal<`${string}-${string}-${string}-
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:274](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L274)
 
-***
+---
 
 ### labelColors \{#labelcolors\}
 
@@ -424,7 +424,7 @@ protected readonly labelColors: readonly object[] = BOARD_LABEL_COLORS;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:227](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L227)
 
-***
+---
 
 ### labelEditor \{#labeleditor\}
 
@@ -434,7 +434,7 @@ protected readonly labelEditor: WritableSignal<LabelEditorState | null>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:254](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L254)
 
-***
+---
 
 ### notice \{#notice\}
 
@@ -444,7 +444,7 @@ protected readonly notice: WritableSignal<string | null>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:218](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L218)
 
-***
+---
 
 ### pickerActive \{#pickeractive\}
 
@@ -454,7 +454,7 @@ protected readonly pickerActive: WritableSignal<number>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:266](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L266)
 
-***
+---
 
 ### pickerOptions \{#pickeroptions\}
 
@@ -464,7 +464,7 @@ protected readonly pickerOptions: Signal<readonly PickerOption[]>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:364](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L364)
 
-***
+---
 
 ### pickerQuery \{#pickerquery\}
 
@@ -474,7 +474,7 @@ protected readonly pickerQuery: WritableSignal<string>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:265](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L265)
 
-***
+---
 
 ### popover \{#popover\}
 
@@ -484,7 +484,7 @@ protected readonly popover: WritableSignal<PopoverState | null>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:220](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L220)
 
-***
+---
 
 ### rovingTaskId \{#rovingtaskid\}
 
@@ -496,7 +496,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:351](https://g
 
 Roving tabindex: the last focused visible card, otherwise the first visible card.
 
-***
+---
 
 ### rxdb \{#rxdb\}
 
@@ -508,7 +508,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:393](https://g
 
 Connected board RxDB instance (entities include the five entities of the board namespace, requiring the history plugin).
 
-***
+---
 
 ### searchErrorText \{#searcherrortext\}
 
@@ -518,7 +518,7 @@ protected readonly searchErrorText: WritableSignal<string | null>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:281](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L281)
 
-***
+---
 
 ### searchHasMore \{#searchhasmore\}
 
@@ -528,7 +528,7 @@ protected readonly searchHasMore: WritableSignal<boolean>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:280](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L280)
 
-***
+---
 
 ### searchHighlightId \{#searchhighlightid\}
 
@@ -538,7 +538,7 @@ protected readonly searchHighlightId: WritableSignal<`${string}-${string}-${stri
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:282](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L282)
 
-***
+---
 
 ### searchQuery \{#searchquery\}
 
@@ -548,7 +548,7 @@ protected readonly searchQuery: WritableSignal<string>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:277](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L277)
 
-***
+---
 
 ### searchResults \{#searchresults\}
 
@@ -558,7 +558,7 @@ protected readonly searchResults: WritableSignal<readonly SearchResult[]>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:279](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L279)
 
-***
+---
 
 ### searchState \{#searchstate\}
 
@@ -568,7 +568,7 @@ protected readonly searchState: WritableSignal<"error" | "loading" | "idle" | "s
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:278](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L278)
 
-***
+---
 
 ### shortcutGroups \{#shortcutgroups\}
 
@@ -629,7 +629,7 @@ protected readonly shortcutGroups: readonly [{
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:228](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L228)
 
-***
+---
 
 ### sortingColumnId \{#sortingcolumnid\}
 
@@ -639,7 +639,7 @@ protected readonly sortingColumnId: WritableSignal<`${string}-${string}-${string
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:255](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L255)
 
-***
+---
 
 ### suggestionListId \{#suggestionlistid\}
 
@@ -649,7 +649,7 @@ protected readonly suggestionListId: string;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:223](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L223)
 
-***
+---
 
 ### suggestions \{#suggestions\}
 
@@ -659,7 +659,7 @@ protected readonly suggestions: Signal<BoardFilterSuggestion[]>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:331](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L331)
 
-***
+---
 
 ### suggestionsOpen \{#suggestionsopen\}
 
@@ -669,7 +669,7 @@ protected readonly suggestionsOpen: Signal<boolean>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:340](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L340)
 
-***
+---
 
 ### taskMap \{#taskmap\}
 
@@ -679,7 +679,7 @@ protected readonly taskMap: Signal<Map<`${string}-${string}-${string}-${string}-
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:289](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L289)
 
-***
+---
 
 ### taskTitleDraft \{#tasktitledraft\}
 
@@ -689,7 +689,7 @@ protected readonly taskTitleDraft: WritableSignal<string>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:247](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L247)
 
-***
+---
 
 ### toast \{#toast\}
 
@@ -704,7 +704,7 @@ protected readonly toast: WritableSignal<
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:219](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L219)
 
-***
+---
 
 ### today \{#today\}
 
@@ -714,7 +714,7 @@ protected readonly today: WritableSignal<string>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:217](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L217)
 
-***
+---
 
 ### visibleCount \{#visiblecount\}
 
@@ -724,7 +724,7 @@ protected readonly visibleCount: Signal<number>;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:327](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L327)
 
-***
+---
 
 ### visibleTaskMap \{#visibletaskmap\}
 
@@ -734,7 +734,7 @@ protected readonly visibleTaskMap: Signal<Map<`${string}-${string}-${string}-${s
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:301](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-view.ts#L301)
 
-***
+---
 
 ### writeLocked \{#writelocked\}
 
@@ -772,15 +772,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:685](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `query` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `query`   | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### cancelAddColumn() \{#canceladdcolumn\}
 
@@ -792,15 +792,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:780](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event?` | `Event` |
+| Parameter | Type    |
+| --------- | ------- |
+| `event?`  | `Event` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### cancelAddTask() \{#canceladdtask\}
 
@@ -812,15 +812,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:792](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event?` | `Event` |
+| Parameter | Type    |
+| --------- | ------- |
+| `event?`  | `Event` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### cancelBoardTitle() \{#cancelboardtitle\}
 
@@ -832,15 +832,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:579](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `Event` |
+| Parameter | Type    |
+| --------- | ------- |
+| `event`   | `Event` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### cancelColumnTitle() \{#cancelcolumntitle\}
 
@@ -852,15 +852,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:723](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `Event` |
+| Parameter | Type    |
+| --------- | ------- |
+| `event`   | `Event` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### cancelLabelEditor() \{#cancellabeleditor\}
 
@@ -874,7 +874,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:1072](https://
 
 `void`
 
-***
+---
 
 ### cancelTaskTitle() \{#canceltasktitle\}
 
@@ -886,15 +886,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:835](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event?` | `Event` |
+| Parameter | Type    |
+| --------- | ------- |
+| `event?`  | `Event` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### canMoveTask() \{#canmovetask\}
 
@@ -906,16 +906,16 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:535](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `task` | [`Task`](../interfaces/Task.md) |
+| Parameter   | Type                                                                               |
+| ----------- | ---------------------------------------------------------------------------------- |
+| `task`      | [`Task`](../interfaces/Task.md)                                                    |
 | `direction` | [`BoardMoveDirection`](../../rxdb-plugin-board/type-aliases/BoardMoveDirection.md) |
 
 #### Returns
 
 `boolean`
 
-***
+---
 
 ### choosePickerOption() \{#choosepickeroption\}
 
@@ -927,15 +927,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:966](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                      |
+| ---------- | --------------------------------------------------------- |
 | `optionId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### clearDragFeedback() \{#cleardragfeedback\}
 
@@ -949,7 +949,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:1158](https://
 
 `void`
 
-***
+---
 
 ### clearFilter() \{#clearfilter\}
 
@@ -963,7 +963,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:690](https://g
 
 `void`
 
-***
+---
 
 ### closeDetail() \{#closedetail\}
 
@@ -977,7 +977,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:884](https://g
 
 `void`
 
-***
+---
 
 ### closeDialog() \{#closedialog\}
 
@@ -989,15 +989,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:1007](https://
 
 #### Parameters
 
-| Parameter | Type | Default value |
-| ------ | ------ | ------ |
-| `restoreFocus?` | `boolean` | `true` |
+| Parameter       | Type      | Default value |
+| --------------- | --------- | ------------- |
+| `restoreFocus?` | `boolean` | `true`        |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### closePopover() \{#closepopover\}
 
@@ -1009,15 +1009,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:1267](https://
 
 #### Parameters
 
-| Parameter | Type | Default value |
-| ------ | ------ | ------ |
-| `restoreFocus?` | `boolean` | `true` |
+| Parameter       | Type      | Default value |
+| --------------- | --------- | ------------- |
+| `restoreFocus?` | `boolean` | `true`        |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### columnById() \{#columnbyid\}
 
@@ -1029,15 +1029,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:482](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                |
+| ---------- | ------------------------------------------------------------------- |
 | `columnId` | `` `${string}-${string}-${string}-${string}-${string}` `` \| `null` |
 
 #### Returns
 
 [`Column`](../interfaces/Column.md) \| `undefined`
 
-***
+---
 
 ### columnTitleOf() \{#columntitleof\}
 
@@ -1049,15 +1049,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:494](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                |
+| ---------- | ------------------------------------------------------------------- |
 | `columnId` | `` `${string}-${string}-${string}-${string}-${string}` `` \| `null` |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### commitAddColumn() \{#commitaddcolumn\}
 
@@ -1071,7 +1071,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:771](https://g
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### commitAddTask() \{#commitaddtask\}
 
@@ -1087,7 +1087,7 @@ Create a task at the bottom of a column (same as GitHub): Enter creates it, and 
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### commitBoardDescription() \{#commitboarddescription\}
 
@@ -1101,7 +1101,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:590](https://g
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### commitBoardTitle() \{#commitboardtitle\}
 
@@ -1115,7 +1115,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:569](https://g
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### commitColumnTitle() \{#commitcolumntitle\}
 
@@ -1129,7 +1129,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:713](https://g
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### commitDetailDescription() \{#commitdetaildescription\}
 
@@ -1143,7 +1143,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:903](https://g
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### commitDetailDue() \{#commitdetaildue\}
 
@@ -1155,15 +1155,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:917](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `value`   | `string` |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### commitDetailTitle() \{#commitdetailtitle\}
 
@@ -1177,7 +1177,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:893](https://g
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### commitTaskTitle() \{#committasktitle\}
 
@@ -1189,15 +1189,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:827](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `task` | [`Task`](../interfaces/Task.md) |
+| Parameter | Type                            |
+| --------- | ------------------------------- |
+| `task`    | [`Task`](../interfaces/Task.md) |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### confirmBoardDelete() \{#confirmboarddelete\}
 
@@ -1211,7 +1211,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:629](https://g
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### confirmColumnDelete() \{#confirmcolumndelete\}
 
@@ -1223,15 +1223,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:759](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `column` | [`Column`](../interfaces/Column.md) |
+| Parameter | Type                                |
+| --------- | ----------------------------------- |
+| `column`  | [`Column`](../interfaces/Column.md) |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### confirmTaskDelete() \{#confirmtaskdelete\}
 
@@ -1243,15 +1243,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:855](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `task` | [`Task`](../interfaces/Task.md) |
+| Parameter | Type                            |
+| --------- | ------------------------------- |
+| `task`    | [`Task`](../interfaces/Task.md) |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### countLabel() \{#countlabel\}
 
@@ -1263,15 +1263,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:465](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `column` | [`Column`](../interfaces/Column.md) |
+| Parameter | Type                                |
+| --------- | ----------------------------------- |
+| `column`  | [`Column`](../interfaces/Column.md) |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### createLabelFromPicker() \{#createlabelfrompicker\}
 
@@ -1285,7 +1285,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:981](https://g
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### deleteDetailTask() \{#deletedetailtask\}
 
@@ -1297,15 +1297,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:938](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `Event` |
+| Parameter | Type    |
+| --------- | ------- |
+| `event`   | `Event` |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### deleteLabel() \{#deletelabel\}
 
@@ -1317,15 +1317,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:1083](https://
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `label` | [`BoardLabel`](../interfaces/BoardLabel.md) |
+| Parameter | Type                                        |
+| --------- | ------------------------------------------- |
+| `label`   | [`BoardLabel`](../interfaces/BoardLabel.md) |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### dueStatusOf() \{#duestatusof\}
 
@@ -1337,15 +1337,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:474](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type               |
+| --------- | ------------------ |
 | `dueDate` | `string` \| `null` |
 
 #### Returns
 
 [`DueStatus`](../../rxdb-plugin-board/type-aliases/DueStatus.md) \| `null`
 
-***
+---
 
 ### dueText() \{#duetext\}
 
@@ -1357,15 +1357,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:478](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type     |
+| --------- | -------- |
 | `dueDate` | `string` |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### executeConfirmedDelete() \{#executeconfirmeddelete\}
 
@@ -1379,7 +1379,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:1022](https://
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### inputValue() \{#inputvalue\}
 
@@ -1391,15 +1391,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:444](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `Event` |
+| Parameter | Type    |
+| --------- | ------- |
+| `event`   | `Event` |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### isColumnDropAfter() \{#iscolumndropafter\}
 
@@ -1411,15 +1411,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:1188](https://
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `column` | [`Column`](../interfaces/Column.md) |
+| Parameter | Type                                |
+| --------- | ----------------------------------- |
+| `column`  | [`Column`](../interfaces/Column.md) |
 
 #### Returns
 
 `boolean`
 
-***
+---
 
 ### isColumnDropBefore() \{#iscolumndropbefore\}
 
@@ -1431,15 +1431,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:1183](https://
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `column` | [`Column`](../interfaces/Column.md) |
+| Parameter | Type                                |
+| --------- | ----------------------------------- |
+| `column`  | [`Column`](../interfaces/Column.md) |
 
 #### Returns
 
 `boolean`
 
-***
+---
 
 ### isDraggingColumn() \{#isdraggingcolumn\}
 
@@ -1451,15 +1451,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:1197](https://
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `column` | [`Column`](../interfaces/Column.md) |
+| Parameter | Type                                |
+| --------- | ----------------------------------- |
+| `column`  | [`Column`](../interfaces/Column.md) |
 
 #### Returns
 
 `boolean`
 
-***
+---
 
 ### isDraggingTask() \{#isdraggingtask\}
 
@@ -1471,15 +1471,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:1193](https://
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `task` | [`Task`](../interfaces/Task.md) |
+| Parameter | Type                            |
+| --------- | ------------------------------- |
+| `task`    | [`Task`](../interfaces/Task.md) |
 
 #### Returns
 
 `boolean`
 
-***
+---
 
 ### isDropAfter() \{#isdropafter\}
 
@@ -1491,15 +1491,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:1168](https://
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `task` | [`Task`](../interfaces/Task.md) |
+| Parameter | Type                            |
+| --------- | ------------------------------- |
+| `task`    | [`Task`](../interfaces/Task.md) |
 
 #### Returns
 
 `boolean`
 
-***
+---
 
 ### isDropBefore() \{#isdropbefore\}
 
@@ -1511,15 +1511,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:1163](https://
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `task` | [`Task`](../interfaces/Task.md) |
+| Parameter | Type                            |
+| --------- | ------------------------------- |
+| `task`    | [`Task`](../interfaces/Task.md) |
 
 #### Returns
 
 `boolean`
 
-***
+---
 
 ### isDropColumn() \{#isdropcolumn\}
 
@@ -1531,15 +1531,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:1178](https://
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `column` | [`Column`](../interfaces/Column.md) |
+| Parameter | Type                                |
+| --------- | ----------------------------------- |
+| `column`  | [`Column`](../interfaces/Column.md) |
 
 #### Returns
 
 `boolean`
 
-***
+---
 
 ### isDropEnd() \{#isdropend\}
 
@@ -1551,15 +1551,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:1173](https://
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `column` | [`Column`](../interfaces/Column.md) |
+| Parameter | Type                                |
+| --------- | ----------------------------------- |
+| `column`  | [`Column`](../interfaces/Column.md) |
 
 #### Returns
 
 `boolean`
 
-***
+---
 
 ### isFirstColumn() \{#isfirstcolumn\}
 
@@ -1571,15 +1571,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:498](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `column` | [`Column`](../interfaces/Column.md) |
+| Parameter | Type                                |
+| --------- | ----------------------------------- |
+| `column`  | [`Column`](../interfaces/Column.md) |
 
 #### Returns
 
 `boolean`
 
-***
+---
 
 ### isLabelFiltered() \{#islabelfiltered\}
 
@@ -1591,15 +1591,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:511](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `name` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `name`    | `string` |
 
 #### Returns
 
 `boolean`
 
-***
+---
 
 ### isLastColumn() \{#islastcolumn\}
 
@@ -1611,15 +1611,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:502](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `column` | [`Column`](../interfaces/Column.md) |
+| Parameter | Type                                |
+| --------- | ----------------------------------- |
+| `column`  | [`Column`](../interfaces/Column.md) |
 
 #### Returns
 
 `boolean`
 
-***
+---
 
 ### isPopoverFor() \{#ispopoverfor\}
 
@@ -1631,16 +1631,16 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:506](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `kind` | `BoardPopoverKind` |
+| Parameter  | Type                                                      |
+| ---------- | --------------------------------------------------------- |
+| `kind`     | `BoardPopoverKind`                                        |
 | `targetId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
 
 #### Returns
 
 `boolean`
 
-***
+---
 
 ### isValidColor() \{#isvalidcolor\}
 
@@ -1652,15 +1652,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:526](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `color` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `color`   | `string` |
 
 #### Returns
 
 `boolean`
 
-***
+---
 
 ### labelsOf() \{#labelsof\}
 
@@ -1672,15 +1672,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:453](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `taskId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
+| Parameter | Type                                                      |
+| --------- | --------------------------------------------------------- |
+| `taskId`  | `` `${string}-${string}-${string}-${string}-${string}` `` |
 
 #### Returns
 
 readonly [`BoardLabel`](../interfaces/BoardLabel.md)[]
 
-***
+---
 
 ### labelTextColor() \{#labeltextcolor\}
 
@@ -1694,15 +1694,15 @@ Label text color (contrast, US-539 AC#6).
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `color` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `color`   | `string` |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### moveColumnBy() \{#movecolumnby\}
 
@@ -1714,16 +1714,16 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:745](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `columnId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
-| `direction` | `-1` \| `1` |
+| Parameter   | Type                                                      |
+| ----------- | --------------------------------------------------------- |
+| `columnId`  | `` `${string}-${string}-${string}-${string}-${string}` `` |
+| `direction` | `-1` \| `1`                                               |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### moveTaskBy() \{#movetaskby\}
 
@@ -1735,16 +1735,16 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:848](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `task` | [`Task`](../interfaces/Task.md) |
+| Parameter   | Type                                                                               |
+| ----------- | ---------------------------------------------------------------------------------- |
+| `task`      | [`Task`](../interfaces/Task.md)                                                    |
 | `direction` | [`BoardMoveDirection`](../../rxdb-plugin-board/type-aliases/BoardMoveDirection.md) |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### ngOnDestroy() \{#ngondestroy\}
 
@@ -1765,7 +1765,7 @@ before a directive, pipe, or service instance is destroyed.
 
 `OnDestroy.ngOnDestroy`
 
-***
+---
 
 ### ngOnInit() \{#ngoninit\}
 
@@ -1789,7 +1789,7 @@ It is invoked only once when the directive is instantiated.
 
 `OnInit.ngOnInit`
 
-***
+---
 
 ### onBackdropMousedown() \{#onbackdropmousedown\}
 
@@ -1801,15 +1801,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:1018](https://
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `MouseEvent` |
+| Parameter | Type         |
+| --------- | ------------ |
+| `event`   | `MouseEvent` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onBoardDescriptionKeydown() \{#onboarddescriptionkeydown\}
 
@@ -1821,15 +1821,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:599](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `KeyboardEvent` |
+| Parameter | Type            |
+| --------- | --------------- |
+| `event`   | `KeyboardEvent` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onBoardSelectionChange() \{#onboardselectionchange\}
 
@@ -1841,15 +1841,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:541](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `Event` |
+| Parameter | Type    |
+| --------- | ------- |
+| `event`   | `Event` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onCardKeydown() \{#oncardkeydown\}
 
@@ -1861,16 +1861,16 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:861](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `KeyboardEvent` |
-| `task` | [`Task`](../interfaces/Task.md) |
+| Parameter | Type                            |
+| --------- | ------------------------------- |
+| `event`   | `KeyboardEvent`                 |
+| `task`    | [`Task`](../interfaces/Task.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onColumnDragOver() \{#oncolumndragover\}
 
@@ -1882,15 +1882,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:1123](https://
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `DragEvent` |
+| Parameter | Type        |
+| --------- | ----------- |
+| `event`   | `DragEvent` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onColumnDragStart() \{#oncolumndragstart\}
 
@@ -1902,16 +1902,16 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:1117](https://
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `DragEvent` |
-| `column` | [`Column`](../interfaces/Column.md) |
+| Parameter | Type                                |
+| --------- | ----------------------------------- |
+| `event`   | `DragEvent`                         |
+| `column`  | [`Column`](../interfaces/Column.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onColumnDrop() \{#oncolumndrop\}
 
@@ -1923,15 +1923,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:1148](https://
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `DragEvent` |
+| Parameter | Type        |
+| --------- | ----------- |
+| `event`   | `DragEvent` |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### onDetailDescriptionKeydown() \{#ondetaildescriptionkeydown\}
 
@@ -1943,15 +1943,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:910](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `KeyboardEvent` |
+| Parameter | Type            |
+| --------- | --------------- |
+| `event`   | `KeyboardEvent` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onExportBackup() \{#onexportbackup\}
 
@@ -1965,7 +1965,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:616](https://g
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### onFilterInput() \{#onfilterinput\}
 
@@ -1979,15 +1979,15 @@ Filters as you type; the first completion item is highlighted by default, and En
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `value`   | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onFilterKeydown() \{#onfilterkeydown\}
 
@@ -1999,15 +1999,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:659](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `KeyboardEvent` |
+| Parameter | Type            |
+| --------- | --------------- |
+| `event`   | `KeyboardEvent` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onPickerInput() \{#onpickerinput\}
 
@@ -2019,15 +2019,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:946](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `value`   | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onPickerKeydown() \{#onpickerkeydown\}
 
@@ -2039,15 +2039,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:951](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `KeyboardEvent` |
+| Parameter | Type            |
+| --------- | --------------- |
+| `event`   | `KeyboardEvent` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onPopoverKeydown() \{#onpopoverkeydown\}
 
@@ -2059,15 +2059,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:990](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `KeyboardEvent` |
+| Parameter | Type            |
+| --------- | --------------- |
+| `event`   | `KeyboardEvent` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onSearchInput() \{#onsearchinput\}
 
@@ -2081,15 +2081,15 @@ Input changes: an empty query destroys the handle and exits the search state; ot
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `value`   | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onSearchMore() \{#onsearchmore\}
 
@@ -2103,7 +2103,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:1228](https://
 
 `void`
 
-***
+---
 
 ### onSearchResultClick() \{#onsearchresultclick\}
 
@@ -2117,15 +2117,15 @@ Clicking a result: closes the dialog, scrolls to the target card, focuses and br
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `result` | [`SearchResult`](../../rxdb-plugin-board/interfaces/SearchResult.md) |
+| Parameter | Type                                                                 |
+| --------- | -------------------------------------------------------------------- |
+| `result`  | [`SearchResult`](../../rxdb-plugin-board/interfaces/SearchResult.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onTaskDragOver() \{#ontaskdragover\}
 
@@ -2137,15 +2137,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:1096](https://
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `DragEvent` |
+| Parameter | Type        |
+| --------- | ----------- |
+| `event`   | `DragEvent` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onTaskDragStart() \{#ontaskdragstart\}
 
@@ -2157,16 +2157,16 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:1090](https://
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `DragEvent` |
-| `task` | [`Task`](../interfaces/Task.md) |
+| Parameter | Type                            |
+| --------- | ------------------------------- |
+| `event`   | `DragEvent`                     |
+| `task`    | [`Task`](../interfaces/Task.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onTaskDrop() \{#ontaskdrop\}
 
@@ -2178,15 +2178,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:1135](https://
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `DragEvent` |
+| Parameter | Type        |
+| --------- | ----------- |
+| `event`   | `DragEvent` |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### openAddColumn() \{#openaddcolumn\}
 
@@ -2200,7 +2200,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:765](https://g
 
 `void`
 
-***
+---
 
 ### openAddTask() \{#openaddtask\}
 
@@ -2212,15 +2212,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:785](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                      |
+| ---------- | --------------------------------------------------------- |
 | `columnId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### openBoardComposer() \{#openboardcomposer\}
 
@@ -2232,15 +2232,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:547](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event?` | `Event` |
+| Parameter | Type    |
+| --------- | ------- |
+| `event?`  | `Event` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### openBoardMenu() \{#openboardmenu\}
 
@@ -2252,15 +2252,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:607](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `Event` |
+| Parameter | Type    |
+| --------- | ------- |
+| `event`   | `Event` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### openColumnMenu() \{#opencolumnmenu\}
 
@@ -2272,16 +2272,16 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:702](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `Event` |
-| `column` | [`Column`](../interfaces/Column.md) |
+| Parameter | Type                                |
+| --------- | ----------------------------------- |
+| `event`   | `Event`                             |
+| `column`  | [`Column`](../interfaces/Column.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### openDetail() \{#opendetail\}
 
@@ -2293,15 +2293,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:869](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `taskId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
+| Parameter | Type                                                      |
+| --------- | --------------------------------------------------------- |
+| `taskId`  | `` `${string}-${string}-${string}-${string}-${string}` `` |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### openDetailColumnPicker() \{#opendetailcolumnpicker\}
 
@@ -2313,15 +2313,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:924](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `Event` |
+| Parameter | Type    |
+| --------- | ------- |
+| `event`   | `Event` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### openDetailLabelPicker() \{#opendetaillabelpicker\}
 
@@ -2333,15 +2333,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:930](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `Event` |
+| Parameter | Type    |
+| --------- | ------- |
+| `event`   | `Event` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### openLabels() \{#openlabels\}
 
@@ -2353,15 +2353,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:998](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event?` | `Event` |
+| Parameter | Type    |
+| --------- | ------- |
+| `event?`  | `Event` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### openMovePicker() \{#openmovepicker\}
 
@@ -2373,15 +2373,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:842](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `task` | [`Task`](../interfaces/Task.md) |
+| Parameter | Type                            |
+| --------- | ------------------------------- |
+| `task`    | [`Task`](../interfaces/Task.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### openSearch() \{#opensearch\}
 
@@ -2393,15 +2393,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:1003](https://
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event?` | `Event` |
+| Parameter | Type    |
+| --------- | ------- |
+| `event?`  | `Event` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### openShortcuts() \{#openshortcuts\}
 
@@ -2415,7 +2415,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:611](https://g
 
 `void`
 
-***
+---
 
 ### openTaskMenu() \{#opentaskmenu\}
 
@@ -2427,16 +2427,16 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:816](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `Event` |
-| `task` | [`Task`](../interfaces/Task.md) |
+| Parameter | Type                            |
+| --------- | ------------------------------- |
+| `event`   | `Event`                         |
+| `task`    | [`Task`](../interfaces/Task.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### overdueCount() \{#overduecount\}
 
@@ -2448,15 +2448,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:470](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `column` | [`Column`](../interfaces/Column.md) |
+| Parameter | Type                                |
+| --------- | ----------------------------------- |
+| `column`  | [`Column`](../interfaces/Column.md) |
 
 #### Returns
 
 `number`
 
-***
+---
 
 ### popoverLabel() \{#popoverlabel\}
 
@@ -2468,15 +2468,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:515](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `pop` | `PopoverState` |
+| Parameter | Type           |
+| --------- | -------------- |
+| `pop`     | `PopoverState` |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### previewColor() \{#previewcolor\}
 
@@ -2490,15 +2490,15 @@ Preview color: keeps gray while the input is incomplete, so an invalid color is 
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `color` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `color`   | `string` |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### redo() \{#redo\}
 
@@ -2512,7 +2512,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:641](https://g
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### revertDetailTitle() \{#revertdetailtitle\}
 
@@ -2524,15 +2524,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:899](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `Event` |
+| Parameter | Type    |
+| --------- | ------- |
+| `event`   | `Event` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### sameColor() \{#samecolor\}
 
@@ -2544,16 +2544,16 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:522](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `a` | `string` |
-| `b` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `a`       | `string` |
+| `b`       | `string` |
 
 #### Returns
 
 `boolean`
 
-***
+---
 
 ### saveLabelEditor() \{#savelabeleditor\}
 
@@ -2567,7 +2567,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:1076](https://
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### searchColumnTitle() \{#searchcolumntitle\}
 
@@ -2579,15 +2579,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:1248](https://
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `result` | [`SearchResult`](../../rxdb-plugin-board/interfaces/SearchResult.md) |
+| Parameter | Type                                                                 |
+| --------- | -------------------------------------------------------------------- |
+| `result`  | [`SearchResult`](../../rxdb-plugin-board/interfaces/SearchResult.md) |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### searchResultTitle() \{#searchresulttitle\}
 
@@ -2599,15 +2599,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:1252](https://
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `result` | [`SearchResult`](../../rxdb-plugin-board/interfaces/SearchResult.md) |
+| Parameter | Type                                                                 |
+| --------- | -------------------------------------------------------------------- |
+| `result`  | [`SearchResult`](../../rxdb-plugin-board/interfaces/SearchResult.md) |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### searchUnavailableText() \{#searchunavailabletext\}
 
@@ -2619,15 +2619,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:1256](https://
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `reason` | \| [`BoardSearchUnavailableReason`](../type-aliases/BoardSearchUnavailableReason.md) \| `null` |
+| Parameter | Type                                                                                           |
+| --------- | ---------------------------------------------------------------------------------------------- |
+| `reason`  | \| [`BoardSearchUnavailableReason`](../type-aliases/BoardSearchUnavailableReason.md) \| `null` |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### sortColumnBy() \{#sortcolumnby\}
 
@@ -2639,16 +2639,16 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:728](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                      |
+| ---------- | --------------------------------------------------------- |
 | `columnId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
-| `mode` | `"dueDate"` \| `"title"` |
+| `mode`     | `"dueDate"` \| `"title"`                                  |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### startBoardDescription() \{#startboarddescription\}
 
@@ -2662,7 +2662,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:584](https://g
 
 `void`
 
-***
+---
 
 ### startBoardTitle() \{#startboardtitle\}
 
@@ -2676,7 +2676,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:563](https://g
 
 `void`
 
-***
+---
 
 ### startColumnTitle() \{#startcolumntitle\}
 
@@ -2688,15 +2688,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:706](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                      |
+| ---------- | --------------------------------------------------------- |
 | `columnId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### startCreateLabel() \{#startcreatelabel\}
 
@@ -2710,7 +2710,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:1057](https://
 
 `void`
 
-***
+---
 
 ### startEditLabel() \{#starteditlabel\}
 
@@ -2722,15 +2722,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:1062](https://
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `label` | [`BoardLabel`](../interfaces/BoardLabel.md) |
+| Parameter | Type                                        |
+| --------- | ------------------------------------------- |
+| `label`   | [`BoardLabel`](../interfaces/BoardLabel.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### startTaskTitle() \{#starttasktitle\}
 
@@ -2742,15 +2742,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:820](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `task` | [`Task`](../interfaces/Task.md) |
+| Parameter | Type                            |
+| --------- | ------------------------------- |
+| `task`    | [`Task`](../interfaces/Task.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### submitBoardComposer() \{#submitboardcomposer\}
 
@@ -2766,7 +2766,7 @@ Switches to the new board after creating it; if the user already switched boards
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### taskById() \{#taskbyid\}
 
@@ -2778,15 +2778,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:488](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `taskId` | `` `${string}-${string}-${string}-${string}-${string}` `` \| `null` |
+| Parameter | Type                                                                |
+| --------- | ------------------------------------------------------------------- |
+| `taskId`  | `` `${string}-${string}-${string}-${string}-${string}` `` \| `null` |
 
 #### Returns
 
 [`Task`](../interfaces/Task.md) \| `undefined`
 
-***
+---
 
 ### tasksOf() \{#tasksof\}
 
@@ -2798,15 +2798,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:457](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `column` | [`Column`](../interfaces/Column.md) |
+| Parameter | Type                                |
+| --------- | ----------------------------------- |
+| `column`  | [`Column`](../interfaces/Column.md) |
 
 #### Returns
 
 readonly [`Task`](../interfaces/Task.md)[]
 
-***
+---
 
 ### toggleLabelFilter() \{#togglelabelfilter\}
 
@@ -2820,15 +2820,15 @@ Clicking a label on a card filters by it (clicking again cancels).
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `name` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `name`    | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### undo() \{#undo\}
 
@@ -2842,7 +2842,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:637](https://g
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### undoFromToast() \{#undofromtoast\}
 
@@ -2856,7 +2856,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:645](https://g
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### updateLabelEditor() \{#updatelabeleditor\}
 
@@ -2868,15 +2868,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:1067](https://
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `patch` | `Partial`&lt;`LabelEditorState`&gt; |
+| Parameter | Type                                |
+| --------- | ----------------------------------- |
+| `patch`   | `Partial`&lt;`LabelEditorState`&gt; |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### visibleTasksOf() \{#visibletasksof\}
 
@@ -2888,9 +2888,9 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-view.ts:461](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `column` | [`Column`](../interfaces/Column.md) |
+| Parameter | Type                                |
+| --------- | ----------------------------------- |
+| `column`  | [`Column`](../interfaces/Column.md) |
 
 #### Returns
 

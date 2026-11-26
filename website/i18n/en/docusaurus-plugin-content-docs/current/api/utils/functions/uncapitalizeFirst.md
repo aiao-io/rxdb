@@ -8,9 +8,9 @@ Defined in: [packages/utils/src/string/uncapitalize.ts:1](https://github.com/aia
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `lower` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `lower`   | `string` |
 
 ## Returns
 

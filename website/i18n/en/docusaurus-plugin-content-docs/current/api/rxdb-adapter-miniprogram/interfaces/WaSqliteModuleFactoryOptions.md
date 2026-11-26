@@ -16,16 +16,16 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts:185
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `imports` | `WebAssembly.Imports` |
+| Parameter         | Type                                                            |
+| ----------------- | --------------------------------------------------------------- |
+| `imports`         | `WebAssembly.Imports`                                           |
 | `receiveInstance` | [`ReceiveWasmInstance`](../type-aliases/ReceiveWasmInstance.md) |
 
 #### Returns
 
 `object`
 
-***
+---
 
 ### locateFile() \{#locatefile\}
 
@@ -37,15 +37,15 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts:186
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `path`    | `string` |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### print() \{#print\}
 
@@ -57,15 +57,15 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts:187
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type     |
+| --------- | -------- |
 | `message` | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### printErr() \{#printerr\}
 
@@ -77,8 +77,8 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts:188
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type     |
+| --------- | -------- |
 | `message` | `string` |
 
 #### Returns

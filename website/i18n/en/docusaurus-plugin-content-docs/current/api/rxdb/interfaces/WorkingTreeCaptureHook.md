@@ -30,10 +30,10 @@ Claims the installation host and its copy of the unintercepted primitives; calle
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `target` | [`WorkingTreeCaptureMountTarget`](../type-aliases/WorkingTreeCaptureMountTarget.md) | The adapter instance the mount points were installed on; also the scope key of adapter-level write intent declarations |
-| `raw` | [`RawWritePrimitives`](RawWritePrimitives.md) | The five primitives before interception |
+| Parameter | Type                                                                                | Description                                                                                                            |
+| --------- | ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `target`  | [`WorkingTreeCaptureMountTarget`](../type-aliases/WorkingTreeCaptureMountTarget.md) | The adapter instance the mount points were installed on; also the scope key of adapter-level write intent declarations |
+| `raw`     | [`RawWritePrimitives`](RawWritePrimitives.md)                                       | The five primitives before interception                                                                                |
 
 #### Returns
 
@@ -46,14 +46,14 @@ the scope identity used by [declareTrustedWrite](../functions/declareTrustedWrit
 and the runtime must hold the same object to look them up; `raw` is the only safe entry for capture to issue writes itself,
 going through the intercepted copy would immediately recurse back into the mount point itself.
 
-***
+---
 
 ### gateExternalNotify() \{#gateexternalnotify\}
 
 ```ts
 gateExternalNotify<T>(
-   entityName, 
-   namespace, 
+   entityName,
+   namespace,
    notify
 ): T;
 ```
@@ -64,17 +64,17 @@ Hand-off gate 2: one `notifyExternalUpdate()` (row 11 of the write entry semanti
 
 #### Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                    | Description                                                                 |
+| --------------------------------- | --------------------------------------------------------------------------- |
 | <a id="type-parameter-t"></a> `T` | The return type of the notification body; passed through as-is when allowed |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entityName` | `string` | The name of the entity being notified |
-| `namespace` | `string` \| `undefined` | Used directly when known; `rxdb` means a system table |
-| `notify` | () => `T` | The notification body, **not yet invoked** |
+| Parameter    | Type                    | Description                                           |
+| ------------ | ----------------------- | ----------------------------------------------------- |
+| `entityName` | `string`                | The name of the entity being notified                 |
+| `namespace`  | `string` \| `undefined` | Used directly when known; `rxdb` means a system table |
+| `notify`     | () => `T`               | The notification body, **not yet invoked**            |
 
 #### Returns
 
@@ -95,7 +95,7 @@ leaving the whole "which class, and does row 11 allow or reject that class" judg
 **The gate wraps the notification body, it is not an assertion added after the notification**: what is received is a not-yet-invoked callback, so "adjudicate first" is
 the only possible shape in the type system; written as dispatch-then-check, the rejection could not stop the event from already having gone out.
 
-***
+---
 
 ### gateRawWrite() \{#gaterawwrite\}
 
@@ -109,16 +109,16 @@ Hand-off gate 1: one raw write statement (the 4-step adjudication of adapter-con
 
 #### Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                      | Description                                                                  |
+| ----------------------------------- | ---------------------------------------------------------------------------- |
 | <a id="type-parameter-t-1"></a> `T` | The return type of the statement executor; passed through as-is when allowed |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `sql` | `string` | The raw text of the statement to be adjudicated |
-| `execute` | () => `T` \| `Promise`&lt;`T`&gt; | The executor, **not yet invoked** |
+| Parameter | Type                              | Description                                     |
+| --------- | --------------------------------- | ----------------------------------------------- |
+| `sql`     | `string`                          | The raw text of the statement to be adjudicated |
+| `execute` | () => `T` \| `Promise`&lt;`T`&gt; | The executor, **not yet invoked**               |
 
 #### Returns
 
@@ -137,15 +137,15 @@ so adjudication can only be done by each adapter's own implementation calling [g
 the capability bit false → allow directly, true → hand off to here. **Not a single word of the adjudication implementation is in core** — it recognizes statement lexemes,
 the six physical shapes of table names and trusted intents, all three of which change with the capture rules.
 
-***
+---
 
 ### interceptBulkWrite() \{#interceptbulkwrite\}
 
 ```ts
 interceptBulkWrite(
-   host, 
-   next, 
-   entityName, 
+   host,
+   next,
+   entityName,
    operation
 ): Observable<void>;
 ```
@@ -156,27 +156,27 @@ Mount point 4: the gate of `upsertMany` / `deleteByIds`
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `host` | [`WorkingTreeWriteHost`](WorkingTreeWriteHost.md) |
-| `next` | () => `Observable`&lt;`void`&gt; |
-| `entityName` | `string` |
-| `operation` | [`InterceptedBulkWrite`](../type-aliases/InterceptedBulkWrite.md) |
+| Parameter    | Type                                                              |
+| ------------ | ----------------------------------------------------------------- |
+| `host`       | [`WorkingTreeWriteHost`](WorkingTreeWriteHost.md)                 |
+| `next`       | () => `Observable`&lt;`void`&gt;                                  |
+| `entityName` | `string`                                                          |
+| `operation`  | [`InterceptedBulkWrite`](../type-aliases/InterceptedBulkWrite.md) |
 
 #### Returns
 
 `Observable`&lt;`void`&gt;
 
-***
+---
 
 ### interceptMergeChanges() \{#interceptmergechanges\}
 
 ```ts
 interceptMergeChanges(
-   host, 
-   next, 
-   actions, 
-   localChanges?, 
+   host,
+   next,
+   actions,
+   localChanges?,
    disableTriggers?
 ): Promise<number | void>;
 ```
@@ -187,26 +187,26 @@ Mount point 2: the local `mergeChanges` (the same-name remote overload is not in
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `host` | [`WorkingTreeWriteHost`](WorkingTreeWriteHost.md) |
-| `next` | [`MergeChangesNext`](../type-aliases/MergeChangesNext.md) |
-| `actions` | [`SwitchVersionActions`](SwitchVersionActions.md) |
-| `localChanges?` | `Omit`&lt;[`RxDBChange`](../classes/RxDBChange.md), `"id"`&gt;[] |
-| `disableTriggers?` | `boolean` |
+| Parameter          | Type                                                             |
+| ------------------ | ---------------------------------------------------------------- |
+| `host`             | [`WorkingTreeWriteHost`](WorkingTreeWriteHost.md)                |
+| `next`             | [`MergeChangesNext`](../type-aliases/MergeChangesNext.md)        |
+| `actions`          | [`SwitchVersionActions`](SwitchVersionActions.md)                |
+| `localChanges?`    | `Omit`&lt;[`RxDBChange`](../classes/RxDBChange.md), `"id"`&gt;[] |
+| `disableTriggers?` | `boolean`                                                        |
 
 #### Returns
 
 `Promise`&lt;`number` \| `void`&gt;
 
-***
+---
 
 ### interceptSwitchBranch() \{#interceptswitchbranch\}
 
 ```ts
 interceptSwitchBranch(
-   host, 
-   next, 
+   host,
+   next,
    options
 ): Promise<void>;
 ```
@@ -217,25 +217,25 @@ Mount point 3: branch materialization / redo invalidation / undo-redo applicatio
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `host` | [`WorkingTreeWriteHost`](WorkingTreeWriteHost.md) |
-| `next` | (`options`) => `Promise`&lt;`void`&gt; |
-| `options` | [`SwitchBranchOptions`](SwitchBranchOptions.md) |
+| Parameter | Type                                              |
+| --------- | ------------------------------------------------- |
+| `host`    | [`WorkingTreeWriteHost`](WorkingTreeWriteHost.md) |
+| `next`    | (`options`) => `Promise`&lt;`void`&gt;            |
+| `options` | [`SwitchBranchOptions`](SwitchBranchOptions.md)   |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### interceptTransaction() \{#intercepttransaction\}
 
 ```ts
 interceptTransaction(
-   host, 
-   next, 
-   fun, 
+   host,
+   next,
+   fun,
    transactionLog?
 ): Promise<unknown>;
 ```
@@ -246,12 +246,12 @@ Mount point 1: the atomic boundary where a whole transaction shares one `unitId`
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `host` | [`WorkingTreeWriteHost`](WorkingTreeWriteHost.md) |
-| `next` | (`fun`, `transactionLog?`) => `Promise`&lt;`unknown`&gt; |
-| `fun` | [`TransactionFun`](../type-aliases/TransactionFun.md) |
-| `transactionLog?` | `boolean` |
+| Parameter         | Type                                                     |
+| ----------------- | -------------------------------------------------------- |
+| `host`            | [`WorkingTreeWriteHost`](WorkingTreeWriteHost.md)        |
+| `next`            | (`fun`, `transactionLog?`) => `Promise`&lt;`unknown`&gt; |
+| `fun`             | [`TransactionFun`](../type-aliases/TransactionFun.md)    |
+| `transactionLog?` | `boolean`                                                |
 
 #### Returns
 

@@ -175,13 +175,13 @@ Both share the same root registry, the same key format and the same failure sema
 
 Same feature, same API is a hard constraint of this repository; framework conventions allow differences in container shape and naming, but not missing capabilities:
 
-| Capability        | Angular                                                | Vue                                  | React                                   |
-| ----------------- | ------------------------------------------------------ | ------------------------------------ | --------------------------------------- |
-| Query             | `useGet` / `useFind` / …                               | same name                            | same name                               |
-| Infinite scroll   | `useInfiniteScroll`                                    | `useInfiniteScroll`                  | `useInfiniteScroll`                     |
-| Async operation   | `useAction` → `Signal<boolean>`                        | `useAction` → `ComputedRef<boolean>` | `useAction` → render snapshot           |
-| Persisted state   | `usePersistedState` / `useState` → `WritableSignal<T>` | `usePersistedState` → `Ref<T>`       | `usePersistedState` → snapshot + `setValue` |
-| Live entity change | `RxDBEntityChangeDirective` (`markForCheck`)           | `useEntityChange`                    | `useEntityChange`                       |
+| Capability         | Angular                                                | Vue                                  | React                                       |
+| ------------------ | ------------------------------------------------------ | ------------------------------------ | ------------------------------------------- |
+| Query              | `useGet` / `useFind` / …                               | same name                            | same name                                   |
+| Infinite scroll    | `useInfiniteScroll`                                    | `useInfiniteScroll`                  | `useInfiniteScroll`                         |
+| Async operation    | `useAction` → `Signal<boolean>`                        | `useAction` → `ComputedRef<boolean>` | `useAction` → render snapshot               |
+| Persisted state    | `usePersistedState` / `useState` → `WritableSignal<T>` | `usePersistedState` → `Ref<T>`       | `usePersistedState` → snapshot + `setValue` |
+| Live entity change | `RxDBEntityChangeDirective` (`markForCheck`)           | `useEntityChange`                    | `useEntityChange`                           |
 
 Time window decisions (`withTimeWindows`) live in `@aiao/utils` and are shared by all three frameworks. The persistence core of Vue / React is `@aiao/utils`'s `PersistedStateRegistry`, which has the **same key format** as Angular's root service `StateRegistry` but each holds its own in-memory state — when mixing two frameworks on the same page, on-disk data interoperates but in-memory values do not.
 
@@ -194,53 +194,53 @@ Provides Angular-specific reactive state management and change detection integra
 
 ## Classes
 
-| Class | Description |
-| ------ | ------ |
-| [InfiniteScrollingList](classes/InfiniteScrollingList.md) | An infinite scrolling list based on cursor pagination. |
+| Class                                                             | Description                                                                                                                                                                                                |
+| ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [InfiniteScrollingList](classes/InfiniteScrollingList.md)         | An infinite scrolling list based on cursor pagination.                                                                                                                                                     |
 | [RxDBEntityChangeDirective](classes/RxDBEntityChangeDirective.md) | RxDB entity change directive. If you use `changeDetection: ChangeDetectionStrategy.OnPush`, changes while typing do not trigger Angular's rendering mechanism; this directive provides real-time rendering |
 
 ## Interfaces
 
-| Interface | Description |
-| ------ | ------ |
-| [ActionResource](interfaces/ActionResource.md) | Return value of [useAction](functions/useAction.md). |
-| [GraphPath](interfaces/GraphPath.md) | Graph path result |
-| [InfiniteScrollResource](interfaces/InfiniteScrollResource.md) | Angular infinite scroll resource. |
-| [NamespacedState](interfaces/NamespacedState.md) | The state entry of a given `namespace + name`. |
-| [NeighborResult](interfaces/NeighborResult.md) | Graph neighbor query result (basic) |
-| [PersistedState](interfaces/PersistedState.md) | The persisted state for a given `namespace + name`. |
-| [RxDBResource](interfaces/RxDBResource.md) | - |
-| [SyncStateResource](interfaces/SyncStateResource.md) | Return value of [useSyncState](functions/useSyncState.md). |
+| Interface                                                      | Description                                                |
+| -------------------------------------------------------------- | ---------------------------------------------------------- |
+| [ActionResource](interfaces/ActionResource.md)                 | Return value of [useAction](functions/useAction.md).       |
+| [GraphPath](interfaces/GraphPath.md)                           | Graph path result                                          |
+| [InfiniteScrollResource](interfaces/InfiniteScrollResource.md) | Angular infinite scroll resource.                          |
+| [NamespacedState](interfaces/NamespacedState.md)               | The state entry of a given `namespace + name`.             |
+| [NeighborResult](interfaces/NeighborResult.md)                 | Graph neighbor query result (basic)                        |
+| [PersistedState](interfaces/PersistedState.md)                 | The persisted state for a given `namespace + name`.        |
+| [RxDBResource](interfaces/RxDBResource.md)                     | -                                                          |
+| [SyncStateResource](interfaces/SyncStateResource.md)           | Return value of [useSyncState](functions/useSyncState.md). |
 
 ## Type Aliases
 
-| Type Alias | Description |
-| ------ | ------ |
-| [GraphQueryResult](type-aliases/GraphQueryResult.md) | Graph query array with resource truncation state. |
-| [InfiniteScrollOptions](type-aliases/InfiniteScrollOptions.md) | Angular infinite scroll query options or a reactive options reader. |
-| [RxDBSource](type-aliases/RxDBSource.md) | The database form accepted by `provideRxDB`: an instance, a Promise, or a factory returning either. |
-| [UseOptions](type-aliases/UseOptions.md) | Query options: a static value or a factory function called on each evaluation. |
+| Type Alias                                                     | Description                                                                                         |
+| -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| [GraphQueryResult](type-aliases/GraphQueryResult.md)           | Graph query array with resource truncation state.                                                   |
+| [InfiniteScrollOptions](type-aliases/InfiniteScrollOptions.md) | Angular infinite scroll query options or a reactive options reader.                                 |
+| [RxDBSource](type-aliases/RxDBSource.md)                       | The database form accepted by `provideRxDB`: an instance, a Promise, or a factory returning either. |
+| [UseOptions](type-aliases/UseOptions.md)                       | Query options: a static value or a factory function called on each evaluation.                      |
 
 ## Functions
 
-| Function | Description |
-| ------ | ------ |
-| [provideRxDB](functions/provideRxDB.md) | Configures the RxDB instance used by the Angular injector. |
-| [useAction](functions/useAction.md) | Wraps an async function into a callable action with a loading state. |
-| [useCount](functions/useCount.md) | Counts entities matching the condition |
-| [useCountNeighbors](functions/useCountNeighbors.md) | Counts adjacency in a graph structure |
-| [useFind](functions/useFind.md) | Finds multiple entities matching the condition |
-| [useFindAll](functions/useFindAll.md) | Finds all entities |
-| [useFindByCursor](functions/useFindByCursor.md) | Finds entities using cursor pagination |
-| [useFindOne](functions/useFindOne.md) | Finds the first entity matching the condition |
-| [useFindOneOrFail](functions/useFindOneOrFail.md) | Finds a matching entity, throws when none is found |
-| [useGet](functions/useGet.md) | Fetches a single entity by ID |
-| [useGraphNeighbors](functions/useGraphNeighbors.md) | Finds adjacent entities in a graph structure |
-| [useGraphPaths](functions/useGraphPaths.md) | Finds paths between two entities in a graph structure |
-| [useInfiniteScroll](functions/useInfiniteScroll.md) | Creates an infinite scroll resource from the current Angular injection context. |
-| [usePersistedState](functions/usePersistedState.md) | Creates (or reuses) a namespaced state persisted to `localStorage`. |
-| [useRepositoryQuery](functions/useRepositoryQuery.md) | Converts an entity repository's Observable query into a lazy Angular Signal resource. |
-| [useRxDB](functions/useRxDB.md) | Reads the RxDB instance from the current injector. |
-| [useRxDBOptional](functions/useRxDBOptional.md) | Reads the RxDB instance from the current injector, returning `undefined` when it is not ready. |
-| [useState](functions/useState.md) | Creates a read/write entry point for persisted state under a namespace. |
-| [useSyncState](functions/useSyncState.md) | Reads the current database's sync state. |
+| Function                                              | Description                                                                                    |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| [provideRxDB](functions/provideRxDB.md)               | Configures the RxDB instance used by the Angular injector.                                     |
+| [useAction](functions/useAction.md)                   | Wraps an async function into a callable action with a loading state.                           |
+| [useCount](functions/useCount.md)                     | Counts entities matching the condition                                                         |
+| [useCountNeighbors](functions/useCountNeighbors.md)   | Counts adjacency in a graph structure                                                          |
+| [useFind](functions/useFind.md)                       | Finds multiple entities matching the condition                                                 |
+| [useFindAll](functions/useFindAll.md)                 | Finds all entities                                                                             |
+| [useFindByCursor](functions/useFindByCursor.md)       | Finds entities using cursor pagination                                                         |
+| [useFindOne](functions/useFindOne.md)                 | Finds the first entity matching the condition                                                  |
+| [useFindOneOrFail](functions/useFindOneOrFail.md)     | Finds a matching entity, throws when none is found                                             |
+| [useGet](functions/useGet.md)                         | Fetches a single entity by ID                                                                  |
+| [useGraphNeighbors](functions/useGraphNeighbors.md)   | Finds adjacent entities in a graph structure                                                   |
+| [useGraphPaths](functions/useGraphPaths.md)           | Finds paths between two entities in a graph structure                                          |
+| [useInfiniteScroll](functions/useInfiniteScroll.md)   | Creates an infinite scroll resource from the current Angular injection context.                |
+| [usePersistedState](functions/usePersistedState.md)   | Creates (or reuses) a namespaced state persisted to `localStorage`.                            |
+| [useRepositoryQuery](functions/useRepositoryQuery.md) | Converts an entity repository's Observable query into a lazy Angular Signal resource.          |
+| [useRxDB](functions/useRxDB.md)                       | Reads the RxDB instance from the current injector.                                             |
+| [useRxDBOptional](functions/useRxDBOptional.md)       | Reads the RxDB instance from the current injector, returning `undefined` when it is not ready. |
+| [useState](functions/useState.md)                     | Creates a read/write entry point for persisted state under a namespace.                        |
+| [useSyncState](functions/useSyncState.md)             | Reads the current database's sync state.                                                       |

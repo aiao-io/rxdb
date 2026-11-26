@@ -10,9 +10,9 @@ Browser WebRTC DataChannel adapter; DataChannel provides DTLS encryption on its 
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `channel` | [`P2PDataChannelLike`](../interfaces/P2PDataChannelLike.md) |
+| Parameter  | Type                                                                      |
+| ---------- | ------------------------------------------------------------------------- |
+| `channel`  | [`P2PDataChannelLike`](../interfaces/P2PDataChannelLike.md)               |
 | `options?` | [`P2PWebRTCTransportOptions`](../interfaces/P2PWebRTCTransportOptions.md) |
 
 ## Returns

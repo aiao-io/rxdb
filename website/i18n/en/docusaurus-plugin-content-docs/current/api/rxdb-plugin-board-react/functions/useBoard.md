@@ -10,10 +10,10 @@ Board domain bridge: React state + action set. All subscriptions are released au
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `rxdb` | [`RxDB`](../../rxdb/classes/RxDB.md) | Connected board RxDB instance (entities include the five entities in the board namespace; requires the history plugin) |
-| `options?` | [`UseBoardOptions`](../interfaces/UseBoardOptions.md) | Local storage (defaults to localStorage) |
+| Parameter  | Type                                                  | Description                                                                                                            |
+| ---------- | ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `rxdb`     | [`RxDB`](../../rxdb/classes/RxDB.md)                  | Connected board RxDB instance (entities include the five entities in the board namespace; requires the history plugin) |
+| `options?` | [`UseBoardOptions`](../interfaces/UseBoardOptions.md) | Local storage (defaults to localStorage)                                                                               |
 
 ## Returns
 

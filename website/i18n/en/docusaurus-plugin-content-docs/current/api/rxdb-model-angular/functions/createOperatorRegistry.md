@@ -10,8 +10,8 @@ Factory function that creates an OperatorRegistry instance
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                                  | Description               |
+| ---------- | --------------------------------------------------------------------- | ------------------------- |
 | `options?` | [`OperatorRegistryOptions`](../interfaces/OperatorRegistryOptions.md) | Operator registry options |
 
 ## Returns

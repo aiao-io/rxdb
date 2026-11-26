@@ -13,7 +13,7 @@ A declaration with its entry resolved; the return shape of [takeDeclaredWrite](.
 ### entrance \{#entrance\}
 
 ```ts
-readonly entrance: 
+readonly entrance:
   | "crud"
   | "domain_recompute"
   | "remote_entity_apply"
@@ -31,7 +31,7 @@ Defined in: [packages/rxdb/src/trusted-write/trusted-write-scope.ts:59](https://
 
 The row of this registration in the write entry semantics matrix
 
-***
+---
 
 ### file \{#file\}
 
@@ -53,7 +53,7 @@ call sites from `packages/rxdb/src/version/` into `@aiao/rxdb-plugin-history` an
 
 [`TrustedWriteDeclaration`](TrustedWriteDeclaration.md).[`file`](TrustedWriteDeclaration.md#file)
 
-***
+---
 
 ### intent \{#intent\}
 
@@ -69,7 +69,7 @@ The intent self-reported by the call site
 
 [`TrustedWriteDeclaration`](TrustedWriteDeclaration.md).[`intent`](TrustedWriteDeclaration.md#intent)
 
-***
+---
 
 ### symbol \{#symbol\}
 

@@ -14,7 +14,7 @@ Use this directive when edits to an entity need live previews in multiple places
 <div [rxdbChangeDetector]="todo">{{ todo.title }}</div>
 
 <!-- Re-render only after input has been quiet for 200ms -->
-<div [rxdbChangeDetector]="todo" [debounceTime]="200">{{ todo.title }}</div>
+<div [debounceTime]="200" [rxdbChangeDetector]="todo">{{ todo.title }}</div>
 ```
 
 ## Remarks
@@ -55,7 +55,7 @@ Same semantics as RxJS `auditTime`: only the last value within the window is let
 
 Only positive finite values take effect; `0`, negative values, `NaN` and `Infinity` mean the operator is not attached (RAN-011).
 
-***
+---
 
 ### debounceTime \{#debouncetime\}
 
@@ -73,7 +73,7 @@ Same semantics as RxJS `debounceTime`: patches are let through only after input 
 
 Only positive finite values take effect; `0`, negative values, `NaN` and `Infinity` mean the operator is not attached (RAN-011).
 
-***
+---
 
 ### rxdbChangeDetector \{#rxdbchangedetector\}
 

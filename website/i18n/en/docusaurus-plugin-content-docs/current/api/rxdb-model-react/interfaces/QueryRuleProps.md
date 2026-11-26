@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/query-rule/query-rule.t
 
 List of validation errors.
 
-***
+---
 
 ### fields \{#fields\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/query-rule/query-rule.t
 
 Field list.
 
-***
+---
 
 ### onRemove? \{#onremove\}
 
@@ -44,7 +44,7 @@ Remove the rule.
 
 `void`
 
-***
+---
 
 ### onUpdate? \{#onupdate\}
 
@@ -58,17 +58,17 @@ Rule update.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | \{ `id`: `string`; `updates`: `Partial`&lt;[`UIRuleWithWhere`](../type-aliases/UIRuleWithWhere.md)&gt;; \} |
-| `event.id` | `string` |
-| `event.updates` | `Partial`&lt;[`UIRuleWithWhere`](../type-aliases/UIRuleWithWhere.md)&gt; |
+| Parameter       | Type                                                                                                       |
+| --------------- | ---------------------------------------------------------------------------------------------------------- |
+| `event`         | \{ `id`: `string`; `updates`: `Partial`&lt;[`UIRuleWithWhere`](../type-aliases/UIRuleWithWhere.md)&gt;; \} |
+| `event.id`      | `string`                                                                                                   |
+| `event.updates` | `Partial`&lt;[`UIRuleWithWhere`](../type-aliases/UIRuleWithWhere.md)&gt;                                   |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### rule \{#rule\}
 

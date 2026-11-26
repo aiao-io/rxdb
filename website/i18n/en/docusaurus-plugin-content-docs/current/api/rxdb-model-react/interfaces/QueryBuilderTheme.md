@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/theme/query-builder-the
 
 Field selector component.
 
-***
+---
 
 ### operatorSelector \{#operatorselector\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/theme/query-builder-the
 
 Operator selector component.
 
-***
+---
 
 ### valueInput \{#valueinput\}
 

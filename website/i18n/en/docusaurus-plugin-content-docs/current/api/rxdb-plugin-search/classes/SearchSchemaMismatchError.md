@@ -17,8 +17,8 @@ already-indexed fields; the first version requires manual migration.
 
 ```ts
 new SearchSchemaMismatchError(
-   table, 
-   expected, 
+   table,
+   expected,
    actual
 ): SearchSchemaMismatchError;
 ```
@@ -27,11 +27,11 @@ Defined in: [packages/rxdb-plugin-search/src/types.ts:144](https://github.com/ai
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `table` | `string` | The involved table name |
+| Parameter  | Type     | Description                                                                                             |
+| ---------- | -------- | ------------------------------------------------------------------------------------------------------- |
+| `table`    | `string` | The involved table name                                                                                 |
 | `expected` | `string` | The expected field signature (the signature derived from the current code schema that should be stored) |
-| `actual` | `string` | The old field signature already in the database, conflicting with expected |
+| `actual`   | `string` | The old field signature already in the database, conflicting with expected                              |
 
 #### Returns
 
@@ -53,7 +53,7 @@ Defined in: [packages/rxdb-plugin-search/src/types.ts:150](https://github.com/ai
 
 The old field signature already in the database, conflicting with expected
 
-***
+---
 
 ### cause? \{#cause\}
 
@@ -67,7 +67,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`SearchError`](SearchError.md).[`cause`](SearchError.md#cause)
 
-***
+---
 
 ### expected \{#expected\}
 
@@ -79,7 +79,7 @@ Defined in: [packages/rxdb-plugin-search/src/types.ts:148](https://github.com/ai
 
 The expected field signature (the signature derived from the current code schema that should be stored)
 
-***
+---
 
 ### message \{#message\}
 
@@ -93,7 +93,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`SearchError`](SearchError.md).[`message`](SearchError.md#message)
 
-***
+---
 
 ### name \{#name\}
 
@@ -107,7 +107,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`SearchError`](SearchError.md).[`name`](SearchError.md#name)
 
-***
+---
 
 ### stack? \{#stack\}
 
@@ -121,7 +121,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`SearchError`](SearchError.md).[`stack`](SearchError.md#stack)
 
-***
+---
 
 ### table \{#table\}
 
@@ -133,7 +133,7 @@ Defined in: [packages/rxdb-plugin-search/src/types.ts:146](https://github.com/ai
 
 The involved table name
 
-***
+---
 
 ### stackTraceLimit \{#stacktracelimit\}
 
@@ -174,7 +174,7 @@ a string representing the location in the code at which
 ```js
 const myObject = {};
 Error.captureStackTrace(myObject);
-myObject.stack;  // Similar to `new Error().stack`
+myObject.stack; // Similar to `new Error().stack`
 ```
 
 The first line of the trace will be prefixed with
@@ -213,9 +213,9 @@ a();
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `targetObject` | `object` |
+| Parameter         | Type       |
+| ----------------- | ---------- |
+| `targetObject`    | `object`   |
 | `constructorOpt?` | `Function` |
 
 #### Returns
@@ -226,7 +226,7 @@ a();
 
 [`SearchError`](SearchError.md).[`captureStackTrace`](SearchError.md#capturestacktrace)
 
-***
+---
 
 ### prepareStackTrace() \{#preparestacktrace\}
 
@@ -238,9 +238,9 @@ Defined in: node\_modules/.pnpm/@types+node@26.6.6/node\_modules/@types/node/glo
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `err` | `Error` |
+| Parameter     | Type         |
+| ------------- | ------------ |
+| `err`         | `Error`      |
 | `stackTraces` | `CallSite`[] |
 
 #### Returns

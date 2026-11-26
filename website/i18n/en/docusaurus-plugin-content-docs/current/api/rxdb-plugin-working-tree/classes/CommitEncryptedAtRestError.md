@@ -26,12 +26,12 @@ There is no corresponding [CommitErrorCode](../type-aliases/CommitErrorCode.md):
 
 ```ts
 new CommitEncryptedAtRestError(
-   namespace, 
-   entity, 
-   entityId, 
-   unitId, 
-   column, 
-   property, 
+   namespace,
+   entity,
+   entityId,
+   unitId,
+   column,
+   property,
    reason
 ): CommitEncryptedAtRestError;
 ```
@@ -42,15 +42,15 @@ Constructed only by `assertColumnEncryptedAtRest` in this file during its per-co
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `namespace` | `string` | The target entity's namespace |
-| `entity` | `string` | The target entity name |
-| `entityId` | `string` | The target entity primary key |
-| `unitId` | `string` | The change unit the hit belongs to |
-| `column` | [`CommitPatchColumn`](../type-aliases/CommitPatchColumn.md) | The column the hit is in |
-| `property` | `string` | The encrypted property name at the hit |
-| `reason` | [`CommitEncryptedAtRestReason`](../type-aliases/CommitEncryptedAtRestReason.md) | See [CommitEncryptedAtRestReason](../type-aliases/CommitEncryptedAtRestReason.md) |
+| Parameter   | Type                                                                            | Description                                                                       |
+| ----------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `namespace` | `string`                                                                        | The target entity's namespace                                                     |
+| `entity`    | `string`                                                                        | The target entity name                                                            |
+| `entityId`  | `string`                                                                        | The target entity primary key                                                     |
+| `unitId`    | `string`                                                                        | The change unit the hit belongs to                                                |
+| `column`    | [`CommitPatchColumn`](../type-aliases/CommitPatchColumn.md)                     | The column the hit is in                                                          |
+| `property`  | `string`                                                                        | The encrypted property name at the hit                                            |
+| `reason`    | [`CommitEncryptedAtRestReason`](../type-aliases/CommitEncryptedAtRestReason.md) | See [CommitEncryptedAtRestReason](../type-aliases/CommitEncryptedAtRestReason.md) |
 
 #### Returns
 
@@ -81,7 +81,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](../../rxdb/classes/RxDBError.md).[`cause`](../../rxdb/classes/RxDBError.md#cause)
 
-***
+---
 
 ### column \{#column\}
 
@@ -93,7 +93,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-codec.ts:162](h
 
 The column the hit is in
 
-***
+---
 
 ### entity \{#entity\}
 
@@ -105,7 +105,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-codec.ts:156](h
 
 The target entity name
 
-***
+---
 
 ### entityId \{#entityid\}
 
@@ -117,7 +117,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-codec.ts:158](h
 
 The target entity primary key
 
-***
+---
 
 ### message \{#message\}
 
@@ -131,7 +131,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](../../rxdb/classes/RxDBError.md).[`message`](../../rxdb/classes/RxDBError.md#message)
 
-***
+---
 
 ### name \{#name\}
 
@@ -145,7 +145,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](../../rxdb/classes/RxDBError.md).[`name`](../../rxdb/classes/RxDBError.md#name)
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -157,7 +157,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-codec.ts:154](h
 
 The target entity's namespace
 
-***
+---
 
 ### property \{#property\}
 
@@ -169,7 +169,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-codec.ts:164](h
 
 The encrypted property name at the hit
 
-***
+---
 
 ### reason \{#reason\}
 
@@ -181,7 +181,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-codec.ts:166](h
 
 See [CommitEncryptedAtRestReason](../type-aliases/CommitEncryptedAtRestReason.md)
 
-***
+---
 
 ### stack? \{#stack\}
 
@@ -195,7 +195,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](../../rxdb/classes/RxDBError.md).[`stack`](../../rxdb/classes/RxDBError.md#stack)
 
-***
+---
 
 ### unitId \{#unitid\}
 
@@ -207,7 +207,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-codec.ts:160](h
 
 The change unit the hit belongs to
 
-***
+---
 
 ### stackTraceLimit \{#stacktracelimit\}
 
@@ -248,7 +248,7 @@ a string representing the location in the code at which
 ```js
 const myObject = {};
 Error.captureStackTrace(myObject);
-myObject.stack;  // Similar to `new Error().stack`
+myObject.stack; // Similar to `new Error().stack`
 ```
 
 The first line of the trace will be prefixed with
@@ -287,9 +287,9 @@ a();
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `targetObject` | `object` |
+| Parameter         | Type       |
+| ----------------- | ---------- |
+| `targetObject`    | `object`   |
 | `constructorOpt?` | `Function` |
 
 #### Returns
@@ -300,7 +300,7 @@ a();
 
 [`RxDBError`](../../rxdb/classes/RxDBError.md).[`captureStackTrace`](../../rxdb/classes/RxDBError.md#capturestacktrace)
 
-***
+---
 
 ### prepareStackTrace() \{#preparestacktrace\}
 
@@ -312,9 +312,9 @@ Defined in: node\_modules/.pnpm/@types+node@26.6.6/node\_modules/@types/node/glo
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `err` | `Error` |
+| Parameter     | Type         |
+| ------------- | ------------ |
+| `err`         | `Error`      |
 | `stackTraces` | `CallSite`[] |
 
 #### Returns

@@ -10,10 +10,10 @@ Drops all change triggers of a table set.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `adapter` | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md) | The SQLite adapter |
-| `tableSet` | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md) | Which table set's triggers to drop |
+| Parameter  | Type                                                           | Description                        |
+| ---------- | -------------------------------------------------------------- | ---------------------------------- |
+| `adapter`  | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md) | The SQLite adapter                 |
+| `tableSet` | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md)   | Which table set's triggers to drop |
 
 ## Returns
 

@@ -20,7 +20,7 @@ The recursive snapshot of child scope entries, all the way down.
 
 Ordinary entries are `[]` rather than `undefined` — callers don't need a null check at every level.
 
-***
+---
 
 ### label \{#label\}
 

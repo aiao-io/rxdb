@@ -43,9 +43,9 @@ Defined in: packages/rxdb/dist/rxdb-plugin.d.ts:184
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rxdb` | [`RxDB`](../../rxdb/classes/RxDB.md) |
+| Parameter | Type                                 |
+| --------- | ------------------------------------ |
+| `rxdb`    | [`RxDB`](../../rxdb/classes/RxDB.md) |
 
 #### Returns
 
@@ -80,7 +80,7 @@ and minifiers all rewrite the parameter count, so treating it as a contract woul
 
 [`IRxDBPlugin`](../../rxdb/interfaces/IRxDBPlugin.md).[`lifecycle`](../../rxdb/interfaces/IRxDBPlugin.md#lifecycle)
 
-***
+---
 
 ### name \{#name\}
 
@@ -96,7 +96,7 @@ Plugin name, used for logs and host-side error attribution
 
 [`IRxDBPlugin`](../../rxdb/interfaces/IRxDBPlugin.md).[`name`](../../rxdb/interfaces/IRxDBPlugin.md#name)
 
-***
+---
 
 ### rxdb \{#rxdb\}
 
@@ -124,9 +124,9 @@ Installs the plugin.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `scope` | [`LifecycleScope`](../../utils/classes/LifecycleScope.md) | The plugin activation scope of this connection epoch; one `acquire()` wraps only one possibly-throwing acquisition step |
+| Parameter | Type                                                      | Description                                                                                                             |
+| --------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `scope`   | [`LifecycleScope`](../../utils/classes/LifecycleScope.md) | The plugin activation scope of this connection epoch; one `acquire()` wraps only one possibly-throwing acquisition step |
 
 #### Returns
 

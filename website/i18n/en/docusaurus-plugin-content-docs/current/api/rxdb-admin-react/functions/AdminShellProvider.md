@@ -11,9 +11,9 @@ To avoid first-screen flicker, call `shell.attach()` before the first render; `a
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `props` | [`AdminShellProviderProps`](../interfaces/AdminShellProviderProps.md) | The shell and the subtree. |
+| Parameter | Type                                                                  | Description                |
+| --------- | --------------------------------------------------------------------- | -------------------------- |
+| `props`   | [`AdminShellProviderProps`](../interfaces/AdminShellProviderProps.md) | The shell and the subtree. |
 
 ## Returns
 

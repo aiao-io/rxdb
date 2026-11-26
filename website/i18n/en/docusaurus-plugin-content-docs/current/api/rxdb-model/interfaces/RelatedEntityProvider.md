@@ -18,8 +18,8 @@ Get the items of related entities that can be linked, by entity name (and option
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter    | Type     |
+| ------------ | -------- |
 | `entityName` | `string` |
 | `namespace?` | `string` |
 

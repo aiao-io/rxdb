@@ -5,6 +5,7 @@ Defined in: [packages/rxdb-plugin-sync/src/SyncManager.ts:62](https://github.com
 The sync manager
 
 Responsible for push/pull sync at the whole-database and single-repository granularities:
+
 - `pull` / `push` / `sync`: whole database
 - `pullRepository` / `pushRepository` / `syncRepository` / `bulkSync`: per repository
 - `getRepositorySyncStatus` / `checkRepositoryUpdates` / `cleanupExpired`: status and cleanup
@@ -43,7 +44,7 @@ Defined in: [packages/rxdb-plugin-sync/src/SyncManager.ts:117](https://github.co
 
 The small facade borrowed from the history side, provided by `rxdb.versionManager.syncBridge`
 
-***
+---
 
 ### rxdb \{#rxdb\}
 
@@ -88,7 +89,7 @@ cross-tab, a known limitation).
 
 `number`
 
-***
+---
 
 ### pushInFlight \{#pushinflight\}
 
@@ -116,7 +117,7 @@ round-trip window would cause a permanent fork.
 
 [`PushInFlightRegistry`](../../rxdb-plugin-history/classes/PushInFlightRegistry.md)
 
-***
+---
 
 ### remoteBackendId \{#remotebackendid\}
 
@@ -157,8 +158,8 @@ Syncs multiple repositories in one operation, with sequential or concurrent exec
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                    | Description       |
+| ---------- | --------------------------------------- | ----------------- |
 | `options?` | [`BulkSyncOptions`](BulkSyncOptions.md) | Bulk sync options |
 
 #### Returns
@@ -180,10 +181,7 @@ console.log(`succeeded: ${result.succeeded}, failed: ${result.failed}`);
 
 // Sync specific repositories
 const result = await rxdb.syncManager.bulkSync({
-  repositories: [
-    { namespace: 'public', entity: 'Todo' },
-    `{ namespace: 'public', entity: 'User' }`
-  ]
+  repositories: [{ namespace: 'public', entity: 'Todo' }, `{ namespace: 'public', entity: 'User' }`]
 });
 
 // Concurrent mode, pull only: the direction is chosen by operation; push only pushes option objects
@@ -203,7 +201,7 @@ for (const item of result.results) {
 }
 ```
 
-***
+---
 
 ### checkRepositoryUpdates() \{#checkrepositoryupdates\}
 
@@ -220,10 +218,10 @@ Suitable for showing a "N remote updates" hint while saving bandwidth and time.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type     | Description                          |
+| ----------- | -------- | ------------------------------------ |
 | `namespace` | `string` | The entity namespace (e.g. "public") |
-| `entity` | `string` | The entity name (e.g. "Todo") |
+| `entity`    | `string` | The entity name (e.g. "Todo")        |
 
 #### Returns
 
@@ -242,14 +240,14 @@ if (result.hasUpdates) {
 }
 ```
 
-***
+---
 
 ### cleanupExpired() \{#cleanupexpired\}
 
 ```ts
 cleanupExpired(
-   namespace, 
-   entity, 
+   namespace,
+   entity,
    options?
 ): Promise<CleanupExpiredResult>;
 ```
@@ -263,11 +261,11 @@ filter condition, e.g. cleaning up order data older than 30 days.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `namespace` | `string` | The entity namespace |
-| `entity` | `string` | The entity name |
-| `options?` | [`CleanupExpiredOptions`](CleanupExpiredOptions.md) | Cleanup options |
+| Parameter   | Type                                                | Description          |
+| ----------- | --------------------------------------------------- | -------------------- |
+| `namespace` | `string`                                            | The entity namespace |
+| `entity`    | `string`                                            | The entity name      |
+| `options?`  | [`CleanupExpiredOptions`](CleanupExpiredOptions.md) | Cleanup options      |
 
 #### Returns
 
@@ -292,7 +290,7 @@ const { removed } = await rxdb.syncManager.cleanupExpired('public', 'Order', {
 console.log(`Removed ${removed} expired records`);
 ```
 
-***
+---
 
 ### destroy() \{#destroy\}
 
@@ -308,7 +306,7 @@ Dismantles all listeners and subscriptions mounted by [init](#init)
 
 `void`
 
-***
+---
 
 ### getAllRepositorySyncStatus() \{#getallrepositorysyncstatus\}
 
@@ -324,8 +322,8 @@ Returns the status of all registered entities, with optional filtering.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                      | Description                |
+| --------- | ------------------------------------------------------------------------- | -------------------------- |
 | `filter?` | [`GetAllRepositorySyncStatusFilter`](GetAllRepositorySyncStatusFilter.md) | Optional filter conditions |
 
 #### Returns
@@ -352,7 +350,7 @@ const fullSync = await rxdb.syncManager.getAllRepositorySyncStatus({
 });
 ```
 
-***
+---
 
 ### getCurrentBranch() \{#getcurrentbranch\}
 
@@ -373,7 +371,7 @@ Gets the current branch; activates (or creates) `main` when no branch is active.
 Every remote event in the sync chain calls it (`filterByBranch` of
 `sync-listeners`); the hot path opens no transaction, see `getCurrentBranch`.
 
-***
+---
 
 ### getLocalRepositories() \{#getlocalrepositories\}
 
@@ -392,12 +390,12 @@ Gets the system table repositories on the local adapter
 #### Returns
 
 `Promise`&lt;\{
-  `adapter`: [`LocalRxDBAdapter`](../../rxdb/type-aliases/LocalRxDBAdapter.md);
-  `branchRepository`: [`LocalRxDBBranchRepository`](../../rxdb/interfaces/LocalRxDBBranchRepository.md);
-  `changeRepository`: [`LocalRxDBChangeRepository`](../../rxdb/interfaces/LocalRxDBChangeRepository.md);
+`adapter`: [`LocalRxDBAdapter`](../../rxdb/type-aliases/LocalRxDBAdapter.md);
+`branchRepository`: [`LocalRxDBBranchRepository`](../../rxdb/interfaces/LocalRxDBBranchRepository.md);
+`changeRepository`: [`LocalRxDBChangeRepository`](../../rxdb/interfaces/LocalRxDBChangeRepository.md);
 \}&gt;
 
-***
+---
 
 ### getRemoteRepositories() \{#getremoterepositories\}
 
@@ -416,12 +414,12 @@ Gets the system table repositories on the remote adapter
 #### Returns
 
 `Promise`&lt;\{
-  `adapter`: [`RemoteRxDBAdapter`](../../rxdb/type-aliases/RemoteRxDBAdapter.md);
-  `branchRepository`: [`RemoteRxDBBranchRepository`](../../rxdb/interfaces/RemoteRxDBBranchRepository.md);
-  `changeRepository`: [`RemoteRxDBChangeRepository`](../../rxdb/interfaces/RemoteRxDBChangeRepository.md);
+`adapter`: [`RemoteRxDBAdapter`](../../rxdb/type-aliases/RemoteRxDBAdapter.md);
+`branchRepository`: [`RemoteRxDBBranchRepository`](../../rxdb/interfaces/RemoteRxDBBranchRepository.md);
+`changeRepository`: [`RemoteRxDBChangeRepository`](../../rxdb/interfaces/RemoteRxDBChangeRepository.md);
 \}&gt;
 
-***
+---
 
 ### getRepositoryDependencyGraph() \{#getrepositorydependencygraph\}
 
@@ -454,7 +452,7 @@ for (const [key, dep] of graph) {
 }
 ```
 
-***
+---
 
 ### getRepositorySyncOrder() \{#getrepositorysyncorder\}
 
@@ -470,8 +468,8 @@ Determines the correct sync order based on dependencies via topological sorting.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type            | Description                                                           |
+| ----------- | --------------- | --------------------------------------------------------------------- |
 | `direction` | `SortDirection` | The sort direction: 'pull' (parents first) or 'push' (children first) |
 
 #### Returns
@@ -492,7 +490,7 @@ const pushOrder = rxdb.syncManager.getRepositorySyncOrder('push');
 // [Comment, Todo, User]
 ```
 
-***
+---
 
 ### getRepositorySyncStatus() \{#getrepositorysyncstatus\}
 
@@ -505,6 +503,7 @@ Defined in: [packages/rxdb-plugin-sync/src/SyncManager.ts:566](https://github.co
 Gets the sync status of a single repository
 
 Returns the complete sync status, including:
+
 - syncType (full/remote/local/disabled)
 - pushableCount (the number of local changes awaiting push)
 - pullableCount (the number of remote changes available to pull)
@@ -512,10 +511,10 @@ Returns the complete sync status, including:
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type     | Description                          |
+| ----------- | -------- | ------------------------------------ |
 | `namespace` | `string` | The entity namespace (e.g. "public") |
-| `entity` | `string` | The entity name (e.g. "Todo") |
+| `entity`    | `string` | The entity name (e.g. "Todo")        |
 
 #### Returns
 
@@ -531,7 +530,7 @@ console.log(`sync type: ${status.syncType}`);
 console.log(`awaiting push: ${status.pushableCount}, available to pull: ${status.pullableCount}`);
 ```
 
-***
+---
 
 ### init() \{#init\}
 
@@ -547,7 +546,7 @@ Mounts the two chains: connected$ auto-push and remote event counting
 
 `void`
 
-***
+---
 
 ### pull() \{#pull\}
 
@@ -563,8 +562,8 @@ When autoSync=false, changes cached by Realtime are applied first, then remote c
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                  | Description            |
+| ---------- | ----------------------------------------------------- | ---------------------- |
 | `options?` | [`PullOptions`](../../rxdb/interfaces/PullOptions.md) | Optional configuration |
 
 #### Returns
@@ -588,14 +587,14 @@ console.log(`Pulled ${result.pulled} changes`);
 const result = await rxdb.syncManager.pull({ fetchAll: true });
 ```
 
-***
+---
 
 ### pullRepository() \{#pullrepository\}
 
 ```ts
 pullRepository(
-   namespace, 
-   entity, 
+   namespace,
+   entity,
    options?
 ): Promise<PullRepositoryResult>;
 ```
@@ -609,11 +608,11 @@ automatically pull related entities.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `namespace` | `string` | The entity namespace (e.g. "public") |
-| `entity` | `string` | The entity name (e.g. "Todo") |
-| `options?` | [`PullRepositoryOptions`](../../rxdb/interfaces/PullRepositoryOptions.md) | Pull options |
+| Parameter   | Type                                                                      | Description                          |
+| ----------- | ------------------------------------------------------------------------- | ------------------------------------ |
+| `namespace` | `string`                                                                  | The entity namespace (e.g. "public") |
+| `entity`    | `string`                                                                  | The entity name (e.g. "Todo")        |
+| `options?`  | [`PullRepositoryOptions`](../../rxdb/interfaces/PullRepositoryOptions.md) | Pull options                         |
 
 #### Returns
 
@@ -639,7 +638,7 @@ const result = await rxdb.syncManager.pullRepository('public', 'Todo', {
 });
 ```
 
-***
+---
 
 ### push() \{#push\}
 
@@ -652,6 +651,7 @@ Defined in: [packages/rxdb-plugin-sync/src/SyncManager.ts:261](https://github.co
 Pushes unsynced local changes to the remote database
 
 Pushing automatically:
+
 1. Queries new changes after lastPushedChangeId
 2. Filters out reverted changes (revertChangeId != null)
 3. Compresses changes (INSERT→DELETE discarded, INSERT→UPDATE* merged into INSERT)
@@ -660,8 +660,8 @@ Pushing automatically:
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                  | Description            |
+| ---------- | ----------------------------------------------------- | ---------------------- |
 | `options?` | [`PushOptions`](../../rxdb/interfaces/PushOptions.md) | Optional configuration |
 
 #### Returns
@@ -685,14 +685,14 @@ console.log(`Pushed ${result.pushed} changes`);
 const result = await rxdb.syncManager.push({ batchSize: 500 });
 ```
 
-***
+---
 
 ### pushRepository() \{#pushrepository\}
 
 ```ts
 pushRepository(
-   namespace, 
-   entity, 
+   namespace,
+   entity,
    options?
 ): Promise<PushRepositoryResult>;
 ```
@@ -706,11 +706,11 @@ automatically push dependent entities.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `namespace` | `string` | The entity namespace (e.g. "public") |
-| `entity` | `string` | The entity name (e.g. "User") |
-| `options?` | `PushRepositoryOptions` | Push options |
+| Parameter   | Type                    | Description                          |
+| ----------- | ----------------------- | ------------------------------------ |
+| `namespace` | `string`                | The entity namespace (e.g. "public") |
+| `entity`    | `string`                | The entity name (e.g. "User")        |
+| `options?`  | `PushRepositoryOptions` | Push options                         |
 
 #### Returns
 
@@ -736,7 +736,7 @@ const result = await rxdb.syncManager.pushRepository('public', 'User', {
 });
 ```
 
-***
+---
 
 ### rebindRemoteBackend() \{#rebindremotebackend\}
 
@@ -785,7 +785,7 @@ try {
 }
 ```
 
-***
+---
 
 ### refreshPullableCount() \{#refreshpullablecount\}
 
@@ -809,7 +809,7 @@ Called by the remote adapter after a live subscription resumes. If live events
 arrive again during the refresh, keep the larger of the two values, avoiding
 overwriting notifications that arrived after the query snapshot.
 
-***
+---
 
 ### sync() \{#sync\}
 
@@ -822,16 +822,17 @@ Defined in: [packages/rxdb-plugin-sync/src/SyncManager.ts:300](https://github.co
 Runs a complete sync operation (pull first, then push)
 
 Recommended after reconnecting, ensuring:
+
 1. Remote latest changes are fetched first (avoid overwriting other people's data)
 2. Local changes are pushed afterwards
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options?` | \{ `pull?`: [`PullOptions`](../../rxdb/interfaces/PullOptions.md); `push?`: [`PushOptions`](../../rxdb/interfaces/PushOptions.md); \} | Optional configuration |
-| `options.pull?` | [`PullOptions`](../../rxdb/interfaces/PullOptions.md) | - |
-| `options.push?` | [`PushOptions`](../../rxdb/interfaces/PushOptions.md) | - |
+| Parameter       | Type                                                                                                                                  | Description            |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| `options?`      | \{ `pull?`: [`PullOptions`](../../rxdb/interfaces/PullOptions.md); `push?`: [`PushOptions`](../../rxdb/interfaces/PushOptions.md); \} | Optional configuration |
+| `options.pull?` | [`PullOptions`](../../rxdb/interfaces/PullOptions.md)                                                                                 | -                      |
+| `options.push?` | [`PushOptions`](../../rxdb/interfaces/PushOptions.md)                                                                                 | -                      |
 
 #### Returns
 
@@ -851,7 +852,7 @@ const result = await rxdb.syncManager.sync();
 console.log(`Pulled ${result.pullResult.pulled}, Pushed ${result.pushResult.pushed}`);
 ```
 
-***
+---
 
 ### syncBranches() \{#syncbranches\}
 
@@ -884,14 +885,14 @@ const result = await rxdb.syncManager.syncBranches();
 console.log(`created ${result.created}, updated ${result.updated}`);
 ```
 
-***
+---
 
 ### syncRepository() \{#syncrepository\}
 
 ```ts
 syncRepository(
-   namespace, 
-   entity, 
+   namespace,
+   entity,
    options?
 ): Promise<SyncRepositoryResult>;
 ```
@@ -905,11 +906,11 @@ Recommended when consistency of a specific entity type's data must be ensured.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `namespace` | `string` | The entity namespace (e.g. "public") |
-| `entity` | `string` | The entity name (e.g. "Todo") |
-| `options?` | `SyncRepositoryOptions` | Sync options (configure pull and push separately) |
+| Parameter   | Type                    | Description                                       |
+| ----------- | ----------------------- | ------------------------------------------------- |
+| `namespace` | `string`                | The entity namespace (e.g. "public")              |
+| `entity`    | `string`                | The entity name (e.g. "Todo")                     |
+| `options?`  | `SyncRepositoryOptions` | Sync options (configure pull and push separately) |
 
 #### Returns
 
@@ -935,7 +936,7 @@ const result = await rxdb.syncManager.syncRepository('public', 'Todo', {
 });
 ```
 
-***
+---
 
 ### verifyRemoteBackend() \{#verifyremotebackend\}
 
@@ -956,9 +957,9 @@ Verifies the remote identity and binds unbound sync records to it
 #### Throws
 
 `RemoteBackendMismatchError` when sync records are bound to another remote
-  identity: the remote is rebuilt, the change log is cleared, or the remote
-  address points at a different database. The error is also written into
-  `lastError` of `rxdb.syncState`, and not a single row is written
+identity: the remote is rebuilt, the change log is cleared, or the remote
+address points at a different database. The error is also written into
+`lastError` of `rxdb.syncState`, and not a single row is written
 
 #### Remarks
 

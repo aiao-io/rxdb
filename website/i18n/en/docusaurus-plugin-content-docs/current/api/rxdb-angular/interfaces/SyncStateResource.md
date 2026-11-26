@@ -22,7 +22,7 @@ Defined in: [rxdb-angular/src/use-sync-state.ts:34](https://github.com/aiao-io/r
 
 The previous conflict decision; **not** cleared by later successes, it is a historical fact.
 
-***
+---
 
 ### lastError \{#lasterror\}
 
@@ -34,7 +34,7 @@ Defined in: [rxdb-angular/src/use-sync-state.ts:32](https://github.com/aiao-io/r
 
 The previous push failure; cleared after one successful round.
 
-***
+---
 
 ### lastRejections \{#lastrejections\}
 
@@ -46,7 +46,7 @@ Defined in: [rxdb-angular/src/use-sync-state.ts:36](https://github.com/aiao-io/r
 
 The rejection list produced by the most recent round with rejected pushes; **not** cleared by later successes, replaced wholesale when the next round has rejections.
 
-***
+---
 
 ### online \{#online\}
 
@@ -58,7 +58,7 @@ Defined in: [rxdb-angular/src/use-sync-state.ts:26](https://github.com/aiao-io/r
 
 Whether the remote is currently reachable.
 
-***
+---
 
 ### pendingCount \{#pendingcount\}
 
@@ -70,7 +70,7 @@ Defined in: [rxdb-angular/src/use-sync-state.ts:28](https://github.com/aiao-io/r
 
 Changes not yet pushed to the remote, summed across both push paths (changelog pending + QueryCache outbox).
 
-***
+---
 
 ### syncing \{#syncing\}
 

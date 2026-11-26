@@ -227,12 +227,12 @@ All hosts share the same single-connection table; a second connection to the sam
 
 The host also has four optional fields; WeChat sets none of them, and the behavior is exactly the same as when unset; the Douyin host sets the first three (see "Douyin"), and the Alipay host sets `runtimeGlobal`, `fileLayout` and `prepareRuntime` (see "Alipay"):
 
-| Field             | Default               | Purpose                                                                                                                                                                                                                                                                                                                            |
-| ----------------- | --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `runtimeGlobal`   | the environment's `globalThis` | The real global object that runtime patches write to and capability prechecks read from. When the environment's `globalThis` is unavailable (e.g. shadowed to `undefined` by page wrapper functions), the caller obtains it in non-strict code and injects it. If it is not the current realm's global object, the bootstrap fails with "please inject via host.runtimeGlobal" — no fallback, no guessing; the resolution logic is in `resolveMiniProgramRuntimeGlobal(host)` |
-| `fileLayout`      | `{ kind: 'single' }`  | `chunked` stores the logical file `P` as fixed-size chunks `P.0`, `P.1`…, and only rewrites dirty chunks on flush; each database additionally reserves 2×`chunkBytes` of rollback headroom (`<db>.rxdb-reserve`), which is yielded for rollback when the quota is hit; `MiniProgramFileVFS.reserveHeld` reports whether it is currently held. The two layouts are mutually incompatible; declaring `chunked` when the directory already contains a single-file database is rejected directly, without migration     |
-| `defaultWasmPath` | `DEFAULT_WASM_PATH`   | The in-package path loaded when `wasmPath` is not passed. Platforms that resolve relative paths against the current page directory must declare a code-package-root path starting with `/`                                                                                                                                        |
-| `prepareRuntime`  | not called            | Called by `prepareMiniProgramHostRuntime` after the platform assertions and real-global-object resolution, before polyfills are installed, to let the platform fill in missing globals or detect dependencies; when it rejects, the bootstrap fails without requesting random numbers                                                                                                                              |
+| Field             | Default                        | Purpose                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ----------------- | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `runtimeGlobal`   | the environment's `globalThis` | The real global object that runtime patches write to and capability prechecks read from. When the environment's `globalThis` is unavailable (e.g. shadowed to `undefined` by page wrapper functions), the caller obtains it in non-strict code and injects it. If it is not the current realm's global object, the bootstrap fails with "please inject via host.runtimeGlobal" — no fallback, no guessing; the resolution logic is in `resolveMiniProgramRuntimeGlobal(host)`                                   |
+| `fileLayout`      | `{ kind: 'single' }`           | `chunked` stores the logical file `P` as fixed-size chunks `P.0`, `P.1`…, and only rewrites dirty chunks on flush; each database additionally reserves 2×`chunkBytes` of rollback headroom (`<db>.rxdb-reserve`), which is yielded for rollback when the quota is hit; `MiniProgramFileVFS.reserveHeld` reports whether it is currently held. The two layouts are mutually incompatible; declaring `chunked` when the directory already contains a single-file database is rejected directly, without migration |
+| `defaultWasmPath` | `DEFAULT_WASM_PATH`            | The in-package path loaded when `wasmPath` is not passed. Platforms that resolve relative paths against the current page directory must declare a code-package-root path starting with `/`                                                                                                                                                                                                                                                                                                                      |
+| `prepareRuntime`  | not called                     | Called by `prepareMiniProgramHostRuntime` after the platform assertions and real-global-object resolution, before polyfills are installed, to let the platform fill in missing globals or detect dependencies; when it rejects, the bootstrap fails without requesting random numbers                                                                                                                                                                                                                           |
 
 `getMiniProgramRuntimeSources(runtimeGlobal?)` reads sources by the same rules: if passed, it reads that one; otherwise the environment's `globalThis`.
 
@@ -286,88 +286,88 @@ and synchronous callback hardening.
 
 ## Classes
 
-| Class | Description |
-| ------ | ------ |
-| [AlipayUndocumentedCapabilityError](classes/AlipayUndocumentedCapabilityError.md) | Thrown at connect time when an undocumented capability the Alipay host depends on is unavailable. |
-| [MiniProgramUnknownPlatformError](classes/MiniProgramUnknownPlatformError.md) | The passed platform id is not in [MINI\_PROGRAM\_PLATFORM\_IDS](variables/MINI_PROGRAM_PLATFORM_IDS.md). |
-| [MiniProgramUnsupportedPlatformError](classes/MiniProgramUnsupportedPlatformError.md) | The passed platform id is judged `unsupported` by the feasibility matrix. |
-| [RxDBAdapterWaSqliteMiniProgram](classes/RxDBAdapterWaSqliteMiniProgram.md) | WeChat mini program single-connection wa-sqlite adapter. |
-| [WaSqliteMiniProgramClient](classes/WaSqliteMiniProgramClient.md) | Mini-program-specific wa-sqlite client (host injected via `wechat` or `host`). |
+| Class                                                                                 | Description                                                                                              |
+| ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| [AlipayUndocumentedCapabilityError](classes/AlipayUndocumentedCapabilityError.md)     | Thrown at connect time when an undocumented capability the Alipay host depends on is unavailable.        |
+| [MiniProgramUnknownPlatformError](classes/MiniProgramUnknownPlatformError.md)         | The passed platform id is not in [MINI\_PROGRAM\_PLATFORM\_IDS](variables/MINI_PROGRAM_PLATFORM_IDS.md). |
+| [MiniProgramUnsupportedPlatformError](classes/MiniProgramUnsupportedPlatformError.md) | The passed platform id is judged `unsupported` by the feasibility matrix.                                |
+| [RxDBAdapterWaSqliteMiniProgram](classes/RxDBAdapterWaSqliteMiniProgram.md)           | WeChat mini program single-connection wa-sqlite adapter.                                                 |
+| [WaSqliteMiniProgramClient](classes/WaSqliteMiniProgramClient.md)                     | Mini-program-specific wa-sqlite client (host injected via `wechat` or `host`).                           |
 
 ## Interfaces
 
-| Interface | Description |
-| ------ | ------ |
-| [AlipayMiniProgramHostOptions](interfaces/AlipayMiniProgramHostOptions.md) | Parameters of [createAlipayMiniProgramHost](functions/createAlipayMiniProgramHost.md). |
-| [AlipayRandomWorker](interfaces/AlipayRandomWorker.md) | The Worker returned by `my.createWorker('workers/index.js', { useExperimentalWorker: true })`; messages are plain objects. |
-| [AlipayStandardWasmApi](interfaces/AlipayStandardWasmApi.md) | The subset of the standard `WebAssembly` present in the logic layer. |
-| [DouyinMiniProgramHostOptions](interfaces/DouyinMiniProgramHostOptions.md) | Optional parameters of [createDouyinMiniProgramHost](functions/createDouyinMiniProgramHost.md). |
-| [MiniProgramAlipayApi](interfaces/MiniProgramAlipayApi.md) | The members of the global `my` that the Alipay host needs. |
-| [MiniProgramAlipayRawFileSystem](interfaces/MiniProgramAlipayRawFileSystem.md) | The raw shape of the Alipay synchronous file system: every method returns a result object and does not throw on failure. |
-| [MiniProgramDouyinApi](interfaces/MiniProgramDouyinApi.md) | The Douyin runtime capabilities the adapter needs (the global `tt`). |
-| [MiniProgramFileSystemManager](interfaces/MiniProgramFileSystemManager.md) | The minimal contract of the WeChat mini program synchronous file system. |
-| [MiniProgramFileVFS](interfaces/MiniProgramFileVFS.md) | Mini program synchronous file VFS handle. |
-| [MiniProgramFileVFSOptions](interfaces/MiniProgramFileVFSOptions.md) | Platform-agnostic mini program file VFS config. |
-| [MiniProgramHost](interfaces/MiniProgramHost.md) | Platform-agnostic mini program host: synchronous files, user data directory, secure random source and platform id. |
+| Interface                                                                      | Description                                                                                                                   |
+| ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| [AlipayMiniProgramHostOptions](interfaces/AlipayMiniProgramHostOptions.md)     | Parameters of [createAlipayMiniProgramHost](functions/createAlipayMiniProgramHost.md).                                        |
+| [AlipayRandomWorker](interfaces/AlipayRandomWorker.md)                         | The Worker returned by `my.createWorker('workers/index.js', { useExperimentalWorker: true })`; messages are plain objects.    |
+| [AlipayStandardWasmApi](interfaces/AlipayStandardWasmApi.md)                   | The subset of the standard `WebAssembly` present in the logic layer.                                                          |
+| [DouyinMiniProgramHostOptions](interfaces/DouyinMiniProgramHostOptions.md)     | Optional parameters of [createDouyinMiniProgramHost](functions/createDouyinMiniProgramHost.md).                               |
+| [MiniProgramAlipayApi](interfaces/MiniProgramAlipayApi.md)                     | The members of the global `my` that the Alipay host needs.                                                                    |
+| [MiniProgramAlipayRawFileSystem](interfaces/MiniProgramAlipayRawFileSystem.md) | The raw shape of the Alipay synchronous file system: every method returns a result object and does not throw on failure.      |
+| [MiniProgramDouyinApi](interfaces/MiniProgramDouyinApi.md)                     | The Douyin runtime capabilities the adapter needs (the global `tt`).                                                          |
+| [MiniProgramFileSystemManager](interfaces/MiniProgramFileSystemManager.md)     | The minimal contract of the WeChat mini program synchronous file system.                                                      |
+| [MiniProgramFileVFS](interfaces/MiniProgramFileVFS.md)                         | Mini program synchronous file VFS handle.                                                                                     |
+| [MiniProgramFileVFSOptions](interfaces/MiniProgramFileVFSOptions.md)           | Platform-agnostic mini program file VFS config.                                                                               |
+| [MiniProgramHost](interfaces/MiniProgramHost.md)                               | Platform-agnostic mini program host: synchronous files, user data directory, secure random source and platform id.            |
 | [MiniProgramHostCapabilityNames](interfaces/MiniProgramHostCapabilityNames.md) | The names host capabilities are shown under in prechecks and errors, with a platform prefix (e.g. `wx.getFileSystemManager`). |
-| [MiniProgramRuntimeCapability](interfaces/MiniProgramRuntimeCapability.md) | One capability required to run RxDB in a mini program. |
-| [MiniProgramWasmInstance](interfaces/MiniProgramWasmInstance.md) | The minimal instance structure returned by `WXWebAssembly.instantiate`. |
-| [MiniProgramWasmRuntime](interfaces/MiniProgramWasmRuntime.md) | The WASM runtime provided by the mini program platform (WeChat `WXWebAssembly`, Douyin `TTWebAssembly`). |
-| [MiniProgramWechatApi](interfaces/MiniProgramWechatApi.md) | The WeChat runtime capabilities the adapter needs. |
-| [WaSqliteEmscriptenModule](interfaces/WaSqliteEmscriptenModule.md) | The fields of the wa-sqlite Emscripten module used directly by the adapter and the VFS. |
-| [WaSqliteMiniProgramBaseOptions](interfaces/WaSqliteMiniProgramBaseOptions.md) | Adapter config independent of how the host is injected. |
-| [WaSqliteMiniProgramHostOptions](interfaces/WaSqliteMiniProgramHostOptions.md) | Adapter config that injects the host as a platform-agnostic [MiniProgramHost](interfaces/MiniProgramHost.md). |
-| [WaSqliteMiniProgramOptions](interfaces/WaSqliteMiniProgramOptions.md) | Config of the WeChat mini program wa-sqlite adapter (the WeChat convenience shape). |
-| [WaSqliteModuleFactoryOptions](interfaces/WaSqliteModuleFactoryOptions.md) | Initialization parameters passed to the mini program wa-sqlite glue. |
-| [WechatFileVFSOptions](interfaces/WechatFileVFSOptions.md) | WeChat file VFS config. |
+| [MiniProgramRuntimeCapability](interfaces/MiniProgramRuntimeCapability.md)     | One capability required to run RxDB in a mini program.                                                                        |
+| [MiniProgramWasmInstance](interfaces/MiniProgramWasmInstance.md)               | The minimal instance structure returned by `WXWebAssembly.instantiate`.                                                       |
+| [MiniProgramWasmRuntime](interfaces/MiniProgramWasmRuntime.md)                 | The WASM runtime provided by the mini program platform (WeChat `WXWebAssembly`, Douyin `TTWebAssembly`).                      |
+| [MiniProgramWechatApi](interfaces/MiniProgramWechatApi.md)                     | The WeChat runtime capabilities the adapter needs.                                                                            |
+| [WaSqliteEmscriptenModule](interfaces/WaSqliteEmscriptenModule.md)             | The fields of the wa-sqlite Emscripten module used directly by the adapter and the VFS.                                       |
+| [WaSqliteMiniProgramBaseOptions](interfaces/WaSqliteMiniProgramBaseOptions.md) | Adapter config independent of how the host is injected.                                                                       |
+| [WaSqliteMiniProgramHostOptions](interfaces/WaSqliteMiniProgramHostOptions.md) | Adapter config that injects the host as a platform-agnostic [MiniProgramHost](interfaces/MiniProgramHost.md).                 |
+| [WaSqliteMiniProgramOptions](interfaces/WaSqliteMiniProgramOptions.md)         | Config of the WeChat mini program wa-sqlite adapter (the WeChat convenience shape).                                           |
+| [WaSqliteModuleFactoryOptions](interfaces/WaSqliteModuleFactoryOptions.md)     | Initialization parameters passed to the mini program wa-sqlite glue.                                                          |
+| [WechatFileVFSOptions](interfaces/WechatFileVFSOptions.md)                     | WeChat file VFS config.                                                                                                       |
 
 ## Type Aliases
 
-| Type Alias | Description |
-| ------ | ------ |
-| [AlipayUndocumentedCapability](type-aliases/AlipayUndocumentedCapability.md) | One undocumented capability the Alipay host depends on. |
-| [MiniProgramFileLayout](type-aliases/MiniProgramFileLayout.md) | The storage layout of the database file on the host file system. |
-| [MiniProgramHostSelection](type-aliases/MiniProgramHostSelection.md) | How the host is injected: the WeChat convenience shape `wechat`, or the platform-agnostic `host` — exactly one of the two. |
-| [MiniProgramPlatformId](type-aliases/MiniProgramPlatformId.md) | The registered mini program platform ids. |
-| [MiniProgramRuntimeCapabilityOptions](type-aliases/MiniProgramRuntimeCapabilityOptions.md) | Config needed by the runtime precheck: module factory, WASM runtime, host, and an optional database directory. |
-| [MiniProgramRuntimeGlobal](type-aliases/MiniProgramRuntimeGlobal.md) | The global object that runtime patches write to and capability prechecks read from. |
-| [MiniProgramWasmHost](type-aliases/MiniProgramWasmHost.md) | The host fields used when loading wasm. |
-| [ReceiveWasmInstance](type-aliases/ReceiveWasmInstance.md) | The Emscripten custom instantiation callback. |
-| [WaSqliteMiniProgramAdapterOptions](type-aliases/WaSqliteMiniProgramAdapterOptions.md) | The config accepted by the adapter and the client: either `wechat` or `host`. |
-| [WaSqliteMiniProgramRepositoryConstructor](type-aliases/WaSqliteMiniProgramRepositoryConstructor.md) | The replaceable repository constructor of the mini program adapter. |
-| [WaSqliteModuleFactory](type-aliases/WaSqliteModuleFactory.md) | The module factory exported by the wa-sqlite Emscripten glue, provided by `loadSubframeModuleFactory()`. |
-| [WechatFileVFS](type-aliases/WechatFileVFS.md) | WeChat synchronous file VFS handle. |
+| Type Alias                                                                                           | Description                                                                                                                |
+| ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| [AlipayUndocumentedCapability](type-aliases/AlipayUndocumentedCapability.md)                         | One undocumented capability the Alipay host depends on.                                                                    |
+| [MiniProgramFileLayout](type-aliases/MiniProgramFileLayout.md)                                       | The storage layout of the database file on the host file system.                                                           |
+| [MiniProgramHostSelection](type-aliases/MiniProgramHostSelection.md)                                 | How the host is injected: the WeChat convenience shape `wechat`, or the platform-agnostic `host` — exactly one of the two. |
+| [MiniProgramPlatformId](type-aliases/MiniProgramPlatformId.md)                                       | The registered mini program platform ids.                                                                                  |
+| [MiniProgramRuntimeCapabilityOptions](type-aliases/MiniProgramRuntimeCapabilityOptions.md)           | Config needed by the runtime precheck: module factory, WASM runtime, host, and an optional database directory.             |
+| [MiniProgramRuntimeGlobal](type-aliases/MiniProgramRuntimeGlobal.md)                                 | The global object that runtime patches write to and capability prechecks read from.                                        |
+| [MiniProgramWasmHost](type-aliases/MiniProgramWasmHost.md)                                           | The host fields used when loading wasm.                                                                                    |
+| [ReceiveWasmInstance](type-aliases/ReceiveWasmInstance.md)                                           | The Emscripten custom instantiation callback.                                                                              |
+| [WaSqliteMiniProgramAdapterOptions](type-aliases/WaSqliteMiniProgramAdapterOptions.md)               | The config accepted by the adapter and the client: either `wechat` or `host`.                                              |
+| [WaSqliteMiniProgramRepositoryConstructor](type-aliases/WaSqliteMiniProgramRepositoryConstructor.md) | The replaceable repository constructor of the mini program adapter.                                                        |
+| [WaSqliteModuleFactory](type-aliases/WaSqliteModuleFactory.md)                                       | The module factory exported by the wa-sqlite Emscripten glue, provided by `loadSubframeModuleFactory()`.                   |
+| [WechatFileVFS](type-aliases/WechatFileVFS.md)                                                       | WeChat synchronous file VFS handle.                                                                                        |
 
 ## Variables
 
-| Variable | Description |
-| ------ | ------ |
-| [ADAPTER\_NAME](variables/ADAPTER_NAME.md) | The adapter name. |
+| Variable                                                                            | Description                                                                                                                                                      |
+| ----------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [ADAPTER\_NAME](variables/ADAPTER_NAME.md)                                          | The adapter name.                                                                                                                                                |
 | [ALIPAY\_UNDOCUMENTED\_CAPABILITIES](variables/ALIPAY_UNDOCUMENTED_CAPABILITIES.md) | The undocumented capabilities the Alipay host depends on, kept item-for-item consistent with alipay's `undocumented` in the matrix YAML (checked by unit tests). |
-| [ALIPAY\_WASM\_TEXT\_COPY\_SUFFIX](variables/ALIPAY_WASM_TEXT_COPY_SUFFIX.md) | The suffix of the base64 text copy of the wasm in the code package: the copy of `wa-sqlite/wa-sqlite.wasm` is `wa-sqlite/wa-sqlite.wasm.base64.txt`. |
-| [DEFAULT\_WASM\_PATH](variables/DEFAULT_WASM_PATH.md) | The default in-package wasm path. |
-| [MINI\_PROGRAM\_PLATFORM\_IDS](variables/MINI_PROGRAM_PLATFORM_IDS.md) | The registered mini program platform ids. |
-| [SUBFRAME\_WASM\_SUBPATH](variables/SUBFRAME_WASM_SUBPATH.md) | The public subpath under which `@subframe7536/sqlite-wasm` exposes the wasm binary, for bundlers to copy into the code package. |
+| [ALIPAY\_WASM\_TEXT\_COPY\_SUFFIX](variables/ALIPAY_WASM_TEXT_COPY_SUFFIX.md)       | The suffix of the base64 text copy of the wasm in the code package: the copy of `wa-sqlite/wa-sqlite.wasm` is `wa-sqlite/wa-sqlite.wasm.base64.txt`.             |
+| [DEFAULT\_WASM\_PATH](variables/DEFAULT_WASM_PATH.md)                               | The default in-package wasm path.                                                                                                                                |
+| [MINI\_PROGRAM\_PLATFORM\_IDS](variables/MINI_PROGRAM_PLATFORM_IDS.md)              | The registered mini program platform ids.                                                                                                                        |
+| [SUBFRAME\_WASM\_SUBPATH](variables/SUBFRAME_WASM_SUBPATH.md)                       | The public subpath under which `@subframe7536/sqlite-wasm` exposes the wasm binary, for bundlers to copy into the code package.                                  |
 
 ## Functions
 
-| Function | Description |
-| ------ | ------ |
-| [assertMiniProgramPlatformId](functions/assertMiniProgramPlatformId.md) | Judges the platform id without needing a host: registered ones pass, unregistered ones throw directly. The host path ([resolveMiniProgramHost](functions/resolveMiniProgramHost.md), the runtime precheck, the VFS) uses the same judgment, so error messages match verbatim. |
-| [assertMiniProgramRuntimeCapabilities](functions/assertMiniProgramRuntimeCapabilities.md) | Gives the full capability list before loading WASM when hard dependencies are missing. |
-| [checkMiniProgramRuntimeCapabilities](functions/checkMiniProgramRuntimeCapabilities.md) | Checks the capabilities required to run the full RxDB/wa-sqlite stack in a mini program logic layer. |
-| [createAlipayMiniProgramHost](functions/createAlipayMiniProgramHost.md) | Adapts the Alipay global `my` into a host. |
-| [createAlipayWasmRuntime](functions/createAlipayWasmRuntime.md) | The wasm runtime of the Alipay logic layer: fetches bytes via readAlipayCodePackageWasm and hands them to the standard `WebAssembly.instantiate`. |
-| [createDouyinMiniProgramHost](functions/createDouyinMiniProgramHost.md) | Adapts the Douyin global `tt` into a [MiniProgramHost](interfaces/MiniProgramHost.md). |
-| [createMiniProgramFileVFS](functions/createMiniProgramFileVFS.md) | Creates a single-connection, rollback-journal mini program synchronous file VFS. |
-| [createWaSqliteMiniProgramClient](functions/createWaSqliteMiniProgramClient.md) | Creates and initializes the mini-program-specific wa-sqlite client. |
-| [createWechatFileVFS](functions/createWechatFileVFS.md) | Creates a single-connection, rollback-journal WeChat synchronous file VFS; the WeChat wrapper of `createMiniProgramFileVFS`. |
-| [createWechatMiniProgramHost](functions/createWechatMiniProgramHost.md) | Adapts the WeChat global `wx` into a [MiniProgramHost](interfaces/MiniProgramHost.md). |
-| [isMiniProgramPlatformId](functions/isMiniProgramPlatformId.md) | Checks whether a value is a registered platform id. |
-| [loadSubframeModuleFactory](functions/loadSubframeModuleFactory.md) | Loads the synchronous wa-sqlite module factory of `@subframe7536/sqlite-wasm`. |
-| [loadWaSqliteMiniProgramModule](functions/loadWaSqliteMiniProgramModule.md) | Loads the synchronous wa-sqlite Emscripten module using the mini program WASM runtime. |
-| [resolveMiniProgramHost](functions/resolveMiniProgramHost.md) | Resolves the single host from `{ wechat }` or `{ host }`, and validates the platform id. |
-| [resolveMiniProgramRuntimeGlobal](functions/resolveMiniProgramRuntimeGlobal.md) | Resolves the host's real global object: `host.runtimeGlobal` first, otherwise the environment's `globalThis`. |
+| Function                                                                                  | Description                                                                                                                                                                                                                                                                   |
+| ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [assertMiniProgramPlatformId](functions/assertMiniProgramPlatformId.md)                   | Judges the platform id without needing a host: registered ones pass, unregistered ones throw directly. The host path ([resolveMiniProgramHost](functions/resolveMiniProgramHost.md), the runtime precheck, the VFS) uses the same judgment, so error messages match verbatim. |
+| [assertMiniProgramRuntimeCapabilities](functions/assertMiniProgramRuntimeCapabilities.md) | Gives the full capability list before loading WASM when hard dependencies are missing.                                                                                                                                                                                        |
+| [checkMiniProgramRuntimeCapabilities](functions/checkMiniProgramRuntimeCapabilities.md)   | Checks the capabilities required to run the full RxDB/wa-sqlite stack in a mini program logic layer.                                                                                                                                                                          |
+| [createAlipayMiniProgramHost](functions/createAlipayMiniProgramHost.md)                   | Adapts the Alipay global `my` into a host.                                                                                                                                                                                                                                    |
+| [createAlipayWasmRuntime](functions/createAlipayWasmRuntime.md)                           | The wasm runtime of the Alipay logic layer: fetches bytes via readAlipayCodePackageWasm and hands them to the standard `WebAssembly.instantiate`.                                                                                                                             |
+| [createDouyinMiniProgramHost](functions/createDouyinMiniProgramHost.md)                   | Adapts the Douyin global `tt` into a [MiniProgramHost](interfaces/MiniProgramHost.md).                                                                                                                                                                                        |
+| [createMiniProgramFileVFS](functions/createMiniProgramFileVFS.md)                         | Creates a single-connection, rollback-journal mini program synchronous file VFS.                                                                                                                                                                                              |
+| [createWaSqliteMiniProgramClient](functions/createWaSqliteMiniProgramClient.md)           | Creates and initializes the mini-program-specific wa-sqlite client.                                                                                                                                                                                                           |
+| [createWechatFileVFS](functions/createWechatFileVFS.md)                                   | Creates a single-connection, rollback-journal WeChat synchronous file VFS; the WeChat wrapper of `createMiniProgramFileVFS`.                                                                                                                                                  |
+| [createWechatMiniProgramHost](functions/createWechatMiniProgramHost.md)                   | Adapts the WeChat global `wx` into a [MiniProgramHost](interfaces/MiniProgramHost.md).                                                                                                                                                                                        |
+| [isMiniProgramPlatformId](functions/isMiniProgramPlatformId.md)                           | Checks whether a value is a registered platform id.                                                                                                                                                                                                                           |
+| [loadSubframeModuleFactory](functions/loadSubframeModuleFactory.md)                       | Loads the synchronous wa-sqlite module factory of `@subframe7536/sqlite-wasm`.                                                                                                                                                                                                |
+| [loadWaSqliteMiniProgramModule](functions/loadWaSqliteMiniProgramModule.md)               | Loads the synchronous wa-sqlite Emscripten module using the mini program WASM runtime.                                                                                                                                                                                        |
+| [resolveMiniProgramHost](functions/resolveMiniProgramHost.md)                             | Resolves the single host from `{ wechat }` or `{ host }`, and validates the platform id.                                                                                                                                                                                      |
+| [resolveMiniProgramRuntimeGlobal](functions/resolveMiniProgramRuntimeGlobal.md)           | Resolves the host's real global object: `host.runtimeGlobal` first, otherwise the environment's `globalThis`.                                                                                                                                                                 |
 
 ## References
 
@@ -375,7 +375,7 @@ and synchronous callback hardening.
 
 Renames and re-exports [RxDBAdapterWaSqliteMiniProgram](classes/RxDBAdapterWaSqliteMiniProgram.md)
 
-***
+---
 
 ### WaSqliteMiniprogramOptions \{#wasqliteminiprogramoptions\}
 

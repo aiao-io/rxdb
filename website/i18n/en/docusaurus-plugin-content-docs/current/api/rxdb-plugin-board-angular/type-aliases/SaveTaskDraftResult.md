@@ -1,14 +1,14 @@
 # SaveTaskDraftResult
 
 ```ts
-type SaveTaskDraftResult = 
+type SaveTaskDraftResult =
   | {
-  kind: "saved";
-  task: InstanceType<typeof Task>;
-}
+      kind: 'saved';
+      task: InstanceType<typeof Task>;
+    }
   | {
-  kind: "unchanged";
-};
+      kind: 'unchanged';
+    };
 ```
 
 Defined in: packages/rxdb-plugin-board/dist/detail-service.d.ts:31

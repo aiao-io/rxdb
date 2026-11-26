@@ -10,9 +10,9 @@ Capitalizes the first letter
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `str` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `str`     | `string` |
 
 ## Returns
 

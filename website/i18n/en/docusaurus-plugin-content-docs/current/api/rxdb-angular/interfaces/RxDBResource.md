@@ -1,5 +1,5 @@
 ---
-sidebar_label: "RxDBResource⟨T⟩"
+sidebar_label: 'RxDBResource⟨T⟩'
 ---
 
 # RxDBResource`<T>`
@@ -8,8 +8,8 @@ Defined in: [rxdb-angular/src/hooks.ts:23](https://github.com/aiao-io/rxdb/blob/
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Properties
@@ -24,7 +24,7 @@ Defined in: [rxdb-angular/src/hooks.ts:27](https://github.com/aiao-io/rxdb/blob/
 
 Error of the resource
 
-***
+---
 
 ### hasValue \{#hasvalue\}
 
@@ -36,7 +36,7 @@ Defined in: [rxdb-angular/src/hooks.ts:33](https://github.com/aiao-io/rxdb/blob/
 
 Whether the resource has a value
 
-***
+---
 
 ### isEmpty \{#isempty\}
 
@@ -48,7 +48,7 @@ Defined in: [rxdb-angular/src/hooks.ts:31](https://github.com/aiao-io/rxdb/blob/
 
 Whether the resource is empty
 
-***
+---
 
 ### isLoading \{#isloading\}
 
@@ -60,7 +60,7 @@ Defined in: [rxdb-angular/src/hooks.ts:29](https://github.com/aiao-io/rxdb/blob/
 
 Loading state of the resource
 
-***
+---
 
 ### value \{#value\}
 

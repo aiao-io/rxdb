@@ -1,5 +1,5 @@
 ---
-sidebar_label: "EdgeInfoWithProperties⟨EdgeProperties⟩"
+sidebar_label: 'EdgeInfoWithProperties⟨EdgeProperties⟩'
 ---
 
 # EdgeInfoWithProperties`<EdgeProperties>`
@@ -18,8 +18,8 @@ Edge information (with properties)
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
+| Type Parameter                                              | Default type                                                                |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------- |
 | <a id="type-parameter-edgeproperties"></a> `EdgeProperties` | [`GraphEdgePropertiesRecord`](../type-aliases/GraphEdgePropertiesRecord.md) |
 
 ## Properties
@@ -27,7 +27,7 @@ Edge information (with properties)
 ### direction \{#direction\}
 
 ```ts
-direction: "in" | "out";
+direction: 'in' | 'out';
 ```
 
 Defined in: [rxdb-plugin-graph/src/graph-repository.interface.ts:75](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-graph/src/graph-repository.interface.ts#L75)
@@ -36,7 +36,7 @@ Defined in: [rxdb-plugin-graph/src/graph-repository.interface.ts:75](https://git
 
 [`EdgeInfo`](EdgeInfo.md).[`direction`](EdgeInfo.md#direction)
 
-***
+---
 
 ### properties \{#properties\}
 
@@ -46,7 +46,7 @@ properties: EdgeProperties | null;
 
 Defined in: [rxdb-plugin-graph/src/graph-repository.interface.ts:89](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-graph/src/graph-repository.interface.ts#L89)
 
-***
+---
 
 ### sourceId \{#sourceid\}
 
@@ -60,7 +60,7 @@ Defined in: [rxdb-plugin-graph/src/graph-repository.interface.ts:73](https://git
 
 [`EdgeInfo`](EdgeInfo.md).[`sourceId`](EdgeInfo.md#sourceid)
 
-***
+---
 
 ### targetId \{#targetid\}
 

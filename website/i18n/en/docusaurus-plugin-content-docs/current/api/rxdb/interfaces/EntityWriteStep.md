@@ -1,5 +1,5 @@
 ---
-sidebar_label: "EntityWriteStep⟨T⟩"
+sidebar_label: 'EntityWriteStep⟨T⟩'
 ---
 
 # EntityWriteStep`<T>`
@@ -10,9 +10,9 @@ One step of a bulk write: a set of creates / updates / deletes for one entity ty
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) | [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                            | Default type                                  |
+| ----------------------------------------------------------------------------------------- | --------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) | [`EntityType`](../type-aliases/EntityType.md) |
 
 ## Properties
 
@@ -26,7 +26,7 @@ Defined in: [packages/rxdb/src/system/exclusion-write-order.ts:138](https://gith
 
 The entities written in this step (original order preserved within the type)
 
-***
+---
 
 ### EntityType \{#entitytype\}
 
@@ -38,7 +38,7 @@ Defined in: [packages/rxdb/src/system/exclusion-write-order.ts:136](https://gith
 
 Entity type
 
-***
+---
 
 ### kind \{#kind\}
 

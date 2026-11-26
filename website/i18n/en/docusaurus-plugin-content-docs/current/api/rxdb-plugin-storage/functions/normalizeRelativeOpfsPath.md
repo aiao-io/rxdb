@@ -10,9 +10,9 @@ Normalizes a storage path to an OPFS-relative path without a leading `/`.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `path`    | `string` |
 
 ## Returns
 

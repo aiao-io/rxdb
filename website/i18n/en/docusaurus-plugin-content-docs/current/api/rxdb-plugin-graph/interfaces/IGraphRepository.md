@@ -1,5 +1,5 @@
 ---
-sidebar_label: "IGraphRepository⟨T, V, EdgeInfoType⟩"
+sidebar_label: 'IGraphRepository⟨T, V, EdgeInfoType⟩'
 ---
 
 # IGraphRepository`<T, V, EdgeInfoType>`
@@ -14,11 +14,11 @@ Graph repository interface (basic)
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) | - |
-| <a id="type-parameter-v"></a> `V` *extends* [`EdgeFilterOptions`](../type-aliases/EdgeFilterOptions.md) | [`EdgeFilterOptionsFull`](EdgeFilterOptionsFull.md) |
-| <a id="type-parameter-edgeinfotype"></a> `EdgeInfoType` | [`GraphEdgeInfoType`](../type-aliases/GraphEdgeInfoType.md)&lt;`V`&gt; |
+| Type Parameter                                                                                          | Default type                                                           |
+| ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md)       | -                                                                      |
+| <a id="type-parameter-v"></a> `V` _extends_ [`EdgeFilterOptions`](../type-aliases/EdgeFilterOptions.md) | [`EdgeFilterOptionsFull`](EdgeFilterOptionsFull.md)                    |
+| <a id="type-parameter-edgeinfotype"></a> `EdgeInfoType`                                                 | [`GraphEdgeInfoType`](../type-aliases/GraphEdgeInfoType.md)&lt;`V`&gt; |
 
 ## Methods
 
@@ -26,9 +26,9 @@ Graph repository interface (basic)
 
 ```ts
 addEdge(
-   from, 
-   to, 
-   weight?, 
+   from,
+   to,
+   weight?,
    properties?
 ): Promise<void>;
 ```
@@ -39,11 +39,11 @@ Adds an edge
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `from` | `InstanceType`&lt;`T`&gt; | Source node |
-| `to` | `InstanceType`&lt;`T`&gt; | Target node |
-| `weight?` | `number` \| `null` | Edge weight (requires features.graph.weight enabled in the metadata) |
+| Parameter     | Type                                                                                    | Description                                                                  |
+| ------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `from`        | `InstanceType`&lt;`T`&gt;                                                               | Source node                                                                  |
+| `to`          | `InstanceType`&lt;`T`&gt;                                                               | Target node                                                                  |
+| `weight?`     | `number` \| `null`                                                                      | Edge weight (requires features.graph.weight enabled in the metadata)         |
 | `properties?` | \| [`GraphEdgeProperties`](../type-aliases/GraphEdgeProperties.md)&lt;`V`&gt; \| `null` | Edge properties (requires features.graph.properties enabled in the metadata) |
 
 #### Returns
@@ -59,7 +59,7 @@ await User.addEdge(userA, userB, 8, {
 });
 ```
 
-***
+---
 
 ### count() \{#count\}
 
@@ -73,8 +73,8 @@ Counts entities
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                                           | Description                                                               |
+| --------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
 | `options` | [`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"countOptions"`&gt; | Query options (see [CountOptions](../../rxdb/interfaces/CountOptions.md)) |
 
 #### Returns
@@ -87,7 +87,7 @@ Number of rows matching the condition
 
 [`IRepository`](../../rxdb/interfaces/IRepository.md).[`count`](../../rxdb/interfaces/IRepository.md#count)
 
-***
+---
 
 ### countNeighbors() \{#countneighbors\}
 
@@ -101,8 +101,8 @@ Counts neighbor nodes
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                                                                        |
+| --------- | --------------------------------------------------------------------------------------------------------------------------- |
 | `options` | [`FindNeighborsOptions`](FindNeighborsOptions.md)&lt;`T`, [`GraphWhere`](../type-aliases/GraphWhere.md)&lt;`T`&gt;, `V`&gt; |
 
 #### Returns
@@ -125,7 +125,7 @@ const count = await User.countNeighbors({
 });
 ```
 
-***
+---
 
 ### create() \{#create\}
 
@@ -139,9 +139,9 @@ Creates an entity
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | Entity instance (usually created by [EntityManager.instantiate](../../rxdb/interfaces/EntityManager.md#instantiate)) |
+| Parameter | Type                      | Description                                                                                                          |
+| --------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `entity`  | `InstanceType`&lt;`T`&gt; | Entity instance (usually created by [EntityManager.instantiate](../../rxdb/interfaces/EntityManager.md#instantiate)) |
 
 #### Returns
 
@@ -153,7 +153,7 @@ The entity after persistence; **not** the same reference as the input (implement
 
 [`IRepository`](../../rxdb/interfaces/IRepository.md).[`create`](../../rxdb/interfaces/IRepository.md#create)
 
-***
+---
 
 ### find() \{#find\}
 
@@ -167,8 +167,8 @@ Finds multiple entities
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                                          | Description                                                             |
+| --------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
 | `options` | [`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"findOptions"`&gt; | Query options (see [FindOptions](../../rxdb/interfaces/FindOptions.md)) |
 
 #### Returns
@@ -185,7 +185,7 @@ Returns entity instances (with the state machine), not bare data — later `save
 
 [`IRepository`](../../rxdb/interfaces/IRepository.md).[`find`](../../rxdb/interfaces/IRepository.md#find)
 
-***
+---
 
 ### findNeighbors() \{#findneighbors\}
 
@@ -199,8 +199,8 @@ Finds neighbor nodes (with edge information)
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                                                                        |
+| --------- | --------------------------------------------------------------------------------------------------------------------------- |
 | `options` | [`FindNeighborsOptions`](FindNeighborsOptions.md)&lt;`T`, [`GraphWhere`](../type-aliases/GraphWhere.md)&lt;`T`&gt;, `V`&gt; |
 
 #### Returns
@@ -238,7 +238,7 @@ const partners = await User.findNeighbors({
 });
 ```
 
-***
+---
 
 ### findPaths() \{#findpaths\}
 
@@ -252,8 +252,8 @@ Finds all paths between two nodes
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                                                                |
+| --------- | ------------------------------------------------------------------------------------------------------------------- |
 | `options` | [`FindPathsOptions`](FindPathsOptions.md)&lt;`T`, [`GraphWhere`](../type-aliases/GraphWhere.md)&lt;`T`&gt;, `V`&gt; |
 
 #### Returns
@@ -287,7 +287,7 @@ const paths = await City.findPaths({
 // paths[0].totalWeight => 500 (total weight)
 ```
 
-***
+---
 
 ### remove() \{#remove\}
 
@@ -301,9 +301,9 @@ Deletes an entity
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The entity to delete (located by `id`) |
+| Parameter | Type                      | Description                            |
+| --------- | ------------------------- | -------------------------------------- |
+| `entity`  | `InstanceType`&lt;`T`&gt; | The entity to delete (located by `id`) |
 
 #### Returns
 
@@ -315,7 +315,7 @@ The entity after deletion (fields cleared, `local` set to `false`)
 
 [`IRepository`](../../rxdb/interfaces/IRepository.md).[`remove`](../../rxdb/interfaces/IRepository.md#remove)
 
-***
+---
 
 ### removeEdge() \{#removeedge\}
 
@@ -329,10 +329,10 @@ Removes an edge
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `from` | `InstanceType`&lt;`T`&gt; | Source node |
-| `to` | `InstanceType`&lt;`T`&gt; | Target node |
+| Parameter | Type                      | Description |
+| --------- | ------------------------- | ----------- |
+| `from`    | `InstanceType`&lt;`T`&gt; | Source node |
+| `to`      | `InstanceType`&lt;`T`&gt; | Target node |
 
 #### Returns
 
@@ -342,7 +342,7 @@ Removes an edge
 
 For undirected graphs, removes both directional edges at once
 
-***
+---
 
 ### update() \{#update\}
 
@@ -356,10 +356,10 @@ Updates an entity
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The entity to update (provides `id` and the latest fields) |
-| `patch` | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; | Field-level patch; fields not listed are untouched |
+| Parameter | Type                                       | Description                                                |
+| --------- | ------------------------------------------ | ---------------------------------------------------------- |
+| `entity`  | `InstanceType`&lt;`T`&gt;                  | The entity to update (provides `id` and the latest fields) |
+| `patch`   | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; | Field-level patch; fields not listed are untouched         |
 
 #### Returns
 

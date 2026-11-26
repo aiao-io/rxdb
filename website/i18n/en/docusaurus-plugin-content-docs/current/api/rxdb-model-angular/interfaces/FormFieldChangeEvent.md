@@ -16,7 +16,7 @@ Defined in: packages/rxdb-model/dist/entity-form/interfaces.d.ts:55
 
 Field name
 
-***
+---
 
 ### previousValue \{#previousvalue\}
 
@@ -28,7 +28,7 @@ Defined in: packages/rxdb-model/dist/entity-form/interfaces.d.ts:61
 
 The value before the change
 
-***
+---
 
 ### type \{#type\}
 
@@ -40,7 +40,7 @@ Defined in: packages/rxdb-model/dist/entity-form/interfaces.d.ts:57
 
 Field type
 
-***
+---
 
 ### value \{#value\}
 

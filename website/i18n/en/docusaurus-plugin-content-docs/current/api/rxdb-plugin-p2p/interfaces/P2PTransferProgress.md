@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/transfer.ts:64](https://github.com/aia
 
 Bytes written to disk.
 
-***
+---
 
 ### completedChunks \{#completedchunks\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/transfer.ts:60](https://github.com/aia
 
 Chunks written to disk.
 
-***
+---
 
 ### totalBytes \{#totalbytes\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/transfer.ts:66](https://github.com/aia
 
 Total bytes of the file.
 
-***
+---
 
 ### totalChunks \{#totalchunks\}
 

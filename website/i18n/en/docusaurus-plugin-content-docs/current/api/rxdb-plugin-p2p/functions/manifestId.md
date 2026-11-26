@@ -10,10 +10,10 @@ Creates the manifest primary key, making writes idempotent for the same content 
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter     | Type     |
+| ------------- | -------- |
 | `contentHash` | `string` |
-| `holderId` | `string` |
+| `holderId`    | `string` |
 
 ## Returns
 

@@ -10,9 +10,9 @@ Judges whether a value is already in its "encrypted at-rest form".
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | The value in the at-rest column; the caller guarantees it is neither `null` nor `undefined` |
+| Parameter | Type      | Description                                                                                 |
+| --------- | --------- | ------------------------------------------------------------------------------------------- |
+| `value`   | `unknown` | The value in the at-rest column; the caller guarantees it is neither `null` nor `undefined` |
 
 ## Returns
 

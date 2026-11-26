@@ -11,9 +11,9 @@ replaces the value with the envelope string produced by `keyring.encrypt`. Unenc
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `args` | [`PatchWalkArgs`](../interfaces/PatchWalkArgs.md) |
+| Parameter | Type                                              |
+| --------- | ------------------------------------------------- |
+| `args`    | [`PatchWalkArgs`](../interfaces/PatchWalkArgs.md) |
 
 ## Returns
 

@@ -16,7 +16,7 @@ Defined in: [types.ts:210](https://github.com/aiao-io/rxdb/blob/b5232040240cf1cc
 
 The top-level field names of this entity marked as encrypted by metadata; these fields are already masked in query results.
 
-***
+---
 
 ### name \{#name\}
 
@@ -28,7 +28,7 @@ Defined in: [types.ts:206](https://github.com/aiao-io/rxdb/blob/b5232040240cf1cc
 
 The entity name (without the namespace).
 
-***
+---
 
 ### namespace \{#namespace\}
 

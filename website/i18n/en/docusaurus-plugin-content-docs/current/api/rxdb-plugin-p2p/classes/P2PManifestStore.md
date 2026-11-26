@@ -48,22 +48,22 @@ All holder records (copies) of a content, ordered by `updatedAt` descending; no 
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter     | Type     |
+| ------------- | -------- |
 | `contentHash` | `string` |
 
 #### Returns
 
 readonly [`P2PManifestRecord`](../interfaces/P2PManifestRecord.md)[]
 
-***
+---
 
 ### revoke() \{#revoke\}
 
 ```ts
 revoke(
-   contentHash, 
-   holderId, 
+   contentHash,
+   holderId,
    revokedAt?
 ): boolean;
 ```
@@ -74,11 +74,11 @@ Revokes a holder record and records a tombstone that blocks older versions arriv
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `contentHash` | `string` | - |
-| `holderId` | `string` | - |
-| `revokedAt?` | `number` | The revocation moment on the holder's clock; when omitted, revokes the current local record |
+| Parameter     | Type     | Description                                                                                 |
+| ------------- | -------- | ------------------------------------------------------------------------------------------- |
+| `contentHash` | `string` | -                                                                                           |
+| `holderId`    | `string` | -                                                                                           |
+| `revokedAt?`  | `number` | The revocation moment on the holder's clock; when omitted, revokes the current local record |
 
 #### Returns
 
@@ -91,7 +91,7 @@ true when the local record existed and was deleted
 Only records no newer than the revocation moment are deleted (an equal moment counts as revoked, consistent with [P2PManifestStore.upsert](#upsert) blocking same-moment replays):
 a late-arriving old revocation cannot delete a record the holder re-registered afterwards. Tombstones only move forward per ID, taking the larger of the existing tombstone and this revocation's version, never the local clock; out-of-order or duplicate revocations cannot resurrect older records.
 
-***
+---
 
 ### upsert() \{#upsert\}
 
@@ -108,9 +108,9 @@ so that the holderId is validated before entering the sync repository. Writes ol
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `record` | [`P2PManifestRecord`](../interfaces/P2PManifestRecord.md) |
+| Parameter | Type                                                      |
+| --------- | --------------------------------------------------------- |
+| `record`  | [`P2PManifestRecord`](../interfaces/P2PManifestRecord.md) |
 
 #### Returns
 
@@ -120,7 +120,7 @@ so that the holderId is validated before entering the sync repository. Writes ol
 
 TypeError The record does not satisfy the content-addressing rules
 
-***
+---
 
 ### upsertForSubject() \{#upsertforsubject\}
 
@@ -134,10 +134,10 @@ An authenticated principal writes its own holder record; forging another holderI
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `record` | [`P2PManifestRecord`](../interfaces/P2PManifestRecord.md) |
-| `principal` | [`P2PPrincipal`](../interfaces/P2PPrincipal.md) |
+| Parameter   | Type                                                      |
+| ----------- | --------------------------------------------------------- |
+| `record`    | [`P2PManifestRecord`](../interfaces/P2PManifestRecord.md) |
+| `principal` | [`P2PPrincipal`](../interfaces/P2PPrincipal.md)           |
 
 #### Returns
 

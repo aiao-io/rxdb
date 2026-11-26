@@ -10,10 +10,10 @@ Normalizes update data and filters readonly fields.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `metadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | Entity metadata |
-| `entity` | [`EntityData`](../../rxdb/type-aliases/EntityData.md) | Update data submitted by the user |
+| Parameter  | Type                                                          | Description                       |
+| ---------- | ------------------------------------------------------------- | --------------------------------- |
+| `metadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | Entity metadata                   |
+| `entity`   | [`EntityData`](../../rxdb/type-aliases/EntityData.md)         | Update data submitted by the user |
 
 ## Returns
 

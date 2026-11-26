@@ -10,10 +10,10 @@ Judges whether an archive can be restored to the target configuration.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `manifest` | [`RxDBBackupManifest`](../interfaces/RxDBBackupManifest.md) | The result of [parseRxDBBackupManifest](parseRxDBBackupManifest.md) |
-| `expected` | [`RxDBBackupCompatibility`](../interfaces/RxDBBackupCompatibility.md) | The target side's expectations |
+| Parameter  | Type                                                                  | Description                                                         |
+| ---------- | --------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `manifest` | [`RxDBBackupManifest`](../interfaces/RxDBBackupManifest.md)           | The result of [parseRxDBBackupManifest](parseRxDBBackupManifest.md) |
+| `expected` | [`RxDBBackupCompatibility`](../interfaces/RxDBBackupCompatibility.md) | The target side's expectations                                      |
 
 ## Returns
 

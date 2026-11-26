@@ -12,10 +12,10 @@ Supports circular reference detection to avoid infinite recursion.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `a` | `unknown` | The first value to compare |
-| `b` | `unknown` | The second value to compare |
+| Parameter | Type      | Description                 |
+| --------- | --------- | --------------------------- |
+| `a`       | `unknown` | The first value to compare  |
+| `b`       | `unknown` | The second value to compare |
 
 ## Returns
 

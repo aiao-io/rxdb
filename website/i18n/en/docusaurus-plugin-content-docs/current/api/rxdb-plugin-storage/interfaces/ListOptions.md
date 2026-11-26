@@ -24,7 +24,7 @@ For "the root directory and all its subdirectories", pass
 [ListOptions.recursive](#recursive) explicitly and do not express it by
 omitting `path` (STOR-005).
 
-***
+---
 
 ### recursive? \{#recursive\}
 

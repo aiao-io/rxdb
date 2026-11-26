@@ -20,7 +20,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:3
 
 The entity name
 
-***
+---
 
 ### entityId \{#entityid\}
 
@@ -32,7 +32,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:4
 
 The entity primary key
 
-***
+---
 
 ### fingerprint \{#fingerprint\}
 
@@ -44,7 +44,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:5
 
 The entity fingerprint after the write
 
-***
+---
 
 ### inversePatch \{#inversepatch\}
 
@@ -56,7 +56,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:5
 
 The inverse patch; `null` for `insert`
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -68,7 +68,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:3
 
 The namespace the entity belongs to
 
-***
+---
 
 ### operation \{#operation\}
 
@@ -80,7 +80,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:4
 
 What operation this write is
 
-***
+---
 
 ### origin \{#origin\}
 
@@ -92,7 +92,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:5
 
 Where this write came from
 
-***
+---
 
 ### patch \{#patch\}
 
@@ -104,7 +104,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:4
 
 The forward patch; `null` for `delete`
 
-***
+---
 
 ### sourceChangeId \{#sourcechangeid\}
 
@@ -116,7 +116,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:6
 
 The `RxDBChange` that triggered this capture; **diagnostics only**, must not be used as a replay data source
 
-***
+---
 
 ### transactionId \{#transactionid\}
 
@@ -128,7 +128,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:6
 
 The owning transaction; `null` without an explicit transaction
 
-***
+---
 
 ### unitId \{#unitid\}
 

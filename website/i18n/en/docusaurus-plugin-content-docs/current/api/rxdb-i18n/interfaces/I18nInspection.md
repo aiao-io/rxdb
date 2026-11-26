@@ -16,7 +16,7 @@ Defined in: [inspection.ts:38](https://github.com/aiao-io/rxdb/blob/b5232040240c
 
 Locales that have catalogs.
 
-***
+---
 
 ### locale \{#locale\}
 
@@ -28,7 +28,7 @@ Defined in: [inspection.ts:36](https://github.com/aiao-io/rxdb/blob/b5232040240c
 
 Currently effective locale.
 
-***
+---
 
 ### messages \{#messages\}
 
@@ -40,7 +40,7 @@ Defined in: [inspection.ts:40](https://github.com/aiao-io/rxdb/blob/b5232040240c
 
 All catalog rows including overridden versions.
 
-***
+---
 
 ### missingMessages \{#missingmessages\}
 

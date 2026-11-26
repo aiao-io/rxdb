@@ -12,23 +12,23 @@ Shares the core capabilities in `@aiao/rxdb-adapter-sqlite-core` with `@aiao/rxd
 
 ## Comparison with other SQLite adapters
 
-| Feature | sqlite-wasm | wa-sqlite | sqlite-wasm (official) |
-| ------------------- | ------------------------- | --------- | ----------------------- |
-| Underlying library | @subframe7536/sqlite-wasm | wa-sqlite | @sqlite.org/sqlite-wasm |
-| UPDATE/DELETE LIMIT | ✅ | ❌ | ❌ |
-| VFS presets | Typesafe | Manual config | Manual config |
-| OPFS FileHandle | ✅ | ❌ | ✅ |
-| Package size | ~800KB | ~500KB | ~1MB |
+| Feature             | sqlite-wasm               | wa-sqlite     | sqlite-wasm (official)  |
+| ------------------- | ------------------------- | ------------- | ----------------------- |
+| Underlying library  | @subframe7536/sqlite-wasm | wa-sqlite     | @sqlite.org/sqlite-wasm |
+| UPDATE/DELETE LIMIT | ✅                        | ❌            | ❌                      |
+| VFS presets         | Typesafe                  | Manual config | Manual config           |
+| OPFS FileHandle     | ✅                        | ❌            | ✅                      |
+| Package size        | ~800KB                    | ~500KB        | ~1MB                    |
 
 ## Supported storage (VFS presets)
 
-| `vfs` value | Description | Runtime environment |
-| ------------ | --------------------------------------------- | --------------- |
-| `memory` | Pure in-memory, `MemoryVFS` | Main thread/Worker |
-| `idb` | IndexedDB, `IDBBatchAtomicVFS` | Main thread/Worker |
-| `idb-memory` | Memory + IndexedDB mirror, `IDBMirrorVFS` | Main thread/Worker |
-| `opfs` | OPFS, `OPFSCoopSyncVFS` | **Worker required** |
-| `fs-handle` | Local file / OPFS FileHandle, `OPFSAnyContextVFS` | Main thread/Worker |
+| `vfs` value  | Description                                       | Runtime environment |
+| ------------ | ------------------------------------------------- | ------------------- |
+| `memory`     | Pure in-memory, `MemoryVFS`                       | Main thread/Worker  |
+| `idb`        | IndexedDB, `IDBBatchAtomicVFS`                    | Main thread/Worker  |
+| `idb-memory` | Memory + IndexedDB mirror, `IDBMirrorVFS`         | Main thread/Worker  |
+| `opfs`       | OPFS, `OPFSCoopSyncVFS`                           | **Worker required** |
+| `fs-handle`  | Local file / OPFS FileHandle, `OPFSAnyContextVFS` | Main thread/Worker  |
 
 ## Installation
 
@@ -109,11 +109,11 @@ the database is closed only when the last one disconnects, and it can connect ag
 
 `backup()` / `restore()` / `cleanupIncompleteRestore()` are provided by [`@aiao/rxdb-adapter-sqlite-core`](../rxdb-adapter-sqlite-core/README.md); see there for their semantics and error codes.
 
-| VFS | Backup / restore |
-| -------- | ----------------------------------------------- |
-| `memory` | ✅ in-memory database |
-| `idb` | ✅ IndexedDB, persisted with `journal_mode` `delete` |
-| Other VFS | ❌ `unsupported_combination` (`vfs`) |
+| VFS       | Backup / restore                                     |
+| --------- | ---------------------------------------------------- |
+| `memory`  | ✅ in-memory database                                |
+| `idb`     | ✅ IndexedDB, persisted with `journal_mode` `delete` |
+| Other VFS | ❌ `unsupported_combination` (`vfs`)                 |
 
 The combinations in the table are only delivered on main-thread connections: when `worker` / `workerInstance` or `sharedWorker` / `sharedWorkerInstance` is set, all three entry points report `unsupported_combination` (`transport`, with `actual` being `worker` or `sharedWorker`) and do not touch the output stream or the archive source.
 
@@ -129,6 +129,7 @@ Browser-side @subframe7536/sqlite-wasm adapter. The structure corresponds one-to
 only the underlying SQLite implementation is replaced by sqlite-wasm plus the derived VFS loading logic.
 
 Entry layering:
+
 - core shared types and functions (re-exported from `@aiao/rxdb-adapter-sqlite-core`)
 - the adapter itself, `RxDBAdapterSqlite`
 - the client `SqliteClient`, responsible for the SQLite connection, change interception, and batch dispatch
@@ -136,41 +137,41 @@ Entry layering:
 
 ## Classes
 
-| Class | Description |
-| ------ | ------ |
-| [RxDBAdapterSqlite](classes/RxDBAdapterSqlite.md) | Browser @subframe7536/sqlite-wasm adapter. |
-| [RxDBAdapterSqliteError](classes/RxDBAdapterSqliteError.md) | Error class for the RxDB SQLite adapter |
-| [SqliteClient](classes/SqliteClient.md) | Typesafe synchronous event dispatcher. |
-| [SqliteRepository](classes/SqliteRepository.md) | Repository for operating on entities |
+| Class                                                       | Description                                |
+| ----------------------------------------------------------- | ------------------------------------------ |
+| [RxDBAdapterSqlite](classes/RxDBAdapterSqlite.md)           | Browser @subframe7536/sqlite-wasm adapter. |
+| [RxDBAdapterSqliteError](classes/RxDBAdapterSqliteError.md) | Error class for the RxDB SQLite adapter    |
+| [SqliteClient](classes/SqliteClient.md)                     | Typesafe synchronous event dispatcher.     |
+| [SqliteRepository](classes/SqliteRepository.md)             | Repository for operating on entities       |
 
 ## Interfaces
 
-| Interface | Description |
-| ------ | ------ |
-| [GenerateSqlResult](interfaces/GenerateSqlResult.md) | SQL generation result: the complete SQL statement and optional parameter bindings. |
-| [RxDBAdapterSqliteBase](interfaces/RxDBAdapterSqliteBase.md) | Backend-agnostic SQLite adapter base class. |
-| [SqliteOptions](interfaces/SqliteOptions.md) | SQLite adapter configuration interface |
+| Interface                                                    | Description                                                                        |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| [GenerateSqlResult](interfaces/GenerateSqlResult.md)         | SQL generation result: the complete SQL statement and optional parameter bindings. |
+| [RxDBAdapterSqliteBase](interfaces/RxDBAdapterSqliteBase.md) | Backend-agnostic SQLite adapter base class.                                        |
+| [SqliteOptions](interfaces/SqliteOptions.md)                 | SQLite adapter configuration interface                                             |
 
 ## Type Aliases
 
-| Type Alias | Description |
-| ------ | ------ |
+| Type Alias                               | Description                                         |
+| ---------------------------------------- | --------------------------------------------------- |
 | [SupportVFS](type-aliases/SupportVFS.md) | Supported @subframe7536/sqlite-wasm storage presets |
 
 ## Variables
 
-| Variable | Description |
-| ------ | ------ |
-| [buildRuleGroup](variables/buildRuleGroup.md) | Generate the ruleGroup SQL query condition |
-| [ROWID](variables/ROWID.md) | sqlite row id column name |
-| [SQLITE\_WASM\_VFS\_LIST](variables/SQLITE_WASM_VFS_LIST.md) | - |
-| [sqliteGetTableName](variables/sqliteGetTableName.md) | Compose the physical name of the primary table set: `<namespace>$<logical name>`. |
-| [sqliteGetTableNameByMetadata](variables/sqliteGetTableNameByMetadata.md) | The physical table name of an entity in the given table set. |
+| Variable                                                                  | Description                                                                       |
+| ------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| [buildRuleGroup](variables/buildRuleGroup.md)                             | Generate the ruleGroup SQL query condition                                        |
+| [ROWID](variables/ROWID.md)                                               | sqlite row id column name                                                         |
+| [SQLITE\_WASM\_VFS\_LIST](variables/SQLITE_WASM_VFS_LIST.md)              | -                                                                                 |
+| [sqliteGetTableName](variables/sqliteGetTableName.md)                     | Compose the physical name of the primary table set: `<namespace>$<logical name>`. |
+| [sqliteGetTableNameByMetadata](variables/sqliteGetTableNameByMetadata.md) | The physical table name of an entity in the given table set.                      |
 
 ## Functions
 
-| Function | Description |
-| ------ | ------ |
-| [createSqliteClient](functions/createSqliteClient.md) | Create and initialize the sqlite-wasm client. |
+| Function                                                | Description                                        |
+| ------------------------------------------------------- | -------------------------------------------------- |
+| [createSqliteClient](functions/createSqliteClient.md)   | Create and initialize the sqlite-wasm client.      |
 | [releaseComlinkProxy](functions/releaseComlinkProxy.md) | Release the MessagePort held by the Comlink proxy. |
-| [sqliteLoad](functions/sqliteLoad.md) | Load and initialize @subframe7536/sqlite-wasm |
+| [sqliteLoad](functions/sqliteLoad.md)                   | Load and initialize @subframe7536/sqlite-wasm      |

@@ -16,7 +16,7 @@ Defined in: [packages/rxdb/src/system/types.ts:592](https://github.com/aiao-io/r
 
 Query options
 
-***
+---
 
 ### findAllOptions \{#findalloptions\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb/src/system/types.ts:584](https://github.com/aiao-io/r
 
 Query options
 
-***
+---
 
 ### findByCursorOptions \{#findbycursoroptions\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb/src/system/types.ts:588](https://github.com/aiao-io/r
 
 Query options
 
-***
+---
 
 ### findOneOptions \{#findoneoptions\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb/src/system/types.ts:580](https://github.com/aiao-io/r
 
 Query options
 
-***
+---
 
 ### findOneOrFailOptions \{#findoneorfailoptions\}
 
@@ -64,7 +64,7 @@ Defined in: [packages/rxdb/src/system/types.ts:572](https://github.com/aiao-io/r
 
 Query options
 
-***
+---
 
 ### findOptions \{#findoptions\}
 
@@ -76,7 +76,7 @@ Defined in: [packages/rxdb/src/system/types.ts:576](https://github.com/aiao-io/r
 
 Query options
 
-***
+---
 
 ### getOptions \{#getoptions\}
 
@@ -88,7 +88,7 @@ Defined in: [packages/rxdb/src/system/types.ts:568](https://github.com/aiao-io/r
 
 Query options
 
-***
+---
 
 ### idType \{#idtype\}
 

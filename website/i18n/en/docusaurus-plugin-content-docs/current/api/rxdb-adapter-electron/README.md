@@ -2,10 +2,10 @@
 
 RxDB adapter that stores data in **real files inside the Electron app's private directory**. This package provides two side-by-side adapters that can be registered at the same time:
 
-| Adapter name      | On-disk shape                   | Entry points                                    |
-| ----------------- | ------------------------------- | ----------------------------------------------- |
-| `sqlite-electron` | A single `.sqlite3` file        | `.` (renderer) + `/host` (privileged side)      |
-| `pglite-electron` | A PGlite data directory tree    | `/pglite` (renderer) + `/pglite-host` (privileged side) |
+| Adapter name      | On-disk shape                | Entry points                                            |
+| ----------------- | ---------------------------- | ------------------------------------------------------- |
+| `sqlite-electron` | A single `.sqlite3` file     | `.` (renderer) + `/host` (privileged side)              |
+| `pglite-electron` | A PGlite data directory tree | `/pglite` (renderer) + `/pglite-host` (privileged side) |
 
 Data is read and written directly by the privileged side (the Electron main process or a worker it owns) — SQLite via `node:sqlite`, PGlite via the Node filesystem backend of `@electric-sql/pglite`. The renderer process only sends protocol requests over a narrow transport layer, so it gets neither filesystem handles nor physical paths.
 
@@ -33,9 +33,9 @@ For running inside a browser, use [`@aiao/rxdb-adapter-wa-sqlite`](https://www.n
 
 ## Capability matrix
 
-| Storage               | Status                                                                                                              |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| Single-file SQLite    | ✅ host ships in the package (`/host`), adapter name `sqlite-electron`                                              |
+| Storage               | Status                                                                                                                            |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Single-file SQLite    | ✅ host ships in the package (`/host`), adapter name `sqlite-electron`                                                            |
 | PGlite data directory | ✅ host ships in the package (`/pglite-host`), adapter name `pglite-electron`; requires optional peers (see "Installation" below) |
 
 The two families speak **two different protocols** (SQLite-side `sqlite.*`, PGlite-side `pg.*`), not one protocol with two backends: PGlite's callback transactions cannot cross IPC, so it uses an explicit transaction-ID protocol instead (`begin` / `query` / `commit` / `rollback`, with the same transaction ID bound to the same physical connection). That is why `pglite-electron` is **deliberately absent** from the `DesktopHostAdapterName` registry — that registry is the list of things "speaking the SQLite host protocol", and shoehorning it in would make the shared layer believe it accepts `DesktopSqliteFileStorage`.
@@ -64,12 +64,12 @@ Both are declared as `optional: true` peers precisely so that SQLite-only apps d
 
 The package is **deliberately** split into four entry points; do not mix them. The split is two orthogonal lines: **renderer / privileged side** (who can touch the filesystem) × **SQLite / PGlite** (which optional peer gets pulled in).
 
-| Entry point                               | Loaded where                              | Heavy dependency pulled in                       |
-| ----------------------------------------- | ----------------------------------------- | ------------------------------------------------ |
-| `@aiao/rxdb-adapter-electron`             | renderer (browser context)                | none, safe to bundle                             |
-| `@aiao/rxdb-adapter-electron/host`        | Electron main process / a worker it owns  | `node:sqlite`                                    |
-| `@aiao/rxdb-adapter-electron/pglite`      | renderer (browser context)                | only `@aiao/rxdb-adapter-pglite` + types, see below |
-| `@aiao/rxdb-adapter-electron/pglite-host` | Electron main process / a worker it owns  | `@electric-sql/pglite` (full PostgreSQL WASM)    |
+| Entry point                               | Loaded where                             | Heavy dependency pulled in                          |
+| ----------------------------------------- | ---------------------------------------- | --------------------------------------------------- |
+| `@aiao/rxdb-adapter-electron`             | renderer (browser context)               | none, safe to bundle                                |
+| `@aiao/rxdb-adapter-electron/host`        | Electron main process / a worker it owns | `node:sqlite`                                       |
+| `@aiao/rxdb-adapter-electron/pglite`      | renderer (browser context)               | only `@aiao/rxdb-adapter-pglite` + types, see below |
+| `@aiao/rxdb-adapter-electron/pglite-host` | Electron main process / a worker it owns | `@electric-sql/pglite` (full PostgreSQL WASM)       |
 
 Bundling any host entry into the renderer bundle is equivalent to handing filesystem capabilities back to the renderer process — the whole isolation is void.
 
@@ -222,30 +222,30 @@ Measured (packaged build, macOS, the same `--user-data-dir` opened twice in a ro
 
 Program branches should read `error.code`, not match message text (messages start with a `[code] ` prefix, purely for log search convenience). The original cause is passed through as-is via `cause`.
 
-| code                         | Meaning                                                                                                            |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `unsupported_runtime_engine` | The storage `engine` is outside the capability matrix (e.g. handing a PGlite data directory to the SQLite protocol) |
-| `invalid_database_name`      | The logical database name is invalid, or tries to escape the app's scope                                           |
-| `host_unavailable`           | The renderer cannot reach the host (no transport injected / preload not exposing one)                              |
-| `session_closed`             | The session is used after being disconnected                                                                       |
-| `protocol_violation`         | A request or response does not match the protocol shape                                                             |
-| `open_failed`                | Opening the database failed; `cause` preserves the original reason                                                  |
-| `permission_denied`          | The path has no permission, or the statement is rejected by the SQLite authorizer (`ATTACH` / `VACUUM INTO` etc.)  |
-| `database_corrupted`         | The target file is not a usable SQLite database                                                                     |
-| `statement_failed`           | The SQL itself failed to execute (syntax, constraints, etc.)                                                        |
-| `host_internal_error`        | The host itself failed; a defect rather than a caller problem                                                       |
-| `database_busy`              | Another connection (usually another window) holds a conflicting lock; retrying works, no data is lost               |
-| `file_not_found`             | The target file or directory does not exist; the renderer side restores this into `NotFoundError`                  |
-| `invalid_file_path`          | The path escapes the storage root, or points to a type that does not match the operation                            |
-| `disk_full`                  | Disk space or quota exhausted (ENOSPC / EDQUOT)                                                                     |
-| `write_aborted`              | The write token is no longer valid (session closed, committed, or discarded); the target keeps its pre-write content |
-| `transaction_not_found`      | The transaction ID is unknown, has ended, or does not belong to this session; not a single statement of that transaction was executed |
-| `transaction_unavailable`    | Could not get a PGlite connection (another transaction still holds it), or the `begin` that opened the transaction timed out |
+| code                         | Meaning                                                                                                                                                   |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `unsupported_runtime_engine` | The storage `engine` is outside the capability matrix (e.g. handing a PGlite data directory to the SQLite protocol)                                       |
+| `invalid_database_name`      | The logical database name is invalid, or tries to escape the app's scope                                                                                  |
+| `host_unavailable`           | The renderer cannot reach the host (no transport injected / preload not exposing one)                                                                     |
+| `session_closed`             | The session is used after being disconnected                                                                                                              |
+| `protocol_violation`         | A request or response does not match the protocol shape                                                                                                   |
+| `open_failed`                | Opening the database failed; `cause` preserves the original reason                                                                                        |
+| `permission_denied`          | The path has no permission, or the statement is rejected by the SQLite authorizer (`ATTACH` / `VACUUM INTO` etc.)                                         |
+| `database_corrupted`         | The target file is not a usable SQLite database                                                                                                           |
+| `statement_failed`           | The SQL itself failed to execute (syntax, constraints, etc.)                                                                                              |
+| `host_internal_error`        | The host itself failed; a defect rather than a caller problem                                                                                             |
+| `database_busy`              | Another connection (usually another window) holds a conflicting lock; retrying works, no data is lost                                                     |
+| `file_not_found`             | The target file or directory does not exist; the renderer side restores this into `NotFoundError`                                                         |
+| `invalid_file_path`          | The path escapes the storage root, or points to a type that does not match the operation                                                                  |
+| `disk_full`                  | Disk space or quota exhausted (ENOSPC / EDQUOT)                                                                                                           |
+| `write_aborted`              | The write token is no longer valid (session closed, committed, or discarded); the target keeps its pre-write content                                      |
+| `transaction_not_found`      | The transaction ID is unknown, has ended, or does not belong to this session; not a single statement of that transaction was executed                     |
+| `transaction_unavailable`    | Could not get a PGlite connection (another transaction still holds it), or the `begin` that opened the transaction timed out                              |
 | `restore_in_progress`        | The target is exclusively held by a restore on the same host; ordinary connections are refused; new restores and cleanups report `database_busy` as usual |
-| `restore_incomplete`         | The target has a marker of an unfinished restore; it must be cleaned up before connecting or restoring again        |
-| `target_not_empty`           | The restore target already contains database content; restore refuses to overwrite                                  |
-| `cleanup_pending`            | The cleanup after a failed restore itself failed; the target stays in a discernible unfinished state                |
-| `unsupported_operation`      | The host does not have the operation enabled, e.g. `backup` was not passed when creating the PGlite host            |
+| `restore_incomplete`         | The target has a marker of an unfinished restore; it must be cleaned up before connecting or restoring again                                              |
+| `target_not_empty`           | The restore target already contains database content; restore refuses to overwrite                                                                        |
+| `cleanup_pending`            | The cleanup after a failed restore itself failed; the target stays in a discernible unfinished state                                                      |
+| `unsupported_operation`      | The host does not have the operation enabled, e.g. `backup` was not passed when creating the PGlite host                                                  |
 
 `file_not_found` / `invalid_file_path` / `disk_full` / `write_aborted` come from the file host (`createElectronFileHost`, used by `@aiao/rxdb-plugin-storage/desktop`); the SQLite side does not use them.
 
@@ -261,11 +261,11 @@ The `RxDBAdapterDesktopError` class cannot cross structured clone, so host-side 
 
 **The two families behave differently in this section** — this is the easiest difference to trip over when choosing:
 
-| Dimension           | `sqlite-electron`                                    | `pglite-electron`                                                        |
-| ------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------ |
-| Connection model    | One independent connection per `open`                | One **shared instance** per data directory, reused across sessions       |
-| Concurrent writes   | SQLite file lock + backoff retry → `database_busy`   | Transactions queue on the single connection → timeout with `transaction_unavailable` |
-| Cross-window changes | ❌ not cross-window (see below)                     | ✅ cross-window, `NOTIFY` fans out to all sessions of the instance        |
+| Dimension            | `sqlite-electron`                                  | `pglite-electron`                                                                    |
+| -------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Connection model     | One independent connection per `open`              | One **shared instance** per data directory, reused across sessions                   |
+| Concurrent writes    | SQLite file lock + backoff retry → `database_busy` | Transactions queue on the single connection → timeout with `transaction_unavailable` |
+| Cross-window changes | ❌ not cross-window (see below)                    | ✅ cross-window, `NOTIFY` fans out to all sessions of the instance                   |
 
 ### SQLite: `BEGIN IMMEDIATE` and lock-collision retries
 
@@ -303,10 +303,10 @@ Both families can write an entire database as a `.rxdb-backup` archive stream an
 
 Input and output streams are provided by the caller (`ReadableStream<Uint8Array>` / `WritableStream<Uint8Array>`): this package does not pop a file picker, nor does it authorize arbitrary paths for the renderer. Where to write and where to read from is decided by the host app — e.g. expose a channel in preload that can only read and write the app's backup directory.
 
-| Family | Backup                 | Restore                                                             | Cleanup of incomplete restore                 |
-| ------ | ---------------------- | ------------------------------------------------------------------- | --------------------------------------------- |
-| SQLite | `adapter.backup(sink)` | `adapter.restore(source)`: adapter registered, instance not yet connected | `adapter.cleanupIncompleteRestore()`          |
-| PGlite | `adapter.backup(sink)` | `restoreElectronPGliteDatabase(source, target)`                     | `cleanupIncompleteElectronPGliteRestore(target)` |
+| Family | Backup                 | Restore                                                                   | Cleanup of incomplete restore                    |
+| ------ | ---------------------- | ------------------------------------------------------------------------- | ------------------------------------------------ |
+| SQLite | `adapter.backup(sink)` | `adapter.restore(source)`: adapter registered, instance not yet connected | `adapter.cleanupIncompleteRestore()`             |
+| PGlite | `adapter.backup(sink)` | `restoreElectronPGliteDatabase(source, target)`                           | `cleanupIncompleteElectronPGliteRestore(target)` |
 
 Archives only restore into the **same adapter**: a `sqlite-electron` archive cannot restore into `sqlite-tauri` or in-browser SQLite, and a `pglite-electron` archive cannot restore into browser PGlite, and vice versa — all report `incompatible_archive`.
 
@@ -411,69 +411,69 @@ The **implementation** of the protocol, renderer client, storage union, and erro
 
 ## Classes
 
-| Class | Description |
-| ------ | ------ |
-| [DesktopSqliteClient](classes/DesktopSqliteClient.md) | Client for accessing a local SQLite file through the desktop host. |
-| [RxDBAdapterDesktopError](classes/RxDBAdapterDesktopError.md) | Desktop adapter error. |
-| [RxDBAdapterElectron](classes/RxDBAdapterElectron.md) | Connects RxDB to real SQLite files in the Electron app's private directory. |
+| Class                                                         | Description                                                                 |
+| ------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| [DesktopSqliteClient](classes/DesktopSqliteClient.md)         | Client for accessing a local SQLite file through the desktop host.          |
+| [RxDBAdapterDesktopError](classes/RxDBAdapterDesktopError.md) | Desktop adapter error.                                                      |
+| [RxDBAdapterElectron](classes/RxDBAdapterElectron.md)         | Connects RxDB to real SQLite files in the Electron app's private directory. |
 
 ## Interfaces
 
-| Interface | Description |
-| ------ | ------ |
-| [DesktopHostChangeEventMessage](interfaces/DesktopHostChangeEventMessage.md) | Change events the host pushes to the renderer on its own initiative. |
-| [DesktopHostCloseRequest](interfaces/DesktopHostCloseRequest.md) | Closes a session and releases the database handle. |
-| [DesktopHostExecuteRequest](interfaces/DesktopHostExecuteRequest.md) | Executes SQL on an opened session. |
-| [DesktopHostFileEntry](interfaces/DesktopHostFileEntry.md) | Directory entry: only name and type, no physical path leaked. |
-| [DesktopHostFileReadResult](interfaces/DesktopHostFileReadResult.md) | One frame of a `file.read` result. |
-| [DesktopHostFileStat](interfaces/DesktopHostFileStat.md) | Metadata of a single path; expressed as `null` rather than an error when the target does not exist. |
-| [DesktopHostHandshakeRequest](interfaces/DesktopHostHandshakeRequest.md) | Negotiates the wire protocol version. |
-| [DesktopHostHandshakeResult](interfaces/DesktopHostHandshakeResult.md) | Response to a `handshake` request. |
-| [DesktopHostMuteRequest](interfaces/DesktopHostMuteRequest.md) | Pauses / resumes change event collection for a session (protocol v2). |
-| [DesktopHostOpenRequest](interfaces/DesktopHostOpenRequest.md) | Opens a database session. |
-| [DesktopHostOpenResult](interfaces/DesktopHostOpenResult.md) | Response to an `open` request. |
-| [DesktopHostTransport](interfaces/DesktopHostTransport.md) | Transport layer between the renderer and the host. |
-| [DesktopHostVersionRequest](interfaces/DesktopHostVersionRequest.md) | Queries the engine version of the database the session is connected to. |
-| [DesktopOptions](interfaces/DesktopOptions.md) | Desktop adapter options. |
-| [DesktopPgliteDirectoryStorage](interfaces/DesktopPgliteDirectoryStorage.md) | PGlite data directory desktop storage. |
-| [DesktopSqliteClientOptions](interfaces/DesktopSqliteClientOptions.md) | Optional behavior parameters for [DesktopSqliteClient.connect](classes/DesktopSqliteClient.md#connect). |
-| [DesktopSqliteFileStorage](interfaces/DesktopSqliteFileStorage.md) | Single-file SQLite desktop storage. |
+| Interface                                                                    | Description                                                                                             |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| [DesktopHostChangeEventMessage](interfaces/DesktopHostChangeEventMessage.md) | Change events the host pushes to the renderer on its own initiative.                                    |
+| [DesktopHostCloseRequest](interfaces/DesktopHostCloseRequest.md)             | Closes a session and releases the database handle.                                                      |
+| [DesktopHostExecuteRequest](interfaces/DesktopHostExecuteRequest.md)         | Executes SQL on an opened session.                                                                      |
+| [DesktopHostFileEntry](interfaces/DesktopHostFileEntry.md)                   | Directory entry: only name and type, no physical path leaked.                                           |
+| [DesktopHostFileReadResult](interfaces/DesktopHostFileReadResult.md)         | One frame of a `file.read` result.                                                                      |
+| [DesktopHostFileStat](interfaces/DesktopHostFileStat.md)                     | Metadata of a single path; expressed as `null` rather than an error when the target does not exist.     |
+| [DesktopHostHandshakeRequest](interfaces/DesktopHostHandshakeRequest.md)     | Negotiates the wire protocol version.                                                                   |
+| [DesktopHostHandshakeResult](interfaces/DesktopHostHandshakeResult.md)       | Response to a `handshake` request.                                                                      |
+| [DesktopHostMuteRequest](interfaces/DesktopHostMuteRequest.md)               | Pauses / resumes change event collection for a session (protocol v2).                                   |
+| [DesktopHostOpenRequest](interfaces/DesktopHostOpenRequest.md)               | Opens a database session.                                                                               |
+| [DesktopHostOpenResult](interfaces/DesktopHostOpenResult.md)                 | Response to an `open` request.                                                                          |
+| [DesktopHostTransport](interfaces/DesktopHostTransport.md)                   | Transport layer between the renderer and the host.                                                      |
+| [DesktopHostVersionRequest](interfaces/DesktopHostVersionRequest.md)         | Queries the engine version of the database the session is connected to.                                 |
+| [DesktopOptions](interfaces/DesktopOptions.md)                               | Desktop adapter options.                                                                                |
+| [DesktopPgliteDirectoryStorage](interfaces/DesktopPgliteDirectoryStorage.md) | PGlite data directory desktop storage.                                                                  |
+| [DesktopSqliteClientOptions](interfaces/DesktopSqliteClientOptions.md)       | Optional behavior parameters for [DesktopSqliteClient.connect](classes/DesktopSqliteClient.md#connect). |
+| [DesktopSqliteFileStorage](interfaces/DesktopSqliteFileStorage.md)           | Single-file SQLite desktop storage.                                                                     |
 
 ## Type Aliases
 
-| Type Alias | Description |
-| ------ | ------ |
-| [DesktopHostFileLockMode](type-aliases/DesktopHostFileLockMode.md) | Lock mode, matching Web Locks' same-named values. |
-| [DesktopHostFileRequest](type-aliases/DesktopHostFileRequest.md) | All requests the renderer can send to the file host. |
-| [DesktopHostFileResponse](type-aliases/DesktopHostFileResponse.md) | The host's response to a file request; failures also travel through normal return values. |
-| [DesktopHostRequest](type-aliases/DesktopHostRequest.md) | All requests the renderer can send to the host. |
-| [DesktopHostResponse](type-aliases/DesktopHostResponse.md) | The host's response to a request. |
-| [DesktopStorage](type-aliases/DesktopStorage.md) | Discriminated union of desktop storage configurations, distinguished by `engine`. |
-| [RxDBAdapterDesktopErrorCode](type-aliases/RxDBAdapterDesktopErrorCode.md) | Stable error codes the desktop adapter commits to externally. |
+| Type Alias                                                                 | Description                                                                               |
+| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| [DesktopHostFileLockMode](type-aliases/DesktopHostFileLockMode.md)         | Lock mode, matching Web Locks' same-named values.                                         |
+| [DesktopHostFileRequest](type-aliases/DesktopHostFileRequest.md)           | All requests the renderer can send to the file host.                                      |
+| [DesktopHostFileResponse](type-aliases/DesktopHostFileResponse.md)         | The host's response to a file request; failures also travel through normal return values. |
+| [DesktopHostRequest](type-aliases/DesktopHostRequest.md)                   | All requests the renderer can send to the host.                                           |
+| [DesktopHostResponse](type-aliases/DesktopHostResponse.md)                 | The host's response to a request.                                                         |
+| [DesktopStorage](type-aliases/DesktopStorage.md)                           | Discriminated union of desktop storage configurations, distinguished by `engine`.         |
+| [RxDBAdapterDesktopErrorCode](type-aliases/RxDBAdapterDesktopErrorCode.md) | Stable error codes the desktop adapter commits to externally.                             |
 
 ## Variables
 
-| Variable | Description |
-| ------ | ------ |
-| [DESKTOP\_DEFAULT\_DATABASE\_SUFFIX](variables/DESKTOP_DEFAULT_DATABASE_SUFFIX.md) | Suffix appended when deriving the logical file name from the RxDB database name. |
-| [DESKTOP\_HOST\_MAX\_BINDINGS](variables/DESKTOP_HOST_MAX_BINDINGS.md) | Maximum number of binding parameters allowed per request. |
-| [DESKTOP\_HOST\_MAX\_BLOB\_BYTES](variables/DESKTOP_HOST_MAX_BLOB_BYTES.md) | Byte cap for a single blob binding parameter. |
-| [DESKTOP\_HOST\_MAX\_FILE\_CHUNK\_BYTES](variables/DESKTOP_HOST_MAX_FILE_CHUNK_BYTES.md) | Byte cap for a single frame of file read/write. |
-| [DESKTOP\_HOST\_MAX\_SQL\_LENGTH](variables/DESKTOP_HOST_MAX_SQL_LENGTH.md) | Length cap for a single SQL text on the SQLite wire protocol (UTF-16 code units). |
-| [DESKTOP\_HOST\_PROTOCOL\_VERSION](variables/DESKTOP_HOST_PROTOCOL_VERSION.md) | Wire protocol version. |
-| [DESKTOP\_HOST\_TRANSPORT\_KEY](variables/DESKTOP_HOST_TRANSPORT_KEY.md) | Key the preload uses when mounting the transport on the renderer's global scope. |
-| [ELECTRON\_ADAPTER\_NAME](variables/ELECTRON_ADAPTER_NAME.md) | The adapter's name in the `RxDBAdapters` registry. |
+| Variable                                                                                 | Description                                                                       |
+| ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| [DESKTOP\_DEFAULT\_DATABASE\_SUFFIX](variables/DESKTOP_DEFAULT_DATABASE_SUFFIX.md)       | Suffix appended when deriving the logical file name from the RxDB database name.  |
+| [DESKTOP\_HOST\_MAX\_BINDINGS](variables/DESKTOP_HOST_MAX_BINDINGS.md)                   | Maximum number of binding parameters allowed per request.                         |
+| [DESKTOP\_HOST\_MAX\_BLOB\_BYTES](variables/DESKTOP_HOST_MAX_BLOB_BYTES.md)              | Byte cap for a single blob binding parameter.                                     |
+| [DESKTOP\_HOST\_MAX\_FILE\_CHUNK\_BYTES](variables/DESKTOP_HOST_MAX_FILE_CHUNK_BYTES.md) | Byte cap for a single frame of file read/write.                                   |
+| [DESKTOP\_HOST\_MAX\_SQL\_LENGTH](variables/DESKTOP_HOST_MAX_SQL_LENGTH.md)              | Length cap for a single SQL text on the SQLite wire protocol (UTF-16 code units). |
+| [DESKTOP\_HOST\_PROTOCOL\_VERSION](variables/DESKTOP_HOST_PROTOCOL_VERSION.md)           | Wire protocol version.                                                            |
+| [DESKTOP\_HOST\_TRANSPORT\_KEY](variables/DESKTOP_HOST_TRANSPORT_KEY.md)                 | Key the preload uses when mounting the transport on the renderer's global scope.  |
+| [ELECTRON\_ADAPTER\_NAME](variables/ELECTRON_ADAPTER_NAME.md)                            | The adapter's name in the `RxDBAdapters` registry.                                |
 
 ## Functions
 
-| Function | Description |
-| ------ | ------ |
-| [assertDesktopHostResponse](functions/assertDesktopHostResponse.md) | Validates a host response and converts error responses back into local exceptions. |
-| [assertDesktopSqliteStorage](functions/assertDesktopSqliteStorage.md) | Validates that the storage configuration is exactly the one engine this protocol carries — single-file SQLite. |
-| [assertValidDesktopDatabaseName](functions/assertValidDesktopDatabaseName.md) | Validates the logical database name. |
-| [isDesktopPgliteDirectoryStorage](functions/isDesktopPgliteDirectoryStorage.md) | Checks whether a storage configuration has the PGlite data directory shape. |
-| [isDesktopSqliteFileStorage](functions/isDesktopSqliteFileStorage.md) | Checks whether a storage configuration has the single-file SQLite shape. |
-| [parseDesktopHostChangeEvent](functions/parseDesktopHostChangeEvent.md) | Validates a change event pushed by the host. |
-| [parseDesktopHostHandshakeResult](functions/parseDesktopHostHandshakeResult.md) | Validates a `handshake` response. |
-| [parseDesktopHostOpenResult](functions/parseDesktopHostOpenResult.md) | Validates an `open` response. |
-| [resolveDesktopHostTransport](functions/resolveDesktopHostTransport.md) | Reads the transport injected by preload. |
+| Function                                                                        | Description                                                                                                    |
+| ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| [assertDesktopHostResponse](functions/assertDesktopHostResponse.md)             | Validates a host response and converts error responses back into local exceptions.                             |
+| [assertDesktopSqliteStorage](functions/assertDesktopSqliteStorage.md)           | Validates that the storage configuration is exactly the one engine this protocol carries — single-file SQLite. |
+| [assertValidDesktopDatabaseName](functions/assertValidDesktopDatabaseName.md)   | Validates the logical database name.                                                                           |
+| [isDesktopPgliteDirectoryStorage](functions/isDesktopPgliteDirectoryStorage.md) | Checks whether a storage configuration has the PGlite data directory shape.                                    |
+| [isDesktopSqliteFileStorage](functions/isDesktopSqliteFileStorage.md)           | Checks whether a storage configuration has the single-file SQLite shape.                                       |
+| [parseDesktopHostChangeEvent](functions/parseDesktopHostChangeEvent.md)         | Validates a change event pushed by the host.                                                                   |
+| [parseDesktopHostHandshakeResult](functions/parseDesktopHostHandshakeResult.md) | Validates a `handshake` response.                                                                              |
+| [parseDesktopHostOpenResult](functions/parseDesktopHostOpenResult.md)           | Validates an `open` response.                                                                                  |
+| [resolveDesktopHostTransport](functions/resolveDesktopHostTransport.md)         | Reads the transport injected by preload.                                                                       |

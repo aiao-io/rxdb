@@ -18,8 +18,8 @@ re-querying committed data, and are re-thrown unchanged — the UI restores its 
 
 ```ts
 new BoardMoveService(
-   rxdb, 
-   ctx, 
+   rxdb,
+   ctx,
    notifier
 ): BoardMoveService;
 ```
@@ -28,11 +28,11 @@ Defined in: [packages/rxdb-plugin-board/src/move-service.ts:22](https://github.c
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rxdb` | [`RxDB`](../../rxdb/classes/RxDB.md) |
-| `ctx` | () => [`BoardHostContext`](../interfaces/BoardHostContext.md) |
-| `notifier` | [`BoardWriteNotifier`](BoardWriteNotifier.md) |
+| Parameter  | Type                                                          |
+| ---------- | ------------------------------------------------------------- |
+| `rxdb`     | [`RxDB`](../../rxdb/classes/RxDB.md)                          |
+| `ctx`      | () => [`BoardHostContext`](../interfaces/BoardHostContext.md) |
+| `notifier` | [`BoardWriteNotifier`](BoardWriteNotifier.md)                 |
 
 #### Returns
 
@@ -52,18 +52,18 @@ Drag column: reorders columns within the board (`boardId` grouped ordering domai
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `columnId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
-| `target` | \{ `nextId`: `` `${string}-${string}-${string}-${string}-${string}` `` \| `null`; `prevId`: `` `${string}-${string}-${string}-${string}-${string}` `` \| `null`; \} |
-| `target.nextId` | `` `${string}-${string}-${string}-${string}-${string}` `` \| `null` |
-| `target.prevId` | `` `${string}-${string}-${string}-${string}-${string}` `` \| `null` |
+| Parameter       | Type                                                                                                                                                                |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `columnId`      | `` `${string}-${string}-${string}-${string}-${string}` ``                                                                                                           |
+| `target`        | \{ `nextId`: `` `${string}-${string}-${string}-${string}-${string}` `` \| `null`; `prevId`: `` `${string}-${string}-${string}-${string}-${string}` `` \| `null`; \} |
+| `target.nextId` | `` `${string}-${string}-${string}-${string}-${string}` `` \| `null`                                                                                                 |
+| `target.prevId` | `` `${string}-${string}-${string}-${string}-${string}` `` \| `null`                                                                                                 |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### moveTask() \{#movetask\}
 
@@ -77,10 +77,10 @@ Single-card move: the target comes from the same conversion table as [resolveCar
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `taskId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
-| `target` | [`CardDropTarget`](../type-aliases/CardDropTarget.md) |
+| Parameter | Type                                                      |
+| --------- | --------------------------------------------------------- |
+| `taskId`  | `` `${string}-${string}-${string}-${string}-${string}` `` |
+| `target`  | [`CardDropTarget`](../type-aliases/CardDropTarget.md)     |
 
 #### Returns
 

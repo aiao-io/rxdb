@@ -17,8 +17,8 @@ one wrong character in an identity key points at another record, and silent degr
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type         | Description                                                                   |
+| --------- | ------------ | ----------------------------------------------------------------------------- |
 | `encoded` | `Uint8Array` | The bytes produced by [encodeRxDBEntityIdentity](encodeRxDBEntityIdentity.md) |
 
 ## Returns

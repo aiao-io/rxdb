@@ -10,16 +10,16 @@ Counts the matching entities.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                    |
+| ------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `EntityType` | `T` | Entity type. |
-| `options` | [`UseOptions`](../type-aliases/UseOptions.md)&lt;[`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"countOptions"`&gt;&gt; | `count` query options or an idempotent factory. |
+| Parameter    | Type                                                                                                                                                | Description                                     |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `EntityType` | `T`                                                                                                                                                 | Entity type.                                    |
+| `options`    | [`UseOptions`](../type-aliases/UseOptions.md)&lt;[`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"countOptions"`&gt;&gt; | `count` query options or an idempotent factory. |
 
 ## Returns
 

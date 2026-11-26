@@ -44,7 +44,7 @@ of the setting, one batch accumulates at most `MAX_BATCH_WAIT_MS`.
 
 [`DesktopOptions`](DesktopOptions.md).[`batchTimeout`](DesktopOptions.md#batchtimeout)
 
-***
+---
 
 ### databaseName? \{#databasename\}
 
@@ -67,7 +67,7 @@ same file.
 
 [`DesktopOptions`](DesktopOptions.md).[`databaseName`](DesktopOptions.md#databasename)
 
-***
+---
 
 ### repositories? \{#repositories\}
 
@@ -81,7 +81,7 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/sqlite-core.types.d.ts:92
 
 [`DesktopOptions`](DesktopOptions.md).[`repositories`](DesktopOptions.md#repositories)
 
-***
+---
 
 ### transport \{#transport\}
 

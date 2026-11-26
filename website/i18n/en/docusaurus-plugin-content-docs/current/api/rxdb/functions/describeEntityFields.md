@@ -10,10 +10,10 @@ Generates the complete field descriptor of an entity.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) | Entity metadata that has completed `transitionMetadata()` |
-| `resolve` | [`EntityMetadataResolver`](../type-aliases/EntityMetadataResolver.md) | Relation target resolver; returns `undefined` throws immediately, no guessing the primary key type (D7) |
+| Parameter  | Type                                                                  | Description                                                                                             |
+| ---------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md)                 | Entity metadata that has completed `transitionMetadata()`                                               |
+| `resolve`  | [`EntityMetadataResolver`](../type-aliases/EntityMetadataResolver.md) | Relation target resolver; returns `undefined` throws immediately, no guessing the primary key type (D7) |
 
 ## Returns
 

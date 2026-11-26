@@ -10,10 +10,10 @@ Adapts the reactive outputs of a `SearchHandle` into a React hook.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `source` | [`SearchSourceLike`](../interfaces/SearchSourceLike.md) | The data source exposing a `search()` method (`RxDB` / `RxCollection`) |
-| `options?` | [`SearchOptions`](../interfaces/SearchOptions.md) | Per-call [SearchOptions](../interfaces/SearchOptions.md) |
+| Parameter  | Type                                                    | Description                                                            |
+| ---------- | ------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `source`   | [`SearchSourceLike`](../interfaces/SearchSourceLike.md) | The data source exposing a `search()` method (`RxDB` / `RxCollection`) |
+| `options?` | [`SearchOptions`](../interfaces/SearchOptions.md)       | Per-call [SearchOptions](../interfaces/SearchOptions.md)               |
 
 ## Returns
 

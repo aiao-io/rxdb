@@ -12,8 +12,8 @@ Supports the standard 5-segment format (minute hour day month dow) and the 6-seg
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter    | Type     | Description            |
+| ------------ | -------- | ---------------------- |
 | `expression` | `string` | Cron expression string |
 
 ## Returns
@@ -29,8 +29,8 @@ The Chinese description
 ## Example
 
 ```ts
-describeCron('* * * * *');       // 'runs every minute of every day'
-describeCron('0 9 * * 1-5');     // 'runs at 09:00 on every weekday'
-describeCron('0 0 1 1 *');       // 'runs at 00:00 on January 1'
-describeCron('30 18 * * 5');     // 'runs at 18:30 every Friday'
+describeCron('* * * * *'); // 'runs every minute of every day'
+describeCron('0 9 * * 1-5'); // 'runs at 09:00 on every weekday'
+describeCron('0 0 1 1 *'); // 'runs at 00:00 on January 1'
+describeCron('30 18 * * 5'); // 'runs at 18:30 every Friday'
 ```

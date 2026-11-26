@@ -10,9 +10,9 @@ Creates a static runtime carrying only the shell catalog, Chinese by default; us
 
 ## Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `locale?` | `string` | `'zh-Hans'` | The initial locale; defaults to `zh-Hans`. |
+| Parameter | Type     | Default value | Description                                |
+| --------- | -------- | ------------- | ------------------------------------------ |
+| `locale?` | `string` | `'zh-Hans'`   | The initial locale; defaults to `zh-Hans`. |
 
 ## Returns
 

@@ -1,5 +1,5 @@
 ---
-sidebar_label: "EventListener⟨T⟩"
+sidebar_label: 'EventListener⟨T⟩'
 ---
 
 # EventListener`<T>`
@@ -14,15 +14,15 @@ An event listener.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Parameters
 
 | Parameter | Type |
-| ------ | ------ |
-| `data` | `T` |
+| --------- | ---- |
+| `data`    | `T`  |
 
 ## Returns
 

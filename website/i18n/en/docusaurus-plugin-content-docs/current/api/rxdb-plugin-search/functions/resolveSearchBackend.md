@@ -10,8 +10,8 @@ Resolves the search backend for the current adapter; throws when unavailable.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                    | Description                                            |
+| --------- | ----------------------- | ------------------------------------------------------ |
 | `adapter` | `string` \| `undefined` | adapter key read from `rxdb.config.sync.local.adapter` |
 
 ## Returns

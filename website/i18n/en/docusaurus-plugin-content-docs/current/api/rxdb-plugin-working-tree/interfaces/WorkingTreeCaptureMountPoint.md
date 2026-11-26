@@ -28,7 +28,7 @@ The name of the abstract base class declaring the method
 
 [`WorkingTreeWritePrimitiveSignature`](WorkingTreeWritePrimitiveSignature.md).[`host`](WorkingTreeWritePrimitiveSignature.md#host)
 
-***
+---
 
 ### method \{#method\}
 
@@ -44,7 +44,7 @@ Which write primitive this row mounts
 
 [`WorkingTreeWritePrimitiveSignature`](WorkingTreeWritePrimitiveSignature.md).[`method`](WorkingTreeWritePrimitiveSignature.md#method)
 
-***
+---
 
 ### ordinal \{#ordinal\}
 
@@ -56,7 +56,7 @@ Defined in: packages/rxdb/dist/capture/capture-mount-points.d.ts:35
 
 Which row of the contract §1 table this corresponds to
 
-***
+---
 
 ### parameters \{#parameters\}
 
@@ -72,7 +72,7 @@ The formal parameter names, in declaration order; optional markers and types do 
 
 [`WorkingTreeWritePrimitiveSignature`](WorkingTreeWritePrimitiveSignature.md).[`parameters`](WorkingTreeWritePrimitiveSignature.md#parameters)
 
-***
+---
 
 ### why \{#why\}
 

@@ -28,7 +28,7 @@ Defined in: [entities.ts:27](https://github.com/aiao-io/rxdb/blob/b5232040240cf1
 
 Application default locale.
 
-***
+---
 
 ### deviceLocale \{#devicelocale\}
 
@@ -40,7 +40,7 @@ Defined in: [entities.ts:23](https://github.com/aiao-io/rxdb/blob/b5232040240cf1
 
 Host-probed locale.
 
-***
+---
 
 ### devicePreferredLocale \{#devicepreferredlocale\}
 
@@ -52,7 +52,7 @@ Defined in: [entities.ts:25](https://github.com/aiao-io/rxdb/blob/b5232040240cf1
 
 Locale explicitly chosen by the user on this device.
 
-***
+---
 
 ### id \{#id\}
 
@@ -64,7 +64,7 @@ Defined in: [entities.ts:21](https://github.com/aiao-io/rxdb/blob/b5232040240cf1
 
 Fixed to singleton.
 
-***
+---
 
 ### updatedAt \{#updatedat\}
 

@@ -10,9 +10,9 @@ Converts a value to an integer, rounding down for positive numbers and up for ne
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `string` \| `number` | The value to convert; may be a number or a string |
+| Parameter | Type                 | Description                                       |
+| --------- | -------------------- | ------------------------------------------------- |
+| `value`   | `string` \| `number` | The value to convert; may be a number or a string |
 
 ## Returns
 

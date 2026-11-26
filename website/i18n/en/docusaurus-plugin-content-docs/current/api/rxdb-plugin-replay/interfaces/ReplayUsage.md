@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-replay/src/types.ts:59](https://github.com/aia
 
 Sum of `bytes` across all sessions.
 
-***
+---
 
 ### limits \{#limits\}
 
@@ -38,7 +38,7 @@ readonly sessionBytes: number;
 readonly storeBytes: number;
 ```
 
-***
+---
 
 ### sessionCount \{#sessioncount\}
 

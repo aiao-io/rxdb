@@ -10,6 +10,7 @@ Follows the open/closed principle: open for extension, closed for modification
 ## Remarks
 
 The generator uses two-phase generation:
+
 1. **generateProperties()**: generates Repository-specific computed properties, cache properties, and so on (optional)
 2. **generateMethods()**: generates Repository-specific query methods (required)
 
@@ -72,7 +73,7 @@ plus the base class name — the generator package therefore does not need to re
 A generator that declares only this field but no [entityBaseModuleSpecifier](#entitybasemodulespecifier) is not adopted by the analyzer:
 without the package name matching can only be done by class name, and a user-written class with the same name would be replaced.
 
-***
+---
 
 ### entityBaseModuleSpecifier? \{#entitybasemodulespecifier\}
 
@@ -84,7 +85,7 @@ Defined in: [generators/RepositoryGenerator.interface.ts:134](https://github.com
 
 Source module of the entity runtime base classes; @aiao/rxdb is used when unset.
 
-***
+---
 
 ### name \{#name\}
 
@@ -100,7 +101,7 @@ Must match the EntityMetadata.repository field
 #### Example
 
 ```ts
-'Repository', 'TreeRepository', 'GraphRepository', 'GeoRepository'
+('Repository', 'TreeRepository', 'GraphRepository', 'GeoRepository');
 ```
 
 ## Methods
@@ -108,7 +109,7 @@ Must match the EntityMetadata.repository field
 ### declareSymbols()? \{#declaresymbols\}
 
 ```ts
-declareSymbols?(metadata): RepositoryGeneratorSymbols;
+declareSymbols ? metadata : RepositoryGeneratorSymbols;
 ```
 
 Defined in: [generators/RepositoryGenerator.interface.ts:162](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-client-generator/src/generators/RepositoryGenerator.interface.ts#L162)
@@ -117,8 +118,8 @@ Self-reports the symbols this generator will write, used for the pre-generation 
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                          | Description                    |
+| ---------- | ------------------------------------------------------------- | ------------------------------ |
 | `metadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | Metadata of the current entity |
 
 #### Returns
@@ -133,7 +134,7 @@ The pre-check must finish before the ts-morph Project is created, when no artifa
 so only the generator itself can declare its symbols. A generator that does not implement this method claims no names — the symbols it writes therefore
 do not participate in the pre-check, and conflicts only surface in the member validation during the [generate](#generate) write-out phase.
 
-***
+---
 
 ### generate() \{#generate\}
 
@@ -147,8 +148,8 @@ Generates the properties and methods specific to the Repository
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                      | Description        |
+| --------- | ----------------------------------------- | ------------------ |
 | `context` | [`GeneratorContext`](GeneratorContext.md) | Generation context |
 
 #### Returns

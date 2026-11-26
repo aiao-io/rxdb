@@ -31,14 +31,14 @@ compiled into an entity-level CHECK with the property name as its `name`, and pa
 #### Example
 
 ```typescript
-properties: [{ name: 'qty', type: PropertyType.integer, check: { operator: '>', value: 0 } }]
+properties: [{ name: 'qty', type: PropertyType.integer, check: { operator: '>', value: 0 } }];
 ```
 
 #### Inherited from
 
 `IEntityObject.check`
 
-***
+---
 
 ### columnName? \{#columnname\}
 
@@ -55,7 +55,7 @@ Same as name when not provided
 
 `IEntityObject.columnName`
 
-***
+---
 
 ### default? \{#default\}
 
@@ -65,7 +65,7 @@ default?: string | (() => string);
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:223](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L223)
 
-***
+---
 
 ### displayName? \{#displayname\}
 
@@ -80,14 +80,14 @@ Display name
 #### Example
 
 ```ts
-"User", "Order item"
+('User', 'Order item');
 ```
 
 #### Inherited from
 
 `IEntityObject.displayName`
 
-***
+---
 
 ### encrypted? \{#encrypted\}
 
@@ -106,19 +106,19 @@ primary key / foreign key / unique / sortable / index / computed property / FTS 
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### Inherited from
 
 `IEntityObject.encrypted`
 
-***
+---
 
 ### format? \{#format\}
 
 ```ts
-format?: 
+format?:
   | PlainTextFormat
   | MultilineTextFormat
   | RichTextFormat
@@ -136,10 +136,12 @@ Field semantics annotation; only affects presentation and front-end control sele
 #### Default
 
 ```ts
-{ kind: 'plainText' }
+{
+  kind: 'plainText';
+}
 ```
 
-***
+---
 
 ### name \{#name\}
 
@@ -156,7 +158,7 @@ A lowercase-initial English word; may only contain English words and underscores
 
 `IEntityObject.name`
 
-***
+---
 
 ### nullable? \{#nullable\}
 
@@ -171,14 +173,14 @@ Whether NULL is allowed
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### Inherited from
 
 `IEntityObject.nullable`
 
-***
+---
 
 ### primary? \{#primary\}
 
@@ -190,7 +192,7 @@ Defined in: [packages/rxdb/src/entity/property-types.interface.ts:221](https://g
 
 Whether it is the primary key
 
-***
+---
 
 ### readonly? \{#readonly\}
 
@@ -207,14 +209,14 @@ If false, the value of this column is updated when updating data
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### Inherited from
 
 `IEntityObject.readonly`
 
-***
+---
 
 ### required? \{#required\}
 
@@ -232,14 +234,14 @@ Empty strings and empty arrays are not allowed; the number 0 is allowed
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### Inherited from
 
 `IEntityObject.required`
 
-***
+---
 
 ### searchable? \{#searchable\}
 
@@ -255,14 +257,14 @@ Only effective for `StringProperty` / `EnumProperty` / `StringArrayProperty`
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### See
 
 @aiao/rxdb-plugin-search
 
-***
+---
 
 ### sortable? \{#sortable\}
 
@@ -277,24 +279,24 @@ Whether it is sortable
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### Inherited from
 
 `ISortable.sortable`
 
-***
+---
 
 ### type \{#type\}
 
 ```ts
-type: "string" | string;
+type: 'string' | string;
 ```
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:222](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L222)
 
-***
+---
 
 ### unique? \{#unique\}
 
@@ -310,7 +312,7 @@ If true, the value of this data must not repeat
 #### Default
 
 ```ts
-false
+false;
 ```
 
 #### Inherited from

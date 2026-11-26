@@ -13,16 +13,16 @@ The `patch` of a DELETE event is `null`, which likewise falls into "cannot judge
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                            |
+| ----------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `rxdb` | [`RxDB`](../classes/RxDB.md) | The RxDB instance, used to resolve the entity type and read the entity cache |
-| `event` | [`RxDBEntityLocalEventData`](../type-aliases/RxDBEntityLocalEventData.md)&lt;`T`&gt; | The local entity change event |
+| Parameter | Type                                                                                 | Description                                                                  |
+| --------- | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| `rxdb`    | [`RxDB`](../classes/RxDB.md)                                                         | The RxDB instance, used to resolve the entity type and read the entity cache |
+| `event`   | [`RxDBEntityLocalEventData`](../type-aliases/RxDBEntityLocalEventData.md)&lt;`T`&gt; | The local entity change event                                                |
 
 ## Returns
 

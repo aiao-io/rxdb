@@ -1,20 +1,20 @@
 # EntityPropertyMetadata
 
 ```ts
-type EntityPropertyMetadata = 
-  | SetRequired<UUIDProperty, "columnName">
-  | SetRequired<StringProperty, "columnName">
-  | SetRequired<EnumProperty, "columnName">
-  | SetRequired<NumberProperty, "columnName">
-  | SetRequired<IntegerProperty, "columnName">
-  | SetRequired<BigIntProperty, "columnName">
-  | SetRequired<BinaryProperty, "columnName">
-  | SetRequired<DateProperty, "columnName">
-  | SetRequired<BooleanProperty, "columnName">
-  | SetRequired<StringArrayProperty, "columnName">
-  | SetRequired<NumberArrayProperty, "columnName">
-  | SetRequired<JSONProperty, "columnName">
-  | SetRequired<KeyValueProperty, "columnName">;
+type EntityPropertyMetadata =
+  | SetRequired<UUIDProperty, 'columnName'>
+  | SetRequired<StringProperty, 'columnName'>
+  | SetRequired<EnumProperty, 'columnName'>
+  | SetRequired<NumberProperty, 'columnName'>
+  | SetRequired<IntegerProperty, 'columnName'>
+  | SetRequired<BigIntProperty, 'columnName'>
+  | SetRequired<BinaryProperty, 'columnName'>
+  | SetRequired<DateProperty, 'columnName'>
+  | SetRequired<BooleanProperty, 'columnName'>
+  | SetRequired<StringArrayProperty, 'columnName'>
+  | SetRequired<NumberArrayProperty, 'columnName'>
+  | SetRequired<JSONProperty, 'columnName'>
+  | SetRequired<KeyValueProperty, 'columnName'>;
 ```
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:494](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L494)

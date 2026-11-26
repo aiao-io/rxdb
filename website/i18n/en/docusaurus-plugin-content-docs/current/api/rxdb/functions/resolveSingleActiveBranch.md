@@ -10,10 +10,10 @@ Defined in: [packages/rxdb/src/system/active-branch-guard.ts:351](https://github
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `executor` | [`TransactionExecutor`](../interfaces/TransactionExecutor.md) | The executor of the migration's transaction |
-| `host` | [`ActiveBranchEntityHost`](../interfaces/ActiveBranchEntityHost.md) | Used to `instantiate` when a new `main` is needed |
+| Parameter  | Type                                                                | Description                                       |
+| ---------- | ------------------------------------------------------------------- | ------------------------------------------------- |
+| `executor` | [`TransactionExecutor`](../interfaces/TransactionExecutor.md)       | The executor of the migration's transaction       |
+| `host`     | [`ActiveBranchEntityHost`](../interfaces/ActiveBranchEntityHost.md) | Used to `instantiate` when a new `main` is needed |
 
 ## Returns
 
@@ -24,7 +24,7 @@ The single active branch
 ## Throws
 
 [AmbiguousActiveBranchError](../classes/AmbiguousActiveBranchError.md) when there are multiple active rows; **not a single row is changed**,
-  the caller rolls back the whole migration
+the caller rolls back the whole migration
 
 ## Throws
 

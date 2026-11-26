@@ -17,7 +17,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:40](https://gi
 
 Database name
 
-***
+---
 
 ### recordAt \{#recordat\}
 
@@ -29,7 +29,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:46](https://gi
 
 Record time
 
-***
+---
 
 ### rowIds \{#rowids\}
 
@@ -41,7 +41,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:44](https://gi
 
 List of affected row IDs
 
-***
+---
 
 ### tableName \{#tablename\}
 
@@ -53,7 +53,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:42](https://gi
 
 Table name
 
-***
+---
 
 ### type \{#type\}
 

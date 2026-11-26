@@ -10,10 +10,10 @@ Formats a date value as a localized string.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `v` | `unknown` | The date value to format |
-| `i18n?` | [`ModelI18n`](../interfaces/ModelI18n.md) | An explicitly configured formatting runtime; the original date format is kept when omitted |
+| Parameter | Type                                      | Description                                                                                |
+| --------- | ----------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `v`       | `unknown`                                 | The date value to format                                                                   |
+| `i18n?`   | [`ModelI18n`](../interfaces/ModelI18n.md) | An explicitly configured formatting runtime; the original date format is kept when omitted |
 
 ## Returns
 

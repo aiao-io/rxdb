@@ -1,11 +1,7 @@
 # assertQueryCacheRowContract()
 
 ```ts
-function assertQueryCacheRowContract(
-   entityName, 
-   rows, 
-   metadata
-): void;
+function assertQueryCacheRowContract(entityName, rows, metadata): void;
 ```
 
 Defined in: [packages/rxdb-adapter-pglite/src/query-cache/query\_cache\_row\_contract.ts:376](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-pglite/src/query-cache/query_cache_row_contract.ts#L376)
@@ -14,11 +10,11 @@ Validates the column set of remote rows before persistence, failing fast when th
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entityName` | `string` | The logical entity name passed in by `QueryCacheEngine`, used verbatim in error messages |
-| `rows` | readonly `object`[] | Remote rows to be persisted |
-| `metadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | Entity metadata (`resolveQueryCacheTarget` already fails fast, so it is guaranteed to be available here) |
+| Parameter    | Type                                                          | Description                                                                                              |
+| ------------ | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `entityName` | `string`                                                      | The logical entity name passed in by `QueryCacheEngine`, used verbatim in error messages                 |
+| `rows`       | readonly `object`[]                                           | Remote rows to be persisted                                                                              |
+| `metadata`   | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | Entity metadata (`resolveQueryCacheTarget` already fails fast, so it is guaranteed to be available here) |
 
 ## Returns
 

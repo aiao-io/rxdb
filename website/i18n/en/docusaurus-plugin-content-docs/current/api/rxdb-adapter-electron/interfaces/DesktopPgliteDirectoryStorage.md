@@ -24,7 +24,7 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/desktop/desktop-storage.d.ts:
 
 Logical data directory name within the app's scope.
 
-***
+---
 
 ### engine \{#engine\}
 

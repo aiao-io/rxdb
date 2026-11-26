@@ -10,10 +10,10 @@ The batch version of [decodeCommitChangeSetUnit](decodeCommitChangeSetUnit.md), 
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `context` | [`WorkingTreePatchCodecContext`](../interfaces/WorkingTreePatchCodecContext.md) | Metadata resolution context |
-| `rows` | readonly [`CommitChangeSetRow`](../type-aliases/CommitChangeSetRow.md)[] | Persisted rows, already sorted by `sequence` by the caller |
+| Parameter | Type                                                                            | Description                                                |
+| --------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `context` | [`WorkingTreePatchCodecContext`](../interfaces/WorkingTreePatchCodecContext.md) | Metadata resolution context                                |
+| `rows`    | readonly [`CommitChangeSetRow`](../type-aliases/CommitChangeSetRow.md)[]        | Persisted rows, already sorted by `sequence` by the caller |
 
 ## Returns
 

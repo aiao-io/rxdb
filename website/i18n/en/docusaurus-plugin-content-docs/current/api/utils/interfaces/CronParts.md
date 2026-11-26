@@ -12,7 +12,7 @@ day: string;
 
 Defined in: [packages/utils/src/cron/describeCron.ts:264](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/utils/src/cron/describeCron.ts#L264)
 
-***
+---
 
 ### dow \{#dow\}
 
@@ -22,7 +22,7 @@ dow: string;
 
 Defined in: [packages/utils/src/cron/describeCron.ts:266](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/utils/src/cron/describeCron.ts#L266)
 
-***
+---
 
 ### hour \{#hour\}
 
@@ -32,7 +32,7 @@ hour: string;
 
 Defined in: [packages/utils/src/cron/describeCron.ts:263](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/utils/src/cron/describeCron.ts#L263)
 
-***
+---
 
 ### minute \{#minute\}
 
@@ -42,7 +42,7 @@ minute: string;
 
 Defined in: [packages/utils/src/cron/describeCron.ts:262](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/utils/src/cron/describeCron.ts#L262)
 
-***
+---
 
 ### month \{#month\}
 
@@ -52,7 +52,7 @@ month: string;
 
 Defined in: [packages/utils/src/cron/describeCron.ts:265](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/utils/src/cron/describeCron.ts#L265)
 
-***
+---
 
 ### second? \{#second\}
 

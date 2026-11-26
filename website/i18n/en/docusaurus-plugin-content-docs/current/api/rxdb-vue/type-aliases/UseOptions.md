@@ -1,5 +1,5 @@
 ---
-sidebar_label: "UseOptions⟨T⟩"
+sidebar_label: 'UseOptions⟨T⟩'
 ---
 
 # UseOptions`<T>`
@@ -14,8 +14,8 @@ Input forms of query options: a constant, a getter, a `Ref` or a `ComputedRef`.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Remarks

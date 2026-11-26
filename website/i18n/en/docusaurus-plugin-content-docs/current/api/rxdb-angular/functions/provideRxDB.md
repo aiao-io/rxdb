@@ -10,9 +10,9 @@ Configures the RxDB instance used by the Angular injector.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `source` | [`RxDBSource`](../type-aliases/RxDBSource.md) | Database instance, a Promise, or a factory returning either |
+| Parameter | Type                                          | Description                                                 |
+| --------- | --------------------------------------------- | ----------------------------------------------------------- |
+| `source`  | [`RxDBSource`](../type-aliases/RxDBSource.md) | Database instance, a Promise, or a factory returning either |
 
 ## Returns
 
@@ -32,8 +32,8 @@ For the lifecycle, see the "ownership rule" of createHolder.
 
 ```typescript
 // Synchronous factory (most common)
-provideRxDB(setup_rxdb)
+provideRxDB(setup_rxdb);
 
 // Dynamic import: the desktop branch stays out of the web bundle
-provideRxDB(async () => (await import('./setup_rxdb_desktop')).default())
+provideRxDB(async () => (await import('./setup_rxdb_desktop')).default());
 ```

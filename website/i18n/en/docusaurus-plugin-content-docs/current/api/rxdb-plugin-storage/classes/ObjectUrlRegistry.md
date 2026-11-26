@@ -21,10 +21,10 @@ Creates the registry.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `createImpl?` | (`blob`) => `string` | The object URL creation function; defaults to `URL.createObjectURL`. |
-| `revokeImpl?` | (`url`) => `void` | The object URL revocation function; defaults to `URL.revokeObjectURL`. |
+| Parameter     | Type                 | Description                                                            |
+| ------------- | -------------------- | ---------------------------------------------------------------------- |
+| `createImpl?` | (`blob`) => `string` | The object URL creation function; defaults to `URL.createObjectURL`.   |
+| `revokeImpl?` | (`url`) => `void`    | The object URL revocation function; defaults to `URL.revokeObjectURL`. |
 
 #### Returns
 
@@ -64,7 +64,7 @@ Revokes all object URLs the registry still holds.
 
 `void`
 
-***
+---
 
 ### create() \{#create\}
 
@@ -78,15 +78,15 @@ Creates and registers an object URL.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `blob` | `Blob` |
+| Parameter | Type   |
+| --------- | ------ |
+| `blob`    | `Blob` |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### createPreview() \{#createpreview\}
 
@@ -100,16 +100,16 @@ Creates a preview result with a one-shot dispose callback.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `blob` | `Blob` |
-| `type?` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `blob`    | `Blob`   |
+| `type?`   | `string` |
 
 #### Returns
 
 [`StoragePreviewResult`](../interfaces/StoragePreviewResult.md)
 
-***
+---
 
 ### revoke() \{#revoke\}
 
@@ -123,9 +123,9 @@ Revokes a registered URL; unknown or already-revoked URLs are a no-op.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `url` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `url`     | `string` |
 
 #### Returns
 

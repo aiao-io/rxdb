@@ -10,8 +10,8 @@ Generates a CSS `url(...)` usable directly as a `background-image`.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type     | Description         |
+| --------- | -------- | ------------------- |
 | `content` | `string` | The watermark text. |
 
 ## Returns

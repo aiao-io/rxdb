@@ -10,8 +10,8 @@ Whether any page is restoring (writes pause while the marker exists).
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                            |
+| --------- | ----------------------------------------------- |
 | `storage` | [`BoardStorage`](../interfaces/BoardStorage.md) |
 
 ## Returns

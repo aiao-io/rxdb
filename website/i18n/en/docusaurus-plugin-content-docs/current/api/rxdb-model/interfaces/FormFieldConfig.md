@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model/src/entity-form/interfaces.ts:20](https://githu
 
 Display name
 
-***
+---
 
 ### encrypted? \{#encrypted\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-model/src/entity-form/interfaces.ts:44](https://githu
 
 Whether it is an encrypted column
 
-***
+---
 
 ### enumValues? \{#enumvalues\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-model/src/entity-form/interfaces.ts:32](https://githu
 
 Allowed values of the enum type
 
-***
+---
 
 ### field \{#field\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb-model/src/entity-form/interfaces.ts:18](https://githu
 
 Field name
 
-***
+---
 
 ### format? \{#format\}
 
@@ -64,7 +64,7 @@ Defined in: [packages/rxdb-model/src/entity-form/interfaces.ts:40](https://githu
 
 Field semantic annotation (affects only display and control selection, not the runtime value type)
 
-***
+---
 
 ### helpText? \{#helptext\}
 
@@ -76,7 +76,7 @@ Defined in: [packages/rxdb-model/src/entity-form/interfaces.ts:52](https://githu
 
 Help text
 
-***
+---
 
 ### hidden? \{#hidden\}
 
@@ -88,7 +88,7 @@ Defined in: [packages/rxdb-model/src/entity-form/interfaces.ts:46](https://githu
 
 Whether it is hidden
 
-***
+---
 
 ### keyValueSchema? \{#keyvalueschema\}
 
@@ -100,7 +100,7 @@ Defined in: [packages/rxdb-model/src/entity-form/interfaces.ts:34](https://githu
 
 Schema for key-value type fields
 
-***
+---
 
 ### nullable? \{#nullable\}
 
@@ -112,7 +112,7 @@ Defined in: [packages/rxdb-model/src/entity-form/interfaces.ts:26](https://githu
 
 Whether it can be null
 
-***
+---
 
 ### options? \{#options\}
 
@@ -124,7 +124,7 @@ Defined in: [packages/rxdb-model/src/entity-form/interfaces.ts:42](https://githu
 
 Display metadata for enum/multi-select values (label / color / disabled)
 
-***
+---
 
 ### order? \{#order\}
 
@@ -136,7 +136,7 @@ Defined in: [packages/rxdb-model/src/entity-form/interfaces.ts:48](https://githu
 
 Ordering weight
 
-***
+---
 
 ### placeholder? \{#placeholder\}
 
@@ -148,7 +148,7 @@ Defined in: [packages/rxdb-model/src/entity-form/interfaces.ts:50](https://githu
 
 Placeholder
 
-***
+---
 
 ### readonly? \{#readonly\}
 
@@ -160,7 +160,7 @@ Defined in: [packages/rxdb-model/src/entity-form/interfaces.ts:24](https://githu
 
 Whether it is read-only
 
-***
+---
 
 ### relatedEntityName? \{#relatedentityname\}
 
@@ -172,7 +172,7 @@ Defined in: [packages/rxdb-model/src/entity-form/interfaces.ts:36](https://githu
 
 Name of the entity the relation field refers to
 
-***
+---
 
 ### relatedNamespace? \{#relatednamespace\}
 
@@ -184,7 +184,7 @@ Defined in: [packages/rxdb-model/src/entity-form/interfaces.ts:38](https://githu
 
 Namespace of the entity the relation field refers to
 
-***
+---
 
 ### required? \{#required\}
 
@@ -196,7 +196,7 @@ Defined in: [packages/rxdb-model/src/entity-form/interfaces.ts:28](https://githu
 
 Whether it is required
 
-***
+---
 
 ### span? \{#span\}
 
@@ -208,7 +208,7 @@ Defined in: [packages/rxdb-model/src/entity-form/interfaces.ts:54](https://githu
 
 Number of grid columns it spans (1 or 2)
 
-***
+---
 
 ### type \{#type\}
 
@@ -220,7 +220,7 @@ Defined in: [packages/rxdb-model/src/entity-form/interfaces.ts:22](https://githu
 
 Field type
 
-***
+---
 
 ### unique? \{#unique\}
 

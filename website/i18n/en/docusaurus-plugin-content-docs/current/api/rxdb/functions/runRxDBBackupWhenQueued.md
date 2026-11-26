@@ -1,11 +1,7 @@
 # runRxDBBackupWhenQueued()
 
 ```ts
-function runRxDBBackupWhenQueued<T>(
-   queue, 
-   task, 
-   options
-): Promise<T>;
+function runRxDBBackupWhenQueued<T>(queue, task, options): Promise<T>;
 ```
 
 Defined in: [packages/rxdb/src/backup/backup-queue.ts:28](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/backup/backup-queue.ts#L28)
@@ -14,16 +10,16 @@ Executes a backup task inside the adapter's serial queue; the queueing itself ha
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `queue` | [`AsyncQueueExecutor`](../../utils/classes/AsyncQueueExecutor.md) | The adapter's serial queue |
-| `task` | () => `Promise`&lt;`T`&gt; | The task to execute when its turn comes |
+| Parameter | Type                                                                | Description                                                  |
+| --------- | ------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `queue`   | [`AsyncQueueExecutor`](../../utils/classes/AsyncQueueExecutor.md)   | The adapter's serial queue                                   |
+| `task`    | () => `Promise`&lt;`T`&gt;                                          | The task to execute when its turn comes                      |
 | `options` | [`RxDBBackupQueueOptions`](../interfaces/RxDBBackupQueueOptions.md) | The cancellation signal, queue time limit and operation name |
 
 ## Returns

@@ -1,16 +1,16 @@
 # WorkingTreeDiscardResult
 
 ```ts
-type WorkingTreeDiscardResult = 
+type WorkingTreeDiscardResult =
   | {
-  discardedCount: number;
-  ok: true;
-  workingTreeRevision: number;
-}
+      discardedCount: number;
+      ok: true;
+      workingTreeRevision: number;
+    }
   | {
-  conflict: CommitConflict;
-  ok: false;
-};
+      conflict: CommitConflict;
+      ok: false;
+    };
 ```
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/discard-command.ts:58](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/discard-command.ts#L58)
@@ -53,7 +53,7 @@ readonly workingTreeRevision: number;
 
 The working tree revision after the discard; on a no-op, the original value
 
-***
+---
 
 ### Type Literal
 

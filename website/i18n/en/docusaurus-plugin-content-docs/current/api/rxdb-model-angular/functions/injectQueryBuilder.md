@@ -10,14 +10,14 @@ Injects a reactive query builder controller.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
+| Type Parameter                    | Default type                        |
+| --------------------------------- | ----------------------------------- |
 | <a id="type-parameter-t"></a> `T` | `Record`&lt;`string`, `unknown`&gt; |
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                                                                                                                      |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `options?` | [`AngularHeadlessOptions`](../type-aliases/AngularHeadlessOptions.md)&lt;[`QueryBuilderControllerOptions`](../interfaces/QueryBuilderControllerOptions.md)&lt;`T`&gt;&gt; |
 
 ## Returns

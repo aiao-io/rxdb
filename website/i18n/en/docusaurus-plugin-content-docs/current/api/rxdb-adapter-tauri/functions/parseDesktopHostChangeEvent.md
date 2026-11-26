@@ -10,9 +10,9 @@ Validates a change event pushed by the host.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | Unvalidated event payload |
+| Parameter | Type      | Description               |
+| --------- | --------- | ------------------------- |
+| `value`   | `unknown` | Unvalidated event payload |
 
 ## Returns
 

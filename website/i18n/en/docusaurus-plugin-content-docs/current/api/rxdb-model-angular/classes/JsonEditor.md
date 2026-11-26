@@ -5,6 +5,7 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/json-editor.d.ts:11
 JSON / KeyValue editor
 
 The overlay shows a textarea with syntax hints, suitable for editing json and keyValue types.
+
 - Ctrl+Enter: validate and commit
 - Escape: cancel (restore the original value)
 - Click outside: best-effort commit (commits if the JSON is valid, otherwise keeps the original value)
@@ -58,7 +59,7 @@ Returns the value currently being edited
 
 `IEditor.getValue`
 
-***
+---
 
 ### isEditorElement() \{#iseditorelement\}
 
@@ -72,9 +73,9 @@ Determines whether the target element belongs to the editor overlay
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `el` | `HTMLElement` \| `EventTarget` |
+| Parameter | Type                           |
+| --------- | ------------------------------ |
+| `el`      | `HTMLElement` \| `EventTarget` |
 
 #### Returns
 
@@ -84,7 +85,7 @@ Determines whether the target element belongs to the editor overlay
 
 `IEditor.isEditorElement`
 
-***
+---
 
 ### onEnd() \{#onend\}
 
@@ -104,7 +105,7 @@ Ends editing: cleans up the overlay panel and event listeners
 
 `IEditor.onEnd`
 
-***
+---
 
 ### onStart() \{#onstart\}
 
@@ -118,9 +119,9 @@ Opens the editor: builds the overlay textarea panel and initializes the original
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `ctx` | `EditContext`&lt;`unknown`&gt; |
+| Parameter | Type                           |
+| --------- | ------------------------------ |
+| `ctx`     | `EditContext`&lt;`unknown`&gt; |
 
 #### Returns
 

@@ -26,7 +26,7 @@ protected readonly activeId: Signal<string | undefined>;
 
 Defined in: [rxdb-admin-angular/src/layout/header-menu.component.ts:26](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/header-menu.component.ts#L26)
 
-***
+---
 
 ### ChevronDown \{#chevrondown\}
 
@@ -36,7 +36,7 @@ protected readonly ChevronDown: typeof LucideChevronDown = LucideChevronDown;
 
 Defined in: [rxdb-admin-angular/src/layout/header-menu.component.ts:25](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/header-menu.component.ts#L25)
 
-***
+---
 
 ### nodes \{#nodes\}
 
@@ -48,7 +48,7 @@ Defined in: [rxdb-admin-angular/src/layout/header-menu.component.ts:29](https://
 
 Menu tree.
 
-***
+---
 
 ### t \{#t\}
 
@@ -62,16 +62,16 @@ Translates shell text.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | `string` | Text key. |
+| Parameter | Type                                | Description     |
+| --------- | ----------------------------------- | --------------- |
+| `key`     | `string`                            | Text key.       |
 | `params?` | `Record`&lt;`string`, `unknown`&gt; | ICU parameters. |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### url \{#url\}
 
@@ -93,10 +93,10 @@ Defined in: [rxdb-admin-angular/src/layout/header-menu.component.ts:31](https://
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `MouseEvent` |
-| `node` | `Node` |
+| Parameter | Type         |
+| --------- | ------------ |
+| `event`   | `MouseEvent` |
+| `node`    | `Node`       |
 
 #### Returns
 

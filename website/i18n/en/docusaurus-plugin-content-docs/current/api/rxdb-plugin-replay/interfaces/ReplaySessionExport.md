@@ -14,7 +14,7 @@ readonly events: readonly eventWithTime[];
 
 Defined in: [packages/rxdb-plugin-replay/src/types.ts:69](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-replay/src/types.ts#L69)
 
-***
+---
 
 ### format \{#format\}
 
@@ -24,7 +24,7 @@ readonly format: "aiao-rxdb-replay-session";
 
 Defined in: [packages/rxdb-plugin-replay/src/types.ts:66](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-replay/src/types.ts#L66)
 
-***
+---
 
 ### session \{#session\}
 
@@ -34,7 +34,7 @@ readonly session: ReplaySessionInfo;
 
 Defined in: [packages/rxdb-plugin-replay/src/types.ts:68](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-replay/src/types.ts#L68)
 
-***
+---
 
 ### version \{#version\}
 

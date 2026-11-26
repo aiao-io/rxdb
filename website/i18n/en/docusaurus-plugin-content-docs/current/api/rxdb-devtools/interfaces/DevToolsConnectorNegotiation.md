@@ -16,7 +16,7 @@ Defined in: [v2/negotiation-connector.ts:70](https://github.com/aiao-io/rxdb/blo
 
 The highest common version negotiated with the peer; `null` when there is no intersection.
 
-***
+---
 
 ### rejectedFrames \{#rejectedframes\}
 
@@ -28,7 +28,7 @@ Defined in: [v2/negotiation-connector.ts:72](https://github.com/aiao-io/rxdb/blo
 
 The number of frames rejected by the state machine.
 
-***
+---
 
 ### sessionId \{#sessionid\}
 
@@ -40,7 +40,7 @@ Defined in: [v2/negotiation-connector.ts:68](https://github.com/aiao-io/rxdb/blo
 
 The session identity of this transport connection, minted at construction.
 
-***
+---
 
 ### state \{#state\}
 
@@ -68,7 +68,7 @@ Stops responding.
 
 `void`
 
-***
+---
 
 ### receive() \{#receive\}
 
@@ -82,15 +82,15 @@ Processes one frame of inbound messages.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `frame` | `unknown` | A parsed, unvalidated inbound value. |
+| Parameter | Type      | Description                          |
+| --------- | --------- | ------------------------------------ |
+| `frame`   | `unknown` | A parsed, unvalidated inbound value. |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### start() \{#start\}
 

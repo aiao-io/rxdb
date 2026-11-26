@@ -11,10 +11,10 @@ Mainly used for the patch/inversePatch fields of the RxDBChange table
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                          | Description     |
+| ---------- | ------------------------------------------------------------- | --------------- |
 | `metadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | Entity metadata |
-| `entity` | `Record`&lt;`string`, `unknown`&gt; | Entity object |
+| `entity`   | `Record`&lt;`string`, `unknown`&gt;                           | Entity object   |
 
 ## Returns
 

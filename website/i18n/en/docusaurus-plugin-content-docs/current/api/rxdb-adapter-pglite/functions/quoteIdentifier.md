@@ -10,9 +10,9 @@ Wraps an identifier (schema name, table name, column name) in double quotes.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `string` | The identifier text |
+| Parameter | Type     | Description         |
+| --------- | -------- | ------------------- |
+| `value`   | `string` | The identifier text |
 
 ## Returns
 

@@ -16,10 +16,10 @@ Defined in: [packages/rxdb-plugin-board/src/label-service.ts:32](https://github.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rxdb` | [`RxDB`](../../rxdb/classes/RxDB.md) |
-| `ctx` | () => [`BoardHostContext`](../interfaces/BoardHostContext.md) |
+| Parameter | Type                                                          |
+| --------- | ------------------------------------------------------------- |
+| `rxdb`    | [`RxDB`](../../rxdb/classes/RxDB.md)                          |
+| `ctx`     | () => [`BoardHostContext`](../interfaces/BoardHostContext.md) |
 
 #### Returns
 
@@ -37,17 +37,17 @@ Defined in: [packages/rxdb-plugin-board/src/label-service.ts:37](https://github.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `input` | \{ `color`: `string`; `name`: `string`; \} |
-| `input.color` | `string` |
-| `input.name` | `string` |
+| Parameter     | Type                                       |
+| ------------- | ------------------------------------------ |
+| `input`       | \{ `color`: `string`; `name`: `string`; \} |
+| `input.color` | `string`                                   |
+| `input.name`  | `string`                                   |
 
 #### Returns
 
 `Promise`&lt;[`BoardLabel`](BoardLabel.md)&gt;
 
-***
+---
 
 ### executeLabelDelete() \{#executelabeldelete\}
 
@@ -61,15 +61,15 @@ Re-verifies inside the transaction and deletes: exits with zero writes when the 
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `plan` | [`LabelDeletePlan`](../interfaces/LabelDeletePlan.md) |
+| Parameter | Type                                                  |
+| --------- | ----------------------------------------------------- |
+| `plan`    | [`LabelDeletePlan`](../interfaces/LabelDeletePlan.md) |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### listLabels() \{#listlabels\}
 
@@ -85,7 +85,7 @@ All labels of the current board (ascending by creation time, by id within the sa
 
 `Promise`&lt;[`BoardLabel`](BoardLabel.md)[]&gt;
 
-***
+---
 
 ### planLabelDelete() \{#planlabeldelete\}
 
@@ -99,15 +99,15 @@ Deletion plan: the label and all its relation rows (read outside the transaction
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                      |
+| --------- | --------------------------------------------------------- |
 | `labelId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
 
 #### Returns
 
 `Promise`&lt;[`LabelDeletePlan`](../interfaces/LabelDeletePlan.md)&gt;
 
-***
+---
 
 ### recolorLabel() \{#recolorlabel\}
 
@@ -119,16 +119,16 @@ Defined in: [packages/rxdb-plugin-board/src/label-service.ts:61](https://github.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                      |
+| --------- | --------------------------------------------------------- |
 | `labelId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
-| `color` | `string` |
+| `color`   | `string`                                                  |
 
 #### Returns
 
 `Promise`&lt;[`BoardLabel`](BoardLabel.md)&gt;
 
-***
+---
 
 ### renameLabel() \{#renamelabel\}
 
@@ -140,10 +140,10 @@ Defined in: [packages/rxdb-plugin-board/src/label-service.ts:53](https://github.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                      |
+| --------- | --------------------------------------------------------- |
 | `labelId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
-| `name` | `string` |
+| `name`    | `string`                                                  |
 
 #### Returns
 

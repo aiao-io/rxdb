@@ -14,7 +14,7 @@ readonly event: SqliteChangeEvent;
 
 Defined in: packages/rxdb-adapter-sqlite-core/dist/desktop/desktop-host-protocol.d.ts:198
 
-***
+---
 
 ### kind \{#kind\}
 
@@ -24,7 +24,7 @@ readonly kind: "change";
 
 Defined in: packages/rxdb-adapter-sqlite-core/dist/desktop/desktop-host-protocol.d.ts:196
 
-***
+---
 
 ### sessionId \{#sessionid\}
 

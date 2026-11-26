@@ -10,16 +10,16 @@ Creates a file manifest with a holder record from an already-authenticated princ
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `options` | \{ `chunkSize?`: `number`; `fileName`: `string`; `principal`: [`P2PPrincipal`](../interfaces/P2PPrincipal.md); `readChunk`: (`offset`, `size`) => `Promise`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt;; `size`: `number`; `sourceUrl?`: `string`; `updatedAt?`: `number`; \} |
-| `options.chunkSize?` | `number` |
-| `options.fileName` | `string` |
-| `options.principal` | [`P2PPrincipal`](../interfaces/P2PPrincipal.md) |
-| `options.readChunk` | (`offset`, `size`) => `Promise`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt; |
-| `options.size` | `number` |
-| `options.sourceUrl?` | `string` |
-| `options.updatedAt?` | `number` |
+| Parameter            | Type                                                                                                                                                                                                                                                                           |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `options`            | \{ `chunkSize?`: `number`; `fileName`: `string`; `principal`: [`P2PPrincipal`](../interfaces/P2PPrincipal.md); `readChunk`: (`offset`, `size`) => `Promise`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt;; `size`: `number`; `sourceUrl?`: `string`; `updatedAt?`: `number`; \} |
+| `options.chunkSize?` | `number`                                                                                                                                                                                                                                                                       |
+| `options.fileName`   | `string`                                                                                                                                                                                                                                                                       |
+| `options.principal`  | [`P2PPrincipal`](../interfaces/P2PPrincipal.md)                                                                                                                                                                                                                                |
+| `options.readChunk`  | (`offset`, `size`) => `Promise`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt;                                                                                                                                                                                                   |
+| `options.size`       | `number`                                                                                                                                                                                                                                                                       |
+| `options.sourceUrl?` | `string`                                                                                                                                                                                                                                                                       |
+| `options.updatedAt?` | `number`                                                                                                                                                                                                                                                                       |
 
 ## Returns
 

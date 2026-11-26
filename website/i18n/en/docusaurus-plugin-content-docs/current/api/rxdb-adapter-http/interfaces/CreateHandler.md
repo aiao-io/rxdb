@@ -18,10 +18,10 @@ Parses the response body into the full entity **after the write** (the remote ma
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `body` | `unknown` |
-| `ctx` | [`CreateContext`](CreateContext.md) |
+| Parameter | Type                                |
+| --------- | ----------------------------------- |
+| `body`    | `unknown`                           |
+| `ctx`     | [`CreateContext`](CreateContext.md) |
 
 #### Returns
 
@@ -33,7 +33,7 @@ Must parse the remote's receipt and **must not echo the input**: the receipt is 
 
 When the receipt carries `updatedAt`, it must be an ISO 8601 string with a timezone; the adapter normalizes it before handing it to core (same basis as metadata).
 
-***
+---
 
 ### request() \{#request\}
 
@@ -45,9 +45,9 @@ Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:177](https://githu
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `ctx` | [`CreateContext`](CreateContext.md) |
+| Parameter | Type                                |
+| --------- | ----------------------------------- |
+| `ctx`     | [`CreateContext`](CreateContext.md) |
 
 #### Returns
 

@@ -66,10 +66,10 @@ pnpm add @aiao/rxdb-plugin-history @aiao/rxdb-plugin-sync @aiao/rxdb-plugin-quer
 
 QueryCache needs two adapters; this package only occupies the **remote** one:
 
-| Slot     | Who does it                            | Responsibility                                                      |
-| :------- | :------------------------------------- | :------------------------------------------------------------------ |
-| `remote` | `@aiao/rxdb-adapter-http`              | `fetchMetadata` / `findByIds` + optional `create`/`update`/`delete` |
-| `local`  | any SQLite adapter (**you register**)  | Row cache: `getMetadataByIds` / `upsertMany` / `deleteByIds`        |
+| Slot     | Who does it                           | Responsibility                                                      |
+| :------- | :------------------------------------ | :------------------------------------------------------------------ |
+| `remote` | `@aiao/rxdb-adapter-http`             | `fetchMetadata` / `findByIds` + optional `create`/`update`/`delete` |
+| `local`  | any SQLite adapter (**you register**) | Row cache: `getMetadataByIds` / `upsertMany` / `deleteByIds`        |
 
 The read engine itself is a third thing, which you also install — and it's more than one package: the read path for `SyncType.QueryCache` lives in
 `@aiao/rxdb-plugin-querycache`, the offline-write outbox lives in `@aiao/rxdb-plugin-sync`, which in turn
@@ -122,15 +122,15 @@ and what comes out is still plain `HttpHandlers` — **the adapter hasn't change
 
 Default templates:
 
-| Operation        | Method  | Path               | Default output          |
-| :--------------- | :------ | :----------------- | :---------------------- |
+| Operation        | Method  | Path               | Default output           |
+| :--------------- | :------ | :----------------- | :----------------------- |
 | `fetchMetadata`  | `POST`  | `:entity/metadata` | yes (cannot be disabled) |
 | `findByIds`      | `POST`  | `:entity/by-ids`   | yes (cannot be disabled) |
-| `create`         | `POST`  | `:entity`          | yes                     |
-| `update`         | `PATCH` | `:entity/:id`      | yes                     |
-| `delete`         | `POST`  | `:entity/delete`   | yes                     |
-| `version`        | `GET`   | —                  | no                      |
-| `isTableExisted` | `HEAD`  | `:entity`          | no                      |
+| `create`         | `POST`  | `:entity`          | yes                      |
+| `update`         | `PATCH` | `:entity/:id`      | yes                      |
+| `delete`         | `POST`  | `:entity/delete`   | yes                      |
+| `version`        | `GET`   | —                  | no                       |
+| `isTableExisted` | `HEAD`  | `:entity`          | no                       |
 
 ```typescript
 createRestHandlers({
@@ -194,13 +194,13 @@ new RxDBAdapterHttp(db, {
 });
 ```
 
-| Field                  | Default | Meaning                                                                 |
-| :--------------------- | :------ | :---------------------------------------------------------------------- |
-| `pageSize`             | `1000`  | rows per page, passed through as the handler's `ctx.limit`              |
-| `idChunkSize`          | `100`   | ids per `findByIds` chunk                                               |
-| `maxEmptyPages`        | `3`     | tolerance for consecutive empty pages in token mode; `0` = no tolerance |
-| `maxPages`             | `1000`  | total page cap per `fetchMetadata`; hitting the cap **throws**          |
-| `requestTimeoutMs`     | `30000` | timeout cap for a **single** request                                    |
+| Field                  | Default | Meaning                                                                                          |
+| :--------------------- | :------ | :----------------------------------------------------------------------------------------------- |
+| `pageSize`             | `1000`  | rows per page, passed through as the handler's `ctx.limit`                                       |
+| `idChunkSize`          | `100`   | ids per `findByIds` chunk                                                                        |
+| `maxEmptyPages`        | `3`     | tolerance for consecutive empty pages in token mode; `0` = no tolerance                          |
+| `maxPages`             | `1000`  | total page cap per `fetchMetadata`; hitting the cap **throws**                                   |
+| `requestTimeoutMs`     | `30000` | timeout cap for a **single** request                                                             |
 | `conditionalCacheSize` | `256`   | entry cap for the conditional-request response cache; only in effect when the switch below is on |
 
 All six numeric values must be finite positive integers (`maxEmptyPages` may be `0`); otherwise **construction time** throws `HttpConfigError` carrying the field name and the actual value.
@@ -255,8 +255,8 @@ Four key points:
 
 The discriminant is the **class name** (`instanceof`); `code` is only auxiliary.
 
-| Situation                                | Thrown                                      | `isNetworkError` | `offlineFallback`              |
-| :--------------------------------------- | :------------------------------------------ | :--------------- | :----------------------------- |
+| Situation                                 | Thrown                                      | `isNetworkError` | `offlineFallback`              |
+| :---------------------------------------- | :------------------------------------------ | :--------------- | :----------------------------- |
 | Non-2xx response (401/409/…)              | `HttpResponseError` (with numeric `status`) | `false`          | no degradation, rethrown as-is |
 | 2xx but the body is not JSON              | `HttpInvalidResponseError`                  | `false`          | no degradation                 |
 | Request failed to build before being sent | `HttpRequestBuildError` (with `reason`)     | `false`          | **no degradation**             |
@@ -292,76 +292,76 @@ MIT
 
 ## Classes
 
-| Class | Description |
-| ------ | ------ |
-| [HttpAdapterError](classes/HttpAdapterError.md) | Base class for HTTP adapter errors. |
-| [HttpChangelogUnsupportedError](classes/HttpChangelogUnsupportedError.md) | v1 does not support changelog / branch sync (US-212 AC#10, #26). |
-| [HttpConfigError](classes/HttpConfigError.md) | Configuration validation failed at construction time (US-212 AC#31). |
-| [HttpDisconnectedError](classes/HttpDisconnectedError.md) | Adapter disconnected: request canceled by `disconnect()`, or a duck called after disconnect (US-212 AC#24, #34). |
-| [HttpHandlerContractError](classes/HttpHandlerContractError.md) | A handler's `parse` returned a shape that violates the contract. |
-| [HttpInvalidMetadataError](classes/HttpInvalidMetadataError.md) | The remote returned metadata that violates the contract (US-212 AC#14). |
-| [HttpInvalidResponseError](classes/HttpInvalidResponseError.md) | Response status is 2xx but the body is not valid JSON (US-212 AC#12). |
-| [HttpPaginationError](classes/HttpPaginationError.md) | A degraded handler / remote was detected during pagination (US-212 AC#7). |
-| [HttpRequestBuildError](classes/HttpRequestBuildError.md) | The request failed to build **before being sent** (US-212 AC#12 / #34). |
-| [HttpResponseError](classes/HttpResponseError.md) | The remote returned a non-2xx response (US-212 AC#12). |
-| [HttpUnsupportedOperationError](classes/HttpUnsupportedOperationError.md) | This adapter does not support the operation (US-212 AC#24, AC#32). |
-| [HttpUnsupportedWireTypeError](classes/HttpUnsupportedWireTypeError.md) | The entity declares a field type for which this story defines no wire codec (US-212 AC#15). |
-| [RxDBAdapterHttp](classes/RxDBAdapterHttp.md) | QueryCache remote adapter backed by the user's own REST API. |
+| Class                                                                     | Description                                                                                                      |
+| ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| [HttpAdapterError](classes/HttpAdapterError.md)                           | Base class for HTTP adapter errors.                                                                              |
+| [HttpChangelogUnsupportedError](classes/HttpChangelogUnsupportedError.md) | v1 does not support changelog / branch sync (US-212 AC#10, #26).                                                 |
+| [HttpConfigError](classes/HttpConfigError.md)                             | Configuration validation failed at construction time (US-212 AC#31).                                             |
+| [HttpDisconnectedError](classes/HttpDisconnectedError.md)                 | Adapter disconnected: request canceled by `disconnect()`, or a duck called after disconnect (US-212 AC#24, #34). |
+| [HttpHandlerContractError](classes/HttpHandlerContractError.md)           | A handler's `parse` returned a shape that violates the contract.                                                 |
+| [HttpInvalidMetadataError](classes/HttpInvalidMetadataError.md)           | The remote returned metadata that violates the contract (US-212 AC#14).                                          |
+| [HttpInvalidResponseError](classes/HttpInvalidResponseError.md)           | Response status is 2xx but the body is not valid JSON (US-212 AC#12).                                            |
+| [HttpPaginationError](classes/HttpPaginationError.md)                     | A degraded handler / remote was detected during pagination (US-212 AC#7).                                        |
+| [HttpRequestBuildError](classes/HttpRequestBuildError.md)                 | The request failed to build **before being sent** (US-212 AC#12 / #34).                                          |
+| [HttpResponseError](classes/HttpResponseError.md)                         | The remote returned a non-2xx response (US-212 AC#12).                                                           |
+| [HttpUnsupportedOperationError](classes/HttpUnsupportedOperationError.md) | This adapter does not support the operation (US-212 AC#24, AC#32).                                               |
+| [HttpUnsupportedWireTypeError](classes/HttpUnsupportedWireTypeError.md)   | The entity declares a field type for which this story defines no wire codec (US-212 AC#15).                      |
+| [RxDBAdapterHttp](classes/RxDBAdapterHttp.md)                             | QueryCache remote adapter backed by the user's own REST API.                                                     |
 
 ## Interfaces
 
-| Interface | Description |
-| ------ | ------ |
-| [CreateContext](interfaces/CreateContext.md) | Context for the `create` write entry point. |
-| [CreateHandler](interfaces/CreateHandler.md) | Protocol mapping for `create`. |
-| [DeleteContext](interfaces/DeleteContext.md) | Context for the `delete` write entry point. |
-| [DeleteHandler](interfaces/DeleteHandler.md) | Protocol mapping for `delete`. |
-| [FetchMetadataContext](interfaces/FetchMetadataContext.md) | Context for a single-page `fetchMetadata` request. |
-| [FetchMetadataHandler](interfaces/FetchMetadataHandler.md) | Protocol mapping for `fetchMetadata`. |
-| [FindByIdsContext](interfaces/FindByIdsContext.md) | Context for a single-chunk `findByIds` request. |
-| [FindByIdsHandler](interfaces/FindByIdsHandler.md) | Protocol mapping for `findByIds`. |
-| [HttpAdapterOptions](interfaces/HttpAdapterOptions.md) | Configuration for `new RxDBAdapterHttp(rxdb, options)`. |
-| [HttpChangeFeedNotificationReport](interfaces/HttpChangeFeedNotificationReport.md) | The fact when a **parseable** change notification is received (US-023 AC#24). |
-| [HttpChangeFeedOpenReport](interfaces/HttpChangeFeedOpenReport.md) | The fact at the moment the change-notification channel **connects**. |
-| [HttpChangeFeedOptions](interfaces/HttpChangeFeedOptions.md) | Configuration for the change-notification channel (SSE) (US-023 D5). |
-| [HttpChangeFeedUnavailableReport](interfaces/HttpChangeFeedUnavailableReport.md) | The **fact** at the moment the change-notification channel becomes unavailable (US-023 AC#17). |
-| [HttpEtagUnreadableReport](interfaces/HttpEtagUnreadableReport.md) | The **fact** at the moment "conditional requests are on, yet no `ETag` can be read" (US-215). |
-| [HttpHandlers](interfaces/HttpHandlers.md) | The handler set for phase A. |
-| [HttpNumericConfig](interfaces/HttpNumericConfig.md) | The six numeric options — all overridable, all defaulted. |
-| [HttpRequestSpec](interfaces/HttpRequestSpec.md) | The request description a handler produces and **the adapter executes**. |
-| [IsTableExistedHandler](interfaces/IsTableExistedHandler.md) | Protocol mapping for `isTableExisted()`. |
-| [RestHandlersOptions](interfaces/RestHandlersOptions.md) | Configuration for [createRestHandlers](functions/createRestHandlers.md). |
-| [RestOperationTemplate](interfaces/RestOperationTemplate.md) | Path template and method override for a single operation. |
-| [UpdateContext](interfaces/UpdateContext.md) | Context for the `update` write entry point. `data` is the partial fields given by the caller, for the same reason as [CreateContext](interfaces/CreateContext.md). |
-| [UpdateHandler](interfaces/UpdateHandler.md) | Protocol mapping for `update`. |
-| [VersionHandler](interfaces/VersionHandler.md) | Protocol mapping for `version()`. |
+| Interface                                                                          | Description                                                                                                                                                        |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [CreateContext](interfaces/CreateContext.md)                                       | Context for the `create` write entry point.                                                                                                                        |
+| [CreateHandler](interfaces/CreateHandler.md)                                       | Protocol mapping for `create`.                                                                                                                                     |
+| [DeleteContext](interfaces/DeleteContext.md)                                       | Context for the `delete` write entry point.                                                                                                                        |
+| [DeleteHandler](interfaces/DeleteHandler.md)                                       | Protocol mapping for `delete`.                                                                                                                                     |
+| [FetchMetadataContext](interfaces/FetchMetadataContext.md)                         | Context for a single-page `fetchMetadata` request.                                                                                                                 |
+| [FetchMetadataHandler](interfaces/FetchMetadataHandler.md)                         | Protocol mapping for `fetchMetadata`.                                                                                                                              |
+| [FindByIdsContext](interfaces/FindByIdsContext.md)                                 | Context for a single-chunk `findByIds` request.                                                                                                                    |
+| [FindByIdsHandler](interfaces/FindByIdsHandler.md)                                 | Protocol mapping for `findByIds`.                                                                                                                                  |
+| [HttpAdapterOptions](interfaces/HttpAdapterOptions.md)                             | Configuration for `new RxDBAdapterHttp(rxdb, options)`.                                                                                                            |
+| [HttpChangeFeedNotificationReport](interfaces/HttpChangeFeedNotificationReport.md) | The fact when a **parseable** change notification is received (US-023 AC#24).                                                                                      |
+| [HttpChangeFeedOpenReport](interfaces/HttpChangeFeedOpenReport.md)                 | The fact at the moment the change-notification channel **connects**.                                                                                               |
+| [HttpChangeFeedOptions](interfaces/HttpChangeFeedOptions.md)                       | Configuration for the change-notification channel (SSE) (US-023 D5).                                                                                               |
+| [HttpChangeFeedUnavailableReport](interfaces/HttpChangeFeedUnavailableReport.md)   | The **fact** at the moment the change-notification channel becomes unavailable (US-023 AC#17).                                                                     |
+| [HttpEtagUnreadableReport](interfaces/HttpEtagUnreadableReport.md)                 | The **fact** at the moment "conditional requests are on, yet no `ETag` can be read" (US-215).                                                                      |
+| [HttpHandlers](interfaces/HttpHandlers.md)                                         | The handler set for phase A.                                                                                                                                       |
+| [HttpNumericConfig](interfaces/HttpNumericConfig.md)                               | The six numeric options — all overridable, all defaulted.                                                                                                          |
+| [HttpRequestSpec](interfaces/HttpRequestSpec.md)                                   | The request description a handler produces and **the adapter executes**.                                                                                           |
+| [IsTableExistedHandler](interfaces/IsTableExistedHandler.md)                       | Protocol mapping for `isTableExisted()`.                                                                                                                           |
+| [RestHandlersOptions](interfaces/RestHandlersOptions.md)                           | Configuration for [createRestHandlers](functions/createRestHandlers.md).                                                                                           |
+| [RestOperationTemplate](interfaces/RestOperationTemplate.md)                       | Path template and method override for a single operation.                                                                                                          |
+| [UpdateContext](interfaces/UpdateContext.md)                                       | Context for the `update` write entry point. `data` is the partial fields given by the caller, for the same reason as [CreateContext](interfaces/CreateContext.md). |
+| [UpdateHandler](interfaces/UpdateHandler.md)                                       | Protocol mapping for `update`.                                                                                                                                     |
+| [VersionHandler](interfaces/VersionHandler.md)                                     | Protocol mapping for `version()`.                                                                                                                                  |
 
 ## Type Aliases
 
-| Type Alias | Description |
-| ------ | ------ |
-| [FetchMetadataResult](type-aliases/FetchMetadataResult.md) | Single-page parse result, returned as a **discriminated** union of two shapes. |
-| [HttpAuthHook](type-aliases/HttpAuthHook.md) | auth hook: injects token / headers. |
-| [HttpChangeFeedNotificationHook](type-aliases/HttpChangeFeedNotificationHook.md) | Diagnostic callback: invoked when a parseable change notification is received (whether or not suppressed). |
-| [HttpChangeFeedOpenHook](type-aliases/HttpChangeFeedOpenHook.md) | Diagnostic callback: invoked when the change-notification channel connects. |
-| [HttpChangeFeedUnavailableHook](type-aliases/HttpChangeFeedUnavailableHook.md) | Diagnostic callback: invoked when the change-notification channel becomes unavailable. |
-| [HttpEtagUnreadableHook](type-aliases/HttpEtagUnreadableHook.md) | Diagnostic callback: invoked when conditional requests are on but no `ETag` can be read. |
-| [HttpMethod](type-aliases/HttpMethod.md) | The HTTP methods a handler may produce. |
-| [HttpPaginationFailure](type-aliases/HttpPaginationFailure.md) | The four causes of pagination fail-fast (US-212 AC#7). |
-| [HttpRequestBuildFailure](type-aliases/HttpRequestBuildFailure.md) | The four causes of a request failing to build before being sent |
-| [HttpResponseType](type-aliases/HttpResponseType.md) | The set of values of `Response.type`. |
-| [RestOperation](type-aliases/RestOperation.md) | The operations expressible as templates, one-to-one with the seven fields of [HttpHandlers](interfaces/HttpHandlers.md). |
-| [RestPlaceholder](type-aliases/RestPlaceholder.md) | The placeholders supported by templates — **only these two**. |
+| Type Alias                                                                       | Description                                                                                                              |
+| -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| [FetchMetadataResult](type-aliases/FetchMetadataResult.md)                       | Single-page parse result, returned as a **discriminated** union of two shapes.                                           |
+| [HttpAuthHook](type-aliases/HttpAuthHook.md)                                     | auth hook: injects token / headers.                                                                                      |
+| [HttpChangeFeedNotificationHook](type-aliases/HttpChangeFeedNotificationHook.md) | Diagnostic callback: invoked when a parseable change notification is received (whether or not suppressed).               |
+| [HttpChangeFeedOpenHook](type-aliases/HttpChangeFeedOpenHook.md)                 | Diagnostic callback: invoked when the change-notification channel connects.                                              |
+| [HttpChangeFeedUnavailableHook](type-aliases/HttpChangeFeedUnavailableHook.md)   | Diagnostic callback: invoked when the change-notification channel becomes unavailable.                                   |
+| [HttpEtagUnreadableHook](type-aliases/HttpEtagUnreadableHook.md)                 | Diagnostic callback: invoked when conditional requests are on but no `ETag` can be read.                                 |
+| [HttpMethod](type-aliases/HttpMethod.md)                                         | The HTTP methods a handler may produce.                                                                                  |
+| [HttpPaginationFailure](type-aliases/HttpPaginationFailure.md)                   | The four causes of pagination fail-fast (US-212 AC#7).                                                                   |
+| [HttpRequestBuildFailure](type-aliases/HttpRequestBuildFailure.md)               | The four causes of a request failing to build before being sent                                                          |
+| [HttpResponseType](type-aliases/HttpResponseType.md)                             | The set of values of `Response.type`.                                                                                    |
+| [RestOperation](type-aliases/RestOperation.md)                                   | The operations expressible as templates, one-to-one with the seven fields of [HttpHandlers](interfaces/HttpHandlers.md). |
+| [RestPlaceholder](type-aliases/RestPlaceholder.md)                               | The placeholders supported by templates — **only these two**.                                                            |
 
 ## Variables
 
-| Variable | Description |
-| ------ | ------ |
-| [ADAPTER\_NAME](variables/ADAPTER_NAME.md) | Adapter registration name |
+| Variable                                                  | Description                           |
+| --------------------------------------------------------- | ------------------------------------- |
+| [ADAPTER\_NAME](variables/ADAPTER_NAME.md)                | Adapter registration name             |
 | [DEFAULT\_HTTP\_CONFIG](variables/DEFAULT_HTTP_CONFIG.md) | Defaults for the six numeric options. |
 
 ## Functions
 
-| Function | Description |
-| ------ | ------ |
+| Function                                              | Description                                                                                                        |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | [createRestHandlers](functions/createRestHandlers.md) | Produces a full set of [HttpHandlers](interfaces/HttpHandlers.md) from REST resource URL templates (US-212 AC#27). |

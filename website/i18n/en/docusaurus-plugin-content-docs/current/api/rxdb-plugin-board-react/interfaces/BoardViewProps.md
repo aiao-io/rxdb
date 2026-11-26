@@ -20,7 +20,7 @@ Backup export callback (US-537 orchestration is wired by the host; by default a 
 
 `void` \| `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### rxdb \{#rxdb\}
 

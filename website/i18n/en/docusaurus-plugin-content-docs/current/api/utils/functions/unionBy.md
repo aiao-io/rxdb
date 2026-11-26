@@ -11,16 +11,16 @@ The key function extracts each element's unique identifier; the first occurrence
 
 ## Type Parameters
 
-| Type Parameter | Default type | Description |
-| ------ | ------ | ------ |
-| <a id="type-parameter-t"></a> `T` | `unknown` | The array element's type |
+| Type Parameter                    | Default type | Description              |
+| --------------------------------- | ------------ | ------------------------ |
+| <a id="type-parameter-t"></a> `T` | `unknown`    | The array element's type |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `array` | `T`[] | The array to deduplicate |
-| `getKey` | (`item`) => `string` \| `number` | Key function that extracts each element's unique identifier |
+| Parameter | Type                             | Description                                                 |
+| --------- | -------------------------------- | ----------------------------------------------------------- |
+| `array`   | `T`[]                            | The array to deduplicate                                    |
+| `getKey`  | (`item`) => `string` \| `number` | Key function that extracts each element's unique identifier |
 
 ## Returns
 
@@ -31,7 +31,14 @@ A new deduplicated array, preserving the elements' order of appearance in the or
 ## Examples
 
 ```ts
-unionBy([{ id: 1, name: 'Alice' }, { id: 2, name: 'Bob' }, { id: 1, name: 'Alice2' }], item => item.id);
+unionBy(
+  [
+    { id: 1, name: 'Alice' },
+    { id: 2, name: 'Bob' },
+    { id: 1, name: 'Alice2' }
+  ],
+  item => item.id
+);
 // returns [{ id: 1, name: 'Alice' }, { id: 2, name: 'Bob' }] (deduplicated by id)
 ```
 

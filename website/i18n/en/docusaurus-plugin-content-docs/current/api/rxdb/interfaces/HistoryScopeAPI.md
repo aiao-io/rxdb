@@ -17,7 +17,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:240](ht
 
 Total number of history records
 
-***
+---
 
 ### histories$ \{#histories\}
 
@@ -29,24 +29,22 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:234](ht
 
 Stream of history records
 
-***
+---
 
 ### redoBarrier$ \{#redobarrier\}
 
 ```ts
-redoBarrier$: Observable<
-  | {
+redoBarrier$: Observable<{
   branchIds: readonly string[];
-  reason: "inherited_by_branch";
-}
-  | null>;
+  reason: 'inherited_by_branch';
+} | null>;
 ```
 
 Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:260](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/VersionManager.interface.ts#L260)
 
 Why the redo stack stops where it does; same measure as [HistoryScopeAPI.undoBarrier$](#undobarrier)
 
-***
+---
 
 ### redoCount$ \{#redocount\}
 
@@ -58,7 +56,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:244](ht
 
 Number of redoable records
 
-***
+---
 
 ### redoHistories$ \{#redohistories\}
 
@@ -70,7 +68,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:238](ht
 
 Stream of redoable history records
 
-***
+---
 
 ### type \{#type\}
 
@@ -80,17 +78,15 @@ type: HistoryScopeType;
 
 Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:232](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/VersionManager.interface.ts#L232)
 
-***
+---
 
 ### undoBarrier$ \{#undobarrier\}
 
 ```ts
-undoBarrier$: Observable<
-  | {
+undoBarrier$: Observable<{
   branchIds: readonly string[];
-  reason: "inherited_by_branch";
-}
-  | null>;
+  reason: 'inherited_by_branch';
+} | null>;
 ```
 
 Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:253](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/VersionManager.interface.ts#L253)
@@ -101,7 +97,7 @@ Why the undo stack stops where it does: set when one more step back would be a c
 
 Changes on the current branch no later than a child branch's fork point have already been inherited by that child branch. Undoing or redoing them would make the reverse patches recorded by the child branch stale, so switching back to the current branch would read wrong values; that is why they do not appear in [HistoryScopeAPI.undoHistories$](#undohistories) and `undo()` cannot reach them. The undo stack stops at the fork point, and this explains why. Once the child branches that inherited them are deleted, the restriction is lifted.
 
-***
+---
 
 ### undoCount$ \{#undocount\}
 
@@ -113,7 +109,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:242](ht
 
 Number of undoable records
 
-***
+---
 
 ### undoHistories$ \{#undohistories\}
 
@@ -139,15 +135,15 @@ Redo operation; does nothing when redoing up to the step blocked by [HistoryScop
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `step?` | `number` |
+| Parameter | Type     |
+| --------- | -------- |
+| `step?`   | `number` |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### undo() \{#undo\}
 
@@ -161,9 +157,9 @@ Undo operation; does nothing when undoing up to the step blocked by [HistoryScop
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `step?` | `number` |
+| Parameter | Type     |
+| --------- | -------- |
+| `step?`   | `number` |
 
 #### Returns
 

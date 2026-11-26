@@ -14,7 +14,7 @@ cause?: unknown;
 
 Defined in: [packages/rxdb-adapter-encrypted/src/errors.ts:49](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-encrypted/src/errors.ts#L49)
 
-***
+---
 
 ### entity? \{#entity\}
 
@@ -24,7 +24,7 @@ entity?: string;
 
 Defined in: [packages/rxdb-adapter-encrypted/src/errors.ts:46](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-encrypted/src/errors.ts#L46)
 
-***
+---
 
 ### hint? \{#hint\}
 
@@ -34,7 +34,7 @@ hint?: string;
 
 Defined in: [packages/rxdb-adapter-encrypted/src/errors.ts:48](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-encrypted/src/errors.ts#L48)
 
-***
+---
 
 ### message? \{#message\}
 
@@ -44,7 +44,7 @@ message?: string;
 
 Defined in: [packages/rxdb-adapter-encrypted/src/errors.ts:45](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-encrypted/src/errors.ts#L45)
 
-***
+---
 
 ### property? \{#property\}
 

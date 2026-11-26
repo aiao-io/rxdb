@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-search/src/types.ts:19](https://github.com/aia
 
 Restricts the collections participating in aggregation (accepts entity names or table names); by default aggregates all searchable collections outside the plugin-level exclusion rules. Throws when it contains unknown names or the resolved scope is empty (fail-fast).
 
-***
+---
 
 ### debounce? \{#debounce\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-search/src/types.ts:10](https://github.com/aia
 
 Input debounce window (ms); default 300, pass `0` to disable debouncing
 
-***
+---
 
 ### initialQuery? \{#initialquery\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-plugin-search/src/types.ts:21](https://github.com/aia
 
 Initial query executed immediately when the subscription is first established
 
-***
+---
 
 ### pageSize? \{#pagesize\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb-plugin-search/src/types.ts:12](https://github.com/aia
 
 Number of results returned per page; default 50
 
-***
+---
 
 ### snippetLength? \{#snippetlength\}
 

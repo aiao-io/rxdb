@@ -20,7 +20,7 @@ Entry cap for the conditional-request response cache. Default `256`; only in eff
 
 One page / one chunk each takes one entry, so the cap should be sized by the **total pages of concurrently active queries**, not by the number of entities. Too small and the hottest first pages get evicted repeatedly during pagination, degrading to no cache at all (never producing wrong results).
 
-***
+---
 
 ### idChunkSize \{#idchunksize\}
 
@@ -32,7 +32,7 @@ Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:498](https://githu
 
 ids per `findByIds` chunk. Default `100` (matches `SUPABASE_IN_CHUNK_SIZE`)
 
-***
+---
 
 ### maxEmptyPages \{#maxemptypages\}
 
@@ -44,7 +44,7 @@ Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:500](https://githu
 
 Tolerance for consecutive empty pages in token mode. Default `3`; `0` = no tolerance for empty pages
 
-***
+---
 
 ### maxPages \{#maxpages\}
 
@@ -56,7 +56,7 @@ Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:502](https://githu
 
 Total page cap for a single `fetchMetadata`. Default `1000`; hitting the cap **throws rather than truncates**
 
-***
+---
 
 ### pageSize \{#pagesize\}
 
@@ -68,7 +68,7 @@ Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:496](https://githu
 
 Rows per page, passed through as the handler's `ctx.limit`. Default `1000` (matches `SUPABASE_PAGE_SIZE`)
 
-***
+---
 
 ### requestTimeoutMs \{#requesttimeoutms\}
 

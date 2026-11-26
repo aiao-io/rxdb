@@ -28,8 +28,8 @@ The current VTable table instance; `null` before initialization.
 
 ```ts
 changeCellValue(
-   col, 
-   row, 
+   col,
+   row,
    value
 ): void;
 ```
@@ -40,17 +40,17 @@ Rolls back a cell value from the business layer (restores the original value whe
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `col` | `number` |
-| `row` | `number` |
-| `value` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `col`     | `number`  |
+| `row`     | `number`  |
+| `value`   | `unknown` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### redrawTheme() \{#redrawtheme\}
 
@@ -66,7 +66,7 @@ Redraws the theme with the current dark mode and CSS variables.
 
 `void`
 
-***
+---
 
 ### restoreRecords() \{#restorerecords\}
 

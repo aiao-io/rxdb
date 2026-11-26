@@ -1,15 +1,15 @@
 # RestoreCompatibility
 
 ```ts
-type RestoreCompatibility = 
+type RestoreCompatibility =
   | {
-  ok: true;
-  path: readonly string[];
-}
+      ok: true;
+      path: readonly string[];
+    }
   | {
-  incompatible: RestoreIncompatibility;
-  ok: false;
-};
+      incompatible: RestoreIncompatibility;
+      ok: false;
+    };
 ```
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/restore-precheck.ts:142](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/restore-precheck.ts#L142)
@@ -43,7 +43,7 @@ readonly path: readonly string[];
 
 The chosen replay path, in replay order (HEAD first), **excluding** the target node itself
 
-***
+---
 
 ### Type Literal
 

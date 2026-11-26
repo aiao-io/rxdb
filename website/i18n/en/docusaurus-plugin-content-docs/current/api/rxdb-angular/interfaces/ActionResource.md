@@ -1,5 +1,5 @@
 ---
-sidebar_label: "ActionResource⟨Options, RT⟩"
+sidebar_label: 'ActionResource⟨Options, RT⟩'
 ---
 
 # ActionResource`<Options, RT>`
@@ -10,10 +10,10 @@ Return value of [useAction](../functions/useAction.md).
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                                | Description                                            |
+| --------------------------------------------- | ------------------------------------------------------ |
 | <a id="type-parameter-options"></a> `Options` | Input type of `execute`; `void` when there is no input |
-| <a id="type-parameter-rt"></a> `RT` | Return type of the async function |
+| <a id="type-parameter-rt"></a> `RT`           | Return type of the async function                      |
 
 ## Properties
 
@@ -29,15 +29,15 @@ Triggers one invocation; errors bubble up to the caller as-is.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type      |
+| --------- | --------- |
 | `options` | `Options` |
 
 #### Returns
 
 `Promise`&lt;`RT`&gt;
 
-***
+---
 
 ### isPending \{#ispending\}
 

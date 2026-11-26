@@ -18,15 +18,15 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/hosts/alipay-api.ts:23](https
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `path`    | `string` |
 
 #### Returns
 
 `unknown`
 
-***
+---
 
 ### mkdirSync() \{#mkdirsync\}
 
@@ -38,16 +38,16 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/hosts/alipay-api.ts:24](https
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `string` |
+| Parameter    | Type      |
+| ------------ | --------- |
+| `path`       | `string`  |
 | `recursive?` | `boolean` |
 
 #### Returns
 
 `unknown`
 
-***
+---
 
 ### readFileSync() \{#readfilesync\}
 
@@ -61,16 +61,16 @@ Without `encoding` it reads binary; on success `data` is an `ArrayBuffer` (possi
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `string` |
+| Parameter   | Type     |
+| ----------- | -------- |
+| `path`      | `string` |
 | `encoding?` | `string` |
 
 #### Returns
 
 `unknown`
 
-***
+---
 
 ### unlinkSync() \{#unlinksync\}
 
@@ -82,22 +82,22 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/hosts/alipay-api.ts:29](https
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `path`    | `string` |
 
 #### Returns
 
 `unknown`
 
-***
+---
 
 ### writeFileSync() \{#writefilesync\}
 
 ```ts
 writeFileSync(
-   path, 
-   data, 
+   path,
+   data,
    encoding
 ): unknown;
 ```
@@ -108,10 +108,10 @@ Only "base64 string + `'base64'`" is byte-identical on both ends; `ArrayBuffer` 
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `string` |
-| `data` | `string` |
+| Parameter  | Type       |
+| ---------- | ---------- |
+| `path`     | `string`   |
+| `data`     | `string`   |
 | `encoding` | `"base64"` |
 
 #### Returns

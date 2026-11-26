@@ -1,5 +1,5 @@
 ---
-sidebar_label: "QueryBuilderServiceOptions⟨T⟩"
+sidebar_label: 'QueryBuilderServiceOptions⟨T⟩'
 ---
 
 # QueryBuilderServiceOptions`<T>`
@@ -14,8 +14,8 @@ QueryBuilderService options
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
+| Type Parameter                    | Default type                        |
+| --------------------------------- | ----------------------------------- |
 | <a id="type-parameter-t"></a> `T` | `Record`&lt;`string`, `unknown`&gt; |
 
 ## Properties
@@ -30,7 +30,7 @@ Defined in: [packages/rxdb-model/src/query-builder/services/query-builder.servic
 
 Configuration options
 
-***
+---
 
 ### fields? \{#fields\}
 
@@ -42,7 +42,7 @@ Defined in: [packages/rxdb-model/src/query-builder/services/query-builder.servic
 
 Field metadata
 
-***
+---
 
 ### i18n? \{#i18n\}
 
@@ -54,7 +54,7 @@ Defined in: [packages/rxdb-model/src/query-builder/services/query-builder.servic
 
 Message runtime.
 
-***
+---
 
 ### initialQuery? \{#initialquery\}
 
@@ -66,7 +66,7 @@ Defined in: [packages/rxdb-model/src/query-builder/services/query-builder.servic
 
 Initial RxDB query
 
-***
+---
 
 ### initialState? \{#initialstate\}
 
@@ -78,7 +78,7 @@ Defined in: [packages/rxdb-model/src/query-builder/services/query-builder.servic
 
 Initial query state
 
-***
+---
 
 ### operatorRegistry? \{#operatorregistry\}
 
@@ -90,7 +90,7 @@ Defined in: [packages/rxdb-model/src/query-builder/services/query-builder.servic
 
 Custom operator registry
 
-***
+---
 
 ### queryConverter? \{#queryconverter\}
 
@@ -102,7 +102,7 @@ Defined in: [packages/rxdb-model/src/query-builder/services/query-builder.servic
 
 Custom converter
 
-***
+---
 
 ### validationService? \{#validationservice\}
 

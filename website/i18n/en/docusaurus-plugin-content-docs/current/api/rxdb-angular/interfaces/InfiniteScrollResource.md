@@ -1,5 +1,5 @@
 ---
-sidebar_label: "InfiniteScrollResource⟨T⟩"
+sidebar_label: 'InfiniteScrollResource⟨T⟩'
 ---
 
 # InfiniteScrollResource`<T>`
@@ -16,8 +16,8 @@ RAN-009: `isLoading` / `error` / `hasMore` were previously declared as `Writable
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Properties
@@ -32,7 +32,7 @@ Defined in: [rxdb-angular/src/use-infinite-scroll.ts:28](https://github.com/aiao
 
 The most recent load error; cleared by the next successful load.
 
-***
+---
 
 ### hasMore \{#hasmore\}
 
@@ -44,7 +44,7 @@ Defined in: [rxdb-angular/src/use-infinite-scroll.ts:30](https://github.com/aiao
 
 Whether a next page may still exist. Set to `false` once a page returns fewer than a full page.
 
-***
+---
 
 ### isEmpty \{#isempty\}
 
@@ -56,7 +56,7 @@ Defined in: [rxdb-angular/src/use-infinite-scroll.ts:24](https://github.com/aiao
 
 The first load has completed and the result is empty. Always `false` before the first load completes.
 
-***
+---
 
 ### isLoading \{#isloading\}
 
@@ -68,7 +68,7 @@ Defined in: [rxdb-angular/src/use-infinite-scroll.ts:26](https://github.com/aiao
 
 Whether a new page is currently being loaded.
 
-***
+---
 
 ### loadMore \{#loadmore\}
 
@@ -84,7 +84,7 @@ Loads the next page. No-op while `isLoading` is true or `hasMore` is false.
 
 `void`
 
-***
+---
 
 ### refresh \{#refresh\}
 
@@ -100,7 +100,7 @@ Clears the current pages and reloads the first page.
 
 `void`
 
-***
+---
 
 ### value \{#value\}
 

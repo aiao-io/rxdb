@@ -10,9 +10,9 @@ Parses an rrweb event into a marker of this plugin.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `eventWithTime` |
+| Parameter | Type            |
+| --------- | --------------- |
+| `event`   | `eventWithTime` |
 
 ## Returns
 

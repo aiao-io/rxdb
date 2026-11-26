@@ -30,7 +30,7 @@ Creation time
 
 [`ITreeEntity`](ITreeEntity.md).[`createdAt`](ITreeEntity.md#createdat)
 
-***
+---
 
 ### createdBy? \{#createdby\}
 
@@ -46,7 +46,7 @@ Creator
 
 [`ITreeEntity`](ITreeEntity.md).[`createdBy`](ITreeEntity.md#createdby)
 
-***
+---
 
 ### hasChildren? \{#haschildren\}
 
@@ -62,7 +62,7 @@ Whether there are child nodes. Auto-filled by the computed property of `TreeAdja
 
 [`ITreeEntity`](ITreeEntity.md).[`hasChildren`](ITreeEntity.md#haschildren)
 
-***
+---
 
 ### id \{#id\}
 
@@ -78,7 +78,7 @@ id
 
 [`ITreeEntity`](ITreeEntity.md).[`id`](ITreeEntity.md#id)
 
-***
+---
 
 ### parentId? \{#parentid\}
 
@@ -94,7 +94,7 @@ Primary key of the parent node. Belongs to the same [RxDBEntityId](../../rxdb/ty
 
 [`ITreeEntity`](ITreeEntity.md).[`parentId`](ITreeEntity.md#parentid)
 
-***
+---
 
 ### sortOrder? \{#sortorder\}
 
@@ -104,7 +104,7 @@ sortOrder?: string | null;
 
 Defined in: [rxdb-plugin-tree/src/entity/tree-entity.interface.ts:33](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-tree/src/entity/tree-entity.interface.ts#L33)
 
-***
+---
 
 ### updatedAt \{#updatedat\}
 
@@ -120,7 +120,7 @@ Update time
 
 [`ITreeEntity`](ITreeEntity.md).[`updatedAt`](ITreeEntity.md#updatedat)
 
-***
+---
 
 ### updatedBy? \{#updatedby\}
 

@@ -18,10 +18,10 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:518](https://github.com/aiao-io/rx
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `direction` | [`SyncDirection`](../type-aliases/SyncDirection.md) | Sync direction |
-| `error` | `Error` | Error information |
+| Parameter   | Type                                                | Description       |
+| ----------- | --------------------------------------------------- | ----------------- |
+| `direction` | [`SyncDirection`](../type-aliases/SyncDirection.md) | Sync direction    |
+| `error`     | `Error`                                             | Error information |
 
 #### Returns
 
@@ -39,7 +39,7 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:520](https://github.com/aiao-io/rx
 
 Sync direction
 
-***
+---
 
 ### error \{#error\}
 
@@ -51,7 +51,7 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:522](https://github.com/aiao-io/rx
 
 Error information
 
-***
+---
 
 ### type \{#type\}
 

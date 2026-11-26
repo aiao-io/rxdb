@@ -10,12 +10,12 @@ The unintercepted `mergeChanges` with a rebindable host
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `host` | [`WorkingTreeWriteHost`](../interfaces/WorkingTreeWriteHost.md) |
-| `actions` | [`SwitchVersionActions`](../interfaces/SwitchVersionActions.md) |
-| `localChanges?` | `Omit`&lt;[`RxDBChange`](../classes/RxDBChange.md), `"id"`&gt;[] |
-| `disableTriggers?` | `boolean` |
+| Parameter          | Type                                                             |
+| ------------------ | ---------------------------------------------------------------- |
+| `host`             | [`WorkingTreeWriteHost`](../interfaces/WorkingTreeWriteHost.md)  |
+| `actions`          | [`SwitchVersionActions`](../interfaces/SwitchVersionActions.md)  |
+| `localChanges?`    | `Omit`&lt;[`RxDBChange`](../classes/RxDBChange.md), `"id"`&gt;[] |
+| `disableTriggers?` | `boolean`                                                        |
 
 ## Returns
 

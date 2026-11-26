@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-replay/src/options.ts:34](https://github.com/a
 
 Recording database factory, required. See [ReplayRecordingDbFactory](../type-aliases/ReplayRecordingDbFactory.md).
 
-***
+---
 
 ### flush? \{#flush\}
 
@@ -44,7 +44,7 @@ readonly maxEvents?: number;
 
 Maximum buffered event count. @defaultValue 200
 
-***
+---
 
 ### limits? \{#limits\}
 
@@ -72,7 +72,7 @@ readonly storeBytes?: number;
 
 Total recording database limit; starting a new session is refused once reached. Must be ≥ `sessionBytes`. @defaultValue 128 MiB
 
-***
+---
 
 ### record? \{#record\}
 

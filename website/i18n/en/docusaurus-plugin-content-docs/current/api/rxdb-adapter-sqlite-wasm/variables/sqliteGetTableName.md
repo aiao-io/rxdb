@@ -10,10 +10,10 @@ Compose the physical name of the primary table set: `<namespace>$<logical name>`
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `name` | `string` | Logical name |
-| `namespace` | `string` | Namespace |
+| Parameter   | Type     | Description  |
+| ----------- | -------- | ------------ |
+| `name`      | `string` | Logical name |
+| `namespace` | `string` | Namespace    |
 
 ## Returns
 

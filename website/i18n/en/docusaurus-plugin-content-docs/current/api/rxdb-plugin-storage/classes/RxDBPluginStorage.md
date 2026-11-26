@@ -40,9 +40,9 @@ Creates the storage plugin lifecycle object.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rxdb` | [`RxDB`](../../rxdb/classes/RxDB.md) |
+| Parameter  | Type                                                                    |
+| ---------- | ----------------------------------------------------------------------- |
+| `rxdb`     | [`RxDB`](../../rxdb/classes/RxDB.md)                                    |
 | `options?` | [`RxDBStoragePluginOptions`](../interfaces/RxDBStoragePluginOptions.md) |
 
 #### Returns
@@ -69,7 +69,7 @@ Migrated to scope teardown; the host no longer calls `destroy()`.
 
 [`IRxDBPlugin`](../../rxdb/interfaces/IRxDBPlugin.md).[`lifecycle`](../../rxdb/interfaces/IRxDBPlugin.md#lifecycle)
 
-***
+---
 
 ### name \{#name\}
 
@@ -85,7 +85,7 @@ The unique name of the RxDB plugin.
 
 [`IRxDBPlugin`](../../rxdb/interfaces/IRxDBPlugin.md).[`name`](../../rxdb/interfaces/IRxDBPlugin.md#name)
 
-***
+---
 
 ### rxdb \{#rxdb\}
 
@@ -133,9 +133,9 @@ with each of the three steps registering its own undo entry.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `scope` | [`LifecycleScope`](../../utils/classes/LifecycleScope.md) |
+| Parameter | Type                                                      |
+| --------- | --------------------------------------------------------- |
+| `scope`   | [`LifecycleScope`](../../utils/classes/LifecycleScope.md) |
 
 #### Returns
 

@@ -35,7 +35,7 @@ Defined in: [packages/rxdb/src/system/change.ts:720](https://github.com/aiao-io/
 
 The branch it belongs to
 
-***
+---
 
 ### branchId? \{#branchid\}
 
@@ -51,7 +51,7 @@ Branch id
 
 [`IRxDBChange`](../interfaces/IRxDBChange.md).[`branchId`](../interfaces/IRxDBChange.md#branchid)
 
-***
+---
 
 ### createdAt \{#createdat\}
 
@@ -66,14 +66,14 @@ Creation time
 #### Default
 
 ```ts
-new Date()
+new Date();
 ```
 
 #### Implementation of
 
 [`IRxDBChange`](../interfaces/IRxDBChange.md).[`createdAt`](../interfaces/IRxDBChange.md#createdat)
 
-***
+---
 
 ### entity \{#entity\}
 
@@ -89,7 +89,7 @@ Entity name
 
 [`IRxDBChange`](../interfaces/IRxDBChange.md).[`entity`](../interfaces/IRxDBChange.md#entity)
 
-***
+---
 
 ### entityId \{#entityid\}
 
@@ -105,7 +105,7 @@ Entity ID
 
 [`IRxDBChange`](../interfaces/IRxDBChange.md).[`entityId`](../interfaces/IRxDBChange.md#entityid)
 
-***
+---
 
 ### id \{#id\}
 
@@ -121,7 +121,7 @@ id
 
 [`IRxDBChange`](../interfaces/IRxDBChange.md).[`id`](../interfaces/IRxDBChange.md#id)
 
-***
+---
 
 ### inversePatch? \{#inversepatch\}
 
@@ -170,15 +170,18 @@ Records the data state before the operation, used for **undo** operations
 #### Remarks
 
 **inversePatch rules for the three operation types:**
+
 - **INSERT**: `inversePatch = null` (no old data before creation)
 - **UPDATE**: `inversePatch = { old values of the changed fields }` (only changed fields are recorded, incremental data, **excluding id**)
 - **DELETE**: `inversePatch = { the complete deleted data }` (all fields except id, **excluding id**)
 
 **Important notes:**
+
 - ⚠️ `inversePatch` and `patch` **do not contain the id field**; the id is already recorded in `entityId`
 - When restoring data, use `entityId` as the record's id
 
 **Undo operation logic:**
+
 - Undo INSERT → execute DELETE (using entityId)
 - Undo UPDATE → execute UPDATE (using entityId + inversePatch)
 - Undo DELETE → execute INSERT (using entityId + inversePatch)
@@ -187,7 +190,7 @@ Records the data state before the operation, used for **undo** operations
 
 [`IRxDBChange`](../interfaces/IRxDBChange.md).[`inversePatch`](../interfaces/IRxDBChange.md#inversepatch)
 
-***
+---
 
 ### localId? \{#localid\}
 
@@ -208,7 +211,7 @@ when localId exists, it is used to backfill the remoteId of the local change.
 
 [`IRxDBChange`](../interfaces/IRxDBChange.md).[`localId`](../interfaces/IRxDBChange.md#localid)
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -224,7 +227,7 @@ Namespace
 
 [`IRxDBChange`](../interfaces/IRxDBChange.md).[`namespace`](../interfaces/IRxDBChange.md#namespace)
 
-***
+---
 
 ### patch? \{#patch\}
 
@@ -273,20 +276,24 @@ Records the data state after the operation, used for **redo** operations
 #### Remarks
 
 **patch rules for the three operation types:**
+
 - **INSERT**: `patch = { the complete new data }` (all fields except id, **excluding id**)
 - **UPDATE**: `patch = { new values of the changed fields }` (only changed fields are recorded, incremental data, **excluding id**)
 - **DELETE**: `patch = null` (no data after deletion)
 
 **Important notes:**
+
 - ⚠️ `patch` and `inversePatch` **do not contain the id field**; the id is already recorded in `entityId`
 - When executing operations, use `entityId` as the record's id
 
 **Redo operation logic:**
+
 - Redo INSERT → execute INSERT (using entityId + patch's complete data)
 - Redo UPDATE → execute UPDATE (using entityId + patch's incremental data)
 - Redo DELETE → execute DELETE (using entityId)
 
 **Symmetry with inversePatch:**
+
 - INSERT: `patch = complete data (excluding id), inversePatch = null`
 - UPDATE: `patch = new value increments (excluding id), inversePatch = old value increments (excluding id)`
 - DELETE: `patch = null, inversePatch = complete data (excluding id)`
@@ -295,7 +302,7 @@ Records the data state after the operation, used for **redo** operations
 
 [`IRxDBChange`](../interfaces/IRxDBChange.md).[`patch`](../interfaces/IRxDBChange.md#patch)
 
-***
+---
 
 ### redoInvalidatedAt? \{#redoinvalidatedat\}
 
@@ -313,11 +320,13 @@ Invalidated changes no longer appear in the redo stack, but remain in the databa
 #### Remarks
 
 **Core mechanism:**
+
 - User operations: create A → create B → undo(B) → create C
 - At this point B's `redoInvalidatedAt` is set to C's creation time
 - B can no longer be redone, matching standard undo/redo stack behavior
 
 **State determination rules:**
+
 ```
 revertChangeId  | redoInvalidatedAt | State description
 ----------------|-------------------|---------------------------
@@ -328,6 +337,7 @@ null            | 2025-01-11T10:00  | (this state should not occur)
 ```
 
 **Relationship with revertChangeId/revertChangedAt:**
+
 - `revertChangeId != null` → already undone
 - `redoInvalidatedAt != null` → the redo opportunity has lapsed
 - The two are independent: undo is an explicit user action, invalidation is a side effect triggered by new operations
@@ -432,19 +442,17 @@ RxDBChange.findAll({
 RxDBChange.findAll({
   where: {
     combinator: 'and',
-    rules: [
-      `{ field: 'redoInvalidatedAt', operator: '!=', value: null }`
-    ]
+    rules: [`{ field: 'redoInvalidatedAt', operator: '!=', value: null }`]
   }
 });
 ```
 
 #### See
 
- - [revertChangeId](#revertchangeid) - the undo marker, used together to determine whether redo is possible
- - [revertChangedAt](#revertchangedat) - the undo timestamp
+- [revertChangeId](#revertchangeid) - the undo marker, used together to determine whether redo is possible
+- [revertChangedAt](#revertchangedat) - the undo timestamp
 
-***
+---
 
 ### rejectedAt? \{#rejectedat\}
 
@@ -462,12 +470,12 @@ Written together with the receipt inside the push commit transaction: set to the
 Mutually exclusive with [RxDBChange.remoteId](#remoteid) — at most one of them is non-null per row; a rejected change never gets a remote ID.
 This column only exists in system schema 7; old rows from 6 and earlier are `null` after migration and are not backfilled.
 
-***
+---
 
 ### rejection? \{#rejection\}
 
 ```ts
-rejection?: 
+rejection?:
   | RemoteChangeRejection
   | null;
 ```
@@ -480,7 +488,7 @@ The reason the remote rejected this local change, with the same shape as the rej
 
 Written at the same time as [RxDBChange.rejectedAt](#rejectedat), and null at the same time.
 
-***
+---
 
 ### remoteId? \{#remoteid\}
 
@@ -493,7 +501,7 @@ Defined in: [packages/rxdb/src/system/change.ts:152](https://github.com/aiao-io/
 Remote change ID
 Indicates that this change was synced from the remote
 
-***
+---
 
 ### revertChangedAt? \{#revertchangedat\}
 
@@ -510,11 +518,13 @@ Records the time this change was undone, used for auditing and tracking the comp
 #### Remarks
 
 **State marker rules:**
+
 - `revertChangedAt = null`: the change has never been undone, in normal effect
 - `revertChangedAt != null` and `revertChangeId != null`: the change has been undone, currently not in effect
 - `revertChangedAt != null` and `revertChangeId = null`: the change was undone and then restored (redo)
 
 **Special handling of redo:**
+
 - When performing a redo, only `revertChangeId` is cleared (set to null)
 - The `revertChangedAt` timestamp is **kept** to record the history of having been undone
 - This way the complete operation history can be tracked: create → undo (time recorded) → restore (time kept)
@@ -589,7 +599,7 @@ Records the time this change was undone, used for auditing and tracking the comp
 
 [revertChangeId](#revertchangeid) - the undo marker ID, used together with this timestamp to determine the undo state
 
-***
+---
 
 ### revertChangeId? \{#revertchangeid\}
 
@@ -606,6 +616,7 @@ Used to mark that this change has been undone and to reserve a sequence number s
 #### Remarks
 
 **Core mechanism:**
+
 - When performing an undo, **no new change record is created**
 - Instead, `revertChangeId` and `revertChangedAt` are marked on the undone change
 - `revertChangeId` points to the **next ID that should be allocated** (equal to the current sequence value + 1)
@@ -613,6 +624,7 @@ Used to mark that this change has been undone and to reserve a sequence number s
 - This leaves an "undo trace" in the change history for auditing and timeline reconstruction
 
 **ID allocation rules:**
+
 - Normal changes: use the next sequence value (e.g. 1, 2, 3...)
 - Undone changes: mark revertChangeId on the original record; the sequence skips one number (a reserved slot)
 - Subsequent new changes: continue from the sequence value after the skip (e.g. 5, 6, 7...)
@@ -744,10 +756,10 @@ const txId = 'a1b2c3d4-...';
 
 #### See
 
- - [revertChangedAt](#revertchangedat) - the timestamp of the undo operation
- - [transactionId](#transactionid) - the transaction ID, used for batch undo
+- [revertChangedAt](#revertchangedat) - the timestamp of the undo operation
+- [transactionId](#transactionid) - the transaction ID, used for batch undo
 
-***
+---
 
 ### tableSetSuffix? \{#tablesetsuffix\}
 
@@ -759,7 +771,7 @@ Defined in: [packages/rxdb/src/system/change.ts:192](https://github.com/aiao-io/
 
 The physical table set suffix at write time; `null` for the main table set and old logs, not involved in remote sync.
 
-***
+---
 
 ### transactionId? \{#transactionid\}
 
@@ -776,12 +788,12 @@ If an undo/redo operation involves multiple change records, they can be related 
 
 [`IRxDBChange`](../interfaces/IRxDBChange.md).[`transactionId`](../interfaces/IRxDBChange.md#transactionid)
 
-***
+---
 
 ### type \{#type\}
 
 ```ts
-type: "INSERT" | "UPDATE" | "DELETE";
+type: 'INSERT' | 'UPDATE' | 'DELETE';
 ```
 
 Defined in: [packages/rxdb/src/system/change.ts:213](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/change.ts#L213)
@@ -792,7 +804,7 @@ Change type
 
 [`IRxDBChange`](../interfaces/IRxDBChange.md).[`type`](../interfaces/IRxDBChange.md#type)
 
-***
+---
 
 ### updatedAt \{#updatedat\}
 
@@ -807,14 +819,14 @@ Update time
 #### Default
 
 ```ts
-new Date()
+new Date();
 ```
 
 #### Implementation of
 
 [`IRxDBChange`](../interfaces/IRxDBChange.md).[`updatedAt`](../interfaces/IRxDBChange.md#updatedat)
 
-***
+---
 
 ### \[ENTITY\_STATIC\_TYPES\] \{#entity_static_types\}
 
@@ -824,7 +836,7 @@ static [ENTITY_STATIC_TYPES]: RxDBChangeStaticTypes;
 
 Defined in: [packages/rxdb/src/system/change.ts:141](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/change.ts#L141)
 
-***
+---
 
 ### count \{#count\}
 
@@ -838,9 +850,9 @@ count query
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | [`CountOptions`](../interfaces/CountOptions.md)&lt;*typeof* `RxDBChange`, [`RxDBChangeRuleGroup`](../type-aliases/RxDBChangeRuleGroup.md)&gt; | Query options |
+| Parameter | Type                                                                                                                                          | Description   |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| `options` | [`CountOptions`](../interfaces/CountOptions.md)&lt;_typeof_ `RxDBChange`, [`RxDBChangeRuleGroup`](../type-aliases/RxDBChangeRuleGroup.md)&gt; | Query options |
 
 #### Returns
 
@@ -866,7 +878,7 @@ RxDBChange.count({
 }).subscribe();
 ```
 
-***
+---
 
 ### find \{#find\}
 
@@ -880,9 +892,9 @@ find query
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | [`FindOptions`](../interfaces/FindOptions.md)&lt;*typeof* `RxDBChange`, [`RxDBChangeRuleGroup`](../type-aliases/RxDBChangeRuleGroup.md), [`RxDBChangeOrderByField`](../type-aliases/RxDBChangeOrderByField.md)&gt; | Query options |
+| Parameter | Type                                                                                                                                                                                                               | Description   |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- |
+| `options` | [`FindOptions`](../interfaces/FindOptions.md)&lt;_typeof_ `RxDBChange`, [`RxDBChangeRuleGroup`](../type-aliases/RxDBChangeRuleGroup.md), [`RxDBChangeOrderByField`](../type-aliases/RxDBChangeOrderByField.md)&gt; | Query options |
 
 #### Returns
 
@@ -900,7 +912,7 @@ RxDBChange.find({
 }).subscribe();
 ```
 
-***
+---
 
 ### findAll \{#findall\}
 
@@ -914,9 +926,9 @@ findAll query
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | [`FindAllOptions`](../interfaces/FindAllOptions.md)&lt;*typeof* `RxDBChange`, [`RxDBChangeRuleGroup`](../type-aliases/RxDBChangeRuleGroup.md), [`RxDBChangeOrderByField`](../type-aliases/RxDBChangeOrderByField.md)&gt; | Query options |
+| Parameter | Type                                                                                                                                                                                                                     | Description   |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- |
+| `options` | [`FindAllOptions`](../interfaces/FindAllOptions.md)&lt;_typeof_ `RxDBChange`, [`RxDBChangeRuleGroup`](../type-aliases/RxDBChangeRuleGroup.md), [`RxDBChangeOrderByField`](../type-aliases/RxDBChangeOrderByField.md)&gt; | Query options |
 
 #### Returns
 
@@ -935,7 +947,7 @@ RxDBChange.findAll({
 }).subscribe();
 ```
 
-***
+---
 
 ### findByCursor \{#findbycursor\}
 
@@ -949,15 +961,15 @@ findByCursor query
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | [`FindByCursorOptions`](../interfaces/FindByCursorOptions.md)&lt;*typeof* `RxDBChange`, [`RxDBChangeRuleGroup`](../type-aliases/RxDBChangeRuleGroup.md), [`RxDBChangeOrderByField`](../type-aliases/RxDBChangeOrderByField.md)&gt; | Query options |
+| Parameter | Type                                                                                                                                                                                                                               | Description   |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| `options` | [`FindByCursorOptions`](../interfaces/FindByCursorOptions.md)&lt;_typeof_ `RxDBChange`, [`RxDBChangeRuleGroup`](../type-aliases/RxDBChangeRuleGroup.md), [`RxDBChangeOrderByField`](../type-aliases/RxDBChangeOrderByField.md)&gt; | Query options |
 
 #### Returns
 
 `Observable`&lt;`RxDBChange`[]&gt;
 
-***
+---
 
 ### findOne \{#findone\}
 
@@ -971,9 +983,9 @@ findOne query
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | [`FindOneOptions`](../interfaces/FindOneOptions.md)&lt;*typeof* `RxDBChange`, [`RxDBChangeRuleGroup`](../type-aliases/RxDBChangeRuleGroup.md), [`RxDBChangeOrderByField`](../type-aliases/RxDBChangeOrderByField.md)&gt; | Query options |
+| Parameter | Type                                                                                                                                                                                                                     | Description   |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- |
+| `options` | [`FindOneOptions`](../interfaces/FindOneOptions.md)&lt;_typeof_ `RxDBChange`, [`RxDBChangeRuleGroup`](../type-aliases/RxDBChangeRuleGroup.md), [`RxDBChangeOrderByField`](../type-aliases/RxDBChangeOrderByField.md)&gt; | Query options |
 
 #### Returns
 
@@ -992,7 +1004,7 @@ RxDBChange.findOne({
 }).subscribe();
 ```
 
-***
+---
 
 ### findOneOrFail \{#findoneorfail\}
 
@@ -1006,9 +1018,9 @@ findOneOrFail query
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | [`FindOneOrFailOptions`](../interfaces/FindOneOrFailOptions.md)&lt;*typeof* `RxDBChange`, [`RxDBChangeRuleGroup`](../type-aliases/RxDBChangeRuleGroup.md), [`RxDBChangeOrderByField`](../type-aliases/RxDBChangeOrderByField.md)&gt; | Query options |
+| Parameter | Type                                                                                                                                                                                                                                 | Description   |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- |
+| `options` | [`FindOneOrFailOptions`](../interfaces/FindOneOrFailOptions.md)&lt;_typeof_ `RxDBChange`, [`RxDBChangeRuleGroup`](../type-aliases/RxDBChangeRuleGroup.md), [`RxDBChangeOrderByField`](../type-aliases/RxDBChangeOrderByField.md)&gt; | Query options |
 
 #### Returns
 
@@ -1026,7 +1038,7 @@ RxDBChange.findOneOrFail({
 }).subscribe();
 ```
 
-***
+---
 
 ### get \{#get\}
 
@@ -1040,8 +1052,8 @@ get query
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type     | Description   |
+| --------- | -------- | ------------- |
 | `options` | `number` | Query options |
 
 #### Returns

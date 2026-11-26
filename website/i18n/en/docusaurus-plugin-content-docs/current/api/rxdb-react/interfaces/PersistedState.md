@@ -1,5 +1,5 @@
 ---
-sidebar_label: "PersistedState⟨T⟩"
+sidebar_label: 'PersistedState⟨T⟩'
 ---
 
 # PersistedState`<T>`
@@ -10,8 +10,8 @@ The persisted state for a given `namespace + name`.
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                    | Description      |
+| --------------------------------- | ---------------- |
 | <a id="type-parameter-t"></a> `T` | State value type |
 
 ## Properties
@@ -30,7 +30,7 @@ The most recent persistence failure; cleared automatically after a successful wr
 
 Quota exceeded, circular references, `BigInt`, etc. all make the disk write fail while the in-memory value still updates — this field is the only way callers can tell that the data did not reach disk.
 
-***
+---
 
 ### setValue \{#setvalue\}
 
@@ -45,8 +45,8 @@ Writes the value and persists it to disk, then notifies all holders of the same 
 #### Parameters
 
 | Parameter | Type |
-| ------ | ------ |
-| `next` | `T` |
+| --------- | ---- |
+| `next`    | `T`  |
 
 #### Returns
 
@@ -56,7 +56,7 @@ Writes the value and persists it to disk, then notifies all holders of the same 
 
 Function identity is stable across renders, so it can be used directly in dependency arrays. A failed disk write **does not throw**: the in-memory value updates as usual and the failure is exposed via [PersistedState.persistError](#persisterror).
 
-***
+---
 
 ### value \{#value\}
 

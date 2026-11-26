@@ -20,7 +20,7 @@ Generates the salt, using `crypto.getRandomValues` by default.
 
 `string`
 
-***
+---
 
 ### hasher? \{#hasher\}
 
@@ -32,7 +32,7 @@ Defined in: [widgets/lock.ts:53](https://github.com/aiao-io/rxdb/blob/b523204024
 
 The hasher, defaulting to [webCryptoHasher](../variables/webCryptoHasher.md).
 
-***
+---
 
 ### host? \{#host\}
 
@@ -52,9 +52,9 @@ addEventListener(type, listener): void;
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `type` | `"storage"` |
+| Parameter  | Type                |
+| ---------- | ------------------- |
+| `type`     | `"storage"`         |
 | `listener` | (`event`) => `void` |
 
 ##### Returns
@@ -69,16 +69,16 @@ removeEventListener(type, listener): void;
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `type` | `"storage"` |
+| Parameter  | Type                |
+| ---------- | ------------------- |
+| `type`     | `"storage"`         |
 | `listener` | (`event`) => `void` |
 
 ##### Returns
 
 `void`
 
-***
+---
 
 ### passwordKey? \{#passwordkey\}
 
@@ -90,7 +90,7 @@ Defined in: [widgets/lock.ts:51](https://github.com/aiao-io/rxdb/blob/b523204024
 
 The storage key of the password, defaulting to [LOCK\_PASSWORD\_KEY](../variables/LOCK_PASSWORD_KEY.md).
 
-***
+---
 
 ### stateKey? \{#statekey\}
 
@@ -102,7 +102,7 @@ Defined in: [widgets/lock.ts:49](https://github.com/aiao-io/rxdb/blob/b523204024
 
 The storage key of the lock state, defaulting to [LOCK\_STATE\_KEY](../variables/LOCK_STATE_KEY.md).
 
-***
+---
 
 ### storage \{#storage\}
 

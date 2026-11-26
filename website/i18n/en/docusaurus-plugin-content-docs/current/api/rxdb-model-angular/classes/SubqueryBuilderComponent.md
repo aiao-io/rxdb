@@ -8,6 +8,7 @@ Subquery builder component
 
 Nested query conditions for the EXISTS/NOT EXISTS operators.
 Supports:
+
 - Adding sub-conditions
 - Nested rule groups
 - Clearing sub-conditions
@@ -42,7 +43,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/subquery-builder/subq
 
 Field list
 
-***
+---
 
 ### hasRules \{#hasrules\}
 
@@ -54,7 +55,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/subquery-builder/subq
 
 Whether there are rules
 
-***
+---
 
 ### initialQuery \{#initialquery\}
 
@@ -68,7 +69,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/subquery-builder/subq
 
 Initial query
 
-***
+---
 
 ### maxDepth \{#maxdepth\}
 
@@ -80,7 +81,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/subquery-builder/subq
 
 Maximum nesting level
 
-***
+---
 
 ### queryChange \{#querychange\}
 
@@ -97,7 +98,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/subquery-builder/subq
 
 Query change event
 
-***
+---
 
 ### rootGroup \{#rootgroup\}
 
@@ -109,7 +110,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/subquery-builder/subq
 
 Root rule group
 
-***
+---
 
 ### validationChange \{#validationchange\}
 
@@ -137,7 +138,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/subquery-builder/subq
 
 [`ModelI18n`](../interfaces/ModelI18n.md)
 
-***
+---
 
 ### t \{#t\}
 
@@ -169,7 +170,7 @@ Adds the first rule
 
 `void`
 
-***
+---
 
 ### handleClear() \{#handleclear\}
 
@@ -185,7 +186,7 @@ Clears all rules
 
 `void`
 
-***
+---
 
 ### ngOnDestroy() \{#ngondestroy\}
 
@@ -205,7 +206,7 @@ Destroys the service
 
 `OnDestroy.ngOnDestroy`
 
-***
+---
 
 ### onAddGroup() \{#onaddgroup\}
 
@@ -219,15 +220,15 @@ Adds a subgroup to the given group
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `parentId` | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onAddRule() \{#onaddrule\}
 
@@ -241,17 +242,17 @@ Adds a rule to the given group
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | \{ `parentId`: `string`; `rule`: `Omit`&lt;[`UIRule`](../interfaces/UIRule.md), `"id"`&gt;; \} |
-| `event.parentId` | `string` |
-| `event.rule` | `Omit`&lt;[`UIRule`](../interfaces/UIRule.md), `"id"`&gt; |
+| Parameter        | Type                                                                                           |
+| ---------------- | ---------------------------------------------------------------------------------------------- |
+| `event`          | \{ `parentId`: `string`; `rule`: `Omit`&lt;[`UIRule`](../interfaces/UIRule.md), `"id"`&gt;; \} |
+| `event.parentId` | `string`                                                                                       |
+| `event.rule`     | `Omit`&lt;[`UIRule`](../interfaces/UIRule.md), `"id"`&gt;                                      |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onRemoveItem() \{#onremoveitem\}
 
@@ -265,15 +266,15 @@ Deletes a rule or group
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `id` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `id`      | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onUpdateCombinator() \{#onupdatecombinator\}
 
@@ -287,17 +288,17 @@ Updates the combinator
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | \{ `combinator`: `"and"` \| `"or"`; `id`: `string`; \} |
-| `event.combinator` | `"and"` \| `"or"` |
-| `event.id` | `string` |
+| Parameter          | Type                                                   |
+| ------------------ | ------------------------------------------------------ |
+| `event`            | \{ `combinator`: `"and"` \| `"or"`; `id`: `string`; \} |
+| `event.combinator` | `"and"` \| `"or"`                                      |
+| `event.id`         | `string`                                               |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onUpdateRule() \{#onupdaterule\}
 
@@ -311,11 +312,11 @@ Updates a rule
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | \{ `id`: `string`; `updates`: `Partial`&lt;[`UIRule`](../interfaces/UIRule.md)&gt;; \} |
-| `event.id` | `string` |
-| `event.updates` | `Partial`&lt;[`UIRule`](../interfaces/UIRule.md)&gt; |
+| Parameter       | Type                                                                                   |
+| --------------- | -------------------------------------------------------------------------------------- |
+| `event`         | \{ `id`: `string`; `updates`: `Partial`&lt;[`UIRule`](../interfaces/UIRule.md)&gt;; \} |
+| `event.id`      | `string`                                                                               |
+| `event.updates` | `Partial`&lt;[`UIRule`](../interfaces/UIRule.md)&gt;                                   |
 
 #### Returns
 

@@ -10,10 +10,10 @@ Due date status relative to local today; returns `null` when there is no due dat
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type               |
+| --------- | ------------------ |
 | `dueDate` | `string` \| `null` |
-| `today` | `string` |
+| `today`   | `string`           |
 
 ## Returns
 

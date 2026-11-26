@@ -10,9 +10,9 @@ Determines whether a value is empty per the library contract
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | The value to check |
+| Parameter | Type      | Description        |
+| --------- | --------- | ------------------ |
+| `value`   | `unknown` | The value to check |
 
 ## Returns
 

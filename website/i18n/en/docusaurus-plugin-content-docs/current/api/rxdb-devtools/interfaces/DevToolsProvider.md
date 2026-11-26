@@ -36,10 +36,10 @@ Executes an operation.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `operation` | `string` | The authorized operation name. |
-| `params` | `unknown` | Parameters that have passed the generic wire-layer validation but are not yet interpreted per operation; the implementation is responsible for domain-level validation (e.g. path validity → `invalid_path`). |
+| Parameter   | Type      | Description                                                                                                                                                                                                   |
+| ----------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `operation` | `string`  | The authorized operation name.                                                                                                                                                                                |
+| `params`    | `unknown` | Parameters that have passed the generic wire-layer validation but are not yet interpreted per operation; the implementation is responsible for domain-level validation (e.g. path validity → `invalid_path`). |
 
 #### Returns
 

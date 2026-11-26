@@ -27,16 +27,16 @@ Pushes an already-masked RxDB event to the peer; usually wired to the v2 endpoin
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `eventType` | `string` |
-| `data` | `unknown` |
+| Parameter   | Type      |
+| ----------- | --------- |
+| `eventType` | `string`  |
+| `data`      | `unknown` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### getEntityMetadata \{#getentitymetadata\}
 
@@ -48,7 +48,7 @@ Defined in: [connector-providers.ts:145](https://github.com/aiao-io/rxdb/blob/b5
 
 The entity metadata reading function (usually `getEntityMetadata` from `@aiao/rxdb`).
 
-***
+---
 
 ### getRxDB \{#getrxdb\}
 

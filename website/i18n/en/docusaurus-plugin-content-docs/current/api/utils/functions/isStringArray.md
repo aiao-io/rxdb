@@ -8,9 +8,9 @@ Defined in: [packages/utils/src/types/isStringArray.ts:3](https://github.com/aia
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `value`   | `unknown` |
 
 ## Returns
 

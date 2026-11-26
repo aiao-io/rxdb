@@ -16,7 +16,7 @@ Defined in: [tabs/tabs-ops.ts:28](https://github.com/aiao-io/rxdb/blob/b52320402
 
 The next URL when the active tab is closed; `null` means no tab to go to, decided by the caller (usually back to the home page).
 
-***
+---
 
 ### state \{#state\}
 

@@ -12,10 +12,10 @@ Iterates all entities with logging enabled (log !== false) and generates the SQL
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `adapter` | [`RxDBAdapterPGlite`](../classes/RxDBAdapterPGlite.md) | PGlite adapter instance |
-| `tableSet` | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md) | - |
+| Parameter  | Type                                                         | Description             |
+| ---------- | ------------------------------------------------------------ | ----------------------- |
+| `adapter`  | [`RxDBAdapterPGlite`](../classes/RxDBAdapterPGlite.md)       | PGlite adapter instance |
+| `tableSet` | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md) | -                       |
 
 ## Returns
 

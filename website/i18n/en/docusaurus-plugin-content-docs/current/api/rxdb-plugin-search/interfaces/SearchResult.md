@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-search/src/types.ts:64](https://github.com/aia
 
 collection table name
 
-***
+---
 
 ### entity \{#entity\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-search/src/types.ts:62](https://github.com/aia
 
 The entity name of the hit record (e.g. `Article`, `Comment`)
 
-***
+---
 
 ### id \{#id\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-plugin-search/src/types.ts:66](https://github.com/aia
 
 Record primary key (stringified)
 
-***
+---
 
 ### matchedField \{#matchedfield\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb-plugin-search/src/types.ts:70](https://github.com/aia
 
 The name of the matched field
 
-***
+---
 
 ### rank \{#rank\}
 
@@ -64,7 +64,7 @@ Defined in: [packages/rxdb-plugin-search/src/types.ts:68](https://github.com/aia
 
 BM25 rank; the smaller the value, the more relevant
 
-***
+---
 
 ### snippet \{#snippet\}
 

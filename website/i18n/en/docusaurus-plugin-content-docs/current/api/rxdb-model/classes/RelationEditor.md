@@ -27,10 +27,10 @@ Creates a relation dropdown editor
 
 #### Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `items?` | \| [`RelatedEntityItem`](../interfaces/RelatedEntityItem.md)[] \| (() => [`RelatedEntityItem`](../interfaces/RelatedEntityItem.md)[]) | `[]` | Candidate entity list, or a factory function re-evaluated each time it opens |
-| `nullable?` | `boolean` | `false` | Whether null is allowed; when true the first item in the list is "(empty)" |
+| Parameter   | Type                                                                                                                                  | Default value | Description                                                                  |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ---------------------------------------------------------------------------- |
+| `items?`    | \| [`RelatedEntityItem`](../interfaces/RelatedEntityItem.md)[] \| (() => [`RelatedEntityItem`](../interfaces/RelatedEntityItem.md)[]) | `[]`          | Candidate entity list, or a factory function re-evaluated each time it opens |
+| `nullable?` | `boolean`                                                                                                                             | `false`       | Whether null is allowed; when true the first item in the list is "(empty)"   |
 
 #### Returns
 
@@ -62,9 +62,9 @@ Repositions the overlay to the new cell rectangle
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rect` | `RectProps` |
+| Parameter | Type        |
+| --------- | ----------- |
+| `rect`    | `RectProps` |
 
 #### Returns
 
@@ -74,7 +74,7 @@ Repositions the overlay to the new cell rectangle
 
 `IEditor.adjustPosition`
 
-***
+---
 
 ### getValue() \{#getvalue\}
 
@@ -94,7 +94,7 @@ Returns the currently selected related entity ID (empty string when nothing is s
 
 `IEditor.getValue`
 
-***
+---
 
 ### isEditorElement() \{#iseditorelement\}
 
@@ -108,9 +108,9 @@ Checks whether the target element is inside this editor's overlay
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `target` | `HTMLElement` |
+| Parameter | Type          |
+| --------- | ------------- |
+| `target`  | `HTMLElement` |
 
 #### Returns
 
@@ -120,7 +120,7 @@ Checks whether the target element is inside this editor's overlay
 
 `IEditor.isEditorElement`
 
-***
+---
 
 ### onEnd() \{#onend\}
 
@@ -140,7 +140,7 @@ Removes the overlay and unbinds the global events
 
 `IEditor.onEnd`
 
-***
+---
 
 ### onStart() \{#onstart\}
 
@@ -154,9 +154,9 @@ Pops up the search overlay, parses the candidate list, and binds keyboard and cl
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `ctx` | `EditContext`&lt;`string`&gt; |
+| Parameter | Type                          |
+| --------- | ----------------------------- |
+| `ctx`     | `EditContext`&lt;`string`&gt; |
 
 #### Returns
 

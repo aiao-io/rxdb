@@ -38,7 +38,7 @@ protected readonly confirmTitleId: string;
 
 Defined in: [packages/rxdb-plugin-board-angular/src/board-shell.ts:51](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board-angular/src/board-shell.ts#L51)
 
-***
+---
 
 ### options \{#options\}
 
@@ -50,7 +50,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-shell.ts:54](https://g
 
 Host configuration: instance factory, local adapter name, optional demo data (read once at initialization).
 
-***
+---
 
 ### state \{#state\}
 
@@ -78,7 +78,7 @@ Export callback of the board view: the archive is handed to the browser download
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### ngOnDestroy() \{#ngondestroy\}
 
@@ -99,7 +99,7 @@ before a directive, pipe, or service instance is destroyed.
 
 `OnDestroy.ngOnDestroy`
 
-***
+---
 
 ### ngOnInit() \{#ngoninit\}
 
@@ -123,7 +123,7 @@ It is invoked only once when the directive is instantiated.
 
 `OnInit.ngOnInit`
 
-***
+---
 
 ### onConfirmKeydown() \{#onconfirmkeydown\}
 
@@ -137,15 +137,15 @@ Keyboard of the confirm dialog: Esc cancels; Tab does not leave the dialog (WAI-
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `KeyboardEvent` |
+| Parameter | Type            |
+| --------- | --------------- |
+| `event`   | `KeyboardEvent` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onRestoreFile() \{#onrestorefile\}
 
@@ -157,15 +157,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-shell.ts:92](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `Event` |
+| Parameter | Type    |
+| --------- | ------- |
+| `event`   | `Event` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### resetDemo() \{#resetdemo\}
 
@@ -179,7 +179,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-shell.ts:88](https://g
 
 `void`
 
-***
+---
 
 ### settleConfirm() \{#settleconfirm\}
 
@@ -191,15 +191,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-shell.ts:100](https://
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter   | Type      |
+| ----------- | --------- |
 | `confirmed` | `boolean` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### startEmpty() \{#startempty\}
 
@@ -213,7 +213,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/board-shell.ts:80](https://g
 
 `void`
 
-***
+---
 
 ### startSeed() \{#startseed\}
 

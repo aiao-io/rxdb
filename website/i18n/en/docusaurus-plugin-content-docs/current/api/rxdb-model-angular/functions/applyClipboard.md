@@ -1,11 +1,7 @@
 # applyClipboard()
 
 ```ts
-function applyClipboard(
-   table, 
-   clipboard, 
-   columns?
-): PendingWrite[];
+function applyClipboard(table, clipboard, columns?): PendingWrite[];
 ```
 
 Defined in: packages/rxdb-model/dist/entity-table/vtable/table-clipboard.d.ts:46
@@ -17,11 +13,11 @@ if the target column defines a menuList, values outside the enum range are skipp
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `table` | `ListTableAll` | The target table instance |
-| `clipboard` | [`ClipboardContent`](../type-aliases/ClipboardContent.md) | The internal clipboard content |
-| `columns?` | readonly `Record`&lt;`string`, `unknown`&gt;[] | The column definition list (optional), used to read the column property type, enum options and the column-level readonly flag |
+| Parameter   | Type                                                      | Description                                                                                                                   |
+| ----------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `table`     | `ListTableAll`                                            | The target table instance                                                                                                     |
+| `clipboard` | [`ClipboardContent`](../type-aliases/ClipboardContent.md) | The internal clipboard content                                                                                                |
+| `columns?`  | readonly `Record`&lt;`string`, `unknown`&gt;[]            | The column definition list (optional), used to read the column property type, enum options and the column-level readonly flag |
 
 ## Returns
 

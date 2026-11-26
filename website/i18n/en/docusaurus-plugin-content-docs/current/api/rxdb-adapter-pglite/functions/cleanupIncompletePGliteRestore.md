@@ -10,9 +10,9 @@ Cleans up a restore that never finished (the page closed mid-restore, or the cle
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `target` | [`PGliteRestoreTarget`](../interfaces/PGliteRestoreTarget.md) | The same target used for the restore |
+| Parameter | Type                                                          | Description                          |
+| --------- | ------------------------------------------------------------- | ------------------------------------ |
+| `target`  | [`PGliteRestoreTarget`](../interfaces/PGliteRestoreTarget.md) | The same target used for the restore |
 
 ## Returns
 

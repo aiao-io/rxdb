@@ -16,15 +16,15 @@ Defined in: [packages/rxdb-adapter-pglite/src/backup/pglite-backup-compat.ts:27]
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `query` | `string` |
+| Parameter | Type        |
+| --------- | ----------- |
+| `query`   | `string`    |
 | `params?` | `unknown`[] |
 
 #### Returns

@@ -10,10 +10,10 @@ Derives UI capabilities from entity metadata
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `metadata` | `Pick`&lt;[`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md), `"permissions"`&gt; | Entity metadata (only its `permissions` are read) |
-| `context?` | [`EntityCapabilityContext`](../interfaces/EntityCapabilityContext.md) | Instance-side context, see [EntityCapabilityContext](../interfaces/EntityCapabilityContext.md) |
+| Parameter  | Type                                                                                         | Description                                                                                    |
+| ---------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `metadata` | `Pick`&lt;[`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md), `"permissions"`&gt; | Entity metadata (only its `permissions` are read)                                              |
+| `context?` | [`EntityCapabilityContext`](../interfaces/EntityCapabilityContext.md)                        | Instance-side context, see [EntityCapabilityContext](../interfaces/EntityCapabilityContext.md) |
 
 ## Returns
 

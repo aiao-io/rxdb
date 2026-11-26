@@ -94,86 +94,86 @@ verification, fail fast at the database creation stage with a discriminable reas
 
 ## Classes
 
-| Class | Description |
-| ------ | ------ |
-| [RxDBPluginSearch](classes/RxDBPluginSearch.md) | The main class of `@aiao/rxdb-plugin-search`. |
-| [SearchBackendCapabilityError](classes/SearchBackendCapabilityError.md) | The backend resolved from the adapter name is correct, but the **live connection** lacks the storage capability the backend requires. |
-| [SearchEncryptedFieldError](classes/SearchEncryptedFieldError.md) | A field declares both `encrypted: true` and `searchable: true`. |
-| [SearchError](classes/SearchError.md) | The error base class of `@aiao/rxdb-plugin-search`. |
-| [SearchExecutionError](classes/SearchExecutionError.md) | Runtime execution error (SQL failure / storage unavailable); recoverable via [SearchHandle.retry](interfaces/SearchHandle.md#retry). |
-| [SearchQueryLimitError](classes/SearchQueryLimitError.md) | Runtime execution error (SQL failure / storage unavailable); recoverable via [SearchHandle.retry](interfaces/SearchHandle.md#retry). |
-| [SearchSchemaMismatchError](classes/SearchSchemaMismatchError.md) | The FTS5 migration signature conflicts with the current schema; thrown at startup, blocking the mount. |
+| Class                                                                     | Description                                                                                                                                                                           |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [RxDBPluginSearch](classes/RxDBPluginSearch.md)                           | The main class of `@aiao/rxdb-plugin-search`.                                                                                                                                         |
+| [SearchBackendCapabilityError](classes/SearchBackendCapabilityError.md)   | The backend resolved from the adapter name is correct, but the **live connection** lacks the storage capability the backend requires.                                                 |
+| [SearchEncryptedFieldError](classes/SearchEncryptedFieldError.md)         | A field declares both `encrypted: true` and `searchable: true`.                                                                                                                       |
+| [SearchError](classes/SearchError.md)                                     | The error base class of `@aiao/rxdb-plugin-search`.                                                                                                                                   |
+| [SearchExecutionError](classes/SearchExecutionError.md)                   | Runtime execution error (SQL failure / storage unavailable); recoverable via [SearchHandle.retry](interfaces/SearchHandle.md#retry).                                                  |
+| [SearchQueryLimitError](classes/SearchQueryLimitError.md)                 | Runtime execution error (SQL failure / storage unavailable); recoverable via [SearchHandle.retry](interfaces/SearchHandle.md#retry).                                                  |
+| [SearchSchemaMismatchError](classes/SearchSchemaMismatchError.md)         | The FTS5 migration signature conflicts with the current schema; thrown at startup, blocking the mount.                                                                                |
 | [SearchUnsupportedAdapterError](classes/SearchUnsupportedAdapterError.md) | The current database's adapter cannot map to any search backend; fails fast at the `createRxDatabase` stage, the plugin does not mount `.search`, and no degraded Handle is returned. |
 
 ## Interfaces
 
-| Interface | Description |
-| ------ | ------ |
-| [CreateSearchHandleOptions](interfaces/CreateSearchHandleOptions.md) | SearchHandle factory configuration. |
-| [FtsInstallPlan](interfaces/FtsInstallPlan.md) | The FTS5 installation plan of a single entity |
-| [InstallFtsResult](interfaces/InstallFtsResult.md) | The installation result of a single entity. |
-| [InvalidSearchableField](interfaces/InvalidSearchableField.md) | Schema validation failure details. |
-| [MigrationRecordStore](interfaces/MigrationRecordStore.md) | Migration record access abstraction. The plugin does not directly depend on the `RxDBMigration` entity, easing unit testing and reuse. |
-| [ResolveScopeInput](interfaces/ResolveScopeInput.md) | Resolves the collection range participating in aggregation. |
-| [RuntimeSqlExecutor](interfaces/RuntimeSqlExecutor.md) | The atomic SQL execution interface, shaped like `RxDBAdapterSqliteBase.rawQuery` of `@aiao/rxdb-adapter-sqlite-core`. |
-| [SearchBackend](interfaces/SearchBackend.md) | The complete implementation of one full-text search backend. |
-| [SearchBackendCapabilities](interfaces/SearchBackendCapabilities.md) | The capability set **self-declared** by the backend. |
-| [SearchBackendDescriptor](interfaces/SearchBackendDescriptor.md) | The registration entry of a single adapter. |
-| [SearchEngine](interfaces/SearchEngine.md) | The engine handle returned by `createSearchEngine(...)`. |
-| [SearchEngineQuery](interfaces/SearchEngineQuery.md) | The input of `createSearchEngine().search(...)`. |
-| [SearchHandle](interfaces/SearchHandle.md) | The reactive handle returned by `collection.search()` / `rxDB.search()`. |
-| [SearchOptions](interfaces/SearchOptions.md) | The adjustable parameters of one search request; can override the [SearchPluginOptions](interfaces/SearchPluginOptions.md) global defaults. |
-| [SearchPage](interfaces/SearchPage.md) | One page of query results + whether there is a next page. |
-| [SearchPluginOptions](interfaces/SearchPluginOptions.md) | The initialization options of `rxDBPluginSearch(options)`. |
-| [SearchResult](interfaces/SearchResult.md) | One search hit. |
-| [SearchSourceLike](interfaces/SearchSourceLike.md) | The minimal data-source shape exposing a `search()` method (`RxDB` / `RxCollection`). |
-| [SearchStateSnapshot](interfaces/SearchStateSnapshot.md) | The state machine's internal snapshot (with all observable derived fields). |
+| Interface                                                            | Description                                                                                                                                 |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| [CreateSearchHandleOptions](interfaces/CreateSearchHandleOptions.md) | SearchHandle factory configuration.                                                                                                         |
+| [FtsInstallPlan](interfaces/FtsInstallPlan.md)                       | The FTS5 installation plan of a single entity                                                                                               |
+| [InstallFtsResult](interfaces/InstallFtsResult.md)                   | The installation result of a single entity.                                                                                                 |
+| [InvalidSearchableField](interfaces/InvalidSearchableField.md)       | Schema validation failure details.                                                                                                          |
+| [MigrationRecordStore](interfaces/MigrationRecordStore.md)           | Migration record access abstraction. The plugin does not directly depend on the `RxDBMigration` entity, easing unit testing and reuse.      |
+| [ResolveScopeInput](interfaces/ResolveScopeInput.md)                 | Resolves the collection range participating in aggregation.                                                                                 |
+| [RuntimeSqlExecutor](interfaces/RuntimeSqlExecutor.md)               | The atomic SQL execution interface, shaped like `RxDBAdapterSqliteBase.rawQuery` of `@aiao/rxdb-adapter-sqlite-core`.                       |
+| [SearchBackend](interfaces/SearchBackend.md)                         | The complete implementation of one full-text search backend.                                                                                |
+| [SearchBackendCapabilities](interfaces/SearchBackendCapabilities.md) | The capability set **self-declared** by the backend.                                                                                        |
+| [SearchBackendDescriptor](interfaces/SearchBackendDescriptor.md)     | The registration entry of a single adapter.                                                                                                 |
+| [SearchEngine](interfaces/SearchEngine.md)                           | The engine handle returned by `createSearchEngine(...)`.                                                                                    |
+| [SearchEngineQuery](interfaces/SearchEngineQuery.md)                 | The input of `createSearchEngine().search(...)`.                                                                                            |
+| [SearchHandle](interfaces/SearchHandle.md)                           | The reactive handle returned by `collection.search()` / `rxDB.search()`.                                                                    |
+| [SearchOptions](interfaces/SearchOptions.md)                         | The adjustable parameters of one search request; can override the [SearchPluginOptions](interfaces/SearchPluginOptions.md) global defaults. |
+| [SearchPage](interfaces/SearchPage.md)                               | One page of query results + whether there is a next page.                                                                                   |
+| [SearchPluginOptions](interfaces/SearchPluginOptions.md)             | The initialization options of `rxDBPluginSearch(options)`.                                                                                  |
+| [SearchResult](interfaces/SearchResult.md)                           | One search hit.                                                                                                                             |
+| [SearchSourceLike](interfaces/SearchSourceLike.md)                   | The minimal data-source shape exposing a `search()` method (`RxDB` / `RxCollection`).                                                       |
+| [SearchStateSnapshot](interfaces/SearchStateSnapshot.md)             | The state machine's internal snapshot (with all observable derived fields).                                                                 |
 
 ## Type Aliases
 
-| Type Alias | Description |
-| ------ | ------ |
-| [FtsExecutor](type-aliases/FtsExecutor.md) | The SQL execution adapter: takes parameterized SQL and returns FTS rows. |
-| [PerformSearch](type-aliases/PerformSearch.md) | The "really do the work" function injected by plugin.ts: given query terms and a page number, returns that page's results. |
-| [SearchBackendId](type-aliases/SearchBackendId.md) | The identifiers of implemented search backends. |
-| [SearchBackendStatus](type-aliases/SearchBackendStatus.md) | Registration status. |
+| Type Alias                                                   | Description                                                                                                                                   |
+| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| [FtsExecutor](type-aliases/FtsExecutor.md)                   | The SQL execution adapter: takes parameterized SQL and returns FTS rows.                                                                      |
+| [PerformSearch](type-aliases/PerformSearch.md)               | The "really do the work" function injected by plugin.ts: given query terms and a page number, returns that page's results.                    |
+| [SearchBackendId](type-aliases/SearchBackendId.md)           | The identifiers of implemented search backends.                                                                                               |
+| [SearchBackendStatus](type-aliases/SearchBackendStatus.md)   | Registration status.                                                                                                                          |
 | [SearchQueryLimitKind](type-aliases/SearchQueryLimitKind.md) | The query compilation budget is exceeded; no SQL is executed, observable via error$, and the caller can prompt the user to shorten the input. |
-| [SearchState](type-aliases/SearchState.md) | The five states of the `SearchHandle` state machine. |
-| [SearchStateMachine](type-aliases/SearchStateMachine.md) | The return type of `createSearchState`; can be referenced by structure in `SearchHandle` implementations. |
+| [SearchState](type-aliases/SearchState.md)                   | The five states of the `SearchHandle` state machine.                                                                                          |
+| [SearchStateMachine](type-aliases/SearchStateMachine.md)     | The return type of `createSearchState`; can be referenced by structure in `SearchHandle` implementations.                                     |
 
 ## Variables
 
-| Variable | Description |
-| ------ | ------ |
-| [FULL\_SEARCH\_CAPABILITIES](variables/FULL_SEARCH_CAPABILITIES.md) | Both backends currently implement all capabilities; extracted as a constant to avoid drift from each repeating literals. |
-| [MAX\_CONTAINS\_FALLBACK\_ROWS](variables/MAX_CONTAINS_FALLBACK_ROWS.md) | The unindexed contains fallback is not run when the source table's row count exceeds this. |
-| [MAX\_QUERY\_LENGTH](variables/MAX_QUERY_LENGTH.md) | The maximum UTF-16 code units of a raw query, bounding compilation and FTS expression memory growth. |
-| [MAX\_QUERY\_TOKENS](variables/MAX_QUERY_TOKENS.md) | The maximum tokens kept per query, far below SQLite's hard bind / expression limits. |
-| [MAX\_TOKEN\_LENGTH](variables/MAX_TOKEN_LENGTH.md) | The maximum UTF-16 code units of one token, avoiding overly long phrases crushing the FTS tokenizer. |
-| [rxDBPluginSearch](variables/rxDBPluginSearch.md) | The plugin factory; same shape as `rxDBPluginTrigger`. |
-| [SEARCH\_BACKEND\_DESCRIPTORS](variables/SEARCH_BACKEND_DESCRIPTORS.md) | All registration entries. |
-| [SEARCHABLE\_PROPERTY\_TYPES](variables/SEARCHABLE_PROPERTY_TYPES.md) | - |
+| Variable                                                                 | Description                                                                                                              |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| [FULL\_SEARCH\_CAPABILITIES](variables/FULL_SEARCH_CAPABILITIES.md)      | Both backends currently implement all capabilities; extracted as a constant to avoid drift from each repeating literals. |
+| [MAX\_CONTAINS\_FALLBACK\_ROWS](variables/MAX_CONTAINS_FALLBACK_ROWS.md) | The unindexed contains fallback is not run when the source table's row count exceeds this.                               |
+| [MAX\_QUERY\_LENGTH](variables/MAX_QUERY_LENGTH.md)                      | The maximum UTF-16 code units of a raw query, bounding compilation and FTS expression memory growth.                     |
+| [MAX\_QUERY\_TOKENS](variables/MAX_QUERY_TOKENS.md)                      | The maximum tokens kept per query, far below SQLite's hard bind / expression limits.                                     |
+| [MAX\_TOKEN\_LENGTH](variables/MAX_TOKEN_LENGTH.md)                      | The maximum UTF-16 code units of one token, avoiding overly long phrases crushing the FTS tokenizer.                     |
+| [rxDBPluginSearch](variables/rxDBPluginSearch.md)                        | The plugin factory; same shape as `rxDBPluginTrigger`.                                                                   |
+| [SEARCH\_BACKEND\_DESCRIPTORS](variables/SEARCH_BACKEND_DESCRIPTORS.md)  | All registration entries.                                                                                                |
+| [SEARCHABLE\_PROPERTY\_TYPES](variables/SEARCHABLE_PROPERTY_TYPES.md)    | -                                                                                                                        |
 
 ## Functions
 
-| Function | Description |
-| ------ | ------ |
-| [assertSearchableSchemaValid](functions/assertSearchableSchemaValid.md) | Aggregating validation: throws on any illegal field, otherwise passes silently. |
-| [buildBackfillSql](functions/buildBackfillSql.md) | Backfill SQL: external-content FTS5 tables bind the primary key via rowid; stringArray fields go through json_each subqueries. |
-| [buildFieldContainsSql](functions/buildFieldContainsSql.md) | Single-field contains fallback SQL. |
-| [buildFieldMatchExpression](functions/buildFieldMatchExpression.md) | FTS5 column filter expression: `<field> : (<compiled.match>)` |
-| [buildFieldSearchSql](functions/buildFieldSearchSql.md) | Single-field search SQL. |
-| [buildResetFtsSql](functions/buildResetFtsSql.md) | The FTS5 virtual table reset command: clears the index but keeps the table structure. |
-| [buildSourceRowCountSql](functions/buildSourceRowCountSql.md) | The row-count budget probe before the contains fallback. |
+| Function                                                                      | Description                                                                                                                                     |
+| ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| [assertSearchableSchemaValid](functions/assertSearchableSchemaValid.md)       | Aggregating validation: throws on any illegal field, otherwise passes silently.                                                                 |
+| [buildBackfillSql](functions/buildBackfillSql.md)                             | Backfill SQL: external-content FTS5 tables bind the primary key via rowid; stringArray fields go through json_each subqueries.                  |
+| [buildFieldContainsSql](functions/buildFieldContainsSql.md)                   | Single-field contains fallback SQL.                                                                                                             |
+| [buildFieldMatchExpression](functions/buildFieldMatchExpression.md)           | FTS5 column filter expression: `<field> : (<compiled.match>)`                                                                                   |
+| [buildFieldSearchSql](functions/buildFieldSearchSql.md)                       | Single-field search SQL.                                                                                                                        |
+| [buildResetFtsSql](functions/buildResetFtsSql.md)                             | The FTS5 virtual table reset command: clears the index but keeps the table structure.                                                           |
+| [buildSourceRowCountSql](functions/buildSourceRowCountSql.md)                 | The row-count budget probe before the contains fallback.                                                                                        |
 | [collectInvalidSearchableFields](functions/collectInvalidSearchableFields.md) | Scans entity metadata for all fields explicitly marked `searchable: true`, collecting entries with illegal types (not string/enum/stringArray). |
-| [createFts5Backend](functions/createFts5Backend.md) | Constructs the SQLite FTS5 backend. |
-| [createPgTsvectorBackend](functions/createPgTsvectorBackend.md) | Constructs the PostgreSQL tsvector backend. |
-| [createSearchBackend](functions/createSearchBackend.md) | Constructs a backend instance by backend identifier. |
-| [createSearchEngine](functions/createSearchEngine.md) | Constructs a `SearchEngine`, binding an SQL executor. |
-| [createSearchHandle](functions/createSearchHandle.md) | Assembles a [SearchHandle](interfaces/SearchHandle.md). Callers only care about the state stream and lifecycle management. |
-| [createSearchState](functions/createSearchState.md) | Creates a brand-new search state machine. |
-| [installFtsForEntity](functions/installFtsForEntity.md) | Runs the FTS5 installation of a single entity; idempotent. |
-| [lookupSearchBackendDescriptor](functions/lookupSearchBackendDescriptor.md) | Looks up a registration entry. |
-| [resolveSearchBackend](functions/resolveSearchBackend.md) | Resolves the search backend of the current adapter; throws when unavailable. |
-| [resolveSearchScope](functions/resolveSearchScope.md) | Computes the final collection name list participating in the search aggregation (same order as `candidates`, de-duplicated). |
-| [searchOptionsEqual](functions/searchOptionsEqual.md) | Determines whether two [SearchOptions](interfaces/SearchOptions.md) are equivalent **in the sense of rebuilding a `SearchHandle`**. |
+| [createFts5Backend](functions/createFts5Backend.md)                           | Constructs the SQLite FTS5 backend.                                                                                                             |
+| [createPgTsvectorBackend](functions/createPgTsvectorBackend.md)               | Constructs the PostgreSQL tsvector backend.                                                                                                     |
+| [createSearchBackend](functions/createSearchBackend.md)                       | Constructs a backend instance by backend identifier.                                                                                            |
+| [createSearchEngine](functions/createSearchEngine.md)                         | Constructs a `SearchEngine`, binding an SQL executor.                                                                                           |
+| [createSearchHandle](functions/createSearchHandle.md)                         | Assembles a [SearchHandle](interfaces/SearchHandle.md). Callers only care about the state stream and lifecycle management.                      |
+| [createSearchState](functions/createSearchState.md)                           | Creates a brand-new search state machine.                                                                                                       |
+| [installFtsForEntity](functions/installFtsForEntity.md)                       | Runs the FTS5 installation of a single entity; idempotent.                                                                                      |
+| [lookupSearchBackendDescriptor](functions/lookupSearchBackendDescriptor.md)   | Looks up a registration entry.                                                                                                                  |
+| [resolveSearchBackend](functions/resolveSearchBackend.md)                     | Resolves the search backend of the current adapter; throws when unavailable.                                                                    |
+| [resolveSearchScope](functions/resolveSearchScope.md)                         | Computes the final collection name list participating in the search aggregation (same order as `candidates`, de-duplicated).                    |
+| [searchOptionsEqual](functions/searchOptionsEqual.md)                         | Determines whether two [SearchOptions](interfaces/SearchOptions.md) are equivalent **in the sense of rebuilding a `SearchHandle`**.             |

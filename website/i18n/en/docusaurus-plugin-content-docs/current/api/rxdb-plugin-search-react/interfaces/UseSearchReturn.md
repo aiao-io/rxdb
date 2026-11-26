@@ -20,12 +20,12 @@ Clears the query and results and returns to idle
 
 `void`
 
-***
+---
 
 ### error \{#error\}
 
 ```ts
-error: 
+error:
   | SearchExecutionError
   | undefined;
 ```
@@ -34,7 +34,7 @@ Defined in: [packages/rxdb-plugin-search-react/src/use-search.ts:41](https://git
 
 The most recent execution error
 
-***
+---
 
 ### hasMore \{#hasmore\}
 
@@ -46,7 +46,7 @@ Defined in: [packages/rxdb-plugin-search-react/src/use-search.ts:43](https://git
 
 Whether there is another page
 
-***
+---
 
 ### loadMore \{#loadmore\}
 
@@ -62,7 +62,7 @@ Loads the next page; no-op when there is no more
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### query \{#query\}
 
@@ -74,7 +74,7 @@ Defined in: [packages/rxdb-plugin-search-react/src/use-search.ts:33](https://git
 
 The current query term
 
-***
+---
 
 ### results \{#results\}
 
@@ -86,7 +86,7 @@ Defined in: [packages/rxdb-plugin-search-react/src/use-search.ts:37](https://git
 
 The current results
 
-***
+---
 
 ### retry \{#retry\}
 
@@ -102,7 +102,7 @@ Retries in the error state
 
 `void`
 
-***
+---
 
 ### setQuery \{#setquery\}
 
@@ -116,15 +116,15 @@ Writes the query term; triggers the plugin debounce
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `q` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `q`       | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### state \{#state\}
 

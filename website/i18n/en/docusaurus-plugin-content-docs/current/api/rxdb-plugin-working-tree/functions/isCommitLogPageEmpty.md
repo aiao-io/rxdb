@@ -10,9 +10,9 @@ The empty form of `listCommits()`: this branch has no history yet.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `page` | [`CommitLogPage`](../interfaces/CommitLogPage.md) |
+| Parameter | Type                                              |
+| --------- | ------------------------------------------------- |
+| `page`    | [`CommitLogPage`](../interfaces/CommitLogPage.md) |
 
 ## Returns
 

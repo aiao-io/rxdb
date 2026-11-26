@@ -84,19 +84,19 @@ rxdb.use(rxDBPluginQueryCache);
 
 ## Classes
 
-| Class | Description |
-| ------ | ------ |
-| [QueryCacheEngine](classes/QueryCacheEngine.md) | Repository for the QueryCache sync strategy |
-| [RxDBPluginQueryCache](classes/RxDBPluginQueryCache.md) | QueryCache read engine plugin. |
+| Class                                                   | Description                                 |
+| ------------------------------------------------------- | ------------------------------------------- |
+| [QueryCacheEngine](classes/QueryCacheEngine.md)         | Repository for the QueryCache sync strategy |
+| [RxDBPluginQueryCache](classes/RxDBPluginQueryCache.md) | QueryCache read engine plugin.              |
 
 ## Type Aliases
 
-| Type Alias | Description |
-| ------ | ------ |
+| Type Alias                                                                 | Description                              |
+| -------------------------------------------------------------------------- | ---------------------------------------- |
 | [RxDBPluginQueryCacheOptions](type-aliases/RxDBPluginQueryCacheOptions.md) | This plugin currently accepts no options |
 
 ## Variables
 
-| Variable | Description |
-| ------ | ------ |
+| Variable                                                  | Description                            |
+| --------------------------------------------------------- | -------------------------------------- |
 | [rxDBPluginQueryCache](variables/rxDBPluginQueryCache.md) | QueryCache read engine plugin factory. |

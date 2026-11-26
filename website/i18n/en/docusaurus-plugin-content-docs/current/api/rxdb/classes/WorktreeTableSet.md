@@ -25,7 +25,7 @@ Defined in: [packages/rxdb/src/system/worktree-table-set.ts:92](https://github.c
 
 The physical name suffix; `null` for the main table set
 
-***
+---
 
 ### MAIN \{#main\}
 
@@ -61,7 +61,7 @@ instead of each writing its own `activated = true`. The main table set is still 
 
 [`WorktreeHeldBranchWhere`](../type-aliases/WorktreeHeldBranchWhere.md)
 
-***
+---
 
 ### holderKey \{#holderkey\}
 
@@ -87,7 +87,7 @@ so hold keys cannot be mistaken for branch names.
 
 `string`
 
-***
+---
 
 ### isMain \{#ismain\}
 
@@ -119,10 +119,10 @@ Whether an instance mounting this table set accepts an entity event: whether the
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `metadata` | \| `Readonly`&lt;[`EntityMetadataType`](../interfaces/EntityMetadataType.md)&gt; \| `undefined` | The metadata of the entity in the event; events with no metadata found (unrecognized entities) are always accepted |
-| `eventSuffix` | `string` \| `undefined` | The event's `tableSetSuffix`: which shadow table set the write landed on; the default is the main table set |
+| Parameter     | Type                                                                                            | Description                                                                                                        |
+| ------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `metadata`    | \| `Readonly`&lt;[`EntityMetadataType`](../interfaces/EntityMetadataType.md)&gt; \| `undefined` | The metadata of the entity in the event; events with no metadata found (unrecognized entities) are always accepted |
+| `eventSuffix` | `string` \| `undefined`                                                                         | The event's `tableSetSuffix`: which shadow table set the write landed on; the default is the main table set        |
 
 #### Returns
 
@@ -136,7 +136,7 @@ Entities without copies (system tables, QueryCache, change-log-off entities) rea
 entities with copies only accept events on their own set. Multiple tabs on the main checkout are judged by table set, not by branch: one tab switched branches,
 while another tab still mounts the same main tables and reads the new branch's data; filtering by branch would keep those events out.
 
-***
+---
 
 ### eventTagOf() \{#eventtagof\}
 
@@ -150,8 +150,8 @@ The table set tag an entity's event should carry on this set, spread into the ev
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                  | Description     |
+| ---------- | ----------------------------------------------------- | --------------- |
 | `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) | Entity metadata |
 
 #### Returns
@@ -170,7 +170,7 @@ readonly tableSetSuffix?: string;
 
 Writes on the main table set do not carry a key with the value `undefined`: in databases without checkouts, the event shape is byte-for-byte the same as before.
 
-***
+---
 
 ### has() \{#has\}
 
@@ -184,8 +184,8 @@ Whether this entity has its own copy in this table set.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                  | Description     |
+| ---------- | ----------------------------------------------------- | --------------- |
 | `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) | Entity metadata |
 
 #### Returns
@@ -194,7 +194,7 @@ Whether this entity has its own copy in this table set.
 
 `true` when it has a copy; always `false` for the main table set
 
-***
+---
 
 ### ownerSuffixOf() \{#ownersuffixof\}
 
@@ -208,8 +208,8 @@ Which table set an entity's writes land on in this set: with a copy they land on
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                  | Description     |
+| ---------- | ----------------------------------------------------- | --------------- |
 | `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) | Entity metadata |
 
 #### Returns
@@ -223,7 +223,7 @@ The shadow table set's suffix; `undefined` when they land on the main table set
 Local entity events carry it (`tableSetSuffix`, US-314 B2.3). Event-emitting paths outside change rows (branch switching, undo / redo, pull backfill, creating entities)
 are tagged by the table set that initiated the write, judging the same thing as [WorktreeTableSet.accepts](#accepts).
 
-***
+---
 
 ### isSuffix() \{#issuffix\}
 
@@ -237,9 +237,9 @@ Whether it matches the table set suffix shape (`wt_` plus 1–12 lowercase lette
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `string` | The segment cut from a physical name in the catalog or a schema name |
+| Parameter | Type     | Description                                                          |
+| --------- | -------- | -------------------------------------------------------------------- |
+| `value`   | `string` | The segment cut from a physical name in the catalog or a schema name |
 
 #### Returns
 
@@ -251,7 +251,7 @@ Whether it matches the table set suffix shape (`wt_` plus 1–12 lowercase lette
 
 Adapters use it to recognize suffixes when enumerating existing table sets in the catalog (US-314 B2.6 orphan reclamation), the same rule as [WorktreeTableSet.of](#of).
 
-***
+---
 
 ### of() \{#of\}
 
@@ -265,10 +265,10 @@ A writable checkout's table set.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `suffix` | `string` | The physical name suffix: `wt_` plus 1–12 lowercase letters or digits |
-| `entities` | `Iterable`&lt;[`EntityType`](../type-aliases/EntityType.md)&gt; | The entities that have their own copies in this table set |
+| Parameter  | Type                                                            | Description                                                           |
+| ---------- | --------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `suffix`   | `string`                                                        | The physical name suffix: `wt_` plus 1–12 lowercase letters or digits |
+| `entities` | `Iterable`&lt;[`EntityType`](../type-aliases/EntityType.md)&gt; | The entities that have their own copies in this table set             |
 
 #### Returns
 
@@ -280,7 +280,7 @@ The table set
 
 [RxDBError](RxDBError.md) when the suffix does not match the shape
 
-***
+---
 
 ### schemaFingerprintOf() \{#schemafingerprintof\}
 
@@ -294,8 +294,8 @@ The structure fingerprint of a table set (US-314 B2.6): the structure of the mem
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                     | Description                   |
+| ---------- | -------------------------------------------------------- | ----------------------------- |
 | `entities` | readonly [`EntityType`](../type-aliases/EntityType.md)[] | The members of this table set |
 
 #### Returns
@@ -308,7 +308,7 @@ The structure fingerprint of a table set (US-314 B2.6): the structure of the mem
 
 Recorded when a writable checkout is opened (combined with the plugin hooks' fingerprints, see `RxDB.worktreeTableSetFingerprint`); if it does not match at mount time, the whole set is rebuilt.
 
-***
+---
 
 ### suffixOfHolderKey() \{#suffixofholderkey\}
 
@@ -322,8 +322,8 @@ Reads the shadow table set's suffix back from a hold key.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type     | Description                          |
+| ----------- | -------- | ------------------------------------ |
 | `activeKey` | `string` | The value in `rxdb_branch.activeKey` |
 
 #### Returns

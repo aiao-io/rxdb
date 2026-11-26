@@ -10,15 +10,15 @@ The ids of all groups (nodes with children) in the menu, including nested groups
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `nodes` | readonly [`MenuNode`](../interfaces/MenuNode.md)&lt;`T`&gt;[] | The menu tree. |
+| Parameter | Type                                                          | Description    |
+| --------- | ------------------------------------------------------------- | -------------- |
+| `nodes`   | readonly [`MenuNode`](../interfaces/MenuNode.md)&lt;`T`&gt;[] | The menu tree. |
 
 ## Returns
 

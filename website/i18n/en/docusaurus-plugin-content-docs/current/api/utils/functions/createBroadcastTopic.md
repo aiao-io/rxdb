@@ -10,15 +10,15 @@ Creates a BroadcastChannel topic.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` | `unknown` |
+| Type Parameter                    | Default type |
+| --------------------------------- | ------------ |
+| <a id="type-parameter-t"></a> `T` | `unknown`    |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `event` | `string` | Channel name |
+| Parameter | Type     | Description  |
+| --------- | -------- | ------------ |
+| `event`   | `string` | Channel name |
 
 ## Returns
 

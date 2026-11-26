@@ -16,7 +16,7 @@ Defined in: packages/rxdb-model/dist/entity-table/interfaces.d.ts:53
 
 Index of the target column
 
-***
+---
 
 ### field \{#field\}
 
@@ -28,7 +28,7 @@ Defined in: packages/rxdb-model/dist/entity-table/interfaces.d.ts:59
 
 Field name of the target column
 
-***
+---
 
 ### record \{#record\}
 
@@ -40,7 +40,7 @@ Defined in: packages/rxdb-model/dist/entity-table/interfaces.d.ts:61
 
 Snapshot of the target row record (at write time)
 
-***
+---
 
 ### row \{#row\}
 
@@ -52,7 +52,7 @@ Defined in: packages/rxdb-model/dist/entity-table/interfaces.d.ts:55
 
 Index of the target row
 
-***
+---
 
 ### value \{#value\}
 

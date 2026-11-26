@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-search/src/core/schema-validator.ts:40](https:
 
 Entity name (e.g. `Article`)
 
-***
+---
 
 ### field \{#field\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-search/src/core/schema-validator.ts:42](https:
 
 Field name (the name of the property declaration, Uncapitalize)
 
-***
+---
 
 ### type \{#type\}
 

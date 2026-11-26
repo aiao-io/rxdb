@@ -1,29 +1,29 @@
 # RxDBAdapterDesktopErrorCode
 
 ```ts
-type RxDBAdapterDesktopErrorCode = 
-  | "unsupported_runtime_engine"
-  | "invalid_database_name"
-  | "host_unavailable"
-  | "session_closed"
-  | "protocol_violation"
-  | "open_failed"
-  | "permission_denied"
-  | "database_corrupted"
-  | "statement_failed"
-  | "host_internal_error"
-  | "database_busy"
-  | "file_not_found"
-  | "invalid_file_path"
-  | "disk_full"
-  | "write_aborted"
-  | "transaction_not_found"
-  | "transaction_unavailable"
-  | "restore_in_progress"
-  | "restore_incomplete"
-  | "target_not_empty"
-  | "cleanup_pending"
-  | "unsupported_operation";
+type RxDBAdapterDesktopErrorCode =
+  | 'unsupported_runtime_engine'
+  | 'invalid_database_name'
+  | 'host_unavailable'
+  | 'session_closed'
+  | 'protocol_violation'
+  | 'open_failed'
+  | 'permission_denied'
+  | 'database_corrupted'
+  | 'statement_failed'
+  | 'host_internal_error'
+  | 'database_busy'
+  | 'file_not_found'
+  | 'invalid_file_path'
+  | 'disk_full'
+  | 'write_aborted'
+  | 'transaction_not_found'
+  | 'transaction_unavailable'
+  | 'restore_in_progress'
+  | 'restore_incomplete'
+  | 'target_not_empty'
+  | 'cleanup_pending'
+  | 'unsupported_operation';
 ```
 
 Defined in: packages/rxdb-adapter-sqlite-core/dist/desktop/desktop-error.d.ts:38

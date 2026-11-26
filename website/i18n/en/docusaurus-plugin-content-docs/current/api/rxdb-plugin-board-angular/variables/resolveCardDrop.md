@@ -10,12 +10,12 @@ Pointer coordinates → column head / between two neighbors / column tail / empt
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                                        |
+| --------- | ------------------------------------------------------------------------------------------- |
 | `columns` | readonly [`CardDropColumnView`](../../rxdb-plugin-board/interfaces/CardDropColumnView.md)[] |
-| `movedId` | [`UUID`](../../rxdb/type-aliases/UUID.md) |
-| `x` | `number` |
-| `y` | `number` |
+| `movedId` | [`UUID`](../../rxdb/type-aliases/UUID.md)                                                   |
+| `x`       | `number`                                                                                    |
+| `y`       | `number`                                                                                    |
 
 ## Returns
 

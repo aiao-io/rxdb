@@ -14,7 +14,7 @@ columnName: string;
 
 Defined in: [packages/rxdb-adapter-encrypted/src/keyring.ts:98](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-encrypted/src/keyring.ts#L98)
 
-***
+---
 
 ### entityNamespace \{#entitynamespace\}
 
@@ -24,7 +24,7 @@ entityNamespace: string;
 
 Defined in: [packages/rxdb-adapter-encrypted/src/keyring.ts:96](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-encrypted/src/keyring.ts#L96)
 
-***
+---
 
 ### plaintext \{#plaintext\}
 
@@ -34,7 +34,7 @@ plaintext: Uint8Array;
 
 Defined in: [packages/rxdb-adapter-encrypted/src/keyring.ts:95](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-encrypted/src/keyring.ts#L95)
 
-***
+---
 
 ### primaryKey \{#primarykey\}
 
@@ -44,7 +44,7 @@ primaryKey: RxDBEntityId;
 
 Defined in: [packages/rxdb-adapter-encrypted/src/keyring.ts:99](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-encrypted/src/keyring.ts#L99)
 
-***
+---
 
 ### tableName \{#tablename\}
 

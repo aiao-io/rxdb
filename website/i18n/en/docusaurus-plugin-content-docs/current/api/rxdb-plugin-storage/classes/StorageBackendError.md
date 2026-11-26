@@ -24,8 +24,8 @@ prototype under structured clone and cannot be reliably discriminated on its own
 
 ```ts
 new StorageBackendError(
-   code, 
-   message, 
+   code,
+   message,
    detail?
 ): StorageBackendError;
 ```
@@ -36,11 +36,11 @@ Creates a backend error.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `code` | [`StorageBackendErrorCode`](../type-aliases/StorageBackendErrorCode.md) |
-| `message` | `string` |
-| `detail?` | `unknown` |
+| Parameter | Type                                                                    |
+| --------- | ----------------------------------------------------------------------- |
+| `code`    | [`StorageBackendErrorCode`](../type-aliases/StorageBackendErrorCode.md) |
+| `message` | `string`                                                                |
+| `detail?` | `unknown`                                                               |
 
 #### Returns
 
@@ -64,7 +64,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 `Error.cause`
 
-***
+---
 
 ### code \{#code\}
 
@@ -76,7 +76,7 @@ Defined in: [packages/rxdb-plugin-storage/src/errors.ts:199](https://github.com/
 
 The stable error code; still discriminable after crossing IPC.
 
-***
+---
 
 ### detail? \{#detail\}
 
@@ -89,7 +89,7 @@ Defined in: [packages/rxdb-plugin-storage/src/errors.ts:201](https://github.com/
 The structured residue of the original failure cause; for diagnostics only, and
 never part of control flow.
 
-***
+---
 
 ### message \{#message\}
 
@@ -103,7 +103,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 `Error.message`
 
-***
+---
 
 ### name \{#name\}
 
@@ -117,7 +117,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 `Error.name`
 
-***
+---
 
 ### stack? \{#stack\}
 
@@ -131,7 +131,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 `Error.stack`
 
-***
+---
 
 ### stackTraceLimit \{#stacktracelimit\}
 
@@ -172,7 +172,7 @@ a string representing the location in the code at which
 ```js
 const myObject = {};
 Error.captureStackTrace(myObject);
-myObject.stack;  // Similar to `new Error().stack`
+myObject.stack; // Similar to `new Error().stack`
 ```
 
 The first line of the trace will be prefixed with
@@ -211,9 +211,9 @@ a();
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `targetObject` | `object` |
+| Parameter         | Type       |
+| ----------------- | ---------- |
+| `targetObject`    | `object`   |
 | `constructorOpt?` | `Function` |
 
 #### Returns
@@ -224,7 +224,7 @@ a();
 
 `Error.captureStackTrace`
 
-***
+---
 
 ### prepareStackTrace() \{#preparestacktrace\}
 
@@ -236,9 +236,9 @@ Defined in: node\_modules/.pnpm/@types+node@26.6.6/node\_modules/@types/node/glo
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `err` | `Error` |
+| Parameter     | Type         |
+| ------------- | ------------ |
+| `err`         | `Error`      |
 | `stackTraces` | `CallSite`[] |
 
 #### Returns

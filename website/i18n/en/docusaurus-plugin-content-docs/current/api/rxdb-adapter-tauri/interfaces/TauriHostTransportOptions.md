@@ -18,10 +18,10 @@ Tauri's command invocation function, usually `invoke` from `@tauri-apps/api/core
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `command` | `string` | Command name |
-| `args` | `Record`&lt;`string`, `unknown`&gt; | Command arguments |
+| Parameter | Type                                | Description       |
+| --------- | ----------------------------------- | ----------------- |
+| `command` | `string`                            | Command name      |
+| `args`    | `Record`&lt;`string`, `unknown`&gt; | Command arguments |
 
 #### Returns
 
@@ -29,7 +29,7 @@ Tauri's command invocation function, usually `invoke` from `@tauri-apps/api/core
 
 Command return value (JSON shape)
 
-***
+---
 
 ### listen \{#listen\}
 
@@ -43,12 +43,12 @@ Tauri's event subscription function, usually `listen` from `@tauri-apps/api/even
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `event` | `string` | Event name |
-| `handler` | (`event`) => `void` | Event callback |
-| `options?` | \{ `target?`: `string`; \} | Subscription options; this transport only uses `target`, see [TauriHostTransportOptions.target](#target) |
-| `options.target?` | `string` | - |
+| Parameter         | Type                       | Description                                                                                              |
+| ----------------- | -------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `event`           | `string`                   | Event name                                                                                               |
+| `handler`         | (`event`) => `void`        | Event callback                                                                                           |
+| `options?`        | \{ `target?`: `string`; \} | Subscription options; this transport only uses `target`, see [TauriHostTransportOptions.target](#target) |
+| `options.target?` | `string`                   | -                                                                                                        |
 
 #### Returns
 
@@ -56,7 +56,7 @@ Tauri's event subscription function, usually `listen` from `@tauri-apps/api/even
 
 Function to unsubscribe
 
-***
+---
 
 ### onListenError? \{#onlistenerror\}
 
@@ -70,9 +70,9 @@ Callback for problems on the change-event channel, covering both registration fa
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `error` | `unknown` | The reason `listen` registration failed, or the reason a pushed message failed to decode / dispatch |
+| Parameter | Type      | Description                                                                                         |
+| --------- | --------- | --------------------------------------------------------------------------------------------------- |
+| `error`   | `unknown` | The reason `listen` registration failed, or the reason a pushed message failed to decode / dispatch |
 
 #### Returns
 
@@ -87,7 +87,7 @@ as "the data did not change" — the hardest of all failure shapes to diagnose.
 Implementations **should not throw**: this is called synchronously from Tauri's event callback, and
 a throw has no one to catch it.
 
-***
+---
 
 ### target \{#target\}
 

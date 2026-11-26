@@ -34,7 +34,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree.entity.ts:7
 
 The target branch for a branch view; the branch the commit lives on for a commit view
 
-***
+---
 
 ### commitId \{#commitid\}
 
@@ -46,7 +46,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree.entity.ts:7
 
 The commit id for a commit view; `null` for a branch view
 
-***
+---
 
 ### createdAt \{#createdat\}
 
@@ -58,7 +58,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree.entity.ts:1
 
 Registration time
 
-***
+---
 
 ### dbName \{#dbname\}
 
@@ -71,7 +71,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree.entity.ts:9
 The snapshot database's logical database name (handed to the snapshot instance as `dbName`), used to locate the
 database during reclamation; `null` for a writable worktree, which has no snapshot database
 
-***
+---
 
 ### id \{#id\}
 
@@ -83,7 +83,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree.entity.ts:6
 
 The worktree id
 
-***
+---
 
 ### kind \{#kind\}
 
@@ -95,7 +95,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree.entity.ts:7
 
 The kind of HEAD
 
-***
+---
 
 ### lastAccessedAt \{#lastaccessedat\}
 
@@ -107,7 +107,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree.entity.ts:1
 
 The time of the last open or refresh
 
-***
+---
 
 ### mode \{#mode\}
 
@@ -119,7 +119,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree.entity.ts:7
 
 Read-only or writable
 
-***
+---
 
 ### name \{#name\}
 
@@ -131,7 +131,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree.entity.ts:9
 
 The name (GitHub Desktop's Worktree name); `null` for a read-only worktree
 
-***
+---
 
 ### owner \{#owner\}
 
@@ -143,7 +143,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree.entity.ts:1
 
 Ownership
 
-***
+---
 
 ### schemaFingerprint \{#schemafingerprint\}
 
@@ -156,7 +156,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree.entity.ts:1
 The structural fingerprint of the copied entities (for a writable worktree, the members of that table set);
 once the app's entity structure changes, a persistent worktree can no longer be opened directly
 
-***
+---
 
 ### sourceBranchId \{#sourcebranchid\}
 
@@ -168,7 +168,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree.entity.ts:8
 
 The main database's active branch when the snapshot was built (seeding, for a writable worktree); `null` until built
 
-***
+---
 
 ### sourceChangeId \{#sourcechangeid\}
 
@@ -181,7 +181,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree.entity.ts:8
 Which change the active branch was at when the snapshot was built (seeding); `null` when there were no local
 changes or until built
 
-***
+---
 
 ### state \{#state\}
 
@@ -193,7 +193,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree.entity.ts:1
 
 Whether it has been built
 
-***
+---
 
 ### tableSetSuffix \{#tablesetsuffix\}
 
@@ -205,7 +205,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree.entity.ts:9
 
 The suffix of a writable worktree's shadow table set (its holding key is derived from it); `null` for a read-only worktree
 
-***
+---
 
 ### targetChangeId \{#targetchangeid\}
 

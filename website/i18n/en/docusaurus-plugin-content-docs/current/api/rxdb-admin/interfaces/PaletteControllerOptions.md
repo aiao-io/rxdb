@@ -16,7 +16,7 @@ Defined in: [palette/controller.ts:109](https://github.com/aiao-io/rxdb/blob/b52
 
 The asynchronous source debounce in milliseconds, 150 by default.
 
-***
+---
 
 ### preferences \{#preferences\}
 
@@ -28,7 +28,7 @@ Defined in: [palette/controller.ts:105](https://github.com/aiao-io/rxdb/blob/b52
 
 The preferences: reads the per-group result limit and the recent usage count.
 
-***
+---
 
 ### recentsKey? \{#recentskey\}
 
@@ -40,7 +40,7 @@ Defined in: [palette/controller.ts:111](https://github.com/aiao-io/rxdb/blob/b52
 
 The storage key of recent usage, defaulting to [PALETTE\_RECENTS\_KEY](../variables/PALETTE_RECENTS_KEY.md).
 
-***
+---
 
 ### storage \{#storage\}
 

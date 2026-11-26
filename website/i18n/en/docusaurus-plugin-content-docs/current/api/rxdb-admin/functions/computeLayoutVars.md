@@ -10,9 +10,9 @@ The CSS variables the layout writes onto the root element; the stylesheet and th
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `layout` | [`LayoutState`](../interfaces/LayoutState.md) | The derived layout. |
+| Parameter | Type                                          | Description         |
+| --------- | --------------------------------------------- | ------------------- |
+| `layout`  | [`LayoutState`](../interfaces/LayoutState.md) | The derived layout. |
 
 ## Returns
 

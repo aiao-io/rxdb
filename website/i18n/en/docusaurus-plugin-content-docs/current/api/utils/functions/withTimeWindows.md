@@ -1,11 +1,7 @@
 # withTimeWindows()
 
 ```ts
-function withTimeWindows<T>(
-   source, 
-   debounce, 
-   audit
-): Observable<T>;
+function withTimeWindows<T>(source, debounce, audit): Observable<T>;
 ```
 
 Defined in: [packages/utils/src/async/withTimeWindows.ts:43](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/utils/src/async/withTimeWindows.ts#L43)
@@ -14,17 +10,17 @@ Attaches debounce / sampling to a stream according to window configuration.
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                    | Description             |
+| --------------------------------- | ----------------------- |
 | <a id="type-parameter-t"></a> `T` | The stream's value type |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `source` | `Observable`&lt;`T`&gt; | Source stream |
-| `debounce` | `number` | Debounce window in milliseconds; a non-positive finite value disables it |
-| `audit` | `number` | Sampling window in milliseconds; a non-positive finite value disables it |
+| Parameter  | Type                    | Description                                                              |
+| ---------- | ----------------------- | ------------------------------------------------------------------------ |
+| `source`   | `Observable`&lt;`T`&gt; | Source stream                                                            |
+| `debounce` | `number`                | Debounce window in milliseconds; a non-positive finite value disables it |
+| `audit`    | `number`                | Sampling window in milliseconds; a non-positive finite value disables it |
 
 ## Returns
 

@@ -25,12 +25,12 @@ Defined in: [packages/rxdb/src/rxdb-plugin-system.ts:164](https://github.com/aia
 
 The current branch id; `null` when there is no active branch at all
 
-***
+---
 
 ### preconditions \{#preconditions\}
 
 ```ts
-readonly preconditions: 
+readonly preconditions:
   | RxDBBranchSwitchPreconditions
   | undefined;
 ```
@@ -39,7 +39,7 @@ Defined in: [packages/rxdb/src/rxdb-plugin-system.ts:170](https://github.com/aia
 
 The preconditions proposed by the caller; `undefined` when none were proposed, which is the same thing as an empty object
 
-***
+---
 
 ### targetBranchId \{#targetbranchid\}
 

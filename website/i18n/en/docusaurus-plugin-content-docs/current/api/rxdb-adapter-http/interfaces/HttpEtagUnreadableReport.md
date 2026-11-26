@@ -24,7 +24,7 @@ The entity name.
 
 Optional only because transport's `sendJson` shares one signature across all operations, and operations like `version` have no entity. **The two operations that actually trigger this callback are both entity-driven, so this is always set in practice.**
 
-***
+---
 
 ### message \{#message\}
 
@@ -36,7 +36,7 @@ Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:303](https://githu
 
 A ready-made explanation message: mentions both causes without taking sides
 
-***
+---
 
 ### operation \{#operation\}
 
@@ -48,7 +48,7 @@ Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:283](https://githu
 
 The name of the triggering operation; only `fetchMetadata` / `findByIds` participate in the conditional cache
 
-***
+---
 
 ### responseType \{#responsetype\}
 
@@ -64,7 +64,7 @@ Passed through as-is from `Response.type`, **no verdict drawn**.
 
 In browsers, cross-origin responses are `'cors'` and same-origin ones `'basic'`, which can serve as a clue. Under Node (undici) a hand-constructed `Response` is always `'default'`, so this is a **clue, not a verdict** — the judgment belongs to callers who can see the deployment topology.
 
-***
+---
 
 ### url \{#url\}
 

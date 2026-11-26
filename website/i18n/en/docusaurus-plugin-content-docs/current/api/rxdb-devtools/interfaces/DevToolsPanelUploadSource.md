@@ -30,10 +30,10 @@ Reads `[offset, offset + length)`.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `offset` | `number` | The starting offset, equal to the number of bytes already sent. |
-| `length` | `number` | The number of bytes needed, always ≤ 256 KiB. |
+| Parameter | Type     | Description                                                     |
+| --------- | -------- | --------------------------------------------------------------- |
+| `offset`  | `number` | The starting offset, equal to the number of bytes already sent. |
+| `length`  | `number` | The number of bytes needed, always ≤ 256 KiB.                   |
 
 #### Returns
 

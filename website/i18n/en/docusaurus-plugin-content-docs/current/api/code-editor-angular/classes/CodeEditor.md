@@ -9,12 +9,7 @@ Angular component for a CodeMirror 6-based code editor, supporting multiple lang
 ## Example
 
 ```html
-<ao-code-editor
-  [(ngModel)]="code"
-  language="typescript"
-  theme="dark"
-  (aoChange)="onCodeChange($event)"
-/>
+<ao-code-editor (aoChange)="onCodeChange($event)" [(ngModel)]="code" language="typescript" theme="dark" />
 ```
 
 ## Implements
@@ -52,7 +47,7 @@ Defined in: [code-editor-angular/src/code-editor.ts:202](https://github.com/aiao
 
 Returns `null` when not disabled so Angular **removes** the attribute instead of writing `aria-disabled="false"`; the reasoning matches [buildCodeEditorContentAttributes](../../code-editor/functions/buildCodeEditorContentAttributes.md). `protected` is the visibility floor — host binding expressions cannot read `#` private fields.
 
-***
+---
 
 ### aoBlur \{#aoblur\}
 
@@ -64,7 +59,7 @@ Defined in: [code-editor-angular/src/code-editor.ts:276](https://github.com/aiao
 
 The editor loses focus; also marks the form as touched.
 
-***
+---
 
 ### aoChange \{#aochange\}
 
@@ -76,7 +71,7 @@ Defined in: [code-editor-angular/src/code-editor.ts:274](https://github.com/aiao
 
 Document content changed (external writes don't trigger it; see External).
 
-***
+---
 
 ### aoFocus \{#aofocus\}
 
@@ -88,7 +83,7 @@ Defined in: [code-editor-angular/src/code-editor.ts:272](https://github.com/aiao
 
 The editor gains focus.
 
-***
+---
 
 ### aoLanguageError \{#aolanguageerror\}
 
@@ -104,7 +99,7 @@ Language resolution or loading failed.
 
 CEA-007: this path previously only had a `console.error`, completely unobservable to the host — no error to grab, no chance to retry or degrade, the user just sees highlighting suddenly vanish. The degradation strategy is unchanged (clear the language extension and fall back to plain text) and the log is kept; this event is the **newly added** observation channel. Same payload as React's `onLanguageError` prop and Vue's `language-error` event.
 
-***
+---
 
 ### autoFocus \{#autofocus\}
 
@@ -119,10 +114,10 @@ Focuses the editor immediately after initialization. **Initialization only**; la
 #### Default Value
 
 ```ts
-false
+false;
 ```
 
-***
+---
 
 ### describedBy \{#describedby\}
 
@@ -144,7 +139,7 @@ Id of the supplementary description element, written as the inner textbox's `ari
 
 The attribute lands on CodeMirror's `.cm-content` — that's the element carrying `role="textbox"`, not this component's host element. Same name and semantics across all three frameworks.
 
-***
+---
 
 ### disabled \{#disabled\}
 
@@ -159,14 +154,14 @@ Disables editing (read-only and unfocusable). Updatable dynamically.
 #### Default Value
 
 ```ts
-false
+false;
 ```
 
 #### Remarks
 
 `setDisabledState()` from the form is a **second independent source**; the editor is disabled when either is true. With Reactive Forms, disabling the control has the same effect as `[disabled]="true"` on the template, but releasing only one of the two does not restore editability — both must be released.
 
-***
+---
 
 ### highlightWhitespace \{#highlightwhitespace\}
 
@@ -181,10 +176,10 @@ Shows whitespace characters. Updatable dynamically.
 #### Default Value
 
 ```ts
-false
+false;
 ```
 
-***
+---
 
 ### indentUnit \{#indentunit\}
 
@@ -202,7 +197,7 @@ The string used for one level of indentation. Updatable dynamically.
 '  ' (two spaces, consistent across all three frameworks)
 ```
 
-***
+---
 
 ### indentWithTab \{#indentwithtab\}
 
@@ -217,10 +212,10 @@ Allows Tab-key indentation (sacrifices keyboard accessibility). Updatable dynami
 #### Default Value
 
 ```ts
-false
+false;
 ```
 
-***
+---
 
 ### label \{#label\}
 
@@ -242,7 +237,7 @@ Accessible name, written as the inner textbox's `aria-label`. Updatable dynamica
 
 Lands in the same place as [CodeEditor.describedBy](#describedby).
 
-***
+---
 
 ### labelledBy \{#labelledby\}
 
@@ -264,7 +259,7 @@ Id of the element acting as the label, written as the inner textbox's `aria-labe
 
 Lands in the same place as [CodeEditor.describedBy](#describedby).
 
-***
+---
 
 ### language \{#language\}
 
@@ -279,10 +274,10 @@ Language name for syntax highlighting; see [languages](#languages) for the value
 #### Default Value
 
 ```ts
-'sql'
+'sql';
 ```
 
-***
+---
 
 ### languages \{#languages\}
 
@@ -297,10 +292,10 @@ Candidate language list. Updatable dynamically.
 #### Default Value
 
 ```ts
-SUPPORT_LANGUAGES
+SUPPORT_LANGUAGES;
 ```
 
-***
+---
 
 ### lineWrapping \{#linewrapping\}
 
@@ -315,10 +310,10 @@ Line wrapping. Updatable dynamically.
 #### Default Value
 
 ```ts
-false
+false;
 ```
 
-***
+---
 
 ### placeholder \{#placeholder\}
 
@@ -333,10 +328,10 @@ Placeholder text shown when the document is empty. Updatable dynamically.
 #### Default Value
 
 ```ts
-''
+'';
 ```
 
-***
+---
 
 ### readonly \{#readonly\}
 
@@ -351,10 +346,10 @@ Read-only (still focusable and selectable). Updatable dynamically.
 #### Default Value
 
 ```ts
-false
+false;
 ```
 
-***
+---
 
 ### root \{#root\}
 
@@ -366,7 +361,7 @@ Defined in: [code-editor-angular/src/code-editor.ts:255](https://github.com/aiao
 
 The DOM root CodeMirror is mounted in, for Shadow DOM scenarios. **Initialization only**.
 
-***
+---
 
 ### setup \{#setup\}
 
@@ -381,10 +376,10 @@ Preset extension set; `null` means no presets are loaded. Updatable dynamically.
 #### Default Value
 
 ```ts
-'basic'
+'basic';
 ```
 
-***
+---
 
 ### theme \{#theme\}
 
@@ -399,10 +394,10 @@ Theme. Updatable dynamically.
 #### Default Value
 
 ```ts
-'light'
+'light';
 ```
 
-***
+---
 
 ### value \{#value\}
 
@@ -417,7 +412,7 @@ Document content. Externally driven when used as a controlled input; the form wi
 #### Default Value
 
 ```ts
-''
+'';
 ```
 
 #### Remarks
@@ -446,7 +441,7 @@ Angular's host is the `<ao-code-editor>` element itself; in React / Vue it is th
 
 `HTMLElement` \| `null`
 
-***
+---
 
 ### view \{#view\}
 
@@ -480,15 +475,15 @@ Defined in: [code-editor-angular/src/code-editor.ts:563](https://github.com/aiao
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                           |
+| --------- | ------------------------------------------------------------------------------ |
 | `effects` | \| `StateEffect`&lt;`unknown`&gt; \| readonly `StateEffect`&lt;`unknown`&gt;[] |
 
 #### Returns
 
 `void` \| `undefined`
 
-***
+---
 
 ### \_get\_all\_extensions() \{#_get_all_extensions\}
 
@@ -502,7 +497,7 @@ Defined in: [code-editor-angular/src/code-editor.ts:541](https://github.com/aiao
 
 `Extension`[]
 
-***
+---
 
 ### blur() \{#blur\}
 
@@ -518,7 +513,7 @@ Removes keyboard focus. No-op when uninitialized.
 
 `void`
 
-***
+---
 
 ### focus() \{#focus\}
 
@@ -534,7 +529,7 @@ Hands keyboard focus to the editor. No-op when uninitialized.
 
 `void`
 
-***
+---
 
 ### ngOnChanges() \{#ngonchanges\}
 
@@ -551,8 +546,8 @@ children are checked.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                         | Description             |
+| --------- | ------------------------------------------------------------ | ----------------------- |
 | `changes` | \{ \[`propName`: `string`\]: `SimpleChange`&lt;`any`&gt;; \} | The changed properties. |
 
 #### Returns
@@ -563,7 +558,7 @@ children are checked.
 
 `OnChanges.ngOnChanges`
 
-***
+---
 
 ### ngOnDestroy() \{#ngondestroy\}
 
@@ -584,7 +579,7 @@ before a directive, pipe, or service instance is destroyed.
 
 `OnDestroy.ngOnDestroy`
 
-***
+---
 
 ### ngOnInit() \{#ngoninit\}
 
@@ -608,7 +603,7 @@ It is invoked only once when the directive is instantiated.
 
 `OnInit.ngOnInit`
 
-***
+---
 
 ### registerOnChange() \{#registeronchange\}
 
@@ -620,9 +615,9 @@ Defined in: [code-editor-angular/src/code-editor.ts:444](https://github.com/aiao
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `fn` | (`value`) => `void` | The callback function to register |
+| Parameter | Type                | Description                       |
+| --------- | ------------------- | --------------------------------- |
+| `fn`      | (`value`) => `void` | The callback function to register |
 
 #### Returns
 
@@ -664,7 +659,7 @@ host: {
 
 `ControlValueAccessor.registerOnChange`
 
-***
+---
 
 ### registerOnTouched() \{#registerontouched\}
 
@@ -676,9 +671,9 @@ Defined in: [code-editor-angular/src/code-editor.ts:448](https://github.com/aiao
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `fn` | () => `void` | The callback function to register |
+| Parameter | Type         | Description                       |
+| --------- | ------------ | --------------------------------- |
+| `fn`      | () => `void` | The callback function to register |
 
 #### Returns
 
@@ -718,7 +713,7 @@ host: {
 
 `ControlValueAccessor.registerOnTouched`
 
-***
+---
 
 ### setDisabledState() \{#setdisabledstate\}
 
@@ -732,8 +727,8 @@ The form-side disable switch, called by Angular Forms.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter    | Type      |
+| ------------ | --------- |
 | `isDisabled` | `boolean` |
 
 #### Returns
@@ -748,7 +743,7 @@ Writes only the CodeEditor.#formDisabled source; the `[disabled]` input on the t
 
 `ControlValueAccessor.setDisabledState`
 
-***
+---
 
 ### setExtensions() \{#setextensions\}
 
@@ -762,9 +757,9 @@ Loads the consumer's own CodeMirror extensions.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `Extension`[] | The extensions to take effect this time; **replaces wholesale** the previously passed batch — pass `[]` to remove them all |
+| Parameter | Type          | Description                                                                                                                |
+| --------- | ------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `value`   | `Extension`[] | The extensions to take effect this time; **replaces wholesale** the previously passed batch — pass `[]` to remove them all |
 
 #### Returns
 
@@ -774,7 +769,7 @@ Loads the consumer's own CodeMirror extensions.
 
 CEA-003: previously this dispatched the global `StateEffect.reconfigure.of(value)`, which replaces the **entire extension tree** — one call wipes the updateListener, all Compartments, theme, language, and a11y attributes; called "set extensions", it actually "destroys the editor configuration". Now only the dedicated CodeEditor.#userExtensionsConf slot is reconfigured; the component's own configuration and the consumer's extensions don't affect each other.
 
-***
+---
 
 ### setLanguage() \{#setlanguage\}
 
@@ -788,9 +783,9 @@ Imperatively (re)applies the language configuration.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `lang` | `string` | Language name or alias; an empty string and `'plaintext'` mean no highlighting |
+| Parameter | Type     | Description                                                                    |
+| --------- | -------- | ------------------------------------------------------------------------------ |
+| `lang`    | `string` | Language name or alias; an empty string and `'plaintext'` mean no highlighting |
 
 #### Returns
 
@@ -802,7 +797,7 @@ Imperatively (re)applies the language configuration.
 
 On resolution failure, clears the language extension, falls back to plain text, and reports via [CodeEditor.aoLanguageError](#aolanguageerror).
 
-***
+---
 
 ### writeValue() \{#writevalue\}
 
@@ -816,9 +811,9 @@ The write entry of `ControlValueAccessor`, called by Angular Forms.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | `null` / `undefined` are normalized to the empty string; a `string` is written as-is |
+| Parameter | Type      | Description                                                                          |
+| --------- | --------- | ------------------------------------------------------------------------------------ |
+| `value`   | `unknown` | `null` / `undefined` are normalized to the empty string; a `string` is written as-is |
 
 #### Returns
 

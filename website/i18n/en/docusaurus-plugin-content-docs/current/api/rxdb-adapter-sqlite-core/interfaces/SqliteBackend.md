@@ -5,6 +5,7 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/sqlite-backend.interface.ts:5
 Abstraction interface for SQLite WASM backend implementations.
 
 Implementations:
+
 - WaSqliteBackend (packages/rxdb-adapter-wa-sqlite)
 - SqliteaiBackend (packages/rxdb-adapter-sqliteai)
 
@@ -24,7 +25,7 @@ Returns the number of rows affected by the most recent INSERT/UPDATE/DELETE.
 
 `number`
 
-***
+---
 
 ### close() \{#close\}
 
@@ -40,7 +41,7 @@ Closes the database connection and releases resources. Calling any other method 
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### createFunction() \{#createfunction\}
 
@@ -54,16 +55,16 @@ Registers a custom scalar SQL function.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `name` | `string` | Function name usable in SQL (e.g. 'regexp') |
-| `fn` | (...`args`) => [`SQLiteCompatibleType`](../type-aliases/SQLiteCompatibleType.md) | The implementation function |
+| Parameter | Type                                                                             | Description                                 |
+| --------- | -------------------------------------------------------------------------------- | ------------------------------------------- |
+| `name`    | `string`                                                                         | Function name usable in SQL (e.g. 'regexp') |
+| `fn`      | (...`args`) => [`SQLiteCompatibleType`](../type-aliases/SQLiteCompatibleType.md) | The implementation function                 |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### exec() \{#exec\}
 
@@ -77,10 +78,10 @@ Executes a SQL statement and returns the result.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `sql` | `string` | The SQL statement to execute |
-| `bindings?` | [`SQLiteCompatibleType`](../type-aliases/SQLiteCompatibleType.md)[] | Optional parameter bindings |
+| Parameter   | Type                                                                | Description                  |
+| ----------- | ------------------------------------------------------------------- | ---------------------------- |
+| `sql`       | `string`                                                            | The SQL statement to execute |
+| `bindings?` | [`SQLiteCompatibleType`](../type-aliases/SQLiteCompatibleType.md)[] | Optional parameter bindings  |
 
 #### Returns
 
@@ -88,7 +89,7 @@ Executes a SQL statement and returns the result.
 
 The execution result including the number of affected rows
 
-***
+---
 
 ### open() \{#open\}
 
@@ -102,16 +103,16 @@ Initializes and opens the SQLite database.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `filename` | `string` | Database file name (e.g. ':memory:', '/mydb.sqlite3') |
-| `options?` | [`SqliteBackendOptions`](SqliteBackendOptions.md) | Backend-specific initialization options |
+| Parameter  | Type                                              | Description                                           |
+| ---------- | ------------------------------------------------- | ----------------------------------------------------- |
+| `filename` | `string`                                          | Database file name (e.g. ':memory:', '/mydb.sqlite3') |
+| `options?` | [`SqliteBackendOptions`](SqliteBackendOptions.md) | Backend-specific initialization options               |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### setUpdateHook() \{#setupdatehook\}
 
@@ -125,15 +126,15 @@ Registers or unregisters the data-change notification callback. Invoked on INSER
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                                    | Description                                |
+| ---------- | ----------------------------------------------------------------------- | ------------------------------------------ |
 | `callback` | [`UpdateHookCallback`](../type-aliases/UpdateHookCallback.md) \| `null` | The hook function; pass null to unregister |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### version() \{#version\}
 

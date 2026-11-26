@@ -20,7 +20,7 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/query/join\_sql.ts:347](https
 
 Query root table alias; defaults to the main table alias `_`
 
-***
+---
 
 ### fieldAliasMap? \{#fieldaliasmap\}
 
@@ -36,7 +36,7 @@ Preset field alias mapping.
 
 Matching fields use the given SQL directly, skipping relation resolution. Subqueries use it to bind bare fields and foreign-key names to the subquery root table; tree recursive members use it to preserve the existing convention that `children.<field>` ≡ "the recursive member's own column".
 
-***
+---
 
 ### reservedAliases? \{#reservedaliases\}
 

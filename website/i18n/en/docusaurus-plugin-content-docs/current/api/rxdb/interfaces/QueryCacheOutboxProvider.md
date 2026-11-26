@@ -24,10 +24,10 @@ Gets the entity ids of a QueryCache repository that are currently **occupied by 
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `namespace` | `string` | Namespace |
-| `entity` | `string` | The entity name in the metadata |
+| Parameter   | Type     | Description                     |
+| ----------- | -------- | ------------------------------- |
+| `namespace` | `string` | Namespace                       |
+| `entity`    | `string` | The entity name in the metadata |
 
 #### Returns
 

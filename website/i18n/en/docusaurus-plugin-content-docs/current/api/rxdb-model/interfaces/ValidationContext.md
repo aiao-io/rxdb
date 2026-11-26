@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model/src/query-builder/models/validation.interface.t
 
 Enum values
 
-***
+---
 
 ### fieldType \{#fieldtype\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-model/src/query-builder/models/validation.interface.t
 
 Field type
 
-***
+---
 
 ### operator \{#operator\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-model/src/query-builder/models/validation.interface.t
 
 Operator
 
-***
+---
 
 ### pattern? \{#pattern\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb-model/src/query-builder/models/validation.interface.t
 
 Regular expression validation
 
-***
+---
 
 ### required? \{#required\}
 
@@ -64,7 +64,7 @@ Defined in: [packages/rxdb-model/src/query-builder/models/validation.interface.t
 
 Whether it is required
 
-***
+---
 
 ### value \{#value\}
 

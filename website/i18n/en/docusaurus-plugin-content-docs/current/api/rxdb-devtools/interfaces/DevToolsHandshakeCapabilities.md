@@ -17,7 +17,7 @@ Defined in: [v2/wire.ts:103](https://github.com/aiao-io/rxdb/blob/b5232040240cf1
 The tier configured locally by the connector owner; **informational only** — the panel must
 not relax its own validation based on it.
 
-***
+---
 
 ### descriptors \{#descriptors\}
 

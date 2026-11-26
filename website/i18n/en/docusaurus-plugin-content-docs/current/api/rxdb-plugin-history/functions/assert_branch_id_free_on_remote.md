@@ -12,10 +12,10 @@ Rejects when the remote already has a branch with the same name.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `version` | [`VersionManager`](../interfaces/VersionManager.md) | Takes the remote configuration and the remote repository from it |
-| `branchId` | `string` | The id of the branch to create |
+| Parameter  | Type                                                | Description                                                      |
+| ---------- | --------------------------------------------------- | ---------------------------------------------------------------- |
+| `version`  | [`VersionManager`](../interfaces/VersionManager.md) | Takes the remote configuration and the remote repository from it |
+| `branchId` | `string`                                            | The id of the branch to create                                   |
 
 ## Returns
 

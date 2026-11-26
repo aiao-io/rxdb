@@ -18,9 +18,9 @@ Out-of-band reporting when a disk read / write fails.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `error` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `error`   | `unknown` |
 
 #### Returns
 

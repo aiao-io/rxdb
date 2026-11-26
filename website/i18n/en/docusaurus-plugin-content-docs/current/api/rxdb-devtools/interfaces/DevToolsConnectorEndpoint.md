@@ -16,7 +16,7 @@ Defined in: [v2/endpoint.ts:119](https://github.com/aiao-io/rxdb/blob/b523204024
 
 The number of in-flight outbound (download) transfers.
 
-***
+---
 
 ### inflightRequests \{#inflightrequests\}
 
@@ -28,7 +28,7 @@ Defined in: [v2/endpoint.ts:115](https://github.com/aiao-io/rxdb/blob/b523204024
 
 The number of in-flight requests.
 
-***
+---
 
 ### inflightTransfers \{#inflighttransfers\}
 
@@ -40,7 +40,7 @@ Defined in: [v2/endpoint.ts:117](https://github.com/aiao-io/rxdb/blob/b523204024
 
 The number of in-flight inbound transfers.
 
-***
+---
 
 ### sessionId \{#sessionid\}
 
@@ -52,7 +52,7 @@ Defined in: [v2/endpoint.ts:111](https://github.com/aiao-io/rxdb/blob/b523204024
 
 The session identity minted by this endpoint; fixed at construction and unchanged whether or not the handshake succeeds.
 
-***
+---
 
 ### sessionOpen \{#sessionopen\}
 
@@ -80,7 +80,7 @@ Releases all timers, transfers and subscriptions.
 
 `void`
 
-***
+---
 
 ### emitEvent() \{#emitevent\}
 
@@ -94,10 +94,10 @@ Sends an event pushed up by a provider to the panel.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `eventType` | `string` | The event type; its semantics are defined by the provider, and the endpoint does not interpret it. |
-| `data` | `unknown` | The event payload; the endpoint does not process it — masking is the provider's responsibility. |
+| Parameter   | Type      | Description                                                                                        |
+| ----------- | --------- | -------------------------------------------------------------------------------------------------- |
+| `eventType` | `string`  | The event type; its semantics are defined by the provider, and the endpoint does not interpret it. |
+| `data`      | `unknown` | The event payload; the endpoint does not process it — masking is the provider's responsibility.    |
 
 #### Returns
 
@@ -109,7 +109,7 @@ Events are **pushed**, not the return value of an `invoke`: `database.events` on
 
 When the sending conditions are not met, it is silently dropped without an error — events have no `requestId` and the peer has nothing waiting, so replying with an error would only fabricate a downstream frame on the `none` tier.
 
-***
+---
 
 ### receive() \{#receive\}
 
@@ -123,15 +123,15 @@ Processes one frame of inbound data; values that are not of this protocol are ig
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `frame` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `frame`   | `unknown` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### start() \{#start\}
 

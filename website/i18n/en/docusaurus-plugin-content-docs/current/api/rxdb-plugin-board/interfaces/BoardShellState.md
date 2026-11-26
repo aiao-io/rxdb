@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-board/src/board-shell.ts:58](https://github.co
 
 The host provided demo data: show "Load demo data / Reset to demo data".
 
-***
+---
 
 ### confirm \{#confirm\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-board/src/board-shell.ts:54](https://github.co
 
 The operation awaiting confirmation; `null` means no confirmation dialog.
 
-***
+---
 
 ### error \{#error\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-plugin-board/src/board-shell.ts:52](https://github.co
 
 The description of the most recent failure (shown on both the startup page and the board page); cleared after a new database is successfully opened.
 
-***
+---
 
 ### phase \{#phase\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb-plugin-board/src/board-shell.ts:48](https://github.co
 
 The current phase: the component switches between startup page / preparing / restoring / board based on it.
 
-***
+---
 
 ### restore \{#restore\}
 
@@ -64,7 +64,7 @@ Defined in: [packages/rxdb-plugin-board/src/board-shell.ts:56](https://github.co
 
 The snapshot of the restore flow started by this page; rebuilt as "switching" from the pending switch record after a reload.
 
-***
+---
 
 ### rxdb \{#rxdb\}
 

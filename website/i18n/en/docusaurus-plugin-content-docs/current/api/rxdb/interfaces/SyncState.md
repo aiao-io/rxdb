@@ -16,7 +16,7 @@ Defined in: [packages/rxdb/src/sync-state.ts:89](https://github.com/aiao-io/rxdb
 
 The last conflict decision; it is not cleared by later successes — it is a historical fact.
 
-***
+---
 
 ### lastError \{#lasterror\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb/src/sync-state.ts:87](https://github.com/aiao-io/rxdb
 
 The last push failure; cleared after one successful round.
 
-***
+---
 
 ### lastRejections \{#lastrejections\}
 
@@ -46,7 +46,7 @@ Like [SyncState.lastConflict](#lastconflict), it is not cleared by later success
 rejections it is replaced as a whole, not merged. For the complete list across restarts, look at rows in
 `RxDBChange` whose `rejectedAt` is not empty.
 
-***
+---
 
 ### online \{#online\}
 
@@ -58,7 +58,7 @@ Defined in: [packages/rxdb/src/sync-state.ts:81](https://github.com/aiao-io/rxdb
 
 Whether the remote is currently reachable.
 
-***
+---
 
 ### pendingCount \{#pendingcount\}
 
@@ -70,7 +70,7 @@ Defined in: [packages/rxdb/src/sync-state.ts:83](https://github.com/aiao-io/rxdb
 
 The number of changes across both push paths that have still not been pushed to the remote.
 
-***
+---
 
 ### syncing \{#syncing\}
 

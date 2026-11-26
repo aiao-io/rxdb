@@ -34,15 +34,15 @@ Creates a branch by name.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `name` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `name`    | `string` |
 
 #### Returns
 
 `Promise`&lt;`unknown`&gt;
 
-***
+---
 
 ### removeBranch() \{#removebranch\}
 
@@ -56,15 +56,15 @@ Removes the specified branch.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `branchId` | `string` |
 
 #### Returns
 
 `Promise`&lt;`unknown`&gt;
 
-***
+---
 
 ### switchBranch() \{#switchbranch\}
 
@@ -78,8 +78,8 @@ Switches to the specified branch.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `branchId` | `string` |
 
 #### Returns

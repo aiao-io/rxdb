@@ -41,7 +41,7 @@ The four functions must be called in an injection context (a field initializer o
 
 ## API
 
-| Function              | Repository method  | Result type                      | Default |
+| Function              | Repository method  | Result type                       | Default |
 | --------------------- | ------------------ | --------------------------------- | ------- |
 | `useFindDescendants`  | `findDescendants`  | `RxDBResource<InstanceType<T>[]>` | `[]`    |
 | `useCountDescendants` | `countDescendants` | `RxDBResource<number>`            | `0`     |
@@ -74,9 +74,9 @@ These four functions depend on the `TreeRepository` registered by the plugin; th
 
 ## Functions
 
-| Function | Description |
-| ------ | ------ |
-| [useCountAncestors](functions/useCountAncestors.md) | Counts the ancestors in the tree structure |
-| [useCountDescendants](functions/useCountDescendants.md) | Counts the descendants in the tree structure |
-| [useFindAncestors](functions/useFindAncestors.md) | Finds all ancestor entities in the tree structure |
-| [useFindDescendants](functions/useFindDescendants.md) | Finds all descendant entities in the tree structure |
+| Function                                                | Description                                         |
+| ------------------------------------------------------- | --------------------------------------------------- |
+| [useCountAncestors](functions/useCountAncestors.md)     | Counts the ancestors in the tree structure          |
+| [useCountDescendants](functions/useCountDescendants.md) | Counts the descendants in the tree structure        |
+| [useFindAncestors](functions/useFindAncestors.md)       | Finds all ancestor entities in the tree structure   |
+| [useFindDescendants](functions/useFindDescendants.md)   | Finds all descendant entities in the tree structure |

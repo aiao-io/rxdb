@@ -10,10 +10,10 @@ Normalizes a raw value into the entity-side runtime representation per field typ
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `type` | [`EntityFieldTypeName`](../type-aliases/EntityFieldTypeName.md) | The closed set [EntityFieldTypeName](../type-aliases/EntityFieldTypeName.md). Arbitrary strings are not accepted: unknown values always throw, so that config typos, generator version drift or unimplemented new enums are never disguised as "parsed successfully". |
-| `raw` | `unknown` | The raw value; `null` and the empty string are uniformly normalized to `null` |
+| Parameter | Type                                                            | Description                                                                                                                                                                                                                                                           |
+| --------- | --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `type`    | [`EntityFieldTypeName`](../type-aliases/EntityFieldTypeName.md) | The closed set [EntityFieldTypeName](../type-aliases/EntityFieldTypeName.md). Arbitrary strings are not accepted: unknown values always throw, so that config typos, generator version drift or unimplemented new enums are never disguised as "parsed successfully". |
+| `raw`     | `unknown`                                                       | The raw value; `null` and the empty string are uniformly normalized to `null`                                                                                                                                                                                         |
 
 ## Returns
 

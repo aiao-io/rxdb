@@ -10,9 +10,9 @@ Splits a wire path into validated segments.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `path` | `unknown` | The path value from the wire; anything that is not a string is judged illegal. |
+| Parameter | Type      | Description                                                                    |
+| --------- | --------- | ------------------------------------------------------------------------------ |
+| `path`    | `unknown` | The path value from the wire; anything that is not a string is judged illegal. |
 
 ## Returns
 

@@ -28,8 +28,8 @@ Creates the tab state and restores it from the persistence medium.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                    | Description                |
+| --------- | ------------------------------------------------------- | -------------------------- |
 | `options` | [`TabsStoreOptions`](../interfaces/TabsStoreOptions.md) | Configuration and storage. |
 
 #### Returns
@@ -60,7 +60,7 @@ An observable that replays the current value and pushes subsequent changes.
 
 [`ReadableStore`](../interfaces/ReadableStore.md).[`changes$`](../interfaces/ReadableStore.md#changes)
 
-***
+---
 
 ### value \{#value\}
 
@@ -98,9 +98,9 @@ Closes a tab.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | `string` | The tab key. |
+| Parameter | Type     | Description  |
+| --------- | -------- | ------------ |
+| `key`     | `string` | The tab key. |
 
 #### Returns
 
@@ -108,7 +108,7 @@ Closes a tab.
 
 The address to navigate to; see [CloseOutcome](../type-aliases/CloseOutcome.md).
 
-***
+---
 
 ### closeAll() \{#closeall\}
 
@@ -126,7 +126,7 @@ Closes all unpinned tabs.
 
 See [CloseOutcome](../type-aliases/CloseOutcome.md).
 
-***
+---
 
 ### closeLeft() \{#closeleft\}
 
@@ -140,9 +140,9 @@ Closes the tabs to the left.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | `string` | The reference tab key. |
+| Parameter | Type     | Description            |
+| --------- | -------- | ---------------------- |
+| `key`     | `string` | The reference tab key. |
 
 #### Returns
 
@@ -150,7 +150,7 @@ Closes the tabs to the left.
 
 See [CloseOutcome](../type-aliases/CloseOutcome.md).
 
-***
+---
 
 ### closeOthers() \{#closeothers\}
 
@@ -164,9 +164,9 @@ Closes the remaining tabs.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | `string` | The tab key to keep. |
+| Parameter | Type     | Description          |
+| --------- | -------- | -------------------- |
+| `key`     | `string` | The tab key to keep. |
 
 #### Returns
 
@@ -174,7 +174,7 @@ Closes the remaining tabs.
 
 See [CloseOutcome](../type-aliases/CloseOutcome.md).
 
-***
+---
 
 ### closeRight() \{#closeright\}
 
@@ -188,9 +188,9 @@ Closes the tabs to the right.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | `string` | The reference tab key. |
+| Parameter | Type     | Description            |
+| --------- | -------- | ---------------------- |
+| `key`     | `string` | The reference tab key. |
 
 #### Returns
 
@@ -198,7 +198,7 @@ Closes the tabs to the right.
 
 See [CloseOutcome](../type-aliases/CloseOutcome.md).
 
-***
+---
 
 ### deactivate() \{#deactivate\}
 
@@ -214,7 +214,7 @@ When the current route belongs to no tab, clears the active state while keeping 
 
 `void`
 
-***
+---
 
 ### destroy() \{#destroy\}
 
@@ -230,7 +230,7 @@ Stops following preference changes.
 
 `void`
 
-***
+---
 
 ### open() \{#open\}
 
@@ -244,16 +244,16 @@ Opens or activates a tab (called after route changes).
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `url` | `string` | The current address. |
-| `title` | `string` | The title. |
+| Parameter | Type     | Description          |
+| --------- | -------- | -------------------- |
+| `url`     | `string` | The current address. |
+| `title`   | `string` | The title.           |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### reorder() \{#reorder\}
 
@@ -267,16 +267,16 @@ Moves a tab.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | `string` | The tab key. |
+| Parameter | Type     | Description       |
+| --------- | -------- | ----------------- |
+| `key`     | `string` | The tab key.      |
 | `toIndex` | `number` | The target index. |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### retitle() \{#retitle\}
 
@@ -290,15 +290,15 @@ Re-resolves titles (after language switches or menu updates).
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                               | Description                                                       |
+| --------- | ---------------------------------- | ----------------------------------------------------------------- |
 | `resolve` | (`url`) => `string` \| `undefined` | Returns a title from the address; `undefined` keeps it unchanged. |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### subscribe() \{#subscribe\}
 
@@ -312,8 +312,8 @@ Subscribes to subsequent changes.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                | Description      |
+| ---------- | ------------------- | ---------------- |
 | `listener` | (`value`) => `void` | Change callback. |
 
 #### Returns
@@ -326,7 +326,7 @@ An unsubscribe function.
 
 [`ReadableStore`](../interfaces/ReadableStore.md).[`subscribe`](../interfaces/ReadableStore.md#subscribe)
 
-***
+---
 
 ### togglePin() \{#togglepin\}
 
@@ -340,9 +340,9 @@ Toggles pinned state.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | `string` | The tab key. |
+| Parameter | Type     | Description  |
+| --------- | -------- | ------------ |
+| `key`     | `string` | The tab key. |
 
 #### Returns
 

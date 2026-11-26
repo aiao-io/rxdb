@@ -28,7 +28,7 @@ Alias of this layer's main table
 
 [`RuleScope`](RuleScope.md).[`alias`](RuleScope.md#alias)
 
-***
+---
 
 ### junctionAlias \{#junctionalias\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/query/query\_sql.utils.ts:80]
 
 Alias of the MANY_TO_MANY junction table
 
-***
+---
 
 ### outerAlias \{#outeralias\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/query/query\_sql.utils.ts:78]
 
 Alias of the outer entity (the "current entity" side in the correlation condition)
 
-***
+---
 
 ### reservedAliases \{#reservedaliases\}
 

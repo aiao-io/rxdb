@@ -10,9 +10,9 @@ Creates a comparator that sorts by a direct property in natural ascending order
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | `PropertyKey` | The direct property name to sort by |
+| Parameter | Type          | Description                         |
+| --------- | ------------- | ----------------------------------- |
+| `key`     | `PropertyKey` | The direct property name to sort by |
 
 ## Returns
 

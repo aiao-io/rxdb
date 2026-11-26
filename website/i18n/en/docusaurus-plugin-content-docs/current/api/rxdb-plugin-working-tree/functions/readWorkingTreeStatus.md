@@ -10,8 +10,8 @@ Reads the current branch's working tree summary (FR-004).
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                                  | Description                                                                               |
+| ---------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md) | The executor of the caller's transaction; this function does not open its own transaction |
 
 ## Returns

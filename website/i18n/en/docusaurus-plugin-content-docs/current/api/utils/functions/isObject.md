@@ -11,9 +11,9 @@ Excludes special objects such as arrays, null, dates, and regular expressions
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | The value to check |
+| Parameter | Type      | Description        |
+| --------- | --------- | ------------------ |
+| `value`   | `unknown` | The value to check |
 
 ## Returns
 

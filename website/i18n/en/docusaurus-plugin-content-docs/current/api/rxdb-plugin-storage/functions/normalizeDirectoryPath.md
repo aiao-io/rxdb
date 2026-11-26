@@ -10,9 +10,9 @@ Normalizes a directory path to the form starting with `/` and without a trailing
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `path?` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `path?`   | `string` |
 
 ## Returns
 

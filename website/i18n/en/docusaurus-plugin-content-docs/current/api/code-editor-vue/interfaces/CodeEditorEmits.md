@@ -16,7 +16,7 @@ Defined in: [code-editor-vue/src/code-editor.types.ts:139](https://github.com/ai
 
 The editor content area loses focus.
 
-***
+---
 
 ### change \{#change\}
 
@@ -28,7 +28,7 @@ Defined in: [code-editor-vue/src/code-editor.types.ts:141](https://github.com/ai
 
 Content change caused by user editing; programmatic writes by the host via `value` do **not** trigger it.
 
-***
+---
 
 ### focus \{#focus\}
 
@@ -40,7 +40,7 @@ Defined in: [code-editor-vue/src/code-editor.types.ts:143](https://github.com/ai
 
 The editor content area gains focus.
 
-***
+---
 
 ### language-error \{#language-error\}
 
@@ -56,7 +56,7 @@ Language resolution or loading failed.
 
 CEV-004: this path previously only had a `console.error`, completely unobservable to the host — no error to grab, no chance to retry or degrade, the user just sees highlighting suddenly vanish. The degradation strategy is unchanged (clear the language extension and fall back to plain text) and the log is kept; this event is the **newly added** observation channel. The payload is defined by the core package and verbatim-identical to Angular's `aoLanguageError` output and React's `onLanguageError` callback: when `kind` is `'not-found'` it is a configuration error and retrying is pointless; when `'load-failed'` it is usually a network or chunk-loading problem and can be retried.
 
-***
+---
 
 ### update:value \{#updatevalue\}
 

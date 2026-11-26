@@ -5,6 +5,7 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/date-editor.d.ts:11
 Date-time picker editor
 
 Directly overlays the cell with a native datetime-local input.
+
 - Enter / Tab: confirms
 - Escape: cancels (restores the original value)
 - Clicking outside: confirms and closes
@@ -58,7 +59,7 @@ Returns the currently selected date value
 
 `IEditor.getValue`
 
-***
+---
 
 ### isEditorElement() \{#iseditorelement\}
 
@@ -72,9 +73,9 @@ Determines whether the target element belongs to the editor overlay
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `el` | `EventTarget` \| `HTMLElement` |
+| Parameter | Type                           |
+| --------- | ------------------------------ |
+| `el`      | `EventTarget` \| `HTMLElement` |
 
 #### Returns
 
@@ -84,7 +85,7 @@ Determines whether the target element belongs to the editor overlay
 
 `IEditor.isEditorElement`
 
-***
+---
 
 ### onEnd() \{#onend\}
 
@@ -104,7 +105,7 @@ Ends editing: cleans up the overlay panel and event listeners
 
 `IEditor.onEnd`
 
-***
+---
 
 ### onStart() \{#onstart\}
 
@@ -118,9 +119,9 @@ Opens the editor: builds the overlay panel and initializes the native datetime-l
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `ctx` | `EditContext`&lt;`unknown`&gt; |
+| Parameter | Type                           |
+| --------- | ------------------------------ |
+| `ctx`     | `EditContext`&lt;`unknown`&gt; |
 
 #### Returns
 

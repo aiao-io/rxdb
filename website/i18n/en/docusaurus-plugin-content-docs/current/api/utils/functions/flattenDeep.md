@@ -10,15 +10,15 @@ Fully flattens arrays nested at any depth into a one-dimensional array
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                    | Description                         |
+| --------------------------------- | ----------------------------------- |
 | <a id="type-parameter-t"></a> `T` | The base type of the array elements |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `array` | `NestedArray`&lt;`T`&gt; | An array nested at any depth |
+| Parameter | Type                     | Description                  |
+| --------- | ------------------------ | ---------------------------- |
+| `array`   | `NestedArray`&lt;`T`&gt; | An array nested at any depth |
 
 ## Returns
 

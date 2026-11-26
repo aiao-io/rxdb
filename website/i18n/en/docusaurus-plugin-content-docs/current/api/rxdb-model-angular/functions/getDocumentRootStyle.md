@@ -1,7 +1,7 @@
 # getDocumentRootStyle()
 
 ```ts
-function getDocumentRootStyle(): Pick<CSSStyleDeclaration, "getPropertyValue"> | undefined;
+function getDocumentRootStyle(): Pick<CSSStyleDeclaration, 'getPropertyValue'> | undefined;
 ```
 
 Defined in: packages/rxdb-model/dist/entity-table/vtable/table-theme.d.ts:32

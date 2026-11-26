@@ -1,10 +1,7 @@
 # DeletePlan
 
 ```ts
-type DeletePlan = 
-  | TaskDeletePlan
-  | ColumnDeletePlan
-  | BoardDeletePlan;
+type DeletePlan = TaskDeletePlan | ColumnDeletePlan | BoardDeletePlan;
 ```
 
 Defined in: packages/rxdb-plugin-board/dist/delete-service.d.ts:44

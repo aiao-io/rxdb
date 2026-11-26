@@ -1,48 +1,48 @@
 # P2PFrame
 
 ```ts
-type P2PFrame = 
+type P2PFrame =
   | {
-  credential: string;
-  instanceId: string;
-  kind: "hello";
-  protocols: Readonly<Record<string, number>>;
-  session: number;
-}
+      credential: string;
+      instanceId: string;
+      kind: 'hello';
+      protocols: Readonly<Record<string, number>>;
+      session: number;
+    }
   | {
-  id: number;
-  kind: "request";
-  method: string;
-  params: P2PJsonValue;
-  payload: Uint8Array;
-  protocol: string;
-}
+      id: number;
+      kind: 'request';
+      method: string;
+      params: P2PJsonValue;
+      payload: Uint8Array;
+      protocol: string;
+    }
   | {
-  id: number;
-  kind: "response";
-  payload: Uint8Array;
-  result: P2PJsonValue;
-}
+      id: number;
+      kind: 'response';
+      payload: Uint8Array;
+      result: P2PJsonValue;
+    }
   | {
-  code: string;
-  id: number;
-  kind: "error";
-  message: string;
-}
+      code: string;
+      id: number;
+      kind: 'error';
+      message: string;
+    }
   | {
-  id: number;
-  kind: "cancel";
-}
+      id: number;
+      kind: 'cancel';
+    }
   | {
-  kind: "ping";
-}
+      kind: 'ping';
+    }
   | {
-  kind: "pong";
-}
+      kind: 'pong';
+    }
   | {
-  kind: "bye";
-  reason: string;
-};
+      kind: 'bye';
+      reason: string;
+    };
 ```
 
 Defined in: [packages/rxdb-plugin-p2p/src/session/frame.ts:27](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-p2p/src/session/frame.ts#L27)
@@ -57,7 +57,7 @@ A session frame: JSON metadata plus a binary payload; only requests and replies 
 {
   credential: string;
   instanceId: string;
-  kind: "hello";
+  kind: 'hello';
   protocols: Readonly<Record<string, number>>;
   session: number;
 }
@@ -103,14 +103,14 @@ readonly session: number;
 
 Session protocol version.
 
-***
+---
 
 ### Type Literal
 
 ```ts
 {
   id: number;
-  kind: "request";
+  kind: 'request';
   method: string;
   params: P2PJsonValue;
   payload: Uint8Array;
@@ -166,14 +166,14 @@ readonly protocol: string;
 
 Protocol name.
 
-***
+---
 
 ### Type Literal
 
 ```ts
 {
   id: number;
-  kind: "response";
+  kind: 'response';
   payload: Uint8Array;
   result: P2PJsonValue;
 }
@@ -211,7 +211,7 @@ readonly result: P2PJsonValue;
 
 JSON result.
 
-***
+---
 
 ### Type Literal
 
@@ -219,7 +219,7 @@ JSON result.
 {
   code: string;
   id: number;
-  kind: "error";
+  kind: 'error';
   message: string;
 }
 ```
@@ -256,14 +256,14 @@ readonly message: string;
 
 Diagnosable error text (truncated to the protocol limit when encoded).
 
-***
+---
 
 ### Type Literal
 
 ```ts
 {
   id: number;
-  kind: "cancel";
+  kind: 'cancel';
 }
 ```
 
@@ -283,13 +283,13 @@ readonly kind: "cancel";
 
 The requester abandons a request.
 
-***
+---
 
 ### Type Literal
 
 ```ts
 {
-  kind: "ping";
+  kind: 'ping';
 }
 ```
 
@@ -301,13 +301,13 @@ readonly kind: "ping";
 
 Heartbeat.
 
-***
+---
 
 ### Type Literal
 
 ```ts
 {
-  kind: "pong";
+  kind: 'pong';
 }
 ```
 
@@ -319,13 +319,13 @@ readonly kind: "pong";
 
 Heartbeat reply.
 
-***
+---
 
 ### Type Literal
 
 ```ts
 {
-  kind: "bye";
+  kind: 'bye';
   reason: string;
 }
 ```

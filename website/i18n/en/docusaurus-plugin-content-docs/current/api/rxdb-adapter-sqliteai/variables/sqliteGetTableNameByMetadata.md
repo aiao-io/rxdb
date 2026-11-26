@@ -10,10 +10,10 @@ The physical table name of an entity in a given table set.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                          | Description         |
+| ---------- | ------------------------------------------------------------- | ------------------- |
 | `metadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | The entity metadata |
-| `tableSet` | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md) | The table set |
+| `tableSet` | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md)  | The table set       |
 
 ## Returns
 

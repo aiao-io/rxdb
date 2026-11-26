@@ -10,10 +10,10 @@ Board domain bridge: data signals + action set. Must be called in an injection c
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `rxdb` | [`RxDB`](../../rxdb/classes/RxDB.md) | Connected board RxDB instance (entities include the five entities of the board namespace) |
-| `options?` | [`UseBoardOptions`](../interfaces/UseBoardOptions.md) | Local record storage (localStorage by default) |
+| Parameter  | Type                                                  | Description                                                                               |
+| ---------- | ----------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `rxdb`     | [`RxDB`](../../rxdb/classes/RxDB.md)                  | Connected board RxDB instance (entities include the five entities of the board namespace) |
+| `options?` | [`UseBoardOptions`](../interfaces/UseBoardOptions.md) | Local record storage (localStorage by default)                                            |
 
 ## Returns
 

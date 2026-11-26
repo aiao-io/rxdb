@@ -1,17 +1,17 @@
 # ReplayRestoreResult
 
 ```ts
-type ReplayRestoreResult = 
+type ReplayRestoreResult =
   | {
-  ok: true;
-  restoredCount: number;
-  sessionId: string | null;
-  workingTreeRevision: number;
-}
+      ok: true;
+      restoredCount: number;
+      sessionId: string | null;
+      workingTreeRevision: number;
+    }
   | {
-  ok: false;
-  reason: ReplayRestoreRejection;
-};
+      ok: false;
+      reason: ReplayRestoreRejection;
+    };
 ```
 
 Defined in: [packages/rxdb-plugin-replay/src/types.ts:17](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-replay/src/types.ts#L17)
@@ -61,7 +61,7 @@ readonly workingTreeRevision: number;
 
 Working tree revision after this call
 
-***
+---
 
 ### Type Literal
 

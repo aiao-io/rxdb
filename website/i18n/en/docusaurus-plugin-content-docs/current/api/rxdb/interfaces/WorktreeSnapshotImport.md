@@ -20,7 +20,7 @@ The increments leading from the primary database's current active branch to the 
 
 The patches are in the change log's storage form; encrypted columns are envelopes; contains only entities present on the snapshot instance.
 
-***
+---
 
 ### tables \{#tables\}
 

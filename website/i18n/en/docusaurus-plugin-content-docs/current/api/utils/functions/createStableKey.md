@@ -10,10 +10,10 @@ Turns any serializable value into a stable string key for "has the content chang
 
 ## Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `value` | `unknown` | `undefined` | The value to serialize |
-| `label?` | `string` | `'Value'` | Error message prefix, letting the caller's error carry business context (e.g. `'RxDB query options'`) |
+| Parameter | Type      | Default value | Description                                                                                           |
+| --------- | --------- | ------------- | ----------------------------------------------------------------------------------------------------- |
+| `value`   | `unknown` | `undefined`   | The value to serialize                                                                                |
+| `label?`  | `string`  | `'Value'`     | Error message prefix, letting the caller's error carry business context (e.g. `'RxDB query options'`) |
 
 ## Returns
 

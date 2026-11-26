@@ -10,10 +10,10 @@ Builds a set of worktree commands.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `database` | [`RxDB`](../../rxdb/classes/RxDB.md) | The main instance |
-| `patch` | [`WorktreeStatePatch`](../type-aliases/WorktreeStatePatch.md) | Where state lands |
+| Parameter  | Type                                                          | Description       |
+| ---------- | ------------------------------------------------------------- | ----------------- |
+| `database` | [`RxDB`](../../rxdb/classes/RxDB.md)                          | The main instance |
+| `patch`    | [`WorktreeStatePatch`](../type-aliases/WorktreeStatePatch.md) | Where state lands |
 
 ## Returns
 

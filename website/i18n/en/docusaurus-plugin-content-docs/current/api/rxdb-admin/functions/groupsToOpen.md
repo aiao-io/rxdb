@@ -1,11 +1,7 @@
 # groupsToOpen()
 
 ```ts
-function groupsToOpen<T>(
-   nodes, 
-   url, 
-   known?
-): string[];
+function groupsToOpen<T>(nodes, url, known?): string[];
 ```
 
 Defined in: [layout/menu.ts:172](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin/src/layout/menu.ts#L172)
@@ -17,17 +13,17 @@ Usage: on first render, bindings pass an empty `known`; afterwards, whenever the
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `nodes` | readonly [`MenuNode`](../interfaces/MenuNode.md)&lt;`T`&gt;[] | The current menu tree. |
-| `url` | `string` | The current URL. |
-| `known?` | `ReadonlySet`&lt;`string`&gt; | Group ids seen before. |
+| Parameter | Type                                                          | Description            |
+| --------- | ------------------------------------------------------------- | ---------------------- |
+| `nodes`   | readonly [`MenuNode`](../interfaces/MenuNode.md)&lt;`T`&gt;[] | The current menu tree. |
+| `url`     | `string`                                                      | The current URL.       |
+| `known?`  | `ReadonlySet`&lt;`string`&gt;                                 | Group ids seen before. |
 
 ## Returns
 

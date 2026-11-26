@@ -9,7 +9,7 @@ The manifest repository interface for the sync layer to adapt.
 ### findHolders \{#findholders\}
 
 ```ts
-readonly findHolders: (contentHash) => 
+readonly findHolders: (contentHash) =>
   | readonly P2PManifestRecord[]
   | Promise<readonly P2PManifestRecord[]>;
 ```
@@ -20,16 +20,16 @@ All holder records of a content.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter     | Type     |
+| ------------- | -------- |
 | `contentHash` | `string` |
 
 #### Returns
 
-  \| readonly [`P2PManifestRecord`](P2PManifestRecord.md)[]
-  \| `Promise`&lt;readonly [`P2PManifestRecord`](P2PManifestRecord.md)[]&gt;
+\| readonly [`P2PManifestRecord`](P2PManifestRecord.md)[]
+\| `Promise`&lt;readonly [`P2PManifestRecord`](P2PManifestRecord.md)[]&gt;
 
-***
+---
 
 ### revoke \{#revoke\}
 
@@ -43,17 +43,17 @@ Revokes a holder record; `revokedAt` is the revocation moment on the holder's cl
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter     | Type     |
+| ------------- | -------- |
 | `contentHash` | `string` |
-| `holderId` | `string` |
-| `revokedAt?` | `number` |
+| `holderId`    | `string` |
+| `revokedAt?`  | `number` |
 
 #### Returns
 
 `void` \| `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### upsert \{#upsert\}
 
@@ -67,9 +67,9 @@ Writes a holder record.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `record` | [`P2PManifestRecord`](P2PManifestRecord.md) |
+| Parameter | Type                                        |
+| --------- | ------------------------------------------- |
+| `record`  | [`P2PManifestRecord`](P2PManifestRecord.md) |
 
 #### Returns
 

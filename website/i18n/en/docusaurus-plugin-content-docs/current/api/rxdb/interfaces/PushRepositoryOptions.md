@@ -19,10 +19,10 @@ The maximum number of changes per push batch.
 #### Default
 
 ```ts
-1000
+1000;
 ```
 
-***
+---
 
 ### includeRelated? \{#includerelated\}
 
@@ -35,16 +35,18 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:470](ht
 Whether to include related entities (cascade sync).
 
 When true:
+
 - Automatically pushes all child entities (entities that reference the current entity)
 - In reverse topological order: child -\> parent
 - Example: pushing User automatically pushes Post
 
 When false:
+
 - Only syncs the specified repository
 - May leave the remote data incomplete
 
 #### Default
 
 ```ts
-true
+true;
 ```

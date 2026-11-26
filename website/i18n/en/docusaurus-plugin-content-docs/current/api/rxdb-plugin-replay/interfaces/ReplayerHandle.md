@@ -20,7 +20,7 @@ Stops playback, destroys the rrweb replay, and empties the host element. Idempot
 
 `void`
 
-***
+---
 
 ### pause() \{#pause\}
 
@@ -36,7 +36,7 @@ Pauses at the current moment.
 
 `void`
 
-***
+---
 
 ### play() \{#play\}
 
@@ -52,7 +52,7 @@ Plays from the current moment; restarts from the beginning when already at the e
 
 `void`
 
-***
+---
 
 ### seek() \{#seek\}
 
@@ -66,15 +66,15 @@ Jumps to `timeMs` relative to the session start (out-of-range values clamp to th
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `timeMs` | `number` |
+| Parameter | Type     |
+| --------- | -------- |
+| `timeMs`  | `number` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### update() \{#update\}
 
@@ -88,8 +88,8 @@ Reloads with a different `replay` or `sessionId`; changing only `initialTime` is
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                                                                   |
+| --------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `options` | `Partial`&lt;`Pick`&lt;[`ReplayerOptions`](ReplayerOptions.md), `"replay"` \| `"sessionId"` \| `"initialTime"`&gt;&gt; |
 
 #### Returns

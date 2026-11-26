@@ -10,17 +10,17 @@ Defined in: [packages/rxdb-plugin-board/src/query.ts:23](https://github.com/aiao
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-f"></a> `F` *extends* `string` |
-| <a id="type-parameter-v"></a> `V` *extends* `string` |
+| Type Parameter                                       |
+| ---------------------------------------------------- |
+| <a id="type-parameter-f"></a> `F` _extends_ `string` |
+| <a id="type-parameter-v"></a> `V` _extends_ `string` |
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `field` | `F` |
-| `values` | readonly `V`[] |
+| Parameter | Type           |
+| --------- | -------------- |
+| `field`   | `F`            |
+| `values`  | readonly `V`[] |
 
 ## Returns
 
@@ -35,7 +35,7 @@ field: F;
 ### operator
 
 ```ts
-operator: "in";
+operator: 'in';
 ```
 
 ### value

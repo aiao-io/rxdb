@@ -10,8 +10,8 @@ Judges whether a repository's sync switch is in the enabled state.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type                                                                      | Description                                                                                           |
+| ----------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
 | `repoSync?` | [`RepositorySyncSwitch`](../interfaces/RepositorySyncSwitch.md) \| `null` | The repository's sync record on the current branch; pass `undefined` / `null` when no record is found |
 
 ## Returns
@@ -27,6 +27,6 @@ Whether it is enabled.
 ## Example
 
 ```ts
-isRepositorySyncEnabled(undefined);        // true —— has never synced
+isRepositorySyncEnabled(undefined); // true —— has never synced
 isRepositorySyncEnabled({ enabled: false }); // false
 ```

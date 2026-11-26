@@ -10,9 +10,9 @@ Milliseconds until the next local midnight, at least 1 second (for recomputing d
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `now` | `Date` |
+| Parameter | Type   |
+| --------- | ------ |
+| `now`     | `Date` |
 
 ## Returns
 

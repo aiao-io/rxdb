@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-sync/src/bulk-sync.ts:89](https://github.com/a
 
 Total elapsed time (milliseconds)
 
-***
+---
 
 ### failed \{#failed\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-sync/src/bulk-sync.ts:74](https://github.com/a
 
 The number of failed repositories
 
-***
+---
 
 ### results \{#results\}
 
@@ -64,7 +64,7 @@ result?: SyncRepositoryResult;
 success: boolean;
 ```
 
-***
+---
 
 ### succeeded \{#succeeded\}
 

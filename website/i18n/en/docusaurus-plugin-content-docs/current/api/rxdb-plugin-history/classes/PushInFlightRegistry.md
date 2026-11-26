@@ -49,7 +49,7 @@ Starts a round of claims.
 
 The claim handle of this round; the caller must call [PushInFlightSession.release](../interfaces/PushInFlightSession.md#release) in `finally`
 
-***
+---
 
 ### snapshot() \{#snapshot\}
 

@@ -10,16 +10,16 @@ Deep-merges a patch: objects are recursed into, arrays and leaves are replaced w
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `current` | `T` | The current value. |
-| `patch` | `unknown` | The patch. |
+| Parameter | Type      | Description        |
+| --------- | --------- | ------------------ |
+| `current` | `T`       | The current value. |
+| `patch`   | `unknown` | The patch.         |
 
 ## Returns
 

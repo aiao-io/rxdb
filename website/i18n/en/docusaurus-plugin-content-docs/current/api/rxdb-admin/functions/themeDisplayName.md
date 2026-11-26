@@ -10,10 +10,10 @@ The theme's display name: light / dark / follow system go through translation; o
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `name` | `string` | The theme name or `system`. |
-| `translate` | (`key`) => `string` | The translation function. |
+| Parameter   | Type                | Description                 |
+| ----------- | ------------------- | --------------------------- |
+| `name`      | `string`            | The theme name or `system`. |
+| `translate` | (`key`) => `string` | The translation function.   |
 
 ## Returns
 

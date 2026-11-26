@@ -18,17 +18,17 @@ Custom display name generator
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `fieldName` | `string` |
-| `metadata?` | \{ `displayName?`: `string`; \} |
-| `metadata.displayName?` | `string` |
+| Parameter               | Type                            |
+| ----------------------- | ------------------------------- |
+| `fieldName`             | `string`                        |
+| `metadata?`             | \{ `displayName?`: `string`; \} |
+| `metadata.displayName?` | `string`                        |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### entityMetadataMap? \{#entitymetadatamap\}
 
@@ -41,7 +41,7 @@ Defined in: packages/rxdb-model/dist/query-builder/services/schema-parser.servic
 Entity metadata map (used to resolve the target entity fields of relation fields)
 The keys are entity names and the values are entity metadata
 
-***
+---
 
 ### fieldFilter? \{#fieldfilter\}
 
@@ -55,15 +55,15 @@ Custom field filter
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `field` | [`FieldMetadata`](FieldMetadata.md) |
+| Parameter | Type                                |
+| --------- | ----------------------------------- |
+| `field`   | [`FieldMetadata`](FieldMetadata.md) |
 
 #### Returns
 
 `boolean`
 
-***
+---
 
 ### includeComputedProperties? \{#includecomputedproperties\}
 
@@ -78,10 +78,10 @@ Whether to include computed properties
 #### Default
 
 ```ts
-false
+false;
 ```
 
-***
+---
 
 ### includeForeignKeys? \{#includeforeignkeys\}
 
@@ -96,10 +96,10 @@ Whether to include foreign key fields
 #### Default
 
 ```ts
-false
+false;
 ```
 
-***
+---
 
 ### includeRelations? \{#includerelations\}
 
@@ -114,5 +114,5 @@ Whether to include relation fields (used for the EXISTS operator)
 #### Default
 
 ```ts
-false
+false;
 ```

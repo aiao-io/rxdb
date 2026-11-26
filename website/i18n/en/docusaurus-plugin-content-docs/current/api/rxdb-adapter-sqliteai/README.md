@@ -28,11 +28,11 @@ Repository) comes from [`@aiao/rxdb-adapter-sqlite-core`](../rxdb-adapter-sqlite
 [`@aiao/rxdb-adapter-sqlite-core`](../rxdb-adapter-sqlite-core/README.md); see
 there for semantics and error codes.
 
-| Configuration                          | Backup / restore                                                                            |
-| -------------------------------------- | ------------------------------------------------------------------------------------------- |
-| Without `opfs`                         | ✅ In-memory database                                                                       |
-| `opfs: true`                           | ✅ OPFS, persistent, `journal_mode` is `delete`                                             |
-| `opfs: true, opfsFallback: 'memory'`   | ❌ `unsupported_combination` (`opfsFallback`): silently falls back to memory when OPFS cannot be opened, leaving the restore target indeterminate |
+| Configuration                        | Backup / restore                                                                                                                                  |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Without `opfs`                       | ✅ In-memory database                                                                                                                             |
+| `opfs: true`                         | ✅ OPFS, persistent, `journal_mode` is `delete`                                                                                                   |
+| `opfs: true, opfsFallback: 'memory'` | ❌ `unsupported_combination` (`opfsFallback`): silently falls back to memory when OPFS cannot be opened, leaving the restore target indeterminate |
 
 The built-in vector and memory extensions create their own tables on every new
 connection (`_sqliteai_vector`, `dbmem_*` and their FTS5 shadow tables, some
@@ -62,40 +62,40 @@ does this step automatically inside `disconnect()`.
 
 ## Classes
 
-| Class | Description |
-| ------ | ------ |
-| [RxDBAdapterSqliteai](classes/RxDBAdapterSqliteai.md) | The RxDB local storage adapter based on `@sqliteai/sqlite-wasm`. |
-| [RxDBAdapterSqliteError](classes/RxDBAdapterSqliteError.md) | RxDB SQLite adapter error class |
-| [SqliteaiClient](classes/SqliteaiClient.md) | The oo1 client implementation for SqliteAI. |
-| [SqliteRepository](classes/SqliteRepository.md) | The repository for operating on entities |
+| Class                                                       | Description                                                      |
+| ----------------------------------------------------------- | ---------------------------------------------------------------- |
+| [RxDBAdapterSqliteai](classes/RxDBAdapterSqliteai.md)       | The RxDB local storage adapter based on `@sqliteai/sqlite-wasm`. |
+| [RxDBAdapterSqliteError](classes/RxDBAdapterSqliteError.md) | RxDB SQLite adapter error class                                  |
+| [SqliteaiClient](classes/SqliteaiClient.md)                 | The oo1 client implementation for SqliteAI.                      |
+| [SqliteRepository](classes/SqliteRepository.md)             | The repository for operating on entities                         |
 
 ## Interfaces
 
-| Interface | Description |
-| ------ | ------ |
-| [GenerateSqlResult](interfaces/GenerateSqlResult.md) | SQL generation result: the complete SQL statement and optional parameter bindings. |
-| [SqliteaiOptions](interfaces/SqliteaiOptions.md) | The complete SqliteAI adapter options (including an optional custom Repository registry). |
+| Interface                                            | Description                                                                               |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| [GenerateSqlResult](interfaces/GenerateSqlResult.md) | SQL generation result: the complete SQL statement and optional parameter bindings.        |
+| [SqliteaiOptions](interfaces/SqliteaiOptions.md)     | The complete SqliteAI adapter options (including an optional custom Repository registry). |
 
 ## Type Aliases
 
-| Type Alias | Description |
-| ------ | ------ |
-| [SqliteaiLoadOptions](type-aliases/SqliteaiLoadOptions.md) | The runtime option subset accepted by `sqliteaiLoad` (with worker / repository configuration stripped). |
+| Type Alias                                                                     | Description                                                                                                          |
+| ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| [SqliteaiLoadOptions](type-aliases/SqliteaiLoadOptions.md)                     | The runtime option subset accepted by `sqliteaiLoad` (with worker / repository configuration stripped).              |
 | [SqliteaiRepositoryConstructor](type-aliases/SqliteaiRepositoryConstructor.md) | The constructor signature of a custom Repository class (users can override the default Repository / TreeRepository). |
 
 ## Variables
 
-| Variable | Description |
-| ------ | ------ |
-| [BATCH\_TIMEOUT](variables/BATCH_TIMEOUT.md) | Change event batching timeout tiers (milliseconds). The shorter the lower latency but the more frequent CPU wakeups; the longer the more power saved but the later UI responses. - `IMMEDIATE` (0): synchronous dispatch, only for test scenarios - `FAST` (4): coalesced within about one frame - `BALANCED` (16): default, about one frame (60fps) - `POWER_SAVE` (50): mobile / background scenarios |
-| [buildRuleGroup](variables/buildRuleGroup.md) | Generates the ruleGroup SQL query condition |
-| [ROWID](variables/ROWID.md) | The sqlite row id column name |
-| [sqliteGetTableName](variables/sqliteGetTableName.md) | Composes the physical name of the main table set: `<namespace>$<logical name>`. |
-| [sqliteGetTableNameByMetadata](variables/sqliteGetTableNameByMetadata.md) | The physical table name of an entity in a given table set. |
+| Variable                                                                  | Description                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [BATCH\_TIMEOUT](variables/BATCH_TIMEOUT.md)                              | Change event batching timeout tiers (milliseconds). The shorter the lower latency but the more frequent CPU wakeups; the longer the more power saved but the later UI responses. - `IMMEDIATE` (0): synchronous dispatch, only for test scenarios - `FAST` (4): coalesced within about one frame - `BALANCED` (16): default, about one frame (60fps) - `POWER_SAVE` (50): mobile / background scenarios |
+| [buildRuleGroup](variables/buildRuleGroup.md)                             | Generates the ruleGroup SQL query condition                                                                                                                                                                                                                                                                                                                                                             |
+| [ROWID](variables/ROWID.md)                                               | The sqlite row id column name                                                                                                                                                                                                                                                                                                                                                                           |
+| [sqliteGetTableName](variables/sqliteGetTableName.md)                     | Composes the physical name of the main table set: `<namespace>$<logical name>`.                                                                                                                                                                                                                                                                                                                         |
+| [sqliteGetTableNameByMetadata](variables/sqliteGetTableNameByMetadata.md) | The physical table name of an entity in a given table set.                                                                                                                                                                                                                                                                                                                                              |
 
 ## Functions
 
-| Function | Description |
-| ------ | ------ |
+| Function                                              | Description                                                      |
+| ----------------------------------------------------- | ---------------------------------------------------------------- |
 | [createSqliteClient](functions/createSqliteClient.md) | Creates a SqliteAI client instance and completes initialization. |
-| [sqliteaiLoad](functions/sqliteaiLoad.md) | Loads the SqliteAI WASM module (with module-level caching). |
+| [sqliteaiLoad](functions/sqliteaiLoad.md)             | Loads the SqliteAI WASM module (with module-level caching).      |

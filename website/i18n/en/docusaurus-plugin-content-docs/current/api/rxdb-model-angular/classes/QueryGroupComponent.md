@@ -7,6 +7,7 @@ Query rule group component (recursive)
 ## Description
 
 Displays a group of query rules, supporting:
+
 - AND/OR toggle (Teable style: inline conjunction prefix)
 - Add rule/subgroup
 - Delete group
@@ -34,7 +35,7 @@ readonly addGroup: OutputEmitterRef<string>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/query-group/query-group.component.ts:323](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/query-group/query-group.component.ts#L323)
 
-***
+---
 
 ### addRule \{#addrule\}
 
@@ -47,7 +48,7 @@ readonly addRule: OutputEmitterRef<{
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/query-group/query-group.component.ts:322](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/query-group/query-group.component.ts#L322)
 
-***
+---
 
 ### allowCollapse \{#allowcollapse\}
 
@@ -59,7 +60,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-group/query-gro
 
 Whether expanding/collapsing the group is allowed (enabled by default)
 
-***
+---
 
 ### canAddGroup \{#canaddgroup\}
 
@@ -71,7 +72,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-group/query-gro
 
 Whether a subgroup can be added (the maximum depth has not been reached)
 
-***
+---
 
 ### collapsed \{#collapsed\}
 
@@ -83,7 +84,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-group/query-gro
 
 Whether the current group is collapsed
 
-***
+---
 
 ### depth \{#depth\}
 
@@ -93,7 +94,7 @@ readonly depth: InputSignal<number>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/query-group/query-group.component.ts:316](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/query-group/query-group.component.ts#L316)
 
-***
+---
 
 ### dragDropHandler \{#dragdrophandler\}
 
@@ -103,7 +104,7 @@ readonly dragDropHandler: InputSignal<QueryDragDropHandler | undefined>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/query-group/query-group.component.ts:318](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/query-group/query-group.component.ts#L318)
 
-***
+---
 
 ### errors \{#errors\}
 
@@ -113,7 +114,7 @@ readonly errors: InputSignal<ValidationError[]>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/query-group/query-group.component.ts:315](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/query-group/query-group.component.ts#L315)
 
-***
+---
 
 ### fields \{#fields\}
 
@@ -123,7 +124,7 @@ readonly fields: InputSignal<FieldMetadata[]>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/query-group/query-group.component.ts:314](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/query-group/query-group.component.ts#L314)
 
-***
+---
 
 ### group \{#group\}
 
@@ -133,7 +134,7 @@ readonly group: InputSignal<UIRuleGroup>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/query-group/query-group.component.ts:313](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/query-group/query-group.component.ts#L313)
 
-***
+---
 
 ### maxDepth \{#maxdepth\}
 
@@ -143,7 +144,7 @@ readonly maxDepth: InputSignal<number>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/query-group/query-group.component.ts:317](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/query-group/query-group.component.ts#L317)
 
-***
+---
 
 ### nestingLimitHint \{#nestinglimithint\}
 
@@ -155,7 +156,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-group/query-gro
 
 Reason shown to the user when the nesting limit is reached (the AC requires a "limit exceeded" hint; it must not be silent)
 
-***
+---
 
 ### removeItem \{#removeitem\}
 
@@ -165,7 +166,7 @@ readonly removeItem: OutputEmitterRef<string>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/query-group/query-group.component.ts:324](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/query-group/query-group.component.ts#L324)
 
-***
+---
 
 ### updateCombinator \{#updatecombinator\}
 
@@ -178,7 +179,7 @@ readonly updateCombinator: OutputEmitterRef<{
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/query-group/query-group.component.ts:326](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/query-group/query-group.component.ts#L326)
 
-***
+---
 
 ### updateRule \{#updaterule\}
 
@@ -207,7 +208,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-group/query-gro
 
 [`ModelI18n`](../interfaces/ModelI18n.md)
 
-***
+---
 
 ### t \{#t\}
 
@@ -239,15 +240,15 @@ Type conversion: casts to a rule
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `item` | \| [`UIRule`](../interfaces/UIRule.md) \| [`UIRuleGroup`](../interfaces/UIRuleGroup.md) |
+| Parameter | Type                                                                                    |
+| --------- | --------------------------------------------------------------------------------------- |
+| `item`    | \| [`UIRule`](../interfaces/UIRule.md) \| [`UIRuleGroup`](../interfaces/UIRuleGroup.md) |
 
 #### Returns
 
 [`UIRule`](../interfaces/UIRule.md)
 
-***
+---
 
 ### asRuleGroup() \{#asrulegroup\}
 
@@ -261,15 +262,15 @@ Type conversion: casts to a rule group
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `item` | \| [`UIRule`](../interfaces/UIRule.md) \| [`UIRuleGroup`](../interfaces/UIRuleGroup.md) |
+| Parameter | Type                                                                                    |
+| --------- | --------------------------------------------------------------------------------------- |
+| `item`    | \| [`UIRule`](../interfaces/UIRule.md) \| [`UIRuleGroup`](../interfaces/UIRuleGroup.md) |
 
 #### Returns
 
 [`UIRuleGroup`](../interfaces/UIRuleGroup.md)
 
-***
+---
 
 ### isDragging() \{#isdragging\}
 
@@ -281,15 +282,15 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-group/query-gro
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `itemId` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `itemId`  | `string` |
 
 #### Returns
 
 `boolean`
 
-***
+---
 
 ### isDropInvalid() \{#isdropinvalid\}
 
@@ -301,15 +302,15 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-group/query-gro
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `itemId` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `itemId`  | `string` |
 
 #### Returns
 
 `boolean`
 
-***
+---
 
 ### isDropTarget() \{#isdroptarget\}
 
@@ -321,16 +322,16 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-group/query-gro
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `itemId` | `string` |
-| `mode` | [`QueryDropMode`](../type-aliases/QueryDropMode.md) |
+| Parameter | Type                                                |
+| --------- | --------------------------------------------------- |
+| `itemId`  | `string`                                            |
+| `mode`    | [`QueryDropMode`](../type-aliases/QueryDropMode.md) |
 
 #### Returns
 
 `boolean`
 
-***
+---
 
 ### isRuleGroup() \{#isrulegroup\}
 
@@ -344,15 +345,15 @@ Type guard: whether it is a rule group
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `item` | \| [`UIRule`](../interfaces/UIRule.md) \| [`UIRuleGroup`](../interfaces/UIRuleGroup.md) |
+| Parameter | Type                                                                                    |
+| --------- | --------------------------------------------------------------------------------------- |
+| `item`    | \| [`UIRule`](../interfaces/UIRule.md) \| [`UIRuleGroup`](../interfaces/UIRuleGroup.md) |
 
 #### Returns
 
 `item is UIRuleGroup`
 
-***
+---
 
 ### onAddGroup() \{#onaddgroup\}
 
@@ -368,7 +369,7 @@ Adds a subgroup
 
 `void`
 
-***
+---
 
 ### onAddRule() \{#onaddrule\}
 
@@ -384,7 +385,7 @@ Adds a rule
 
 `void`
 
-***
+---
 
 ### onItemDragEnd() \{#onitemdragend\}
 
@@ -398,7 +399,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-group/query-gro
 
 `void`
 
-***
+---
 
 ### onItemDragLeave() \{#onitemdragleave\}
 
@@ -410,23 +411,23 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-group/query-gro
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `DragEvent` |
+| Parameter | Type        |
+| --------- | ----------- |
+| `event`   | `DragEvent` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onItemDragOver() \{#onitemdragover\}
 
 ```ts
 onItemDragOver(
-   event, 
-   item, 
-   index, 
+   event,
+   item,
+   index,
    isGroup
 ): void;
 ```
@@ -435,18 +436,18 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-group/query-gro
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `DragEvent` |
-| `item` | \| [`UIRule`](../interfaces/UIRule.md) \| [`UIRuleGroup`](../interfaces/UIRuleGroup.md) |
-| `index` | `number` |
-| `isGroup` | `boolean` |
+| Parameter | Type                                                                                    |
+| --------- | --------------------------------------------------------------------------------------- |
+| `event`   | `DragEvent`                                                                             |
+| `item`    | \| [`UIRule`](../interfaces/UIRule.md) \| [`UIRuleGroup`](../interfaces/UIRuleGroup.md) |
+| `index`   | `number`                                                                                |
+| `isGroup` | `boolean`                                                                               |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onItemDragStart() \{#onitemdragstart\}
 
@@ -458,24 +459,24 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-group/query-gro
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `DragEvent` |
-| `item` | \| [`UIRule`](../interfaces/UIRule.md) \| [`UIRuleGroup`](../interfaces/UIRuleGroup.md) |
+| Parameter | Type                                                                                    |
+| --------- | --------------------------------------------------------------------------------------- |
+| `event`   | `DragEvent`                                                                             |
+| `item`    | \| [`UIRule`](../interfaces/UIRule.md) \| [`UIRuleGroup`](../interfaces/UIRuleGroup.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onItemDrop() \{#onitemdrop\}
 
 ```ts
 onItemDrop(
-   event, 
-   targetItem, 
-   targetIndex, 
+   event,
+   targetItem,
+   targetIndex,
    isGroup
 ): void;
 ```
@@ -484,18 +485,18 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-group/query-gro
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `DragEvent` |
-| `targetItem` | \| [`UIRule`](../interfaces/UIRule.md) \| [`UIRuleGroup`](../interfaces/UIRuleGroup.md) |
-| `targetIndex` | `number` |
-| `isGroup` | `boolean` |
+| Parameter     | Type                                                                                    |
+| ------------- | --------------------------------------------------------------------------------------- |
+| `event`       | `DragEvent`                                                                             |
+| `targetItem`  | \| [`UIRule`](../interfaces/UIRule.md) \| [`UIRuleGroup`](../interfaces/UIRuleGroup.md) |
+| `targetIndex` | `number`                                                                                |
+| `isGroup`     | `boolean`                                                                               |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onRemove() \{#onremove\}
 
@@ -511,7 +512,7 @@ Deletes this group
 
 `void`
 
-***
+---
 
 ### onRuleRemove() \{#onruleremove\}
 
@@ -525,15 +526,15 @@ Deletes a rule
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `id` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `id`      | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onRuleUpdate() \{#onruleupdate\}
 
@@ -547,17 +548,17 @@ Rule update
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | \{ `id`: `string`; `updates`: `Partial`&lt;[`UIRule`](../interfaces/UIRule.md)&gt;; \} |
-| `event.id` | `string` |
-| `event.updates` | `Partial`&lt;[`UIRule`](../interfaces/UIRule.md)&gt; |
+| Parameter       | Type                                                                                   |
+| --------------- | -------------------------------------------------------------------------------------- |
+| `event`         | \{ `id`: `string`; `updates`: `Partial`&lt;[`UIRule`](../interfaces/UIRule.md)&gt;; \} |
+| `event.id`      | `string`                                                                               |
+| `event.updates` | `Partial`&lt;[`UIRule`](../interfaces/UIRule.md)&gt;                                   |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### toggleCollapse() \{#togglecollapse\}
 
@@ -571,7 +572,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-group/query-gro
 
 `void`
 
-***
+---
 
 ### toggleCombinator() \{#togglecombinator\}
 
@@ -585,15 +586,15 @@ Toggles the combinator
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter    | Type              |
+| ------------ | ----------------- |
 | `combinator` | `"and"` \| `"or"` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### trackByItem() \{#trackbyitem\}
 
@@ -607,9 +608,9 @@ Tracking function
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `item` | \| [`UIRule`](../interfaces/UIRule.md) \| [`UIRuleGroup`](../interfaces/UIRuleGroup.md) |
+| Parameter | Type                                                                                    |
+| --------- | --------------------------------------------------------------------------------------- |
+| `item`    | \| [`UIRule`](../interfaces/UIRule.md) \| [`UIRuleGroup`](../interfaces/UIRuleGroup.md) |
 
 #### Returns
 

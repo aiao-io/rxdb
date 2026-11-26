@@ -10,18 +10,18 @@ Normalizes neighbor query options
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) | - |
-| <a id="type-parameter-u"></a> `U` | [`GraphWhere`](../type-aliases/GraphWhere.md)&lt;`T`&gt; |
-| <a id="type-parameter-v"></a> `V` *extends* `object` | `object` |
+| Type Parameter                                                                                    | Default type                                             |
+| ------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) | -                                                        |
+| <a id="type-parameter-u"></a> `U`                                                                 | [`GraphWhere`](../type-aliases/GraphWhere.md)&lt;`T`&gt; |
+| <a id="type-parameter-v"></a> `V` _extends_ `object`                                              | `object`                                                 |
 
 ## Parameters
 
-| Parameter | Type | Default value |
-| ------ | ------ | ------ |
-| `options` | [`FindNeighborsOptions`](../interfaces/FindNeighborsOptions.md)&lt;`T`, `U`, `V`&gt; | `undefined` |
-| `preserveZeroLevel?` | `boolean` | `false` |
+| Parameter            | Type                                                                                 | Default value |
+| -------------------- | ------------------------------------------------------------------------------------ | ------------- |
+| `options`            | [`FindNeighborsOptions`](../interfaces/FindNeighborsOptions.md)&lt;`T`, `U`, `V`&gt; | `undefined`   |
+| `preserveZeroLevel?` | `boolean`                                                                            | `false`       |
 
 ## Returns
 

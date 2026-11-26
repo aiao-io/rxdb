@@ -10,10 +10,10 @@ Verifies the content hash of the complete file.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `chunks` | `Iterable`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt; |
-| `expectedHash` | `string` |
+| Parameter      | Type                                                    |
+| -------------- | ------------------------------------------------------- |
+| `chunks`       | `Iterable`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt; |
+| `expectedHash` | `string`                                                |
 
 ## Returns
 

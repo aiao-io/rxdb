@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/popover-select/popover-
 
 Minimum width of the trigger and the popover, defaults to `'8rem'`.
 
-***
+---
 
 ### onSelectChange? \{#onselectchange\}
 
@@ -30,15 +30,15 @@ Selection callback.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `value`   | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### options \{#options\}
 
@@ -50,7 +50,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/popover-select/popover-
 
 Option list.
 
-***
+---
 
 ### placeholder? \{#placeholder\}
 
@@ -62,7 +62,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/popover-select/popover-
 
 Placeholder text (shown when nothing is selected or the selected value is not among the options), defaults to `'Select'`.
 
-***
+---
 
 ### selected? \{#selected\}
 

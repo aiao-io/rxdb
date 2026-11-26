@@ -11,10 +11,10 @@ Uses Math.random() to produce a random number, then Math.floor() to round down
 
 ## Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `min?` | `number` | `Number.MIN_SAFE_INTEGER` | Minimum value (inclusive); defaults to Number.MIN_SAFE_INTEGER |
-| `max?` | `number` | `Number.MAX_SAFE_INTEGER` | Maximum value (inclusive); defaults to Number.MAX_SAFE_INTEGER |
+| Parameter | Type     | Default value             | Description                                                    |
+| --------- | -------- | ------------------------- | -------------------------------------------------------------- |
+| `min?`    | `number` | `Number.MIN_SAFE_INTEGER` | Minimum value (inclusive); defaults to Number.MIN_SAFE_INTEGER |
+| `max?`    | `number` | `Number.MAX_SAFE_INTEGER` | Maximum value (inclusive); defaults to Number.MAX_SAFE_INTEGER |
 
 ## Returns
 

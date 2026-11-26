@@ -12,8 +12,8 @@ The error message lists all invalid entries so developers don't need multiple ro
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter   | Type                                                                                             |
+| ----------- | ------------------------------------------------------------------------------------------------ |
 | `metadatas` | readonly `Readonly`&lt;[`EntityMetadataType`](../../rxdb/interfaces/EntityMetadataType.md)&gt;[] |
 
 ## Returns

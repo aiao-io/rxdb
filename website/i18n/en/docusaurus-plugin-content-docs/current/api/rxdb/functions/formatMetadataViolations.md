@@ -10,9 +10,9 @@ Renders the violations aggregated across entities into a single exception messag
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `errors` | readonly [`EntityMetadataValidationError`](../interfaces/EntityMetadataValidationError.md)[] | The list of aggregated violations |
+| Parameter | Type                                                                                         | Description                       |
+| --------- | -------------------------------------------------------------------------------------------- | --------------------------------- |
+| `errors`  | readonly [`EntityMetadataValidationError`](../interfaces/EntityMetadataValidationError.md)[] | The list of aggregated violations |
 
 ## Returns
 

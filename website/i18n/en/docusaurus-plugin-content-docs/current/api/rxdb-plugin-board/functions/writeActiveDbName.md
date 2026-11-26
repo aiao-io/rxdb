@@ -10,10 +10,10 @@ Writes the new database as the active position only after read-back succeeds (US
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                            |
+| --------- | ----------------------------------------------- |
 | `storage` | [`BoardStorage`](../interfaces/BoardStorage.md) |
-| `dbName` | `string` |
+| `dbName`  | `string`                                        |
 
 ## Returns
 

@@ -10,8 +10,8 @@ Returns the last path segment of an OPFS-relative path.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `opfsPath` | `string` |
 
 ## Returns

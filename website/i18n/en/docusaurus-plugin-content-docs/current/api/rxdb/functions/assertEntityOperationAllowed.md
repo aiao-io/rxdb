@@ -10,10 +10,10 @@ Judgment for a single public write entrance.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `EntityType` | [`EntityType`](../type-aliases/EntityType.md) | The entity class being written |
-| `operation` | [`EntityOperation`](../type-aliases/EntityOperation.md) | The write operation |
+| Parameter    | Type                                                    | Description                    |
+| ------------ | ------------------------------------------------------- | ------------------------------ |
+| `EntityType` | [`EntityType`](../type-aliases/EntityType.md)           | The entity class being written |
+| `operation`  | [`EntityOperation`](../type-aliases/EntityOperation.md) | The write operation            |
 
 ## Returns
 

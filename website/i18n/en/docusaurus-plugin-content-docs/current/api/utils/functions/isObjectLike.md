@@ -8,9 +8,9 @@ Defined in: [packages/utils/src/types/isObjectLike.ts:1](https://github.com/aiao
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `value`   | `unknown` |
 
 ## Returns
 

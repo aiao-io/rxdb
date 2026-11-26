@@ -1,5 +1,5 @@
 ---
-sidebar_label: "InfiniteScrollResource⟨T⟩"
+sidebar_label: 'InfiniteScrollResource⟨T⟩'
 ---
 
 # InfiniteScrollResource`<T>`
@@ -8,8 +8,8 @@ Defined in: [rxdb-react/src/useInfiniteScroll.ts:88](https://github.com/aiao-io/
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Properties
@@ -24,7 +24,7 @@ Defined in: [rxdb-react/src/useInfiniteScroll.ts:96](https://github.com/aiao-io/
 
 The most recent load error.
 
-***
+---
 
 ### hasMore \{#hasmore\}
 
@@ -36,7 +36,7 @@ Defined in: [rxdb-react/src/useInfiniteScroll.ts:98](https://github.com/aiao-io/
 
 Whether a next page may still exist.
 
-***
+---
 
 ### isEmpty \{#isempty\}
 
@@ -48,7 +48,7 @@ Defined in: [rxdb-react/src/useInfiniteScroll.ts:92](https://github.com/aiao-io/
 
 The first load has completed and the result is empty.
 
-***
+---
 
 ### isLoading \{#isloading\}
 
@@ -60,7 +60,7 @@ Defined in: [rxdb-react/src/useInfiniteScroll.ts:94](https://github.com/aiao-io/
 
 Whether a new page is currently being loaded.
 
-***
+---
 
 ### loadMore \{#loadmore\}
 
@@ -76,7 +76,7 @@ Loads the next page.
 
 `void`
 
-***
+---
 
 ### refresh \{#refresh\}
 
@@ -92,7 +92,7 @@ Clears the current pages and reloads the first page.
 
 `void`
 
-***
+---
 
 ### value \{#value\}
 

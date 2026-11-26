@@ -17,8 +17,8 @@ Defined in: [packages/rxdb-model/src/query-builder/services/validation.service.t
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                                    | Description                                    |
+| ---------- | ----------------------------------------------------------------------- | ---------------------------------------------- |
 | `options?` | [`ValidationServiceOptions`](../interfaces/ValidationServiceOptions.md) | Validation service config (custom rules, etc.) |
 
 #### Returns
@@ -41,7 +41,7 @@ Gets all validation rules
 
 [`ValidationRule`](../interfaces/ValidationRule.md)[]
 
-***
+---
 
 ### registerRule() \{#registerrule\}
 
@@ -55,15 +55,15 @@ Registers a custom validation rule
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rule` | [`ValidationRule`](../interfaces/ValidationRule.md) |
+| Parameter | Type                                                |
+| --------- | --------------------------------------------------- |
+| `rule`    | [`ValidationRule`](../interfaces/ValidationRule.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### unregisterRule() \{#unregisterrule\}
 
@@ -77,15 +77,15 @@ Removes a validation rule
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `name` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `name`    | `string` |
 
 #### Returns
 
 `boolean`
 
-***
+---
 
 ### validateGroup() \{#validategroup\}
 
@@ -99,16 +99,16 @@ Validates a whole rule group
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `group` | [`ValidationGroupInput`](../type-aliases/ValidationGroupInput.md) |
-| `fields` | `Map`&lt;`string`, [`FieldMetadata`](../interfaces/FieldMetadata.md)&gt; |
+| Parameter | Type                                                                     |
+| --------- | ------------------------------------------------------------------------ |
+| `group`   | [`ValidationGroupInput`](../type-aliases/ValidationGroupInput.md)        |
+| `fields`  | `Map`&lt;`string`, [`FieldMetadata`](../interfaces/FieldMetadata.md)&gt; |
 
 #### Returns
 
 [`ValidationResult`](../interfaces/ValidationResult.md)
 
-***
+---
 
 ### validateRule() \{#validaterule\}
 
@@ -122,10 +122,10 @@ Validates a single rule
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rule` | `ValidationRuleInput` |
-| `field` | [`FieldMetadata`](../interfaces/FieldMetadata.md) |
+| Parameter | Type                                              |
+| --------- | ------------------------------------------------- |
+| `rule`    | `ValidationRuleInput`                             |
+| `field`   | [`FieldMetadata`](../interfaces/FieldMetadata.md) |
 
 #### Returns
 

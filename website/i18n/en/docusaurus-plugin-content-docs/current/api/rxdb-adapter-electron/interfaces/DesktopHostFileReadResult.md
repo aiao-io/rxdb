@@ -16,7 +16,7 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/desktop/desktop-host-protocol
 
 This frame's content; when `length` reaches the end of the file it may be shorter than requested. The host buffer must be a plain `ArrayBuffer` (same as above).
 
-***
+---
 
 ### eof \{#eof\}
 

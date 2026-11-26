@@ -20,8 +20,8 @@ Defined in: packages/rxdb-model/dist/entity-form/headless.d.ts:89
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                          |
+| --------- | ----------------------------------------------------------------------------- |
 | `options` | [`EntityFormControllerOptions`](../interfaces/EntityFormControllerOptions.md) |
 
 #### Returns
@@ -62,7 +62,7 @@ Restores the input of the most recent setData / setEntity and emits a cancel eve
 
 [`EntityFormData`](../interfaces/EntityFormData.md)
 
-***
+---
 
 ### discardInput() \{#discardinput\}
 
@@ -76,8 +76,8 @@ Discards the field's input that has not passed parsing, keeping the most recent 
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter   | Type     |
+| ----------- | -------- |
 | `fieldName` | `string` |
 
 #### Returns
@@ -89,7 +89,7 @@ Discards the field's input that has not passed parsing, keeping the most recent 
 Call this when a control echoes back the most recent valid value after a parse failure (e.g. a controlled input bound to `snapshot.data`);
 controls that keep the original input should not call it — a parse error keeps blocking submission until the input is corrected.
 
-***
+---
 
 ### dispose() \{#dispose\}
 
@@ -105,12 +105,12 @@ Unsubscribes and blocks subsequent action notifications.
 
 `void`
 
-***
+---
 
 ### getFieldState() \{#getfieldstate\}
 
 ```ts
-getFieldState(fieldName): 
+getFieldState(fieldName):
   | EntityFormFieldSnapshot
   | undefined;
 ```
@@ -121,16 +121,16 @@ Reads the rendering state of a single field.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter   | Type     |
+| ----------- | -------- |
 | `fieldName` | `string` |
 
 #### Returns
 
-  \| [`EntityFormFieldSnapshot`](../interfaces/EntityFormFieldSnapshot.md)
-  \| `undefined`
+\| [`EntityFormFieldSnapshot`](../interfaces/EntityFormFieldSnapshot.md)
+\| `undefined`
 
-***
+---
 
 ### setData() \{#setdata\}
 
@@ -144,15 +144,15 @@ Replaces the host data and clears old input and errors.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `data` | [`EntityFormData`](../interfaces/EntityFormData.md) |
+| Parameter | Type                                                |
+| --------- | --------------------------------------------------- |
+| `data`    | [`EntityFormData`](../interfaces/EntityFormData.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### setEntity() \{#setentity\}
 
@@ -166,20 +166,20 @@ Converts the entity into form data and replaces the host data.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `entity` | `Record`&lt;`string`, `unknown`&gt; |
+| Parameter | Type                                |
+| --------- | ----------------------------------- |
+| `entity`  | `Record`&lt;`string`, `unknown`&gt; |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### setField() \{#setfield\}
 
 ```ts
-setField(fieldName, rawValue): 
+setField(fieldName, rawValue):
   | {
   event: FormFieldChangeEvent;
   ok: true;
@@ -196,26 +196,26 @@ Parses and writes a field.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `fieldName` | `string` |
-| `rawValue` | `unknown` |
+| Parameter   | Type      |
+| ----------- | --------- |
+| `fieldName` | `string`  |
+| `rawValue`  | `unknown` |
 
 #### Returns
 
-  \| \{
-  `event`: [`FormFieldChangeEvent`](../interfaces/FormFieldChangeEvent.md);
-  `ok`: `true`;
+\| \{
+`event`: [`FormFieldChangeEvent`](../interfaces/FormFieldChangeEvent.md);
+`ok`: `true`;
 \}
-  \| \{
-  `ok`: `false`;
-  `result`: [`FormValidationResult`](../interfaces/FormValidationResult.md);
+\| \{
+`ok`: `false`;
+`result`: [`FormValidationResult`](../interfaces/FormValidationResult.md);
 \}
 
 Returns the normalized value on success and keeps the most recent valid value on failure; the failed `result`, like the `validationErrors` published with it, only contains the parse errors of this input —
 read `snapshot.errors` for the full set of errors.
 
-***
+---
 
 ### setFields() \{#setfields\}
 
@@ -229,15 +229,15 @@ Updates field metadata and clears errors that cannot map to the new fields.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `fields` | readonly [`FormFieldConfig`](../interfaces/FormFieldConfig.md)[] |
+| Parameter | Type                                                             |
+| --------- | ---------------------------------------------------------------- |
+| `fields`  | readonly [`FormFieldConfig`](../interfaces/FormFieldConfig.md)[] |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### setMode() \{#setmode\}
 
@@ -251,15 +251,15 @@ Switches mode; view mode blocks all field writes and submission.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `mode` | [`FormMode`](../type-aliases/FormMode.md) |
+| Parameter | Type                                      |
+| --------- | ----------------------------------------- |
+| `mode`    | [`FormMode`](../type-aliases/FormMode.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### setRelatedEntityProvider() \{#setrelatedentityprovider\}
 
@@ -273,15 +273,15 @@ Updates the relation candidate provider and refreshes readonly display values.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                                |
+| ---------- | ----------------------------------------------------------------------------------- |
 | `provider` | \| [`RelatedEntityProvider`](../interfaces/RelatedEntityProvider.md) \| `undefined` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### submit() \{#submit\}
 
@@ -297,7 +297,7 @@ Validates and returns the data plus the change set relative to the initial entit
 
 [`EntityFormSubmitResult`](../type-aliases/EntityFormSubmitResult.md)
 
-***
+---
 
 ### subscribe() \{#subscribe\}
 
@@ -311,15 +311,15 @@ Subscribes to state and action events, returning a cleanup function that is safe
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type       |
+| ---------- | ---------- |
 | `listener` | `Listener` |
 
 #### Returns
 
 () => `void`
 
-***
+---
 
 ### validate() \{#validate\}
 

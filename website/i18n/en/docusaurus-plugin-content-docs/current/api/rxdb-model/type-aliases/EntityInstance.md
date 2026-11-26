@@ -19,8 +19,8 @@ and passed through uniformly: Angular / Vue via the package root's `export *` ch
 
 ## Properties
 
-| Property | Modifier | Type | Defined in |
-| ------ | ------ | ------ | ------ |
+| Property                      | Modifier   | Type     | Defined in                                                                                                                                                                        |
+| ----------------------------- | ---------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | <a id="property-id"></a> `id` | `readonly` | `string` | [packages/rxdb-model/src/entity-list/types.ts:14](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model/src/entity-list/types.ts#L14) |
 
 ## Methods
@@ -37,7 +37,7 @@ Defined in: [packages/rxdb-model/src/entity-list/types.ts:16](https://github.com
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### save() \{#save\}
 

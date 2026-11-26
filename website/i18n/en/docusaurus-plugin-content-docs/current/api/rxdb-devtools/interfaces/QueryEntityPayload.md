@@ -14,7 +14,7 @@ entityName: string;
 
 Defined in: [types.ts:299](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/types.ts#L299)
 
-***
+---
 
 ### limit? \{#limit\}
 
@@ -24,7 +24,7 @@ limit?: number;
 
 Defined in: [types.ts:312](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/types.ts#L312)
 
-***
+---
 
 ### namespace? \{#namespace\}
 

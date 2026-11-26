@@ -44,7 +44,7 @@ Removes all RxDB event listeners and closes event forwarding (to receive events 
 
 Idempotent. Both session end and the connector's `disconnect()` call it; without reclaiming, the instance cannot be garbage-collected because the listeners still exist. Swapping instances at runtime does not require calling it: the listeners on the old instance are already removed at rebinding time; see [DevToolsRxdbDatabaseProviderPorts.getRxDB](DevToolsRxdbDatabaseProviderPorts.md#getrxdb).
 
-***
+---
 
 ### invoke() \{#invoke\}
 
@@ -58,10 +58,10 @@ Executes an operation.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `operation` | `string` | The authorized operation name. |
-| `params` | `unknown` | Parameters that have passed the wire layer's generic validation but have not been interpreted per operation; the implementation is responsible for domain-level validation (e.g. path validity → `invalid_path`). |
+| Parameter   | Type      | Description                                                                                                                                                                                                       |
+| ----------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `operation` | `string`  | The authorized operation name.                                                                                                                                                                                    |
+| `params`    | `unknown` | Parameters that have passed the wire layer's generic validation but have not been interpreted per operation; the implementation is responsible for domain-level validation (e.g. path validity → `invalid_path`). |
 
 #### Returns
 

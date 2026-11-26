@@ -10,9 +10,9 @@ Provides the runtime to child components; destruction is the caller's responsibi
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `props` | [`I18nProviderProps`](../interfaces/I18nProviderProps.md) | The runtime and the child components. |
+| Parameter | Type                                                      | Description                           |
+| --------- | --------------------------------------------------------- | ------------------------------------- |
+| `props`   | [`I18nProviderProps`](../interfaces/I18nProviderProps.md) | The runtime and the child components. |
 
 ## Returns
 

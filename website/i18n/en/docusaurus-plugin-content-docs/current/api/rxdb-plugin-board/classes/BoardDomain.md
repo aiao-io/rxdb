@@ -25,10 +25,10 @@ Defined in: [packages/rxdb-plugin-board/src/board-domain.ts:22](https://github.c
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rxdb` | [`RxDB`](../../rxdb/classes/RxDB.md) |
-| `ctx` | () => [`BoardHostContext`](../interfaces/BoardHostContext.md) |
+| Parameter | Type                                                          |
+| --------- | ------------------------------------------------------------- |
+| `rxdb`    | [`RxDB`](../../rxdb/classes/RxDB.md)                          |
+| `ctx`     | () => [`BoardHostContext`](../interfaces/BoardHostContext.md) |
 
 #### Returns
 
@@ -48,17 +48,17 @@ Creates a board: title required after trimming surrounding whitespace, descripti
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `input` | \{ `description?`: `string`; `title`: `string`; \} |
-| `input.description?` | `string` |
-| `input.title` | `string` |
+| Parameter            | Type                                               |
+| -------------------- | -------------------------------------------------- |
+| `input`              | \{ `description?`: `string`; `title`: `string`; \} |
+| `input.description?` | `string`                                           |
+| `input.title`        | `string`                                           |
 
 #### Returns
 
 `Promise`&lt;[`Board`](Board.md)&gt;
 
-***
+---
 
 ### createColumn() \{#createcolumn\}
 
@@ -72,16 +72,16 @@ Creates a column: the column belongs to the current board and is appended to the
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `input` | \{ `title`: `string`; \} |
-| `input.title` | `string` |
+| Parameter     | Type                     |
+| ------------- | ------------------------ |
+| `input`       | \{ `title`: `string`; \} |
+| `input.title` | `string`                 |
 
 #### Returns
 
 `Promise`&lt;[`Column`](Column.md)&gt;
 
-***
+---
 
 ### createTask() \{#createtask\}
 
@@ -95,17 +95,17 @@ Creates a task: the target column must exist and belong to the current board; ap
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `input` | \{ `columnId`: `` `${string}-${string}-${string}-${string}-${string}` ``; `title`: `string`; \} |
-| `input.columnId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
-| `input.title` | `string` |
+| Parameter        | Type                                                                                            |
+| ---------------- | ----------------------------------------------------------------------------------------------- |
+| `input`          | \{ `columnId`: `` `${string}-${string}-${string}-${string}-${string}` ``; `title`: `string`; \} |
+| `input.columnId` | `` `${string}-${string}-${string}-${string}-${string}` ``                                       |
+| `input.title`    | `string`                                                                                        |
 
 #### Returns
 
 `Promise`&lt;[`Task`](Task.md)&gt;
 
-***
+---
 
 ### listTasksOfBoard() \{#listtasksofboard\}
 
@@ -119,15 +119,15 @@ All tasks of the current board (no pagination).
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                      |
+| --------- | --------------------------------------------------------- |
 | `boardId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
 
 #### Returns
 
 `Promise`&lt;[`Task`](Task.md)[]&gt;
 
-***
+---
 
 ### requireBoard() \{#requireboard\}
 
@@ -141,15 +141,15 @@ Whether the current board exists.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                      |
+| --------- | --------------------------------------------------------- |
 | `boardId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
 
 #### Returns
 
 `Promise`&lt;[`Board`](Board.md)&gt;
 
-***
+---
 
 ### requireColumnInBoard() \{#requirecolumninboard\}
 
@@ -163,16 +163,16 @@ The column exists and belongs to the given board (cross-board task ownership and
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                      |
+| ---------- | --------------------------------------------------------- |
 | `columnId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
-| `boardId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
+| `boardId`  | `` `${string}-${string}-${string}-${string}-${string}` `` |
 
 #### Returns
 
 `Promise`&lt;[`Column`](Column.md)&gt;
 
-***
+---
 
 ### requireTaskInBoard() \{#requiretaskinboard\}
 
@@ -186,16 +186,16 @@ The task exists and, by derivation through its owning column, belongs to the giv
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `taskId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
+| Parameter | Type                                                      |
+| --------- | --------------------------------------------------------- |
+| `taskId`  | `` `${string}-${string}-${string}-${string}-${string}` `` |
 | `boardId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
 
 #### Returns
 
 `Promise`&lt;[`Task`](Task.md)&gt;
 
-***
+---
 
 ### updateBoard() \{#updateboard\}
 
@@ -209,18 +209,18 @@ Updates board title / description: writes only the given fields, accepts no owne
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `boardId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
-| `patch` | \{ `description?`: `string`; `title?`: `string`; \} |
-| `patch.description?` | `string` |
-| `patch.title?` | `string` |
+| Parameter            | Type                                                      |
+| -------------------- | --------------------------------------------------------- |
+| `boardId`            | `` `${string}-${string}-${string}-${string}-${string}` `` |
+| `patch`              | \{ `description?`: `string`; `title?`: `string`; \}       |
+| `patch.description?` | `string`                                                  |
+| `patch.title?`       | `string`                                                  |
 
 #### Returns
 
 `Promise`&lt;[`Board`](Board.md)&gt;
 
-***
+---
 
 ### updateColumn() \{#updatecolumn\}
 
@@ -234,17 +234,17 @@ Updates column title: writes only the title, provides no ownership fields (`colu
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `columnId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
-| `patch` | \{ `title`: `string`; \} |
-| `patch.title` | `string` |
+| Parameter     | Type                                                      |
+| ------------- | --------------------------------------------------------- |
+| `columnId`    | `` `${string}-${string}-${string}-${string}-${string}` `` |
+| `patch`       | \{ `title`: `string`; \}                                  |
+| `patch.title` | `string`                                                  |
 
 #### Returns
 
 `Promise`&lt;[`Column`](Column.md)&gt;
 
-***
+---
 
 ### updateTaskTitle() \{#updatetasktitle\}
 
@@ -258,10 +258,10 @@ Shared by inline / detail: updates task title, writes only the title (US-536 inl
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `taskId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
-| `title` | `string` |
+| Parameter | Type                                                      |
+| --------- | --------------------------------------------------------- |
+| `taskId`  | `` `${string}-${string}-${string}-${string}-${string}` `` |
+| `title`   | `string`                                                  |
 
 #### Returns
 

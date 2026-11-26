@@ -10,8 +10,8 @@ Creates a desktop `settings` provider.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                     | Description                                      |
+| --------- | ---------------------------------------- | ------------------------------------------------ |
 | `runtime` | `"browser"` \| `"electron"` \| `"tauri"` | Display-only host origin (`electron` / `tauri`). |
 
 ## Returns

@@ -1,11 +1,7 @@
 # applySystemText()
 
 ```ts
-function applySystemText(
-   table, 
-   text, 
-   columns?
-): PendingWrite[];
+function applySystemText(table, text, columns?): PendingWrite[];
 ```
 
 Defined in: packages/rxdb-model/dist/entity-table/vtable/table-clipboard.d.ts:58
@@ -17,10 +13,10 @@ Skips readonly rows, new rows and non-writable columns (column-level readonly, s
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `table` | `ListTableAll` | The target table instance |
-| `text` | `string` | The system clipboard text (TSV format, split into rows by \n and columns by \t) |
+| Parameter  | Type                                           | Description                                                                                                                   |
+| ---------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `table`    | `ListTableAll`                                 | The target table instance                                                                                                     |
+| `text`     | `string`                                       | The system clipboard text (TSV format, split into rows by \n and columns by \t)                                               |
 | `columns?` | readonly `Record`&lt;`string`, `unknown`&gt;[] | The column definition list (optional), used to read the column property type, enum options and the column-level readonly flag |
 
 ## Returns

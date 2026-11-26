@@ -10,15 +10,15 @@ Reads the first snapshot of a query and returns an array copy (shared by facade 
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `query` | `Observable`&lt;readonly `T`[]&gt; \| `Promise`&lt;`T`[]&gt; |
+| Parameter | Type                                                         |
+| --------- | ------------------------------------------------------------ |
+| `query`   | `Observable`&lt;readonly `T`[]&gt; \| `Promise`&lt;`T`[]&gt; |
 
 ## Returns
 

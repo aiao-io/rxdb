@@ -51,7 +51,7 @@ Gets the next sequence number
 
 `number`
 
-***
+---
 
 ### reset() \{#reset\}
 

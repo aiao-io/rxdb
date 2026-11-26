@@ -10,9 +10,9 @@ Reads the current branch id (activated takes precedence, otherwise main), for re
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `tx` | [`SqlExecutor`](../type-aliases/SqlExecutor.md) | Executor of the current transaction |
+| Parameter  | Type                                                         | Description                                                                                                                              |
+| ---------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `tx`       | [`SqlExecutor`](../type-aliases/SqlExecutor.md)              | Executor of the current transaction                                                                                                      |
 | `tableSet` | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md) | The table set this instance is mounted on: when mounted on a writable checkout, it reads the branch held by that table set (US-314 B1.4) |
 
 ## Returns

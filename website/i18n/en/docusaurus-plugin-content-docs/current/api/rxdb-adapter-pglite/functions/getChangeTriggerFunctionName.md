@@ -10,10 +10,10 @@ The fully qualified name of the entity change trigger function: `"<schema>"."<ta
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                          | Description     |
+| ---------- | ------------------------------------------------------------- | --------------- |
 | `metadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | Entity metadata |
-| `tableSet` | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md) | Table set |
+| `tableSet` | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md)  | Table set       |
 
 ## Returns
 

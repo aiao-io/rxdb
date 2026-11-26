@@ -10,9 +10,9 @@ Assembles a [SearchHandle](../interfaces/SearchHandle.md). Callers only need to 
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `opts` | [`CreateSearchHandleOptions`](../interfaces/CreateSearchHandleOptions.md) |
+| Parameter | Type                                                                      |
+| --------- | ------------------------------------------------------------------------- |
+| `opts`    | [`CreateSearchHandleOptions`](../interfaces/CreateSearchHandleOptions.md) |
 
 ## Returns
 

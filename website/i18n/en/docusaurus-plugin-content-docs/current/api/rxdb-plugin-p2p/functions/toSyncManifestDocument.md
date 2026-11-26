@@ -10,9 +10,9 @@ Converts a holder record into a sync document, explicitly declaring that it trav
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `record` | [`P2PManifestRecord`](../interfaces/P2PManifestRecord.md) |
+| Parameter | Type                                                      |
+| --------- | --------------------------------------------------------- |
+| `record`  | [`P2PManifestRecord`](../interfaces/P2PManifestRecord.md) |
 
 ## Returns
 

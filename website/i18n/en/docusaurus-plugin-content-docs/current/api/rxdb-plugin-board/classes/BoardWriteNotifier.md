@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-plugin-board/src/write-notifier.ts:29](https://github
 
 `void`
 
-***
+---
 
 ### next() \{#next\}
 
@@ -52,9 +52,9 @@ Defined in: [packages/rxdb-plugin-board/src/write-notifier.ts:25](https://github
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | [`BoardWriteEvent`](../type-aliases/BoardWriteEvent.md) |
+| Parameter | Type                                                    |
+| --------- | ------------------------------------------------------- |
+| `event`   | [`BoardWriteEvent`](../type-aliases/BoardWriteEvent.md) |
 
 #### Returns
 

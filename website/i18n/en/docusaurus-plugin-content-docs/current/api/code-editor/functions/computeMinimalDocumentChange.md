@@ -12,10 +12,10 @@ Skips the common prefix and common suffix and replaces only the segment that act
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `current` | `string` | The editor's current document content |
-| `next` | `string` | The new content the host wants to write |
+| Parameter | Type     | Description                             |
+| --------- | -------- | --------------------------------------- |
+| `current` | `string` | The editor's current document content   |
+| `next`    | `string` | The new content the host wants to write |
 
 ## Returns
 

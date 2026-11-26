@@ -1,5 +1,5 @@
 ---
-sidebar_label: "EntityListSnapshot⟨T⟩"
+sidebar_label: 'EntityListSnapshot⟨T⟩'
 ---
 
 # EntityListSnapshot`<T>`
@@ -14,9 +14,9 @@ List snapshot of the current query, pagination, selection, records and capabilit
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityInstance`](../type-aliases/EntityInstance.md) | [`EntityInstance`](../type-aliases/EntityInstance.md) |
+| Type Parameter                                                                                    | Default type                                          |
+| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityInstance`](../type-aliases/EntityInstance.md) | [`EntityInstance`](../type-aliases/EntityInstance.md) |
 
 ## Properties
 
@@ -28,7 +28,7 @@ readonly capabilities?: EntityCapabilities;
 
 Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:18
 
-***
+---
 
 ### error \{#error\}
 
@@ -38,7 +38,7 @@ readonly error: unknown;
 
 Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:17
 
-***
+---
 
 ### hasNext \{#hasnext\}
 
@@ -50,7 +50,7 @@ Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:14
 
 Whether there is a next page; empty when the data source does not provide a total count.
 
-***
+---
 
 ### loading \{#loading\}
 
@@ -60,7 +60,7 @@ readonly loading: boolean;
 
 Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:16
 
-***
+---
 
 ### page \{#page\}
 
@@ -70,7 +70,7 @@ readonly page: number;
 
 Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:8
 
-***
+---
 
 ### pageSize \{#pagesize\}
 
@@ -80,7 +80,7 @@ readonly pageSize: number;
 
 Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:9
 
-***
+---
 
 ### query \{#query\}
 
@@ -90,7 +90,7 @@ readonly query: unknown;
 
 Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:6
 
-***
+---
 
 ### records \{#records\}
 
@@ -100,7 +100,7 @@ readonly records: readonly T[];
 
 Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:10
 
-***
+---
 
 ### selectedIds \{#selectedids\}
 
@@ -110,7 +110,7 @@ readonly selectedIds: readonly string[];
 
 Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:15
 
-***
+---
 
 ### sorts \{#sorts\}
 
@@ -120,7 +120,7 @@ readonly sorts: readonly OrderBy<string>[];
 
 Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:7
 
-***
+---
 
 ### total \{#total\}
 

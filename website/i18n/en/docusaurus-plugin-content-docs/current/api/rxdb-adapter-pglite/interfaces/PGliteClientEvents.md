@@ -15,7 +15,7 @@ DELETE: PGliteChangeEvent;
 
 Defined in: [packages/rxdb-adapter-pglite/src/PGliteClient.ts:222](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-pglite/src/PGliteClient.ts#L222)
 
-***
+---
 
 ### INSERT \{#insert\}
 
@@ -25,7 +25,7 @@ INSERT: PGliteChangeEvent;
 
 Defined in: [packages/rxdb-adapter-pglite/src/PGliteClient.ts:220](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-pglite/src/PGliteClient.ts#L220)
 
-***
+---
 
 ### UPDATE \{#update\}
 

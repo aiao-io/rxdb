@@ -1,5 +1,5 @@
 ---
-sidebar_label: "AngularHeadlessOptions⟨T⟩"
+sidebar_label: 'AngularHeadlessOptions⟨T⟩'
 ---
 
 # AngularHeadlessOptions`<T>`
@@ -14,6 +14,6 @@ An Angular input can be a plain snapshot, a signal, or a getter that returns a s
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |

@@ -10,9 +10,9 @@ Parses `updatedAt` into a millisecond point in time.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `string` | The time string to parse |
+| Parameter | Type     | Description                                                               |
+| --------- | -------- | ------------------------------------------------------------------------- |
+| `value`   | `string` | The time string to parse                                                  |
 | `context` | `string` | The context used to locate the error, e.g. `"the remote of entity 'p-1'"` |
 
 ## Returns

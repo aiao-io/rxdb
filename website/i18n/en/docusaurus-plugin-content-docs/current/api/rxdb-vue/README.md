@@ -138,10 +138,7 @@ import { Todo } from './entities/Todo';
 
 const list = useInfiniteScroll(Todo, {
   where: { combinator: 'and', rules: [] },
-  orderBy: [
-    { field: 'createdAt', sort: 'desc' },
-    `{ field: 'id', sort: 'desc' }`
-  ],
+  orderBy: [{ field: 'createdAt', sort: 'desc' }, `{ field: 'id', sort: 'desc' }`],
   limit: 50
 });
 
@@ -225,13 +222,13 @@ Templates must read the entity through the returned `value` (destructured into t
 
 Same feature, same API is a hard constraint of this repository; framework conventions allow differences in container shape and naming, but not missing capabilities:
 
-| Capability        | Vue                                  | Angular                                                | React                                   |
-| ----------------- | ------------------------------------ | ------------------------------------------------------ | --------------------------------------- |
-| Queries           | `useGet` / `useFind` / …             | Same names                                             | Same names                              |
-| Infinite scroll   | `useInfiniteScroll`                  | `useInfiniteScroll`                                    | `useInfiniteScroll`                     |
-| Async actions     | `useAction` → `ComputedRef<boolean>` | `useAction` → `Signal<boolean>`                        | `useAction` → render snapshot           |
-| Persisted state   | `usePersistedState` → `Ref<T>`       | `usePersistedState` / `useState` → `WritableSignal<T>` | `usePersistedState` → snapshot + `setValue` |
-| Live entity changes | `useEntityChange`                  | `RxDBEntityChangeDirective` (`markForCheck`)           | `useEntityChange`                       |
+| Capability          | Vue                                  | Angular                                                | React                                       |
+| ------------------- | ------------------------------------ | ------------------------------------------------------ | ------------------------------------------- |
+| Queries             | `useGet` / `useFind` / …             | Same names                                             | Same names                                  |
+| Infinite scroll     | `useInfiniteScroll`                  | `useInfiniteScroll`                                    | `useInfiniteScroll`                         |
+| Async actions       | `useAction` → `ComputedRef<boolean>` | `useAction` → `Signal<boolean>`                        | `useAction` → render snapshot               |
+| Persisted state     | `usePersistedState` → `Ref<T>`       | `usePersistedState` / `useState` → `WritableSignal<T>` | `usePersistedState` → snapshot + `setValue` |
+| Live entity changes | `useEntityChange`                    | `RxDBEntityChangeDirective` (`markForCheck`)           | `useEntityChange`                           |
 
 The time-window logic (`withTimeWindows`) and the persistence core (`PersistedStateRegistry`) live in `@aiao/utils` and are shared by all three frameworks, so their semantics cannot drift apart. Angular's `usePersistedState` is a flat-signature adaptation of the existing `useState`; it has the **same key format** as the Vue / React sides but holds its own in-memory state.
 
@@ -246,58 +243,58 @@ Provides the Vue 3 Composition API interface for RxDB databases
 
 ## Interfaces
 
-| Interface | Description |
-| ------ | ------ |
-| [ActionResource](interfaces/ActionResource.md) | The wrapped async action. |
-| [EntityChangeOptions](interfaces/EntityChangeOptions.md) | Time-window configuration of [useEntityChange](functions/useEntityChange.md). |
-| [EntityChangeResource](interfaces/EntityChangeResource.md) | The result of bridging entity patches into Vue's reactivity system. |
-| [GraphPath](interfaces/GraphPath.md) | Graph path result |
-| [InfiniteScrollResource](interfaces/InfiniteScrollResource.md) | Infinite scroll resource. |
-| [NeighborResult](interfaces/NeighborResult.md) | Graph neighbor query result (basic) |
-| [PersistedState](interfaces/PersistedState.md) | The persisted state of a given `namespace + name`. |
+| Interface                                                        | Description                                                                                                                         |
+| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| [ActionResource](interfaces/ActionResource.md)                   | The wrapped async action.                                                                                                           |
+| [EntityChangeOptions](interfaces/EntityChangeOptions.md)         | Time-window configuration of [useEntityChange](functions/useEntityChange.md).                                                       |
+| [EntityChangeResource](interfaces/EntityChangeResource.md)       | The result of bridging entity patches into Vue's reactivity system.                                                                 |
+| [GraphPath](interfaces/GraphPath.md)                             | Graph path result                                                                                                                   |
+| [InfiniteScrollResource](interfaces/InfiniteScrollResource.md)   | Infinite scroll resource.                                                                                                           |
+| [NeighborResult](interfaces/NeighborResult.md)                   | Graph neighbor query result (basic)                                                                                                 |
+| [PersistedState](interfaces/PersistedState.md)                   | The persisted state of a given `namespace + name`.                                                                                  |
 | [RxDBDependencyInjection](interfaces/RxDBDependencyInjection.md) | A set of mutually isolated providers / injectors produced by [makeRxDBDependencyInjector](functions/makeRxDBDependencyInjector.md). |
-| [RxDBResource](interfaces/RxDBResource.md) | The reactive resource returned by the basic query hooks. |
-| [SyncStateResource](interfaces/SyncStateResource.md) | The return value of [useSyncState](functions/useSyncState.md). |
+| [RxDBResource](interfaces/RxDBResource.md)                       | The reactive resource returned by the basic query hooks.                                                                            |
+| [SyncStateResource](interfaces/SyncStateResource.md)             | The return value of [useSyncState](functions/useSyncState.md).                                                                      |
 
 ## Type Aliases
 
-| Type Alias | Description |
-| ------ | ------ |
-| [GraphQueryResult](type-aliases/GraphQueryResult.md) | Graph query array with a resource-truncation flag. |
-| [RxDBInput](type-aliases/RxDBInput.md) | Database forms accepted by `provideRxDB` (Vue superset). |
-| [RxDBRef](type-aliases/RxDBRef.md) | The read-only database reference returned by the injector; `undefined` means the database is not ready yet. |
-| [RxDBSource](type-aliases/RxDBSource.md) | Database forms accepted by `provideRxDB`: an instance, a Promise, or a factory returning either. |
-| [UseOptions](type-aliases/UseOptions.md) | Input forms of query options: a constant, a getter, a `Ref` or a `ComputedRef`. |
+| Type Alias                                           | Description                                                                                                 |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| [GraphQueryResult](type-aliases/GraphQueryResult.md) | Graph query array with a resource-truncation flag.                                                          |
+| [RxDBInput](type-aliases/RxDBInput.md)               | Database forms accepted by `provideRxDB` (Vue superset).                                                    |
+| [RxDBRef](type-aliases/RxDBRef.md)                   | The read-only database reference returned by the injector; `undefined` means the database is not ready yet. |
+| [RxDBSource](type-aliases/RxDBSource.md)             | Database forms accepted by `provideRxDB`: an instance, a Promise, or a factory returning either.            |
+| [UseOptions](type-aliases/UseOptions.md)             | Input forms of query options: a constant, a getter, a `Ref` or a `ComputedRef`.                             |
 
 ## Variables
 
-| Variable | Description |
-| ------ | ------ |
-| [injectRxDB](variables/injectRxDB.md) | - |
-| [injectRxDBRef](variables/injectRxDBRef.md) | - |
-| [provideRxDB](variables/provideRxDB.md) | - |
+| Variable                                    | Description |
+| ------------------------------------------- | ----------- |
+| [injectRxDB](variables/injectRxDB.md)       | -           |
+| [injectRxDBRef](variables/injectRxDBRef.md) | -           |
+| [provideRxDB](variables/provideRxDB.md)     | -           |
 
 ## Functions
 
-| Function | Description |
-| ------ | ------ |
-| [makeRxDBDependencyInjector](functions/makeRxDBDependencyInjector.md) | Creates a set of type-safe RxDB Vue dependency injection functions. |
-| [useAction](functions/useAction.md) | Wraps an async function into a callable action with a loading state. |
-| [useCount](functions/useCount.md) | Counts the entities matching the condition |
-| [useCountNeighbors](functions/useCountNeighbors.md) | Counts the neighbor entities in a graph structure |
-| [useEntityChange](functions/useEntityChange.md) | Bridges the entity's patch stream into Vue's reactivity system so in-place mutations are reflected in the view in real time. |
-| [useFind](functions/useFind.md) | Finds the entities matching the condition |
-| [useFindAll](functions/useFindAll.md) | Finds all entities |
-| [useFindByCursor](functions/useFindByCursor.md) | Finds entities using cursor pagination |
-| [useFindOne](functions/useFindOne.md) | Finds a single entity matching the condition |
-| [useFindOneOrFail](functions/useFindOneOrFail.md) | Finds a single entity, throws if not found |
-| [useGet](functions/useGet.md) | Gets a single entity by ID |
-| [useGraphNeighbors](functions/useGraphNeighbors.md) | Finds the neighbor entities in a graph structure |
-| [useGraphPaths](functions/useGraphPaths.md) | Finds the paths between two entities in a graph |
-| [useInfiniteScroll](functions/useInfiniteScroll.md) | Infinite scroll hook for cursor pagination. |
-| [usePersistedState](functions/usePersistedState.md) | Creates (or reuses) a namespaced state persisted to `localStorage`. |
-| [useRepositoryQuery](functions/useRepositoryQuery.md) | The core hook implementation for RxDB repository queries, managing reactive subscriptions and state updates. |
-| [useRxDB](functions/useRxDB.md) | Gets the current ready RxDB instance. |
-| [useRxDBOptional](functions/useRxDBOptional.md) | Gets the current ready RxDB instance, returning `undefined` when unavailable. |
-| [useRxDBRef](functions/useRxDBRef.md) | Gets the provided reactive RxDB reference. |
-| [useSyncState](functions/useSyncState.md) | Reads the current database's sync state. |
+| Function                                                              | Description                                                                                                                  |
+| --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| [makeRxDBDependencyInjector](functions/makeRxDBDependencyInjector.md) | Creates a set of type-safe RxDB Vue dependency injection functions.                                                          |
+| [useAction](functions/useAction.md)                                   | Wraps an async function into a callable action with a loading state.                                                         |
+| [useCount](functions/useCount.md)                                     | Counts the entities matching the condition                                                                                   |
+| [useCountNeighbors](functions/useCountNeighbors.md)                   | Counts the neighbor entities in a graph structure                                                                            |
+| [useEntityChange](functions/useEntityChange.md)                       | Bridges the entity's patch stream into Vue's reactivity system so in-place mutations are reflected in the view in real time. |
+| [useFind](functions/useFind.md)                                       | Finds the entities matching the condition                                                                                    |
+| [useFindAll](functions/useFindAll.md)                                 | Finds all entities                                                                                                           |
+| [useFindByCursor](functions/useFindByCursor.md)                       | Finds entities using cursor pagination                                                                                       |
+| [useFindOne](functions/useFindOne.md)                                 | Finds a single entity matching the condition                                                                                 |
+| [useFindOneOrFail](functions/useFindOneOrFail.md)                     | Finds a single entity, throws if not found                                                                                   |
+| [useGet](functions/useGet.md)                                         | Gets a single entity by ID                                                                                                   |
+| [useGraphNeighbors](functions/useGraphNeighbors.md)                   | Finds the neighbor entities in a graph structure                                                                             |
+| [useGraphPaths](functions/useGraphPaths.md)                           | Finds the paths between two entities in a graph                                                                              |
+| [useInfiniteScroll](functions/useInfiniteScroll.md)                   | Infinite scroll hook for cursor pagination.                                                                                  |
+| [usePersistedState](functions/usePersistedState.md)                   | Creates (or reuses) a namespaced state persisted to `localStorage`.                                                          |
+| [useRepositoryQuery](functions/useRepositoryQuery.md)                 | The core hook implementation for RxDB repository queries, managing reactive subscriptions and state updates.                 |
+| [useRxDB](functions/useRxDB.md)                                       | Gets the current ready RxDB instance.                                                                                        |
+| [useRxDBOptional](functions/useRxDBOptional.md)                       | Gets the current ready RxDB instance, returning `undefined` when unavailable.                                                |
+| [useRxDBRef](functions/useRxDBRef.md)                                 | Gets the provided reactive RxDB reference.                                                                                   |
+| [useSyncState](functions/useSyncState.md)                             | Reads the current database's sync state.                                                                                     |

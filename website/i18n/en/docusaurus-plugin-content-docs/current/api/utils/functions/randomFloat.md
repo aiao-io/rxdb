@@ -11,10 +11,10 @@ Uses Math.random() to produce a number between 0 and 1, then maps it to the rang
 
 ## Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `min?` | `number` | `Number.MIN_SAFE_INTEGER` | Minimum value (inclusive); defaults to Number.MIN_SAFE_INTEGER |
-| `max?` | `number` | `Number.MAX_SAFE_INTEGER` | Maximum value (exclusive); defaults to Number.MAX_SAFE_INTEGER |
+| Parameter | Type     | Default value             | Description                                                    |
+| --------- | -------- | ------------------------- | -------------------------------------------------------------- |
+| `min?`    | `number` | `Number.MIN_SAFE_INTEGER` | Minimum value (inclusive); defaults to Number.MIN_SAFE_INTEGER |
+| `max?`    | `number` | `Number.MAX_SAFE_INTEGER` | Maximum value (exclusive); defaults to Number.MAX_SAFE_INTEGER |
 
 ## Returns
 

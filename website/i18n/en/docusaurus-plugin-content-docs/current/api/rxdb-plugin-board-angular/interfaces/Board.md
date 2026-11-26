@@ -25,7 +25,7 @@ Automatically set to the current time when the entity is created
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`createdAt`](../../rxdb/classes/EntityBase.md#createdat)
 
-***
+---
 
 ### createdBy? \{#createdby\}
 
@@ -42,7 +42,7 @@ Records the user ID that created this entity
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`createdBy`](../../rxdb/classes/EntityBase.md#createdby)
 
-***
+---
 
 ### description \{#description\}
 
@@ -52,7 +52,7 @@ description: string | null;
 
 Defined in: packages/rxdb-plugin-board/dist/entities/board.entity.d.ts:7
 
-***
+---
 
 ### id \{#id\}
 
@@ -69,7 +69,7 @@ Auto-generated UUID used as the primary key
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`id`](../../rxdb/classes/EntityBase.md#id)
 
-***
+---
 
 ### remove \{#remove\}
 
@@ -89,7 +89,7 @@ Delete
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`remove`](../../rxdb/classes/EntityBase.md#remove)
 
-***
+---
 
 ### reset \{#reset\}
 
@@ -109,7 +109,7 @@ Reset data
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`reset`](../../rxdb/classes/EntityBase.md#reset)
 
-***
+---
 
 ### save \{#save\}
 
@@ -135,7 +135,7 @@ See [RxDBAdapterLocalBase.transaction](../../rxdb/classes/RxDBAdapterLocalBase.m
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`save`](../../rxdb/classes/EntityBase.md#save)
 
-***
+---
 
 ### title \{#title\}
 
@@ -145,7 +145,7 @@ title: string;
 
 Defined in: packages/rxdb-plugin-board/dist/entities/board.entity.d.ts:6
 
-***
+---
 
 ### updatedAt \{#updatedat\}
 
@@ -162,7 +162,7 @@ Automatically set to the current time when the entity is created or updated
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`updatedAt`](../../rxdb/classes/EntityBase.md#updatedat)
 
-***
+---
 
 ### updatedBy? \{#updatedby\}
 

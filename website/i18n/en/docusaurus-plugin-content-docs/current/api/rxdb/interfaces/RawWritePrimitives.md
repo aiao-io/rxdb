@@ -24,23 +24,23 @@ Unintercepted `deleteByIds`
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `entityName` | `string` |
-| `ids` | `string`[] |
+| Parameter    | Type       |
+| ------------ | ---------- |
+| `entityName` | `string`   |
+| `ids`        | `string`[] |
 
 #### Returns
 
 `Observable`&lt;`void`&gt;
 
-***
+---
 
 ### mergeChanges() \{#mergechanges\}
 
 ```ts
 mergeChanges(
-   actions, 
-   localChanges?, 
+   actions,
+   localChanges?,
    disableTriggers?
 ): Promise<number | void>;
 ```
@@ -51,17 +51,17 @@ Unintercepted local `mergeChanges` overload
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `actions` | [`SwitchVersionActions`](SwitchVersionActions.md) |
-| `localChanges?` | `Omit`&lt;[`RxDBChange`](../classes/RxDBChange.md), `"id"`&gt;[] |
-| `disableTriggers?` | `boolean` |
+| Parameter          | Type                                                             |
+| ------------------ | ---------------------------------------------------------------- |
+| `actions`          | [`SwitchVersionActions`](SwitchVersionActions.md)                |
+| `localChanges?`    | `Omit`&lt;[`RxDBChange`](../classes/RxDBChange.md), `"id"`&gt;[] |
+| `disableTriggers?` | `boolean`                                                        |
 
 #### Returns
 
 `Promise`&lt;`number` \| `void`&gt;
 
-***
+---
 
 ### switchBranch() \{#switchbranch\}
 
@@ -75,15 +75,15 @@ Unintercepted `switchBranch`
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                            |
+| --------- | ----------------------------------------------- |
 | `options` | [`SwitchBranchOptions`](SwitchBranchOptions.md) |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### transaction() \{#transaction\}
 
@@ -97,16 +97,16 @@ Unintercepted [RxDBAdapterLocalBase.transaction](../classes/RxDBAdapterLocalBase
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `fun` | [`TransactionFun`](../type-aliases/TransactionFun.md) |
-| `transactionLog?` | `boolean` |
+| Parameter         | Type                                                  |
+| ----------------- | ----------------------------------------------------- |
+| `fun`             | [`TransactionFun`](../type-aliases/TransactionFun.md) |
+| `transactionLog?` | `boolean`                                             |
 
 #### Returns
 
 `Promise`&lt;`unknown`&gt;
 
-***
+---
 
 ### upsertMany() \{#upsertmany\}
 
@@ -120,16 +120,16 @@ Unintercepted `upsertMany`
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter    | Type     |
+| ------------ | -------- |
 | `entityName` | `string` |
-| `data` | `T`[] |
+| `data`       | `T`[]    |
 
 #### Returns
 

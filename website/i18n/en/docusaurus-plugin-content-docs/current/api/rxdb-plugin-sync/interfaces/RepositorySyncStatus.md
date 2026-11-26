@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-sync/src/get-repository-sync-status.ts:41](htt
 
 Branch ID
 
-***
+---
 
 ### enabled \{#enabled\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-sync/src/get-repository-sync-status.ts:51](htt
 
 Whether sync is enabled
 
-***
+---
 
 ### lastPulledAt \{#lastpulledat\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-plugin-sync/src/get-repository-sync-status.ts:66](htt
 
 The last pull timestamp
 
-***
+---
 
 ### lastPullRemoteChangeId \{#lastpullremotechangeid\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb-plugin-sync/src/get-repository-sync-status.ts:71](htt
 
 The remote changeId of the last pull
 
-***
+---
 
 ### lastPushedAt \{#lastpushedat\}
 
@@ -64,7 +64,7 @@ Defined in: [packages/rxdb-plugin-sync/src/get-repository-sync-status.ts:61](htt
 
 The last push timestamp
 
-***
+---
 
 ### lastPushedChangeId \{#lastpushedchangeid\}
 
@@ -76,7 +76,7 @@ Defined in: [packages/rxdb-plugin-sync/src/get-repository-sync-status.ts:56](htt
 
 The changeId of the last push
 
-***
+---
 
 ### pullableCount \{#pullablecount\}
 
@@ -88,7 +88,7 @@ Defined in: [packages/rxdb-plugin-sync/src/get-repository-sync-status.ts:81](htt
 
 The number of changes available to pull
 
-***
+---
 
 ### pushableCount \{#pushablecount\}
 
@@ -100,7 +100,7 @@ Defined in: [packages/rxdb-plugin-sync/src/get-repository-sync-status.ts:76](htt
 
 The number of changes awaiting push
 
-***
+---
 
 ### repository \{#repository\}
 
@@ -112,7 +112,7 @@ Defined in: [packages/rxdb-plugin-sync/src/get-repository-sync-status.ts:36](htt
 
 The repository identifier
 
-***
+---
 
 ### syncType \{#synctype\}
 

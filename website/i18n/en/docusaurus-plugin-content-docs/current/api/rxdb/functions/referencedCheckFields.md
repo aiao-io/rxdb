@@ -10,9 +10,9 @@ Collects all fields referenced by the rule tree (including `ref` targets), dedup
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `check` | [`EntityCheckMetadataOptions`](../interfaces/EntityCheckMetadataOptions.md) |
+| Parameter | Type                                                                        |
+| --------- | --------------------------------------------------------------------------- |
+| `check`   | [`EntityCheckMetadataOptions`](../interfaces/EntityCheckMetadataOptions.md) |
 
 ## Returns
 

@@ -10,10 +10,10 @@ Turns a media query's match state into a reactive store.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter    | Type                                                         | Description                                                        |
+| ------------ | ------------------------------------------------------------ | ------------------------------------------------------------------ |
 | `matchMedia` | [`MatchMedia`](../type-aliases/MatchMedia.md) \| `undefined` | The host's `matchMedia`; always `false` when absent (SSR / tests). |
-| `query` | `string` | The media query. |
+| `query`      | `string`                                                     | The media query.                                                   |
 
 ## Returns
 

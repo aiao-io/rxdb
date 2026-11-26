@@ -20,8 +20,8 @@ via `cause` as-is, without wrapping or swallowing (AC#4).
 
 ```ts
 new RxDBAdapterDesktopError(
-   code, 
-   detail, 
+   code,
+   detail,
    options?
 ): RxDBAdapterDesktopError;
 ```
@@ -30,11 +30,11 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/desktop/desktop-error.d.ts:74
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `code` | [`RxDBAdapterDesktopErrorCode`](../type-aliases/RxDBAdapterDesktopErrorCode.md) | Stable error code |
-| `detail` | `string` | Developer-facing description, without the error-code prefix |
-| `options?` | `ErrorOptions` | Standard `ErrorOptions`; use `cause` to carry the original error |
+| Parameter  | Type                                                                            | Description                                                      |
+| ---------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `code`     | [`RxDBAdapterDesktopErrorCode`](../type-aliases/RxDBAdapterDesktopErrorCode.md) | Stable error code                                                |
+| `detail`   | `string`                                                                        | Developer-facing description, without the error-code prefix      |
+| `options?` | `ErrorOptions`                                                                  | Standard `ErrorOptions`; use `cause` to carry the original error |
 
 #### Returns
 
@@ -58,7 +58,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 `Error.cause`
 
-***
+---
 
 ### code \{#code\}
 
@@ -68,7 +68,7 @@ readonly code: RxDBAdapterDesktopErrorCode;
 
 Defined in: packages/rxdb-adapter-sqlite-core/dist/desktop/desktop-error.d.ts:59
 
-***
+---
 
 ### detail \{#detail\}
 
@@ -85,7 +85,7 @@ Original description without the `[code]` prefix.
 When rebuilding an error across IPC, this is what gets passed, not `message`: passing `message`
 would add the prefix a second time, and the renderer would read `[open_failed] [open_failed] ...`.
 
-***
+---
 
 ### message \{#message\}
 
@@ -99,7 +99,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 `Error.message`
 
-***
+---
 
 ### name \{#name\}
 
@@ -113,7 +113,7 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/desktop/desktop-error.d.ts:60
 
 `Error.name`
 
-***
+---
 
 ### stack? \{#stack\}
 

@@ -10,8 +10,8 @@ The files protocol: peers fetch chunks by the byte ranges of the requester's man
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                  |
+| ---------- | --------------------------------------------------------------------- |
 | `options?` | [`P2PFilesProtocolOptions`](../interfaces/P2PFilesProtocolOptions.md) |
 
 ## Returns

@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-adapter-supabase/src/errors.ts:70](https://github.com
 
 The error code returned by the database / PostgREST, e.g. SQLSTATE `42501`, `RX001`, or PostgREST's `PGRST202`
 
-***
+---
 
 ### details? \{#details\}
 

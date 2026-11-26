@@ -10,10 +10,10 @@ A plain left click is taken over by the shell as SPA navigation; modified keys a
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `event` | `MouseEvent` | Click event. |
-| `go` | () => `void` | Navigation action. |
+| Parameter | Type         | Description        |
+| --------- | ------------ | ------------------ |
+| `event`   | `MouseEvent` | Click event.       |
+| `go`      | () => `void` | Navigation action. |
 
 ## Returns
 

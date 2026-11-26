@@ -10,9 +10,9 @@ Index-side transform: replaces each run of consecutive CJK in the text with a sp
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `string` | Raw field text |
+| Parameter | Type     | Description    |
+| --------- | -------- | -------------- |
+| `value`   | `string` | Raw field text |
 
 ## Returns
 
@@ -34,5 +34,5 @@ Boundaries that are already whitespace are not duplicated, so `'rxdb 全文搜�
 
 ```ts
 indexTextForFts('rxdb 全文搜索'); // 'rxdb 全文 文搜 搜索'
-indexTextForFts('rxdb搜索');      // 'rxdb 搜索'
+indexTextForFts('rxdb搜索'); // 'rxdb 搜索'
 ```

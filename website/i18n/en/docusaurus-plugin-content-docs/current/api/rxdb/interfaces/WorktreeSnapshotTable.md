@@ -16,7 +16,7 @@ Defined in: [packages/rxdb/src/worktree-snapshot.interface.ts:36](https://github
 
 The entity class on the snapshot instance: same namespace and same name as the main instance's entity
 
-***
+---
 
 ### pages \{#pages\}
 

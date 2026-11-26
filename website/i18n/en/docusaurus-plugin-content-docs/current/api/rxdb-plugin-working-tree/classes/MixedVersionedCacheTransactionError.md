@@ -37,10 +37,10 @@ Constructed only by `createTransactionGuard()` at the moment an entity **from th
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter             | Type     | Description                                                             |
+| --------------------- | -------- | ----------------------------------------------------------------------- |
 | `versionedEntityName` | `string` | The name of the first non-QueryCache entity hit within this transaction |
-| `cacheEntityName` | `string` | The name of the first QueryCache entity hit within this transaction |
+| `cacheEntityName`     | `string` | The name of the first QueryCache entity hit within this transaction     |
 
 #### Returns
 
@@ -73,7 +73,7 @@ The names of the entities in this batch that go through QueryCache
 
 [`RxDBMixedVersionedCacheTransactionError`](../../rxdb/classes/RxDBMixedVersionedCacheTransactionError.md).[`cacheEntities`](../../rxdb/classes/RxDBMixedVersionedCacheTransactionError.md#cacheentities)
 
-***
+---
 
 ### cacheEntityName \{#cacheentityname\}
 
@@ -85,7 +85,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/versioned-domain
 
 The name of the first QueryCache entity hit within this transaction
 
-***
+---
 
 ### cause? \{#cause\}
 
@@ -99,7 +99,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBMixedVersionedCacheTransactionError`](../../rxdb/classes/RxDBMixedVersionedCacheTransactionError.md).[`cause`](../../rxdb/classes/RxDBMixedVersionedCacheTransactionError.md#cause)
 
-***
+---
 
 ### code \{#code\}
 
@@ -117,7 +117,7 @@ The stable error code specified by US-306 FR-046; see this class for why a liter
 
 [`RxDBMixedVersionedCacheTransactionError`](../../rxdb/classes/RxDBMixedVersionedCacheTransactionError.md).[`code`](../../rxdb/classes/RxDBMixedVersionedCacheTransactionError.md#code)
 
-***
+---
 
 ### message \{#message\}
 
@@ -131,7 +131,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBMixedVersionedCacheTransactionError`](../../rxdb/classes/RxDBMixedVersionedCacheTransactionError.md).[`message`](../../rxdb/classes/RxDBMixedVersionedCacheTransactionError.md#message)
 
-***
+---
 
 ### name \{#name\}
 
@@ -145,7 +145,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBMixedVersionedCacheTransactionError`](../../rxdb/classes/RxDBMixedVersionedCacheTransactionError.md).[`name`](../../rxdb/classes/RxDBMixedVersionedCacheTransactionError.md#name)
 
-***
+---
 
 ### stack? \{#stack\}
 
@@ -159,7 +159,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBMixedVersionedCacheTransactionError`](../../rxdb/classes/RxDBMixedVersionedCacheTransactionError.md).[`stack`](../../rxdb/classes/RxDBMixedVersionedCacheTransactionError.md#stack)
 
-***
+---
 
 ### versionedEntities \{#versionedentities\}
 
@@ -175,7 +175,7 @@ The names of the entities in this batch that go through versioned sync
 
 [`RxDBMixedVersionedCacheTransactionError`](../../rxdb/classes/RxDBMixedVersionedCacheTransactionError.md).[`versionedEntities`](../../rxdb/classes/RxDBMixedVersionedCacheTransactionError.md#versionedentities)
 
-***
+---
 
 ### versionedEntityName \{#versionedentityname\}
 
@@ -187,7 +187,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/versioned-domain
 
 The name of the first non-QueryCache entity hit within this transaction
 
-***
+---
 
 ### stackTraceLimit \{#stacktracelimit\}
 
@@ -228,7 +228,7 @@ a string representing the location in the code at which
 ```js
 const myObject = {};
 Error.captureStackTrace(myObject);
-myObject.stack;  // Similar to `new Error().stack`
+myObject.stack; // Similar to `new Error().stack`
 ```
 
 The first line of the trace will be prefixed with
@@ -267,9 +267,9 @@ a();
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `targetObject` | `object` |
+| Parameter         | Type       |
+| ----------------- | ---------- |
+| `targetObject`    | `object`   |
 | `constructorOpt?` | `Function` |
 
 #### Returns
@@ -280,7 +280,7 @@ a();
 
 [`RxDBMixedVersionedCacheTransactionError`](../../rxdb/classes/RxDBMixedVersionedCacheTransactionError.md).[`captureStackTrace`](../../rxdb/classes/RxDBMixedVersionedCacheTransactionError.md#capturestacktrace)
 
-***
+---
 
 ### prepareStackTrace() \{#preparestacktrace\}
 
@@ -292,9 +292,9 @@ Defined in: node\_modules/.pnpm/@types+node@26.6.6/node\_modules/@types/node/glo
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `err` | `Error` |
+| Parameter     | Type         |
+| ------------- | ------------ |
+| `err`         | `Error`      |
 | `stackTraces` | `CallSite`[] |
 
 #### Returns

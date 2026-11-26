@@ -10,9 +10,9 @@ Constructs a provider error according to the shared retryability table.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `code` | \| `"permission_denied"` \| `"provider_unsupported"` \| `"provider_unavailable"` \| `"invalid_path"` \| `"resource_not_found"` \| `"resource_conflict"` \| `"storage_quota_exceeded"` \| `"payload_too_large"` \| `"payload_encoding_invalid"` \| `"transfer_sequence_invalid"` \| `"transfer_size_exceeded"` \| `"transfer_incomplete"` \| `"transfer_closed"` \| `"snapshot_expired"` \| `"snapshot_busy"` \| `"snapshot_too_large"` \| `"export_unsupported"` \| `"operation_failed"` | The provider error code. |
+| Parameter | Type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Description              |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| `code`    | \| `"permission_denied"` \| `"provider_unsupported"` \| `"provider_unavailable"` \| `"invalid_path"` \| `"resource_not_found"` \| `"resource_conflict"` \| `"storage_quota_exceeded"` \| `"payload_too_large"` \| `"payload_encoding_invalid"` \| `"transfer_sequence_invalid"` \| `"transfer_size_exceeded"` \| `"transfer_incomplete"` \| `"transfer_closed"` \| `"snapshot_expired"` \| `"snapshot_busy"` \| `"snapshot_too_large"` \| `"export_unsupported"` \| `"operation_failed"` | The provider error code. |
 
 ## Returns
 

@@ -10,9 +10,9 @@ Judges whether the argument is a resolver (rather than a database-level `SyncOpt
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `source` | \| [`SyncOptions`](../type-aliases/SyncOptions.md) \| [`EntitySyncResolver`](../interfaces/EntitySyncResolver.md) \| `undefined` | The resolver or the database-level configuration |
+| Parameter | Type                                                                                                                             | Description                                      |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| `source`  | \| [`SyncOptions`](../type-aliases/SyncOptions.md) \| [`EntitySyncResolver`](../interfaces/EntitySyncResolver.md) \| `undefined` | The resolver or the database-level configuration |
 
 ## Returns
 

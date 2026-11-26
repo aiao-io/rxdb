@@ -8,9 +8,9 @@ Defined in: [packages/utils/src/string/startCase.ts:10](https://github.com/aiao-
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `value`   | `string` |
 
 ## Returns
 

@@ -12,7 +12,7 @@ Pairs with [HttpChangeFeedUnavailableReport](HttpChangeFeedUnavailableReport.md)
 
 The only field is the URL: "connected" is itself the entire fact, and `EventSource`'s `open` event carries nothing else.
 
- Like [HttpAdapterOptions.changeFeed](HttpAdapterOptions.md#changefeed), outside the 1.0 compatibility promise.
+Like [HttpAdapterOptions.changeFeed](HttpAdapterOptions.md#changefeed), outside the 1.0 compatibility promise.
 
 ## Properties
 

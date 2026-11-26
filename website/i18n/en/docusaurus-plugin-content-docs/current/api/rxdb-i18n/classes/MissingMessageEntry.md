@@ -28,7 +28,7 @@ Defined in: [entities.ts:119](https://github.com/aiao-io/rxdb/blob/b5232040240cf
 
 Encoding of locale, namespace and key.
 
-***
+---
 
 ### key \{#key\}
 
@@ -40,7 +40,7 @@ Defined in: [entities.ts:125](https://github.com/aiao-io/rxdb/blob/b5232040240cf
 
 The missing key.
 
-***
+---
 
 ### locale \{#locale\}
 
@@ -52,7 +52,7 @@ Defined in: [entities.ts:121](https://github.com/aiao-io/rxdb/blob/b5232040240cf
 
 Locale at the time of the miss.
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -64,7 +64,7 @@ Defined in: [entities.ts:123](https://github.com/aiao-io/rxdb/blob/b5232040240cf
 
 Namespace.
 
-***
+---
 
 ### updatedAt \{#updatedat\}
 

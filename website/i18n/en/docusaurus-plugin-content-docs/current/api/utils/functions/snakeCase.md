@@ -10,9 +10,9 @@ Converts a string to snake_case
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `str` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `str`     | `string` |
 
 ## Returns
 

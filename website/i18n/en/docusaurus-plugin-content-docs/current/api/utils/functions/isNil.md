@@ -11,9 +11,9 @@ Uses strict equality (===) for comparison
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | The value to check |
+| Parameter | Type      | Description        |
+| --------- | --------- | ------------------ |
+| `value`   | `unknown` | The value to check |
 
 ## Returns
 

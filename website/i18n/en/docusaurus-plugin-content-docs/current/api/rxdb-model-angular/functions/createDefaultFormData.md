@@ -10,9 +10,9 @@ Creates default form data based on the field configuration
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `fields` | [`FormFieldConfig`](../interfaces/FormFieldConfig.md)[] | Form field configuration |
+| Parameter | Type                                                    | Description              |
+| --------- | ------------------------------------------------------- | ------------------------ |
+| `fields`  | [`FormFieldConfig`](../interfaces/FormFieldConfig.md)[] | Form field configuration |
 
 ## Returns
 

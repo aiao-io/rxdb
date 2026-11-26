@@ -10,15 +10,15 @@ Wraps an async function into an action with an in-flight state.
 
 ## Type Parameters
 
-| Type Parameter | Default type | Description |
-| ------ | ------ | ------ |
-| <a id="type-parameter-options"></a> `Options` | `void` | Input parameter type of `execute` |
-| <a id="type-parameter-rt"></a> `RT` | `unknown` | Return type of the async function |
+| Type Parameter                                | Default type | Description                       |
+| --------------------------------------------- | ------------ | --------------------------------- |
+| <a id="type-parameter-options"></a> `Options` | `void`       | Input parameter type of `execute` |
+| <a id="type-parameter-rt"></a> `RT`           | `unknown`    | Return type of the async function |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type                                 | Description                                                                    |
+| ----------- | ------------------------------------ | ------------------------------------------------------------------------------ |
 | `promiseFn` | (`options`) => `Promise`&lt;`RT`&gt; | The async function that actually runs; a new one may be passed on every render |
 
 ## Returns

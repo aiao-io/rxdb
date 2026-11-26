@@ -10,8 +10,8 @@ Returns the storage absolute directory containing an OPFS-relative path.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `opfsPath` | `string` |
 
 ## Returns

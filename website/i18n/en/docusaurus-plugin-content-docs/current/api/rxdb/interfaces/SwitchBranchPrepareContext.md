@@ -25,7 +25,7 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:173](https://github.com/aiao-io/r
 The switch transaction's executor; reads and writes the callback does here are in the same transaction as
 this switch.
 
-***
+---
 
 ### targetBranchId \{#targetbranchid\}
 

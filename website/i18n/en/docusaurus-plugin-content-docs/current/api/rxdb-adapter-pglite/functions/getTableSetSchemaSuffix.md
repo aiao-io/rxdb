@@ -10,8 +10,8 @@ The schema name suffix of a shadow table set: `$<suffix>`. Schemas in the catalo
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                         | Description      |
+| ---------- | ------------------------------------------------------------ | ---------------- |
 | `tableSet` | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md) | Shadow table set |
 
 ## Returns

@@ -10,9 +10,9 @@ Parses a YYYY-MM-DD string into a Date in the local timezone.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `ymd` | `string` \| `null` \| `undefined` | Date string in YYYY-MM-DD format |
+| Parameter | Type                              | Description                      |
+| --------- | --------------------------------- | -------------------------------- |
+| `ymd`     | `string` \| `null` \| `undefined` | Date string in YYYY-MM-DD format |
 
 ## Returns
 

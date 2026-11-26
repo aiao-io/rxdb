@@ -14,10 +14,10 @@ transactionId preferentially reads the transaction-local setting, which expires 
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter        | Type                                                          | Description     |
+| ---------------- | ------------------------------------------------------------- | --------------- |
 | `entityMetadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | Entity metadata |
-| `options` | `TriggerOptions` | Trigger options |
+| `options`        | `TriggerOptions`                                              | Trigger options |
 
 ## Returns
 

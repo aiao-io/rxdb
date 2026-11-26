@@ -7,6 +7,7 @@ Value input component
 ## Description
 
 Shows the appropriate input control based on the field type and operator:
+
 - string: text input box
 - number: number input box
 - boolean: toggle switch
@@ -46,7 +47,7 @@ readonly arrayInputValue: WritableSignal<string>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts:264](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts#L264)
 
-***
+---
 
 ### currentDateStr \{#currentdatestr\}
 
@@ -56,7 +57,7 @@ readonly currentDateStr: WritableSignal<string>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts:265](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts#L265)
 
-***
+---
 
 ### currentValue \{#currentvalue\}
 
@@ -68,7 +69,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/value-input/value-inp
 
 Signal state — replaces the previous mutable class properties
 
-***
+---
 
 ### dateRangeEnd \{#daterangeend\}
 
@@ -78,7 +79,7 @@ readonly dateRangeEnd: WritableSignal<string>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts:267](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts#L267)
 
-***
+---
 
 ### dateRangeStart \{#daterangestart\}
 
@@ -88,7 +89,7 @@ readonly dateRangeStart: WritableSignal<string>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts:266](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts#L266)
 
-***
+---
 
 ### enumOptions \{#enumoptions\}
 
@@ -98,7 +99,7 @@ readonly enumOptions: InputSignal<unknown[]>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts:245](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts#L245)
 
-***
+---
 
 ### enumSelectOptions \{#enumselectoptions\}
 
@@ -108,7 +109,7 @@ readonly enumSelectOptions: Signal<object[]>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts:270](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts#L270)
 
-***
+---
 
 ### errorMessage \{#errormessage\}
 
@@ -118,7 +119,7 @@ readonly errorMessage: InputSignal<string>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts:252](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts#L252)
 
-***
+---
 
 ### fieldType \{#fieldtype\}
 
@@ -128,7 +129,7 @@ readonly fieldType: InputSignal<string>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts:242](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts#L242)
 
-***
+---
 
 ### hasError \{#haserror\}
 
@@ -138,7 +139,7 @@ readonly hasError: Signal<boolean>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts:253](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts#L253)
 
-***
+---
 
 ### inputType \{#inputtype\}
 
@@ -148,7 +149,7 @@ readonly inputType: Signal<string>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts:269](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts#L269)
 
-***
+---
 
 ### operator \{#operator\}
 
@@ -158,7 +159,7 @@ readonly operator: InputSignal<string>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts:243](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts#L243)
 
-***
+---
 
 ### rangeMax \{#rangemax\}
 
@@ -168,7 +169,7 @@ readonly rangeMax: WritableSignal<unknown>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts:263](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts#L263)
 
-***
+---
 
 ### rangeMin \{#rangemin\}
 
@@ -178,7 +179,7 @@ readonly rangeMin: WritableSignal<unknown>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts:262](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts#L262)
 
-***
+---
 
 ### relationFields \{#relationfields\}
 
@@ -188,7 +189,7 @@ readonly relationFields: InputSignal<FieldMetadata[]>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts:246](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts#L246)
 
-***
+---
 
 ### subqueryContainer? \{#subquerycontainer\}
 
@@ -198,7 +199,7 @@ subqueryContainer?: ViewContainerRef;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts:240](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts#L240)
 
-***
+---
 
 ### uuidError \{#uuiderror\}
 
@@ -210,7 +211,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/value-input/value-inp
 
 UUID format validation error (derived from currentValue; automatically empty when inputType is not uuid)
 
-***
+---
 
 ### value \{#value\}
 
@@ -220,7 +221,7 @@ readonly value: InputSignal<unknown>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts:244](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts#L244)
 
-***
+---
 
 ### valueChange \{#valuechange\}
 
@@ -230,7 +231,7 @@ readonly valueChange: OutputEmitterRef<unknown>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts:249](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts#L249)
 
-***
+---
 
 ### valueChangeFn \{#valuechangefn\}
 
@@ -240,7 +241,7 @@ readonly valueChangeFn: InputSignal<((value) => void) | undefined>;
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts:255](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts#L255)
 
-***
+---
 
 ### where \{#where\}
 
@@ -252,7 +253,7 @@ readonly where: InputSignal<
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts:247](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts#L247)
 
-***
+---
 
 ### whereChange \{#wherechange\}
 
@@ -264,7 +265,7 @@ readonly whereChange: OutputEmitterRef<
 
 Defined in: [packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts:250](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts#L250)
 
-***
+---
 
 ### whereChangeFn \{#wherechangefn\}
 
@@ -290,7 +291,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/value-input/value-inp
 
 [`ModelI18n`](../interfaces/ModelI18n.md)
 
-***
+---
 
 ### t \{#t\}
 
@@ -318,15 +319,15 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/value-input/value-inp
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `where` | \| \{ `combinator`: `"and"` \| `"or"`; `rules`: `unknown`[]; \} \| `undefined` |
+| Parameter | Type                                                                           |
+| --------- | ------------------------------------------------------------------------------ |
+| `where`   | \| \{ `combinator`: `"and"` \| `"or"`; `rules`: `unknown`[]; \} \| `undefined` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### isEnumSelected() \{#isenumselected\}
 
@@ -340,15 +341,15 @@ Whether the enum option is selected
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `opt` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `opt`     | `unknown` |
 
 #### Returns
 
 `boolean`
 
-***
+---
 
 ### ngOnDestroy() \{#ngondestroy\}
 
@@ -369,7 +370,7 @@ before a directive, pipe, or service instance is destroyed.
 
 `OnDestroy.ngOnDestroy`
 
-***
+---
 
 ### ngOnInit() \{#ngoninit\}
 
@@ -393,7 +394,7 @@ It is invoked only once when the directive is instantiated.
 
 `OnInit.ngOnInit`
 
-***
+---
 
 ### onArrayInputChange() \{#onarrayinputchange\}
 
@@ -407,15 +408,15 @@ Array input value change (comma-separated string)
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `value`   | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onDateRangeEndChange() \{#ondaterangeendchange\}
 
@@ -429,15 +430,15 @@ Date range end change
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `value`   | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onDateRangePartChange() \{#ondaterangepartchange\}
 
@@ -451,7 +452,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/value-input/value-inp
 
 `void`
 
-***
+---
 
 ### onDateRangeStartChange() \{#ondaterangestartchange\}
 
@@ -465,15 +466,15 @@ Date range start change
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `value`   | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onEnumArrayChange() \{#onenumarraychange\}
 
@@ -487,15 +488,15 @@ Enum multi-select change
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `Event` |
+| Parameter | Type    |
+| --------- | ------- |
+| `event`   | `Event` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onEnumSelect() \{#onenumselect\}
 
@@ -509,15 +510,15 @@ Enum value selected (from PopoverSelectComponent)
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `value`   | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onNativeDateChange() \{#onnativedatechange\}
 
@@ -531,15 +532,15 @@ Native date input change
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `value`   | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onNumberInputChange() \{#onnumberinputchange\}
 
@@ -553,15 +554,15 @@ Number input change
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `value`   | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onRangeChange() \{#onrangechange\}
 
@@ -575,7 +576,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/value-input/value-inp
 
 `void`
 
-***
+---
 
 ### onRangeMaxChange() \{#onrangemaxchange\}
 
@@ -589,15 +590,15 @@ Range max value change
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `value`   | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onRangeMinChange() \{#onrangeminchange\}
 
@@ -611,15 +612,15 @@ Range min value change
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `value`   | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onUuidChange() \{#onuuidchange\}
 
@@ -633,15 +634,15 @@ UUID value change (with format validation)
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `value`   | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onValueChange() \{#onvaluechange\}
 
@@ -655,9 +656,9 @@ Generic value change (string / boolean…)
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `value`   | `unknown` |
 
 #### Returns
 

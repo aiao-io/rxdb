@@ -10,14 +10,14 @@ Gets the entity mutation map.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) | [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                            | Default type                                  |
+| ----------------------------------------------------------------------------------------- | --------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) | [`EntityType`](../type-aliases/EntityType.md) |
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                           |
+| --------- | ------------------------------------------------------------------------------ |
 | `options` | [`EntityMutationsOptions`](../interfaces/EntityMutationsOptions.md)&lt;`T`&gt; |
 
 ## Returns

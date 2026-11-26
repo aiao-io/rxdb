@@ -14,9 +14,9 @@ letting the runtime precheck list the missing items, and `getEnvInfoSync`'s plat
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `tt` | [`MiniProgramDouyinApi`](../interfaces/MiniProgramDouyinApi.md) | The Douyin global `tt` |
+| Parameter  | Type                                                                            | Description                    |
+| ---------- | ------------------------------------------------------------------------------- | ------------------------------ |
+| `tt`       | [`MiniProgramDouyinApi`](../interfaces/MiniProgramDouyinApi.md)                 | The Douyin global `tt`         |
 | `options?` | [`DouyinMiniProgramHostOptions`](../interfaces/DouyinMiniProgramHostOptions.md) | An optional real global object |
 
 ## Returns

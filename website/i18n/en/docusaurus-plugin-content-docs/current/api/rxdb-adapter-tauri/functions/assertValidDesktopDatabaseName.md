@@ -10,8 +10,8 @@ Validates a logical database name.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter      | Type     | Description                  |
+| -------------- | -------- | ---------------------------- |
 | `databaseName` | `string` | The logical name to validate |
 
 ## Returns

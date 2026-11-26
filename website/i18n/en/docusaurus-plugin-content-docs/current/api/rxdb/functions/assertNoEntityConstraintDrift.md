@@ -10,9 +10,9 @@ Asserts that an entity table has no constraint drift.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `report` | [`EntityConstraintDriftReport`](../interfaces/EntityConstraintDriftReport.md) | The comparison input, see [EntityConstraintDriftReport](../interfaces/EntityConstraintDriftReport.md) |
+| Parameter | Type                                                                          | Description                                                                                           |
+| --------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `report`  | [`EntityConstraintDriftReport`](../interfaces/EntityConstraintDriftReport.md) | The comparison input, see [EntityConstraintDriftReport](../interfaces/EntityConstraintDriftReport.md) |
 
 ## Returns
 

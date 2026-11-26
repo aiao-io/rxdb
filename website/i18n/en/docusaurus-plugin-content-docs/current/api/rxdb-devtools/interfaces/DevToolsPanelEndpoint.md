@@ -16,7 +16,7 @@ Defined in: [v2/panel-endpoint.ts:164](https://github.com/aiao-io/rxdb/blob/b523
 
 The tier declared by the connector; `null` when negotiation has not succeeded.
 
-***
+---
 
 ### descriptors \{#descriptors\}
 
@@ -28,7 +28,7 @@ Defined in: [v2/panel-endpoint.ts:166](https://github.com/aiao-io/rxdb/blob/b523
 
 The provider descriptors declared by the connector; empty when negotiation has not succeeded.
 
-***
+---
 
 ### downgraded \{#downgraded\}
 
@@ -40,7 +40,7 @@ Defined in: [v2/panel-endpoint.ts:162](https://github.com/aiao-io/rxdb/blob/b523
 
 Already entered the v1 facade but discovered the peer speaks v2 — hints the user to reconnect to upgrade.
 
-***
+---
 
 ### inflightRequests \{#inflightrequests\}
 
@@ -52,7 +52,7 @@ Defined in: [v2/panel-endpoint.ts:168](https://github.com/aiao-io/rxdb/blob/b523
 
 The number of in-flight requests.
 
-***
+---
 
 ### inflightTransfers \{#inflighttransfers\}
 
@@ -64,7 +64,7 @@ Defined in: [v2/panel-endpoint.ts:170](https://github.com/aiao-io/rxdb/blob/b523
 
 The number of in-flight uploads.
 
-***
+---
 
 ### rejectedFrames \{#rejectedframes\}
 
@@ -76,7 +76,7 @@ Defined in: [v2/panel-endpoint.ts:174](https://github.com/aiao-io/rxdb/blob/b523
 
 The number of rejected frames (including those rejected by the negotiation machine); "rejection" is countable, "silence" is not.
 
-***
+---
 
 ### rejection \{#rejection\}
 
@@ -88,7 +88,7 @@ Defined in: [v2/panel-endpoint.ts:172](https://github.com/aiao-io/rxdb/blob/b523
 
 The error reported by the peer during negotiation.
 
-***
+---
 
 ### sessionId \{#sessionid\}
 
@@ -100,7 +100,7 @@ Defined in: [v2/panel-endpoint.ts:158](https://github.com/aiao-io/rxdb/blob/b523
 
 The current session; `null` when not negotiated or already disconnected.
 
-***
+---
 
 ### sessionOpen \{#sessionopen\}
 
@@ -112,7 +112,7 @@ Defined in: [v2/panel-endpoint.ts:160](https://github.com/aiao-io/rxdb/blob/b523
 
 Whether the session is still open.
 
-***
+---
 
 ### state \{#state\}
 
@@ -140,7 +140,7 @@ Requests the connector to clear this session's event buffer.
 
 `void`
 
-***
+---
 
 ### disconnect() \{#disconnect\}
 
@@ -156,7 +156,7 @@ Disconnects proactively: sends `DISCONNECT` and settles all in-flight work in pl
 
 `void`
 
-***
+---
 
 ### dispose() \{#dispose\}
 
@@ -172,7 +172,7 @@ Stops sending/receiving and settles all in-flight work.
 
 `void`
 
-***
+---
 
 ### download() \{#download\}
 
@@ -186,8 +186,8 @@ Drives a `files.download`.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                              | Description                               |
+| --------- | ----------------------------------------------------------------- | ----------------------------------------- |
 | `request` | [`DevToolsPanelDownloadRequest`](DevToolsPanelDownloadRequest.md) | The params constructor and the byte sink. |
 
 #### Returns
@@ -196,7 +196,7 @@ Drives a `files.download`.
 
 A result that never rejects; for the semantics of the three branches see [DevToolsPanelDownloadResult](../type-aliases/DevToolsPanelDownloadResult.md).
 
-***
+---
 
 ### onEvent() \{#onevent\}
 
@@ -210,8 +210,8 @@ Subscribes to events pushed by the connector.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                | Description         |
+| ---------- | ------------------- | ------------------- |
 | `listener` | (`event`) => `void` | The event callback. |
 
 #### Returns
@@ -220,7 +220,7 @@ An unsubscribe function; idempotent.
 
 () => `void`
 
-***
+---
 
 ### ping() \{#ping\}
 
@@ -236,7 +236,7 @@ Sends a `PING`.
 
 `void`
 
-***
+---
 
 ### receive() \{#receive\}
 
@@ -250,22 +250,22 @@ Processes one frame of inbound messages.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `frame` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `frame`   | `unknown` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### request() \{#request\}
 
 ```ts
 request(
-   domain, 
-   operation, 
+   domain,
+   operation,
    params
 ): Promise<DevToolsPanelRequestResult>;
 ```
@@ -276,11 +276,11 @@ Issues a provider call.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `domain` | `"database"` \| `"files"` \| `"settings"` | The provider domain. |
-| `operation` | `string` | The operation name within the domain. |
-| `params` | `unknown` | The operation parameters, constructed per the provider contract. |
+| Parameter   | Type                                      | Description                                                      |
+| ----------- | ----------------------------------------- | ---------------------------------------------------------------- |
+| `domain`    | `"database"` \| `"files"` \| `"settings"` | The provider domain.                                             |
+| `operation` | `string`                                  | The operation name within the domain.                            |
+| `params`    | `unknown`                                 | The operation parameters, constructed per the provider contract. |
 
 #### Returns
 
@@ -288,7 +288,7 @@ Issues a provider call.
 
 A result that never rejects.
 
-***
+---
 
 ### start() \{#start\}
 
@@ -304,7 +304,7 @@ Sends the first `PROTOCOL_HELLO`.
 
 `void`
 
-***
+---
 
 ### upload() \{#upload\}
 
@@ -318,8 +318,8 @@ Drives a `files.upload`.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                          | Description                                 |
+| --------- | ------------------------------------------------------------- | ------------------------------------------- |
 | `request` | [`DevToolsPanelUploadRequest`](DevToolsPanelUploadRequest.md) | The params constructor and the byte source. |
 
 #### Returns

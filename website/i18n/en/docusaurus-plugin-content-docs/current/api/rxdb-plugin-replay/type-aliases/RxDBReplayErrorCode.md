@@ -1,16 +1,16 @@
 # RxDBReplayErrorCode
 
 ```ts
-type RxDBReplayErrorCode = 
-  | "no_dom"
-  | "already_recording"
-  | "store_limit"
-  | "recording_db_unavailable"
-  | "session_not_found"
-  | "session_recording"
-  | "working_tree_unavailable"
-  | "invalid_marker"
-  | "not_installed";
+type RxDBReplayErrorCode =
+  | 'no_dom'
+  | 'already_recording'
+  | 'store_limit'
+  | 'recording_db_unavailable'
+  | 'session_not_found'
+  | 'session_recording'
+  | 'working_tree_unavailable'
+  | 'invalid_marker'
+  | 'not_installed';
 ```
 
 Defined in: [packages/rxdb-plugin-replay/src/errors.ts:14](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-replay/src/errors.ts#L14)

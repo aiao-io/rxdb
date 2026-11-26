@@ -1,17 +1,17 @@
 # CardDropTarget
 
 ```ts
-type CardDropTarget = 
+type CardDropTarget =
   | {
-  columnId: UUID;
-  kind: "between";
-  nextId: UUID | null;
-  prevId: UUID | null;
-}
+      columnId: UUID;
+      kind: 'between';
+      nextId: UUID | null;
+      prevId: UUID | null;
+    }
   | {
-  columnId: UUID;
-  kind: "end";
-};
+      columnId: UUID;
+      kind: 'end';
+    };
 ```
 
 Defined in: packages/rxdb-plugin-board/dist/drop-resolution.d.ts:11

@@ -18,7 +18,7 @@ entityName: string;
 
 Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:171](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-http/src/http.interface.ts#L171)
 
-***
+---
 
 ### ids \{#ids\}
 

@@ -9,6 +9,7 @@ QueryBuilder theme interface
 Defines the component types for each UI slot, allowing them to be replaced with implementations from different UI libraries
 
 Theme components must follow these conventions:
+
 - accept standard signal inputs (field, operator, value, etc.)
 - support both output() events and optional onXxx callback inputs (for NgComponentOutlet)
 
@@ -24,7 +25,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/theme/query-builder-t
 
 Field selector component
 
-***
+---
 
 ### operatorSelector \{#operatorselector\}
 
@@ -36,7 +37,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/theme/query-builder-t
 
 Operator selector component
 
-***
+---
 
 ### valueInput \{#valueinput\}
 

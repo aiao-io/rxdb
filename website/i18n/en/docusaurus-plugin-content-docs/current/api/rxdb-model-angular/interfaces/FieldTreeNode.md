@@ -21,7 +21,7 @@ Defined in: packages/rxdb-model/dist/query-builder/utils/field-tree.d.ts:22
 
 Child nodes
 
-***
+---
 
 ### description? \{#description\}
 
@@ -33,7 +33,7 @@ Defined in: packages/rxdb-model/dist/query-builder/utils/field-tree.d.ts:24
 
 Field description
 
-***
+---
 
 ### displayName \{#displayname\}
 
@@ -45,7 +45,7 @@ Defined in: packages/rxdb-model/dist/query-builder/utils/field-tree.d.ts:16
 
 Display name
 
-***
+---
 
 ### enum? \{#enum\}
 
@@ -57,7 +57,7 @@ Defined in: packages/rxdb-model/dist/query-builder/utils/field-tree.d.ts:28
 
 Enum values
 
-***
+---
 
 ### isExistsOption? \{#isexistsoption\}
 
@@ -69,7 +69,7 @@ Defined in: packages/rxdb-model/dist/query-builder/utils/field-tree.d.ts:32
 
 Whether it is an existence-check option (used to solve duplicate key problems)
 
-***
+---
 
 ### isNullCheckOption? \{#isnullcheckoption\}
 
@@ -81,7 +81,7 @@ Defined in: packages/rxdb-model/dist/query-builder/utils/field-tree.d.ts:34
 
 Whether it is a null-check option (the whole-value null query of a keyValue field)
 
-***
+---
 
 ### isRelation \{#isrelation\}
 
@@ -93,7 +93,7 @@ Defined in: packages/rxdb-model/dist/query-builder/utils/field-tree.d.ts:20
 
 Whether it is a relation field
 
-***
+---
 
 ### label \{#label\}
 
@@ -105,7 +105,7 @@ Defined in: packages/rxdb-model/dist/query-builder/utils/field-tree.d.ts:12
 
 The field name at the current level
 
-***
+---
 
 ### relationFields? \{#relationfields\}
 
@@ -117,7 +117,7 @@ Defined in: packages/rxdb-model/dist/query-builder/utils/field-tree.d.ts:30
 
 Field list of the relation target entity (used for EXISTS subqueries)
 
-***
+---
 
 ### required? \{#required\}
 
@@ -129,7 +129,7 @@ Defined in: packages/rxdb-model/dist/query-builder/utils/field-tree.d.ts:26
 
 Whether it is required
 
-***
+---
 
 ### type \{#type\}
 
@@ -141,7 +141,7 @@ Defined in: packages/rxdb-model/dist/query-builder/utils/field-tree.d.ts:18
 
 Field type
 
-***
+---
 
 ### value \{#value\}
 

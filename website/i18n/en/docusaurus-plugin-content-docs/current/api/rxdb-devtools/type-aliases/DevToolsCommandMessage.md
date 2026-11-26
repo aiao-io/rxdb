@@ -1,7 +1,7 @@
 # DevToolsCommandMessage
 
 ```ts
-type DevToolsCommandMessage = 
+type DevToolsCommandMessage =
   | HandshakeAckMessage
   | DevToolsDisconnectMessage
   | DisconnectRxdbMessage

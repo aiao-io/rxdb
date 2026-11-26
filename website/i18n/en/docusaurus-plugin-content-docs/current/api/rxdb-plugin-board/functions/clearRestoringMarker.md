@@ -10,8 +10,8 @@ Clears the restoring marker after restore finishes (successful switch or failed 
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                            |
+| --------- | ----------------------------------------------- |
 | `storage` | [`BoardStorage`](../interfaces/BoardStorage.md) |
 
 ## Returns

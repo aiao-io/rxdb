@@ -10,10 +10,10 @@ Renders the replayer for one session inside `host`: rrweb replay, play / pause, 
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `host` | `HTMLElement` | Element the replayer mounts into; existing child nodes are replaced |
-| `options` | [`ReplayerOptions`](../interfaces/ReplayerOptions.md) | Session source and callbacks |
+| Parameter | Type                                                  | Description                                                         |
+| --------- | ----------------------------------------------------- | ------------------------------------------------------------------- |
+| `host`    | `HTMLElement`                                         | Element the replayer mounts into; existing child nodes are replaced |
+| `options` | [`ReplayerOptions`](../interfaces/ReplayerOptions.md) | Session source and callbacks                                        |
 
 ## Returns
 

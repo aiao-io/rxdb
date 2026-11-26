@@ -20,7 +20,7 @@ An optional ability to clear diagnostics; when omitted, inspection only.
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### inspection$ \{#inspection\}
 

@@ -10,16 +10,16 @@ Finds the neighbors of a graph entity.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`GraphEntityType`](../../rxdb-plugin-graph/type-aliases/GraphEntityType.md) |
+| Type Parameter                                                                                                           |
+| ------------------------------------------------------------------------------------------------------------------------ |
+| <a id="type-parameter-t"></a> `T` _extends_ [`GraphEntityType`](../../rxdb-plugin-graph/type-aliases/GraphEntityType.md) |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `EntityType` | `T` | Graph entity type. |
-| `options` | [`UseOptions`](../type-aliases/UseOptions.md)&lt;[`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"findNeighborsOptions"`&gt;&gt; | Neighbor query options or an idempotent factory. |
+| Parameter    | Type                                                                                                                                                        | Description                                      |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| `EntityType` | `T`                                                                                                                                                         | Graph entity type.                               |
+| `options`    | [`UseOptions`](../type-aliases/UseOptions.md)&lt;[`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"findNeighborsOptions"`&gt;&gt; | Neighbor query options or an idempotent factory. |
 
 ## Returns
 

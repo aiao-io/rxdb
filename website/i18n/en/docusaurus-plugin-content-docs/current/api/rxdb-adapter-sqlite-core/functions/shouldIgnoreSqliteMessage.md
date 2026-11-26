@@ -10,9 +10,9 @@ Determines whether SQLite output is known ignorable noise (such as the OPFS main
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `args` | `unknown`[] | Arbitrary console-style argument list |
+| Parameter | Type        | Description                           |
+| --------- | ----------- | ------------------------------------- |
+| `args`    | `unknown`[] | Arbitrary console-style argument list |
 
 ## Returns
 

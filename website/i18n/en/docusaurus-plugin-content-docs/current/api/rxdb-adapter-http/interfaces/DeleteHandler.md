@@ -20,9 +20,9 @@ Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:205](https://githu
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `ctx` | [`DeleteContext`](DeleteContext.md) |
+| Parameter | Type                                |
+| --------- | ----------------------------------- |
+| `ctx`     | [`DeleteContext`](DeleteContext.md) |
 
 #### Returns
 

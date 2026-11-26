@@ -20,15 +20,15 @@ Defined in: [packages/rxdb-plugin-search/src/core/fts5-runtime.ts:43](https://gi
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `sql` | `string` |
+| Parameter | Type                 |
+| --------- | -------------------- |
+| `sql`     | `string`             |
 | `params?` | readonly `unknown`[] |
 
 #### Returns
 
 `Promise`&lt;\{
-  `columns`: `string`[];
-  `rows`: `unknown`[][];
-  `rowsAffected`: `number`;
+`columns`: `string`[];
+`rows`: `unknown`[][];
+`rowsAffected`: `number`;
 \}&gt;

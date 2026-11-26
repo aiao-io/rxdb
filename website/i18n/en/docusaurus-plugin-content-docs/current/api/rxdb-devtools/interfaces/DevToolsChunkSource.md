@@ -55,7 +55,7 @@ sink side distinguishes terminal states with `commit` / `discard` because it has
 of whether temporary artifacts should be promoted; the read side has nothing to promote, so
 there is only one exit and no terminal path can be missed.
 
-***
+---
 
 ### read() \{#read\}
 
@@ -69,10 +69,10 @@ Reads `[offset, offset + length)`.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `offset` | `number` | Starting offset, equal to the number of bytes already read. |
-| `length` | `number` | Number of bytes requested, always ≤ 256 KiB and \> 0. |
+| Parameter | Type     | Description                                                 |
+| --------- | -------- | ----------------------------------------------------------- |
+| `offset`  | `number` | Starting offset, equal to the number of bytes already read. |
+| `length`  | `number` | Number of bytes requested, always ≤ 256 KiB and \> 0.       |
 
 #### Returns
 

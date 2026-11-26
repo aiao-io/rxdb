@@ -10,9 +10,9 @@ Checks whether a file belongs directly to a directory.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `opfsPath` | `string` |
+| Parameter        | Type     |
+| ---------------- | -------- |
+| `opfsPath`       | `string` |
 | `directoryPath?` | `string` |
 
 ## Returns

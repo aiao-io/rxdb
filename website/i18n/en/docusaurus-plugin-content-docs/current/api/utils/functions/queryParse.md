@@ -12,9 +12,9 @@ The returned object has a `null` prototype, so query keys like `__proto__` / `co
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `query` | `string` | The query string |
+| Parameter | Type     | Description      |
+| --------- | -------- | ---------------- |
+| `query`   | `string` | The query string |
 
 ## Returns
 

@@ -14,8 +14,8 @@ Runtime execution error (SQL failure / storage unavailable); recoverable via [Se
 
 ```ts
 new SearchQueryLimitError(
-   kind, 
-   max, 
+   kind,
+   max,
    actual
 ): SearchQueryLimitError;
 ```
@@ -24,11 +24,11 @@ Defined in: [packages/rxdb-plugin-search/src/types.ts:180](https://github.com/ai
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `kind` | [`SearchQueryLimitKind`](../type-aliases/SearchQueryLimitKind.md) |
-| `max` | `number` |
-| `actual` | `number` |
+| Parameter | Type                                                              |
+| --------- | ----------------------------------------------------------------- |
+| `kind`    | [`SearchQueryLimitKind`](../type-aliases/SearchQueryLimitKind.md) |
+| `max`     | `number`                                                          |
+| `actual`  | `number`                                                          |
 
 #### Returns
 
@@ -48,7 +48,7 @@ readonly actual: number;
 
 Defined in: [packages/rxdb-plugin-search/src/types.ts:183](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-search/src/types.ts#L183)
 
-***
+---
 
 ### cause? \{#cause\}
 
@@ -64,7 +64,7 @@ The original exception that triggered the error
 
 [`SearchExecutionError`](SearchExecutionError.md).[`cause`](SearchExecutionError.md#cause)
 
-***
+---
 
 ### kind \{#kind\}
 
@@ -74,7 +74,7 @@ readonly kind: SearchQueryLimitKind;
 
 Defined in: [packages/rxdb-plugin-search/src/types.ts:181](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-search/src/types.ts#L181)
 
-***
+---
 
 ### max \{#max\}
 
@@ -84,7 +84,7 @@ readonly max: number;
 
 Defined in: [packages/rxdb-plugin-search/src/types.ts:182](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-search/src/types.ts#L182)
 
-***
+---
 
 ### message \{#message\}
 
@@ -98,7 +98,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`SearchExecutionError`](SearchExecutionError.md).[`message`](SearchExecutionError.md#message)
 
-***
+---
 
 ### name \{#name\}
 
@@ -112,7 +112,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`SearchExecutionError`](SearchExecutionError.md).[`name`](SearchExecutionError.md#name)
 
-***
+---
 
 ### stack? \{#stack\}
 
@@ -126,7 +126,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`SearchExecutionError`](SearchExecutionError.md).[`stack`](SearchExecutionError.md#stack)
 
-***
+---
 
 ### stackTraceLimit \{#stacktracelimit\}
 
@@ -167,7 +167,7 @@ a string representing the location in the code at which
 ```js
 const myObject = {};
 Error.captureStackTrace(myObject);
-myObject.stack;  // Similar to `new Error().stack`
+myObject.stack; // Similar to `new Error().stack`
 ```
 
 The first line of the trace will be prefixed with
@@ -206,9 +206,9 @@ a();
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `targetObject` | `object` |
+| Parameter         | Type       |
+| ----------------- | ---------- |
+| `targetObject`    | `object`   |
 | `constructorOpt?` | `Function` |
 
 #### Returns
@@ -219,7 +219,7 @@ a();
 
 [`SearchExecutionError`](SearchExecutionError.md).[`captureStackTrace`](SearchExecutionError.md#capturestacktrace)
 
-***
+---
 
 ### prepareStackTrace() \{#preparestacktrace\}
 
@@ -231,9 +231,9 @@ Defined in: node\_modules/.pnpm/@types+node@26.6.6/node\_modules/@types/node/glo
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `err` | `Error` |
+| Parameter     | Type         |
+| ------------- | ------------ |
+| `err`         | `Error`      |
 | `stackTraces` | `CallSite`[] |
 
 #### Returns

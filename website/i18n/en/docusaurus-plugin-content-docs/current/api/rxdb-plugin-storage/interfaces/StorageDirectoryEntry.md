@@ -9,14 +9,14 @@ The subdirectory entry returned when browsing a directory.
 ### kind \{#kind\}
 
 ```ts
-kind: "directory";
+kind: 'directory';
 ```
 
 Defined in: [packages/rxdb-plugin-storage/src/storage.helpers.ts:140](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-storage/src/storage.helpers.ts#L140)
 
 The directory tag for the discriminated union.
 
-***
+---
 
 ### name \{#name\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-storage/src/storage.helpers.ts:142](https://gi
 
 The directory name.
 
-***
+---
 
 ### path \{#path\}
 

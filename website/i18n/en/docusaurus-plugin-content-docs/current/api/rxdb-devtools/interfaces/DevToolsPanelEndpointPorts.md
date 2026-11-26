@@ -16,7 +16,7 @@ Defined in: [v2/panel-endpoint.ts:148](https://github.com/aiao-io/rxdb/blob/b523
 
 The only timing source for request timeouts.
 
-***
+---
 
 ### send \{#send\}
 
@@ -30,15 +30,15 @@ The outbound callback; wired to the concrete transport by the platform driver.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                                    |
+| --------- | --------------------------------------------------------------------------------------- |
 | `message` | [`DevToolsPanelNegotiationMessage`](../type-aliases/DevToolsPanelNegotiationMessage.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### supportedVersions? \{#supportedversions\}
 

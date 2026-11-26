@@ -10,9 +10,9 @@ Checks whether an error means "target not found".
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `error` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `error`   | `unknown` |
 
 ## Returns
 

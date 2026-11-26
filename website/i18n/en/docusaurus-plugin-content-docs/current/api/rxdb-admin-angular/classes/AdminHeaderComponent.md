@@ -28,7 +28,7 @@ Defined in: [rxdb-admin-angular/src/layout/header.component.ts:48](https://githu
 
 Brand icon template.
 
-***
+---
 
 ### end \{#end\}
 
@@ -40,7 +40,7 @@ Defined in: [rxdb-admin-angular/src/layout/header.component.ts:54](https://githu
 
 Template for extension content after the header widget area.
 
-***
+---
 
 ### expanded \{#expanded\}
 
@@ -50,7 +50,7 @@ protected readonly expanded: Signal<boolean>;
 
 Defined in: [rxdb-admin-angular/src/layout/header.component.ts:39](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/header.component.ts#L39)
 
-***
+---
 
 ### isDark \{#isdark\}
 
@@ -60,7 +60,7 @@ protected readonly isDark: Signal<boolean>;
 
 Defined in: [rxdb-admin-angular/src/layout/header.component.ts:34](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/header.component.ts#L34)
 
-***
+---
 
 ### layout \{#layout\}
 
@@ -70,7 +70,7 @@ protected readonly layout: Signal<LayoutState>;
 
 Defined in: [rxdb-admin-angular/src/layout/header.component.ts:31](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/header.component.ts#L31)
 
-***
+---
 
 ### menu \{#menu\}
 
@@ -82,7 +82,7 @@ Defined in: [rxdb-admin-angular/src/layout/header.component.ts:45](https://githu
 
 Menu tree (rendered as a horizontal menu in top navigation mode).
 
-***
+---
 
 ### Menu \{#menu-1\}
 
@@ -92,7 +92,7 @@ protected readonly Menu: typeof LucideMenu = LucideMenu;
 
 Defined in: [rxdb-admin-angular/src/layout/header.component.ts:42](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/header.component.ts#L42)
 
-***
+---
 
 ### mobile \{#mobile\}
 
@@ -102,7 +102,7 @@ protected readonly mobile: Signal<boolean>;
 
 Defined in: [rxdb-admin-angular/src/layout/header.component.ts:35](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/header.component.ts#L35)
 
-***
+---
 
 ### prefs \{#prefs\}
 
@@ -112,7 +112,7 @@ protected readonly prefs: Signal<AdminPreferences>;
 
 Defined in: [rxdb-admin-angular/src/layout/header.component.ts:33](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/header.component.ts#L33)
 
-***
+---
 
 ### semiDark \{#semidark\}
 
@@ -122,7 +122,7 @@ protected readonly semiDark: Signal<string | undefined>;
 
 Defined in: [rxdb-admin-angular/src/layout/header.component.ts:36](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/header.component.ts#L36)
 
-***
+---
 
 ### shell \{#shell\}
 
@@ -132,7 +132,7 @@ protected readonly shell: AdminShell<LucideIconInput>;
 
 Defined in: [rxdb-admin-angular/src/layout/header.component.ts:29](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/header.component.ts#L29)
 
-***
+---
 
 ### start \{#start\}
 
@@ -144,7 +144,7 @@ Defined in: [rxdb-admin-angular/src/layout/header.component.ts:51](https://githu
 
 Template for extension content before the header widget area.
 
-***
+---
 
 ### t \{#t\}
 
@@ -158,16 +158,16 @@ Translates shell text.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | `string` | Text key. |
+| Parameter | Type                                | Description     |
+| --------- | ----------------------------------- | --------------- |
+| `key`     | `string`                            | Text key.       |
 | `params?` | `Record`&lt;`string`, `unknown`&gt; | ICU parameters. |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### ui \{#ui\}
 

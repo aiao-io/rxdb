@@ -12,15 +12,15 @@ Vue dialog lifecycle binding.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-__typetresult"></a> `TResult` | `unknown` |
-| <a id="type-parameter-__typetdata"></a> `TData` | `unknown` |
+| Type Parameter                                      | Default type |
+| --------------------------------------------------- | ------------ |
+| <a id="type-parameter-__typetresult"></a> `TResult` | `unknown`    |
+| <a id="type-parameter-__typetdata"></a> `TData`     | `unknown`    |
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                                             |
+| ---------- | ------------------------------------------------------------------------------------------------ |
 | `options?` | [`EntityDialogControllerOptions`](../interfaces/EntityDialogControllerOptions.md)&lt;`TData`&gt; |
 
 ## Returns

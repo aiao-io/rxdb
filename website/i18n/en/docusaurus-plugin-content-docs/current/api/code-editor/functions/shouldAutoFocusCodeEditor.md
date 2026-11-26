@@ -10,11 +10,11 @@ Determines whether `autoFocus` should run at initialization.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `state` | \{ `disabled?`: `boolean`; `readonly?`: `boolean`; \} | Disabled / read-only state at initialization |
-| `state.disabled?` | `boolean` | - |
-| `state.readonly?` | `boolean` | - |
+| Parameter         | Type                                                  | Description                                  |
+| ----------------- | ----------------------------------------------------- | -------------------------------------------- |
+| `state`           | \{ `disabled?`: `boolean`; `readonly?`: `boolean`; \} | Disabled / read-only state at initialization |
+| `state.disabled?` | `boolean`                                             | -                                            |
+| `state.readonly?` | `boolean`                                             | -                                            |
 
 ## Returns
 

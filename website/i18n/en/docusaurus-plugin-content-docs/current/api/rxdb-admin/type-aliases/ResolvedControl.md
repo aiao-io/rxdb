@@ -1,48 +1,48 @@
 # ResolvedControl
 
 ```ts
-type ResolvedControl = 
+type ResolvedControl =
   | {
-  kind: "switch";
-}
+      kind: 'switch';
+    }
   | {
-  kind: "select";
-  options: ResolvedOption[];
-}
+      kind: 'select';
+      options: ResolvedOption[];
+    }
   | {
-  kind: "segmented";
-  options: ResolvedOption[];
-}
+      kind: 'segmented';
+      options: ResolvedOption[];
+    }
   | {
-  kind: "cards";
-  options: ResolvedOption[];
-  preview: PreferencePreview;
-}
+      kind: 'cards';
+      options: ResolvedOption[];
+      preview: PreferencePreview;
+    }
   | {
-  kind: "number";
-  max: number;
-  min: number;
-  nullable: boolean;
-  step: number;
-  unit?: string;
-}
+      kind: 'number';
+      max: number;
+      min: number;
+      nullable: boolean;
+      step: number;
+      unit?: string;
+    }
   | {
-  kind: "text";
-  placeholder?: string;
-}
+      kind: 'text';
+      placeholder?: string;
+    }
   | {
-  kind: "color";
-  presets: readonly string[];
-}
+      kind: 'color';
+      presets: readonly string[];
+    }
   | {
-  kind: "themes";
-}
+      kind: 'themes';
+    }
   | {
-  kind: "widgets";
-}
+      kind: 'widgets';
+    }
   | {
-  kind: "shortcuts";
-};
+      kind: 'shortcuts';
+    };
 ```
 
 Defined in: [preferences/drawer-model.ts:22](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin/src/preferences/drawer-model.ts#L22)

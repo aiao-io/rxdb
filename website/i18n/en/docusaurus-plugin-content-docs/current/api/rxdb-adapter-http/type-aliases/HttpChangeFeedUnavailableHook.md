@@ -10,9 +10,9 @@ Diagnostic callback: invoked when the change-notification channel becomes unavai
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `report` | [`HttpChangeFeedUnavailableReport`](../interfaces/HttpChangeFeedUnavailableReport.md) |
+| Parameter | Type                                                                                  |
+| --------- | ------------------------------------------------------------------------------------- |
+| `report`  | [`HttpChangeFeedUnavailableReport`](../interfaces/HttpChangeFeedUnavailableReport.md) |
 
 ## Returns
 

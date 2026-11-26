@@ -10,9 +10,9 @@ Parses the filter query string. Incomplete field tokens (e.g. `label:`) produce 
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `query` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `query`   | `string` |
 
 ## Returns
 

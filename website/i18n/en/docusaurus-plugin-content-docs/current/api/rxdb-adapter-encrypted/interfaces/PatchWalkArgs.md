@@ -14,7 +14,7 @@ entity: EntityMetadata;
 
 Defined in: [packages/rxdb-adapter-encrypted/src/encrypt-patch.ts:8](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-encrypted/src/encrypt-patch.ts#L8)
 
-***
+---
 
 ### keyring \{#keyring\}
 
@@ -24,7 +24,7 @@ keyring: Keyring;
 
 Defined in: [packages/rxdb-adapter-encrypted/src/encrypt-patch.ts:11](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-encrypted/src/encrypt-patch.ts#L11)
 
-***
+---
 
 ### patch \{#patch\}
 
@@ -34,7 +34,7 @@ patch: Record<string, unknown>;
 
 Defined in: [packages/rxdb-adapter-encrypted/src/encrypt-patch.ts:10](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-encrypted/src/encrypt-patch.ts#L10)
 
-***
+---
 
 ### primaryKeyString \{#primarykeystring\}
 

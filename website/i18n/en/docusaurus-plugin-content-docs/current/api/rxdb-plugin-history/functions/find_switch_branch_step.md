@@ -12,8 +12,8 @@ Computes the switch path between two nodes in the tree
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                    | Description                                                                                            |
+| --------- | ----------------------- | ------------------------------------------------------------------------------------------------------ |
 | `options` | `FindBranchPathOptions` | The start branch, the target branch, the current change ids of both sides, and the **full** branch set |
 
 ## Returns

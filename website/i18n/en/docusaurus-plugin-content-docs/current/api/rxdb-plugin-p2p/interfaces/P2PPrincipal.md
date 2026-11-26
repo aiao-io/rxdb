@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/session/identity.ts:8](https://github.
 
 The device identifier the auth host registered for this user; different devices of the same user hold and revoke independently.
 
-***
+---
 
 ### principal \{#principal\}
 

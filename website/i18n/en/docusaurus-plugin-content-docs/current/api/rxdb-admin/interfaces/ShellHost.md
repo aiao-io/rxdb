@@ -16,7 +16,7 @@ Defined in: [shell/types.ts:23](https://github.com/aiao-io/rxdb/blob/b5232040240
 
 The document: root element styles, title, fullscreen.
 
-***
+---
 
 ### window? \{#window\}
 

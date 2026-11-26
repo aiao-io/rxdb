@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/session/session.ts:21](https://github.
 
 The method name within the protocol.
 
-***
+---
 
 ### params? \{#params\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/session/session.ts:23](https://github.
 
 JSON parameters, defaulting to `null`.
 
-***
+---
 
 ### payload? \{#payload\}
 

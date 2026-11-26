@@ -16,7 +16,7 @@ Defined in: [preferences/schema/types.ts:83](https://github.com/aiao-io/rxdb/blo
 
 The default value; its type must match `type`.
 
-***
+---
 
 ### hint? \{#hint\}
 
@@ -28,7 +28,7 @@ Defined in: [preferences/schema/types.ts:89](https://github.com/aiao-io/rxdb/blo
 
 The literal description.
 
-***
+---
 
 ### hintKey? \{#hintkey\}
 
@@ -40,7 +40,7 @@ Defined in: [preferences/schema/types.ts:91](https://github.com/aiao-io/rxdb/blo
 
 The description translation key.
 
-***
+---
 
 ### key \{#key\}
 
@@ -52,7 +52,7 @@ Defined in: [preferences/schema/types.ts:79](https://github.com/aiao-io/rxdb/blo
 
 The extension key, unique.
 
-***
+---
 
 ### label? \{#label\}
 
@@ -64,7 +64,7 @@ Defined in: [preferences/schema/types.ts:85](https://github.com/aiao-io/rxdb/blo
 
 The literal title.
 
-***
+---
 
 ### labelKey? \{#labelkey\}
 
@@ -76,7 +76,7 @@ Defined in: [preferences/schema/types.ts:87](https://github.com/aiao-io/rxdb/blo
 
 The title translation key.
 
-***
+---
 
 ### max? \{#max\}
 
@@ -88,7 +88,7 @@ Defined in: [preferences/schema/types.ts:101](https://github.com/aiao-io/rxdb/bl
 
 The upper bound for `number`.
 
-***
+---
 
 ### min? \{#min\}
 
@@ -100,7 +100,7 @@ Defined in: [preferences/schema/types.ts:99](https://github.com/aiao-io/rxdb/blo
 
 The lower bound for `number`.
 
-***
+---
 
 ### options? \{#options\}
 
@@ -112,7 +112,7 @@ Defined in: [preferences/schema/types.ts:97](https://github.com/aiao-io/rxdb/blo
 
 The options of `select`.
 
-***
+---
 
 ### section? \{#section\}
 
@@ -124,7 +124,7 @@ Defined in: [preferences/schema/types.ts:93](https://github.com/aiao-io/rxdb/blo
 
 The group title, defaulting to the "General" group.
 
-***
+---
 
 ### sectionKey? \{#sectionkey\}
 
@@ -136,7 +136,7 @@ Defined in: [preferences/schema/types.ts:95](https://github.com/aiao-io/rxdb/blo
 
 The group title translation key, taking precedence over the literal title.
 
-***
+---
 
 ### step? \{#step\}
 
@@ -148,7 +148,7 @@ Defined in: [preferences/schema/types.ts:103](https://github.com/aiao-io/rxdb/bl
 
 The step of `number`.
 
-***
+---
 
 ### type \{#type\}
 

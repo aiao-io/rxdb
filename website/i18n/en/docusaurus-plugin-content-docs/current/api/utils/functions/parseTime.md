@@ -10,10 +10,10 @@ Computes the time difference between two dates and breaks it into years, months,
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `startDate` | `Date` | Start date |
-| `endDate` | `Date` | End date |
+| Parameter   | Type   | Description |
+| ----------- | ------ | ----------- |
+| `startDate` | `Date` | Start date  |
+| `endDate`   | `Date` | End date    |
 
 ## Returns
 

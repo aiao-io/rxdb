@@ -33,10 +33,10 @@ Defined in: [packages/rxdb/src/backup/backup-archive.ts:146](https://github.com/
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `sink` | `WritableStreamDefaultWriter`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt; |
-| `signal?` | `AbortSignal` |
+| Parameter | Type                                                                       |
+| --------- | -------------------------------------------------------------------------- |
+| `sink`    | `WritableStreamDefaultWriter`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt; |
+| `signal?` | `AbortSignal`                                                              |
 
 #### Returns
 
@@ -56,15 +56,15 @@ Begins an entry. The previous file must have been written to its declared byte c
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `header` | [`RxDBBackupEntryHeader`](../interfaces/RxDBBackupEntryHeader.md) | The entry header |
+| Parameter | Type                                                              | Description      |
+| --------- | ----------------------------------------------------------------- | ---------------- |
+| `header`  | [`RxDBBackupEntryHeader`](../interfaces/RxDBBackupEntryHeader.md) | The entry header |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### finish() \{#finish\}
 
@@ -82,7 +82,7 @@ Writes the end marker. The end marker itself is not included in the digest.
 
 The end marker content
 
-***
+---
 
 ### writeData() \{#writedata\}
 
@@ -97,15 +97,15 @@ The input buffer is only read, never mutated; the caller may reuse it after retu
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `bytes` | `Uint8Array` | The data |
+| Parameter | Type         | Description |
+| --------- | ------------ | ----------- |
+| `bytes`   | `Uint8Array` | The data    |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### writeManifest() \{#writemanifest\}
 
@@ -119,8 +119,8 @@ Writes the magic number and the manifest. Must be the first call.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                        | Description      |
+| ---------- | ----------------------------------------------------------- | ---------------- |
 | `manifest` | [`RxDBBackupManifest`](../interfaces/RxDBBackupManifest.md) | Archive metadata |
 
 #### Returns

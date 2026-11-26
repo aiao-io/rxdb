@@ -10,9 +10,9 @@ Creates a snapshot materialization source for the native host.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `ports` | [`DevToolsNativeSnapshotPorts`](../interfaces/DevToolsNativeSnapshotPorts.md) | The exclusive lock, the epoch and the reads from both sides. |
+| Parameter | Type                                                                          | Description                                                  |
+| --------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `ports`   | [`DevToolsNativeSnapshotPorts`](../interfaces/DevToolsNativeSnapshotPorts.md) | The exclusive lock, the epoch and the reads from both sides. |
 
 ## Returns
 

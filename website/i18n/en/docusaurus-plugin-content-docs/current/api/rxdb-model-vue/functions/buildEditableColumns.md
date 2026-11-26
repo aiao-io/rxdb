@@ -9,6 +9,7 @@ Defined in: packages/rxdb-model/dist/entity-table/columns/build-editable-columns
 Builds editable VTable column definitions from EntityMetadata
 
 Columns are arranged in the following order:
+
 1. ID column
 2. Ordinary property columns (skipping SKIP_FIELDS and DISPLAY_ONLY_FIELDS)
 3. Computed property columns
@@ -18,9 +19,9 @@ Columns are arranged in the following order:
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `source` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | Entity metadata |
+| Parameter  | Type                                                                          | Description            |
+| ---------- | ----------------------------------------------------------------------------- | ---------------------- |
+| `source`   | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md)                 | Entity metadata        |
 | `options?` | [`BuildEditableColumnsOptions`](../interfaces/BuildEditableColumnsOptions.md) | Optional build options |
 
 ## Returns

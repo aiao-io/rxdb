@@ -10,14 +10,14 @@ Factory function that creates a QueryBuilderService instance.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
+| Type Parameter                    | Default type                        |
+| --------------------------------- | ----------------------------------- |
 | <a id="type-parameter-t"></a> `T` | `Record`&lt;`string`, `unknown`&gt; |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                                                   | Description         |
+| ---------- | -------------------------------------------------------------------------------------- | ------------------- |
 | `options?` | [`QueryBuilderServiceOptions`](../interfaces/QueryBuilderServiceOptions.md)&lt;`T`&gt; | The service options |
 
 ## Returns

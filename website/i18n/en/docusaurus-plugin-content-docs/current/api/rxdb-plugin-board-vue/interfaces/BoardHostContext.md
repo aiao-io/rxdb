@@ -20,7 +20,7 @@ Defined in: packages/rxdb-plugin-board/dist/host-context.d.ts:12
 
 Current board id; `null` before a board is selected (startup selection phase).
 
-***
+---
 
 ### restoring \{#restoring\}
 

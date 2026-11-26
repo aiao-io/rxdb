@@ -16,7 +16,7 @@ Defined in: [packages/utils/src/async/AsyncQueueExecutor.ts:17](https://github.c
 
 The current concurrency limit.
 
-***
+---
 
 ### queued \{#queued\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/utils/src/async/AsyncQueueExecutor.ts:15](https://github.c
 
 The number of tasks still queued and not yet started.
 
-***
+---
 
 ### running \{#running\}
 

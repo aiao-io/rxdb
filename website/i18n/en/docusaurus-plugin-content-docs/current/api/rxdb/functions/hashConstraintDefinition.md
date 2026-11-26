@@ -10,8 +10,8 @@ The 8-character hash of the normalized definition (FNV-1a 32-bit, lowercase hex)
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter    | Type     |
+| ------------ | -------- |
 | `definition` | `string` |
 
 ## Returns

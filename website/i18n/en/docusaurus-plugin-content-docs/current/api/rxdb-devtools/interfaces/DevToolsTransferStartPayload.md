@@ -16,7 +16,7 @@ Defined in: [v2/wire.ts:157](https://github.com/aiao-io/rxdb/blob/b5232040240cf1
 
 The request that initiated this transfer; used to attribute the transfer's terminal state to a REQUEST.
 
-***
+---
 
 ### totalBytes \{#totalbytes\}
 
@@ -28,7 +28,7 @@ Defined in: [v2/wire.ts:159](https://github.com/aiao-io/rxdb/blob/b5232040240cf1
 
 The declared total decoded byte count; whether it exceeds the limit is judged by the negotiated three-party minimum, not at the wire layer.
 
-***
+---
 
 ### transferId \{#transferid\}
 

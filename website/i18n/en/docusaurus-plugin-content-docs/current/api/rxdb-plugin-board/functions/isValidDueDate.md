@@ -11,9 +11,9 @@ Pure arithmetic implementation: dates are not parsed into UTC instants, so there
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `value`   | `string` |
 
 ## Returns
 

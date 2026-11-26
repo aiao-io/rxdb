@@ -20,10 +20,10 @@ Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:224](https://githu
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `ctx` | \{ `entityName`: `string`; \} |
-| `ctx.entityName` | `string` |
+| Parameter        | Type                          |
+| ---------------- | ----------------------------- |
+| `ctx`            | \{ `entityName`: `string`; \} |
+| `ctx.entityName` | `string`                      |
 
 #### Returns
 

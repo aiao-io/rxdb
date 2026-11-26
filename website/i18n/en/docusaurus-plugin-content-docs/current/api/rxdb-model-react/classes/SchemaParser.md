@@ -17,8 +17,8 @@ Defined in: packages/rxdb-model/dist/query-builder/services/schema-parser.servic
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                          | Description                                                                                |
+| ---------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | `options?` | [`SchemaParserOptions`](../interfaces/SchemaParserOptions.md) | Parser configuration (includes a recursion cache for resolving relationship target fields) |
 
 #### Returns
@@ -39,8 +39,8 @@ Parses field metadata from EntityMetadata
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                          | Description          |
+| ---------- | ------------------------------------------------------------- | -------------------- |
 | `metadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | RxDB entity metadata |
 
 #### Returns
@@ -57,7 +57,7 @@ const fields = parser.parse(userMetadata);
 // [{ name: 'id', displayName: 'ID', type: 'string' }, ...]
 ```
 
-***
+---
 
 ### parseMany() \{#parsemany\}
 
@@ -71,8 +71,8 @@ Batch-parses multiple EntityMetadata
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter     | Type                                                                                                         | Description                    |
+| ------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------ |
 | `metadataMap` | `Map`&lt;`string`, `Readonly`&lt;[`EntityMetadataType`](../../rxdb/interfaces/EntityMetadataType.md)&gt;&gt; | Map of entity name to metadata |
 
 #### Returns

@@ -16,7 +16,7 @@ Defined in: [core/RxDBClientGenerator.ts:70](https://github.com/aiao-io/rxdb/blo
 
 TSDoc lines appended to the getter declaration.
 
-***
+---
 
 ### name \{#name\}
 
@@ -28,7 +28,7 @@ Defined in: [core/RxDBClientGenerator.ts:64](https://github.com/aiao-io/rxdb/blo
 
 Name of the getter generated onto the entity.
 
-***
+---
 
 ### returnType \{#returntype\}
 
@@ -40,7 +40,7 @@ Defined in: [core/RxDBClientGenerator.ts:66](https://github.com/aiao-io/rxdb/blo
 
 TypeScript return type text of the getter.
 
-***
+---
 
 ### runtime \{#runtime\}
 

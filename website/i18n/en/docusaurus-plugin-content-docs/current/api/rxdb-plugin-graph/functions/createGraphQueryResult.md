@@ -10,15 +10,15 @@ Attaches a non-enumerable truncation state to the array while preserving the exi
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `items` | `T`[] |
+| Parameter   | Type      |
+| ----------- | --------- |
+| `items`     | `T`[]     |
 | `truncated` | `boolean` |
 
 ## Returns

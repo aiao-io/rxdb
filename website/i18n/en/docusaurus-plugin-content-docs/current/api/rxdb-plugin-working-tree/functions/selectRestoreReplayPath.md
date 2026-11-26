@@ -1,11 +1,7 @@
 # selectRestoreReplayPath()
 
 ```ts
-function selectRestoreReplayPath(
-   executor, 
-   headCommitId, 
-   targetCommitId
-): Promise<readonly string[] | undefined>;
+function selectRestoreReplayPath(executor, headCommitId, targetCommitId): Promise<readonly string[] | undefined>;
 ```
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/restore-precheck.ts:211](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/restore-precheck.ts#L211)
@@ -14,18 +10,18 @@ Selects the deterministic path to roll back for "restore to the target node".
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md) | The current transaction executor |
-| `headCommitId` | `string` \| `null` | The current branch's HEAD; `null` for an empty branch |
-| `targetCommitId` | `string` | The target commit id |
+| Parameter        | Type                                                                  | Description                                           |
+| ---------------- | --------------------------------------------------------------------- | ----------------------------------------------------- |
+| `executor`       | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md) | The current transaction executor                      |
+| `headCommitId`   | `string` \| `null`                                                    | The current branch's HEAD; `null` for an empty branch |
+| `targetCommitId` | `string`                                                              | The target commit id                                  |
 
 ## Returns
 
 `Promise`&lt;readonly `string`[] \| `undefined`&gt;
 
 The nodes to apply `inversePatch` to one by one, in replay order (HEAD first);
-  `undefined` when the target is not on HEAD's reachable parent chain
+`undefined` when the target is not on HEAD's reachable parent chain
 
 ## Remarks
 

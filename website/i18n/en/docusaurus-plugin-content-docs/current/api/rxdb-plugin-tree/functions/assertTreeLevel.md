@@ -10,9 +10,9 @@ Validates the tree query depth; keeps the unlimited-depth semantics when not pro
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `level` | `number` \| `undefined` | Query depth |
+| Parameter | Type                    | Description |
+| --------- | ----------------------- | ----------- |
+| `level`   | `number` \| `undefined` | Query depth |
 
 ## Returns
 

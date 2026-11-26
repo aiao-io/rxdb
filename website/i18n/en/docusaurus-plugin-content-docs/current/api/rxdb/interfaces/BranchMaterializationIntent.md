@@ -26,7 +26,7 @@ Defined in: [packages/rxdb/src/sync-contract/branch-materialization-source.ts:26
 The terminating watermark frozen for this run; its shape is up to the source side, and the working tree only
 compares it key-order-independently.
 
-***
+---
 
 ### syncScope \{#syncscope\}
 

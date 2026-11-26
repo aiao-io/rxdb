@@ -22,7 +22,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/activation-state
 
 The activation state revision; +1 after a successful switch-branch CAS (the increment belongs to US-308)
 
-***
+---
 
 ### branchGenerationSeq \{#branchgenerationseq\}
 

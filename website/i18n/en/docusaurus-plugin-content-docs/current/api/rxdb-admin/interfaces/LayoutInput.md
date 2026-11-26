@@ -16,7 +16,7 @@ Defined in: [layout/layout-state.ts:12](https://github.com/aiao-io/rxdb/blob/b52
 
 Whether there is a navigation menu.
 
-***
+---
 
 ### isMobile \{#ismobile\}
 
@@ -28,7 +28,7 @@ Defined in: [layout/layout-state.ts:8](https://github.com/aiao-io/rxdb/blob/b523
 
 Whether the viewport is at mobile width.
 
-***
+---
 
 ### maximized \{#maximized\}
 
@@ -40,7 +40,7 @@ Defined in: [layout/layout-state.ts:10](https://github.com/aiao-io/rxdb/blob/b52
 
 Content maximized: temporarily hides the top bar, sidebar, and footer.
 
-***
+---
 
 ### prefs \{#prefs\}
 

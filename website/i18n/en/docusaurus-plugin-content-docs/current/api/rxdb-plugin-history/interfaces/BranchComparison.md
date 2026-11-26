@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-history/src/branch-compare.ts:76](https://gith
 
 The differing entities, ordered by `namespace:entity:entityId`; an empty array when both sides are identical
 
-***
+---
 
 ### fromBranchId \{#frombranchid\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-history/src/branch-compare.ts:70](https://gith
 
 The start branch
 
-***
+---
 
 ### toBranchId \{#tobranchid\}
 

@@ -26,7 +26,7 @@ protected readonly anchor: WritableSignal<TabMenuAnchor | null>;
 
 Defined in: [rxdb-admin-angular/src/tabbar/tabbar.component.ts:53](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/tabbar/tabbar.component.ts#L53)
 
-***
+---
 
 ### dragKey \{#dragkey\}
 
@@ -36,7 +36,7 @@ protected readonly dragKey: WritableSignal<string | null>;
 
 Defined in: [rxdb-admin-angular/src/tabbar/tabbar.component.ts:54](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/tabbar/tabbar.component.ts#L54)
 
-***
+---
 
 ### dropKey \{#dropkey\}
 
@@ -46,7 +46,7 @@ protected readonly dropKey: WritableSignal<string | null>;
 
 Defined in: [rxdb-admin-angular/src/tabbar/tabbar.component.ts:55](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/tabbar/tabbar.component.ts#L55)
 
-***
+---
 
 ### History \{#history\}
 
@@ -56,7 +56,7 @@ protected readonly History: typeof LucideRotateCcwClock = LucideHistory;
 
 Defined in: [rxdb-admin-angular/src/tabbar/tabbar.component.ts:56](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/tabbar/tabbar.component.ts#L56)
 
-***
+---
 
 ### icons \{#icons\}
 
@@ -68,7 +68,7 @@ Defined in: [rxdb-admin-angular/src/tabbar/tabbar.component.ts:50](https://githu
 
 A tab's icon comes from the menu node matching its address.
 
-***
+---
 
 ### layout \{#layout\}
 
@@ -78,7 +78,7 @@ protected readonly layout: Signal<LayoutState>;
 
 Defined in: [rxdb-admin-angular/src/tabbar/tabbar.component.ts:35](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/tabbar/tabbar.component.ts#L35)
 
-***
+---
 
 ### menu \{#menu\}
 
@@ -88,7 +88,7 @@ protected readonly menu: Signal<readonly MenuNode<LucideIconInput>[]>;
 
 Defined in: [rxdb-admin-angular/src/tabbar/tabbar.component.ts:38](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/tabbar/tabbar.component.ts#L38)
 
-***
+---
 
 ### Pin \{#pin\}
 
@@ -98,7 +98,7 @@ protected readonly Pin: typeof LucidePin = LucidePin;
 
 Defined in: [rxdb-admin-angular/src/tabbar/tabbar.component.ts:57](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/tabbar/tabbar.component.ts#L57)
 
-***
+---
 
 ### prefs \{#prefs\}
 
@@ -108,7 +108,7 @@ protected readonly prefs: Signal<AdminPreferences>;
 
 Defined in: [rxdb-admin-angular/src/tabbar/tabbar.component.ts:36](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/tabbar/tabbar.component.ts#L36)
 
-***
+---
 
 ### t \{#t\}
 
@@ -122,16 +122,16 @@ Translates shell text.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | `string` | Text key. |
+| Parameter | Type                                | Description     |
+| --------- | ----------------------------------- | --------------- |
+| `key`     | `string`                            | Text key.       |
 | `params?` | `Record`&lt;`string`, `unknown`&gt; | ICU parameters. |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### tabbar \{#tabbar\}
 
@@ -152,7 +152,7 @@ protected readonly tabbar: Signal<{
 
 Defined in: [rxdb-admin-angular/src/tabbar/tabbar.component.ts:39](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/tabbar/tabbar.component.ts#L39)
 
-***
+---
 
 ### tabsState \{#tabsstate\}
 
@@ -162,7 +162,7 @@ protected readonly tabsState: Signal<TabsState>;
 
 Defined in: [rxdb-admin-angular/src/tabbar/tabbar.component.ts:37](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/tabbar/tabbar.component.ts#L37)
 
-***
+---
 
 ### titled \{#titled\}
 
@@ -174,7 +174,7 @@ Defined in: [rxdb-admin-angular/src/tabbar/tabbar.component.ts:42](https://githu
 
 Tabs still open in the visit history, most recently visited first.
 
-***
+---
 
 ### visible \{#visible\}
 
@@ -184,7 +184,7 @@ protected readonly visible: Signal<boolean>;
 
 Defined in: [rxdb-admin-angular/src/tabbar/tabbar.component.ts:40](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/tabbar/tabbar.component.ts#L40)
 
-***
+---
 
 ### X \{#x\}
 
@@ -206,16 +206,16 @@ Defined in: [rxdb-admin-angular/src/tabbar/tabbar.component.ts:68](https://githu
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `MouseEvent` |
-| `key` | `string` |
+| Parameter | Type         |
+| --------- | ------------ |
+| `event`   | `MouseEvent` |
+| `key`     | `string`     |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### close() \{#close\}
 
@@ -227,15 +227,15 @@ Defined in: [rxdb-admin-angular/src/tabbar/tabbar.component.ts:64](https://githu
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `key` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `key`     | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### closeMenu() \{#closemenu\}
 
@@ -249,14 +249,14 @@ Defined in: [rxdb-admin-angular/src/tabbar/tabbar.component.ts:60](https://githu
 
 `void`
 
-***
+---
 
 ### onAuxClick() \{#onauxclick\}
 
 ```ts
 protected onAuxClick(
-   event, 
-   key, 
+   event,
+   key,
    pinned
 ): void;
 ```
@@ -265,17 +265,17 @@ Defined in: [rxdb-admin-angular/src/tabbar/tabbar.component.ts:93](https://githu
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `MouseEvent` |
-| `key` | `string` |
-| `pinned` | `boolean` |
+| Parameter | Type         |
+| --------- | ------------ |
+| `event`   | `MouseEvent` |
+| `key`     | `string`     |
+| `pinned`  | `boolean`    |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onContextMenu() \{#oncontextmenu\}
 
@@ -287,16 +287,16 @@ Defined in: [rxdb-admin-angular/src/tabbar/tabbar.component.ts:72](https://githu
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `MouseEvent` |
-| `key` | `string` |
+| Parameter | Type         |
+| --------- | ------------ |
+| `event`   | `MouseEvent` |
+| `key`     | `string`     |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onDragEnd() \{#ondragend\}
 
@@ -310,7 +310,7 @@ Defined in: [rxdb-admin-angular/src/tabbar/tabbar.component.ts:120](https://gith
 
 `void`
 
-***
+---
 
 ### onDragOver() \{#ondragover\}
 
@@ -322,16 +322,16 @@ Defined in: [rxdb-admin-angular/src/tabbar/tabbar.component.ts:105](https://gith
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `DragEvent` |
-| `key` | `string` |
+| Parameter | Type        |
+| --------- | ----------- |
+| `event`   | `DragEvent` |
+| `key`     | `string`    |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onDragStart() \{#ondragstart\}
 
@@ -343,16 +343,16 @@ Defined in: [rxdb-admin-angular/src/tabbar/tabbar.component.ts:100](https://gith
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `DragEvent` |
-| `key` | `string` |
+| Parameter | Type        |
+| --------- | ----------- |
+| `event`   | `DragEvent` |
+| `key`     | `string`    |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onDrop() \{#ondrop\}
 
@@ -364,23 +364,23 @@ Defined in: [rxdb-admin-angular/src/tabbar/tabbar.component.ts:111](https://gith
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `DragEvent` |
-| `target` | `string` |
+| Parameter | Type        |
+| --------- | ----------- |
+| `event`   | `DragEvent` |
+| `target`  | `string`    |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onKeyDown() \{#onkeydown\}
 
 ```ts
 protected onKeyDown(
-   event, 
-   key, 
+   event,
+   key,
    index
 ): void;
 ```
@@ -389,17 +389,17 @@ Defined in: [rxdb-admin-angular/src/tabbar/tabbar.component.ts:77](https://githu
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `KeyboardEvent` |
-| `key` | `string` |
-| `index` | `number` |
+| Parameter | Type            |
+| --------- | --------------- |
+| `event`   | `KeyboardEvent` |
+| `key`     | `string`        |
+| `index`   | `number`        |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onMouseDown() \{#onmousedown\}
 
@@ -411,15 +411,15 @@ Defined in: [rxdb-admin-angular/src/tabbar/tabbar.component.ts:89](https://githu
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `MouseEvent` |
+| Parameter | Type         |
+| --------- | ------------ |
+| `event`   | `MouseEvent` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onWheel() \{#onwheel\}
 
@@ -431,9 +431,9 @@ Defined in: [rxdb-admin-angular/src/tabbar/tabbar.component.ts:125](https://gith
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `WheelEvent` |
+| Parameter | Type         |
+| --------- | ------------ |
+| `event`   | `WheelEvent` |
 
 #### Returns
 

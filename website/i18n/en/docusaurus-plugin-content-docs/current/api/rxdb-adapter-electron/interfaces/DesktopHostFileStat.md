@@ -14,7 +14,7 @@ readonly kind: "file" | "directory";
 
 Defined in: packages/rxdb-adapter-sqlite-core/dist/desktop/desktop-host-protocol.d.ts:324
 
-***
+---
 
 ### lastModified \{#lastmodified\}
 
@@ -26,7 +26,7 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/desktop/desktop-host-protocol
 
 Last modification time (epoch milliseconds).
 
-***
+---
 
 ### size \{#size\}
 

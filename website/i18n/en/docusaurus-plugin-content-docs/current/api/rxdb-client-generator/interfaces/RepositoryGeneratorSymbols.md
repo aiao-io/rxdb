@@ -25,7 +25,7 @@ Defined in: [generators/RepositoryGenerator.interface.ts:76](https://github.com/
 Interface names that the entity class should `implement`, imported from [IRepositoryGenerator.entityBaseModuleSpecifier](IRepositoryGenerator.md#entitybasemodulespecifier);
 when non-empty, they replace the default `IEntity`.
 
-***
+---
 
 ### instanceMembers? \{#instancemembers\}
 
@@ -37,7 +37,7 @@ Defined in: [generators/RepositoryGenerator.interface.ts:71](https://github.com/
 
 Names of instance members written onto the entity class.
 
-***
+---
 
 ### types? \{#types\}
 

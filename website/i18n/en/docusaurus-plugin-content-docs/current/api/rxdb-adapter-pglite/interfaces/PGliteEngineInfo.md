@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/backup/pglite-backup-compat.ts:35]
 
 `postgres-<major>`: PostgreSQL only guarantees data directory interchangeability within the same major version.
 
-***
+---
 
 ### version \{#version\}
 

@@ -1,5 +1,5 @@
 ---
-sidebar_label: "GraphQueryResult⟨T⟩"
+sidebar_label: 'GraphQueryResult⟨T⟩'
 ---
 
 # GraphQueryResult`<T>`
@@ -14,8 +14,8 @@ Graph query array with a resource-truncation flag.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Type Declaration

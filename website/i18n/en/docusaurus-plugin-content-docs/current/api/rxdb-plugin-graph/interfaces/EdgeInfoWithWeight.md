@@ -17,7 +17,7 @@ Edge information (with weight)
 ### direction \{#direction\}
 
 ```ts
-direction: "in" | "out";
+direction: 'in' | 'out';
 ```
 
 Defined in: [rxdb-plugin-graph/src/graph-repository.interface.ts:75](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-graph/src/graph-repository.interface.ts#L75)
@@ -26,7 +26,7 @@ Defined in: [rxdb-plugin-graph/src/graph-repository.interface.ts:75](https://git
 
 [`EdgeInfo`](EdgeInfo.md).[`direction`](EdgeInfo.md#direction)
 
-***
+---
 
 ### sourceId \{#sourceid\}
 
@@ -40,7 +40,7 @@ Defined in: [rxdb-plugin-graph/src/graph-repository.interface.ts:73](https://git
 
 [`EdgeInfo`](EdgeInfo.md).[`sourceId`](EdgeInfo.md#sourceid)
 
-***
+---
 
 ### targetId \{#targetid\}
 
@@ -54,7 +54,7 @@ Defined in: [rxdb-plugin-graph/src/graph-repository.interface.ts:74](https://git
 
 [`EdgeInfo`](EdgeInfo.md).[`targetId`](EdgeInfo.md#targetid)
 
-***
+---
 
 ### weight \{#weight\}
 

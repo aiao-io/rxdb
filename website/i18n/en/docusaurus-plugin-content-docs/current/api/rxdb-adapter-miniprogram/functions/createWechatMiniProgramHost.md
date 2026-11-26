@@ -13,9 +13,9 @@ Capability names and error text match the US-209 WeChat path verbatim. When `wx`
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `wechat` | [`MiniProgramWechatApi`](../interfaces/MiniProgramWechatApi.md) |
+| Parameter | Type                                                            |
+| --------- | --------------------------------------------------------------- |
+| `wechat`  | [`MiniProgramWechatApi`](../interfaces/MiniProgramWechatApi.md) |
 
 ## Returns
 

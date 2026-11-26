@@ -1,5 +1,5 @@
 ---
-sidebar_label: "UseRxDBOptional⟨T⟩"
+sidebar_label: 'UseRxDBOptional⟨T⟩'
 ---
 
 # UseRxDBOptional`<T>`
@@ -14,15 +14,15 @@ Hook type that reads RxDB from an explicit parameter or the nearest Provider; re
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`RxDB`](../../rxdb/classes/RxDB.md) |
+| Type Parameter                                                                   |
+| -------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`RxDB`](../../rxdb/classes/RxDB.md) |
 
 ## Parameters
 
 | Parameter | Type |
-| ------ | ------ |
-| `db?` | `T` |
+| --------- | ---- |
+| `db?`     | `T`  |
 
 ## Returns
 

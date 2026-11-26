@@ -23,16 +23,16 @@ timestamp guard no longer holds.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                            |
+| ----------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The entity instance in the cache |
-| `patch` | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; | The external event payload (incremental fields) |
+| Parameter | Type                                       | Description                                     |
+| --------- | ------------------------------------------ | ----------------------------------------------- |
+| `entity`  | `InstanceType`&lt;`T`&gt;                  | The entity instance in the cache                |
+| `patch`   | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; | The external event payload (incremental fields) |
 
 ## Returns
 

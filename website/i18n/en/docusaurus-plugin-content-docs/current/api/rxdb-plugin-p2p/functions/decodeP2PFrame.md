@@ -10,9 +10,9 @@ Decodes and strictly validates a frame.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `bytes` | `Uint8Array` |
+| Parameter | Type         |
+| --------- | ------------ |
+| `bytes`   | `Uint8Array` |
 
 ## Returns
 

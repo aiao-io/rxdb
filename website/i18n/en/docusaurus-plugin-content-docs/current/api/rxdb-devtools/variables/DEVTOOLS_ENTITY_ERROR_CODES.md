@@ -1,7 +1,12 @@
 # DEVTOOLS_ENTITY_ERROR_CODES
 
 ```ts
-const DEVTOOLS_ENTITY_ERROR_CODES: readonly ["ENTITY_NOT_FOUND", "ENTITY_AMBIGUOUS", "RXDB_NOT_READY", "KEYRING_LOCKED"];
+const DEVTOOLS_ENTITY_ERROR_CODES: readonly [
+  'ENTITY_NOT_FOUND',
+  'ENTITY_AMBIGUOUS',
+  'RXDB_NOT_READY',
+  'KEYRING_LOCKED'
+];
 ```
 
 Defined in: [types.ts:333](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/types.ts#L333)

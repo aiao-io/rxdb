@@ -12,8 +12,8 @@ Vue form binding; deeply syncs host data and releases the controller on unmount.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                          |
+| --------- | ----------------------------------------------------------------------------- |
 | `options` | [`EntityFormControllerOptions`](../interfaces/EntityFormControllerOptions.md) |
 
 ## Returns

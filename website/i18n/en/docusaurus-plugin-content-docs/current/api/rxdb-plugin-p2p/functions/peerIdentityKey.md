@@ -10,8 +10,8 @@ The stable key of an identity, used for per-peer registration and deduplication;
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                  |
+| ---------- | ----------------------------------------------------- |
 | `identity` | [`P2PPeerIdentity`](../interfaces/P2PPeerIdentity.md) |
 
 ## Returns

@@ -10,8 +10,8 @@ Scans all fields in entity metadata that are explicitly marked `searchable: true
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter   | Type                                                                                             |
+| ----------- | ------------------------------------------------------------------------------------------------ |
 | `metadatas` | readonly `Readonly`&lt;[`EntityMetadataType`](../../rxdb/interfaces/EntityMetadataType.md)&gt;[] |
 
 ## Returns

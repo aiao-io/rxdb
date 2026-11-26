@@ -1,18 +1,18 @@
 # WorkingTreeEnableIfEmptyResult
 
 ```ts
-type WorkingTreeEnableIfEmptyResult = 
+type WorkingTreeEnableIfEmptyResult =
   | {
-  capability: CommitCapabilityInfo;
-  kind: "enabled";
-}
+      capability: CommitCapabilityInfo;
+      kind: 'enabled';
+    }
   | {
-  capability: CommitCapabilityInfo;
-  kind: "already_enabled";
-}
+      capability: CommitCapabilityInfo;
+      kind: 'already_enabled';
+    }
   | {
-  kind: "not_empty";
-};
+      kind: 'not_empty';
+    };
 ```
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/working-tree-facade.ts:106](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/working-tree-facade.ts#L106)
@@ -26,7 +26,7 @@ The three outcomes of [WorkingTreeManager.enableIfEmpty](../classes/WorkingTreeM
 ```ts
 {
   capability: CommitCapabilityInfo;
-  kind: "enabled";
+  kind: 'enabled';
 }
 ```
 
@@ -46,14 +46,14 @@ readonly kind: "enabled";
 
 The discriminator: this call performed the enable
 
-***
+---
 
 ### Type Literal
 
 ```ts
 {
   capability: CommitCapabilityInfo;
-  kind: "already_enabled";
+  kind: 'already_enabled';
 }
 ```
 
@@ -73,13 +73,13 @@ readonly kind: "already_enabled";
 
 The discriminator: the database was already enabled, and this call changed nothing
 
-***
+---
 
 ### Type Literal
 
 ```ts
 {
-  kind: "not_empty";
+  kind: 'not_empty';
 }
 ```
 

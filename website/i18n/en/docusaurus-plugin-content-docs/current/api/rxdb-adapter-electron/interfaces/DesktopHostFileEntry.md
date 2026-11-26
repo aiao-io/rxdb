@@ -14,7 +14,7 @@ readonly kind: "file" | "directory";
 
 Defined in: packages/rxdb-adapter-sqlite-core/dist/desktop/desktop-host-protocol.d.ts:320
 
-***
+---
 
 ### name \{#name\}
 

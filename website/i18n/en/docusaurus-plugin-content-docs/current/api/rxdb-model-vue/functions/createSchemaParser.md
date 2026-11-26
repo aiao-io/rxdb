@@ -10,8 +10,8 @@ Factory function that creates a SchemaParser instance
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                          | Description           |
+| ---------- | ------------------------------------------------------------- | --------------------- |
 | `options?` | [`SchemaParserOptions`](../interfaces/SchemaParserOptions.md) | Parser config options |
 
 ## Returns

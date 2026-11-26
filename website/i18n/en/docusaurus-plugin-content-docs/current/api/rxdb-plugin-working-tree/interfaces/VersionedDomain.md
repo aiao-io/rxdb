@@ -51,9 +51,9 @@ Does this entity go under version control
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entityName` | `string` | The entity name |
+| Parameter    | Type     | Description                                                                 |
+| ------------ | -------- | --------------------------------------------------------------------------- |
+| `entityName` | `string` | The entity name                                                             |
 | `namespace?` | `string` | Exact identity match when known; bare-name match when omitted (see remarks) |
 
 #### Returns
@@ -68,7 +68,7 @@ Unregistered entities are `'tracked'` — that is the concrete form of "everythi
 
 When a bare name (mount point 4 has only the entity name; `RxDBAdapter.upsertMany()`'s contract has no namespace) hits multiple registrations, they only count when they **agree**; different answers fall back to `'tracked'`. Judging untracked on ambiguity would let that business table silently leave version control, while tracked is the discoverable, fixable direction.
 
-***
+---
 
 ### createTransactionGuard() \{#createtransactionguard\}
 
@@ -90,7 +90,7 @@ A new instance that does not interfere with other guards
 
 A new instance per call: the guard holds **one transaction's** seen categories, and sharing one instance lets one transaction's mixing pollute the next.
 
-***
+---
 
 ### hasEntity() \{#hasentity\}
 
@@ -104,9 +104,9 @@ Has this database registered this entity
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entityName` | `string` | The entity name |
+| Parameter    | Type     | Description                                                                            |
+| ------------ | -------- | -------------------------------------------------------------------------------------- |
+| `entityName` | `string` | The entity name                                                                        |
 | `namespace?` | `string` | Exact identity match when known; bare-name match against any registration when omitted |
 
 #### Returns
@@ -119,14 +119,14 @@ Has this database registered this entity
 
 A separate member from [classifyEntity](#classifyentity) because the two answer different questions: classification gives unregistered entities a **default value** (`'tracked'`), unable to tell "registered and tracked" from "never registered". And the capture side relies on exactly this difference to judge system tables — names the domain recognizes are necessarily business entities (system tables were removed when the domain was built), so "in the domain" is itself proof of "not a system table", and the system-table list only has a say for names the domain does not recognize.
 
-***
+---
 
 ### isUntrackedField() \{#isuntrackedfield\}
 
 ```ts
 isUntrackedField(
-   entityName, 
-   field, 
+   entityName,
+   field,
    namespace?
 ): boolean;
 ```
@@ -137,10 +137,10 @@ Does a change to this field constitute a net business change
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entityName` | `string` | The entity name |
-| `field` | `string` | The entity property name |
+| Parameter    | Type     | Description                                                                                                        |
+| ------------ | -------- | ------------------------------------------------------------------------------------------------------------------ |
+| `entityName` | `string` | The entity name                                                                                                    |
+| `field`      | `string` | The entity property name                                                                                           |
 | `namespace?` | `string` | Exact identity match when known; bare-name match when omitted, same criterion as [classifyEntity](#classifyentity) |
 
 #### Returns
@@ -149,7 +149,7 @@ Does a change to this field constitute a net business change
 
 `true` when it matches any of the four untracked categories
 
-***
+---
 
 ### untrackedFieldsOf() \{#untrackedfieldsof\}
 
@@ -163,9 +163,9 @@ Gets the column set that does not constitute a net business change on some table
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `table` | `string` | The table name; case-insensitive |
+| Parameter | Type     | Description                      |
+| --------- | -------- | -------------------------------- |
+| `table`   | `string` | The table name; case-insensitive |
 
 #### Returns
 

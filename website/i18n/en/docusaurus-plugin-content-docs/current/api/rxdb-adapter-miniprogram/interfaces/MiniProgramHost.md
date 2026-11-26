@@ -20,7 +20,7 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts:97]
 
 The capability names used in prechecks.
 
-***
+---
 
 ### defaultWasmPath? \{#defaultwasmpath\}
 
@@ -36,7 +36,7 @@ The in-package wasm path used when `wasmPath` is not passed; defaults to [DEFAUL
 
 Douyin resolves relative paths against the current page directory, so only a code-package-root path starting with `/` loads from any page.
 
-***
+---
 
 ### displayName \{#displayname\}
 
@@ -48,7 +48,7 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts:91]
 
 The error prefix, e.g. `WeChat mini program`.
 
-***
+---
 
 ### fileLayout? \{#filelayout\}
 
@@ -65,7 +65,7 @@ The storage layout; defaults to `{ kind: 'single' }`, unset by WeChat.
 When Douyin overwrites an existing file the old file still counts against the quota until the write succeeds, and whole-file flushes cap the database at about half the quota;
 after hitting the quota there is no room even for a hot journal rollback, and the database can never be opened again; `chunked` only rewrites changed chunks and reserves rollback headroom.
 
-***
+---
 
 ### platform \{#platform\}
 
@@ -77,7 +77,7 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts:89]
 
 The platform id, which must be in [MINI\_PROGRAM\_PLATFORM\_IDS](../variables/MINI_PROGRAM_PLATFORM_IDS.md).
 
-***
+---
 
 ### runtimeGlobal? \{#runtimeglobal\}
 
@@ -96,7 +96,7 @@ only the `this` of a non-strict function is the real global object. The adapter 
 so the caller must obtain it in non-strict code and inject it. Patches are installed there, so RxDB and wa-sqlite can read them through free variables.
 If it is not the current realm's global object, it is rejected directly — no fallback to the environment.
 
-***
+---
 
 ### shortName \{#shortname\}
 
@@ -108,7 +108,7 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts:93]
 
 The platform short name used in file VFS errors, e.g. `WeChat`.
 
-***
+---
 
 ### userDataPath \{#userdatapath\}
 
@@ -120,7 +120,7 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts:99]
 
 The user data directory; `undefined` when the platform does not provide one, reported as missing by the precheck.
 
-***
+---
 
 ### wasmRuntimeName \{#wasmruntimename\}
 
@@ -137,7 +137,7 @@ The platform WASM runtime global name, e.g. `WXWebAssembly`.
 ### getFileSystemManager() \{#getfilesystemmanager\}
 
 ```ts
-getFileSystemManager(): 
+getFileSystemManager():
   | MiniProgramFileSystemManager
   | undefined;
 ```
@@ -148,15 +148,15 @@ The synchronous file system; returns `undefined` when the platform does not prov
 
 #### Returns
 
-  \| [`MiniProgramFileSystemManager`](MiniProgramFileSystemManager.md)
-  \| `undefined`
+\| [`MiniProgramFileSystemManager`](MiniProgramFileSystemManager.md)
+\| `undefined`
 
-***
+---
 
 ### prepareRuntime()? \{#prepareruntime\}
 
 ```ts
-prepareRuntime?(runtimeGlobal): Promise<void>;
+prepareRuntime ? runtimeGlobal : Promise<void>;
 ```
 
 Defined in: [packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts:142](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts#L142)
@@ -165,9 +165,9 @@ Called once when bootstrapping the runtime, before the common polyfills are inst
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `runtimeGlobal` | *typeof* `globalThis` | The already-resolved real global object |
+| Parameter       | Type                  | Description                             |
+| --------------- | --------------------- | --------------------------------------- |
+| `runtimeGlobal` | _typeof_ `globalThis` | The already-resolved real global object |
 
 #### Returns
 
@@ -177,7 +177,7 @@ Called once when bootstrapping the runtime, before the common polyfills are inst
 
 Only semantic-preserving patching is allowed; if it cannot be done, reject, and the bootstrap fails accordingly — no degrading.
 
-***
+---
 
 ### requestRandomValues() \{#requestrandomvalues\}
 
@@ -194,9 +194,9 @@ Reusing a buffer that is still in use is detected as a contract violation and re
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `length` | `number` |
+| Parameter | Type     |
+| --------- | -------- |
+| `length`  | `number` |
 
 #### Returns
 

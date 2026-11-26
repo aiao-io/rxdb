@@ -1,11 +1,7 @@
 # keep_table_set_actions()
 
 ```ts
-function keep_table_set_actions(
-   rxdb, 
-   actions, 
-   tableSet
-): SwitchVersionActions;
+function keep_table_set_actions(rxdb, actions, tableSet): SwitchVersionActions;
 ```
 
 Defined in: [packages/rxdb-plugin-history/src/table-set-scope.ts:52](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-history/src/table-set-scope.ts#L52)
@@ -16,11 +12,11 @@ The increment keeps only entities managed by this table set; the rule is table\_
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `rxdb` | [`RxDB`](../../rxdb/classes/RxDB.md) | The instance |
-| `actions` | [`SwitchVersionActions`](../../rxdb/interfaces/SwitchVersionActions.md) | The increment of a branch switch or seeding |
-| `tableSet` | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md) | The table set to land in |
+| Parameter  | Type                                                                    | Description                                 |
+| ---------- | ----------------------------------------------------------------------- | ------------------------------------------- |
+| `rxdb`     | [`RxDB`](../../rxdb/classes/RxDB.md)                                    | The instance                                |
+| `actions`  | [`SwitchVersionActions`](../../rxdb/interfaces/SwitchVersionActions.md) | The increment of a branch switch or seeding |
+| `tableSet` | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md)            | The table set to land in                    |
 
 ## Returns
 

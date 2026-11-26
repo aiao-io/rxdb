@@ -10,9 +10,9 @@ Determines whether a statement is read-only (SELECT / EXPLAIN).
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `sql` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `sql`     | `string` |
 
 ## Returns
 

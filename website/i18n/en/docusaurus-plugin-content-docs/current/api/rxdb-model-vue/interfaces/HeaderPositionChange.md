@@ -16,7 +16,7 @@ Defined in: packages/rxdb-model/dist/entity-table/vtable/table-row-move.d.ts:40
 
 Whether a row or a column is being dragged
 
-***
+---
 
 ### source \{#source\}
 
@@ -40,7 +40,7 @@ readonly col: number;
 readonly row: number;
 ```
 
-***
+---
 
 ### target \{#target\}
 

@@ -10,10 +10,10 @@ Batch-creates field metadata from multiple EntityMetadata
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter     | Type                                                                                                         | Description                             |
+| ------------- | ------------------------------------------------------------------------------------------------------------ | --------------------------------------- |
 | `metadataMap` | `Map`&lt;`string`, `Readonly`&lt;[`EntityMetadataType`](../../rxdb/interfaces/EntityMetadataType.md)&gt;&gt; | A mapping from entity names to metadata |
-| `options?` | [`SchemaParserOptions`](../interfaces/SchemaParserOptions.md) | Parser options |
+| `options?`    | [`SchemaParserOptions`](../interfaces/SchemaParserOptions.md)                                                | Parser options                          |
 
 ## Returns
 

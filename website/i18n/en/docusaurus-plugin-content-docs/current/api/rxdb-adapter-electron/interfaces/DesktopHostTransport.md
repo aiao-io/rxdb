@@ -24,8 +24,8 @@ Sends a request and waits for the response.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                                                                                                                | Description      |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
 | `payload` | \| [`DesktopHostFileRequest`](../type-aliases/DesktopHostFileRequest.md) \| [`DesktopHostRequest`](../type-aliases/DesktopHostRequest.md) \| `DesktopPgliteRequest` | Protocol request |
 
 #### Returns
@@ -39,7 +39,7 @@ The host's unvalidated response payload
 SQLite, file, and PGlite requests share the same channel: the method name the preload exposes is frozen by the e2e
 `bridgeKeys` assertion, and opening another channel is equivalent to adding a method. Dispatch is done by the host-side router by `kind`.
 
-***
+---
 
 ### subscribe() \{#subscribe\}
 
@@ -53,8 +53,8 @@ Subscribes to messages the host pushes on its own initiative.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                  | Description      |
+| ---------- | --------------------- | ---------------- |
 | `listener` | (`message`) => `void` | Message callback |
 
 #### Returns
@@ -63,7 +63,7 @@ The unsubscribe function
 
 () => `void`
 
-***
+---
 
 ### subscriptionReady()? \{#subscriptionready\}
 

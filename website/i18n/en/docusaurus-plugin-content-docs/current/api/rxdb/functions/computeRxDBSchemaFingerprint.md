@@ -10,8 +10,8 @@ Computes the entity structure fingerprint.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                     | Description                                          |
+| ---------- | -------------------------------------------------------- | ---------------------------------------------------- |
 | `entities` | readonly [`EntityType`](../type-aliases/EntityType.md)[] | The entity classes (system entities may be mixed in) |
 
 ## Returns

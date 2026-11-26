@@ -24,7 +24,7 @@ The requested content hash.
 
 [`P2PChunkRequest`](P2PChunkRequest.md).[`contentHash`](P2PChunkRequest.md#contenthash)
 
-***
+---
 
 ### offset \{#offset\}
 
@@ -40,7 +40,7 @@ The starting byte of the range within the file.
 
 [`P2PChunkRequest`](P2PChunkRequest.md).[`offset`](P2PChunkRequest.md#offset)
 
-***
+---
 
 ### peer \{#peer\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/files-protocol.ts:32](https://github.c
 
 The authenticated peer identity.
 
-***
+---
 
 ### signal \{#signal\}
 
@@ -64,7 +64,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/files-protocol.ts:34](https://github.c
 
 Aborts when the peer cancels this request or when the session ends.
 
-***
+---
 
 ### size \{#size\}
 

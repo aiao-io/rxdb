@@ -20,7 +20,7 @@ Defined in: [code-editor-vue/src/code-editor.types.ts:170](https://github.com/ai
 
 The host `div` element (the container CodeMirror is mounted in); null when unmounted or unloaded.
 
-***
+---
 
 ### view \{#view\}
 
@@ -48,7 +48,7 @@ Removes keyboard focus; no-op when unmounted.
 
 `void`
 
-***
+---
 
 ### focus() \{#focus\}
 

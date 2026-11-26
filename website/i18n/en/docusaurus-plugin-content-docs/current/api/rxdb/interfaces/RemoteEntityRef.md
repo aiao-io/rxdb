@@ -21,7 +21,7 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:96](https://github.com/aiao-io/rx
 
 Entity name.
 
-***
+---
 
 ### entityId \{#entityid\}
 
@@ -33,7 +33,7 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:98](https://github.com/aiao-io/rx
 
 Entity primary key.
 
-***
+---
 
 ### namespace \{#namespace\}
 

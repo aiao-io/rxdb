@@ -14,16 +14,16 @@ AES encryption
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `text` | `string` | The plaintext |
+| Parameter | Type     | Description   |
+| --------- | -------- | ------------- |
+| `text`    | `string` | The plaintext |
 
 ## Returns
 
 `Promise`&lt;\{
-  `cipherText`: `string`;
-  `iv`: `string`;
-  `key`: `string`;
+`cipherText`: `string`;
+`iv`: `string`;
+`key`: `string`;
 \}&gt;
 
 The encryption result. The returned key must be stored separately from the ciphertext and protected independently

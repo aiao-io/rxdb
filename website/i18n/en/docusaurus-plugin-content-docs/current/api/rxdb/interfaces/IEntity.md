@@ -22,7 +22,7 @@ Defined in: [packages/rxdb/src/entity/entity.interface.ts:173](https://github.co
 
 Creation time
 
-***
+---
 
 ### createdBy? \{#createdby\}
 
@@ -34,7 +34,7 @@ Defined in: [packages/rxdb/src/entity/entity.interface.ts:183](https://github.co
 
 Created by
 
-***
+---
 
 ### id \{#id\}
 
@@ -46,7 +46,7 @@ Defined in: [packages/rxdb/src/entity/entity.interface.ts:168](https://github.co
 
 id
 
-***
+---
 
 ### updatedAt \{#updatedat\}
 
@@ -58,7 +58,7 @@ Defined in: [packages/rxdb/src/entity/entity.interface.ts:178](https://github.co
 
 Update time
 
-***
+---
 
 ### updatedBy? \{#updatedby\}
 

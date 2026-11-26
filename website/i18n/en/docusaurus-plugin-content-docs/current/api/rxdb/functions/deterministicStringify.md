@@ -12,9 +12,9 @@ By sorting the keys of objects, ensures that objects with the same content but d
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `val` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `val`     | `unknown` |
 
 ## Returns
 

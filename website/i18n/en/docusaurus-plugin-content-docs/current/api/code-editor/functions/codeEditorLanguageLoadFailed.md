@@ -10,10 +10,10 @@ Builds the "language load failed" error payload.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `language` | `string` | The language name whose load failed |
-| `cause` | `unknown` | The loader's rejection value, passed through as-is — no `Error` wrapping, otherwise the host loses the original network error code or chunk load error |
+| Parameter  | Type      | Description                                                                                                                                            |
+| ---------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `language` | `string`  | The language name whose load failed                                                                                                                    |
+| `cause`    | `unknown` | The loader's rejection value, passed through as-is — no `Error` wrapping, otherwise the host loses the original network error code or chunk load error |
 
 ## Returns
 

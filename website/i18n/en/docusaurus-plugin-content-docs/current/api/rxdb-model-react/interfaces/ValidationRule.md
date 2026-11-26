@@ -16,7 +16,7 @@ Defined in: packages/rxdb-model/dist/query-builder/models/validation.interface.d
 
 Field types the rule applies to (optional; undefined means it applies to all types)
 
-***
+---
 
 ### message \{#message\}
 
@@ -28,7 +28,7 @@ Defined in: packages/rxdb-model/dist/query-builder/models/validation.interface.d
 
 Error message
 
-***
+---
 
 ### messageKey? \{#messagekey\}
 
@@ -40,7 +40,7 @@ Defined in: packages/rxdb-model/dist/query-builder/models/validation.interface.d
 
 Key in the built-in text catalog.
 
-***
+---
 
 ### name \{#name\}
 
@@ -52,12 +52,12 @@ Defined in: packages/rxdb-model/dist/query-builder/models/validation.interface.d
 
 Rule name
 
-***
+---
 
 ### validate \{#validate\}
 
 ```ts
-validate: (context) => boolean;
+validate: context => boolean;
 ```
 
 Defined in: packages/rxdb-model/dist/query-builder/models/validation.interface.d.ts:25
@@ -66,8 +66,8 @@ Validation function
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                        |
+| --------- | ------------------------------------------- |
 | `context` | [`ValidationContext`](ValidationContext.md) |
 
 #### Returns

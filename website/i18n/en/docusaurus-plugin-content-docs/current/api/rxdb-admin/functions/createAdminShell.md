@@ -10,14 +10,14 @@ Creates the admin shell runtime.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-ticon"></a> `TIcon` | `unknown` |
+| Type Parameter                            | Default type |
+| ----------------------------------------- | ------------ |
+| <a id="type-parameter-ticon"></a> `TIcon` | `unknown`    |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                     | Description        |
+| --------- | ------------------------------------------------------------------------ | ------------------ |
 | `options` | [`AdminShellOptions`](../interfaces/AdminShellOptions.md)&lt;`TIcon`&gt; | The shell options. |
 
 ## Returns

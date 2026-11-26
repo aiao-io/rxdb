@@ -11,9 +11,9 @@ Environment initialization happens before any component's first render, so no th
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `shell` | [`AdminShell`](../../rxdb-admin/interfaces/AdminShell.md)&lt;`LucideIconInput`&gt; | The shell created by `createAdminShell`. |
+| Parameter | Type                                                                               | Description                              |
+| --------- | ---------------------------------------------------------------------------------- | ---------------------------------------- |
+| `shell`   | [`AdminShell`](../../rxdb-admin/interfaces/AdminShell.md)&lt;`LucideIconInput`&gt; | The shell created by `createAdminShell`. |
 
 ## Returns
 
@@ -24,6 +24,9 @@ Environment providers, to put into the `providers` of `bootstrapApplication` / r
 ## Example
 
 ```ts
-const shell = createAdminShell<AdminIcon>({ navigate: url => void router.navigateByUrl(url), brand: { title: 'Workspace' } });
+const shell = createAdminShell<AdminIcon>({
+  navigate: url => void router.navigateByUrl(url),
+  brand: { title: 'Workspace' }
+});
 bootstrapApplication(App, { providers: [provideAdminShell(shell)] });
 ```

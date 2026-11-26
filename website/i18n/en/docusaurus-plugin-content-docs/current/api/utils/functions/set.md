@@ -1,11 +1,7 @@
 # set()
 
 ```ts
-function set<T>(
-   object, 
-   path, 
-   value
-): T;
+function set<T>(object, path, value): T;
 ```
 
 Defined in: [packages/utils/src/object/set.ts:57](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/utils/src/object/set.ts#L57)
@@ -16,17 +12,17 @@ Dangerous prototype-chain paths throw a TypeError.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* `object` |
+| Type Parameter                                       |
+| ---------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ `object` |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `object` | `T` | The object to modify |
-| `path` | `string` | Dot or bracket path |
-| `value` | `unknown` | The value to set |
+| Parameter | Type      | Description          |
+| --------- | --------- | -------------------- |
+| `object`  | `T`       | The object to modify |
+| `path`    | `string`  | Dot or bracket path  |
+| `value`   | `unknown` | The value to set     |
 
 ## Returns
 

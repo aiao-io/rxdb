@@ -14,7 +14,7 @@ readonly isLocked: boolean;
 
 Defined in: [packages/rxdb-adapter-pglite/src/RxDBAdapterPGlite.ts:159](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-pglite/src/RxDBAdapterPGlite.ts#L159)
 
-***
+---
 
 ### lockChange$ \{#lockchange\}
 
@@ -38,7 +38,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/RxDBAdapterPGlite.ts:158](https://
 
 `void`
 
-***
+---
 
 ### unlock() \{#unlock\}
 
@@ -50,9 +50,9 @@ Defined in: [packages/rxdb-adapter-pglite/src/RxDBAdapterPGlite.ts:157](https://
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `opts` | [`UnlockOptions`](../../rxdb-adapter-encrypted/type-aliases/UnlockOptions.md) |
+| Parameter | Type                                                                          |
+| --------- | ----------------------------------------------------------------------------- |
+| `opts`    | [`UnlockOptions`](../../rxdb-adapter-encrypted/type-aliases/UnlockOptions.md) |
 
 #### Returns
 

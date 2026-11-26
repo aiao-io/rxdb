@@ -16,7 +16,7 @@ Defined in: [packages/rxdb/src/system/types.ts:769](https://github.com/aiao-io/r
 
 Whether it is activated.
 
-***
+---
 
 ### createdAt? \{#createdat\}
 
@@ -31,10 +31,10 @@ Creation time.
 #### Default
 
 ```ts
-new Date()
+new Date();
 ```
 
-***
+---
 
 ### fromChangeId? \{#fromchangeid\}
 
@@ -46,7 +46,7 @@ Defined in: [packages/rxdb/src/system/types.ts:773](https://github.com/aiao-io/r
 
 Source change ID.
 
-***
+---
 
 ### id? \{#id\}
 
@@ -58,7 +58,7 @@ Defined in: [packages/rxdb/src/system/types.ts:765](https://github.com/aiao-io/r
 
 id.
 
-***
+---
 
 ### local? \{#local\}
 
@@ -70,7 +70,7 @@ Defined in: [packages/rxdb/src/system/types.ts:777](https://github.com/aiao-io/r
 
 Whether it is local.
 
-***
+---
 
 ### remote? \{#remote\}
 
@@ -82,7 +82,7 @@ Defined in: [packages/rxdb/src/system/types.ts:781](https://github.com/aiao-io/r
 
 Whether it is remote.
 
-***
+---
 
 ### updatedAt? \{#updatedat\}
 
@@ -97,5 +97,5 @@ Update time.
 #### Default
 
 ```ts
-new Date()
+new Date();
 ```

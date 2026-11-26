@@ -1,11 +1,7 @@
 # calcPopoverPosition()
 
 ```ts
-function calcPopoverPosition(
-   triggerRect, 
-   gap?, 
-   minSpaceBelow?
-): object;
+function calcPopoverPosition(triggerRect, gap?, minSpaceBelow?): object;
 ```
 
 Defined in: packages/rxdb-model/dist/query-builder/utils/popover-position.d.ts:9
@@ -14,11 +10,11 @@ Calculates the popover position relative to the trigger element, preferring to s
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `triggerRect` | `DOMRect` | The DOMRect of the trigger button |
-| `gap?` | `number` | The gap between the trigger element and the popover (in px, default 2) |
-| `minSpaceBelow?` | `number` | The threshold for deciding whether there is enough space below (in px, default 120) |
+| Parameter        | Type      | Description                                                                         |
+| ---------------- | --------- | ----------------------------------------------------------------------------------- |
+| `triggerRect`    | `DOMRect` | The DOMRect of the trigger button                                                   |
+| `gap?`           | `number`  | The gap between the trigger element and the popover (in px, default 2)              |
+| `minSpaceBelow?` | `number`  | The threshold for deciding whether there is enough space below (in px, default 120) |
 
 ## Returns
 

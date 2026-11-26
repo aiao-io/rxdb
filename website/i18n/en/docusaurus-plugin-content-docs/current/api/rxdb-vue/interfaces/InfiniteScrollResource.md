@@ -1,5 +1,5 @@
 ---
-sidebar_label: "InfiniteScrollResource⟨T⟩"
+sidebar_label: 'InfiniteScrollResource⟨T⟩'
 ---
 
 # InfiniteScrollResource`<T>`
@@ -16,8 +16,8 @@ Unlike the basic hooks' [RxDBResource](RxDBResource.md), here every field is its
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                    | Description           |
+| --------------------------------- | --------------------- |
 | <a id="type-parameter-t"></a> `T` | Entity instance type. |
 
 ## Properties
@@ -32,7 +32,7 @@ Defined in: [rxdb-vue/src/useInfiniteScroll.ts:102](https://github.com/aiao-io/r
 
 The most recent failure's error, passing through the underlying `Error` as-is (non-`Error` payloads are wrapped into real `Error`s). Cleared at the entry of every `loadMore` / `refresh`.
 
-***
+---
 
 ### hasMore \{#hasmore\}
 
@@ -44,7 +44,7 @@ Defined in: [rxdb-vue/src/useInfiniteScroll.ts:107](https://github.com/aiao-io/r
 
 Whether another page is possibly available. Decided by the **last page**: `true` when that page is full. Always `false` when the page capacity is non-positive (`limit <= 0` or `NaN`); a stream that completes without any next also converges to `false`.
 
-***
+---
 
 ### isEmpty \{#isempty\}
 
@@ -56,7 +56,7 @@ Defined in: [rxdb-vue/src/useInfiniteScroll.ts:93](https://github.com/aiao-io/rx
 
 Whether it is "loading done and there really is no data": mounted, database ready, no error, empty list and not loading. Always `false` on error or while loading, so it is never true at the same time as `error`.
 
-***
+---
 
 ### isLoading \{#isloading\}
 
@@ -68,7 +68,7 @@ Defined in: [rxdb-vue/src/useInfiniteScroll.ts:97](https://github.com/aiao-io/rx
 
 Whether a user-initiated load is in progress. Self-healing re-anchoring of live queries (see RVU-004) does not count.
 
-***
+---
 
 ### loadMore \{#loadmore\}
 
@@ -84,7 +84,7 @@ Loads the next page using the current last entity as the cursor. A no-op while l
 
 `void`
 
-***
+---
 
 ### refresh \{#refresh\}
 
@@ -100,7 +100,7 @@ Discards all pages and subscriptions and restarts loading from the first page. A
 
 `void`
 
-***
+---
 
 ### value \{#value\}
 

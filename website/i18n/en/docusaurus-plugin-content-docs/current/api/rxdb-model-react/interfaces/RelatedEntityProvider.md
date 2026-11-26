@@ -18,8 +18,8 @@ Gets the relatable entity items by entity name (and optional namespace)
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter    | Type     |
+| ------------ | -------- |
 | `entityName` | `string` |
 | `namespace?` | `string` |
 

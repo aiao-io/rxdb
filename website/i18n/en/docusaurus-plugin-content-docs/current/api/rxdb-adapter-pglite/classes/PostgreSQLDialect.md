@@ -5,6 +5,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/sql\_dialect.ts:56](https://github
 PostgreSQL dialect implementation
 
 Key differences:
+
 - Parameter placeholders: $1, $2, $3 (instead of SQLite's ?)
 - RETURNING clause: supports returning inserted/updated rows
 - Identifier escaping: double quotes
@@ -41,8 +42,8 @@ Escapes an identifier (table name, column name, etc.)
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter    | Type     | Description    |
+| ------------ | -------- | -------------- |
 | `identifier` | `string` | The identifier |
 
 #### Returns
@@ -55,14 +56,14 @@ The escaped identifier
 
 [`ISqlDialect`](../interfaces/ISqlDialect.md).[`escapeIdentifier`](../interfaces/ISqlDialect.md#escapeidentifier)
 
-***
+---
 
 ### generateBatchInsert() \{#generatebatchinsert\}
 
 ```ts
 generateBatchInsert(
-   tableName, 
-   columns, 
+   tableName,
+   columns,
    rowCount
 ): string;
 ```
@@ -73,11 +74,11 @@ Generates batch insert SQL (with RETURNING)
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `tableName` | `string` | Table name |
-| `columns` | `string`[] | Array of column names |
-| `rowCount` | `number` | Number of rows |
+| Parameter   | Type       | Description           |
+| ----------- | ---------- | --------------------- |
+| `tableName` | `string`   | Table name            |
+| `columns`   | `string`[] | Array of column names |
+| `rowCount`  | `number`   | Number of rows        |
 
 #### Returns
 
@@ -85,16 +86,16 @@ Generates batch insert SQL (with RETURNING)
 
 SQL statement
 
-***
+---
 
 ### generateBatchUpdate() \{#generatebatchupdate\}
 
 ```ts
 generateBatchUpdate(
-   tableName, 
-   pkColumn, 
-   updateColumns, 
-   rowCount?, 
+   tableName,
+   pkColumn,
+   updateColumns,
+   rowCount?,
    columnTypes?
 ): string;
 ```
@@ -115,13 +116,13 @@ this method has no access to entity metadata, so types can only be supplied by t
 
 #### Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `tableName` | `string` | `undefined` | Table name |
-| `pkColumn` | `string` | `undefined` | Primary key column name |
-| `updateColumns` | `string`[] | `undefined` | Array of update column names |
-| `rowCount?` | `number` | `1` | Number of rows in the batch, default 1 |
-| `columnTypes?` | `Readonly`&lt;`Record`&lt;`string`, `string`&gt;&gt; | `{}` | Column name → PostgreSQL type, used to generate `::type` casts; columns not given are treated as text |
+| Parameter       | Type                                                 | Default value | Description                                                                                           |
+| --------------- | ---------------------------------------------------- | ------------- | ----------------------------------------------------------------------------------------------------- |
+| `tableName`     | `string`                                             | `undefined`   | Table name                                                                                            |
+| `pkColumn`      | `string`                                             | `undefined`   | Primary key column name                                                                               |
+| `updateColumns` | `string`[]                                           | `undefined`   | Array of update column names                                                                          |
+| `rowCount?`     | `number`                                             | `1`           | Number of rows in the batch, default 1                                                                |
+| `columnTypes?`  | `Readonly`&lt;`Record`&lt;`string`, `string`&gt;&gt; | `{}`          | Column name → PostgreSQL type, used to generate `::type` casts; columns not given are treated as text |
 
 #### Returns
 
@@ -133,7 +134,7 @@ SQL template
 
 When `rowCount` is less than 1 or `updateColumns` is empty
 
-***
+---
 
 ### getConcatOperator() \{#getconcatoperator\}
 
@@ -155,7 +156,7 @@ The string concatenation operator
 
 [`ISqlDialect`](../interfaces/ISqlDialect.md).[`getConcatOperator`](../interfaces/ISqlDialect.md#getconcatoperator)
 
-***
+---
 
 ### getJsonExtractOperator() \{#getjsonextractoperator\}
 
@@ -177,7 +178,7 @@ The JSON extract operator
 
 [`ISqlDialect`](../interfaces/ISqlDialect.md).[`getJsonExtractOperator`](../interfaces/ISqlDialect.md#getjsonextractoperator)
 
-***
+---
 
 ### getParameterPlaceholder() \{#getparameterplaceholder\}
 
@@ -191,9 +192,9 @@ Gets the parameter placeholder
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `index` | `number` | Parameter index (1-based) |
+| Parameter | Type     | Description               |
+| --------- | -------- | ------------------------- |
+| `index`   | `number` | Parameter index (1-based) |
 
 #### Returns
 
@@ -205,7 +206,7 @@ The placeholder string
 
 [`ISqlDialect`](../interfaces/ISqlDialect.md).[`getParameterPlaceholder`](../interfaces/ISqlDialect.md#getparameterplaceholder)
 
-***
+---
 
 ### getReturningClause() \{#getreturningclause\}
 

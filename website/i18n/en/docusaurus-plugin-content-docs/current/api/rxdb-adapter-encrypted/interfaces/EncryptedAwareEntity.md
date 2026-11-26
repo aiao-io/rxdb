@@ -14,7 +14,7 @@ computedProperties?: readonly PropertyShape[];
 
 Defined in: [packages/rxdb-adapter-encrypted/src/metadata-validation.ts:53](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-encrypted/src/metadata-validation.ts#L53)
 
-***
+---
 
 ### encryptedPropertyMap? \{#encryptedpropertymap\}
 
@@ -24,7 +24,7 @@ encryptedPropertyMap?: ReadonlyMap<string, PropertyShape>;
 
 Defined in: [packages/rxdb-adapter-encrypted/src/metadata-validation.ts:59](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-encrypted/src/metadata-validation.ts#L59)
 
-***
+---
 
 ### foreignKeyColumnNames? \{#foreignkeycolumnnames\}
 
@@ -34,7 +34,7 @@ foreignKeyColumnNames?: readonly string[];
 
 Defined in: [packages/rxdb-adapter-encrypted/src/metadata-validation.ts:58](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-encrypted/src/metadata-validation.ts#L58)
 
-***
+---
 
 ### foreignKeyNames? \{#foreignkeynames\}
 
@@ -44,7 +44,7 @@ foreignKeyNames?: readonly string[];
 
 Defined in: [packages/rxdb-adapter-encrypted/src/metadata-validation.ts:57](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-encrypted/src/metadata-validation.ts#L57)
 
-***
+---
 
 ### indexes? \{#indexes\}
 
@@ -54,7 +54,7 @@ indexes?: readonly IndexShape[];
 
 Defined in: [packages/rxdb-adapter-encrypted/src/metadata-validation.ts:56](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-encrypted/src/metadata-validation.ts#L56)
 
-***
+---
 
 ### name? \{#name\}
 
@@ -64,7 +64,7 @@ name?: string;
 
 Defined in: [packages/rxdb-adapter-encrypted/src/metadata-validation.ts:49](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-encrypted/src/metadata-validation.ts#L49)
 
-***
+---
 
 ### namespace? \{#namespace\}
 
@@ -74,7 +74,7 @@ namespace?: string;
 
 Defined in: [packages/rxdb-adapter-encrypted/src/metadata-validation.ts:50](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-encrypted/src/metadata-validation.ts#L50)
 
-***
+---
 
 ### properties? \{#properties\}
 
@@ -84,7 +84,7 @@ properties?: readonly PropertyShape[];
 
 Defined in: [packages/rxdb-adapter-encrypted/src/metadata-validation.ts:52](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-encrypted/src/metadata-validation.ts#L52)
 
-***
+---
 
 ### relationMap? \{#relationmap\}
 
@@ -94,7 +94,7 @@ relationMap?: ReadonlyMap<string, RelationShape>;
 
 Defined in: [packages/rxdb-adapter-encrypted/src/metadata-validation.ts:55](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-encrypted/src/metadata-validation.ts#L55)
 
-***
+---
 
 ### relations? \{#relations\}
 
@@ -104,7 +104,7 @@ relations?: readonly RelationShape[];
 
 Defined in: [packages/rxdb-adapter-encrypted/src/metadata-validation.ts:54](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-encrypted/src/metadata-validation.ts#L54)
 
-***
+---
 
 ### tableName? \{#tablename\}
 

@@ -10,9 +10,9 @@ Creates and initializes the mini-program-specific wa-sqlite client.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `dbName` | `string` |
+| Parameter | Type                                                                                        |
+| --------- | ------------------------------------------------------------------------------------------- |
+| `dbName`  | `string`                                                                                    |
 | `options` | [`WaSqliteMiniProgramAdapterOptions`](../type-aliases/WaSqliteMiniProgramAdapterOptions.md) |
 
 ## Returns

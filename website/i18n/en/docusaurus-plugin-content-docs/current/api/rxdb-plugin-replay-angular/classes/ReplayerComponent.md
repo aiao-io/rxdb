@@ -12,7 +12,7 @@ Mounts only after the browser renders (`afterNextRender`) and does not touch the
 ## Example
 
 ```html
-<ao-replayer #replayer [replay]="rxdb.replay" [sessionId]="sessionId" (aoCommitRestore)="onRestore($event)" />
+<ao-replayer (aoCommitRestore)="onRestore($event)" [replay]="rxdb.replay" [sessionId]="sessionId" #replayer />
 <button (click)="replayer.play()">Play</button>
 ```
 
@@ -42,7 +42,7 @@ Defined in: [rxdb-plugin-replay-angular/src/replayer.component.ts:73](https://gi
 
 The restore result after clicking a commit marker (success, one of the four rejections, or a thrown error).
 
-***
+---
 
 ### aoTimeChange \{#aotimechange\}
 
@@ -54,7 +54,7 @@ Defined in: [rxdb-plugin-replay-angular/src/replayer.component.ts:71](https://gi
 
 Fired when playback / seeking changes the replay time (ms).
 
-***
+---
 
 ### initialTime \{#initialtime\}
 
@@ -66,7 +66,7 @@ Defined in: [rxdb-plugin-replay-angular/src/replayer.component.ts:68](https://gi
 
 The moment to land on after loading completes (ms relative to the session start, default 0); changing it afterwards is equivalent to `seek()`.
 
-***
+---
 
 ### replay \{#replay\}
 
@@ -78,7 +78,7 @@ Defined in: [rxdb-plugin-replay-angular/src/replayer.component.ts:64](https://gi
 
 The recording facade (`rxdb.replay`). Switching instances reloads.
 
-***
+---
 
 ### sessionId \{#sessionid\}
 
@@ -106,7 +106,7 @@ Pauses; calls before loading completes are no-ops.
 
 `void`
 
-***
+---
 
 ### play() \{#play\}
 
@@ -122,7 +122,7 @@ Plays; calls before loading completes are no-ops.
 
 `void`
 
-***
+---
 
 ### seek() \{#seek\}
 
@@ -136,9 +136,9 @@ Jumps to `timeMs` relative to the session start; calls before loading completes 
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `timeMs` | `number` |
+| Parameter | Type     |
+| --------- | -------- |
+| `timeMs`  | `number` |
 
 #### Returns
 

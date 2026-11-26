@@ -1,11 +1,7 @@
 # encodeWorkingTreePatch()
 
 ```ts
-function encodeWorkingTreePatch(
-   context, 
-   target, 
-   patch
-): Record<string, unknown> | null;
+function encodeWorkingTreePatch(context, target, patch): Record<string, unknown> | null;
 ```
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/working-tree-patch-codec.ts:121](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/working-tree-patch-codec.ts#L121)
@@ -14,11 +10,11 @@ Encodes a patch into the shape that can land in the `patch` / `inversePatch` jso
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `context` | [`WorkingTreePatchCodecContext`](../interfaces/WorkingTreePatchCodecContext.md) | The metadata resolution context |
-| `target` | [`WorkingTreePatchTarget`](../interfaces/WorkingTreePatchTarget.md) | The row's `namespace` / `entity` columns |
-| `patch` | `Readonly`&lt;`Record`&lt;`string`, `unknown`&gt;&gt; \| `null` \| `undefined` | The field-level change; `null` / `undefined` normalize to `null` |
+| Parameter | Type                                                                            | Description                                                      |
+| --------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `context` | [`WorkingTreePatchCodecContext`](../interfaces/WorkingTreePatchCodecContext.md) | The metadata resolution context                                  |
+| `target`  | [`WorkingTreePatchTarget`](../interfaces/WorkingTreePatchTarget.md)             | The row's `namespace` / `entity` columns                         |
+| `patch`   | `Readonly`&lt;`Record`&lt;`string`, `unknown`&gt;&gt; \| `null` \| `undefined`  | The field-level change; `null` / `undefined` normalize to `null` |
 
 ## Returns
 

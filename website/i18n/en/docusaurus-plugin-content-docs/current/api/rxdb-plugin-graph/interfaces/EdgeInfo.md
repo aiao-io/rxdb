@@ -14,12 +14,12 @@ Edge information (basic)
 ### direction \{#direction\}
 
 ```ts
-direction: "in" | "out";
+direction: 'in' | 'out';
 ```
 
 Defined in: [rxdb-plugin-graph/src/graph-repository.interface.ts:75](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-graph/src/graph-repository.interface.ts#L75)
 
-***
+---
 
 ### sourceId \{#sourceid\}
 
@@ -29,7 +29,7 @@ sourceId: string;
 
 Defined in: [rxdb-plugin-graph/src/graph-repository.interface.ts:73](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-graph/src/graph-repository.interface.ts#L73)
 
-***
+---
 
 ### targetId \{#targetid\}
 

@@ -22,7 +22,7 @@ Orthogonal to [RepositorySyncCapability.push](#push): `querycache`'s remote cont
 (`create` / `update` / `delete` / `findByIds` / `fetchMetadata`) with no changelog
 endpoints, but it has writable local row caches and a replayable outbox queue.
 
-***
+---
 
 ### pull \{#pull\}
 
@@ -34,7 +34,7 @@ Defined in: [packages/rxdb/src/sync-contract/sync-type-utils.ts:97](https://gith
 
 Whether it can pull from the remote
 
-***
+---
 
 ### push \{#push\}
 

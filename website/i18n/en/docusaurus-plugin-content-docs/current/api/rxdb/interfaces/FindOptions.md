@@ -1,5 +1,5 @@
 ---
-sidebar_label: "FindOptions⟨T, U, W⟩"
+sidebar_label: 'FindOptions⟨T, U, W⟩'
 ---
 
 # FindOptions`<T, U, W>`
@@ -10,11 +10,11 @@ Find query options.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) | [`EntityType`](../type-aliases/EntityType.md) |
-| <a id="type-parameter-u"></a> `U` | [`RuleGroup`](../type-aliases/RuleGroup.md)&lt;`InstanceType`&lt;`T`&gt;&gt; |
-| <a id="type-parameter-w"></a> `W` *extends* `string` | `string` |
+| Type Parameter                                                                            | Default type                                                                 |
+| ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) | [`EntityType`](../type-aliases/EntityType.md)                                |
+| <a id="type-parameter-u"></a> `U`                                                         | [`RuleGroup`](../type-aliases/RuleGroup.md)&lt;`InstanceType`&lt;`T`&gt;&gt; |
+| <a id="type-parameter-w"></a> `W` _extends_ `string`                                      | `string`                                                                     |
 
 ## Properties
 
@@ -29,7 +29,7 @@ Defined in: [packages/rxdb/src/repository/query-options.interface.ts:58](https:/
 Group field list (corresponds to SQL GROUP BY).
 Array elements are column-name strings; identifier escaping is the adapter's job.
 
-***
+---
 
 ### limit? \{#limit\}
 
@@ -44,10 +44,10 @@ How many rows to fetch.
 #### Default
 
 ```ts
-100
+100;
 ```
 
-***
+---
 
 ### localCacheFirst? \{#localcachefirst\}
 
@@ -65,7 +65,7 @@ Only effective for entities with `sync.type === SyncType.QueryCache`; other sync
 Precedence: **call &gt; configuration (`sync.local.localCacheFirst`) &gt; `false`**.
 This value is part of the query task's cache key; the two modes of the same `where` are not reused across each other.
 
-***
+---
 
 ### offlineFallback? \{#offlinefallback\}
 
@@ -86,7 +86,7 @@ When there is no local cache either, throws [NetworkOfflineError](../classes/Net
 silently returning an empty set. This value is part of the query task's cache key; the two modes of the same
 `where` are not reused across each other.
 
-***
+---
 
 ### offset? \{#offset\}
 
@@ -101,10 +101,10 @@ Pagination offset.
 #### Default
 
 ```ts
-0
+0;
 ```
 
-***
+---
 
 ### onSyncStats? \{#onsyncstats\}
 
@@ -118,9 +118,9 @@ Stats callback after a QueryCache incremental sync completes.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `stats` | [`SyncStats`](SyncStats.md) |
+| Parameter | Type                        |
+| --------- | --------------------------- |
+| `stats`   | [`SyncStats`](SyncStats.md) |
 
 #### Returns
 
@@ -136,7 +136,7 @@ The function has no reliable value identity, so it is **not** part of the query 
 queries with the same `where` share one task, and in that case only the callback of the call that arrived
 first fires.
 
-***
+---
 
 ### orderBy? \{#orderby\}
 
@@ -146,7 +146,7 @@ orderBy?: OrderBy<W>[];
 
 Defined in: [packages/rxdb/src/repository/query-options.interface.ts:53](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query-options.interface.ts#L53)
 
-***
+---
 
 ### projection? \{#projection\}
 
@@ -159,7 +159,7 @@ Defined in: [packages/rxdb/src/repository/query-options.interface.ts:63](https:/
 Projection field list (corresponds to SQL column selection).
 Specifies the column names to return; when omitted all columns are returned (SELECT *).
 
-***
+---
 
 ### where \{#where\}
 

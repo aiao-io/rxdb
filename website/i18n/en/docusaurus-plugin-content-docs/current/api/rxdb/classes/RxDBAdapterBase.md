@@ -21,9 +21,9 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:380](https://github.com/aiao-io/r
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rxdb` | [`RxDB`](RxDB.md) |
+| Parameter | Type              |
+| --------- | ----------------- |
+| `rxdb`    | [`RxDB`](RxDB.md) |
 
 #### Returns
 
@@ -39,7 +39,7 @@ protected readonly repository_cache: Map<EntityType, RepositoryInstance<EntityTy
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:378](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L378)
 
-***
+---
 
 ### repository\_map \{#repository_map\}
 
@@ -49,7 +49,7 @@ protected readonly repository_map: Map<string, AdapterRepositoryConstructor<RxDB
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:377](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L377)
 
-***
+---
 
 ### rxdb \{#rxdb\}
 
@@ -71,22 +71,22 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:382](https://github.com/aiao-io/r
 
 #### Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) | - |
-| <a id="type-parameter-rt"></a> `RT` *extends* [`IRepository`](../interfaces/IRepository.md)&lt;`T`&gt; | [`IRepository`](../interfaces/IRepository.md)&lt;`T`&gt; |
+| Type Parameter                                                                                         | Default type                                             |
+| ------------------------------------------------------------------------------------------------------ | -------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md)              | -                                                        |
+| <a id="type-parameter-rt"></a> `RT` _extends_ [`IRepository`](../interfaces/IRepository.md)&lt;`T`&gt; | [`IRepository`](../interfaces/IRepository.md)&lt;`T`&gt; |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `EntityType` | `T` |
+| Parameter    | Type |
+| ------------ | ---- |
+| `EntityType` | `T`  |
 
 #### Returns
 
 `RT`
 
-***
+---
 
 ### repository() \{#repository\}
 
@@ -98,15 +98,15 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:384](https://github.com/aiao-io/r
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-rt-1"></a> `RT` *extends* [`RepositoryInstance`](../interfaces/RepositoryInstance.md)&lt;[`EntityType`](../type-aliases/EntityType.md)&gt; |
+| Type Parameter                                                                                                                                                   |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-rt-1"></a> `RT` _extends_ [`RepositoryInstance`](../interfaces/RepositoryInstance.md)&lt;[`EntityType`](../type-aliases/EntityType.md)&gt; |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `repositoryName` | `string` |
+| Parameter         | Type                                                                                                             |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `repositoryName`  | `string`                                                                                                         |
 | `RepositoryClass` | [`AdapterRepositoryConstructor`](../type-aliases/AdapterRepositoryConstructor.md)&lt;`RxDBAdapterBase`, `RT`&gt; |
 
 #### Returns

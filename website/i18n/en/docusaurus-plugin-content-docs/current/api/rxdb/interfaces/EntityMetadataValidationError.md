@@ -14,7 +14,7 @@ entity: string;
 
 Defined in: [packages/rxdb/src/entity/metadata-validate.ts:79](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/metadata-validate.ts#L79)
 
-***
+---
 
 ### field \{#field\}
 
@@ -24,7 +24,7 @@ field: string;
 
 Defined in: [packages/rxdb/src/entity/metadata-validate.ts:80](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/metadata-validate.ts#L80)
 
-***
+---
 
 ### message \{#message\}
 
@@ -34,7 +34,7 @@ message: string;
 
 Defined in: [packages/rxdb/src/entity/metadata-validate.ts:82](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/metadata-validate.ts#L82)
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -44,7 +44,7 @@ namespace: string;
 
 Defined in: [packages/rxdb/src/entity/metadata-validate.ts:78](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/metadata-validate.ts#L78)
 
-***
+---
 
 ### rule \{#rule\}
 

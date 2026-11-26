@@ -16,7 +16,7 @@ Defined in: [v2/authorization.ts:107](https://github.com/aiao-io/rxdb/blob/b5232
 
 The locally configured tier.
 
-***
+---
 
 ### descriptors \{#descriptors\}
 
@@ -28,7 +28,7 @@ Defined in: [v2/authorization.ts:111](https://github.com/aiao-io/rxdb/blob/b5232
 
 The provider declarations existing in this session.
 
-***
+---
 
 ### domain \{#domain\}
 
@@ -40,7 +40,7 @@ Defined in: [v2/authorization.ts:113](https://github.com/aiao-io/rxdb/blob/b5232
 
 The requested domain.
 
-***
+---
 
 ### mutationPolicy \{#mutationpolicy\}
 
@@ -52,7 +52,7 @@ Defined in: [v2/authorization.ts:109](https://github.com/aiao-io/rxdb/blob/b5232
 
 The locally configured write switch.
 
-***
+---
 
 ### operation \{#operation\}
 

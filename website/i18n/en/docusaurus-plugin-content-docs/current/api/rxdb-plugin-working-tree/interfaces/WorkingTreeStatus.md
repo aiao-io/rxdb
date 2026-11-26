@@ -22,7 +22,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/status.ts:69](ht
 
 One of the capture positions: the branch activation revision
 
-***
+---
 
 ### branchId \{#branchid\}
 
@@ -34,7 +34,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/status.ts:51](ht
 
 The current active branch id
 
-***
+---
 
 ### byOrigin \{#byorigin\}
 
@@ -46,7 +46,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/status.ts:66](ht
 
 The distribution of uncommitted entries by origin; `remote_sync` is **not exempt** (hard ruling 6)
 
-***
+---
 
 ### clean \{#clean\}
 
@@ -58,7 +58,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/status.ts:57](ht
 
 There are no uncommitted entries
 
-***
+---
 
 ### conflicted \{#conflicted\}
 
@@ -70,7 +70,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/status.ts:63](ht
 
 There is an unfinished restore session, but the revision it captured has already diverged
 
-***
+---
 
 ### entryCount \{#entrycount\}
 
@@ -82,7 +82,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/status.ts:54](ht
 
 The number of uncommitted entries, taken from the redundant column
 
-***
+---
 
 ### headRevision \{#headrevision\}
 
@@ -94,7 +94,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/status.ts:72](ht
 
 One of the capture positions: the HEAD advance revision
 
-***
+---
 
 ### restoring \{#restoring\}
 
@@ -106,7 +106,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/status.ts:60](ht
 
 There is an unfinished restore session, and the two revisions it captured still match
 
-***
+---
 
 ### workingTreeRevision \{#workingtreerevision\}
 

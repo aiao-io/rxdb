@@ -10,9 +10,9 @@ Converts to kebab-case
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `str` | `string` | The input string |
+| Parameter | Type     | Description      |
+| --------- | -------- | ---------------- |
+| `str`     | `string` | The input string |
 
 ## Returns
 

@@ -20,22 +20,22 @@ Defined in: [packages/rxdb-adapter-pglite/src/PGliteClient.ts:351](https://githu
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* keyof [`PGliteClientEvents`](PGliteClientEvents.md) |
+| Type Parameter                                                                                  |
+| ----------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ keyof [`PGliteClientEvents`](PGliteClientEvents.md) |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `type` | `T` |
+| Parameter  | Type                |
+| ---------- | ------------------- |
+| `type`     | `T`                 |
 | `listener` | (`event`) => `void` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### removeEventListener() \{#removeeventlistener\}
 
@@ -47,15 +47,15 @@ Defined in: [packages/rxdb-adapter-pglite/src/PGliteClient.ts:352](https://githu
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-1"></a> `T` *extends* keyof [`PGliteClientEvents`](PGliteClientEvents.md) |
+| Type Parameter                                                                                    |
+| ------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-1"></a> `T` _extends_ keyof [`PGliteClientEvents`](PGliteClientEvents.md) |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `type` | `T` |
+| Parameter  | Type                |
+| ---------- | ------------------- |
+| `type`     | `T`                 |
 | `listener` | (`event`) => `void` |
 
 #### Returns

@@ -10,9 +10,9 @@ Validates that encrypted properties cannot participate in primary key, foreign k
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `entity` | [`EncryptedAwareEntity`](../interfaces/EncryptedAwareEntity.md) |
+| Parameter | Type                                                            |
+| --------- | --------------------------------------------------------------- |
+| `entity`  | [`EncryptedAwareEntity`](../interfaces/EncryptedAwareEntity.md) |
 
 ## Returns
 

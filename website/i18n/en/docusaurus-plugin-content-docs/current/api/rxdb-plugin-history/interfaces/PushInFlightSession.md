@@ -22,10 +22,10 @@ Declares that this round is sending a repository's changes with id ≤ `maxChang
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `repositoryKey` | `string` | `namespace:entity` |
-| `maxChangeId` | `number` | The largest change id sent in this round |
+| Parameter       | Type     | Description                              |
+| --------------- | -------- | ---------------------------------------- |
+| `repositoryKey` | `string` | `namespace:entity`                       |
+| `maxChangeId`   | `number` | The largest change id sent in this round |
 
 #### Returns
 
@@ -36,7 +36,7 @@ Declares that this round is sending a repository's changes with id ≤ `maxChang
 Repeated claims on the same repository take the **larger** value: the cascading path pushes the same plan in phases, and a later phase must not
 shrink the range a previous phase already covered.
 
-***
+---
 
 ### release() \{#release\}
 

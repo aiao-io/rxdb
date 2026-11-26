@@ -18,8 +18,8 @@ Branch on `code`, do not match `message`: the latter is only for humans and its 
 
 ```ts
 new RxDBReplayError(
-   code, 
-   message, 
+   code,
+   message,
    options?
 ): RxDBReplayError;
 ```
@@ -28,11 +28,11 @@ Defined in: [packages/rxdb-plugin-replay/src/errors.ts:39](https://github.com/ai
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `code` | [`RxDBReplayErrorCode`](../type-aliases/RxDBReplayErrorCode.md) | Discriminable reason |
-| `message` | `string` | Human-readable description |
-| `options?` | `ErrorOptions` | Passed through to `Error`; `cause` points to the original error that triggered it (e.g. recording database connection failure) |
+| Parameter  | Type                                                            | Description                                                                                                                    |
+| ---------- | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `code`     | [`RxDBReplayErrorCode`](../type-aliases/RxDBReplayErrorCode.md) | Discriminable reason                                                                                                           |
+| `message`  | `string`                                                        | Human-readable description                                                                                                     |
+| `options?` | `ErrorOptions`                                                  | Passed through to `Error`; `cause` points to the original error that triggered it (e.g. recording database connection failure) |
 
 #### Returns
 
@@ -56,7 +56,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 `Error.cause`
 
-***
+---
 
 ### code \{#code\}
 
@@ -68,7 +68,7 @@ Defined in: [packages/rxdb-plugin-replay/src/errors.ts:40](https://github.com/ai
 
 Discriminable reason
 
-***
+---
 
 ### message \{#message\}
 
@@ -82,7 +82,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 `Error.message`
 
-***
+---
 
 ### name \{#name\}
 
@@ -96,7 +96,7 @@ Defined in: [packages/rxdb-plugin-replay/src/errors.ts:32](https://github.com/ai
 
 `Error.name`
 
-***
+---
 
 ### stack? \{#stack\}
 
@@ -110,7 +110,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 `Error.stack`
 
-***
+---
 
 ### stackTraceLimit \{#stacktracelimit\}
 
@@ -151,7 +151,7 @@ a string representing the location in the code at which
 ```js
 const myObject = {};
 Error.captureStackTrace(myObject);
-myObject.stack;  // Similar to `new Error().stack`
+myObject.stack; // Similar to `new Error().stack`
 ```
 
 The first line of the trace will be prefixed with
@@ -190,9 +190,9 @@ a();
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `targetObject` | `object` |
+| Parameter         | Type       |
+| ----------------- | ---------- |
+| `targetObject`    | `object`   |
 | `constructorOpt?` | `Function` |
 
 #### Returns
@@ -203,7 +203,7 @@ a();
 
 `Error.captureStackTrace`
 
-***
+---
 
 ### prepareStackTrace() \{#preparestacktrace\}
 
@@ -215,9 +215,9 @@ Defined in: node\_modules/.pnpm/@types+node@26.6.6/node\_modules/@types/node/glo
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `err` | `Error` |
+| Parameter     | Type         |
+| ------------- | ------------ |
+| `err`         | `Error`      |
 | `stackTraces` | `CallSite`[] |
 
 #### Returns

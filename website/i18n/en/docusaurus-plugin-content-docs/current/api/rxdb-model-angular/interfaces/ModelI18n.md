@@ -30,16 +30,16 @@ Formats a date using the current language.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `Date` |
+| Parameter  | Type                    |
+| ---------- | ----------------------- |
+| `value`    | `Date`                  |
 | `options?` | `DateTimeFormatOptions` |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### formatNumber()? \{#formatnumber\}
 
@@ -53,16 +53,16 @@ Formats a number using the current language.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `number` |
+| Parameter  | Type                  |
+| ---------- | --------------------- |
+| `value`    | `number`              |
 | `options?` | `NumberFormatOptions` |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### resolve()? \{#resolve\}
 
@@ -76,9 +76,9 @@ Checks whether copy exists in the catalog without recording a missing-entry diag
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `key` | `string` |
+| Parameter    | Type     |
+| ------------ | -------- |
+| `key`        | `string` |
 | `namespace?` | `string` |
 
 #### Returns
@@ -91,14 +91,14 @@ Checks whether copy exists in the catalog without recording a missing-entry diag
 readonly value?: string;
 ```
 
-***
+---
 
 ### t() \{#t\}
 
 ```ts
 t(
-   key, 
-   params?, 
+   key,
+   params?,
    namespace?
 ): string;
 ```
@@ -109,11 +109,11 @@ Resolves a message in the namespace.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `key` | `string` |
-| `params?` | `Record`&lt;`string`, `unknown`&gt; |
-| `namespace?` | `string` |
+| Parameter    | Type                                |
+| ------------ | ----------------------------------- |
+| `key`        | `string`                            |
+| `params?`    | `Record`&lt;`string`, `unknown`&gt; |
+| `namespace?` | `string`                            |
 
 #### Returns
 

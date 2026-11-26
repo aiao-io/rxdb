@@ -10,8 +10,8 @@ Determines whether an entity class is a system table injected by RxDB
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter     | Type                                          | Description              |
+| ------------- | --------------------------------------------- | ------------------------ |
 | `EntityClass` | [`EntityType`](../type-aliases/EntityType.md) | The entity class to test |
 
 ## Returns
@@ -28,5 +28,5 @@ System tables are **not integrator data**: they have no `sync` of their own, so 
 
 ```ts
 isSystemEntity(RxDBBranch); // true
-isSystemEntity(Recipe);     // false
+isSystemEntity(Recipe); // false
 ```

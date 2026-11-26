@@ -10,9 +10,9 @@ Gets the operators applicable to a field type
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `type` | [`PropertyType`](../type-aliases/PropertyType.md) | The field type |
+| Parameter    | Type                                                          | Description                                                               |
+| ------------ | ------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `type`       | [`PropertyType`](../type-aliases/PropertyType.md)             | The field type                                                            |
 | `operators?` | [`OperatorDefinition`](../interfaces/OperatorDefinition.md)[] | List of operator definitions (defaults to the built-in DEFAULT_OPERATORS) |
 
 ## Returns

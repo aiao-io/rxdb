@@ -18,7 +18,7 @@ readonly activeTab?: string;
 
 Defined in: [packages/rxdb-model/src/entity-detail/headless.ts:25](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model/src/entity-detail/headless.ts#L25)
 
-***
+---
 
 ### data? \{#data\}
 
@@ -32,7 +32,7 @@ Defined in: [packages/rxdb-model/src/entity-form/headless.ts:84](https://github.
 
 [`EntityFormControllerOptions`](EntityFormControllerOptions.md).[`data`](EntityFormControllerOptions.md#data)
 
-***
+---
 
 ### entity? \{#entity\}
 
@@ -46,7 +46,7 @@ Defined in: [packages/rxdb-model/src/entity-form/headless.ts:85](https://github.
 
 [`EntityFormControllerOptions`](EntityFormControllerOptions.md).[`entity`](EntityFormControllerOptions.md#entity)
 
-***
+---
 
 ### fields \{#fields\}
 
@@ -60,7 +60,7 @@ Defined in: [packages/rxdb-model/src/entity-form/headless.ts:83](https://github.
 
 [`EntityFormControllerOptions`](EntityFormControllerOptions.md).[`fields`](EntityFormControllerOptions.md#fields)
 
-***
+---
 
 ### i18n? \{#i18n\}
 
@@ -74,7 +74,7 @@ Defined in: [packages/rxdb-model/src/entity-form/headless.ts:87](https://github.
 
 [`EntityFormControllerOptions`](EntityFormControllerOptions.md).[`i18n`](EntityFormControllerOptions.md#i18n)
 
-***
+---
 
 ### mode? \{#mode\}
 
@@ -88,7 +88,7 @@ Defined in: [packages/rxdb-model/src/entity-form/headless.ts:86](https://github.
 
 [`EntityFormControllerOptions`](EntityFormControllerOptions.md).[`mode`](EntityFormControllerOptions.md#mode)
 
-***
+---
 
 ### open? \{#open\}
 
@@ -98,7 +98,7 @@ readonly open?: boolean;
 
 Defined in: [packages/rxdb-model/src/entity-detail/headless.ts:26](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model/src/entity-detail/headless.ts#L26)
 
-***
+---
 
 ### relatedEntityProvider? \{#relatedentityprovider\}
 
@@ -112,7 +112,7 @@ Defined in: [packages/rxdb-model/src/entity-form/headless.ts:88](https://github.
 
 [`EntityFormControllerOptions`](EntityFormControllerOptions.md).[`relatedEntityProvider`](EntityFormControllerOptions.md#relatedentityprovider)
 
-***
+---
 
 ### tabs? \{#tabs\}
 

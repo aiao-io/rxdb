@@ -55,7 +55,7 @@ Sets the active styles (when keyboard navigation hits it).
 
 `void`
 
-***
+---
 
 ### setInactiveStyles() \{#setinactivestyles\}
 

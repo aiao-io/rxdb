@@ -10,10 +10,10 @@ Converts an entity property name or relation ID name into a database column name
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                  |
+| ---------- | ----------------------------------------------------- |
 | `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) |
-| `field` | `string` |
+| `field`    | `string`                                              |
 
 ## Returns
 

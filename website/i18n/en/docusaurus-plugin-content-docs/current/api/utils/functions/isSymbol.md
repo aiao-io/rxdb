@@ -8,9 +8,9 @@ Defined in: [packages/utils/src/types/isSymbol.ts:1](https://github.com/aiao-io/
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `value`   | `unknown` |
 
 ## Returns
 

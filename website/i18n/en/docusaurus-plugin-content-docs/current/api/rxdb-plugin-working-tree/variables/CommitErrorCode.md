@@ -93,6 +93,7 @@ entity table.
 #### Remarks
 
 Three places share this code:
+
 - step 3 of the adapter's four-step bypass judgment (target tables ∩ versioned business entity tables ≠ ∅
   **and** the written column set ⊄ the untracked field domain), see contracts/adapter-contract.md;
 - `upsertMany()` / `deleteByIds()`, the two public batch write methods that cannot reach `rawQuery`;

@@ -1,7 +1,7 @@
 # ColumnSortMode
 
 ```ts
-type ColumnSortMode = "dueDate" | "title";
+type ColumnSortMode = 'dueDate' | 'title';
 ```
 
 Defined in: packages/rxdb-plugin-board/dist/column-sort-service.d.ts:5

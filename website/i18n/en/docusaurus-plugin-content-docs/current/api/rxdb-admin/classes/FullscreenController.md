@@ -25,8 +25,8 @@ Creates the controller.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                                       | Description                                                                                             |
+| ---------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | `document` | [`FullscreenDocument`](../interfaces/FullscreenDocument.md) \| `undefined` | The document; when omitted (SSR / tests), toggling becomes a no-op and the state is marked unsupported. |
 
 #### Returns
@@ -51,7 +51,7 @@ Whether fullscreen is active.
 
 [`ReadableStore`](../interfaces/ReadableStore.md)&lt;`boolean`&gt;
 
-***
+---
 
 ### unsupported \{#unsupported\}
 
@@ -85,7 +85,7 @@ Stops listening.
 
 `void`
 
-***
+---
 
 ### toggle() \{#toggle\}
 

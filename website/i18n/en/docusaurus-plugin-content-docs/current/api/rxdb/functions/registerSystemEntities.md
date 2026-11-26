@@ -10,8 +10,8 @@ Registers system tables contributed by plugins.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                     | Description                                                 |
+| ---------- | -------------------------------------------------------- | ----------------------------------------------------------- |
 | `entities` | readonly [`EntityType`](../type-aliases/EntityType.md)[] | The plugin's system entity classes, in table creation order |
 
 ## Returns

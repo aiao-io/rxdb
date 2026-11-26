@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-commit-view
 
 The current active branch
 
-***
+---
 
 ### path \{#path\}
 

@@ -1,17 +1,17 @@
 # WriteColumns
 
 ```ts
-type WriteColumns = 
+type WriteColumns =
   | {
-  kind: "whole_row";
-}
+      kind: 'whole_row';
+    }
   | {
-  kind: "unknown";
-}
+      kind: 'unknown';
+    }
   | {
-  kind: "columns";
-  names: readonly string[];
-};
+      kind: 'columns';
+      names: readonly string[];
+    };
 ```
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry-matrix.ts:50](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/write-entry-matrix.ts#L50)
@@ -24,7 +24,7 @@ Which columns this write touched
 
 ```ts
 {
-  kind: "whole_row";
+  kind: 'whole_row';
 }
 ```
 
@@ -38,13 +38,13 @@ readonly kind: "whole_row";
 
 The discriminator: whole-row replacement
 
-***
+---
 
 ### Type Literal
 
 ```ts
 {
-  kind: "unknown";
+  kind: 'unknown';
 }
 ```
 
@@ -58,7 +58,7 @@ readonly kind: "unknown";
 
 The discriminator: the written columns cannot be resolved
 
-***
+---
 
 ### Type Literal
 

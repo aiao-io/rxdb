@@ -10,8 +10,8 @@ Gives the full capability list before loading WASM when hard dependencies are mi
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                                            |
+| --------- | ----------------------------------------------------------------------------------------------- |
 | `options` | [`MiniProgramRuntimeCapabilityOptions`](../type-aliases/MiniProgramRuntimeCapabilityOptions.md) |
 
 ## Returns

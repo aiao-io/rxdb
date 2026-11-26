@@ -10,8 +10,8 @@ Wraps an identifier (table name, column name) in double quotes.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter    | Type     | Description                                                                             |
+| ------------ | -------- | --------------------------------------------------------------------------------------- |
 | `identifier` | `string` | The raw identifier, usually taken from the entity metadata's `tableName` / `columnName` |
 
 ## Returns

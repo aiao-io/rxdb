@@ -10,9 +10,9 @@ Sanitizes an open record: illegal values of registered extensions fall back to t
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `record` | `Record`&lt;`string`, `unknown`&gt; | The record to sanitize. |
+| Parameter    | Type                                                                     | Description                |
+| ------------ | ------------------------------------------------------------------------ | -------------------------- |
+| `record`     | `Record`&lt;`string`, `unknown`&gt;                                      | The record to sanitize.    |
 | `extensions` | readonly [`PreferenceExtension`](../interfaces/PreferenceExtension.md)[] | The registered extensions. |
 
 ## Returns

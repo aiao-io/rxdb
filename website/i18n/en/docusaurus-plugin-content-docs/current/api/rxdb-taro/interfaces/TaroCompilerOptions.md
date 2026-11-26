@@ -28,7 +28,7 @@ Defined in: [index.ts:24](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccf
 
 Compiler type; this plugin only accepts `'vite'`.
 
-***
+---
 
 ### vitePlugins? \{#viteplugins\}
 

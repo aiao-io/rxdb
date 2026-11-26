@@ -64,8 +64,8 @@ Registers a session: waits until it is ready, then deduplicates by peer identity
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                |
+| --------- | --------------------------------------------------- |
 | `session` | [`P2PPeerSession`](../interfaces/P2PPeerSession.md) |
 
 #### Returns
@@ -78,7 +78,7 @@ The session the registry keeps for that peer: either the one passed in, or the e
 
 P2PSessionClosedError The session ended before becoming ready
 
-***
+---
 
 ### close() \{#close\}
 
@@ -94,7 +94,7 @@ Closes all registered sessions.
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### get() \{#get\}
 
@@ -108,9 +108,9 @@ The session currently registered for a peer.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `peer` | [`P2PPeerIdentity`](../interfaces/P2PPeerIdentity.md) |
+| Parameter | Type                                                  |
+| --------- | ----------------------------------------------------- |
+| `peer`    | [`P2PPeerIdentity`](../interfaces/P2PPeerIdentity.md) |
 
 #### Returns
 

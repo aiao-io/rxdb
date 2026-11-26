@@ -104,6 +104,7 @@ RxDB Workspace plugin
 The workspace plugin provides local recovery for NEW entity drafts that have not been persisted yet
 
 Main features:
+
 - NEW draft cache (`list()` / `discard()`)
 - IndexedDB persistence with automatic restore at install
 - Cross-tab sync (BroadcastChannel)
@@ -111,26 +112,26 @@ Main features:
 
 ## Classes
 
-| Class | Description |
-| ------ | ------ |
+| Class                                                 | Description                                                       |
+| ----------------------------------------------------- | ----------------------------------------------------------------- |
 | [WorkspaceFlushError](classes/WorkspaceFlushError.md) | `flush()` failed because some drafts cannot be structured-cloned. |
 
 ## Interfaces
 
-| Interface | Description |
-| ------ | ------ |
-| [RxDBPluginWorkspaceOptions](interfaces/RxDBPluginWorkspaceOptions.md) | Workspace plugin configuration. |
-| [WorkspaceCacheEntry](interfaces/WorkspaceCacheEntry.md) | Deep snapshot of a draft returned by RxDBPluginWorkspace.list. |
-| [WorkspaceCorruptedEntry](interfaces/WorkspaceCorruptedEntry.md) | A record that could not be decoded; `key` is preserved as-is so callers can locate and clean it up. |
+| Interface                                                              | Description                                                                                         |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| [RxDBPluginWorkspaceOptions](interfaces/RxDBPluginWorkspaceOptions.md) | Workspace plugin configuration.                                                                     |
+| [WorkspaceCacheEntry](interfaces/WorkspaceCacheEntry.md)               | Deep snapshot of a draft returned by RxDBPluginWorkspace.list.                                      |
+| [WorkspaceCorruptedEntry](interfaces/WorkspaceCorruptedEntry.md)       | A record that could not be decoded; `key` is preserved as-is so callers can locate and clean it up. |
 
 ## Type Aliases
 
-| Type Alias | Description |
-| ------ | ------ |
+| Type Alias                                           | Description                                             |
+| ---------------------------------------------------- | ------------------------------------------------------- |
 | [WorkspaceCacheId](type-aliases/WorkspaceCacheId.md) | The three-part `namespace:entity:id` draft primary key. |
 
 ## Variables
 
-| Variable | Description |
-| ------ | ------ |
+| Variable                                                | Description                                           |
+| ------------------------------------------------------- | ----------------------------------------------------- |
 | [rxDBPluginWorkspace](variables/rxDBPluginWorkspace.md) | Installs or retrieves the installed workspace plugin. |

@@ -14,7 +14,7 @@ readonly description: string;
 
 Defined in: [packages/rxdb-plugin-board/src/detail-service.ts:37](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board/src/detail-service.ts#L37)
 
-***
+---
 
 ### dueDate \{#duedate\}
 
@@ -24,7 +24,7 @@ readonly dueDate: string | null;
 
 Defined in: [packages/rxdb-plugin-board/src/detail-service.ts:38](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board/src/detail-service.ts#L38)
 
-***
+---
 
 ### labelIds \{#labelids\}
 
@@ -34,7 +34,7 @@ readonly labelIds: readonly `${string}-${string}-${string}-${string}-${string}`[
 
 Defined in: [packages/rxdb-plugin-board/src/detail-service.ts:39](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board/src/detail-service.ts#L39)
 
-***
+---
 
 ### title \{#title\}
 

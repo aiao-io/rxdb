@@ -10,10 +10,10 @@ Fuzzy match: the query is split on whitespace into several terms, and every term
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `query` | `string` | The query text. |
-| `text` | `string` | The text to match against. |
+| Parameter | Type     | Description                |
+| --------- | -------- | -------------------------- |
+| `query`   | `string` | The query text.            |
+| `text`    | `string` | The text to match against. |
 
 ## Returns
 

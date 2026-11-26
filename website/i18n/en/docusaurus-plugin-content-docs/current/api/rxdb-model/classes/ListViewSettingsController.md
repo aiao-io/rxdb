@@ -16,9 +16,9 @@ Defined in: [packages/rxdb-model/src/entity-list/list-view-settings.ts:20](https
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `root` | `HTMLElement` |
+| Parameter | Type                                                                                      |
+| --------- | ----------------------------------------------------------------------------------------- |
+| `root`    | `HTMLElement`                                                                             |
 | `options` | [`ListViewSettingsControllerOptions`](../interfaces/ListViewSettingsControllerOptions.md) |
 
 #### Returns

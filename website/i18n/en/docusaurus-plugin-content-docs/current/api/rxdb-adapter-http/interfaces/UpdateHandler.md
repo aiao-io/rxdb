@@ -18,16 +18,16 @@ Parses the full entity after the write; the receipt contract is the same as [Cre
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `body` | `unknown` |
-| `ctx` | [`UpdateContext`](UpdateContext.md) |
+| Parameter | Type                                |
+| --------- | ----------------------------------- |
+| `body`    | `unknown`                           |
+| `ctx`     | [`UpdateContext`](UpdateContext.md) |
 
 #### Returns
 
 `unknown`
 
-***
+---
 
 ### request() \{#request\}
 
@@ -39,9 +39,9 @@ Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:193](https://githu
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `ctx` | [`UpdateContext`](UpdateContext.md) |
+| Parameter | Type                                |
+| --------- | ----------------------------------- |
+| `ctx`     | [`UpdateContext`](UpdateContext.md) |
 
 #### Returns
 

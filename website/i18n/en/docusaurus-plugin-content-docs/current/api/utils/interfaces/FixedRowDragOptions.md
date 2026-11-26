@@ -1,5 +1,5 @@
 ---
-sidebar_label: "FixedRowDragOptions⟨Id⟩"
+sidebar_label: 'FixedRowDragOptions⟨Id⟩'
 ---
 
 # FixedRowDragOptions`<Id>`
@@ -10,8 +10,8 @@ Constructor parameters of [FixedRowDrag](../classes/FixedRowDrag.md).
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                      |
+| ----------------------------------- |
 | <a id="type-parameter-id"></a> `Id` |
 
 ## Properties
@@ -30,7 +30,7 @@ The list's current id sequence (matching render order). A snapshot is taken when
 
 readonly `Id`[]
 
-***
+---
 
 ### listElement \{#listelement\}
 
@@ -46,7 +46,7 @@ The list body (the container holding the total height of all rows); the drop pos
 
 `HTMLElement`
 
-***
+---
 
 ### onChange \{#onchange\}
 
@@ -60,15 +60,15 @@ Called when the drop position changes; called with `null` when the drag ends (re
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `state` | [`FixedRowDragState`](FixedRowDragState.md) \| `null` |
+| Parameter | Type                                                  |
+| --------- | ----------------------------------------------------- |
+| `state`   | [`FixedRowDragState`](FixedRowDragState.md) \| `null` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onDrop \{#ondrop\}
 
@@ -82,15 +82,15 @@ Called with the drop position on release when the list has not changed
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `drop` | [`FixedRowDrop`](FixedRowDrop.md)&lt;`Id`&gt; |
+| Parameter | Type                                          |
+| --------- | --------------------------------------------- |
+| `drop`    | [`FixedRowDrop`](FixedRowDrop.md)&lt;`Id`&gt; |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### rowHeight \{#rowheight\}
 
@@ -102,7 +102,7 @@ Defined in: [packages/utils/src/@browser/fixed-row-drag.ts:29](https://github.co
 
 Row height (px); must be a positive finite number; the itemSize of a virtual list
 
-***
+---
 
 ### scrollElement \{#scrollelement\}
 

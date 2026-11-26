@@ -24,9 +24,9 @@ removeProperty(name): string;
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `name` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `name`    | `string` |
 
 ##### Returns
 
@@ -40,10 +40,10 @@ setProperty(name, value): void;
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `name` | `string` |
-| `value` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `name`    | `string` |
+| `value`   | `string` |
 
 ##### Returns
 
@@ -63,15 +63,15 @@ Removes an attribute.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `name` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `name`    | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### setAttribute() \{#setattribute\}
 
@@ -85,10 +85,10 @@ Sets an attribute.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `name` | `string` |
-| `value` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `name`    | `string` |
+| `value`   | `string` |
 
 #### Returns
 

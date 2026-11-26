@@ -11,16 +11,16 @@ Consecutive calls reset the timer; useful for frequently triggered events (scrol
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
-| <a id="type-parameter-func"></a> `Func` *extends* [`AnyFunction`](../type-aliases/AnyFunction.md) | The debounced function's type |
+| Type Parameter                                                                                    | Description                   |
+| ------------------------------------------------------------------------------------------------- | ----------------------------- |
+| <a id="type-parameter-func"></a> `Func` _extends_ [`AnyFunction`](../type-aliases/AnyFunction.md) | The debounced function's type |
 
 ## Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `func` | `Func` | `undefined` | The function to debounce |
-| `waitMilliseconds?` | `number` | `50` | Delay in milliseconds; defaults to 50ms |
+| Parameter           | Type     | Default value | Description                             |
+| ------------------- | -------- | ------------- | --------------------------------------- |
+| `func`              | `Func`   | `undefined`   | The function to debounce                |
+| `waitMilliseconds?` | `number` | `50`          | Delay in milliseconds; defaults to 50ms |
 
 ## Returns
 
@@ -36,7 +36,7 @@ const handleSearch = debounce((query: string) => {
   console.log('search:', query);
 }, 300);
 // called when the input changes
-input.addEventListener('input', (e) => handleSearch(e.target.value));
+input.addEventListener('input', e => handleSearch(e.target.value));
 ```
 
 ```ts

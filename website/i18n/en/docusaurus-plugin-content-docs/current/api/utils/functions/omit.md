@@ -10,17 +10,17 @@ Removes the given own properties from a shallow copy of an object
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* `object` | The input object's type |
-| <a id="type-parameter-keys"></a> `Keys` *extends* `string` \| `number` \| `symbol` | The type of the keys to delete |
+| Type Parameter                                                                     | Description                    |
+| ---------------------------------------------------------------------------------- | ------------------------------ |
+| <a id="type-parameter-t"></a> `T` _extends_ `object`                               | The input object's type        |
+| <a id="type-parameter-keys"></a> `Keys` _extends_ `string` \| `number` \| `symbol` | The type of the keys to delete |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `obj` | `T` | Source object |
-| `keys` | `Keys`[] | The keys to delete |
+| Parameter | Type     | Description        |
+| --------- | -------- | ------------------ |
+| `obj`     | `T`      | Source object      |
+| `keys`    | `Keys`[] | The keys to delete |
 
 ## Returns
 

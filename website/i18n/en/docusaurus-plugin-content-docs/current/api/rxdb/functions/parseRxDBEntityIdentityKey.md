@@ -12,9 +12,9 @@ never throws for any string `x`, and callers can round-trip unconditionally.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `key` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `key`     | `string` |
 
 ## Returns
 

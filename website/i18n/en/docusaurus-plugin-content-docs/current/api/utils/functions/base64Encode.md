@@ -10,9 +10,9 @@ Encodes UTF-8 text or byte data as Base64.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `string` \| `number`[] \| `ArrayBuffer` \| `Uint8Array`&lt;`ArrayBufferLike`&gt; | UTF-8 string or byte data |
+| Parameter | Type                                                                             | Description               |
+| --------- | -------------------------------------------------------------------------------- | ------------------------- |
+| `value`   | `string` \| `number`[] \| `ArrayBuffer` \| `Uint8Array`&lt;`ArrayBufferLike`&gt; | UTF-8 string or byte data |
 
 ## Returns
 

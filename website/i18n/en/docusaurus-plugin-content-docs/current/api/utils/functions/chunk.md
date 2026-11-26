@@ -11,16 +11,16 @@ When the array length is not divisible by the chunk size, the last chunk contain
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                    | Description                   |
+| --------------------------------- | ----------------------------- |
 | <a id="type-parameter-t"></a> `T` | The element type of the array |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `array` | readonly `T`[] | The array to split (read-only; must not be null/undefined) |
-| `size` | `number` | The size of each chunk; must be a positive integer |
+| Parameter | Type           | Description                                                |
+| --------- | -------------- | ---------------------------------------------------------- |
+| `array`   | readonly `T`[] | The array to split (read-only; must not be null/undefined) |
+| `size`    | `number`       | The size of each chunk; must be a positive integer         |
 
 ## Returns
 

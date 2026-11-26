@@ -1,5 +1,5 @@
 ---
-sidebar_label: "WaSqliteMiniProgramRepositoryConstructor⟨T⟩"
+sidebar_label: 'WaSqliteMiniProgramRepositoryConstructor⟨T⟩'
 ---
 
 # WaSqliteMiniProgramRepositoryConstructor`<T>`
@@ -14,16 +14,16 @@ The replaceable repository constructor of the mini program adapter.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`RepositoryBase`](../../rxdb/classes/RepositoryBase.md)&lt;`AnyEntityType`&gt; |
+| Type Parameter                                                                                                              |
+| --------------------------------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`RepositoryBase`](../../rxdb/classes/RepositoryBase.md)&lt;`AnyEntityType`&gt; |
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `adapter` | [`RxDBAdapterSqliteBase`](../../rxdb-adapter-wa-sqlite/interfaces/RxDBAdapterSqliteBase.md) |
-| `EntityType` | [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Parameter    | Type                                                                                        |
+| ------------ | ------------------------------------------------------------------------------------------- |
+| `adapter`    | [`RxDBAdapterSqliteBase`](../../rxdb-adapter-wa-sqlite/interfaces/RxDBAdapterSqliteBase.md) |
+| `EntityType` | [`EntityType`](../../rxdb/type-aliases/EntityType.md)                                       |
 
 ## Returns
 

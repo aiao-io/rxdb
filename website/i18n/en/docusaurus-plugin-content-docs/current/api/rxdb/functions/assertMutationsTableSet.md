@@ -10,15 +10,15 @@ Checks the entities' table set when a batch write actually executes; must share 
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                            |
+| ----------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `rxdb` | [`RxDB`](../classes/RxDB.md) | The instance initiating the write |
+| Parameter | Type                                                               | Description                         |
+| --------- | ------------------------------------------------------------------ | ----------------------------------- |
+| `rxdb`    | [`RxDB`](../classes/RxDB.md)                                       | The instance initiating the write   |
 | `options` | [`RxDBMutationsMap`](../interfaces/RxDBMutationsMap.md)&lt;`T`&gt; | The whole batch of entity mutations |
 
 ## Returns

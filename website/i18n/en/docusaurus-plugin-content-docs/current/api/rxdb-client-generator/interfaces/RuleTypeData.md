@@ -19,7 +19,7 @@ entity: string;
 
 Defined in: [generators/entity-rules.ts:29](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-client-generator/src/generators/entity-rules.ts#L29)
 
-***
+---
 
 ### key \{#key\}
 
@@ -29,7 +29,7 @@ key: string;
 
 Defined in: [generators/entity-rules.ts:30](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-client-generator/src/generators/entity-rules.ts#L30)
 
-***
+---
 
 ### rule \{#rule\}
 
@@ -39,7 +39,7 @@ rule: string;
 
 Defined in: [generators/entity-rules.ts:28](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-client-generator/src/generators/entity-rules.ts#L28)
 
-***
+---
 
 ### subRuleGroup? \{#subrulegroup\}
 
@@ -49,7 +49,7 @@ subRuleGroup?: string;
 
 Defined in: [generators/entity-rules.ts:32](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-client-generator/src/generators/entity-rules.ts#L32)
 
-***
+---
 
 ### valueType? \{#valuetype\}
 

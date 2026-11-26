@@ -14,12 +14,12 @@ readonly marker: ReplayCommitMarker;
 
 Defined in: rxdb-plugin-replay/dist/replayer/mount-replayer.d.ts:17
 
-***
+---
 
 ### result \{#result\}
 
 ```ts
-readonly result: 
+readonly result:
   | ReplayRestoreResult
   | {
   error: Error;

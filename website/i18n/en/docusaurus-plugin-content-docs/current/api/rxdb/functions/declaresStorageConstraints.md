@@ -10,8 +10,8 @@ Whether the entity declares any declarative storage constraints (CHECK / conditi
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                  |
+| ---------- | ----------------------------------------------------- |
 | `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) |
 
 ## Returns

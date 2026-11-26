@@ -1,12 +1,7 @@
 # useRepositoryQuery()
 
 ```ts
-function useRepositoryQuery<T, TOptions, TResult>(
-   EntityType, 
-   method, 
-   defaultValue, 
-   options
-): RxDBResource<TResult>;
+function useRepositoryQuery<T, TOptions, TResult>(EntityType, method, defaultValue, options): RxDBResource<TResult>;
 ```
 
 Defined in: [rxdb-react/src/hooks.ts:71](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-react/src/hooks.ts#L71)
@@ -15,20 +10,20 @@ Wires an Observable query of an entity static repository into the React render l
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
-| <a id="type-parameter-toptions"></a> `TOptions` |
-| <a id="type-parameter-tresult"></a> `TResult` |
+| Type Parameter                                                                                    |
+| ------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| <a id="type-parameter-toptions"></a> `TOptions`                                                   |
+| <a id="type-parameter-tresult"></a> `TResult`                                                     |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `EntityType` | `T` | Entity type; its static side must provide the repository query named by `method`. |
-| `method` | `string` | Name of the static repository query method. |
-| `defaultValue` | `TResult` | Placeholder value used before the first subscription and when the entity type changes. |
-| `options` | [`UseOptions`](../type-aliases/UseOptions.md)&lt;`TOptions`&gt; | Query options constant or an idempotent factory. |
+| Parameter      | Type                                                            | Description                                                                            |
+| -------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `EntityType`   | `T`                                                             | Entity type; its static side must provide the repository query named by `method`.      |
+| `method`       | `string`                                                        | Name of the static repository query method.                                            |
+| `defaultValue` | `TResult`                                                       | Placeholder value used before the first subscription and when the entity type changes. |
+| `options`      | [`UseOptions`](../type-aliases/UseOptions.md)&lt;`TOptions`&gt; | Query options constant or an idempotent factory.                                       |
 
 ## Returns
 

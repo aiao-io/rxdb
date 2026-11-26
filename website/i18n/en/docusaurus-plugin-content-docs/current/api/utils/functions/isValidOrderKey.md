@@ -1,11 +1,7 @@
 # isValidOrderKey()
 
 ```ts
-function isValidOrderKey(
-   key, 
-   digits?, 
-   intDigits?
-): key is string;
+function isValidOrderKey(key, digits?, intDigits?): key is string;
 ```
 
 Defined in: [packages/utils/src/indexing/fractional-indexing.ts:237](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/utils/src/indexing/fractional-indexing.ts#L237)
@@ -16,11 +12,11 @@ Compared with the input validation inside [generateKeyBetween](generateKeyBetwee
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | `unknown` | The value to validate |
-| `digits?` | `string` | Digit alphabet; same meaning as in [generateKeyBetween](generateKeyBetween.md) |
-| `intDigits?` | `string` | Head alphabet; same meaning as in [generateKeyBetween](generateKeyBetween.md) |
+| Parameter    | Type      | Description                                                                    |
+| ------------ | --------- | ------------------------------------------------------------------------------ |
+| `key`        | `unknown` | The value to validate                                                          |
+| `digits?`    | `string`  | Digit alphabet; same meaning as in [generateKeyBetween](generateKeyBetween.md) |
+| `intDigits?` | `string`  | Head alphabet; same meaning as in [generateKeyBetween](generateKeyBetween.md)  |
 
 ## Returns
 

@@ -16,7 +16,7 @@ Defined in: [preferences/schema/types.ts:71](https://github.com/aiao-io/rxdb/blo
 
 The control.
 
-***
+---
 
 ### enabledWhen? \{#enabledwhen\}
 
@@ -30,15 +30,15 @@ The control is disabled when it returns `false`.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `prefs` | [`AdminPreferences`](AdminPreferences.md) |
+| Parameter | Type                                      |
+| --------- | ----------------------------------------- |
+| `prefs`   | [`AdminPreferences`](AdminPreferences.md) |
 
 #### Returns
 
 `boolean`
 
-***
+---
 
 ### hint? \{#hint\}
 
@@ -50,7 +50,7 @@ Defined in: [preferences/schema/types.ts:69](https://github.com/aiao-io/rxdb/blo
 
 The literal description.
 
-***
+---
 
 ### hintKey? \{#hintkey\}
 
@@ -62,7 +62,7 @@ Defined in: [preferences/schema/types.ts:67](https://github.com/aiao-io/rxdb/blo
 
 The description translation key.
 
-***
+---
 
 ### id \{#id\}
 
@@ -74,7 +74,7 @@ Defined in: [preferences/schema/types.ts:51](https://github.com/aiao-io/rxdb/blo
 
 The unique identifier; for built-in items it equals `path`.
 
-***
+---
 
 ### label? \{#label\}
 
@@ -86,7 +86,7 @@ Defined in: [preferences/schema/types.ts:65](https://github.com/aiao-io/rxdb/blo
 
 The literal title, used when there is no `labelKey`.
 
-***
+---
 
 ### labelKey? \{#labelkey\}
 
@@ -98,7 +98,7 @@ Defined in: [preferences/schema/types.ts:63](https://github.com/aiao-io/rxdb/blo
 
 The translation key, `prefs.item.<path>` by default.
 
-***
+---
 
 ### path \{#path\}
 
@@ -110,7 +110,7 @@ Defined in: [preferences/schema/types.ts:53](https://github.com/aiao-io/rxdb/blo
 
 The dotted path in the preferences tree.
 
-***
+---
 
 ### section \{#section\}
 
@@ -122,7 +122,7 @@ Defined in: [preferences/schema/types.ts:57](https://github.com/aiao-io/rxdb/blo
 
 The group identifier; its translation key is `prefs.section.<section>`, extensions can use `sectionLabel` instead.
 
-***
+---
 
 ### sectionKey? \{#sectionkey\}
 
@@ -134,7 +134,7 @@ Defined in: [preferences/schema/types.ts:61](https://github.com/aiao-io/rxdb/blo
 
 The group title translation key, taking precedence over the literal title.
 
-***
+---
 
 ### sectionLabel? \{#sectionlabel\}
 
@@ -146,7 +146,7 @@ Defined in: [preferences/schema/types.ts:59](https://github.com/aiao-io/rxdb/blo
 
 The group literal title (for extensions).
 
-***
+---
 
 ### tab \{#tab\}
 

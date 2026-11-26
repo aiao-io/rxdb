@@ -14,7 +14,7 @@ readonly available: boolean;
 
 Defined in: [packages/rxdb-adapter-miniprogram/src/runtime-capabilities.ts:14](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-miniprogram/src/runtime-capabilities.ts#L14)
 
-***
+---
 
 ### name \{#name\}
 
@@ -24,7 +24,7 @@ readonly name: string;
 
 Defined in: [packages/rxdb-adapter-miniprogram/src/runtime-capabilities.ts:13](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-miniprogram/src/runtime-capabilities.ts#L13)
 
-***
+---
 
 ### source? \{#source\}
 

@@ -16,9 +16,9 @@ the host disables the entry (US-538 AC#5); this class performs no capability pre
 
 ```ts
 new BoardSearchSource(
-   rxdb, 
-   ctx, 
-   upstream, 
+   rxdb,
+   ctx,
+   upstream,
    options?
 ): BoardSearchSource;
 ```
@@ -27,11 +27,11 @@ Defined in: [packages/rxdb-plugin-board/src/search/board-search-source.ts:80](ht
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rxdb` | [`RxDB`](../../rxdb/classes/RxDB.md) |
-| `ctx` | () => [`BoardHostContext`](../interfaces/BoardHostContext.md) |
-| `upstream` | [`BoardSearchUpstream`](../interfaces/BoardSearchUpstream.md) |
+| Parameter  | Type                                                                    |
+| ---------- | ----------------------------------------------------------------------- |
+| `rxdb`     | [`RxDB`](../../rxdb/classes/RxDB.md)                                    |
+| `ctx`      | () => [`BoardHostContext`](../interfaces/BoardHostContext.md)           |
+| `upstream` | [`BoardSearchUpstream`](../interfaces/BoardSearchUpstream.md)           |
 | `options?` | [`BoardSearchSourceOptions`](../interfaces/BoardSearchSourceOptions.md) |
 
 #### Returns
@@ -50,9 +50,9 @@ Defined in: [packages/rxdb-plugin-board/src/search/board-search-source.ts:87](ht
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `query` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `query`   | `string` |
 
 #### Returns
 

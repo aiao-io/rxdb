@@ -15,7 +15,7 @@ one is stale. To get that answer, call the plugin side's `producesWorkingTreeEnt
 ### entrance \{#entrance\}
 
 ```ts
-readonly entrance: 
+readonly entrance:
   | "crud"
   | "domain_recompute"
   | "remote_entity_apply"
@@ -33,7 +33,7 @@ Defined in: [packages/rxdb/src/trusted-write/trusted-write-intent.ts:125](https:
 
 This intent's row in the write-entry semantics matrix.
 
-***
+---
 
 ### file \{#file\}
 
@@ -54,7 +54,7 @@ and of the nine mismatched rows not one had really drifted. The basename togethe
 locates one call site; name collisions are caught by T066's whole-repo scan (a same-key declaration appearing
 in a same-name file is reported as a duplicate registration).
 
-***
+---
 
 ### intent \{#intent\}
 
@@ -66,7 +66,7 @@ Defined in: [packages/rxdb/src/trusted-write/trusted-write-intent.ts:122](https:
 
 The intent self-reported by the call site.
 
-***
+---
 
 ### symbol \{#symbol\}
 
@@ -78,7 +78,7 @@ Defined in: [packages/rxdb/src/trusted-write/trusted-write-intent.ts:116](https:
 
 The innermost named function that actually initiated this batch rewrite.
 
-***
+---
 
 ### verifiedAtLine \{#verifiedatline\}
 
@@ -90,7 +90,7 @@ Defined in: [packages/rxdb/src/trusted-write/trusted-write-intent.ts:128](https:
 
 The line number at the time of this verification; **archive only**, not part of the registration key.
 
-***
+---
 
 ### writePrimitive \{#writeprimitive\}
 

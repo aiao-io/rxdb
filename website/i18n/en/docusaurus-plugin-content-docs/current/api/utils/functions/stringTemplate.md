@@ -10,10 +10,10 @@ Replaces `${path}` placeholders in a template with object paths
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `templateString` | `string` | The template string |
-| `data` | `unknown` | The template data |
+| Parameter        | Type      | Description         |
+| ---------------- | --------- | ------------------- |
+| `templateString` | `string`  | The template string |
+| `data`           | `unknown` | The template data   |
 
 ## Returns
 

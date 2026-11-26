@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/session/identity.ts:16](https://github
 
 Running instance identifier: multiple instances on the same device (tabs, app processes) differ.
 
-***
+---
 
 ### principal \{#principal\}
 

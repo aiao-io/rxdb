@@ -14,16 +14,16 @@ Concurrency safety: patching/restoring the global `Worker` is not reentrant; it 
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                               | Description                                                              |
+| --------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------ |
 | `options` | [`Oo1LoadOptions`](../interfaces/Oo1LoadOptions.md) \| `undefined` | Load options; passes through to `run` when opfs/opfsProxyPath is missing |
-| `run` | () => `Promise`&lt;`T`&gt; | Async load function executed while Worker is patched |
+| `run`     | () => `Promise`&lt;`T`&gt;                                         | Async load function executed while Worker is patched                     |
 
 ## Returns
 

@@ -1,11 +1,7 @@
 # restorePGliteDatabase()
 
 ```ts
-function restorePGliteDatabase(
-   source, 
-   target, 
-   options?
-): Promise<PGliteRestoreResult>;
+function restorePGliteDatabase(source, target, options?): Promise<PGliteRestoreResult>;
 ```
 
 Defined in: [packages/rxdb-adapter-pglite/src/backup/restore-pglite-database.ts:413](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-pglite/src/backup/restore-pglite-database.ts#L413)
@@ -14,11 +10,11 @@ Restores an archive produced by [RxDBAdapterPGlite.backup](../classes/RxDBAdapte
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `source` | `ReadableStream`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt; | The archive byte stream |
-| `target` | [`PGliteRestoreTarget`](../interfaces/PGliteRestoreTarget.md) | The not-yet-connected target instance and its adapter options |
-| `options?` | [`PGliteRestoreOptions`](../interfaces/PGliteRestoreOptions.md) | Cancellation signal and phase callbacks |
+| Parameter  | Type                                                            | Description                                                   |
+| ---------- | --------------------------------------------------------------- | ------------------------------------------------------------- |
+| `source`   | `ReadableStream`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt;   | The archive byte stream                                       |
+| `target`   | [`PGliteRestoreTarget`](../interfaces/PGliteRestoreTarget.md)   | The not-yet-connected target instance and its adapter options |
+| `options?` | [`PGliteRestoreOptions`](../interfaces/PGliteRestoreOptions.md) | Cancellation signal and phase callbacks                       |
 
 ## Returns
 

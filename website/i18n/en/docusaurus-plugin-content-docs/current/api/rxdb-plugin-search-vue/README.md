@@ -54,28 +54,28 @@ Provides the `useSearch()` composable that adapts `@aiao/rxdb-plugin-search`'s `
 
 ## Classes
 
-| Class | Description |
-| ------ | ------ |
+| Class                                                   | Description                                                                                                                          |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | [SearchExecutionError](classes/SearchExecutionError.md) | Runtime execution error (SQL failure / storage unavailable); recoverable via [SearchHandle.retry](interfaces/SearchHandle.md#retry). |
 
 ## Interfaces
 
-| Interface | Description |
-| ------ | ------ |
-| [SearchHandle](interfaces/SearchHandle.md) | The reactive handle returned by `collection.search()` / `rxDB.search()`. |
-| [SearchOptions](interfaces/SearchOptions.md) | Tunable parameters of a single search request; can override the [SearchPluginOptions](../rxdb-plugin-search/interfaces/SearchPluginOptions.md) global defaults. |
-| [SearchResult](interfaces/SearchResult.md) | A single search hit. |
-| [SearchSourceLike](interfaces/SearchSourceLike.md) | The minimal data source shape exposing a `search()` method (`RxDB` / `RxCollection`). |
-| [UseSearchReturn](interfaces/UseSearchReturn.md) | Return value of [useSearch](functions/useSearch.md). |
+| Interface                                          | Description                                                                                                                                                     |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [SearchHandle](interfaces/SearchHandle.md)         | The reactive handle returned by `collection.search()` / `rxDB.search()`.                                                                                        |
+| [SearchOptions](interfaces/SearchOptions.md)       | Tunable parameters of a single search request; can override the [SearchPluginOptions](../rxdb-plugin-search/interfaces/SearchPluginOptions.md) global defaults. |
+| [SearchResult](interfaces/SearchResult.md)         | A single search hit.                                                                                                                                            |
+| [SearchSourceLike](interfaces/SearchSourceLike.md) | The minimal data source shape exposing a `search()` method (`RxDB` / `RxCollection`).                                                                           |
+| [UseSearchReturn](interfaces/UseSearchReturn.md)   | Return value of [useSearch](functions/useSearch.md).                                                                                                            |
 
 ## Type Aliases
 
-| Type Alias | Description |
-| ------ | ------ |
+| Type Alias                                 | Description                                          |
+| ------------------------------------------ | ---------------------------------------------------- |
 | [SearchState](type-aliases/SearchState.md) | The five states of the `SearchHandle` state machine. |
 
 ## Functions
 
-| Function | Description |
-| ------ | ------ |
+| Function                            | Description                                                         |
+| ----------------------------------- | ------------------------------------------------------------------- |
 | [useSearch](functions/useSearch.md) | Adapts the reactive output of `SearchHandle` into a Vue composable. |

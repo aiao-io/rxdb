@@ -10,10 +10,10 @@ Parses a raw value into the target value of the given field type.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `type` | `string` | The field type |
-| `raw` | `unknown` | The raw value |
+| Parameter | Type      | Description    |
+| --------- | --------- | -------------- |
+| `type`    | `string`  | The field type |
+| `raw`     | `unknown` | The raw value  |
 
 ## Returns
 

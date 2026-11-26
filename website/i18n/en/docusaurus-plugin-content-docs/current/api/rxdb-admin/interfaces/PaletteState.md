@@ -16,7 +16,7 @@ Defined in: [palette/controller.ts:74](https://github.com/aiao-io/rxdb/blob/b523
 
 The ids of the asynchronous sources whose search failed.
 
-***
+---
 
 ### groups \{#groups\}
 
@@ -28,7 +28,7 @@ Defined in: [palette/controller.ts:76](https://github.com/aiao-io/rxdb/blob/b523
 
 The grouped results.
 
-***
+---
 
 ### loading \{#loading\}
 
@@ -40,7 +40,7 @@ Defined in: [palette/controller.ts:72](https://github.com/aiao-io/rxdb/blob/b523
 
 An asynchronous source is searching.
 
-***
+---
 
 ### mode \{#mode\}
 
@@ -52,7 +52,7 @@ Defined in: [palette/controller.ts:82](https://github.com/aiao-io/rxdb/blob/b523
 
 `recent`: recent usage / suggestions on an empty query; `results`: the query results.
 
-***
+---
 
 ### open \{#open\}
 
@@ -64,7 +64,7 @@ Defined in: [palette/controller.ts:68](https://github.com/aiao-io/rxdb/blob/b523
 
 Whether it is open.
 
-***
+---
 
 ### query \{#query\}
 
@@ -76,7 +76,7 @@ Defined in: [palette/controller.ts:70](https://github.com/aiao-io/rxdb/blob/b523
 
 The query text.
 
-***
+---
 
 ### selectedIndex \{#selectedindex\}
 
@@ -88,7 +88,7 @@ Defined in: [palette/controller.ts:80](https://github.com/aiao-io/rxdb/blob/b523
 
 The index of the selected entry.
 
-***
+---
 
 ### total \{#total\}
 

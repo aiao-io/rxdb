@@ -16,7 +16,7 @@ Defined in: [types.ts:42](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccf
 
 Menu tree.
 
-***
+---
 
 ### rail \{#rail\}
 

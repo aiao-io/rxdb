@@ -24,7 +24,7 @@ Defined in: [rxdb-vue/src/use-entity-change.ts:34](https://github.com/aiao-io/rx
 
 Sampling window in milliseconds: only the last patch within the window is let through, providing a steady refresh throttle for continuous input.
 
-***
+---
 
 ### debounceTime? \{#debouncetime\}
 

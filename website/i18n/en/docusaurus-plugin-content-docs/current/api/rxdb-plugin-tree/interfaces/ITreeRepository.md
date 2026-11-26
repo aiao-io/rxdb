@@ -1,5 +1,5 @@
 ---
-sidebar_label: "ITreeRepository⟨T⟩"
+sidebar_label: 'ITreeRepository⟨T⟩'
 ---
 
 # ITreeRepository`<T>`
@@ -14,9 +14,9 @@ Tree repository interface
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                    |
+| ------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 ## Methods
 
@@ -32,8 +32,8 @@ Counts entities
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                                           | Description                                                               |
+| --------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
 | `options` | [`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"countOptions"`&gt; | Query options (see [CountOptions](../../rxdb/interfaces/CountOptions.md)) |
 
 #### Returns
@@ -46,7 +46,7 @@ Number of rows matching the condition
 
 [`IRepository`](../../rxdb/interfaces/IRepository.md).[`count`](../../rxdb/interfaces/IRepository.md#count)
 
-***
+---
 
 ### countAncestors() \{#countancestors\}
 
@@ -60,8 +60,8 @@ Counts ancestor nodes
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                               |
+| --------- | -------------------------------------------------- |
 | `options` | [`FindTreeOptions`](FindTreeOptions.md)&lt;`T`&gt; |
 
 #### Returns
@@ -73,7 +73,7 @@ Counts ancestor nodes
 - With entityId specified: **excludes the current node**, counts only the ancestors
 - Without entityId: the number of root nodes
 
-***
+---
 
 ### countDescendants() \{#countdescendants\}
 
@@ -87,8 +87,8 @@ Counts descendant entities
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                               |
+| --------- | -------------------------------------------------- |
 | `options` | [`FindTreeOptions`](FindTreeOptions.md)&lt;`T`&gt; |
 
 #### Returns
@@ -100,7 +100,7 @@ Counts descendant entities
 - With entityId specified: **excludes the current node**, counts only the descendants
 - Without entityId: the total of all root nodes and their descendants
 
-***
+---
 
 ### create() \{#create\}
 
@@ -114,9 +114,9 @@ Creates an entity
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | Entity instance (usually created by [EntityManager.instantiate](../../rxdb/interfaces/EntityManager.md#instantiate)) |
+| Parameter | Type                      | Description                                                                                                          |
+| --------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `entity`  | `InstanceType`&lt;`T`&gt; | Entity instance (usually created by [EntityManager.instantiate](../../rxdb/interfaces/EntityManager.md#instantiate)) |
 
 #### Returns
 
@@ -128,7 +128,7 @@ The entity after persistence; **not** the same reference as the input (implement
 
 [`IRepository`](../../rxdb/interfaces/IRepository.md).[`create`](../../rxdb/interfaces/IRepository.md#create)
 
-***
+---
 
 ### find() \{#find\}
 
@@ -142,8 +142,8 @@ Finds multiple entities
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                                          | Description                                                             |
+| --------- | --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
 | `options` | [`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"findOptions"`&gt; | Query options (see [FindOptions](../../rxdb/interfaces/FindOptions.md)) |
 
 #### Returns
@@ -160,7 +160,7 @@ Returns entity instances (with the state machine), not bare data — later `save
 
 [`IRepository`](../../rxdb/interfaces/IRepository.md).[`find`](../../rxdb/interfaces/IRepository.md#find)
 
-***
+---
 
 ### findAncestors() \{#findancestors\}
 
@@ -174,8 +174,8 @@ Finds ancestor nodes
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                               |
+| --------- | -------------------------------------------------- |
 | `options` | [`FindTreeOptions`](FindTreeOptions.md)&lt;`T`&gt; |
 
 #### Returns
@@ -187,7 +187,7 @@ Finds ancestor nodes
 - With entityId specified: current node + ancestor nodes
 - Without entityId: all root nodes (the starting points are all roots; roots have no ancestors above them)
 
-***
+---
 
 ### findDescendants() \{#finddescendants\}
 
@@ -201,8 +201,8 @@ Finds descendant entities
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                               |
+| --------- | -------------------------------------------------- |
 | `options` | [`FindTreeOptions`](FindTreeOptions.md)&lt;`T`&gt; |
 
 #### Returns
@@ -214,7 +214,7 @@ Finds descendant entities
 - With entityId specified: current node + descendant nodes
 - Without entityId: returns all root nodes and their descendants
 
-***
+---
 
 ### remove() \{#remove\}
 
@@ -228,9 +228,9 @@ Deletes an entity
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The entity to delete (located by `id`) |
+| Parameter | Type                      | Description                            |
+| --------- | ------------------------- | -------------------------------------- |
+| `entity`  | `InstanceType`&lt;`T`&gt; | The entity to delete (located by `id`) |
 
 #### Returns
 
@@ -242,7 +242,7 @@ The entity after deletion (fields cleared, `local` set to `false`)
 
 [`IRepository`](../../rxdb/interfaces/IRepository.md).[`remove`](../../rxdb/interfaces/IRepository.md#remove)
 
-***
+---
 
 ### update() \{#update\}
 
@@ -256,10 +256,10 @@ Updates an entity
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The entity to update (provides `id` and the latest fields) |
-| `patch` | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; | Field-level patch; fields not listed are untouched |
+| Parameter | Type                                       | Description                                                |
+| --------- | ------------------------------------------ | ---------------------------------------------------------- |
+| `entity`  | `InstanceType`&lt;`T`&gt;                  | The entity to update (provides `id` and the latest fields) |
+| `patch`   | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; | Field-level patch; fields not listed are untouched         |
 
 #### Returns
 

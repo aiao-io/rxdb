@@ -19,8 +19,8 @@ Escapes an identifier (table name, column name, etc.)
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter    | Type     | Description    |
+| ------------ | -------- | -------------- |
 | `identifier` | `string` | The identifier |
 
 #### Returns
@@ -29,7 +29,7 @@ Escapes an identifier (table name, column name, etc.)
 
 The escaped identifier
 
-***
+---
 
 ### getConcatOperator() \{#getconcatoperator\}
 
@@ -47,7 +47,7 @@ Gets the string concatenation operator
 
 The string concatenation operator
 
-***
+---
 
 ### getJsonExtractOperator() \{#getjsonextractoperator\}
 
@@ -65,7 +65,7 @@ Gets the JSON extraction operator
 
 The JSON extraction operator
 
-***
+---
 
 ### getParameterPlaceholder() \{#getparameterplaceholder\}
 
@@ -79,9 +79,9 @@ Gets the parameter placeholder
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `index` | `number` | Parameter index (1-based) |
+| Parameter | Type     | Description               |
+| --------- | -------- | ------------------------- |
+| `index`   | `number` | Parameter index (1-based) |
 
 #### Returns
 
@@ -89,7 +89,7 @@ Gets the parameter placeholder
 
 The placeholder string
 
-***
+---
 
 ### getReturningClause() \{#getreturningclause\}
 

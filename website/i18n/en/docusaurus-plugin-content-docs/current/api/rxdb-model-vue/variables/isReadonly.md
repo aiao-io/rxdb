@@ -10,9 +10,9 @@ Checks whether a record is a read-only row
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `record` | `unknown` | The row record to check |
+| Parameter | Type      | Description             |
+| --------- | --------- | ----------------------- |
+| `record`  | `unknown` | The row record to check |
 
 ## Returns
 

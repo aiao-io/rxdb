@@ -10,8 +10,8 @@ Enumerates all chunks in the manifest.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                                                              |
+| ---------- | ----------------------------------------------------------------------------------------------------------------- |
 | `manifest` | `Pick`&lt;[`P2PFileManifest`](../interfaces/P2PFileManifest.md), `"size"` \| `"chunkSize"` \| `"chunkHashes"`&gt; |
 
 ## Returns

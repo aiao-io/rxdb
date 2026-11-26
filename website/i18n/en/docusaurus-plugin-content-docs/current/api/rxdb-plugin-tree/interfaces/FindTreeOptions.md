@@ -1,5 +1,5 @@
 ---
-sidebar_label: "FindTreeOptions⟨T, WhereType⟩"
+sidebar_label: 'FindTreeOptions⟨T, WhereType⟩'
 ---
 
 # FindTreeOptions`<T, WhereType>`
@@ -10,17 +10,17 @@ Tree query configuration
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) | [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
-| <a id="type-parameter-wheretype"></a> `WhereType` | [`RuleGroup`](../../rxdb/type-aliases/RuleGroup.md)&lt;`InstanceType`&lt;`T`&gt;&gt; |
+| Type Parameter                                                                                    | Default type                                                                         |
+| ------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) | [`EntityType`](../../rxdb/type-aliases/EntityType.md)                                |
+| <a id="type-parameter-wheretype"></a> `WhereType`                                                 | [`RuleGroup`](../../rxdb/type-aliases/RuleGroup.md)&lt;`InstanceType`&lt;`T`&gt;&gt; |
 
 ## Properties
 
 ### entityId? \{#entityid\}
 
 ```ts
-entityId?: 
+entityId?:
   | EntityStaticType<T, "idType">
   | null;
 ```
@@ -29,7 +29,7 @@ Defined in: [rxdb-plugin-tree/src/repository/tree-repository.interface.ts:10](ht
 
 ID of the root entity of the query
 
-***
+---
 
 ### level? \{#level\}
 
@@ -56,7 +56,7 @@ No clamping, no fallback: values other than non-negative integers (negative numb
 
 When not provided, the recursion depth is capped by each SQL adapter's internal runaway-protection constant (guarding against dirty data forming `parentId` cycles) — that is an implementation detail, not query semantics: a healthy tree never hits it.
 
-***
+---
 
 ### where? \{#where\}
 

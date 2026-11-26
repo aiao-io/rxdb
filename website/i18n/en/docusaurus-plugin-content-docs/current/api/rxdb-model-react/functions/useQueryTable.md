@@ -10,14 +10,14 @@ React query table state binding; the input synchronization rules are the same as
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityInstance`](../type-aliases/EntityInstance.md) | [`EntityInstance`](../type-aliases/EntityInstance.md) |
+| Type Parameter                                                                                    | Default type                                          |
+| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityInstance`](../type-aliases/EntityInstance.md) | [`EntityInstance`](../type-aliases/EntityInstance.md) |
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                                     |
+| ---------- | ---------------------------------------------------------------------------------------- |
 | `options?` | [`QueryTableControllerOptions`](../interfaces/QueryTableControllerOptions.md)&lt;`T`&gt; |
 
 ## Returns

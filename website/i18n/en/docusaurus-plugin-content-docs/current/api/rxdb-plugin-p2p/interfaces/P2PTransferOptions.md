@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/transfer.ts:42](https://github.com/aia
 
 Chunks completed in a previous attempt; requires `readChunk` to be provided, and chunks that cannot be read back or fail verification are re-fetched.
 
-***
+---
 
 ### concurrency? \{#concurrency\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/transfer.ts:44](https://github.com/aia
 
 Number of chunk requests in flight at once, 1-8; defaults to the larger of 2 and the number of holding peers.
 
-***
+---
 
 ### manifest \{#manifest\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/transfer.ts:30](https://github.com/aia
 
 The manifest the requester trusts: chunking and verification both follow it.
 
-***
+---
 
 ### maxAttemptsPerChunk? \{#maxattemptsperchunk\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/transfer.ts:46](https://github.com/aia
 
 Maximum attempts for a single chunk; defaults to twice the peer count, at least 2.
 
-***
+---
 
 ### maxPeerFailures? \{#maxpeerfailures\}
 
@@ -64,7 +64,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/transfer.ts:48](https://github.com/aia
 
 How many consecutive failures quarantine a peer, default 3; delivering one valid chunk resets the count.
 
-***
+---
 
 ### onProgress? \{#onprogress\}
 
@@ -78,15 +78,15 @@ Called once per chunk written to disk; an error thrown by the callback aborts th
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                            |
+| ---------- | ----------------------------------------------- |
 | `progress` | [`P2PTransferProgress`](P2PTransferProgress.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### readChunk? \{#readchunk\}
 
@@ -102,15 +102,15 @@ When omitted, writes stream in chunk order and the receiver buffers at most 8 ch
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `index` | `number` |
+| Parameter | Type     |
+| --------- | -------- |
+| `index`   | `number` |
 
 #### Returns
 
 `Promise`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt;
 
-***
+---
 
 ### requestTimeoutMs? \{#requesttimeoutms\}
 
@@ -122,7 +122,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/transfer.ts:50](https://github.com/aia
 
 Timeout of a single chunk request (milliseconds), 1-2147483647, default 30000; a source that ignores the cancellation signal is still given up on time.
 
-***
+---
 
 ### signal? \{#signal\}
 
@@ -134,7 +134,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/transfer.ts:52](https://github.com/aia
 
 Cancels the whole transfer; the reason is passed through as-is to the caller.
 
-***
+---
 
 ### sources \{#sources\}
 
@@ -146,7 +146,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/transfer.ts:32](https://github.com/aia
 
 Authenticated holding peers; chunks are assigned by load, and peers with consecutive failures are quarantined.
 
-***
+---
 
 ### writeChunk \{#writechunk\}
 
@@ -160,10 +160,10 @@ Writes a verified chunk to disk; a write failure is treated as a storage failure
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `index` | `number` |
-| `bytes` | `Uint8Array` |
+| Parameter | Type         |
+| --------- | ------------ |
+| `index`   | `number`     |
+| `bytes`   | `Uint8Array` |
 
 #### Returns
 

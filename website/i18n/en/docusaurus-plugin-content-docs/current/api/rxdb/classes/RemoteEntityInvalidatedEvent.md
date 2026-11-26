@@ -22,10 +22,10 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:641](https://github.com/aiao-io/rx
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `namespace` | `string` | Namespace |
-| `entity` | `string` | Entity name |
+| Parameter   | Type     | Description |
+| ----------- | -------- | ----------- |
+| `namespace` | `string` | Namespace   |
+| `entity`    | `string` | Entity name |
 
 #### Returns
 
@@ -43,7 +43,7 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:645](https://github.com/aiao-io/rx
 
 Entity name
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -55,7 +55,7 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:643](https://github.com/aiao-io/rx
 
 Namespace
 
-***
+---
 
 ### type \{#type\}
 

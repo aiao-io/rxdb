@@ -54,14 +54,14 @@ timing — `connect()` is the still point of this chain.
 
 ## Main capabilities
 
-| Group         | Entry                                                                                         |
-| ------------- | --------------------------------------------------------------------------------------------- |
-| Push/pull     | `push()` / `pull()` / `sync()` / `pushRepository()` / `pullRepository()` / `syncRepository()` |
-| Batch         | `bulkSync()` / `getRepositoryDependencyGraph()` / `getRepositorySyncOrder()`                  |
-| Repository status | `getRepositorySyncStatus()` / `getAllRepositorySyncStatus()` / `checkRepositoryUpdates()`  |
-| Branches      | `syncBranches()`                                                                              |
-| Counts        | `refreshPullableCount()`                                                                      |
-| Cleanup       | `cleanupExpired()`                                                                            |
+| Group             | Entry                                                                                         |
+| ----------------- | --------------------------------------------------------------------------------------------- |
+| Push/pull         | `push()` / `pull()` / `sync()` / `pushRepository()` / `pullRepository()` / `syncRepository()` |
+| Batch             | `bulkSync()` / `getRepositoryDependencyGraph()` / `getRepositorySyncOrder()`                  |
+| Repository status | `getRepositorySyncStatus()` / `getAllRepositorySyncStatus()` / `checkRepositoryUpdates()`     |
+| Branches          | `syncBranches()`                                                                              |
+| Counts            | `refreshPullableCount()`                                                                      |
+| Cleanup           | `cleanupExpired()`                                                                            |
 
 The waterline is `RxDBSync.lastPushedChangeId`, shared by push and the QueryCache
 outbound — both are sending local changes to the remote, and keeping one
@@ -164,47 +164,47 @@ await rxdb.syncManager.sync();
 
 ## Classes
 
-| Class | Description |
-| ------ | ------ |
+| Class                                                               | Description                                                                    |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
 | [RemoteBackendMismatchError](classes/RemoteBackendMismatchError.md) | The remote identity does not match the remote the local sync records belong to |
-| [RxDBPluginSync](classes/RxDBPluginSync.md) | The push/pull sync / conflict / repository dependency ordering plugin. |
+| [RxDBPluginSync](classes/RxDBPluginSync.md)                         | The push/pull sync / conflict / repository dependency ordering plugin.         |
 
 ## Interfaces
 
-| Interface | Description |
-| ------ | ------ |
-| [BulkSyncOptions](interfaces/BulkSyncOptions.md) | Bulk sync options |
-| [BulkSyncResult](interfaces/BulkSyncResult.md) | Bulk sync result |
-| [CheckRepositoryUpdatesResult](interfaces/CheckRepositoryUpdatesResult.md) | Repository update check result. |
-| [CleanupExpiredOptions](interfaces/CleanupExpiredOptions.md) | Expired data cleanup options |
-| [CleanupExpiredResult](interfaces/CleanupExpiredResult.md) | Expired data cleanup result |
-| [GetAllRepositorySyncStatusFilter](interfaces/GetAllRepositorySyncStatusFilter.md) | The filter options of getAllRepositorySyncStatus |
-| [QueryCacheOutboxFailure](interfaces/QueryCacheOutboxFailure.md) | One replay failure. |
-| [QueryCacheOutboxResult](interfaces/QueryCacheOutboxResult.md) | The result of one round of outbound replay, the return value of [flushQueryCacheOutbox](functions/flushQueryCacheOutbox.md). |
-| [RebindRemoteBackendResult](interfaces/RebindRemoteBackendResult.md) | The result of `SyncManager.rebindRemoteBackend()` |
-| [RepositorySyncStatus](interfaces/RepositorySyncStatus.md) | Repository sync status |
-| [SyncBranchesResult](interfaces/SyncBranchesResult.md) | The result of one round of [SyncManager.syncBranches](interfaces/SyncManager.md#syncbranches). |
-| [SyncManager](interfaces/SyncManager.md) | The sync manager |
+| Interface                                                                          | Description                                                                                                                  |
+| ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| [BulkSyncOptions](interfaces/BulkSyncOptions.md)                                   | Bulk sync options                                                                                                            |
+| [BulkSyncResult](interfaces/BulkSyncResult.md)                                     | Bulk sync result                                                                                                             |
+| [CheckRepositoryUpdatesResult](interfaces/CheckRepositoryUpdatesResult.md)         | Repository update check result.                                                                                              |
+| [CleanupExpiredOptions](interfaces/CleanupExpiredOptions.md)                       | Expired data cleanup options                                                                                                 |
+| [CleanupExpiredResult](interfaces/CleanupExpiredResult.md)                         | Expired data cleanup result                                                                                                  |
+| [GetAllRepositorySyncStatusFilter](interfaces/GetAllRepositorySyncStatusFilter.md) | The filter options of getAllRepositorySyncStatus                                                                             |
+| [QueryCacheOutboxFailure](interfaces/QueryCacheOutboxFailure.md)                   | One replay failure.                                                                                                          |
+| [QueryCacheOutboxResult](interfaces/QueryCacheOutboxResult.md)                     | The result of one round of outbound replay, the return value of [flushQueryCacheOutbox](functions/flushQueryCacheOutbox.md). |
+| [RebindRemoteBackendResult](interfaces/RebindRemoteBackendResult.md)               | The result of `SyncManager.rebindRemoteBackend()`                                                                            |
+| [RepositorySyncStatus](interfaces/RepositorySyncStatus.md)                         | Repository sync status                                                                                                       |
+| [SyncBranchesResult](interfaces/SyncBranchesResult.md)                             | The result of one round of [SyncManager.syncBranches](interfaces/SyncManager.md#syncbranches).                               |
+| [SyncManager](interfaces/SyncManager.md)                                           | The sync manager                                                                                                             |
 
 ## Type Aliases
 
-| Type Alias | Description |
-| ------ | ------ |
-| [DependencyGraph](type-aliases/DependencyGraph.md) | The dependency graph. Key: `{namespace}:{entity}`. |
-| [RxDBPluginSyncOptions](type-aliases/RxDBPluginSyncOptions.md) | This plugin currently accepts no options |
-| [SyncBranchSkipReason](type-aliases/SyncBranchSkipReason.md) | The specific reason a remote branch was skipped this round. |
+| Type Alias                                                     | Description                                                 |
+| -------------------------------------------------------------- | ----------------------------------------------------------- |
+| [DependencyGraph](type-aliases/DependencyGraph.md)             | The dependency graph. Key: `{namespace}:{entity}`.          |
+| [RxDBPluginSyncOptions](type-aliases/RxDBPluginSyncOptions.md) | This plugin currently accepts no options                    |
+| [SyncBranchSkipReason](type-aliases/SyncBranchSkipReason.md)   | The specific reason a remote branch was skipped this round. |
 
 ## Variables
 
-| Variable | Description |
-| ------ | ------ |
+| Variable                                      | Description              |
+| --------------------------------------------- | ------------------------ |
 | [rxDBPluginSync](variables/rxDBPluginSync.md) | The sync plugin factory. |
 
 ## Functions
 
-| Function | Description |
-| ------ | ------ |
-| [countQueryCacheOutbox](functions/countQueryCacheOutbox.md) | Counts the change rows of all QueryCache repositories on the current branch not yet pushed back to the remote. |
-| [flushQueryCacheOutbox](functions/flushQueryCacheOutbox.md) | Replays the offline changes backlogged in a QueryCache repository back to the remote. |
-| [pendingQueryCacheWriteIds](functions/pendingQueryCacheWriteIds.md) | Gets the entity ids of a QueryCache repository currently **held by the outbound queue**. |
+| Function                                                              | Description                                                                                                                                                      |
+| --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [countQueryCacheOutbox](functions/countQueryCacheOutbox.md)           | Counts the change rows of all QueryCache repositories on the current branch not yet pushed back to the remote.                                                   |
+| [flushQueryCacheOutbox](functions/flushQueryCacheOutbox.md)           | Replays the offline changes backlogged in a QueryCache repository back to the remote.                                                                            |
+| [pendingQueryCacheWriteIds](functions/pendingQueryCacheWriteIds.md)   | Gets the entity ids of a QueryCache repository currently **held by the outbound queue**.                                                                         |
 | [queryCacheEntityIdentifier](functions/queryCacheEntityIdentifier.md) | The entity identifier in the QueryCache adapter contract: the `public` namespace is written as the bare entity name, and other namespaces as `namespace:entity`. |

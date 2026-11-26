@@ -1,11 +1,7 @@
 # resolvePGliteInitOptions()
 
 ```ts
-function resolvePGliteInitOptions(
-   dbName, 
-   options, 
-   serverExtensions?
-): ResolvedPGliteClientOptions;
+function resolvePGliteInitOptions(dbName, options, serverExtensions?): ResolvedPGliteClientOptions;
 ```
 
 Defined in: [packages/rxdb-adapter-pglite/src/PGliteClient.ts:69](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-pglite/src/PGliteClient.ts#L69)
@@ -21,10 +17,10 @@ Publicly exported so unit tests and advanced users can precompute the config; no
 
 ## Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `dbName` | `string` | `undefined` | Database name (used as the IndexedDB key) |
-| `options` | [`PGliteClientOptions`](../interfaces/PGliteClientOptions.md) | `undefined` | Raw user options |
+| Parameter           | Type                                                                                      | Default value                 | Description                                                                                     |
+| ------------------- | ----------------------------------------------------------------------------------------- | ----------------------------- | ----------------------------------------------------------------------------------------------- |
+| `dbName`            | `string`                                                                                  | `undefined`                   | Database name (used as the IndexedDB key)                                                       |
+| `options`           | [`PGliteClientOptions`](../interfaces/PGliteClientOptions.md)                             | `undefined`                   | Raw user options                                                                                |
 | `serverExtensions?` | [`PGliteServerExtensionRequirements`](../interfaces/PGliteServerExtensionRequirements.md) | `NO_PGLITE_SERVER_EXTENSIONS` | Server extensions the adapter loads based on entity metadata; see `pglite-server-extensions.ts` |
 
 ## Returns

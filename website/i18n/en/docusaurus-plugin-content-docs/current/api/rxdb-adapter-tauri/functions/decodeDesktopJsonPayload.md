@@ -10,9 +10,9 @@ Restores a JSON payload to the runtime types used by the protocol.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | The payload after `JSON.parse` |
+| Parameter | Type      | Description                    |
+| --------- | --------- | ------------------------------ |
+| `value`   | `unknown` | The payload after `JSON.parse` |
 
 ## Returns
 

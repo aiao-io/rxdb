@@ -22,7 +22,7 @@ In-board search (US-539 phase B): injects the upstream full-text source (search 
 readonly upstream: BoardSearchUpstream;
 ```
 
-***
+---
 
 ### searchUnavailableReason? \{#searchunavailablereason\}
 
@@ -34,7 +34,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/use-board.ts:74](https://git
 
 The host explains the reason when search is unavailable.
 
-***
+---
 
 ### storage? \{#storage\}
 

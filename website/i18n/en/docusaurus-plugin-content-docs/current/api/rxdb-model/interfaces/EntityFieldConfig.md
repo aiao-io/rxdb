@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model/src/entity-field.utils.ts:62](https://github.co
 
 The display name
 
-***
+---
 
 ### encrypted? \{#encrypted\}
 
@@ -29,7 +29,7 @@ Defined in: [packages/rxdb-model/src/entity-field.utils.ts:95](https://github.co
 Whether it is an encrypted column.
 This key is only emitted when the metadata declares `encrypted: true`.
 
-***
+---
 
 ### enumValues? \{#enumvalues\}
 
@@ -41,7 +41,7 @@ Defined in: [packages/rxdb-model/src/entity-field.utils.ts:74](https://github.co
 
 The allowed values of an enum type
 
-***
+---
 
 ### field \{#field\}
 
@@ -53,7 +53,7 @@ Defined in: [packages/rxdb-model/src/entity-field.utils.ts:60](https://github.co
 
 The field name
 
-***
+---
 
 ### format? \{#format\}
 
@@ -66,7 +66,7 @@ Defined in: [packages/rxdb-model/src/entity-field.utils.ts:85](https://github.co
 The field semantic annotation (only affects display and control selection, not the runtime value type).
 This key is only emitted when the metadata declares `format`.
 
-***
+---
 
 ### keyValueSchema? \{#keyvalueschema\}
 
@@ -78,7 +78,7 @@ Defined in: [packages/rxdb-model/src/entity-field.utils.ts:76](https://github.co
 
 The schema of a key-value type field
 
-***
+---
 
 ### nullable? \{#nullable\}
 
@@ -90,7 +90,7 @@ Defined in: [packages/rxdb-model/src/entity-field.utils.ts:68](https://github.co
 
 Whether it can be null
 
-***
+---
 
 ### options? \{#options\}
 
@@ -103,7 +103,7 @@ Defined in: [packages/rxdb-model/src/entity-field.utils.ts:90](https://github.co
 Display metadata (label / color / disabled) of enum/multi-select values, keyed by a subset of `enum`.
 This key is only emitted when the metadata declares `options`.
 
-***
+---
 
 ### readonly? \{#readonly\}
 
@@ -115,7 +115,7 @@ Defined in: [packages/rxdb-model/src/entity-field.utils.ts:66](https://github.co
 
 Whether it is read-only
 
-***
+---
 
 ### relatedEntityName? \{#relatedentityname\}
 
@@ -127,7 +127,7 @@ Defined in: [packages/rxdb-model/src/entity-field.utils.ts:78](https://github.co
 
 The name of the entity the relation field points to
 
-***
+---
 
 ### relatedNamespace? \{#relatednamespace\}
 
@@ -139,7 +139,7 @@ Defined in: [packages/rxdb-model/src/entity-field.utils.ts:80](https://github.co
 
 The namespace of the entity the relation field points to
 
-***
+---
 
 ### required? \{#required\}
 
@@ -151,7 +151,7 @@ Defined in: [packages/rxdb-model/src/entity-field.utils.ts:70](https://github.co
 
 Whether it is required
 
-***
+---
 
 ### type \{#type\}
 
@@ -163,7 +163,7 @@ Defined in: [packages/rxdb-model/src/entity-field.utils.ts:64](https://github.co
 
 The field type
 
-***
+---
 
 ### unique? \{#unique\}
 

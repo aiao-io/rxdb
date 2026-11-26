@@ -34,20 +34,20 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts:29]
 
 [`MiniProgramFileSystemManager`](MiniProgramFileSystemManager.md)
 
-***
+---
 
 ### getRandomValues()? \{#getrandomvalues\}
 
 ```ts
-getRandomValues?(options): unknown;
+getRandomValues ? options : unknown;
 ```
 
 Defined in: [packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts:30](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts#L30)
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                             |
+| --------- | -------------------------------- |
 | `options` | `MiniProgramRandomValuesOptions` |
 
 #### Returns

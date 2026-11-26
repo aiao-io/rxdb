@@ -1,5 +1,5 @@
 ---
-sidebar_label: "EntityType⟨StaticTypes, Instance⟩"
+sidebar_label: 'EntityType⟨StaticTypes, Instance⟩'
 ---
 
 # EntityType`<StaticTypes, Instance>`
@@ -17,10 +17,10 @@ signatures declared via `ENTITY_STATIC_TYPES`.
 
 ## Type Parameters
 
-| Type Parameter | Default type | Description |
-| ------ | ------ | ------ |
-| <a id="type-parameter-statictypes"></a> `StaticTypes` *extends* `object` | `object` | The class-side static method type declaration (e.g. `findOptions` / `idType`); defaulting to `object` selects the automatic derivation path of DerivedEntityStaticType. |
-| <a id="type-parameter-instance"></a> `Instance` *extends* `object` | `object` | The shape of the `new`ed instance, only useful for conditional-type inference in adapters. |
+| Type Parameter                                                           | Default type | Description                                                                                                                                                             |
+| ------------------------------------------------------------------------ | ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-statictypes"></a> `StaticTypes` _extends_ `object` | `object`     | The class-side static method type declaration (e.g. `findOptions` / `idType`); defaulting to `object` selects the automatic derivation path of DerivedEntityStaticType. |
+| <a id="type-parameter-instance"></a> `Instance` _extends_ `object`       | `object`     | The shape of the `new`ed instance, only useful for conditional-type inference in adapters.                                                                              |
 
 ## Remarks
 

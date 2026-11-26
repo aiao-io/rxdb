@@ -16,7 +16,7 @@ Defined in: [locale.ts:10](https://github.com/aiao-io/rxdb/blob/b5232040240cf1cc
 
 Caller default locale: the UI application default locale, or the default content locale of data entities.
 
-***
+---
 
 ### deviceLocale \{#devicelocale\}
 
@@ -28,7 +28,7 @@ Defined in: [locale.ts:8](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccf
 
 Host locale.
 
-***
+---
 
 ### devicePreferredLocale? \{#devicepreferredlocale\}
 
@@ -40,7 +40,7 @@ Defined in: [locale.ts:6](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccf
 
 Locale explicitly chosen by the user on the current device.
 
-***
+---
 
 ### locale? \{#locale\}
 

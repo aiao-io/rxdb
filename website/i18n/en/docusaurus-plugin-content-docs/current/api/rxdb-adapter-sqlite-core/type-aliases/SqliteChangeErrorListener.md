@@ -10,9 +10,9 @@ Listener for [SqliteChangeErrorEvent](../interfaces/SqliteChangeErrorEvent.md)
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | [`SqliteChangeErrorEvent`](../interfaces/SqliteChangeErrorEvent.md) |
+| Parameter | Type                                                                |
+| --------- | ------------------------------------------------------------------- |
+| `event`   | [`SqliteChangeErrorEvent`](../interfaces/SqliteChangeErrorEvent.md) |
 
 ## Returns
 

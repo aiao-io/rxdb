@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/session/session.ts:47](https://github.
 
 The method name within the protocol.
 
-***
+---
 
 ### params \{#params\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/session/session.ts:49](https://github.
 
 JSON parameters.
 
-***
+---
 
 ### payload \{#payload\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/session/session.ts:51](https://github.
 
 Binary payload.
 
-***
+---
 
 ### peer \{#peer\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/session/session.ts:53](https://github.
 
 The authenticated peer identity.
 
-***
+---
 
 ### signal \{#signal\}
 

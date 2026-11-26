@@ -10,8 +10,8 @@ Reads this instance's current branch token: the branch held by the table set it 
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                                  | Description                       |
+| ---------- | --------------------------------------------------------------------- | --------------------------------- |
 | `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md) | The caller's transaction executor |
 
 ## Returns

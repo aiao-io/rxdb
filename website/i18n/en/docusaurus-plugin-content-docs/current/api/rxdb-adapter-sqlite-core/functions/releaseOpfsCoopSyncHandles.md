@@ -11,9 +11,9 @@ and then releases the temporary directory's lock (US-221).
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `vfs` | `object` | An `OPFSCoopSyncVFS` instance no longer in use (wa-sqlite and `@subframe7536/sqlite-wasm` share the same implementation) |
+| Parameter | Type     | Description                                                                                                              |
+| --------- | -------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `vfs`     | `object` | An `OPFSCoopSyncVFS` instance no longer in use (wa-sqlite and `@subframe7536/sqlite-wasm` share the same implementation) |
 
 ## Returns
 

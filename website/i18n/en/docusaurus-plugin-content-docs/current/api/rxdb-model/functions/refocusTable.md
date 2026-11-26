@@ -10,8 +10,8 @@ After editing ends, returns focus to the VTable root element (the .vtable div wi
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type                                   | Description                  |
+| ----------- | -------------------------------------- | ---------------------------- |
 | `container` | `HTMLElement` \| `null` \| `undefined` | The VTable container element |
 
 ## Returns

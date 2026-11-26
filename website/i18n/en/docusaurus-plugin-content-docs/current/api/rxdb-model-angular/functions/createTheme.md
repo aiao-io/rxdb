@@ -10,9 +10,9 @@ Builds a VTable theme based on daisyUI CSS variables
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `isDark` | `boolean` | Whether it is dark mode |
+| Parameter | Type                                            | Description                    |
+| --------- | ----------------------------------------------- | ------------------------------ |
+| `isDark`  | `boolean`                                       | Whether it is dark mode        |
 | `cssVars` | [`CSSVariables`](../interfaces/CSSVariables.md) | The set of theme CSS variables |
 
 ## Returns

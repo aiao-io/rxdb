@@ -1,7 +1,7 @@
 # getFileCategory()
 
 ```ts
-function getFileCategory(filename): "image" | "audio" | "video" | "code" | "text" | "archive" | "unknown";
+function getFileCategory(filename): 'image' | 'audio' | 'video' | 'code' | 'text' | 'archive' | 'unknown';
 ```
 
 Defined in: [packages/utils/src/file/index.ts:83](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/utils/src/file/index.ts#L83)
@@ -12,8 +12,8 @@ Categories are mutually exclusive and matched in a **fixed order**: image → au
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type     | Description       |
+| ---------- | -------- | ----------------- |
 | `filename` | `string` | File name or path |
 
 ## Returns

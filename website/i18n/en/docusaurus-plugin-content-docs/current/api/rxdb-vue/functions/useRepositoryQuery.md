@@ -1,12 +1,7 @@
 # useRepositoryQuery()
 
 ```ts
-function useRepositoryQuery<T, TOptions, RT>(
-   EntityType, 
-   method, 
-   defaultValue, 
-   options
-): RxDBResource<RT>;
+function useRepositoryQuery<T, TOptions, RT>(EntityType, method, defaultValue, options): RxDBResource<RT>;
 ```
 
 Defined in: [rxdb-vue/src/hooks.ts:124](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-vue/src/hooks.ts#L124)
@@ -15,20 +10,20 @@ The core hook implementation for RxDB repository queries, managing reactive subs
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
-| <a id="type-parameter-toptions"></a> `TOptions` |
-| <a id="type-parameter-rt"></a> `RT` |
+| Type Parameter                                                                                    |
+| ------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| <a id="type-parameter-toptions"></a> `TOptions`                                                   |
+| <a id="type-parameter-rt"></a> `RT`                                                               |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `EntityType` | `T` | Entity class. |
-| `method` | `string` | The query method name on the repository. |
-| `defaultValue` | `RT` | Placeholder value before the first value arrives from the subscription. |
-| `options` | [`UseOptions`](../type-aliases/UseOptions.md)&lt;`TOptions`&gt; | Query options; may be a constant, a getter, a `Ref` or a `ComputedRef`. |
+| Parameter      | Type                                                            | Description                                                             |
+| -------------- | --------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `EntityType`   | `T`                                                             | Entity class.                                                           |
+| `method`       | `string`                                                        | The query method name on the repository.                                |
+| `defaultValue` | `RT`                                                            | Placeholder value before the first value arrives from the subscription. |
+| `options`      | [`UseOptions`](../type-aliases/UseOptions.md)&lt;`TOptions`&gt; | Query options; may be a constant, a getter, a `Ref` or a `ComputedRef`. |
 
 ## Returns
 

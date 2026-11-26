@@ -10,9 +10,9 @@ Checks whether a storage configuration has the SQLite single-file shape.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | Arbitrary value, usually from an unvalidated configuration or IPC input |
+| Parameter | Type      | Description                                                             |
+| --------- | --------- | ----------------------------------------------------------------------- |
+| `value`   | `unknown` | Arbitrary value, usually from an unvalidated configuration or IPC input |
 
 ## Returns
 

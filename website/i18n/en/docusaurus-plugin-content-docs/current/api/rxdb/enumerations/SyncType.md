@@ -6,6 +6,7 @@ Sync type enumeration
 Defines different data sync strategies, controlling how data is synced between local and remote
 
 Three sync strategies are supported:
+
 - Full: full sync, syncs all data
 - Filter: filtered sync, syncs a subset of data based on filter conditions
 - none: no sync, can be configured to use only local data or only remote data
@@ -15,43 +16,43 @@ Three sync strategies are supported:
 ### Filter \{#filter\}
 
 ```ts
-Filter: "filter";
+Filter: 'filter';
 ```
 
 Defined in: [packages/rxdb/src/entity/sync-options.interface.ts:37](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/sync-options.interface.ts#L37)
 
 Syncs based on filter conditions
 
-***
+---
 
 ### Full \{#full\}
 
 ```ts
-Full: "full";
+Full: 'full';
 ```
 
 Defined in: [packages/rxdb/src/entity/sync-options.interface.ts:32](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/sync-options.interface.ts#L32)
 
 Full sync
 
-***
+---
 
 ### None \{#none\}
 
 ```ts
-None: "none";
+None: 'none';
 ```
 
 Defined in: [packages/rxdb/src/entity/sync-options.interface.ts:58](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/sync-options.interface.ts#L58)
 
 No sync
 
-***
+---
 
 ### QueryCache \{#querycache\}
 
 ```ts
-QueryCache: "QueryCache";
+QueryCache: 'QueryCache';
 ```
 
 Defined in: [packages/rxdb/src/entity/sync-options.interface.ts:53](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/sync-options.interface.ts#L53)

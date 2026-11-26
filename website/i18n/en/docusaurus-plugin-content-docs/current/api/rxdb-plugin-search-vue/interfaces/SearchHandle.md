@@ -21,7 +21,7 @@ Defined in: packages/rxdb-plugin-search/dist/types.d.ts:84
 
 The most recent execution error; empty queries and queries empty after normalization are not treated as errors
 
-***
+---
 
 ### hasMore$ \{#hasmore\}
 
@@ -33,7 +33,7 @@ Defined in: packages/rxdb-plugin-search/dist/types.d.ts:86
 
 Whether there is another page of results to load
 
-***
+---
 
 ### results$ \{#results\}
 
@@ -45,7 +45,7 @@ Defined in: packages/rxdb-plugin-search/dist/types.d.ts:80
 
 Reactive read-only snapshot; the array and its elements are frozen at runtime
 
-***
+---
 
 ### state$ \{#state\}
 
@@ -73,7 +73,7 @@ Clears the query term, returns to `idle`, and clears results / error / paginatio
 
 `void`
 
-***
+---
 
 ### destroy() \{#destroy\}
 
@@ -89,7 +89,7 @@ Cancels subscriptions and releases resources (called automatically by the framew
 
 `void`
 
-***
+---
 
 ### loadMore() \{#loadmore\}
 
@@ -105,7 +105,7 @@ Loads the next page; no-op when there is no more data
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### retry() \{#retry\}
 
@@ -121,7 +121,7 @@ Re-triggers in the `error` state with the last query term
 
 `void`
 
-***
+---
 
 ### setQuery() \{#setquery\}
 
@@ -135,9 +135,9 @@ Updates the query term (triggers debounce)
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `query` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `query`   | `string` |
 
 #### Returns
 

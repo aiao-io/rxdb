@@ -10,9 +10,9 @@ The empty of `status()`: no uncommitted changes.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `status` | [`WorkingTreeStatus`](../interfaces/WorkingTreeStatus.md) |
+| Parameter | Type                                                      |
+| --------- | --------------------------------------------------------- |
+| `status`  | [`WorkingTreeStatus`](../interfaces/WorkingTreeStatus.md) |
 
 ## Returns
 

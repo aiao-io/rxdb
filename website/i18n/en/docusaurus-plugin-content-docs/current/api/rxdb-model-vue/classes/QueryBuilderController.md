@@ -1,5 +1,5 @@
 ---
-sidebar_label: "QueryBuilderController⟨T⟩"
+sidebar_label: 'QueryBuilderController⟨T⟩'
 ---
 
 # QueryBuilderController`<T>`
@@ -14,8 +14,8 @@ All rule conversion and validation is still performed by QueryBuilderService, av
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
+| Type Parameter                    | Default type                        |
+| --------------------------------- | ----------------------------------- |
 | <a id="type-parameter-t"></a> `T` | `Record`&lt;`string`, `unknown`&gt; |
 
 ## Constructors
@@ -30,8 +30,8 @@ Defined in: packages/rxdb-model/dist/query-builder/services/headless.d.ts:38
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                                         |
+| ---------- | -------------------------------------------------------------------------------------------- |
 | `options?` | [`QueryBuilderControllerOptions`](../interfaces/QueryBuilderControllerOptions.md)&lt;`T`&gt; |
 
 #### Returns
@@ -70,16 +70,16 @@ Adds an AND or OR rule group, following the existing nesting limit.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter        | Type               |
+| ---------------- | ------------------ |
 | `parentGroupId?` | `string` \| `null` |
-| `combinator?` | `"and"` \| `"or"` |
+| `combinator?`    | `"and"` \| `"or"`  |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### addRule() \{#addrule\}
 
@@ -93,16 +93,16 @@ Adds a rule in the target group and returns the rule ID.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `parentGroupId?` | `string` \| `null` |
-| `rule?` | `Partial`&lt;`Omit`&lt;[`QueryBuilderRule`](../type-aliases/QueryBuilderRule.md)&lt;`T`&gt;, `"id"`&gt;&gt; |
+| Parameter        | Type                                                                                                        |
+| ---------------- | ----------------------------------------------------------------------------------------------------------- |
+| `parentGroupId?` | `string` \| `null`                                                                                          |
+| `rule?`          | `Partial`&lt;`Omit`&lt;[`QueryBuilderRule`](../type-aliases/QueryBuilderRule.md)&lt;`T`&gt;, `"id"`&gt;&gt; |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### clear() \{#clear\}
 
@@ -118,7 +118,7 @@ Clears the rules and creates a new empty root group.
 
 `void`
 
-***
+---
 
 ### dispose() \{#dispose\}
 
@@ -134,7 +134,7 @@ Releases the query service subscription and destroys the internal service.
 
 `void`
 
-***
+---
 
 ### fromRxDBQuery() \{#fromrxdbquery\}
 
@@ -148,22 +148,22 @@ Loads an RxDB query and assigns rule IDs via the existing converter.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `query` | \| [`RuleGroup`](../type-aliases/RuleGroup.md)&lt;`T`&gt; \| [`QueryBuilderRuleGroup`](../interfaces/QueryBuilderRuleGroup.md)&lt;`T`&gt; |
+| Parameter | Type                                                                                                                                      |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `query`   | \| [`RuleGroup`](../type-aliases/RuleGroup.md)&lt;`T`&gt; \| [`QueryBuilderRuleGroup`](../interfaces/QueryBuilderRuleGroup.md)&lt;`T`&gt; |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### moveItem() \{#moveitem\}
 
 ```ts
 moveItem(
-   itemId, 
-   targetGroupId, 
+   itemId,
+   targetGroupId,
    targetIndex
 ): void;
 ```
@@ -174,17 +174,17 @@ Moves a rule or group to the specified position in the target group.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `itemId` | `string` |
+| Parameter       | Type     |
+| --------------- | -------- |
+| `itemId`        | `string` |
 | `targetGroupId` | `string` |
-| `targetIndex` | `number` |
+| `targetIndex`   | `number` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### remove() \{#remove\}
 
@@ -198,15 +198,15 @@ Deletes a rule or a non-root rule group.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `itemId` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `itemId`  | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### setFields() \{#setfields\}
 
@@ -220,15 +220,15 @@ Replaces the field metadata and re-validates existing rules.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `fields` | [`FieldMetadata`](../interfaces/FieldMetadata.md)[] |
+| Parameter | Type                                                |
+| --------- | --------------------------------------------------- |
+| `fields`  | [`FieldMetadata`](../interfaces/FieldMetadata.md)[] |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### subscribe() \{#subscribe\}
 
@@ -242,15 +242,15 @@ Subscribes to query state events and returns an unsubscribe function.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                       |
+| ---------- | -------------------------- |
 | `listener` | `QueryListener`&lt;`T`&gt; |
 
 #### Returns
 
 () => `void`
 
-***
+---
 
 ### toRxDBQuery() \{#torxdbquery\}
 
@@ -266,7 +266,7 @@ Converts the current state into an RxDB query and returns an isolated copy.
 
 [`RuleGroup`](../type-aliases/RuleGroup.md)&lt;`T`&gt;
 
-***
+---
 
 ### updateGroupCombinator() \{#updategroupcombinator\}
 
@@ -280,16 +280,16 @@ Updates a rule group's AND or OR combination.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `groupId` | `string` |
+| Parameter    | Type              |
+| ------------ | ----------------- |
+| `groupId`    | `string`          |
 | `combinator` | `"and"` \| `"or"` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### updateRule() \{#updaterule\}
 
@@ -303,16 +303,16 @@ Modifies the specified rule's field, operator or value.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `ruleId` | `string` |
+| Parameter | Type                                                                                                        |
+| --------- | ----------------------------------------------------------------------------------------------------------- |
+| `ruleId`  | `string`                                                                                                    |
 | `updates` | `Partial`&lt;`Omit`&lt;[`QueryBuilderRule`](../type-aliases/QueryBuilderRule.md)&lt;`T`&gt;, `"id"`&gt;&gt; |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### validate() \{#validate\}
 

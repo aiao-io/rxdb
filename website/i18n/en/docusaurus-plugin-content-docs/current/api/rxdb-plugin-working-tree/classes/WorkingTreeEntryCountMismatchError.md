@@ -20,8 +20,8 @@ thing as cold-replay's `WorkingTreeReplayCorruptionError`. The discriminators ar
 
 ```ts
 new WorkingTreeEntryCountMismatchError(
-   branchId, 
-   expected, 
+   branchId,
+   expected,
    actual
 ): WorkingTreeEntryCountMismatchError;
 ```
@@ -33,11 +33,11 @@ both directions of deviation come through here.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `branchId` | `string` | The branch at fault |
+| Parameter  | Type     | Description                            |
+| ---------- | -------- | -------------------------------------- |
+| `branchId` | `string` | The branch at fault                    |
 | `expected` | `number` | The number the redundant column claims |
-| `actual` | `number` | The real row count in the entry table |
+| `actual`   | `number` | The real row count in the entry table  |
 
 #### Returns
 
@@ -65,7 +65,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/status.ts:100](h
 
 The real row count in the entry table
 
-***
+---
 
 ### branchId \{#branchid\}
 
@@ -77,7 +77,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/status.ts:96](ht
 
 The branch at fault
 
-***
+---
 
 ### cause? \{#cause\}
 
@@ -91,7 +91,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](../../rxdb/classes/RxDBError.md).[`cause`](../../rxdb/classes/RxDBError.md#cause)
 
-***
+---
 
 ### expected \{#expected\}
 
@@ -103,7 +103,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/status.ts:98](ht
 
 The number the redundant column claims
 
-***
+---
 
 ### message \{#message\}
 
@@ -117,7 +117,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](../../rxdb/classes/RxDBError.md).[`message`](../../rxdb/classes/RxDBError.md#message)
 
-***
+---
 
 ### name \{#name\}
 
@@ -131,7 +131,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](../../rxdb/classes/RxDBError.md).[`name`](../../rxdb/classes/RxDBError.md#name)
 
-***
+---
 
 ### stack? \{#stack\}
 
@@ -145,7 +145,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](../../rxdb/classes/RxDBError.md).[`stack`](../../rxdb/classes/RxDBError.md#stack)
 
-***
+---
 
 ### stackTraceLimit \{#stacktracelimit\}
 
@@ -186,7 +186,7 @@ a string representing the location in the code at which
 ```js
 const myObject = {};
 Error.captureStackTrace(myObject);
-myObject.stack;  // Similar to `new Error().stack`
+myObject.stack; // Similar to `new Error().stack`
 ```
 
 The first line of the trace will be prefixed with
@@ -225,9 +225,9 @@ a();
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `targetObject` | `object` |
+| Parameter         | Type       |
+| ----------------- | ---------- |
+| `targetObject`    | `object`   |
 | `constructorOpt?` | `Function` |
 
 #### Returns
@@ -238,7 +238,7 @@ a();
 
 [`RxDBError`](../../rxdb/classes/RxDBError.md).[`captureStackTrace`](../../rxdb/classes/RxDBError.md#capturestacktrace)
 
-***
+---
 
 ### prepareStackTrace() \{#preparestacktrace\}
 
@@ -250,9 +250,9 @@ Defined in: node\_modules/.pnpm/@types+node@26.6.6/node\_modules/@types/node/glo
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `err` | `Error` |
+| Parameter     | Type         |
+| ------------- | ------------ |
+| `err`         | `Error`      |
 | `stackTraces` | `CallSite`[] |
 
 #### Returns

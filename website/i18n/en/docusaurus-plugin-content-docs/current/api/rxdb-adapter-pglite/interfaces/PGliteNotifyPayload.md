@@ -17,7 +17,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:29](https://gi
 
 Array of affected row IDs
 
-***
+---
 
 ### operation \{#operation\}
 
@@ -29,7 +29,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:25](https://gi
 
 Operation type
 
-***
+---
 
 ### table \{#table\}
 

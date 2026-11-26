@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-adapter-wa-sqlite/src/sqlite-load.utils.ts:304](https
 
 The VFS's lock policy (e.g. `shared+hint`), letting the client decide whether to send `PRAGMA write_hint;` before BEGIN.
 
-***
+---
 
 ### sqlite3 \{#sqlite3\}
 
@@ -26,7 +26,7 @@ sqlite3: SQLiteAPI;
 
 Defined in: [packages/rxdb-adapter-wa-sqlite/src/sqlite-load.utils.ts:300](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-wa-sqlite/src/sqlite-load.utils.ts#L300)
 
-***
+---
 
 ### vfs \{#vfs\}
 

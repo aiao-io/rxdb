@@ -10,10 +10,10 @@ Closes a tab; pinned tabs cannot be closed. When closing the current tab, the mo
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `state` | [`TabsState`](../interfaces/TabsState.md) | The current state. |
-| `key` | `string` | The tab key. |
+| Parameter | Type                                      | Description        |
+| --------- | ----------------------------------------- | ------------------ |
+| `state`   | [`TabsState`](../interfaces/TabsState.md) | The current state. |
+| `key`     | `string`                                  | The tab key.       |
 
 ## Returns
 

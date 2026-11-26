@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/session/session.ts:41](https://github.
 
 Binary payload; replies with payloads are queued as bulk frames and yield to control frames.
 
-***
+---
 
 ### result? \{#result\}
 

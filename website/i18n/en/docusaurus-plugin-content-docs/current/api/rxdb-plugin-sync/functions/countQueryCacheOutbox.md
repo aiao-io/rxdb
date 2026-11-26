@@ -10,9 +10,9 @@ Counts the change rows of all QueryCache repositories on the current branch not 
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `rxdb` | [`RxDB`](../../rxdb/classes/RxDB.md) | The RxDB instance |
+| Parameter | Type                                 | Description       |
+| --------- | ------------------------------------ | ----------------- |
+| `rxdb`    | [`RxDB`](../../rxdb/classes/RxDB.md) | The RxDB instance |
 
 ## Returns
 

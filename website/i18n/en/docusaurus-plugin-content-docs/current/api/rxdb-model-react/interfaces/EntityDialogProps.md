@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model-react/src/entity-dialog/entity-dialog.tsx:28](h
 
 Projected content.
 
-***
+---
 
 ### onCloseRequested? \{#oncloserequested\}
 
@@ -32,7 +32,7 @@ Close request (triggered by the title bar close button; mask clicks / Escape clo
 
 `void`
 
-***
+---
 
 ### title \{#title\}
 

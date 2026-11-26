@@ -10,8 +10,8 @@ Derives a stable holder ID from an authenticated identity; the credential itself
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter   | Type                                            |
+| ----------- | ----------------------------------------------- |
 | `principal` | [`P2PPrincipal`](../interfaces/P2PPrincipal.md) |
 
 ## Returns

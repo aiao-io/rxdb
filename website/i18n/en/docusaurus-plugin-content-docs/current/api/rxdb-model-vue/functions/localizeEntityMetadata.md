@@ -10,10 +10,10 @@ Clones the display metadata and resolves entity, property and relation copy; the
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `metadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | The entity metadata declared by the database. |
-| `i18n?` | [`ModelI18n`](../interfaces/ModelI18n.md) | The component runtime that can inspect the catalog. |
+| Parameter  | Type                                                          | Description                                         |
+| ---------- | ------------------------------------------------------------- | --------------------------------------------------- |
+| `metadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | The entity metadata declared by the database.       |
+| `i18n?`    | [`ModelI18n`](../interfaces/ModelI18n.md)                     | The component runtime that can inspect the catalog. |
 
 ## Returns
 

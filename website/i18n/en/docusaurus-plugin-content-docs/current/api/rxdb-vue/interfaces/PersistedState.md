@@ -1,5 +1,5 @@
 ---
-sidebar_label: "PersistedState⟨T⟩"
+sidebar_label: 'PersistedState⟨T⟩'
 ---
 
 # PersistedState`<T>`
@@ -10,8 +10,8 @@ The persisted state of a given `namespace + name`.
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                    | Description      |
+| --------------------------------- | ---------------- |
 | <a id="type-parameter-t"></a> `T` | State value type |
 
 ## Properties
@@ -30,7 +30,7 @@ The most recent persistence failure; cleared automatically after a successful wr
 
 Quota exceeded, circular references, `BigInt` and the like all make the write fail while the in-memory value updates normally — only this field lets the caller know the data was not persisted.
 
-***
+---
 
 ### value \{#value\}
 

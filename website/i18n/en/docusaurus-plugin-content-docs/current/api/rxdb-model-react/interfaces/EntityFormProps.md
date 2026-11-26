@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model-react/src/entity-form/entity-form.tsx:31](https
 
 Form data (field name → value).
 
-***
+---
 
 ### fields \{#fields\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-model-react/src/entity-form/entity-form.tsx:29](https
 
 Form field configuration.
 
-***
+---
 
 ### mode? \{#mode\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-model-react/src/entity-form/entity-form.tsx:33](https
 
 Form mode (view / edit / create), defaults to `view`.
 
-***
+---
 
 ### onFieldChanged? \{#onfieldchanged\}
 
@@ -54,15 +54,15 @@ Field value changed.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | [`FormFieldChangeEvent`](FormFieldChangeEvent.md) |
+| Parameter | Type                                              |
+| --------- | ------------------------------------------------- |
+| `event`   | [`FormFieldChangeEvent`](FormFieldChangeEvent.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onFormCancelled? \{#onformcancelled\}
 
@@ -78,7 +78,7 @@ Cancelled (local data resets to the most recent input).
 
 `void`
 
-***
+---
 
 ### onFormSubmitted? \{#onformsubmitted\}
 
@@ -92,15 +92,15 @@ Submitted after validation passes.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `data` | [`EntityFormData`](EntityFormData.md) |
+| Parameter | Type                                  |
+| --------- | ------------------------------------- |
+| `data`    | [`EntityFormData`](EntityFormData.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onValidationErrors? \{#onvalidationerrors\}
 
@@ -114,15 +114,15 @@ Validation failed (parse failure or submit validation failure).
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `result` | [`FormValidationResult`](FormValidationResult.md) |
+| Parameter | Type                                              |
+| --------- | ------------------------------------------------- |
+| `result`  | [`FormValidationResult`](FormValidationResult.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### relatedEntityProvider? \{#relatedentityprovider\}
 
@@ -139,7 +139,7 @@ Related-entity candidate provider (data source of the relation-field dropdown).
 Candidates are cached per provider instance: pass in a new provider to recompute the dropdown when the candidate data changes
 (`EntityList` gets a new one with each emission of the related list resource).
 
-***
+---
 
 ### showActions? \{#showactions\}
 

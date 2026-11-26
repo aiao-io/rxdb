@@ -26,10 +26,10 @@ Defined in: [packages/rxdb-adapter-http/src/errors.ts:160](https://github.com/ai
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `reason` | [`HttpPaginationFailure`](../type-aliases/HttpPaginationFailure.md) |
-| `message` | `string` |
+| Parameter | Type                                                                |
+| --------- | ------------------------------------------------------------------- |
+| `reason`  | [`HttpPaginationFailure`](../type-aliases/HttpPaginationFailure.md) |
+| `message` | `string`                                                            |
 
 #### Returns
 
@@ -53,7 +53,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`HttpAdapterError`](HttpAdapterError.md).[`cause`](HttpAdapterError.md#cause)
 
-***
+---
 
 ### code \{#code\}
 
@@ -67,7 +67,7 @@ Defined in: [packages/rxdb-adapter-http/src/errors.ts:29](https://github.com/aia
 
 [`HttpAdapterError`](HttpAdapterError.md).[`code`](HttpAdapterError.md#code)
 
-***
+---
 
 ### message \{#message\}
 
@@ -81,7 +81,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`HttpAdapterError`](HttpAdapterError.md).[`message`](HttpAdapterError.md#message)
 
-***
+---
 
 ### name \{#name\}
 
@@ -95,7 +95,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`HttpAdapterError`](HttpAdapterError.md).[`name`](HttpAdapterError.md#name)
 
-***
+---
 
 ### reason \{#reason\}
 
@@ -105,7 +105,7 @@ readonly reason: HttpPaginationFailure;
 
 Defined in: [packages/rxdb-adapter-http/src/errors.ts:161](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-http/src/errors.ts#L161)
 
-***
+---
 
 ### stack? \{#stack\}
 
@@ -119,7 +119,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`HttpAdapterError`](HttpAdapterError.md).[`stack`](HttpAdapterError.md#stack)
 
-***
+---
 
 ### stackTraceLimit \{#stacktracelimit\}
 
@@ -160,7 +160,7 @@ a string representing the location in the code at which
 ```js
 const myObject = {};
 Error.captureStackTrace(myObject);
-myObject.stack;  // Similar to `new Error().stack`
+myObject.stack; // Similar to `new Error().stack`
 ```
 
 The first line of the trace will be prefixed with
@@ -199,9 +199,9 @@ a();
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `targetObject` | `object` |
+| Parameter         | Type       |
+| ----------------- | ---------- |
+| `targetObject`    | `object`   |
 | `constructorOpt?` | `Function` |
 
 #### Returns
@@ -212,7 +212,7 @@ a();
 
 [`HttpAdapterError`](HttpAdapterError.md).[`captureStackTrace`](HttpAdapterError.md#capturestacktrace)
 
-***
+---
 
 ### prepareStackTrace() \{#preparestacktrace\}
 
@@ -224,9 +224,9 @@ Defined in: node\_modules/.pnpm/@types+node@26.6.6/node\_modules/@types/node/glo
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `err` | `Error` |
+| Parameter     | Type         |
+| ------------- | ------------ |
+| `err`         | `Error`      |
 | `stackTraces` | `CallSite`[] |
 
 #### Returns

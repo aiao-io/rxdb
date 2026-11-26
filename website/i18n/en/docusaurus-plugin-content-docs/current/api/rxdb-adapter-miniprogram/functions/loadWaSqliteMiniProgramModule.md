@@ -10,10 +10,10 @@ Loads the synchronous wa-sqlite Emscripten module using the mini program WASM ru
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | `Pick`&lt;[`WaSqliteMiniProgramOptions`](../interfaces/WaSqliteMiniProgramOptions.md), `"moduleFactory"` \| `"wasmPath"` \| `"wasmRuntime"`&gt; | The module factory, the wasm path and the WASM runtime |
-| `host` | [`MiniProgramWasmHost`](../type-aliases/MiniProgramWasmHost.md) | The host: `wasmRuntimeName` is used in errors, and `defaultWasmPath` when `wasmPath` is not passed |
+| Parameter | Type                                                                                                                                            | Description                                                                                        |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `options` | `Pick`&lt;[`WaSqliteMiniProgramOptions`](../interfaces/WaSqliteMiniProgramOptions.md), `"moduleFactory"` \| `"wasmPath"` \| `"wasmRuntime"`&gt; | The module factory, the wasm path and the WASM runtime                                             |
+| `host`    | [`MiniProgramWasmHost`](../type-aliases/MiniProgramWasmHost.md)                                                                                 | The host: `wasmRuntimeName` is used in errors, and `defaultWasmPath` when `wasmPath` is not passed |
 
 ## Returns
 

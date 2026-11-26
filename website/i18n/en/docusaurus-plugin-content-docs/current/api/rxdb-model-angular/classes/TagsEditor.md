@@ -5,6 +5,7 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/tags-editor.d.ts:16
 Tag (array) input editor
 
 The overlay shows tag chips + an input box, suitable for editing stringArray / numberArray types.
+
 - Enter or comma: adds the current input as a new tag
 - Backspace (when the input box is empty): removes the last tag
 - Click ×: removes the corresponding tag
@@ -31,9 +32,9 @@ Creates a tag editor
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `mode?` | [`TagsMode`](../type-aliases/TagsMode.md) | Tag mode, 'string' (default) or 'number' |
+| Parameter | Type                                      | Description                              |
+| --------- | ----------------------------------------- | ---------------------------------------- |
+| `mode?`   | [`TagsMode`](../type-aliases/TagsMode.md) | Tag mode, 'string' (default) or 'number' |
 
 #### Returns
 
@@ -71,7 +72,7 @@ Returns the tag array; in number mode returns a number array
 
 `IEditor.getValue`
 
-***
+---
 
 ### isEditorElement() \{#iseditorelement\}
 
@@ -85,9 +86,9 @@ Determines whether the target element is inside this editor overlay
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `el` | `HTMLElement` \| `EventTarget` |
+| Parameter | Type                           |
+| --------- | ------------------------------ |
+| `el`      | `HTMLElement` \| `EventTarget` |
 
 #### Returns
 
@@ -97,7 +98,7 @@ Determines whether the target element is inside this editor overlay
 
 `IEditor.isEditorElement`
 
-***
+---
 
 ### onEnd() \{#onend\}
 
@@ -117,7 +118,7 @@ Removes the overlay and unbinds the global click event
 
 `IEditor.onEnd`
 
-***
+---
 
 ### onStart() \{#onstart\}
 
@@ -131,9 +132,9 @@ Pops up the tag editing overlay, parses the initial tags from the cell value, an
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `ctx` | `EditContext`&lt;`unknown`&gt; |
+| Parameter | Type                           |
+| --------- | ------------------------------ |
+| `ctx`     | `EditContext`&lt;`unknown`&gt; |
 
 #### Returns
 

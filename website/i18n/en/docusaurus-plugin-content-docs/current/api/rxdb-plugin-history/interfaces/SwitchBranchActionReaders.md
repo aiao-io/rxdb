@@ -31,9 +31,9 @@ Queries branches by condition
 
 ##### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `options` | [`FindOptions`](../../rxdb/interfaces/FindOptions.md)&lt;*typeof* [`RxDBBranch`](../../rxdb/classes/RxDBBranch.md), [`RxDBBranchRuleGroup`](../../rxdb/type-aliases/RxDBBranchRuleGroup.md)&gt; | Query options |
+| Parameter | Type                                                                                                                                                                                            | Description   |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| `options` | [`FindOptions`](../../rxdb/interfaces/FindOptions.md)&lt;_typeof_ [`RxDBBranch`](../../rxdb/classes/RxDBBranch.md), [`RxDBBranchRuleGroup`](../../rxdb/type-aliases/RxDBBranchRuleGroup.md)&gt; | Query options |
 
 ##### Returns
 
@@ -41,7 +41,7 @@ Queries branches by condition
 
 The matching branch rows
 
-***
+---
 
 ### changeRepository \{#changerepository\}
 

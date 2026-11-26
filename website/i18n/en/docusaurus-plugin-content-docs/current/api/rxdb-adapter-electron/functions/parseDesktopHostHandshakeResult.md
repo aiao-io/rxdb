@@ -10,9 +10,9 @@ Validates a `handshake` response.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | The unvalidated payload returned by the host |
+| Parameter | Type      | Description                                  |
+| --------- | --------- | -------------------------------------------- |
+| `value`   | `unknown` | The unvalidated payload returned by the host |
 
 ## Returns
 

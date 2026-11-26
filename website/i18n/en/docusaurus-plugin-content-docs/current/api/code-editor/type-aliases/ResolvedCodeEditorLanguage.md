@@ -1,18 +1,18 @@
 # ResolvedCodeEditorLanguage
 
 ```ts
-type ResolvedCodeEditorLanguage = 
+type ResolvedCodeEditorLanguage =
   | {
-  kind: "none";
-}
+      kind: 'none';
+    }
   | {
-  kind: "not-found";
-  name: string;
-}
+      kind: 'not-found';
+      name: string;
+    }
   | {
-  description: CodeEditorLanguageDescription;
-  kind: "found";
-};
+      description: CodeEditorLanguageDescription;
+      kind: 'found';
+    };
 ```
 
 Defined in: [language-resolution.ts:31](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/code-editor/src/language-resolution.ts#L31)
@@ -27,7 +27,7 @@ The three branches correspond to the editor's three dispositions: install the la
 
 ```ts
 {
-  kind: "none";
+  kind: 'none';
 }
 ```
 
@@ -39,13 +39,13 @@ readonly kind: "none";
 
 Explicitly no syntax highlighting needed: the language name is empty, is `'plaintext'`, or the candidate list is empty.
 
-***
+---
 
 ### Type Literal
 
 ```ts
 {
-  kind: "not-found";
+  kind: 'not-found';
   name: string;
 }
 ```
@@ -66,14 +66,14 @@ readonly name: string;
 
 The language name that could not be resolved, with case preserved so it can appear in error messages.
 
-***
+---
 
 ### Type Literal
 
 ```ts
 {
   description: CodeEditorLanguageDescription;
-  kind: "found";
+  kind: 'found';
 }
 ```
 

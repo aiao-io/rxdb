@@ -10,9 +10,9 @@ Determines whether an error is a unique / primary key constraint conflict.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `cause` | `unknown` | The raw error thrown by the adapter |
+| Parameter | Type      | Description                         |
+| --------- | --------- | ----------------------------------- |
+| `cause`   | `unknown` | The raw error thrown by the adapter |
 
 ## Returns
 

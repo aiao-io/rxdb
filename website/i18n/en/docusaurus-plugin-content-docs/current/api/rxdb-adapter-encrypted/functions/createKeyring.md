@@ -10,9 +10,9 @@ Creates an initially locked [Keyring](../classes/Keyring.md) bound to the given 
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `opts` | `CreateKeyringOptions` |
+| Parameter | Type                   |
+| --------- | ---------------------- |
+| `opts`    | `CreateKeyringOptions` |
 
 ## Returns
 

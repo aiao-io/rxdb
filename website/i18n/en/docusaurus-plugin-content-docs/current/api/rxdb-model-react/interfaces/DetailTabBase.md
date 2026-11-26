@@ -21,7 +21,7 @@ Defined in: packages/rxdb-model/dist/entity-detail/interfaces.d.ts:11
 
 Unique identifier of the tab
 
-***
+---
 
 ### label \{#label\}
 
@@ -33,7 +33,7 @@ Defined in: packages/rxdb-model/dist/entity-detail/interfaces.d.ts:13
 
 Display name of the tab
 
-***
+---
 
 ### type \{#type\}
 

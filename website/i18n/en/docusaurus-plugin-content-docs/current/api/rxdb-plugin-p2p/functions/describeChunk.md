@@ -10,10 +10,10 @@ Returns the description of one chunk according to the manifest.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                                                              |
+| ---------- | ----------------------------------------------------------------------------------------------------------------- |
 | `manifest` | `Pick`&lt;[`P2PFileManifest`](../interfaces/P2PFileManifest.md), `"size"` \| `"chunkSize"` \| `"chunkHashes"`&gt; |
-| `index` | `number` |
+| `index`    | `number`                                                                                                          |
 
 ## Returns
 

@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model/src/entity-table/editors/multiselect-editor.ts:
 
 Color dot color (optional, shown to the left of the checkbox)
 
-***
+---
 
 ### disabled? \{#disabled\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-model/src/entity-table/editors/multiselect-editor.ts:
 
 Whether it is disabled (affects only display and selection, not validity)
 
-***
+---
 
 ### id \{#id\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-model/src/entity-table/editors/multiselect-editor.ts:
 
 Unique identifier of the option (also the stored value)
 
-***
+---
 
 ### name \{#name\}
 

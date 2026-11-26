@@ -13,15 +13,15 @@ so that all steps that rewrite global state fall inside the lock, eliminating cr
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `run` | () => `Promise`&lt;`T`&gt; | Async function that performs the actual load |
+| Parameter | Type                       | Description                                  |
+| --------- | -------------------------- | -------------------------------------------- |
+| `run`     | () => `Promise`&lt;`T`&gt; | Async function that performs the actual load |
 
 ## Returns
 

@@ -10,8 +10,8 @@ Generates the inline script placed in `<head>`: before the JS bundle loads it wr
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                | Description                                                    |
+| --------- | ------------------------------------------------------------------- | -------------------------------------------------------------- |
 | `options` | [`BootstrapScriptOptions`](../interfaces/BootstrapScriptOptions.md) | The storage keys and the theme name corresponding to `system`. |
 
 ## Returns

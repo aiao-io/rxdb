@@ -10,9 +10,9 @@ Diagnostic callback: invoked when a parseable change notification is received (w
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `report` | [`HttpChangeFeedNotificationReport`](../interfaces/HttpChangeFeedNotificationReport.md) |
+| Parameter | Type                                                                                    |
+| --------- | --------------------------------------------------------------------------------------- |
+| `report`  | [`HttpChangeFeedNotificationReport`](../interfaces/HttpChangeFeedNotificationReport.md) |
 
 ## Returns
 

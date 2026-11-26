@@ -18,8 +18,8 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:552](https://github.com/aiao-io/rx
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type                                      | Description               |
+| ----------- | ----------------------------------------- | ------------------------- |
 | `conflicts` | [`Conflict`](../interfaces/Conflict.md)[] | The pending conflict list |
 
 #### Returns
@@ -38,7 +38,7 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:554](https://github.com/aiao-io/rx
 
 The pending conflict list
 
-***
+---
 
 ### type \{#type\}
 

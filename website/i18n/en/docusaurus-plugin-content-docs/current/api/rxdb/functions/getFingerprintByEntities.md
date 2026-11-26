@@ -10,14 +10,14 @@ Computes the fingerprints of multiple entities.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                            |
+| ----------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                        | Description                                         |
+| ---------- | --------------------------- | --------------------------------------------------- |
 | `entities` | `InstanceType`&lt;`T`&gt;[] | The array of entities whose fingerprints to compute |
 
 ## Returns

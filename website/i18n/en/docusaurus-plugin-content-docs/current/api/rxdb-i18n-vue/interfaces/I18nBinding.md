@@ -6,7 +6,7 @@ The Vue native reactive i18n binding.
 
 ## Extends
 
-- `Pick`&lt;[`I18n`](../../rxdb-i18n/classes/I18n.md), 
+- `Pick`&lt;[`I18n`](../../rxdb-i18n/classes/I18n.md),
   \| `"t"`
   \| `"resolve"`
   \| `"setLocale"`
@@ -26,7 +26,7 @@ Defined in: [rxdb-i18n-vue/src/use-i18n.ts:25](https://github.com/aiao-io/rxdb/b
 
 The set of languages in the registered catalogs.
 
-***
+---
 
 ### formatDate \{#formatdate\}
 
@@ -40,9 +40,9 @@ Formats a date in the current language.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `Date` | The date to display. |
+| Parameter  | Type                    | Description                           |
+| ---------- | ----------------------- | ------------------------------------- |
+| `value`    | `Date`                  | The date to display.                  |
 | `options?` | `DateTimeFormatOptions` | Platform Intl.DateTimeFormat options. |
 
 #### Returns
@@ -55,7 +55,7 @@ The localized date.
 
 `Pick.formatDate`
 
-***
+---
 
 ### formatNumber \{#formatnumber\}
 
@@ -69,9 +69,9 @@ Formats a number in the current language.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `number` | The number to display. |
+| Parameter  | Type                  | Description                         |
+| ---------- | --------------------- | ----------------------------------- |
+| `value`    | `number`              | The number to display.              |
 | `options?` | `NumberFormatOptions` | Platform Intl.NumberFormat options. |
 
 #### Returns
@@ -84,7 +84,7 @@ The localized number.
 
 `Pick.formatNumber`
 
-***
+---
 
 ### formatRelativeTime \{#formatrelativetime\}
 
@@ -98,10 +98,10 @@ Formats a relative time in the current language.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `number` | The amount relative to the current time. |
-| `unit` | `RelativeTimeFormatUnit` | The time unit. |
+| Parameter  | Type                        | Description                               |
+| ---------- | --------------------------- | ----------------------------------------- |
+| `value`    | `number`                    | The amount relative to the current time.  |
+| `unit`     | `RelativeTimeFormatUnit`    | The time unit.                            |
 | `options?` | `RelativeTimeFormatOptions` | Platform Intl.RelativeTimeFormat options. |
 
 #### Returns
@@ -114,7 +114,7 @@ The localized relative time.
 
 `Pick.formatRelativeTime`
 
-***
+---
 
 ### locale \{#locale\}
 
@@ -126,7 +126,7 @@ Defined in: [rxdb-i18n-vue/src/use-i18n.ts:23](https://github.com/aiao-io/rxdb/b
 
 The currently active language.
 
-***
+---
 
 ### resolve \{#resolve\}
 
@@ -140,9 +140,9 @@ Resolves the source copy and its origin along the shared fallback chain.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | `string` | The message key. |
+| Parameter    | Type     | Description                                                           |
+| ------------ | -------- | --------------------------------------------------------------------- |
+| `key`        | `string` | The message key.                                                      |
 | `namespace?` | `string` | The message namespace; the constructor options are used when omitted. |
 
 #### Returns
@@ -155,12 +155,12 @@ The source copy of the first hit; value is undefined on a miss.
 
 `Pick.resolve`
 
-***
+---
 
 ### setLocale \{#setlocale\}
 
 ```ts
-setLocale: (locale) => Promise<void>;
+setLocale: locale => Promise<void>;
 ```
 
 Defined in: rxdb-i18n/dist/i18n.d.ts:66
@@ -169,9 +169,9 @@ Writes the user's language preference in a local transaction; updates the in-mem
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `locale` | `string` | A valid BCP 47 language tag. |
+| Parameter | Type     | Description                  |
+| --------- | -------- | ---------------------------- |
+| `locale`  | `string` | A valid BCP 47 language tag. |
 
 #### Returns
 
@@ -183,7 +183,7 @@ Completes when the current runtime has refreshed; other runtimes follow asynchro
 
 `Pick.setLocale`
 
-***
+---
 
 ### t \{#t\}
 
@@ -197,11 +197,11 @@ Formats an ICU message; returns the key and records a local diagnostic when the 
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | `string` | The message key. |
-| `params?` | `Record`&lt;`string`, `unknown`&gt; | ICU interpolation, plural or select parameters. |
-| `namespace?` | `string` | The message namespace; the constructor options are used when omitted. |
+| Parameter    | Type                                | Description                                                           |
+| ------------ | ----------------------------------- | --------------------------------------------------------------------- |
+| `key`        | `string`                            | The message key.                                                      |
+| `params?`    | `Record`&lt;`string`, `unknown`&gt; | ICU interpolation, plural or select parameters.                       |
+| `namespace?` | `string`                            | The message namespace; the constructor options are used when omitted. |
 
 #### Returns
 

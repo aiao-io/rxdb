@@ -1,7 +1,7 @@
 # ~~Variable: REMOTE_CHANGES_PENDING_EVENT~~
 
 ```ts
-const REMOTE_CHANGES_PENDING_EVENT: "REMOTE_CHANGES_PENDING";
+const REMOTE_CHANGES_PENDING_EVENT: 'REMOTE_CHANGES_PENDING';
 ```
 
 Defined in: [packages/rxdb/src/rxdb-events.ts:120](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-events.ts#L120)

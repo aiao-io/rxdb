@@ -1,12 +1,7 @@
 # validateEncryptedQuery()
 
 ```ts
-function validateEncryptedQuery(
-   metadata, 
-   args, 
-   resolveEntity?, 
-   normalizeField?
-): void;
+function validateEncryptedQuery(metadata, args, resolveEntity?, normalizeField?): void;
 ```
 
 Defined in: [packages/rxdb-adapter-encrypted/src/validate-encrypted-query.ts:17](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-encrypted/src/validate-encrypted-query.ts#L17)
@@ -18,16 +13,16 @@ Dotted paths that cannot be resolved fail-closed; plain unencrypted fields are u
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `metadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) |
-| `args` | \{ `groupBy?`: readonly `string`[]; `orderBy?`: readonly [`OrderBy`](../../rxdb/interfaces/OrderBy.md)&lt;`string`&gt;[]; `projection?`: readonly `string`[]; `where?`: [`RuleGroup`](../../rxdb/type-aliases/RuleGroup.md); \} |
-| `args.groupBy?` | readonly `string`[] |
-| `args.orderBy?` | readonly [`OrderBy`](../../rxdb/interfaces/OrderBy.md)&lt;`string`&gt;[] |
-| `args.projection?` | readonly `string`[] |
-| `args.where?` | [`RuleGroup`](../../rxdb/type-aliases/RuleGroup.md) |
-| `resolveEntity?` | [`EncryptedEntityResolver`](../type-aliases/EncryptedEntityResolver.md) |
-| `normalizeField?` | `EncryptedFieldPathNormalizer` |
+| Parameter          | Type                                                                                                                                                                                                                            |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `metadata`         | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md)                                                                                                                                                                   |
+| `args`             | \{ `groupBy?`: readonly `string`[]; `orderBy?`: readonly [`OrderBy`](../../rxdb/interfaces/OrderBy.md)&lt;`string`&gt;[]; `projection?`: readonly `string`[]; `where?`: [`RuleGroup`](../../rxdb/type-aliases/RuleGroup.md); \} |
+| `args.groupBy?`    | readonly `string`[]                                                                                                                                                                                                             |
+| `args.orderBy?`    | readonly [`OrderBy`](../../rxdb/interfaces/OrderBy.md)&lt;`string`&gt;[]                                                                                                                                                        |
+| `args.projection?` | readonly `string`[]                                                                                                                                                                                                             |
+| `args.where?`      | [`RuleGroup`](../../rxdb/type-aliases/RuleGroup.md)                                                                                                                                                                             |
+| `resolveEntity?`   | [`EncryptedEntityResolver`](../type-aliases/EncryptedEntityResolver.md)                                                                                                                                                         |
+| `normalizeField?`  | `EncryptedFieldPathNormalizer`                                                                                                                                                                                                  |
 
 ## Returns
 

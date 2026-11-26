@@ -16,7 +16,7 @@ Defined in: [packages/rxdb/src/entity/exclusion-constraint.ts:104](https://githu
 
 Equality columns.
 
-***
+---
 
 ### name \{#name\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb/src/entity/exclusion-constraint.ts:102](https://githu
 
 The deterministic constraint name (starting with `ex_`, containing the definition hash).
 
-***
+---
 
 ### ranges \{#ranges\}
 

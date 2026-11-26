@@ -10,9 +10,9 @@ Checks whether a storage configuration has the PGlite data directory shape.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | Arbitrary value, usually from unvalidated configuration or IPC input |
+| Parameter | Type      | Description                                                          |
+| --------- | --------- | -------------------------------------------------------------------- |
+| `value`   | `unknown` | Arbitrary value, usually from unvalidated configuration or IPC input |
 
 ## Returns
 

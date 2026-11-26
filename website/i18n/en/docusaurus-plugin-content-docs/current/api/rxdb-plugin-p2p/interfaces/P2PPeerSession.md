@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/session/session.ts:121](https://github
 
 Fulfills with the end reason when the session ends; never rejects.
 
-***
+---
 
 ### connectionId \{#connectionid\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/session/session.ts:115](https://github
 
 The connection identifier assigned by the signaling layer.
 
-***
+---
 
 ### local \{#local\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/session/session.ts:117](https://github
 
 The local identity.
 
-***
+---
 
 ### peer \{#peer\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/session/session.ts:123](https://github
 
 The authenticated peer identity; undefined before the session is ready.
 
-***
+---
 
 ### ready \{#ready\}
 
@@ -64,7 +64,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/session/session.ts:119](https://github
 
 Fulfills with the peer identity after both sides exchange hello and the peer passes authentication; rejects with the end reason if the session ends before that.
 
-***
+---
 
 ### role \{#role\}
 
@@ -76,7 +76,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/session/session.ts:113](https://github
 
 The local side's role.
 
-***
+---
 
 ### state \{#state\}
 
@@ -102,22 +102,22 @@ Ends the session: notifies the peer and then closes the underlying transport; sa
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                        | Description                                                                |
+| --------- | --------------------------- | -------------------------------------------------------------------------- |
 | `reason?` | `"closed"` \| `"duplicate"` | The reason told to the peer: `closed`, or `duplicate` during deduplication |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### request() \{#request\}
 
 ```ts
 request(
-   protocol, 
-   call, 
+   protocol,
+   call,
    signal?
 ): Promise<P2PReply>;
 ```
@@ -128,11 +128,11 @@ Sends a request to the peer; waits for readiness before sending, and queues when
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `protocol` | `string` | - |
-| `call` | [`P2PCall`](P2PCall.md) | - |
-| `signal?` | `AbortSignal` | Cancels this request: the local side stops waiting immediately and notifies the peer to abort processing |
+| Parameter  | Type                    | Description                                                                                              |
+| ---------- | ----------------------- | -------------------------------------------------------------------------------------------------------- |
+| `protocol` | `string`                | -                                                                                                        |
+| `call`     | [`P2PCall`](P2PCall.md) | -                                                                                                        |
+| `signal?`  | `AbortSignal`           | Cancels this request: the local side stops waiting immediately and notifies the peer to abort processing |
 
 #### Returns
 
@@ -146,7 +146,7 @@ P2PRequestError The peer rejected the request, or the protocol is not negotiated
 
 P2PSessionClosedError The session has ended
 
-***
+---
 
 ### supports() \{#supports\}
 
@@ -160,8 +160,8 @@ Whether the peer supports a protocol: both ends declared it with the same versio
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `protocol` | `string` |
 
 #### Returns

@@ -10,10 +10,10 @@ Confines Tab within the modal; an empty modal focuses the container, middle posi
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `root` | `HTMLElement` | The root element of the current board |
-| `backwards` | `boolean` | Whether Shift + Tab was pressed |
+| Parameter   | Type          | Description                           |
+| ----------- | ------------- | ------------------------------------- |
+| `root`      | `HTMLElement` | The root element of the current board |
+| `backwards` | `boolean`     | Whether Shift + Tab was pressed       |
 
 ## Returns
 

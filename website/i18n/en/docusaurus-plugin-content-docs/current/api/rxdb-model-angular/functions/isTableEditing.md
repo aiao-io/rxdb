@@ -10,9 +10,9 @@ Checks whether the table is currently editing
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `table` | `ListTableAll` | The target table instance |
+| Parameter | Type           | Description               |
+| --------- | -------------- | ------------------------- |
+| `table`   | `ListTableAll` | The target table instance |
 
 ## Returns
 

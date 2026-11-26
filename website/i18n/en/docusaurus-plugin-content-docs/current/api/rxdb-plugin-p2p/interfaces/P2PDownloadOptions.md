@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/fallback.ts:39](https://github.com/aia
 
 Chunks completed in a previous attempt; requires `readChunk` to be provided.
 
-***
+---
 
 ### concurrency? \{#concurrency\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/fallback.ts:43](https://github.com/aia
 
 Number of chunk requests in flight at once, 1-8.
 
-***
+---
 
 ### fallback? \{#fallback\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/fallback.ts:29](https://github.com/aia
 
 Server fallback downloader; when not configured, P2P failures are errors directly.
 
-***
+---
 
 ### manifest \{#manifest\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/fallback.ts:25](https://github.com/aia
 
 The manifest the requester trusts.
 
-***
+---
 
 ### onProgress? \{#onprogress\}
 
@@ -66,20 +66,20 @@ Local progress events; `route` indicates whether P2P or the server is currently 
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `progress` | \{ `bytesTransferred`: `number`; `completedChunks`: `number`; `route`: `"p2p"` \| `"server"`; `totalBytes`: `number`; `totalChunks`: `number`; \} |
-| `progress.bytesTransferred` | `number` |
-| `progress.completedChunks` | `number` |
-| `progress.route` | `"p2p"` \| `"server"` |
-| `progress.totalBytes` | `number` |
-| `progress.totalChunks` | `number` |
+| Parameter                   | Type                                                                                                                                              |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `progress`                  | \{ `bytesTransferred`: `number`; `completedChunks`: `number`; `route`: `"p2p"` \| `"server"`; `totalBytes`: `number`; `totalChunks`: `number`; \} |
+| `progress.bytesTransferred` | `number`                                                                                                                                          |
+| `progress.completedChunks`  | `number`                                                                                                                                          |
+| `progress.route`            | `"p2p"` \| `"server"`                                                                                                                             |
+| `progress.totalBytes`       | `number`                                                                                                                                          |
+| `progress.totalChunks`      | `number`                                                                                                                                          |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### readChunk? \{#readchunk\}
 
@@ -93,15 +93,15 @@ Reads back an on-disk chunk: skips verified chunks when resuming or falling back
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `index` | `number` |
+| Parameter | Type     |
+| --------- | -------- |
+| `index`   | `number` |
 
 #### Returns
 
 `Promise`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt;
 
-***
+---
 
 ### requestTimeoutMs? \{#requesttimeoutms\}
 
@@ -113,7 +113,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/fallback.ts:41](https://github.com/aia
 
 Timeout of a single chunk request (milliseconds).
 
-***
+---
 
 ### signal? \{#signal\}
 
@@ -125,7 +125,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/fallback.ts:33](https://github.com/aia
 
 Cancels the whole download.
 
-***
+---
 
 ### sources \{#sources\}
 
@@ -137,7 +137,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/fallback.ts:27](https://github.com/aia
 
 Authenticated holding peers; when empty, the server is used directly.
 
-***
+---
 
 ### token? \{#token\}
 
@@ -149,7 +149,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/fallback.ts:31](https://github.com/aia
 
 The auth credential used for the server download.
 
-***
+---
 
 ### writeChunk \{#writechunk\}
 
@@ -163,10 +163,10 @@ Writes a verified chunk to disk.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `index` | `number` |
-| `bytes` | `Uint8Array` |
+| Parameter | Type         |
+| --------- | ------------ |
+| `index`   | `number`     |
+| `bytes`   | `Uint8Array` |
 
 #### Returns
 

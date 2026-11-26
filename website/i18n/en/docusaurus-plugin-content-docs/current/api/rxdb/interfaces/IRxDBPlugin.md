@@ -72,7 +72,7 @@ async install(scope: LifecycleScope) {
 }
 ```
 
-***
+---
 
 ### instanceLifecycle? \{#instancelifecycle\}
 
@@ -111,7 +111,7 @@ Stops accepting tasks without waiting for in-flight transactions.
 
 `void`
 
-***
+---
 
 ### lifecycle? \{#lifecycle\}
 
@@ -132,7 +132,7 @@ Dual-version plugins (installable into both old and new hosts) write both: old h
 An explicit marker is required rather than checking whether `install.length` has a parameter: transpiled output, `Function.prototype.bind`
 and minifiers all rewrite parameter counts, so treating it as a contract would misjudge.
 
-***
+---
 
 ### name \{#name\}
 
@@ -144,7 +144,7 @@ Defined in: [packages/rxdb/src/rxdb-plugin.ts:108](https://github.com/aiao-io/rx
 
 The plugin name, used for logging and host-side error attribution
 
-***
+---
 
 ### system? \{#system\}
 
@@ -165,7 +165,7 @@ table creation, while system tables must come out in the same batch as the table
 Plugins carrying this field must be `use()`d before `connect()`: too late, and the host **throws** instead of silently skipping.
 The consequence of a silent skip is a database "with the plugin installed but the tables never created" — which produces no compile error.
 
-***
+---
 
 ### worktreeTableSet? \{#worktreetableset\}
 
@@ -207,7 +207,7 @@ Per the repository's deprecation cycle, this member is kept for at least one min
 version and is recorded in the migration docs. Until then the calling contract is unchanged — migrated plugins can simply delete it,
 and dual-version plugins keeping it are not cleaned up twice.
 
-***
+---
 
 ### install() \{#install\}
 
@@ -221,9 +221,9 @@ Installs the plugin.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `scope` | [`LifecycleScope`](../../utils/classes/LifecycleScope.md) | The plugin activation scope of this connection epoch; one `acquire()` wraps only one acquisition step that may throw |
+| Parameter | Type                                                      | Description                                                                                                          |
+| --------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `scope`   | [`LifecycleScope`](../../utils/classes/LifecycleScope.md) | The plugin activation scope of this connection epoch; one `acquire()` wraps only one acquisition step that may throw |
 
 #### Returns
 

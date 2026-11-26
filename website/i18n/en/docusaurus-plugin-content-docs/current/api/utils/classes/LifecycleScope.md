@@ -9,6 +9,7 @@ It replaces hand-written pairings scattered around — boolean guards, `Map` boo
 ## Remarks
 
 Semantics:
+
 - Disposal runs in **reverse** order (last registered is undone first) and **serially** awaits async disposal to settle.
 - One failing disposer **does not short-circuit** the others; after all of them have run, exactly one error is rethrown as-is, and more than one is thrown as an `AggregateError` preserving execution order.
 - Disposal is **idempotent**, and success and failure are treated alike: repeated calls return the **same** `Promise` instance, and a first failure returns that same failed result — no retry, no new errors.
@@ -46,9 +47,9 @@ Defined in: [packages/utils/src/lifecycle/lifecycle-scope.ts:81](https://github.
 
 #### Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `label?` | `string` | `'anonymous'` | Diagnostic label, defaulting to `'anonymous'` |
+| Parameter | Type     | Default value | Description                                   |
+| --------- | -------- | ------------- | --------------------------------------------- |
+| `label?`  | `string` | `'anonymous'` | Diagnostic label, defaulting to `'anonymous'` |
 
 #### Returns
 
@@ -98,10 +99,10 @@ Registers one "acquire ownership + how to give it up" pair.
 
 #### Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `setup` | () => [`AcquireResult`](../type-aliases/AcquireResult.md) | `undefined` | Runs the side effect and returns how to undo it; returning `undefined` means nothing needs to be released. **One `acquire()` wraps only one possibly-throwing acquisition step** — if setup performs two steps and the second throws, the resource created by the first never enters the list and the host's rollback cannot reach it. For N resources, call `acquire()` N times, registering them in acquisition order for safe rollback. |
-| `label?` | `string` | `'anonymous'` | Diagnostic label, defaulting to `'anonymous'` |
+| Parameter | Type                                                      | Default value | Description                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| --------- | --------------------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `setup`   | () => [`AcquireResult`](../type-aliases/AcquireResult.md) | `undefined`   | Runs the side effect and returns how to undo it; returning `undefined` means nothing needs to be released. **One `acquire()` wraps only one possibly-throwing acquisition step** — if setup performs two steps and the second throws, the resource created by the first never enters the list and the host's rollback cannot reach it. For N resources, call `acquire()` N times, registering them in acquisition order for safe rollback. |
+| `label?`  | `string`                                                  | `'anonymous'` | Diagnostic label, defaulting to `'anonymous'`                                                                                                                                                                                                                                                                                                                                                                                              |
 
 #### Returns
 
@@ -113,7 +114,7 @@ A handle to undo this entry early on its own. Once called, the entry is out — 
 
 [LifecycleScopeDisposedError](LifecycleScopeDisposedError.md) thrown synchronously when the scope is no longer `active`; `setup` is **not executed** (no new resource is created). Disposing this scope **during** `setup` (inside the synchronous callback) is a different timeline: `setup` has already finished and the new resource is already in hand, so here it immediately takes over its disposal (calls the disposer once) and then rejects the registration — instead of quietly stuffing it into a scope whose list has already been emptied and which no `dispose()` will ever touch again (RV-063: previously the disposer was simply discarded after a state check).
 
-***
+---
 
 ### child() \{#child\}
 
@@ -129,9 +130,9 @@ The child occupies its **creation position** in the parent's registration sequen
 
 #### Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `label?` | `string` | `'anonymous'` | Diagnostic label, defaulting to `'anonymous'` |
+| Parameter | Type     | Default value | Description                                   |
+| --------- | -------- | ------------- | --------------------------------------------- |
+| `label?`  | `string` | `'anonymous'` | Diagnostic label, defaulting to `'anonymous'` |
 
 #### Returns
 
@@ -143,7 +144,7 @@ The new child scope
 
 [LifecycleScopeDisposedError](LifecycleScopeDisposedError.md) thrown synchronously when the scope is no longer `active`; **no** scope instance is returned — creating a child scope is itself a registration and follows the same rejection rules as [LifecycleScope.acquire](#acquire). Silently returning a child scope hanging under an already-disposed parent would make the caller believe registration succeeded while it would never be disposed.
 
-***
+---
 
 ### dispose() \{#dispose\}
 
@@ -171,7 +172,7 @@ Idempotent, and **success and failure are treated alike**: repeated calls (inclu
 
 A disposer calling this scope's `dispose()` **synchronously** (the `return () => scope.dispose()` pattern) is a no-op: the list is already running, so nothing is re-executed and nothing deadlocks. But a disposer calling this scope's `dispose()` **after** its own `await` is unsupported — by then it is outside the synchronous frame and receives the in-flight Promise of this round, which is itself waiting for this disposer to return; deadlock is guaranteed. To dispose during async teardown, dispose a **child scope**, not yourself.
 
-***
+---
 
 ### getEntries() \{#getentries\}
 

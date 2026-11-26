@@ -10,9 +10,9 @@ Row-count budget probe before the contains fallback.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `table` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `table`   | `string` |
 
 ## Returns
 

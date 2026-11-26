@@ -10,8 +10,8 @@ Loads and caches the official sqlite-wasm oo1 module.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                        | Description                                                   |
+| ---------- | ----------------------------------------------------------- | ------------------------------------------------------------- |
 | `options?` | [`SqliteLoadOptions`](../type-aliases/SqliteLoadOptions.md) | WASM resources, logging, OPFS, and client performance options |
 
 ## Returns

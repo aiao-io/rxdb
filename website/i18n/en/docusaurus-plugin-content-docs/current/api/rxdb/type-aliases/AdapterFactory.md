@@ -1,9 +1,7 @@
 # AdapterFactory
 
 ```ts
-type AdapterFactory = (rxDB) => 
-  | Promise<IRxDBAdapter>
-  | IRxDBAdapter;
+type AdapterFactory = (rxDB) => Promise<IRxDBAdapter> | IRxDBAdapter;
 ```
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:1138](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L1138)
@@ -12,14 +10,14 @@ Adapter factory: this is what `RxDB.adapter()` registers, not an already-built a
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rxDB` | [`RxDB`](../classes/RxDB.md) |
+| Parameter | Type                         |
+| --------- | ---------------------------- |
+| `rxDB`    | [`RxDB`](../classes/RxDB.md) |
 
 ## Returns
 
-  \| `Promise`&lt;[`IRxDBAdapter`](../interfaces/IRxDBAdapter.md)&gt;
-  \| [`IRxDBAdapter`](../interfaces/IRxDBAdapter.md)
+\| `Promise`&lt;[`IRxDBAdapter`](../interfaces/IRxDBAdapter.md)&gt;
+\| [`IRxDBAdapter`](../interfaces/IRxDBAdapter.md)
 
 ## Remarks
 

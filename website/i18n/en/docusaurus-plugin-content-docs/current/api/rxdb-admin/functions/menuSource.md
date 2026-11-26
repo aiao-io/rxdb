@@ -10,15 +10,15 @@ Menu source: one entry per menu item that has a route (descendants of routed nod
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `shell` | [`AdminShell`](../interfaces/AdminShell.md)&lt;`T`&gt; | The shell. |
+| Parameter | Type                                                   | Description |
+| --------- | ------------------------------------------------------ | ----------- |
+| `shell`   | [`AdminShell`](../interfaces/AdminShell.md)&lt;`T`&gt; | The shell.  |
 
 ## Returns
 

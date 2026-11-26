@@ -1,12 +1,12 @@
 # FetchMetadataResult
 
 ```ts
-type FetchMetadataResult = 
+type FetchMetadataResult =
   | QueryCacheEntityMetadata[]
   | {
-  nextPageToken?: string;
-  rows: QueryCacheEntityMetadata[];
-};
+      nextPageToken?: string;
+      rows: QueryCacheEntityMetadata[];
+    };
 ```
 
 Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:90](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-http/src/http.interface.ts#L90)
@@ -19,7 +19,7 @@ Single-page parse result, returned as a **discriminated** union of two shapes.
 
 Shape 1 (`offset`): short-page termination (`rows.length < limit` means the last page)
 
-***
+---
 
 ### Type Literal
 

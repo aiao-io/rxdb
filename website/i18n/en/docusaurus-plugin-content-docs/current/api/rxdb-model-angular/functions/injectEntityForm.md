@@ -10,8 +10,8 @@ Injects a reactive entity form controller; subscriptions are released automatica
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                                                                                                       |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `options` | [`AngularHeadlessOptions`](../type-aliases/AngularHeadlessOptions.md)&lt;[`EntityFormControllerOptions`](../interfaces/EntityFormControllerOptions.md)&gt; |
 
 ## Returns

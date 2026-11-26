@@ -10,8 +10,8 @@ Provides a custom theme (the React equivalent of Angular's `provideQueryBuilderT
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter           | Type                                                                                |
+| ------------------- | ----------------------------------------------------------------------------------- |
 | `__namedParameters` | [`QueryBuilderThemeProviderProps`](../interfaces/QueryBuilderThemeProviderProps.md) |
 
 ## Returns

@@ -1,7 +1,7 @@
 # KeyValuePropertyMetadata
 
 ```ts
-type KeyValuePropertyMetadata = 
+type KeyValuePropertyMetadata =
   | Pick<StringProperty, support_keys>
   | Pick<NumberProperty, support_keys>
   | Pick<IntegerProperty, support_keys>

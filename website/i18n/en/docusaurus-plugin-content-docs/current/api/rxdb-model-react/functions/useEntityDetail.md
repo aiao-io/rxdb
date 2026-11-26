@@ -10,8 +10,8 @@ React entity detail binding; field/mode changes do not reset the uncommitted dra
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                              |
+| --------- | --------------------------------------------------------------------------------- |
 | `options` | [`EntityDetailControllerOptions`](../interfaces/EntityDetailControllerOptions.md) |
 
 ## Returns

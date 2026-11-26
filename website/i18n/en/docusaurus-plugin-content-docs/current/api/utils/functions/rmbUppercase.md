@@ -12,9 +12,9 @@ The fractional part is rounded to the li (thousandth of a yuan) and carries into
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `number` | The amount; negative numbers start with "owed" |
+| Parameter | Type     | Description                                    |
+| --------- | -------- | ---------------------------------------------- |
+| `value`   | `number` | The amount; negative numbers start with "owed" |
 
 ## Returns
 

@@ -10,10 +10,10 @@ Due date text: overdue / today use words, color is only auxiliary (US-539 intera
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type     |
+| --------- | -------- |
 | `dueDate` | `string` |
-| `today` | `string` |
+| `today`   | `string` |
 
 ## Returns
 

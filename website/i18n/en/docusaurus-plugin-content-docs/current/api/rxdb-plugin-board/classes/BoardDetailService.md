@@ -16,10 +16,10 @@ Defined in: [packages/rxdb-plugin-board/src/detail-service.ts:53](https://github
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rxdb` | [`RxDB`](../../rxdb/classes/RxDB.md) |
-| `ctx` | () => [`BoardHostContext`](../interfaces/BoardHostContext.md) |
+| Parameter | Type                                                          |
+| --------- | ------------------------------------------------------------- |
+| `rxdb`    | [`RxDB`](../../rxdb/classes/RxDB.md)                          |
+| `ctx`     | () => [`BoardHostContext`](../interfaces/BoardHostContext.md) |
 
 #### Returns
 
@@ -39,22 +39,22 @@ Opens the detail view: reads the current state as a snapshot (holds no transacti
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `taskId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
+| Parameter | Type                                                      |
+| --------- | --------------------------------------------------------- |
+| `taskId`  | `` `${string}-${string}-${string}-${string}-${string}` `` |
 
 #### Returns
 
 `Promise`&lt;[`TaskDraftSnapshot`](../interfaces/TaskDraftSnapshot.md)&gt;
 
-***
+---
 
 ### saveTaskDraft() \{#savetaskdraft\}
 
 ```ts
 saveTaskDraft(
-   taskId, 
-   snapshot, 
+   taskId,
+   snapshot,
    draft
 ): Promise<SaveTaskDraftResult>;
 ```
@@ -65,24 +65,24 @@ One save = one transaction: the field diff + the label relation diff are committ
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `taskId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
+| Parameter  | Type                                                      |
+| ---------- | --------------------------------------------------------- |
+| `taskId`   | `` `${string}-${string}-${string}-${string}-${string}` `` |
 | `snapshot` | [`TaskDraftSnapshot`](../interfaces/TaskDraftSnapshot.md) |
-| `draft` | [`TaskDraft`](../interfaces/TaskDraft.md) |
+| `draft`    | [`TaskDraft`](../interfaces/TaskDraft.md)                 |
 
 #### Returns
 
 `Promise`&lt;[`SaveTaskDraftResult`](../type-aliases/SaveTaskDraftResult.md)&gt;
 
-***
+---
 
 ### saveTaskFields() \{#savetaskfields\}
 
 ```ts
 saveTaskFields(
-   taskId, 
-   base, 
+   taskId,
+   base,
    patch
 ): Promise<SaveTaskDraftResult>;
 ```
@@ -93,11 +93,11 @@ Save-as-you-edit (board v2 detail sidebar): commits only the fields in `patch`, 
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `taskId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
-| `base` | [`TaskDraftSnapshot`](../interfaces/TaskDraftSnapshot.md) |
-| `patch` | [`TaskFieldPatch`](../type-aliases/TaskFieldPatch.md) |
+| Parameter | Type                                                      |
+| --------- | --------------------------------------------------------- |
+| `taskId`  | `` `${string}-${string}-${string}-${string}-${string}` `` |
+| `base`    | [`TaskDraftSnapshot`](../interfaces/TaskDraftSnapshot.md) |
+| `patch`   | [`TaskFieldPatch`](../type-aliases/TaskFieldPatch.md)     |
 
 #### Returns
 

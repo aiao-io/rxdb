@@ -32,7 +32,7 @@ The rule above says the browser-detectable half does not belong here, and this o
 
 Omitting this field = keep the connector's auto-detection; explicitly giving `undefined` = do not declare `files`.
 
-***
+---
 
 ### nativeFiles? \{#nativefiles\}
 
@@ -48,7 +48,7 @@ The native files backend ports; when given, `files` uses `native-files` instead 
 
 Does not include `runtime`: it is supplied uniformly by the field below; see [DevToolsProviderOptions.runtime](#runtime).
 
-***
+---
 
 ### providerRegistry? \{#providerregistry\}
 
@@ -66,7 +66,7 @@ Its relation to the fields above is not "who wins when both are given" — when 
 
 The registry does not need `dispose` ([DevToolsProviderRegistry](DevToolsProviderRegistry.md) has no such member): the connector only does a no-op on disconnect. Implementations holding subscriptions or timers should manage their lifecycle from the injecting side.
 
-***
+---
 
 ### runtime? \{#runtime\}
 
@@ -82,7 +82,7 @@ The runtime shown in descriptors; defaults to `browser`.
 
 Affects `database` and `files` (both OPFS and the native backend). The only domain unaffected is `settings` — its runtime follows the injected descriptor.
 
-***
+---
 
 ### settings? \{#settings\}
 

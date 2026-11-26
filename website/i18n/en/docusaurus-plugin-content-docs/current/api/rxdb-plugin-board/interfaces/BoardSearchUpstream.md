@@ -10,8 +10,8 @@ Upstream full-text source: a single-collection query that returns all hits (plug
 
 ```ts
 searchCollection(
-   collection, 
-   query, 
+   collection,
+   query,
    options?
 ): SearchHandle;
 ```
@@ -20,11 +20,11 @@ Defined in: [packages/rxdb-plugin-board/src/search/board-search-source.ts:42](ht
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `collection` | `string` |
-| `query` | `string` |
-| `options?` | [`SearchOptions`](../../rxdb-plugin-search/interfaces/SearchOptions.md) |
+| Parameter    | Type                                                                    |
+| ------------ | ----------------------------------------------------------------------- |
+| `collection` | `string`                                                                |
+| `query`      | `string`                                                                |
+| `options?`   | [`SearchOptions`](../../rxdb-plugin-search/interfaces/SearchOptions.md) |
 
 #### Returns
 

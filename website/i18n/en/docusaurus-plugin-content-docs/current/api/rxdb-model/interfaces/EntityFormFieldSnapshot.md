@@ -14,7 +14,7 @@ readonly config: FormFieldConfig;
 
 Defined in: [packages/rxdb-model/src/entity-form/headless.ts:51](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model/src/entity-form/headless.ts#L51)
 
-***
+---
 
 ### displayValue \{#displayvalue\}
 
@@ -24,7 +24,7 @@ readonly displayValue: string;
 
 Defined in: [packages/rxdb-model/src/entity-form/headless.ts:55](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model/src/entity-form/headless.ts#L55)
 
-***
+---
 
 ### error? \{#error\}
 
@@ -34,7 +34,7 @@ readonly error?: FormFieldValidationError;
 
 Defined in: [packages/rxdb-model/src/entity-form/headless.ts:53](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model/src/entity-form/headless.ts#L53)
 
-***
+---
 
 ### readonly \{#readonly\}
 
@@ -44,7 +44,7 @@ readonly readonly: boolean;
 
 Defined in: [packages/rxdb-model/src/entity-form/headless.ts:54](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model/src/entity-form/headless.ts#L54)
 
-***
+---
 
 ### value \{#value\}
 

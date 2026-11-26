@@ -10,10 +10,10 @@ Normalizes creation data (filters out fields that were never assigned).
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `metadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | Entity metadata |
-| `entity` | `object` | The entity instance or data object to write |
+| Parameter  | Type                                                          | Description                                 |
+| ---------- | ------------------------------------------------------------- | ------------------------------------------- |
+| `metadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | Entity metadata                             |
+| `entity`   | `object`                                                      | The entity instance or data object to write |
 
 ## Returns
 

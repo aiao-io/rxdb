@@ -24,7 +24,7 @@ The patch codec version
 
 [`CommitCapabilityVersions`](CommitCapabilityVersions.md).[`codecVersion`](CommitCapabilityVersions.md#codecversion)
 
-***
+---
 
 ### enabled \{#enabled\}
 
@@ -36,7 +36,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-capability.ts:4
 
 Whether the commit capability is enabled
 
-***
+---
 
 ### enabledAt \{#enabledat\}
 
@@ -48,7 +48,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-capability.ts:5
 
 The enable moment; `null` when not enabled
 
-***
+---
 
 ### protocolVersion \{#protocolversion\}
 
@@ -64,7 +64,7 @@ The command-layer protocol version
 
 [`CommitCapabilityVersions`](CommitCapabilityVersions.md).[`protocolVersion`](CommitCapabilityVersions.md#protocolversion)
 
-***
+---
 
 ### schemaVersion \{#schemaversion\}
 

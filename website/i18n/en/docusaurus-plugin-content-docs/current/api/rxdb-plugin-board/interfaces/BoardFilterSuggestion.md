@@ -14,7 +14,7 @@ readonly color: string | null;
 
 Defined in: [packages/rxdb-plugin-board/src/filter/board-filter.ts:63](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board/src/filter/board-filter.ts#L63)
 
-***
+---
 
 ### description \{#description\}
 
@@ -24,7 +24,7 @@ readonly description: string;
 
 Defined in: [packages/rxdb-plugin-board/src/filter/board-filter.ts:62](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board/src/filter/board-filter.ts#L62)
 
-***
+---
 
 ### kind \{#kind\}
 
@@ -34,7 +34,7 @@ readonly kind: "field" | "value";
 
 Defined in: [packages/rxdb-plugin-board/src/filter/board-filter.ts:60](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board/src/filter/board-filter.ts#L60)
 
-***
+---
 
 ### query \{#query\}
 
@@ -44,7 +44,7 @@ readonly query: string;
 
 Defined in: [packages/rxdb-plugin-board/src/filter/board-filter.ts:64](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board/src/filter/board-filter.ts#L64)
 
-***
+---
 
 ### value \{#value\}
 

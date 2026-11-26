@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-adapter-sqliteai/src/sqliteai.interface.ts:30](https:
 
 `SqliteaiOptionsBase.batchTimeout`
 
-***
+---
 
 ### cacheSizeKb? \{#cachesizekb\}
 
@@ -45,14 +45,14 @@ https://www.sqlite.org/pragma.html#pragma_cache_size
 #### Default
 
 ```ts
-51200
+51200;
 ```
 
 #### Inherited from
 
 `SqliteaiOptionsBase.cacheSizeKb`
 
-***
+---
 
 ### locateFile? \{#locatefile\}
 
@@ -66,9 +66,9 @@ The custom Emscripten resource locator function; cannot be passed to a worker.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `name` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `name`    | `string` |
 
 #### Returns
 
@@ -86,7 +86,7 @@ source) is treated as a different configuration and reinitializes the WASM.
 
 `SqliteaiOptionsBase.locateFile`
 
-***
+---
 
 ### opfs? \{#opfs\}
 
@@ -100,7 +100,7 @@ Defined in: [packages/rxdb-adapter-sqliteai/src/sqliteai.interface.ts:13](https:
 
 `SqliteaiOptionsBase.opfs`
 
-***
+---
 
 ### opfsFallback? \{#opfsfallback\}
 
@@ -120,7 +120,7 @@ Oo1ClientBase
 
 `SqliteaiOptionsBase.opfsFallback`
 
-***
+---
 
 ### opfsProxyPath? \{#opfsproxypath\}
 
@@ -134,7 +134,7 @@ Defined in: [packages/rxdb-adapter-sqliteai/src/sqliteai.interface.ts:15](https:
 
 `SqliteaiOptionsBase.opfsProxyPath`
 
-***
+---
 
 ### print? \{#print\}
 
@@ -146,9 +146,9 @@ Defined in: [packages/rxdb-adapter-sqliteai/src/sqliteai.interface.ts:25](https:
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `msg` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `msg`     | `string` |
 
 #### Returns
 
@@ -158,7 +158,7 @@ Defined in: [packages/rxdb-adapter-sqliteai/src/sqliteai.interface.ts:25](https:
 
 `SqliteaiOptionsBase.print`
 
-***
+---
 
 ### printErr? \{#printerr\}
 
@@ -170,9 +170,9 @@ Defined in: [packages/rxdb-adapter-sqliteai/src/sqliteai.interface.ts:26](https:
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `msg` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `msg`     | `string` |
 
 #### Returns
 
@@ -182,7 +182,7 @@ Defined in: [packages/rxdb-adapter-sqliteai/src/sqliteai.interface.ts:26](https:
 
 `SqliteaiOptionsBase.printErr`
 
-***
+---
 
 ### repositories? \{#repositories\}
 
@@ -192,7 +192,7 @@ repositories?: Record<string, SqliteaiRepositoryConstructor<RepositoryBase<AnyEn
 
 Defined in: [packages/rxdb-adapter-sqliteai/src/sqliteai.interface.ts:50](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqliteai/src/sqliteai.interface.ts#L50)
 
-***
+---
 
 ### sharedWorker? \{#sharedworker\}
 
@@ -206,7 +206,7 @@ Defined in: [packages/rxdb-adapter-sqliteai/src/sqliteai.interface.ts:35](https:
 
 `SqliteaiOptionsBase.sharedWorker`
 
-***
+---
 
 ### sharedWorkerInstance? \{#sharedworkerinstance\}
 
@@ -220,7 +220,7 @@ Defined in: [packages/rxdb-adapter-sqliteai/src/sqliteai.interface.ts:36](https:
 
 `SqliteaiOptionsBase.sharedWorkerInstance`
 
-***
+---
 
 ### wasmPath? \{#wasmpath\}
 
@@ -234,7 +234,7 @@ Defined in: [packages/rxdb-adapter-sqliteai/src/sqliteai.interface.ts:14](https:
 
 `SqliteaiOptionsBase.wasmPath`
 
-***
+---
 
 ### worker? \{#worker\}
 
@@ -248,7 +248,7 @@ Defined in: [packages/rxdb-adapter-sqliteai/src/sqliteai.interface.ts:33](https:
 
 `SqliteaiOptionsBase.worker`
 
-***
+---
 
 ### workerInstance? \{#workerinstance\}
 

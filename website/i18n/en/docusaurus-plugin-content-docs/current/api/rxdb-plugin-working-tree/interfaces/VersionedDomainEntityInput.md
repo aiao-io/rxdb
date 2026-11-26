@@ -24,7 +24,7 @@ The derived index columns a plugin statically declares **on this business table*
 
 Registered per table rather than merged into a global set: merging into one set exempts a column name registered on table A from table B as well, and this set is something plugins can write into.
 
-***
+---
 
 ### entityName \{#entityname\}
 
@@ -36,7 +36,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/versioned-domain
 
 The entity name (`@Entity({ name })`), case-sensitive
 
-***
+---
 
 ### log? \{#log\}
 
@@ -52,7 +52,7 @@ Whether this entity writes a change log (`@Entity({ log })`); `false` is the fou
 
 Defaults to `true`, consistent with the core entity metadata's default: the criterion is the **explicitly declared** `log: false`, not "no log written". An entity with the change log disabled produces no `rxdb_change`, and capture, branch projection, history and sync push are all built on top of it — none of them can see this table.
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -68,7 +68,7 @@ The entity's namespace (`@Entity({ namespace })`)
 
 Required rather than defaulting to `'public'` when omitted: it is half of the registration's identity key (`public:Post`), the same shape as the key the core's `isSystemEntity()` uses. With a default value, same-named entities under two namespaces collide into one registration.
 
-***
+---
 
 ### physicalTableNames \{#physicaltablenames\}
 
@@ -86,7 +86,7 @@ Given by RxDBAdapterLocalBase.physicalTableNames; the domain guesses not a singl
 
 Normalized to lowercase and de-duplicated at construction; an empty list (or one with only blank names) throws, see [buildVersionedDomain](../functions/buildVersionedDomain.md).
 
-***
+---
 
 ### syncType \{#synctype\}
 

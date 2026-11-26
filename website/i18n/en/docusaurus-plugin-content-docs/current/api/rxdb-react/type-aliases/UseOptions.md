@@ -1,5 +1,5 @@
 ---
-sidebar_label: "UseOptions⟨T⟩"
+sidebar_label: 'UseOptions⟨T⟩'
 ---
 
 # UseOptions`<T>`
@@ -14,8 +14,8 @@ Option forms accepted by React query hooks.
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                    | Description        |
+| --------------------------------- | ------------------ |
 | <a id="type-parameter-t"></a> `T` | Query option type. |
 
 ## Remarks

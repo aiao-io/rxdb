@@ -12,8 +12,8 @@ Encrypted columns are always materialized as `text` regardless of the declared `
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                          |
+| ---------- | ----------------------------------------------------------------------------- |
 | `property` | [`EntityPropertyMetadata`](../../rxdb/type-aliases/EntityPropertyMetadata.md) |
 
 ## Returns

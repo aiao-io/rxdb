@@ -10,9 +10,9 @@ Release the MessagePort held by the Comlink proxy.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `client` | `unknown` | The return value of [wrapWithComlink](../../rxdb-adapter-sqlite-core/functions/wrapWithComlink.md) / [wrapWithComlinkEndpoint](../../rxdb-adapter-sqlite-core/functions/wrapWithComlinkEndpoint.md), or `undefined` |
+| Parameter | Type      | Description                                                                                                                                                                                                         |
+| --------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `client`  | `unknown` | The return value of [wrapWithComlink](../../rxdb-adapter-sqlite-core/functions/wrapWithComlink.md) / [wrapWithComlinkEndpoint](../../rxdb-adapter-sqlite-core/functions/wrapWithComlinkEndpoint.md), or `undefined` |
 
 ## Returns
 

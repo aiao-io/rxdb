@@ -13,8 +13,8 @@ Invalid input **does not throw** and always degrades to `'-'`, making it conveni
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter    | Type                           | Description                                                                 |
+| ------------ | ------------------------------ | --------------------------------------------------------------------------- |
 | `timestamp?` | `string` \| `number` \| `Date` | A millisecond timestamp, a string parseable by `Date`, or a `Date` instance |
 
 ## Returns
@@ -22,4 +22,4 @@ Invalid input **does not throw** and always degrades to `'-'`, making it conveni
 `string`
 
 A string like `'2026/08/07 12:30'`; returns `'-'` for `undefined` / `null` / empty string /
-         or when no valid time can be parsed (`Invalid Date`)
+or when no valid time can be parsed (`Invalid Date`)

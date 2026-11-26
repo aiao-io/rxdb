@@ -12,10 +12,10 @@ Must be called in an injection context (internally calls `inject(DestroyRef)`).
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `source` | \| [`SearchSourceLike`](../interfaces/SearchSourceLike.md) \| `Signal`&lt;[`SearchSourceLike`](../interfaces/SearchSourceLike.md)&gt; | The data source exposing a `search()` method (`RxDB` / `RxCollection`);  accepts a plain value or a `Signal`; the handle is rebuilt when the resolved value changes |
-| `options?` | \| [`SearchOptions`](../interfaces/SearchOptions.md) \| `Signal`&lt;[`SearchOptions`](../interfaces/SearchOptions.md) \| `undefined`&gt; | Per-call [SearchOptions](../interfaces/SearchOptions.md); accepts a plain value or a `Signal`;  the handle is rebuilt on semantic changes (`collections` / `debounce` / `pageSize` / `snippetLength`) |
+| Parameter  | Type                                                                                                                                     | Description                                                                                                                                                                                          |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `source`   | \| [`SearchSourceLike`](../interfaces/SearchSourceLike.md) \| `Signal`&lt;[`SearchSourceLike`](../interfaces/SearchSourceLike.md)&gt;    | The data source exposing a `search()` method (`RxDB` / `RxCollection`); accepts a plain value or a `Signal`; the handle is rebuilt when the resolved value changes                                   |
+| `options?` | \| [`SearchOptions`](../interfaces/SearchOptions.md) \| `Signal`&lt;[`SearchOptions`](../interfaces/SearchOptions.md) \| `undefined`&gt; | Per-call [SearchOptions](../interfaces/SearchOptions.md); accepts a plain value or a `Signal`; the handle is rebuilt on semantic changes (`collections` / `debounce` / `pageSize` / `snippetLength`) |
 
 ## Returns
 

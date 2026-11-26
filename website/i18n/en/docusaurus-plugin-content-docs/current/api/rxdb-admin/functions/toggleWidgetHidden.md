@@ -10,10 +10,10 @@ Toggles widget visibility; the settings entry cannot be hidden.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `hidden` | readonly [`WidgetKey`](../type-aliases/WidgetKey.md)[] | The current hidden set. |
-| `key` | [`WidgetKey`](../type-aliases/WidgetKey.md) | The widget key. |
+| Parameter | Type                                                   | Description             |
+| --------- | ------------------------------------------------------ | ----------------------- |
+| `hidden`  | readonly [`WidgetKey`](../type-aliases/WidgetKey.md)[] | The current hidden set. |
+| `key`     | [`WidgetKey`](../type-aliases/WidgetKey.md)            | The widget key.         |
 
 ## Returns
 

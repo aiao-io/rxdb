@@ -25,7 +25,7 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts:215
 
 The SQLite page cache, in KB.
 
-***
+---
 
 ### databaseRoot? \{#databaseroot\}
 
@@ -37,7 +37,7 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts:213
 
 The database file directory. Defaults to `${host.userDataPath}/rxdb-wa-sqlite` (`wx.env.USER_DATA_PATH` for WeChat).
 
-***
+---
 
 ### moduleFactory \{#modulefactory\}
 
@@ -49,7 +49,7 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts:207
 
 The synchronous wa-sqlite module factory, obtained from `loadSubframeModuleFactory()`.
 
-***
+---
 
 ### repositories? \{#repositories\}
 
@@ -61,7 +61,7 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts:217
 
 Overrides the default repository implementations.
 
-***
+---
 
 ### wasmPath? \{#wasmpath\}
 
@@ -73,7 +73,7 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts:211
 
 The in-package wasm path. Mini program WASM runtimes do not accept URLs or ArrayBuffers.
 
-***
+---
 
 ### wasmRuntime \{#wasmruntime\}
 

@@ -20,7 +20,7 @@ Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:36](https://github
 
 The adapter handles JSON serialization
 
-***
+---
 
 ### headers? \{#headers\}
 
@@ -36,7 +36,7 @@ Additional headers; on conflict with the auth hook, **the auth hook wins**.
 
 When [HttpAdapterOptions.conditionalRequests](HttpAdapterOptions.md#conditionalrequests) is on, this group **participates in the request fingerprint**: splitting projections by tenant / language on the same URL is safe, and each projection gets its own cache entry. Of the three header groups, only this one enters the fingerprint; for the trade-offs on the other two, see `conditionalRequests`.
 
-***
+---
 
 ### method \{#method\}
 
@@ -46,7 +46,7 @@ method: HttpMethod;
 
 Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:34](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-http/src/http.interface.ts#L34)
 
-***
+---
 
 ### url \{#url\}
 

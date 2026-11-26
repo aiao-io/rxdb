@@ -1,9 +1,7 @@
 # parseCapabilityWatermark()
 
 ```ts
-function parseCapabilityWatermark(name): 
-  | RxDBCapabilityClaim
-  | undefined;
+function parseCapabilityWatermark(name): RxDBCapabilityClaim | undefined;
 ```
 
 Defined in: [packages/rxdb/src/system/capability-watermark.ts:90](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/capability-watermark.ts#L90)
@@ -12,14 +10,14 @@ Reads a capability claim back out of a migration row name.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `name` | `string` | One row of `rxdb_migration."name"` |
+| Parameter | Type     | Description                        |
+| --------- | -------- | ---------------------------------- |
+| `name`    | `string` | One row of `rxdb_migration."name"` |
 
 ## Returns
 
-  \| [`RxDBCapabilityClaim`](../interfaces/RxDBCapabilityClaim.md)
-  \| `undefined`
+\| [`RxDBCapabilityClaim`](../interfaces/RxDBCapabilityClaim.md)
+\| `undefined`
 
 `undefined` when there is no capability prefix
 

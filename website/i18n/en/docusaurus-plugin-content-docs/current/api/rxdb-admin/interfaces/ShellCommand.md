@@ -16,7 +16,7 @@ Defined in: [shell/types.ts:69](https://github.com/aiao-io/rxdb/blob/b5232040240
 
 The unique identifier.
 
-***
+---
 
 ### keywords? \{#keywords\}
 
@@ -28,7 +28,7 @@ Defined in: [shell/types.ts:73](https://github.com/aiao-io/rxdb/blob/b5232040240
 
 Extra search terms.
 
-***
+---
 
 ### label \{#label\}
 
@@ -40,7 +40,7 @@ Defined in: [shell/types.ts:71](https://github.com/aiao-io/rxdb/blob/b5232040240
 
 The display text.
 
-***
+---
 
 ### run \{#run\}
 

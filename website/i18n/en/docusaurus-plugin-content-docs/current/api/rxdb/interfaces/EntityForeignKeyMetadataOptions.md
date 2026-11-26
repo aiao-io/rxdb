@@ -26,7 +26,7 @@ Defined in: [packages/rxdb/src/entity/property-types.interface.ts:582](https://g
 
 The referenced entity.
 
-***
+---
 
 ### mappedNamespace? \{#mappednamespace\}
 
@@ -38,7 +38,7 @@ Defined in: [packages/rxdb/src/entity/property-types.interface.ts:584](https://g
 
 The referenced entity's namespace; defaults to inheriting the current entity's namespace.
 
-***
+---
 
 ### mappedProperties \{#mappedproperties\}
 
@@ -50,7 +50,7 @@ Defined in: [packages/rxdb/src/entity/property-types.interface.ts:586](https://g
 
 The referenced entity's property or relation-ID fields.
 
-***
+---
 
 ### name \{#name\}
 
@@ -62,12 +62,12 @@ Defined in: [packages/rxdb/src/entity/property-types.interface.ts:578](https://g
 
 Constraint name.
 
-***
+---
 
 ### onDelete? \{#ondelete\}
 
 ```ts
-onDelete?: 
+onDelete?:
   | "NO ACTION"
   | "RESTRICT"
   | "CASCADE"
@@ -85,13 +85,13 @@ Defines how the child table's foreign key is handled when the parent table recor
 
 ```typescript
 // Cascade-delete orders when the user is deleted
-onDelete: OnDeleteAction.CASCADE
+onDelete: OnDeleteAction.CASCADE;
 
 // Set the product's category ID to NULL when the category is deleted
-onDelete: OnDeleteAction.SET_NULL
+onDelete: OnDeleteAction.SET_NULL;
 
 // Do not allow deleting a user who still has orders
-onDelete: OnDeleteAction.RESTRICT
+onDelete: OnDeleteAction.RESTRICT;
 ```
 
 #### Default
@@ -104,12 +104,12 @@ Inferred automatically from the relation type
 
 [`ICascadeOptions`](ICascadeOptions.md).[`onDelete`](ICascadeOptions.md#ondelete)
 
-***
+---
 
 ### onUpdate? \{#onupdate\}
 
 ```ts
-onUpdate?: 
+onUpdate?:
   | "NO ACTION"
   | "RESTRICT"
   | "CASCADE"
@@ -127,10 +127,10 @@ Defines how the child table's foreign key is handled when the parent table's pri
 
 ```typescript
 // Cascade-update the order's user_id when the user ID is updated
-onUpdate: OnUpdateAction.CASCADE
+onUpdate: OnUpdateAction.CASCADE;
 
 // Do not allow updating the primary key (recommended)
-onUpdate: OnUpdateAction.RESTRICT
+onUpdate: OnUpdateAction.RESTRICT;
 ```
 
 #### Default
@@ -143,7 +143,7 @@ OnUpdateAction.RESTRICT (updating the primary key is not recommended)
 
 [`ICascadeOptions`](ICascadeOptions.md).[`onUpdate`](ICascadeOptions.md#onupdate)
 
-***
+---
 
 ### properties \{#properties\}
 

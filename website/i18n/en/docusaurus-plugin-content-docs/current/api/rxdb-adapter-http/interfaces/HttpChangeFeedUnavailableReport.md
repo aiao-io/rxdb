@@ -20,7 +20,7 @@ Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:338](https://githu
 
 Number of failures since the last successful connection; always `0` for `unsupported-runtime`
 
-***
+---
 
 ### data? \{#data\}
 
@@ -32,7 +32,7 @@ Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:350](https://githu
 
 The raw `data` text for `malformed-message`; `undefined` otherwise
 
-***
+---
 
 ### message \{#message\}
 
@@ -44,7 +44,7 @@ Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:352](https://githu
 
 A ready-made explanation message
 
-***
+---
 
 ### readyState? \{#readystate\}
 
@@ -60,12 +60,12 @@ Passed through as-is from `EventSource.readyState` at failure time, **no verdict
 
 `0` (CONNECTING) means the browser is reconnecting on its own and this package stays out of it; `2` (CLOSED) means the browser gave up and this package's backoff takes over the reconnection. When the constructor throws outright there is no instance to read, hence `undefined`.
 
-***
+---
 
 ### reason \{#reason\}
 
 ```ts
-reason: "unsupported-runtime" | "connection-error" | "malformed-message";
+reason: 'unsupported-runtime' | 'connection-error' | 'malformed-message';
 ```
 
 Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:336](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-http/src/http.interface.ts#L336)
@@ -76,7 +76,7 @@ Which kind of fact was observed.
 - `connection-error`: the connection failed to establish or dropped mid-way.
 - `malformed-message`: the connection is fine, but this one message yields no parseable entity name.
 
-***
+---
 
 ### retryInMs? \{#retryinms\}
 
@@ -88,7 +88,7 @@ Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:348](https://githu
 
 The next reconnect delay this package has scheduled (milliseconds); `undefined` when this package won't reconnect this time
 
-***
+---
 
 ### url \{#url\}
 

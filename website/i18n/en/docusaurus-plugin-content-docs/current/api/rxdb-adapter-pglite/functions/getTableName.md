@@ -10,10 +10,10 @@ Builds a fully qualified table name like `"public"."users"` (with double-quote e
 
 ## Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `entityName` | `string` | `undefined` | Table name |
-| `namespace?` | `string` | `'public'` | Schema name, defaults to `public` |
+| Parameter    | Type     | Default value | Description                       |
+| ------------ | -------- | ------------- | --------------------------------- |
+| `entityName` | `string` | `undefined`   | Table name                        |
+| `namespace?` | `string` | `'public'`    | Schema name, defaults to `public` |
 
 ## Returns
 

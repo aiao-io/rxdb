@@ -16,7 +16,7 @@ Defined in: packages/rxdb-model/dist/entity-table/interfaces.d.ts:38
 
 Map from field names to new values
 
-***
+---
 
 ### recordId \{#recordid\}
 

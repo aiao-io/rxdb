@@ -1,9 +1,7 @@
 # tryGetEntityMetadata()
 
 ```ts
-function tryGetEntityMetadata(target): 
-  | Readonly<EntityMetadataType>
-  | undefined;
+function tryGetEntityMetadata(target): Readonly<EntityMetadataType> | undefined;
 ```
 
 Defined in: [packages/rxdb/src/rxdb-utils.ts:59](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-utils.ts#L59)
@@ -12,14 +10,14 @@ Probes for entity metadata: returns `undefined` when not found, does not throw.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `target` | `unknown` | Any object; it is not required to be an entity |
+| Parameter | Type      | Description                                    |
+| --------- | --------- | ---------------------------------------------- |
+| `target`  | `unknown` | Any object; it is not required to be an entity |
 
 ## Returns
 
-  \| `Readonly`&lt;[`EntityMetadataType`](../interfaces/EntityMetadataType.md)&gt;
-  \| `undefined`
+\| `Readonly`&lt;[`EntityMetadataType`](../interfaces/EntityMetadataType.md)&gt;
+\| `undefined`
 
 The entity metadata object, or `undefined` when absent
 

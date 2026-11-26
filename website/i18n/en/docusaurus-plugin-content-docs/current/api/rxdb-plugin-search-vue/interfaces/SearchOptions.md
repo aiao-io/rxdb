@@ -16,7 +16,7 @@ Defined in: packages/rxdb-plugin-search/dist/types.d.ts:18
 
 Limits the collections taking part in aggregation (accepts entity names or table names); defaults to aggregating all searchable collections outside the plugin-level exclusion rules. Throws when it contains unknown names or when the resolved scope is empty (fail-fast).
 
-***
+---
 
 ### debounce? \{#debounce\}
 
@@ -28,7 +28,7 @@ Defined in: packages/rxdb-plugin-search/dist/types.d.ts:9
 
 Input debounce window (ms); default 300, pass `0` to disable debouncing
 
-***
+---
 
 ### initialQuery? \{#initialquery\}
 
@@ -40,7 +40,7 @@ Defined in: packages/rxdb-plugin-search/dist/types.d.ts:20
 
 The initial query executed immediately when the subscription is first established
 
-***
+---
 
 ### pageSize? \{#pagesize\}
 
@@ -52,7 +52,7 @@ Defined in: packages/rxdb-plugin-search/dist/types.d.ts:11
 
 Number of results per page; default 50
 
-***
+---
 
 ### snippetLength? \{#snippetlength\}
 

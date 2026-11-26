@@ -33,7 +33,7 @@ protected readonly copyright: Signal<{
 
 Defined in: [rxdb-admin-angular/src/layout/footer.component.ts:19](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/footer.component.ts#L19)
 
-***
+---
 
 ### copyrightText \{#copyrighttext\}
 
@@ -43,7 +43,7 @@ protected readonly copyrightText: Signal<string>;
 
 Defined in: [rxdb-admin-angular/src/layout/footer.component.ts:20](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/footer.component.ts#L20)
 
-***
+---
 
 ### icpHref \{#icphref\}
 
@@ -53,7 +53,7 @@ protected readonly icpHref: Signal<string | undefined>;
 
 Defined in: [rxdb-admin-angular/src/layout/footer.component.ts:24](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/footer.component.ts#L24)
 
-***
+---
 
 ### layout \{#layout\}
 
@@ -63,7 +63,7 @@ protected readonly layout: Signal<LayoutState>;
 
 Defined in: [rxdb-admin-angular/src/layout/footer.component.ts:17](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/footer.component.ts#L17)
 
-***
+---
 
 ### prefs \{#prefs\}
 
@@ -73,7 +73,7 @@ protected readonly prefs: Signal<AdminPreferences>;
 
 Defined in: [rxdb-admin-angular/src/layout/footer.component.ts:18](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/footer.component.ts#L18)
 
-***
+---
 
 ### t \{#t\}
 
@@ -87,9 +87,9 @@ Translates shell text.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | `string` | Text key. |
+| Parameter | Type                                | Description     |
+| --------- | ----------------------------------- | --------------- |
+| `key`     | `string`                            | Text key.       |
 | `params?` | `Record`&lt;`string`, `unknown`&gt; | ICU parameters. |
 
 #### Returns

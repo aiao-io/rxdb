@@ -20,7 +20,7 @@ Minimum is 1
 #### Default
 
 ```ts
-3
+3;
 ```
 
 #### Examples
@@ -33,7 +33,7 @@ Minimum is 1
 2 allows querying own basic properties + basic properties of own relations + basic properties of the relations of own relations
 ```
 
-***
+---
 
 ### splitFiles? \{#splitfiles\}
 
@@ -48,5 +48,5 @@ Whether to split by entity name into separate files, with the index file exporti
 #### Default
 
 ```ts
-false
+false;
 ```

@@ -20,7 +20,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/restore-command.
 
 The branch the session belongs to
 
-***
+---
 
 ### id \{#id\}
 
@@ -32,7 +32,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/restore-command.
 
 The session row's primary key
 
-***
+---
 
 ### status \{#status\}
 
@@ -44,7 +44,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/restore-command.
 
 The session status
 
-***
+---
 
 ### targetCommitId \{#targetcommitid\}
 

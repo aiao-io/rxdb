@@ -17,7 +17,10 @@ try {
   await pullRepository(vm, 'public', 'Comment');
 } catch (error) {
   if (error instanceof RxDBDependencyFailedError) {
-    console.warn(`${repositoryKey(error.dependency)} failed, ${repositoryKey(error.repository)} not synced`, error.cause);
+    console.warn(
+      `${repositoryKey(error.dependency)} failed, ${repositoryKey(error.repository)} not synced`,
+      error.cause
+    );
   }
 }
 ```
@@ -32,8 +35,8 @@ try {
 
 ```ts
 new RxDBDependencyFailedError(
-   repository, 
-   dependency, 
+   repository,
+   dependency,
    cause
 ): RxDBDependencyFailedError;
 ```
@@ -42,11 +45,11 @@ Defined in: [packages/rxdb/src/sync-contract/cascade-contract.ts:129](https://gi
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter    | Type                                                            | Description                                                          |
+| ------------ | --------------------------------------------------------------- | -------------------------------------------------------------------- |
 | `repository` | [`RepositoryIdentifier`](../interfaces/RepositoryIdentifier.md) | The repository that was not synced because of the dependency failure |
-| `dependency` | [`RepositoryIdentifier`](../interfaces/RepositoryIdentifier.md) | The dependency repository that directly caused the blockage |
-| `cause` | `Error` | The root cause of the dependency repository's failure |
+| `dependency` | [`RepositoryIdentifier`](../interfaces/RepositoryIdentifier.md) | The dependency repository that directly caused the blockage          |
+| `cause`      | `Error`                                                         | The root cause of the dependency repository's failure                |
 
 #### Returns
 
@@ -72,7 +75,7 @@ The root cause of the dependency repository's failure
 
 [`RxDBError`](RxDBError.md).[`cause`](RxDBError.md#cause)
 
-***
+---
 
 ### dependency \{#dependency\}
 
@@ -84,7 +87,7 @@ Defined in: [packages/rxdb/src/sync-contract/cascade-contract.ts:133](https://gi
 
 The dependency repository that directly caused the blockage
 
-***
+---
 
 ### message \{#message\}
 
@@ -98,7 +101,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](RxDBError.md).[`message`](RxDBError.md#message)
 
-***
+---
 
 ### name \{#name\}
 
@@ -112,7 +115,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](RxDBError.md).[`name`](RxDBError.md#name)
 
-***
+---
 
 ### repository \{#repository\}
 
@@ -124,7 +127,7 @@ Defined in: [packages/rxdb/src/sync-contract/cascade-contract.ts:131](https://gi
 
 The repository that was not synced because of the dependency failure
 
-***
+---
 
 ### stack? \{#stack\}
 
@@ -138,7 +141,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](RxDBError.md).[`stack`](RxDBError.md#stack)
 
-***
+---
 
 ### stackTraceLimit \{#stacktracelimit\}
 
@@ -179,7 +182,7 @@ a string representing the location in the code at which
 ```js
 const myObject = {};
 Error.captureStackTrace(myObject);
-myObject.stack;  // Similar to `new Error().stack`
+myObject.stack; // Similar to `new Error().stack`
 ```
 
 The first line of the trace will be prefixed with
@@ -218,9 +221,9 @@ a();
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `targetObject` | `object` |
+| Parameter         | Type       |
+| ----------------- | ---------- |
+| `targetObject`    | `object`   |
 | `constructorOpt?` | `Function` |
 
 #### Returns
@@ -231,7 +234,7 @@ a();
 
 [`RxDBError`](RxDBError.md).[`captureStackTrace`](RxDBError.md#capturestacktrace)
 
-***
+---
 
 ### prepareStackTrace() \{#preparestacktrace\}
 
@@ -243,9 +246,9 @@ Defined in: node\_modules/.pnpm/@types+node@26.6.6/node\_modules/@types/node/glo
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `err` | `Error` |
+| Parameter     | Type         |
+| ------------- | ------------ |
+| `err`         | `Error`      |
 | `stackTraces` | `CallSite`[] |
 
 #### Returns

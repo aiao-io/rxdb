@@ -10,11 +10,11 @@ Desktop TCP/TLS adapter: 4-byte unsigned big-endian length prefix + frame, preve
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `socket` | [`P2PTcpSocketLike`](../interfaces/P2PTcpSocketLike.md) |
-| `options?` | \{ `requireEncryption?`: `boolean`; \} |
-| `options.requireEncryption?` | `boolean` |
+| Parameter                    | Type                                                    |
+| ---------------------------- | ------------------------------------------------------- |
+| `socket`                     | [`P2PTcpSocketLike`](../interfaces/P2PTcpSocketLike.md) |
+| `options?`                   | \{ `requireEncryption?`: `boolean`; \}                  |
+| `options.requireEncryption?` | `boolean`                                               |
 
 ## Returns
 

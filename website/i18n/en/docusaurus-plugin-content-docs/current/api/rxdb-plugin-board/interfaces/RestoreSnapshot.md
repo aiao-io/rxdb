@@ -9,7 +9,7 @@ State machine snapshot: state + this restore's target and the destination on fai
 ### failure \{#failure\}
 
 ```ts
-readonly failure: 
+readonly failure:
   | {
   kind: "archive_invalid" | "restore_failed" | "readback_failed";
   reason: string;
@@ -19,7 +19,7 @@ readonly failure:
 
 Defined in: [packages/rxdb-plugin-board/src/restore-machine.ts:37](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board/src/restore-machine.ts#L37)
 
-***
+---
 
 ### pendingSwitch \{#pendingswitch\}
 
@@ -31,7 +31,7 @@ Defined in: [packages/rxdb-plugin-board/src/restore-machine.ts:36](https://githu
 
 Whether the pending switch record is being written (after a reload, the new database is connected and read back based on it).
 
-***
+---
 
 ### restoringMarker \{#restoringmarker\}
 
@@ -44,7 +44,7 @@ Defined in: [packages/rxdb-plugin-board/src/restore-machine.ts:34](https://githu
 Whether the restoring marker is being written (all pages pause writes based on it): from selecting the archive until the read-back after reload succeeds or the failure cleanup runs.
 It is still being written while switching — other pages writing the old database during the reload read-back window would leave those writes in a database that is no longer opened after the switch.
 
-***
+---
 
 ### state \{#state\}
 
@@ -54,7 +54,7 @@ readonly state: RestoreState;
 
 Defined in: [packages/rxdb-plugin-board/src/restore-machine.ts:27](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board/src/restore-machine.ts#L27)
 
-***
+---
 
 ### targetDbName \{#targetdbname\}
 

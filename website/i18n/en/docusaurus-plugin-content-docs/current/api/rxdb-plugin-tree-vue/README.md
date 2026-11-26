@@ -35,7 +35,7 @@ The four composables depend on the `TreeRepository` registered by the plugin; th
 
 ## API
 
-| Composable            | Repository method  | Result type                      | Default |
+| Composable            | Repository method  | Result type                       | Default |
 | --------------------- | ------------------ | --------------------------------- | ------- |
 | `useFindDescendants`  | `findDescendants`  | `RxDBResource<InstanceType<T>[]>` | `[]`    |
 | `useCountDescendants` | `countDescendants` | `RxDBResource<number>`            | `0`     |
@@ -67,9 +67,9 @@ These four composables depend on the `TreeRepository` registered by the plugin; 
 
 ## Functions
 
-| Function | Description |
-| ------ | ------ |
-| [useCountAncestors](functions/useCountAncestors.md) | Counts the ancestor entities under the tree structure |
+| Function                                                | Description                                             |
+| ------------------------------------------------------- | ------------------------------------------------------- |
+| [useCountAncestors](functions/useCountAncestors.md)     | Counts the ancestor entities under the tree structure   |
 | [useCountDescendants](functions/useCountDescendants.md) | Counts the descendant entities under the tree structure |
-| [useFindAncestors](functions/useFindAncestors.md) | Finds all ancestor entities under the tree structure |
-| [useFindDescendants](functions/useFindDescendants.md) | Finds all descendant entities under the tree structure |
+| [useFindAncestors](functions/useFindAncestors.md)       | Finds all ancestor entities under the tree structure    |
+| [useFindDescendants](functions/useFindDescendants.md)   | Finds all descendant entities under the tree structure  |

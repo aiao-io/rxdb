@@ -10,8 +10,8 @@ Board view component (board v2, GitHub Projects style): header + filter bar + co
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter           | Type                                                |
+| ------------------- | --------------------------------------------------- |
 | `__namedParameters` | [`BoardViewProps`](../interfaces/BoardViewProps.md) |
 
 ## Returns

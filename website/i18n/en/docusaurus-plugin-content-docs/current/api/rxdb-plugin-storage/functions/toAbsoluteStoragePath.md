@@ -10,9 +10,9 @@ Converts an OPFS-relative path into a storage absolute path starting with `/`.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `path?` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `path?`   | `string` |
 
 ## Returns
 

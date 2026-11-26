@@ -10,8 +10,8 @@ Pending switch database name; no record = no restore awaiting read-back.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                            |
+| --------- | ----------------------------------------------- |
 | `storage` | [`BoardStorage`](../interfaces/BoardStorage.md) |
 
 ## Returns

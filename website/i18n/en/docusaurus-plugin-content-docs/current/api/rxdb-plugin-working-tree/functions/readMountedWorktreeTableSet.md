@@ -11,8 +11,8 @@ time (US-314 C1).
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                 | Description       |
+| ---------- | ------------------------------------ | ----------------- |
 | `database` | [`RxDB`](../../rxdb/classes/RxDB.md) | The main instance |
 
 ## Returns

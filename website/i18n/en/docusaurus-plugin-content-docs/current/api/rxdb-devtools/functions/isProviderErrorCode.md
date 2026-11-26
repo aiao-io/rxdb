@@ -1,7 +1,27 @@
 # isProviderErrorCode()
 
 ```ts
-function isProviderErrorCode(value): value is "permission_denied" | "provider_unsupported" | "provider_unavailable" | "invalid_path" | "resource_not_found" | "resource_conflict" | "storage_quota_exceeded" | "payload_too_large" | "payload_encoding_invalid" | "transfer_sequence_invalid" | "transfer_size_exceeded" | "transfer_incomplete" | "transfer_closed" | "snapshot_expired" | "snapshot_busy" | "snapshot_too_large" | "export_unsupported" | "operation_failed";
+function isProviderErrorCode(
+  value
+): value is
+  | 'permission_denied'
+  | 'provider_unsupported'
+  | 'provider_unavailable'
+  | 'invalid_path'
+  | 'resource_not_found'
+  | 'resource_conflict'
+  | 'storage_quota_exceeded'
+  | 'payload_too_large'
+  | 'payload_encoding_invalid'
+  | 'transfer_sequence_invalid'
+  | 'transfer_size_exceeded'
+  | 'transfer_incomplete'
+  | 'transfer_closed'
+  | 'snapshot_expired'
+  | 'snapshot_busy'
+  | 'snapshot_too_large'
+  | 'export_unsupported'
+  | 'operation_failed';
 ```
 
 Defined in: [v2/errors.ts:117](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/v2/errors.ts#L117)
@@ -10,9 +30,9 @@ Checks whether a value is a provider error code.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | The value to check. |
+| Parameter | Type      | Description         |
+| --------- | --------- | ------------------- |
+| `value`   | `unknown` | The value to check. |
 
 ## Returns
 

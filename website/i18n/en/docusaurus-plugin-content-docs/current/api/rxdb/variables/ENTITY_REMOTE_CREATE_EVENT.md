@@ -1,7 +1,7 @@
 # ENTITY_REMOTE_CREATE_EVENT
 
 ```ts
-const ENTITY_REMOTE_CREATE_EVENT: "ENTITY_REMOTE_CREATE";
+const ENTITY_REMOTE_CREATE_EVENT: 'ENTITY_REMOTE_CREATE';
 ```
 
 Defined in: [packages/rxdb/src/rxdb-events.ts:32](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-events.ts#L32)

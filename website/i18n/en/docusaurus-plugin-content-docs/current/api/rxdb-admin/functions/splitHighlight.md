@@ -10,10 +10,10 @@ Splits text by match ranges so the UI can render highlights safely (without usin
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `text` | `string` | The original text. |
-| `ranges` | readonly [`MatchRange`](../type-aliases/MatchRange.md)[] | The match ranges. |
+| Parameter | Type                                                     | Description        |
+| --------- | -------------------------------------------------------- | ------------------ |
+| `text`    | `string`                                                 | The original text. |
+| `ranges`  | readonly [`MatchRange`](../type-aliases/MatchRange.md)[] | The match ranges.  |
 
 ## Returns
 

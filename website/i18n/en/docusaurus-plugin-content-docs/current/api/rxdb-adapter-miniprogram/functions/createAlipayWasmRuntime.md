@@ -13,10 +13,10 @@ The Alipay docs only mention `MYWebAssembly` inside Workers; the logic layer's s
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `my` | `Pick`&lt;[`MiniProgramAlipayApi`](../interfaces/MiniProgramAlipayApi.md), `"base64ToArrayBuffer"` \| `"getFileSystemManager"`&gt; | The Alipay global `my` |
-| `webAssembly` | [`AlipayStandardWasmApi`](../interfaces/AlipayStandardWasmApi.md) | The logic layer's standard `WebAssembly` |
+| Parameter     | Type                                                                                                                               | Description                              |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| `my`          | `Pick`&lt;[`MiniProgramAlipayApi`](../interfaces/MiniProgramAlipayApi.md), `"base64ToArrayBuffer"` \| `"getFileSystemManager"`&gt; | The Alipay global `my`                   |
+| `webAssembly` | [`AlipayStandardWasmApi`](../interfaces/AlipayStandardWasmApi.md)                                                                  | The logic layer's standard `WebAssembly` |
 
 ## Returns
 

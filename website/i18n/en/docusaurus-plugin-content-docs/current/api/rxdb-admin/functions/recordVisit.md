@@ -10,10 +10,10 @@ Records a visit: most recent first, deduplicated and length-limited.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `history` | readonly `string`[] | The current history. |
-| `key` | `string` | The key of the visited tab. |
+| Parameter | Type                | Description                 |
+| --------- | ------------------- | --------------------------- |
+| `history` | readonly `string`[] | The current history.        |
+| `key`     | `string`            | The key of the visited tab. |
 
 ## Returns
 

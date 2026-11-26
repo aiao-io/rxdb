@@ -11,17 +11,17 @@ Supports multiple value sources: a fixed value, a value array, or a value-genera
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
-| <a id="type-parameter-k"></a> `K` *extends* `string` \| `number` \| `symbol` | The key type; must be string, number, or symbol |
-| <a id="type-parameter-v"></a> `V` | The value type |
+| Type Parameter                                                               | Description                                     |
+| ---------------------------------------------------------------------------- | ----------------------------------------------- |
+| <a id="type-parameter-k"></a> `K` _extends_ `string` \| `number` \| `symbol` | The key type; must be string, number, or symbol |
+| <a id="type-parameter-v"></a> `V`                                            | The value type                                  |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `keys` | `K`[] | The array of keys |
-| `values` | `V` \| ((`key`, `idx`) => `V`) \| `V`[] | The value source, which can be: - a fixed value: all keys use the same value - a value array: values are assigned to keys by index - a value-generating function: values are generated dynamically from key and index |
+| Parameter | Type                                    | Description                                                                                                                                                                                                           |
+| --------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `keys`    | `K`[]                                   | The array of keys                                                                                                                                                                                                     |
+| `values`  | `V` \| ((`key`, `idx`) => `V`) \| `V`[] | The value source, which can be: - a fixed value: all keys use the same value - a value array: values are assigned to keys by index - a value-generating function: values are generated dynamically from key and index |
 
 ## Returns
 

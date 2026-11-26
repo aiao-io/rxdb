@@ -16,7 +16,7 @@ Defined in: [rxdb-i18n-react/src/use-i18n.tsx:23](https://github.com/aiao-io/rxd
 
 The components sharing this runtime.
 
-***
+---
 
 ### value \{#value\}
 

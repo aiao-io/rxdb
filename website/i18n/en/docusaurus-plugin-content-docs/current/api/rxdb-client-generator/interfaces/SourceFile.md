@@ -20,15 +20,15 @@ Defined in: [core/ts-morph-browser.ts:252](https://github.com/aiao-io/rxdb/blob/
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter   | Type                        |
+| ----------- | --------------------------- |
 | `structure` | `ClassDeclarationStructure` |
 
 #### Returns
 
 `ClassDeclaration`
 
-***
+---
 
 ### addEnum() \{#addenum\}
 
@@ -40,15 +40,15 @@ Defined in: [core/ts-morph-browser.ts:256](https://github.com/aiao-io/rxdb/blob/
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter   | Type                       |
+| ----------- | -------------------------- |
 | `structure` | `EnumDeclarationStructure` |
 
 #### Returns
 
 `EnumDeclarationStructure`
 
-***
+---
 
 ### addExportDeclaration() \{#addexportdeclaration\}
 
@@ -60,15 +60,15 @@ Defined in: [core/ts-morph-browser.ts:258](https://github.com/aiao-io/rxdb/blob/
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter   | Type                         |
+| ----------- | ---------------------------- |
 | `structure` | `ExportDeclarationStructure` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### addImportDeclaration() \{#addimportdeclaration\}
 
@@ -80,15 +80,15 @@ Defined in: [core/ts-morph-browser.ts:257](https://github.com/aiao-io/rxdb/blob/
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter   | Type                         |
+| ----------- | ---------------------------- |
 | `structure` | `ImportDeclarationStructure` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### addInterface() \{#addinterface\}
 
@@ -100,15 +100,15 @@ Defined in: [core/ts-morph-browser.ts:253](https://github.com/aiao-io/rxdb/blob/
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter   | Type                            |
+| ----------- | ------------------------------- |
 | `structure` | `InterfaceDeclarationStructure` |
 
 #### Returns
 
 `AddedInterface`
 
-***
+---
 
 ### addModule() \{#addmodule\}
 
@@ -120,15 +120,15 @@ Defined in: [core/ts-morph-browser.ts:254](https://github.com/aiao-io/rxdb/blob/
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter   | Type                         |
+| ----------- | ---------------------------- |
 | `structure` | `ModuleDeclarationStructure` |
 
 #### Returns
 
 `AddedModule`
 
-***
+---
 
 ### addTypeAlias() \{#addtypealias\}
 
@@ -140,15 +140,15 @@ Defined in: [core/ts-morph-browser.ts:255](https://github.com/aiao-io/rxdb/blob/
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter   | Type                            |
+| ----------- | ------------------------------- |
 | `structure` | `TypeAliasDeclarationStructure` |
 
 #### Returns
 
 `TypeAliasDeclarationStructure`
 
-***
+---
 
 ### addVariableStatement() \{#addvariablestatement\}
 
@@ -160,15 +160,15 @@ Defined in: [core/ts-morph-browser.ts:259](https://github.com/aiao-io/rxdb/blob/
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter   | Type                         |
+| ----------- | ---------------------------- |
 | `structure` | `VariableStatementStructure` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### getClasses() \{#getclasses\}
 
@@ -182,7 +182,7 @@ Defined in: [core/ts-morph-browser.ts:260](https://github.com/aiao-io/rxdb/blob/
 
 `ClassDeclaration`[]
 
-***
+---
 
 ### getFilePath() \{#getfilepath\}
 
@@ -196,7 +196,7 @@ Defined in: [core/ts-morph-browser.ts:261](https://github.com/aiao-io/rxdb/blob/
 
 `string`
 
-***
+---
 
 ### getText() \{#gettext\}
 
@@ -210,7 +210,7 @@ Defined in: [core/ts-morph-browser.ts:262](https://github.com/aiao-io/rxdb/blob/
 
 `string`
 
-***
+---
 
 ### save() \{#save\}
 
@@ -230,7 +230,7 @@ Async compatibility entry point.
 
 Always throws; the in-memory generator provides no filesystem writes
 
-***
+---
 
 ### saveSync() \{#savesync\}
 
@@ -250,7 +250,7 @@ Sync compatibility entry point.
 
 Always throws; the in-memory generator provides no filesystem writes
 
-***
+---
 
 ### setContent() \{#setcontent\}
 
@@ -262,8 +262,8 @@ Defined in: [core/ts-morph-browser.ts:263](https://github.com/aiao-io/rxdb/blob/
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type     |
+| --------- | -------- |
 | `content` | `string` |
 
 #### Returns

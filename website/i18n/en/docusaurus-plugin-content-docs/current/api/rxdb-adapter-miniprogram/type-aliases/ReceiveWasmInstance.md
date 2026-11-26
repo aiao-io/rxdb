@@ -10,10 +10,10 @@ The Emscripten custom instantiation callback.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                  |
+| ---------- | --------------------------------------------------------------------- |
 | `instance` | [`MiniProgramWasmInstance`](../interfaces/MiniProgramWasmInstance.md) |
-| `module?` | `unknown` |
+| `module?`  | `unknown`                                                             |
 
 ## Returns
 

@@ -14,7 +14,7 @@ Defined in: [packages/rxdb-adapter-supabase/src/supabase.interface.ts:21](https:
 
 On a failed check, only warn or directly block the connection
 
-***
+---
 
 ### rpcName? \{#rpcname\}
 
@@ -26,7 +26,7 @@ Defined in: [packages/rxdb-adapter-supabase/src/supabase.interface.ts:18](https:
 
 The RPC name used by the self-check
 
-***
+---
 
 ### tables? \{#tables\}
 

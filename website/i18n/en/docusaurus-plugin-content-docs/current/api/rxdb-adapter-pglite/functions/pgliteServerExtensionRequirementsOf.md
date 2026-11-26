@@ -10,8 +10,8 @@ The PGlite server extensions a set of entities requires the adapter to load (see
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                             | Description                                                          |
+| ---------- | ---------------------------------------------------------------- | -------------------------------------------------------------------- |
 | `entities` | readonly [`EntityType`](../../rxdb/type-aliases/EntityType.md)[] | Entities participating in database creation (`rxdb.config.entities`) |
 
 ## Returns

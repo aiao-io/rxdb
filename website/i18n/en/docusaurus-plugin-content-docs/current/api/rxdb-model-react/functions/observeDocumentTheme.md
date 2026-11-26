@@ -11,8 +11,8 @@ and system light/dark changes when there is no explicit `data-theme`.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type         | Description                            |
+| ---------- | ------------ | -------------------------------------- |
 | `onChange` | () => `void` | Called when the theme may have changed |
 
 ## Returns

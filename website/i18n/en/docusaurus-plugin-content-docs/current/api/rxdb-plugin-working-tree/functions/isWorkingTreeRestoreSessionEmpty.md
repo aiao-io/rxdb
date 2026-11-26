@@ -10,8 +10,8 @@ The empty form of `restoreSession()`: the current branch has no unfinished resto
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                                           |
+| --------- | ---------------------------------------------------------------------------------------------- |
 | `session` | \| [`WorkingTreeRestoreSessionInfo`](../interfaces/WorkingTreeRestoreSessionInfo.md) \| `null` |
 
 ## Returns

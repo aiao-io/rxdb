@@ -1,5 +1,5 @@
 ---
-sidebar_label: "QueryTableController⟨T⟩"
+sidebar_label: 'QueryTableController⟨T⟩'
 ---
 
 # QueryTableController`<T>`
@@ -14,9 +14,9 @@ Query, pagination, ordering, and selection state for QueryTable; rendering can b
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityInstance`](../type-aliases/EntityInstance.md) | [`EntityInstance`](../type-aliases/EntityInstance.md) |
+| Type Parameter                                                                                    | Default type                                          |
+| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityInstance`](../type-aliases/EntityInstance.md) | [`EntityInstance`](../type-aliases/EntityInstance.md) |
 
 ## Constructors
 
@@ -30,8 +30,8 @@ Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:86
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                                     |
+| ---------- | ---------------------------------------------------------------------------------------- |
 | `options?` | [`EntityListControllerOptions`](../interfaces/EntityListControllerOptions.md)&lt;`T`&gt; |
 
 #### Returns
@@ -84,7 +84,7 @@ Clears the current selection.
 
 [`EntityListController`](EntityListController.md).[`clearSelection`](EntityListController.md#clearselection)
 
-***
+---
 
 ### create() \{#create\}
 
@@ -98,9 +98,9 @@ Creates an entity; with a query data source, reloads the current page after a su
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `data` | `Record`&lt;`string`, `unknown`&gt; |
+| Parameter | Type                                |
+| --------- | ----------------------------------- |
+| `data`    | `Record`&lt;`string`, `unknown`&gt; |
 
 #### Returns
 
@@ -115,7 +115,7 @@ the new record is placed first and the per-page count is preserved, with the old
 
 [`EntityListController`](EntityListController.md).[`create`](EntityListController.md#create)
 
-***
+---
 
 ### dispose() \{#dispose\}
 
@@ -135,7 +135,7 @@ Aborts queries and removes subscriptions; late results after disposal never writ
 
 [`EntityListController`](EntityListController.md).[`dispose`](EntityListController.md#dispose)
 
-***
+---
 
 ### refresh() \{#refresh\}
 
@@ -149,8 +149,8 @@ Runs the current query; the old page is kept during the refresh, replaced on suc
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                                                                                                                                        |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `loader?` | (`context`) => \| [`EntityListLoadResult`](../interfaces/EntityListLoadResult.md)&lt;`T`&gt; \| `Promise`&lt;[`EntityListLoadResult`](../interfaces/EntityListLoadResult.md)&lt;`T`&gt;&gt; |
 
 #### Returns
@@ -161,7 +161,7 @@ Runs the current query; the old page is kept during the refresh, replaced on suc
 
 [`EntityListController`](EntityListController.md).[`refresh`](EntityListController.md#refresh)
 
-***
+---
 
 ### remove() \{#remove\}
 
@@ -175,9 +175,9 @@ Deletes entities; on partial success, successful items converge first, then fail
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `ids` | readonly `string`[] |
+| Parameter | Type                |
+| --------- | ------------------- |
+| `ids`     | readonly `string`[] |
 
 #### Returns
 
@@ -187,7 +187,7 @@ Deletes entities; on partial success, successful items converge first, then fail
 
 [`EntityListController`](EntityListController.md).[`remove`](EntityListController.md#remove)
 
-***
+---
 
 ### select() \{#select\}
 
@@ -201,9 +201,9 @@ Selects entities that exist on the current page, deduplicating and filtering out
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `ids` | readonly `string`[] |
+| Parameter | Type                |
+| --------- | ------------------- |
+| `ids`     | readonly `string`[] |
 
 #### Returns
 
@@ -213,7 +213,7 @@ Selects entities that exist on the current page, deduplicating and filtering out
 
 [`EntityListController`](EntityListController.md).[`select`](EntityListController.md#select)
 
-***
+---
 
 ### setCapabilities() \{#setcapabilities\}
 
@@ -227,8 +227,8 @@ Replaces the existing capability constraints; subsequent write actions are judge
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter      | Type                                                                       |
+| -------------- | -------------------------------------------------------------------------- |
 | `capabilities` | [`EntityCapabilities`](../interfaces/EntityCapabilities.md) \| `undefined` |
 
 #### Returns
@@ -239,7 +239,7 @@ Replaces the existing capability constraints; subsequent write actions are judge
 
 [`EntityListController`](EntityListController.md).[`setCapabilities`](EntityListController.md#setcapabilities)
 
-***
+---
 
 ### setError() \{#seterror\}
 
@@ -253,9 +253,9 @@ Exposes an error from the host data source or a write action.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `error` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `error`   | `unknown` |
 
 #### Returns
 
@@ -265,7 +265,7 @@ Exposes an error from the host data source or a write action.
 
 [`EntityListController`](EntityListController.md).[`setError`](EntityListController.md#seterror)
 
-***
+---
 
 ### setLoading() \{#setloading\}
 
@@ -279,8 +279,8 @@ Updates the data source loading state managed by the host.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type      |
+| --------- | --------- |
 | `loading` | `boolean` |
 
 #### Returns
@@ -291,7 +291,7 @@ Updates the data source loading state managed by the host.
 
 [`EntityListController`](EntityListController.md).[`setLoading`](EntityListController.md#setloading)
 
-***
+---
 
 ### setPage() \{#setpage\}
 
@@ -305,9 +305,9 @@ Sets the zero-based page number and page size, discarding the old page; does not
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `page` | `number` |
+| Parameter   | Type     |
+| ----------- | -------- |
+| `page`      | `number` |
 | `pageSize?` | `number` |
 
 #### Returns
@@ -318,7 +318,7 @@ Sets the zero-based page number and page size, discarding the old page; does not
 
 [`EntityListController`](EntityListController.md).[`setPage`](EntityListController.md#setpage)
 
-***
+---
 
 ### setQuery() \{#setquery\}
 
@@ -332,9 +332,9 @@ Switches the query and clears the old page and pending requests, after which ref
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `query` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `query`   | `unknown` |
 
 #### Returns
 
@@ -344,7 +344,7 @@ Switches the query and clears the old page and pending requests, after which ref
 
 [`EntityListController`](EntityListController.md).[`setQuery`](EntityListController.md#setquery)
 
-***
+---
 
 ### setRecords() \{#setrecords\}
 
@@ -358,10 +358,10 @@ Replaces the current page with host records, optionally with the total count.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type           |
+| --------- | -------------- |
 | `records` | readonly `T`[] |
-| `total?` | `number` |
+| `total?`  | `number`       |
 
 #### Returns
 
@@ -371,7 +371,7 @@ Replaces the current page with host records, optionally with the total count.
 
 [`EntityListController`](EntityListController.md).[`setRecords`](EntityListController.md#setrecords)
 
-***
+---
 
 ### setSorts() \{#setsorts\}
 
@@ -385,9 +385,9 @@ Replaces the ordering rules and returns to the first page, discarding the old qu
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `sorts` | readonly [`OrderBy`](../../rxdb/interfaces/OrderBy.md)&lt;`string`&gt;[] |
+| Parameter | Type                                                                     |
+| --------- | ------------------------------------------------------------------------ |
+| `sorts`   | readonly [`OrderBy`](../../rxdb/interfaces/OrderBy.md)&lt;`string`&gt;[] |
 
 #### Returns
 
@@ -397,7 +397,7 @@ Replaces the ordering rules and returns to the first page, discarding the old qu
 
 [`EntityListController`](EntityListController.md).[`setSorts`](EntityListController.md#setsorts)
 
-***
+---
 
 ### subscribe() \{#subscribe\}
 
@@ -411,8 +411,8 @@ Subscribes to subsequent state changes, returning the unsubscribe function.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                      |
+| ---------- | ------------------------- |
 | `listener` | `ListListener`&lt;`T`&gt; |
 
 #### Returns
@@ -423,7 +423,7 @@ Subscribes to subsequent state changes, returning the unsubscribe function.
 
 [`EntityListController`](EntityListController.md).[`subscribe`](EntityListController.md#subscribe)
 
-***
+---
 
 ### syncInput() \{#syncinput\}
 
@@ -437,9 +437,9 @@ Syncs the host input, forwarding only the items that actually changed relative t
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `input` | [`EntityListInput`](../type-aliases/EntityListInput.md)&lt;`T`&gt; |
+| Parameter | Type                                                               |
+| --------- | ------------------------------------------------------------------ |
+| `input`   | [`EntityListInput`](../type-aliases/EntityListInput.md)&lt;`T`&gt; |
 
 #### Returns
 
@@ -454,7 +454,7 @@ When query, ordering, pagination, and records are omitted, the current state is 
 
 [`EntityListController`](EntityListController.md).[`syncInput`](EntityListController.md#syncinput)
 
-***
+---
 
 ### toggleSelection() \{#toggleselection\}
 
@@ -468,9 +468,9 @@ Toggles the selection state of an entity.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `id` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `id`      | `string` |
 
 #### Returns
 
@@ -480,7 +480,7 @@ Toggles the selection state of an entity.
 
 [`EntityListController`](EntityListController.md).[`toggleSelection`](EntityListController.md#toggleselection)
 
-***
+---
 
 ### update() \{#update\}
 
@@ -494,9 +494,9 @@ Updates an entity; concurrent updates of the same entity run in call order and k
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `id` | `string` |
+| Parameter | Type                                |
+| --------- | ----------------------------------- |
+| `id`      | `string`                            |
 | `changes` | `Record`&lt;`string`, `unknown`&gt; |
 
 #### Returns

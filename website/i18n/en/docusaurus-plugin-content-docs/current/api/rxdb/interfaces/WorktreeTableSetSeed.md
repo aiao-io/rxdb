@@ -27,7 +27,7 @@ The increments along the path from the primary checkout's branch to the holding 
 Patches are in the change log's storage form, and encrypted columns are envelopes; only member entities of
 this table set are included, and a key falling outside the table set rejects the whole entry.
 
-***
+---
 
 ### branchId \{#branchid\}
 

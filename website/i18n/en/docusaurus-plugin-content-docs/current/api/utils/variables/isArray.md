@@ -11,9 +11,9 @@ A re-export of JavaScript's built-in Array.isArray function
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `arg` | `any` |
+| Parameter | Type  |
+| --------- | ----- |
+| `arg`     | `any` |
 
 ## Returns
 

@@ -8,15 +8,15 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/rxdb\_adapter\_mutations.ts:2
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) | [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                    | Default type                                          |
+| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) | [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `adapter` | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md) |
+| Parameter   | Type                                                                       |
+| ----------- | -------------------------------------------------------------------------- |
+| `adapter`   | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md)             |
 | `mutations` | [`RxDBMutationsMap`](../../rxdb/interfaces/RxDBMutationsMap.md)&lt;`T`&gt; |
 
 ## Returns

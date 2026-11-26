@@ -17,7 +17,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/fts/types.ts:73](https://github.co
 PostgreSQL `regconfig` (determines the language behavior of `to_tsvector`).
 Defaults to [DEFAULT\_FTS\_REGCONFIG](../variables/DEFAULT_FTS_REGCONFIG.md).
 
-***
+---
 
 ### schema? \{#schema\}
 

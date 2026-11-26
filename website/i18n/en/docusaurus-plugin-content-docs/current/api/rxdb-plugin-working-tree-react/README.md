@@ -39,8 +39,8 @@ export function CommitBar() {
 
   return (
     <div>
-      `{tree.statusState.phase === 'empty' && <span>No uncommitted changes</span>}`
-      `{tree.statusState.phase === 'success' && <span>{tree.statusState.value.entryCount} uncommitted</span>}`
+      `{tree.statusState.phase === 'empty' && <span>No uncommitted changes</span>}` `
+      {tree.statusState.phase === 'success' && <span>{tree.statusState.value.entryCount} uncommitted</span>}`
       <button disabled={tree.commitState.phase === 'loading'} onClick={() => void save()}>
         Commit
       </button>
@@ -109,14 +109,14 @@ Types and error classes are imported directly from [`@aiao/rxdb-plugin-working-t
 
 ## Type Aliases
 
-| Type Alias | Description |
-| ------ | ------ |
-| [WorkingTreeResource](type-aliases/WorkingTreeResource.md) | The working tree entry returned by [useWorkingTree](functions/useWorkingTree.md) in the current render. |
-| [WorktreesResource](type-aliases/WorktreesResource.md) | The checkout entry returned by [useWorktrees](functions/useWorktrees.md) in the current render (read-only checkouts US-313, writable checkouts US-314). |
+| Type Alias                                                 | Description                                                                                                                                             |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [WorkingTreeResource](type-aliases/WorkingTreeResource.md) | The working tree entry returned by [useWorkingTree](functions/useWorkingTree.md) in the current render.                                                 |
+| [WorktreesResource](type-aliases/WorktreesResource.md)     | The checkout entry returned by [useWorktrees](functions/useWorktrees.md) in the current render (read-only checkouts US-313, writable checkouts US-314). |
 
 ## Functions
 
-| Function | Description |
-| ------ | ------ |
-| [useWorkingTree](functions/useWorkingTree.md) | Reads and writes the current database's working tree. |
-| [useWorktrees](functions/useWorktrees.md) | Reads and writes the current database's checkouts: read-only and writable checkouts. |
+| Function                                      | Description                                                                          |
+| --------------------------------------------- | ------------------------------------------------------------------------------------ |
+| [useWorkingTree](functions/useWorkingTree.md) | Reads and writes the current database's working tree.                                |
+| [useWorktrees](functions/useWorktrees.md)     | Reads and writes the current database's checkouts: read-only and writable checkouts. |

@@ -49,13 +49,13 @@ Without the plugin, an entity declaring `repository: 'TreeRepository'` (which `@
 
 ## Public surface
 
-| Category  | Symbols                                                                                     |
-| --------- | ------------------------------------------------------------------------------------------- |
-| Plugin    | `RxDBPluginTree`, `rxDBPluginTree`                                                           |
-| Entity    | `TreeAdjacencyListEntityBase`, `TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS`, `@TreeEntity`     |
-| Types     | `ITreeEntity`, `ISortableTreeEntity`, `TreeEntityType`, `EntityMetadataTreeFeatures`        |
-| Repository | `TreeRepository`, `ITreeRepository`, `FindTreeOptions`                                      |
-| Queries   | `FindDescendantsQuery`, `FindAncestorsQuery`, `CountDescendantsQuery`, `CountAncestorsQuery` |
+| Category   | Symbols                                                                                      |
+| ---------- | -------------------------------------------------------------------------------------------- |
+| Plugin     | `RxDBPluginTree`, `rxDBPluginTree`                                                           |
+| Entity     | `TreeAdjacencyListEntityBase`, `TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS`, `@TreeEntity`      |
+| Types      | `ITreeEntity`, `ISortableTreeEntity`, `TreeEntityType`, `EntityMetadataTreeFeatures`         |
+| Repository | `TreeRepository`, `ITreeRepository`, `FindTreeOptions`                                       |
+| Queries    | `FindDescendantsQuery`, `FindAncestorsQuery`, `CountDescendantsQuery`, `CountAncestorsQuery` |
 
 The four query task types are attached to the core `QueryOptions` union through `RepositoryQueryExtensions` module augmentation — the only seam through which a plugin can add branches to the core's closed union.
 
@@ -117,52 +117,53 @@ RxDB Tree plugin
 A tree structure plugin providing the adjacency-list entity base class, decorator, repository, and incremental query merging
 
 Main features:
+
 - Tree entity base class and decorator (`TreeAdjacencyListEntityBase` / `@TreeEntity`)
 - Four tree queries (`findDescendants` / `countDescendants` / `findAncestors` / `countAncestors`)
 - True incremental merge for tree queries (unlike graph queries, which always fall back to a SQL refresh)
 
 ## Classes
 
-| Class | Description |
-| ------ | ------ |
-| [RxDBPluginTree](classes/RxDBPluginTree.md) | The tree structure plugin. |
+| Class                                                                 | Description                                                                                               |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| [RxDBPluginTree](classes/RxDBPluginTree.md)                           | The tree structure plugin.                                                                                |
 | [TreeAdjacencyListEntityBase](classes/TreeAdjacencyListEntityBase.md) | Tree entity decorator configuration; defines the parent-child relationship required by the tree structure |
-| [TreeRepository](classes/TreeRepository.md) | Tree structure entity repository; decides the concrete operations of an entity based on configuration |
+| [TreeRepository](classes/TreeRepository.md)                           | Tree structure entity repository; decides the concrete operations of an entity based on configuration     |
 
 ## Interfaces
 
-| Interface | Description |
-| ------ | ------ |
-| [CountAncestorsQuery](interfaces/CountAncestorsQuery.md) | CountAncestors query task; counts the ancestor nodes of the given entity |
-| [CountDescendantsQuery](interfaces/CountDescendantsQuery.md) | CountDescendants query task; counts the descendant nodes of the given entity |
-| [EntityMetadataTreeFeatures](interfaces/EntityMetadataTreeFeatures.md) | Interface for tree structure features in entity metadata |
-| [FindAncestorsQuery](interfaces/FindAncestorsQuery.md) | FindAncestors query task; finds all ancestor nodes of the given entity |
-| [FindDescendantsQuery](interfaces/FindDescendantsQuery.md) | FindDescendants query task; finds all descendant nodes of the given entity |
-| [FindTreeOptions](interfaces/FindTreeOptions.md) | Tree query configuration |
-| [ISortableTreeEntity](interfaces/ISortableTreeEntity.md) | Interface for tree entities supporting manual ordering. |
-| [ITreeEntity](interfaces/ITreeEntity.md) | Base entity interface; defines the basic properties shared by all entities. To sync better with remote data, all entity classes should implement this interface |
-| [ITreeRepository](interfaces/ITreeRepository.md) | Tree repository interface |
+| Interface                                                              | Description                                                                                                                                                     |
+| ---------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [CountAncestorsQuery](interfaces/CountAncestorsQuery.md)               | CountAncestors query task; counts the ancestor nodes of the given entity                                                                                        |
+| [CountDescendantsQuery](interfaces/CountDescendantsQuery.md)           | CountDescendants query task; counts the descendant nodes of the given entity                                                                                    |
+| [EntityMetadataTreeFeatures](interfaces/EntityMetadataTreeFeatures.md) | Interface for tree structure features in entity metadata                                                                                                        |
+| [FindAncestorsQuery](interfaces/FindAncestorsQuery.md)                 | FindAncestors query task; finds all ancestor nodes of the given entity                                                                                          |
+| [FindDescendantsQuery](interfaces/FindDescendantsQuery.md)             | FindDescendants query task; finds all descendant nodes of the given entity                                                                                      |
+| [FindTreeOptions](interfaces/FindTreeOptions.md)                       | Tree query configuration                                                                                                                                        |
+| [ISortableTreeEntity](interfaces/ISortableTreeEntity.md)               | Interface for tree entities supporting manual ordering.                                                                                                         |
+| [ITreeEntity](interfaces/ITreeEntity.md)                               | Base entity interface; defines the basic properties shared by all entities. To sync better with remote data, all entity classes should implement this interface |
+| [ITreeRepository](interfaces/ITreeRepository.md)                       | Tree repository interface                                                                                                                                       |
 
 ## Type Aliases
 
-| Type Alias | Description |
-| ------ | ------ |
-| [TreeEntityType](type-aliases/TreeEntityType.md) | Tree entity type |
-| [TreeQuery](type-aliases/TreeQuery.md) | Union of the four tree query tasks. |
-| [TreeQueryType](type-aliases/TreeQueryType.md) | Union of tree query task types, derived from [TREE\_QUERY\_TYPE\_LIST](variables/TREE_QUERY_TYPE_LIST.md). |
+| Type Alias                                       | Description                                                                                                |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| [TreeEntityType](type-aliases/TreeEntityType.md) | Tree entity type                                                                                           |
+| [TreeQuery](type-aliases/TreeQuery.md)           | Union of the four tree query tasks.                                                                        |
+| [TreeQueryType](type-aliases/TreeQueryType.md)   | Union of tree query task types, derived from [TREE\_QUERY\_TYPE\_LIST](variables/TREE_QUERY_TYPE_LIST.md). |
 
 ## Variables
 
-| Variable | Description |
-| ------ | ------ |
-| [rxDBPluginTree](variables/rxDBPluginTree.md) | Factory of [RxDBPluginTree](classes/RxDBPluginTree.md), passed to `RxDB.use()`. |
-| [TREE\_ADJACENCY\_LIST\_ENTITY\_BASE\_OPTIONS](variables/TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS.md) | The `@Entity` metadata of `TreeAdjacencyListEntityBase`. |
-| [TREE\_QUERY\_TYPE\_LIST](variables/TREE_QUERY_TYPE_LIST.md) | The **single source** of tree query task types. |
-| [TREE\_QUERY\_TYPES](variables/TREE_QUERY_TYPES.md) | Set of tree query task types |
-| [TreeEntity](variables/TreeEntity.md) | Tree entity decorator; marks a class as a tree structure entity and handles tree-specific metadata |
+| Variable                                                                                             | Description                                                                                        |
+| ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| [rxDBPluginTree](variables/rxDBPluginTree.md)                                                        | Factory of [RxDBPluginTree](classes/RxDBPluginTree.md), passed to `RxDB.use()`.                    |
+| [TREE\_ADJACENCY\_LIST\_ENTITY\_BASE\_OPTIONS](variables/TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS.md) | The `@Entity` metadata of `TreeAdjacencyListEntityBase`.                                           |
+| [TREE\_QUERY\_TYPE\_LIST](variables/TREE_QUERY_TYPE_LIST.md)                                         | The **single source** of tree query task types.                                                    |
+| [TREE\_QUERY\_TYPES](variables/TREE_QUERY_TYPES.md)                                                  | Set of tree query task types                                                                       |
+| [TreeEntity](variables/TreeEntity.md)                                                                | Tree entity decorator; marks a class as a tree structure entity and handles tree-specific metadata |
 
 ## Functions
 
-| Function | Description |
-| ------ | ------ |
+| Function                                        | Description                                                                            |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------- |
 | [assertTreeLevel](functions/assertTreeLevel.md) | Validates the tree query depth; keeps the unlimited-depth semantics when not provided. |

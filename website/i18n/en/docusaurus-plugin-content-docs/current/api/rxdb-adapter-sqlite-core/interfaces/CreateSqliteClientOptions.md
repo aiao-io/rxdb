@@ -14,7 +14,7 @@ sharedWorker?: boolean;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/create\_sqlite\_client.ts:11](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/create_sqlite_client.ts#L11)
 
-***
+---
 
 ### sharedWorkerInstance? \{#sharedworkerinstance\}
 
@@ -24,7 +24,7 @@ sharedWorkerInstance?: SharedWorker;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/create\_sqlite\_client.ts:12](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/create_sqlite_client.ts#L12)
 
-***
+---
 
 ### worker? \{#worker\}
 
@@ -34,7 +34,7 @@ worker?: boolean;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/create\_sqlite\_client.ts:9](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/create_sqlite_client.ts#L9)
 
-***
+---
 
 ### workerInstance? \{#workerinstance\}
 
@@ -44,7 +44,7 @@ workerInstance?: Worker;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/create\_sqlite\_client.ts:10](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/create_sqlite_client.ts#L10)
 
-***
+---
 
 ### workerOwnership? \{#workerownership\}
 

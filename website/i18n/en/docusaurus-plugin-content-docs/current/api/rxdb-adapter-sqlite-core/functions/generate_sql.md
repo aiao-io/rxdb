@@ -10,8 +10,8 @@ Generates a SQL query statement.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                 | Description            |
+| --------- | -------------------- | ---------------------- |
 | `options` | `GenerateSqlOptions` | SQL generation options |
 
 ## Returns

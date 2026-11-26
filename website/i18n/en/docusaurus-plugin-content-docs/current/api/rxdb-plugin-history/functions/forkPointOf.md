@@ -20,9 +20,9 @@ The merge preview's common-ancestor search (`branch-compare.ts`) also uses it, h
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `branch` | [`RxDBBranch`](../../rxdb/classes/RxDBBranch.md) | The branch row |
+| Parameter | Type                                             | Description    |
+| --------- | ------------------------------------------------ | -------------- |
+| `branch`  | [`RxDBBranch`](../../rxdb/classes/RxDBBranch.md) | The branch row |
 
 ## Returns
 

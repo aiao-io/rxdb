@@ -19,8 +19,8 @@ and `internal` (the handler threw a different error). Other codes are agreed per
 
 ```ts
 new P2PRequestError(
-   code, 
-   message, 
+   code,
+   message,
    options?
 ): P2PRequestError;
 ```
@@ -29,12 +29,12 @@ Defined in: [packages/rxdb-plugin-p2p/src/session/errors.ts:68](https://github.c
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `code` | `string` | The rejection reason |
-| `message` | `string` | A diagnosable description (truncated to the protocol limit when sent to the peer) |
-| `options?` | \{ `cause?`: `unknown`; \} | `cause` is the underlying reason |
-| `options.cause?` | `unknown` | - |
+| Parameter        | Type                       | Description                                                                       |
+| ---------------- | -------------------------- | --------------------------------------------------------------------------------- |
+| `code`           | `string`                   | The rejection reason                                                              |
+| `message`        | `string`                   | A diagnosable description (truncated to the protocol limit when sent to the peer) |
+| `options?`       | \{ `cause?`: `unknown`; \} | `cause` is the underlying reason                                                  |
+| `options.cause?` | `unknown`                  | -                                                                                 |
 
 #### Returns
 
@@ -58,7 +58,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 `Error.cause`
 
-***
+---
 
 ### code \{#code\}
 
@@ -70,7 +70,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/session/errors.ts:61](https://github.c
 
 Stable rejection reason, recognizable across realms.
 
-***
+---
 
 ### message \{#message\}
 
@@ -84,7 +84,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 `Error.message`
 
-***
+---
 
 ### name \{#name\}
 
@@ -98,7 +98,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 `Error.name`
 
-***
+---
 
 ### stack? \{#stack\}
 
@@ -112,7 +112,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 `Error.stack`
 
-***
+---
 
 ### stackTraceLimit \{#stacktracelimit\}
 
@@ -153,7 +153,7 @@ a string representing the location in the code at which
 ```js
 const myObject = {};
 Error.captureStackTrace(myObject);
-myObject.stack;  // Similar to `new Error().stack`
+myObject.stack; // Similar to `new Error().stack`
 ```
 
 The first line of the trace will be prefixed with
@@ -192,9 +192,9 @@ a();
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `targetObject` | `object` |
+| Parameter         | Type       |
+| ----------------- | ---------- |
+| `targetObject`    | `object`   |
 | `constructorOpt?` | `Function` |
 
 #### Returns
@@ -205,7 +205,7 @@ a();
 
 `Error.captureStackTrace`
 
-***
+---
 
 ### prepareStackTrace() \{#preparestacktrace\}
 
@@ -217,9 +217,9 @@ Defined in: node\_modules/.pnpm/@types+node@26.6.6/node\_modules/@types/node/glo
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `err` | `Error` |
+| Parameter     | Type         |
+| ------------- | ------------ |
+| `err`         | `Error`      |
 | `stackTraces` | `CallSite`[] |
 
 #### Returns

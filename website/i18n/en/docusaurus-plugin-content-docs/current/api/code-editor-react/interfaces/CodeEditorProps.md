@@ -23,7 +23,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.about`
 
-***
+---
 
 ### accessKey? \{#accesskey\}
 
@@ -37,7 +37,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.accessKey`
 
-***
+---
 
 ### aria-activedescendant? \{#aria-activedescendant\}
 
@@ -53,7 +53,7 @@ Identifies the currently active element when DOM focus is on a composite widget,
 
 `CodeEditorHostProps.aria-activedescendant`
 
-***
+---
 
 ### aria-atomic? \{#aria-atomic\}
 
@@ -69,7 +69,7 @@ Indicates whether assistive technologies will present all, or only parts of, the
 
 `CodeEditorHostProps.aria-atomic`
 
-***
+---
 
 ### aria-autocomplete? \{#aria-autocomplete\}
 
@@ -86,7 +86,7 @@ presented if they are made.
 
 `CodeEditorHostProps.aria-autocomplete`
 
-***
+---
 
 ### aria-braillelabel? \{#aria-braillelabel\}
 
@@ -106,7 +106,7 @@ aria-label.
 
 `CodeEditorHostProps.aria-braillelabel`
 
-***
+---
 
 ### aria-brailleroledescription? \{#aria-brailleroledescription\}
 
@@ -126,7 +126,7 @@ aria-roledescription.
 
 `CodeEditorHostProps.aria-brailleroledescription`
 
-***
+---
 
 ### aria-busy? \{#aria-busy\}
 
@@ -140,7 +140,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.aria-busy`
 
-***
+---
 
 ### aria-checked? \{#aria-checked\}
 
@@ -154,14 +154,14 @@ Indicates the current "checked" state of checkboxes, radio buttons, and other wi
 
 #### See
 
- - aria-pressed
- - aria-selected.
+- aria-pressed
+- aria-selected.
 
 #### Inherited from
 
 `CodeEditorHostProps.aria-checked`
 
-***
+---
 
 ### aria-colcount? \{#aria-colcount\}
 
@@ -181,7 +181,7 @@ aria-colindex.
 
 `CodeEditorHostProps.aria-colcount`
 
-***
+---
 
 ### aria-colindex? \{#aria-colindex\}
 
@@ -195,14 +195,14 @@ Defines an element's column index or position with respect to the total number o
 
 #### See
 
- - aria-colcount
- - aria-colspan.
+- aria-colcount
+- aria-colspan.
 
 #### Inherited from
 
 `CodeEditorHostProps.aria-colindex`
 
-***
+---
 
 ### aria-colindextext? \{#aria-colindextext\}
 
@@ -222,7 +222,7 @@ aria-rowindextext.
 
 `CodeEditorHostProps.aria-colindextext`
 
-***
+---
 
 ### aria-colspan? \{#aria-colspan\}
 
@@ -236,14 +236,14 @@ Defines the number of columns spanned by a cell or gridcell within a table, grid
 
 #### See
 
- - aria-colindex
- - aria-rowspan.
+- aria-colindex
+- aria-rowspan.
 
 #### Inherited from
 
 `CodeEditorHostProps.aria-colspan`
 
-***
+---
 
 ### aria-controls? \{#aria-controls\}
 
@@ -263,7 +263,7 @@ aria-owns.
 
 `CodeEditorHostProps.aria-controls`
 
-***
+---
 
 ### aria-current? \{#aria-current\}
 
@@ -279,7 +279,7 @@ Indicates the element that represents the current item within a container or set
 
 `CodeEditorHostProps.aria-current`
 
-***
+---
 
 ### aria-describedby? \{#aria-describedby\}
 
@@ -299,7 +299,7 @@ aria-labelledby
 
 `CodeEditorHostProps.aria-describedby`
 
-***
+---
 
 ### aria-description? \{#aria-description\}
 
@@ -319,7 +319,7 @@ related aria-describedby.
 
 `CodeEditorHostProps.aria-description`
 
-***
+---
 
 ### aria-details? \{#aria-details\}
 
@@ -339,7 +339,7 @@ aria-describedby.
 
 `CodeEditorHostProps.aria-details`
 
-***
+---
 
 ### aria-disabled? \{#aria-disabled\}
 
@@ -353,14 +353,14 @@ Indicates that the element is perceivable but disabled, so it is not editable or
 
 #### See
 
- - aria-hidden
- - aria-readonly.
+- aria-hidden
+- aria-readonly.
 
 #### Inherited from
 
 `CodeEditorHostProps.aria-disabled`
 
-***
+---
 
 ### ~~aria-dropeffect?~~ \{#aria-dropeffect\}
 
@@ -380,7 +380,7 @@ in ARIA 1.1
 
 `CodeEditorHostProps.aria-dropeffect`
 
-***
+---
 
 ### aria-errormessage? \{#aria-errormessage\}
 
@@ -394,14 +394,14 @@ Identifies the element that provides an error message for the object.
 
 #### See
 
- - aria-invalid
- - aria-describedby.
+- aria-invalid
+- aria-describedby.
 
 #### Inherited from
 
 `CodeEditorHostProps.aria-errormessage`
 
-***
+---
 
 ### aria-expanded? \{#aria-expanded\}
 
@@ -417,7 +417,7 @@ Indicates whether the element, or another grouping element it controls, is curre
 
 `CodeEditorHostProps.aria-expanded`
 
-***
+---
 
 ### aria-flowto? \{#aria-flowto\}
 
@@ -434,7 +434,7 @@ allows assistive technology to override the general default of reading in docume
 
 `CodeEditorHostProps.aria-flowto`
 
-***
+---
 
 ### ~~aria-grabbed?~~ \{#aria-grabbed\}
 
@@ -454,12 +454,12 @@ in ARIA 1.1
 
 `CodeEditorHostProps.aria-grabbed`
 
-***
+---
 
 ### aria-haspopup? \{#aria-haspopup\}
 
 ```ts
-"aria-haspopup"?: 
+"aria-haspopup"?:
   | boolean
   | "true"
   | "false"
@@ -478,7 +478,7 @@ Indicates the availability and type of interactive popup element, such as menu o
 
 `CodeEditorHostProps.aria-haspopup`
 
-***
+---
 
 ### aria-hidden? \{#aria-hidden\}
 
@@ -498,7 +498,7 @@ aria-disabled.
 
 `CodeEditorHostProps.aria-hidden`
 
-***
+---
 
 ### aria-invalid? \{#aria-invalid\}
 
@@ -518,7 +518,7 @@ aria-errormessage.
 
 `CodeEditorHostProps.aria-invalid`
 
-***
+---
 
 ### aria-keyshortcuts? \{#aria-keyshortcuts\}
 
@@ -534,7 +534,7 @@ Indicates keyboard shortcuts that an author has implemented to activate or give 
 
 `CodeEditorHostProps.aria-keyshortcuts`
 
-***
+---
 
 ### aria-label? \{#aria-label\}
 
@@ -554,7 +554,7 @@ aria-labelledby.
 
 `CodeEditorHostProps.aria-label`
 
-***
+---
 
 ### aria-labelledby? \{#aria-labelledby\}
 
@@ -574,7 +574,7 @@ aria-describedby.
 
 `CodeEditorHostProps.aria-labelledby`
 
-***
+---
 
 ### aria-level? \{#aria-level\}
 
@@ -590,7 +590,7 @@ Defines the hierarchical level of an element within a structure.
 
 `CodeEditorHostProps.aria-level`
 
-***
+---
 
 ### aria-live? \{#aria-live\}
 
@@ -606,7 +606,7 @@ Indicates that an element will be updated, and describes the types of updates th
 
 `CodeEditorHostProps.aria-live`
 
-***
+---
 
 ### aria-modal? \{#aria-modal\}
 
@@ -622,7 +622,7 @@ Indicates whether an element is modal when displayed.
 
 `CodeEditorHostProps.aria-modal`
 
-***
+---
 
 ### aria-multiline? \{#aria-multiline\}
 
@@ -638,7 +638,7 @@ Indicates whether a text box accepts multiple lines of input or only a single li
 
 `CodeEditorHostProps.aria-multiline`
 
-***
+---
 
 ### aria-multiselectable? \{#aria-multiselectable\}
 
@@ -654,7 +654,7 @@ Indicates that the user may select more than one item from the current selectabl
 
 `CodeEditorHostProps.aria-multiselectable`
 
-***
+---
 
 ### aria-orientation? \{#aria-orientation\}
 
@@ -670,7 +670,7 @@ Indicates whether the element's orientation is horizontal, vertical, or unknown/
 
 `CodeEditorHostProps.aria-orientation`
 
-***
+---
 
 ### aria-owns? \{#aria-owns\}
 
@@ -691,7 +691,7 @@ aria-controls.
 
 `CodeEditorHostProps.aria-owns`
 
-***
+---
 
 ### aria-placeholder? \{#aria-placeholder\}
 
@@ -708,7 +708,7 @@ A hint could be a sample value or a brief description of the expected format.
 
 `CodeEditorHostProps.aria-placeholder`
 
-***
+---
 
 ### aria-posinset? \{#aria-posinset\}
 
@@ -728,7 +728,7 @@ aria-setsize.
 
 `CodeEditorHostProps.aria-posinset`
 
-***
+---
 
 ### aria-pressed? \{#aria-pressed\}
 
@@ -742,14 +742,14 @@ Indicates the current "pressed" state of toggle buttons.
 
 #### See
 
- - aria-checked
- - aria-selected.
+- aria-checked
+- aria-selected.
 
 #### Inherited from
 
 `CodeEditorHostProps.aria-pressed`
 
-***
+---
 
 ### aria-readonly? \{#aria-readonly\}
 
@@ -769,12 +769,12 @@ aria-disabled.
 
 `CodeEditorHostProps.aria-readonly`
 
-***
+---
 
 ### aria-relevant? \{#aria-relevant\}
 
 ```ts
-"aria-relevant"?: 
+"aria-relevant"?:
   | "all"
   | "text"
   | "additions"
@@ -799,7 +799,7 @@ aria-atomic.
 
 `CodeEditorHostProps.aria-relevant`
 
-***
+---
 
 ### aria-required? \{#aria-required\}
 
@@ -815,7 +815,7 @@ Indicates that user input is required on the element before a form may be submit
 
 `CodeEditorHostProps.aria-required`
 
-***
+---
 
 ### aria-roledescription? \{#aria-roledescription\}
 
@@ -831,7 +831,7 @@ Defines a human-readable, author-localized description for the role of an elemen
 
 `CodeEditorHostProps.aria-roledescription`
 
-***
+---
 
 ### aria-rowcount? \{#aria-rowcount\}
 
@@ -851,7 +851,7 @@ aria-rowindex.
 
 `CodeEditorHostProps.aria-rowcount`
 
-***
+---
 
 ### aria-rowindex? \{#aria-rowindex\}
 
@@ -865,14 +865,14 @@ Defines an element's row index or position with respect to the total number of r
 
 #### See
 
- - aria-rowcount
- - aria-rowspan.
+- aria-rowcount
+- aria-rowspan.
 
 #### Inherited from
 
 `CodeEditorHostProps.aria-rowindex`
 
-***
+---
 
 ### aria-rowindextext? \{#aria-rowindextext\}
 
@@ -892,7 +892,7 @@ aria-colindextext.
 
 `CodeEditorHostProps.aria-rowindextext`
 
-***
+---
 
 ### aria-rowspan? \{#aria-rowspan\}
 
@@ -906,14 +906,14 @@ Defines the number of rows spanned by a cell or gridcell within a table, grid, o
 
 #### See
 
- - aria-rowindex
- - aria-colspan.
+- aria-rowindex
+- aria-colspan.
 
 #### Inherited from
 
 `CodeEditorHostProps.aria-rowspan`
 
-***
+---
 
 ### aria-selected? \{#aria-selected\}
 
@@ -927,14 +927,14 @@ Indicates the current "selected" state of various widgets.
 
 #### See
 
- - aria-checked
- - aria-pressed.
+- aria-checked
+- aria-pressed.
 
 #### Inherited from
 
 `CodeEditorHostProps.aria-selected`
 
-***
+---
 
 ### aria-setsize? \{#aria-setsize\}
 
@@ -954,7 +954,7 @@ aria-posinset.
 
 `CodeEditorHostProps.aria-setsize`
 
-***
+---
 
 ### aria-sort? \{#aria-sort\}
 
@@ -970,7 +970,7 @@ Indicates if items in a table or grid are sorted in ascending or descending orde
 
 `CodeEditorHostProps.aria-sort`
 
-***
+---
 
 ### aria-valuemax? \{#aria-valuemax\}
 
@@ -986,7 +986,7 @@ Defines the maximum allowed value for a range widget.
 
 `CodeEditorHostProps.aria-valuemax`
 
-***
+---
 
 ### aria-valuemin? \{#aria-valuemin\}
 
@@ -1002,7 +1002,7 @@ Defines the minimum allowed value for a range widget.
 
 `CodeEditorHostProps.aria-valuemin`
 
-***
+---
 
 ### aria-valuenow? \{#aria-valuenow\}
 
@@ -1022,7 +1022,7 @@ aria-valuetext.
 
 `CodeEditorHostProps.aria-valuenow`
 
-***
+---
 
 ### aria-valuetext? \{#aria-valuetext\}
 
@@ -1038,12 +1038,12 @@ Defines the human readable text alternative of aria-valuenow for a range widget.
 
 `CodeEditorHostProps.aria-valuetext`
 
-***
+---
 
 ### autoCapitalize? \{#autocapitalize\}
 
 ```ts
-autoCapitalize?: 
+autoCapitalize?:
   | string & object
   | "none"
   | "off"
@@ -1059,7 +1059,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.autoCapitalize`
 
-***
+---
 
 ### autoCorrect? \{#autocorrect\}
 
@@ -1073,7 +1073,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.autoCorrect`
 
-***
+---
 
 ### autoFocus? \{#autofocus\}
 
@@ -1088,7 +1088,7 @@ Focuses the editor immediately after mount.
 #### Default Value
 
 ```ts
-false
+false;
 ```
 
 #### Remarks
@@ -1099,7 +1099,7 @@ false
 
 `CodeEditorHostProps.autoFocus`
 
-***
+---
 
 ### autoSave? \{#autosave\}
 
@@ -1113,7 +1113,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.autoSave`
 
-***
+---
 
 ### className? \{#classname\}
 
@@ -1127,7 +1127,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.className`
 
-***
+---
 
 ### color? \{#color\}
 
@@ -1141,7 +1141,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.color`
 
-***
+---
 
 ### content? \{#content\}
 
@@ -1155,7 +1155,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.content`
 
-***
+---
 
 ### contentEditable? \{#contenteditable\}
 
@@ -1169,7 +1169,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.contentEditable`
 
-***
+---
 
 ### contextMenu? \{#contextmenu\}
 
@@ -1183,7 +1183,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.contextMenu`
 
-***
+---
 
 ### datatype? \{#datatype\}
 
@@ -1197,7 +1197,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.datatype`
 
-***
+---
 
 ### defaultChecked? \{#defaultchecked\}
 
@@ -1211,7 +1211,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.defaultChecked`
 
-***
+---
 
 ### defaultValue? \{#defaultvalue\}
 
@@ -1225,7 +1225,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.defaultValue`
 
-***
+---
 
 ### describedBy? \{#describedby\}
 
@@ -1241,7 +1241,7 @@ Id of the supplementary description element, written as the inner textbox's `ari
 
 Lands in the same place as [CodeEditorProps.label](#label).
 
-***
+---
 
 ### dir? \{#dir\}
 
@@ -1255,7 +1255,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.dir`
 
-***
+---
 
 ### disabled? \{#disabled\}
 
@@ -1270,7 +1270,7 @@ Disabled: read-only and non-editable, and reports `aria-disabled` to assistive t
 #### Default Value
 
 ```ts
-false
+false;
 ```
 
 #### Remarks
@@ -1278,7 +1278,7 @@ false
 Independent from `readonly`; either being true makes the editor non-editable;
 the difference is that disabled also writes `aria-disabled` and suppresses `autoFocus`.
 
-***
+---
 
 ### draggable? \{#draggable\}
 
@@ -1292,7 +1292,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.draggable`
 
-***
+---
 
 ### enterKeyHint? \{#enterkeyhint\}
 
@@ -1306,7 +1306,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.enterKeyHint`
 
-***
+---
 
 ### exportparts? \{#exportparts\}
 
@@ -1324,7 +1324,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.exportparts`
 
-***
+---
 
 ### hidden? \{#hidden\}
 
@@ -1338,7 +1338,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.hidden`
 
-***
+---
 
 ### highlightWhitespace? \{#highlightwhitespace\}
 
@@ -1353,10 +1353,10 @@ Shows whitespace characters.
 #### Default Value
 
 ```ts
-false
+false;
 ```
 
-***
+---
 
 ### id? \{#id\}
 
@@ -1370,7 +1370,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.id`
 
-***
+---
 
 ### indentUnit? \{#indentunit\}
 
@@ -1388,7 +1388,7 @@ The string used for one level of indentation.
 '  ' (two spaces, consistent across all three frameworks)
 ```
 
-***
+---
 
 ### indentWithTab? \{#indentwithtab\}
 
@@ -1403,7 +1403,7 @@ Allows Tab-key indentation.
 #### Default Value
 
 ```ts
-false
+false;
 ```
 
 #### Remarks
@@ -1411,7 +1411,7 @@ false
 When enabled, Tab no longer moves focus and keyboard users get stuck in the editor — an accessibility trade-off,
 turned off consistently by default across all three frameworks.
 
-***
+---
 
 ### inert? \{#inert\}
 
@@ -1429,7 +1429,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.inert`
 
-***
+---
 
 ### inlist? \{#inlist\}
 
@@ -1443,12 +1443,12 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.inlist`
 
-***
+---
 
 ### inputMode? \{#inputmode\}
 
 ```ts
-inputMode?: 
+inputMode?:
   | "none"
   | "search"
   | "text"
@@ -1471,7 +1471,7 @@ Hints at the type of data that might be entered by the user while editing the el
 
 `CodeEditorHostProps.inputMode`
 
-***
+---
 
 ### is? \{#is\}
 
@@ -1491,7 +1491,7 @@ Specify that a standard HTML element should behave like a defined custom built-i
 
 `CodeEditorHostProps.is`
 
-***
+---
 
 ### itemID? \{#itemid\}
 
@@ -1505,7 +1505,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.itemID`
 
-***
+---
 
 ### itemProp? \{#itemprop\}
 
@@ -1519,7 +1519,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.itemProp`
 
-***
+---
 
 ### itemRef? \{#itemref\}
 
@@ -1533,7 +1533,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.itemRef`
 
-***
+---
 
 ### itemScope? \{#itemscope\}
 
@@ -1547,7 +1547,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.itemScope`
 
-***
+---
 
 ### itemType? \{#itemtype\}
 
@@ -1561,7 +1561,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.itemType`
 
-***
+---
 
 ### label? \{#label\}
 
@@ -1580,7 +1580,7 @@ not the host `div`. Empty strings are treated as "unset". Same name and semantic
 
 It does not conflict with an `aria-label` passed straight through to the host: that one stays on the host element untouched.
 
-***
+---
 
 ### labelledBy? \{#labelledby\}
 
@@ -1596,7 +1596,7 @@ Id of the element acting as the label, written as the inner textbox's `aria-labe
 
 Lands in the same place as [CodeEditorProps.label](#label).
 
-***
+---
 
 ### lang? \{#lang\}
 
@@ -1610,7 +1610,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.lang`
 
-***
+---
 
 ### language? \{#language\}
 
@@ -1625,10 +1625,10 @@ Language name or alias for syntax highlighting; `''` and `'plaintext'` mean no h
 #### Default Value
 
 ```ts
-'sql'
+'sql';
 ```
 
-***
+---
 
 ### languages? \{#languages\}
 
@@ -1643,7 +1643,7 @@ Candidate language list; an empty list means no highlighting.
 #### Default Value
 
 ```ts
-SUPPORT_LANGUAGES
+SUPPORT_LANGUAGES;
 ```
 
 #### Remarks
@@ -1653,7 +1653,7 @@ The component compares item by item by identity, then uses [isSameResolvedLangua
 description resolved for the current language really changed — it only re-runs `load()` when it did. But both checks still run;
 a stable reference (a module-level constant or `useMemo`) is cheaper.
 
-***
+---
 
 ### lineWrapping? \{#linewrapping\}
 
@@ -1668,10 +1668,10 @@ Line wrapping.
 #### Default Value
 
 ```ts
-false
+false;
 ```
 
-***
+---
 
 ### nonce? \{#nonce\}
 
@@ -1685,7 +1685,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.nonce`
 
-***
+---
 
 ### onAbort? \{#onabort\}
 
@@ -1699,7 +1699,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onAbort`
 
-***
+---
 
 ### onAbortCapture? \{#onabortcapture\}
 
@@ -1713,7 +1713,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onAbortCapture`
 
-***
+---
 
 ### onAnimationEnd? \{#onanimationend\}
 
@@ -1727,7 +1727,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onAnimationEnd`
 
-***
+---
 
 ### onAnimationEndCapture? \{#onanimationendcapture\}
 
@@ -1741,7 +1741,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onAnimationEndCapture`
 
-***
+---
 
 ### onAnimationIteration? \{#onanimationiteration\}
 
@@ -1755,7 +1755,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onAnimationIteration`
 
-***
+---
 
 ### onAnimationIterationCapture? \{#onanimationiterationcapture\}
 
@@ -1769,7 +1769,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onAnimationIterationCapture`
 
-***
+---
 
 ### onAnimationStart? \{#onanimationstart\}
 
@@ -1783,7 +1783,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onAnimationStart`
 
-***
+---
 
 ### onAnimationStartCapture? \{#onanimationstartcapture\}
 
@@ -1797,7 +1797,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onAnimationStartCapture`
 
-***
+---
 
 ### onAuxClick? \{#onauxclick\}
 
@@ -1811,7 +1811,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onAuxClick`
 
-***
+---
 
 ### onAuxClickCapture? \{#onauxclickcapture\}
 
@@ -1825,7 +1825,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onAuxClickCapture`
 
-***
+---
 
 ### onBeforeInput? \{#onbeforeinput\}
 
@@ -1839,7 +1839,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onBeforeInput`
 
-***
+---
 
 ### onBeforeInputCapture? \{#onbeforeinputcapture\}
 
@@ -1853,7 +1853,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onBeforeInputCapture`
 
-***
+---
 
 ### onBeforeToggle? \{#onbeforetoggle\}
 
@@ -1867,7 +1867,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onBeforeToggle`
 
-***
+---
 
 ### onBlur? \{#onblur\}
 
@@ -1881,7 +1881,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onBlur`
 
-***
+---
 
 ### onBlurCapture? \{#onblurcapture\}
 
@@ -1895,7 +1895,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onBlurCapture`
 
-***
+---
 
 ### onCanPlay? \{#oncanplay\}
 
@@ -1909,7 +1909,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onCanPlay`
 
-***
+---
 
 ### onCanPlayCapture? \{#oncanplaycapture\}
 
@@ -1923,7 +1923,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onCanPlayCapture`
 
-***
+---
 
 ### onCanPlayThrough? \{#oncanplaythrough\}
 
@@ -1937,7 +1937,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onCanPlayThrough`
 
-***
+---
 
 ### onCanPlayThroughCapture? \{#oncanplaythroughcapture\}
 
@@ -1951,7 +1951,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onCanPlayThroughCapture`
 
-***
+---
 
 ### onChange? \{#onchange\}
 
@@ -1965,9 +1965,9 @@ Content change caused by user editing. Programmatic writes (`value` sync) do **n
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `value`   | `string` |
 
 #### Returns
 
@@ -1978,7 +1978,7 @@ Content change caused by user editing. Programmatic writes (`value` sync) do **n
 The callback is held in a ref and kept out of effect dependencies — when the host writes an inline arrow function,
 every render produces a new reference, and putting it in the dependencies would reinstall the update listener on every render.
 
-***
+---
 
 ### onChangeCapture? \{#onchangecapture\}
 
@@ -1992,7 +1992,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onChangeCapture`
 
-***
+---
 
 ### onClick? \{#onclick\}
 
@@ -2006,7 +2006,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onClick`
 
-***
+---
 
 ### onClickCapture? \{#onclickcapture\}
 
@@ -2020,7 +2020,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onClickCapture`
 
-***
+---
 
 ### onCompositionEnd? \{#oncompositionend\}
 
@@ -2034,7 +2034,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onCompositionEnd`
 
-***
+---
 
 ### onCompositionEndCapture? \{#oncompositionendcapture\}
 
@@ -2048,7 +2048,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onCompositionEndCapture`
 
-***
+---
 
 ### onCompositionStart? \{#oncompositionstart\}
 
@@ -2062,7 +2062,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onCompositionStart`
 
-***
+---
 
 ### onCompositionStartCapture? \{#oncompositionstartcapture\}
 
@@ -2076,7 +2076,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onCompositionStartCapture`
 
-***
+---
 
 ### onCompositionUpdate? \{#oncompositionupdate\}
 
@@ -2090,7 +2090,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onCompositionUpdate`
 
-***
+---
 
 ### onCompositionUpdateCapture? \{#oncompositionupdatecapture\}
 
@@ -2104,7 +2104,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onCompositionUpdateCapture`
 
-***
+---
 
 ### onContextMenu? \{#oncontextmenu\}
 
@@ -2118,7 +2118,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onContextMenu`
 
-***
+---
 
 ### onContextMenuCapture? \{#oncontextmenucapture\}
 
@@ -2132,7 +2132,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onContextMenuCapture`
 
-***
+---
 
 ### onCopy? \{#oncopy\}
 
@@ -2146,7 +2146,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onCopy`
 
-***
+---
 
 ### onCopyCapture? \{#oncopycapture\}
 
@@ -2160,7 +2160,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onCopyCapture`
 
-***
+---
 
 ### onCut? \{#oncut\}
 
@@ -2174,7 +2174,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onCut`
 
-***
+---
 
 ### onCutCapture? \{#oncutcapture\}
 
@@ -2188,7 +2188,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onCutCapture`
 
-***
+---
 
 ### onDoubleClick? \{#ondoubleclick\}
 
@@ -2202,7 +2202,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onDoubleClick`
 
-***
+---
 
 ### onDoubleClickCapture? \{#ondoubleclickcapture\}
 
@@ -2216,7 +2216,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onDoubleClickCapture`
 
-***
+---
 
 ### onDrag? \{#ondrag\}
 
@@ -2230,7 +2230,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onDrag`
 
-***
+---
 
 ### onDragCapture? \{#ondragcapture\}
 
@@ -2244,7 +2244,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onDragCapture`
 
-***
+---
 
 ### onDragEnd? \{#ondragend\}
 
@@ -2258,7 +2258,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onDragEnd`
 
-***
+---
 
 ### onDragEndCapture? \{#ondragendcapture\}
 
@@ -2272,7 +2272,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onDragEndCapture`
 
-***
+---
 
 ### onDragEnter? \{#ondragenter\}
 
@@ -2286,7 +2286,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onDragEnter`
 
-***
+---
 
 ### onDragEnterCapture? \{#ondragentercapture\}
 
@@ -2300,7 +2300,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onDragEnterCapture`
 
-***
+---
 
 ### onDragExit? \{#ondragexit\}
 
@@ -2314,7 +2314,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onDragExit`
 
-***
+---
 
 ### onDragExitCapture? \{#ondragexitcapture\}
 
@@ -2328,7 +2328,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onDragExitCapture`
 
-***
+---
 
 ### onDragLeave? \{#ondragleave\}
 
@@ -2342,7 +2342,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onDragLeave`
 
-***
+---
 
 ### onDragLeaveCapture? \{#ondragleavecapture\}
 
@@ -2356,7 +2356,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onDragLeaveCapture`
 
-***
+---
 
 ### onDragOver? \{#ondragover\}
 
@@ -2370,7 +2370,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onDragOver`
 
-***
+---
 
 ### onDragOverCapture? \{#ondragovercapture\}
 
@@ -2384,7 +2384,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onDragOverCapture`
 
-***
+---
 
 ### onDragStart? \{#ondragstart\}
 
@@ -2398,7 +2398,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onDragStart`
 
-***
+---
 
 ### onDragStartCapture? \{#ondragstartcapture\}
 
@@ -2412,7 +2412,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onDragStartCapture`
 
-***
+---
 
 ### onDrop? \{#ondrop\}
 
@@ -2426,7 +2426,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onDrop`
 
-***
+---
 
 ### onDropCapture? \{#ondropcapture\}
 
@@ -2440,7 +2440,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onDropCapture`
 
-***
+---
 
 ### onDurationChange? \{#ondurationchange\}
 
@@ -2454,7 +2454,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onDurationChange`
 
-***
+---
 
 ### onDurationChangeCapture? \{#ondurationchangecapture\}
 
@@ -2468,7 +2468,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onDurationChangeCapture`
 
-***
+---
 
 ### onEmptied? \{#onemptied\}
 
@@ -2482,7 +2482,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onEmptied`
 
-***
+---
 
 ### onEmptiedCapture? \{#onemptiedcapture\}
 
@@ -2496,7 +2496,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onEmptiedCapture`
 
-***
+---
 
 ### onEncrypted? \{#onencrypted\}
 
@@ -2510,7 +2510,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onEncrypted`
 
-***
+---
 
 ### onEncryptedCapture? \{#onencryptedcapture\}
 
@@ -2524,7 +2524,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onEncryptedCapture`
 
-***
+---
 
 ### onEnded? \{#onended\}
 
@@ -2538,7 +2538,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onEnded`
 
-***
+---
 
 ### onEndedCapture? \{#onendedcapture\}
 
@@ -2552,7 +2552,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onEndedCapture`
 
-***
+---
 
 ### onError? \{#onerror\}
 
@@ -2566,7 +2566,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onError`
 
-***
+---
 
 ### onErrorCapture? \{#onerrorcapture\}
 
@@ -2580,7 +2580,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onErrorCapture`
 
-***
+---
 
 ### onFocus? \{#onfocus\}
 
@@ -2594,7 +2594,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onFocus`
 
-***
+---
 
 ### onFocusCapture? \{#onfocuscapture\}
 
@@ -2608,7 +2608,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onFocusCapture`
 
-***
+---
 
 ### onGotPointerCapture? \{#ongotpointercapture\}
 
@@ -2622,7 +2622,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onGotPointerCapture`
 
-***
+---
 
 ### onGotPointerCaptureCapture? \{#ongotpointercapturecapture\}
 
@@ -2636,7 +2636,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onGotPointerCaptureCapture`
 
-***
+---
 
 ### onInput? \{#oninput\}
 
@@ -2650,7 +2650,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onInput`
 
-***
+---
 
 ### onInputCapture? \{#oninputcapture\}
 
@@ -2664,7 +2664,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onInputCapture`
 
-***
+---
 
 ### onInvalid? \{#oninvalid\}
 
@@ -2678,7 +2678,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onInvalid`
 
-***
+---
 
 ### onInvalidCapture? \{#oninvalidcapture\}
 
@@ -2692,7 +2692,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onInvalidCapture`
 
-***
+---
 
 ### onKeyDown? \{#onkeydown\}
 
@@ -2706,7 +2706,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onKeyDown`
 
-***
+---
 
 ### onKeyDownCapture? \{#onkeydowncapture\}
 
@@ -2720,7 +2720,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onKeyDownCapture`
 
-***
+---
 
 ### ~~onKeyPress?~~ \{#onkeypress\}
 
@@ -2738,7 +2738,7 @@ Use `onKeyUp` or `onKeyDown` instead
 
 `CodeEditorHostProps.onKeyPress`
 
-***
+---
 
 ### ~~onKeyPressCapture?~~ \{#onkeypresscapture\}
 
@@ -2756,7 +2756,7 @@ Use `onKeyUpCapture` or `onKeyDownCapture` instead
 
 `CodeEditorHostProps.onKeyPressCapture`
 
-***
+---
 
 ### onKeyUp? \{#onkeyup\}
 
@@ -2770,7 +2770,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onKeyUp`
 
-***
+---
 
 ### onKeyUpCapture? \{#onkeyupcapture\}
 
@@ -2784,7 +2784,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onKeyUpCapture`
 
-***
+---
 
 ### onLanguageError? \{#onlanguageerror\}
 
@@ -2798,9 +2798,9 @@ Language resolution or loading failed.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `error` | [`CodeEditorLanguageError`](../../code-editor/interfaces/CodeEditorLanguageError.md) |
+| Parameter | Type                                                                                 |
+| --------- | ------------------------------------------------------------------------------------ |
+| `error`   | [`CodeEditorLanguageError`](../../code-editor/interfaces/CodeEditorLanguageError.md) |
 
 #### Returns
 
@@ -2815,7 +2815,7 @@ Same payload as Angular's `aoLanguageError` output and Vue's `language-error` ev
 
 Like `onChange`, it is held in a ref and kept out of the language effect's dependencies.
 
-***
+---
 
 ### onLoad? \{#onload\}
 
@@ -2829,7 +2829,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onLoad`
 
-***
+---
 
 ### onLoadCapture? \{#onloadcapture\}
 
@@ -2843,7 +2843,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onLoadCapture`
 
-***
+---
 
 ### onLoadedData? \{#onloadeddata\}
 
@@ -2857,7 +2857,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onLoadedData`
 
-***
+---
 
 ### onLoadedDataCapture? \{#onloadeddatacapture\}
 
@@ -2871,7 +2871,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onLoadedDataCapture`
 
-***
+---
 
 ### onLoadedMetadata? \{#onloadedmetadata\}
 
@@ -2885,7 +2885,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onLoadedMetadata`
 
-***
+---
 
 ### onLoadedMetadataCapture? \{#onloadedmetadatacapture\}
 
@@ -2899,7 +2899,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onLoadedMetadataCapture`
 
-***
+---
 
 ### onLoadStart? \{#onloadstart\}
 
@@ -2913,7 +2913,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onLoadStart`
 
-***
+---
 
 ### onLoadStartCapture? \{#onloadstartcapture\}
 
@@ -2927,7 +2927,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onLoadStartCapture`
 
-***
+---
 
 ### onLostPointerCapture? \{#onlostpointercapture\}
 
@@ -2941,7 +2941,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onLostPointerCapture`
 
-***
+---
 
 ### onLostPointerCaptureCapture? \{#onlostpointercapturecapture\}
 
@@ -2955,7 +2955,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onLostPointerCaptureCapture`
 
-***
+---
 
 ### onMouseDown? \{#onmousedown\}
 
@@ -2969,7 +2969,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onMouseDown`
 
-***
+---
 
 ### onMouseDownCapture? \{#onmousedowncapture\}
 
@@ -2983,7 +2983,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onMouseDownCapture`
 
-***
+---
 
 ### onMouseEnter? \{#onmouseenter\}
 
@@ -2997,7 +2997,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onMouseEnter`
 
-***
+---
 
 ### onMouseLeave? \{#onmouseleave\}
 
@@ -3011,7 +3011,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onMouseLeave`
 
-***
+---
 
 ### onMouseMove? \{#onmousemove\}
 
@@ -3025,7 +3025,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onMouseMove`
 
-***
+---
 
 ### onMouseMoveCapture? \{#onmousemovecapture\}
 
@@ -3039,7 +3039,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onMouseMoveCapture`
 
-***
+---
 
 ### onMouseOut? \{#onmouseout\}
 
@@ -3053,7 +3053,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onMouseOut`
 
-***
+---
 
 ### onMouseOutCapture? \{#onmouseoutcapture\}
 
@@ -3067,7 +3067,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onMouseOutCapture`
 
-***
+---
 
 ### onMouseOver? \{#onmouseover\}
 
@@ -3081,7 +3081,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onMouseOver`
 
-***
+---
 
 ### onMouseOverCapture? \{#onmouseovercapture\}
 
@@ -3095,7 +3095,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onMouseOverCapture`
 
-***
+---
 
 ### onMouseUp? \{#onmouseup\}
 
@@ -3109,7 +3109,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onMouseUp`
 
-***
+---
 
 ### onMouseUpCapture? \{#onmouseupcapture\}
 
@@ -3123,7 +3123,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onMouseUpCapture`
 
-***
+---
 
 ### onPaste? \{#onpaste\}
 
@@ -3137,7 +3137,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onPaste`
 
-***
+---
 
 ### onPasteCapture? \{#onpastecapture\}
 
@@ -3151,7 +3151,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onPasteCapture`
 
-***
+---
 
 ### onPause? \{#onpause\}
 
@@ -3165,7 +3165,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onPause`
 
-***
+---
 
 ### onPauseCapture? \{#onpausecapture\}
 
@@ -3179,7 +3179,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onPauseCapture`
 
-***
+---
 
 ### onPlay? \{#onplay\}
 
@@ -3193,7 +3193,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onPlay`
 
-***
+---
 
 ### onPlayCapture? \{#onplaycapture\}
 
@@ -3207,7 +3207,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onPlayCapture`
 
-***
+---
 
 ### onPlaying? \{#onplaying\}
 
@@ -3221,7 +3221,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onPlaying`
 
-***
+---
 
 ### onPlayingCapture? \{#onplayingcapture\}
 
@@ -3235,7 +3235,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onPlayingCapture`
 
-***
+---
 
 ### onPointerCancel? \{#onpointercancel\}
 
@@ -3249,7 +3249,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onPointerCancel`
 
-***
+---
 
 ### onPointerCancelCapture? \{#onpointercancelcapture\}
 
@@ -3263,7 +3263,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onPointerCancelCapture`
 
-***
+---
 
 ### onPointerDown? \{#onpointerdown\}
 
@@ -3277,7 +3277,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onPointerDown`
 
-***
+---
 
 ### onPointerDownCapture? \{#onpointerdowncapture\}
 
@@ -3291,7 +3291,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onPointerDownCapture`
 
-***
+---
 
 ### onPointerEnter? \{#onpointerenter\}
 
@@ -3305,7 +3305,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onPointerEnter`
 
-***
+---
 
 ### onPointerLeave? \{#onpointerleave\}
 
@@ -3319,7 +3319,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onPointerLeave`
 
-***
+---
 
 ### onPointerMove? \{#onpointermove\}
 
@@ -3333,7 +3333,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onPointerMove`
 
-***
+---
 
 ### onPointerMoveCapture? \{#onpointermovecapture\}
 
@@ -3347,7 +3347,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onPointerMoveCapture`
 
-***
+---
 
 ### onPointerOut? \{#onpointerout\}
 
@@ -3361,7 +3361,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onPointerOut`
 
-***
+---
 
 ### onPointerOutCapture? \{#onpointeroutcapture\}
 
@@ -3375,7 +3375,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onPointerOutCapture`
 
-***
+---
 
 ### onPointerOver? \{#onpointerover\}
 
@@ -3389,7 +3389,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onPointerOver`
 
-***
+---
 
 ### onPointerOverCapture? \{#onpointerovercapture\}
 
@@ -3403,7 +3403,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onPointerOverCapture`
 
-***
+---
 
 ### onPointerUp? \{#onpointerup\}
 
@@ -3417,7 +3417,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onPointerUp`
 
-***
+---
 
 ### onPointerUpCapture? \{#onpointerupcapture\}
 
@@ -3431,7 +3431,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onPointerUpCapture`
 
-***
+---
 
 ### onProgress? \{#onprogress\}
 
@@ -3445,7 +3445,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onProgress`
 
-***
+---
 
 ### onProgressCapture? \{#onprogresscapture\}
 
@@ -3459,7 +3459,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onProgressCapture`
 
-***
+---
 
 ### onRateChange? \{#onratechange\}
 
@@ -3473,7 +3473,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onRateChange`
 
-***
+---
 
 ### onRateChangeCapture? \{#onratechangecapture\}
 
@@ -3487,7 +3487,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onRateChangeCapture`
 
-***
+---
 
 ### onReset? \{#onreset\}
 
@@ -3501,7 +3501,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onReset`
 
-***
+---
 
 ### onResetCapture? \{#onresetcapture\}
 
@@ -3515,7 +3515,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onResetCapture`
 
-***
+---
 
 ### onScroll? \{#onscroll\}
 
@@ -3529,7 +3529,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onScroll`
 
-***
+---
 
 ### onScrollCapture? \{#onscrollcapture\}
 
@@ -3543,7 +3543,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onScrollCapture`
 
-***
+---
 
 ### onScrollEnd? \{#onscrollend\}
 
@@ -3557,7 +3557,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onScrollEnd`
 
-***
+---
 
 ### onScrollEndCapture? \{#onscrollendcapture\}
 
@@ -3571,7 +3571,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onScrollEndCapture`
 
-***
+---
 
 ### onSeeked? \{#onseeked\}
 
@@ -3585,7 +3585,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onSeeked`
 
-***
+---
 
 ### onSeekedCapture? \{#onseekedcapture\}
 
@@ -3599,7 +3599,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onSeekedCapture`
 
-***
+---
 
 ### onSeeking? \{#onseeking\}
 
@@ -3613,7 +3613,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onSeeking`
 
-***
+---
 
 ### onSeekingCapture? \{#onseekingcapture\}
 
@@ -3627,7 +3627,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onSeekingCapture`
 
-***
+---
 
 ### onSelect? \{#onselect\}
 
@@ -3641,7 +3641,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onSelect`
 
-***
+---
 
 ### onSelectCapture? \{#onselectcapture\}
 
@@ -3655,7 +3655,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onSelectCapture`
 
-***
+---
 
 ### onStalled? \{#onstalled\}
 
@@ -3669,7 +3669,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onStalled`
 
-***
+---
 
 ### onStalledCapture? \{#onstalledcapture\}
 
@@ -3683,7 +3683,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onStalledCapture`
 
-***
+---
 
 ### onSubmit? \{#onsubmit\}
 
@@ -3697,7 +3697,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onSubmit`
 
-***
+---
 
 ### onSubmitCapture? \{#onsubmitcapture\}
 
@@ -3711,7 +3711,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onSubmitCapture`
 
-***
+---
 
 ### onSuspend? \{#onsuspend\}
 
@@ -3725,7 +3725,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onSuspend`
 
-***
+---
 
 ### onSuspendCapture? \{#onsuspendcapture\}
 
@@ -3739,7 +3739,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onSuspendCapture`
 
-***
+---
 
 ### onTimeUpdate? \{#ontimeupdate\}
 
@@ -3753,7 +3753,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onTimeUpdate`
 
-***
+---
 
 ### onTimeUpdateCapture? \{#ontimeupdatecapture\}
 
@@ -3767,7 +3767,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onTimeUpdateCapture`
 
-***
+---
 
 ### onToggle? \{#ontoggle\}
 
@@ -3781,7 +3781,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onToggle`
 
-***
+---
 
 ### onTouchCancel? \{#ontouchcancel\}
 
@@ -3795,7 +3795,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onTouchCancel`
 
-***
+---
 
 ### onTouchCancelCapture? \{#ontouchcancelcapture\}
 
@@ -3809,7 +3809,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onTouchCancelCapture`
 
-***
+---
 
 ### onTouchEnd? \{#ontouchend\}
 
@@ -3823,7 +3823,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onTouchEnd`
 
-***
+---
 
 ### onTouchEndCapture? \{#ontouchendcapture\}
 
@@ -3837,7 +3837,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onTouchEndCapture`
 
-***
+---
 
 ### onTouchMove? \{#ontouchmove\}
 
@@ -3851,7 +3851,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onTouchMove`
 
-***
+---
 
 ### onTouchMoveCapture? \{#ontouchmovecapture\}
 
@@ -3865,7 +3865,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onTouchMoveCapture`
 
-***
+---
 
 ### onTouchStart? \{#ontouchstart\}
 
@@ -3879,7 +3879,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onTouchStart`
 
-***
+---
 
 ### onTouchStartCapture? \{#ontouchstartcapture\}
 
@@ -3893,7 +3893,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onTouchStartCapture`
 
-***
+---
 
 ### onTransitionCancel? \{#ontransitioncancel\}
 
@@ -3907,7 +3907,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onTransitionCancel`
 
-***
+---
 
 ### onTransitionCancelCapture? \{#ontransitioncancelcapture\}
 
@@ -3921,7 +3921,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onTransitionCancelCapture`
 
-***
+---
 
 ### onTransitionEnd? \{#ontransitionend\}
 
@@ -3935,7 +3935,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onTransitionEnd`
 
-***
+---
 
 ### onTransitionEndCapture? \{#ontransitionendcapture\}
 
@@ -3949,7 +3949,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onTransitionEndCapture`
 
-***
+---
 
 ### onTransitionRun? \{#ontransitionrun\}
 
@@ -3963,7 +3963,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onTransitionRun`
 
-***
+---
 
 ### onTransitionRunCapture? \{#ontransitionruncapture\}
 
@@ -3977,7 +3977,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onTransitionRunCapture`
 
-***
+---
 
 ### onTransitionStart? \{#ontransitionstart\}
 
@@ -3991,7 +3991,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onTransitionStart`
 
-***
+---
 
 ### onTransitionStartCapture? \{#ontransitionstartcapture\}
 
@@ -4005,7 +4005,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onTransitionStartCapture`
 
-***
+---
 
 ### onVolumeChange? \{#onvolumechange\}
 
@@ -4019,7 +4019,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onVolumeChange`
 
-***
+---
 
 ### onVolumeChangeCapture? \{#onvolumechangecapture\}
 
@@ -4033,7 +4033,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onVolumeChangeCapture`
 
-***
+---
 
 ### onWaiting? \{#onwaiting\}
 
@@ -4047,7 +4047,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onWaiting`
 
-***
+---
 
 ### onWaitingCapture? \{#onwaitingcapture\}
 
@@ -4061,7 +4061,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onWaitingCapture`
 
-***
+---
 
 ### onWheel? \{#onwheel\}
 
@@ -4075,7 +4075,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onWheel`
 
-***
+---
 
 ### onWheelCapture? \{#onwheelcapture\}
 
@@ -4089,7 +4089,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.onWheelCapture`
 
-***
+---
 
 ### part? \{#part\}
 
@@ -4107,7 +4107,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.part`
 
-***
+---
 
 ### placeholder? \{#placeholder\}
 
@@ -4119,7 +4119,7 @@ Defined in: [packages/code-editor-react/src/CodeEditor.tsx:102](https://github.c
 
 Placeholder text shown when the document is empty.
 
-***
+---
 
 ### popover? \{#popover\}
 
@@ -4133,7 +4133,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.popover`
 
-***
+---
 
 ### popoverTarget? \{#popovertarget\}
 
@@ -4147,7 +4147,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.popoverTarget`
 
-***
+---
 
 ### popoverTargetAction? \{#popovertargetaction\}
 
@@ -4161,7 +4161,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.popoverTargetAction`
 
-***
+---
 
 ### prefix? \{#prefix\}
 
@@ -4175,7 +4175,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.prefix`
 
-***
+---
 
 ### property? \{#property\}
 
@@ -4189,7 +4189,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.property`
 
-***
+---
 
 ### radioGroup? \{#radiogroup\}
 
@@ -4203,7 +4203,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.radioGroup`
 
-***
+---
 
 ### readonly? \{#readonly\}
 
@@ -4218,10 +4218,10 @@ Read-only: still focusable, selectable, and copyable, but not editable.
 #### Default Value
 
 ```ts
-false
+false;
 ```
 
-***
+---
 
 ### ref? \{#ref\}
 
@@ -4233,7 +4233,7 @@ Defined in: [packages/code-editor-react/src/CodeEditor.tsx:57](https://github.co
 
 Imperative handle; see [CodeEditorHandle](CodeEditorHandle.md).
 
-***
+---
 
 ### rel? \{#rel\}
 
@@ -4247,7 +4247,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.rel`
 
-***
+---
 
 ### resource? \{#resource\}
 
@@ -4261,7 +4261,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.resource`
 
-***
+---
 
 ### results? \{#results\}
 
@@ -4275,7 +4275,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.results`
 
-***
+---
 
 ### rev? \{#rev\}
 
@@ -4289,7 +4289,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.rev`
 
-***
+---
 
 ### role? \{#role\}
 
@@ -4303,7 +4303,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.role`
 
-***
+---
 
 ### root? \{#root\}
 
@@ -4320,7 +4320,7 @@ The DOM root CodeMirror is mounted in, for Shadow DOM scenarios.
 **Read on first mount only** — CodeMirror cannot change root after construction.
 To change root, force a component rebuild with `key`.
 
-***
+---
 
 ### security? \{#security\}
 
@@ -4334,7 +4334,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.security`
 
-***
+---
 
 ### setup? \{#setup\}
 
@@ -4349,10 +4349,10 @@ CodeMirror preset extension set; `null` means no presets are loaded.
 #### Default Value
 
 ```ts
-'basic'
+'basic';
 ```
 
-***
+---
 
 ### slot? \{#slot\}
 
@@ -4366,7 +4366,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.slot`
 
-***
+---
 
 ### spellCheck? \{#spellcheck\}
 
@@ -4380,7 +4380,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.spellCheck`
 
-***
+---
 
 ### style? \{#style\}
 
@@ -4394,7 +4394,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.style`
 
-***
+---
 
 ### suppressContentEditableWarning? \{#suppresscontenteditablewarning\}
 
@@ -4408,7 +4408,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.suppressContentEditableWarning`
 
-***
+---
 
 ### suppressHydrationWarning? \{#suppresshydrationwarning\}
 
@@ -4422,7 +4422,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.suppressHydrationWarning`
 
-***
+---
 
 ### tabIndex? \{#tabindex\}
 
@@ -4436,7 +4436,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.tabIndex`
 
-***
+---
 
 ### theme? \{#theme\}
 
@@ -4451,10 +4451,10 @@ Theme.
 #### Default Value
 
 ```ts
-'light'
+'light';
 ```
 
-***
+---
 
 ### title? \{#title\}
 
@@ -4468,7 +4468,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.title`
 
-***
+---
 
 ### translate? \{#translate\}
 
@@ -4482,7 +4482,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.translate`
 
-***
+---
 
 ### typeof? \{#typeof\}
 
@@ -4496,7 +4496,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.typeof`
 
-***
+---
 
 ### unselectable? \{#unselectable\}
 
@@ -4510,7 +4510,7 @@ Defined in: node\_modules/.pnpm/@types+react@19.3.0/node\_modules/@types/react/i
 
 `CodeEditorHostProps.unselectable`
 
-***
+---
 
 ### value? \{#value\}
 
@@ -4525,7 +4525,7 @@ Document content.
 #### Default Value
 
 ```ts
-''
+'';
 ```
 
 #### Remarks
@@ -4540,7 +4540,7 @@ Inside `<Activity>`, the editor state (text, selection, undo history) is kept wi
 and re-show you continue editing from the pre-hide state. If this prop changed while hidden, one delta sync under
 the same rule runs on re-show; if unchanged, it does not overwrite the pre-hide document.
 
-***
+---
 
 ### vocab? \{#vocab\}
 

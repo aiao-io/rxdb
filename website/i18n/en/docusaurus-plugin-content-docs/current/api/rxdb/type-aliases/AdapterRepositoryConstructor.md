@@ -1,5 +1,5 @@
 ---
-sidebar_label: "AdapterRepositoryConstructor⟨Adapter, RT⟩"
+sidebar_label: 'AdapterRepositoryConstructor⟨Adapter, RT⟩'
 ---
 
 # AdapterRepositoryConstructor`<Adapter, RT>`
@@ -14,16 +14,16 @@ Constructor type of an adapter repository (registered via `RxDBAdapterBase.repos
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-adapter"></a> `Adapter` *extends* `object` | [`RxDBAdapterBase`](../classes/RxDBAdapterBase.md) |
-| <a id="type-parameter-rt"></a> `RT` *extends* [`RepositoryInstance`](../interfaces/RepositoryInstance.md) | [`RepositoryInstance`](../interfaces/RepositoryInstance.md) |
+| Type Parameter                                                                                            | Default type                                                |
+| --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| <a id="type-parameter-adapter"></a> `Adapter` _extends_ `object`                                          | [`RxDBAdapterBase`](../classes/RxDBAdapterBase.md)          |
+| <a id="type-parameter-rt"></a> `RT` _extends_ [`RepositoryInstance`](../interfaces/RepositoryInstance.md) | [`RepositoryInstance`](../interfaces/RepositoryInstance.md) |
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `adapter` | `Adapter` |
+| Parameter    | Type                          |
+| ------------ | ----------------------------- |
+| `adapter`    | `Adapter`                     |
 | `EntityType` | [`EntityType`](EntityType.md) |
 
 ## Returns

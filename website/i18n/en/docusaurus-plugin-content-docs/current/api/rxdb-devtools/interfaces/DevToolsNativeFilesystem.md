@@ -31,15 +31,15 @@ detects and rejects it first; implementations do not need to handle conflicts.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                |
+| ---------- | ------------------- |
 | `segments` | readonly `string`[] |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### list() \{#list\}
 
@@ -54,15 +54,15 @@ dedicated root.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                |
+| ---------- | ------------------- |
 | `segments` | readonly `string`[] |
 
 #### Returns
 
 `Promise`&lt;readonly [`DevToolsNativeEntry`](DevToolsNativeEntry.md)[]&gt;
 
-***
+---
 
 ### openRead() \{#openread\}
 
@@ -76,15 +76,15 @@ Opens a byte source for on-demand reading.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                |
+| ---------- | ------------------- |
 | `segments` | readonly `string`[] |
 
 #### Returns
 
 `Promise`&lt;[`DevToolsChunkSource`](DevToolsChunkSource.md)&gt;
 
-***
+---
 
 ### openWrite() \{#openwrite\}
 
@@ -98,8 +98,8 @@ Opens a write.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                |
+| ---------- | ------------------- |
 | `segments` | readonly `string`[] |
 
 #### Returns
@@ -112,7 +112,7 @@ The contract matches [DevToolsChunkSink](DevToolsChunkSink.md): the target file 
 visible to other readers before `commit()`, and `discard()` must clean up all temporary
 artifacts. AC#47's "no half-written files on failure/cancel/timeout" rests on this clause.
 
-***
+---
 
 ### remove() \{#remove\}
 
@@ -126,15 +126,15 @@ Recursively removes a file or directory.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                |
+| ---------- | ------------------- |
 | `segments` | readonly `string`[] |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### stat() \{#stat\}
 
@@ -148,8 +148,8 @@ Fetches a single entry; `undefined` when it does not exist.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                |
+| ---------- | ------------------- |
 | `segments` | readonly `string`[] |
 
 #### Returns

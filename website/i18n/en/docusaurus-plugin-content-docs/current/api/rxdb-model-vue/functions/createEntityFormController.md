@@ -10,8 +10,8 @@ Factory entry for creating the form state machine.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                          |
+| --------- | ----------------------------------------------------------------------------- |
 | `options` | [`EntityFormControllerOptions`](../interfaces/EntityFormControllerOptions.md) |
 
 ## Returns

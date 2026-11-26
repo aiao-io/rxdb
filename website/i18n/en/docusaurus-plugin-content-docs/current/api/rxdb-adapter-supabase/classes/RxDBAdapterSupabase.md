@@ -9,10 +9,11 @@ The Supabase adapter
 ```typescript
 const rxdb = new RxDB({
   adapters: {
-    supabase: rxdb => new RxDBAdapterSupabase(rxdb, {
-      supabaseUrl: 'https://xxx.supabase.co',
-      supabaseKey: 'your-anon-key'
-    })
+    supabase: rxdb =>
+      new RxDBAdapterSupabase(rxdb, {
+        supabaseUrl: 'https://xxx.supabase.co',
+        supabaseKey: 'your-anon-key'
+      })
   }
 });
 ```
@@ -37,9 +38,9 @@ Defined in: [packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts:113](http
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rxdb` | [`RxDB`](../../rxdb/classes/RxDB.md) |
+| Parameter | Type                                                                |
+| --------- | ------------------------------------------------------------------- |
+| `rxdb`    | [`RxDB`](../../rxdb/classes/RxDB.md)                                |
 | `options` | [`SupabaseAdapterOptions`](../interfaces/SupabaseAdapterOptions.md) |
 
 #### Returns
@@ -66,7 +67,7 @@ The adapter name, equal to the key used when registering with `RxDB.adapter()`; 
 
 [`IRxDBAdapter`](../../rxdb/interfaces/IRxDBAdapter.md).[`name`](../../rxdb/interfaces/IRxDBAdapter.md#name)
 
-***
+---
 
 ### options \{#options\}
 
@@ -76,7 +77,7 @@ readonly options: SupabaseAdapterOptions;
 
 Defined in: [packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts:115](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts#L115)
 
-***
+---
 
 ### repository\_cache \{#repository_cache\}
 
@@ -90,7 +91,7 @@ Defined in: packages/rxdb/dist/rxdb-adapter.d.ts:349
 
 [`RxDBAdapterRemoteBase`](../../rxdb/classes/RxDBAdapterRemoteBase.md).[`repository_cache`](../../rxdb/classes/RxDBAdapterRemoteBase.md#repository_cache)
 
-***
+---
 
 ### repository\_map \{#repository_map\}
 
@@ -104,7 +105,7 @@ Defined in: packages/rxdb/dist/rxdb-adapter.d.ts:348
 
 [`RxDBAdapterRemoteBase`](../../rxdb/classes/RxDBAdapterRemoteBase.md).[`repository_map`](../../rxdb/classes/RxDBAdapterRemoteBase.md#repository_map)
 
-***
+---
 
 ### rxdb \{#rxdb\}
 
@@ -165,7 +166,7 @@ must read the current value before every exchange of data with the remote.
 
 [`RxDBAdapterRemoteBase`](../../rxdb/classes/RxDBAdapterRemoteBase.md).[`backendId`](../../rxdb/classes/RxDBAdapterRemoteBase.md#backendid)
 
-***
+---
 
 ### branchExists() \{#branchexists\}
 
@@ -177,8 +178,8 @@ Defined in: [packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts:592](http
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `branchId` | `string` |
 
 #### Returns
@@ -189,7 +190,7 @@ Defined in: [packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts:592](http
 
 [`RxDBAdapterRemoteBase`](../../rxdb/classes/RxDBAdapterRemoteBase.md).[`branchExists`](../../rxdb/classes/RxDBAdapterRemoteBase.md#branchexists)
 
-***
+---
 
 ### connect() \{#connect\}
 
@@ -217,7 +218,7 @@ Table creation and system migration both happen here (see
 
 [`IRxDBAdapter`](../../rxdb/interfaces/IRxDBAdapter.md).[`connect`](../../rxdb/interfaces/IRxDBAdapter.md#connect)
 
-***
+---
 
 ### disconnect() \{#disconnect\}
 
@@ -243,7 +244,7 @@ calling while not connected is a no-op rather than an error.
 
 [`IRxDBAdapter`](../../rxdb/interfaces/IRxDBAdapter.md).[`disconnect`](../../rxdb/interfaces/IRxDBAdapter.md#disconnect)
 
-***
+---
 
 ### fetchMetadata() \{#fetchmetadata\}
 
@@ -259,10 +260,10 @@ Returns only `{ id, updatedAt }` metadata, reducing network traffic by 90%+ comp
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entityName` | `string` | The entity name |
-| `queryFilter` | [`RuleGroup`](../../rxdb/type-aliases/RuleGroup.md)&lt;`unknown`&gt; | - |
+| Parameter     | Type                                                                 | Description     |
+| ------------- | -------------------------------------------------------------------- | --------------- |
+| `entityName`  | `string`                                                             | The entity name |
+| `queryFilter` | [`RuleGroup`](../../rxdb/type-aliases/RuleGroup.md)&lt;`unknown`&gt; | -               |
 
 #### Returns
 
@@ -273,7 +274,8 @@ Returns only `{ id, updatedAt }` metadata, reducing network traffic by 90%+ comp
 #### Example
 
 ```typescript
-adapter.fetchMetadata('Product', { combinator: 'and', rules: [{ field: 'status', operator: 'eq', value: 'active' }] })
+adapter
+  .fetchMetadata('Product', { combinator: 'and', rules: [{ field: 'status', operator: 'eq', value: 'active' }] })
   .subscribe(metadata => console.log(metadata));
 ```
 
@@ -281,7 +283,7 @@ adapter.fetchMetadata('Product', { combinator: 'and', rules: [{ field: 'status',
 
 [`RxDBAdapterRemoteBase`](../../rxdb/classes/RxDBAdapterRemoteBase.md).[`fetchMetadata`](../../rxdb/classes/RxDBAdapterRemoteBase.md#fetchmetadata)
 
-***
+---
 
 ### findByIds() \{#findbyids\}
 
@@ -295,16 +297,16 @@ Batch-fetches full data by an ID list (QueryCache only)
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entityName` | `string` | The entity name |
-| `ids` | `string`[] | The list of entity IDs to fetch |
+| Parameter    | Type       | Description                     |
+| ------------ | ---------- | ------------------------------- |
+| `entityName` | `string`   | The entity name                 |
+| `ids`        | `string`[] | The list of entity IDs to fetch |
 
 #### Returns
 
@@ -316,14 +318,14 @@ Batch-fetches full data by an ID list (QueryCache only)
 
 [`RxDBAdapterRemoteBase`](../../rxdb/classes/RxDBAdapterRemoteBase.md).[`findByIds`](../../rxdb/classes/RxDBAdapterRemoteBase.md#findbyids)
 
-***
+---
 
 ### getChangeCount() \{#getchangecount\}
 
 ```ts
 getChangeCount(
-   sinceId, 
-   repositoryFilter?, 
+   sinceId,
+   repositoryFilter?,
    branchId?
 ): Promise<{
   count: number;
@@ -340,17 +342,17 @@ actual data. Used to implement checkRepositoryUpdates(), saving bandwidth.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `sinceId` | `number` | The starting changeId (exclusive) |
-| `repositoryFilter?` | `string`[] | The optional entity filter list |
-| `branchId?` | `string` | - |
+| Parameter           | Type       | Description                       |
+| ------------------- | ---------- | --------------------------------- |
+| `sinceId`           | `number`   | The starting changeId (exclusive) |
+| `repositoryFilter?` | `string`[] | The optional entity filter list   |
+| `branchId?`         | `string`   | -                                 |
 
 #### Returns
 
 `Promise`&lt;\{
-  `count`: `number`;
-  `latestChangeId`: `number`;
+`count`: `number`;
+`latestChangeId`: `number`;
 \}&gt;
 
 The change count and the latest changeId
@@ -367,7 +369,7 @@ console.log(`${count} new changes, latest ID: ${latestChangeId}`);
 
 [`RxDBAdapterRemoteBase`](../../rxdb/classes/RxDBAdapterRemoteBase.md).[`getChangeCount`](../../rxdb/classes/RxDBAdapterRemoteBase.md#getchangecount)
 
-***
+---
 
 ### getRepository() \{#getrepository\}
 
@@ -381,16 +383,16 @@ Gets the repository instance of the entity on **this adapter**.
 
 #### Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t-1"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) | - |
-| <a id="type-parameter-rt"></a> `RT` *extends* [`IRepository`](../../rxdb/interfaces/IRepository.md)&lt;`T`&gt; | [`IRepository`](../../rxdb/interfaces/IRepository.md)&lt;`T`&gt; |
+| Type Parameter                                                                                                 | Default type                                                     |
+| -------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| <a id="type-parameter-t-1"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md)            | -                                                                |
+| <a id="type-parameter-rt"></a> `RT` _extends_ [`IRepository`](../../rxdb/interfaces/IRepository.md)&lt;`T`&gt; | [`IRepository`](../../rxdb/interfaces/IRepository.md)&lt;`T`&gt; |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `EntityType` | `T` |
+| Parameter    | Type |
+| ------------ | ---- |
+| `EntityType` | `T`  |
 
 #### Returns
 
@@ -409,7 +411,7 @@ which is not the same object as the facade repository `RxDB.getRepository()` use
 
 [`RxDBAdapterRemoteBase`](../../rxdb/classes/RxDBAdapterRemoteBase.md).[`getRepository`](../../rxdb/classes/RxDBAdapterRemoteBase.md#getrepository)
 
-***
+---
 
 ### isTableExisted() \{#istableexisted\}
 
@@ -423,8 +425,8 @@ Whether the table corresponding to the entity already exists in the database.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter    | Type                                                  |
+| ------------ | ----------------------------------------------------- |
 | `EntityType` | [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 #### Returns
@@ -439,14 +441,14 @@ Asks about the **physical table**, not whether the entity is registered in metad
 
 [`IRxDBAdapter`](../../rxdb/interfaces/IRxDBAdapter.md).[`isTableExisted`](../../rxdb/interfaces/IRxDBAdapter.md#istableexisted)
 
-***
+---
 
 ### mergeChanges() \{#mergechanges\}
 
 ```ts
 mergeChanges(
-   actions, 
-   branchId?, 
+   actions,
+   branchId?,
    changes?
 ): Promise<RemoteMergeResult>;
 ```
@@ -456,17 +458,18 @@ Defined in: [packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts:462](http
 Applies compressed changes to the remote (transactional)
 
 Via the rxdb_mutations RPC, in a single transaction:
+
 1. Writes the RxDBChange table (for other clients to pull)
 2. Applies actions to the entity tables (INSERT/UPDATE/DELETE)
 3. Automatically skips the sync triggers (p_skip_sync=true)
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `actions` | [`SwitchVersionActions`](../../rxdb/interfaces/SwitchVersionActions.md) | The compressed change operation set |
-| `branchId?` | `string` | The branch ID |
-| `changes?` | [`IRxDBChange`](../../rxdb/interfaces/IRxDBChange.md)[] | The complete original change records (optional, for keeping full history) |
+| Parameter   | Type                                                                    | Description                                                               |
+| ----------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `actions`   | [`SwitchVersionActions`](../../rxdb/interfaces/SwitchVersionActions.md) | The compressed change operation set                                       |
+| `branchId?` | `string`                                                                | The branch ID                                                             |
+| `changes?`  | [`IRxDBChange`](../../rxdb/interfaces/IRxDBChange.md)[]                 | The complete original change records (optional, for keeping full history) |
 
 #### Returns
 
@@ -484,7 +487,7 @@ still push normally.
 
 [`RxDBAdapterRemoteBase`](../../rxdb/classes/RxDBAdapterRemoteBase.md).[`mergeChanges`](../../rxdb/classes/RxDBAdapterRemoteBase.md#mergechanges)
 
-***
+---
 
 ### mutations() \{#mutations\}
 
@@ -501,14 +504,14 @@ all operations in a single database transaction for atomicity.
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-2"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                      |
+| --------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-2"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                       |
+| --------- | -------------------------------------------------------------------------- |
 | `options` | [`RxDBMutationsMap`](../../rxdb/interfaces/RxDBMutationsMap.md)&lt;`T`&gt; |
 
 #### Returns
@@ -529,7 +532,7 @@ When an entity in the batch has its primary key `id` mapped to another physical 
 
 [`IRxDBAdapter`](../../rxdb/interfaces/IRxDBAdapter.md).[`mutations`](../../rxdb/interfaces/IRxDBAdapter.md#mutations)
 
-***
+---
 
 ### pullBranches() \{#pullbranches\}
 
@@ -547,16 +550,16 @@ Defined in: [packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts:603](http
 
 [`RxDBAdapterRemoteBase`](../../rxdb/classes/RxDBAdapterRemoteBase.md).[`pullBranches`](../../rxdb/classes/RxDBAdapterRemoteBase.md#pullbranches)
 
-***
+---
 
 ### pullChanges() \{#pullchanges\}
 
 ```ts
 pullChanges(
-   sinceId, 
-   limit?, 
-   repositoryFilter?, 
-   filter?, 
+   sinceId,
+   limit?,
+   repositoryFilter?,
+   filter?,
    branchId?
 ): Promise<RemoteChange[]>;
 ```
@@ -567,13 +570,13 @@ Pulls change records from the remote
 
 #### Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `sinceId` | `number` | `undefined` | Pulls changes after this ID (exclusive) |
-| `limit?` | `number` | `1000` | The maximum number to pull |
-| `repositoryFilter?` | `string`[] | `undefined` | The optional entity filter list (for repository-level sync) |
-| `filter?` | [`RuleGroup`](../../rxdb/type-aliases/RuleGroup.md)&lt;`unknown`&gt; | `undefined` | The optional row-level filter condition (for SyncType.Filter) |
-| `branchId?` | `string` | `undefined` | - |
+| Parameter           | Type                                                                 | Default value | Description                                                   |
+| ------------------- | -------------------------------------------------------------------- | ------------- | ------------------------------------------------------------- |
+| `sinceId`           | `number`                                                             | `undefined`   | Pulls changes after this ID (exclusive)                       |
+| `limit?`            | `number`                                                             | `1000`        | The maximum number to pull                                    |
+| `repositoryFilter?` | `string`[]                                                           | `undefined`   | The optional entity filter list (for repository-level sync)   |
+| `filter?`           | [`RuleGroup`](../../rxdb/type-aliases/RuleGroup.md)&lt;`unknown`&gt; | `undefined`   | The optional row-level filter condition (for SyncType.Filter) |
+| `branchId?`         | `string`                                                             | `undefined`   | -                                                             |
 
 #### Returns
 
@@ -597,14 +600,14 @@ isolation boundary.
 
 [`RxDBAdapterRemoteBase`](../../rxdb/classes/RxDBAdapterRemoteBase.md).[`pullChanges`](../../rxdb/classes/RxDBAdapterRemoteBase.md#pullchanges)
 
-***
+---
 
 ### pullChangesBatch() \{#pullchangesbatch\}
 
 ```ts
 pullChangesBatch(
-   requests, 
-   limit?, 
+   requests,
+   limit?,
    branchIds?
 ): Promise<RemoteChange[]>;
 ```
@@ -620,11 +623,11 @@ Each entity uses an independent sinceId waterline, avoiding downloading redundan
 
 #### Parameters
 
-| Parameter | Type | Default value |
-| ------ | ------ | ------ |
-| `requests` | [`PullBatchRequest`](../../rxdb/interfaces/PullBatchRequest.md)[] | `undefined` |
-| `limit?` | `number` | `1000` |
-| `branchIds?` | `string`[] | `undefined` |
+| Parameter    | Type                                                              | Default value |
+| ------------ | ----------------------------------------------------------------- | ------------- |
+| `requests`   | [`PullBatchRequest`](../../rxdb/interfaces/PullBatchRequest.md)[] | `undefined`   |
+| `limit?`     | `number`                                                          | `1000`        |
+| `branchIds?` | `string`[]                                                        | `undefined`   |
 
 #### Returns
 
@@ -634,7 +637,7 @@ Each entity uses an independent sinceId waterline, avoiding downloading redundan
 
 [`RxDBAdapterRemoteBase`](../../rxdb/classes/RxDBAdapterRemoteBase.md).[`pullChangesBatch`](../../rxdb/classes/RxDBAdapterRemoteBase.md#pullchangesbatch)
 
-***
+---
 
 ### pushBranches() \{#pushbranches\}
 
@@ -649,22 +652,22 @@ Defined in: [packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts:578](http
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                  |
+| ---------- | ------------------------------------- |
 | `branches` | `Record`&lt;`string`, `unknown`&gt;[] |
 
 #### Returns
 
 `Promise`&lt;\{
-  `skipped`: `string`[];
-  `synced`: `number`;
+`skipped`: `string`[];
+`synced`: `number`;
 \}&gt;
 
 #### Overrides
 
 [`RxDBAdapterRemoteBase`](../../rxdb/classes/RxDBAdapterRemoteBase.md).[`pushBranches`](../../rxdb/classes/RxDBAdapterRemoteBase.md#pushbranches)
 
-***
+---
 
 ### removeMany() \{#removemany\}
 
@@ -678,14 +681,14 @@ Batch-removes entities (non-transactional)
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-3"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                      |
+| --------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-3"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                        |
+| ---------- | --------------------------- |
 | `entities` | `InstanceType`&lt;`T`&gt;[] |
 
 #### Returns
@@ -696,7 +699,7 @@ Batch-removes entities (non-transactional)
 
 [`IRxDBAdapter`](../../rxdb/interfaces/IRxDBAdapter.md).[`removeMany`](../../rxdb/interfaces/IRxDBAdapter.md#removemany)
 
-***
+---
 
 ### repository() \{#repository\}
 
@@ -708,15 +711,15 @@ Defined in: packages/rxdb/dist/rxdb-adapter.d.ts:352
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-rt-1"></a> `RT` *extends* [`RepositoryInstance`](../../rxdb/interfaces/RepositoryInstance.md)&lt;[`EntityType`](../../rxdb/type-aliases/EntityType.md)&gt; |
+| Type Parameter                                                                                                                                                                   |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-rt-1"></a> `RT` _extends_ [`RepositoryInstance`](../../rxdb/interfaces/RepositoryInstance.md)&lt;[`EntityType`](../../rxdb/type-aliases/EntityType.md)&gt; |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `repositoryName` | `string` |
+| Parameter         | Type                                                                                                                         |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `repositoryName`  | `string`                                                                                                                     |
 | `RepositoryClass` | [`AdapterRepositoryConstructor`](../../rxdb/type-aliases/AdapterRepositoryConstructor.md)&lt;`RxDBAdapterSupabase`, `RT`&gt; |
 
 #### Returns
@@ -727,7 +730,7 @@ Defined in: packages/rxdb/dist/rxdb-adapter.d.ts:352
 
 [`RxDBAdapterRemoteBase`](../../rxdb/classes/RxDBAdapterRemoteBase.md).[`repository`](../../rxdb/classes/RxDBAdapterRemoteBase.md#repository)
 
-***
+---
 
 ### saveMany() \{#savemany\}
 
@@ -741,14 +744,14 @@ Batch-saves entities (upsert semantics, non-transactional)
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-4"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                      |
+| --------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-4"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                        |
+| ---------- | --------------------------- |
 | `entities` | `InstanceType`&lt;`T`&gt;[] |
 
 #### Returns
@@ -764,7 +767,7 @@ column (batch writes only support the default `id` column)
 
 [`IRxDBAdapter`](../../rxdb/interfaces/IRxDBAdapter.md).[`saveMany`](../../rxdb/interfaces/IRxDBAdapter.md#savemany)
 
-***
+---
 
 ### version() \{#version\}
 

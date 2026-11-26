@@ -24,7 +24,7 @@ Entity types in the creation chain (namespace:name), used to block circular crea
 
 [`EntityDetailDialogData`](EntityDetailDialogData.md).[`creationChain`](EntityDetailDialogData.md#creationchain)
 
-***
+---
 
 ### delegateSave? \{#delegatesave\}
 
@@ -40,7 +40,7 @@ Delegate saving: no draft entity is created, only emit formSubmitted for the cal
 
 [`EntityDetailDialogData`](EntityDetailDialogData.md).[`delegateSave`](EntityDetailDialogData.md#delegatesave)
 
-***
+---
 
 ### editChain? \{#editchain\}
 
@@ -56,7 +56,7 @@ Stack of record ids with detail dialogs already open (including the current reco
 
 [`EntityDetailDialogData`](EntityDetailDialogData.md).[`editChain`](EntityDetailDialogData.md#editchain)
 
-***
+---
 
 ### entityId? \{#entityid\}
 
@@ -72,7 +72,7 @@ Edit mode: loads the entity instance from the Repository by id; when absent, the
 
 [`EntityDetailDialogData`](EntityDetailDialogData.md).[`entityId`](EntityDetailDialogData.md#entityid)
 
-***
+---
 
 ### fixedFormData? \{#fixedformdata\}
 
@@ -88,7 +88,7 @@ Pre-filled foreign-key data (not editable), for cascade-create scenarios
 
 [`EntityDetailDialogData`](EntityDetailDialogData.md).[`fixedFormData`](EntityDetailDialogData.md#fixedformdata)
 
-***
+---
 
 ### formData? \{#formdata\}
 
@@ -102,7 +102,7 @@ Defined in: [packages/rxdb-model-react/src/entity-detail/entity-detail.tsx:100](
 
 [`EntityDetailDialogData`](EntityDetailDialogData.md).[`formData`](EntityDetailDialogData.md#formdata)
 
-***
+---
 
 ### formFields? \{#formfields\}
 
@@ -116,7 +116,7 @@ Defined in: [packages/rxdb-model-react/src/entity-detail/entity-detail.tsx:99](h
 
 [`EntityDetailDialogData`](EntityDetailDialogData.md).[`formFields`](EntityDetailDialogData.md#formfields)
 
-***
+---
 
 ### formMode? \{#formmode\}
 
@@ -130,7 +130,7 @@ Defined in: [packages/rxdb-model-react/src/entity-detail/entity-detail.tsx:101](
 
 [`EntityDetailDialogData`](EntityDetailDialogData.md).[`formMode`](EntityDetailDialogData.md#formmode)
 
-***
+---
 
 ### metadata? \{#metadata\}
 
@@ -144,7 +144,7 @@ Defined in: [packages/rxdb-model-react/src/entity-detail/entity-detail.tsx:98](h
 
 [`EntityDetailDialogData`](EntityDetailDialogData.md).[`metadata`](EntityDetailDialogData.md#metadata)
 
-***
+---
 
 ### name? \{#name\}
 
@@ -156,7 +156,7 @@ Defined in: [packages/rxdb-model-react/src/entity-detail/entity-detail.tsx:121](
 
 Entity name (route input channel).
 
-***
+---
 
 ### namespace? \{#namespace\}
 
@@ -168,7 +168,7 @@ Defined in: [packages/rxdb-model-react/src/entity-detail/entity-detail.tsx:119](
 
 Entity namespace (route input channel; mutually exclusive with metadata).
 
-***
+---
 
 ### onFieldChanged? \{#onfieldchanged\}
 
@@ -182,15 +182,15 @@ Field changed.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | [`FormFieldChangeEvent`](FormFieldChangeEvent.md) |
+| Parameter | Type                                              |
+| --------- | ------------------------------------------------- |
+| `event`   | [`FormFieldChangeEvent`](FormFieldChangeEvent.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onFormCancelled? \{#onformcancelled\}
 
@@ -206,7 +206,7 @@ Form cancelled.
 
 `void`
 
-***
+---
 
 ### onFormSubmitted? \{#onformsubmitted\}
 
@@ -220,15 +220,15 @@ Form submitted.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `data` | [`EntityFormData`](EntityFormData.md) |
+| Parameter | Type                                  |
+| --------- | ------------------------------------- |
+| `data`    | [`EntityFormData`](EntityFormData.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onValidationErrors? \{#onvalidationerrors\}
 
@@ -242,15 +242,15 @@ Validation failed.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `result` | [`FormValidationResult`](FormValidationResult.md) |
+| Parameter | Type                                              |
+| --------- | ------------------------------------------------- |
+| `result`  | [`FormValidationResult`](FormValidationResult.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### relatedEntityProvider? \{#relatedentityprovider\}
 

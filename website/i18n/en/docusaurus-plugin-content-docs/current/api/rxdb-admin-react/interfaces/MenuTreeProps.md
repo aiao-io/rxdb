@@ -16,7 +16,7 @@ Defined in: [layout/menu-tree.tsx:128](https://github.com/aiao-io/rxdb/blob/b523
 
 Extra content on the right of menu items.
 
-***
+---
 
 ### nodes \{#nodes\}
 
@@ -28,7 +28,7 @@ Defined in: [layout/menu-tree.tsx:124](https://github.com/aiao-io/rxdb/blob/b523
 
 Menu tree.
 
-***
+---
 
 ### rail \{#rail\}
 

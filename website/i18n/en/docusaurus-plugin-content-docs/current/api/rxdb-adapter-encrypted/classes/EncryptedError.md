@@ -31,10 +31,10 @@ Defined in: [packages/rxdb-adapter-encrypted/src/errors.ts:74](https://github.co
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `name` | `string` | The stable public identifier of this error class and it **must** be a literal. `new.target.name` cannot be used here: that reads the constructor identity, which degrades to single letters like `"n"` / `"r"` once minified. Source-level unit tests are immune to this (source is never mangled); the degradation only shows up in the artifact installed into user projects — so the literal is the only defense. Any change here must be manually re-checked on the bundled artifact. |
-| `init?` | [`EncryptedErrorInit`](../interfaces/EncryptedErrorInit.md) | Structured context |
+| Parameter | Type                                                        | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| --------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`    | `string`                                                    | The stable public identifier of this error class and it **must** be a literal. `new.target.name` cannot be used here: that reads the constructor identity, which degrades to single letters like `"n"` / `"r"` once minified. Source-level unit tests are immune to this (source is never mangled); the degradation only shows up in the artifact installed into user projects — so the literal is the only defense. Any change here must be manually re-checked on the bundled artifact. |
+| `init?`   | [`EncryptedErrorInit`](../interfaces/EncryptedErrorInit.md) | Structured context                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 #### Returns
 
@@ -58,7 +58,7 @@ Defined in: [packages/rxdb-adapter-encrypted/src/errors.ts:63](https://github.co
 
 `Error.cause`
 
-***
+---
 
 ### code \{#code\}
 
@@ -68,7 +68,7 @@ abstract readonly code: EncryptedErrorCode;
 
 Defined in: [packages/rxdb-adapter-encrypted/src/errors.ts:59](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-encrypted/src/errors.ts#L59)
 
-***
+---
 
 ### entity? \{#entity\}
 
@@ -78,7 +78,7 @@ readonly entity?: string;
 
 Defined in: [packages/rxdb-adapter-encrypted/src/errors.ts:60](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-encrypted/src/errors.ts#L60)
 
-***
+---
 
 ### hint? \{#hint\}
 
@@ -88,7 +88,7 @@ readonly hint?: string;
 
 Defined in: [packages/rxdb-adapter-encrypted/src/errors.ts:62](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-encrypted/src/errors.ts#L62)
 
-***
+---
 
 ### message \{#message\}
 
@@ -102,7 +102,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 `Error.message`
 
-***
+---
 
 ### name \{#name\}
 
@@ -116,7 +116,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 `Error.name`
 
-***
+---
 
 ### property? \{#property\}
 
@@ -126,7 +126,7 @@ readonly property?: string;
 
 Defined in: [packages/rxdb-adapter-encrypted/src/errors.ts:61](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-encrypted/src/errors.ts#L61)
 
-***
+---
 
 ### stack? \{#stack\}
 

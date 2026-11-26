@@ -10,16 +10,16 @@ Counts the ancestors in the tree structure
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`TreeEntityType`](../../rxdb-plugin-tree/type-aliases/TreeEntityType.md) |
+| Type Parameter                                                                                                        |
+| --------------------------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`TreeEntityType`](../../rxdb-plugin-tree/type-aliases/TreeEntityType.md) |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `EntityType` | `T` | The entity class |
-| `options` | `UseOptions`&lt;[`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"countAncestorsOptions"`&gt;&gt; | The tree query parameters |
+| Parameter    | Type                                                                                                                        | Description               |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| `EntityType` | `T`                                                                                                                         | The entity class          |
+| `options`    | `UseOptions`&lt;[`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"countAncestorsOptions"`&gt;&gt; | The tree query parameters |
 
 ## Returns
 

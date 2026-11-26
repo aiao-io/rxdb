@@ -10,9 +10,9 @@ Whether it is a valid label color format (#rgb / #rrggbb).
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `color` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `color`   | `string` |
 
 ## Returns
 

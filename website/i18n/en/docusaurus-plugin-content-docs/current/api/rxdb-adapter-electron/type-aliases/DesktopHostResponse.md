@@ -1,38 +1,38 @@
 # DesktopHostResponse
 
 ```ts
-type DesktopHostResponse = 
+type DesktopHostResponse =
   | {
-  kind: "handshake";
-  result: DesktopHostHandshakeResult;
-}
+      kind: 'handshake';
+      result: DesktopHostHandshakeResult;
+    }
   | {
-  kind: "open";
-  result: DesktopHostOpenResult;
-}
+      kind: 'open';
+      result: DesktopHostOpenResult;
+    }
   | {
-  kind: "execute";
-  result: SqliteResult;
-}
+      kind: 'execute';
+      result: SqliteResult;
+    }
   | {
-  kind: "version";
-  result: string;
-}
+      kind: 'version';
+      result: string;
+    }
   | {
-  kind: "close";
-}
+      kind: 'close';
+    }
   | {
-  kind: "mute";
-}
+      kind: 'mute';
+    }
   | {
-  kind: "drop";
-  result: DesktopHostDropResult;
-}
+      kind: 'drop';
+      result: DesktopHostDropResult;
+    }
   | {
-  code: RxDBAdapterDesktopErrorCode;
-  kind: "error";
-  message: string;
-};
+      code: RxDBAdapterDesktopErrorCode;
+      kind: 'error';
+      message: string;
+    };
 ```
 
 Defined in: packages/rxdb-adapter-sqlite-core/dist/desktop/desktop-host-protocol.d.ts:208

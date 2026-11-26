@@ -16,7 +16,7 @@ Defined in: packages/rxdb-model/dist/entity-value.utils.d.ts:46
 
 Name of the field with the error
 
-***
+---
 
 ### message \{#message\}
 

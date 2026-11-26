@@ -10,8 +10,8 @@ The worktree entry point: `rxdb.workingTree.checkouts`.
 
 ```ts
 new WorktreeManager(
-   rxdb, 
-   runEnabled, 
+   rxdb,
+   runEnabled,
    options
 ): WorktreeManager;
 ```
@@ -22,11 +22,11 @@ Constructed by the working tree facade, one per RxDB instance.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `rxdb` | [`RxDB`](../../rxdb/classes/RxDB.md) | The main instance |
+| Parameter    | Type                                                                        | Description                                                                            |
+| ------------ | --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `rxdb`       | [`RxDB`](../../rxdb/classes/RxDB.md)                                        | The main instance                                                                      |
 | `runEnabled` | [`WorktreeTransactionRunner`](../type-aliases/WorktreeTransactionRunner.md) | The facade's managed transaction; all main-database transactions pass through its gate |
-| `options` | [`WorktreeOptions`](../interfaces/WorktreeOptions.md) \| `undefined` | The plugin's `worktrees` option |
+| `options`    | [`WorktreeOptions`](../interfaces/WorktreeOptions.md) \| `undefined`        | The plugin's `worktrees` option                                                        |
 
 #### Returns
 
@@ -47,10 +47,10 @@ all done in one main-database transaction; it is not mounted after creation, thi
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `branchId` | `string` | The branch to check out into the worktree; it must be fully available locally |
-| `options?` | [`WorktreeAddOptions`](../interfaces/WorktreeAddOptions.md) | See [WorktreeAddOptions](../interfaces/WorktreeAddOptions.md) |
+| Parameter  | Type                                                        | Description                                                                   |
+| ---------- | ----------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `branchId` | `string`                                                    | The branch to check out into the worktree; it must be fully available locally |
+| `options?` | [`WorktreeAddOptions`](../interfaces/WorktreeAddOptions.md) | See [WorktreeAddOptions](../interfaces/WorktreeAddOptions.md)                 |
 
 #### Returns
 
@@ -79,7 +79,7 @@ branches inside the worktree only advances it, B2.2). When no name is given the 
 `-2`, `-3` appended if taken. GitHub Desktop switches over after creating, which corresponds to
 [WorktreeManager.mount](#mount).
 
-***
+---
 
 ### attach() \{#attach\}
 
@@ -93,9 +93,9 @@ Reopens a persistently owned worktree without rebuilding the snapshot.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `id` | `string` | The worktree id (the row in [WorktreeManager.list](#list)) |
+| Parameter | Type     | Description                                                |
+| --------- | -------- | ---------------------------------------------------------- |
+| `id`      | `string` | The worktree id (the row in [WorktreeManager.list](#list)) |
 
 #### Returns
 
@@ -110,7 +110,7 @@ there is no such persistent, fully-built worktree, or the registration row remai
 is already gone (the registration row is reclaimed along the way); `schema_mismatch`: the app's entity
 structure changed after it was built — open a new one instead
 
-***
+---
 
 ### dispose() \{#dispose\}
 
@@ -129,7 +129,7 @@ adapter disconnects.
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### list() \{#list\}
 
@@ -147,7 +147,7 @@ All worktrees registered in this database, sorted by registration time.
 
 The registration rows
 
-***
+---
 
 ### mount() \{#mount\}
 
@@ -162,9 +162,9 @@ set, and captures and commits are recorded on the branch it holds.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `id` | `string` | The worktree id (the row in [WorktreeManager.list](#list)) |
+| Parameter | Type     | Description                                                |
+| --------- | -------- | ---------------------------------------------------------- |
+| `id`      | `string` | The worktree id (the row in [WorktreeManager.list](#list)) |
 
 #### Returns
 
@@ -189,7 +189,7 @@ When an app upgrade changes entities, or a plugin's table-attached auxiliary obj
 longer matches: the whole set is rebuilt under the new structure inside the mounting transaction (US-314 B2.6),
 see `#rebuild`.
 
-***
+---
 
 ### mountMain() \{#mountmain\}
 
@@ -205,7 +205,7 @@ Mounts the main instance back onto the main worktree; writable worktrees that ar
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### open() \{#open\}
 
@@ -220,10 +220,10 @@ not switch branches or touch the working tree.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `target` | [`WorktreeTarget`](../type-aliases/WorktreeTarget.md) | `{ branchId }` for a branch view, `{ commitId }` for a commit view |
-| `options?` | [`WorktreeOpenOptions`](../interfaces/WorktreeOpenOptions.md) | See [WorktreeOpenOptions](../interfaces/WorktreeOpenOptions.md) |
+| Parameter  | Type                                                          | Description                                                        |
+| ---------- | ------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `target`   | [`WorktreeTarget`](../type-aliases/WorktreeTarget.md)         | `{ branchId }` for a branch view, `{ commitId }` for a commit view |
+| `options?` | [`WorktreeOpenOptions`](../interfaces/WorktreeOpenOptions.md) | See [WorktreeOpenOptions](../interfaces/WorktreeOpenOptions.md)    |
 
 #### Returns
 
@@ -238,7 +238,7 @@ unsupported, or the runtime has no Web Locks; when the branch does not exist or 
 locally; when the commit is unreachable, the path contains unrecognized entities, or there is a restore in
 progress (same criterion as `restore()`)
 
-***
+---
 
 ### prune() \{#prune\}
 
@@ -275,7 +275,7 @@ cannot be connected); writable worktrees' tables live in the main database and a
 orphans are detected at connection time (same criterion, and nobody holds the lock), the plugin runs one pass
 right after connecting, see `worktree-startup-reclaim.ts`.
 
-***
+---
 
 ### release() \{#release\}
 
@@ -290,9 +290,9 @@ returns the lock. The table set, holding key, and registration row all stay.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `id` | `string` | The worktree id; a no-op when this context has not claimed it |
+| Parameter | Type     | Description                                                   |
+| --------- | -------- | ------------------------------------------------------------- |
+| `id`      | `string` | The worktree id; a no-op when this context has not claimed it |
 
 #### Returns
 
@@ -303,7 +303,7 @@ returns the lock. The table set, holding key, and registration row all stay.
 A persistently owned one can be [WorktreeManager.mount](#mount)ed again from anywhere afterwards; a
 session-owned one is left for `prune()` to reclaim.
 
-***
+---
 
 ### remove() \{#remove\}
 
@@ -318,9 +318,9 @@ table set, releases the held branch, and removes the registration row in one tra
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `id` | `string` | The worktree id; a no-op when the registration row is already gone |
+| Parameter | Type     | Description                                                        |
+| --------- | -------- | ------------------------------------------------------------------ |
+| `id`      | `string` | The worktree id; a no-op when the registration row is already gone |
 
 #### Returns
 
@@ -336,7 +336,7 @@ a read-only worktree (use the view's `close()`)
 Uncommitted changes stay on the branch: writes inside the worktree all entered that branch's change log, and
 switching over later still reads them (git loses them when a worktree is deleted; here they are not).
 
-***
+---
 
 ### rename() \{#rename\}
 
@@ -350,10 +350,10 @@ Renames a writable worktree (GitHub Desktop's Rename…).
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `id` | `string` | The worktree id |
-| `name` | `string` | The new name: must not be empty after trimming leading/trailing whitespace, and must not clash with another writable worktree |
+| Parameter | Type     | Description                                                                                                                   |
+| --------- | -------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `id`      | `string` | The worktree id                                                                                                               |
+| `name`    | `string` | The new name: must not be empty after trimming leading/trailing whitespace, and must not clash with another writable worktree |
 
 #### Returns
 
@@ -371,7 +371,7 @@ such worktree, or it is a read-only worktree
 The main worktree has no registration row and cannot be renamed. The name is only a human-facing label: the
 table set, holding key, and lock all key on the id; renaming touches none of them and requires no claim.
 
-***
+---
 
 ### stop() \{#stop\}
 

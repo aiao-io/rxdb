@@ -10,10 +10,10 @@ Generates a new database name that does not conflict with the active position.
 
 ## Parameters
 
-| Parameter | Type | Default value |
-| ------ | ------ | ------ |
-| `activeDbName` | `string` \| `null` | `undefined` |
-| `existing?` | readonly `string`[] | `[]` |
+| Parameter      | Type                | Default value |
+| -------------- | ------------------- | ------------- |
+| `activeDbName` | `string` \| `null`  | `undefined`   |
+| `existing?`    | readonly `string`[] | `[]`          |
 
 ## Returns
 

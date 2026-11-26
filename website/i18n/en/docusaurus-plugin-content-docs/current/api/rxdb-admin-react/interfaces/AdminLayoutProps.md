@@ -16,7 +16,7 @@ Defined in: [layout/admin-layout.tsx:25](https://github.com/aiao-io/rxdb/blob/b5
 
 Brand icon (shown when there is no logo image).
 
-***
+---
 
 ### children \{#children\}
 
@@ -28,7 +28,7 @@ Defined in: [layout/admin-layout.tsx:21](https://github.com/aiao-io/rxdb/blob/b5
 
 Route outlet.
 
-***
+---
 
 ### headerEnd? \{#headerend\}
 
@@ -40,7 +40,7 @@ Defined in: [layout/admin-layout.tsx:31](https://github.com/aiao-io/rxdb/blob/b5
 
 Extension content after the header widget area.
 
-***
+---
 
 ### headerStart? \{#headerstart\}
 
@@ -52,7 +52,7 @@ Defined in: [layout/admin-layout.tsx:29](https://github.com/aiao-io/rxdb/blob/b5
 
 Extension content before the header widget area.
 
-***
+---
 
 ### menu \{#menu\}
 
@@ -64,7 +64,7 @@ Defined in: [layout/admin-layout.tsx:17](https://github.com/aiao-io/rxdb/blob/b5
 
 Navigation menu.
 
-***
+---
 
 ### navigating? \{#navigating\}
 
@@ -76,7 +76,7 @@ Defined in: [layout/admin-layout.tsx:23](https://github.com/aiao-io/rxdb/blob/b5
 
 Navigation in progress (lazy-loaded routes, loaders), drives the top progress bar and loading overlay.
 
-***
+---
 
 ### renderMenuExtra? \{#rendermenuextra\}
 
@@ -88,7 +88,7 @@ Defined in: [layout/admin-layout.tsx:27](https://github.com/aiao-io/rxdb/blob/b5
 
 Extra content on the right of menu items, such as count badges.
 
-***
+---
 
 ### url \{#url\}
 

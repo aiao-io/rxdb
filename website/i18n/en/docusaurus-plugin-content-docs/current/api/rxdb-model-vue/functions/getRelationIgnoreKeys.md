@@ -10,8 +10,8 @@ Gets the keys that the relation needs to ignore (to avoid circular references)
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                                          | Description              |
+| ---------- | ----------------------------------------------------------------------------- | ------------------------ |
 | `relation` | [`EntityRelationMetadata`](../../rxdb/type-aliases/EntityRelationMetadata.md) | Entity relation metadata |
 
 ## Returns
@@ -29,5 +29,5 @@ to avoid infinite recursion
 
 ```typescript
 // ONE_TO_MANY: User.orders -> Order.owner
-getRelationIgnoreKeys(ordersRelation) // ['owner']
+getRelationIgnoreKeys(ordersRelation); // ['owner']
 ```

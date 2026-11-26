@@ -18,7 +18,7 @@ readonly data?: EntityFormData;
 
 Defined in: packages/rxdb-model/dist/entity-form/headless.d.ts:74
 
-***
+---
 
 ### entity? \{#entity\}
 
@@ -28,7 +28,7 @@ readonly entity?: Record<string, unknown>;
 
 Defined in: packages/rxdb-model/dist/entity-form/headless.d.ts:75
 
-***
+---
 
 ### fields \{#fields\}
 
@@ -38,7 +38,7 @@ readonly fields: readonly FormFieldConfig[];
 
 Defined in: packages/rxdb-model/dist/entity-form/headless.d.ts:73
 
-***
+---
 
 ### i18n? \{#i18n\}
 
@@ -48,7 +48,7 @@ readonly i18n?: ModelI18n;
 
 Defined in: packages/rxdb-model/dist/entity-form/headless.d.ts:77
 
-***
+---
 
 ### mode? \{#mode\}
 
@@ -58,7 +58,7 @@ readonly mode?: FormMode;
 
 Defined in: packages/rxdb-model/dist/entity-form/headless.d.ts:76
 
-***
+---
 
 ### relatedEntityProvider? \{#relatedentityprovider\}
 

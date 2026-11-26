@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/session/session.ts:33](https://github.
 
 Binary payload.
 
-***
+---
 
 ### result \{#result\}
 

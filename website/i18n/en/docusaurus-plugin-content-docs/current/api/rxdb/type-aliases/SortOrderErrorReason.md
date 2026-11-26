@@ -1,14 +1,14 @@
 # SortOrderErrorReason
 
 ```ts
-type SortOrderErrorReason = 
-  | "notManualOrder"
-  | "invalidKey"
-  | "corruptAnchor"
-  | "unsupportedPrimary"
-  | "invalidTarget"
-  | "notFound"
-  | "staleTarget";
+type SortOrderErrorReason =
+  | 'notManualOrder'
+  | 'invalidKey'
+  | 'corruptAnchor'
+  | 'unsupportedPrimary'
+  | 'invalidTarget'
+  | 'notFound'
+  | 'staleTarget';
 ```
 
 Defined in: [packages/rxdb/src/sortable/sortable-error.ts:15](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sortable/sortable-error.ts#L15)

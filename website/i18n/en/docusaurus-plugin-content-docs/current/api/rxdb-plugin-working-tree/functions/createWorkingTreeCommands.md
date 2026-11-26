@@ -10,10 +10,10 @@ Wires the fourteen commands onto the state slots.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `database` | [`RxDB`](../../rxdb/classes/RxDB.md) | The host database; the commands take its `workingTree` and `versionManager` entries |
-| `patch` | [`WorkingTreeStatePatch`](../type-aliases/WorkingTreeStatePatch.md) | Where every phase change lands; see [WorkingTreeStatePatch](../type-aliases/WorkingTreeStatePatch.md) |
+| Parameter  | Type                                                                | Description                                                                                           |
+| ---------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `database` | [`RxDB`](../../rxdb/classes/RxDB.md)                                | The host database; the commands take its `workingTree` and `versionManager` entries                   |
+| `patch`    | [`WorkingTreeStatePatch`](../type-aliases/WorkingTreeStatePatch.md) | Where every phase change lands; see [WorkingTreeStatePatch](../type-aliases/WorkingTreeStatePatch.md) |
 
 ## Returns
 

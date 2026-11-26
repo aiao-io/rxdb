@@ -38,8 +38,8 @@ Gets the disk receiver of a registered upload.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter    | Type     | Description                                       |
+| ------------ | -------- | ------------------------------------------------- |
 | `transferId` | `string` | The transfer ID declared in the `upload` request. |
 
 #### Returns
@@ -52,7 +52,7 @@ The sink of that transfer.
 
 Throws when no upload has been registered for that ID — an ownerless sink would write a wiring mistake into a real file.
 
-***
+---
 
 ### invoke() \{#invoke\}
 
@@ -66,10 +66,10 @@ Executes an operation.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `operation` | `string` | The authorized operation name. |
-| `params` | `unknown` | Parameters that have passed the wire layer's generic validation but have not been interpreted per operation; the implementation is responsible for domain-level validation (e.g. path validity → `invalid_path`). |
+| Parameter   | Type      | Description                                                                                                                                                                                                       |
+| ----------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `operation` | `string`  | The authorized operation name.                                                                                                                                                                                    |
+| `params`    | `unknown` | Parameters that have passed the wire layer's generic validation but have not been interpreted per operation; the implementation is responsible for domain-level validation (e.g. path validity → `invalid_path`). |
 
 #### Returns
 

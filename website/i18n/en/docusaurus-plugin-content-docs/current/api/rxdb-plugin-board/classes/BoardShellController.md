@@ -26,8 +26,8 @@ Defined in: [packages/rxdb-plugin-board/src/board-shell.ts:207](https://github.c
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                      | Description                                                                        |
+| --------- | --------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | `options` | [`BoardShellOptions`](../interfaces/BoardShellOptions.md) | Host configuration: instance factory, adapter name, optional demo data and runtime |
 
 #### Returns
@@ -84,7 +84,7 @@ Teardown: unsubscribes storage events, cancels pending confirmations, disconnect
 
 Throws the original error when disconnection fails (logged by the component)
 
-***
+---
 
 ### downloadBackup() \{#downloadbackup\}
 
@@ -104,7 +104,7 @@ Exports the current board: hands the archive to the browser for download only af
 
 Error when there is no open board; adapter does not support backup
 
-***
+---
 
 ### resetDemo() \{#resetdemo\}
 
@@ -120,7 +120,7 @@ Tools menu "Reset to demo data": after confirmation, loads the seed under a new 
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### restoreFromFile() \{#restorefromfile\}
 
@@ -134,15 +134,15 @@ Restore from backup: confirm first if a board already exists; after restoring to
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type   | Description                       |
+| --------- | ------ | --------------------------------- |
 | `archive` | `Blob` | The user-selected `.rxdb` archive |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### settleConfirm() \{#settleconfirm\}
 
@@ -156,15 +156,15 @@ Answers the confirmation dialog.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type      | Description                                                      |
+| ----------- | --------- | ---------------------------------------------------------------- |
 | `confirmed` | `boolean` | `true` when the user clicked confirm, `false` on cancel or close |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### start() \{#start\}
 
@@ -182,7 +182,7 @@ Starts: subscribes to active position changes and, according to the records, com
 
 The startup flow has finished (failures are written into [BoardShellState.error](../interfaces/BoardShellState.md#error), not thrown)
 
-***
+---
 
 ### startEmpty() \{#startempty\}
 
@@ -198,7 +198,7 @@ Startup selection "Create empty board": creates the database under a new databas
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### startSeed() \{#startseed\}
 

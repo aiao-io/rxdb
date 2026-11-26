@@ -11,15 +11,15 @@ Only directly nested array elements are handled; no deep flattening
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                    | Description                         |
+| --------------------------------- | ----------------------------------- |
 | <a id="type-parameter-t"></a> `T` | The base type of the array elements |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `array` | (`T` \| `T`[])[] | Input array containing base-type elements and/or one-level nested arrays |
+| Parameter | Type             | Description                                                              |
+| --------- | ---------------- | ------------------------------------------------------------------------ |
+| `array`   | (`T` \| `T`[])[] | Input array containing base-type elements and/or one-level nested arrays |
 
 ## Returns
 

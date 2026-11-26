@@ -1,5 +1,5 @@
 ---
-sidebar_label: "RxDBDependencyInjection⟨T⟩"
+sidebar_label: 'RxDBDependencyInjection⟨T⟩'
 ---
 
 # RxDBDependencyInjection`<T>`
@@ -10,9 +10,9 @@ A set of mutually isolated providers / injectors produced by [makeRxDBDependency
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`RxDB`](../../rxdb/classes/RxDB.md) |
+| Type Parameter                                                                   |
+| -------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`RxDB`](../../rxdb/classes/RxDB.md) |
 
 ## Properties
 
@@ -30,12 +30,12 @@ Injects the current ready database instance; returns `undefined` when there is n
 
 `T` \| `undefined`
 
-***
+---
 
 ### injectRxDBRef \{#injectrxdbref\}
 
 ```ts
-injectRxDBRef: (quiet?) => 
+injectRxDBRef: (quiet?) =>
   | Readonly<Ref<T | undefined, T | undefined>>
   | undefined;
 ```
@@ -46,16 +46,16 @@ Injects the database's reactive reference; returns `undefined` when there is no 
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `quiet?` | `boolean` |
+| Parameter | Type      |
+| --------- | --------- |
+| `quiet?`  | `boolean` |
 
 #### Returns
 
-  \| `Readonly`&lt;`Ref`&lt;`T` \| `undefined`, `T` \| `undefined`&gt;&gt;
-  \| `undefined`
+\| `Readonly`&lt;`Ref`&lt;`T` \| `undefined`, `T` \| `undefined`&gt;&gt;
+\| `undefined`
 
-***
+---
 
 ### provideRxDB \{#providerxdb\}
 
@@ -69,9 +69,9 @@ Provides the database on the current component for its descendants to inject.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `db` | [`RxDBInput`](../type-aliases/RxDBInput.md)&lt;`T`&gt; |
+| Parameter | Type                                                   |
+| --------- | ------------------------------------------------------ |
+| `db`      | [`RxDBInput`](../type-aliases/RxDBInput.md)&lt;`T`&gt; |
 
 #### Returns
 

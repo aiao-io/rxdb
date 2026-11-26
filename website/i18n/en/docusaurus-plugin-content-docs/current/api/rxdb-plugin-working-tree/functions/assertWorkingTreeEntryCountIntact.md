@@ -10,10 +10,10 @@ Validates that the redundant column matches the actual entry row count (data-mod
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                                  | Description                       |
+| ---------- | --------------------------------------------------------------------- | --------------------------------- |
 | `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md) | The caller's transaction executor |
-| `branchId` | `string` | The branch to validate |
+| `branchId` | `string`                                                              | The branch to validate            |
 
 ## Returns
 

@@ -26,7 +26,7 @@ readonly branchId: string;
 readonly commitId: string;
 ```
 
-***
+---
 
 ### rxdb-replay:gap \{#rxdb-replaygap\}
 
@@ -42,7 +42,7 @@ Defined in: [packages/rxdb-plugin-replay/src/markers.ts:30](https://github.com/a
 readonly reason: "stash_unavailable";
 ```
 
-***
+---
 
 ### rxdb-replay:truncated \{#rxdb-replaytruncated\}
 

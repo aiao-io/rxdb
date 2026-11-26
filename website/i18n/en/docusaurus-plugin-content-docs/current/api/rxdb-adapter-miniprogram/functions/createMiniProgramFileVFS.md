@@ -14,9 +14,9 @@ The storage layout is decided by `host.fileLayout`; see [MiniProgramFileLayout](
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `module` | [`WaSqliteEmscriptenModule`](../interfaces/WaSqliteEmscriptenModule.md) |
+| Parameter | Type                                                                      |
+| --------- | ------------------------------------------------------------------------- |
+| `module`  | [`WaSqliteEmscriptenModule`](../interfaces/WaSqliteEmscriptenModule.md)   |
 | `options` | [`MiniProgramFileVFSOptions`](../interfaces/MiniProgramFileVFSOptions.md) |
 
 ## Returns

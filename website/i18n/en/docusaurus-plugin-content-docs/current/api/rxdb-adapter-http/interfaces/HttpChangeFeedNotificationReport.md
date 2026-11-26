@@ -22,7 +22,7 @@ Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:412](https://githu
 
 The initiating `clientId` from the notification; `undefined` when the payload didn't carry one
 
-***
+---
 
 ### entity \{#entity\}
 
@@ -34,7 +34,7 @@ Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:408](https://githu
 
 The entity name from the notification, passed through as-is (names this client hasn't registered appear here too, see D9)
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -46,7 +46,7 @@ Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:410](https://githu
 
 The namespace from the notification; `'public'` when the payload didn't carry one
 
-***
+---
 
 ### suppressed \{#suppressed\}
 
@@ -62,7 +62,7 @@ Whether this notification didn't report an invalidation because "the initiator i
 
 When `true`, this package **did not** call `RxDB.invalidateRemoteEntity` — that's not an error: this machine just wrote, local is already up to date, and asking the remote again would be a wasted trip.
 
-***
+---
 
 ### url \{#url\}
 

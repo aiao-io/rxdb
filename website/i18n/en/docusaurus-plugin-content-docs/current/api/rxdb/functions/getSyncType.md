@@ -10,9 +10,9 @@ Gets the sync type from EntityMetadata.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) | The entity metadata |
+| Parameter     | Type                                                                                                              | Description                                                                                                                                                           |
+| ------------- | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `metadata`    | [`EntityMetadata`](../type-aliases/EntityMetadata.md)                                                             | The entity metadata                                                                                                                                                   |
 | `globalSync?` | \| [`SyncOptions`](../type-aliases/SyncOptions.md) \| [`EntitySyncResolver`](../interfaces/EntitySyncResolver.md) | Global sync configuration (optional, used as fallback); when an instance resolver `rxdb.entitySync` is passed, instance-level overrides are resolved together with it |
 
 ## Returns

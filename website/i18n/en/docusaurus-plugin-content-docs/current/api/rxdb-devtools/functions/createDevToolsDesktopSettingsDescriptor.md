@@ -10,8 +10,8 @@ Descriptor of the desktop settings provider.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                     | Description                                                                      |
+| --------- | ---------------------------------------- | -------------------------------------------------------------------------------- |
 | `runtime` | `"browser"` \| `"electron"` \| `"tauri"` | Display-only host origin; enters only the descriptor, never any behavior branch. |
 
 ## Returns

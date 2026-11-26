@@ -1,54 +1,81 @@
 # assertDesktopHostResponse()
 
 ```ts
-function assertDesktopHostResponse<TKind>(expected, value): 
-  | Extract<{
-  kind: "handshake";
-  result: DesktopHostHandshakeResult;
-}, {
-  kind: TKind;
-}>
-  | Extract<{
-  kind: "open";
-  result: DesktopHostOpenResult;
-}, {
-  kind: TKind;
-}>
-  | Extract<{
-  kind: "execute";
-  result: SqliteSuccessResult;
-}, {
-  kind: TKind;
-}>
-  | Extract<{
-  kind: "version";
-  result: string;
-}, {
-  kind: TKind;
-}>
-  | Extract<{
-  kind: "close";
-}, {
-  kind: TKind;
-}>
-  | Extract<{
-  kind: "mute";
-}, {
-  kind: TKind;
-}>
-  | Extract<{
-  kind: "drop";
-  result: DesktopHostDropResult;
-}, {
-  kind: TKind;
-}>
-  | Extract<{
-  code: RxDBAdapterDesktopErrorCode;
-  kind: "error";
-  message: string;
-}, {
-  kind: TKind;
-}>;
+function assertDesktopHostResponse<TKind>(
+  expected,
+  value
+):
+  | Extract<
+      {
+        kind: 'handshake';
+        result: DesktopHostHandshakeResult;
+      },
+      {
+        kind: TKind;
+      }
+    >
+  | Extract<
+      {
+        kind: 'open';
+        result: DesktopHostOpenResult;
+      },
+      {
+        kind: TKind;
+      }
+    >
+  | Extract<
+      {
+        kind: 'execute';
+        result: SqliteSuccessResult;
+      },
+      {
+        kind: TKind;
+      }
+    >
+  | Extract<
+      {
+        kind: 'version';
+        result: string;
+      },
+      {
+        kind: TKind;
+      }
+    >
+  | Extract<
+      {
+        kind: 'close';
+      },
+      {
+        kind: TKind;
+      }
+    >
+  | Extract<
+      {
+        kind: 'mute';
+      },
+      {
+        kind: TKind;
+      }
+    >
+  | Extract<
+      {
+        kind: 'drop';
+        result: DesktopHostDropResult;
+      },
+      {
+        kind: TKind;
+      }
+    >
+  | Extract<
+      {
+        code: RxDBAdapterDesktopErrorCode;
+        kind: 'error';
+        message: string;
+      },
+      {
+        kind: TKind;
+      }
+    >;
 ```
 
 Defined in: packages/rxdb-adapter-sqlite-core/dist/desktop/desktop-host-protocol.d.ts:451
@@ -57,65 +84,65 @@ Validates a host response and turns error responses back into local exceptions.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-tkind"></a> `TKind` *extends* `"handshake"` \| `"open"` \| `"execute"` \| `"version"` \| `"close"` \| `"mute"` \| `"drop"` |
+| Type Parameter                                                                                                                                   |
+| ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| <a id="type-parameter-tkind"></a> `TKind` _extends_ `"handshake"` \| `"open"` \| `"execute"` \| `"version"` \| `"close"` \| `"mute"` \| `"drop"` |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `expected` | `TKind` | The expected response kind |
-| `value` | `unknown` | Unvalidated payload returned by the host |
+| Parameter  | Type      | Description                              |
+| ---------- | --------- | ---------------------------------------- |
+| `expected` | `TKind`   | The expected response kind               |
+| `value`    | `unknown` | Unvalidated payload returned by the host |
 
 ## Returns
 
-  \| `Extract`&lt;\{
-  `kind`: `"handshake"`;
-  `result`: [`DesktopHostHandshakeResult`](../interfaces/DesktopHostHandshakeResult.md);
+\| `Extract`&lt;\{
+`kind`: `"handshake"`;
+`result`: [`DesktopHostHandshakeResult`](../interfaces/DesktopHostHandshakeResult.md);
 \}, \{
-  `kind`: `TKind`;
+`kind`: `TKind`;
 \}&gt;
-  \| `Extract`&lt;\{
-  `kind`: `"open"`;
-  `result`: [`DesktopHostOpenResult`](../interfaces/DesktopHostOpenResult.md);
+\| `Extract`&lt;\{
+`kind`: `"open"`;
+`result`: [`DesktopHostOpenResult`](../interfaces/DesktopHostOpenResult.md);
 \}, \{
-  `kind`: `TKind`;
+`kind`: `TKind`;
 \}&gt;
-  \| `Extract`&lt;\{
-  `kind`: `"execute"`;
-  `result`: [`SqliteSuccessResult`](../../rxdb-adapter-sqlite-core/interfaces/SqliteSuccessResult.md);
+\| `Extract`&lt;\{
+`kind`: `"execute"`;
+`result`: [`SqliteSuccessResult`](../../rxdb-adapter-sqlite-core/interfaces/SqliteSuccessResult.md);
 \}, \{
-  `kind`: `TKind`;
+`kind`: `TKind`;
 \}&gt;
-  \| `Extract`&lt;\{
-  `kind`: `"version"`;
-  `result`: `string`;
+\| `Extract`&lt;\{
+`kind`: `"version"`;
+`result`: `string`;
 \}, \{
-  `kind`: `TKind`;
+`kind`: `TKind`;
 \}&gt;
-  \| `Extract`&lt;\{
-  `kind`: `"close"`;
+\| `Extract`&lt;\{
+`kind`: `"close"`;
 \}, \{
-  `kind`: `TKind`;
+`kind`: `TKind`;
 \}&gt;
-  \| `Extract`&lt;\{
-  `kind`: `"mute"`;
+\| `Extract`&lt;\{
+`kind`: `"mute"`;
 \}, \{
-  `kind`: `TKind`;
+`kind`: `TKind`;
 \}&gt;
-  \| `Extract`&lt;\{
-  `kind`: `"drop"`;
-  `result`: `DesktopHostDropResult`;
+\| `Extract`&lt;\{
+`kind`: `"drop"`;
+`result`: `DesktopHostDropResult`;
 \}, \{
-  `kind`: `TKind`;
+`kind`: `TKind`;
 \}&gt;
-  \| `Extract`&lt;\{
-  `code`: [`RxDBAdapterDesktopErrorCode`](../type-aliases/RxDBAdapterDesktopErrorCode.md);
-  `kind`: `"error"`;
-  `message`: `string`;
+\| `Extract`&lt;\{
+`code`: [`RxDBAdapterDesktopErrorCode`](../type-aliases/RxDBAdapterDesktopErrorCode.md);
+`kind`: `"error"`;
+`message`: `string`;
 \}, \{
-  `kind`: `TKind`;
+`kind`: `TKind`;
 \}&gt;
 
 The response matching `expected`

@@ -1,5 +1,5 @@
 ---
-sidebar_label: "RxDBResource⟨T⟩"
+sidebar_label: 'RxDBResource⟨T⟩'
 ---
 
 # RxDBResource`<T>`
@@ -10,21 +10,21 @@ Resource snapshot returned by the React query hooks for the current render.
 
 ## Remarks
 
-| Phase | isLoading | hasValue | isEmpty | error | value |
-| --- | --- | --- | --- | --- | --- |
-| Before first subscription | `true` | `false` | `undefined` | `undefined` | `defaultValue` |
-| Data received | `false` | `true` | whether empty | `undefined` | new value |
-| Query criteria changed | `true` | `false` | `undefined` | `undefined` | last successful value |
-| Entity or method changed | `true` | `false` | `undefined` | `undefined` | `defaultValue` of the new type |
-| Error | `false` | `false` | `undefined` | error | last successful value |
-| Completed without a value | `false` | `false` | `undefined` | `undefined` | current value |
+| Phase                     | isLoading | hasValue | isEmpty       | error       | value                          |
+| ------------------------- | --------- | -------- | ------------- | ----------- | ------------------------------ |
+| Before first subscription | `true`    | `false`  | `undefined`   | `undefined` | `defaultValue`                 |
+| Data received             | `false`   | `true`   | whether empty | `undefined` | new value                      |
+| Query criteria changed    | `true`    | `false`  | `undefined`   | `undefined` | last successful value          |
+| Entity or method changed  | `true`    | `false`  | `undefined`   | `undefined` | `defaultValue` of the new type |
+| Error                     | `false`   | `false`  | `undefined`   | error       | last successful value          |
+| Completed without a value | `false`   | `false`  | `undefined`   | `undefined` | current value                  |
 
 Query criteria changes use stale-while-revalidate: `value` is kept temporarily, but `hasValue` flips to `false` synchronously, so the old value is never claimed to belong to the new query. The resource is a plain read-only snapshot for each render and can be destructured directly.
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                    | Description        |
+| --------------------------------- | ------------------ |
 | <a id="type-parameter-t"></a> `T` | Query result type. |
 
 ## Properties
@@ -39,7 +39,7 @@ Defined in: [rxdb-react/src/hooks.ts:31](https://github.com/aiao-io/rxdb/blob/b5
 
 The most recent query error.
 
-***
+---
 
 ### hasValue \{#hasvalue\}
 
@@ -51,7 +51,7 @@ Defined in: [rxdb-react/src/hooks.ts:37](https://github.com/aiao-io/rxdb/blob/b5
 
 Whether the current query has produced a successful value.
 
-***
+---
 
 ### isEmpty \{#isempty\}
 
@@ -63,7 +63,7 @@ Defined in: [rxdb-react/src/hooks.ts:35](https://github.com/aiao-io/rxdb/blob/b5
 
 Whether the successful result is empty; `undefined` while loading or on error.
 
-***
+---
 
 ### isLoading \{#isloading\}
 
@@ -75,7 +75,7 @@ Defined in: [rxdb-react/src/hooks.ts:33](https://github.com/aiao-io/rxdb/blob/b5
 
 Whether the current query is still waiting for a result.
 
-***
+---
 
 ### value \{#value\}
 

@@ -29,7 +29,7 @@ SHA-256 of each chunk (lowercase hex), in chunk order.
 
 [`P2PFileManifest`](P2PFileManifest.md).[`chunkHashes`](P2PFileManifest.md#chunkhashes)
 
-***
+---
 
 ### chunkSize \{#chunksize\}
 
@@ -45,7 +45,7 @@ Fixed chunk size (the last chunk may be shorter); the chunking follows the reque
 
 [`P2PFileManifest`](P2PFileManifest.md).[`chunkSize`](P2PFileManifest.md#chunksize)
 
-***
+---
 
 ### contentHash \{#contenthash\}
 
@@ -61,7 +61,7 @@ SHA-256 of the whole file (lowercase hex), the content-addressing primary key.
 
 [`P2PFileManifest`](P2PFileManifest.md).[`contentHash`](P2PFileManifest.md#contenthash)
 
-***
+---
 
 ### fileName \{#filename\}
 
@@ -77,7 +77,7 @@ File name for display; not part of content verification.
 
 [`P2PFileManifest`](P2PFileManifest.md).[`fileName`](P2PFileManifest.md#filename)
 
-***
+---
 
 ### holderId \{#holderid\}
 
@@ -93,7 +93,7 @@ Holder ID derived from the authenticated principal and device.
 
 [`P2PFileManifest`](P2PFileManifest.md).[`holderId`](P2PFileManifest.md#holderid)
 
-***
+---
 
 ### id \{#id\}
 
@@ -105,7 +105,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/manifest.ts:17](https://github.com/aia
 
 Primary key derived from `contentHash` and `holderId`; writes are idempotent for the same device and content.
 
-***
+---
 
 ### size \{#size\}
 
@@ -121,7 +121,7 @@ File size in bytes.
 
 [`P2PFileManifest`](P2PFileManifest.md).[`size`](P2PFileManifest.md#size)
 
-***
+---
 
 ### sourceUrl? \{#sourceurl\}
 
@@ -137,7 +137,7 @@ Server fallback download URL.
 
 [`P2PFileManifest`](P2PFileManifest.md).[`sourceUrl`](P2PFileManifest.md#sourceurl)
 
-***
+---
 
 ### updatedAt \{#updatedat\}
 

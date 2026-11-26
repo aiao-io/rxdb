@@ -5,6 +5,7 @@ Defined in: [packages/rxdb-adapter-sqlite-wasm/src/SqliteClient.ts:162](https://
 Typesafe synchronous event dispatcher.
 
 Dispatch semantics are aligned with the DOM `EventTarget`:
+
 - `dispatchEvent` takes a **snapshot** of the listener set before iterating. Listeners added during dispatch
   do not receive the current event and must wait for the next dispatch; listeners removed during dispatch **are still** invoked this time.
 - Exceptions thrown by listeners are not swallowed: they bubble up to the caller as-is, and subsequent listeners are not executed.
@@ -37,8 +38,8 @@ new SqliteClient(): SqliteClient;
 
 ```ts
 addEventListener<T>(
-   type, 
-   listener, 
+   type,
+   listener,
    owner?
 ): void;
 ```
@@ -49,17 +50,17 @@ Register a change listener.
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* keyof `SqliteClientEvents` |
+| Type Parameter                                                         |
+| ---------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ keyof `SqliteClientEvents` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `type` | `T` | Change type |
-| `listener` | [`EventListener`](../../utils/type-aliases/EventListener.md)&lt;`SqliteClientEvents`\[`T`\]&gt; | Listener |
-| `owner?` | `string` | The owner registering it; when given, it is removed together on return ([SqliteClient.release](#release)) |
+| Parameter  | Type                                                                                            | Description                                                                                               |
+| ---------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `type`     | `T`                                                                                             | Change type                                                                                               |
+| `listener` | [`EventListener`](../../utils/type-aliases/EventListener.md)&lt;`SqliteClientEvents`\[`T`\]&gt; | Listener                                                                                                  |
+| `owner?`   | `string`                                                                                        | The owner registering it; when given, it is removed together on return ([SqliteClient.release](#release)) |
 
 #### Returns
 
@@ -69,7 +70,7 @@ Register a change listener.
 
 [`EventDispatcher`](../../utils/classes/EventDispatcher.md).[`addEventListener`](../../utils/classes/EventDispatcher.md#addeventlistener)
 
-***
+---
 
 ### beginSystemMigrationTransactionSql() \{#beginsystemmigrationtransactionsql\}
 
@@ -83,7 +84,7 @@ Defined in: [packages/rxdb-adapter-sqlite-wasm/src/SqliteClient.ts:332](https://
 
 `string`
 
-***
+---
 
 ### beginTransactionSql() \{#begintransactionsql\}
 
@@ -97,7 +98,7 @@ Defined in: [packages/rxdb-adapter-sqlite-wasm/src/SqliteClient.ts:328](https://
 
 `string`
 
-***
+---
 
 ### describeBlankDatabase() \{#describeblankdatabase\}
 
@@ -119,7 +120,7 @@ The object list and description of the empty database
 
 Error client not initialized
 
-***
+---
 
 ### disconnect() \{#disconnect\}
 
@@ -141,7 +142,7 @@ Listener exceptions are logged, but do not block the connection from closing.
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### dispatchEvent() \{#dispatchevent\}
 
@@ -158,16 +159,16 @@ this round of iteration (otherwise a single synchronous dispatch could be extend
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-1"></a> `T` *extends* keyof `SqliteClientEvents` |
+| Type Parameter                                                           |
+| ------------------------------------------------------------------------ |
+| <a id="type-parameter-t-1"></a> `T` _extends_ keyof `SqliteClientEvents` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `type` | `T` | Event name |
-| `data` | `SqliteClientEvents`\[`T`\] | Event data |
+| Parameter | Type                        | Description |
+| --------- | --------------------------- | ----------- |
+| `type`    | `T`                         | Event name  |
+| `data`    | `SqliteClientEvents`\[`T`\] | Event data  |
 
 #### Returns
 
@@ -181,7 +182,7 @@ Any exception thrown by a listener, bubbled up as-is; subsequent listeners are n
 
 [`EventDispatcher`](../../utils/classes/EventDispatcher.md).[`dispatchEvent`](../../utils/classes/EventDispatcher.md#dispatchevent)
 
-***
+---
 
 ### execute() \{#execute\}
 
@@ -197,9 +198,9 @@ All queries are automatically queued, guaranteeing serial execution to avoid con
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `sql` | `string` |
+| Parameter   | Type                                                                                            |
+| ----------- | ----------------------------------------------------------------------------------------------- |
+| `sql`       | `string`                                                                                        |
 | `bindings?` | [`SQLiteCompatibleType`](../../rxdb-adapter-sqlite-core/type-aliases/SQLiteCompatibleType.md)[] |
 
 #### Returns
@@ -210,7 +211,7 @@ All queries are automatically queued, guaranteeing serial execution to avoid con
 
 client not initialized or already disconnected
 
-***
+---
 
 ### hasEventListener() \{#haseventlistener\}
 
@@ -224,16 +225,16 @@ Check whether a listener is registered. Does not create a set for unknown event 
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-2"></a> `T` *extends* keyof `SqliteClientEvents` |
+| Type Parameter                                                           |
+| ------------------------------------------------------------------------ |
+| <a id="type-parameter-t-2"></a> `T` _extends_ keyof `SqliteClientEvents` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `type` | `T` | Event name |
-| `listener` | [`EventListener`](../../utils/type-aliases/EventListener.md)&lt;`SqliteClientEvents`\[`T`\]&gt; | Listener |
+| Parameter  | Type                                                                                            | Description |
+| ---------- | ----------------------------------------------------------------------------------------------- | ----------- |
+| `type`     | `T`                                                                                             | Event name  |
+| `listener` | [`EventListener`](../../utils/type-aliases/EventListener.md)&lt;`SqliteClientEvents`\[`T`\]&gt; | Listener    |
 
 #### Returns
 
@@ -245,14 +246,14 @@ Whether it is registered
 
 [`EventDispatcher`](../../utils/classes/EventDispatcher.md).[`hasEventListener`](../../utils/classes/EventDispatcher.md#haseventlistener)
 
-***
+---
 
 ### init() \{#init\}
 
 ```ts
 init(
-   dbName, 
-   options, 
+   dbName,
+   options,
    owner?
 ): Promise<void>;
 ```
@@ -263,11 +264,11 @@ Initialize the database
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `dbName` | `string` | Database name (without the .sqlite extension) |
-| `options` | `LoadModuleOptions` | Load options |
-| `owner?` | `string` | Owner key: each tab's adapter on the SharedWorker provides one, and it is used on return ([SqliteClient.release](#release)) |
+| Parameter | Type                | Description                                                                                                                 |
+| --------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `dbName`  | `string`            | Database name (without the .sqlite extension)                                                                               |
+| `options` | `LoadModuleOptions` | Load options                                                                                                                |
+| `owner?`  | `string`            | Owner key: each tab's adapter on the SharedWorker provides one, and it is used on return ([SqliteClient.release](#release)) |
 
 #### Returns
 
@@ -280,9 +281,9 @@ a client with disconnect in progress cannot be initialized
 #### Throws
 
 [RxDBAdapterSqliteError](RxDBAdapterSqliteError.md) the client has opened (or is opening) a database with a different identity: if the database name, VFS, read-only, resource, or lock configuration
-  differs in any way it is rejected and the owner is not registered; the database can only be changed after disconnecting
+differs in any way it is rejected and the owner is not registered; the database can only be changed after disconnecting
 
-***
+---
 
 ### release() \{#release\}
 
@@ -296,9 +297,9 @@ One owner exits: removes the listeners it registered with its key and returns it
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `owner` | `string` | The owner key given at `init`; one that never held or already returned only has listeners removed |
+| Parameter | Type     | Description                                                                                       |
+| --------- | -------- | ------------------------------------------------------------------------------------------------- |
+| `owner`   | `string` | The owner key given at `init`; one that never held or already returned only has listeners removed |
 
 #### Returns
 
@@ -309,7 +310,7 @@ One owner exits: removes the listeners it registered with its key and returns it
 Inside the SharedWorker there is only this one client, and every tab connects to it: when one tab disconnects it only returns its own share and does not close a connection others are still using.
 Listeners coming in through Comlink are proxies newly created inside the worker; they are released together once removed, and the port on the tab side that exposed the listener is closed along with them.
 
-***
+---
 
 ### removeAllEventListeners() \{#removealleventlisteners\}
 
@@ -329,7 +330,7 @@ Clear all listeners under every event name.
 
 [`EventDispatcher`](../../utils/classes/EventDispatcher.md).[`removeAllEventListeners`](../../utils/classes/EventDispatcher.md#removealleventlisteners)
 
-***
+---
 
 ### removeEventListener() \{#removeeventlistener\}
 
@@ -345,16 +346,16 @@ If removed during `dispatchEvent`, the removed one **still** receives the curren
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-3"></a> `T` *extends* keyof `SqliteClientEvents` |
+| Type Parameter                                                           |
+| ------------------------------------------------------------------------ |
+| <a id="type-parameter-t-3"></a> `T` _extends_ keyof `SqliteClientEvents` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `type` | `T` | Event name |
-| `listener` | [`EventListener`](../../utils/type-aliases/EventListener.md)&lt;`SqliteClientEvents`\[`T`\]&gt; | Listener |
+| Parameter  | Type                                                                                            | Description |
+| ---------- | ----------------------------------------------------------------------------------------------- | ----------- |
+| `type`     | `T`                                                                                             | Event name  |
+| `listener` | [`EventListener`](../../utils/type-aliases/EventListener.md)&lt;`SqliteClientEvents`\[`T`\]&gt; | Listener    |
 
 #### Returns
 
@@ -364,7 +365,7 @@ If removed during `dispatchEvent`, the removed one **still** receives the curren
 
 [`EventDispatcher`](../../utils/classes/EventDispatcher.md).[`removeEventListener`](../../utils/classes/EventDispatcher.md#removeeventlistener)
 
-***
+---
 
 ### rollbackOrphanTransaction() \{#rollbackorphantransaction\}
 
@@ -391,7 +392,7 @@ client not initialized or already disconnected
 Judged after the statements already delivered to this client: statements sent by the dead tab run to completion first, then check whether the transaction it left behind is still open.
 The caller must hold the cross-tab lock, otherwise the rollback might hit a transaction another tab is currently running.
 
-***
+---
 
 ### setChangeEventsMuted() \{#setchangeeventsmuted\}
 
@@ -405,9 +406,9 @@ Pause / resume change-event collection.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `muted` | `boolean` | when `true`, the update hook ignores writes outright — not batched, not dispatched |
+| Parameter | Type      | Description                                                                        |
+| --------- | --------- | ---------------------------------------------------------------------------------- |
+| `muted`   | `boolean` | when `true`, the update hook ignores writes outright — not batched, not dispatched |
 
 #### Returns
 
@@ -417,7 +418,7 @@ Pause / resume change-event collection.
 
 Muting is client-wide, not per owner; the SharedWorker transport does not support resuming, so a shared client is never muted.
 
-***
+---
 
 ### version() \{#version\}
 

@@ -1,5 +1,5 @@
 ---
-sidebar_label: "SwitchVersionActions⟨T⟩"
+sidebar_label: 'SwitchVersionActions⟨T⟩'
 ---
 
 # SwitchVersionActions`<T>`
@@ -10,9 +10,9 @@ The operations needed to switch branch versions
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) | [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                            | Default type                                  |
+| ----------------------------------------------------------------------------------------- | --------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) | [`EntityType`](../type-aliases/EntityType.md) |
 
 ## Properties
 
@@ -27,7 +27,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:350](ht
 The entity key set to delete
 key format: `${namespace}:${entityName}:${entityId}`
 
-***
+---
 
 ### inserts \{#inserts\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:362](ht
 The entity key set to insert
 key format: `${namespace}:${entityName}:${entityId}`
 
-***
+---
 
 ### updateRxDBChangeSequence? \{#updaterxdbchangesequence\}
 
@@ -53,7 +53,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:368](ht
 Updates the RxDBChange sequence number
 local only, not synced to the remote
 
-***
+---
 
 ### updates \{#updates\}
 

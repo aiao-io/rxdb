@@ -13,9 +13,9 @@ The two shapes must be converted explicitly, avoiding putting a number straight 
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `record` | [`P2PManifestRecord`](../interfaces/P2PManifestRecord.md) |
+| Parameter | Type                                                      |
+| --------- | --------------------------------------------------------- |
+| `record`  | [`P2PManifestRecord`](../interfaces/P2PManifestRecord.md) |
 
 ## Returns
 

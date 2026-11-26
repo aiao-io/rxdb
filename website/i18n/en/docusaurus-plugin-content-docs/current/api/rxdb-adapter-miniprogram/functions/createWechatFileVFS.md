@@ -10,10 +10,10 @@ Creates a single-connection, rollback-journal WeChat synchronous file VFS; the W
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `module` | [`WaSqliteEmscriptenModule`](../interfaces/WaSqliteEmscriptenModule.md) |
-| `options` | [`WechatFileVFSOptions`](../interfaces/WechatFileVFSOptions.md) |
+| Parameter | Type                                                                    |
+| --------- | ----------------------------------------------------------------------- |
+| `module`  | [`WaSqliteEmscriptenModule`](../interfaces/WaSqliteEmscriptenModule.md) |
+| `options` | [`WechatFileVFSOptions`](../interfaces/WechatFileVFSOptions.md)         |
 
 ## Returns
 

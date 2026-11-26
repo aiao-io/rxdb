@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.utils.ts:57](https://github
 
 Values of encrypted columns are already envelopes: write them down as-is without encrypting, and throw on any value that is not an envelope (read-only checkouts building snapshots, US-313). Does not touch the keyring when opened.
 
-***
+---
 
 ### keyring \{#keyring\}
 
@@ -26,7 +26,7 @@ keyring: Keyring | null;
 
 Defined in: [packages/rxdb-adapter-pglite/src/pglite.utils.ts:50](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-pglite/src/pglite.utils.ts#L50)
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -36,12 +36,12 @@ namespace: string;
 
 Defined in: [packages/rxdb-adapter-pglite/src/pglite.utils.ts:51](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-pglite/src/pglite.utils.ts#L51)
 
-***
+---
 
 ### resolveEntityMetadata? \{#resolveentitymetadata\}
 
 ```ts
-resolveEntityMetadata?: (entity, namespace) => 
+resolveEntityMetadata?: (entity, namespace) =>
   | Readonly<EntityMetadataType>
   | undefined;
 ```
@@ -50,12 +50,12 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.utils.ts:52](https://github
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `entity` | `string` |
+| Parameter   | Type     |
+| ----------- | -------- |
+| `entity`    | `string` |
 | `namespace` | `string` |
 
 #### Returns
 
-  \| `Readonly`&lt;[`EntityMetadataType`](../../rxdb/interfaces/EntityMetadataType.md)&gt;
-  \| `undefined`
+\| `Readonly`&lt;[`EntityMetadataType`](../../rxdb/interfaces/EntityMetadataType.md)&gt;
+\| `undefined`

@@ -10,9 +10,9 @@ Whether row dragging is currently allowed on the table
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `table` | `ListTableAll` | Target table instance |
+| Parameter | Type           | Description           |
+| --------- | -------------- | --------------------- |
+| `table`   | `ListTableAll` | Target table instance |
 
 ## Returns
 

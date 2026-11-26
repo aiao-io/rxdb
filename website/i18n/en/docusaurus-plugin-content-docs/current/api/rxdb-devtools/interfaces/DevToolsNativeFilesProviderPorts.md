@@ -16,7 +16,7 @@ Defined in: [native/native-files-provider.ts:90](https://github.com/aiao-io/rxdb
 
 The host file capabilities.
 
-***
+---
 
 ### maxTransferBytes \{#maxtransferbytes\}
 
@@ -28,7 +28,7 @@ Defined in: [native/native-files-provider.ts:92](https://github.com/aiao-io/rxdb
 
 The per-transfer limit declared in the descriptor; must be the host's **real** limit.
 
-***
+---
 
 ### runtime \{#runtime\}
 
@@ -46,7 +46,7 @@ The host source shown in the descriptor.
 
 It only goes into the descriptor and does not participate in any behavioral branch: the same kind must have the same operations and limits under different runtimes.
 
-***
+---
 
 ### snapshot? \{#snapshot\}
 

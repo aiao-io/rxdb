@@ -14,7 +14,7 @@ displayName?: string;
 
 Defined in: [types.ts:266](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/types.ts#L266)
 
-***
+---
 
 ### enumValues? \{#enumvalues\}
 
@@ -24,7 +24,7 @@ enumValues?: string[];
 
 Defined in: [types.ts:269](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/types.ts#L269)
 
-***
+---
 
 ### name \{#name\}
 
@@ -34,7 +34,7 @@ name: string;
 
 Defined in: [types.ts:265](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/types.ts#L265)
 
-***
+---
 
 ### nullable? \{#nullable\}
 
@@ -44,7 +44,7 @@ nullable?: boolean;
 
 Defined in: [types.ts:268](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/types.ts#L268)
 
-***
+---
 
 ### options? \{#options\}
 
@@ -54,7 +54,7 @@ options?: Record<string, DevToolsEntityFieldOption>;
 
 Defined in: [types.ts:270](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/types.ts#L270)
 
-***
+---
 
 ### type \{#type\}
 

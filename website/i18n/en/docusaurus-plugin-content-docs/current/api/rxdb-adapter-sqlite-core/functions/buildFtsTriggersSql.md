@@ -1,11 +1,7 @@
 # buildFtsTriggersSql()
 
 ```ts
-function buildFtsTriggersSql(
-   table, 
-   fields, 
-   options?
-): string;
+function buildFtsTriggersSql(table, fields, options?): string;
 ```
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/fts5/build-fts-triggers.ts:69](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/fts5/build-fts-triggers.ts#L69)
@@ -18,11 +14,11 @@ The UPDATE trigger carries a `WHEN OLD.<f> IS NOT NEW.<f> OR ...` guard: only ch
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `table` | `string` | Business table name |
-| `fields` | readonly [`FtsField`](../interfaces/FtsField.md)[] | Field set, exactly consistent with [buildCreateFtsTableSql](buildCreateFtsTableSql.md) |
-| `options?` | [`FtsTriggerOptions`](../interfaces/FtsTriggerOptions.md) | Optional write transform; see [FtsTriggerOptions](../interfaces/FtsTriggerOptions.md) |
+| Parameter  | Type                                                      | Description                                                                            |
+| ---------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `table`    | `string`                                                  | Business table name                                                                    |
+| `fields`   | readonly [`FtsField`](../interfaces/FtsField.md)[]        | Field set, exactly consistent with [buildCreateFtsTableSql](buildCreateFtsTableSql.md) |
+| `options?` | [`FtsTriggerOptions`](../interfaces/FtsTriggerOptions.md) | Optional write transform; see [FtsTriggerOptions](../interfaces/FtsTriggerOptions.md)  |
 
 ## Returns
 

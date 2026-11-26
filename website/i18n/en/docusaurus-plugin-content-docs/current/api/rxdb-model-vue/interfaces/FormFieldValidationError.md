@@ -16,7 +16,7 @@ Defined in: packages/rxdb-model/dist/entity-form/interfaces.d.ts:84
 
 Name of the field that failed validation
 
-***
+---
 
 ### message \{#message\}
 
@@ -28,7 +28,7 @@ Defined in: packages/rxdb-model/dist/entity-form/interfaces.d.ts:86
 
 Error message
 
-***
+---
 
 ### reason? \{#reason\}
 
@@ -43,7 +43,7 @@ A deterministic validation source used to regenerate the message in the current 
 #### kind
 
 ```ts
-kind: "validation" | "parse";
+kind: 'validation' | 'parse';
 ```
 
 Distinguishes field constraint validation from input parse failure.

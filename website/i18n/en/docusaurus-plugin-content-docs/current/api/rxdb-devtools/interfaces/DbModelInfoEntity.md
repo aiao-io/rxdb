@@ -14,7 +14,7 @@ model: DevToolsEntityModel;
 
 Defined in: [types.ts:283](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/types.ts#L283)
 
-***
+---
 
 ### name \{#name\}
 
@@ -24,7 +24,7 @@ name: string;
 
 Defined in: [types.ts:281](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/types.ts#L281)
 
-***
+---
 
 ### namespace \{#namespace\}
 

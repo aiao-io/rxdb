@@ -10,10 +10,10 @@ Validates that the **target** branch's commit graph is fully reachable and intac
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md) | The caller's read-only transaction executor |
-| `targetBranchId` | `string` | The id of the branch being switched to |
+| Parameter        | Type                                                                  | Description                                 |
+| ---------------- | --------------------------------------------------------------------- | ------------------------------------------- |
+| `executor`       | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md) | The caller's read-only transaction executor |
+| `targetBranchId` | `string`                                                              | The id of the branch being switched to      |
 
 ## Returns
 

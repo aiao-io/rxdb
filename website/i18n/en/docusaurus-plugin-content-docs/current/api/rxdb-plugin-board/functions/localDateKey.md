@@ -10,9 +10,9 @@ Local date key `YYYY-MM-DD` (takes local year/month/day, not via UTC).
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `now` | `Date` |
+| Parameter | Type   |
+| --------- | ------ |
+| `now`     | `Date` |
 
 ## Returns
 

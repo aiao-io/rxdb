@@ -1,11 +1,7 @@
 # resolve_current_branch()
 
 ```ts
-function resolve_current_branch(
-   branchRepository, 
-   rxdb, 
-   tableSet?
-): Promise<RxDBBranch>;
+function resolve_current_branch(branchRepository, rxdb, tableSet?): Promise<RxDBBranch>;
 ```
 
 Defined in: [packages/rxdb/src/system/system-repositories.ts:48](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/system-repositories.ts#L48)
@@ -14,11 +10,11 @@ Resolves the "current branch": the branch held by the table set this instance is
 
 ## Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `branchRepository` | [`LocalRxDBBranchRepository`](../interfaces/LocalRxDBBranchRepository.md) | `undefined` | The branch repository |
-| `rxdb` | [`RxDB`](../classes/RxDB.md) | `undefined` | The RxDB instance, used only for `worktreeTableSet` and `entityManager.instantiate` |
-| `tableSet?` | [`WorktreeTableSet`](../classes/WorktreeTableSet.md) | `rxdb.worktreeTableSet` | Which table set's held branch to read; defaults to the set this instance is mounted on. Only entities of the primary table set (QueryCache) pass the primary table set |
+| Parameter          | Type                                                                      | Default value           | Description                                                                                                                                                            |
+| ------------------ | ------------------------------------------------------------------------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `branchRepository` | [`LocalRxDBBranchRepository`](../interfaces/LocalRxDBBranchRepository.md) | `undefined`             | The branch repository                                                                                                                                                  |
+| `rxdb`             | [`RxDB`](../classes/RxDB.md)                                              | `undefined`             | The RxDB instance, used only for `worktreeTableSet` and `entityManager.instantiate`                                                                                    |
+| `tableSet?`        | [`WorktreeTableSet`](../classes/WorktreeTableSet.md)                      | `rxdb.worktreeTableSet` | Which table set's held branch to read; defaults to the set this instance is mounted on. Only entities of the primary table set (QueryCache) pass the primary table set |
 
 ## Returns
 

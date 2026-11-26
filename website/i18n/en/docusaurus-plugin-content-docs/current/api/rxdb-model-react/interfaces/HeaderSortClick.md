@@ -16,7 +16,7 @@ Defined in: packages/rxdb-model/dist/entity-table/vtable/table-operations.d.ts:1
 
 Field of the clicked column
 
-***
+---
 
 ### order \{#order\}
 

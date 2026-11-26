@@ -10,8 +10,8 @@ Tries peers first; falls back to the server explicitly when no peer is available
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                        |
+| --------- | ----------------------------------------------------------- |
 | `options` | [`P2PDownloadOptions`](../interfaces/P2PDownloadOptions.md) |
 
 ## Returns

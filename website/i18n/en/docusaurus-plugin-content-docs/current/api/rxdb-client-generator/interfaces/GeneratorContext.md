@@ -17,7 +17,7 @@ Defined in: [generators/RepositoryGenerator.interface.ts:26](https://github.com/
 
 Array of class method declarations
 
-***
+---
 
 ### classProperties \{#classproperties\}
 
@@ -29,7 +29,7 @@ Defined in: [generators/RepositoryGenerator.interface.ts:24](https://github.com/
 
 Array of class property declarations
 
-***
+---
 
 ### file \{#file\}
 
@@ -41,7 +41,7 @@ Defined in: [generators/RepositoryGenerator.interface.ts:42](https://github.com/
 
 Source file
 
-***
+---
 
 ### generator \{#generator\}
 
@@ -53,7 +53,7 @@ Defined in: [generators/RepositoryGenerator.interface.ts:40](https://github.com/
 
 Generator instance
 
-***
+---
 
 ### metadata \{#metadata\}
 
@@ -65,7 +65,7 @@ Defined in: [generators/RepositoryGenerator.interface.ts:22](https://github.com/
 
 Entity metadata
 
-***
+---
 
 ### namedImportsByModule \{#namedimportsbymodule\}
 
@@ -77,7 +77,7 @@ Defined in: [generators/RepositoryGenerator.interface.ts:30](https://github.com/
 
 Additional named imports registered by the Repository plugin, grouped by module.
 
-***
+---
 
 ### rxdbNamedImports \{#rxdbnamedimports\}
 
@@ -89,7 +89,7 @@ Defined in: [generators/RepositoryGenerator.interface.ts:28](https://github.com/
 
 Set of rxdb named imports
 
-***
+---
 
 ### siblingNamedImports \{#siblingnamedimports\}
 
@@ -106,7 +106,7 @@ Names of peer entity types referenced during relation recursion, grouped by peer
 In split mode each entity has its own `.d.ts`, so these names must be imported from `./<peer entity>.js`,
 otherwise the generated rule types reference undeclared identifiers (TS2304). In single-file mode they share one file and no import is needed.
 
-***
+---
 
 ### staticTypesInterface \{#statictypesinterface\}
 

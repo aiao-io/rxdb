@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/use-board.ts:116](https://gi
 
 Domain actions (all go through the core package services' write gate and validation).
 
-***
+---
 
 ### boards \{#boards\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/use-board.ts:84](https://git
 
 All boards (creation time ascending, by id at the same time).
 
-***
+---
 
 ### columns \{#columns\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/use-board.ts:90](https://git
 
 Columns of the current board (in-board column order).
 
-***
+---
 
 ### currentBoard \{#currentboard\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/use-board.ts:88](https://git
 
 Current board; `null` when there is none.
 
-***
+---
 
 ### currentBoardId \{#currentboardid\}
 
@@ -64,7 +64,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/use-board.ts:86](https://git
 
 Current board id (persisted to the local record).
 
-***
+---
 
 ### labels \{#labels\}
 
@@ -76,7 +76,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/use-board.ts:94](https://git
 
 Board-level labels of the current board (creation time ascending, by id at the same time).
 
-***
+---
 
 ### loading \{#loading\}
 
@@ -88,7 +88,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/use-board.ts:100](https://gi
 
 First read or retry in progress: `true` until both the board list and the current board data are ready, `false` once the read fails.
 
-***
+---
 
 ### readError \{#readerror\}
 
@@ -100,7 +100,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/use-board.ts:102](https://gi
 
 Reason the read failed; `null` when reads are healthy.
 
-***
+---
 
 ### redoCount \{#redocount\}
 
@@ -112,7 +112,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/use-board.ts:108](https://gi
 
 Redo stack depth (disable criterion of the redo entry).
 
-***
+---
 
 ### restoring \{#restoring\}
 
@@ -124,7 +124,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/use-board.ts:98](https://git
 
 Write gate during restore (US-534 / US-537).
 
-***
+---
 
 ### retryReads \{#retryreads\}
 
@@ -140,12 +140,12 @@ Clears the read failure and rebuilds all read subscriptions.
 
 `void`
 
-***
+---
 
 ### searchSource \{#searchsource\}
 
 ```ts
-readonly searchSource: 
+readonly searchSource:
   | BoardSearchSource
   | null;
 ```
@@ -154,12 +154,12 @@ Defined in: [packages/rxdb-plugin-board-angular/src/use-board.ts:80](https://git
 
 Board-level search source (US-539 phase B); `null` when the host did not inject an upstream.
 
-***
+---
 
 ### searchUnavailableReason \{#searchunavailablereason\}
 
 ```ts
-readonly searchUnavailableReason: 
+readonly searchUnavailableReason:
   | BoardSearchUnavailableReason
   | null;
 ```
@@ -168,7 +168,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/use-board.ts:82](https://git
 
 Stable reason when the search entry is unavailable.
 
-***
+---
 
 ### selectBoard \{#selectboard\}
 
@@ -182,15 +182,15 @@ Switches boards: writes the local record and switches the data streams.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                      |
+| --------- | --------------------------------------------------------- |
 | `boardId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### setRestoring \{#setrestoring\}
 
@@ -204,15 +204,15 @@ Enters / exits restoring (the restore orchestration is driven by the host; this 
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `boolean` |
+| Parameter | Type      |
+| --------- | --------- |
+| `value`   | `boolean` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### taskLabels \{#tasklabels\}
 
@@ -224,7 +224,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/use-board.ts:96](https://git
 
 Task → its labels (in label creation order).
 
-***
+---
 
 ### tasks \{#tasks\}
 
@@ -236,7 +236,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/use-board.ts:92](https://git
 
 All tasks of the current board (database order per column).
 
-***
+---
 
 ### undoCount \{#undocount\}
 
@@ -248,7 +248,7 @@ Defined in: [packages/rxdb-plugin-board-angular/src/use-board.ts:106](https://gi
 
 Number of undoable transactions in this session (disable criterion of the undo entry).
 
-***
+---
 
 ### writeEvent \{#writeevent\}
 

@@ -2,9 +2,9 @@
 
 ```ts
 function validateEntityMetadata(
-   metadata, 
-   databaseSync?, 
-   isSyncTypeUnsupported?
+  metadata,
+  databaseSync?,
+  isSyncTypeUnsupported?
 ): readonly EntityMetadataValidationError[];
 ```
 
@@ -14,11 +14,11 @@ Validates a single entity's metadata declaration; returns all violations sorted 
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) | The entity metadata produced by `transitionMetadata()` |
-| `databaseSync?` | \| [`SyncOptions`](../type-aliases/SyncOptions.md) \| [`EntitySyncResolver`](../interfaces/EntitySyncResolver.md) | The database-level `rxdb.config.sync`; it takes effect when the entity does not declare `sync`. You may also pass the instance resolver `rxdb.entitySync`, in which case validation runs against the effective configuration including instance overrides. Omit to look only at the entity's own declaration |
-| `isSyncTypeUnsupported?` | `SyncTypeRestrictionLookup` | The repository-level sync strategy restriction lookup, see SyncTypeRestrictionLookup. Omit when the core knows no repository restrictions |
+| Parameter                | Type                                                                                                              | Description                                                                                                                                                                                                                                                                                                  |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `metadata`               | [`EntityMetadata`](../type-aliases/EntityMetadata.md)                                                             | The entity metadata produced by `transitionMetadata()`                                                                                                                                                                                                                                                       |
+| `databaseSync?`          | \| [`SyncOptions`](../type-aliases/SyncOptions.md) \| [`EntitySyncResolver`](../interfaces/EntitySyncResolver.md) | The database-level `rxdb.config.sync`; it takes effect when the entity does not declare `sync`. You may also pass the instance resolver `rxdb.entitySync`, in which case validation runs against the effective configuration including instance overrides. Omit to look only at the entity's own declaration |
+| `isSyncTypeUnsupported?` | `SyncTypeRestrictionLookup`                                                                                       | The repository-level sync strategy restriction lookup, see SyncTypeRestrictionLookup. Omit when the core knows no repository restrictions                                                                                                                                                                    |
 
 ## Returns
 

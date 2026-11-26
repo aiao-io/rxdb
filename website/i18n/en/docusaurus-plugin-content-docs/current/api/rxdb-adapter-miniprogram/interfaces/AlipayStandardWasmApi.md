@@ -24,16 +24,16 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/hosts/alipay-api.ts:57](https
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `bytes` | `Uint8Array`&lt;`ArrayBuffer`&gt; |
-| `imports` | `WebAssembly.Imports` |
+| Parameter | Type                              |
+| --------- | --------------------------------- |
+| `bytes`   | `Uint8Array`&lt;`ArrayBuffer`&gt; |
+| `imports` | `WebAssembly.Imports`             |
 
 #### Returns
 
 `Promise`&lt;\{
-  `instance`: \{
-     `exports`: `WebAssembly.Exports`;
-  \};
-  `module?`: `unknown`;
+`instance`: \{
+`exports`: `WebAssembly.Exports`;
+\};
+`module?`: `unknown`;
 \}&gt;

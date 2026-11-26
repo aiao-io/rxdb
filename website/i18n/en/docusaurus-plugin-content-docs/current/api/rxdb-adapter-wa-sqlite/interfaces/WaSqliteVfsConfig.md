@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-adapter-wa-sqlite/src/sqlite-load.utils.ts:34](https:
 
 Whether the asyncify wasm build is supported.
 
-***
+---
 
 ### jsContext \{#jscontext\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-adapter-wa-sqlite/src/sqlite-load.utils.ts:40](https:
 
 Whether ordinary JavaScript contexts such as Window are supported.
 
-***
+---
 
 ### multipleConnections \{#multipleconnections\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-adapter-wa-sqlite/src/sqlite-load.utils.ts:42](https:
 
 Whether multiple connections can share the same storage.
 
-***
+---
 
 ### name \{#name\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb-adapter-wa-sqlite/src/sqlite-load.utils.ts:26](https:
 
 Preset name of the VFS.
 
-***
+---
 
 ### sharedWorker \{#sharedworker\}
 
@@ -64,7 +64,7 @@ Defined in: [packages/rxdb-adapter-wa-sqlite/src/sqlite-load.utils.ts:38](https:
 
 Whether SharedWorker is supported.
 
-***
+---
 
 ### sync \{#sync\}
 
@@ -76,7 +76,7 @@ Defined in: [packages/rxdb-adapter-wa-sqlite/src/sqlite-load.utils.ts:32](https:
 
 Whether the sync wasm build is supported.
 
-***
+---
 
 ### vfsModule \{#vfsmodule\}
 
@@ -92,7 +92,7 @@ Loads the upstream VFS factory.
 
 `Promise`&lt;[`WaSqliteVfsFactory`](WaSqliteVfsFactory.md)&gt;
 
-***
+---
 
 ### vfsOptions? \{#vfsoptions\}
 
@@ -107,7 +107,7 @@ Defined in: [packages/rxdb-adapter-wa-sqlite/src/sqlite-load.utils.ts:30](https:
 
 Fixed options passed to the VFS factory.
 
-***
+---
 
 ### worker \{#worker\}
 

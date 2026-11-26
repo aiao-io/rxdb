@@ -10,9 +10,9 @@ Determines the running platform.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `source` | [`PlatformSource`](../interfaces/PlatformSource.md) \| `undefined` | `navigator`; when absent (SSR / tests) it is treated as `other`. |
+| Parameter | Type                                                               | Description                                                      |
+| --------- | ------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| `source`  | [`PlatformSource`](../interfaces/PlatformSource.md) \| `undefined` | `navigator`; when absent (SSR / tests) it is treated as `other`. |
 
 ## Returns
 

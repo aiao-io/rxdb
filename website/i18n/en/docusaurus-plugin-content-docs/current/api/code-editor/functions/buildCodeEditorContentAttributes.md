@@ -10,9 +10,9 @@ Converts accessibility state into an attribute dictionary for `EditorView.conten
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `state` | [`CodeEditorAccessibilityState`](../interfaces/CodeEditorAccessibilityState.md) | The current accessibility state |
+| Parameter | Type                                                                            | Description                     |
+| --------- | ------------------------------------------------------------------------------- | ------------------------------- |
+| `state`   | [`CodeEditorAccessibilityState`](../interfaces/CodeEditorAccessibilityState.md) | The current accessibility state |
 
 ## Returns
 

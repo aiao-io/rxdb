@@ -10,9 +10,9 @@ Converts SQLite typed values to JS types
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | SQLite-typed value |
+| Parameter  | Type                                                                                                                                                                  | Description              |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| `value`    | `unknown`                                                                                                                                                             | SQLite-typed value       |
 | `property` | \| [`EntityPropertyMetadata`](../../rxdb/type-aliases/EntityPropertyMetadata.md) \| [`KeyValuePropertyMetadata`](../../rxdb/type-aliases/KeyValuePropertyMetadata.md) | Entity property metadata |
 
 ## Returns

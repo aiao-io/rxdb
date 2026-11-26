@@ -10,11 +10,11 @@ Rejects registering encrypted columns into an FTS index.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `args` | \{ `entity`: [`EncryptedAwareEntity`](../interfaces/EncryptedAwareEntity.md); `ftsColumns`: readonly `string`[]; \} |
-| `args.entity` | [`EncryptedAwareEntity`](../interfaces/EncryptedAwareEntity.md) |
-| `args.ftsColumns` | readonly `string`[] |
+| Parameter         | Type                                                                                                                |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `args`            | \{ `entity`: [`EncryptedAwareEntity`](../interfaces/EncryptedAwareEntity.md); `ftsColumns`: readonly `string`[]; \} |
+| `args.entity`     | [`EncryptedAwareEntity`](../interfaces/EncryptedAwareEntity.md)                                                     |
+| `args.ftsColumns` | readonly `string`[]                                                                                                 |
 
 ## Returns
 

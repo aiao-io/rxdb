@@ -16,7 +16,7 @@ Defined in: [preferences/drawer-model.ts:66](https://github.com/aiao-io/rxdb/blo
 
 The group identifier.
 
-***
+---
 
 ### rows \{#rows\}
 
@@ -28,7 +28,7 @@ Defined in: [preferences/drawer-model.ts:70](https://github.com/aiao-io/rxdb/blo
 
 The settings rows within the group.
 
-***
+---
 
 ### title \{#title\}
 

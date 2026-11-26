@@ -23,7 +23,7 @@ Defined in: [packages/rxdb-plugin-sync/src/query-cache-outbox.ts:103](https://gi
 
 The number of original change rows cancelled out by local compression
 
-***
+---
 
 ### conflicts \{#conflicts\}
 
@@ -42,7 +42,7 @@ row no longer exists" is not a conflict: in that case there is no competing
 write to compare, and the local intent is converged away rather than judged
 the loser (see `MISSING_REMOTE`).
 
-***
+---
 
 ### discarded \{#discarded\}
 
@@ -54,7 +54,7 @@ Defined in: [packages/rxdb-plugin-sync/src/query-cache-outbox.ts:107](https://gi
 
 The number of net operations that lost the LWW judgment and whose local changes were dropped
 
-***
+---
 
 ### failures \{#failures\}
 
@@ -66,7 +66,7 @@ Defined in: [packages/rxdb-plugin-sync/src/query-cache-outbox.ts:121](https://gi
 
 This round's failures; non-empty means the waterline did not advance
 
-***
+---
 
 ### noop \{#noop\}
 
@@ -78,7 +78,7 @@ Defined in: [packages/rxdb-plugin-sync/src/query-cache-outbox.ts:109](https://gi
 
 The number of net operations where the remote state already satisfied the intent and no request was sent
 
-***
+---
 
 ### originalCount \{#originalcount\}
 
@@ -90,7 +90,7 @@ Defined in: [packages/rxdb-plugin-sync/src/query-cache-outbox.ts:101](https://gi
 
 The number of original change rows read
 
-***
+---
 
 ### replayed \{#replayed\}
 
@@ -102,7 +102,7 @@ Defined in: [packages/rxdb-plugin-sync/src/query-cache-outbox.ts:105](https://gi
 
 The number of net operations really sent and succeeded
 
-***
+---
 
 ### repository \{#repository\}
 
@@ -126,7 +126,7 @@ entity: string;
 namespace: string;
 ```
 
-***
+---
 
 ### skipped? \{#skipped\}
 
@@ -138,7 +138,7 @@ Defined in: [packages/rxdb-plugin-sync/src/query-cache-outbox.ts:123](https://gi
 
 The reason the whole round was skipped (e.g. the sync switch is turned off)
 
-***
+---
 
 ### watermark \{#watermark\}
 

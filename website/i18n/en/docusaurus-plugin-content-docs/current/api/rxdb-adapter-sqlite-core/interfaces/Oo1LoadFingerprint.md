@@ -20,7 +20,7 @@ readonly hasLocateFile: boolean;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/sqlite-oo1-load.utils.ts:272](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/sqlite-oo1-load.utils.ts#L272)
 
-***
+---
 
 ### locateFile? \{#locatefile\}
 
@@ -34,15 +34,15 @@ The caller's `locateFile` callback itself, compared by reference; `undefined` wh
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `name` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `name`    | `string` |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### opfs \{#opfs\}
 
@@ -52,7 +52,7 @@ readonly opfs: boolean;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/sqlite-oo1-load.utils.ts:269](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/sqlite-oo1-load.utils.ts#L269)
 
-***
+---
 
 ### opfsProxyPath \{#opfsproxypath\}
 
@@ -62,7 +62,7 @@ readonly opfsProxyPath: string | undefined;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/sqlite-oo1-load.utils.ts:271](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/sqlite-oo1-load.utils.ts#L271)
 
-***
+---
 
 ### wasmPath \{#wasmpath\}
 

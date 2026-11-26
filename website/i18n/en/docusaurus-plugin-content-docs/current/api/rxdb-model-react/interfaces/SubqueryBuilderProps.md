@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/subquery-builder/subque
 
 Field list.
 
-***
+---
 
 ### initialQuery? \{#initialquery\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/subquery-builder/subque
 
 Initial query (applied only once).
 
-***
+---
 
 ### maxDepth? \{#maxdepth\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-model-react/src/query-builder/subquery-builder/subque
 
 Maximum nesting level, defaults to `3`.
 
-***
+---
 
 ### onQueryChange? \{#onquerychange\}
 
@@ -54,15 +54,15 @@ Query change event (outputs undefined when there are no rules).
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `query` | \| \{ `combinator`: `"and"` \| `"or"`; `rules`: `unknown`[]; \} \| `undefined` |
+| Parameter | Type                                                                           |
+| --------- | ------------------------------------------------------------------------------ |
+| `query`   | \| \{ `combinator`: `"and"` \| `"or"`; `rules`: `unknown`[]; \} \| `undefined` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onValidationChange? \{#onvalidationchange\}
 
@@ -76,9 +76,9 @@ Validation state change event.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `result` | [`ValidationResult`](ValidationResult.md) |
+| Parameter | Type                                      |
+| --------- | ----------------------------------------- |
+| `result`  | [`ValidationResult`](ValidationResult.md) |
 
 #### Returns
 

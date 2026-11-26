@@ -10,9 +10,9 @@ Creates a discovery implementation usable offline from the local manifest reposi
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `store` | [`P2PManifestStore`](../classes/P2PManifestStore.md) |
+| Parameter | Type                                                 |
+| --------- | ---------------------------------------------------- |
+| `store`   | [`P2PManifestStore`](../classes/P2PManifestStore.md) |
 
 ## Returns
 

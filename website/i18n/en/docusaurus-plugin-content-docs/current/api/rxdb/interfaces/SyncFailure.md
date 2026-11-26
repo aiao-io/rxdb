@@ -16,7 +16,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:47](htt
 
 The root cause of the failure (nested `RxDBPartialSyncError`s already unwrapped)
 
-***
+---
 
 ### repository? \{#repository\}
 

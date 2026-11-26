@@ -11,9 +11,9 @@ Determined using both instanceof and Object.prototype.toString.call()
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | The value to check |
+| Parameter | Type      | Description        |
+| --------- | --------- | ------------------ |
+| `value`   | `unknown` | The value to check |
 
 ## Returns
 

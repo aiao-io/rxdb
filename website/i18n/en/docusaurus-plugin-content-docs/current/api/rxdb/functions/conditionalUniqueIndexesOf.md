@@ -10,8 +10,8 @@ All conditional unique indexes of the entity (reads `indexMap`: the full set aft
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                  |
+| ---------- | ----------------------------------------------------- |
 | `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) |
 
 ## Returns

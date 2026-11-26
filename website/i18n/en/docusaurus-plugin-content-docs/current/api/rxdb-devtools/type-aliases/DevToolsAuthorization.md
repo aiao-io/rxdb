@@ -1,17 +1,17 @@
 # DevToolsAuthorization
 
 ```ts
-type DevToolsAuthorization = 
+type DevToolsAuthorization =
   | {
-  outcome: "allowed";
-}
+      outcome: 'allowed';
+    }
   | {
-  outcome: "silent-drop";
-}
+      outcome: 'silent-drop';
+    }
   | {
-  error: DevToolsErrorPayload;
-  outcome: "rejected";
-};
+      error: DevToolsErrorPayload;
+      outcome: 'rejected';
+    };
 ```
 
 Defined in: [v2/authorization.ts:125](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/v2/authorization.ts#L125)

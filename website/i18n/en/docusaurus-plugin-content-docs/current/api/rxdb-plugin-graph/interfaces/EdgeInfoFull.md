@@ -1,5 +1,5 @@
 ---
-sidebar_label: "EdgeInfoFull⟨EdgeProperties⟩"
+sidebar_label: 'EdgeInfoFull⟨EdgeProperties⟩'
 ---
 
 # EdgeInfoFull`<EdgeProperties>`
@@ -15,8 +15,8 @@ Edge information (weight + properties)
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
+| Type Parameter                                              | Default type                                                                |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------- |
 | <a id="type-parameter-edgeproperties"></a> `EdgeProperties` | [`GraphEdgePropertiesRecord`](../type-aliases/GraphEdgePropertiesRecord.md) |
 
 ## Properties
@@ -24,7 +24,7 @@ Edge information (weight + properties)
 ### direction \{#direction\}
 
 ```ts
-direction: "in" | "out";
+direction: 'in' | 'out';
 ```
 
 Defined in: [rxdb-plugin-graph/src/graph-repository.interface.ts:75](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-graph/src/graph-repository.interface.ts#L75)
@@ -33,7 +33,7 @@ Defined in: [rxdb-plugin-graph/src/graph-repository.interface.ts:75](https://git
 
 [`EdgeInfoWithWeight`](EdgeInfoWithWeight.md).[`direction`](EdgeInfoWithWeight.md#direction)
 
-***
+---
 
 ### properties \{#properties\}
 
@@ -47,7 +47,7 @@ Defined in: [rxdb-plugin-graph/src/graph-repository.interface.ts:89](https://git
 
 [`EdgeInfoWithProperties`](EdgeInfoWithProperties.md).[`properties`](EdgeInfoWithProperties.md#properties)
 
-***
+---
 
 ### sourceId \{#sourceid\}
 
@@ -61,7 +61,7 @@ Defined in: [rxdb-plugin-graph/src/graph-repository.interface.ts:73](https://git
 
 [`EdgeInfoWithWeight`](EdgeInfoWithWeight.md).[`sourceId`](EdgeInfoWithWeight.md#sourceid)
 
-***
+---
 
 ### targetId \{#targetid\}
 
@@ -75,7 +75,7 @@ Defined in: [rxdb-plugin-graph/src/graph-repository.interface.ts:74](https://git
 
 [`EdgeInfoWithWeight`](EdgeInfoWithWeight.md).[`targetId`](EdgeInfoWithWeight.md#targetid)
 
-***
+---
 
 ### weight \{#weight\}
 

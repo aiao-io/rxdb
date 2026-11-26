@@ -10,12 +10,12 @@ Generates a holder record from an authenticated identity; callers cannot claim a
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `manifest` | [`P2PFileManifest`](../interfaces/P2PFileManifest.md) |
-| `options` | \{ `now?`: `number`; `principal`: [`P2PPrincipal`](../interfaces/P2PPrincipal.md); \} |
-| `options.now?` | `number` |
-| `options.principal` | [`P2PPrincipal`](../interfaces/P2PPrincipal.md) |
+| Parameter           | Type                                                                                  |
+| ------------------- | ------------------------------------------------------------------------------------- |
+| `manifest`          | [`P2PFileManifest`](../interfaces/P2PFileManifest.md)                                 |
+| `options`           | \{ `now?`: `number`; `principal`: [`P2PPrincipal`](../interfaces/P2PPrincipal.md); \} |
+| `options.now?`      | `number`                                                                              |
+| `options.principal` | [`P2PPrincipal`](../interfaces/P2PPrincipal.md)                                       |
 
 ## Returns
 

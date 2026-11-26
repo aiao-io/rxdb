@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/files-protocol.ts:19](https://github.c
 
 The local manifest; the chunk size may differ from the requester's, and fetching uses the requester's byte ranges.
 
-***
+---
 
 ### readRange \{#readrange\}
 
@@ -30,10 +30,10 @@ Reads a byte range of the local file.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `offset` | `number` |
-| `size` | `number` |
+| Parameter | Type     |
+| --------- | -------- |
+| `offset`  | `number` |
+| `size`    | `number` |
 
 #### Returns
 

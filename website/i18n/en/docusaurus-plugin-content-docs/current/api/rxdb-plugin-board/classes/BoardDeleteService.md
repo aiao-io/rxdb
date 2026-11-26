@@ -16,10 +16,10 @@ Defined in: [packages/rxdb-plugin-board/src/delete-service.ts:59](https://github
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rxdb` | [`RxDB`](../../rxdb/classes/RxDB.md) |
-| `ctx` | () => [`BoardHostContext`](../interfaces/BoardHostContext.md) |
+| Parameter | Type                                                          |
+| --------- | ------------------------------------------------------------- |
+| `rxdb`    | [`RxDB`](../../rxdb/classes/RxDB.md)                          |
+| `ctx`     | () => [`BoardHostContext`](../interfaces/BoardHostContext.md) |
 
 #### Returns
 
@@ -39,15 +39,15 @@ Re-verifies inside the transaction and executes the deletion; exits with zero wr
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `plan` | [`DeletePlan`](../type-aliases/DeletePlan.md) |
+| Parameter | Type                                          |
+| --------- | --------------------------------------------- |
+| `plan`    | [`DeletePlan`](../type-aliases/DeletePlan.md) |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### planBoardDelete() \{#planboarddelete\}
 
@@ -61,15 +61,15 @@ Board deletion plan (read outside the transaction).
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                      |
+| --------- | --------------------------------------------------------- |
 | `boardId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
 
 #### Returns
 
 `Promise`&lt;[`BoardDeletePlan`](../interfaces/BoardDeletePlan.md)&gt;
 
-***
+---
 
 ### planColumnDelete() \{#plancolumndelete\}
 
@@ -83,15 +83,15 @@ Column deletion plan (read outside the transaction).
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                      |
+| ---------- | --------------------------------------------------------- |
 | `columnId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
 
 #### Returns
 
 `Promise`&lt;[`ColumnDeletePlan`](../interfaces/ColumnDeletePlan.md)&gt;
 
-***
+---
 
 ### planTaskDelete() \{#plantaskdelete\}
 
@@ -105,9 +105,9 @@ Task deletion plan (read outside the transaction, holds no transaction).
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `taskId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
+| Parameter | Type                                                      |
+| --------- | --------------------------------------------------------- |
+| `taskId`  | `` `${string}-${string}-${string}-${string}-${string}` `` |
 
 #### Returns
 

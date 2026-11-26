@@ -10,9 +10,9 @@ Parses from the on-disk text form.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `text` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `text`    | `string` |
 
 ## Returns
 

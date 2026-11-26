@@ -52,7 +52,7 @@ The token, handed back to [settlePull](#settlepull) / [settleAbortedPull](#settl
 Must be taken **before** the pull is actually initiated: remote events arriving during the pull describe new changes after the snapshot,
 and the settlement must be able to tell them apart — otherwise the "fully synced" reset would swallow them along with everything else.
 
-***
+---
 
 ### captureUndoHistory() \{#captureundohistory\}
 
@@ -66,8 +66,8 @@ Captures the source branch's current undo session; the callback invalidates only
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type     | Description                           |
+| ---------- | -------- | ------------------------------------- |
 | `branchId` | `string` | The source branch being read for sync |
 
 #### Returns
@@ -76,7 +76,7 @@ The invalidation callback of the source branch
 
 () => `void`
 
-***
+---
 
 ### clearUndoHistory() \{#clearundohistory\}
 
@@ -92,7 +92,7 @@ Clears the current branch's undo/redo after merging with the remote — the pre-
 
 `void`
 
-***
+---
 
 ### incrementPullableCount() \{#incrementpullablecount\}
 
@@ -106,15 +106,15 @@ Accumulates the pullable count when remote events arrive.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `count` | `number` | The number of items in this event belonging to the currently active branch |
+| Parameter | Type     | Description                                                                |
+| --------- | -------- | -------------------------------------------------------------------------- |
+| `count`   | `number` | The number of items in this event belonging to the currently active branch |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### reconcilePullableCount() \{#reconcilepullablecount\}
 
@@ -128,16 +128,16 @@ Calibrates the pullable count against the remote watermarks.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `token` | `number` | The token issued by [beginPullableSettlement](#beginpullablesettlement) |
-| `count` | `number` | The total pullable count computed from each repository's persisted watermark |
+| Parameter | Type     | Description                                                                  |
+| --------- | -------- | ---------------------------------------------------------------------------- |
+| `token`   | `number` | The token issued by [beginPullableSettlement](#beginpullablesettlement)      |
+| `count`   | `number` | The total pullable count computed from each repository's persisted watermark |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### settleAbortedPull() \{#settleabortedpull\}
 
@@ -151,10 +151,10 @@ Settles the pullable count by the part of a throwing pull that already landed.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `token` | `number` | The token issued by [beginPullableSettlement](#beginpullablesettlement) |
-| `pulled` | `number` | The number of items that actually landed before the error, 0 when none landed |
+| Parameter | Type     | Description                                                                   |
+| --------- | -------- | ----------------------------------------------------------------------------- |
+| `token`   | `number` | The token issued by [beginPullableSettlement](#beginpullablesettlement)       |
+| `pulled`  | `number` | The number of items that actually landed before the error, 0 when none landed |
 
 #### Returns
 
@@ -164,14 +164,14 @@ Settles the pullable count by the part of a throwing pull that already landed.
 
 The token must be returned, otherwise the generation stays at its old value forever and every later settlement is judged as "concurrent".
 
-***
+---
 
 ### settlePull() \{#settlepull\}
 
 ```ts
 settlePull(
-   token, 
-   options, 
+   token,
+   options,
    result
 ): void;
 ```
@@ -182,17 +182,17 @@ Settles the pullable count by the actual coverage of a successful pull.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `token` | `number` | The token issued by [beginPullableSettlement](#beginpullablesettlement) |
-| `options` | [`PullOptions`](../../rxdb/interfaces/PullOptions.md) \| `undefined` | The options the pull was initiated with |
-| `result` | [`PullResult`](../../rxdb/interfaces/PullResult.md) | The pull's result |
+| Parameter | Type                                                                 | Description                                                             |
+| --------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `token`   | `number`                                                             | The token issued by [beginPullableSettlement](#beginpullablesettlement) |
+| `options` | [`PullOptions`](../../rxdb/interfaces/PullOptions.md) \| `undefined` | The options the pull was initiated with                                 |
+| `result`  | [`PullResult`](../../rxdb/interfaces/PullResult.md)                  | The pull's result                                                       |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### syncing() \{#syncing\}
 
@@ -206,15 +206,15 @@ Executes in a reentrant sync context: local writes produced inside it do not ent
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `fn` | () => `Promise`&lt;`T`&gt; | The sync action |
+| Parameter | Type                       | Description     |
+| --------- | -------------------------- | --------------- |
+| `fn`      | () => `Promise`&lt;`T`&gt; | The sync action |
 
 #### Returns
 

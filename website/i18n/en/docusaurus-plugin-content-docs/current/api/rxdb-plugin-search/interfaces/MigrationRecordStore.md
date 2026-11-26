@@ -18,15 +18,15 @@ Lists all `fts5__<table>__v1__install__*` migration records for a table. Usually
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter   | Type     |
+| ----------- | -------- |
 | `tableName` | `string` |
 
 #### Returns
 
 `Promise`&lt;readonly `object`[]&gt;
 
-***
+---
 
 ### recordMigration() \{#recordmigration\}
 
@@ -40,9 +40,9 @@ Writes a migration record (idempotency optional; the caller guarantees not to wr
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `name` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `name`    | `string` |
 
 #### Returns
 

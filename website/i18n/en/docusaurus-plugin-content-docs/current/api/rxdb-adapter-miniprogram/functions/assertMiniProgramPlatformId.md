@@ -1,7 +1,7 @@
 # assertMiniProgramPlatformId()
 
 ```ts
-function assertMiniProgramPlatformId(value): asserts value is "wechat" | "douyin" | "alipay";
+function assertMiniProgramPlatformId(value): asserts value is 'wechat' | 'douyin' | 'alipay';
 ```
 
 Defined in: [packages/rxdb-adapter-miniprogram/src/host.ts:77](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-miniprogram/src/host.ts#L77)
@@ -13,9 +13,9 @@ For callers that cannot construct a host yet, e.g. an app branching on the build
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | The platform id to judge |
+| Parameter | Type      | Description              |
+| --------- | --------- | ------------------------ |
+| `value`   | `unknown` | The platform id to judge |
 
 ## Returns
 

@@ -18,15 +18,15 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/hosts/alipay-api.ts:47](https
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                  |
+| ---------- | --------------------- |
 | `listener` | (`message`) => `void` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### postMessage() \{#postmessage\}
 
@@ -38,8 +38,8 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/hosts/alipay-api.ts:46](https
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type     |
+| --------- | -------- |
 | `message` | `object` |
 
 #### Returns

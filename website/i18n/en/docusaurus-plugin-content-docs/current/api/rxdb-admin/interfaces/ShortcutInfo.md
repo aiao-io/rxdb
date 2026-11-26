@@ -16,7 +16,7 @@ Defined in: [shortcuts/registry.ts:62](https://github.com/aiao-io/rxdb/blob/b523
 
 The key-combination text.
 
-***
+---
 
 ### enabled \{#enabled\}
 
@@ -28,7 +28,7 @@ Defined in: [shortcuts/registry.ts:72](https://github.com/aiao-io/rxdb/blob/b523
 
 Whether it is enabled (the master switch is on and it has not been individually disabled).
 
-***
+---
 
 ### id \{#id\}
 
@@ -40,7 +40,7 @@ Defined in: [shortcuts/registry.ts:60](https://github.com/aiao-io/rxdb/blob/b523
 
 The identifier.
 
-***
+---
 
 ### keys \{#keys\}
 
@@ -52,7 +52,7 @@ Defined in: [shortcuts/registry.ts:68](https://github.com/aiao-io/rxdb/blob/b523
 
 The key caps.
 
-***
+---
 
 ### label? \{#label\}
 
@@ -64,7 +64,7 @@ Defined in: [shortcuts/registry.ts:66](https://github.com/aiao-io/rxdb/blob/b523
 
 The description literal.
 
-***
+---
 
 ### labelKey? \{#labelkey\}
 
@@ -76,7 +76,7 @@ Defined in: [shortcuts/registry.ts:64](https://github.com/aiao-io/rxdb/blob/b523
 
 The translation key for the description.
 
-***
+---
 
 ### text \{#text\}
 

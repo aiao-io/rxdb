@@ -16,31 +16,31 @@ for the UI to show "whether the data is up to date".
 ### Never \{#never\}
 
 ```ts
-Never: "Never";
+Never: 'Never';
 ```
 
 Defined in: [packages/rxdb/src/repository/repository.interface.ts:87](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/repository.interface.ts#L87)
 
 Never synced
 
-***
+---
 
 ### Synced \{#synced\}
 
 ```ts
-Synced: "Synced";
+Synced: 'Synced';
 ```
 
 Defined in: [packages/rxdb/src/repository/repository.interface.ts:77](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/repository.interface.ts#L77)
 
 Synced
 
-***
+---
 
 ### Syncing \{#syncing\}
 
 ```ts
-Syncing: "Syncing";
+Syncing: 'Syncing';
 ```
 
 Defined in: [packages/rxdb/src/repository/repository.interface.ts:82](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/repository.interface.ts#L82)

@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model/src/entity-form/interfaces.ts:94](https://githu
 
 Name of the field that failed
 
-***
+---
 
 ### message \{#message\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-model/src/entity-form/interfaces.ts:96](https://githu
 
 Error message
 
-***
+---
 
 ### reason? \{#reason\}
 
@@ -43,7 +43,7 @@ Deterministic validation source used to regenerate the message in the current la
 #### kind
 
 ```ts
-kind: "validation" | "parse";
+kind: 'validation' | 'parse';
 ```
 
 Distinguishes field constraint validation from input parsing failures.

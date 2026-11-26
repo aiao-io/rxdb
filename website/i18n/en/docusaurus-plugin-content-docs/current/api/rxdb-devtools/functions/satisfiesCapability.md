@@ -10,10 +10,10 @@ Checks whether the actual tier reaches the required tier.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `actual` | [`DevToolsCapability`](../type-aliases/DevToolsCapability.md) | The actual tier configured by the connector owner. |
-| `required` | [`DevToolsCapability`](../type-aliases/DevToolsCapability.md) | The minimum tier required by the operation. |
+| Parameter  | Type                                                          | Description                                        |
+| ---------- | ------------------------------------------------------------- | -------------------------------------------------- |
+| `actual`   | [`DevToolsCapability`](../type-aliases/DevToolsCapability.md) | The actual tier configured by the connector owner. |
+| `required` | [`DevToolsCapability`](../type-aliases/DevToolsCapability.md) | The minimum tier required by the operation.        |
 
 ## Returns
 

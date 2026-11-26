@@ -20,7 +20,7 @@ Clears the query and returns to idle
 
 `void`
 
-***
+---
 
 ### error \{#error\}
 
@@ -34,7 +34,7 @@ Defined in: [packages/rxdb-plugin-search-angular/src/inject-search.ts:56](https:
 
 The most recent execution error (read-only)
 
-***
+---
 
 ### hasMore \{#hasmore\}
 
@@ -46,7 +46,7 @@ Defined in: [packages/rxdb-plugin-search-angular/src/inject-search.ts:58](https:
 
 Whether there is another page (read-only)
 
-***
+---
 
 ### loadMore \{#loadmore\}
 
@@ -62,7 +62,7 @@ Loads the next page; no-op when there is no more
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### query \{#query\}
 
@@ -74,7 +74,7 @@ Defined in: [packages/rxdb-plugin-search-angular/src/inject-search.ts:50](https:
 
 Writable signal; writing it triggers the underlying `handle.setQuery` (plugin debounce)
 
-***
+---
 
 ### results \{#results\}
 
@@ -86,7 +86,7 @@ Defined in: [packages/rxdb-plugin-search-angular/src/inject-search.ts:52](https:
 
 The current results (read-only)
 
-***
+---
 
 ### retry \{#retry\}
 
@@ -102,7 +102,7 @@ Retries with the last query term in the error state
 
 `void`
 
-***
+---
 
 ### state \{#state\}
 

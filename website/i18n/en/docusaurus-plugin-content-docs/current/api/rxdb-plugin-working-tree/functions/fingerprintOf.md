@@ -10,10 +10,10 @@ The fingerprint of a unit's current state (FNV-1a/32, fixed 8 hexadecimal digits
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `operation` | [`WorkingTreeEntryOperation`](../type-aliases/WorkingTreeEntryOperation.md) | The operation after folding |
-| `patch` | `Record`&lt;`string`, `unknown`&gt; \| `null` | The forward patch after folding |
+| Parameter   | Type                                                                        | Description                     |
+| ----------- | --------------------------------------------------------------------------- | ------------------------------- |
+| `operation` | [`WorkingTreeEntryOperation`](../type-aliases/WorkingTreeEntryOperation.md) | The operation after folding     |
+| `patch`     | `Record`&lt;`string`, `unknown`&gt; \| `null`                               | The forward patch after folding |
 
 ## Returns
 

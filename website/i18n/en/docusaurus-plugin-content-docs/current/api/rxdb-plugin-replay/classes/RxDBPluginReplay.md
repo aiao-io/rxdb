@@ -29,9 +29,9 @@ Defined in: [packages/rxdb-plugin-replay/src/plugin.ts:41](https://github.com/ai
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rxdb` | [`RxDB`](../../rxdb/classes/RxDB.md) |
+| Parameter  | Type                                                      |
+| ---------- | --------------------------------------------------------- |
+| `rxdb`     | [`RxDB`](../../rxdb/classes/RxDB.md)                      |
 | `options?` | [`RxDBReplayOptions`](../interfaces/RxDBReplayOptions.md) |
 
 #### Returns
@@ -62,7 +62,7 @@ Only to align with the connection epoch: the plugin never reads from or writes t
 
 [`IRxDBPlugin`](../../rxdb/interfaces/IRxDBPlugin.md).[`inject`](../../rxdb/interfaces/IRxDBPlugin.md#inject)
 
-***
+---
 
 ### lifecycle \{#lifecycle\}
 
@@ -87,7 +87,7 @@ and minifiers all rewrite the parameter count, so treating it as a contract lead
 
 [`IRxDBPlugin`](../../rxdb/interfaces/IRxDBPlugin.md).[`lifecycle`](../../rxdb/interfaces/IRxDBPlugin.md#lifecycle)
 
-***
+---
 
 ### manager \{#manager\}
 
@@ -99,7 +99,7 @@ Defined in: [packages/rxdb-plugin-replay/src/plugin.ts:36](https://github.com/ai
 
 The `rxdb.replay` facade.
 
-***
+---
 
 ### name \{#name\}
 
@@ -115,7 +115,7 @@ Plugin name, used for logging and host-side error attribution
 
 [`IRxDBPlugin`](../../rxdb/interfaces/IRxDBPlugin.md).[`name`](../../rxdb/interfaces/IRxDBPlugin.md#name)
 
-***
+---
 
 ### options \{#options\}
 
@@ -127,7 +127,7 @@ Defined in: [packages/rxdb-plugin-replay/src/plugin.ts:34](https://github.com/ai
 
 Options with defaults filled in and validated.
 
-***
+---
 
 ### rxdb \{#rxdb\}
 
@@ -155,9 +155,9 @@ Installs the plugin.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `scope` | [`LifecycleScope`](../../utils/classes/LifecycleScope.md) | Plugin activation scope of this connection epoch; one `acquire()` wraps only one acquisition step that may throw |
+| Parameter | Type                                                      | Description                                                                                                      |
+| --------- | --------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `scope`   | [`LifecycleScope`](../../utils/classes/LifecycleScope.md) | Plugin activation scope of this connection epoch; one `acquire()` wraps only one acquisition step that may throw |
 
 #### Returns
 

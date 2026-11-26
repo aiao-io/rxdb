@@ -16,7 +16,7 @@ Defined in: packages/rxdb-plugin-board/dist/board-shell.d.ts:71
 
 Local adapter name (the one registered with `rxdb.adapter(name, …)`).
 
-***
+---
 
 ### createRxdb \{#createrxdb\}
 
@@ -30,15 +30,15 @@ Creates a **not-yet-connected** board instance by database name: entities, plugi
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `dbName` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `dbName`  | `string` |
 
 #### Returns
 
 [`RxDB`](../../rxdb/classes/RxDB.md)
 
-***
+---
 
 ### onRxdbActivated? \{#onrxdbactivated\}
 
@@ -52,15 +52,15 @@ Host callback after the active board switch completes; temporary instances used 
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rxdb` | [`RxDB`](../../rxdb/classes/RxDB.md) |
+| Parameter | Type                                 |
+| --------- | ------------------------------------ |
+| `rxdb`    | [`RxDB`](../../rxdb/classes/RxDB.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### runtime? \{#runtime\}
 
@@ -72,7 +72,7 @@ Defined in: packages/rxdb-plugin-board/dist/board-shell.d.ts:77
 
 Browser capabilities (defaults to [browserBoardShellRuntime](../../rxdb-plugin-board/functions/browserBoardShellRuntime.md)).
 
-***
+---
 
 ### seed? \{#seed\}
 
@@ -86,9 +86,9 @@ Demo data loader (e.g. `seedReleaseBoardDataset`); when omitted, no demo data en
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rxdb` | [`RxDB`](../../rxdb/classes/RxDB.md) |
+| Parameter | Type                                 |
+| --------- | ------------------------------------ |
+| `rxdb`    | [`RxDB`](../../rxdb/classes/RxDB.md) |
 
 #### Returns
 

@@ -11,10 +11,10 @@ is written as the bare entity name, and other namespaces as `namespace:entity`.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type     | Description                                       |
+| ----------- | -------- | ------------------------------------------------- |
 | `namespace` | `string` | The entity namespace (`EntityMetadata.namespace`) |
-| `entity` | `string` | The entity name (`EntityMetadata.name`) |
+| `entity`    | `string` | The entity name (`EntityMetadata.name`)           |
 
 ## Returns
 

@@ -10,10 +10,10 @@ The factory that creates a backend instance for a storage root directory.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `rootDir` | `string` | The already-normalized storage root relative path (e.g. `files`). |
-| `context` | [`StorageFilesystemContext`](../interfaces/StorageFilesystemContext.md) | Host information, for the backend to run pre-enable validation. |
+| Parameter | Type                                                                    | Description                                                       |
+| --------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `rootDir` | `string`                                                                | The already-normalized storage root relative path (e.g. `files`). |
+| `context` | [`StorageFilesystemContext`](../interfaces/StorageFilesystemContext.md) | Host information, for the backend to run pre-enable validation.   |
 
 ## Returns
 

@@ -12,8 +12,8 @@ Returns `true` if and only if `dataDir` starts with `opfs-ahp://`: the OPFS-AHP 
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                     | Description                           |
+| --------- | -------------------------------------------------------- | ------------------------------------- |
 | `options` | `Pick`&lt;`ResolvedPGliteClientOptions`, `"dataDir"`&gt; | Options containing at least `dataDir` |
 
 ## Returns

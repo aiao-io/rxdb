@@ -10,8 +10,8 @@ Whole-batch precheck for the batch public write entrance.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                    | Description                                                                                                  |
+| --------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
 | `options` | [`RxDBMutationsMap`](../interfaces/RxDBMutationsMap.md) | The argument of `mutations()`; entity classes appearing in any of the three groups take part in the judgment |
 
 ## Returns

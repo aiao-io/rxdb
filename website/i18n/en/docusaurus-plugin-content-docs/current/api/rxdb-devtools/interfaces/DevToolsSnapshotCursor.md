@@ -16,7 +16,7 @@ Defined in: [provider/snapshot.ts:52](https://github.com/aiao-io/rxdb/blob/b5232
 
 Starting index of the page; must fall on a materialized page boundary.
 
-***
+---
 
 ### snapshotId \{#snapshotid\}
 

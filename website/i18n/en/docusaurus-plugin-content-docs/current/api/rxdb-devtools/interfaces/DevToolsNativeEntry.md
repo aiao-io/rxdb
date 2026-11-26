@@ -16,7 +16,7 @@ Defined in: [native/native-files-provider.ts:46](https://github.com/aiao-io/rxdb
 
 The entry type.
 
-***
+---
 
 ### lastModified \{#lastmodified\}
 
@@ -28,7 +28,7 @@ Defined in: [native/native-files-provider.ts:50](https://github.com/aiao-io/rxdb
 
 The last modification time (epoch milliseconds).
 
-***
+---
 
 ### name \{#name\}
 
@@ -40,7 +40,7 @@ Defined in: [native/native-files-provider.ts:44](https://github.com/aiao-io/rxdb
 
 The logical name of the entry within its parent directory.
 
-***
+---
 
 ### size \{#size\}
 

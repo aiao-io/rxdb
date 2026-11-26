@@ -10,8 +10,8 @@ Extracts the two version numbers from a set of migration names.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter        | Type                       | Description                                                              |
+| ---------------- | -------------------------- | ------------------------------------------------------------------------ |
 | `migrationNames` | `Iterable`&lt;`string`&gt; | The `name` column of the whole `rxdb_migration` table, order-independent |
 
 ## Returns

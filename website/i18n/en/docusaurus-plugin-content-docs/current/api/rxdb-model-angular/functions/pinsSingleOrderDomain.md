@@ -10,10 +10,10 @@ Whether the fixed query pins exactly one complete ordering domain
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `groupFields` | readonly `string`[] | The group fields declared by the entity |
-| `fixedQuery` | [`ListFixedQuery`](../interfaces/ListFixedQuery.md) \| `undefined` | The list's fixed query |
+| Parameter     | Type                                                               | Description                             |
+| ------------- | ------------------------------------------------------------------ | --------------------------------------- |
+| `groupFields` | readonly `string`[]                                                | The group fields declared by the entity |
+| `fixedQuery`  | [`ListFixedQuery`](../interfaces/ListFixedQuery.md) \| `undefined` | The list's fixed query                  |
 
 ## Returns
 

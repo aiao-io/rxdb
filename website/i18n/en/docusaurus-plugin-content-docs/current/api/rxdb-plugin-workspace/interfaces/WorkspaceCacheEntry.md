@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts:152](http
 
 The draft's persisted primary key.
 
-***
+---
 
 ### data \{#data\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts:160](http
 
 Deep snapshot of the draft with no shared references to the plugin's internal state.
 
-***
+---
 
 ### entity \{#entity\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts:156](http
 
 Entity name.
 
-***
+---
 
 ### id \{#id\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts:158](http
 
 Entity UUID.
 
-***
+---
 
 ### namespace \{#namespace\}
 

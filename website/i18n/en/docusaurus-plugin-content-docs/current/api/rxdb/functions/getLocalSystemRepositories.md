@@ -14,14 +14,14 @@ Gets the system table repositories on the local adapter.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `rxdb` | [`RxDB`](../classes/RxDB.md) | The RxDB instance |
+| Parameter | Type                         | Description       |
+| --------- | ---------------------------- | ----------------- |
+| `rxdb`    | [`RxDB`](../classes/RxDB.md) | The RxDB instance |
 
 ## Returns
 
 `Promise`&lt;\{
-  `adapter`: [`LocalRxDBAdapter`](../type-aliases/LocalRxDBAdapter.md);
-  `branchRepository`: [`LocalRxDBBranchRepository`](../interfaces/LocalRxDBBranchRepository.md);
-  `changeRepository`: [`LocalRxDBChangeRepository`](../interfaces/LocalRxDBChangeRepository.md);
+`adapter`: [`LocalRxDBAdapter`](../type-aliases/LocalRxDBAdapter.md);
+`branchRepository`: [`LocalRxDBBranchRepository`](../interfaces/LocalRxDBBranchRepository.md);
+`changeRepository`: [`LocalRxDBChangeRepository`](../interfaces/LocalRxDBChangeRepository.md);
 \}&gt;

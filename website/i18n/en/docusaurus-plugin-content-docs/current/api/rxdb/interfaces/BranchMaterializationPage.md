@@ -24,7 +24,7 @@ The value computed from `payload` by [branchMaterializationPageFingerprint](../f
 
 [`BranchMaterializationPagePayload`](BranchMaterializationPagePayload.md).[`fingerprint`](BranchMaterializationPagePayload.md#fingerprint)
 
-***
+---
 
 ### pageIndex \{#pageindex\}
 
@@ -36,7 +36,7 @@ Defined in: [packages/rxdb/src/sync-contract/branch-materialization-source.ts:44
 
 The dense page order starting from 0.
 
-***
+---
 
 ### payload \{#payload\}
 

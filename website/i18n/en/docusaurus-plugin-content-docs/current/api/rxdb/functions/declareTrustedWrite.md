@@ -10,10 +10,10 @@ Declares the intent of the write that immediately follows.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `scope` | `object` | The adapter instance (adapter-level primitives) or the transaction executor (in-transaction primitives) |
-| `declaration` | [`TrustedWriteDeclaration`](../interfaces/TrustedWriteDeclaration.md) | The three-part identity, the same row as in the registry |
+| Parameter     | Type                                                                  | Description                                                                                             |
+| ------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| `scope`       | `object`                                                              | The adapter instance (adapter-level primitives) or the transaction executor (in-transaction primitives) |
+| `declaration` | [`TrustedWriteDeclaration`](../interfaces/TrustedWriteDeclaration.md) | The three-part identity, the same row as in the registry                                                |
 
 ## Returns
 

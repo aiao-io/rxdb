@@ -1,10 +1,10 @@
 # parseCheckConstraintViolation()
 
 ```ts
-function parseCheckConstraintViolation(cause): 
+function parseCheckConstraintViolation(cause):
   | {
-  constraintName: string;
-}
+      constraintName: string;
+    }
   | undefined;
 ```
 
@@ -14,15 +14,15 @@ Parses the constraint name of a CHECK violation out of the raw database error.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `cause` | `unknown` | The raw error thrown by the adapter |
+| Parameter | Type      | Description                         |
+| --------- | --------- | ----------------------------------- |
+| `cause`   | `unknown` | The raw error thrown by the adapter |
 
 ## Returns
 
-  \| \{
-  `constraintName`: `string`;
+\| \{
+`constraintName`: `string`;
 \}
-  \| `undefined`
+\| `undefined`
 
 The constraint name; `undefined` when it is not a CHECK violation

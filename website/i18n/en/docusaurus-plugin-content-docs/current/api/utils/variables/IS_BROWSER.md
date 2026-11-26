@@ -9,7 +9,7 @@ Defined in: [packages/utils/src/platform/is-browser.ts:17](https://github.com/ai
 Detects whether the current runtime is a browser environment
 Determined by checking whether the global window object exists
 
-**Constant:**  \{boolean\} IS_BROWSER - whether running in a browser environment
+**Constant:** \{boolean\} IS_BROWSER - whether running in a browser environment
 
 ## Example
 

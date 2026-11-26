@@ -7,6 +7,7 @@ The minimal abstraction of the connector transport layer.
 ## Remarks
 
 The three methods each correspond to one browser hardcoding in the connector:
+
 - [send](#send) — outbound frames (the v1 handshake carries a private port along; v2 frames go through the bus/host channel).
 - [subscribe](#subscribe) — inbound frames (the host does source/origin/identity filtering and hands back the raw frames).
 - [createSessionPort](#createsessionport) — the session private port; portless hosts (Tauri) return `undefined`.
@@ -27,7 +28,7 @@ Closes the session private port; idempotent.
 
 `void`
 
-***
+---
 
 ### createSessionPort() \{#createsessionport\}
 
@@ -41,8 +42,8 @@ Creates the session private port and returns the end handed over with the handsh
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type                  | Description                                                    |
+| ----------- | --------------------- | -------------------------------------------------------------- |
 | `onMessage` | (`message`) => `void` | The port inbound callback (raw frames, no protocol filtering). |
 
 #### Returns
@@ -55,7 +56,7 @@ The peer end to hand over, or `undefined`.
 
 Portless hosts (Tauri) return `undefined`: their isolation is provided by the host's routing by window label, equivalent to the browser's MessageChannel. The caller decides based on this whether the handshake carries a `transfer`.
 
-***
+---
 
 ### send() \{#send\}
 
@@ -69,16 +70,16 @@ Sends a message to the panel.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `message` | [`DevToolsConnectorNegotiationMessage`](../type-aliases/DevToolsConnectorNegotiationMessage.md) | A v1 or v2 frame. |
-| `transfer?` | `Transferable`[] | The handshake's private port (omitted by portless hosts). |
+| Parameter   | Type                                                                                            | Description                                               |
+| ----------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `message`   | [`DevToolsConnectorNegotiationMessage`](../type-aliases/DevToolsConnectorNegotiationMessage.md) | A v1 or v2 frame.                                         |
+| `transfer?` | `Transferable`[]                                                                                | The handshake's private port (omitted by portless hosts). |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### subscribe() \{#subscribe\}
 
@@ -92,8 +93,8 @@ Subscribes to panel messages.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                  | Description             |
+| ---------- | --------------------- | ----------------------- |
 | `callback` | (`message`) => `void` | The per-frame callback. |
 
 #### Returns

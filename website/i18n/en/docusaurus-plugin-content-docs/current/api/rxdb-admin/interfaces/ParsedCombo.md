@@ -16,7 +16,7 @@ Defined in: [shortcuts/combo.ts:33](https://github.com/aiao-io/rxdb/blob/b523204
 
 Alt / Option.
 
-***
+---
 
 ### ctrl \{#ctrl\}
 
@@ -28,7 +28,7 @@ Defined in: [shortcuts/combo.ts:29](https://github.com/aiao-io/rxdb/blob/b523204
 
 Explicit Ctrl.
 
-***
+---
 
 ### key \{#key\}
 
@@ -40,7 +40,7 @@ Defined in: [shortcuts/combo.ts:25](https://github.com/aiao-io/rxdb/blob/b523204
 
 The main key, in lowercase `event.key` form.
 
-***
+---
 
 ### meta \{#meta\}
 
@@ -52,7 +52,7 @@ Defined in: [shortcuts/combo.ts:31](https://github.com/aiao-io/rxdb/blob/b523204
 
 Explicit Meta.
 
-***
+---
 
 ### mod \{#mod\}
 
@@ -64,7 +64,7 @@ Defined in: [shortcuts/combo.ts:27](https://github.com/aiao-io/rxdb/blob/b523204
 
 `Mod`: Command on mac, Ctrl on other platforms.
 
-***
+---
 
 ### shift \{#shift\}
 

@@ -1,11 +1,7 @@
 # build_substring_condition()
 
 ```ts
-function build_substring_condition(
-   fieldSql, 
-   operator, 
-   value
-): string;
+function build_substring_condition(fieldSql, operator, value): string;
 ```
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/query/query\_sql.utils.ts:447](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/query/query_sql.utils.ts#L447)
@@ -14,11 +10,11 @@ Generates the SQL condition for substring-like operators
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `fieldSql` | `string` | Qualified column SQL |
-| `operator` | `string` | Substring-like operator |
-| `value` | `unknown` | Rule value |
+| Parameter  | Type      | Description             |
+| ---------- | --------- | ----------------------- |
+| `fieldSql` | `string`  | Qualified column SQL    |
+| `operator` | `string`  | Substring-like operator |
+| `value`    | `unknown` | Rule value              |
 
 ## Returns
 

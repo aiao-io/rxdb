@@ -10,12 +10,12 @@ SQLite update_hook notification callback
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `type` | [`SQLiteChangeType`](../enumerations/SQLiteChangeType.md) |
-| `dbName` | `string` |
-| `tableName` | `string` |
-| `rowId` | `bigint` |
+| Parameter   | Type                                                      |
+| ----------- | --------------------------------------------------------- |
+| `type`      | [`SQLiteChangeType`](../enumerations/SQLiteChangeType.md) |
+| `dbName`    | `string`                                                  |
+| `tableName` | `string`                                                  |
+| `rowId`     | `bigint`                                                  |
 
 ## Returns
 

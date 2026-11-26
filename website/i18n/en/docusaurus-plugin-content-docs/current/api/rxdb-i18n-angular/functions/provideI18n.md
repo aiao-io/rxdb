@@ -10,8 +10,8 @@ Provides the runtime in the current injector; destruction is the caller's respon
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                                              | Description                                                       |
+| --------- | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
 | `runtime` | \| [`I18n`](../../rxdb-i18n/classes/I18n.md) \| (() => [`I18n`](../../rxdb-i18n/classes/I18n.md)) | An already created runtime or a synchronous construction factory. |
 
 ## Returns

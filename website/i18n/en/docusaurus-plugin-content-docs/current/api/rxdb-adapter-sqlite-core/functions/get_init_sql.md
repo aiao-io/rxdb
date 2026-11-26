@@ -12,10 +12,10 @@ OPFS persistent scenarios enable WAL + NORMAL synchronous (balancing durability 
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `cacheSize` | `number` | SQLite page cache size (KB) |
-| `useOpfs` | `boolean` | Whether the OPFS backend is used |
+| Parameter   | Type      | Description                      |
+| ----------- | --------- | -------------------------------- |
+| `cacheSize` | `number`  | SQLite page cache size (KB)      |
+| `useOpfs`   | `boolean` | Whether the OPFS backend is used |
 
 ## Returns
 

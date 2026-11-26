@@ -10,9 +10,9 @@ The empty form of `commitChanges()`: this commit has no change units (baseline n
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `page` | [`CommitChangeSetPage`](../interfaces/CommitChangeSetPage.md) |
+| Parameter | Type                                                          |
+| --------- | ------------------------------------------------------------- |
+| `page`    | [`CommitChangeSetPage`](../interfaces/CommitChangeSetPage.md) |
 
 ## Returns
 

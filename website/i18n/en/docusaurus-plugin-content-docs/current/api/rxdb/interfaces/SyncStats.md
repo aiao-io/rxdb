@@ -16,7 +16,7 @@ Defined in: [packages/rxdb/src/repository/query-cache.interface.ts:164](https://
 
 Elapsed time (milliseconds)
 
-***
+---
 
 ### freshCount \{#freshcount\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb/src/repository/query-cache.interface.ts:150](https://
 
 Number of fresh items (no sync needed)
 
-***
+---
 
 ### heldCount \{#heldcount\}
 
@@ -44,7 +44,7 @@ Number of rows skipped this round because they are still held in the outbound qu
 
 Does not overlap with `missingCount` / `staleCount` / `orphanCount`: those three report actions that **actually ran**, while skipped rows are counted only here. If it never returns to zero, the outbound queue is stuck — that is the problem to look at.
 
-***
+---
 
 ### missingCount \{#missingcount\}
 
@@ -56,7 +56,7 @@ Defined in: [packages/rxdb/src/repository/query-cache.interface.ts:146](https://
 
 Number of missing items (need to be pulled)
 
-***
+---
 
 ### orphanCount \{#orphancount\}
 
@@ -68,7 +68,7 @@ Defined in: [packages/rxdb/src/repository/query-cache.interface.ts:152](https://
 
 Number of orphans (present locally, absent remotely), excluding those held by the outbound queue and not deleted this round
 
-***
+---
 
 ### pulledCount \{#pulledcount\}
 
@@ -80,7 +80,7 @@ Defined in: [packages/rxdb/src/repository/query-cache.interface.ts:162](https://
 
 Number of items actually pulled
 
-***
+---
 
 ### remoteCount \{#remotecount\}
 
@@ -92,7 +92,7 @@ Defined in: [packages/rxdb/src/repository/query-cache.interface.ts:144](https://
 
 Number of remote metadata items
 
-***
+---
 
 ### staleCount \{#stalecount\}
 

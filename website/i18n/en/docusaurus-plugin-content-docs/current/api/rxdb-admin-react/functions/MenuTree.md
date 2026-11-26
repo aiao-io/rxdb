@@ -10,9 +10,9 @@ Sidebar menu tree: collapsible groups (accordion controlled by preferences), cur
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `props` | [`MenuTreeProps`](../interfaces/MenuTreeProps.md) | Menu and shape. |
+| Parameter | Type                                              | Description     |
+| --------- | ------------------------------------------------- | --------------- |
+| `props`   | [`MenuTreeProps`](../interfaces/MenuTreeProps.md) | Menu and shape. |
 
 ## Returns
 

@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-search/src/backend/search-backend.ts:58](https
 
 Capabilities declared by the backend
 
-***
+---
 
 ### id \{#id\}
 
@@ -44,10 +44,10 @@ This is the second of the two guard layers: the first (the registry) can only te
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `executor` | [`RuntimeSqlExecutor`](RuntimeSqlExecutor.md) | Bootstrap-phase SQL executor |
-| `adapter` | `string` | Current adapter name (only for error attribution) |
+| Parameter  | Type                                          | Description                                       |
+| ---------- | --------------------------------------------- | ------------------------------------------------- |
+| `executor` | [`RuntimeSqlExecutor`](RuntimeSqlExecutor.md) | Bootstrap-phase SQL executor                      |
+| `adapter`  | `string`                                      | Current adapter name (only for error attribution) |
 
 #### Returns
 
@@ -57,14 +57,14 @@ This is the second of the two guard layers: the first (the registry) can only te
 
 When capabilities are missing, with a distinguishable reason
 
-***
+---
 
 ### bindPlan() \{#bindplan\}
 
 ```ts
 bindPlan(
-   plan, 
-   metadata, 
+   plan,
+   metadata,
    tableSet
 ): Promise<FtsInstallPlan>;
 ```
@@ -75,11 +75,11 @@ Binds a plan to a set of business tables (US-314 B2.5): the physical location is
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `plan` | [`FtsInstallPlan`](FtsInstallPlan.md) | The install plan derived from entity metadata |
-| `metadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | Metadata of the entity the plan belongs to |
-| `tableSet` | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md) | The table set to bind to; entities that are not members of it still land in the main table set |
+| Parameter  | Type                                                          | Description                                                                                    |
+| ---------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `plan`     | [`FtsInstallPlan`](FtsInstallPlan.md)                         | The install plan derived from entity metadata                                                  |
+| `metadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | Metadata of the entity the plan belongs to                                                     |
+| `tableSet` | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md)  | The table set to bind to; entities that are not members of it still land in the main table set |
 
 #### Returns
 
@@ -91,7 +91,7 @@ The bound plan: FTS5 switches `sqlTableName`, pg-tsvector switches `schema`
 
 Both installation and querying only recognize bound plans. Physical naming belongs to the adapter; the backend does not assemble it itself: one wrong assembly would make the full-text index on a shadow table get built on — and queried against — the main table.
 
-***
+---
 
 ### compile() \{#compile\}
 
@@ -107,9 +107,9 @@ Must be usable at **construction time**: both `isSearchableQuery` and the result
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `query` | `string` | Raw input |
+| Parameter | Type     | Description |
+| --------- | -------- | ----------- |
+| `query`   | `string` | Raw input   |
 
 #### Returns
 
@@ -117,7 +117,7 @@ Must be usable at **construction time**: both `isSearchableQuery` and the result
 
 Compilation result; returns `null` when empty after normalization (not treated as an error)
 
-***
+---
 
 ### createEngine() \{#createengine\}
 
@@ -131,22 +131,22 @@ Binds the query executor and produces a backend-independent [SearchEngine](Searc
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                            | Description              |
+| ---------- | ----------------------------------------------- | ------------------------ |
 | `executor` | [`FtsExecutor`](../type-aliases/FtsExecutor.md) | Query-phase SQL executor |
 
 #### Returns
 
 [`SearchEngine`](SearchEngine.md)
 
-***
+---
 
 ### install() \{#install\}
 
 ```ts
 install(
-   plan, 
-   executor, 
+   plan,
+   executor,
    migrationStore
 ): Promise<InstallFtsResult>;
 ```
@@ -157,17 +157,17 @@ Installs the full-text index of a single entity; idempotent, and decidable after
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `plan` | [`FtsInstallPlan`](FtsInstallPlan.md) | The install plan derived from entity metadata |
-| `executor` | [`RuntimeSqlExecutor`](RuntimeSqlExecutor.md) | Bootstrap-phase SQL executor |
-| `migrationStore` | [`MigrationRecordStore`](MigrationRecordStore.md) | Migration record read/write |
+| Parameter        | Type                                              | Description                                   |
+| ---------------- | ------------------------------------------------- | --------------------------------------------- |
+| `plan`           | [`FtsInstallPlan`](FtsInstallPlan.md)             | The install plan derived from entity metadata |
+| `executor`       | [`RuntimeSqlExecutor`](RuntimeSqlExecutor.md)     | Bootstrap-phase SQL executor                  |
+| `migrationStore` | [`MigrationRecordStore`](MigrationRecordStore.md) | Migration record read/write                   |
 
 #### Returns
 
 `Promise`&lt;[`InstallFtsResult`](InstallFtsResult.md)&gt;
 
-***
+---
 
 ### installForTableSet() \{#installfortableset\}
 
@@ -181,10 +181,10 @@ Installs the full-text index on the shadow tables of a writable checkout and bac
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `plan` | [`FtsInstallPlan`](FtsInstallPlan.md) | The plan already bound to that table set ([SearchBackend.bindPlan](#bindplan)) |
-| `executor` | [`RuntimeSqlExecutor`](RuntimeSqlExecutor.md) | The executor of the transaction that creates the table set or backfills it |
+| Parameter  | Type                                          | Description                                                                    |
+| ---------- | --------------------------------------------- | ------------------------------------------------------------------------------ |
+| `plan`     | [`FtsInstallPlan`](FtsInstallPlan.md)         | The plan already bound to that table set ([SearchBackend.bindPlan](#bindplan)) |
+| `executor` | [`RuntimeSqlExecutor`](RuntimeSqlExecutor.md) | The executor of the transaction that creates the table set or backfills it     |
 
 #### Returns
 
@@ -194,7 +194,7 @@ Installs the full-text index on the shadow tables of a writable checkout and bac
 
 Migration records only cover the main table set: signature drift is already reported at the main table set's [SearchBackend.install](#install). Shadow tables are created with the checkout and deleted with the checkout; if the structure is complete they are skipped, if missing they are backfilled.
 
-***
+---
 
 ### installMigrationPrefix() \{#installmigrationprefix\}
 
@@ -210,8 +210,8 @@ The two backends each occupy their own namespace, so records with the same name 
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type     | Description         |
+| ----------- | -------- | ------------------- |
 | `tableName` | `string` | Physical table name |
 
 #### Returns

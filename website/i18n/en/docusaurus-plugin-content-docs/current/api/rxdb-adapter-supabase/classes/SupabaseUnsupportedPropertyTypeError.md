@@ -14,8 +14,8 @@ The configuration error thrown when the Supabase remote encounters an unsupporte
 
 ```ts
 new SupabaseUnsupportedPropertyTypeError(
-   entity, 
-   property, 
+   entity,
+   property,
    propertyType
 ): SupabaseUnsupportedPropertyTypeError;
 ```
@@ -24,10 +24,10 @@ Defined in: [packages/rxdb-adapter-supabase/src/errors.ts:36](https://github.com
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `entity` | `string` |
-| `property` | `string` |
+| Parameter      | Type                                                                                                                        |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `entity`       | `string`                                                                                                                    |
+| `property`     | `string`                                                                                                                    |
 | `propertyType` | \| [`bigint`](../../rxdb/enumerations/PropertyType.md#bigint) \| [`binary`](../../rxdb/enumerations/PropertyType.md#binary) |
 
 #### Returns
@@ -52,7 +52,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`SupabaseConfigError`](SupabaseConfigError.md).[`cause`](SupabaseConfigError.md#cause)
 
-***
+---
 
 ### code \{#code\}
 
@@ -66,7 +66,7 @@ Defined in: [packages/rxdb-adapter-supabase/src/errors.ts:34](https://github.com
 
 [`SupabaseConfigError`](SupabaseConfigError.md).[`code`](SupabaseConfigError.md#code)
 
-***
+---
 
 ### entity \{#entity\}
 
@@ -76,7 +76,7 @@ readonly entity: string;
 
 Defined in: [packages/rxdb-adapter-supabase/src/errors.ts:37](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-supabase/src/errors.ts#L37)
 
-***
+---
 
 ### message \{#message\}
 
@@ -90,7 +90,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`SupabaseConfigError`](SupabaseConfigError.md).[`message`](SupabaseConfigError.md#message)
 
-***
+---
 
 ### name \{#name\}
 
@@ -104,7 +104,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`SupabaseConfigError`](SupabaseConfigError.md).[`name`](SupabaseConfigError.md#name)
 
-***
+---
 
 ### property \{#property\}
 
@@ -114,19 +114,19 @@ readonly property: string;
 
 Defined in: [packages/rxdb-adapter-supabase/src/errors.ts:38](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-supabase/src/errors.ts#L38)
 
-***
+---
 
 ### propertyType \{#propertytype\}
 
 ```ts
-readonly propertyType: 
+readonly propertyType:
   | bigint
   | binary;
 ```
 
 Defined in: [packages/rxdb-adapter-supabase/src/errors.ts:39](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-supabase/src/errors.ts#L39)
 
-***
+---
 
 ### stack? \{#stack\}
 
@@ -140,7 +140,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`SupabaseConfigError`](SupabaseConfigError.md).[`stack`](SupabaseConfigError.md#stack)
 
-***
+---
 
 ### stackTraceLimit \{#stacktracelimit\}
 
@@ -181,7 +181,7 @@ a string representing the location in the code at which
 ```js
 const myObject = {};
 Error.captureStackTrace(myObject);
-myObject.stack;  // Similar to `new Error().stack`
+myObject.stack; // Similar to `new Error().stack`
 ```
 
 The first line of the trace will be prefixed with
@@ -220,9 +220,9 @@ a();
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `targetObject` | `object` |
+| Parameter         | Type       |
+| ----------------- | ---------- |
+| `targetObject`    | `object`   |
 | `constructorOpt?` | `Function` |
 
 #### Returns
@@ -233,7 +233,7 @@ a();
 
 [`SupabaseConfigError`](SupabaseConfigError.md).[`captureStackTrace`](SupabaseConfigError.md#capturestacktrace)
 
-***
+---
 
 ### prepareStackTrace() \{#preparestacktrace\}
 
@@ -245,9 +245,9 @@ Defined in: node\_modules/.pnpm/@types+node@26.6.6/node\_modules/@types/node/glo
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `err` | `Error` |
+| Parameter     | Type         |
+| ------------- | ------------ |
+| `err`         | `Error`      |
 | `stackTraces` | `CallSite`[] |
 
 #### Returns

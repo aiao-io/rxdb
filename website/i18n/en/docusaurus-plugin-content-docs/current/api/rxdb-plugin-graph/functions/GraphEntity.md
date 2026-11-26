@@ -11,8 +11,8 @@ Marks a class as a graph structure entity, handles graph-specific metadata, gene
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter         | Type                                                                      |
+| ----------------- | ------------------------------------------------------------------------- |
 | `metadataOptions` | [`EntityMetadataOptions`](../../rxdb/interfaces/EntityMetadataOptions.md) |
 
 ## Returns

@@ -9,12 +9,12 @@ A duration. The unit must be declared.
 ### kind \{#kind\}
 
 ```ts
-kind: "duration";
+kind: 'duration';
 ```
 
 Defined in: [packages/rxdb/src/entity/cascade-options.interface.ts:113](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/cascade-options.interface.ts#L113)
 
-***
+---
 
 ### max? \{#max\}
 
@@ -24,7 +24,7 @@ max?: number;
 
 Defined in: [packages/rxdb/src/entity/cascade-options.interface.ts:116](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/cascade-options.interface.ts#L116)
 
-***
+---
 
 ### min? \{#min\}
 
@@ -34,7 +34,7 @@ min?: number;
 
 Defined in: [packages/rxdb/src/entity/cascade-options.interface.ts:115](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/cascade-options.interface.ts#L115)
 
-***
+---
 
 ### step? \{#step\}
 
@@ -44,12 +44,12 @@ step?: number;
 
 Defined in: [packages/rxdb/src/entity/cascade-options.interface.ts:117](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/cascade-options.interface.ts#L117)
 
-***
+---
 
 ### unit \{#unit\}
 
 ```ts
-unit: "d" | "h" | "min" | "ms" | "s";
+unit: 'd' | 'h' | 'min' | 'ms' | 's';
 ```
 
 Defined in: [packages/rxdb/src/entity/cascade-options.interface.ts:114](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/cascade-options.interface.ts#L114)

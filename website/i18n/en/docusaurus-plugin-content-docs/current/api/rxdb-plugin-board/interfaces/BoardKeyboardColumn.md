@@ -22,7 +22,7 @@ Defined in: [packages/rxdb-plugin-board/src/drop-resolution.ts:139](https://gith
 
 [`MenuMoveColumnView`](MenuMoveColumnView.md).[`columnId`](MenuMoveColumnView.md#columnid)
 
-***
+---
 
 ### taskIds \{#taskids\}
 
@@ -36,7 +36,7 @@ Defined in: [packages/rxdb-plugin-board/src/drop-resolution.ts:140](https://gith
 
 [`MenuMoveColumnView`](MenuMoveColumnView.md).[`taskIds`](MenuMoveColumnView.md#taskids)
 
-***
+---
 
 ### visibleIds \{#visibleids\}
 

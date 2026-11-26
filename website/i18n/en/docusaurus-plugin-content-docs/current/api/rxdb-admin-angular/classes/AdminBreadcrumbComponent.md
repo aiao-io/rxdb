@@ -32,7 +32,7 @@ protected readonly breadcrumb: Signal<{
 
 Defined in: [rxdb-admin-angular/src/layout/breadcrumb.component.ts:23](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/breadcrumb.component.ts#L23)
 
-***
+---
 
 ### items \{#items\}
 
@@ -42,7 +42,7 @@ protected readonly items: Signal<BreadcrumbItem<LucideIconInput>[]>;
 
 Defined in: [rxdb-admin-angular/src/layout/breadcrumb.component.ts:21](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/breadcrumb.component.ts#L21)
 
-***
+---
 
 ### prefs \{#prefs\}
 
@@ -52,7 +52,7 @@ protected readonly prefs: Signal<AdminPreferences>;
 
 Defined in: [rxdb-admin-angular/src/layout/breadcrumb.component.ts:22](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/breadcrumb.component.ts#L22)
 
-***
+---
 
 ### t \{#t\}
 
@@ -66,16 +66,16 @@ Translates shell text.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | `string` | Text key. |
+| Parameter | Type                                | Description     |
+| --------- | ----------------------------------- | --------------- |
+| `key`     | `string`                            | Text key.       |
 | `params?` | `Record`&lt;`string`, `unknown`&gt; | ICU parameters. |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### visible \{#visible\}
 
@@ -97,10 +97,10 @@ Defined in: [rxdb-admin-angular/src/layout/breadcrumb.component.ts:30](https://g
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `MouseEvent` |
-| `item` | [`BreadcrumbItem`](../../rxdb-admin/interfaces/BreadcrumbItem.md)&lt;`LucideIconInput`&gt; |
+| Parameter | Type                                                                                       |
+| --------- | ------------------------------------------------------------------------------------------ |
+| `event`   | `MouseEvent`                                                                               |
+| `item`    | [`BreadcrumbItem`](../../rxdb-admin/interfaces/BreadcrumbItem.md)&lt;`LucideIconInput`&gt; |
 
 #### Returns
 

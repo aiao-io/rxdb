@@ -14,7 +14,7 @@ readonly attempts: number;
 
 Defined in: [packages/rxdb-adapter-pglite/src/change-pipeline.types.ts:10](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-pglite/src/change-pipeline.types.ts#L10)
 
-***
+---
 
 ### generation \{#generation\}
 
@@ -24,7 +24,7 @@ readonly generation: number;
 
 Defined in: [packages/rxdb-adapter-pglite/src/change-pipeline.types.ts:11](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-pglite/src/change-pipeline.types.ts#L11)
 
-***
+---
 
 ### pendingEvents \{#pendingevents\}
 
@@ -34,7 +34,7 @@ readonly pendingEvents: number;
 
 Defined in: [packages/rxdb-adapter-pglite/src/change-pipeline.types.ts:8](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-pglite/src/change-pipeline.types.ts#L8)
 
-***
+---
 
 ### pendingHandlers \{#pendinghandlers\}
 
@@ -44,7 +44,7 @@ readonly pendingHandlers: number;
 
 Defined in: [packages/rxdb-adapter-pglite/src/change-pipeline.types.ts:9](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-pglite/src/change-pipeline.types.ts#L9)
 
-***
+---
 
 ### timeoutMs \{#timeoutms\}
 

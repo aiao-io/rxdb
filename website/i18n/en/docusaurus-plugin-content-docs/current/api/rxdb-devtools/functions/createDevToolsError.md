@@ -10,9 +10,9 @@ Creates an outgoing error envelope.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `code` | [`DevToolsErrorCode`](../type-aliases/DevToolsErrorCode.md) | A code from the exhaustive union. |
+| Parameter  | Type                                                            | Description                                |
+| ---------- | --------------------------------------------------------------- | ------------------------------------------ |
+| `code`     | [`DevToolsErrorCode`](../type-aliases/DevToolsErrorCode.md)     | A code from the exhaustive union.          |
 | `options?` | [`DevToolsErrorOptions`](../interfaces/DevToolsErrorOptions.md) | Optional `retryable` and redacted message. |
 
 ## Returns

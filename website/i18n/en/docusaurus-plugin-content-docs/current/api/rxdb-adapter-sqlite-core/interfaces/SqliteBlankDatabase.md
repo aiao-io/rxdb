@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/sqlite-core.types.ts:92](http
 
 Description of all rows; the empty string when there are no objects. Identical structure and identical row descriptions mean identical content.
 
-***
+---
 
 ### objects \{#objects\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/sqlite-core.types.ts:88](http
 
 `type:name` of user objects (excluding internal objects starting with `sqlite_`), in lexicographic order.
 
-***
+---
 
 ### shape \{#shape\}
 

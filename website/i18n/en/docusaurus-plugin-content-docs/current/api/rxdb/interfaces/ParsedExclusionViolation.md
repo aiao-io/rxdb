@@ -16,7 +16,7 @@ Defined in: [packages/rxdb/src/system/exclusion-violation.ts:35](https://github.
 
 The constraint name (only ones starting with `ex_` can be metadata-declared)
 
-***
+---
 
 ### detail? \{#detail\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb/src/system/exclusion-violation.ts:37](https://github.
 
 PG's raw `DETAIL` (`Key (…)=(…) conflicts with existing key (…)=(…).`)
 
-***
+---
 
 ### payload? \{#payload\}
 

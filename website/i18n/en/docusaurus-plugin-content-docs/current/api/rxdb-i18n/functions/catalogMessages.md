@@ -10,8 +10,8 @@ Returns rows only after fully validating the catalog, so callers can merge them 
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                |
+| --------- | --------------------------------------------------- |
 | `catalog` | [`MessageCatalog`](../interfaces/MessageCatalog.md) |
 
 ## Returns

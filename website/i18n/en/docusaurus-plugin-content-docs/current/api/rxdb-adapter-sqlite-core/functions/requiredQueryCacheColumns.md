@@ -10,8 +10,8 @@ Computes the columns that "remote rows must carry": those that are NOT NULL on t
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                          | Description     |
+| ---------- | ------------------------------------------------------------- | --------------- |
 | `metadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | Entity metadata |
 
 ## Returns

@@ -16,7 +16,7 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/enum-editor.d.ts:14
 
 Icon stroke color (optional, used together with icon)
 
-***
+---
 
 ### disabled? \{#disabled\}
 
@@ -28,7 +28,7 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/enum-editor.d.ts:16
 
 Whether it is disabled (only affects display and selection, not the validity of the enum value)
 
-***
+---
 
 ### icon? \{#icon\}
 
@@ -40,7 +40,7 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/enum-editor.d.ts:12
 
 Lucide icon data (optional, used together with color)
 
-***
+---
 
 ### text? \{#text\}
 
@@ -52,7 +52,7 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/enum-editor.d.ts:8
 
 Display text (defaults to value)
 
-***
+---
 
 ### textKey? \{#textkey\}
 
@@ -64,7 +64,7 @@ Defined in: packages/rxdb-model/dist/entity-table/editors/enum-editor.d.ts:10
 
 Key in the built-in option catalog.
 
-***
+---
 
 ### value \{#value\}
 

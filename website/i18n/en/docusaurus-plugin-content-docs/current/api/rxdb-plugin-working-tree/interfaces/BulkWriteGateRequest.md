@@ -22,7 +22,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/bulk-write-gate.
 
 Does this database have the commit capability enabled
 
-***
+---
 
 ### entityName \{#entityname\}
 
@@ -34,7 +34,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/bulk-write-gate.
 
 The name of the entity being written; appears in the rejection message
 
-***
+---
 
 ### operation \{#operation\}
 
@@ -46,7 +46,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/bulk-write-gate.
 
 Which method is being called
 
-***
+---
 
 ### targetClass \{#targetclass\}
 

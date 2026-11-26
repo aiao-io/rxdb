@@ -35,7 +35,7 @@ This adapter's owner key on the client: handed to the client on `init` in `creat
 Inside a SharedWorker there is only one client, and every tab's adapter connects to it; on disconnect this key returns only its own share and removes only its own listeners
 ([SqliteClientLike.release](../../rxdb-adapter-sqlite-core/interfaces/SqliteClientLike.md#release)). Backends that do not share a client can ignore it.
 
-***
+---
 
 ### name \{#name\}
 
@@ -51,7 +51,7 @@ Adapter name, the same value as the key used when registering with `RxDB.adapter
 
 `IRxDBAdapter.name`
 
-***
+---
 
 ### repository\_cache \{#repository_cache\}
 
@@ -65,7 +65,7 @@ Defined in: packages/rxdb/dist/rxdb-adapter.d.ts:349
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`repository_cache`](../../rxdb/classes/RxDBAdapterLocalBase.md#repository_cache)
 
-***
+---
 
 ### repository\_map \{#repository_map\}
 
@@ -79,7 +79,7 @@ Defined in: packages/rxdb/dist/rxdb-adapter.d.ts:348
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`repository_map`](../../rxdb/classes/RxDBAdapterLocalBase.md#repository_map)
 
-***
+---
 
 ### rxdb \{#rxdb\}
 
@@ -109,7 +109,7 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/RxDBAdapterSqliteBase.d.ts:41
 
 [`AdapterEncryptionFacade`](../../rxdb-adapter-sqlite-core/interfaces/AdapterEncryptionFacade.md)
 
-***
+---
 
 ### encryptionContext \{#encryptioncontext\}
 
@@ -125,7 +125,7 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/RxDBAdapterSqliteBase.d.ts:40
 
 [`EncryptionContext`](../../rxdb-adapter-sqlite-core/interfaces/EncryptionContext.md)
 
-***
+---
 
 ### tableSet \{#tableset\}
 
@@ -153,14 +153,14 @@ always land in the primary table set regardless of which set they are mounted on
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`tableSet`](../../rxdb/classes/RxDBAdapterLocalBase.md#tableset)
 
-***
+---
 
 ### workingTreeCaptureHook \{#workingtreecapturehook\}
 
 #### Get Signature
 
 ```ts
-get workingTreeCaptureHook(): 
+get workingTreeCaptureHook():
   | WorkingTreeCaptureHook
   | undefined;
 ```
@@ -173,14 +173,14 @@ The capture runtime; always `undefined` on databases without commit capability e
 
 ##### Returns
 
-  \| [`WorkingTreeCaptureHook`](../../rxdb/interfaces/WorkingTreeCaptureHook.md)
-  \| `undefined`
+\| [`WorkingTreeCaptureHook`](../../rxdb/interfaces/WorkingTreeCaptureHook.md)
+\| `undefined`
 
 #### Inherited from
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`workingTreeCaptureHook`](../../rxdb/classes/RxDBAdapterLocalBase.md#workingtreecapturehook)
 
-***
+---
 
 ### workingTreeRawWriteContext \{#workingtreerawwritecontext\}
 
@@ -233,8 +233,8 @@ Subscribe to change-handling failures.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                                                                    | Description                                                                                                                               |
+| ---------- | ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | `listener` | [`SqliteChangeErrorListener`](../../rxdb-adapter-sqlite-core/type-aliases/SqliteChangeErrorListener.md) | Callback receiving [SqliteChangeErrorEvent](../../rxdb-adapter-sqlite-core/interfaces/SqliteChangeErrorEvent.md); exceptions are isolated |
 
 #### Returns
@@ -245,7 +245,7 @@ Subscribe to change-handling failures.
 
 As soon as a listener is registered, the default `console.error` fallback is taken over by the listener (SQLC-012).
 
-***
+---
 
 ### adoptWorktreeEncryption() \{#adoptworktreeencryption\}
 
@@ -259,9 +259,9 @@ Adopt the primary database adapter's keyring (read-only checkout, US-313).
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `source` | [`LocalRxDBAdapter`](../../rxdb/type-aliases/LocalRxDBAdapter.md) | The primary database's SQLite-family adapter |
+| Parameter | Type                                                              | Description                                  |
+| --------- | ----------------------------------------------------------------- | -------------------------------------------- |
+| `source`  | [`LocalRxDBAdapter`](../../rxdb/type-aliases/LocalRxDBAdapter.md) | The primary database's SQLite-family adapter |
 
 #### Returns
 
@@ -275,7 +275,7 @@ Adopt the primary database adapter's keyring (read-only checkout, US-313).
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`adoptWorktreeEncryption`](../../rxdb/classes/RxDBAdapterLocalBase.md#adoptworktreeencryption)
 
-***
+---
 
 ### assertDisconnectedForDrop() \{#assertdisconnectedfordrop\}
 
@@ -300,7 +300,7 @@ Pre-guard for `dropStorage()`: refuse while still connected (read-only checkout 
 `dropStorage()` lives on each concrete adapter rather than here: only they know where the database lives (the IndexedDB database name, the OPFS file name, files on the host),
 and a base-class implementation would be inherited as-is by subclasses such as Tauri or mini programs that don't know how to delete it.
 
-***
+---
 
 ### backup() \{#backup\}
 
@@ -314,10 +314,10 @@ Write the entire database as a restorable archive.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `sink` | `WritableStream`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt; | Output stream; closed on success, aborted on failure |
-| `options?` | [`RxDBBackupOptions`](../../rxdb/interfaces/RxDBBackupOptions.md) | Cancellation signal and queueing time limit |
+| Parameter  | Type                                                              | Description                                          |
+| ---------- | ----------------------------------------------------------------- | ---------------------------------------------------- |
+| `sink`     | `WritableStream`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt;     | Output stream; closed on success, aborted on failure |
+| `options?` | [`RxDBBackupOptions`](../../rxdb/interfaces/RxDBBackupOptions.md) | Cancellation signal and queueing time limit          |
 
 #### Returns
 
@@ -346,7 +346,7 @@ const result = await adapter.backup(await handle.createWritable());
 console.log(result.sha256);
 ```
 
-***
+---
 
 ### backupStorage() \{#backupstorage\}
 
@@ -369,7 +369,7 @@ Storage backend
 Unsupported by default in the base class; shipped adapters override it according to their storage options. The `storageKey` of a persistent backend is generated with
 [persistentBackupStorage](#persistentbackupstorage), ensuring the same database uses the same lock on both the connect and restore sides.
 
-***
+---
 
 ### bootstrapTransaction() \{#bootstraptransaction\}
 
@@ -385,16 +385,16 @@ Bootstrap-phase transaction: same as [transaction](#transaction), but **skips th
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`TransactionFun`](../../rxdb-adapter-sqlite-core/type-aliases/TransactionFun.md) |
+| Type Parameter                                                                                                                |
+| ----------------------------------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`TransactionFun`](../../rxdb-adapter-sqlite-core/type-aliases/TransactionFun.md) |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `transactionFun` | `T` | Transaction work; its argument is the current transaction executor |
-| `transactionLog?` | `boolean` | Whether to write the transaction log |
+| Parameter         | Type      | Description                                                        |
+| ----------------- | --------- | ------------------------------------------------------------------ |
+| `transactionFun`  | `T`       | Transaction work; its argument is the current transaction executor |
+| `transactionLog?` | `boolean` | Whether to write the transaction log                               |
 
 #### Returns
 
@@ -412,7 +412,7 @@ so it would land on the real adapter and enqueue again, and a second enqueue whi
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`bootstrapTransaction`](../../rxdb/classes/RxDBAdapterLocalBase.md#bootstraptransaction)
 
-***
+---
 
 ### cacheRowIdEntity() \{#cacherowidentity\}
 
@@ -424,16 +424,16 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/RxDBAdapterSqliteBase.d.ts:25
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rowId` | `bigint` |
-| `entity` | `any` |
+| Parameter | Type     |
+| --------- | -------- |
+| `rowId`   | `bigint` |
+| `entity`  | `any`    |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### canDropStorage()? \{#candropstorage\}
 
@@ -460,7 +460,7 @@ if the snapshot factory is misconfigured and points at the primary database's st
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`canDropStorage`](../../rxdb/classes/RxDBAdapterLocalBase.md#candropstorage)
 
-***
+---
 
 ### checkEntityConstraints() \{#checkentityconstraints\}
 
@@ -474,8 +474,8 @@ Read-only drift check: compares the storage constraints declared in metadata aga
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter     | Type                                                    |
+| ------------- | ------------------------------------------------------- |
 | `EntityTypes` | [`EntityType`](../../rxdb/type-aliases/EntityType.md)[] |
 
 #### Returns
@@ -492,7 +492,7 @@ throws RxDBConstraintDriftError on mismatch.
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`checkEntityConstraints`](../../rxdb/classes/RxDBAdapterLocalBase.md#checkentityconstraints)
 
-***
+---
 
 ### cleanAllCache() \{#cleanallcache\}
 
@@ -506,7 +506,7 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/RxDBAdapterSqliteBase.d.ts:26
 
 `void`
 
-***
+---
 
 ### cleanupIncompleteRestore() \{#cleanupincompleterestore\}
 
@@ -533,7 +533,7 @@ with no incomplete marker it does nothing. In-memory storage has no residue to s
 
 RxDBBackupError `target_busy` / `unsupported_combination` / `cleanup_pending`
 
-***
+---
 
 ### completeBootstrap() \{#completebootstrap\}
 
@@ -562,7 +562,7 @@ Adapters without a ready gate keep the default no-op implementation.
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`completeBootstrap`](../../rxdb/classes/RxDBAdapterLocalBase.md#completebootstrap)
 
-***
+---
 
 ### connect() \{#connect\}
 
@@ -589,7 +589,7 @@ and can throw `UnsupportedRxDBSystemVersionError` when the database is newer tha
 
 `IRxDBAdapter.connect`
 
-***
+---
 
 ### createClient() \{#createclient\}
 
@@ -606,7 +606,7 @@ Concrete adapters implement this method with their own backend logic.
 
 `Promise`&lt;[`SqliteClientLike`](../../rxdb-adapter-sqlite-core/interfaces/SqliteClientLike.md)&gt;
 
-***
+---
 
 ### createRestoreTargetClient() \{#createrestoretargetclient\}
 
@@ -630,7 +630,7 @@ Defaults to [createClient](#createclient): browser backends only open the databa
 already blocks every other connection. Backends whose database file can be opened by other processes (desktop hosts) override it, making this connection
 take exclusive hold of the underlying storage before returning and keep it until disconnect, ensuring nobody else can connect from the empty-state check through the end of the restore.
 
-***
+---
 
 ### createTables() \{#createtables\}
 
@@ -642,16 +642,16 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/RxDBAdapterSqliteBase.d.ts:20
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-1"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                      |
+| --------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-1"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `EntityTypes` | `T`[] |
-| `entities?` | `InstanceType`&lt;`T`&gt;[] |
+| Parameter     | Type                        |
+| ------------- | --------------------------- |
+| `EntityTypes` | `T`[]                       |
+| `entities?`   | `InstanceType`&lt;`T`&gt;[] |
 
 #### Returns
 
@@ -661,7 +661,7 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/RxDBAdapterSqliteBase.d.ts:20
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`createTables`](../../rxdb/classes/RxDBAdapterLocalBase.md#createtables)
 
-***
+---
 
 ### createUncachedRepository() \{#createuncachedrepository\}
 
@@ -677,16 +677,16 @@ Create a new repository bound to `host`, **without writing** to `repository_cach
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-2"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                      |
+| --------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-2"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `EntityType` | `T` | Entity type |
-| `host` | `RxDBAdapterSqliteBase` | The adapter the repository binds to (the executor's facade in transaction scenarios) |
+| Parameter    | Type                    | Description                                                                          |
+| ------------ | ----------------------- | ------------------------------------------------------------------------------------ |
+| `EntityType` | `T`                     | Entity type                                                                          |
+| `host`       | `RxDBAdapterSqliteBase` | The adapter the repository binds to (the executor's facade in transaction scenarios) |
 
 #### Returns
 
@@ -698,14 +698,14 @@ Used by [SqliteTransactionExecutor.getRepository](../../rxdb-adapter-sqlite-core
 have the same lifetime as the adapter; if a transaction-scoped repository were written into it, it would remain in the cache after the transaction ends pointing at
 a committed/rolled-back transaction context, and subsequent **external** writes would hit it.
 
-***
+---
 
 ### createWorktreeTableSet() \{#createworktreetableset\}
 
 ```ts
 createWorktreeTableSet(
-   executor, 
-   tableSet, 
+   executor,
+   tableSet,
    seed
 ): Promise<void>;
 ```
@@ -716,11 +716,11 @@ Create and seed a set of tables for a writable checkout inside the caller's tran
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md) | The executor of a transaction on this adapter |
-| `tableSet` | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md) | The table set to create; members are chosen by the caller (entities in the versioned domain) |
-| `seed` | [`WorktreeTableSetSeed`](../../rxdb/interfaces/WorktreeTableSetSeed.md) | Holds the branch and the deltas to apply on top |
+| Parameter  | Type                                                                    | Description                                                                                  |
+| ---------- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md)   | The executor of a transaction on this adapter                                                |
+| `tableSet` | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md)            | The table set to create; members are chosen by the caller (entities in the versioned domain) |
+| `seed`     | [`WorktreeTableSetSeed`](../../rxdb/interfaces/WorktreeTableSetSeed.md) | Holds the branch and the deltas to apply on top                                              |
 
 #### Returns
 
@@ -738,7 +738,7 @@ Does not write the hold keys: the checkout-opening flow writes them itself in th
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`createWorktreeTableSet`](../../rxdb/classes/RxDBAdapterLocalBase.md#createworktreetableset)
 
-***
+---
 
 ### deleteByIds() \{#deletebyids\}
 
@@ -754,10 +754,10 @@ Used to clean up data that was deleted remotely out of the local cache.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entityName` | `string` | Entity name |
-| `ids` | `string`[] | List of IDs to delete |
+| Parameter    | Type       | Description           |
+| ------------ | ---------- | --------------------- |
+| `entityName` | `string`   | Entity name           |
+| `ids`        | `string`[] | List of IDs to delete |
 
 #### Returns
 
@@ -775,7 +775,7 @@ adapter.deleteByIds('Product', ['p1', 'p2']).subscribe();
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`deleteByIds`](../../rxdb/classes/RxDBAdapterLocalBase.md#deletebyids)
 
-***
+---
 
 ### disconnect() \{#disconnect\}
 
@@ -800,7 +800,7 @@ Implementations must be idempotent — calling while not connected is a no-op, n
 
 `IRxDBAdapter.disconnect`
 
-***
+---
 
 ### dropStorage()? \{#dropstorage\}
 
@@ -829,7 +829,7 @@ An in-memory database is gone once disconnected, so this is a no-op there too. W
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`dropStorage`](../../rxdb/classes/RxDBAdapterLocalBase.md#dropstorage)
 
-***
+---
 
 ### dropWorktreeTableSet() \{#dropworktreetableset\}
 
@@ -843,10 +843,10 @@ Drop a set of tables for a writable checkout inside the caller's transaction (US
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                                  | Description                                   |
+| ---------- | --------------------------------------------------------------------- | --------------------------------------------- |
 | `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md) | The executor of a transaction on this adapter |
-| `tableSet` | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md) | The table set to drop |
+| `tableSet` | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md)          | The table set to drop                         |
 
 #### Returns
 
@@ -864,7 +864,7 @@ Hold keys on branch tables are not released here; the checkout-closing flow rele
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`dropWorktreeTableSet`](../../rxdb/classes/RxDBAdapterLocalBase.md#dropworktreetableset)
 
-***
+---
 
 ### emitChangeError() \{#emitchangeerror\}
 
@@ -878,9 +878,9 @@ Report a change-handling failure.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `event` | [`SqliteChangeErrorEvent`](../../rxdb-adapter-sqlite-core/interfaces/SqliteChangeErrorEvent.md) | Failure details |
+| Parameter | Type                                                                                            | Description     |
+| --------- | ----------------------------------------------------------------------------------------------- | --------------- |
+| `event`   | [`SqliteChangeErrorEvent`](../../rxdb-adapter-sqlite-core/interfaces/SqliteChangeErrorEvent.md) | Failure details |
 
 #### Returns
 
@@ -891,7 +891,7 @@ Report a change-handling failure.
 Called by the change-handling pipeline (`handle_rxdb_change`), not meant for application code. This method **never throws**:
 the path it sits on has no caller that can catch an exception, and throwing would only become an unhandled rejection.
 
-***
+---
 
 ### getEntityByRowId() \{#getentitybyrowid\}
 
@@ -903,16 +903,16 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/RxDBAdapterSqliteBase.d.ts:26
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `rowId` | `bigint` |
+| Parameter    | Type                                                  |
+| ------------ | ----------------------------------------------------- |
+| `rowId`      | `bigint`                                              |
 | `EntityType` | [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 #### Returns
 
 `any`
 
-***
+---
 
 ### getMetadataByIds() \{#getmetadatabyids\}
 
@@ -928,10 +928,10 @@ Used for local cache freshness checks, returning an ID → updatedAt mapping.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entityName` | `string` | Entity name |
-| `ids` | `string`[] | List of entity IDs |
+| Parameter    | Type       | Description        |
+| ------------ | ---------- | ------------------ |
+| `entityName` | `string`   | Entity name        |
+| `ids`        | `string`[] | List of entity IDs |
 
 #### Returns
 
@@ -942,17 +942,16 @@ Used for local cache freshness checks, returning an ID → updatedAt mapping.
 #### Example
 
 ```typescript
-adapter.getMetadataByIds('Product', ['p1', 'p2'])
-  .subscribe(map => {
-    // map: Map `{ 'p1' => '2026-01-12T10:00:00Z', 'p2' => '2026-01-12T09:30:00Z' }`
-  });
+adapter.getMetadataByIds('Product', ['p1', 'p2']).subscribe(map => {
+  // map: Map `{ 'p1' => '2026-01-12T10:00:00Z', 'p2' => '2026-01-12T09:30:00Z' }`
+});
 ```
 
 #### Overrides
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`getMetadataByIds`](../../rxdb/classes/RxDBAdapterLocalBase.md#getmetadatabyids)
 
-***
+---
 
 ### getRepository() \{#getrepository\}
 
@@ -964,16 +963,16 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/RxDBAdapterSqliteBase.d.ts:11
 
 #### Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t-3"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) | - |
-| <a id="type-parameter-rt"></a> `RT` | [`SqliteRepository`](../classes/SqliteRepository.md)&lt;`T`&gt; |
+| Type Parameter                                                                                      | Default type                                                    |
+| --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| <a id="type-parameter-t-3"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) | -                                                               |
+| <a id="type-parameter-rt"></a> `RT`                                                                 | [`SqliteRepository`](../classes/SqliteRepository.md)&lt;`T`&gt; |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `EntityType` | `T` |
+| Parameter    | Type |
+| ------------ | ---- |
+| `EntityType` | `T`  |
 
 #### Returns
 
@@ -987,7 +986,7 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/RxDBAdapterSqliteBase.d.ts:11
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`getRepository`](../../rxdb/classes/RxDBAdapterLocalBase.md#getrepository)
 
-***
+---
 
 ### getRowIdByEntity() \{#getrowidbyentity\}
 
@@ -999,15 +998,15 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/RxDBAdapterSqliteBase.d.ts:26
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `entity` | `any` |
+| Parameter | Type  |
+| --------- | ----- |
+| `entity`  | `any` |
 
 #### Returns
 
 `bigint` \| `undefined`
 
-***
+---
 
 ### getRxDBChangeSequence() \{#getrxdbchangesequence\}
 
@@ -1025,7 +1024,7 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/RxDBAdapterSqliteBase.d.ts:31
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`getRxDBChangeSequence`](../../rxdb/classes/RxDBAdapterLocalBase.md#getrxdbchangesequence)
 
-***
+---
 
 ### importWorktreeSnapshot() \{#importworktreesnapshot\}
 
@@ -1039,8 +1038,8 @@ Write the rows and deltas read from the primary database into this database (rea
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                                        | Description                                      |
+| ---------- | --------------------------------------------------------------------------- | ------------------------------------------------ |
 | `snapshot` | [`WorktreeSnapshotImport`](../../rxdb/interfaces/WorktreeSnapshotImport.md) | The tables to copy and the deltas applied on top |
 
 #### Returns
@@ -1060,7 +1059,7 @@ Deltas are generated by the same SQL as branch switching, except that encrypted 
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`importWorktreeSnapshot`](../../rxdb/classes/RxDBAdapterLocalBase.md#importworktreesnapshot)
 
-***
+---
 
 ### internalQuery() \{#internalquery\}
 
@@ -1072,16 +1071,16 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/RxDBAdapterSqliteBase.d.ts:31
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `sql` | `string` |
+| Parameter   | Type                                                                                            |
+| ----------- | ----------------------------------------------------------------------------------------------- |
+| `sql`       | `string`                                                                                        |
 | `bindings?` | [`SQLiteCompatibleType`](../../rxdb-adapter-sqlite-core/type-aliases/SQLiteCompatibleType.md)[] |
 
 #### Returns
 
 `Promise`&lt;[`SqliteSuccessResult`](../../rxdb-adapter-sqlite-core/interfaces/SqliteSuccessResult.md)&gt;
 
-***
+---
 
 ### isEncryptedAtRest() \{#isencryptedatrest\}
 
@@ -1095,9 +1094,9 @@ Determine whether a stored value is already in its encrypted at-rest form (FR-03
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | The value in the stored column |
+| Parameter | Type      | Description                    |
+| --------- | --------- | ------------------------------ |
+| `value`   | `unknown` | The value in the stored column |
 
 #### Returns
 
@@ -1116,7 +1115,7 @@ can only live on the adapter side.
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`isEncryptedAtRest`](../../rxdb/classes/RxDBAdapterLocalBase.md#isencryptedatrest)
 
-***
+---
 
 ### isTableExisted() \{#istableexisted\}
 
@@ -1128,15 +1127,15 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/RxDBAdapterSqliteBase.d.ts:20
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-4"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                      |
+| --------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-4"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `EntityType` | `T` |
+| Parameter    | Type |
+| ------------ | ---- |
+| `EntityType` | `T`  |
 
 #### Returns
 
@@ -1150,7 +1149,7 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/RxDBAdapterSqliteBase.d.ts:20
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`isTableExisted`](../../rxdb/classes/RxDBAdapterLocalBase.md#istableexisted)
 
-***
+---
 
 ### listWorktreeTableSetSuffixes() \{#listworktreetablesetsuffixes\}
 
@@ -1164,8 +1163,8 @@ List existing writable checkout table sets by catalog (US-314 B2.6): which set e
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                                  | Description                                   |
+| ---------- | --------------------------------------------------------------------- | --------------------------------------------- |
 | `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md) | The executor of a transaction on this adapter |
 
 #### Returns
@@ -1178,14 +1177,14 @@ Table set suffixes, sorted and deduplicated; primary tables of configured entiti
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`listWorktreeTableSetSuffixes`](../../rxdb/classes/RxDBAdapterLocalBase.md#listworktreetablesetsuffixes)
 
-***
+---
 
 ### mergeChanges() \{#mergechanges\}
 
 ```ts
 mergeChanges(
-   actions, 
-   localChanges?, 
+   actions,
+   localChanges?,
    disableTriggers?
 ): Promise<void>;
 ```
@@ -1195,6 +1194,7 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/RxDBAdapterSqliteBase.d.ts:25
 Apply compressed changes to the local entity tables
 
 Implementation strategy (SQLite):
+
 1. Convert actions to SQL operations
 2. Inside a transaction:
    a) Execute the SQL operations on the entity tables (INSERT/UPDATE/DELETE)
@@ -1203,11 +1203,11 @@ Implementation strategy (SQLite):
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `actions` | [`SwitchVersionActions`](../../rxdb/interfaces/SwitchVersionActions.md) | The set of compressed change operations (pulled from remote) |
-| `localChanges?` | `Omit`&lt;[`RxDBChange`](../../rxdb/classes/RxDBChange.md), `"id"`&gt;[] | Records to save to the local RxDBChange table (optional) |
-| `disableTriggers?` | `boolean` | Whether to disable triggers (used for pull and similar operations, to avoid creating RxDBChange) |
+| Parameter          | Type                                                                     | Description                                                                                      |
+| ------------------ | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| `actions`          | [`SwitchVersionActions`](../../rxdb/interfaces/SwitchVersionActions.md)  | The set of compressed change operations (pulled from remote)                                     |
+| `localChanges?`    | `Omit`&lt;[`RxDBChange`](../../rxdb/classes/RxDBChange.md), `"id"`&gt;[] | Records to save to the local RxDBChange table (optional)                                         |
+| `disableTriggers?` | `boolean`                                                                | Whether to disable triggers (used for pull and similar operations, to avoid creating RxDBChange) |
 
 #### Returns
 
@@ -1217,7 +1217,7 @@ Implementation strategy (SQLite):
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`mergeChanges`](../../rxdb/classes/RxDBAdapterLocalBase.md#mergechanges)
 
-***
+---
 
 ### migrateSystemSchema() \{#migratesystemschema\}
 
@@ -1238,7 +1238,7 @@ Adapters that do not need to persist system schema state keep the default no-op 
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`migrateSystemSchema`](../../rxdb/classes/RxDBAdapterLocalBase.md#migratesystemschema)
 
-***
+---
 
 ### mutations() \{#mutations\}
 
@@ -1252,14 +1252,14 @@ Batch modify entities (create/update/delete)
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-5"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                      |
+| --------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-5"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                       |
+| --------- | -------------------------------------------------------------------------- |
 | `options` | [`RxDBMutationsMap`](../../rxdb/interfaces/RxDBMutationsMap.md)&lt;`T`&gt; |
 
 #### Returns
@@ -1270,7 +1270,7 @@ Batch modify entities (create/update/delete)
 
 `IRxDBAdapter.mutations`
 
-***
+---
 
 ### persistentBackupStorage() \{#persistentbackupstorage\}
 
@@ -1284,9 +1284,9 @@ Generate a description of a persistent storage backend.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `label` | `string` | Storage name written into the manifest, e.g. `idb` / `opfs` |
+| Parameter | Type     | Description                                                 |
+| --------- | -------- | ----------------------------------------------------------- |
+| `label`   | `string` | Storage name written into the manifest, e.g. `idb` / `opfs` |
 
 #### Returns
 
@@ -1294,7 +1294,7 @@ Generate a description of a persistent storage backend.
 
 A persistent backend whose `storageKey` is `<adapter>:<label>:<dbName>`
 
-***
+---
 
 ### physicalTableNames() \{#physicaltablenames\}
 
@@ -1308,8 +1308,8 @@ The SQLite family folds the namespace into the table name: `public$todos`.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                          | Description     |
+| ---------- | ------------------------------------------------------------- | --------------- |
 | `metadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | Entity metadata |
 
 #### Returns
@@ -1332,7 +1332,7 @@ one more statement that would not have worked on this backend anyway; the one it
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`physicalTableNames`](../../rxdb/classes/RxDBAdapterLocalBase.md#physicaltablenames)
 
-***
+---
 
 ### query() \{#query\}
 
@@ -1344,16 +1344,16 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/RxDBAdapterSqliteBase.d.ts:26
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `sql` | `string` |
+| Parameter   | Type                                                                                            |
+| ----------- | ----------------------------------------------------------------------------------------------- |
+| `sql`       | `string`                                                                                        |
 | `bindings?` | [`SQLiteCompatibleType`](../../rxdb-adapter-sqlite-core/type-aliases/SQLiteCompatibleType.md)[] |
 
 #### Returns
 
 `Promise`&lt;[`SqliteSuccessResult`](../../rxdb-adapter-sqlite-core/interfaces/SqliteSuccessResult.md)&gt;
 
-***
+---
 
 ### rawQuery() \{#rawquery\}
 
@@ -1367,9 +1367,9 @@ Raw SQL.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `sql` | `string` |
+| Parameter | Type        |
+| --------- | ----------- |
+| `sql`     | `string`    |
 | `params?` | `unknown`[] |
 
 #### Returns
@@ -1394,15 +1394,15 @@ to avoid missing shadow tables created by other instances. Both judgments happen
 
 `IRxDBAdapter.rawQuery`
 
-***
+---
 
 ### readWorktreeSnapshotPage() \{#readworktreesnapshotpage\}
 
 ```ts
 readWorktreeSnapshotPage(
-   executor, 
-   EntityType, 
-   after, 
+   executor,
+   EntityType,
+   after,
    limit
 ): Promise<WorktreeSnapshotPage>;
 ```
@@ -1413,12 +1413,12 @@ Read one page of rows in storage form (read-only checkout snapshot creation, US-
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md) | The executor of a primary database transaction |
-| `EntityType` | [`EntityType`](../../rxdb/type-aliases/EntityType.md) | The entity class on the primary instance |
-| `after` | \| [`WorktreeSnapshotCursor`](../../rxdb/type-aliases/WorktreeSnapshotCursor.md) \| `null` | The cursor of the previous page; `null` reads from the start |
-| `limit` | `number` | Maximum number of rows on this page |
+| Parameter    | Type                                                                                       | Description                                                  |
+| ------------ | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
+| `executor`   | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md)                      | The executor of a primary database transaction               |
+| `EntityType` | [`EntityType`](../../rxdb/type-aliases/EntityType.md)                                      | The entity class on the primary instance                     |
+| `after`      | \| [`WorktreeSnapshotCursor`](../../rxdb/type-aliases/WorktreeSnapshotCursor.md) \| `null` | The cursor of the previous page; `null` reads from the start |
+| `limit`      | `number`                                                                                   | Maximum number of rows on this page                          |
 
 #### Returns
 
@@ -1430,7 +1430,7 @@ Rows of raw SQLite values, paginated by rowid
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`readWorktreeSnapshotPage`](../../rxdb/classes/RxDBAdapterLocalBase.md#readworktreesnapshotpage)
 
-***
+---
 
 ### ready() \{#ready\}
 
@@ -1458,12 +1458,12 @@ microtask hop.
 
 The bootstrap chain itself **must not** pass through this gate (that would be waiting on itself); it always goes via [bootstrapTransaction](#bootstraptransaction).
 
-***
+---
 
 ### reconcileEntityIndexes()? \{#reconcileentityindexes\}
 
 ```ts
-reconcileEntityIndexes?(EntityTypes): Promise<void>;
+reconcileEntityIndexes ? EntityTypes : Promise<void>;
 ```
 
 Defined in: packages/rxdb/dist/rxdb-adapter.d.ts:611
@@ -1472,8 +1472,8 @@ Idempotently reconcile entity indexes after user migrations and missing-table cr
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter     | Type                                                    |
+| ------------- | ------------------------------------------------------- |
 | `EntityTypes` | [`EntityType`](../../rxdb/type-aliases/EntityType.md)[] |
 
 #### Returns
@@ -1484,7 +1484,7 @@ Idempotently reconcile entity indexes after user migrations and missing-table cr
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`reconcileEntityIndexes`](../../rxdb/classes/RxDBAdapterLocalBase.md#reconcileentityindexes)
 
-***
+---
 
 ### removeCacheEntity() \{#removecacheentity\}
 
@@ -1496,15 +1496,15 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/RxDBAdapterSqliteBase.d.ts:25
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `entity` | `any` |
+| Parameter | Type  |
+| --------- | ----- |
+| `entity`  | `any` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### removeChangeErrorListener() \{#removechangeerrorlistener\}
 
@@ -1518,15 +1518,15 @@ Cancel the subscription of [addChangeErrorListener](#addchangeerrorlistener).
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                                                                    | Description                                        |
+| ---------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
 | `listener` | [`SqliteChangeErrorListener`](../../rxdb-adapter-sqlite-core/type-aliases/SqliteChangeErrorListener.md) | The same function reference passed at registration |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### removeMany() \{#removemany\}
 
@@ -1540,14 +1540,14 @@ Batch delete entities.
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-6"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                      |
+| --------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-6"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                        |
+| ---------- | --------------------------- |
 | `entities` | `InstanceType`&lt;`T`&gt;[] |
 
 #### Returns
@@ -1560,7 +1560,7 @@ The deleted entities
 
 `IRxDBAdapter.removeMany`
 
-***
+---
 
 ### repository() \{#repository\}
 
@@ -1572,15 +1572,15 @@ Defined in: packages/rxdb/dist/rxdb-adapter.d.ts:352
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-rt-1"></a> `RT` *extends* [`RepositoryInstance`](../../rxdb/interfaces/RepositoryInstance.md)&lt;[`EntityType`](../../rxdb/type-aliases/EntityType.md)&gt; |
+| Type Parameter                                                                                                                                                                   |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-rt-1"></a> `RT` _extends_ [`RepositoryInstance`](../../rxdb/interfaces/RepositoryInstance.md)&lt;[`EntityType`](../../rxdb/type-aliases/EntityType.md)&gt; |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `repositoryName` | `string` |
+| Parameter         | Type                                                                                                                           |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `repositoryName`  | `string`                                                                                                                       |
 | `RepositoryClass` | [`AdapterRepositoryConstructor`](../../rxdb/type-aliases/AdapterRepositoryConstructor.md)&lt;`RxDBAdapterSqliteBase`, `RT`&gt; |
 
 #### Returns
@@ -1591,7 +1591,7 @@ Defined in: packages/rxdb/dist/rxdb-adapter.d.ts:352
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`repository`](../../rxdb/classes/RxDBAdapterLocalBase.md#repository)
 
-***
+---
 
 ### restore() \{#restore\}
 
@@ -1605,9 +1605,9 @@ Restore the archive produced by [backup](#backup) into the empty storage this ad
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `source` | `ReadableStream`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt; | Archive byte stream |
+| Parameter  | Type                                                                                        | Description                             |
+| ---------- | ------------------------------------------------------------------------------------------- | --------------------------------------- |
+| `source`   | `ReadableStream`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt;                               | Archive byte stream                     |
 | `options?` | [`SqliteRestoreOptions`](../../rxdb-adapter-sqlite-core/interfaces/SqliteRestoreOptions.md) | Cancellation signal and phase callbacks |
 
 #### Returns
@@ -1641,7 +1641,7 @@ await adapter.restore(file.stream());
 await rxdb.connect('wa-sqlite');
 ```
 
-***
+---
 
 ### runInTransaction() \{#runintransaction\}
 
@@ -1655,16 +1655,16 @@ Execute transaction work.
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-7"></a> `T` *extends* [`TransactionFun`](../../rxdb-adapter-sqlite-core/type-aliases/TransactionFun.md) |
+| Type Parameter                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-7"></a> `T` _extends_ [`TransactionFun`](../../rxdb-adapter-sqlite-core/type-aliases/TransactionFun.md) |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `transactionFun` | `T` | Transaction work; its argument is the current transaction executor |
-| `transactionLog?` | `boolean` | - |
+| Parameter         | Type      | Description                                                        |
+| ----------------- | --------- | ------------------------------------------------------------------ |
+| `transactionFun`  | `T`       | Transaction work; its argument is the current transaction executor |
+| `transactionLog?` | `boolean` | -                                                                  |
 
 #### Returns
 
@@ -1681,7 +1681,7 @@ The real adapter entry always opens a new transaction; the executor facade maps 
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`runInTransaction`](../../rxdb/classes/RxDBAdapterLocalBase.md#runintransaction)
 
-***
+---
 
 ### saveMany() \{#savemany\}
 
@@ -1695,14 +1695,14 @@ Batch write entities (insert if absent, update if present).
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-8"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                      |
+| --------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-8"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                        |
+| ---------- | --------------------------- |
 | `entities` | `InstanceType`&lt;`T`&gt;[] |
 
 #### Returns
@@ -1715,7 +1715,7 @@ The entities after they land in the database; fields backfilled by the database,
 
 `IRxDBAdapter.saveMany`
 
-***
+---
 
 ### sealWorktreeReadOnly() \{#sealworktreereadonly\}
 
@@ -1735,7 +1735,7 @@ Seal this database read-only (read-only checkout, US-313): from then on, write s
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`sealWorktreeReadOnly`](../../rxdb/classes/RxDBAdapterLocalBase.md#sealworktreereadonly)
 
-***
+---
 
 ### setRxDBChangeSequence() \{#setrxdbchangesequence\}
 
@@ -1747,15 +1747,15 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/RxDBAdapterSqliteBase.d.ts:31
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `sequence` | `number` |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### settleRepositoryTransaction() \{#settlerepositorytransaction\}
 
@@ -1769,10 +1769,10 @@ Commit or roll back the entity state of the public repositories, must be called 
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md) |
-| `committed` | `boolean` |
+| Parameter   | Type                                                                  |
+| ----------- | --------------------------------------------------------------------- |
+| `executor`  | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md) |
+| `committed` | `boolean`                                                             |
 
 #### Returns
 
@@ -1782,7 +1782,7 @@ Commit or roll back the entity state of the public repositories, must be called 
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`settleRepositoryTransaction`](../../rxdb/classes/RxDBAdapterLocalBase.md#settlerepositorytransaction)
 
-***
+---
 
 ### setWorkingTreeCaptureHook() \{#setworkingtreecapturehook\}
 
@@ -1798,9 +1798,9 @@ Install or uninstall the capture runtime (the four mount points of adapter-contr
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `hook` | \| [`WorkingTreeCaptureHook`](../../rxdb/interfaces/WorkingTreeCaptureHook.md) \| `undefined` | The runtime taking over the four mount points; `undefined` uninstalls |
+| Parameter | Type                                                                                          | Description                                                           |
+| --------- | --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `hook`    | \| [`WorkingTreeCaptureHook`](../../rxdb/interfaces/WorkingTreeCaptureHook.md) \| `undefined` | The runtime taking over the four mount points; `undefined` uninstalls |
 
 #### Returns
 
@@ -1821,7 +1821,7 @@ Idempotent: if already installed, it is uninstalled first and then installed, ne
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`setWorkingTreeCaptureHook`](../../rxdb/classes/RxDBAdapterLocalBase.md#setworkingtreecapturehook)
 
-***
+---
 
 ### shadowTablesWritable() \{#shadowtableswritable\}
 
@@ -1845,7 +1845,7 @@ Archives save shadow tables row by row as-is, and restore rewrites them table-wi
 and override with `false`: backing up or restoring a database containing shadow tables then reports `unsupported_combination`, rather than producing an archive it cannot restore itself,
 or failing halfway through the write.
 
-***
+---
 
 ### sharedClientLockName() \{#sharedclientlockname\}
 
@@ -1869,7 +1869,7 @@ Under the SharedWorker transport, each tab's adapter only serializes its own que
 that transaction (US-314 B2.3b, fix on main). With a lock name given, every queued task runs inside this lock; on acquiring the lock it first rolls back the transaction left by a dead tab
 ([SqliteClientLike.rollbackOrphanTransaction](../../rxdb-adapter-sqlite-core/interfaces/SqliteClientLike.md#rollbackorphantransaction)), and disconnect becomes returning one's own share ([SqliteClientLike.release](../../rxdb-adapter-sqlite-core/interfaces/SqliteClientLike.md#release)).
 
-***
+---
 
 ### switchBranch() \{#switchbranch\}
 
@@ -1881,8 +1881,8 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/RxDBAdapterSqliteBase.d.ts:25
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                  |
+| --------- | --------------------------------------------------------------------- |
 | `options` | [`SwitchBranchOptions`](../../rxdb/interfaces/SwitchBranchOptions.md) |
 
 #### Returns
@@ -1893,7 +1893,7 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/RxDBAdapterSqliteBase.d.ts:25
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`switchBranch`](../../rxdb/classes/RxDBAdapterLocalBase.md#switchbranch)
 
-***
+---
 
 ### transaction() \{#transaction\}
 
@@ -1907,16 +1907,16 @@ Read and write within the same transaction through the executor.
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-9"></a> `T` *extends* [`TransactionFun`](../../rxdb-adapter-sqlite-core/type-aliases/TransactionFun.md) |
+| Type Parameter                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-9"></a> `T` _extends_ [`TransactionFun`](../../rxdb-adapter-sqlite-core/type-aliases/TransactionFun.md) |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `transactionFun` | `T` | Callback holding this transaction's executor |
-| `transactionLog?` | `boolean` | Whether to record the transaction log |
+| Parameter         | Type      | Description                                  |
+| ----------------- | --------- | -------------------------------------------- |
+| `transactionFun`  | `T`       | Callback holding this transaction's executor |
+| `transactionLog?` | `boolean` | Whether to record the transaction log        |
 
 #### Returns
 
@@ -1954,7 +1954,7 @@ await adapter.transaction(async () => {
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`transaction`](../../rxdb/classes/RxDBAdapterLocalBase.md#transaction)
 
-***
+---
 
 ### transactionalRepository() \{#transactionalrepository\}
 
@@ -1968,17 +1968,17 @@ Put the whole operation of a public repository into a transaction; this method i
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-10"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
-| <a id="type-parameter-r"></a> `R` *extends* `object` |
+| Type Parameter                                                                                       |
+| ---------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-10"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| <a id="type-parameter-r"></a> `R` _extends_ `object`                                                 |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `EntityType` | `T` |
-| `repository` | `R` |
+| Parameter    | Type |
+| ------------ | ---- |
+| `EntityType` | `T`  |
+| `repository` | `R`  |
 
 #### Returns
 
@@ -1988,7 +1988,7 @@ Put the whole operation of a public repository into a transaction; this method i
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`transactionalRepository`](../../rxdb/classes/RxDBAdapterLocalBase.md#transactionalrepository)
 
-***
+---
 
 ### upsertMany() \{#upsertmany\}
 
@@ -2004,16 +2004,16 @@ Executes INSERT OR REPLACE semantics, used to cache remotely pulled data.
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                       |
+| ------------------------------------ |
 | <a id="type-parameter-t-11"></a> `T` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entityName` | `string` | Entity name |
-| `data` | `T`[] | List of data to write |
+| Parameter    | Type     | Description           |
+| ------------ | -------- | --------------------- |
+| `entityName` | `string` | Entity name           |
+| `data`       | `T`[]    | List of data to write |
 
 #### Returns
 
@@ -2031,7 +2031,7 @@ adapter.upsertMany('Product', [product1, product2]).subscribe();
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`upsertMany`](../../rxdb/classes/RxDBAdapterLocalBase.md#upsertmany)
 
-***
+---
 
 ### version() \{#version\}
 
@@ -2055,7 +2055,7 @@ Unrelated to the system table watermark number (`RXDB_SYSTEM_SCHEMA_VERSION`), w
 
 `IRxDBAdapter.version`
 
-***
+---
 
 ### worktreeTableSetMounted() \{#worktreetablesetmounted\}
 
@@ -2077,7 +2077,7 @@ Clear the row-id cache after this instance switches its mounted table set (US-31
 
 [`RxDBAdapterLocalBase`](../../rxdb/classes/RxDBAdapterLocalBase.md).[`worktreeTableSetMounted`](../../rxdb/classes/RxDBAdapterLocalBase.md#worktreetablesetmounted)
 
-***
+---
 
 ### writeQuery() \{#writequery\}
 
@@ -2089,9 +2089,9 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/RxDBAdapterSqliteBase.d.ts:27
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `sql` | `string` |
+| Parameter   | Type                                                                                            |
+| ----------- | ----------------------------------------------------------------------------------------------- |
+| `sql`       | `string`                                                                                        |
 | `bindings?` | [`SQLiteCompatibleType`](../../rxdb-adapter-sqlite-core/type-aliases/SQLiteCompatibleType.md)[] |
 
 #### Returns

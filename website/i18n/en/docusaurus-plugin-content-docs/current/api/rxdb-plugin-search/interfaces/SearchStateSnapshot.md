@@ -9,14 +9,14 @@ Internal snapshot of the state machine (contains all observable derived fields).
 ### error \{#error\}
 
 ```ts
-error: 
+error:
   | SearchExecutionError
   | undefined;
 ```
 
 Defined in: [packages/rxdb-plugin-search/src/core/search-state.ts:13](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-search/src/core/search-state.ts#L13)
 
-***
+---
 
 ### hasMore \{#hasmore\}
 
@@ -26,7 +26,7 @@ hasMore: boolean;
 
 Defined in: [packages/rxdb-plugin-search/src/core/search-state.ts:14](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-search/src/core/search-state.ts#L14)
 
-***
+---
 
 ### results \{#results\}
 
@@ -36,7 +36,7 @@ results: readonly Readonly<SearchResult>[];
 
 Defined in: [packages/rxdb-plugin-search/src/core/search-state.ts:12](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-search/src/core/search-state.ts#L12)
 
-***
+---
 
 ### state \{#state\}
 

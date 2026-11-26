@@ -1,5 +1,5 @@
 ---
-sidebar_label: "ActionResource⟨Options, RT⟩"
+sidebar_label: 'ActionResource⟨Options, RT⟩'
 ---
 
 # ActionResource`<Options, RT>`
@@ -10,10 +10,10 @@ Return value of [useAction](../functions/useAction.md).
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                                | Description                                            |
+| --------------------------------------------- | ------------------------------------------------------ |
 | <a id="type-parameter-options"></a> `Options` | Input type of `execute`; `void` when there is no input |
-| <a id="type-parameter-rt"></a> `RT` | Return type of the async function |
+| <a id="type-parameter-rt"></a> `RT`           | Return type of the async function                      |
 
 ## Properties
 
@@ -29,8 +29,8 @@ Triggers one invocation.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type      |
+| --------- | --------- |
 | `options` | `Options` |
 
 #### Returns
@@ -41,7 +41,7 @@ Triggers one invocation.
 
 Function identity is stable across renders, so it can be used directly in `useEffect` / `useCallback` dependency arrays. What it calls is always the `promiseFn` from the **latest committed render**: this holds even when invoked from this commit's layout effects (including parent components') or from events dispatched synchronously during commit; concurrent renders that are suspended or discarded and never committed cannot change it.
 
-***
+---
 
 ### isPending \{#ispending\}
 

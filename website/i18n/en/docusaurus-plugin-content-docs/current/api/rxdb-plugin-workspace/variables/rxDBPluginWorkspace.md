@@ -10,9 +10,9 @@ Installs or retrieves the installed workspace plugin.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `db` | [`RxDB`](../../rxdb/classes/RxDB.md) | RxDB instance |
+| Parameter  | Type                                                                        | Description                                                 |
+| ---------- | --------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `db`       | [`RxDB`](../../rxdb/classes/RxDB.md)                                        | RxDB instance                                               |
 | `options?` | [`RxDBPluginWorkspaceOptions`](../interfaces/RxDBPluginWorkspaceOptions.md) | Configuration used at first install; ignored once installed |
 
 ## Returns

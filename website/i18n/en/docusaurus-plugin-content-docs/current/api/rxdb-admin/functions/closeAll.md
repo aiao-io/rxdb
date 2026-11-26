@@ -10,9 +10,9 @@ Closes all unpinned tabs; when the current tab is closed, it falls back to the f
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `state` | [`TabsState`](../interfaces/TabsState.md) | The current state. |
+| Parameter | Type                                      | Description        |
+| --------- | ----------------------------------------- | ------------------ |
+| `state`   | [`TabsState`](../interfaces/TabsState.md) | The current state. |
 
 ## Returns
 

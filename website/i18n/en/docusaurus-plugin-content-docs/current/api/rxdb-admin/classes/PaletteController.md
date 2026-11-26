@@ -26,8 +26,8 @@ Creates the controller.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                    | Description                           |
+| --------- | ----------------------------------------------------------------------- | ------------------------------------- |
 | `options` | [`PaletteControllerOptions`](../interfaces/PaletteControllerOptions.md) | Preferences, storage, and debouncing. |
 
 #### Returns
@@ -58,7 +58,7 @@ An observable that replays the current value and pushes subsequent changes.
 
 [`ReadableStore`](../interfaces/ReadableStore.md).[`changes$`](../interfaces/ReadableStore.md#changes)
 
-***
+---
 
 ### value \{#value\}
 
@@ -98,7 +98,7 @@ Closes the palette and cancels in-flight searches.
 
 `void`
 
-***
+---
 
 ### hover() \{#hover\}
 
@@ -112,15 +112,15 @@ Sets the selected item directly (mouse hover).
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `index` | `number` | The index. |
+| Parameter | Type     | Description |
+| --------- | -------- | ----------- |
+| `index`   | `number` | The index.  |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### moveSelection() \{#moveselection\}
 
@@ -134,15 +134,15 @@ Moves the selection, wrapping at the ends.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `delta` | `number` | The delta, usually ±1. |
+| Parameter | Type     | Description            |
+| --------- | -------- | ---------------------- |
+| `delta`   | `number` | The delta, usually ±1. |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### open() \{#open\}
 
@@ -158,7 +158,7 @@ Opens the palette and clears the query.
 
 `void`
 
-***
+---
 
 ### registerSource() \{#registersource\}
 
@@ -172,14 +172,14 @@ Registers a result source.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `source` | [`PaletteSource`](../interfaces/PaletteSource.md) | The source. |
+| Parameter | Type                                              | Description |
+| --------- | ------------------------------------------------- | ----------- |
+| `source`  | [`PaletteSource`](../interfaces/PaletteSource.md) | The source. |
 
 #### Returns
 
 Unregister function: aborts the source's in-flight searches and removes its results and failure notices;
-  calling it after the same id has been replaced by another source, or repeatedly, does nothing.
+calling it after the same id has been replaced by another source, or repeatedly, does nothing.
 
 () => `void`
 
@@ -187,7 +187,7 @@ Unregister function: aborts the source's in-flight searches and removes its resu
 
 Throws when the id is duplicated, or when the source is neither synchronous nor asynchronous.
 
-***
+---
 
 ### select() \{#select\}
 
@@ -201,15 +201,15 @@ Runs the selected item: closes the palette first so focus returns to the trigger
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `index?` | `number` | The index to run; defaults to the current selection. |
+| Parameter | Type     | Description                                          |
+| --------- | -------- | ---------------------------------------------------- |
+| `index?`  | `number` | The index to run; defaults to the current selection. |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### setQuery() \{#setquery\}
 
@@ -223,15 +223,15 @@ Updates the query: synchronous sources filter immediately, async sources search 
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `query` | `string` | The query text. |
+| Parameter | Type     | Description     |
+| --------- | -------- | --------------- |
+| `query`   | `string` | The query text. |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### subscribe() \{#subscribe\}
 
@@ -245,8 +245,8 @@ Subscribes to subsequent changes.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                | Description      |
+| ---------- | ------------------- | ---------------- |
 | `listener` | (`value`) => `void` | Change callback. |
 
 #### Returns
@@ -259,7 +259,7 @@ An unsubscribe function.
 
 [`ReadableStore`](../interfaces/ReadableStore.md).[`subscribe`](../interfaces/ReadableStore.md#subscribe)
 
-***
+---
 
 ### toggle() \{#toggle\}
 

@@ -1,9 +1,7 @@
 # DesktopStorage
 
 ```ts
-type DesktopStorage = 
-  | DesktopSqliteFileStorage
-  | DesktopPgliteDirectoryStorage;
+type DesktopStorage = DesktopSqliteFileStorage | DesktopPgliteDirectoryStorage;
 ```
 
 Defined in: packages/rxdb-adapter-sqlite-core/dist/desktop/desktop-storage.d.ts:34

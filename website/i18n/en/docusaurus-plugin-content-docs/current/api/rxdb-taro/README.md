@@ -28,12 +28,12 @@ export default defineConfig<'vite'>({
 
 The plugin does four things; missing the first three only errors in the devtools or on a real device, missing the last one fails the build outright:
 
-| What it does                                                                 | Consequence when missing                                                      |
-| ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| Emits the wasm the adapter depends on to `wa-sqlite/wa-sqlite.wasm` at the output root | the wasm cannot be found when creating the database                           |
-| Blanks out `import.meta.url` in the `@subframe7536/sqlite-wasm` glue         | mini programs have no `import.meta`; vite would also inline the ~0.7 MB wasm into the code package as base64 |
+| What it does                                                                                                                          | Consequence when missing                                                                                                |
+| ------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Emits the wasm the adapter depends on to `wa-sqlite/wa-sqlite.wasm` at the output root                                                | the wasm cannot be found when creating the database                                                                     |
+| Blanks out `import.meta.url` in the `@subframe7536/sqlite-wasm` glue                                                                  | mini programs have no `import.meta`; vite would also inline the ~0.7 MB wasm into the code package as base64            |
 | Douyin: free `globalThis` references in the output are redirected to the real global object registered at the entry (`rxdb-realm.js`) | in Douyin modules `globalThis` is `undefined`, and the comlink module throws a TypeError as soon as its top level loads |
-| Raises the build target to `es2020` when it is still Taro's hardcoded `es6`  | the vite 4 shipped with the Taro 4.3 template cannot transform RxDB's BigInt literals under es6 and the build errors |
+| Raises the build target to `es2020` when it is still Taro's hardcoded `es6`                                                           | the vite 4 shipped with the Taro 4.3 template cannot transform RxDB's BigInt literals under es6 and the build errors    |
 
 The wasm goes through vite's `emitFile`, landing relative to `outputRoot`; it does not depend on `copy.patterns`. The Douyin entry `app.js` must be non-strict mode; the build fails when it carries `use strict`.
 
@@ -101,14 +101,14 @@ Taro plugin: one-line integration of `@aiao/rxdb-adapter-miniprogram`'s build pr
 
 ## Interfaces
 
-| Interface | Description |
-| ------ | ------ |
-| [TaroCompilerOptions](interfaces/TaroCompilerOptions.md) | Taro's compiler configuration (object form). |
-| [TaroPluginContext](interfaces/TaroPluginContext.md) | The Taro plugin context this plugin uses; structurally compatible with `@tarojs/service`'s `IPluginContext`. |
-| [TaroRunnerOptions](interfaces/TaroRunnerOptions.md) | The whole project configuration received by `modifyRunnerOpts`; this plugin only reads/writes `compiler`. |
+| Interface                                                | Description                                                                                                  |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| [TaroCompilerOptions](interfaces/TaroCompilerOptions.md) | Taro's compiler configuration (object form).                                                                 |
+| [TaroPluginContext](interfaces/TaroPluginContext.md)     | The Taro plugin context this plugin uses; structurally compatible with `@tarojs/service`'s `IPluginContext`. |
+| [TaroRunnerOptions](interfaces/TaroRunnerOptions.md)     | The whole project configuration received by `modifyRunnerOpts`; this plugin only reads/writes `compiler`.    |
 
 ## Functions
 
-| Function | Description |
-| ------ | ------ |
+| Function                        | Description                                                                                                                                                                                                                                                                |
+| ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [default](functions/default.md) | Taro plugin: appends the adapter's build prerequisites (glue without `import.meta.url`, wasm emitted into the code package, real global object bound for Douyin) into `compiler.vitePlugins`, assembled the same way as `@aiao/rxdb-taro/vite`'s `miniProgramVitePlugins`. |

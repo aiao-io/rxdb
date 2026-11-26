@@ -16,9 +16,9 @@ race with vite reading the configuration. Fails the build outright when the plat
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `ctx` | [`TaroPluginContext`](../interfaces/TaroPluginContext.md) | The plugin context injected by Taro |
+| Parameter | Type                                                      | Description                         |
+| --------- | --------------------------------------------------------- | ----------------------------------- |
+| `ctx`     | [`TaroPluginContext`](../interfaces/TaroPluginContext.md) | The plugin context injected by Taro |
 
 ## Returns
 

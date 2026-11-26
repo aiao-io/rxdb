@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/diff.ts:120](htt
 
 The comparison's left end: the commit the working tree is based on; `null` when the branch has no commits yet
 
-***
+---
 
 ### branchId \{#branchid\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/diff.ts:117](htt
 
 Which branch is being spread out
 
-***
+---
 
 ### entries \{#entries\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/diff.ts:129](htt
 
 The rows at entity granularity; always an empty array at transaction granularity
 
-***
+---
 
 ### granularity \{#granularity\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/diff.ts:126](htt
 
 The granularity actually used this time
 
-***
+---
 
 ### nextCursor \{#nextcursor\}
 
@@ -64,7 +64,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/diff.ts:135](htt
 
 The continuation cursor; `null` when this page has reached the end
 
-***
+---
 
 ### transactions \{#transactions\}
 
@@ -76,7 +76,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/diff.ts:132](htt
 
 The groups at transaction granularity; always an empty array at entity granularity
 
-***
+---
 
 ### workingTreeRevision \{#workingtreerevision\}
 

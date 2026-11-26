@@ -10,8 +10,8 @@ Resolves the timezone preference: an empty string means the browser timezone.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter    | Type     | Description           |
+| ------------ | -------- | --------------------- |
 | `preference` | `string` | The preference value. |
 
 ## Returns

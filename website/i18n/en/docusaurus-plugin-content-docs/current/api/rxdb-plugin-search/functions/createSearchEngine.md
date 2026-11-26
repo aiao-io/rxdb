@@ -10,8 +10,8 @@ Constructs a `SearchEngine` bound to a SQL executor.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                            |
+| ---------- | ----------------------------------------------- |
 | `executor` | [`FtsExecutor`](../type-aliases/FtsExecutor.md) |
 
 ## Returns

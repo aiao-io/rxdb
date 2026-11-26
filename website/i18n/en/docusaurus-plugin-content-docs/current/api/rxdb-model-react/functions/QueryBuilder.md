@@ -10,14 +10,14 @@ Main Query Builder component.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* `object` | `Record`&lt;`string`, `unknown`&gt; |
+| Type Parameter                                       | Default type                        |
+| ---------------------------------------------------- | ----------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ `object` | `Record`&lt;`string`, `unknown`&gt; |
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter           | Type                                                                 |
+| ------------------- | -------------------------------------------------------------------- |
 | `__namedParameters` | [`QueryBuilderProps`](../interfaces/QueryBuilderProps.md)&lt;`T`&gt; |
 
 ## Returns

@@ -18,10 +18,10 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:502](https://github.com/aiao-io/rx
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `direction` | [`SyncDirection`](../type-aliases/SyncDirection.md) | Sync direction |
-| `result` | \| [`PullResult`](../interfaces/PullResult.md) \| [`PushResult`](../interfaces/PushResult.md) | Sync result |
+| Parameter   | Type                                                                                          | Description    |
+| ----------- | --------------------------------------------------------------------------------------------- | -------------- |
+| `direction` | [`SyncDirection`](../type-aliases/SyncDirection.md)                                           | Sync direction |
+| `result`    | \| [`PullResult`](../interfaces/PullResult.md) \| [`PushResult`](../interfaces/PushResult.md) | Sync result    |
 
 #### Returns
 
@@ -39,12 +39,12 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:504](https://github.com/aiao-io/rx
 
 Sync direction
 
-***
+---
 
 ### result \{#result\}
 
 ```ts
-readonly result: 
+readonly result:
   | PullResult
   | PushResult;
 ```
@@ -53,7 +53,7 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:506](https://github.com/aiao-io/rx
 
 Sync result
 
-***
+---
 
 ### type \{#type\}
 

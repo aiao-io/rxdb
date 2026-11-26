@@ -10,8 +10,8 @@ Extracts the configurable fields from the table columns, excluding the action an
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                      |
+| --------- | ------------------------- |
 | `columns` | readonly `ColumnDefine`[] |
 
 ## Returns

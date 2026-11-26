@@ -10,8 +10,8 @@ Subscribes to the current i18n runtime; the subscription is cleaned up on unmoun
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                      | Description                                                        |
+| ---------- | ----------------------------------------- | ------------------------------------------------------------------ |
 | `runtime?` | [`I18n`](../../rxdb-i18n/classes/I18n.md) | An optional explicit runtime, taking precedence over the provider. |
 
 ## Returns

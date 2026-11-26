@@ -9,7 +9,7 @@ Keyboard handler context — callbacks provided by the component
 ### getColDef() \{#getcoldef\}
 
 ```ts
-getColDef(col): 
+getColDef(col):
   | {
   cellType?: string;
   field?: string;
@@ -23,9 +23,9 @@ Gets the column definition by column index (returns the column definition object
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `col` | `number` |
+| Parameter | Type     |
+| --------- | -------- |
+| `col`     | `number` |
 
 #### Returns
 
@@ -54,16 +54,16 @@ field?: string;
 
 Field name
 
-***
+---
 
 `undefined`
 
-***
+---
 
 ### getSelectedCell() \{#getselectedcell\}
 
 ```ts
-getSelectedCell(): 
+getSelectedCell():
   | {
   col: number;
   row: number;
@@ -102,11 +102,11 @@ row: number;
 
 Row index
 
-***
+---
 
 `null`
 
-***
+---
 
 ### getTable() \{#gettable\}
 
@@ -122,14 +122,14 @@ Gets the current table instance
 
 `ListTableAll` \| `null`
 
-***
+---
 
 ### onCellChange() \{#oncellchange\}
 
 ```ts
 onCellChange(
-   col, 
-   row, 
+   col,
+   row,
    value
 ): void;
 ```
@@ -140,17 +140,17 @@ Cell value change callback
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `col` | `number` |
-| `row` | `number` |
-| `value` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `col`     | `number`  |
+| `row`     | `number`  |
+| `value`   | `unknown` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onCopy() \{#oncopy\}
 
@@ -166,7 +166,7 @@ Copy callback
 
 `void`
 
-***
+---
 
 ### onDelete() \{#ondelete\}
 
@@ -182,7 +182,7 @@ Delete callback
 
 `void`
 
-***
+---
 
 ### onPaste() \{#onpaste\}
 

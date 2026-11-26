@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/cold-replay.ts:3
 
 The actual content read from the business tables
 
-***
+---
 
 ### entries \{#entries\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/cold-replay.ts:3
 
 All uncommitted units on that branch
 
-***
+---
 
 ### head \{#head\}
 

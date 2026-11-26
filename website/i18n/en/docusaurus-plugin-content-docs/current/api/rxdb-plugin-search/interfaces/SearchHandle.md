@@ -20,7 +20,7 @@ Defined in: [packages/rxdb-plugin-search/src/types.ts:89](https://github.com/aia
 
 The most recent execution error; empty queries and empty-after-normalization are not treated as errors
 
-***
+---
 
 ### hasMore$ \{#hasmore\}
 
@@ -32,7 +32,7 @@ Defined in: [packages/rxdb-plugin-search/src/types.ts:91](https://github.com/aia
 
 Whether there is another page of results to load
 
-***
+---
 
 ### results$ \{#results\}
 
@@ -44,7 +44,7 @@ Defined in: [packages/rxdb-plugin-search/src/types.ts:85](https://github.com/aia
 
 Reactive read-only snapshot; the array and its elements are frozen at runtime
 
-***
+---
 
 ### state$ \{#state\}
 
@@ -72,7 +72,7 @@ Clears the query term, returns to `idle`, clears results / error / pagination
 
 `void`
 
-***
+---
 
 ### destroy() \{#destroy\}
 
@@ -88,7 +88,7 @@ Unsubscribes and releases resources (called automatically by the framework layer
 
 `void`
 
-***
+---
 
 ### loadMore() \{#loadmore\}
 
@@ -104,7 +104,7 @@ Loads the next page; no-op when there is no more data
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### retry() \{#retry\}
 
@@ -120,7 +120,7 @@ Re-triggers with the last query term while in the `error` state
 
 `void`
 
-***
+---
 
 ### setQuery() \{#setquery\}
 
@@ -134,9 +134,9 @@ Updates the query term (triggers debounce)
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `query` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `query`   | `string` |
 
 #### Returns
 

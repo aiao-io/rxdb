@@ -26,16 +26,16 @@ Creates a writable checkout (created but not mounted; this context claims it); t
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `branchId` | `string` |
+| Parameter  | Type                                                                                    |
+| ---------- | --------------------------------------------------------------------------------------- |
+| `branchId` | `string`                                                                                |
 | `options?` | [`WorktreeAddOptions`](../../rxdb-plugin-working-tree/interfaces/WorktreeAddOptions.md) |
 
 #### Returns
 
 `Promise`&lt;[`Worktree`](../../rxdb-plugin-working-tree/classes/Worktree.md)&gt;
 
-***
+---
 
 ### addState \{#addstate\}
 
@@ -47,7 +47,7 @@ Defined in: [use-worktrees.ts:45](https://github.com/aiao-io/rxdb/blob/b52320402
 
 Phase of the last `add()`: the registry row of the created writable checkout.
 
-***
+---
 
 ### attach \{#attach\}
 
@@ -61,15 +61,15 @@ Opens another persistently-owned checkout; then automatically re-reads the regis
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `id` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `id`      | `string` |
 
 #### Returns
 
 `Promise`&lt;[`WorktreeView`](../../rxdb-plugin-working-tree/interfaces/WorktreeView.md)&gt;
 
-***
+---
 
 ### attachState \{#attachstate\}
 
@@ -81,7 +81,7 @@ Defined in: [use-worktrees.ts:41](https://github.com/aiao-io/rxdb/blob/b52320402
 
 Phase of the last `attach()`; **no empty**.
 
-***
+---
 
 ### list \{#list\}
 
@@ -97,7 +97,7 @@ Reads the registered checkouts.
 
 `Promise`&lt;readonly [`Worktree`](../../rxdb-plugin-working-tree/classes/Worktree.md)[]&gt;
 
-***
+---
 
 ### listState \{#liststate\}
 
@@ -109,7 +109,7 @@ Defined in: [use-worktrees.ts:37](https://github.com/aiao-io/rxdb/blob/b52320402
 
 Phase of the last `list()`; no registered checkouts is `empty`.
 
-***
+---
 
 ### mount \{#mount\}
 
@@ -123,15 +123,15 @@ Makes the main instance mount a writable checkout; then automatically re-reads t
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `id` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `id`      | `string` |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### mounted \{#mounted\}
 
@@ -143,7 +143,7 @@ Defined in: [use-worktrees.ts:57](https://github.com/aiao-io/rxdb/blob/b52320402
 
 The table set this instance currently has mounted; changes only after a remount finishes, and after a rebuild it is a new instance with the same suffix.
 
-***
+---
 
 ### mountMain \{#mountmain\}
 
@@ -159,7 +159,7 @@ Makes the main instance mount back the main checkout.
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### mountMainState \{#mountmainstate\}
 
@@ -171,7 +171,7 @@ Defined in: [use-worktrees.ts:49](https://github.com/aiao-io/rxdb/blob/b52320402
 
 Phase of the last `mountMain()`.
 
-***
+---
 
 ### mountState \{#mountstate\}
 
@@ -183,7 +183,7 @@ Defined in: [use-worktrees.ts:47](https://github.com/aiao-io/rxdb/blob/b52320402
 
 Phase of the last `mount()`.
 
-***
+---
 
 ### open \{#open\}
 
@@ -197,16 +197,16 @@ Opens a read-only checkout; then automatically re-reads the registry.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `target` | [`WorktreeTarget`](../../rxdb-plugin-working-tree/type-aliases/WorktreeTarget.md) |
+| Parameter  | Type                                                                                      |
+| ---------- | ----------------------------------------------------------------------------------------- |
+| `target`   | [`WorktreeTarget`](../../rxdb-plugin-working-tree/type-aliases/WorktreeTarget.md)         |
 | `options?` | [`WorktreeOpenOptions`](../../rxdb-plugin-working-tree/interfaces/WorktreeOpenOptions.md) |
 
 #### Returns
 
 `Promise`&lt;[`WorktreeView`](../../rxdb-plugin-working-tree/interfaces/WorktreeView.md)&gt;
 
-***
+---
 
 ### openState \{#openstate\}
 
@@ -218,7 +218,7 @@ Defined in: [use-worktrees.ts:39](https://github.com/aiao-io/rxdb/blob/b52320402
 
 Phase of the last `open()`; **no empty**.
 
-***
+---
 
 ### prune \{#prune\}
 
@@ -234,7 +234,7 @@ Reclaims checkouts that nobody is using (including orphan table sets without reg
 
 `Promise`&lt;readonly `string`[]&gt;
 
-***
+---
 
 ### pruneState \{#prunestate\}
 
@@ -246,7 +246,7 @@ Defined in: [use-worktrees.ts:43](https://github.com/aiao-io/rxdb/blob/b52320402
 
 Phase of the last `prune()`; reclaiming zero is also a result.
 
-***
+---
 
 ### release \{#release\}
 
@@ -260,15 +260,15 @@ Gives up the claim on a writable checkout.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `id` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `id`      | `string` |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### releaseState \{#releasestate\}
 
@@ -280,7 +280,7 @@ Defined in: [use-worktrees.ts:51](https://github.com/aiao-io/rxdb/blob/b52320402
 
 Phase of the last `release()`.
 
-***
+---
 
 ### remove \{#remove\}
 
@@ -294,15 +294,15 @@ Deletes a writable checkout (uncommitted changes stay on the branch it holds); t
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `id` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `id`      | `string` |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### removeState \{#removestate\}
 
@@ -314,7 +314,7 @@ Defined in: [use-worktrees.ts:53](https://github.com/aiao-io/rxdb/blob/b52320402
 
 Phase of the last `remove()`.
 
-***
+---
 
 ### rename \{#rename\}
 
@@ -328,16 +328,16 @@ Renames a writable checkout; then automatically re-reads the registry.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `id` | `string` |
-| `name` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `id`      | `string` |
+| `name`    | `string` |
 
 #### Returns
 
 `Promise`&lt;[`Worktree`](../../rxdb-plugin-working-tree/classes/Worktree.md)&gt;
 
-***
+---
 
 ### renameState \{#renamestate\}
 

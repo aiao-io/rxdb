@@ -10,15 +10,15 @@ Slices bulk data into chunks according to the parameter count limit.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `rows` | `T`[] | Data rows |
+| Parameter      | Type     | Description                           |
+| -------------- | -------- | ------------------------------------- |
+| `rows`         | `T`[]    | Data rows                             |
 | `paramsPerRow` | `number` | Number of parameters consumed per row |
 
 ## Returns

@@ -18,8 +18,8 @@ When projecting content directly (without the directive), refresh only rebuilds 
 ## Example
 
 ```html
-<rxdb-admin-layout [menu]="menu" [url]="url()" [navigating]="navigating()">
-  <svg brandIcon [lucideIcon]="Database"></svg>
+<rxdb-admin-layout [menu]="menu" [navigating]="navigating()" [url]="url()">
+  <svg [lucideIcon]="Database" brandIcon></svg>
   <router-outlet *rxdbAdminPage />
 </rxdb-admin-layout>
 ```
@@ -48,7 +48,7 @@ protected readonly layout: Signal<LayoutState>;
 
 Defined in: [rxdb-admin-angular/src/layout/admin-layout.component.ts:81](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/admin-layout.component.ts#L81)
 
-***
+---
 
 ### menu \{#menu\}
 
@@ -60,7 +60,7 @@ Defined in: [rxdb-admin-angular/src/layout/admin-layout.component.ts:96](https:/
 
 Navigation menu. Must be a stable reference (`computed` / field); creating a new array on every change detection would repeatedly trigger shell updates.
 
-***
+---
 
 ### menuExtra \{#menuextra\}
 
@@ -72,7 +72,7 @@ Defined in: [rxdb-admin-angular/src/layout/admin-layout.component.ts:105](https:
 
 Template for extra content on the right of menu items; the context is the menu node.
 
-***
+---
 
 ### mobile \{#mobile\}
 
@@ -82,7 +82,7 @@ protected readonly mobile: Signal<boolean>;
 
 Defined in: [rxdb-admin-angular/src/layout/admin-layout.component.ts:84](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/admin-layout.component.ts#L84)
 
-***
+---
 
 ### navigating \{#navigating\}
 
@@ -94,7 +94,7 @@ Defined in: [rxdb-admin-angular/src/layout/admin-layout.component.ts:102](https:
 
 Navigation in progress (lazy-loaded routes, loaders), drives the top progress bar and loading overlay.
 
-***
+---
 
 ### pageTemplate \{#pagetemplate\}
 
@@ -104,7 +104,7 @@ protected readonly pageTemplate: Signal<AdminPageDirective | undefined>;
 
 Defined in: [rxdb-admin-angular/src/layout/admin-layout.component.ts:93](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/admin-layout.component.ts#L93)
 
-***
+---
 
 ### pageTitle \{#pagetitle\}
 
@@ -116,7 +116,7 @@ Defined in: [rxdb-admin-angular/src/layout/admin-layout.component.ts:87](https:/
 
 The brand name may be translated per the host catalog (`brand.titleKey`); reading the text revision recomputes after a language switch.
 
-***
+---
 
 ### prefs \{#prefs\}
 
@@ -126,7 +126,7 @@ protected readonly prefs: Signal<AdminPreferences>;
 
 Defined in: [rxdb-admin-angular/src/layout/admin-layout.component.ts:83](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/admin-layout.component.ts#L83)
 
-***
+---
 
 ### refreshKey \{#refreshkey\}
 
@@ -138,7 +138,7 @@ Defined in: [rxdb-admin-angular/src/layout/admin-layout.component.ts:92](https:/
 
 Refresh counter: on change, rebuilds the page container and the `*rxdbAdminPage` template instance.
 
-***
+---
 
 ### t \{#t\}
 
@@ -152,16 +152,16 @@ Translates shell text.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | `string` | Text key. |
+| Parameter | Type                                | Description     |
+| --------- | ----------------------------------- | --------------- |
+| `key`     | `string`                            | Text key.       |
 | `params?` | `Record`&lt;`string`, `unknown`&gt; | ICU parameters. |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### textRevision \{#textrevision\}
 
@@ -171,7 +171,7 @@ protected readonly textRevision: Signal<number>;
 
 Defined in: [rxdb-admin-angular/src/layout/admin-layout.component.ts:85](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/admin-layout.component.ts#L85)
 
-***
+---
 
 ### ui \{#ui\}
 
@@ -181,7 +181,7 @@ protected readonly ui: Signal<ShellUiState>;
 
 Defined in: [rxdb-admin-angular/src/layout/admin-layout.component.ts:82](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/admin-layout.component.ts#L82)
 
-***
+---
 
 ### url \{#url\}
 
@@ -208,9 +208,9 @@ the `<base href>` of Angular applications resolves a plain anchor link to "root 
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `event` | `Event` | Click event. |
+| Parameter | Type    | Description  |
+| --------- | ------- | ------------ |
+| `event`   | `Event` | Click event. |
 
 #### Returns
 

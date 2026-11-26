@@ -21,7 +21,7 @@ The backend factory used to persist file contents; omitted means the browser OPF
 Desktop hosts use it to write contents into the application data directory
 (US-504), keeping metadata and files in one backup domain.
 
-***
+---
 
 ### previewLimitBytes? \{#previewlimitbytes\}
 
@@ -33,7 +33,7 @@ Defined in: [packages/rxdb-plugin-storage/src/storage.helpers.ts:34](https://git
 
 The maximum bytes allowed for creating a preview URL; defaults to 50 MiB.
 
-***
+---
 
 ### rootDir? \{#rootdir\}
 

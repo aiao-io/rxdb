@@ -21,8 +21,8 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/keyring/sqlite-core-keyring-s
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                |
+| --------- | --------------------------------------------------- |
 | `adapter` | [`RxDBAdapterSqliteBase`](RxDBAdapterSqliteBase.md) |
 
 #### Returns
@@ -46,14 +46,14 @@ Returns the singleton row; returns `null` when the keyring table is empty.
 #### Returns
 
 `Promise`&lt;
-  \| [`KeyringRow`](../../rxdb-adapter-encrypted/interfaces/KeyringRow.md)
-  \| `null`&gt;
+\| [`KeyringRow`](../../rxdb-adapter-encrypted/interfaces/KeyringRow.md)
+\| `null`&gt;
 
 #### Implementation of
 
 [`KeyringStorageBinding`](../../rxdb-adapter-encrypted/interfaces/KeyringStorageBinding.md).[`readSingleton`](../../rxdb-adapter-encrypted/interfaces/KeyringStorageBinding.md#readsingleton)
 
-***
+---
 
 ### writeSingleton() \{#writesingleton\}
 
@@ -69,9 +69,9 @@ Inserts the singleton row. If the row already exists, the implementation must th
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `row` | [`KeyringRow`](../../rxdb-adapter-encrypted/interfaces/KeyringRow.md) |
+| Parameter | Type                                                                  |
+| --------- | --------------------------------------------------------------------- |
+| `row`     | [`KeyringRow`](../../rxdb-adapter-encrypted/interfaces/KeyringRow.md) |
 
 #### Returns
 

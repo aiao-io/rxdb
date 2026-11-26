@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model/src/query-builder/models/validation.interface.t
 
 The error list
 
-***
+---
 
 ### valid \{#valid\}
 

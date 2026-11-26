@@ -11,9 +11,9 @@ Implemented by generating a random digit string and converting it to a number
 
 ## Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `length?` | `number` | `15` | Number of digits; defaults to 15 (not 16) |
+| Parameter | Type     | Default value | Description                               |
+| --------- | -------- | ------------- | ----------------------------------------- |
+| `length?` | `number` | `15`          | Number of digits; defaults to 15 (not 16) |
 
 ## Returns
 

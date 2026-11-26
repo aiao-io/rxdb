@@ -31,9 +31,9 @@ For limitations and roadmap see [`rust/README.md`](https://github.com/aiao-io/rx
 
 ## Capability matrix
 
-| Storage               | Status                                                                    |
-| --------------------- | ------------------------------------------------------------------------- |
-| SQLite single file    | ✅ Adapter name `sqlite-tauri`, provided by the Rust host                 |
+| Storage               | Status                                                                                    |
+| --------------------- | ----------------------------------------------------------------------------------------- |
+| SQLite single file    | ✅ Adapter name `sqlite-tauri`, provided by the Rust host                                 |
 | PGlite data directory | ❌ Never supported: PGlite's synchronous filesystem contract requires a Node main process |
 
 Combinations outside the matrix are rejected by `assertDesktopSqliteStorage` with `unsupported_runtime_engine` — no silent degradation.
@@ -160,20 +160,20 @@ Program logic should read `error.code`, not match message text (messages are pre
 | `unsupported_runtime_engine` | The storage `engine` is outside the capability matrix (e.g. PGlite data directory)                               |
 | `invalid_database_name`      | The logical database name is invalid, or attempts to escape the app scope                                        |
 | `host_unavailable`           | The request never reached the host (command not registered / capability denied / parameter serialization failed) |
-| `session_closed`             | The session was used after being disconnected                                                                     |
-| `protocol_violation`         | The request or response does not match the protocol shape                                                         |
-| `open_failed`                | Opening the database failed; `cause` preserves the original reason                                                |
-| `permission_denied`          | The path lacks permission, or the statement was rejected by the authorizer                                        |
-| `database_corrupted`         | The target file is not a usable SQLite database                                                                   |
-| `statement_failed`           | The SQL itself failed to execute (syntax, constraints, etc.)                                                      |
-| `host_internal_error`        | The host itself errored; a defect rather than a caller problem                                                    |
-| `database_busy`              | Another connection holds a conflicting lock; retrying works, no data loss                                         |
-| `file_not_found`             | The target file or directory does not exist                                                                       |
-| `invalid_file_path`          | The path escapes the storage root, or points at a type that does not match the operation                          |
-| `disk_full`                  | Disk space or quota exhausted                                                                                      |
-| `write_aborted`              | The write token is no longer valid; the target keeps its pre-write contents                                       |
-| `transaction_not_found`      | The transaction ID does not exist, has ended, or does not belong to this session; no statement was executed       |
-| `transaction_unavailable`    | Timed out waiting to open a transaction; another transaction occupies the connection; no data loss, retry works   |
+| `session_closed`             | The session was used after being disconnected                                                                    |
+| `protocol_violation`         | The request or response does not match the protocol shape                                                        |
+| `open_failed`                | Opening the database failed; `cause` preserves the original reason                                               |
+| `permission_denied`          | The path lacks permission, or the statement was rejected by the authorizer                                       |
+| `database_corrupted`         | The target file is not a usable SQLite database                                                                  |
+| `statement_failed`           | The SQL itself failed to execute (syntax, constraints, etc.)                                                     |
+| `host_internal_error`        | The host itself errored; a defect rather than a caller problem                                                   |
+| `database_busy`              | Another connection holds a conflicting lock; retrying works, no data loss                                        |
+| `file_not_found`             | The target file or directory does not exist                                                                      |
+| `invalid_file_path`          | The path escapes the storage root, or points at a type that does not match the operation                         |
+| `disk_full`                  | Disk space or quota exhausted                                                                                    |
+| `write_aborted`              | The write token is no longer valid; the target keeps its pre-write contents                                      |
+| `transaction_not_found`      | The transaction ID does not exist, has ended, or does not belong to this session; no statement was executed      |
+| `transaction_unavailable`    | Timed out waiting to open a transaction; another transaction occupies the connection; no data loss, retry works  |
 
 The last six only occur on the file-storage path (the desktop backend of `@aiao/rxdb-plugin-storage`) and the transaction path.
 
@@ -235,76 +235,76 @@ This entry re-exports them as-is: downstream imports by name, and moving an impl
 
 ## Classes
 
-| Class | Description |
-| ------ | ------ |
-| [DesktopSqliteClient](classes/DesktopSqliteClient.md) | Client for accessing a local SQLite file through the desktop host. |
-| [RxDBAdapterDesktopError](classes/RxDBAdapterDesktopError.md) | Desktop adapter error. |
-| [RxDBAdapterTauri](classes/RxDBAdapterTauri.md) | Connects RxDB to a real SQLite file in the Tauri app's private directory. |
+| Class                                                         | Description                                                               |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| [DesktopSqliteClient](classes/DesktopSqliteClient.md)         | Client for accessing a local SQLite file through the desktop host.        |
+| [RxDBAdapterDesktopError](classes/RxDBAdapterDesktopError.md) | Desktop adapter error.                                                    |
+| [RxDBAdapterTauri](classes/RxDBAdapterTauri.md)               | Connects RxDB to a real SQLite file in the Tauri app's private directory. |
 
 ## Interfaces
 
-| Interface | Description |
-| ------ | ------ |
-| [DesktopHostChangeEventMessage](interfaces/DesktopHostChangeEventMessage.md) | Change event the host pushes to the renderer proactively. |
-| [DesktopHostCloseRequest](interfaces/DesktopHostCloseRequest.md) | Closes a session and releases the database handle. |
-| [DesktopHostExecuteRequest](interfaces/DesktopHostExecuteRequest.md) | Executes SQL on an open session. |
-| [DesktopHostFileEntry](interfaces/DesktopHostFileEntry.md) | Directory entry: only the name and type, no physical path leaked. |
-| [DesktopHostFileReadResult](interfaces/DesktopHostFileReadResult.md) | One frame of a `file.read` result. |
-| [DesktopHostFileStat](interfaces/DesktopHostFileStat.md) | Metadata of a single path; expressed as `null` when the target does not exist, not as an error. |
-| [DesktopHostHandshakeRequest](interfaces/DesktopHostHandshakeRequest.md) | Negotiates the wire protocol version. |
-| [DesktopHostHandshakeResult](interfaces/DesktopHostHandshakeResult.md) | Response to the `handshake` request. |
-| [DesktopHostMuteRequest](interfaces/DesktopHostMuteRequest.md) | Pauses / resumes change-event collection for a session (protocol v2). |
-| [DesktopHostOpenRequest](interfaces/DesktopHostOpenRequest.md) | Opens a database session. |
-| [DesktopHostOpenResult](interfaces/DesktopHostOpenResult.md) | Response to the `open` request. |
-| [DesktopHostTransport](interfaces/DesktopHostTransport.md) | Transport layer between the renderer and the host. |
-| [DesktopHostVersionRequest](interfaces/DesktopHostVersionRequest.md) | Queries the engine version of the database a session is connected to. |
-| [DesktopOptions](interfaces/DesktopOptions.md) | Desktop adapter options. |
-| [DesktopPgliteDirectoryStorage](interfaces/DesktopPgliteDirectoryStorage.md) | PGlite data directory desktop storage. |
-| [DesktopSqliteClientOptions](interfaces/DesktopSqliteClientOptions.md) | Optional behavior parameters for [DesktopSqliteClient.connect](classes/DesktopSqliteClient.md#connect). |
-| [DesktopSqliteFileStorage](interfaces/DesktopSqliteFileStorage.md) | SQLite single-file desktop storage. |
-| [TauriHostTransportOptions](interfaces/TauriHostTransportOptions.md) | Dependency injection point of [createTauriHostTransport](functions/createTauriHostTransport.md). |
-| [TauriOptions](interfaces/TauriOptions.md) | Tauri adapter options. |
+| Interface                                                                    | Description                                                                                             |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| [DesktopHostChangeEventMessage](interfaces/DesktopHostChangeEventMessage.md) | Change event the host pushes to the renderer proactively.                                               |
+| [DesktopHostCloseRequest](interfaces/DesktopHostCloseRequest.md)             | Closes a session and releases the database handle.                                                      |
+| [DesktopHostExecuteRequest](interfaces/DesktopHostExecuteRequest.md)         | Executes SQL on an open session.                                                                        |
+| [DesktopHostFileEntry](interfaces/DesktopHostFileEntry.md)                   | Directory entry: only the name and type, no physical path leaked.                                       |
+| [DesktopHostFileReadResult](interfaces/DesktopHostFileReadResult.md)         | One frame of a `file.read` result.                                                                      |
+| [DesktopHostFileStat](interfaces/DesktopHostFileStat.md)                     | Metadata of a single path; expressed as `null` when the target does not exist, not as an error.         |
+| [DesktopHostHandshakeRequest](interfaces/DesktopHostHandshakeRequest.md)     | Negotiates the wire protocol version.                                                                   |
+| [DesktopHostHandshakeResult](interfaces/DesktopHostHandshakeResult.md)       | Response to the `handshake` request.                                                                    |
+| [DesktopHostMuteRequest](interfaces/DesktopHostMuteRequest.md)               | Pauses / resumes change-event collection for a session (protocol v2).                                   |
+| [DesktopHostOpenRequest](interfaces/DesktopHostOpenRequest.md)               | Opens a database session.                                                                               |
+| [DesktopHostOpenResult](interfaces/DesktopHostOpenResult.md)                 | Response to the `open` request.                                                                         |
+| [DesktopHostTransport](interfaces/DesktopHostTransport.md)                   | Transport layer between the renderer and the host.                                                      |
+| [DesktopHostVersionRequest](interfaces/DesktopHostVersionRequest.md)         | Queries the engine version of the database a session is connected to.                                   |
+| [DesktopOptions](interfaces/DesktopOptions.md)                               | Desktop adapter options.                                                                                |
+| [DesktopPgliteDirectoryStorage](interfaces/DesktopPgliteDirectoryStorage.md) | PGlite data directory desktop storage.                                                                  |
+| [DesktopSqliteClientOptions](interfaces/DesktopSqliteClientOptions.md)       | Optional behavior parameters for [DesktopSqliteClient.connect](classes/DesktopSqliteClient.md#connect). |
+| [DesktopSqliteFileStorage](interfaces/DesktopSqliteFileStorage.md)           | SQLite single-file desktop storage.                                                                     |
+| [TauriHostTransportOptions](interfaces/TauriHostTransportOptions.md)         | Dependency injection point of [createTauriHostTransport](functions/createTauriHostTransport.md).        |
+| [TauriOptions](interfaces/TauriOptions.md)                                   | Tauri adapter options.                                                                                  |
 
 ## Type Aliases
 
-| Type Alias | Description |
-| ------ | ------ |
-| [DesktopHostFileLockMode](type-aliases/DesktopHostFileLockMode.md) | Lock mode, consistent with the same-named values of Web Locks. |
-| [DesktopHostFileRequest](type-aliases/DesktopHostFileRequest.md) | All requests the renderer can send to the file host. |
-| [DesktopHostFileResponse](type-aliases/DesktopHostFileResponse.md) | The host's response to one file request; failures also go through the normal return value. |
-| [DesktopHostRequest](type-aliases/DesktopHostRequest.md) | All requests the renderer can send to the host. |
-| [DesktopHostResponse](type-aliases/DesktopHostResponse.md) | The host's response to one request. |
-| [DesktopStorage](type-aliases/DesktopStorage.md) | Discriminated union of desktop storage configurations, distinguished by `engine`. |
-| [RxDBAdapterDesktopErrorCode](type-aliases/RxDBAdapterDesktopErrorCode.md) | Stable error codes the desktop adapter promises to the outside. |
+| Type Alias                                                                 | Description                                                                                |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| [DesktopHostFileLockMode](type-aliases/DesktopHostFileLockMode.md)         | Lock mode, consistent with the same-named values of Web Locks.                             |
+| [DesktopHostFileRequest](type-aliases/DesktopHostFileRequest.md)           | All requests the renderer can send to the file host.                                       |
+| [DesktopHostFileResponse](type-aliases/DesktopHostFileResponse.md)         | The host's response to one file request; failures also go through the normal return value. |
+| [DesktopHostRequest](type-aliases/DesktopHostRequest.md)                   | All requests the renderer can send to the host.                                            |
+| [DesktopHostResponse](type-aliases/DesktopHostResponse.md)                 | The host's response to one request.                                                        |
+| [DesktopStorage](type-aliases/DesktopStorage.md)                           | Discriminated union of desktop storage configurations, distinguished by `engine`.          |
+| [RxDBAdapterDesktopErrorCode](type-aliases/RxDBAdapterDesktopErrorCode.md) | Stable error codes the desktop adapter promises to the outside.                            |
 
 ## Variables
 
-| Variable | Description |
-| ------ | ------ |
-| [DESKTOP\_DEFAULT\_DATABASE\_SUFFIX](variables/DESKTOP_DEFAULT_DATABASE_SUFFIX.md) | Suffix appended when deriving the logical file name from the RxDB database name. |
-| [DESKTOP\_HOST\_MAX\_BINDINGS](variables/DESKTOP_HOST_MAX_BINDINGS.md) | Maximum number of binding parameters allowed per request. |
-| [DESKTOP\_HOST\_MAX\_BLOB\_BYTES](variables/DESKTOP_HOST_MAX_BLOB_BYTES.md) | Byte limit for a single blob binding parameter. |
-| [DESKTOP\_HOST\_MAX\_FILE\_CHUNK\_BYTES](variables/DESKTOP_HOST_MAX_FILE_CHUNK_BYTES.md) | Byte limit for one frame of file read/write. |
-| [DESKTOP\_HOST\_MAX\_SQL\_LENGTH](variables/DESKTOP_HOST_MAX_SQL_LENGTH.md) | Maximum length of a single SQL statement on the SQLite wire protocol (UTF-16 code units). |
-| [DESKTOP\_HOST\_PROTOCOL\_VERSION](variables/DESKTOP_HOST_PROTOCOL_VERSION.md) | Wire protocol version. |
-| [DESKTOP\_HOST\_TRANSPORT\_KEY](variables/DESKTOP_HOST_TRANSPORT_KEY.md) | Key the preload uses when mounting the transport layer on the renderer global. |
-| [TAURI\_ADAPTER\_NAME](variables/TAURI_ADAPTER_NAME.md) | Name of the adapter in the `RxDBAdapters` registry. |
-| [TAURI\_DESKTOP\_CHANGE\_EVENT](variables/TAURI_DESKTOP_CHANGE_EVENT.md) | Tauri event name the host uses to push change events. |
-| [TAURI\_DESKTOP\_REQUEST\_COMMAND](variables/TAURI_DESKTOP_REQUEST_COMMAND.md) | Name of the Rust-side `#[tauri::command]`. |
+| Variable                                                                                 | Description                                                                               |
+| ---------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| [DESKTOP\_DEFAULT\_DATABASE\_SUFFIX](variables/DESKTOP_DEFAULT_DATABASE_SUFFIX.md)       | Suffix appended when deriving the logical file name from the RxDB database name.          |
+| [DESKTOP\_HOST\_MAX\_BINDINGS](variables/DESKTOP_HOST_MAX_BINDINGS.md)                   | Maximum number of binding parameters allowed per request.                                 |
+| [DESKTOP\_HOST\_MAX\_BLOB\_BYTES](variables/DESKTOP_HOST_MAX_BLOB_BYTES.md)              | Byte limit for a single blob binding parameter.                                           |
+| [DESKTOP\_HOST\_MAX\_FILE\_CHUNK\_BYTES](variables/DESKTOP_HOST_MAX_FILE_CHUNK_BYTES.md) | Byte limit for one frame of file read/write.                                              |
+| [DESKTOP\_HOST\_MAX\_SQL\_LENGTH](variables/DESKTOP_HOST_MAX_SQL_LENGTH.md)              | Maximum length of a single SQL statement on the SQLite wire protocol (UTF-16 code units). |
+| [DESKTOP\_HOST\_PROTOCOL\_VERSION](variables/DESKTOP_HOST_PROTOCOL_VERSION.md)           | Wire protocol version.                                                                    |
+| [DESKTOP\_HOST\_TRANSPORT\_KEY](variables/DESKTOP_HOST_TRANSPORT_KEY.md)                 | Key the preload uses when mounting the transport layer on the renderer global.            |
+| [TAURI\_ADAPTER\_NAME](variables/TAURI_ADAPTER_NAME.md)                                  | Name of the adapter in the `RxDBAdapters` registry.                                       |
+| [TAURI\_DESKTOP\_CHANGE\_EVENT](variables/TAURI_DESKTOP_CHANGE_EVENT.md)                 | Tauri event name the host uses to push change events.                                     |
+| [TAURI\_DESKTOP\_REQUEST\_COMMAND](variables/TAURI_DESKTOP_REQUEST_COMMAND.md)           | Name of the Rust-side `#[tauri::command]`.                                                |
 
 ## Functions
 
-| Function | Description |
-| ------ | ------ |
-| [assertDesktopHostResponse](functions/assertDesktopHostResponse.md) | Validates a host response and turns error responses back into local exceptions. |
-| [assertDesktopSqliteStorage](functions/assertDesktopSqliteStorage.md) | Validates that the storage configuration really is the only engine this protocol carries — SQLite single file. |
-| [assertValidDesktopDatabaseName](functions/assertValidDesktopDatabaseName.md) | Validates a logical database name. |
-| [createTauriHostTransport](functions/createTauriHostTransport.md) | Assembles a desktop host transport from Tauri's `invoke` / `listen`. |
-| [decodeDesktopJsonPayload](functions/decodeDesktopJsonPayload.md) | Restores a JSON payload to the runtime types used by the protocol. |
-| [encodeDesktopJsonPayload](functions/encodeDesktopJsonPayload.md) | Encodes a protocol payload into a plain JSON-serializable shape. |
-| [isDesktopPgliteDirectoryStorage](functions/isDesktopPgliteDirectoryStorage.md) | Checks whether a storage configuration has the PGlite data directory shape. |
-| [isDesktopSqliteFileStorage](functions/isDesktopSqliteFileStorage.md) | Checks whether a storage configuration has the SQLite single-file shape. |
-| [parseDesktopHostChangeEvent](functions/parseDesktopHostChangeEvent.md) | Validates a change event pushed by the host. |
-| [parseDesktopHostHandshakeResult](functions/parseDesktopHostHandshakeResult.md) | Validates the `handshake` response. |
-| [parseDesktopHostOpenResult](functions/parseDesktopHostOpenResult.md) | Validates the `open` response. |
-| [resolveDesktopHostTransport](functions/resolveDesktopHostTransport.md) | Re-exported only to keep the export surface symmetric with `@aiao/rxdb-adapter-electron`. |
+| Function                                                                        | Description                                                                                                    |
+| ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| [assertDesktopHostResponse](functions/assertDesktopHostResponse.md)             | Validates a host response and turns error responses back into local exceptions.                                |
+| [assertDesktopSqliteStorage](functions/assertDesktopSqliteStorage.md)           | Validates that the storage configuration really is the only engine this protocol carries — SQLite single file. |
+| [assertValidDesktopDatabaseName](functions/assertValidDesktopDatabaseName.md)   | Validates a logical database name.                                                                             |
+| [createTauriHostTransport](functions/createTauriHostTransport.md)               | Assembles a desktop host transport from Tauri's `invoke` / `listen`.                                           |
+| [decodeDesktopJsonPayload](functions/decodeDesktopJsonPayload.md)               | Restores a JSON payload to the runtime types used by the protocol.                                             |
+| [encodeDesktopJsonPayload](functions/encodeDesktopJsonPayload.md)               | Encodes a protocol payload into a plain JSON-serializable shape.                                               |
+| [isDesktopPgliteDirectoryStorage](functions/isDesktopPgliteDirectoryStorage.md) | Checks whether a storage configuration has the PGlite data directory shape.                                    |
+| [isDesktopSqliteFileStorage](functions/isDesktopSqliteFileStorage.md)           | Checks whether a storage configuration has the SQLite single-file shape.                                       |
+| [parseDesktopHostChangeEvent](functions/parseDesktopHostChangeEvent.md)         | Validates a change event pushed by the host.                                                                   |
+| [parseDesktopHostHandshakeResult](functions/parseDesktopHostHandshakeResult.md) | Validates the `handshake` response.                                                                            |
+| [parseDesktopHostOpenResult](functions/parseDesktopHostOpenResult.md)           | Validates the `open` response.                                                                                 |
+| [resolveDesktopHostTransport](functions/resolveDesktopHostTransport.md)         | Re-exported only to keep the export surface symmetric with `@aiao/rxdb-adapter-electron`.                      |

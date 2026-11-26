@@ -28,15 +28,15 @@ Checks whether a reachable commit can be used to create a branch; the three reje
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `commitId` | `string` |
 
 #### Returns
 
 `Promise`&lt;[`WorkingTreeBranchFromCommitCheck`](../../rxdb-plugin-working-tree/type-aliases/WorkingTreeBranchFromCommitCheck.md)&gt;
 
-***
+---
 
 ### checkBranchFromCommitState \{#checkbranchfromcommitstate\}
 
@@ -48,7 +48,7 @@ Defined in: [use-working-tree.ts:87](https://github.com/aiao-io/rxdb/blob/b52320
 
 Phase of the last `checkBranchFromCommit()`; **no empty** — being able to create and the three rejection reasons are all results.
 
-***
+---
 
 ### commit \{#commit\}
 
@@ -62,16 +62,16 @@ Commits **all** uncommitted units in the working tree; CAS failure comes back vi
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `message` | `string` |
+| Parameter | Type                                                                          |
+| --------- | ----------------------------------------------------------------------------- |
+| `message` | `string`                                                                      |
 | `options` | [`CommitOptions`](../../rxdb-plugin-working-tree/interfaces/CommitOptions.md) |
 
 #### Returns
 
 `Promise`&lt;[`CommitResult`](../../rxdb-plugin-working-tree/type-aliases/CommitResult.md)&gt;
 
-***
+---
 
 ### commitChanges \{#commitchanges\}
 
@@ -85,15 +85,15 @@ Reads all change units of one commit.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `commitId` | `string` |
 
 #### Returns
 
 `Promise`&lt;[`CommitChangeSetPage`](../../rxdb-plugin-working-tree/interfaces/CommitChangeSetPage.md)&gt;
 
-***
+---
 
 ### commitChangesState \{#commitchangesstate\}
 
@@ -105,7 +105,7 @@ Defined in: [use-working-tree.ts:75](https://github.com/aiao-io/rxdb/blob/b52320
 
 Phase of a single commit's change set; zero change units (a baseline node) is `empty`.
 
-***
+---
 
 ### commitState \{#commitstate\}
 
@@ -117,7 +117,7 @@ Defined in: [use-working-tree.ts:77](https://github.com/aiao-io/rxdb/blob/b52320
 
 Phase of the last `commit()`; **no empty** — zero uncommitted changes is an `empty_commit` error.
 
-***
+---
 
 ### createBranchFromCommit \{#createbranchfromcommit\}
 
@@ -131,8 +131,8 @@ Creates a branch from a reachable commit, without switching or re-reading status
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `branchId` | `string` |
 | `commitId` | `string` |
 
@@ -140,7 +140,7 @@ Creates a branch from a reachable commit, without switching or re-reading status
 
 `Promise`&lt;[`WorkingTreeCreateBranchFromCommitResult`](../../rxdb-plugin-working-tree/type-aliases/WorkingTreeCreateBranchFromCommitResult.md)&gt;
 
-***
+---
 
 ### createBranchFromCommitState \{#createbranchfromcommitstate\}
 
@@ -152,7 +152,7 @@ Defined in: [use-working-tree.ts:89](https://github.com/aiao-io/rxdb/blob/b52320
 
 Phase of the last `createBranchFromCommit()`; **no empty** — a successful creation and the three rejection reasons are all results.
 
-***
+---
 
 ### diff \{#diff\}
 
@@ -166,15 +166,15 @@ Reads the current branch's uncommitted changes relative to HEAD.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                                            |
+| ---------- | ----------------------------------------------------------------------------------------------- |
 | `options?` | [`WorkingTreeDiffOptions`](../../rxdb-plugin-working-tree/interfaces/WorkingTreeDiffOptions.md) |
 
 #### Returns
 
 `Promise`&lt;[`WorkingTreeDiff`](../../rxdb-plugin-working-tree/interfaces/WorkingTreeDiff.md)&gt;
 
-***
+---
 
 ### diffState \{#diffstate\}
 
@@ -186,7 +186,7 @@ Defined in: [use-working-tree.ts:71](https://github.com/aiao-io/rxdb/blob/b52320
 
 Phase of the uncommitted changes; zero entries is `empty`.
 
-***
+---
 
 ### discard \{#discard\}
 
@@ -200,15 +200,15 @@ Resets the whole working tree back to HEAD; automatically re-reads status once a
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                                            |
+| --------- | ----------------------------------------------------------------------------------------------- |
 | `options` | [`WorkingTreeCredentials`](../../rxdb-plugin-working-tree/interfaces/WorkingTreeCredentials.md) |
 
 #### Returns
 
 `Promise`&lt;[`WorkingTreeDiscardResult`](../../rxdb-plugin-working-tree/type-aliases/WorkingTreeDiscardResult.md)&gt;
 
-***
+---
 
 ### discardState \{#discardstate\}
 
@@ -220,7 +220,7 @@ Defined in: [use-working-tree.ts:79](https://github.com/aiao-io/rxdb/blob/b52320
 
 Phase of the last `discard()`; **no empty** — `discardedCount: 0` is a successful no-op.
 
-***
+---
 
 ### enable \{#enable\}
 
@@ -236,7 +236,7 @@ Enables the commit capability; automatically re-reads status once after success.
 
 `Promise`&lt;[`CommitCapabilityInfo`](../../rxdb-plugin-working-tree/interfaces/CommitCapabilityInfo.md)&gt;
 
-***
+---
 
 ### enableIfEmpty \{#enableifempty\}
 
@@ -252,7 +252,7 @@ Enables automatically when the database is empty and skips when it has content; 
 
 `Promise`&lt;[`WorkingTreeEnableIfEmptyResult`](../../rxdb-plugin-working-tree/type-aliases/WorkingTreeEnableIfEmptyResult.md)&gt;
 
-***
+---
 
 ### enableIfEmptyState \{#enableifemptystate\}
 
@@ -264,7 +264,7 @@ Defined in: [use-working-tree.ts:67](https://github.com/aiao-io/rxdb/blob/b52320
 
 Phase of the last `enableIfEmpty()`; **no empty** — `not_empty` is a result, not "no content".
 
-***
+---
 
 ### enableState \{#enablestate\}
 
@@ -276,7 +276,7 @@ Defined in: [use-working-tree.ts:65](https://github.com/aiao-io/rxdb/blob/b52320
 
 Phase of the last `enable()`.
 
-***
+---
 
 ### isEnabled \{#isenabled\}
 
@@ -292,7 +292,7 @@ Reads whether this database has the commit capability enabled.
 
 `Promise`&lt;`boolean`&gt;
 
-***
+---
 
 ### isEnabledState \{#isenabledstate\}
 
@@ -304,7 +304,7 @@ Defined in: [use-working-tree.ts:63](https://github.com/aiao-io/rxdb/blob/b52320
 
 Whether this database has the commit capability enabled; a `boolean` has no empty form, so there is **no empty phase**.
 
-***
+---
 
 ### listCommits \{#listcommits\}
 
@@ -318,15 +318,15 @@ Reads the reachable commit history of the current branch.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                                |
+| ---------- | ----------------------------------------------------------------------------------- |
 | `options?` | [`CommitLogOptions`](../../rxdb-plugin-working-tree/interfaces/CommitLogOptions.md) |
 
 #### Returns
 
 `Promise`&lt;[`CommitLogPage`](../../rxdb-plugin-working-tree/interfaces/CommitLogPage.md)&gt;
 
-***
+---
 
 ### listCommitsState \{#listcommitsstate\}
 
@@ -338,7 +338,7 @@ Defined in: [use-working-tree.ts:73](https://github.com/aiao-io/rxdb/blob/b52320
 
 Phase of the commit history; an empty history is `empty`.
 
-***
+---
 
 ### restore \{#restore\}
 
@@ -352,16 +352,16 @@ Writes the content of a reachable historical commit back into the working tree; 
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `target` | [`WorkingTreeRestoreTarget`](../../rxdb-plugin-working-tree/interfaces/WorkingTreeRestoreTarget.md) |
-| `options` | [`WorkingTreeCredentials`](../../rxdb-plugin-working-tree/interfaces/WorkingTreeCredentials.md) |
+| Parameter | Type                                                                                                |
+| --------- | --------------------------------------------------------------------------------------------------- |
+| `target`  | [`WorkingTreeRestoreTarget`](../../rxdb-plugin-working-tree/interfaces/WorkingTreeRestoreTarget.md) |
+| `options` | [`WorkingTreeCredentials`](../../rxdb-plugin-working-tree/interfaces/WorkingTreeCredentials.md)     |
 
 #### Returns
 
 `Promise`&lt;[`WorkingTreeRestoreResult`](../../rxdb-plugin-working-tree/type-aliases/WorkingTreeRestoreResult.md)&gt;
 
-***
+---
 
 ### restoreSession \{#restoresession\}
 
@@ -378,10 +378,10 @@ Reads the current branch's unfinished restore session; `null` when there is none
 #### Returns
 
 `Promise`&lt;
-  \| [`WorkingTreeRestoreSessionInfo`](../../rxdb-plugin-working-tree/interfaces/WorkingTreeRestoreSessionInfo.md)
-  \| `null`&gt;
+\| [`WorkingTreeRestoreSessionInfo`](../../rxdb-plugin-working-tree/interfaces/WorkingTreeRestoreSessionInfo.md)
+\| `null`&gt;
 
-***
+---
 
 ### restoreSessionState \{#restoresessionstate\}
 
@@ -395,7 +395,7 @@ Defined in: [use-working-tree.ts:83](https://github.com/aiao-io/rxdb/blob/b52320
 
 Phase of the unfinished restore session; no session is `empty`, **carrying** that `null`.
 
-***
+---
 
 ### restoreState \{#restorestate\}
 
@@ -407,7 +407,7 @@ Defined in: [use-working-tree.ts:81](https://github.com/aiao-io/rxdb/blob/b52320
 
 Phase of the last `restore()`; **no empty** — the four rejection reasons and `restoredCount: 0` are all results.
 
-***
+---
 
 ### status \{#status\}
 
@@ -423,7 +423,7 @@ Reads the working tree summary of the current branch.
 
 `Promise`&lt;[`WorkingTreeStatus`](../../rxdb-plugin-working-tree/interfaces/WorkingTreeStatus.md)&gt;
 
-***
+---
 
 ### statusState \{#statusstate\}
 
@@ -435,7 +435,7 @@ Defined in: [use-working-tree.ts:69](https://github.com/aiao-io/rxdb/blob/b52320
 
 Phase of the working tree summary; a clean working tree is `empty`, **carrying** that status.
 
-***
+---
 
 ### switchBranch \{#switchbranch\}
 
@@ -449,16 +449,16 @@ Switches to another branch; throws `WorkingTreeDirtyError` when rejected by `req
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `branchId` | `string` |
+| Parameter  | Type                                                                                        |
+| ---------- | ------------------------------------------------------------------------------------------- |
+| `branchId` | `string`                                                                                    |
 | `options?` | [`RxDBBranchSwitchPreconditions`](../../rxdb/type-aliases/RxDBBranchSwitchPreconditions.md) |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### switchBranchState \{#switchbranchstate\}
 

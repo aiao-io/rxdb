@@ -13,7 +13,7 @@ Defined in: [packages/rxdb/src/entity/entity-field.utils.ts:293](https://github.
 ### cardinality
 
 ```ts
-cardinality: "single";
+cardinality: 'single';
 ```
 
 ### encrypted
@@ -43,7 +43,7 @@ kind: `${MANY_TO_ONE | ONE_TO_ONE}`;
 #### relation.mutation
 
 ```ts
-mutation: "set-remove";
+mutation: 'set-remove';
 ```
 
 #### relation.writeField

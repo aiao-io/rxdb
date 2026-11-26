@@ -20,7 +20,7 @@ Defined in: [types.ts:226](https://github.com/aiao-io/rxdb/blob/b5232040240cf1cc
 
 The capability tier this page grants to DevTools; the panel disables out-of-scope buttons accordingly.
 
-***
+---
 
 ### dbName \{#dbname\}
 
@@ -32,7 +32,7 @@ Defined in: [types.ts:224](https://github.com/aiao-io/rxdb/blob/b5232040240cf1cc
 
 The name of the observed database.
 
-***
+---
 
 ### entities \{#entities\}
 
@@ -44,7 +44,7 @@ Defined in: [types.ts:228](https://github.com/aiao-io/rxdb/blob/b5232040240cf1cc
 
 The list of entities that are registered and have usable metadata.
 
-***
+---
 
 ### version \{#version\}
 

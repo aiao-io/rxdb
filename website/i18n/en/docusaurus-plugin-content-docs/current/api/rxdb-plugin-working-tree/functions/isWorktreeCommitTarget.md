@@ -10,9 +10,9 @@ Whether it is a commit view.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `target` | [`WorktreeTarget`](../type-aliases/WorktreeTarget.md) | A worktree's HEAD |
+| Parameter | Type                                                  | Description       |
+| --------- | ----------------------------------------------------- | ----------------- |
+| `target`  | [`WorktreeTarget`](../type-aliases/WorktreeTarget.md) | A worktree's HEAD |
 
 ## Returns
 

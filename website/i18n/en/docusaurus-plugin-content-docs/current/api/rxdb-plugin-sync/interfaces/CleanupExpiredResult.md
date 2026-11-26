@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-sync/src/cleanup-expired.ts:59](https://github
 
 The number of cleaned-up records
 
-***
+---
 
 ### removedIds? \{#removedids\}
 

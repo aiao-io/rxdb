@@ -10,16 +10,16 @@ Defers a function to the next microtask queue
 
 ## Type Parameters
 
-| Type Parameter | Default type | Description |
-| ------ | ------ | ------ |
-| <a id="type-parameter-t"></a> `T` | `void` | The type of `this` in the callback |
-| <a id="type-parameter-r"></a> `R` | `void` | The callback's return type |
+| Type Parameter                    | Default type | Description                        |
+| --------------------------------- | ------------ | ---------------------------------- |
+| <a id="type-parameter-t"></a> `T` | `void`       | The type of `this` in the callback |
+| <a id="type-parameter-r"></a> `R` | `void`       | The callback's return type         |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `fn?` | (`this`) => `R` | The function to defer; optional |
+| Parameter | Type            | Description                     |
+| --------- | --------------- | ------------------------------- |
+| `fn?`     | (`this`) => `R` | The function to defer; optional |
 
 ## Returns
 

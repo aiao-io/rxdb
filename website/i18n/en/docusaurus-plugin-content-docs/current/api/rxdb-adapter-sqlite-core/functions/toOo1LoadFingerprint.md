@@ -10,8 +10,8 @@ Computes the [Oo1LoadFingerprint](../interfaces/Oo1LoadFingerprint.md) from load
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                |
+| ---------- | --------------------------------------------------- |
 | `options?` | [`Oo1LoadOptions`](../interfaces/Oo1LoadOptions.md) |
 
 ## Returns

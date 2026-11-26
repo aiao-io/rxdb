@@ -10,9 +10,9 @@ Strips the trailing semicolon and whitespace, to make it easier to decide whethe
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `sql` | `string` | Raw SQL string |
+| Parameter | Type     | Description    |
+| --------- | -------- | -------------- |
+| `sql`     | `string` | Raw SQL string |
 
 ## Returns
 

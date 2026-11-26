@@ -10,9 +10,9 @@ Applies the three-layer authorization to an operation request.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `input` | [`DevToolsAuthorizationInput`](../interfaces/DevToolsAuthorizationInput.md) | The local configuration and the requested domain and operation. |
+| Parameter | Type                                                                        | Description                                                     |
+| --------- | --------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `input`   | [`DevToolsAuthorizationInput`](../interfaces/DevToolsAuthorizationInput.md) | The local configuration and the requested domain and operation. |
 
 ## Returns
 

@@ -1,12 +1,7 @@
 # restoreWorkingTree()
 
 ```ts
-function restoreWorkingTree(
-   executor, 
-   context, 
-   target, 
-   options
-): Promise<WorkingTreeRestoreResult>;
+function restoreWorkingTree(executor, context, target, options): Promise<WorkingTreeRestoreResult>;
 ```
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/restore-command.ts:396](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/restore-command.ts#L396)
@@ -15,12 +10,12 @@ Writes the target commit's contents back into the current working tree as new un
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md) | The executor of the caller's write transaction; this function does **not open its own transaction** |
-| `context` | `CommitWriteContext` | See CommitWriteContext: the entity manager for building entry rows and the codec resolution context |
-| `target` | [`WorkingTreeRestoreTarget`](../interfaces/WorkingTreeRestoreTarget.md) | See [WorkingTreeRestoreTarget](../interfaces/WorkingTreeRestoreTarget.md); default `entities` means the whole commit |
-| `options` | [`WorkingTreeCredentials`](../interfaces/WorkingTreeCredentials.md) | See [WorkingTreeRestoreOptions](../type-aliases/WorkingTreeRestoreOptions.md); the three captured slots are all required |
+| Parameter  | Type                                                                    | Description                                                                                                              |
+| ---------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md)   | The executor of the caller's write transaction; this function does **not open its own transaction**                      |
+| `context`  | `CommitWriteContext`                                                    | See CommitWriteContext: the entity manager for building entry rows and the codec resolution context                      |
+| `target`   | [`WorkingTreeRestoreTarget`](../interfaces/WorkingTreeRestoreTarget.md) | See [WorkingTreeRestoreTarget](../interfaces/WorkingTreeRestoreTarget.md); default `entities` means the whole commit     |
+| `options`  | [`WorkingTreeCredentials`](../interfaces/WorkingTreeCredentials.md)     | See [WorkingTreeRestoreOptions](../type-aliases/WorkingTreeRestoreOptions.md); the three captured slots are all required |
 
 ## Returns
 

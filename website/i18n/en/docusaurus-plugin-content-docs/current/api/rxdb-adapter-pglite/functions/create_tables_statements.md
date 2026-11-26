@@ -1,12 +1,7 @@
 # create_tables_statements()
 
 ```ts
-function create_tables_statements<T>(
-   adapter, 
-   tableSet, 
-   EntityTypes, 
-   entities?
-): Promise<string[]>;
+function create_tables_statements<T>(adapter, tableSet, EntityTypes, entities?): Promise<string[]>;
 ```
 
 Defined in: [packages/rxdb-adapter-pglite/src/table/create\_tables\_sql.ts:76](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-pglite/src/table/create_tables_sql.ts#L76)
@@ -14,6 +9,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/table/create\_tables\_sql.ts:76](h
 Generates the list of creation statements for multiple tables
 
 Sorted by **phase**, rather than creating tables and triggers interleaved in input order:
+
 1. `CREATE SCHEMA` (all non-public namespaces)
 2. All `CREATE TABLE` and `ADD COLUMN`
 3. All indexes and `ADD CONSTRAINT` (foreign keys, range exclusion: must wait until all tables and relation columns exist)
@@ -24,18 +20,18 @@ With interleaved generation, foreign keys would point at tables not yet created 
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                    |
+| ------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `adapter` | [`RxDBAdapterPGlite`](../classes/RxDBAdapterPGlite.md) | PGlite adapter instance |
-| `tableSet` | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md) | - |
-| `EntityTypes` | `T`[] | Array of entity types |
-| `entities?` | `InstanceType`&lt;`T`&gt;[] | Optional array of initial data entities |
+| Parameter     | Type                                                         | Description                             |
+| ------------- | ------------------------------------------------------------ | --------------------------------------- |
+| `adapter`     | [`RxDBAdapterPGlite`](../classes/RxDBAdapterPGlite.md)       | PGlite adapter instance                 |
+| `tableSet`    | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md) | -                                       |
+| `EntityTypes` | `T`[]                                                        | Array of entity types                   |
+| `entities?`   | `InstanceType`&lt;`T`&gt;[]                                  | Optional array of initial data entities |
 
 ## Returns
 

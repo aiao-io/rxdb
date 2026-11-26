@@ -1,5 +1,5 @@
 ---
-sidebar_label: "ErrorResult⟨ErrorDataType⟩"
+sidebar_label: 'ErrorResult⟨ErrorDataType⟩'
 ---
 
 # ErrorResult`<ErrorDataType>`
@@ -10,9 +10,9 @@ An error result.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-errordatatype"></a> `ErrorDataType` | `unknown` |
+| Type Parameter                                            | Default type |
+| --------------------------------------------------------- | ------------ |
+| <a id="type-parameter-errordatatype"></a> `ErrorDataType` | `unknown`    |
 
 ## Properties
 

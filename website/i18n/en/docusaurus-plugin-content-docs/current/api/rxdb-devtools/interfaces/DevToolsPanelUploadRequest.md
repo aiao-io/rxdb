@@ -18,8 +18,8 @@ Constructs the `params` of the `files.upload` request.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter    | Type     |
+| ------------ | -------- |
 | `transferId` | `string` |
 
 #### Returns
@@ -37,7 +37,7 @@ When it throws, `upload()` rejects with it unchanged — that is the caller's wi
 disguised as a protocol error; the registration and timers for this upload are torn down as
 usual and no frames are emitted.
 
-***
+---
 
 ### source \{#source\}
 

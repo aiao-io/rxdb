@@ -1,10 +1,10 @@
 # CodeEditorExtension
 
 ```ts
-type CodeEditorExtension = 
+type CodeEditorExtension =
   | {
-  extension: CodeEditorExtension;
-}
+      extension: CodeEditorExtension;
+    }
   | readonly CodeEditorExtension[];
 ```
 

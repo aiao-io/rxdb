@@ -16,7 +16,7 @@ Defined in: [packages/rxdb/src/query/merge-update.utils.ts:197](https://github.c
 
 Entity IDs that matched the criteria before the update
 
-***
+---
 
 ### matchNowIds \{#matchnowids\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb/src/query/merge-update.utils.ts:195](https://github.c
 
 Entity IDs that match the criteria now
 
-***
+---
 
 ### newlyMatchedIds \{#newlymatchedids\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb/src/query/merge-update.utils.ts:199](https://github.c
 
 Entities that changed from "not matching" to "matching"
 
-***
+---
 
 ### newlyUnmatchedIds \{#newlyunmatchedids\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb/src/query/merge-update.utils.ts:201](https://github.c
 
 Entities that changed from "matching" to "not matching"
 
-***
+---
 
 ### stillMatchedIds \{#stillmatchedids\}
 
@@ -64,7 +64,7 @@ Defined in: [packages/rxdb/src/query/merge-update.utils.ts:203](https://github.c
 
 Entities that matched both before and after the update
 
-***
+---
 
 ### updatedIds \{#updatedids\}
 

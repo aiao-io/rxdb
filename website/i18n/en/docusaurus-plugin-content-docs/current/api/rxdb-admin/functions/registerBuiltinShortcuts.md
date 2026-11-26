@@ -10,15 +10,15 @@ Registers the shell's built-in shortcuts. None of them respond while the screen 
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `shell` | [`AdminShell`](../interfaces/AdminShell.md)&lt;`T`&gt; | The shell. |
+| Parameter | Type                                                   | Description |
+| --------- | ------------------------------------------------------ | ----------- |
+| `shell`   | [`AdminShell`](../interfaces/AdminShell.md)&lt;`T`&gt; | The shell.  |
 
 ## Returns
 

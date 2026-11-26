@@ -126,14 +126,14 @@ Provides `useWorkingTree()`, adapting `@aiao/rxdb-plugin-working-tree`'s `Workin
 
 ## Interfaces
 
-| Interface | Description |
-| ------ | ------ |
-| [WorkingTreeResource](interfaces/WorkingTreeResource.md) | Return value of [useWorkingTree](functions/useWorkingTree.md). |
-| [WorktreesResource](interfaces/WorktreesResource.md) | Checkout entry point returned by [useWorktrees](functions/useWorktrees.md) (read-only checkouts US-313, writable checkouts US-314). |
+| Interface                                                | Description                                                                                                                         |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| [WorkingTreeResource](interfaces/WorkingTreeResource.md) | Return value of [useWorkingTree](functions/useWorkingTree.md).                                                                      |
+| [WorktreesResource](interfaces/WorktreesResource.md)     | Checkout entry point returned by [useWorktrees](functions/useWorktrees.md) (read-only checkouts US-313, writable checkouts US-314). |
 
 ## Functions
 
-| Function | Description |
-| ------ | ------ |
-| [useWorkingTree](functions/useWorkingTree.md) | Reads and writes the working tree of the current database. |
-| [useWorktrees](functions/useWorktrees.md) | Reads and writes the checkouts of the current database (read-only checkouts and writable checkouts); call it in the injection context. |
+| Function                                      | Description                                                                                                                            |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| [useWorkingTree](functions/useWorkingTree.md) | Reads and writes the working tree of the current database.                                                                             |
+| [useWorktrees](functions/useWorktrees.md)     | Reads and writes the checkouts of the current database (read-only checkouts and writable checkouts); call it in the injection context. |

@@ -1,5 +1,5 @@
 ---
-sidebar_label: "UseOptions⟨T⟩"
+sidebar_label: 'UseOptions⟨T⟩'
 ---
 
 # UseOptions`<T>`
@@ -14,8 +14,8 @@ Query options: a static value or a factory function called on each evaluation.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Remarks

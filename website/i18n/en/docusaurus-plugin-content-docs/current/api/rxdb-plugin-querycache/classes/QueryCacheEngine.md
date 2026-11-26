@@ -1,5 +1,5 @@
 ---
-sidebar_label: "QueryCacheEngine⟨T⟩"
+sidebar_label: 'QueryCacheEngine⟨T⟩'
 ---
 
 # QueryCacheEngine`<T>`
@@ -32,9 +32,9 @@ Constructing this class directly is not part of the 1.0 compatibility promise; t
 
 ## Type Parameters
 
-| Type Parameter | Default type | Description |
-| ------ | ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityBaseType`](../../rxdb/type-aliases/EntityBaseType.md) | [`EntityBaseType`](../../rxdb/type-aliases/EntityBaseType.md) | Entity type |
+| Type Parameter                                                                                            | Default type                                                  | Description |
+| --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- | ----------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityBaseType`](../../rxdb/type-aliases/EntityBaseType.md) | [`EntityBaseType`](../../rxdb/type-aliases/EntityBaseType.md) | Entity type |
 
 ## Constructors
 
@@ -42,10 +42,10 @@ Constructing this class directly is not part of the 1.0 compatibility promise; t
 
 ```ts
 new QueryCacheEngine<T>(
-   entityName, 
-   remoteAdapter, 
-   localAdapter, 
-   localReader, 
+   entityName,
+   remoteAdapter,
+   localAdapter,
+   localReader,
    pendingWriteIds
 ): QueryCacheEngine<T>;
 ```
@@ -56,13 +56,13 @@ Defined in: [rxdb-plugin-querycache/src/QueryCacheEngine.ts:214](https://github.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entityName` | `string` | Entity name |
-| `remoteAdapter` | [`QueryCacheRemoteAdapter`](../../rxdb/interfaces/QueryCacheRemoteAdapter.md) | Remote adapter |
-| `localAdapter` | [`QueryCacheLocalAdapter`](../../rxdb/interfaces/QueryCacheLocalAdapter.md) | Local adapter, responsible for the write side (upsert / delete) and single-entity metadata |
-| `localReader` | [`QueryCacheLocalReader`](../../rxdb/interfaces/QueryCacheLocalReader.md)&lt;`InstanceType`&lt;`T`&gt;&gt; | Local row read outlet, usually the entity's local `IRepository` (US-020 D8) |
-| `pendingWriteIds` | [`QueryCachePendingWriteIds`](../../rxdb/type-aliases/QueryCachePendingWriteIds.md) | Which ids the outbound queue currently holds; queried once before each sync round's writes |
+| Parameter         | Type                                                                                                       | Description                                                                                |
+| ----------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `entityName`      | `string`                                                                                                   | Entity name                                                                                |
+| `remoteAdapter`   | [`QueryCacheRemoteAdapter`](../../rxdb/interfaces/QueryCacheRemoteAdapter.md)                              | Remote adapter                                                                             |
+| `localAdapter`    | [`QueryCacheLocalAdapter`](../../rxdb/interfaces/QueryCacheLocalAdapter.md)                                | Local adapter, responsible for the write side (upsert / delete) and single-entity metadata |
+| `localReader`     | [`QueryCacheLocalReader`](../../rxdb/interfaces/QueryCacheLocalReader.md)&lt;`InstanceType`&lt;`T`&gt;&gt; | Local row read outlet, usually the entity's local `IRepository` (US-020 D8)                |
+| `pendingWriteIds` | [`QueryCachePendingWriteIds`](../../rxdb/type-aliases/QueryCachePendingWriteIds.md)                        | Which ids the outbound queue currently holds; queried once before each sync round's writes |
 
 #### Returns
 
@@ -97,6 +97,7 @@ Defined in: [rxdb-plugin-querycache/src/QueryCacheEngine.ts:414](https://github.
 Creates an entity
 
 Executes the remote-first write strategy:
+
 1. Write to the remote database
 2. After remote success, cache the returned data locally
 3. Return the complete server-generated entity (may include server-generated id/updatedAt)
@@ -105,9 +106,9 @@ When a later-sent write on the same id has already landed in the cache, this ack
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `data` | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; | Entity data to create |
+| Parameter | Type                                       | Description           |
+| --------- | ------------------------------------------ | --------------------- |
+| `data`    | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; | Entity data to create |
 
 #### Returns
 
@@ -122,11 +123,10 @@ Throws when the remote write fails; nothing is written locally
 #### Example
 
 ```typescript
-repo.create({ name: 'New Product', price: 99 })
-  .subscribe();
+repo.create({ name: 'New Product', price: 99 }).subscribe();
 ```
 
-***
+---
 
 ### delete() \{#delete\}
 
@@ -141,6 +141,7 @@ Defined in: [rxdb-plugin-querycache/src/QueryCacheEngine.ts:482](https://github.
 Deletes entities
 
 Executes the remote-first write strategy:
+
 1. Delete from the remote database
 2. After remote success, delete from the local cache
 
@@ -148,9 +149,9 @@ Only clears ids still led by this delete: where a later-sent write on the same i
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `ids` | `string` \| `string`[] | Entity ID or array of IDs to delete |
+| Parameter | Type                   | Description                         |
+| --------- | ---------------------- | ----------------------------------- |
+| `ids`     | `string` \| `string`[] | Entity ID or array of IDs to delete |
 
 #### Returns
 
@@ -169,7 +170,7 @@ repo.delete('product-123').subscribe();
 repo.delete(['p1', 'p2', 'p3']).subscribe();
 ```
 
-***
+---
 
 ### find() \{#find\}
 
@@ -184,6 +185,7 @@ Defined in: [rxdb-plugin-querycache/src/QueryCacheEngine.ts:256](https://github.
 Queries a list of entities
 
 Executes the QueryCache sync flow:
+
 1. fetchMetadata → fetch remote metadata
 2. getMetadataByIds → fetch local metadata
 3. diffMetadata → compare to derive the IDs to pull
@@ -192,14 +194,15 @@ Executes the QueryCache sync flow:
 6. return the merged result
 
 When `localCacheFirst: true` (SWR mode):
+
 1. Immediately return the local cache (if any)
 2. Run the sync flow above in the background
 3. If data changed, emit the updated result
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                                 | Description   |
+| --------- | ------------------------------------------------------------------------------------ | ------------- |
 | `options` | [`QueryCacheFindOptions`](../../rxdb/interfaces/QueryCacheFindOptions.md)&lt;`T`&gt; | Query options |
 
 #### Returns
@@ -222,7 +225,7 @@ repo.find({ where: { ... }, localCacheFirst: true })
   });
 ```
 
-***
+---
 
 ### findById() \{#findbyid\}
 
@@ -238,9 +241,9 @@ Queries a single entity by ID
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `id` | [`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | Entity ID |
+| Parameter | Type                                                                                     | Description |
+| --------- | ---------------------------------------------------------------------------------------- | ----------- |
+| `id`      | [`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | Entity ID   |
 
 #### Returns
 
@@ -251,11 +254,10 @@ Queries a single entity by ID
 #### Example
 
 ```typescript
-repo.findById('product-123')
-  .subscribe();
+repo.findById('product-123').subscribe();
 ```
 
-***
+---
 
 ### invalidateInflight() \{#invalidateinflight\}
 
@@ -281,7 +283,7 @@ Only clears the concurrency dedup table and does **not cancel** existing subscri
 
 The local write path **must** call it too (RV-053): the earlier implementation assumed "the remote was already written by this repository itself, so what in-flight queries ask for is the post-write state" and skipped the local write; re-verification disproved this timing assumption — an in-flight `findByIds` may have been sent before the write, with delivery landing after the write confirmation, carrying the old snapshot.
 
-***
+---
 
 ### supersedeInflightWrites() \{#supersedeinflightwrites\}
 
@@ -297,9 +299,9 @@ Declares that these ids just landed a local write that bypassed the remote (offl
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `ids` | readonly `string`[] | IDs of entities just written locally |
+| Parameter | Type                | Description                          |
+| --------- | ------------------- | ------------------------------------ |
+| `ids`     | readonly `string`[] | IDs of entities just written locally |
 
 #### Returns
 
@@ -311,7 +313,7 @@ This local write is ordered after all previously sent online writes: late acknow
 
 On the production path, called by the QueryCache primary repository before every offline write; callers that use this class directly and land local writes themselves must call it too.
 
-***
+---
 
 ### update() \{#update\}
 
@@ -326,6 +328,7 @@ Defined in: [rxdb-plugin-querycache/src/QueryCacheEngine.ts:450](https://github.
 Updates an entity
 
 Executes the remote-first write strategy:
+
 1. Update the remote database
 2. After remote success, cache the returned data locally (using the latest server-returned updatedAt)
 3. Return the complete updated entity
@@ -334,10 +337,10 @@ When a later-sent write on the same id has already landed in the cache, this ack
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `id` | `string` | Entity ID |
-| `data` | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; | Fields to update |
+| Parameter | Type                                       | Description      |
+| --------- | ------------------------------------------ | ---------------- |
+| `id`      | `string`                                   | Entity ID        |
+| `data`    | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; | Fields to update |
 
 #### Returns
 
@@ -352,6 +355,5 @@ Throws when the remote update fails; nothing is updated locally
 #### Example
 
 ```typescript
-repo.update('product-123', { price: 199 })
-  .subscribe();
+repo.update('product-123', { price: 199 }).subscribe();
 ```

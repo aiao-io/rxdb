@@ -10,9 +10,9 @@ Lightweight check: does this string "look like" an envelope, without decoding it
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `text` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `text`    | `unknown` |
 
 ## Returns
 

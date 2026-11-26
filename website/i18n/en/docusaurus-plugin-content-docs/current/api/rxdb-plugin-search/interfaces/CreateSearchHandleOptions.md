@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-search/src/core/search-handle.ts:55](https://g
 
 Debounce (ms), default 300; 0 → pass-through
 
-***
+---
 
 ### initialQuery? \{#initialquery\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-search/src/core/search-handle.ts:57](https://g
 
 Initial query; triggers one immediate loading
 
-***
+---
 
 ### isSearchableQuery? \{#issearchablequery\}
 
@@ -42,15 +42,15 @@ Determines before entering loading whether the query contains any indexable toke
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `query` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `query`   | `string` |
 
 #### Returns
 
 `boolean`
 
-***
+---
 
 ### performSearch \{#performsearch\}
 
@@ -62,7 +62,7 @@ Defined in: [packages/rxdb-plugin-search/src/core/search-handle.ts:49](https://g
 
 Underlying search execution
 
-***
+---
 
 ### querySource? \{#querysource\}
 
@@ -74,7 +74,7 @@ Defined in: [packages/rxdb-plugin-search/src/core/search-handle.ts:53](https://g
 
 External query term stream; errors go into [SearchHandle.error$](SearchHandle.md#error), and the handle remains usable imperatively after completion.
 
-***
+---
 
 ### refreshAuditMs? \{#refreshauditms\}
 
@@ -90,7 +90,7 @@ Coalescing window (ms) for re-queries on data changes, default 80; `0` → pass 
 
 Data changes go through a pass-through channel that bypasses `debounceMs` (this is by design), but **bypassing debounce does not mean no throttling**: one re-query expands into `collections × fields` concurrent `rawQuery` calls, and a bulk import producing hundreds of entity events means thousands of SQL statements flooding the single-threaded sqlite-wasm worker. Multiple changes within the window are coalesced into one re-query.
 
-***
+---
 
 ### subscribeDataChanges? \{#subscribedatachanges\}
 
@@ -106,8 +106,8 @@ The implementation should filter so that only collections within the plugin's co
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type         |
+| ---------- | ------------ |
 | `onChange` | () => `void` |
 
 #### Returns

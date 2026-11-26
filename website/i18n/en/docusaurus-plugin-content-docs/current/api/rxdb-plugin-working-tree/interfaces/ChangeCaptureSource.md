@@ -24,7 +24,7 @@ Which branch the change is recorded under, from `rxdb_change.branchId`; absent f
 
 Capture uses it to verify "this change is indeed recorded on this instance's current branch" (US-314 B1.4).
 
-***
+---
 
 ### entity \{#entity\}
 
@@ -36,7 +36,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/capture-runtime.
 
 The entity name
 
-***
+---
 
 ### entityId \{#entityid\}
 
@@ -48,7 +48,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/capture-runtime.
 
 The entity primary key
 
-***
+---
 
 ### id \{#id\}
 
@@ -60,7 +60,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/capture-runtime.
 
 `rxdb_change.id`; pass `null` for a not-yet-persisted change
 
-***
+---
 
 ### inversePatch \{#inversepatch\}
 
@@ -72,7 +72,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/capture-runtime.
 
 The inverse patch
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -84,7 +84,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/capture-runtime.
 
 The entity namespace
 
-***
+---
 
 ### patch \{#patch\}
 
@@ -96,7 +96,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/capture-runtime.
 
 The forward patch
 
-***
+---
 
 ### transactionId \{#transactionid\}
 
@@ -108,7 +108,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/capture-runtime.
 
 The transaction id that produced this change
 
-***
+---
 
 ### type \{#type\}
 

@@ -10,16 +10,16 @@ Bridges an entity's patch stream into React rendering so in-place mutations refl
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* `unknown` | Entity instance type |
+| Type Parameter                                        | Description          |
+| ----------------------------------------------------- | -------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ `unknown` | Entity instance type |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `T` \| `undefined` | The entity instance to observe; no subscription is created while it is `undefined` |
-| `options?` | [`EntityChangeOptions`](../interfaces/EntityChangeOptions.md) | See [EntityChangeOptions](../interfaces/EntityChangeOptions.md) |
+| Parameter  | Type                                                          | Description                                                                        |
+| ---------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `entity`   | `T` \| `undefined`                                            | The entity instance to observe; no subscription is created while it is `undefined` |
+| `options?` | [`EntityChangeOptions`](../interfaces/EntityChangeOptions.md) | See [EntityChangeOptions](../interfaces/EntityChangeOptions.md)                    |
 
 ## Returns
 

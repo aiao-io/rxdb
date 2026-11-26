@@ -19,10 +19,10 @@ Maximum number of items per push
 #### Default
 
 ```ts
-1000
+1000;
 ```
 
-***
+---
 
 ### repositoryFilter? \{#repositoryfilter\}
 
@@ -38,9 +38,9 @@ Only pushes changes of the specified entities
 #### Examples
 
 ```ts
-['Todo', 'User']
+['Todo', 'User'];
 ```
 
 ```ts
-[{ namespace: 'public', entity: 'Todo' }]
+[{ namespace: 'public', entity: 'Todo' }];
 ```

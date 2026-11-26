@@ -19,10 +19,10 @@ Concurrency limit (only effective when concurrent=true)
 #### Default
 
 ```ts
-3
+3;
 ```
 
-***
+---
 
 ### concurrent? \{#concurrent\}
 
@@ -37,10 +37,10 @@ Whether to run concurrently
 #### Default
 
 ```ts
-false
+false;
 ```
 
-***
+---
 
 ### operation? \{#operation\}
 
@@ -55,10 +55,10 @@ The sync operation type
 #### Default
 
 ```ts
-'sync'
+'sync';
 ```
 
-***
+---
 
 ### pull? \{#pull\}
 
@@ -70,7 +70,7 @@ Defined in: [packages/rxdb-plugin-sync/src/bulk-sync.ts:42](https://github.com/a
 
 Pull options (applied to all repositories)
 
-***
+---
 
 ### push? \{#push\}
 
@@ -82,7 +82,7 @@ Defined in: [packages/rxdb-plugin-sync/src/bulk-sync.ts:47](https://github.com/a
 
 Push options (applied to all repositories)
 
-***
+---
 
 ### repositories? \{#repositories\}
 

@@ -20,7 +20,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/restore-precheck
 
 The target entity name
 
-***
+---
 
 ### entityId \{#entityid\}
 
@@ -32,7 +32,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/restore-precheck
 
 The target row's primary key value
 
-***
+---
 
 ### namespace \{#namespace\}
 

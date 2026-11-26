@@ -10,8 +10,8 @@ Minimal factory shape exposed by the upstream example VFS modules.
 
 ```ts
 create(
-   name, 
-   module, 
+   name,
+   module,
    options?
 ): SQLiteVFS | Promise<SQLiteVFS>;
 ```
@@ -20,10 +20,10 @@ Defined in: [packages/rxdb-adapter-wa-sqlite/src/sqlite-load.utils.ts:20](https:
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `name` | `string` |
-| `module` | `unknown` |
+| Parameter  | Type      |
+| ---------- | --------- |
+| `name`     | `string`  |
+| `module`   | `unknown` |
 | `options?` | `unknown` |
 
 #### Returns

@@ -1,5 +1,5 @@
 ---
-sidebar_label: "EntityChangeResource⟨T⟩"
+sidebar_label: 'EntityChangeResource⟨T⟩'
 ---
 
 # EntityChangeResource`<T>`
@@ -10,8 +10,8 @@ Result of bridging entity patches into React rendering.
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                    | Description          |
+| --------------------------------- | -------------------- |
 | <a id="type-parameter-t"></a> `T` | Entity instance type |
 
 ## Properties
@@ -26,7 +26,7 @@ Defined in: [rxdb-react/src/use-entity-change.ts:46](https://github.com/aiao-io/
 
 Error of the patch stream; reset when the entity or time window changes.
 
-***
+---
 
 ### revision \{#revision\}
 
@@ -38,7 +38,7 @@ Defined in: [rxdb-react/src/use-entity-change.ts:48](https://github.com/aiao-io/
 
 Number of patches received, starting from `0`; intended for debugging and test assertions.
 
-***
+---
 
 ### value \{#value\}
 

@@ -10,8 +10,8 @@ Provides the runtime to descendant components; destruction is the caller's respo
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                      | Description                  |
+| --------- | ----------------------------------------- | ---------------------------- |
 | `runtime` | [`I18n`](../../rxdb-i18n/classes/I18n.md) | The already created runtime. |
 
 ## Returns

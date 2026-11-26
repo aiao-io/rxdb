@@ -10,9 +10,9 @@ FTS5 column filter expression: `<field> : (<compiled.match>)`
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `field` | `string` |
+| Parameter  | Type            |
+| ---------- | --------------- |
+| `field`    | `string`        |
 | `compiled` | `CompiledQuery` |
 
 ## Returns

@@ -20,7 +20,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/working-tree-pat
 
 The target entity name
 
-***
+---
 
 ### namespace \{#namespace\}
 

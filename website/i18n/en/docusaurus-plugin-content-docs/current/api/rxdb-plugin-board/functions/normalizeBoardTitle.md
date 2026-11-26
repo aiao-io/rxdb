@@ -10,9 +10,9 @@ Valid title after trimming surrounding whitespace; returns `null` for an empty o
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `raw` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `raw`     | `unknown` |
 
 ## Returns
 

@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model/src/entity-list/list-view.ts:11](https://github
 
 The user-specified field order; the remaining fields are appended in model declaration order.
 
-***
+---
 
 ### groupBy \{#groupby\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-model/src/entity-list/list-view.ts:17](https://github
 
 The grouping field; null means a flat display.
 
-***
+---
 
 ### hiddenFields \{#hiddenfields\}
 
@@ -40,12 +40,12 @@ Defined in: [packages/rxdb-model/src/entity-list/list-view.ts:13](https://github
 
 The hidden data fields; the actions column and selection column are always kept.
 
-***
+---
 
 ### sorts \{#sorts\}
 
 ```ts
-sorts: OrderBy<string>[];
+sorts: (OrderBy < string) > [];
 ```
 
 Defined in: [packages/rxdb-model/src/entity-list/list-view.ts:15](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model/src/entity-list/list-view.ts#L15)

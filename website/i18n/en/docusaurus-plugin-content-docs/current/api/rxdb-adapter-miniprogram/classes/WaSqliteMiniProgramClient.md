@@ -32,8 +32,8 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/create-client.ts:91](https://
 
 ```ts
 addEventListener<T>(
-   type, 
-   listener, 
+   type,
+   listener,
    owner?
 ): void;
 ```
@@ -44,17 +44,17 @@ Registers a change listener.
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* keyof `WaSqliteClientEvents` |
+| Type Parameter                                                           |
+| ------------------------------------------------------------------------ |
+| <a id="type-parameter-t"></a> `T` _extends_ keyof `WaSqliteClientEvents` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `type` | `T` | The change type |
-| `listener` | [`EventListener`](../../utils/type-aliases/EventListener.md)&lt;`WaSqliteClientEvents`\[`T`\]&gt; | The listener |
-| `owner?` | `string` | The owner that registers it; when given, it is removed together on release ([WaSqliteClientBase.release](../../rxdb-adapter-wa-sqlite/classes/SqliteClient.md#release)) |
+| Parameter  | Type                                                                                              | Description                                                                                                                                                             |
+| ---------- | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `type`     | `T`                                                                                               | The change type                                                                                                                                                         |
+| `listener` | [`EventListener`](../../utils/type-aliases/EventListener.md)&lt;`WaSqliteClientEvents`\[`T`\]&gt; | The listener                                                                                                                                                            |
+| `owner?`   | `string`                                                                                          | The owner that registers it; when given, it is removed together on release ([WaSqliteClientBase.release](../../rxdb-adapter-wa-sqlite/classes/SqliteClient.md#release)) |
 
 #### Returns
 
@@ -64,7 +64,7 @@ Registers a change listener.
 
 `WaSqliteClientBase.addEventListener`
 
-***
+---
 
 ### beginSystemMigrationTransactionSql() \{#beginsystemmigrationtransactionsql\}
 
@@ -84,7 +84,7 @@ Gets the strongest lock statement required by system migration transactions.
 
 `WaSqliteClientBase.beginSystemMigrationTransactionSql`
 
-***
+---
 
 ### beginTransactionSql() \{#begintransactionsql\}
 
@@ -104,7 +104,7 @@ Gets the transaction-begin statement required by the current VFS.
 
 `WaSqliteClientBase.beginTransactionSql`
 
-***
+---
 
 ### describeBlankDatabase() \{#describeblankdatabase\}
 
@@ -130,7 +130,7 @@ Error when the client is not ready
 
 `WaSqliteClientBase.describeBlankDatabase`
 
-***
+---
 
 ### disconnect() \{#disconnect\}
 
@@ -150,7 +150,7 @@ Waits for existing tasks to finish and closes the database and the VFS; once clo
 
 `WaSqliteClientBase.disconnect`
 
-***
+---
 
 ### dispatchEvent() \{#dispatchevent\}
 
@@ -167,16 +167,16 @@ this round of iteration (otherwise a single synchronous dispatch could be extend
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-1"></a> `T` *extends* keyof `WaSqliteClientEvents` |
+| Type Parameter                                                             |
+| -------------------------------------------------------------------------- |
+| <a id="type-parameter-t-1"></a> `T` _extends_ keyof `WaSqliteClientEvents` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `type` | `T` | The event name |
-| `data` | `WaSqliteClientEvents`\[`T`\] | The event data |
+| Parameter | Type                          | Description    |
+| --------- | ----------------------------- | -------------- |
+| `type`    | `T`                           | The event name |
+| `data`    | `WaSqliteClientEvents`\[`T`\] | The event data |
 
 #### Returns
 
@@ -190,7 +190,7 @@ Any exception thrown by a listener, bubbled up unchanged; subsequent listeners d
 
 `WaSqliteClientBase.dispatchEvent`
 
-***
+---
 
 ### execute() \{#execute\}
 
@@ -204,9 +204,9 @@ Executes SQL serially.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `sql` | `string` |
+| Parameter   | Type                                                                                            |
+| ----------- | ----------------------------------------------------------------------------------------------- |
+| `sql`       | `string`                                                                                        |
 | `bindings?` | [`SQLiteCompatibleType`](../../rxdb-adapter-sqlite-core/type-aliases/SQLiteCompatibleType.md)[] |
 
 #### Returns
@@ -217,7 +217,7 @@ Executes SQL serially.
 
 `WaSqliteClientBase.execute`
 
-***
+---
 
 ### hasEventListener() \{#haseventlistener\}
 
@@ -231,16 +231,16 @@ Checks whether a listener is registered. Does not create a set for unknown event
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-2"></a> `T` *extends* keyof `WaSqliteClientEvents` |
+| Type Parameter                                                             |
+| -------------------------------------------------------------------------- |
+| <a id="type-parameter-t-2"></a> `T` _extends_ keyof `WaSqliteClientEvents` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `type` | `T` | The event name |
-| `listener` | [`EventListener`](../../utils/type-aliases/EventListener.md)&lt;`WaSqliteClientEvents`\[`T`\]&gt; | The listener |
+| Parameter  | Type                                                                                              | Description    |
+| ---------- | ------------------------------------------------------------------------------------------------- | -------------- |
+| `type`     | `T`                                                                                               | The event name |
+| `listener` | [`EventListener`](../../utils/type-aliases/EventListener.md)&lt;`WaSqliteClientEvents`\[`T`\]&gt; | The listener   |
 
 #### Returns
 
@@ -252,14 +252,14 @@ Whether it is registered
 
 `WaSqliteClientBase.hasEventListener`
 
-***
+---
 
 ### init() \{#init\}
 
 ```ts
 init(
-   dbName, 
-   options, 
+   dbName,
+   options,
    owner?
 ): Promise<void>;
 ```
@@ -270,11 +270,11 @@ Initializes the database. Repeatable for the same identity; conflicting configs 
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `dbName` | `string` | The database name |
-| `options` | [`WaSqliteMiniProgramAdapterOptions`](../type-aliases/WaSqliteMiniProgramAdapterOptions.md) | The platform load config |
-| `owner?` | `string` | The owner key: on a SharedWorker each tab's adapter gives its own, and release uses it ([WaSqliteClientBase.release](../../rxdb-adapter-wa-sqlite/classes/SqliteClient.md#release)) |
+| Parameter | Type                                                                                        | Description                                                                                                                                                                         |
+| --------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dbName`  | `string`                                                                                    | The database name                                                                                                                                                                   |
+| `options` | [`WaSqliteMiniProgramAdapterOptions`](../type-aliases/WaSqliteMiniProgramAdapterOptions.md) | The platform load config                                                                                                                                                            |
+| `owner?`  | `string`                                                                                    | The owner key: on a SharedWorker each tab's adapter gives its own, and release uses it ([WaSqliteClientBase.release](../../rxdb-adapter-wa-sqlite/classes/SqliteClient.md#release)) |
 
 #### Returns
 
@@ -284,7 +284,7 @@ Initializes the database. Repeatable for the same identity; conflicting configs 
 
 `WaSqliteClientBase.init`
 
-***
+---
 
 ### release() \{#release\}
 
@@ -298,9 +298,9 @@ One owner exits: removes the listeners it registered with its key, and hands bac
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `owner` | `string` | The owner key given at `init`; one that never held or already handed back only has its listeners removed |
+| Parameter | Type     | Description                                                                                              |
+| --------- | -------- | -------------------------------------------------------------------------------------------------------- |
+| `owner`   | `string` | The owner key given at `init`; one that never held or already handed back only has its listeners removed |
 
 #### Returns
 
@@ -316,7 +316,7 @@ Listeners coming in over Comlink are proxies newly created inside the worker; re
 
 `WaSqliteClientBase.release`
 
-***
+---
 
 ### removeAllEventListeners() \{#removealleventlisteners\}
 
@@ -336,7 +336,7 @@ Clears all listeners under every event name.
 
 `WaSqliteClientBase.removeAllEventListeners`
 
-***
+---
 
 ### removeEventListener() \{#removeeventlistener\}
 
@@ -352,16 +352,16 @@ If removed during `dispatchEvent`, the removed listener **still receives** the c
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-3"></a> `T` *extends* keyof `WaSqliteClientEvents` |
+| Type Parameter                                                             |
+| -------------------------------------------------------------------------- |
+| <a id="type-parameter-t-3"></a> `T` _extends_ keyof `WaSqliteClientEvents` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `type` | `T` | The event name |
-| `listener` | [`EventListener`](../../utils/type-aliases/EventListener.md)&lt;`WaSqliteClientEvents`\[`T`\]&gt; | The listener |
+| Parameter  | Type                                                                                              | Description    |
+| ---------- | ------------------------------------------------------------------------------------------------- | -------------- |
+| `type`     | `T`                                                                                               | The event name |
+| `listener` | [`EventListener`](../../utils/type-aliases/EventListener.md)&lt;`WaSqliteClientEvents`\[`T`\]&gt; | The listener   |
 
 #### Returns
 
@@ -371,7 +371,7 @@ If removed during `dispatchEvent`, the removed listener **still receives** the c
 
 `WaSqliteClientBase.removeEventListener`
 
-***
+---
 
 ### rollbackOrphanTransaction() \{#rollbackorphantransaction\}
 
@@ -402,7 +402,7 @@ The caller must hold the cross-tab lock, otherwise it might roll back a transact
 
 `WaSqliteClientBase.rollbackOrphanTransaction`
 
-***
+---
 
 ### setChangeEventsMuted() \{#setchangeeventsmuted\}
 
@@ -416,9 +416,9 @@ Pauses / resumes change event collection.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `muted` | `boolean` | When `true` the update hook ignores writes outright — no batching, no dispatch |
+| Parameter | Type      | Description                                                                    |
+| --------- | --------- | ------------------------------------------------------------------------------ |
+| `muted`   | `boolean` | When `true` the update hook ignores writes outright — no batching, no dispatch |
 
 #### Returns
 
@@ -432,7 +432,7 @@ Muting applies to the whole client, not per owner; SharedWorker transport does n
 
 `WaSqliteClientBase.setChangeEventsMuted`
 
-***
+---
 
 ### version() \{#version\}
 

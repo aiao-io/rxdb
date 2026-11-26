@@ -33,7 +33,7 @@ Defined in: [packages/rxdb-plugin-replay/src/entities.ts:45](https://github.com/
 
 Sum of the `bytes` of event rows already stored.
 
-***
+---
 
 ### eventCount \{#eventcount\}
 
@@ -45,7 +45,7 @@ Defined in: [packages/rxdb-plugin-replay/src/entities.ts:43](https://github.com/
 
 Number of event rows already stored (including markers).
 
-***
+---
 
 ### id \{#id\}
 
@@ -57,7 +57,7 @@ Defined in: [packages/rxdb-plugin-replay/src/entities.ts:34](https://github.com/
 
 Primary key, `crypto.randomUUID()` at `start()`.
 
-***
+---
 
 ### lastEventAt \{#lasteventat\}
 
@@ -69,7 +69,7 @@ Defined in: [packages/rxdb-plugin-replay/src/entities.ts:38](https://github.com/
 
 The largest event timestamp in the last batch successfully stored; `null` when there are no events yet.
 
-***
+---
 
 ### nextSeq \{#nextseq\}
 
@@ -81,7 +81,7 @@ Defined in: [packages/rxdb-plugin-replay/src/entities.ts:47](https://github.com/
 
 Lower bound of the `seq` of the next event to be stored.
 
-***
+---
 
 ### startedAt \{#startedat\}
 
@@ -93,7 +93,7 @@ Defined in: [packages/rxdb-plugin-replay/src/entities.ts:36](https://github.com/
 
 The moment of `start()`.
 
-***
+---
 
 ### status \{#status\}
 
@@ -103,7 +103,7 @@ status: ReplaySessionStatus;
 
 Defined in: [packages/rxdb-plugin-replay/src/entities.ts:39](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-replay/src/entities.ts#L39)
 
-***
+---
 
 ### truncatedCode \{#truncatedcode\}
 

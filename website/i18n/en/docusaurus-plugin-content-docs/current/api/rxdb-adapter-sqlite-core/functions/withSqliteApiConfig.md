@@ -13,16 +13,16 @@ this function guarantees that multiple concurrent loads do not overwrite each ot
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `config` | `Record`&lt;`string`, `unknown`&gt; | Fields to merge into the existing configuration |
-| `run` | () => `Promise`&lt;`T`&gt; | Async function to execute while the configuration is in effect |
+| Parameter | Type                                | Description                                                    |
+| --------- | ----------------------------------- | -------------------------------------------------------------- |
+| `config`  | `Record`&lt;`string`, `unknown`&gt; | Fields to merge into the existing configuration                |
+| `run`     | () => `Promise`&lt;`T`&gt;          | Async function to execute while the configuration is in effect |
 
 ## Returns
 

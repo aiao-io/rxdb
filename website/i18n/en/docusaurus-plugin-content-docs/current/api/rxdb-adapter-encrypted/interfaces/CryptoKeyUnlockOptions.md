@@ -22,7 +22,7 @@ Defined in: [packages/rxdb-adapter-encrypted/src/keyring.ts:60](https://github.c
 
 `UnlockLifecycleOptions.idleTimeoutMs`
 
-***
+---
 
 ### key \{#key\}
 
@@ -32,7 +32,7 @@ key: CryptoKey;
 
 Defined in: [packages/rxdb-adapter-encrypted/src/keyring.ts:71](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-encrypted/src/keyring.ts#L71)
 
-***
+---
 
 ### legacyEnvelopePolicy? \{#legacyenvelopepolicy\}
 

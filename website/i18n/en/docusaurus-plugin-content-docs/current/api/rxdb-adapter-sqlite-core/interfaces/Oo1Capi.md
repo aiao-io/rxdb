@@ -10,8 +10,8 @@ Minimal contract of `sqlite3.capi`: only the part needed to register the update 
 
 ```ts
 sqlite3_update_hook(
-   db, 
-   xUpdate, 
+   db,
+   xUpdate,
    userCtx
 ): number;
 ```
@@ -20,11 +20,11 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/oo1-types.ts:63](https://gith
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `db` | `number` \| [`Oo1Database`](Oo1Database.md) |
+| Parameter | Type                                                           |
+| --------- | -------------------------------------------------------------- |
+| `db`      | `number` \| [`Oo1Database`](Oo1Database.md)                    |
 | `xUpdate` | (`userCtx`, `op`, `dbName`, `tableName`, `newRowId`) => `void` |
-| `userCtx` | `number` |
+| `userCtx` | `number`                                                       |
 
 #### Returns
 

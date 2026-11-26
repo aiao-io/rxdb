@@ -27,7 +27,7 @@ Same meaning as the wasm adapters' option of the same name: consecutive writes w
 merge into one dispatch. Tune it down to reduce response latency, up to reduce wakeups; regardless
 of the setting, one batch accumulates at most `MAX_BATCH_WAIT_MS`.
 
-***
+---
 
 ### databaseName? \{#databasename\}
 
@@ -46,7 +46,7 @@ within the app scope**, not a path; only the host knows the physical location (A
 explicitly only when taking over an existing database, or when multiple RxDB instances share the
 same file.
 
-***
+---
 
 ### repositories? \{#repositories\}
 
@@ -60,7 +60,7 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/sqlite-core.types.d.ts:92
 
 [`SqliteBaseOptions`](../../rxdb-adapter-sqlite-core/interfaces/SqliteBaseOptions.md).[`repositories`](../../rxdb-adapter-sqlite-core/interfaces/SqliteBaseOptions.md#repositories)
 
-***
+---
 
 ### transport? \{#transport\}
 

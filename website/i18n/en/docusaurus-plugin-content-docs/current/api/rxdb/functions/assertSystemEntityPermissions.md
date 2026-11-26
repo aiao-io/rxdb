@@ -10,8 +10,8 @@ Asserts that all three write operations of every system table are declared as `'
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter        | Type                                                     | Description                                                                               |
+| ---------------- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | `systemEntities` | readonly [`EntityType`](../type-aliases/EntityType.md)[] | The list of system tables for this instance (the four core tables + plugin contributions) |
 
 ## Returns

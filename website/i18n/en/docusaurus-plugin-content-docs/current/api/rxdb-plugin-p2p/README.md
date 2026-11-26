@@ -56,106 +56,106 @@ LAN P2P sessions (one session per device pair, multiplexing multiple protocols) 
 
 ## Classes
 
-| Class | Description |
-| ------ | ------ |
-| [P2PFileManifestEntity](classes/P2PFileManifestEntity.md) | A P2P holder record replicated via sync; file bytes still travel over the P2P channel. |
-| [P2PManifestStore](classes/P2PManifestStore.md) | Local manifest repository; sync adapters can map upsert/revoke calls onto an RxDB repository. |
-| [P2PRequestError](classes/P2PRequestError.md) | The peer rejected a request. |
-| [P2PSessionClosedError](classes/P2PSessionClosedError.md) | The session has ended; `code` states the reason, recognizable across realms. |
-| [P2PSessionRegistry](classes/P2PSessionRegistry.md) | Registry of ready sessions: only one session per peer (user + device + instance). |
-| [P2PTransferError](classes/P2PTransferError.md) | A P2P transfer failed. |
-| [RxDBPluginP2PFiles](classes/RxDBPluginP2PFiles.md) | P2P plugin shell: registers the manifest entity into this instance's configuration on `use()`. |
+| Class                                                     | Description                                                                                    |
+| --------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| [P2PFileManifestEntity](classes/P2PFileManifestEntity.md) | A P2P holder record replicated via sync; file bytes still travel over the P2P channel.         |
+| [P2PManifestStore](classes/P2PManifestStore.md)           | Local manifest repository; sync adapters can map upsert/revoke calls onto an RxDB repository.  |
+| [P2PRequestError](classes/P2PRequestError.md)             | The peer rejected a request.                                                                   |
+| [P2PSessionClosedError](classes/P2PSessionClosedError.md) | The session has ended; `code` states the reason, recognizable across realms.                   |
+| [P2PSessionRegistry](classes/P2PSessionRegistry.md)       | Registry of ready sessions: only one session per peer (user + device + instance).              |
+| [P2PTransferError](classes/P2PTransferError.md)           | A P2P transfer failed.                                                                         |
+| [RxDBPluginP2PFiles](classes/RxDBPluginP2PFiles.md)       | P2P plugin shell: registers the manifest entity into this instance's configuration on `use()`. |
 
 ## Interfaces
 
-| Interface | Description |
-| ------ | ------ |
-| [P2PByteTransport](interfaces/P2PByteTransport.md) | A bidirectional byte channel carrying encoded frames. |
-| [P2PCall](interfaces/P2PCall.md) | The call content of a request. |
-| [P2PChunkDescriptor](interfaces/P2PChunkDescriptor.md) | The byte range of a single file chunk. |
-| [P2PChunkRequest](interfaces/P2PChunkRequest.md) | A chunk request: fetch by the byte range in the requester's manifest; the holder need not use the same chunk size as the requester. |
-| [P2PChunkSource](interfaces/P2PChunkSource.md) | The minimal channel for requesting file chunks from an authenticated peer. |
-| [P2PDataChannelLike](interfaces/P2PDataChannelLike.md) | The minimal interface of a browser `RTCDataChannel`. |
-| [P2PDownloadOptions](interfaces/P2PDownloadOptions.md) | Inputs for P2P routing. The server is only invoked when no peer is available or P2P failed retryably. |
-| [P2PFileManifest](interfaces/P2PFileManifest.md) | A file manifest; once a manifest is published, `chunkSize` and `chunkHashes` must never be rewritten. |
-| [P2PFilesAuthorizeContext](interfaces/P2PFilesAuthorizeContext.md) | Context for per-request authorization. |
-| [P2PFilesProtocolOptions](interfaces/P2PFilesProtocolOptions.md) | Serving options for the files protocol; the local side serves chunks only when both are provided. |
-| [P2PHandlerResult](interfaces/P2PHandlerResult.md) | The return value of a protocol handler; the default result is `null` with an empty payload. |
-| [P2PInboundRequest](interfaces/P2PInboundRequest.md) | An inbound request passed to a protocol handler. |
-| [P2PJsonObject](interfaces/P2PJsonObject.md) | A JSON object that frame metadata can carry. |
-| [P2PLocalContent](interfaces/P2PLocalContent.md) | A file held by the local side. |
-| [P2PManifestRecord](interfaces/P2PManifestRecord.md) | A holder record: a device verified by the auth host holds some content. |
-| [P2PManifestRepository](interfaces/P2PManifestRepository.md) | The manifest repository interface for the sync layer to adapt. |
-| [P2PPeerDiscovery](interfaces/P2PPeerDiscovery.md) | The discovery seam callable from mDNS/TCP runtimes; browser implementations use signaling instead. |
-| [P2PPeerIdentity](interfaces/P2PPeerIdentity.md) | The identity of one end of a session: an authenticated principal plus a running instance. |
-| [P2PPeerSession](interfaces/P2PPeerSession.md) | A session between two devices. |
-| [P2PPrincipal](interfaces/P2PPrincipal.md) | A user and device verified by the auth host. |
-| [P2PProtocol](interfaces/P2PProtocol.md) | A protocol supported by the local side. |
-| [P2PReply](interfaces/P2PReply.md) | The reply to a request. |
-| [P2PServerFallback](interfaces/P2PServerFallback.md) | Server fallback downloader; the implementation is responsible for reusing the existing HTTP adapter's auth configuration. |
-| [P2PSessionOptions](interfaces/P2PSessionOptions.md) | Options for opening a session. |
-| [P2PSignalingChannel](interfaces/P2PSignalingChannel.md) | Server signaling only relays authenticated SDP/ICE and never participates in byte transfer. |
-| [P2PTcpSocketLike](interfaces/P2PTcpSocketLike.md) | Minimal event interface of a desktop TCP/TLS socket, adaptable from both Electron (Node `tls.TLSSocket`) and Tauri. |
-| [P2PTransferOptions](interfaces/P2PTransferOptions.md) | Transfer write-to-disk and progress callbacks. |
-| [P2PTransferProgress](interfaces/P2PTransferProgress.md) | A local progress event; never written into a synced entity. |
-| [P2PTransferResult](interfaces/P2PTransferResult.md) | Summary after a transfer completes. |
-| [P2PWebRTCTransportOptions](interfaces/P2PWebRTCTransportOptions.md) | WebRTC adapter options. |
+| Interface                                                            | Description                                                                                                                         |
+| -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| [P2PByteTransport](interfaces/P2PByteTransport.md)                   | A bidirectional byte channel carrying encoded frames.                                                                               |
+| [P2PCall](interfaces/P2PCall.md)                                     | The call content of a request.                                                                                                      |
+| [P2PChunkDescriptor](interfaces/P2PChunkDescriptor.md)               | The byte range of a single file chunk.                                                                                              |
+| [P2PChunkRequest](interfaces/P2PChunkRequest.md)                     | A chunk request: fetch by the byte range in the requester's manifest; the holder need not use the same chunk size as the requester. |
+| [P2PChunkSource](interfaces/P2PChunkSource.md)                       | The minimal channel for requesting file chunks from an authenticated peer.                                                          |
+| [P2PDataChannelLike](interfaces/P2PDataChannelLike.md)               | The minimal interface of a browser `RTCDataChannel`.                                                                                |
+| [P2PDownloadOptions](interfaces/P2PDownloadOptions.md)               | Inputs for P2P routing. The server is only invoked when no peer is available or P2P failed retryably.                               |
+| [P2PFileManifest](interfaces/P2PFileManifest.md)                     | A file manifest; once a manifest is published, `chunkSize` and `chunkHashes` must never be rewritten.                               |
+| [P2PFilesAuthorizeContext](interfaces/P2PFilesAuthorizeContext.md)   | Context for per-request authorization.                                                                                              |
+| [P2PFilesProtocolOptions](interfaces/P2PFilesProtocolOptions.md)     | Serving options for the files protocol; the local side serves chunks only when both are provided.                                   |
+| [P2PHandlerResult](interfaces/P2PHandlerResult.md)                   | The return value of a protocol handler; the default result is `null` with an empty payload.                                         |
+| [P2PInboundRequest](interfaces/P2PInboundRequest.md)                 | An inbound request passed to a protocol handler.                                                                                    |
+| [P2PJsonObject](interfaces/P2PJsonObject.md)                         | A JSON object that frame metadata can carry.                                                                                        |
+| [P2PLocalContent](interfaces/P2PLocalContent.md)                     | A file held by the local side.                                                                                                      |
+| [P2PManifestRecord](interfaces/P2PManifestRecord.md)                 | A holder record: a device verified by the auth host holds some content.                                                             |
+| [P2PManifestRepository](interfaces/P2PManifestRepository.md)         | The manifest repository interface for the sync layer to adapt.                                                                      |
+| [P2PPeerDiscovery](interfaces/P2PPeerDiscovery.md)                   | The discovery seam callable from mDNS/TCP runtimes; browser implementations use signaling instead.                                  |
+| [P2PPeerIdentity](interfaces/P2PPeerIdentity.md)                     | The identity of one end of a session: an authenticated principal plus a running instance.                                           |
+| [P2PPeerSession](interfaces/P2PPeerSession.md)                       | A session between two devices.                                                                                                      |
+| [P2PPrincipal](interfaces/P2PPrincipal.md)                           | A user and device verified by the auth host.                                                                                        |
+| [P2PProtocol](interfaces/P2PProtocol.md)                             | A protocol supported by the local side.                                                                                             |
+| [P2PReply](interfaces/P2PReply.md)                                   | The reply to a request.                                                                                                             |
+| [P2PServerFallback](interfaces/P2PServerFallback.md)                 | Server fallback downloader; the implementation is responsible for reusing the existing HTTP adapter's auth configuration.           |
+| [P2PSessionOptions](interfaces/P2PSessionOptions.md)                 | Options for opening a session.                                                                                                      |
+| [P2PSignalingChannel](interfaces/P2PSignalingChannel.md)             | Server signaling only relays authenticated SDP/ICE and never participates in byte transfer.                                         |
+| [P2PTcpSocketLike](interfaces/P2PTcpSocketLike.md)                   | Minimal event interface of a desktop TCP/TLS socket, adaptable from both Electron (Node `tls.TLSSocket`) and Tauri.                 |
+| [P2PTransferOptions](interfaces/P2PTransferOptions.md)               | Transfer write-to-disk and progress callbacks.                                                                                      |
+| [P2PTransferProgress](interfaces/P2PTransferProgress.md)             | A local progress event; never written into a synced entity.                                                                         |
+| [P2PTransferResult](interfaces/P2PTransferResult.md)                 | Summary after a transfer completes.                                                                                                 |
+| [P2PWebRTCTransportOptions](interfaces/P2PWebRTCTransportOptions.md) | WebRTC adapter options.                                                                                                             |
 
 ## Type Aliases
 
-| Type Alias | Description |
-| ------ | ------ |
-| [P2PContentLookup](type-aliases/P2PContentLookup.md) | Looks up the local file held for a content hash; returns undefined when absent. |
-| [P2PDataChannelEvent](type-aliases/P2PDataChannelEvent.md) | DataChannel event names. |
-| [P2PFrame](type-aliases/P2PFrame.md) | A session frame: JSON metadata plus a binary payload; only requests and replies carry payloads. |
-| [P2PJsonValue](type-aliases/P2PJsonValue.md) | A JSON value that frame metadata can carry. |
-| [P2PSessionCloseCode](type-aliases/P2PSessionCloseCode.md) | The reason a session ended. |
-| [P2PSessionRole](type-aliases/P2PSessionRole.md) | The local side's role in the session: the side initiating the connection is `initiator`; used for deduplicating simultaneous dials. |
-| [P2PSessionState](type-aliases/P2PSessionState.md) | Session state. |
-| [P2PSignalingMessage](type-aliases/P2PSignalingMessage.md) | A message relayed through the server's dedicated signaling route. |
-| [RxDBPluginP2PFilesOptions](type-aliases/RxDBPluginP2PFilesOptions.md) | The P2P files plugin has no options: it only registers the manifest entity and opens no network connections. |
+| Type Alias                                                             | Description                                                                                                                         |
+| ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| [P2PContentLookup](type-aliases/P2PContentLookup.md)                   | Looks up the local file held for a content hash; returns undefined when absent.                                                     |
+| [P2PDataChannelEvent](type-aliases/P2PDataChannelEvent.md)             | DataChannel event names.                                                                                                            |
+| [P2PFrame](type-aliases/P2PFrame.md)                                   | A session frame: JSON metadata plus a binary payload; only requests and replies carry payloads.                                     |
+| [P2PJsonValue](type-aliases/P2PJsonValue.md)                           | A JSON value that frame metadata can carry.                                                                                         |
+| [P2PSessionCloseCode](type-aliases/P2PSessionCloseCode.md)             | The reason a session ended.                                                                                                         |
+| [P2PSessionRole](type-aliases/P2PSessionRole.md)                       | The local side's role in the session: the side initiating the connection is `initiator`; used for deduplicating simultaneous dials. |
+| [P2PSessionState](type-aliases/P2PSessionState.md)                     | Session state.                                                                                                                      |
+| [P2PSignalingMessage](type-aliases/P2PSignalingMessage.md)             | A message relayed through the server's dedicated signaling route.                                                                   |
+| [RxDBPluginP2PFilesOptions](type-aliases/RxDBPluginP2PFilesOptions.md) | The P2P files plugin has no options: it only registers the manifest entity and opens no network connections.                        |
 
 ## Variables
 
-| Variable | Description |
-| ------ | ------ |
-| [DEFAULT\_P2P\_CHUNK\_SIZE](variables/DEFAULT_P2P_CHUNK_SIZE.md) | Defaults to 48 KiB: one chunk plus frame metadata fits into a single 64 KiB DataChannel message without fragmentation. |
-| [MAX\_P2P\_CHUNK\_SIZE](variables/MAX_P2P_CHUNK_SIZE.md) | The largest chunk size a manifest allows, equal to the session frame payload limit; chunks larger than a single DataChannel message are sent fragmented by the transport layer. |
-| [P2P\_FILE\_MANIFEST\_ENTITY](variables/P2P_FILE_MANIFEST_ENTITY.md) | The file manifest entity name used by the sync layer. |
-| [P2P\_FILES\_PROTOCOL](variables/P2P_FILES_PROTOCOL.md) | The name the files protocol declares in hello. |
-| [P2P\_FILES\_PROTOCOL\_VERSION](variables/P2P_FILES_PROTOCOL_VERSION.md) | The files protocol version. |
-| [P2P\_SESSION\_VERSION](variables/P2P_SESSION_VERSION.md) | The session protocol version: mismatched values in hello mark the two ends as incompatible. |
-| [rxDBPluginP2PFiles](variables/rxDBPluginP2PFiles.md) | Installs the P2P files plugin; must call `rxdb.use()` before `connect()`. |
+| Variable                                                                 | Description                                                                                                                                                                     |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [DEFAULT\_P2P\_CHUNK\_SIZE](variables/DEFAULT_P2P_CHUNK_SIZE.md)         | Defaults to 48 KiB: one chunk plus frame metadata fits into a single 64 KiB DataChannel message without fragmentation.                                                          |
+| [MAX\_P2P\_CHUNK\_SIZE](variables/MAX_P2P_CHUNK_SIZE.md)                 | The largest chunk size a manifest allows, equal to the session frame payload limit; chunks larger than a single DataChannel message are sent fragmented by the transport layer. |
+| [P2P\_FILE\_MANIFEST\_ENTITY](variables/P2P_FILE_MANIFEST_ENTITY.md)     | The file manifest entity name used by the sync layer.                                                                                                                           |
+| [P2P\_FILES\_PROTOCOL](variables/P2P_FILES_PROTOCOL.md)                  | The name the files protocol declares in hello.                                                                                                                                  |
+| [P2P\_FILES\_PROTOCOL\_VERSION](variables/P2P_FILES_PROTOCOL_VERSION.md) | The files protocol version.                                                                                                                                                     |
+| [P2P\_SESSION\_VERSION](variables/P2P_SESSION_VERSION.md)                | The session protocol version: mismatched values in hello mark the two ends as incompatible.                                                                                     |
+| [rxDBPluginP2PFiles](variables/rxDBPluginP2PFiles.md)                    | Installs the P2P files plugin; must call `rxdb.use()` before `connect()`.                                                                                                       |
 
 ## Functions
 
-| Function | Description |
-| ------ | ------ |
-| [createAuthenticatedP2PFileManifest](functions/createAuthenticatedP2PFileManifest.md) | Creates a file manifest with a holder record from an already-authenticated principal. |
-| [createChunkRequestHandler](functions/createChunkRequestHandler.md) | Builds a chunk request handler that serves only this manifest's content. |
-| [createLocalManifestDiscovery](functions/createLocalManifestDiscovery.md) | Creates a discovery implementation usable offline from the local manifest repository. |
-| [createManifestRecord](functions/createManifestRecord.md) | Generates a holder record from an authenticated identity; callers cannot claim another holderId. |
-| [createP2PFileManifest](functions/createP2PFileManifest.md) | Builds an immutable manifest from a randomly-readable byte source. |
-| [createP2PFilesProtocol](functions/createP2PFilesProtocol.md) | The files protocol: peers fetch chunks by the byte ranges of the requester's manifest; any number of files can be pulled over one session. |
-| [createP2PFilesSource](functions/createP2PFilesSource.md) | Adapts a session into the chunk source used by `transferP2PFile`. |
-| [createTcpTransport](functions/createTcpTransport.md) | Desktop TCP/TLS adapter: 4-byte unsigned big-endian length prefix + frame, preventing packet coalescing/splitting. |
-| [createWebRTCTransport](functions/createWebRTCTransport.md) | Browser WebRTC DataChannel adapter; DataChannel provides DTLS encryption on its own. |
-| [decodeP2PFrame](functions/decodeP2PFrame.md) | Decodes and strictly validates a frame. |
-| [deriveHolderId](functions/deriveHolderId.md) | Derives a stable holder ID from an authenticated identity; the credential itself is never written into the manifest. |
-| [describeChunk](functions/describeChunk.md) | Returns the description of one chunk according to the manifest. |
-| [describeChunks](functions/describeChunks.md) | Enumerates all chunks in the manifest. |
-| [digestSha256Hex](functions/digestSha256Hex.md) | Computes the SHA-256 of a byte span and returns 64 lowercase hex characters. |
-| [downloadFromServer](functions/downloadFromServer.md) | Verifies the server response stream chunk-by-chunk against the manifest and writes to disk: bad chunks are not written, a response length mismatch is an error, and the whole file never enters memory. |
-| [downloadP2PFile](functions/downloadP2PFile.md) | Tries peers first; falls back to the server explicitly when no peer is available or P2P failed retryably. |
-| [encodeP2PFrame](functions/encodeP2PFrame.md) | Encodes a frame: 4-byte unsigned big-endian metadata length + JSON metadata + payload; error text is truncated to the protocol limit. |
-| [findP2PFileHolders](functions/findP2PFileHolders.md) | Extracts the holder records of a content from sync results. |
-| [isManifestOwnedBy](functions/isManifestOwnedBy.md) | Checks whether the manifest is held by the given authenticated principal on the given device. |
-| [isP2PManifestRecord](functions/isP2PManifestRecord.md) | Checks whether a synced row satisfies the manifest's content-addressing rules. |
-| [manifestId](functions/manifestId.md) | Creates the manifest primary key, making writes idempotent for the same content and holder. |
-| [openP2PSession](functions/openP2PSession.md) | Opens a session on an established byte channel: both sides exchange hello and authenticate the peer first, then multiple protocols multiplex over the same channel. |
-| [peerIdentityKey](functions/peerIdentityKey.md) | The stable key of an identity, used for per-peer registration and deduplication; the key differs whenever the user, device or instance differs. |
-| [toRxDBManifestDocument](functions/toRxDBManifestDocument.md) | Maps a wire manifest onto an RxDB entity row. |
-| [toSyncManifestDocument](functions/toSyncManifestDocument.md) | Converts a holder record into a sync document, explicitly declaring that it travels via sync rather than local storage. |
-| [transferP2PFile](functions/transferP2PFile.md) | Pulls manifest chunks from multiple peers. |
-| [verifyChunk](functions/verifyChunk.md) | Verifies the length and hash of a chunk. |
-| [verifyContentHash](functions/verifyContentHash.md) | Verifies the content hash of the complete file. |
+| Function                                                                              | Description                                                                                                                                                                                             |
+| ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [createAuthenticatedP2PFileManifest](functions/createAuthenticatedP2PFileManifest.md) | Creates a file manifest with a holder record from an already-authenticated principal.                                                                                                                   |
+| [createChunkRequestHandler](functions/createChunkRequestHandler.md)                   | Builds a chunk request handler that serves only this manifest's content.                                                                                                                                |
+| [createLocalManifestDiscovery](functions/createLocalManifestDiscovery.md)             | Creates a discovery implementation usable offline from the local manifest repository.                                                                                                                   |
+| [createManifestRecord](functions/createManifestRecord.md)                             | Generates a holder record from an authenticated identity; callers cannot claim another holderId.                                                                                                        |
+| [createP2PFileManifest](functions/createP2PFileManifest.md)                           | Builds an immutable manifest from a randomly-readable byte source.                                                                                                                                      |
+| [createP2PFilesProtocol](functions/createP2PFilesProtocol.md)                         | The files protocol: peers fetch chunks by the byte ranges of the requester's manifest; any number of files can be pulled over one session.                                                              |
+| [createP2PFilesSource](functions/createP2PFilesSource.md)                             | Adapts a session into the chunk source used by `transferP2PFile`.                                                                                                                                       |
+| [createTcpTransport](functions/createTcpTransport.md)                                 | Desktop TCP/TLS adapter: 4-byte unsigned big-endian length prefix + frame, preventing packet coalescing/splitting.                                                                                      |
+| [createWebRTCTransport](functions/createWebRTCTransport.md)                           | Browser WebRTC DataChannel adapter; DataChannel provides DTLS encryption on its own.                                                                                                                    |
+| [decodeP2PFrame](functions/decodeP2PFrame.md)                                         | Decodes and strictly validates a frame.                                                                                                                                                                 |
+| [deriveHolderId](functions/deriveHolderId.md)                                         | Derives a stable holder ID from an authenticated identity; the credential itself is never written into the manifest.                                                                                    |
+| [describeChunk](functions/describeChunk.md)                                           | Returns the description of one chunk according to the manifest.                                                                                                                                         |
+| [describeChunks](functions/describeChunks.md)                                         | Enumerates all chunks in the manifest.                                                                                                                                                                  |
+| [digestSha256Hex](functions/digestSha256Hex.md)                                       | Computes the SHA-256 of a byte span and returns 64 lowercase hex characters.                                                                                                                            |
+| [downloadFromServer](functions/downloadFromServer.md)                                 | Verifies the server response stream chunk-by-chunk against the manifest and writes to disk: bad chunks are not written, a response length mismatch is an error, and the whole file never enters memory. |
+| [downloadP2PFile](functions/downloadP2PFile.md)                                       | Tries peers first; falls back to the server explicitly when no peer is available or P2P failed retryably.                                                                                               |
+| [encodeP2PFrame](functions/encodeP2PFrame.md)                                         | Encodes a frame: 4-byte unsigned big-endian metadata length + JSON metadata + payload; error text is truncated to the protocol limit.                                                                   |
+| [findP2PFileHolders](functions/findP2PFileHolders.md)                                 | Extracts the holder records of a content from sync results.                                                                                                                                             |
+| [isManifestOwnedBy](functions/isManifestOwnedBy.md)                                   | Checks whether the manifest is held by the given authenticated principal on the given device.                                                                                                           |
+| [isP2PManifestRecord](functions/isP2PManifestRecord.md)                               | Checks whether a synced row satisfies the manifest's content-addressing rules.                                                                                                                          |
+| [manifestId](functions/manifestId.md)                                                 | Creates the manifest primary key, making writes idempotent for the same content and holder.                                                                                                             |
+| [openP2PSession](functions/openP2PSession.md)                                         | Opens a session on an established byte channel: both sides exchange hello and authenticate the peer first, then multiple protocols multiplex over the same channel.                                     |
+| [peerIdentityKey](functions/peerIdentityKey.md)                                       | The stable key of an identity, used for per-peer registration and deduplication; the key differs whenever the user, device or instance differs.                                                         |
+| [toRxDBManifestDocument](functions/toRxDBManifestDocument.md)                         | Maps a wire manifest onto an RxDB entity row.                                                                                                                                                           |
+| [toSyncManifestDocument](functions/toSyncManifestDocument.md)                         | Converts a holder record into a sync document, explicitly declaring that it travels via sync rather than local storage.                                                                                 |
+| [transferP2PFile](functions/transferP2PFile.md)                                       | Pulls manifest chunks from multiple peers.                                                                                                                                                              |
+| [verifyChunk](functions/verifyChunk.md)                                               | Verifies the length and hash of a chunk.                                                                                                                                                                |
+| [verifyContentHash](functions/verifyContentHash.md)                                   | Verifies the content hash of the complete file.                                                                                                                                                         |

@@ -10,10 +10,10 @@ The offset from UTC for a given instant in a given time zone (including daylight
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `zone` | `string` | The IANA name. |
-| `date` | `Date` | The instant. |
+| Parameter | Type     | Description    |
+| --------- | -------- | -------------- |
+| `zone`    | `string` | The IANA name. |
+| `date`    | `Date`   | The instant.   |
 
 ## Returns
 

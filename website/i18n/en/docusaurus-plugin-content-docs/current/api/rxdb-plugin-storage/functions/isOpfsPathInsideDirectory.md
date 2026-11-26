@@ -10,9 +10,9 @@ Checks whether a file lies in a directory or any of its subdirectories.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `opfsPath` | `string` |
+| Parameter        | Type     |
+| ---------------- | -------- |
+| `opfsPath`       | `string` |
 | `directoryPath?` | `string` |
 
 ## Returns

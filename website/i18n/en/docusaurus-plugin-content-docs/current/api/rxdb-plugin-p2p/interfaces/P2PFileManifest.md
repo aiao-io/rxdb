@@ -20,7 +20,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/chunking.ts:17](https://github.com/aia
 
 SHA-256 of each chunk (lowercase hex), in chunk order.
 
-***
+---
 
 ### chunkSize \{#chunksize\}
 
@@ -32,7 +32,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/chunking.ts:15](https://github.com/aia
 
 Fixed chunk size (the last chunk may be shorter); the chunking follows the requester's manifest.
 
-***
+---
 
 ### contentHash \{#contenthash\}
 
@@ -44,7 +44,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/chunking.ts:9](https://github.com/aiao
 
 SHA-256 of the whole file (lowercase hex), the content-addressing primary key.
 
-***
+---
 
 ### fileName \{#filename\}
 
@@ -56,7 +56,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/chunking.ts:11](https://github.com/aia
 
 File name for display; not part of content verification.
 
-***
+---
 
 ### holderId? \{#holderid\}
 
@@ -68,7 +68,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/chunking.ts:21](https://github.com/aia
 
 The holder is derived from the authenticated identity; the base chunking API may leave it unset for now, but it must exist when publishing a sync manifest.
 
-***
+---
 
 ### size \{#size\}
 
@@ -80,7 +80,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/chunking.ts:13](https://github.com/aia
 
 File size in bytes.
 
-***
+---
 
 ### sourceUrl? \{#sourceurl\}
 
@@ -92,7 +92,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/chunking.ts:19](https://github.com/aia
 
 Server fallback download URL.
 
-***
+---
 
 ### updatedAt? \{#updatedat\}
 

@@ -10,10 +10,10 @@ Validates whether an extension value matches its declaration.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type                                                          | Description                |
+| ----------- | ------------------------------------------------------------- | -------------------------- |
 | `extension` | [`PreferenceExtension`](../interfaces/PreferenceExtension.md) | The extension declaration. |
-| `value` | `unknown` | The value to validate. |
+| `value`     | `unknown`                                                     | The value to validate.     |
 
 ## Returns
 

@@ -28,7 +28,7 @@ Unique client ID
 
 [`IMutationContext`](../../rxdb/interfaces/IMutationContext.md).[`clientId`](../../rxdb/interfaces/IMutationContext.md#clientid)
 
-***
+---
 
 ### createdAt? \{#createdat\}
 
@@ -42,7 +42,7 @@ Defined in: packages/rxdb/dist/repository/query.interface.d.ts:109
 
 [`IMutationContext`](../../rxdb/interfaces/IMutationContext.md).[`createdAt`](../../rxdb/interfaces/IMutationContext.md#createdat)
 
-***
+---
 
 ### encryption? \{#encryption\}
 
@@ -52,7 +52,7 @@ encryption?: EncryptionContext;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/entity/insert\_sql.ts:26](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/entity/insert_sql.ts#L26)
 
-***
+---
 
 ### returning? \{#returning\}
 
@@ -68,7 +68,7 @@ Whether to return data
 
 [`IMutationContext`](../../rxdb/interfaces/IMutationContext.md).[`returning`](../../rxdb/interfaces/IMutationContext.md#returning)
 
-***
+---
 
 ### updatedAt? \{#updatedat\}
 
@@ -84,7 +84,7 @@ Custom update time
 
 [`IMutationContext`](../../rxdb/interfaces/IMutationContext.md).[`updatedAt`](../../rxdb/interfaces/IMutationContext.md#updatedat)
 
-***
+---
 
 ### useReplace? \{#usereplace\}
 
@@ -94,7 +94,7 @@ useReplace?: boolean;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/entity/insert\_sql.ts:25](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/entity/insert_sql.ts#L25)
 
-***
+---
 
 ### userId? \{#userid\}
 

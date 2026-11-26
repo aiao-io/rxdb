@@ -8,8 +8,8 @@ Defined in: [packages/rxdb/src/entity/entity-field.utils.ts:154](https://github.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                  |
+| ---------- | ----------------------------------------------------- |
 | `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) |
 
 ## Returns

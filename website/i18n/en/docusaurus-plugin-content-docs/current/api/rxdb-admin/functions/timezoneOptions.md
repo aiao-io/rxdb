@@ -10,10 +10,10 @@ The options of the "Timezone" dropdown in the preferences drawer: the first entr
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type     | Description                   |
+| --------- | -------- | ----------------------------- |
 | `current` | `string` | The current preference value. |
-| `now` | `Date` | The moment. |
+| `now`     | `Date`   | The moment.                   |
 
 ## Returns
 

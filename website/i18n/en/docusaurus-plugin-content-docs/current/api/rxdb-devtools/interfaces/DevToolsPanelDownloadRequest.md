@@ -18,8 +18,8 @@ Constructs the `params` of the `files.download` request.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter   | Type     |
+| ----------- | -------- |
 | `requestId` | `string` |
 
 #### Returns
@@ -32,7 +32,7 @@ Structurally the same as [DevToolsPanelUploadRequest.params](DevToolsPanelUpload
 
 When it throws, `download()` rejects as-is and the registration is torn down as usual — the same as [DevToolsPanelUploadRequest.params](DevToolsPanelUploadRequest.md#params).
 
-***
+---
 
 ### sink \{#sink\}
 

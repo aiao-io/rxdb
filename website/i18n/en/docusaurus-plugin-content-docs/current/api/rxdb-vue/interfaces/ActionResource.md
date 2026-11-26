@@ -1,5 +1,5 @@
 ---
-sidebar_label: "ActionResource⟨Options, RT⟩"
+sidebar_label: 'ActionResource⟨Options, RT⟩'
 ---
 
 # ActionResource`<Options, RT>`
@@ -10,10 +10,10 @@ The wrapped async action.
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                                | Description                                     |
+| --------------------------------------------- | ----------------------------------------------- |
 | <a id="type-parameter-options"></a> `Options` | Call parameter type; `void` means no parameters |
-| <a id="type-parameter-rt"></a> `RT` | Return type of the async function |
+| <a id="type-parameter-rt"></a> `RT`           | Return type of the async function               |
 
 ## Properties
 
@@ -29,8 +29,8 @@ Calls the wrapped async function.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type      | Description                                  |
+| --------- | --------- | -------------------------------------------- |
 | `options` | `Options` | Passed through to the wrapped function as-is |
 
 #### Returns
@@ -43,7 +43,7 @@ The return value of the wrapped function, passed through as-is
 
 Any error thrown by the wrapped function bubbles up as-is (not swallowed, not normalized)
 
-***
+---
 
 ### isPending \{#ispending\}
 

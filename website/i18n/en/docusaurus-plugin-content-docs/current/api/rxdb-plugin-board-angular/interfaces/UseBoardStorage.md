@@ -16,15 +16,15 @@ Defined in: [packages/rxdb-plugin-board-angular/src/use-board.ts:63](https://git
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `key` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `key`     | `string` |
 
 #### Returns
 
 `string` \| `null`
 
-***
+---
 
 ### set() \{#set\}
 
@@ -36,10 +36,10 @@ Defined in: [packages/rxdb-plugin-board-angular/src/use-board.ts:64](https://git
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `key` | `string` |
-| `value` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `key`     | `string` |
+| `value`   | `string` |
 
 #### Returns
 

@@ -32,7 +32,7 @@ protected readonly activeId: Signal<string | undefined>;
 
 Defined in: [rxdb-admin-angular/src/layout/menu-tree.component.ts:51](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/menu-tree.component.ts#L51)
 
-***
+---
 
 ### extra \{#extra\}
 
@@ -44,7 +44,7 @@ Defined in: [rxdb-admin-angular/src/layout/menu-tree.component.ts:73](https://gi
 
 Template for extra content on the right of menu items.
 
-***
+---
 
 ### nodes \{#nodes\}
 
@@ -56,7 +56,7 @@ Defined in: [rxdb-admin-angular/src/layout/menu-tree.component.ts:67](https://gi
 
 Menu tree.
 
-***
+---
 
 ### open \{#open\}
 
@@ -66,7 +66,7 @@ protected readonly open: WritableSignal<ReadonlySet<string>>;
 
 Defined in: [rxdb-admin-angular/src/layout/menu-tree.component.ts:53](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/menu-tree.component.ts#L53)
 
-***
+---
 
 ### prefs \{#prefs\}
 
@@ -76,7 +76,7 @@ protected readonly prefs: Signal<AdminPreferences>;
 
 Defined in: [rxdb-admin-angular/src/layout/menu-tree.component.ts:50](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/menu-tree.component.ts#L50)
 
-***
+---
 
 ### rail \{#rail\}
 
@@ -88,7 +88,7 @@ Defined in: [rxdb-admin-angular/src/layout/menu-tree.component.ts:70](https://gi
 
 Collapsed to an icon rail (only leaf icons are rendered).
 
-***
+---
 
 ### rails \{#rails\}
 
@@ -98,7 +98,7 @@ protected readonly rails: Signal<(Node | null)[]>;
 
 Defined in: [rxdb-admin-angular/src/layout/menu-tree.component.ts:52](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/menu-tree.component.ts#L52)
 
-***
+---
 
 ### url \{#url\}
 
@@ -120,23 +120,23 @@ Defined in: [rxdb-admin-angular/src/layout/menu-tree.component.ts:75](https://gi
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `MouseEvent` |
-| `node` | `Node` |
+| Parameter | Type         |
+| --------- | ------------ |
+| `event`   | `MouseEvent` |
+| `node`    | `Node`       |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### toggle() \{#toggle\}
 
 ```ts
 protected toggle(
-   event, 
-   id, 
+   event,
+   id,
    siblings
 ): void;
 ```
@@ -145,10 +145,10 @@ Defined in: [rxdb-admin-angular/src/layout/menu-tree.component.ts:79](https://gi
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `Event` |
-| `id` | `string` |
+| Parameter  | Type              |
+| ---------- | ----------------- |
+| `event`    | `Event`           |
+| `id`       | `string`          |
 | `siblings` | readonly `Node`[] |
 
 #### Returns

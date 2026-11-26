@@ -10,9 +10,9 @@ Formats a moment in time as an SQL string literal (ISO 8601, UTC).
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `Date` | The moment in time |
+| Parameter | Type   | Description        |
+| --------- | ------ | ------------------ |
+| `value`   | `Date` | The moment in time |
 
 ## Returns
 
@@ -28,4 +28,4 @@ and the SQLite family already stores `PropertyType.date` as ISO TEXT.
 ## Throws
 
 [RxDBError](../classes/RxDBError.md) when the value is an Invalid Date — it would format the string `'Invalid Date'`,
-  which lands silently in SQLite and only explodes at execution time on PGlite
+which lands silently in SQLite and only explodes at execution time on PGlite

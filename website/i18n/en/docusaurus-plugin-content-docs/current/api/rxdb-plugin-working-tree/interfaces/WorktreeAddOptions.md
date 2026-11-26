@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-manager.ts:
 
 The name (GitHub Desktop's Worktree name); defaults to the branch id
 
-***
+---
 
 ### owner? \{#owner\}
 

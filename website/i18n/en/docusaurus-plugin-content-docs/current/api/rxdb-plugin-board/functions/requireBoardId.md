@@ -10,9 +10,9 @@ Gets the current board id: throws `board_not_found` when there is no board.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `ctx` | [`BoardHostContext`](../interfaces/BoardHostContext.md) |
+| Parameter | Type                                                    |
+| --------- | ------------------------------------------------------- |
+| `ctx`     | [`BoardHostContext`](../interfaces/BoardHostContext.md) |
 
 ## Returns
 

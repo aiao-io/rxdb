@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-search/src/core/search-engine.ts:61](https://g
 
 Compiled query; `null` returns an empty array directly
 
-***
+---
 
 ### entity \{#entity\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-search/src/core/search-engine.ts:53](https://g
 
 Business entity name (for display)
 
-***
+---
 
 ### fields \{#fields\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-plugin-search/src/core/search-engine.ts:57](https://g
 
 List of fields participating in the search; order = FTS5 column declaration order (column indexes start at 0)
 
-***
+---
 
 ### fieldSpecs? \{#fieldspecs\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb-plugin-search/src/core/search-engine.ts:59](https://g
 
 Field metadata, used to build array/scalar-safe snippets
 
-***
+---
 
 ### offset \{#offset\}
 
@@ -64,7 +64,7 @@ Defined in: [packages/rxdb-plugin-search/src/core/search-engine.ts:65](https://g
 
 In-memory over-fetch offset. Each per-field subquery fetches `offset + pageSize` rows; the SQL OFFSET is fixed at 0
 
-***
+---
 
 ### pageSize \{#pagesize\}
 
@@ -76,7 +76,7 @@ Defined in: [packages/rxdb-plugin-search/src/core/search-engine.ts:63](https://g
 
 Upper limit of results per page
 
-***
+---
 
 ### primaryKey \{#primarykey\}
 
@@ -88,7 +88,7 @@ Defined in: [packages/rxdb-plugin-search/src/core/search-engine.ts:55](https://g
 
 Primary key column name of the business table (= FTS5 rowid)
 
-***
+---
 
 ### schema? \{#schema\}
 
@@ -102,7 +102,7 @@ PostgreSQL schema name (= the entity's `namespace`); ignored by the SQLite backe
 
 Two different ways of landing the same namespace, and not interchangeable with [SearchEngineQuery.sqlTable](#sqltable): the pg adapter creates `"<namespace>"."<table>"`, while the sqlite adapter creates `<namespace>$<table>`.
 
-***
+---
 
 ### snippetLength? \{#snippetlength\}
 
@@ -114,7 +114,7 @@ Defined in: [packages/rxdb-plugin-search/src/core/search-engine.ts:67](https://g
 
 Snippet length (in characters), default 120
 
-***
+---
 
 ### sqlTable? \{#sqltable\}
 
@@ -126,7 +126,7 @@ Defined in: [packages/rxdb-plugin-search/src/core/search-engine.ts:43](https://g
 
 SQLite physical table name (including the namespace prefix)
 
-***
+---
 
 ### table \{#table\}
 

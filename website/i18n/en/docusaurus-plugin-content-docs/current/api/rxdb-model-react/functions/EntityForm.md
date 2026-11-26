@@ -10,8 +10,8 @@ Metadata-driven form component: renders the corresponding input control per fiel
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter           | Type                                                  |
+| ------------------- | ----------------------------------------------------- |
 | `__namedParameters` | [`EntityFormProps`](../interfaces/EntityFormProps.md) |
 
 ## Returns

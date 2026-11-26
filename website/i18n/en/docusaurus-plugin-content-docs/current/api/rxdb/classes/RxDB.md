@@ -18,8 +18,8 @@ Defined in: [packages/rxdb/src/RxDB.ts:654](https://github.com/aiao-io/rxdb/blob
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                          | Description                |
+| --------- | --------------------------------------------- | -------------------------- |
 | `options` | [`RxDBOptions`](../interfaces/RxDBOptions.md) | RxDB configuration options |
 
 #### Returns
@@ -46,7 +46,7 @@ to `true`, while the local adapter may still be stuck in `createTables()`.
 
 Emits deduplicated: under multiple adapters, every single connect/disconnect recomputes the aggregated value, but subscribers should not be notified when the aggregated value has not changed.
 
-***
+---
 
 ### entityManager \{#entitymanager\}
 
@@ -56,7 +56,7 @@ readonly entityManager: EntityManager;
 
 Defined in: [packages/rxdb/src/RxDB.ts:449](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/RxDB.ts#L449)
 
-***
+---
 
 ### entitySync \{#entitysync\}
 
@@ -74,7 +74,7 @@ Priority: the instance override in `syncOverrides` \> the entity decorator `sync
 must read through it, and must not read `metadata.sync` back themselves: the same entity can use different
 strategies in two instances, and the one on the metadata is only the decorator's declaration, not this database's effective configuration.
 
-***
+---
 
 ### localAdapter$ \{#localadapter\}
 
@@ -84,7 +84,7 @@ readonly localAdapter$: Observable<LocalRxDBAdapter>;
 
 Defined in: [packages/rxdb/src/RxDB.ts:396](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/RxDB.ts#L396)
 
-***
+---
 
 ### reachability \{#reachability\}
 
@@ -107,7 +107,7 @@ the only state local-first writes need to distinguish.
 but the network does not reset just because an adapter disconnected. Calling `destroy()` here would leave the reset instance with a
 monitor stuck at the old state forever, whose `report()` no longer takes effect.
 
-***
+---
 
 ### remoteAdapter$ \{#remoteadapter\}
 
@@ -123,7 +123,7 @@ Remote adapter
 
 Caching semantics are the same as [RxDB.localAdapter$](#localadapter).
 
-***
+---
 
 ### schemaManager \{#schemamanager\}
 
@@ -133,7 +133,7 @@ readonly schemaManager: SchemaManager;
 
 Defined in: [packages/rxdb/src/RxDB.ts:447](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/RxDB.ts#L447)
 
-***
+---
 
 ### syncState \{#syncstate\}
 
@@ -151,7 +151,7 @@ The three frameworks' `useSyncState()` binds directly to this snapshot. Its life
 it follows the instance rather than the connection epoch, and `#shutdown()` does not destroy it: the panel must keep showing
 "offline, N items pending push" during disconnection, which is exactly when it should speak up.
 
-***
+---
 
 ### worktreeTableSet$ \{#worktreetableset\}
 
@@ -184,7 +184,7 @@ Defined in: [packages/rxdb/src/RxDB.ts:524](https://github.com/aiao-io/rxdb/blob
 
 [`RxDBOptions`](../interfaces/RxDBOptions.md)
 
-***
+---
 
 ### context \{#context\}
 
@@ -210,15 +210,15 @@ Defined in: [packages/rxdb/src/RxDB.ts:507](https://github.com/aiao-io/rxdb/blob
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                          |
+| --------- | --------------------------------------------- |
 | `context` | [`RxDBContext`](../interfaces/RxDBContext.md) |
 
 ##### Returns
 
 `void`
 
-***
+---
 
 ### firstConnectedAt \{#firstconnectedat\}
 
@@ -234,7 +234,7 @@ Defined in: [packages/rxdb/src/RxDB.ts:516](https://github.com/aiao-io/rxdb/blob
 
 `Date` \| `undefined`
 
-***
+---
 
 ### initialized \{#initialized\}
 
@@ -257,7 +257,7 @@ Still `true` inside the shutdown window, reset to `false` after teardown; also `
 
 `boolean`
 
-***
+---
 
 ### localAdapterIfConnected \{#localadapterifconnected\}
 
@@ -296,7 +296,7 @@ the two may point to different objects across epochs, and the hook must be insta
 
 [`LocalRxDBAdapter`](../type-aliases/LocalRxDBAdapter.md) \| `undefined`
 
-***
+---
 
 ### localAdapterSync \{#localadaptersync\}
 
@@ -333,7 +333,7 @@ error, and returning a null value only postpones the explosion to somewhere furt
 
 The local adapter instance
 
-***
+---
 
 ### readOnly \{#readonly\}
 
@@ -355,7 +355,7 @@ All public write entrances of a read-only instance throw [RxDBReadOnlyError](RxD
 
 `boolean`
 
-***
+---
 
 ### systemContributions \{#systemcontributions\}
 
@@ -385,7 +385,7 @@ irrelevant to it — contributions are deduplicated by capability name.
 
 readonly [`RxDBSystemContribution`](../interfaces/RxDBSystemContribution.md)[]
 
-***
+---
 
 ### systemEntities \{#systementities\}
 
@@ -418,7 +418,7 @@ would mean letting it write back here.
 
 readonly [`EntityType`](../type-aliases/EntityType.md)[]
 
-***
+---
 
 ### version \{#version\}
 
@@ -434,14 +434,14 @@ Defined in: [packages/rxdb/src/RxDB.ts:520](https://github.com/aiao-io/rxdb/blob
 
 `string`
 
-***
+---
 
 ### workingTreeCaptureHook \{#workingtreecapturehook\}
 
 #### Get Signature
 
 ```ts
-get workingTreeCaptureHook(): 
+get workingTreeCaptureHook():
   | WorkingTreeCaptureHook
   | undefined;
 ```
@@ -466,10 +466,10 @@ The hook lives on the **adapter instance** ([RxDBAdapterLocalBase.workingTreeCap
 
 ##### Returns
 
-  \| [`WorkingTreeCaptureHook`](../interfaces/WorkingTreeCaptureHook.md)
-  \| `undefined`
+\| [`WorkingTreeCaptureHook`](../interfaces/WorkingTreeCaptureHook.md)
+\| `undefined`
 
-***
+---
 
 ### worktreeTableSet \{#worktreetableset-1\}
 
@@ -505,10 +505,10 @@ Registers an adapter
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `adapterName` | `string` & `object` | Adapter name |
-| `adapter` | [`AdapterFactory`](../type-aliases/AdapterFactory.md) | Adapter factory function |
+| Parameter     | Type                                                  | Description              |
+| ------------- | ----------------------------------------------------- | ------------------------ |
+| `adapterName` | `string` & `object`                                   | Adapter name             |
+| `adapter`     | [`AdapterFactory`](../type-aliases/AdapterFactory.md) | Adapter factory function |
 
 #### Returns
 
@@ -516,7 +516,7 @@ Registers an adapter
 
 Returns the RxDB instance, supports chaining
 
-***
+---
 
 ### adapterConnected$() \{#adapterconnected\}
 
@@ -530,8 +530,8 @@ The connection state stream of a specific adapter.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter     | Type     | Description  |
+| ------------- | -------- | ------------ |
 | `adapterName` | `string` | Adapter name |
 
 #### Returns
@@ -548,7 +548,7 @@ The difference from the aggregated [RxDB.connected$](#connected) is that this on
 The set timing is **before** plugin installation — bootstrap-phase plugins rely on it to release their wait; after plugin installation it would deadlock.
 Therefore it means "the table structure is available", not "the whole `connect()` has finished".
 
-***
+---
 
 ### addEventListener() \{#addeventlistener\}
 
@@ -560,22 +560,22 @@ Defined in: [packages/rxdb/src/RxDB.ts:1532](https://github.com/aiao-io/rxdb/blo
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* keyof [`RxDBEventMap`](../interfaces/RxDBEventMap.md) |
+| Type Parameter                                                                                    |
+| ------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ keyof [`RxDBEventMap`](../interfaces/RxDBEventMap.md) |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `type` | `T` |
+| Parameter  | Type                                                                                                              |
+| ---------- | ----------------------------------------------------------------------------------------------------------------- |
+| `type`     | `T`                                                                                                               |
 | `listener` | [`EventListener`](../type-aliases/EventListener.md)&lt;[`RxDBEventMap`](../interfaces/RxDBEventMap.md)\[`T`\]&gt; |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### branchMaterializationSource() \{#branchmaterializationsource\}
 
@@ -589,10 +589,10 @@ Registers the first materialization source of metadata-only branches
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `source` | [`BranchMaterializationSource`](../interfaces/BranchMaterializationSource.md) | The materialization source, see [BranchMaterializationSource](../interfaces/BranchMaterializationSource.md) |
-| `scope?` | [`LifecycleScope`](../../utils/classes/LifecycleScope.md) | When provided, this registration is revoked when the scope is released; otherwise it is permanent |
+| Parameter | Type                                                                          | Description                                                                                                 |
+| --------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `source`  | [`BranchMaterializationSource`](../interfaces/BranchMaterializationSource.md) | The materialization source, see [BranchMaterializationSource](../interfaces/BranchMaterializationSource.md) |
+| `scope?`  | [`LifecycleScope`](../../utils/classes/LifecycleScope.md)                     | When provided, this registration is revoked when the scope is released; otherwise it is permanent           |
 
 #### Returns
 
@@ -619,7 +619,7 @@ import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 rxdb.use(rxDBPluginSync); // registered automatically during assembly
 ```
 
-***
+---
 
 ### broadcastCapabilityEnabled() \{#broadcastcapabilityenabled\}
 
@@ -633,8 +633,8 @@ Notifies other same-origin connections: a capability was just enabled on this co
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter    | Type     | Description                                                                |
+| ------------ | -------- | -------------------------------------------------------------------------- |
 | `capability` | `string` | The capability name, the same value as `RxDBSystemContribution.capability` |
 
 #### Returns
@@ -657,7 +657,7 @@ it already wired itself synchronously inside `enable()`, and receiving it again 
 
 A no-op when the gateway is disabled (`multiInstance: false`), does not throw.
 
-***
+---
 
 ### connect() \{#connect\}
 
@@ -679,15 +679,15 @@ bootstrap a new connection, without handing out the old instance that is shuttin
 
 ##### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-k"></a> `K` *extends* `never` |
+| Type Parameter                                      |
+| --------------------------------------------------- |
+| <a id="type-parameter-k"></a> `K` _extends_ `never` |
 
 ##### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `adapterName` | `K` | Adapter name |
+| Parameter     | Type | Description  |
+| ------------- | ---- | ------------ |
+| `adapterName` | `K`  | Adapter name |
 
 ##### Returns
 
@@ -717,8 +717,8 @@ bootstrap a new connection, without handing out the old instance that is shuttin
 
 ##### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter     | Type                | Description  |
+| ------------- | ------------------- | ------------ |
 | `adapterName` | `string` & `object` | Adapter name |
 
 ##### Returns
@@ -731,7 +731,7 @@ Returns the connected adapter instance
 
 Thrown when the bootstrap is aborted by `disconnect()` / `disconnectAll()` (see RxDB.#connect\_epochs)
 
-***
+---
 
 ### destroy() \{#destroy\}
 
@@ -768,7 +768,7 @@ Idempotent; no need to call `disconnectAll()` first, it disconnects everything i
 await rxdb.destroy();
 ```
 
-***
+---
 
 ### disconnect() \{#disconnect\}
 
@@ -791,15 +791,15 @@ this call does not shut down a second time, nor does it clean up connections cre
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter     | Type                | Description  |
+| ------------- | ------------------- | ------------ |
 | `adapterName` | `string` & `object` | Adapter name |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### disconnectAll() \{#disconnectall\}
 
@@ -829,7 +829,7 @@ by the time it throws, the teardown has fully completed, no adapter is left conn
 
 A `connect()` of the same adapter during teardown waits for this teardown to finish and bootstraps again (see [RxDB.connect](#connect)).
 
-***
+---
 
 ### dispatchEvent() \{#dispatchevent\}
 
@@ -841,15 +841,15 @@ Defined in: [packages/rxdb/src/RxDB.ts:1540](https://github.com/aiao-io/rxdb/blo
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | [`RxDBEvent`](../type-aliases/RxDBEvent.md) |
+| Parameter | Type                                        |
+| --------- | ------------------------------------------- |
+| `event`   | [`RxDBEvent`](../type-aliases/RxDBEvent.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### getAdapter() \{#getadapter\}
 
@@ -865,15 +865,15 @@ Gets the adapter instance
 
 ##### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-k-1"></a> `K` *extends* `never` |
+| Type Parameter                                        |
+| ----------------------------------------------------- |
+| <a id="type-parameter-k-1"></a> `K` _extends_ `never` |
 
 ##### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `adapterName` | `K` | Adapter name |
+| Parameter     | Type | Description  |
+| ------------- | ---- | ------------ |
+| `adapterName` | `K`  | Adapter name |
 
 ##### Returns
 
@@ -897,8 +897,8 @@ Gets the adapter instance
 
 ##### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter     | Type                | Description  |
+| ------------- | ------------------- | ------------ |
 | `adapterName` | `string` & `object` | Adapter name |
 
 ##### Returns
@@ -911,12 +911,12 @@ Returns a Promise of the adapter instance
 
 Throws when the adapter is not registered
 
-***
+---
 
 ### getBranchMaterializationSource() \{#getbranchmaterializationsource\}
 
 ```ts
-getBranchMaterializationSource(): 
+getBranchMaterializationSource():
   | BranchMaterializationSource
   | undefined;
 ```
@@ -927,8 +927,8 @@ Gets the registered first materialization source
 
 #### Returns
 
-  \| [`BranchMaterializationSource`](../interfaces/BranchMaterializationSource.md)
-  \| `undefined`
+\| [`BranchMaterializationSource`](../interfaces/BranchMaterializationSource.md)
+\| `undefined`
 
 The source itself when the sync plugin is installed and a connection period is active, otherwise `undefined`
 
@@ -937,7 +937,7 @@ The source itself when the sync plugin is installed and a connection period is a
 `undefined` is handed to the working tree plugin to throw `branch_not_materialized` (`source_unavailable`) —
 this layer does not know which branch to name.
 
-***
+---
 
 ### getPlugins() \{#getplugins\}
 
@@ -951,9 +951,9 @@ Gets the registered plugin instances by name.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `name` | `string` | The plugin's [IRxDBPlugin.name](../interfaces/IRxDBPlugin.md#name) |
+| Parameter | Type     | Description                                                        |
+| --------- | -------- | ------------------------------------------------------------------ |
+| `name`    | `string` | The plugin's [IRxDBPlugin.name](../interfaces/IRxDBPlugin.md#name) |
 
 #### Returns
 
@@ -969,12 +969,12 @@ for the "have I already been installed" self-check, which is more reliable than 
 
 Returns a new array each time: callers pushing into it will not write back to the host index.
 
-***
+---
 
 ### getQueryCacheEngine() \{#getquerycacheengine\}
 
 ```ts
-getQueryCacheEngine(): 
+getQueryCacheEngine():
   | QueryCacheEngineFactory
   | undefined;
 ```
@@ -985,8 +985,8 @@ Gets the registered QueryCache read engine factory
 
 #### Returns
 
-  \| [`QueryCacheEngineFactory`](../interfaces/QueryCacheEngineFactory.md)
-  \| `undefined`
+\| [`QueryCacheEngineFactory`](../interfaces/QueryCacheEngineFactory.md)
+\| `undefined`
 
 The factory itself when the plugin is installed, otherwise `undefined`
 
@@ -995,12 +995,12 @@ The factory itself when the plugin is installed, otherwise `undefined`
 `undefined` is intentionally exposed: the caller throws [RxDBMissingPluginError](RxDBMissingPluginError.md) itself,
 rather than this layer throwing on its behalf — the startup guard of `connect()` must name the **specific entity**, which this layer does not know.
 
-***
+---
 
 ### getQueryCacheOutbox() \{#getquerycacheoutbox\}
 
 ```ts
-getQueryCacheOutbox(): 
+getQueryCacheOutbox():
   | QueryCacheOutboxProvider
   | undefined;
 ```
@@ -1011,8 +1011,8 @@ Gets the registered query outbox provider
 
 #### Returns
 
-  \| [`QueryCacheOutboxProvider`](../interfaces/QueryCacheOutboxProvider.md)
-  \| `undefined`
+\| [`QueryCacheOutboxProvider`](../interfaces/QueryCacheOutboxProvider.md)
+\| `undefined`
 
 The provider itself when the plugin is installed, otherwise `undefined`
 
@@ -1021,12 +1021,12 @@ The provider itself when the plugin is installed, otherwise `undefined`
 Same as [RxDB.getQueryCacheEngine](#getquerycacheengine); `undefined` is handed to the caller to throw
 [RxDBMissingPluginError](RxDBMissingPluginError.md) — this layer does not know which entity to name.
 
-***
+---
 
 ### getRepositoryConfig() \{#getrepositoryconfig\}
 
 ```ts
-getRepositoryConfig(repositoryName): 
+getRepositoryConfig(repositoryName):
   | IRepositoryConfig<RepositoryInstance<EntityType>>
   | undefined;
 ```
@@ -1037,18 +1037,18 @@ Gets the Repository configuration
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter        | Type     | Description     |
+| ---------------- | -------- | --------------- |
 | `repositoryName` | `string` | Repository name |
 
 #### Returns
 
-  \| [`IRepositoryConfig`](../interfaces/IRepositoryConfig.md)&lt;[`RepositoryInstance`](../interfaces/RepositoryInstance.md)&lt;[`EntityType`](../type-aliases/EntityType.md)&gt;&gt;
-  \| `undefined`
+\| [`IRepositoryConfig`](../interfaces/IRepositoryConfig.md)&lt;[`RepositoryInstance`](../interfaces/RepositoryInstance.md)&lt;[`EntityType`](../type-aliases/EntityType.md)&gt;&gt;
+\| `undefined`
 
 The Repository configuration object, or undefined if it does not exist
 
-***
+---
 
 ### getRepositoryNames() \{#getrepositorynames\}
 
@@ -1072,7 +1072,7 @@ For error reporting. When the `repository` declared by an entity is not found, s
 or the plugin is not installed; listing what exists lets the caller see at a glance which kind is missing. The core itself only registers
 `Repository`; everything else is mounted by plugins inside `install()`.
 
-***
+---
 
 ### init() \{#init\}
 
@@ -1099,7 +1099,7 @@ Thrown when the instance is inside the `#shutdown()` teardown window.
 If any manager's initialization throws, the initialization flag, plugin registrations and the connection scope are all rolled back;
 after fixing the problem the caller can re-run `init()` and actually re-run the remaining steps, instead of being blocked by a half-built state.
 
-***
+---
 
 ### invalidateRemoteEntity() \{#invalidateremoteentity\}
 
@@ -1117,10 +1117,10 @@ live queries depending on it — the re-run fetches the authoritative data from 
 
 #### Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `entity` | `string` | `undefined` | The entity name, i.e. `@Entity({ name })`; an unregistered name is a no-op, does not throw |
-| `namespace?` | `string` | `'public'` | The namespace, default `'public'` (consistent with the `@Entity` default) |
+| Parameter    | Type     | Default value | Description                                                                                |
+| ------------ | -------- | ------------- | ------------------------------------------------------------------------------------------ |
+| `entity`     | `string` | `undefined`   | The entity name, i.e. `@Entity({ name })`; an unregistered name is a no-op, does not throw |
+| `namespace?` | `string` | `'public'`    | The namespace, default `'public'` (consistent with the `@Entity` default)                  |
 
 #### Returns
 
@@ -1141,7 +1141,7 @@ change into N remote pulls across N tabs.
 socket.on('changed', ({ entity }) => rxdb.invalidateRemoteEntity(entity));
 ```
 
-***
+---
 
 ### mountWorktreeTableSet() \{#mountworktreetableset\}
 
@@ -1155,8 +1155,8 @@ Re-mounts a set of business tables (US-314 B1.4): from then on this instance's r
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                      | Description                                                                                                       |
+| ---------- | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
 | `tableSet` | [`WorktreeTableSet`](WorktreeTableSet.md) | The table set to mount; pass [WorktreeTableSet.MAIN](WorktreeTableSet.md#main) to mount back to the main checkout |
 
 #### Returns
@@ -1176,7 +1176,7 @@ subscriptions are kept as-is, emitting results from the new set.
 "Holding" is checked against [WorktreeTableSet.heldBranchWhere](WorktreeTableSet.md#heldbranchwhere): a table set holding no branch cannot even have its current branch read after mounting.
 The table set itself (creating tables, writing the hold key, seeding) is prepared by the checkout-opening flow; this method only mounts it.
 
-***
+---
 
 ### notifyWorktreeTableSetCreated() \{#notifyworktreetablesetcreated\}
 
@@ -1190,10 +1190,10 @@ A writable checkout's table set was just created: inside the transaction that cr
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                          | Description                             |
+| ---------- | ------------------------------------------------------------- | --------------------------------------- |
 | `executor` | [`TransactionExecutor`](../interfaces/TransactionExecutor.md) | The transaction that created the tables |
-| `tableSet` | [`WorktreeTableSet`](WorktreeTableSet.md) | The table set just created and seeded |
+| `tableSet` | [`WorktreeTableSet`](WorktreeTableSet.md)                     | The table set just created and seeded   |
 
 #### Returns
 
@@ -1204,7 +1204,7 @@ A writable checkout's table set was just created: inside the transaction that cr
 Auxiliary objects plugins build on business tables (such as full-text indexes) must exist on every shadow table set. If any plugin throws, the whole transaction rolls back: the checkout is either created together with these
 auxiliary objects, or not at all. Called by the table-set-creating side (the working tree plugin's `checkouts.add()`) after `createWorktreeTableSet`.
 
-***
+---
 
 ### queryCacheEngine() \{#querycacheengine\}
 
@@ -1218,10 +1218,10 @@ Registers the QueryCache read engine factory
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `factory` | [`QueryCacheEngineFactory`](../interfaces/QueryCacheEngineFactory.md) | The engine factory, see [QueryCacheEngineFactory](../interfaces/QueryCacheEngineFactory.md) |
-| `scope?` | [`LifecycleScope`](../../utils/classes/LifecycleScope.md) | When provided, this registration is revoked when the scope is released; otherwise it is permanent |
+| Parameter | Type                                                                  | Description                                                                                       |
+| --------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `factory` | [`QueryCacheEngineFactory`](../interfaces/QueryCacheEngineFactory.md) | The engine factory, see [QueryCacheEngineFactory](../interfaces/QueryCacheEngineFactory.md)       |
+| `scope?`  | [`LifecycleScope`](../../utils/classes/LifecycleScope.md)             | When provided, this registration is revoked when the scope is released; otherwise it is permanent |
 
 #### Returns
 
@@ -1245,7 +1245,7 @@ import { rxDBPluginQueryCache } from '@aiao/rxdb-plugin-querycache';
 rxdb.use(rxDBPluginQueryCache);
 ```
 
-***
+---
 
 ### queryCacheOutbox() \{#querycacheoutbox\}
 
@@ -1259,10 +1259,10 @@ Registers the query outbox provider
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `provider` | [`QueryCacheOutboxProvider`](../interfaces/QueryCacheOutboxProvider.md) | The outbox provider, see [QueryCacheOutboxProvider](../interfaces/QueryCacheOutboxProvider.md) |
-| `scope?` | [`LifecycleScope`](../../utils/classes/LifecycleScope.md) | When provided, this registration is revoked when the scope is released; otherwise it is permanent |
+| Parameter  | Type                                                                    | Description                                                                                       |
+| ---------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `provider` | [`QueryCacheOutboxProvider`](../interfaces/QueryCacheOutboxProvider.md) | The outbox provider, see [QueryCacheOutboxProvider](../interfaces/QueryCacheOutboxProvider.md)    |
+| `scope?`   | [`LifecycleScope`](../../utils/classes/LifecycleScope.md)               | When provided, this registration is revoked when the scope is released; otherwise it is permanent |
 
 #### Returns
 
@@ -1283,7 +1283,7 @@ import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 rxdb.use(rxDBPluginSync);
 ```
 
-***
+---
 
 ### removeEventListener() \{#removeeventlistener\}
 
@@ -1295,29 +1295,29 @@ Defined in: [packages/rxdb/src/RxDB.ts:1536](https://github.com/aiao-io/rxdb/blo
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-1"></a> `T` *extends* keyof [`RxDBEventMap`](../interfaces/RxDBEventMap.md) |
+| Type Parameter                                                                                      |
+| --------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-1"></a> `T` _extends_ keyof [`RxDBEventMap`](../interfaces/RxDBEventMap.md) |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `type` | `T` |
+| Parameter  | Type                                                                                                              |
+| ---------- | ----------------------------------------------------------------------------------------------------------------- |
+| `type`     | `T`                                                                                                               |
 | `listener` | [`EventListener`](../type-aliases/EventListener.md)&lt;[`RxDBEventMap`](../interfaces/RxDBEventMap.md)\[`T`\]&gt; |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### repository() \{#repository\}
 
 ```ts
 repository<RT>(
-   repositoryName, 
-   config, 
+   repositoryName,
+   config,
    scope?
 ): this;
 ```
@@ -1329,17 +1329,17 @@ Unified interface; all repository configurations are stored in RxDB
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-rt"></a> `RT` *extends* [`RepositoryInstance`](../interfaces/RepositoryInstance.md)&lt;[`EntityType`](../type-aliases/EntityType.md)&gt; |
+| Type Parameter                                                                                                                                                 |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-rt"></a> `RT` _extends_ [`RepositoryInstance`](../interfaces/RepositoryInstance.md)&lt;[`EntityType`](../type-aliases/EntityType.md)&gt; |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `repositoryName` | `string` | Repository name |
-| `config` | [`IRepositoryConfig`](../interfaces/IRepositoryConfig.md)&lt;`RT`&gt; | Repository configuration object |
-| `scope?` | [`LifecycleScope`](../../utils/classes/LifecycleScope.md) | When provided, this registration is revoked when the scope is released; otherwise it is permanent (consistent with the pre-refactor behavior) |
+| Parameter        | Type                                                                  | Description                                                                                                                                   |
+| ---------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `repositoryName` | `string`                                                              | Repository name                                                                                                                               |
+| `config`         | [`IRepositoryConfig`](../interfaces/IRepositoryConfig.md)&lt;`RT`&gt; | Repository configuration object                                                                                                               |
+| `scope?`         | [`LifecycleScope`](../../utils/classes/LifecycleScope.md)             | When provided, this registration is revoked when the scope is released; otherwise it is permanent (consistent with the pre-refactor behavior) |
 
 #### Returns
 
@@ -1355,7 +1355,7 @@ When `scope` is passed, **the table-writing step itself** lives in `setup`: when
 the registration would stay in the table with nobody able to revoke it — exactly the kind of orphan this primitive's "a throwing `setup` never enters the list" rule
 exists to prevent.
 
-***
+---
 
 ### use() \{#use\}
 
@@ -1389,16 +1389,16 @@ has no entry to remove a plugin, so letting it into the registry would permanent
 
 #### Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-options"></a> `Options` | `never` |
+| Type Parameter                                | Default type |
+| --------------------------------------------- | ------------ |
+| <a id="type-parameter-options"></a> `Options` | `never`      |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `plugin` | [`Plugin`](../type-aliases/Plugin.md)&lt;`Options`&gt; | Plugin constructor |
-| `options?` | `Options` | Plugin options |
+| Parameter  | Type                                                   | Description        |
+| ---------- | ------------------------------------------------------ | ------------------ |
+| `plugin`   | [`Plugin`](../type-aliases/Plugin.md)&lt;`Options`&gt; | Plugin constructor |
+| `options?` | `Options`                                              | Plugin options     |
 
 #### Returns
 
@@ -1414,7 +1414,7 @@ Returns the RxDB instance, supports chaining
 
 [RxDBPluginAmbiguousDependencyError](RxDBPluginAmbiguousDependencyError.md) some injected plugin name has multiple candidates
 
-***
+---
 
 ### worktreeTableSetFingerprint() \{#worktreetablesetfingerprint\}
 
@@ -1429,8 +1429,8 @@ combined with the fingerprints of each plugin's table-set hooks (`WorktreeTableS
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                      | Description                                                     |
+| ---------- | ----------------------------------------- | --------------------------------------------------------------- |
 | `tableSet` | [`WorktreeTableSet`](WorktreeTableSet.md) | That table set; only its members are considered, not the suffix |
 
 #### Returns

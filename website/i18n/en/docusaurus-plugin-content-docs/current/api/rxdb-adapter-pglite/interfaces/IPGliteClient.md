@@ -32,10 +32,10 @@ Describes a query
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `query` | `string` | The query to describe |
-| `options?` | `QueryOptions` | - |
+| Parameter  | Type           | Description           |
+| ---------- | -------------- | --------------------- |
+| `query`    | `string`       | The query to describe |
+| `options?` | `QueryOptions` | -                     |
 
 #### Returns
 
@@ -47,7 +47,7 @@ Description of the query result type
 
 Optional: `DescribeQueryResult` carries parser functions that cannot survive structured cloning, so the desktop proxy client of US-208 cannot provide it. The adapter itself never calls it; declaring it required would turn "cannot implement locally" into "must fake one".
 
-***
+---
 
 ### disconnect() \{#disconnect\}
 
@@ -61,7 +61,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/PGliteClient.ts:335](https://githu
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### exec() \{#exec\}
 
@@ -76,10 +76,10 @@ Uses PostgreSQL's "simple query" protocol message
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `query` | `string` | The query to execute |
-| `options?` | `QueryOptions` | - |
+| Parameter  | Type           | Description          |
+| ---------- | -------------- | -------------------- |
+| `query`    | `string`       | The query to execute |
+| `options?` | `QueryOptions` | -                    |
 
 #### Returns
 
@@ -87,7 +87,7 @@ Uses PostgreSQL's "simple query" protocol message
 
 The query results
 
-***
+---
 
 ### forceClose() \{#forceclose\}
 
@@ -103,7 +103,7 @@ Releases client resources without performing a persistence sync.
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### hasStoragePeer()? \{#hasstoragepeer\}
 
@@ -119,7 +119,7 @@ Whether another client in the current realm holds the same persistent storage.
 
 `boolean`
 
-***
+---
 
 ### init() \{#init\}
 
@@ -131,23 +131,23 @@ Defined in: [packages/rxdb-adapter-pglite/src/PGliteClient.ts:234](https://githu
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `dbName` | `string` |
+| Parameter | Type                                            |
+| --------- | ----------------------------------------------- |
+| `dbName`  | `string`                                        |
 | `options` | [`PGliteClientOptions`](PGliteClientOptions.md) |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### liveQuery()? \{#livequery\}
 
 ```ts
 liveQuery?<T>(
-   query, 
-   params?, 
+   query,
+   params?,
    callback?
 ): Promise<LiveQuery<T>>;
 ```
@@ -158,16 +158,16 @@ Creates a PGlite live query that calls back automatically when data changes
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `query` | `string` | SQL |
-| `params?` | `unknown`[] \| `null` | Parameters |
+| Parameter   | Type                  | Description     |
+| ----------- | --------------------- | --------------- |
+| `query`     | `string`              | SQL             |
+| `params?`   | `unknown`[] \| `null` | Parameters      |
 | `callback?` | (`results`) => `void` | Result callback |
 
 #### Returns
@@ -178,14 +178,14 @@ Creates a PGlite live query that calls back automatically when data changes
 
 Optional: a `LiveQuery` handle carries a subscription and `unsubscribe`, and a proxy implementation would need to build a whole cross-process subscription lifecycle itself. [RxDBAdapterPGlite.liveQuery](../classes/RxDBAdapterPGlite.md#livequery) already decides by capability and fails fast.
 
-***
+---
 
 ### query() \{#query\}
 
 ```ts
 query<T>(
-   query, 
-   params?, 
+   query,
+   params?,
    options?
 ): Promise<Results<T>>;
 ```
@@ -197,17 +197,17 @@ Uses PostgreSQL's "extended query" protocol message
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                      |
+| ----------------------------------- |
 | <a id="type-parameter-t-1"></a> `T` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `query` | `string` | The query statement to execute |
-| `params?` | `unknown`[] | Optional parameters for the query |
-| `options?` | `QueryOptions` | - |
+| Parameter  | Type           | Description                       |
+| ---------- | -------------- | --------------------------------- |
+| `query`    | `string`       | The query statement to execute    |
+| `params?`  | `unknown`[]    | Optional parameters for the query |
+| `options?` | `QueryOptions` | -                                 |
 
 #### Returns
 
@@ -215,12 +215,12 @@ Uses PostgreSQL's "extended query" protocol message
 
 The query results
 
-***
+---
 
 ### runExclusive()? \{#runexclusive\}
 
 ```ts
-runExclusive?<T>(fn): Promise<T>;
+runExclusive ? <T>fn : Promise<T>;
 ```
 
 Defined in: [packages/rxdb-adapter-pglite/src/PGliteClient.ts:299](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-pglite/src/PGliteClient.ts#L299)
@@ -230,15 +230,15 @@ This is particularly useful with execProtocol methods, because they are not bloc
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                      |
+| ----------------------------------- |
 | <a id="type-parameter-t-2"></a> `T` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `fn` | () => `Promise`&lt;`T`&gt; | The function to run |
+| Parameter | Type                       | Description         |
+| --------- | -------------------------- | ------------------- |
+| `fn`      | () => `Promise`&lt;`T`&gt; | The function to run |
 
 #### Returns
 
@@ -250,12 +250,12 @@ The function's result
 
 Optional, for the same class of reason as [IPGliteClient.describeQuery](#describequery) but harder: `fn` is the caller's closure and cannot be passed across processes; to truly proxy it, the renderer would have to hold the main process's single connection for the whole duration of `fn`, and if the renderer crashes that lock can never be released again.
 
-***
+---
 
 ### snapshotDataDir()? \{#snapshotdatadir\}
 
 ```ts
-snapshotDataDir?<T>(fn): Promise<T>;
+snapshotDataDir ? <T>fn : Promise<T>;
 ```
 
 Defined in: [packages/rxdb-adapter-pglite/src/PGliteClient.ts:312](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-pglite/src/PGliteClient.ts#L312)
@@ -264,15 +264,15 @@ Reads the data directory on a consistent snapshot.
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                      |
+| ----------------------------------- |
 | <a id="type-parameter-t-3"></a> `T` |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `fn` | (`items`) => `Promise`&lt;`T`&gt; |
+| Parameter | Type                              |
+| --------- | --------------------------------- |
+| `fn`      | (`items`) => `Promise`&lt;`T`&gt; |
 
 #### Returns
 
@@ -282,7 +282,7 @@ Reads the data directory on a consistent snapshot.
 
 Optional: a main-thread PGlite walks the Emscripten filesystem directly, the desktop proxy client streams chunks back from the host on a transactional snapshot; the Worker client does not provide it, and [RxDBAdapterPGlite.backup](../classes/RxDBAdapterPGlite.md#backup) reports `unsupported_combination` accordingly. The snapshot stays valid until `fn` returns, during which the database is held exclusively.
 
-***
+---
 
 ### sql() \{#sql\}
 
@@ -298,16 +298,16 @@ Uses PostgreSQL's "extended query" protocol message
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                      |
+| ----------------------------------- |
 | <a id="type-parameter-t-4"></a> `T` |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter    | Type                   |
+| ------------ | ---------------------- |
 | `sqlStrings` | `TemplateStringsArray` |
-| ...`params` | `unknown`[] |
+| ...`params`  | `unknown`[]            |
 
 #### Returns
 
@@ -318,10 +318,10 @@ The query results
 #### Example
 
 ```ts
-const results = await db.sql`SELECT * FROM ${identifier`foo`} WHERE id = ${id}`
+const results = await db.sql`SELECT * FROM ${identifier`foo`} WHERE id = ${id}`;
 ```
 
-***
+---
 
 ### transaction() \{#transaction\}
 
@@ -335,14 +335,14 @@ Executes a transaction
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                      |
+| ----------------------------------- |
 | <a id="type-parameter-t-5"></a> `T` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                           | Description                                            |
+| ---------- | ------------------------------ | ------------------------------------------------------ |
 | `callback` | (`tx`) => `Promise`&lt;`T`&gt; | Callback function that receives the transaction object |
 
 #### Returns
@@ -351,7 +351,7 @@ Executes a transaction
 
 The transaction's result
 
-***
+---
 
 ### version() \{#version\}
 

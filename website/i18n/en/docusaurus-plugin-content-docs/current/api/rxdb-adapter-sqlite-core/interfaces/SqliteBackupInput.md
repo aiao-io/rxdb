@@ -14,7 +14,7 @@ readonly adapterName: string;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/backup/sqlite-backup.ts:56](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/backup/sqlite-backup.ts#L56)
 
-***
+---
 
 ### client \{#client\}
 
@@ -24,7 +24,7 @@ readonly client: SqliteBackupExecutor;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/backup/sqlite-backup.ts:57](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/backup/sqlite-backup.ts#L57)
 
-***
+---
 
 ### queue \{#queue\}
 
@@ -34,7 +34,7 @@ readonly queue: AsyncQueueExecutor;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/backup/sqlite-backup.ts:59](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/backup/sqlite-backup.ts#L59)
 
-***
+---
 
 ### rxdb \{#rxdb\}
 
@@ -44,7 +44,7 @@ readonly rxdb: RxDB;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/backup/sqlite-backup.ts:55](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/backup/sqlite-backup.ts#L55)
 
-***
+---
 
 ### shadowTablesWritable \{#shadowtableswritable\}
 
@@ -56,7 +56,7 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/backup/sqlite-backup.ts:61](h
 
 Whether the same adapter can write shadow tables on restore; when it cannot, databases containing shadow tables are rejected before any byte is written out.
 
-***
+---
 
 ### storage \{#storage\}
 

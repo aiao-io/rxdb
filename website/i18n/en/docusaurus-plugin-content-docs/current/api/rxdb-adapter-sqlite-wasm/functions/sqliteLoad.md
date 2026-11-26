@@ -10,9 +10,9 @@ Load and initialize @subframe7536/sqlite-wasm
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `dbName` | `string` |
+| Parameter | Type                |
+| --------- | ------------------- |
+| `dbName`  | `string`            |
 | `options` | `LoadModuleOptions` |
 
 ## Returns

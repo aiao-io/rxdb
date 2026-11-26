@@ -1,5 +1,5 @@
 ---
-sidebar_label: "SupabaseTreeRepository⟨T⟩"
+sidebar_label: 'SupabaseTreeRepository⟨T⟩'
 ---
 
 # SupabaseTreeRepository`<T>`
@@ -26,9 +26,9 @@ which did not match the implementation (SUPA-023).
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                    |
+| ------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 ## Implements
 
@@ -46,10 +46,10 @@ Defined in: [packages/rxdb-adapter-supabase/src/SupabaseTreeRepository.ts:37](ht
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `adapter` | [`RxDBAdapterSupabase`](RxDBAdapterSupabase.md) |
-| `EntityType` | `T` |
+| Parameter    | Type                                            |
+| ------------ | ----------------------------------------------- |
+| `adapter`    | [`RxDBAdapterSupabase`](RxDBAdapterSupabase.md) |
+| `EntityType` | `T`                                             |
 
 #### Returns
 
@@ -73,7 +73,7 @@ Defined in: [packages/rxdb-adapter-supabase/src/SupabaseRepository.ts:103](https
 
 [`SupabaseRepository`](SupabaseRepository.md).[`adapter`](SupabaseRepository.md#adapter)
 
-***
+---
 
 ### EntityType \{#entitytype\}
 
@@ -87,7 +87,7 @@ Defined in: packages/rxdb/dist/repository/RepositoryBase.d.ts:20
 
 [`SupabaseRepository`](SupabaseRepository.md).[`EntityType`](SupabaseRepository.md#entitytype)
 
-***
+---
 
 ### metadata \{#metadata\}
 
@@ -101,7 +101,7 @@ Defined in: [packages/rxdb-adapter-supabase/src/SupabaseRepository.ts:100](https
 
 [`SupabaseRepository`](SupabaseRepository.md).[`metadata`](SupabaseRepository.md#metadata)
 
-***
+---
 
 ### rxdb \{#rxdb\}
 
@@ -115,7 +115,7 @@ Defined in: packages/rxdb/dist/repository/RepositoryBase.d.ts:19
 
 [`SupabaseRepository`](SupabaseRepository.md).[`rxdb`](SupabaseRepository.md#rxdb)
 
-***
+---
 
 ### \_STATIC\_METHODS \{#_static_methods\}
 
@@ -182,10 +182,10 @@ Builds the SELECT fields including the embeds needed by relation conditions.
 
 #### Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `where` | `RepositoryRuleGroup` \| `undefined` | `undefined` | The query conditions |
-| `fields?` | `string` | `'*'` | The columns to return for the root entity |
+| Parameter | Type                                 | Default value | Description                               |
+| --------- | ------------------------------------ | ------------- | ----------------------------------------- |
+| `where`   | `RepositoryRuleGroup` \| `undefined` | `undefined`   | The query conditions                      |
+| `fields?` | `string`                             | `'*'`         | The columns to return for the root entity |
 
 #### Returns
 
@@ -197,7 +197,7 @@ The PostgREST SELECT expression with relation embeds
 
 [`SupabaseRepository`](SupabaseRepository.md).[`buildSelectFields`](SupabaseRepository.md#buildselectfields)
 
-***
+---
 
 ### column\_name() \{#column_name\}
 
@@ -209,9 +209,9 @@ Defined in: [packages/rxdb-adapter-supabase/src/SupabaseRepository.ts:313](https
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `field` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `field`   | `string` |
 
 #### Returns
 
@@ -221,7 +221,7 @@ Defined in: [packages/rxdb-adapter-supabase/src/SupabaseRepository.ts:313](https
 
 [`SupabaseRepository`](SupabaseRepository.md).[`column_name`](SupabaseRepository.md#column_name)
 
-***
+---
 
 ### count() \{#count\}
 
@@ -238,8 +238,8 @@ downloading rows. groupBy is not supported yet.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                                           | Description                            |
+| --------- | ---------------------------------------------------------------------------------------------- | -------------------------------------- |
 | `options` | [`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"countOptions"`&gt; | The query conditions (where / groupBy) |
 
 #### Returns
@@ -269,7 +269,7 @@ On remote refusal (RLS / constraints / syntax etc.)
 
 [`SupabaseRepository`](SupabaseRepository.md).[`count`](SupabaseRepository.md#count)
 
-***
+---
 
 ### countAncestors() \{#countancestors\}
 
@@ -283,8 +283,8 @@ Queries the number of ancestor nodes
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                                 |
+| --------- | ------------------------------------------------------------------------------------ |
 | `options` | [`FindTreeOptions`](../../rxdb-plugin-tree/interfaces/FindTreeOptions.md)&lt;`T`&gt; |
 
 #### Returns
@@ -300,7 +300,7 @@ Queries the number of ancestor nodes
 
 [`ITreeRepository`](../../rxdb-plugin-tree/interfaces/ITreeRepository.md).[`countAncestors`](../../rxdb-plugin-tree/interfaces/ITreeRepository.md#countancestors)
 
-***
+---
 
 ### countDescendants() \{#countdescendants\}
 
@@ -314,8 +314,8 @@ Queries the number of descendant nodes
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                                 |
+| --------- | ------------------------------------------------------------------------------------ |
 | `options` | [`FindTreeOptions`](../../rxdb-plugin-tree/interfaces/FindTreeOptions.md)&lt;`T`&gt; |
 
 #### Returns
@@ -331,7 +331,7 @@ Queries the number of descendant nodes
 
 [`ITreeRepository`](../../rxdb-plugin-tree/interfaces/ITreeRepository.md).[`countDescendants`](../../rxdb-plugin-tree/interfaces/ITreeRepository.md#countdescendants)
 
-***
+---
 
 ### create() \{#create\}
 
@@ -347,9 +347,9 @@ If rxdb.context.userId exists, the createdBy / updatedBy audit fields are inject
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The entity to create (must contain the primary key id) |
+| Parameter | Type                      | Description                                            |
+| --------- | ------------------------- | ------------------------------------------------------ |
+| `entity`  | `InstanceType`&lt;`T`&gt; | The entity to create (must contain the primary key id) |
 
 #### Returns
 
@@ -374,7 +374,7 @@ On remote refusal to insert (primary key conflict / RLS / constraints etc.)
 
 [`SupabaseRepository`](SupabaseRepository.md).[`create`](SupabaseRepository.md#create)
 
-***
+---
 
 ### createEntityRef() \{#createentityref\}
 
@@ -388,9 +388,9 @@ Creates (or reuses) an entity reference
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `data` | [`EntityUpdateData`](../../rxdb/type-aliases/EntityUpdateData.md)&lt;`T`&gt; | Initial field values; `id` is auto-generated when omitted |
+| Parameter | Type                                                                         | Description                                               |
+| --------- | ---------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `data`    | [`EntityUpdateData`](../../rxdb/type-aliases/EntityUpdateData.md)&lt;`T`&gt; | Initial field values; `id` is auto-generated when omitted |
 
 #### Returns
 
@@ -409,7 +409,7 @@ avoids different call stacks getting two out-of-sync clones.
 
 [`SupabaseRepository`](SupabaseRepository.md).[`createEntityRef`](SupabaseRepository.md#createentityref)
 
-***
+---
 
 ### find() \{#find\}
 
@@ -428,8 +428,8 @@ appended to make the association filter effective.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                                          | Description                                             |
+| --------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
 | `options` | [`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"findOptions"`&gt; | The query conditions (where / orderBy / limit / offset) |
 
 #### Returns
@@ -455,7 +455,7 @@ On remote refusal (RLS / constraints / syntax etc.)
 
 [`SupabaseRepository`](SupabaseRepository.md).[`find`](SupabaseRepository.md#find)
 
-***
+---
 
 ### findAncestors() \{#findancestors\}
 
@@ -469,8 +469,8 @@ Queries ancestor nodes
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                                 |
+| --------- | ------------------------------------------------------------------------------------ |
 | `options` | [`FindTreeOptions`](../../rxdb-plugin-tree/interfaces/FindTreeOptions.md)&lt;`T`&gt; |
 
 #### Returns
@@ -486,7 +486,7 @@ Queries ancestor nodes
 
 [`ITreeRepository`](../../rxdb-plugin-tree/interfaces/ITreeRepository.md).[`findAncestors`](../../rxdb-plugin-tree/interfaces/ITreeRepository.md#findancestors)
 
-***
+---
 
 ### findDescendants() \{#finddescendants\}
 
@@ -500,8 +500,8 @@ Queries descendant nodes
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                                 |
+| --------- | ------------------------------------------------------------------------------------ |
 | `options` | [`FindTreeOptions`](../../rxdb-plugin-tree/interfaces/FindTreeOptions.md)&lt;`T`&gt; |
 
 #### Returns
@@ -517,12 +517,12 @@ Queries descendant nodes
 
 [`ITreeRepository`](../../rxdb-plugin-tree/interfaces/ITreeRepository.md).[`findDescendants`](../../rxdb-plugin-tree/interfaces/ITreeRepository.md#finddescendants)
 
-***
+---
 
 ### getEntityRef() \{#getentityref\}
 
 ```ts
-getEntityRef(id): 
+getEntityRef(id):
   | EntityInstanceType<T>
   | undefined;
 ```
@@ -533,14 +533,14 @@ Looks up an entity in the current process's entity cache by ID
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `id` | [`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | The entity primary key |
+| Parameter | Type                                                                                     | Description            |
+| --------- | ---------------------------------------------------------------------------------------- | ---------------------- |
+| `id`      | [`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | The entity primary key |
 
 #### Returns
 
-  \| [`EntityInstanceType`](../../rxdb/type-aliases/EntityInstanceType.md)&lt;`T`&gt;
-  \| `undefined`
+\| [`EntityInstanceType`](../../rxdb/type-aliases/EntityInstanceType.md)&lt;`T`&gt;
+\| `undefined`
 
 Returns the instance on a cache hit, `undefined` on a miss (**does not** trigger a database query)
 
@@ -548,7 +548,7 @@ Returns the instance on a cache hit, `undefined` on a miss (**does not** trigger
 
 [`SupabaseRepository`](SupabaseRepository.md).[`getEntityRef`](SupabaseRepository.md#getentityref)
 
-***
+---
 
 ### hasEntityRef() \{#hasentityref\}
 
@@ -562,9 +562,9 @@ Determines whether the current process's entity cache has a given ID
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `id` | [`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | The entity primary key |
+| Parameter | Type                                                                                     | Description            |
+| --------- | ---------------------------------------------------------------------------------------- | ---------------------- |
+| `id`      | [`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | The entity primary key |
 
 #### Returns
 
@@ -582,7 +582,7 @@ creation / status read.
 
 [`SupabaseRepository`](SupabaseRepository.md).[`hasEntityRef`](SupabaseRepository.md#hasentityref)
 
-***
+---
 
 ### primary\_key\_column() \{#primary_key_column\}
 
@@ -600,7 +600,7 @@ Defined in: [packages/rxdb-adapter-supabase/src/SupabaseRepository.ts:309](https
 
 [`SupabaseRepository`](SupabaseRepository.md).[`primary_key_column`](SupabaseRepository.md#primary_key_column)
 
-***
+---
 
 ### remove() \{#remove\}
 
@@ -617,9 +617,9 @@ if server-backfilled fields are needed.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The target entity (only the id is used to locate the row) |
+| Parameter | Type                      | Description                                               |
+| --------- | ------------------------- | --------------------------------------------------------- |
+| `entity`  | `InstanceType`&lt;`T`&gt; | The target entity (only the id is used to locate the row) |
 
 #### Returns
 
@@ -644,7 +644,7 @@ On RLS refusal, or when the deleted row does not match the target id
 
 [`SupabaseRepository`](SupabaseRepository.md).[`remove`](SupabaseRepository.md#remove)
 
-***
+---
 
 ### update() \{#update\}
 
@@ -664,10 +664,10 @@ and the system audit fields are then injected separately.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The target entity (only the id is used to locate the row) |
-| `patch` | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; | The incremental fields (without id) |
+| Parameter | Type                                       | Description                                               |
+| --------- | ------------------------------------------ | --------------------------------------------------------- |
+| `entity`  | `InstanceType`&lt;`T`&gt;                  | The target entity (only the id is used to locate the row) |
+| `patch`   | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; | The incremental fields (without id)                       |
 
 #### Returns
 
@@ -692,7 +692,7 @@ On row not existing / RLS refusal
 
 [`SupabaseRepository`](SupabaseRepository.md).[`update`](SupabaseRepository.md#update)
 
-***
+---
 
 ### updateEntity() \{#updateentity\}
 
@@ -706,10 +706,10 @@ Overwrites entity fields with `update`
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The target entity |
-| `update` | `InstanceType`&lt;`T`&gt; | The fields to write; the primary key `id` is assigned too (for hydrate scenarios) |
+| Parameter | Type                      | Description                                                                       |
+| --------- | ------------------------- | --------------------------------------------------------------------------------- |
+| `entity`  | `InstanceType`&lt;`T`&gt; | The target entity                                                                 |
+| `update`  | `InstanceType`&lt;`T`&gt; | The fields to write; the primary key `id` is assigned too (for hydrate scenarios) |
 
 #### Returns
 

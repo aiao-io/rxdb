@@ -33,16 +33,16 @@ function Greeting() {
 
 ## Interfaces
 
-| Interface | Description |
-| ------ | ------ |
-| [I18nBinding](interfaces/I18nBinding.md) | The React state-driven i18n binding. |
-| [I18nProviderProps](interfaces/I18nProviderProps.md) | The inputs of the i18n provider. |
+| Interface                                            | Description                          |
+| ---------------------------------------------------- | ------------------------------------ |
+| [I18nBinding](interfaces/I18nBinding.md)             | The React state-driven i18n binding. |
+| [I18nProviderProps](interfaces/I18nProviderProps.md) | The inputs of the i18n provider.     |
 
 ## Functions
 
-| Function | Description |
-| ------ | ------ |
-| [I18nProvider](functions/I18nProvider.md) | Provides the runtime to child components; destruction is the caller's responsibility. |
-| [useI18n](functions/useI18n.md) | Subscribes to the current i18n runtime; the subscription is cleaned up on unmount. |
-| [useI18nOptional](functions/useI18nOptional.md) | Subscribes to an optional provider; no subscription is created when missing. |
-| [useI18nRuntime](functions/useI18nRuntime.md) | Optionally reads the current provider's runtime. |
+| Function                                        | Description                                                                           |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------- |
+| [I18nProvider](functions/I18nProvider.md)       | Provides the runtime to child components; destruction is the caller's responsibility. |
+| [useI18n](functions/useI18n.md)                 | Subscribes to the current i18n runtime; the subscription is cleaned up on unmount.    |
+| [useI18nOptional](functions/useI18nOptional.md) | Subscribes to an optional provider; no subscription is created when missing.          |
+| [useI18nRuntime](functions/useI18nRuntime.md)   | Optionally reads the current provider's runtime.                                      |

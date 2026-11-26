@@ -10,16 +10,16 @@ Guarantees that updatedAt increases monotonically: when multiple updates happen 
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                    |
+| ------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; |
-| `preferred?` | `Date` |
+| Parameter    | Type                      |
+| ------------ | ------------------------- |
+| `entity`     | `InstanceType`&lt;`T`&gt; |
+| `preferred?` | `Date`                    |
 
 ## Returns
 

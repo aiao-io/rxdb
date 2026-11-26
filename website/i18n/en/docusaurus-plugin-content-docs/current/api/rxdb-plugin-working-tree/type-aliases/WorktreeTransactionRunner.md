@@ -11,16 +11,16 @@ current epoch's adapter to the command body.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                          |
+| --------------------------------------- |
 | <a id="type-parameter-__typet"></a> `T` |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `run` | (`executor`, `adapter`) => `Promise`&lt;`T`&gt; | The command body |
-| `signal?` | `AbortSignal` | Cancels waiting for the adapter; a command already inside a transaction must still run to completion |
+| Parameter | Type                                            | Description                                                                                          |
+| --------- | ----------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `run`     | (`executor`, `adapter`) => `Promise`&lt;`T`&gt; | The command body                                                                                     |
+| `signal?` | `AbortSignal`                                   | Cancels waiting for the adapter; a command already inside a transaction must still run to completion |
 
 ## Returns
 

@@ -16,7 +16,7 @@ Defined in: packages/rxdb-model/dist/entity-list/manual-order-list.d.ts:8
 
 How the rules are combined
 
-***
+---
 
 ### rules \{#rules\}
 

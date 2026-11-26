@@ -14,7 +14,7 @@ readonly boardId: `${string}-${string}-${string}-${string}-${string}`;
 
 Defined in: [packages/rxdb-plugin-board/src/delete-service.ts:46](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board/src/delete-service.ts#L46)
 
-***
+---
 
 ### boardLabelIds \{#boardlabelids\}
 
@@ -24,7 +24,7 @@ readonly boardLabelIds: readonly `${string}-${string}-${string}-${string}-${stri
 
 Defined in: [packages/rxdb-plugin-board/src/delete-service.ts:51](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board/src/delete-service.ts#L51)
 
-***
+---
 
 ### boardTitle \{#boardtitle\}
 
@@ -34,7 +34,7 @@ readonly boardTitle: string;
 
 Defined in: [packages/rxdb-plugin-board/src/delete-service.ts:47](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board/src/delete-service.ts#L47)
 
-***
+---
 
 ### columnIds \{#columnids\}
 
@@ -44,7 +44,7 @@ readonly columnIds: readonly `${string}-${string}-${string}-${string}-${string}`
 
 Defined in: [packages/rxdb-plugin-board/src/delete-service.ts:48](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board/src/delete-service.ts#L48)
 
-***
+---
 
 ### kind \{#kind\}
 
@@ -54,7 +54,7 @@ readonly kind: "board";
 
 Defined in: [packages/rxdb-plugin-board/src/delete-service.ts:45](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board/src/delete-service.ts#L45)
 
-***
+---
 
 ### taskIds \{#taskids\}
 
@@ -64,7 +64,7 @@ readonly taskIds: readonly `${string}-${string}-${string}-${string}-${string}`[]
 
 Defined in: [packages/rxdb-plugin-board/src/delete-service.ts:49](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board/src/delete-service.ts#L49)
 
-***
+---
 
 ### taskLabelIds \{#tasklabelids\}
 

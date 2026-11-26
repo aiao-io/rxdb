@@ -14,7 +14,7 @@ Defined in: [packages/rxdb-adapter-supabase/src/supabase.interface.ts:10](https:
 
 The target schema; defaults to public
 
-***
+---
 
 ### table \{#table\}
 

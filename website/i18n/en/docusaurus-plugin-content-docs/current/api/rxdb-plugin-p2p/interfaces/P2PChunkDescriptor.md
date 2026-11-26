@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/chunking.ts:35](https://github.com/aia
 
 SHA-256 of the chunk (lowercase hex).
 
-***
+---
 
 ### index \{#index\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/chunking.ts:29](https://github.com/aia
 
 Chunk index, starting from 0.
 
-***
+---
 
 ### offset \{#offset\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/chunking.ts:31](https://github.com/aia
 
 The chunk's starting byte within the file.
 
-***
+---
 
 ### size \{#size\}
 

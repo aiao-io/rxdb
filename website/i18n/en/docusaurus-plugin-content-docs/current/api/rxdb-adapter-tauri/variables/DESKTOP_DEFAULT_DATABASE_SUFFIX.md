@@ -1,7 +1,7 @@
 # DESKTOP_DEFAULT_DATABASE_SUFFIX
 
 ```ts
-const DESKTOP_DEFAULT_DATABASE_SUFFIX: ".sqlite3" = ".sqlite3";
+const DESKTOP_DEFAULT_DATABASE_SUFFIX: '.sqlite3' = '.sqlite3';
 ```
 
 Defined in: packages/rxdb-adapter-sqlite-core/dist/desktop/desktop-options.interface.d.ts:11

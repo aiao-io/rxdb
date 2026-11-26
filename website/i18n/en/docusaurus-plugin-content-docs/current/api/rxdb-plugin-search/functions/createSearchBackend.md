@@ -10,9 +10,9 @@ Constructs a backend instance by backend identifier.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `id` | [`SearchBackendId`](../type-aliases/SearchBackendId.md) | Backend identifier |
+| Parameter | Type                                                    | Description        |
+| --------- | ------------------------------------------------------- | ------------------ |
+| `id`      | [`SearchBackendId`](../type-aliases/SearchBackendId.md) | Backend identifier |
 
 ## Returns
 

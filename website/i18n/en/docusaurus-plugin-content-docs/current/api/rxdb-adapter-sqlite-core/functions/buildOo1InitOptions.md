@@ -12,8 +12,8 @@ Merges `printErr` / `print` / `locateFile`, using defaultPrintErr when missing.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                | Description  |
+| ---------- | --------------------------------------------------- | ------------ |
 | `options?` | [`Oo1LoadOptions`](../interfaces/Oo1LoadOptions.md) | Load options |
 
 ## Returns

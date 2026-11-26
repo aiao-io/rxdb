@@ -10,8 +10,8 @@ Whether the database file in the OPFS root directory is currently held by anothe
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type     | Description        |
+| ---------- | -------- | ------------------ |
 | `fileName` | `string` | Database file name |
 
 ## Returns

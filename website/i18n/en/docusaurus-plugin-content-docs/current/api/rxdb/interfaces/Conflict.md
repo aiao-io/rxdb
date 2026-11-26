@@ -18,7 +18,7 @@ Defined in: [packages/rxdb/src/sync-contract/conflict.ts:27](https://github.com/
 
 Common-ancestor data (used for three-way merge, optional).
 
-***
+---
 
 ### entityKey \{#entitykey\}
 
@@ -30,7 +30,7 @@ Defined in: [packages/rxdb/src/sync-contract/conflict.ts:12](https://github.com/
 
 Entity key: `${namespace}:${entity}:${entityId}`.
 
-***
+---
 
 ### local \{#local\}
 
@@ -42,7 +42,7 @@ Defined in: [packages/rxdb/src/sync-contract/conflict.ts:17](https://github.com/
 
 Local change.
 
-***
+---
 
 ### remote \{#remote\}
 

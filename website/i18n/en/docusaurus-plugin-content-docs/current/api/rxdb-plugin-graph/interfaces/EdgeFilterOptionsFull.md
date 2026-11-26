@@ -1,5 +1,5 @@
 ---
-sidebar_label: "EdgeFilterOptionsFull⟨EdgeProperties⟩"
+sidebar_label: 'EdgeFilterOptionsFull⟨EdgeProperties⟩'
 ---
 
 # EdgeFilterOptionsFull`<EdgeProperties>`
@@ -15,8 +15,8 @@ Edge filter conditions (weight + properties)
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
+| Type Parameter                                              | Default type                                                                |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------- |
 | <a id="type-parameter-edgeproperties"></a> `EdgeProperties` | [`GraphEdgePropertiesRecord`](../type-aliases/GraphEdgePropertiesRecord.md) |
 
 ## Properties
@@ -45,7 +45,7 @@ Only equality matching is supported; no range/fuzzy queries
 
 [`EdgeFilterOptionsWithProperties`](EdgeFilterOptionsWithProperties.md).[`properties`](EdgeFilterOptionsWithProperties.md#properties)
 
-***
+---
 
 ### weight? \{#weight\}
 

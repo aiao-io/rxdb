@@ -14,7 +14,7 @@ readonly columnId: `${string}-${string}-${string}-${string}-${string}`;
 
 Defined in: packages/rxdb-plugin-board/dist/detail-service.d.ts:20
 
-***
+---
 
 ### description \{#description\}
 
@@ -24,7 +24,7 @@ readonly description: string | null;
 
 Defined in: packages/rxdb-plugin-board/dist/detail-service.d.ts:18
 
-***
+---
 
 ### dueDate \{#duedate\}
 
@@ -34,7 +34,7 @@ readonly dueDate: string | null;
 
 Defined in: packages/rxdb-plugin-board/dist/detail-service.d.ts:19
 
-***
+---
 
 ### labelIds \{#labelids\}
 
@@ -44,7 +44,7 @@ readonly labelIds: readonly `${string}-${string}-${string}-${string}-${string}`[
 
 Defined in: packages/rxdb-plugin-board/dist/detail-service.d.ts:21
 
-***
+---
 
 ### title \{#title\}
 

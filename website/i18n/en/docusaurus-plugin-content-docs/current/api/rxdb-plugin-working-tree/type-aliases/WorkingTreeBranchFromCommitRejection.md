@@ -1,7 +1,7 @@
 # WorkingTreeBranchFromCommitRejection
 
 ```ts
-type WorkingTreeBranchFromCommitRejection = "unreachable_target" | "fork_point_unknown" | "history_rewritten";
+type WorkingTreeBranchFromCommitRejection = 'unreachable_target' | 'fork_point_unknown' | 'history_rewritten';
 ```
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/branch-from-commit.ts:31](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/branch-from-commit.ts#L31)

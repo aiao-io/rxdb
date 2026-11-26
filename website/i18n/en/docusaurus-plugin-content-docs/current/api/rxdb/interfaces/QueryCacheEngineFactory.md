@@ -24,14 +24,14 @@ Builds a session for one QueryCache entity.
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                            |
+| ----------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                 | Description                                                                               |
+| --------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | `context` | [`QueryCacheSessionContext`](QueryCacheSessionContext.md)&lt;`T`&gt; | Everything core has prepared, see [QueryCacheSessionContext](QueryCacheSessionContext.md) |
 
 #### Returns

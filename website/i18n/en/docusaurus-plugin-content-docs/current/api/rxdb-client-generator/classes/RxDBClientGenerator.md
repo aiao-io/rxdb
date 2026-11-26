@@ -16,8 +16,8 @@ Defined in: [core/RxDBClientGenerator.ts:246](https://github.com/aiao-io/rxdb/bl
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                        |
+| ---------- | --------------------------------------------------------------------------- |
 | `options?` | [`RxDBClientGeneratorOptions`](../interfaces/RxDBClientGeneratorOptions.md) |
 
 #### Returns
@@ -34,7 +34,7 @@ config: Required<RxDBClientGeneratorOptions>;
 
 Defined in: [core/RxDBClientGenerator.ts:241](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-client-generator/src/core/RxDBClientGenerator.ts#L241)
 
-***
+---
 
 ### entityMetadataOptionsMap \{#entitymetadataoptionsmap\}
 
@@ -44,7 +44,7 @@ entityMetadataOptionsMap: Map<string, EntityMetadataOptions[]>;
 
 Defined in: [core/RxDBClientGenerator.ts:233](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-client-generator/src/core/RxDBClientGenerator.ts#L233)
 
-***
+---
 
 ### metadataMap \{#metadatamap\}
 
@@ -54,7 +54,7 @@ metadataMap: Map<string, Readonly<EntityMetadataType>>;
 
 Defined in: [core/RxDBClientGenerator.ts:238](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-client-generator/src/core/RxDBClientGenerator.ts#L238)
 
-***
+---
 
 ### metadataOptionsSet \{#metadataoptionsset\}
 
@@ -64,7 +64,7 @@ metadataOptionsSet: Set<EntityMetadataOptions>;
 
 Defined in: [core/RxDBClientGenerator.ts:236](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-client-generator/src/core/RxDBClientGenerator.ts#L236)
 
-***
+---
 
 ### metadataSet \{#metadataset\}
 
@@ -74,7 +74,7 @@ metadataSet: Set<Readonly<EntityMetadataType>>;
 
 Defined in: [core/RxDBClientGenerator.ts:237](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-client-generator/src/core/RxDBClientGenerator.ts#L237)
 
-***
+---
 
 ### project \{#project\}
 
@@ -90,8 +90,8 @@ Defined in: [core/RxDBClientGenerator.ts:239](https://github.com/aiao-io/rxdb/bl
 
 ```ts
 addEntity(
-   value, 
-   options?, 
+   value,
+   options?,
    sourceGetters?
 ): void;
 ```
@@ -104,11 +104,11 @@ Entity names must be unique within this generator instance; duplicate entities o
 
 #### Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `value` | \| [`EntityMetadataOptions`](../../rxdb/interfaces/EntityMetadataOptions.md) \| [`EntityType`](../../rxdb/type-aliases/EntityType.md) | `undefined` | Entity metadata configuration, or an entity class decorated with `@Entity` |
-| `options?` | [`EntityMetadataOptions`](../../rxdb/interfaces/EntityMetadataOptions.md)[] | `undefined` | Inherited abstract metadata configuration; when omitted, resolved automatically from the first parent type in `extends` |
-| `sourceGetters?` | readonly [`EntitySourceGetter`](../interfaces/EntitySourceGetter.md)[] | `[]` | Getter definitions to append to the generated entity |
+| Parameter        | Type                                                                                                                                  | Default value | Description                                                                                                             |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `value`          | \| [`EntityMetadataOptions`](../../rxdb/interfaces/EntityMetadataOptions.md) \| [`EntityType`](../../rxdb/type-aliases/EntityType.md) | `undefined`   | Entity metadata configuration, or an entity class decorated with `@Entity`                                              |
+| `options?`       | [`EntityMetadataOptions`](../../rxdb/interfaces/EntityMetadataOptions.md)[]                                                           | `undefined`   | Inherited abstract metadata configuration; when omitted, resolved automatically from the first parent type in `extends` |
+| `sourceGetters?` | readonly [`EntitySourceGetter`](../interfaces/EntitySourceGetter.md)[]                                                                | `[]`          | Getter definitions to append to the generated entity                                                                    |
 
 #### Returns
 
@@ -118,7 +118,7 @@ Entity names must be unique within this generator instance; duplicate entities o
 
 Thrown when the entity name, properties, relations, or getters conflict with generated members
 
-***
+---
 
 ### exec() \{#exec\}
 
@@ -141,7 +141,7 @@ A failed run on the same instance does not replace the previous successful `proj
 
 Thrown when metadata or generated symbol validation fails
 
-***
+---
 
 ### generateEntityJsFile() \{#generateentityjsfile\}
 
@@ -158,12 +158,12 @@ Exposed for use in tests
 
 `void`
 
-***
+---
 
 ### getMetadata() \{#getmetadata\}
 
 ```ts
-getMetadata(mappedEntity, mappedNamespace?): 
+getMetadata(mappedEntity, mappedNamespace?):
   | Readonly<EntityMetadataType>
   | undefined;
 ```
@@ -174,24 +174,24 @@ Looks up registered metadata by entity name and namespace.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `mappedEntity` | `string` | Bound entity name |
+| Parameter          | Type     | Description                                                                            |
+| ------------------ | -------- | -------------------------------------------------------------------------------------- |
+| `mappedEntity`     | `string` | Bound entity name                                                                      |
 | `mappedNamespace?` | `string` | namespace; when omitted, [NAMESPACE\_PUBLIC](../variables/NAMESPACE_PUBLIC.md) is used |
 
 #### Returns
 
-  \| `Readonly`&lt;[`EntityMetadataType`](../../rxdb/interfaces/EntityMetadataType.md)&gt;
-  \| `undefined`
+\| `Readonly`&lt;[`EntityMetadataType`](../../rxdb/interfaces/EntityMetadataType.md)&gt;
+\| `undefined`
 
 The matching metadata; `undefined` when it does not exist
 
-***
+---
 
 ### getRepositoryGenerator() \{#getrepositorygenerator\}
 
 ```ts
-getRepositoryGenerator(name): 
+getRepositoryGenerator(name):
   | IRepositoryGenerator
   | undefined;
 ```
@@ -202,18 +202,18 @@ Gets a Repository generator
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `name` | `string` | Repository name |
+| Parameter | Type     | Description     |
+| --------- | -------- | --------------- |
+| `name`    | `string` | Repository name |
 
 #### Returns
 
-  \| [`IRepositoryGenerator`](../interfaces/IRepositoryGenerator.md)
-  \| `undefined`
+\| [`IRepositoryGenerator`](../interfaces/IRepositoryGenerator.md)
+\| `undefined`
 
 The matching generator, or undefined if it does not exist
 
-***
+---
 
 ### getSourceFiles() \{#getsourcefiles\}
 
@@ -235,7 +235,7 @@ The set of generated files, including the `index` barrel and entity implementati
 
 Thrown when [exec](#exec) has not been called yet
 
-***
+---
 
 ### getSourceGetters() \{#getsourcegetters\}
 
@@ -249,8 +249,8 @@ Reads the getter definitions attached to an entity.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                          | Description                |
+| ---------- | ------------------------------------------------------------- | -------------------------- |
 | `metadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | Registered entity metadata |
 
 #### Returns
@@ -259,7 +259,7 @@ readonly [`EntitySourceGetter`](../interfaces/EntitySourceGetter.md)[]
 
 A snapshot of the registered getters; an empty array when no getters are attached
 
-***
+---
 
 ### registerAbstractMetadata() \{#registerabstractmetadata\}
 
@@ -273,16 +273,16 @@ Registers abstract metadata that later entities can inherit.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `abstractEntityName` | `string` | Bound name of the abstract entity |
-| `metadataOptions` | [`EntityMetadataOptions`](../../rxdb/interfaces/EntityMetadataOptions.md)[] | Metadata options of the abstract entity, applied in parent-class order |
+| Parameter            | Type                                                                        | Description                                                            |
+| -------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `abstractEntityName` | `string`                                                                    | Bound name of the abstract entity                                      |
+| `metadataOptions`    | [`EntityMetadataOptions`](../../rxdb/interfaces/EntityMetadataOptions.md)[] | Metadata options of the abstract entity, applied in parent-class order |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### registerRepositoryGenerator() \{#registerrepositorygenerator\}
 
@@ -305,8 +305,8 @@ Duplicate names are always rejected, never silently replaced. The check must liv
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type                                                            | Description                   |
+| ----------- | --------------------------------------------------------------- | ----------------------------- |
 | `generator` | [`IRepositoryGenerator`](../interfaces/IRepositoryGenerator.md) | Repository generator instance |
 
 #### Returns
@@ -324,7 +324,7 @@ const generator = new RxDBClientGenerator();
 generator.registerRepositoryGenerator(new GeoRepositoryGenerator());
 ```
 
-***
+---
 
 ### setMetadata() \{#setmetadata\}
 
@@ -342,8 +342,8 @@ become the literal `"undefined_Name"`) — no caller should concatenate keys its
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                          |
+| ---------- | ------------------------------------------------------------- |
 | `metadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) |
 
 #### Returns

@@ -16,7 +16,7 @@ Defined in: [palette/controller.ts:18](https://github.com/aiao-io/rxdb/blob/b523
 
 The icon; its type is determined by the three framework bindings.
 
-***
+---
 
 ### id \{#id\}
 
@@ -28,7 +28,7 @@ Defined in: [palette/controller.ts:10](https://github.com/aiao-io/rxdb/blob/b523
 
 The unique identifier, used to record recent usage.
 
-***
+---
 
 ### keywords? \{#keywords\}
 
@@ -40,7 +40,7 @@ Defined in: [palette/controller.ts:16](https://github.com/aiao-io/rxdb/blob/b523
 
 Extra search terms.
 
-***
+---
 
 ### label \{#label\}
 
@@ -52,7 +52,7 @@ Defined in: [palette/controller.ts:12](https://github.com/aiao-io/rxdb/blob/b523
 
 The primary text.
 
-***
+---
 
 ### run \{#run\}
 
@@ -68,7 +68,7 @@ Executed when selected.
 
 `void` \| `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### sublabel? \{#sublabel\}
 

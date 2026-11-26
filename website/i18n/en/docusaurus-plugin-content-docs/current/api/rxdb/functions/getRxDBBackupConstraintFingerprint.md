@@ -10,9 +10,9 @@ The entity-level storage constraint fingerprint (CHECK / conditional unique inde
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `rxdb` | [`RxDB`](../classes/RxDB.md) | An `init()`-ed instance |
+| Parameter | Type                         | Description             |
+| --------- | ---------------------------- | ----------------------- |
+| `rxdb`    | [`RxDB`](../classes/RxDB.md) | An `init()`-ed instance |
 
 ## Returns
 

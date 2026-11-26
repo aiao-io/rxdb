@@ -26,9 +26,9 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/switch-branch-op
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `branchId` | `string` | The branch it was on when rejected |
+| Parameter    | Type     | Description                                      |
+| ------------ | -------- | ------------------------------------------------ |
+| `branchId`   | `string` | The branch it was on when rejected               |
 | `entryCount` | `number` | The number of uncommitted entries on that branch |
 
 #### Returns
@@ -51,7 +51,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/switch-branch-op
 
 The branch it was on when rejected
 
-***
+---
 
 ### cause? \{#cause\}
 
@@ -65,7 +65,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](../../rxdb/classes/RxDBError.md).[`cause`](../../rxdb/classes/RxDBError.md#cause)
 
-***
+---
 
 ### code \{#code\}
 
@@ -77,7 +77,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/switch-branch-op
 
 The stable error code
 
-***
+---
 
 ### entryCount \{#entrycount\}
 
@@ -89,7 +89,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/switch-branch-op
 
 The number of uncommitted entries on that branch
 
-***
+---
 
 ### message \{#message\}
 
@@ -103,7 +103,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](../../rxdb/classes/RxDBError.md).[`message`](../../rxdb/classes/RxDBError.md#message)
 
-***
+---
 
 ### name \{#name\}
 
@@ -117,7 +117,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](../../rxdb/classes/RxDBError.md).[`name`](../../rxdb/classes/RxDBError.md#name)
 
-***
+---
 
 ### stack? \{#stack\}
 
@@ -131,7 +131,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](../../rxdb/classes/RxDBError.md).[`stack`](../../rxdb/classes/RxDBError.md#stack)
 
-***
+---
 
 ### stackTraceLimit \{#stacktracelimit\}
 
@@ -172,7 +172,7 @@ a string representing the location in the code at which
 ```js
 const myObject = {};
 Error.captureStackTrace(myObject);
-myObject.stack;  // Similar to `new Error().stack`
+myObject.stack; // Similar to `new Error().stack`
 ```
 
 The first line of the trace will be prefixed with
@@ -211,9 +211,9 @@ a();
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `targetObject` | `object` |
+| Parameter         | Type       |
+| ----------------- | ---------- |
+| `targetObject`    | `object`   |
 | `constructorOpt?` | `Function` |
 
 #### Returns
@@ -224,7 +224,7 @@ a();
 
 [`RxDBError`](../../rxdb/classes/RxDBError.md).[`captureStackTrace`](../../rxdb/classes/RxDBError.md#capturestacktrace)
 
-***
+---
 
 ### prepareStackTrace() \{#preparestacktrace\}
 
@@ -236,9 +236,9 @@ Defined in: node\_modules/.pnpm/@types+node@26.6.6/node\_modules/@types/node/glo
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `err` | `Error` |
+| Parameter     | Type         |
+| ------------- | ------------ |
+| `err`         | `Error`      |
 | `stackTraces` | `CallSite`[] |
 
 #### Returns

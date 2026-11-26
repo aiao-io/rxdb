@@ -10,10 +10,10 @@ Determines whether two [SearchOptions](../interfaces/SearchOptions.md) are equiv
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `left` | [`SearchOptions`](../interfaces/SearchOptions.md) \| `undefined` | The options in effect last time; `undefined` means not passed |
-| `right` | [`SearchOptions`](../interfaces/SearchOptions.md) \| `undefined` | The options passed this time; `undefined` means not passed |
+| Parameter | Type                                                             | Description                                                   |
+| --------- | ---------------------------------------------------------------- | ------------------------------------------------------------- |
+| `left`    | [`SearchOptions`](../interfaces/SearchOptions.md) \| `undefined` | The options in effect last time; `undefined` means not passed |
+| `right`   | [`SearchOptions`](../interfaces/SearchOptions.md) \| `undefined` | The options passed this time; `undefined` means not passed    |
 
 ## Returns
 

@@ -10,9 +10,9 @@ Removes the NOTIFY trigger of a table
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `tableName` | `string` | Table name |
+| Parameter   | Type     | Description |
+| ----------- | -------- | ----------- |
+| `tableName` | `string` | Table name  |
 
 ## Returns
 

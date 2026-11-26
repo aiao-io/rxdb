@@ -10,10 +10,10 @@ Validates the shape of a contribution.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `contribution` | [`RxDBSystemContribution`](../interfaces/RxDBSystemContribution.md) | The contribution to be registered |
-| `pluginName` | `string` | The plugin name used for attribution in errors |
+| Parameter      | Type                                                                | Description                                    |
+| -------------- | ------------------------------------------------------------------- | ---------------------------------------------- |
+| `contribution` | [`RxDBSystemContribution`](../interfaces/RxDBSystemContribution.md) | The contribution to be registered              |
+| `pluginName`   | `string`                                                            | The plugin name used for attribution in errors |
 
 ## Returns
 

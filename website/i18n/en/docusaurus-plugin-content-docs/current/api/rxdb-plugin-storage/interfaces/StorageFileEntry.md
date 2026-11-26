@@ -9,14 +9,14 @@ The file entry returned when browsing a directory.
 ### kind \{#kind\}
 
 ```ts
-kind: "file";
+kind: 'file';
 ```
 
 Defined in: [packages/rxdb-plugin-storage/src/storage.helpers.ts:150](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-storage/src/storage.helpers.ts#L150)
 
 The file tag for the discriminated union.
 
-***
+---
 
 ### meta \{#meta\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-storage/src/storage.helpers.ts:156](https://gi
 
 The persisted metadata corresponding to the OPFS file.
 
-***
+---
 
 ### name \{#name\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-plugin-storage/src/storage.helpers.ts:152](https://gi
 
 The file name.
 
-***
+---
 
 ### path \{#path\}
 

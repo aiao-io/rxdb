@@ -12,9 +12,9 @@ Restores authenticated plaintext bytes into a business value according to the pr
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `bytes` | `Uint8Array` |
+| Parameter  | Type           |
+| ---------- | -------------- |
+| `bytes`    | `Uint8Array`   |
 | `property` | `PropertyLike` |
 
 ## Returns

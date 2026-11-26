@@ -12,10 +12,10 @@ The whole cache is cleared when its size exceeds 128 (a simple guard against mem
 
 ## Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `pattern` | `string` | `undefined` | Regular expression source string |
-| `flags?` | `string` | `''` | Regular expression flags, empty string by default |
+| Parameter | Type     | Default value | Description                                       |
+| --------- | -------- | ------------- | ------------------------------------------------- |
+| `pattern` | `string` | `undefined`   | Regular expression source string                  |
+| `flags?`  | `string` | `''`          | Regular expression flags, empty string by default |
 
 ## Returns
 

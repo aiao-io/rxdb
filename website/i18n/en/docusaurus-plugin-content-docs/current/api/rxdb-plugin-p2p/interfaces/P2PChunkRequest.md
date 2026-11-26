@@ -20,7 +20,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/transfer.ts:12](https://github.com/aia
 
 The requested content hash.
 
-***
+---
 
 ### offset \{#offset\}
 
@@ -32,7 +32,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/transfer.ts:14](https://github.com/aia
 
 The starting byte of the range within the file.
 
-***
+---
 
 ### size \{#size\}
 

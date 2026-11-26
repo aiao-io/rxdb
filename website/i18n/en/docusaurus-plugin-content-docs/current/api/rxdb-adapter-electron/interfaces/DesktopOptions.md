@@ -26,7 +26,7 @@ Debounce window for change events (milliseconds); when omitted, the host's defau
 Same semantics as the wasm adapters' option of the same name: consecutive writes within the window merge into one dispatch.
 Make it smaller to lower response latency, larger to reduce wakeups; however it is configured, one batch accumulates at most `MAX_BATCH_WAIT_MS`.
 
-***
+---
 
 ### databaseName? \{#databasename\}
 
@@ -44,7 +44,7 @@ When omitted, derived as `${rxdb.config.dbName}${DEFAULT_DATABASE_SUFFIX}`.
 It is a **logical name within the app's scope**, not a path; only the host knows the physical location (AC#3).
 Specify it explicitly only when taking over an existing database, or when several RxDB instances need to share the same file.
 
-***
+---
 
 ### repositories? \{#repositories\}
 
@@ -58,7 +58,7 @@ Defined in: packages/rxdb-adapter-sqlite-core/dist/sqlite-core.types.d.ts:92
 
 [`SqliteBaseOptions`](../../rxdb-adapter-sqlite-core/interfaces/SqliteBaseOptions.md).[`repositories`](../../rxdb-adapter-sqlite-core/interfaces/SqliteBaseOptions.md#repositories)
 
-***
+---
 
 ### transport? \{#transport\}
 

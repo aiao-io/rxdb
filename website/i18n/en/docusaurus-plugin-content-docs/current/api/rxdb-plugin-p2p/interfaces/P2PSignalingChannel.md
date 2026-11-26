@@ -20,7 +20,7 @@ Closes the signaling channel.
 
 `void` \| `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### receive \{#receive\}
 
@@ -34,15 +34,15 @@ Receives the next signaling message.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type          |
+| --------- | ------------- |
 | `signal?` | `AbortSignal` |
 
 #### Returns
 
 `Promise`&lt;[`P2PSignalingMessage`](../type-aliases/P2PSignalingMessage.md)&gt;
 
-***
+---
 
 ### send \{#send\}
 
@@ -56,8 +56,8 @@ Sends a signaling message.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                            |
+| --------- | --------------------------------------------------------------- |
 | `message` | [`P2PSignalingMessage`](../type-aliases/P2PSignalingMessage.md) |
 
 #### Returns

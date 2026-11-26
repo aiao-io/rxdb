@@ -16,7 +16,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:598](ht
 
 Number of changes compacted/discarded
 
-***
+---
 
 ### error? \{#error\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:569](ht
 
 The error when repository sync fails
 
-***
+---
 
 ### failed \{#failed\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:593](ht
 
 Number of changes that failed to push
 
-***
+---
 
 ### failures \{#failures\}
 
@@ -58,7 +58,7 @@ Required rather than optional: an optional field would make callers write `resul
 but "field missing" and "no failures" are two different things. Skipping by policy (`skipped`) is not a failure,
 and does not enter this list.
 
-***
+---
 
 ### originalCount \{#originalcount\}
 
@@ -71,7 +71,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:604](ht
 Original number of unpushed changes (before compaction)
 Relation: originalCount = pushed + failed + rejected + compacted
 
-***
+---
 
 ### pushed \{#pushed\}
 
@@ -83,7 +83,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:579](ht
 
 Number of changes accepted (applied) by the remote (after compaction)
 
-***
+---
 
 ### rejected \{#rejected\}
 
@@ -100,7 +100,7 @@ Number of changes rejected by the remote and already marked locally (after compa
 Counted only when the receipt is persisted together with the watermark; 0 when not persisted (a batch failed, the local commit failed, or blocked by a dependency) —
 those entries count into `failed` and are re-pushed as-is next round.
 
-***
+---
 
 ### relatedResults? \{#relatedresults\}
 
@@ -112,7 +112,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:609](ht
 
 Results of related repositories (when includeRelated=true)
 
-***
+---
 
 ### repository \{#repository\}
 
@@ -124,7 +124,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:559](ht
 
 Repository identifier
 
-***
+---
 
 ### skipped? \{#skipped\}
 
@@ -136,7 +136,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:574](ht
 
 The reason the repository was skipped
 
-***
+---
 
 ### success? \{#success\}
 

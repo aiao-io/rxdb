@@ -10,10 +10,10 @@ Checks whether the manifest is held by the given authenticated principal on the 
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `manifest` | `Pick`&lt;[`P2PManifestRecord`](../interfaces/P2PManifestRecord.md), `"holderId"`&gt; |
-| `principal` | [`P2PPrincipal`](../interfaces/P2PPrincipal.md) |
+| Parameter   | Type                                                                                  |
+| ----------- | ------------------------------------------------------------------------------------- |
+| `manifest`  | `Pick`&lt;[`P2PManifestRecord`](../interfaces/P2PManifestRecord.md), `"holderId"`&gt; |
+| `principal` | [`P2PPrincipal`](../interfaces/P2PPrincipal.md)                                       |
 
 ## Returns
 

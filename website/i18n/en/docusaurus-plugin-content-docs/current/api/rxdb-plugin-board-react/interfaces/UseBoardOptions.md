@@ -22,7 +22,7 @@ In-board search (US-539 phase B): injects the upstream full-text source (a searc
 readonly upstream: BoardSearchUpstream;
 ```
 
-***
+---
 
 ### searchUnavailableReason? \{#searchunavailablereason\}
 
@@ -34,7 +34,7 @@ Defined in: [packages/rxdb-plugin-board-react/src/use-board.ts:73](https://githu
 
 Host-provided reason when search is unavailable.
 
-***
+---
 
 ### storage? \{#storage\}
 

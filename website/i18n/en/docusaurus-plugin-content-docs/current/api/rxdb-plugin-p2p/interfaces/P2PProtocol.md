@@ -9,7 +9,7 @@ A protocol supported by the local side.
 ### handle \{#handle\}
 
 ```ts
-readonly handle: (request) => 
+readonly handle: (request) =>
   | P2PHandlerResult
   | Promise<P2PHandlerResult>;
 ```
@@ -20,16 +20,16 @@ Handles a request from the peer; throwing [P2PRequestError](../classes/P2PReques
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                        |
+| --------- | ------------------------------------------- |
 | `request` | [`P2PInboundRequest`](P2PInboundRequest.md) |
 
 #### Returns
 
-  \| [`P2PHandlerResult`](P2PHandlerResult.md)
-  \| `Promise`&lt;[`P2PHandlerResult`](P2PHandlerResult.md)&gt;
+\| [`P2PHandlerResult`](P2PHandlerResult.md)
+\| `Promise`&lt;[`P2PHandlerResult`](P2PHandlerResult.md)&gt;
 
-***
+---
 
 ### maxConcurrentRequests? \{#maxconcurrentrequests\}
 
@@ -41,7 +41,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/session/session.ts:65](https://github.
 
 Number of inbound requests handled simultaneously, 1-32, default 8; the rest queue, and a slot stays occupied when its reply cannot be sent.
 
-***
+---
 
 ### name \{#name\}
 
@@ -53,7 +53,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/session/session.ts:61](https://github.
 
 Protocol name, for example `p2p.files`; declared in hello.
 
-***
+---
 
 ### version \{#version\}
 

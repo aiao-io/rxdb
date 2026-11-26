@@ -16,7 +16,7 @@ Defined in: [palette/controller.ts:30](https://github.com/aiao-io/rxdb/blob/b523
 
 The group title literal.
 
-***
+---
 
 ### groupLabelKey? \{#grouplabelkey\}
 
@@ -28,7 +28,7 @@ Defined in: [palette/controller.ts:28](https://github.com/aiao-io/rxdb/blob/b523
 
 The group title translation key.
 
-***
+---
 
 ### id \{#id\}
 
@@ -40,7 +40,7 @@ Defined in: [palette/controller.ts:26](https://github.com/aiao-io/rxdb/blob/b523
 
 The unique identifier.
 
-***
+---
 
 ### items? \{#items\}
 
@@ -56,7 +56,7 @@ The synchronous source: returns the full candidate set.
 
 readonly [`PaletteItem`](PaletteItem.md)[]
 
-***
+---
 
 ### minQueryLength? \{#minquerylength\}
 
@@ -68,7 +68,7 @@ Defined in: [palette/controller.ts:36](https://github.com/aiao-io/rxdb/blob/b523
 
 The minimum query length that triggers the asynchronous source's search, 1 by default.
 
-***
+---
 
 ### remember? \{#remember\}
 
@@ -80,7 +80,7 @@ Defined in: [palette/controller.ts:38](https://github.com/aiao-io/rxdb/blob/b523
 
 Whether a selection is recorded into recent usage; synchronous sources record and asynchronous ones do not by default.
 
-***
+---
 
 ### search? \{#search\}
 
@@ -94,10 +94,10 @@ The asynchronous source: searches by query; `signal` is aborted when the query c
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `query` | `string` |
-| `signal` | `AbortSignal` |
+| Parameter | Type          |
+| --------- | ------------- |
+| `query`   | `string`      |
+| `signal`  | `AbortSignal` |
 
 #### Returns
 

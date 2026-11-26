@@ -12,10 +12,10 @@ e.g. 0.1 + 0.2 usually yields 0.30000000000000004, while this function yields 0.
 
 ## Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `value` | `number` | `undefined` | The number to process |
-| `precision?` | `number` | `12` | Number of significant digits; defaults to 12 (range 1-21) |
+| Parameter    | Type     | Default value | Description                                               |
+| ------------ | -------- | ------------- | --------------------------------------------------------- |
+| `value`      | `number` | `undefined`   | The number to process                                     |
+| `precision?` | `number` | `12`          | Number of significant digits; defaults to 12 (range 1-21) |
 
 ## Returns
 
@@ -26,15 +26,15 @@ The processed number with useless decimal places removed
 ## Examples
 
 ```ts
-numberStrip(0.1 + 0.2);       // returns 0.3 (solves the floating-point precision issue)
+numberStrip(0.1 + 0.2); // returns 0.3 (solves the floating-point precision issue)
 ```
 
 ```ts
-numberStrip(1.2345);          // returns 1.2345 (12 significant digits by default)
+numberStrip(1.2345); // returns 1.2345 (12 significant digits by default)
 ```
 
 ```ts
-numberStrip(12345.6789, 6);   // returns 12345.7 (6 significant digits)
+numberStrip(12345.6789, 6); // returns 12345.7 (6 significant digits)
 ```
 
 ```ts

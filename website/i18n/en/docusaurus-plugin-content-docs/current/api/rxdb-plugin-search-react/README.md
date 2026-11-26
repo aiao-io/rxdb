@@ -33,8 +33,8 @@ export function SearchPage({ database }: { readonly database: RxDB }) {
         Search
         <input value={search.query} onChange={event => search.setQuery(event.currentTarget.value)} />
       </label>
-      `{search.error && <p role="alert">{search.error.message}</p>}`
-      `{search.state === 'error' && <button onClick={search.retry}>Retry</button>}`
+      `{search.error && <p role="alert">{search.error.message}</p>}` `
+      {search.state === 'error' && <button onClick={search.retry}>Retry</button>}`
       <ul>
         {search.results.map(result => (
           <li key={`${result.collection}:${result.id}`}>{result.snippet}</li>
@@ -80,28 +80,28 @@ Symmetric functionality across the three frameworks: Angular uses `useSearch` ([
 
 ## Classes
 
-| Class | Description |
-| ------ | ------ |
+| Class                                                   | Description                                                                                                                          |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | [SearchExecutionError](classes/SearchExecutionError.md) | Runtime execution error (SQL failure / storage unavailable); recoverable via [SearchHandle.retry](interfaces/SearchHandle.md#retry). |
 
 ## Interfaces
 
-| Interface | Description |
-| ------ | ------ |
-| [SearchHandle](interfaces/SearchHandle.md) | The reactive handle returned by `collection.search()` / `rxDB.search()`. |
-| [SearchOptions](interfaces/SearchOptions.md) | Adjustable parameters for a single search request; can override the [SearchPluginOptions](../rxdb-plugin-search/interfaces/SearchPluginOptions.md) global defaults. |
-| [SearchResult](interfaces/SearchResult.md) | A single search hit. |
-| [SearchSourceLike](interfaces/SearchSourceLike.md) | The minimal data source shape exposing a `search()` method (`RxDB` / `RxCollection`). |
-| [UseSearchReturn](interfaces/UseSearchReturn.md) | Return value of [useSearch](functions/useSearch.md). |
+| Interface                                          | Description                                                                                                                                                         |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [SearchHandle](interfaces/SearchHandle.md)         | The reactive handle returned by `collection.search()` / `rxDB.search()`.                                                                                            |
+| [SearchOptions](interfaces/SearchOptions.md)       | Adjustable parameters for a single search request; can override the [SearchPluginOptions](../rxdb-plugin-search/interfaces/SearchPluginOptions.md) global defaults. |
+| [SearchResult](interfaces/SearchResult.md)         | A single search hit.                                                                                                                                                |
+| [SearchSourceLike](interfaces/SearchSourceLike.md) | The minimal data source shape exposing a `search()` method (`RxDB` / `RxCollection`).                                                                               |
+| [UseSearchReturn](interfaces/UseSearchReturn.md)   | Return value of [useSearch](functions/useSearch.md).                                                                                                                |
 
 ## Type Aliases
 
-| Type Alias | Description |
-| ------ | ------ |
+| Type Alias                                 | Description                                          |
+| ------------------------------------------ | ---------------------------------------------------- |
 | [SearchState](type-aliases/SearchState.md) | The five states of the `SearchHandle` state machine. |
 
 ## Functions
 
-| Function | Description |
-| ------ | ------ |
+| Function                            | Description                                                        |
+| ----------------------------------- | ------------------------------------------------------------------ |
 | [useSearch](functions/useSearch.md) | Adapts the reactive outputs of a `SearchHandle` into a React hook. |

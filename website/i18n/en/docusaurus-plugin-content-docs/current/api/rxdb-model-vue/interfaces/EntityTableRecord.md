@@ -27,7 +27,7 @@ Defined in: packages/rxdb-model/dist/entity-table/interfaces.d.ts:14
 
 New template row
 
-***
+---
 
 ### \_readonly? \{#_readonly\}
 
@@ -39,7 +39,7 @@ Defined in: packages/rxdb-model/dist/entity-table/interfaces.d.ts:12
 
 Readonly row (not editable, not draggable, not deletable)
 
-***
+---
 
 ### children? \{#children\}
 
@@ -51,7 +51,7 @@ Defined in: packages/rxdb-model/dist/entity-table/interfaces.d.ts:16
 
 Tree-structure child nodes
 
-***
+---
 
 ### hierarchyState? \{#hierarchystate\}
 

@@ -1,12 +1,7 @@
 # handle_flatmap_contains()
 
 ```ts
-function handle_flatmap_contains(
-   entityMetadata, 
-   originalField, 
-   rule, 
-   tableAlias?
-): string | null;
+function handle_flatmap_contains(entityMetadata, originalField, rule, tableAlias?): string | null;
 ```
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/query/query\_sql.utils.ts:487](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/query/query_sql.utils.ts#L487)
@@ -15,12 +10,12 @@ Handles contains/notContains queries on keyValue fields.
 
 ## Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `entityMetadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | `undefined` | - |
-| `originalField` | `string` | `undefined` | - |
-| `rule` | `QueryRuleValue` | `undefined` | - |
-| `tableAlias?` | `string` | `MAIN_TABLE_ALIAS` | Alias of the table containing the column: in an EXISTS subquery this is the subquery root table, not the top-level main table `_` |
+| Parameter        | Type                                                          | Default value      | Description                                                                                                                       |
+| ---------------- | ------------------------------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| `entityMetadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | `undefined`        | -                                                                                                                                 |
+| `originalField`  | `string`                                                      | `undefined`        | -                                                                                                                                 |
+| `rule`           | `QueryRuleValue`                                              | `undefined`        | -                                                                                                                                 |
+| `tableAlias?`    | `string`                                                      | `MAIN_TABLE_ALIAS` | Alias of the table containing the column: in an EXISTS subquery this is the subquery root table, not the top-level main table `_` |
 
 ## Returns
 

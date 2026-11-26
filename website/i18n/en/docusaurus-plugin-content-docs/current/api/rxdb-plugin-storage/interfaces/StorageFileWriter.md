@@ -24,9 +24,9 @@ Discards this write and releases resources.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `reason` | `unknown` | The original error that triggered the abandonment, for the implementor to record or pass through. |
+| Parameter | Type      | Description                                                                                       |
+| --------- | --------- | ------------------------------------------------------------------------------------------------- |
+| `reason`  | `unknown` | The original error that triggered the abandonment, for the implementor to record or pass through. |
 
 #### Returns
 
@@ -37,7 +37,7 @@ Discards this write and releases resources.
 This method **must not throw**: it is only called on error-handling paths, and
 a second throw would overwrite the real failure cause.
 
-***
+---
 
 ### close() \{#close\}
 
@@ -53,7 +53,7 @@ Commits all written chunks.
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### write() \{#write\}
 
@@ -67,9 +67,9 @@ Appends a chunk; chunks are concatenated in call order.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `chunk` | `Uint8Array`&lt;`ArrayBuffer`&gt; \| `Blob` |
+| Parameter | Type                                        |
+| --------- | ------------------------------------------- |
+| `chunk`   | `Uint8Array`&lt;`ArrayBuffer`&gt; \| `Blob` |
 
 #### Returns
 

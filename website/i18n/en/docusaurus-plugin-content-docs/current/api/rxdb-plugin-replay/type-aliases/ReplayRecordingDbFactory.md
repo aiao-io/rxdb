@@ -1,9 +1,7 @@
 # ReplayRecordingDbFactory
 
 ```ts
-type ReplayRecordingDbFactory = (entities) => 
-  | RxDB
-  | Promise<RxDB>;
+type ReplayRecordingDbFactory = (entities) => RxDB | Promise<RxDB>;
 ```
 
 Defined in: [packages/rxdb-plugin-replay/src/options.ts:29](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-replay/src/options.ts#L29)
@@ -12,14 +10,14 @@ Recording database factory: receives this plugin's entity list and returns a **s
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                             |
+| ---------- | ---------------------------------------------------------------- |
 | `entities` | readonly [`EntityType`](../../rxdb/type-aliases/EntityType.md)[] |
 
 ## Returns
 
-  \| [`RxDB`](../../rxdb/classes/RxDB.md)
-  \| `Promise`&lt;[`RxDB`](../../rxdb/classes/RxDB.md)&gt;
+\| [`RxDB`](../../rxdb/classes/RxDB.md)
+\| `Promise`&lt;[`RxDB`](../../rxdb/classes/RxDB.md)&gt;
 
 ## Remarks
 

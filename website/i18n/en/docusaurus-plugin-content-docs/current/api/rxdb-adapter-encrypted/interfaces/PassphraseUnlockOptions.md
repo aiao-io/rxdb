@@ -22,7 +22,7 @@ Defined in: [packages/rxdb-adapter-encrypted/src/keyring.ts:60](https://github.c
 
 `UnlockLifecycleOptions.idleTimeoutMs`
 
-***
+---
 
 ### legacyEnvelopePolicy? \{#legacyenvelopepolicy\}
 
@@ -36,7 +36,7 @@ Defined in: [packages/rxdb-adapter-encrypted/src/keyring.ts:61](https://github.c
 
 `UnlockLifecycleOptions.legacyEnvelopePolicy`
 
-***
+---
 
 ### passphrase \{#passphrase\}
 

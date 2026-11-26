@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/transfer.ts:76](https://github.com/aia
 
 Bytes written to disk (including the part completed before resumption).
 
-***
+---
 
 ### completedChunks \{#completedchunks\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/transfer.ts:74](https://github.com/aia
 
 Chunks written to disk and verified.
 
-***
+---
 
 ### contentHash \{#contenthash\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/transfer.ts:72](https://github.com/aia
 
 The verified content hash.
 
-***
+---
 
 ### sourcesUsed \{#sourcesused\}
 

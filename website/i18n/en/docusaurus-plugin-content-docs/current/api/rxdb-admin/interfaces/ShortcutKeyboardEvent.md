@@ -24,7 +24,7 @@ Whether Alt (Option) is pressed.
 
 [`KeyEventLike`](KeyEventLike.md).[`altKey`](KeyEventLike.md#altkey)
 
-***
+---
 
 ### code \{#code\}
 
@@ -40,7 +40,7 @@ The physical key position.
 
 [`KeyEventLike`](KeyEventLike.md).[`code`](KeyEventLike.md#code)
 
-***
+---
 
 ### ctrlKey \{#ctrlkey\}
 
@@ -56,7 +56,7 @@ Whether Ctrl is pressed.
 
 [`KeyEventLike`](KeyEventLike.md).[`ctrlKey`](KeyEventLike.md#ctrlkey)
 
-***
+---
 
 ### isComposing? \{#iscomposing\}
 
@@ -68,7 +68,7 @@ Defined in: [shortcuts/registry.ts:24](https://github.com/aiao-io/rxdb/blob/b523
 
 An input-method composition is in progress.
 
-***
+---
 
 ### key \{#key\}
 
@@ -84,7 +84,7 @@ The produced character value.
 
 [`KeyEventLike`](KeyEventLike.md).[`key`](KeyEventLike.md#key)
 
-***
+---
 
 ### metaKey \{#metakey\}
 
@@ -100,7 +100,7 @@ Whether Meta (Command / Windows) is pressed.
 
 [`KeyEventLike`](KeyEventLike.md).[`metaKey`](KeyEventLike.md#metakey)
 
-***
+---
 
 ### repeat? \{#repeat\}
 
@@ -112,7 +112,7 @@ Defined in: [shortcuts/registry.ts:26](https://github.com/aiao-io/rxdb/blob/b523
 
 Triggers repeatedly while the key is held down.
 
-***
+---
 
 ### shiftKey \{#shiftkey\}
 
@@ -128,7 +128,7 @@ Whether Shift is pressed.
 
 [`KeyEventLike`](KeyEventLike.md).[`shiftKey`](KeyEventLike.md#shiftkey)
 
-***
+---
 
 ### target? \{#target\}
 

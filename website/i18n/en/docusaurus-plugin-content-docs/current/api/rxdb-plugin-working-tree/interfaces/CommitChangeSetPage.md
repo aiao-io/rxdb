@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-changes.ts:20](
 
 Which commit is being read; character-for-character identical to the input
 
-***
+---
 
 ### entries \{#entries\}
 

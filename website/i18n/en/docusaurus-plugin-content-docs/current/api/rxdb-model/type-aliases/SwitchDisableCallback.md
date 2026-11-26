@@ -10,9 +10,9 @@ Switch disabled state predicate callback
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `args` | `StylePropertyFunctionArg` | VTable callback argument (used to obtain the current row record) |
+| Parameter | Type                       | Description                                                      |
+| --------- | -------------------------- | ---------------------------------------------------------------- |
+| `args`    | `StylePropertyFunctionArg` | VTable callback argument (used to obtain the current row record) |
 
 ## Returns
 

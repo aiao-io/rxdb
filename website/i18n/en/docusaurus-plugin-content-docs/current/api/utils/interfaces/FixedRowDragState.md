@@ -16,7 +16,7 @@ Defined in: [packages/utils/src/@browser/fixed-row-drag.ts:4](https://github.com
 
 The dragged row's index in the list
 
-***
+---
 
 ### overIndex \{#overindex\}
 

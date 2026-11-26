@@ -1,9 +1,12 @@
 # PGliteDataDirItem
 
 ```ts
-type PGliteDataDirItem = Exclude<RxDBBackupArchiveItem, {
-  type: "end";
-}>;
+type PGliteDataDirItem = Exclude<
+  RxDBBackupArchiveItem,
+  {
+    type: 'end';
+  }
+>;
 ```
 
 Defined in: [packages/rxdb-adapter-pglite/src/backup/pglite-data-dir.ts:58](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-pglite/src/backup/pglite-data-dir.ts#L58)

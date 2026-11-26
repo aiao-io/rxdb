@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-replay/src/types.ts:53](https://github.com/aia
 
 Sum of the byte counts of stored events (UTF-8 length after `JSON.stringify`).
 
-***
+---
 
 ### eventCount \{#eventcount\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-replay/src/types.ts:51](https://github.com/aia
 
 Number of stored events (including markers).
 
-***
+---
 
 ### id \{#id\}
 
@@ -38,7 +38,7 @@ readonly id: string;
 
 Defined in: [packages/rxdb-plugin-replay/src/types.ts:43](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-replay/src/types.ts#L43)
 
-***
+---
 
 ### lastEventAt \{#lasteventat\}
 
@@ -50,7 +50,7 @@ Defined in: [packages/rxdb-plugin-replay/src/types.ts:46](https://github.com/aia
 
 The largest event timestamp in the last batch successfully stored; `null` when there are no events yet.
 
-***
+---
 
 ### startedAt \{#startedat\}
 
@@ -60,7 +60,7 @@ readonly startedAt: Date;
 
 Defined in: [packages/rxdb-plugin-replay/src/types.ts:44](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-replay/src/types.ts#L44)
 
-***
+---
 
 ### status \{#status\}
 
@@ -70,7 +70,7 @@ readonly status: ReplaySessionStatus;
 
 Defined in: [packages/rxdb-plugin-replay/src/types.ts:47](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-replay/src/types.ts#L47)
 
-***
+---
 
 ### truncatedCode \{#truncatedcode\}
 

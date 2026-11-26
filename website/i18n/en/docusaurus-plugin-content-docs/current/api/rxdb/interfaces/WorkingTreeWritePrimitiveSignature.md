@@ -32,7 +32,7 @@ Defined in: [packages/rxdb/src/capture/capture-mount-points.ts:39](https://githu
 
 The name of the abstract base class declaring the method
 
-***
+---
 
 ### method \{#method\}
 
@@ -44,7 +44,7 @@ Defined in: [packages/rxdb/src/capture/capture-mount-points.ts:42](https://githu
 
 Method name
 
-***
+---
 
 ### parameters \{#parameters\}
 

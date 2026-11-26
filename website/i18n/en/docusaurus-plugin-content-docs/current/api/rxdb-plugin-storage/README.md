@@ -329,6 +329,7 @@ RxDB Storage plugin
 File storage plugin, providing file storage capabilities based on the Origin Private File System (OPFS)
 
 Main features:
+
 - File upload and download (upload/download)
 - File preview and object URLs (preview/createObjectUrl)
 - File and directory management (list/createDirectory/rename/delete)
@@ -336,70 +337,70 @@ Main features:
 
 ## Classes
 
-| Class | Description |
-| ------ | ------ |
-| [ObjectUrlRegistry](classes/ObjectUrlRegistry.md) | Uniformly manages object URL creation and revocation. |
-| [OpfsStorageFilesystem](classes/OpfsStorageFilesystem.md) | The default backend that writes file contents into the browser's OPFS. |
-| [RxdbFileStorage](classes/RxdbFileStorage.md) | The file storage service that saves files via [StorageFilesystem](interfaces/StorageFilesystem.md) and metadata via RxDB. |
-| [RxDBPluginStorage](classes/RxDBPluginStorage.md) | The plugin lifecycle object that installs [RxdbFileStorage](classes/RxdbFileStorage.md) into a single RxDB instance. |
-| [StorageBackendError](classes/StorageBackendError.md) | Failures on the file backend or desktop host side. |
-| [StorageConflictError](classes/StorageConflictError.md) | Thrown when a write operation hits an existing target and overwrite was not allowed. |
-| [StorageDestroyedError](classes/StorageDestroyedError.md) | Thrown when a public API is called after the storage service has entered its destroy flow. |
-| [StorageFetchError](classes/StorageFetchError.md) | Thrown when a remote request was delivered successfully but returned a non-2xx status. |
-| [StorageFetchUrlConflictError](classes/StorageFetchUrlConflictError.md) | A fetch **pointing to a different URL** is already in progress for the same `opfsPath`. |
-| [StorageFileMeta](classes/StorageFileMeta.md) | The persisted metadata entity corresponding to an OPFS file. |
-| [StorageInvalidPathError](classes/StorageInvalidPathError.md) | Thrown when the path is not a legal target for this operation. |
-| [StorageMimeTypeMissingError](classes/StorageMimeTypeMissingError.md) | Thrown when the HTTP response succeeded but neither `options.mimeType` nor a `Content-Type` response header was provided. |
-| [StorageOfflineError](classes/StorageOfflineError.md) | Thrown when a remote resource is unreachable. |
-| [StoragePreviewLimitError](classes/StoragePreviewLimitError.md) | Thrown when a file exceeds the preview byte limit. |
-| [StorageUnavailableError](classes/StorageUnavailableError.md) | Thrown when the current environment or RxDB configuration cannot provide the storage dependencies. |
+| Class                                                                   | Description                                                                                                               |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| [ObjectUrlRegistry](classes/ObjectUrlRegistry.md)                       | Uniformly manages object URL creation and revocation.                                                                     |
+| [OpfsStorageFilesystem](classes/OpfsStorageFilesystem.md)               | The default backend that writes file contents into the browser's OPFS.                                                    |
+| [RxdbFileStorage](classes/RxdbFileStorage.md)                           | The file storage service that saves files via [StorageFilesystem](interfaces/StorageFilesystem.md) and metadata via RxDB. |
+| [RxDBPluginStorage](classes/RxDBPluginStorage.md)                       | The plugin lifecycle object that installs [RxdbFileStorage](classes/RxdbFileStorage.md) into a single RxDB instance.      |
+| [StorageBackendError](classes/StorageBackendError.md)                   | Failures on the file backend or desktop host side.                                                                        |
+| [StorageConflictError](classes/StorageConflictError.md)                 | Thrown when a write operation hits an existing target and overwrite was not allowed.                                      |
+| [StorageDestroyedError](classes/StorageDestroyedError.md)               | Thrown when a public API is called after the storage service has entered its destroy flow.                                |
+| [StorageFetchError](classes/StorageFetchError.md)                       | Thrown when a remote request was delivered successfully but returned a non-2xx status.                                    |
+| [StorageFetchUrlConflictError](classes/StorageFetchUrlConflictError.md) | A fetch **pointing to a different URL** is already in progress for the same `opfsPath`.                                   |
+| [StorageFileMeta](classes/StorageFileMeta.md)                           | The persisted metadata entity corresponding to an OPFS file.                                                              |
+| [StorageInvalidPathError](classes/StorageInvalidPathError.md)           | Thrown when the path is not a legal target for this operation.                                                            |
+| [StorageMimeTypeMissingError](classes/StorageMimeTypeMissingError.md)   | Thrown when the HTTP response succeeded but neither `options.mimeType` nor a `Content-Type` response header was provided. |
+| [StorageOfflineError](classes/StorageOfflineError.md)                   | Thrown when a remote resource is unreachable.                                                                             |
+| [StoragePreviewLimitError](classes/StoragePreviewLimitError.md)         | Thrown when a file exceeds the preview byte limit.                                                                        |
+| [StorageUnavailableError](classes/StorageUnavailableError.md)           | Thrown when the current environment or RxDB configuration cannot provide the storage dependencies.                        |
 
 ## Interfaces
 
-| Interface | Description |
-| ------ | ------ |
-| [CreateDirectoryOptions](interfaces/CreateDirectoryOptions.md) | Directory creation options. |
-| [DownloadOptions](interfaces/DownloadOptions.md) | File download options. |
-| [FetchRemoteOptions](interfaces/FetchRemoteOptions.md) | Remote fetch options. |
-| [ListOptions](interfaces/ListOptions.md) | Metadata list query options. |
-| [RenameOptions](interfaces/RenameOptions.md) | File or directory rename options. |
-| [RxDBStoragePluginOptions](interfaces/RxDBStoragePluginOptions.md) | Storage plugin installation options. |
-| [StorageDirectoryEntry](interfaces/StorageDirectoryEntry.md) | The subdirectory entry returned when browsing a directory. |
-| [StorageFileEntry](interfaces/StorageFileEntry.md) | The file entry returned when browsing a directory. |
-| [StorageFilesystem](interfaces/StorageFilesystem.md) | The minimal set of filesystem capabilities the storage plugin depends on. |
-| [StorageFilesystemContext](interfaces/StorageFilesystemContext.md) | Host information visible when creating a backend instance. |
-| [StorageFilesystemEntry](interfaces/StorageFilesystemEntry.md) | A directory entry: exposes only the name and type the service layer needs, leaking no underlying handle. |
-| [StorageFileWriter](interfaces/StorageFileWriter.md) | The write handle for a single file. |
-| [StoragePreviewResult](interfaces/StoragePreviewResult.md) | A file preview result that can be explicitly disposed. |
-| [UploadOptions](interfaces/UploadOptions.md) | File upload options. |
+| Interface                                                          | Description                                                                                              |
+| ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| [CreateDirectoryOptions](interfaces/CreateDirectoryOptions.md)     | Directory creation options.                                                                              |
+| [DownloadOptions](interfaces/DownloadOptions.md)                   | File download options.                                                                                   |
+| [FetchRemoteOptions](interfaces/FetchRemoteOptions.md)             | Remote fetch options.                                                                                    |
+| [ListOptions](interfaces/ListOptions.md)                           | Metadata list query options.                                                                             |
+| [RenameOptions](interfaces/RenameOptions.md)                       | File or directory rename options.                                                                        |
+| [RxDBStoragePluginOptions](interfaces/RxDBStoragePluginOptions.md) | Storage plugin installation options.                                                                     |
+| [StorageDirectoryEntry](interfaces/StorageDirectoryEntry.md)       | The subdirectory entry returned when browsing a directory.                                               |
+| [StorageFileEntry](interfaces/StorageFileEntry.md)                 | The file entry returned when browsing a directory.                                                       |
+| [StorageFilesystem](interfaces/StorageFilesystem.md)               | The minimal set of filesystem capabilities the storage plugin depends on.                                |
+| [StorageFilesystemContext](interfaces/StorageFilesystemContext.md) | Host information visible when creating a backend instance.                                               |
+| [StorageFilesystemEntry](interfaces/StorageFilesystemEntry.md)     | A directory entry: exposes only the name and type the service layer needs, leaking no underlying handle. |
+| [StorageFileWriter](interfaces/StorageFileWriter.md)               | The write handle for a single file.                                                                      |
+| [StoragePreviewResult](interfaces/StoragePreviewResult.md)         | A file preview result that can be explicitly disposed.                                                   |
+| [UploadOptions](interfaces/UploadOptions.md)                       | File upload options.                                                                                     |
 
 ## Type Aliases
 
-| Type Alias | Description |
-| ------ | ------ |
-| [StorageBackendErrorCode](type-aliases/StorageBackendErrorCode.md) | The stable discriminator code for backend (including desktop host) failures. |
-| [StorageBrowserEntry](type-aliases/StorageBrowserEntry.md) | The directory or file entries returned by [RxdbFileStorage.listEntries](classes/RxdbFileStorage.md#listentries). |
-| [StorageFilesystemFactory](type-aliases/StorageFilesystemFactory.md) | The factory that creates a backend instance for a storage root directory. |
+| Type Alias                                                           | Description                                                                                                      |
+| -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| [StorageBackendErrorCode](type-aliases/StorageBackendErrorCode.md)   | The stable discriminator code for backend (including desktop host) failures.                                     |
+| [StorageBrowserEntry](type-aliases/StorageBrowserEntry.md)           | The directory or file entries returned by [RxdbFileStorage.listEntries](classes/RxdbFileStorage.md#listentries). |
+| [StorageFilesystemFactory](type-aliases/StorageFilesystemFactory.md) | The factory that creates a backend instance for a storage root directory.                                        |
 
 ## Variables
 
-| Variable | Description |
-| ------ | ------ |
+| Variable                                                                | Description                                                                                                                          |
+| ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | [createOpfsStorageFilesystem](variables/createOpfsStorageFilesystem.md) | Creates the OPFS backend; this is the storage plugin's default [StorageFilesystemFactory](type-aliases/StorageFilesystemFactory.md). |
-| [rxDBPluginStorage](variables/rxDBPluginStorage.md) | The RxDB Storage plugin factory. |
-| [rxdbStorage](variables/rxdbStorage.md) | The compatibility alias of [rxDBPluginStorage](variables/rxDBPluginStorage.md). |
+| [rxDBPluginStorage](variables/rxDBPluginStorage.md)                     | The RxDB Storage plugin factory.                                                                                                     |
+| [rxdbStorage](variables/rxdbStorage.md)                                 | The compatibility alias of [rxDBPluginStorage](variables/rxDBPluginStorage.md).                                                      |
 
 ## Functions
 
-| Function | Description |
-| ------ | ------ |
-| [getDirectoryPathFromOpfsPath](functions/getDirectoryPathFromOpfsPath.md) | Returns the storage absolute directory containing an OPFS-relative path. |
-| [getFileNameFromOpfsPath](functions/getFileNameFromOpfsPath.md) | Returns the last path segment of an OPFS-relative path. |
-| [isOpfsPathInDirectory](functions/isOpfsPathInDirectory.md) | Checks whether a file belongs directly to a directory. |
-| [isOpfsPathInsideDirectory](functions/isOpfsPathInsideDirectory.md) | Checks whether a file lies in a directory or any of its subdirectories. |
-| [isStorageNotFoundError](functions/isStorageNotFoundError.md) | Checks whether an error means "target not found". |
-| [joinDirectoryAndFileName](functions/joinDirectoryAndFileName.md) | Joins a storage directory and a file name, returning the OPFS-relative path. |
-| [joinDirectoryPath](functions/joinDirectoryPath.md) | Joins a parent directory and a subdirectory name, returning the storage absolute path. |
-| [normalizeDirectoryPath](functions/normalizeDirectoryPath.md) | Normalizes a directory path to the form starting with `/` and without a trailing `/`. |
-| [normalizeRelativeOpfsPath](functions/normalizeRelativeOpfsPath.md) | Normalizes a storage path to an OPFS-relative path without a leading `/`. |
-| [toAbsoluteStoragePath](functions/toAbsoluteStoragePath.md) | Converts an OPFS-relative path into a storage absolute path starting with `/`. |
+| Function                                                                  | Description                                                                            |
+| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| [getDirectoryPathFromOpfsPath](functions/getDirectoryPathFromOpfsPath.md) | Returns the storage absolute directory containing an OPFS-relative path.               |
+| [getFileNameFromOpfsPath](functions/getFileNameFromOpfsPath.md)           | Returns the last path segment of an OPFS-relative path.                                |
+| [isOpfsPathInDirectory](functions/isOpfsPathInDirectory.md)               | Checks whether a file belongs directly to a directory.                                 |
+| [isOpfsPathInsideDirectory](functions/isOpfsPathInsideDirectory.md)       | Checks whether a file lies in a directory or any of its subdirectories.                |
+| [isStorageNotFoundError](functions/isStorageNotFoundError.md)             | Checks whether an error means "target not found".                                      |
+| [joinDirectoryAndFileName](functions/joinDirectoryAndFileName.md)         | Joins a storage directory and a file name, returning the OPFS-relative path.           |
+| [joinDirectoryPath](functions/joinDirectoryPath.md)                       | Joins a parent directory and a subdirectory name, returning the storage absolute path. |
+| [normalizeDirectoryPath](functions/normalizeDirectoryPath.md)             | Normalizes a directory path to the form starting with `/` and without a trailing `/`.  |
+| [normalizeRelativeOpfsPath](functions/normalizeRelativeOpfsPath.md)       | Normalizes a storage path to an OPFS-relative path without a leading `/`.              |
+| [toAbsoluteStoragePath](functions/toAbsoluteStoragePath.md)               | Converts an OPFS-relative path into a storage absolute path starting with `/`.         |

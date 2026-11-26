@@ -1,7 +1,7 @@
 # HttpResponseType
 
 ```ts
-type HttpResponseType = "basic" | "cors" | "default" | "error" | "opaque" | "opaqueredirect";
+type HttpResponseType = 'basic' | 'cors' | 'default' | 'error' | 'opaque' | 'opaqueredirect';
 ```
 
 Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:270](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-http/src/http.interface.ts#L270)

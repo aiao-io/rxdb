@@ -26,7 +26,7 @@ Diagnostic callback when a parseable notification is received (including suppres
 
 Symmetric with [HttpChangeFeedOptions.onUnavailable](#onunavailable): one reports "the channel is gone", the other "the channel delivered". Without it, channel behavior is completely unchanged. For the rationale see [HttpChangeFeedNotificationReport](HttpChangeFeedNotificationReport.md).
 
-***
+---
 
 ### onOpen? \{#onopen\}
 
@@ -53,9 +53,9 @@ Trigger semantics:
 
 Without it, channel behavior is completely unchanged. Thrown errors are discarded; for the rationale see [HttpChangeFeedOpenHook](../type-aliases/HttpChangeFeedOpenHook.md).
 
- Like [HttpAdapterOptions.changeFeed](HttpAdapterOptions.md#changefeed), outside the 1.0 compatibility promise.
+Like [HttpAdapterOptions.changeFeed](HttpAdapterOptions.md#changefeed), outside the 1.0 compatibility promise.
 
-***
+---
 
 ### onUnavailable? \{#onunavailable\}
 
@@ -71,7 +71,7 @@ Diagnostic callback when the channel becomes unavailable.
 
 Without it, channel behavior is completely unchanged (backoff and reconnect as usual) — it just has no mouth. And since D5 explicitly forbids polling degradation, this callback is the only outlet for "can't connect". Thrown errors are discarded; for the rationale see [HttpChangeFeedUnavailableHook](../type-aliases/HttpChangeFeedUnavailableHook.md).
 
-***
+---
 
 ### reconnectBaseDelayMs? \{#reconnectbasedelayms\}
 
@@ -83,7 +83,7 @@ Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:450](https://githu
 
 Starting delay for backoff reconnects (milliseconds). Default `1000`; must be a finite positive integer
 
-***
+---
 
 ### reconnectMaxDelayMs? \{#reconnectmaxdelayms\}
 
@@ -95,7 +95,7 @@ Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:452](https://githu
 
 Delay cap for backoff reconnects (milliseconds). Default `30000`; must be a finite positive integer and no smaller than the starting delay
 
-***
+---
 
 ### url \{#url\}
 
@@ -107,7 +107,7 @@ Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:446](https://githu
 
 The SSE endpoint: an absolute URL, or a path relative to `baseUrl`
 
-***
+---
 
 ### withCredentials? \{#withcredentials\}
 

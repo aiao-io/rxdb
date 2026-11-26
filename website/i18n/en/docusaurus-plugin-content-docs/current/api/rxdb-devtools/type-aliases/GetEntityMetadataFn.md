@@ -1,9 +1,7 @@
 # GetEntityMetadataFn
 
 ```ts
-type GetEntityMetadataFn = (entity) => 
-  | DevToolsEntityMetadata
-  | undefined;
+type GetEntityMetadataFn = (entity) => DevToolsEntityMetadata | undefined;
 ```
 
 Defined in: [connector-types.ts:95](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/connector-types.ts#L95)
@@ -12,14 +10,14 @@ Entity metadata reader function.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `entity` | [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Parameter | Type                                                  |
+| --------- | ----------------------------------------------------- |
+| `entity`  | [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 ## Returns
 
-  \| [`DevToolsEntityMetadata`](../interfaces/DevToolsEntityMetadata.md)
-  \| `undefined`
+\| [`DevToolsEntityMetadata`](../interfaces/DevToolsEntityMetadata.md)
+\| `undefined`
 
 ## Remarks
 

@@ -12,8 +12,8 @@ Field syntax and ranges are documented in [parseCron](parseCron.md).
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter    | Type     | Description            |
+| ------------ | -------- | ---------------------- |
 | `expression` | `string` | Cron expression string |
 
 ## Returns

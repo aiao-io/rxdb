@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model/src/query-builder/models/query-builder-state.ts
 
 Field description
 
-***
+---
 
 ### displayName \{#displayname\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-model/src/query-builder/models/query-builder-state.ts
 
 Display name
 
-***
+---
 
 ### enum? \{#enum\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-model/src/query-builder/models/query-builder-state.ts
 
 Enum values (if applicable)
 
-***
+---
 
 ### isRelation? \{#isrelation\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb-model/src/query-builder/models/query-builder-state.ts
 
 Whether it is a relation field
 
-***
+---
 
 ### keyValueFields? \{#keyvaluefields\}
 
@@ -64,7 +64,7 @@ Defined in: [packages/rxdb-model/src/query-builder/models/query-builder-state.ts
 
 List of keyValue sub-property fields (used for nested property queries)
 
-***
+---
 
 ### name \{#name\}
 
@@ -76,7 +76,7 @@ Defined in: [packages/rxdb-model/src/query-builder/models/query-builder-state.ts
 
 Field name
 
-***
+---
 
 ### nullable? \{#nullable\}
 
@@ -88,7 +88,7 @@ Defined in: [packages/rxdb-model/src/query-builder/models/query-builder-state.ts
 
 Whether it can be null
 
-***
+---
 
 ### pattern? \{#pattern\}
 
@@ -100,7 +100,7 @@ Defined in: [packages/rxdb-model/src/query-builder/models/query-builder-state.ts
 
 Regular expression validation (string type)
 
-***
+---
 
 ### relationFields? \{#relationfields\}
 
@@ -112,7 +112,7 @@ Defined in: [packages/rxdb-model/src/query-builder/models/query-builder-state.ts
 
 Field list of the relation target entity (used for EXISTS subqueries)
 
-***
+---
 
 ### relationKind? \{#relationkind\}
 
@@ -124,7 +124,7 @@ Defined in: [packages/rxdb-model/src/query-builder/models/query-builder-state.ts
 
 Relation type (1:1, 1:m, m:1, m:n)
 
-***
+---
 
 ### relationTarget? \{#relationtarget\}
 
@@ -136,7 +136,7 @@ Defined in: [packages/rxdb-model/src/query-builder/models/query-builder-state.ts
 
 Name of the relation target entity
 
-***
+---
 
 ### required? \{#required\}
 
@@ -148,7 +148,7 @@ Defined in: [packages/rxdb-model/src/query-builder/models/query-builder-state.ts
 
 Whether it is required
 
-***
+---
 
 ### type \{#type\}
 

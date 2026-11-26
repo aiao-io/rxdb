@@ -16,7 +16,7 @@ Defined in: [layout/ui-state.ts:6](https://github.com/aiao-io/rxdb/blob/b5232040
 
 Whether the mobile sidebar drawer is open.
 
-***
+---
 
 ### hoverExpanded \{#hoverexpanded\}
 
@@ -28,7 +28,7 @@ Defined in: [layout/ui-state.ts:8](https://github.com/aiao-io/rxdb/blob/b5232040
 
 Whether the collapsed sidebar is temporarily expanded due to hover.
 
-***
+---
 
 ### maximized \{#maximized\}
 
@@ -40,7 +40,7 @@ Defined in: [layout/ui-state.ts:10](https://github.com/aiao-io/rxdb/blob/b523204
 
 Content maximized.
 
-***
+---
 
 ### navigating \{#navigating\}
 
@@ -52,7 +52,7 @@ Defined in: [layout/ui-state.ts:16](https://github.com/aiao-io/rxdb/blob/b523204
 
 Route navigation in progress (drives the top progress bar and the loading overlay).
 
-***
+---
 
 ### preferencesOpen \{#preferencesopen\}
 
@@ -64,7 +64,7 @@ Defined in: [layout/ui-state.ts:12](https://github.com/aiao-io/rxdb/blob/b523204
 
 Whether the preferences drawer is open.
 
-***
+---
 
 ### refreshKey \{#refreshkey\}
 

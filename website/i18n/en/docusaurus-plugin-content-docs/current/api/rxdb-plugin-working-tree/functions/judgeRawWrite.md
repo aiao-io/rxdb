@@ -10,10 +10,10 @@ Judges whether a raw call should be dispatched
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `sql` | `string` | The raw statement, possibly a semicolon-separated batch of statements |
-| `context` | [`RawWriteJudgmentContext`](../interfaces/RawWriteJudgmentContext.md) | The capability bit and the versioned domain |
+| Parameter | Type                                                                  | Description                                                           |
+| --------- | --------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `sql`     | `string`                                                              | The raw statement, possibly a semicolon-separated batch of statements |
+| `context` | [`RawWriteJudgmentContext`](../interfaces/RawWriteJudgmentContext.md) | The capability bit and the versioned domain                           |
 
 ## Returns
 

@@ -28,7 +28,7 @@ Total bytes of the file data.
 
 [`RxDBBackupTrailer`](RxDBBackupTrailer.md).[`bytes`](RxDBBackupTrailer.md#bytes)
 
-***
+---
 
 ### entries \{#entries\}
 
@@ -44,7 +44,7 @@ Entry count (files + directories).
 
 [`RxDBBackupTrailer`](RxDBBackupTrailer.md).[`entries`](RxDBBackupTrailer.md#entries)
 
-***
+---
 
 ### manifest \{#manifest\}
 
@@ -54,7 +54,7 @@ readonly manifest: RxDBBackupManifest;
 
 Defined in: [packages/rxdb/src/backup/backup.interface.ts:122](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/backup/backup.interface.ts#L122)
 
-***
+---
 
 ### scope \{#scope\}
 
@@ -64,7 +64,7 @@ readonly scope: RxDBBackupScope;
 
 Defined in: [packages/rxdb/src/backup/backup.interface.ts:123](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/backup/backup.interface.ts#L123)
 
-***
+---
 
 ### sha256 \{#sha256\}
 

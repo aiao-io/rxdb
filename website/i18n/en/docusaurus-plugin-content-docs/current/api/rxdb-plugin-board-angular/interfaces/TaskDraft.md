@@ -14,7 +14,7 @@ readonly description: string;
 
 Defined in: packages/rxdb-plugin-board/dist/detail-service.d.ts:26
 
-***
+---
 
 ### dueDate \{#duedate\}
 
@@ -24,7 +24,7 @@ readonly dueDate: string | null;
 
 Defined in: packages/rxdb-plugin-board/dist/detail-service.d.ts:27
 
-***
+---
 
 ### labelIds \{#labelids\}
 
@@ -34,7 +34,7 @@ readonly labelIds: readonly `${string}-${string}-${string}-${string}-${string}`[
 
 Defined in: packages/rxdb-plugin-board/dist/detail-service.d.ts:28
 
-***
+---
 
 ### title \{#title\}
 

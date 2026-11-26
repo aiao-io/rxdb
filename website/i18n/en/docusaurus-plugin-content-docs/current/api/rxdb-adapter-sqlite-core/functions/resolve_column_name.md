@@ -12,9 +12,9 @@ Supports nested paths such as keyValue.string.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `fieldName` | `string` |
+| Parameter         | Type                                                                                  |
+| ----------------- | ------------------------------------------------------------------------------------- |
+| `fieldName`       | `string`                                                                              |
 | `entityMetadata?` | `Readonly`&lt;[`EntityMetadataType`](../../rxdb/interfaces/EntityMetadataType.md)&gt; |
 
 ## Returns

@@ -10,16 +10,16 @@ Finds all ancestors of a tree entity.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`TreeEntityType`](../../rxdb-plugin-tree/type-aliases/TreeEntityType.md) |
+| Type Parameter                                                                                                        |
+| --------------------------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`TreeEntityType`](../../rxdb-plugin-tree/type-aliases/TreeEntityType.md) |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `EntityType` | `T` | The tree entity type. |
-| `options` | [`UseOptions`](../../rxdb-react/type-aliases/UseOptions.md)&lt;[`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"findAncestorsOptions"`&gt;&gt; | The tree query options or an idempotent factory. |
+| Parameter    | Type                                                                                                                                                                      | Description                                      |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| `EntityType` | `T`                                                                                                                                                                       | The tree entity type.                            |
+| `options`    | [`UseOptions`](../../rxdb-react/type-aliases/UseOptions.md)&lt;[`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"findAncestorsOptions"`&gt;&gt; | The tree query options or an idempotent factory. |
 
 ## Returns
 

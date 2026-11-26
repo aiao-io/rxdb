@@ -10,10 +10,10 @@ Restores a `rxdb_commit_change_set` row back into change unit content.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                            | Description                                                                                       |
+| --------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | `context` | [`WorkingTreePatchCodecContext`](../interfaces/WorkingTreePatchCodecContext.md) | The metadata resolution context; this function does not judge at-rest, so no recognizer is needed |
-| `row` | [`CommitChangeSetRow`](../type-aliases/CommitChangeSetRow.md) | The persisted row's nine columns |
+| `row`     | [`CommitChangeSetRow`](../type-aliases/CommitChangeSetRow.md)                   | The persisted row's nine columns                                                                  |
 
 ## Returns
 

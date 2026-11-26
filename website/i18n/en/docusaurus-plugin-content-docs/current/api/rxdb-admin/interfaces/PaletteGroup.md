@@ -16,7 +16,7 @@ Defined in: [palette/controller.ts:62](https://github.com/aiao-io/rxdb/blob/b523
 
 The results.
 
-***
+---
 
 ### id \{#id\}
 
@@ -28,7 +28,7 @@ Defined in: [palette/controller.ts:56](https://github.com/aiao-io/rxdb/blob/b523
 
 The source identifier.
 
-***
+---
 
 ### label? \{#label\}
 
@@ -40,7 +40,7 @@ Defined in: [palette/controller.ts:60](https://github.com/aiao-io/rxdb/blob/b523
 
 The title literal.
 
-***
+---
 
 ### labelKey? \{#labelkey\}
 

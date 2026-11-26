@@ -11,9 +11,9 @@ undo redo / restore again) pass through this first at the domain service layer (
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `ctx` | [`BoardHostContext`](../interfaces/BoardHostContext.md) |
+| Parameter | Type                                                    |
+| --------- | ------------------------------------------------------- |
+| `ctx`     | [`BoardHostContext`](../interfaces/BoardHostContext.md) |
 
 ## Returns
 

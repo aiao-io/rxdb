@@ -10,16 +10,16 @@ Builds an immutable manifest from a randomly-readable byte source.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `options` | \{ `chunkSize?`: `number`; `fileName`: `string`; `holderId?`: `string`; `readChunk`: (`offset`, `size`) => `Promise`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt;; `size`: `number`; `sourceUrl?`: `string`; `updatedAt?`: `number`; \} |
-| `options.chunkSize?` | `number` |
-| `options.fileName` | `string` |
-| `options.holderId?` | `string` |
-| `options.readChunk` | (`offset`, `size`) => `Promise`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt; |
-| `options.size` | `number` |
-| `options.sourceUrl?` | `string` |
-| `options.updatedAt?` | `number` |
+| Parameter            | Type                                                                                                                                                                                                                                    |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `options`            | \{ `chunkSize?`: `number`; `fileName`: `string`; `holderId?`: `string`; `readChunk`: (`offset`, `size`) => `Promise`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt;; `size`: `number`; `sourceUrl?`: `string`; `updatedAt?`: `number`; \} |
+| `options.chunkSize?` | `number`                                                                                                                                                                                                                                |
+| `options.fileName`   | `string`                                                                                                                                                                                                                                |
+| `options.holderId?`  | `string`                                                                                                                                                                                                                                |
+| `options.readChunk`  | (`offset`, `size`) => `Promise`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt;                                                                                                                                                            |
+| `options.size`       | `number`                                                                                                                                                                                                                                |
+| `options.sourceUrl?` | `string`                                                                                                                                                                                                                                |
+| `options.updatedAt?` | `number`                                                                                                                                                                                                                                |
 
 ## Returns
 

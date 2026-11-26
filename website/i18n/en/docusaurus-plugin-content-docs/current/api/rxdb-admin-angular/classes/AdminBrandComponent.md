@@ -27,7 +27,7 @@ protected readonly brandTitle: Signal<string>;
 
 Defined in: [rxdb-admin-angular/src/layout/brand.component.ts:35](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/brand.component.ts#L35)
 
-***
+---
 
 ### icon \{#icon\}
 
@@ -39,7 +39,7 @@ Defined in: [rxdb-admin-angular/src/layout/brand.component.ts:41](https://github
 
 Icon template shown when there is no Logo image.
 
-***
+---
 
 ### logo \{#logo\}
 
@@ -53,7 +53,7 @@ protected readonly logo: Signal<{
 
 Defined in: [rxdb-admin-angular/src/layout/brand.component.ts:33](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/brand.component.ts#L33)
 
-***
+---
 
 ### prefs \{#prefs\}
 
@@ -63,7 +63,7 @@ protected readonly prefs: Signal<AdminPreferences>;
 
 Defined in: [rxdb-admin-angular/src/layout/brand.component.ts:32](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/brand.component.ts#L32)
 
-***
+---
 
 ### revision \{#revision\}
 
@@ -73,7 +73,7 @@ protected readonly revision: Signal<number>;
 
 Defined in: [rxdb-admin-angular/src/layout/brand.component.ts:34](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/layout/brand.component.ts#L34)
 
-***
+---
 
 ### shell \{#shell\}
 
@@ -95,9 +95,9 @@ Defined in: [rxdb-admin-angular/src/layout/brand.component.ts:43](https://github
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `MouseEvent` |
+| Parameter | Type         |
+| --------- | ------------ |
+| `event`   | `MouseEvent` |
 
 #### Returns
 

@@ -14,8 +14,8 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-group/query-gro
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter    | Type                                                 |
+| ------------ | ---------------------------------------------------- |
 | `moveItemFn` | (`itemId`, `targetGroupId`, `targetIndex`) => `void` |
 
 #### Returns
@@ -38,8 +38,8 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-group/query-gro
 
 ```ts
 drop(
-   itemId, 
-   targetGroupId, 
+   itemId,
+   targetGroupId,
    targetIndex
 ): void;
 ```
@@ -48,17 +48,17 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-group/query-gro
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `itemId` | `string` |
+| Parameter       | Type     |
+| --------------- | -------- |
+| `itemId`        | `string` |
 | `targetGroupId` | `string` |
-| `targetIndex` | `number` |
+| `targetIndex`   | `number` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### end() \{#end\}
 
@@ -72,7 +72,7 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-group/query-gro
 
 `void`
 
-***
+---
 
 ### leave() \{#leave\}
 
@@ -86,15 +86,15 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-group/query-gro
 
 `void`
 
-***
+---
 
 ### over() \{#over\}
 
 ```ts
 over(
-   targetItemId, 
-   dropMode, 
-   isValid, 
+   targetItemId,
+   dropMode,
+   isValid,
    depth
 ): void;
 ```
@@ -103,18 +103,18 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-group/query-gro
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `targetItemId` | `string` |
-| `dropMode` | [`QueryDropMode`](../type-aliases/QueryDropMode.md) |
-| `isValid` | `boolean` |
-| `depth` | `number` |
+| Parameter      | Type                                                |
+| -------------- | --------------------------------------------------- |
+| `targetItemId` | `string`                                            |
+| `dropMode`     | [`QueryDropMode`](../type-aliases/QueryDropMode.md) |
+| `isValid`      | `boolean`                                           |
+| `depth`        | `number`                                            |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### start() \{#start\}
 
@@ -126,9 +126,9 @@ Defined in: [packages/rxdb-model-angular/src/query-builder/query-group/query-gro
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `itemId` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `itemId`  | `string` |
 
 #### Returns
 

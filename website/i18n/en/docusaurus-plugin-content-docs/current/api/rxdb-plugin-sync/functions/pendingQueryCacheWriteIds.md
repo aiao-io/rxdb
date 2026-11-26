@@ -1,11 +1,7 @@
 # pendingQueryCacheWriteIds()
 
 ```ts
-function pendingQueryCacheWriteIds(
-   rxdb, 
-   namespace, 
-   entity
-): Promise<ReadonlySet<string>>;
+function pendingQueryCacheWriteIds(rxdb, namespace, entity): Promise<ReadonlySet<string>>;
 ```
 
 Defined in: [packages/rxdb-plugin-sync/src/query-cache-outbox.ts:471](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-sync/src/query-cache-outbox.ts#L471)
@@ -14,11 +10,11 @@ Gets the entity ids of a QueryCache repository currently **held by the outbound 
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `rxdb` | [`RxDB`](../../rxdb/classes/RxDB.md) | The RxDB instance |
-| `namespace` | `string` | The namespace |
-| `entity` | `string` | The entity name |
+| Parameter   | Type                                 | Description       |
+| ----------- | ------------------------------------ | ----------------- |
+| `rxdb`      | [`RxDB`](../../rxdb/classes/RxDB.md) | The RxDB instance |
+| `namespace` | `string`                             | The namespace     |
+| `entity`    | `string`                             | The entity name   |
 
 ## Returns
 

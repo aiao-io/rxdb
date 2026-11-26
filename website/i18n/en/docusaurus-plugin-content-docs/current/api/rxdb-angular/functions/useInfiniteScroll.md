@@ -10,16 +10,16 @@ Creates an infinite scroll resource from the current Angular injection context.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                    |
+| ------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `EntityType` | `T` | Entity constructor |
-| `options` | [`InfiniteScrollOptions`](../type-aliases/InfiniteScrollOptions.md)&lt;`T`&gt; | Cursor pagination options (`limit` / `orderBy` / `where`, etc.) |
+| Parameter    | Type                                                                           | Description                                                     |
+| ------------ | ------------------------------------------------------------------------------ | --------------------------------------------------------------- |
+| `EntityType` | `T`                                                                            | Entity constructor                                              |
+| `options`    | [`InfiniteScrollOptions`](../type-aliases/InfiniteScrollOptions.md)&lt;`T`&gt; | Cursor pagination options (`limit` / `orderBy` / `where`, etc.) |
 
 ## Returns
 

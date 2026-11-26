@@ -21,16 +21,16 @@ Defined in: [packages/rxdb/src/network/reachability.ts:34](https://github.com/ai
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `type` | `"online"` \| `"offline"` |
-| `listener` | () => `void` |
+| Parameter  | Type                      |
+| ---------- | ------------------------- |
+| `type`     | `"online"` \| `"offline"` |
+| `listener` | () => `void`              |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### removeEventListener() \{#removeeventlistener\}
 
@@ -42,10 +42,10 @@ Defined in: [packages/rxdb/src/network/reachability.ts:35](https://github.com/ai
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `type` | `"online"` \| `"offline"` |
-| `listener` | () => `void` |
+| Parameter  | Type                      |
+| ---------- | ------------------------- |
+| `type`     | `"online"` \| `"offline"` |
+| `listener` | () => `void`              |
 
 #### Returns
 

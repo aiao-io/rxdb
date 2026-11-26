@@ -28,7 +28,7 @@ Defined in: packages/rxdb/dist/capture/capture-mount-points.d.ts:18
 
 The name of the abstract base class declaring the method
 
-***
+---
 
 ### method \{#method\}
 
@@ -40,7 +40,7 @@ Defined in: packages/rxdb/dist/capture/capture-mount-points.d.ts:20
 
 The method name
 
-***
+---
 
 ### parameters \{#parameters\}
 

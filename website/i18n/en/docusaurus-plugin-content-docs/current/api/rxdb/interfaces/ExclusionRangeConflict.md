@@ -17,7 +17,7 @@ Defined in: [packages/rxdb/src/RxDBError.ts:339](https://github.com/aiao-io/rxdb
 
 Interval bounds: `[)` left-closed right-open, `[]` both ends closed.
 
-***
+---
 
 ### existing \{#existing\}
 
@@ -29,7 +29,7 @@ Defined in: [packages/rxdb/src/RxDBError.ts:343](https://github.com/aiao-io/rxdb
 
 The existing conflicting row's `[start, end]` in this dimension; `null` means unbounded on that side.
 
-***
+---
 
 ### from \{#from\}
 
@@ -41,7 +41,7 @@ Defined in: [packages/rxdb/src/RxDBError.ts:335](https://github.com/aiao-io/rxdb
 
 The interval start column (property name).
 
-***
+---
 
 ### incoming \{#incoming\}
 
@@ -53,7 +53,7 @@ Defined in: [packages/rxdb/src/RxDBError.ts:341](https://github.com/aiao-io/rxdb
 
 The row being written this time, its `[start, end]` in this dimension; `null` means unbounded on that side.
 
-***
+---
 
 ### to \{#to\}
 

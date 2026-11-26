@@ -18,12 +18,12 @@ Opens the byte stream of the whole file, for example the `body` of a `fetch()` r
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `options` | \{ `manifest`: [`P2PFileManifest`](P2PFileManifest.md); `signal?`: `AbortSignal`; `token?`: `string`; \} |
-| `options.manifest` | [`P2PFileManifest`](P2PFileManifest.md) |
-| `options.signal?` | `AbortSignal` |
-| `options.token?` | `string` |
+| Parameter          | Type                                                                                                     |
+| ------------------ | -------------------------------------------------------------------------------------------------------- |
+| `options`          | \{ `manifest`: [`P2PFileManifest`](P2PFileManifest.md); `signal?`: `AbortSignal`; `token?`: `string`; \} |
+| `options.manifest` | [`P2PFileManifest`](P2PFileManifest.md)                                                                  |
+| `options.signal?`  | `AbortSignal`                                                                                            |
+| `options.token?`   | `string`                                                                                                 |
 
 #### Returns
 

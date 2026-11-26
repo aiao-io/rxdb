@@ -30,7 +30,7 @@ asyncify glue is import/export-incompatible with non-asyncify wasm, and mixing t
 
 `SqliteOptionsBase.async`
 
-***
+---
 
 ### batchTimeout? \{#batchtimeout\}
 
@@ -50,7 +50,7 @@ Defined in: [packages/rxdb-adapter-wa-sqlite/src/sqlite.interface.ts:67](https:/
 
 `SqliteOptionsBase.batchTimeout`
 
-***
+---
 
 ### cacheSizeKb? \{#cachesizekb\}
 
@@ -67,14 +67,14 @@ https://www.sqlite.org/pragma.html#pragma_cache_size
 #### Default
 
 ```ts
-51200
+51200;
 ```
 
 #### Inherited from
 
 `SqliteOptionsBase.cacheSizeKb`
 
-***
+---
 
 ### locateFile? \{#locatefile\}
 
@@ -88,9 +88,9 @@ Custom wasm file resolution; the function reference is also part of the repeat-i
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `name` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `name`    | `string` |
 
 #### Returns
 
@@ -100,7 +100,7 @@ Custom wasm file resolution; the function reference is also part of the repeat-i
 
 `SqliteOptionsBase.locateFile`
 
-***
+---
 
 ### repositories? \{#repositories\}
 
@@ -110,7 +110,7 @@ repositories?: Record<string, SqliteRepositoryConstructor<RepositoryBase<AnyEnti
 
 Defined in: [packages/rxdb-adapter-wa-sqlite/src/sqlite.interface.ts:78](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-wa-sqlite/src/sqlite.interface.ts#L78)
 
-***
+---
 
 ### sharedWorker? \{#sharedworker\}
 
@@ -126,7 +126,7 @@ Use a SharedWorker; must be provided together with [SqliteOptionsBase.sharedWork
 
 `SqliteOptionsBase.sharedWorker`
 
-***
+---
 
 ### sharedWorkerInstance? \{#sharedworkerinstance\}
 
@@ -146,7 +146,7 @@ The adapter only uses its port and does not take over the SharedWorker's lifecyc
 
 `SqliteOptionsBase.sharedWorkerInstance`
 
-***
+---
 
 ### vfs? \{#vfs\}
 
@@ -160,7 +160,7 @@ Defined in: [packages/rxdb-adapter-wa-sqlite/src/sqlite.interface.ts:20](https:/
 
 `SqliteOptionsBase.vfs`
 
-***
+---
 
 ### wasmPath? \{#wasmpath\}
 
@@ -182,7 +182,7 @@ Use [SqliteOptionsBase.locateFile](#locatefile) if you need to take over resolut
 
 `SqliteOptionsBase.wasmPath`
 
-***
+---
 
 ### worker? \{#worker\}
 
@@ -198,7 +198,7 @@ Use a dedicated Worker; must be provided together with [SqliteOptionsBase.worker
 
 `SqliteOptionsBase.worker`
 
-***
+---
 
 ### workerInstance? \{#workerinstance\}
 
@@ -218,7 +218,7 @@ The adapter only uses the instance and does not take over `terminate()` ownershi
 
 `SqliteOptionsBase.workerInstance`
 
-***
+---
 
 ### workerOwnership? \{#workerownership\}
 

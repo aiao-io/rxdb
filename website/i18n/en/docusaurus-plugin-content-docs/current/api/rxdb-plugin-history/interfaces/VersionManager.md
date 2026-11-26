@@ -5,6 +5,7 @@ Defined in: [packages/rxdb-plugin-history/src/VersionManager.ts:62](https://gith
 Version manager
 
 Responsible for managing the database's branches, undo/redo and version history:
+
 - branch management (create, delete, switch, merge), plus comparing two branches and previewing a merge without switching
 - undo/redo operations (database level)
 - automatic invalidation of the redo stack (when new operations arrive)
@@ -36,7 +37,7 @@ without it, an undo inside the round-trip window would fork local and remote per
 It hangs on `VersionManager` because both sides only meet through it: `pushRepository(vm, …)` gets it directly,
 `HistoryManager` gets it via `rxdb.versionManager`. Its lifetime follows the instance and is never shared across instances.
 
-***
+---
 
 ### rxdb \{#rxdb\}
 
@@ -48,7 +49,7 @@ Defined in: [packages/rxdb-plugin-history/src/VersionManager.ts:132](https://git
 
 The host instance
 
-***
+---
 
 ### syncBridge \{#syncbridge\}
 
@@ -82,6 +83,7 @@ Defined in: [packages/rxdb-plugin-history/src/VersionManager.ts:120](https://git
 Stream of the number of remote changes waiting to be pulled
 
 Accumulated by listening to remote events (INSERT/UPDATE/DELETE):
+
 - count +1 when a remote change event arrives
 - count resets to 0 after a pull completes
 
@@ -91,7 +93,7 @@ Used by the UI to show "N remote updates available to pull"
 
 `Observable`&lt;`number`&gt;
 
-***
+---
 
 ### pushableCount$ \{#pushablecount\}
 
@@ -106,6 +108,7 @@ Defined in: [packages/rxdb-plugin-history/src/VersionManager.ts:107](https://git
 Stream of the number of pushable changes
 
 Tracks the number of effective local unpushed changes in real time:
+
 - excludes reverted changes (revertChangeId != null)
 - excludes changes pulled from the remote (remoteId != null)
 
@@ -127,10 +130,10 @@ Compares the entity differences of two branches' current states, without switchi
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter      | Type     | Description      |
+| -------------- | -------- | ---------------- |
 | `fromBranchId` | `string` | The start branch |
-| `toBranchId` | `string` | The end branch |
+| `toBranchId`   | `string` | The end branch   |
 
 #### Returns
 
@@ -158,7 +161,7 @@ const { entries } = await rxdb.versionManager.compareBranches('main', 'feature')
 for (const entry of entries) console.log(entry.operation, entry.entity, entry.entityId, entry.patch);
 ```
 
-***
+---
 
 ### createBranch() \{#createbranch\}
 
@@ -172,16 +175,16 @@ Creates a new branch
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `branchId` | `string` | The branch id |
+| Parameter       | Type     | Description                                  |
+| --------------- | -------- | -------------------------------------------- |
+| `branchId`      | `string` | The branch id                                |
 | `fromChangeId?` | `number` | Which changeId to create the new branch from |
 
 #### Returns
 
 `Promise`&lt;[`RxDBBranch`](../../rxdb/classes/RxDBBranch.md)&gt;
 
-***
+---
 
 ### destroy() \{#destroy\}
 
@@ -202,7 +205,7 @@ Removes all event listeners and subscriptions and destroys the HistoryManager.
 Idempotent. Transaction depth and generation are reset together: teardown may happen mid-transaction, and keeping the counters
 would make the next epoch believe it starts inside an unsettled transaction.
 
-***
+---
 
 ### getCurrentBranch() \{#getcurrentbranch\}
 
@@ -228,7 +231,7 @@ The two-stage split is intentional:
 - only the **cold path** (no active branch found) opens a transaction and **re-runs the check inside it** (double check).
   Otherwise two concurrent calls would both reach `create` and the second would fail on the primary key.
 
-***
+---
 
 ### getLocalRepositories() \{#getlocalrepositories\}
 
@@ -247,9 +250,9 @@ Gets the system table repositories on the local adapter.
 #### Returns
 
 `Promise`&lt;\{
-  `adapter`: [`LocalRxDBAdapter`](../../rxdb/type-aliases/LocalRxDBAdapter.md);
-  `branchRepository`: [`LocalRxDBBranchRepository`](../../rxdb/interfaces/LocalRxDBBranchRepository.md);
-  `changeRepository`: [`LocalRxDBChangeRepository`](../../rxdb/interfaces/LocalRxDBChangeRepository.md);
+`adapter`: [`LocalRxDBAdapter`](../../rxdb/type-aliases/LocalRxDBAdapter.md);
+`branchRepository`: [`LocalRxDBBranchRepository`](../../rxdb/interfaces/LocalRxDBBranchRepository.md);
+`changeRepository`: [`LocalRxDBChangeRepository`](../../rxdb/interfaces/LocalRxDBChangeRepository.md);
 \}&gt;
 
 `branchRepository` / `changeRepository` together with the local adapter they belong to
@@ -259,7 +262,7 @@ Gets the system table repositories on the local adapter.
 Re-resolved via `localAdapter$` every time, never cached: the adapter changes with connection epochs, and a cached copy
 would point at the dismantled old instance after a reconnect.
 
-***
+---
 
 ### getRemoteRepositories() \{#getremoterepositories\}
 
@@ -278,9 +281,9 @@ Gets the system table repositories on the remote adapter.
 #### Returns
 
 `Promise`&lt;\{
-  `adapter`: [`RemoteRxDBAdapter`](../../rxdb/type-aliases/RemoteRxDBAdapter.md);
-  `branchRepository`: [`RemoteRxDBBranchRepository`](../../rxdb/interfaces/RemoteRxDBBranchRepository.md);
-  `changeRepository`: [`RemoteRxDBChangeRepository`](../../rxdb/interfaces/RemoteRxDBChangeRepository.md);
+`adapter`: [`RemoteRxDBAdapter`](../../rxdb/type-aliases/RemoteRxDBAdapter.md);
+`branchRepository`: [`RemoteRxDBBranchRepository`](../../rxdb/interfaces/RemoteRxDBBranchRepository.md);
+`changeRepository`: [`RemoteRxDBChangeRepository`](../../rxdb/interfaces/RemoteRxDBChangeRepository.md);
 \}&gt;
 
 `branchRepository` / `changeRepository` together with the remote adapter they belong to
@@ -290,7 +293,7 @@ Gets the system table repositories on the remote adapter.
 Without a configured remote, `remoteAdapter$` never emits and the call hangs forever — intentionally: the sync path
 is only taken when a remote is configured anyway, and returning an empty shell would only defer the "no remote configured" report to a deeper place.
 
-***
+---
 
 ### history() \{#history\}
 
@@ -304,14 +307,14 @@ Gets the history API for a specific scope
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                    |
+| ------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                             | Description                                                                                                                                                                                            |
+| ---------- | -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `options?` | `T` \| `InstanceType`&lt;`T`&gt; | Scope options: - no argument → database scope (the whole database) - an EntityType class → repository scope (all records of that entity) - an entity instance → entity scope (that instance's history) |
 
 #### Returns
@@ -333,7 +336,7 @@ const userHistory = versionManager.history(User);
 const entityHistory = versionManager.history(userInstance);
 ```
 
-***
+---
 
 ### init() \{#init\}
 
@@ -359,7 +362,7 @@ Issues no adapter reads or writes and does not connect the instance (the branch 
 (and must) run before the bootstrap chain: `HistoryManager`'s branch stream must be subscribed before the first `rxdb_change` event,
 and installed late, that batch of changes misses history.
 
-***
+---
 
 ### mergeBranch() \{#mergebranch\}
 
@@ -375,10 +378,10 @@ Merges the source branch's changes into the currently active branch (the target 
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `sourceBranchId` | `string` | The source branch ID |
-| `options?` | [`MergeBranchOptions`](../../rxdb/interfaces/MergeBranchOptions.md) | Merge options |
+| Parameter        | Type                                                                | Description          |
+| ---------------- | ------------------------------------------------------------------- | -------------------- |
+| `sourceBranchId` | `string`                                                            | The source branch ID |
+| `options?`       | [`MergeBranchOptions`](../../rxdb/interfaces/MergeBranchOptions.md) | Merge options        |
 
 #### Returns
 
@@ -389,6 +392,7 @@ The merge result
 #### Remarks
 
 Supports two strategies:
+
 - `squash` (default): compresses all of the source branch's changes into a minimal operation set applied at once; the target branch gets one group of change records
 - `normal`: applies the source branch's changes one by one; each change produces an independent change record on the target branch (preserving historical detail)
 
@@ -413,7 +417,7 @@ const result = await rxdb.versionManager.mergeBranch('feature-x', {
 });
 ```
 
-***
+---
 
 ### previewMerge() \{#previewmerge\}
 
@@ -427,10 +431,10 @@ Previews what merging a branch into the current active branch would land, withou
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `sourceBranchId` | `string` | The source branch |
-| `options?` | [`MergePreviewOptions`](MergePreviewOptions.md) | See [MergePreviewOptions](MergePreviewOptions.md); entries and `merged` are computed per the merge strategy |
+| Parameter        | Type                                            | Description                                                                                                 |
+| ---------------- | ----------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `sourceBranchId` | `string`                                        | The source branch                                                                                           |
+| `options?`       | [`MergePreviewOptions`](MergePreviewOptions.md) | See [MergePreviewOptions](MergePreviewOptions.md); entries and `merged` are computed per the merge strategy |
 
 #### Returns
 
@@ -455,7 +459,7 @@ const overwritten = preview.entries.filter(entry => entry.conflict !== null);
 if (overwritten.length === 0) await rxdb.versionManager.mergeBranch('feature');
 ```
 
-***
+---
 
 ### refreshChildForks() \{#refreshchildforks\}
 
@@ -478,7 +482,7 @@ The branch topology changed; re-queries the child fork points used by the undo /
 This class's own create, delete, merge and switch already call it; provided for plugins that write branch rows through other paths (the working tree plugin's create-branch-from-commit).
 The branch table writes no change log, so live queries cannot see these writes — an explicit notification is required. It only affects the views: `undo()` / `redo()` re-query right before executing anyway.
 
-***
+---
 
 ### removeBranch() \{#removebranch\}
 
@@ -492,15 +496,15 @@ Deletes a branch
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type     | Description   |
+| ---------- | -------- | ------------- |
 | `branchId` | `string` | The branch id |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### resetSessionState() \{#resetsessionstate\}
 
@@ -521,7 +525,7 @@ Invalidates the history context accumulated in this connection: clears the undo 
 For scenarios like switching databases / reconnecting where "the local data has been wholly replaced". It clears **all** branches, not just the
 current one — the whole data source was replaced, and the rows pointed at by the other branches' undo entries are likewise gone.
 
-***
+---
 
 ### restoreEntity() \{#restoreentity\}
 
@@ -538,15 +542,15 @@ the restore operation itself generates a new RxDBChange record (which can be pus
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t-1"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                      |
+| --------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t-1"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The deleted entity instance (needs to carry the metadata) |
+| Parameter | Type                                                                    | Description                                                                           |
+| --------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `entity`  | `InstanceType`&lt;`T`&gt;                                               | The deleted entity instance (needs to carry the metadata)                             |
 | `options` | [`RestoreEntityOptions`](../../rxdb/interfaces/RestoreEntityOptions.md) | Restore options, including the changeId (the ID of the DELETE-type RxDBChange record) |
 
 #### Returns
@@ -555,7 +559,7 @@ the restore operation itself generates a new RxDBChange record (which can be pus
 
 The restored entity instance
 
-***
+---
 
 ### switchBranch() \{#switchbranch\}
 
@@ -569,9 +573,9 @@ Switches to the given branch
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `branchId` | `string` | The target branch ID |
+| Parameter        | Type                                                                                        | Description                                                                                                       |
+| ---------------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `branchId`       | `string`                                                                                    | The target branch ID                                                                                              |
 | `preconditions?` | [`RxDBBranchSwitchPreconditions`](../../rxdb/type-aliases/RxDBBranchSwitchPreconditions.md) | [Optional] conditions that must hold before switching; when omitted, behavior is byte-for-byte the same as before |
 
 #### Returns

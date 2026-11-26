@@ -1,15 +1,15 @@
 # P2PSessionCloseCode
 
 ```ts
-type P2PSessionCloseCode = 
-  | "closed"
-  | "peer_closed"
-  | "peer_lost"
-  | "unauthorized"
-  | "incompatible"
-  | "protocol_violation"
-  | "duplicate"
-  | "transport_failed";
+type P2PSessionCloseCode =
+  | 'closed'
+  | 'peer_closed'
+  | 'peer_lost'
+  | 'unauthorized'
+  | 'incompatible'
+  | 'protocol_violation'
+  | 'duplicate'
+  | 'transport_failed';
 ```
 
 Defined in: [packages/rxdb-plugin-p2p/src/session/errors.ts:18](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-p2p/src/session/errors.ts#L18)

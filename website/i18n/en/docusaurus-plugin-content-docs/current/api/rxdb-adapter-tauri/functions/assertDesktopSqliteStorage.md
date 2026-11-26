@@ -10,8 +10,8 @@ Validates that the storage configuration really is the only engine this protocol
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                  | Description           |
+| --------- | ----------------------------------------------------- | --------------------- |
 | `storage` | [`DesktopStorage`](../type-aliases/DesktopStorage.md) | Storage configuration |
 
 ## Returns

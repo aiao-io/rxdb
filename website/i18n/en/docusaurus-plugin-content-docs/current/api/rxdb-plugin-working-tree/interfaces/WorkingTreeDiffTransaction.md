@@ -20,7 +20,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/diff.ts:111](htt
 
 The units in the group, in the order they were read
 
-***
+---
 
 ### transactionId \{#transactionid\}
 

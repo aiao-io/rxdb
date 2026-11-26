@@ -10,10 +10,10 @@ Gets the sync configuration in effect for an entity.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `EntityType` | [`EntityType`](../type-aliases/EntityType.md) | The entity class |
-| `source` | \| [`SyncOptions`](../type-aliases/SyncOptions.md) \| [`EntitySyncResolver`](../interfaces/EntitySyncResolver.md) \| `undefined` | The instance resolver `rxdb.entitySync` (including instance overrides); when the database-level `sync` is passed, resolution follows "entity metadata takes precedence over database-level configuration" only, and no instance override is recognized |
+| Parameter    | Type                                                                                                                             | Description                                                                                                                                                                                                                                            |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `EntityType` | [`EntityType`](../type-aliases/EntityType.md)                                                                                    | The entity class                                                                                                                                                                                                                                       |
+| `source`     | \| [`SyncOptions`](../type-aliases/SyncOptions.md) \| [`EntitySyncResolver`](../interfaces/EntitySyncResolver.md) \| `undefined` | The instance resolver `rxdb.entitySync` (including instance overrides); when the database-level `sync` is passed, resolution follows "entity metadata takes precedence over database-level configuration" only, and no instance override is recognized |
 
 ## Returns
 

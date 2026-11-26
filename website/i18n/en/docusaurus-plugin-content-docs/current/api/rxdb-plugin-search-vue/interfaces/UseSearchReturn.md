@@ -20,21 +20,19 @@ Clears the query and returns to idle
 
 `void`
 
-***
+---
 
 ### error \{#error\}
 
 ```ts
-error: Readonly<Ref<
-  | SearchExecutionError
-  | undefined>>;
+error: Readonly<Ref<SearchExecutionError | undefined>>;
 ```
 
 Defined in: [packages/rxdb-plugin-search-vue/src/use-search.ts:87](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-search-vue/src/use-search.ts#L87)
 
 The most recent execution error (read-only).
 
-***
+---
 
 ### hasMore \{#hasmore\}
 
@@ -46,7 +44,7 @@ Defined in: [packages/rxdb-plugin-search-vue/src/use-search.ts:89](https://githu
 
 Whether there is another page (read-only).
 
-***
+---
 
 ### loadMore \{#loadmore\}
 
@@ -62,7 +60,7 @@ Loads the next page; no-op when there is no more
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### query \{#query\}
 
@@ -74,7 +72,7 @@ Defined in: [packages/rxdb-plugin-search-vue/src/use-search.ts:74](https://githu
 
 Readable/writable query term; supports `v-model` and direct assignment. This is the **only** writable output.
 
-***
+---
 
 ### results \{#results\}
 
@@ -92,7 +90,7 @@ SRCHV-003: the four handle-driven outputs are all read-only. Earlier the interna
 allowing callers to forge `idle` as `error`, which permanently diverged the UI from the real handle
 before the next Observable emission. Angular uses read-only `Signal`s and React only returns values; this aligns with that.
 
-***
+---
 
 ### retry \{#retry\}
 
@@ -108,7 +106,7 @@ Retries with the last query term in the error state
 
 `void`
 
-***
+---
 
 ### state \{#state\}
 

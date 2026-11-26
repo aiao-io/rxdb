@@ -19,7 +19,7 @@ Whether to allow broadcasting messages with `'*'` under an opaque origin (`locat
 #### Default Value
 
 ```ts
-false
+false;
 ```
 
 #### Remarks
@@ -28,7 +28,7 @@ The connector always uses `location.origin` as the `targetOrigin`. The origin of
 
 The default policy is to **fail explicitly**: [DevToolsConnector.init](../classes/DevToolsConnector.md#init) logs a warning once and stays disabled, rather than quietly falling back to `'*'` and broadcasting messages to every frame on the page. If debugging inside a sandbox is truly needed, set this option to `true` to explicitly accept that risk.
 
-***
+---
 
 ### capabilities? \{#capabilities\}
 
@@ -43,14 +43,14 @@ The command capability tier granted to DevTools.
 #### Default Value
 
 ```ts
-'full'
+'full';
 ```
 
 #### Remarks
 
 The default of `'full'` exists to avoid breaking already-published extension panels (they rely on SWITCH/CREATE/DELETE_BRANCH). Production environments should explicitly lower it to `'readonly'` or `'none'` — the page message bus is fully open to same-origin scripts, and the tier determines the most a forged command can do. For the semantics see [DevToolsCapability](../type-aliases/DevToolsCapability.md).
 
-***
+---
 
 ### enabled? \{#enabled\}
 
@@ -65,14 +65,14 @@ Whether the connector is enabled.
 #### Default Value
 
 ```ts
-true
+true;
 ```
 
 #### Remarks
 
 When `false`, [DevToolsConnector.init](../classes/DevToolsConnector.md#init) returns immediately: no message listener is registered, no RxDB events are subscribed, and no global helper is attached. Turning it off in production builds fully eliminates the exposure surface of "entity data appearing on the page message bus".
 
-***
+---
 
 ### i18n? \{#i18n\}
 
@@ -84,7 +84,7 @@ Defined in: [connector-types.ts:157](https://github.com/aiao-io/rxdb/blob/b52320
 
 The i18n instance explicitly provided by the current application; when omitted, protocol behavior stays as-is.
 
-***
+---
 
 ### maxBufferSize? \{#maxbuffersize\}
 
@@ -99,14 +99,14 @@ The upper bound on the number of events buffered before the handshake completes;
 #### Default Value
 
 ```ts
-100
+100;
 ```
 
 #### Throws
 
 RangeError when a non-positive safe integer is passed at construction.
 
-***
+---
 
 ### mutationPolicy? \{#mutationpolicy\}
 
@@ -121,7 +121,7 @@ Whether the page opens the write path of the v2 data plane for this run.
 #### Default Value
 
 ```ts
-'omit'
+'omit';
 ```
 
 #### Remarks
@@ -130,7 +130,7 @@ This and [DevToolsOptions.capabilities](#capabilities) are switches of two diffe
 
 The default `'omit'`: attaching a provider only means **readable**, and writes require an explicit statement from the owner. When rejected, the peer receives `provider_unsupported` — the same shape as "this domain does not exist", so which write capabilities the page has enabled is not leaked (see [DevToolsMutationPolicy](../type-aliases/DevToolsMutationPolicy.md)).
 
-***
+---
 
 ### providers? \{#providers\}
 
@@ -146,7 +146,7 @@ The provider assembly ports for native hosts (Electron / Tauri).
 
 When omitted, the connector auto-detects in browser form (OPFS `files` + browser `settings` + `runtime: browser`). Desktop hosts must give it explicitly: the native files backend (`nativeFiles`), the semantic kind of `settings` (`sqlite`), and the display `runtime`. Omitting any of them does not "guess one" as a fallback — it falls back to the browser form.
 
-***
+---
 
 ### transport? \{#transport\}
 

@@ -10,8 +10,8 @@ A generic function constraint that can represent any parameter signature.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type      |
+| --------- | --------- |
 | ...`args` | `never`[] |
 
 ## Returns

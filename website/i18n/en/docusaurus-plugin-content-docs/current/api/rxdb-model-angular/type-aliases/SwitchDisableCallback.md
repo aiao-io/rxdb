@@ -10,9 +10,9 @@ Callback that decides the disabled state of a switch
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `args` | `StylePropertyFunctionArg` | VTable callback arguments (used to get the current row record) |
+| Parameter | Type                       | Description                                                    |
+| --------- | -------------------------- | -------------------------------------------------------------- |
+| `args`    | `StylePropertyFunctionArg` | VTable callback arguments (used to get the current row record) |
 
 ## Returns
 

@@ -19,10 +19,10 @@ Dry-run mode, only returning the number that would be deleted
 #### Default
 
 ```ts
-false
+false;
 ```
 
-***
+---
 
 ### filter? \{#filter\}
 

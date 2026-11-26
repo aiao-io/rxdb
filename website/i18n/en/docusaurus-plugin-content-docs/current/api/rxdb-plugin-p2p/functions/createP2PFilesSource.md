@@ -10,10 +10,10 @@ Adapts a session into the chunk source used by `transferP2PFile`.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `session` | [`P2PPeerSession`](../interfaces/P2PPeerSession.md) | - |
-| `id` | `string` | Identifier of the chunk source, used to isolate bad peers and report `sourcesUsed`, for example the peer's holder ID |
+| Parameter | Type                                                | Description                                                                                                          |
+| --------- | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `session` | [`P2PPeerSession`](../interfaces/P2PPeerSession.md) | -                                                                                                                    |
+| `id`      | `string`                                            | Identifier of the chunk source, used to isolate bad peers and report `sourcesUsed`, for example the peer's holder ID |
 
 ## Returns
 

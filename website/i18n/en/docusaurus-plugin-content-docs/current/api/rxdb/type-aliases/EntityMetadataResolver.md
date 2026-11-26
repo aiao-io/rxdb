@@ -10,9 +10,9 @@ Looks up registered entity metadata by `entity` / `namespace`.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `entity` | `string` |
+| Parameter   | Type     |
+| ----------- | -------- |
+| `entity`    | `string` |
 | `namespace` | `string` |
 
 ## Returns

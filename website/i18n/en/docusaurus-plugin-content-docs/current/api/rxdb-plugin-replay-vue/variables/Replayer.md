@@ -1,50 +1,71 @@
 # Replayer
 
 ```ts
-const Replayer: DefineComponent<ExtractPropTypes<{
-  initialTime: {
-     default: undefined;
-     type: NumberConstructor;
-  };
-  replay: {
-     required: true;
-     type: PropType<ReplayManager>;
-  };
-  sessionId: {
-     required: true;
-     type: StringConstructor;
-  };
-}>, () => VNode<RendererNode, RendererElement, {
-[key: string]: any;
-}>, {
-}, {
-}, {
-}, ComponentOptionsMixin, ComponentOptionsMixin, {
-  "commit-restore": (event) => boolean;
-  "time-change": (timeMs) => boolean;
-}, string, PublicProps, ToResolvedProps<ExtractPropTypes<{
-  initialTime: {
-     default: undefined;
-     type: NumberConstructor;
-  };
-  replay: {
-     required: true;
-     type: PropType<ReplayManager>;
-  };
-  sessionId: {
-     required: true;
-     type: StringConstructor;
-  };
-}>, {
-  "commit-restore": (event) => boolean;
-  "time-change": (timeMs) => boolean;
-}>, {
-  initialTime: number;
-}, {
-}, {
-}, {
-}, string, ComponentProvideOptions, true, {
-}, any>;
+const Replayer: DefineComponent<
+  ExtractPropTypes<{
+    initialTime: {
+      default: undefined;
+      type: NumberConstructor;
+    };
+    replay: {
+      required: true;
+      type: PropType<ReplayManager>;
+    };
+    sessionId: {
+      required: true;
+      type: StringConstructor;
+    };
+  }>,
+  () => VNode<
+    RendererNode,
+    RendererElement,
+    {
+      [key: string]: any;
+    }
+  >,
+  {},
+  {},
+  {},
+  ComponentOptionsMixin,
+  ComponentOptionsMixin,
+  {
+    'commit-restore': (event) => boolean;
+    'time-change': (timeMs) => boolean;
+  },
+  string,
+  PublicProps,
+  ToResolvedProps<
+    ExtractPropTypes<{
+      initialTime: {
+        default: undefined;
+        type: NumberConstructor;
+      };
+      replay: {
+        required: true;
+        type: PropType<ReplayManager>;
+      };
+      sessionId: {
+        required: true;
+        type: StringConstructor;
+      };
+    }>,
+    {
+      'commit-restore': (event) => boolean;
+      'time-change': (timeMs) => boolean;
+    }
+  >,
+  {
+    initialTime: number;
+  },
+  {},
+  {},
+  {},
+  string,
+  ComponentProvideOptions,
+  true,
+  {},
+  any
+>;
 ```
 
 Defined in: [rxdb-plugin-replay-vue/src/replayer.ts:36](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-replay-vue/src/replayer.ts#L36)
@@ -60,5 +81,5 @@ Events: `time-change` (replay time, ms), `commit-restore` ([ReplayerCommitRestor
 ## Example
 
 ```vue
-<Replayer ref="replayer" :replay="rxdb.replay" :session-id="sessionId" @commit-restore="event => log(event.result)" />
+<Replayer :replay="rxdb.replay" :session-id="sessionId" @commit-restore="event => log(event.result)" ref="replayer" />
 ```

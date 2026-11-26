@@ -10,9 +10,9 @@ Diagnostic callback: invoked when conditional requests are on but no `ETag` can 
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `report` | [`HttpEtagUnreadableReport`](../interfaces/HttpEtagUnreadableReport.md) |
+| Parameter | Type                                                                    |
+| --------- | ----------------------------------------------------------------------- |
+| `report`  | [`HttpEtagUnreadableReport`](../interfaces/HttpEtagUnreadableReport.md) |
 
 ## Returns
 

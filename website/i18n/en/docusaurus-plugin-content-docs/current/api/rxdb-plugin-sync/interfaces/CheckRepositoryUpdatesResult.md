@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-sync/src/check-repository-updates.ts:43](https
 
 Whether there are updates
 
-***
+---
 
 ### localLastPullRemoteChangeId \{#locallastpullremotechangeid\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-sync/src/check-repository-updates.ts:33](https
 
 The remote changeId of the local last pull
 
-***
+---
 
 ### pendingCount \{#pendingcount\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-plugin-sync/src/check-repository-updates.ts:38](https
 
 The number of changes awaiting pull
 
-***
+---
 
 ### remoteLatestChangeId \{#remotelatestchangeid\}
 
@@ -52,7 +52,7 @@ Defined in: [packages/rxdb-plugin-sync/src/check-repository-updates.ts:28](https
 
 The remote's latest changeId
 
-***
+---
 
 ### repository \{#repository\}
 

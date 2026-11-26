@@ -16,7 +16,7 @@ Defined in: [language-error.ts:39](https://github.com/aiao-io/rxdb/blob/b5232040
 
 The loader's rejection value (any type) for `load-failed`; `undefined` for `not-found`.
 
-***
+---
 
 ### kind \{#kind\}
 
@@ -28,7 +28,7 @@ Defined in: [language-error.ts:33](https://github.com/aiao-io/rxdb/blob/b5232040
 
 Failure category; see [CodeEditorLanguageErrorKind](../type-aliases/CodeEditorLanguageErrorKind.md).
 
-***
+---
 
 ### language \{#language\}
 
@@ -40,7 +40,7 @@ Defined in: [language-error.ts:35](https://github.com/aiao-io/rxdb/blob/b5232040
 
 The language name that triggered the failure, with case preserved so it can be shown to users directly.
 
-***
+---
 
 ### message \{#message\}
 

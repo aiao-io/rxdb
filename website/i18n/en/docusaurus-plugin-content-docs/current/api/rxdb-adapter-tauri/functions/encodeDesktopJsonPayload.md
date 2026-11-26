@@ -10,9 +10,9 @@ Encodes a protocol payload into a plain JSON-serializable shape.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | A protocol request, response, or change event |
+| Parameter | Type      | Description                                   |
+| --------- | --------- | --------------------------------------------- |
+| `value`   | `unknown` | A protocol request, response, or change event |
 
 ## Returns
 

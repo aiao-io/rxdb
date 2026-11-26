@@ -10,9 +10,9 @@ The encryption auth domain: the library name when some entity declares an encryp
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `rxdb` | [`RxDB`](../classes/RxDB.md) | An `init()`-ed instance |
+| Parameter | Type                         | Description             |
+| --------- | ---------------------------- | ----------------------- |
+| `rxdb`    | [`RxDB`](../classes/RxDB.md) | An `init()`-ed instance |
 
 ## Returns
 

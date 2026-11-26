@@ -1,5 +1,5 @@
 ---
-sidebar_label: "RxDBSource⟨T⟩"
+sidebar_label: 'RxDBSource⟨T⟩'
 ---
 
 # RxDBSource`<T>`
@@ -14,9 +14,9 @@ Database forms accepted by `RxDBProvider`: an instance, a Promise, or a factory 
 
 ## Type Parameters
 
-| Type Parameter | Default type | Description |
-| ------ | ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`RxDB`](../../rxdb/classes/RxDB.md) | [`RxDB`](../../rxdb/classes/RxDB.md) | Database type |
+| Type Parameter                                                                   | Default type                         | Description   |
+| -------------------------------------------------------------------------------- | ------------------------------------ | ------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`RxDB`](../../rxdb/classes/RxDB.md) | [`RxDB`](../../rxdb/classes/RxDB.md) | Database type |
 
 ## Remarks
 

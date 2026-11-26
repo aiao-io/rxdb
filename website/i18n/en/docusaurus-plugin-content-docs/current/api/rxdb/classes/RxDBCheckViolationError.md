@@ -38,9 +38,9 @@ try {
 
 ```ts
 new RxDBCheckViolationError(
-   entity, 
-   constraint, 
-   conflicts, 
+   entity,
+   constraint,
+   conflicts,
    cause?
 ): RxDBCheckViolationError;
 ```
@@ -49,12 +49,12 @@ Defined in: [packages/rxdb/src/RxDBError.ts:310](https://github.com/aiao-io/rxdb
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `string` | Name of the entity that violated the constraint (the `name` in metadata) |
-| `constraint` | `string` | Constraint name (a deterministic name starting with `ck_`) |
-| `conflicts` | readonly `object`[] | The columns referenced by the constraint and the values sent with the row (column names are physical column names) |
-| `cause?` | `unknown` | The original violation error thrown by the adapter (the repository `cause` convention, see [RxDBPartialSyncError](RxDBPartialSyncError.md)) |
+| Parameter    | Type                | Description                                                                                                                                 |
+| ------------ | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `entity`     | `string`            | Name of the entity that violated the constraint (the `name` in metadata)                                                                    |
+| `constraint` | `string`            | Constraint name (a deterministic name starting with `ck_`)                                                                                  |
+| `conflicts`  | readonly `object`[] | The columns referenced by the constraint and the values sent with the row (column names are physical column names)                          |
+| `cause?`     | `unknown`           | The original violation error thrown by the adapter (the repository `cause` convention, see [RxDBPartialSyncError](RxDBPartialSyncError.md)) |
 
 #### Returns
 
@@ -80,7 +80,7 @@ The original violation error thrown by the adapter (the repository `cause` conve
 
 [`RxDBError`](RxDBError.md).[`cause`](RxDBError.md#cause)
 
-***
+---
 
 ### conflicts \{#conflicts\}
 
@@ -92,7 +92,7 @@ Defined in: [packages/rxdb/src/RxDBError.ts:316](https://github.com/aiao-io/rxdb
 
 The columns referenced by the constraint and the values sent with the row (column names are physical column names)
 
-***
+---
 
 ### constraint \{#constraint\}
 
@@ -104,7 +104,7 @@ Defined in: [packages/rxdb/src/RxDBError.ts:314](https://github.com/aiao-io/rxdb
 
 Constraint name (a deterministic name starting with `ck_`)
 
-***
+---
 
 ### entity \{#entity\}
 
@@ -116,7 +116,7 @@ Defined in: [packages/rxdb/src/RxDBError.ts:312](https://github.com/aiao-io/rxdb
 
 Name of the entity that violated the constraint (the `name` in metadata)
 
-***
+---
 
 ### message \{#message\}
 
@@ -130,7 +130,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](RxDBError.md).[`message`](RxDBError.md#message)
 
-***
+---
 
 ### name \{#name\}
 
@@ -144,7 +144,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](RxDBError.md).[`name`](RxDBError.md#name)
 
-***
+---
 
 ### stack? \{#stack\}
 
@@ -158,7 +158,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`RxDBError`](RxDBError.md).[`stack`](RxDBError.md#stack)
 
-***
+---
 
 ### stackTraceLimit \{#stacktracelimit\}
 
@@ -199,7 +199,7 @@ a string representing the location in the code at which
 ```js
 const myObject = {};
 Error.captureStackTrace(myObject);
-myObject.stack;  // Similar to `new Error().stack`
+myObject.stack; // Similar to `new Error().stack`
 ```
 
 The first line of the trace will be prefixed with
@@ -238,9 +238,9 @@ a();
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `targetObject` | `object` |
+| Parameter         | Type       |
+| ----------------- | ---------- |
+| `targetObject`    | `object`   |
 | `constructorOpt?` | `Function` |
 
 #### Returns
@@ -251,7 +251,7 @@ a();
 
 [`RxDBError`](RxDBError.md).[`captureStackTrace`](RxDBError.md#capturestacktrace)
 
-***
+---
 
 ### prepareStackTrace() \{#preparestacktrace\}
 
@@ -263,9 +263,9 @@ Defined in: node\_modules/.pnpm/@types+node@26.6.6/node\_modules/@types/node/glo
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `err` | `Error` |
+| Parameter     | Type         |
+| ------------- | ------------ |
+| `err`         | `Error`      |
 | `stackTraces` | `CallSite`[] |
 
 #### Returns

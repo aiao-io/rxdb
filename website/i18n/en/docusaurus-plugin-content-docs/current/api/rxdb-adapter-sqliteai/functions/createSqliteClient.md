@@ -22,9 +22,9 @@ implementation class would make synchronous signatures like
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `dbName` | `string` | The database name (used for persisting file name normalization) |
+| Parameter | Type                                                  | Description                                                              |
+| --------- | ----------------------------------------------------- | ------------------------------------------------------------------------ |
+| `dbName`  | `string`                                              | The database name (used for persisting file name normalization)          |
 | `options` | [`SqliteaiOptions`](../interfaces/SqliteaiOptions.md) | The SqliteAI adapter options (including OPFS / worker / cache size etc.) |
 
 ## Returns

@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-storage/src/filesystem/storage-filesystem.ts:2
 
 The entry type.
 
-***
+---
 
 ### name \{#name\}
 

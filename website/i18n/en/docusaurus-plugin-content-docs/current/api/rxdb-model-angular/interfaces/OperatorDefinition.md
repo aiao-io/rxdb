@@ -17,7 +17,7 @@ Defined in: packages/rxdb-model/dist/query-builder/models/operator.interface.d.t
 
 The field types this operator applies to
 
-***
+---
 
 ### key \{#key\}
 
@@ -29,7 +29,7 @@ Defined in: packages/rxdb-model/dist/query-builder/models/operator.interface.d.t
 
 Operator key (uses RxDB's OperatorName)
 
-***
+---
 
 ### label \{#label\}
 
@@ -41,7 +41,7 @@ Defined in: packages/rxdb-model/dist/query-builder/models/operator.interface.d.t
 
 Display label (supports internationalization)
 
-***
+---
 
 ### labelKey? \{#labelkey\}
 
@@ -53,17 +53,18 @@ Defined in: packages/rxdb-model/dist/query-builder/models/operator.interface.d.t
 
 Key in the built-in label catalog; a custom label takes precedence.
 
-***
+---
 
 ### valueType \{#valuetype\}
 
 ```ts
-valueType: "none" | "array" | "range" | "subquery" | "single";
+valueType: 'none' | 'array' | 'range' | 'subquery' | 'single';
 ```
 
 Defined in: packages/rxdb-model/dist/query-builder/models/operator.interface.d.ts:26
 
 Value type
+
 - single: a single value (e.g. "=")
 - array: an array of values (e.g. "in")
 - range: a range value [min, max] (e.g. "between")

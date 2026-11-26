@@ -1,7 +1,7 @@
 # TREE_QUERY_TYPE_LIST
 
 ```ts
-const TREE_QUERY_TYPE_LIST: readonly ["findDescendants", "findAncestors", "countDescendants", "countAncestors"];
+const TREE_QUERY_TYPE_LIST: readonly ['findDescendants', 'findAncestors', 'countDescendants', 'countAncestors'];
 ```
 
 Defined in: [rxdb-plugin-tree/src/constants.ts:19](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-tree/src/constants.ts#L19)

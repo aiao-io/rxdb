@@ -1,14 +1,14 @@
 # DevToolsSnapshotCaptureResult
 
 ```ts
-type DevToolsSnapshotCaptureResult = 
+type DevToolsSnapshotCaptureResult =
   | {
-  outcome: "captured";
-  records: readonly DevToolsSnapshotRecord[];
-}
+      outcome: 'captured';
+      records: readonly DevToolsSnapshotRecord[];
+    }
   | {
-  outcome: "invalidated";
-};
+      outcome: 'invalidated';
+    };
 ```
 
 Defined in: [provider/types.ts:56](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-devtools/src/provider/types.ts#L56)

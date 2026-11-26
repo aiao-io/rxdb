@@ -8,9 +8,9 @@ Defined in: [packages/utils/src/types/isIntArray.ts:4](https://github.com/aiao-i
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `value`   | `unknown` |
 
 ## Returns
 

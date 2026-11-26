@@ -10,8 +10,8 @@ Validates the extension declaration itself; called on registration and throws im
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type                                                          | Description                |
+| ----------- | ------------------------------------------------------------- | -------------------------- |
 | `extension` | [`PreferenceExtension`](../interfaces/PreferenceExtension.md) | The extension declaration. |
 
 ## Returns

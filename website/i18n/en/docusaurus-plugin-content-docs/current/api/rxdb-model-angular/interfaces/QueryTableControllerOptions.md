@@ -1,5 +1,5 @@
 ---
-sidebar_label: "QueryTableControllerOptions⟨T⟩"
+sidebar_label: 'QueryTableControllerOptions⟨T⟩'
 ---
 
 # QueryTableControllerOptions`<T>`
@@ -14,9 +14,9 @@ Initial list state and data source actions of the query table.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityInstance`](../type-aliases/EntityInstance.md) | [`EntityInstance`](../type-aliases/EntityInstance.md) |
+| Type Parameter                                                                                    | Default type                                          |
+| ------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityInstance`](../type-aliases/EntityInstance.md) | [`EntityInstance`](../type-aliases/EntityInstance.md) |
 
 ## Properties
 
@@ -32,12 +32,12 @@ Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:71
 
 [`EntityListControllerOptions`](EntityListControllerOptions.md).[`capabilities`](EntityListControllerOptions.md#capabilities)
 
-***
+---
 
 ### load? \{#load\}
 
 ```ts
-readonly load?: (context) => 
+readonly load?: (context) =>
   | EntityListLoadResult<T>
   | Promise<EntityListLoadResult<T>>;
 ```
@@ -48,20 +48,20 @@ Query data source; stale return values are discarded automatically.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                |
+| --------- | --------------------------------------------------- |
 | `context` | [`EntityListLoadContext`](EntityListLoadContext.md) |
 
 #### Returns
 
-  \| [`EntityListLoadResult`](EntityListLoadResult.md)&lt;`T`&gt;
-  \| `Promise`&lt;[`EntityListLoadResult`](EntityListLoadResult.md)&lt;`T`&gt;&gt;
+\| [`EntityListLoadResult`](EntityListLoadResult.md)&lt;`T`&gt;
+\| `Promise`&lt;[`EntityListLoadResult`](EntityListLoadResult.md)&lt;`T`&gt;&gt;
 
 #### Inherited from
 
 [`EntityListControllerOptions`](EntityListControllerOptions.md).[`load`](EntityListControllerOptions.md#load)
 
-***
+---
 
 ### onCreate? \{#oncreate\}
 
@@ -73,9 +73,9 @@ Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:74
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `data` | `Record`&lt;`string`, `unknown`&gt; |
+| Parameter | Type                                |
+| --------- | ----------------------------------- |
+| `data`    | `Record`&lt;`string`, `unknown`&gt; |
 
 #### Returns
 
@@ -85,7 +85,7 @@ Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:74
 
 [`EntityListControllerOptions`](EntityListControllerOptions.md).[`onCreate`](EntityListControllerOptions.md#oncreate)
 
-***
+---
 
 ### onDelete? \{#ondelete\}
 
@@ -98,8 +98,8 @@ Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:76
 #### Parameters
 
 | Parameter | Type |
-| ------ | ------ |
-| `record` | `T` |
+| --------- | ---- |
+| `record`  | `T`  |
 
 #### Returns
 
@@ -109,7 +109,7 @@ Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:76
 
 [`EntityListControllerOptions`](EntityListControllerOptions.md).[`onDelete`](EntityListControllerOptions.md#ondelete)
 
-***
+---
 
 ### onUpdate? \{#onupdate\}
 
@@ -121,9 +121,9 @@ Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:75
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `record` | `T` |
+| Parameter | Type                                |
+| --------- | ----------------------------------- |
+| `record`  | `T`                                 |
 | `changes` | `Record`&lt;`string`, `unknown`&gt; |
 
 #### Returns
@@ -134,7 +134,7 @@ Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:75
 
 [`EntityListControllerOptions`](EntityListControllerOptions.md).[`onUpdate`](EntityListControllerOptions.md#onupdate)
 
-***
+---
 
 ### page? \{#page\}
 
@@ -148,7 +148,7 @@ Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:68
 
 [`EntityListControllerOptions`](EntityListControllerOptions.md).[`page`](EntityListControllerOptions.md#page)
 
-***
+---
 
 ### pageSize? \{#pagesize\}
 
@@ -162,7 +162,7 @@ Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:69
 
 [`EntityListControllerOptions`](EntityListControllerOptions.md).[`pageSize`](EntityListControllerOptions.md#pagesize)
 
-***
+---
 
 ### query? \{#query\}
 
@@ -176,7 +176,7 @@ Defined in: packages/rxdb-model/dist/entity-table/headless.d.ts:10
 
 [`EntityListControllerOptions`](EntityListControllerOptions.md).[`query`](EntityListControllerOptions.md#query)
 
-***
+---
 
 ### records? \{#records\}
 
@@ -190,7 +190,7 @@ Defined in: packages/rxdb-model/dist/entity-list/headless.d.ts:70
 
 [`EntityListControllerOptions`](EntityListControllerOptions.md).[`records`](EntityListControllerOptions.md#records)
 
-***
+---
 
 ### sorts? \{#sorts\}
 

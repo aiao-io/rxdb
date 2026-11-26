@@ -23,14 +23,14 @@ Focuses the editor immediately after mount.
 #### Default Value
 
 ```ts
-false
+false;
 ```
 
 #### Remarks
 
 **Read once at mount**; later changes are ignored. Does not grab focus when `disabled` or `readonly` is true — otherwise the user gets a control that cannot be typed into and gives no clue why.
 
-***
+---
 
 ### describedBy? \{#describedby\}
 
@@ -46,7 +46,7 @@ Id of the supplementary description element, written as the inner textbox's `ari
 
 The attribute lands on CodeMirror's `.cm-content` — that's the element carrying `role="textbox"`, not the component's host element. Empty strings are treated as "unset". Same name and semantics across all three frameworks.
 
-***
+---
 
 ### disabled? \{#disabled\}
 
@@ -61,14 +61,14 @@ Disabled: read-only and non-editable, and reports `aria-disabled` to assistive t
 #### Default Value
 
 ```ts
-false
+false;
 ```
 
 #### Remarks
 
 Independent from `readonly`; either being true makes the editor non-editable. The difference is that disabled also writes `aria-disabled` and suppresses `autoFocus`.
 
-***
+---
 
 ### highlightWhitespace? \{#highlightwhitespace\}
 
@@ -83,10 +83,10 @@ Shows whitespace characters.
 #### Default Value
 
 ```ts
-false
+false;
 ```
 
-***
+---
 
 ### indentUnit? \{#indentunit\}
 
@@ -104,7 +104,7 @@ The string used for one level of indentation.
 '  ' (two spaces, consistent across all three frameworks)
 ```
 
-***
+---
 
 ### indentWithTab? \{#indentwithtab\}
 
@@ -119,14 +119,14 @@ Allows Tab-key indentation.
 #### Default Value
 
 ```ts
-false
+false;
 ```
 
 #### Remarks
 
 When enabled, Tab no longer moves focus and keyboard users get stuck in the editor — an accessibility trade-off, turned off consistently by default across all three frameworks.
 
-***
+---
 
 ### label? \{#label\}
 
@@ -142,7 +142,7 @@ Accessible name, written as the inner textbox's `aria-label`.
 
 Lands in the same place as [CodeEditorProps.describedBy](#describedby).
 
-***
+---
 
 ### labelledBy? \{#labelledby\}
 
@@ -158,7 +158,7 @@ Id of the element acting as the label, written as the inner textbox's `aria-labe
 
 Lands in the same place as [CodeEditorProps.describedBy](#describedby).
 
-***
+---
 
 ### language? \{#language\}
 
@@ -173,14 +173,14 @@ Language name or alias for syntax highlighting; `''` and `'plaintext'` mean no h
 #### Default Value
 
 ```ts
-'sql'
+'sql';
 ```
 
 #### Remarks
 
 When not found or when `load()` fails, it **degrades to plain text** and stays usable, and emits the `language-error` event (see [CodeEditorEmits](CodeEditorEmits.md)). When switching rapidly, only the last request takes effect.
 
-***
+---
 
 ### languages? \{#languages\}
 
@@ -195,14 +195,14 @@ Candidate language list; an empty list means no highlighting.
 #### Default Value
 
 ```ts
-SUPPORT_LANGUAGES
+SUPPORT_LANGUAGES;
 ```
 
 #### Remarks
 
 Passing an inline literal (`:languages="[myLang]"`) has a cost: every update round is a new array, and `watch` triggers by reference. The component then re-checks whether the description resolved for the current language really changed — it only re-runs `load()` when it did, but the check itself still runs; a stable reference (a module-level constant or `computed`) is cheaper.
 
-***
+---
 
 ### lineWrapping? \{#linewrapping\}
 
@@ -217,10 +217,10 @@ Line wrapping.
 #### Default Value
 
 ```ts
-false
+false;
 ```
 
-***
+---
 
 ### placeholder? \{#placeholder\}
 
@@ -235,10 +235,10 @@ Placeholder text shown when the document is empty.
 #### Default Value
 
 ```ts
-''
+'';
 ```
 
-***
+---
 
 ### readonly? \{#readonly\}
 
@@ -253,14 +253,14 @@ Read-only: still focusable, selectable, and copyable, but not editable.
 #### Default Value
 
 ```ts
-false
+false;
 ```
 
 #### Remarks
 
 Only blocks editing **commands**, not host sync — `value` changes are still written into the document, otherwise the controlled read-only usage would break outright.
 
-***
+---
 
 ### root? \{#root\}
 
@@ -276,7 +276,7 @@ The DOM root CodeMirror is mounted in, for Shadow DOM scenarios.
 
 **Read once at mount** — CodeMirror cannot change root after construction. To change root, force a component rebuild with `v-if` or `:key`.
 
-***
+---
 
 ### setup? \{#setup\}
 
@@ -291,10 +291,10 @@ CodeMirror preset extension set; `null` means no presets are loaded.
 #### Default Value
 
 ```ts
-'basic'
+'basic';
 ```
 
-***
+---
 
 ### theme? \{#theme\}
 
@@ -309,10 +309,10 @@ Theme.
 #### Default Value
 
 ```ts
-'light'
+'light';
 ```
 
-***
+---
 
 ### value? \{#value\}
 
@@ -327,7 +327,7 @@ Document content, used together with `v-model:value`.
 #### Default Value
 
 ```ts
-''
+'';
 ```
 
 #### Remarks

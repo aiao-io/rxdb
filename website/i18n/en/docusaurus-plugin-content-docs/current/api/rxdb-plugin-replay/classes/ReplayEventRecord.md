@@ -32,7 +32,7 @@ Defined in: [packages/rxdb-plugin-replay/src/entities.ts:90](https://github.com/
 
 UTF-8 byte count of `JSON.stringify(data)`.
 
-***
+---
 
 ### data \{#data\}
 
@@ -44,7 +44,7 @@ Defined in: [packages/rxdb-plugin-replay/src/entities.ts:88](https://github.com/
 
 The whole rrweb event.
 
-***
+---
 
 ### id \{#id\}
 
@@ -56,7 +56,7 @@ Defined in: [packages/rxdb-plugin-replay/src/entities.ts:78](https://github.com/
 
 Primary key, `${sessionId}:${seq}`.
 
-***
+---
 
 ### seq \{#seq\}
 
@@ -68,7 +68,7 @@ Defined in: [packages/rxdb-plugin-replay/src/entities.ts:82](https://github.com/
 
 Strictly increasing within a session, continuous across refreshes.
 
-***
+---
 
 ### sessionId \{#sessionid\}
 
@@ -80,7 +80,7 @@ Defined in: [packages/rxdb-plugin-replay/src/entities.ts:80](https://github.com/
 
 Owning session (no foreign key is created; deletion is executed in order by the plugin).
 
-***
+---
 
 ### timestamp \{#timestamp\}
 
@@ -92,7 +92,7 @@ Defined in: [packages/rxdb-plugin-replay/src/entities.ts:86](https://github.com/
 
 The `timestamp` of the rrweb event (epoch ms).
 
-***
+---
 
 ### type \{#type\}
 

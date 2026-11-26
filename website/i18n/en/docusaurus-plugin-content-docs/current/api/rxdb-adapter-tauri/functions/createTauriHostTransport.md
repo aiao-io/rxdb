@@ -10,8 +10,8 @@ Assembles a desktop host transport from Tauri's `invoke` / `listen`.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                                                                      | Description                                |
+| --------- | ------------------------------------------------------------------------- | ------------------------------------------ |
 | `options` | [`TauriHostTransportOptions`](../interfaces/TauriHostTransportOptions.md) | The injected Tauri APIs and error callback |
 
 ## Returns

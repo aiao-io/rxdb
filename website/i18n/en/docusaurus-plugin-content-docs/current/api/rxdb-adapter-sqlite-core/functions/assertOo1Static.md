@@ -10,9 +10,9 @@ Asserts that a third-party sqlite-wasm init result satisfies the minimal runtime
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | Unknown value returned by the sqlite-wasm init function |
+| Parameter | Type      | Description                                             |
+| --------- | --------- | ------------------------------------------------------- |
+| `value`   | `unknown` | Unknown value returned by the sqlite-wasm init function |
 
 ## Returns
 

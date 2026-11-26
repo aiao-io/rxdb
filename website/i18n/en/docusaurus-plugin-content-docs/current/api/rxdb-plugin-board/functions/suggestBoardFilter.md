@@ -11,9 +11,9 @@ completes values after a field name (multi-value tokens complete only the last s
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `query` | `string` |
+| Parameter | Type                                                        |
+| --------- | ----------------------------------------------------------- |
+| `query`   | `string`                                                    |
 | `context` | [`BoardFilterContext`](../interfaces/BoardFilterContext.md) |
 
 ## Returns

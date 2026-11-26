@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts:8
 
 The thrown error; both `instanceof` and `code` are preserved
 
-***
+---
 
 ### phase \{#phase\}
 

@@ -1,5 +1,5 @@
 ---
-sidebar_label: "ProviderProps⟨T⟩"
+sidebar_label: 'ProviderProps⟨T⟩'
 ---
 
 # ProviderProps`<T>`
@@ -16,9 +16,9 @@ This still holds after async readiness support: what was relaxed is the **value*
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`RxDB`](../../rxdb/classes/RxDB.md) |
+| Type Parameter                                                                   |
+| -------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`RxDB`](../../rxdb/classes/RxDB.md) |
 
 ## Properties
 
@@ -32,7 +32,7 @@ Defined in: [rxdb-react/src/rxdb-react.tsx:43](https://github.com/aiao-io/rxdb/b
 
 Provider subtree; renders an empty node when not provided.
 
-***
+---
 
 ### db \{#db\}
 

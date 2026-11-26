@@ -10,8 +10,8 @@ Computes engine information from the raw text of `SHOW server_version`.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type     | Description                                    |
+| --------- | -------- | ---------------------------------------------- |
 | `version` | `string` | Raw text of `SHOW server_version`, e.g. `17.5` |
 
 ## Returns

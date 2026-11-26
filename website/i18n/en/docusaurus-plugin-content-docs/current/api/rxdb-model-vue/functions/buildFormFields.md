@@ -1,11 +1,7 @@
 # buildFormFields()
 
 ```ts
-function buildFormFields(
-   metadata, 
-   mode, 
-   i18n?
-): FormFieldConfig[];
+function buildFormFields(metadata, mode, i18n?): FormFieldConfig[];
 ```
 
 Defined in: packages/rxdb-model/dist/entity-form/form-fields.d.ts:11
@@ -14,11 +10,11 @@ Builds the form field list from entity metadata and the form mode
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                          | Description     |
+| ---------- | ------------------------------------------------------------- | --------------- |
 | `metadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | Entity metadata |
-| `mode` | [`FormMode`](../type-aliases/FormMode.md) | Form mode |
-| `i18n?` | [`ModelI18n`](../interfaces/ModelI18n.md) | - |
+| `mode`     | [`FormMode`](../type-aliases/FormMode.md)                     | Form mode       |
+| `i18n?`    | [`ModelI18n`](../interfaces/ModelI18n.md)                     | -               |
 
 ## Returns
 

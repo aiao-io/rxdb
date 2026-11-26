@@ -10,10 +10,10 @@ Closes all other tabs (keeps pinned tabs and the given tab).
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `state` | [`TabsState`](../interfaces/TabsState.md) | The current state. |
-| `key` | `string` | The tab key to keep. |
+| Parameter | Type                                      | Description          |
+| --------- | ----------------------------------------- | -------------------- |
+| `state`   | [`TabsState`](../interfaces/TabsState.md) | The current state.   |
+| `key`     | `string`                                  | The tab key to keep. |
 
 ## Returns
 

@@ -22,16 +22,16 @@ Parses the already-JSON-decoded response body
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `body` | `unknown` |
-| `ctx` | [`FindByIdsContext`](FindByIdsContext.md) |
+| Parameter | Type                                      |
+| --------- | ----------------------------------------- |
+| `body`    | `unknown`                                 |
+| `ctx`     | [`FindByIdsContext`](FindByIdsContext.md) |
 
 #### Returns
 
 `unknown`[]
 
-***
+---
 
 ### request() \{#request\}
 
@@ -45,9 +45,9 @@ Produces the request description for this chunk. Pure function; no network
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `ctx` | [`FindByIdsContext`](FindByIdsContext.md) |
+| Parameter | Type                                      |
+| --------- | ----------------------------------------- |
+| `ctx`     | [`FindByIdsContext`](FindByIdsContext.md) |
 
 #### Returns
 

@@ -24,7 +24,7 @@ Unique identifier of the tab
 
 [`DetailTabBase`](DetailTabBase.md).[`key`](DetailTabBase.md#key)
 
-***
+---
 
 ### label \{#label\}
 
@@ -40,12 +40,12 @@ Display name of the tab
 
 [`DetailTabBase`](DetailTabBase.md).[`label`](DetailTabBase.md#label)
 
-***
+---
 
 ### type \{#type\}
 
 ```ts
-type: "form";
+type: 'form';
 ```
 
 Defined in: packages/rxdb-model/dist/entity-detail/interfaces.d.ts:22

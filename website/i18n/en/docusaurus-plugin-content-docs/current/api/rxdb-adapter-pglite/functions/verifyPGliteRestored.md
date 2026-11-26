@@ -10,10 +10,10 @@ Verifies that the restored database really is the database declared by the manif
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `db` | [`PGliteQueryable`](../interfaces/PGliteQueryable.md) | A PGlite already started on the restored data directory, or an equivalent query entry point |
-| `manifest` | [`RxDBBackupManifest`](../../rxdb/interfaces/RxDBBackupManifest.md) | The archive manifest |
+| Parameter  | Type                                                                | Description                                                                                 |
+| ---------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `db`       | [`PGliteQueryable`](../interfaces/PGliteQueryable.md)               | A PGlite already started on the restored data directory, or an equivalent query entry point |
+| `manifest` | [`RxDBBackupManifest`](../../rxdb/interfaces/RxDBBackupManifest.md) | The archive manifest                                                                        |
 
 ## Returns
 

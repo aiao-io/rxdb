@@ -22,8 +22,8 @@ new ModelEditorI18n(): ModelEditorI18n;
 
 ```ts
 bind(
-   element, 
-   property, 
+   element,
+   property,
    render
 ): void;
 ```
@@ -34,24 +34,24 @@ Binds a DOM property that must update immediately when the language changes.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `element` | `HTMLElement` |
-| `property` | `string` |
-| `render` | () => `string` |
+| Parameter  | Type           |
+| ---------- | -------------- |
+| `element`  | `HTMLElement`  |
+| `property` | `string`       |
+| `render`   | () => `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### bindValue() \{#bindvalue\}
 
 ```ts
 bindValue(
-   element, 
-   property, 
+   element,
+   property,
    value
 ): void;
 ```
@@ -62,17 +62,17 @@ Binds an already-formatted text back to its message key, preserving the semantic
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `element` | `HTMLElement` |
-| `property` | `string` |
-| `value` | `string` |
+| Parameter  | Type          |
+| ---------- | ------------- |
+| `element`  | `HTMLElement` |
+| `property` | `string`      |
+| `value`    | `string`      |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### clear() \{#clear\}
 
@@ -88,7 +88,7 @@ Releases subscriptions and DOM references when the editor closes.
 
 `void`
 
-***
+---
 
 ### start() \{#start\}
 
@@ -102,15 +102,15 @@ Subscribes to the owning table's runtime when the editor opens.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `table` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `table`   | `unknown` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### t() \{#t\}
 
@@ -124,9 +124,9 @@ Reads the text in the editor's current language.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `key` | `string` |
+| Parameter | Type                                |
+| --------- | ----------------------------------- |
+| `key`     | `string`                            |
 | `params?` | `Record`&lt;`string`, `unknown`&gt; |
 
 #### Returns

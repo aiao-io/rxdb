@@ -29,7 +29,7 @@ protected readonly Search: typeof LucideSearch = LucideSearch;
 
 Defined in: [rxdb-admin-angular/src/palette/command-palette.component.ts:35](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/palette/command-palette.component.ts#L35)
 
-***
+---
 
 ### shell \{#shell\}
 
@@ -39,7 +39,7 @@ protected readonly shell: AdminShell<LucideIconInput>;
 
 Defined in: [rxdb-admin-angular/src/palette/command-palette.component.ts:32](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/palette/command-palette.component.ts#L32)
 
-***
+---
 
 ### state \{#state\}
 
@@ -49,7 +49,7 @@ protected readonly state: Signal<PaletteState>;
 
 Defined in: [rxdb-admin-angular/src/palette/command-palette.component.ts:34](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/palette/command-palette.component.ts#L34)
 
-***
+---
 
 ### t \{#t\}
 
@@ -63,9 +63,9 @@ Translates shell text.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | `string` | Text key. |
+| Parameter | Type                                | Description     |
+| --------- | ----------------------------------- | --------------- |
+| `key`     | `string`                            | Text key.       |
 | `params?` | `Record`&lt;`string`, `unknown`&gt; | ICU parameters. |
 
 #### Returns
@@ -84,15 +84,15 @@ Defined in: [rxdb-admin-angular/src/palette/command-palette.component.ts:76](htt
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `entry` | [`PaletteEntry`](../../rxdb-admin/interfaces/PaletteEntry.md) |
+| Parameter | Type                                                          |
+| --------- | ------------------------------------------------------------- |
+| `entry`   | [`PaletteEntry`](../../rxdb-admin/interfaces/PaletteEntry.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### close() \{#close\}
 
@@ -106,7 +106,7 @@ Defined in: [rxdb-admin-angular/src/palette/command-palette.component.ts:44](htt
 
 `void`
 
-***
+---
 
 ### groupLabel() \{#grouplabel\}
 
@@ -118,15 +118,15 @@ Defined in: [rxdb-admin-angular/src/palette/command-palette.component.ts:68](htt
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `group` | [`PaletteGroup`](../../rxdb-admin/interfaces/PaletteGroup.md) |
+| Parameter | Type                                                          |
+| --------- | ------------------------------------------------------------- |
+| `group`   | [`PaletteGroup`](../../rxdb-admin/interfaces/PaletteGroup.md) |
 
 #### Returns
 
 `string` \| `undefined`
 
-***
+---
 
 ### hover() \{#hover\}
 
@@ -138,15 +138,15 @@ Defined in: [rxdb-admin-angular/src/palette/command-palette.component.ts:72](htt
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `entry` | [`PaletteEntry`](../../rxdb-admin/interfaces/PaletteEntry.md) |
+| Parameter | Type                                                          |
+| --------- | ------------------------------------------------------------- |
+| `entry`   | [`PaletteEntry`](../../rxdb-admin/interfaces/PaletteEntry.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### iconOf() \{#iconof\}
 
@@ -158,15 +158,15 @@ Defined in: [rxdb-admin-angular/src/palette/command-palette.component.ts:80](htt
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `entry` | [`PaletteEntry`](../../rxdb-admin/interfaces/PaletteEntry.md) |
+| Parameter | Type                                                          |
+| --------- | ------------------------------------------------------------- |
+| `entry`   | [`PaletteEntry`](../../rxdb-admin/interfaces/PaletteEntry.md) |
 
 #### Returns
 
 `LucideIconInput` \| `undefined`
 
-***
+---
 
 ### onBackdropClick() \{#onbackdropclick\}
 
@@ -178,15 +178,15 @@ Defined in: [rxdb-admin-angular/src/palette/command-palette.component.ts:48](htt
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `MouseEvent` |
+| Parameter | Type         |
+| --------- | ------------ |
+| `event`   | `MouseEvent` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onKeyDown() \{#onkeydown\}
 
@@ -198,15 +198,15 @@ Defined in: [rxdb-admin-angular/src/palette/command-palette.component.ts:56](htt
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `KeyboardEvent` |
+| Parameter | Type            |
+| --------- | --------------- |
+| `event`   | `KeyboardEvent` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onQuery() \{#onquery\}
 
@@ -218,9 +218,9 @@ Defined in: [rxdb-admin-angular/src/palette/command-palette.component.ts:52](htt
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `Event` |
+| Parameter | Type    |
+| --------- | ------- |
+| `event`   | `Event` |
 
 #### Returns
 

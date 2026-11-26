@@ -26,7 +26,7 @@ Finalizes the digest and returns the 64-character lowercase hex; calling any met
 
 `string`
 
-***
+---
 
 ### update() \{#update\}
 
@@ -40,9 +40,9 @@ Appends a chunk of bytes; the argument is neither mutated nor retained.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `bytes` | `Uint8Array` |
+| Parameter | Type         |
+| --------- | ------------ |
+| `bytes`   | `Uint8Array` |
 
 #### Returns
 

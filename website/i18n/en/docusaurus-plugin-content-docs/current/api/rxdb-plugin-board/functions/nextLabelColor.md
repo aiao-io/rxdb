@@ -12,8 +12,8 @@ two forms of the same color only count one extra "used" after all presets are us
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter    | Type                |
+| ------------ | ------------------- |
 | `usedColors` | readonly `string`[] |
 
 ## Returns

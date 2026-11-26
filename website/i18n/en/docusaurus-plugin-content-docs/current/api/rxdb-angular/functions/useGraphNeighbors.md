@@ -10,16 +10,16 @@ Finds adjacent entities in a graph structure
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`GraphEntityType`](../../rxdb-plugin-graph/type-aliases/GraphEntityType.md) |
+| Type Parameter                                                                                                           |
+| ------------------------------------------------------------------------------------------------------------------------ |
+| <a id="type-parameter-t"></a> `T` _extends_ [`GraphEntityType`](../../rxdb-plugin-graph/type-aliases/GraphEntityType.md) |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `EntityType` | `T` | Entity class |
-| `options` | [`UseOptions`](../type-aliases/UseOptions.md)&lt;[`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"findNeighborsOptions"`&gt;&gt; | Graph query parameters (entityId, direction, level, etc.) |
+| Parameter    | Type                                                                                                                                                        | Description                                               |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `EntityType` | `T`                                                                                                                                                         | Entity class                                              |
+| `options`    | [`UseOptions`](../type-aliases/UseOptions.md)&lt;[`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"findNeighborsOptions"`&gt;&gt; | Graph query parameters (entityId, direction, level, etc.) |
 
 ## Returns
 

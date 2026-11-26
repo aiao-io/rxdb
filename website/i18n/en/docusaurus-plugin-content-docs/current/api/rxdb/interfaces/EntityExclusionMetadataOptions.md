@@ -8,14 +8,16 @@ Entity-level exclusion range declaration.
 
 ```typescript
 @Entity({
-  exclusions: [{
-    name: 'occurrence_no_overlap',
-    equal: ['bomLineId'],
-    ranges: [
-      { from: 'effectiveFrom', to: 'effectiveTo', bounds: '[)' },
-      `{ from: 'unitFrom', to: 'unitTo', bounds: '[]' }`
-    ]
-  }]
+  exclusions: [
+    {
+      name: 'occurrence_no_overlap',
+      equal: ['bomLineId'],
+      ranges: [
+        { from: 'effectiveFrom', to: 'effectiveTo', bounds: '[)' },
+        `{ from: 'unitFrom', to: 'unitTo', bounds: '[]' }`
+      ]
+    }
+  ]
 })
 class BomLineOccurrence extends EntityBase {}
 ```
@@ -32,7 +34,7 @@ Defined in: [packages/rxdb/src/entity/exclusion-constraint.ts:68](https://github
 
 Equality columns (property names or relation foreign key names), at least one; rows with any column NULL do not take part in conflicts (consistent across both backends).
 
-***
+---
 
 ### name \{#name\}
 
@@ -44,7 +46,7 @@ Defined in: [packages/rxdb/src/entity/exclusion-constraint.ts:66](https://github
 
 The constraint name given by the author, restricted to `[a-z][a-z0-9_]*`; it forms the middle segment of the deterministic constraint name.
 
-***
+---
 
 ### ranges \{#ranges\}
 

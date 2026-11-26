@@ -1,11 +1,7 @@
 # usePersistedState()
 
 ```ts
-function usePersistedState<T>(
-   namespace, 
-   name, 
-   initialValue
-): PersistedState<T>;
+function usePersistedState<T>(namespace, name, initialValue): PersistedState<T>;
 ```
 
 Defined in: [rxdb-react/src/use-persisted-state.ts:101](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-react/src/use-persisted-state.ts#L101)
@@ -14,17 +10,17 @@ Creates (or reuses) a namespaced state persisted to `localStorage`.
 
 ## Type Parameters
 
-| Type Parameter | Description |
-| ------ | ------ |
+| Type Parameter                    | Description      |
+| --------------------------------- | ---------------- |
 | <a id="type-parameter-t"></a> `T` | State value type |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `namespace` | `string` | State namespace |
-| `name` | `string` | Key name; combined with `namespace`, each escaped, to form the persistence key |
-| `initialValue` | `T` | Initial value that only takes effect **on first registration**; when a value already exists on disk, the on-disk value wins |
+| Parameter      | Type     | Description                                                                                                                 |
+| -------------- | -------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `namespace`    | `string` | State namespace                                                                                                             |
+| `name`         | `string` | Key name; combined with `namespace`, each escaped, to form the persistence key                                              |
+| `initialValue` | `T`      | Initial value that only takes effect **on first registration**; when a value already exists on disk, the on-disk value wins |
 
 ## Returns
 

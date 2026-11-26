@@ -10,8 +10,8 @@ Computes the SHA-256 of a span of bytes.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type         | Description                             |
+| --------- | ------------ | --------------------------------------- |
 | `message` | `Uint8Array` | The bytes to digest; **never** modified |
 
 ## Returns

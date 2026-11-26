@@ -10,16 +10,16 @@ Determines whether an entity matches a rule group.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `entity` | `object` \| `null` \| `undefined` | The entity to judge; `null` / `undefined` (the inversePatch of INSERT, the patch of DELETE) never match |
-| `ruleGroup` | [`RuleGroup`](../type-aliases/RuleGroup.md)&lt;`T`&gt; | The rule group |
+| Parameter   | Type                                                   | Description                                                                                             |
+| ----------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| `entity`    | `object` \| `null` \| `undefined`                      | The entity to judge; `null` / `undefined` (the inversePatch of INSERT, the patch of DELETE) never match |
+| `ruleGroup` | [`RuleGroup`](../type-aliases/RuleGroup.md)&lt;`T`&gt; | The rule group                                                                                          |
 
 ## Returns
 

@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/transfer.ts:22](https://github.com/aia
 
 Peer identifier, used to isolate bad peers and report `sourcesUsed`.
 
-***
+---
 
 ### requestChunk \{#requestchunk\}
 
@@ -30,10 +30,10 @@ Requests a byte range; `signal` aborts on timeout, cancellation or transfer fail
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                    |
+| --------- | --------------------------------------- |
 | `request` | [`P2PChunkRequest`](P2PChunkRequest.md) |
-| `signal` | `AbortSignal` |
+| `signal`  | `AbortSignal`                           |
 
 #### Returns
 

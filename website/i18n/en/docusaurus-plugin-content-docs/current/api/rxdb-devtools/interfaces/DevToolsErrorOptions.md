@@ -16,7 +16,7 @@ Defined in: [v2/errors.ts:98](https://github.com/aiao-io/rxdb/blob/b5232040240cf
 
 Static text; must not be concatenated from platform exceptions.
 
-***
+---
 
 ### retryable? \{#retryable\}
 

@@ -12,5 +12,5 @@ QueryBuilder theme injection token
 
 ```typescript
 // Provide a custom theme in the app root module
-providers: [provideQueryBuilderTheme(QUERY_BUILDER_XXX_THEME)]
+providers: [provideQueryBuilderTheme(QUERY_BUILDER_XXX_THEME)];
 ```

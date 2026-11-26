@@ -11,10 +11,10 @@ On [AdminLayout](../variables/AdminShellProvider.md) / [Sidebar](../variables/Ad
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `props` | \{ `node`: [`MenuNode`](../../rxdb-admin/interfaces/MenuNode.md)&lt;`Component`&gt;; \} |
-| `props.node` | [`MenuNode`](../../rxdb-admin/interfaces/MenuNode.md)&lt;`Component`&gt; |
+| Parameter    | Type                                                                                    |
+| ------------ | --------------------------------------------------------------------------------------- |
+| `props`      | \{ `node`: [`MenuNode`](../../rxdb-admin/interfaces/MenuNode.md)&lt;`Component`&gt;; \} |
+| `props.node` | [`MenuNode`](../../rxdb-admin/interfaces/MenuNode.md)&lt;`Component`&gt;                |
 
 ## Returns
 

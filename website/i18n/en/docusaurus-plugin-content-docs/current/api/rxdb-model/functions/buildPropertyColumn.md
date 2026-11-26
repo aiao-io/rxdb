@@ -9,6 +9,7 @@ Defined in: [packages/rxdb-model/src/entity-table/columns/column-utils.ts:241](h
 Builds a VTable ColumnDefine based on the property type configuration.
 
 Handles all 11 PropertyType kinds:
+
 - uuid / string / number / integer → text display + input-editor (when not read-only)
 - enum → text display + list-editor dropdown (when not read-only)
 - boolean → switch cellType
@@ -20,9 +21,9 @@ Handles all 11 PropertyType kinds:
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `config` | [`PropertyColumnConfig`](../interfaces/PropertyColumnConfig.md) | The property column configuration |
+| Parameter | Type                                                            | Description                       |
+| --------- | --------------------------------------------------------------- | --------------------------------- |
+| `config`  | [`PropertyColumnConfig`](../interfaces/PropertyColumnConfig.md) | The property column configuration |
 
 ## Returns
 

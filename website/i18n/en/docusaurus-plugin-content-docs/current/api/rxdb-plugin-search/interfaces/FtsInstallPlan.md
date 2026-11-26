@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-search/src/core/fts5-installer.ts:48](https://
 
 List of extracted searchable fields
 
-***
+---
 
 ### primaryKey \{#primarykey\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-search/src/core/fts5-installer.ts:46](https://
 
 Primary key column name of the source table (external-content mode `content_rowid`)
 
-***
+---
 
 ### schema? \{#schema\}
 
@@ -46,7 +46,7 @@ The two backends land the namespace on **different things**, so this must coexis
 
 Only filled in by pg-tsvector's `SearchBackend.bindPlan` via the adapter's table name resolver: for the main table set it is the namespace itself, for a writable checkout's shadow tables it is `<namespace>$<suffix>` (US-314 B2.5). Using the namespace directly as the schema means shadow tables can never be found.
 
-***
+---
 
 ### signature \{#signature\}
 
@@ -58,7 +58,7 @@ Defined in: [packages/rxdb-plugin-search/src/core/fts5-installer.ts:50](https://
 
 Schema signature (for runtime drift detection)
 
-***
+---
 
 ### sqlTableName? \{#sqltablename\}
 
@@ -74,7 +74,7 @@ SQLite physical table name (including the namespace prefix, e.g. `public$article
 
 extractFtsPlanFromMetadata provides the main table set's; a writable checkout's shadow tables are switched to that table set's by `SearchBackend.bindPlan` via the adapter's table name resolver (`public$article$wt_x`, US-314 B2.5).
 
-***
+---
 
 ### tableName \{#tablename\}
 

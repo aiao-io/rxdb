@@ -33,21 +33,21 @@ const code = ref('const answer = 42;');
 
 ## Props
 
-| Prop                  | Type                                       | Default             | Behavior                 |
-| --------------------- | ------------------------------------------ | ------------------- | ------------------------ |
-| `value`               | `string`                                   | `''`                | dynamic sync             |
-| `theme`               | `'light' \| 'dark'`                        | `'light'`           | dynamic reconfigure      |
-| `language`            | `string`                                   | `'sql'`             | dynamic async load       |
-| `languages`           | `readonly CodeEditorLanguageDescription[]` | `SUPPORT_LANGUAGES` | dynamically replaces the language list |
-| `placeholder`         | `string`                                   | `''`                | dynamic reconfigure      |
-| `readonly`            | `boolean`                                  | `false`             | dynamic reconfigure      |
-| `disabled`            | `boolean`                                  | `false`             | dynamic reconfigure      |
-| `setup`               | `'basic' \| 'minimal'`                     | `'basic'`           | dynamic reconfigure      |
-| `indentWithTab`       | `boolean`                                  | `false`             | dynamic reconfigure      |
-| `indentUnit`          | `string`                                   | `'  '`              | dynamic reconfigure      |
-| `lineWrapping`        | `boolean`                                  | `false`             | dynamic reconfigure      |
-| `highlightWhitespace` | `boolean`                                  | `false`             | dynamic reconfigure      |
-| `autoFocus`           | `boolean`                                  | `false`             | read at initialization only |
+| Prop                  | Type                                       | Default             | Behavior                                    |
+| --------------------- | ------------------------------------------ | ------------------- | ------------------------------------------- |
+| `value`               | `string`                                   | `''`                | dynamic sync                                |
+| `theme`               | `'light' \| 'dark'`                        | `'light'`           | dynamic reconfigure                         |
+| `language`            | `string`                                   | `'sql'`             | dynamic async load                          |
+| `languages`           | `readonly CodeEditorLanguageDescription[]` | `SUPPORT_LANGUAGES` | dynamically replaces the language list      |
+| `placeholder`         | `string`                                   | `''`                | dynamic reconfigure                         |
+| `readonly`            | `boolean`                                  | `false`             | dynamic reconfigure                         |
+| `disabled`            | `boolean`                                  | `false`             | dynamic reconfigure                         |
+| `setup`               | `'basic' \| 'minimal'`                     | `'basic'`           | dynamic reconfigure                         |
+| `indentWithTab`       | `boolean`                                  | `false`             | dynamic reconfigure                         |
+| `indentUnit`          | `string`                                   | `'  '`              | dynamic reconfigure                         |
+| `lineWrapping`        | `boolean`                                  | `false`             | dynamic reconfigure                         |
+| `highlightWhitespace` | `boolean`                                  | `false`             | dynamic reconfigure                         |
+| `autoFocus`           | `boolean`                                  | `false`             | read at initialization only                 |
 | `root`                | `Document \| ShadowRoot`                   | `undefined`         | passed to the editor at initialization only |
 
 An empty string or `plaintext` clears the language extension. Unknown languages and load failures **degrade to plain text** and emit `language-error` (see below); the editor itself stays usable. When switching languages rapidly, only the last request may update the current editor.
@@ -67,12 +67,12 @@ const languages: readonly CodeEditorLanguageDescription[] = [myLanguage];
 
 ## Events
 
-| Event            | Arguments                          | When it fires                                              |
-| ---------------- | ---------------------------------- | ---------------------------------------------------------- |
-| `update:value`   | `(value: string)`                  | the user edits the document                                |
-| `change`         | `(value: string)`                  | the user edits the document                                |
-| `focus`          | `()`                               | the editor content area gains focus                        |
-| `blur`           | `()`                               | the editor content area loses focus                        |
+| Event            | Arguments                          | When it fires                                                       |
+| ---------------- | ---------------------------------- | ------------------------------------------------------------------- |
+| `update:value`   | `(value: string)`                  | the user edits the document                                         |
+| `change`         | `(value: string)`                  | the user edits the document                                         |
+| `focus`          | `()`                               | the editor content area gains focus                                 |
+| `blur`           | `()`                               | the editor content area loses focus                                 |
 | `language-error` | `(error: CodeEditorLanguageError)` | language not found (`not-found`) or `load()` failed (`load-failed`) |
 
 ## Language errors
@@ -122,12 +122,12 @@ function focusEditor() {
 
 The four members are verbatim-aligned with React's `CodeEditorHandle` and the same-named members on the Angular component instance; the imperative surface needs no rewrite when migrating across frameworks:
 
-| Member | Type                     | Description                                        |
-| ------ | ------------------------ | -------------------------------------------------- |
-| `view` | `EditorView \| null`     | The underlying CodeMirror instance; `null` when unmounted or unloaded |
-| `host` | `HTMLDivElement \| null` | The host `div` element; `null` when unmounted or unloaded |
-| `focus` | `() => void`            | Focuses the editor content area                    |
-| `blur` | `() => void`            | Blurs the editor content area                      |
+| Member  | Type                     | Description                                                           |
+| ------- | ------------------------ | --------------------------------------------------------------------- |
+| `view`  | `EditorView \| null`     | The underlying CodeMirror instance; `null` when unmounted or unloaded |
+| `host`  | `HTMLDivElement \| null` | The host `div` element; `null` when unmounted or unloaded             |
+| `focus` | `() => void`             | Focuses the editor content area                                       |
+| `blur`  | `() => void`             | Blurs the editor content area                                         |
 
 ## Public types
 
@@ -143,21 +143,21 @@ import type {
 
 ## Interfaces
 
-| Interface | Description |
-| ------ | ------ |
-| [CodeEditorEmits](interfaces/CodeEditorEmits.md) | Public events of the Vue CodeEditor. |
+| Interface                                          | Description                                                    |
+| -------------------------------------------------- | -------------------------------------------------------------- |
+| [CodeEditorEmits](interfaces/CodeEditorEmits.md)   | Public events of the Vue CodeEditor.                           |
 | [CodeEditorExpose](interfaces/CodeEditorExpose.md) | The imperative API exposed by `defineExpose` to template refs. |
-| [CodeEditorProps](interfaces/CodeEditorProps.md) | Public props of the Vue CodeEditor. |
+| [CodeEditorProps](interfaces/CodeEditorProps.md)   | Public props of the Vue CodeEditor.                            |
 
 ## Type Aliases
 
-| Type Alias | Description |
-| ------ | ------ |
+| Type Alias                                         | Description                      |
+| -------------------------------------------------- | -------------------------------- |
 | [CodeEditorSetup](type-aliases/CodeEditorSetup.md) | CodeMirror preset extension set. |
-| [CodeEditorTheme](type-aliases/CodeEditorTheme.md) | CodeEditor theme type |
+| [CodeEditorTheme](type-aliases/CodeEditorTheme.md) | CodeEditor theme type            |
 
 ## Variables
 
-| Variable | Description |
-| ------ | ------ |
-| [CodeEditor](variables/CodeEditor.md) | - |
+| Variable                              | Description |
+| ------------------------------------- | ----------- |
+| [CodeEditor](variables/CodeEditor.md) | -           |

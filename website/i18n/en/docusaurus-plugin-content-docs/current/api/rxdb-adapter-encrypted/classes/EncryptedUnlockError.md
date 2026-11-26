@@ -20,9 +20,9 @@ Defined in: [packages/rxdb-adapter-encrypted/src/errors.ts:125](https://github.c
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `init` | [`EncryptedErrorInit`](../interfaces/EncryptedErrorInit.md) & `object` |
+| Parameter | Type                                                                   |
+| --------- | ---------------------------------------------------------------------- |
+| `init`    | [`EncryptedErrorInit`](../interfaces/EncryptedErrorInit.md) & `object` |
 
 #### Returns
 
@@ -46,7 +46,7 @@ Defined in: [packages/rxdb-adapter-encrypted/src/errors.ts:63](https://github.co
 
 [`EncryptedError`](EncryptedError.md).[`cause`](EncryptedError.md#cause)
 
-***
+---
 
 ### code \{#code\}
 
@@ -60,7 +60,7 @@ Defined in: [packages/rxdb-adapter-encrypted/src/errors.ts:124](https://github.c
 
 [`EncryptedError`](EncryptedError.md).[`code`](EncryptedError.md#code)
 
-***
+---
 
 ### entity? \{#entity\}
 
@@ -74,7 +74,7 @@ Defined in: [packages/rxdb-adapter-encrypted/src/errors.ts:60](https://github.co
 
 [`EncryptedError`](EncryptedError.md).[`entity`](EncryptedError.md#entity)
 
-***
+---
 
 ### hint? \{#hint\}
 
@@ -88,7 +88,7 @@ Defined in: [packages/rxdb-adapter-encrypted/src/errors.ts:62](https://github.co
 
 [`EncryptedError`](EncryptedError.md).[`hint`](EncryptedError.md#hint)
 
-***
+---
 
 ### message \{#message\}
 
@@ -102,7 +102,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`EncryptedError`](EncryptedError.md).[`message`](EncryptedError.md#message)
 
-***
+---
 
 ### name \{#name\}
 
@@ -116,7 +116,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 [`EncryptedError`](EncryptedError.md).[`name`](EncryptedError.md#name)
 
-***
+---
 
 ### property? \{#property\}
 
@@ -130,7 +130,7 @@ Defined in: [packages/rxdb-adapter-encrypted/src/errors.ts:61](https://github.co
 
 [`EncryptedError`](EncryptedError.md).[`property`](EncryptedError.md#property)
 
-***
+---
 
 ### stack? \{#stack\}
 

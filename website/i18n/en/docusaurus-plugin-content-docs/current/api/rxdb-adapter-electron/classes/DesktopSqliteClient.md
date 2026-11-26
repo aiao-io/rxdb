@@ -56,10 +56,10 @@ Registers a change event listener.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `type` | [`SQLiteChangeType`](../../rxdb-adapter-sqlite-core/enumerations/SQLiteChangeType.md) | The change type of interest |
-| `handler` | (`event`) => `void` | Event callback |
+| Parameter | Type                                                                                  | Description                 |
+| --------- | ------------------------------------------------------------------------------------- | --------------------------- |
+| `type`    | [`SQLiteChangeType`](../../rxdb-adapter-sqlite-core/enumerations/SQLiteChangeType.md) | The change type of interest |
+| `handler` | (`event`) => `void`                                                                   | Event callback              |
 
 #### Returns
 
@@ -75,7 +75,7 @@ What is awaited here is the transport's [DesktopHostTransport.subscriptionReady]
 
 [`SqliteClientLike`](../../rxdb-adapter-sqlite-core/interfaces/SqliteClientLike.md).[`addEventListener`](../../rxdb-adapter-sqlite-core/interfaces/SqliteClientLike.md#addeventlistener)
 
-***
+---
 
 ### beginSystemMigrationTransactionSql() \{#beginsystemmigrationtransactionsql\}
 
@@ -97,7 +97,7 @@ The statement the host gave in the `open` response
 
 [`SqliteClientLike`](../../rxdb-adapter-sqlite-core/interfaces/SqliteClientLike.md).[`beginSystemMigrationTransactionSql`](../../rxdb-adapter-sqlite-core/interfaces/SqliteClientLike.md#beginsystemmigrationtransactionsql)
 
-***
+---
 
 ### beginTransactionSql() \{#begintransactionsql\}
 
@@ -119,7 +119,7 @@ The statement the host gave in the `open` response
 
 [`SqliteClientLike`](../../rxdb-adapter-sqlite-core/interfaces/SqliteClientLike.md).[`beginTransactionSql`](../../rxdb-adapter-sqlite-core/interfaces/SqliteClientLike.md#begintransactionsql)
 
-***
+---
 
 ### describeBlankDatabase() \{#describeblankdatabase\}
 
@@ -145,7 +145,7 @@ Unlike the wasm client, it does not open a temporary `:memory:` connection to me
 
 [`SqliteClientLike`](../../rxdb-adapter-sqlite-core/interfaces/SqliteClientLike.md).[`describeBlankDatabase`](../../rxdb-adapter-sqlite-core/interfaces/SqliteClientLike.md#describeblankdatabase)
 
-***
+---
 
 ### disconnect() \{#disconnect\}
 
@@ -177,7 +177,7 @@ When closing fails, this promise is cached as rejected; later calls see the same
 
 [`SqliteClientLike`](../../rxdb-adapter-sqlite-core/interfaces/SqliteClientLike.md).[`disconnect`](../../rxdb-adapter-sqlite-core/interfaces/SqliteClientLike.md#disconnect)
 
-***
+---
 
 ### execute() \{#execute\}
 
@@ -191,9 +191,9 @@ Executes SQL on the host.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `sql` | `string` | The SQL to execute |
+| Parameter   | Type                                                                                            | Description                   |
+| ----------- | ----------------------------------------------------------------------------------------------- | ----------------------------- |
+| `sql`       | `string`                                                                                        | The SQL to execute            |
 | `bindings?` | [`SQLiteCompatibleType`](../../rxdb-adapter-sqlite-core/type-aliases/SQLiteCompatibleType.md)[] | Positional binding parameters |
 
 #### Returns
@@ -210,7 +210,7 @@ An execution result shaped the same as the local SQLite backend
 
 [`SqliteClientLike`](../../rxdb-adapter-sqlite-core/interfaces/SqliteClientLike.md).[`execute`](../../rxdb-adapter-sqlite-core/interfaces/SqliteClientLike.md#execute)
 
-***
+---
 
 ### setChangeEventsMuted() \{#setchangeeventsmuted\}
 
@@ -224,9 +224,9 @@ Pauses / resumes change event collection for this session (muted while US-217 re
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `muted` | `boolean` | When `true`, the host stops collecting this session's changes |
+| Parameter | Type      | Description                                                   |
+| --------- | --------- | ------------------------------------------------------------- |
+| `muted`   | `boolean` | When `true`, the host stops collecting this session's changes |
 
 #### Returns
 
@@ -244,7 +244,7 @@ Muting lands on the host side (protocol v2's `mute`): if the renderer merely dis
 
 [`SqliteClientLike`](../../rxdb-adapter-sqlite-core/interfaces/SqliteClientLike.md).[`setChangeEventsMuted`](../../rxdb-adapter-sqlite-core/interfaces/SqliteClientLike.md#setchangeeventsmuted)
 
-***
+---
 
 ### version() \{#version\}
 
@@ -266,14 +266,14 @@ A version string such as `3.50.4`
 
 [`SqliteClientLike`](../../rxdb-adapter-sqlite-core/interfaces/SqliteClientLike.md).[`version`](../../rxdb-adapter-sqlite-core/interfaces/SqliteClientLike.md#version)
 
-***
+---
 
 ### connect() \{#connect\}
 
 ```ts
 static connect(
-   transport, 
-   storage, 
+   transport,
+   storage,
    options?
 ): Promise<DesktopSqliteClient>;
 ```
@@ -284,11 +284,11 @@ Opens a desktop database session.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `transport` | [`DesktopHostTransport`](../interfaces/DesktopHostTransport.md) | Transport provided by the preload or a worker bridge |
-| `storage` | [`DesktopSqliteFileStorage`](../interfaces/DesktopSqliteFileStorage.md) | Desktop storage configuration |
-| `options?` | [`DesktopSqliteClientOptions`](../interfaces/DesktopSqliteClientOptions.md) | Optional behavior parameters |
+| Parameter   | Type                                                                        | Description                                          |
+| ----------- | --------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `transport` | [`DesktopHostTransport`](../interfaces/DesktopHostTransport.md)             | Transport provided by the preload or a worker bridge |
+| `storage`   | [`DesktopSqliteFileStorage`](../interfaces/DesktopSqliteFileStorage.md)     | Desktop storage configuration                        |
+| `options?`  | [`DesktopSqliteClientOptions`](../interfaces/DesktopSqliteClientOptions.md) | Optional behavior parameters                         |
 
 #### Returns
 
@@ -300,7 +300,7 @@ The connected client
 
 [RxDBAdapterDesktopError](RxDBAdapterDesktopError.md) when no transport is injected, the configuration is invalid, or the host fails to open
 
-***
+---
 
 ### drop() \{#drop\}
 
@@ -314,10 +314,10 @@ Deletes a database file and its journal sidecar files on the host (US-313: recla
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `transport` | [`DesktopHostTransport`](../interfaces/DesktopHostTransport.md) | Transport provided by the preload or a worker bridge |
-| `storage` | [`DesktopSqliteFileStorage`](../interfaces/DesktopSqliteFileStorage.md) | The database to delete |
+| Parameter   | Type                                                                    | Description                                          |
+| ----------- | ----------------------------------------------------------------------- | ---------------------------------------------------- |
+| `transport` | [`DesktopHostTransport`](../interfaces/DesktopHostTransport.md)         | Transport provided by the preload or a worker bridge |
+| `storage`   | [`DesktopSqliteFileStorage`](../interfaces/DesktopSqliteFileStorage.md) | The database to delete                               |
 
 #### Returns
 

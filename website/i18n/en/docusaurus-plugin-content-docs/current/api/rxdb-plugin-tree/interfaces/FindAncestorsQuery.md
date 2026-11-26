@@ -1,5 +1,5 @@
 ---
-sidebar_label: "FindAncestorsQuery⟨T⟩"
+sidebar_label: 'FindAncestorsQuery⟨T⟩'
 ---
 
 # FindAncestorsQuery`<T>`
@@ -11,9 +11,9 @@ Finds all ancestor nodes of the given entity
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                    |
+| ------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 ## Properties
 
@@ -25,12 +25,12 @@ options: FindTreeOptions<T>;
 
 Defined in: [rxdb-plugin-tree/src/query/tree-query.interface.ts:27](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-tree/src/query/tree-query.interface.ts#L27)
 
-***
+---
 
 ### type \{#type\}
 
 ```ts
-type: "findAncestors";
+type: 'findAncestors';
 ```
 
 Defined in: [rxdb-plugin-tree/src/query/tree-query.interface.ts:26](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-tree/src/query/tree-query.interface.ts#L26)

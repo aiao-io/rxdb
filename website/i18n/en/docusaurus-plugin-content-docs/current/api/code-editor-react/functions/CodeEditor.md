@@ -10,8 +10,8 @@ React component for the CodeMirror code editor
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter           | Type                                                  |
+| ------------------- | ----------------------------------------------------- |
 | `__namedParameters` | [`CodeEditorProps`](../interfaces/CodeEditorProps.md) |
 
 ## Returns
@@ -26,13 +26,6 @@ import { CodeEditor } from '@aiao/code-editor-react';
 function App() {
   const [code, setCode] = useState('SELECT * FROM users');
 
-  return (
-    <CodeEditor
-      value={code}
-      onChange={setCode}
-      language="sql"
-      theme="dark"
-    />
-  );
+  return <CodeEditor value={code} onChange={setCode} language="sql" theme="dark" />;
 }
 ```

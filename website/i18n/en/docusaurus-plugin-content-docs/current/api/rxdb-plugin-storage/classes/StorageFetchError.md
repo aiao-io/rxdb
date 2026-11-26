@@ -18,9 +18,9 @@ writes into OPFS, and `contentVersion` is unchanged.
 
 ```ts
 new StorageFetchError(
-   opfsPath, 
-   url, 
-   status, 
+   opfsPath,
+   url,
+   status,
    message?
 ): StorageFetchError;
 ```
@@ -31,11 +31,11 @@ Creates a request error carrying the target path, URL, and HTTP status code.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `opfsPath` | `string` |
-| `url` | `string` |
-| `status` | `number` |
+| `url`      | `string` |
+| `status`   | `number` |
 | `message?` | `string` |
 
 #### Returns
@@ -60,7 +60,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 `Error.cause`
 
-***
+---
 
 ### message \{#message\}
 
@@ -74,7 +74,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 `Error.message`
 
-***
+---
 
 ### name \{#name\}
 
@@ -88,7 +88,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 `Error.name`
 
-***
+---
 
 ### opfsPath \{#opfspath\}
 
@@ -100,7 +100,7 @@ Defined in: [packages/rxdb-plugin-storage/src/errors.ts:39](https://github.com/a
 
 The target cache path inside OPFS (already normalized).
 
-***
+---
 
 ### stack? \{#stack\}
 
@@ -114,7 +114,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 `Error.stack`
 
-***
+---
 
 ### status \{#status\}
 
@@ -126,7 +126,7 @@ Defined in: [packages/rxdb-plugin-storage/src/errors.ts:43](https://github.com/a
 
 The HTTP status code returned by the server.
 
-***
+---
 
 ### url \{#url\}
 
@@ -138,7 +138,7 @@ Defined in: [packages/rxdb-plugin-storage/src/errors.ts:41](https://github.com/a
 
 The remote URL that triggered this error.
 
-***
+---
 
 ### stackTraceLimit \{#stacktracelimit\}
 
@@ -179,7 +179,7 @@ a string representing the location in the code at which
 ```js
 const myObject = {};
 Error.captureStackTrace(myObject);
-myObject.stack;  // Similar to `new Error().stack`
+myObject.stack; // Similar to `new Error().stack`
 ```
 
 The first line of the trace will be prefixed with
@@ -218,9 +218,9 @@ a();
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `targetObject` | `object` |
+| Parameter         | Type       |
+| ----------------- | ---------- |
+| `targetObject`    | `object`   |
 | `constructorOpt?` | `Function` |
 
 #### Returns
@@ -231,7 +231,7 @@ a();
 
 `Error.captureStackTrace`
 
-***
+---
 
 ### prepareStackTrace() \{#preparestacktrace\}
 
@@ -243,9 +243,9 @@ Defined in: node\_modules/.pnpm/@types+node@26.6.6/node\_modules/@types/node/glo
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `err` | `Error` |
+| Parameter     | Type         |
+| ------------- | ------------ |
+| `err`         | `Error`      |
 | `stackTraces` | `CallSite`[] |
 
 #### Returns

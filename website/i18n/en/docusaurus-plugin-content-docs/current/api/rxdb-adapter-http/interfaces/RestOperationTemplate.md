@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-adapter-http/src/rest.ts:40](https://github.com/aiao-
 
 When absent, takes the operation's default method; see [createRestHandlers](../functions/createRestHandlers.md)
 
-***
+---
 
 ### path \{#path\}
 

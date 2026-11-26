@@ -26,7 +26,7 @@ What an implementation writing its own transaction persists would remain in the 
 the barrier fails — the user would see half of the target branch's data while active still points at the
 source branch.
 
-***
+---
 
 ### intent \{#intent\}
 
@@ -38,7 +38,7 @@ Defined in: [packages/rxdb/src/sync-contract/branch-materialization-source.ts:80
 
 The intent frozen on the staging.
 
-***
+---
 
 ### targetBranchId \{#targetbranchid\}
 

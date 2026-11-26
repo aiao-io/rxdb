@@ -19,7 +19,7 @@ The Worker running the bundled `alipay-random-worker.js`: the logic layer has no
 Created via `my.createWorker('workers/index.js', { useExperimentalWorker: true })`;
 declare the directory under `workers` in `app.json`, and skip transpilation in `mini.project.json`'s `transpile.script.ignore`.
 
-***
+---
 
 ### runtimeGlobal? \{#runtimeglobal\}
 
@@ -32,7 +32,7 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/hosts/alipay.ts:40](https://g
 The real global object; see [MiniProgramHost.runtimeGlobal](MiniProgramHost.md#runtimeglobal); when absent, the environment's `globalThis` is used if present (iOS real devices),
 otherwise (developer tools simulator) it is recovered through a getter on `Object.prototype`.
 
-***
+---
 
 ### webAssembly \{#webassembly\}
 

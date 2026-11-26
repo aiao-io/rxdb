@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/session/webrtc-transport.ts:15](https:
 
 The adapter sets this to `arraybuffer`.
 
-***
+---
 
 ### bufferedAmount \{#bufferedamount\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/session/webrtc-transport.ts:17](https:
 
 Bytes queued but not yet sent.
 
-***
+---
 
 ### bufferedAmountLowThreshold \{#bufferedamountlowthreshold\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-plugin-p2p/src/session/webrtc-transport.ts:19](https:
 
 The threshold that triggers the `bufferedamountlow` event; the adapter sets it.
 
-***
+---
 
 ### readyState \{#readystate\}
 
@@ -66,16 +66,16 @@ Subscribes to channel events.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `type` | [`P2PDataChannelEvent`](../type-aliases/P2PDataChannelEvent.md) |
-| `listener` | (`event`) => `void` |
+| Parameter  | Type                                                            |
+| ---------- | --------------------------------------------------------------- |
+| `type`     | [`P2PDataChannelEvent`](../type-aliases/P2PDataChannelEvent.md) |
+| `listener` | (`event`) => `void`                                             |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### close() \{#close\}
 
@@ -91,7 +91,7 @@ Closes the channel.
 
 `void`
 
-***
+---
 
 ### removeEventListener() \{#removeeventlistener\}
 
@@ -105,16 +105,16 @@ Unsubscribes from channel events.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `type` | [`P2PDataChannelEvent`](../type-aliases/P2PDataChannelEvent.md) |
-| `listener` | (`event`) => `void` |
+| Parameter  | Type                                                            |
+| ---------- | --------------------------------------------------------------- |
+| `type`     | [`P2PDataChannelEvent`](../type-aliases/P2PDataChannelEvent.md) |
+| `listener` | (`event`) => `void`                                             |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### send() \{#send\}
 
@@ -128,9 +128,9 @@ Sends a binary message.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `data` | `ArrayBuffer` \| `ArrayBufferView`&lt;`ArrayBufferLike`&gt; |
+| Parameter | Type                                                        |
+| --------- | ----------------------------------------------------------- |
+| `data`    | `ArrayBuffer` \| `ArrayBufferView`&lt;`ArrayBufferLike`&gt; |
 
 #### Returns
 

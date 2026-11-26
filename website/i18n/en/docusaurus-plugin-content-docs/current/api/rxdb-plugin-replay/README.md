@@ -58,10 +58,10 @@ On page refresh, the recording session is continued with the same id via tempora
 
 Limits are measured in UTF-8 bytes of the `JSON.stringify`ed events; both are configurable:
 
-| Option                  | Default  | When exceeded                                                                     |
-| ----------------------- | -------- | --------------------------------------------------------------------------------- |
+| Option                | Default | When exceeded                                                                                                               |
+| --------------------- | ------- | --------------------------------------------------------------------------------------------------------------------------- |
 | `limits.sessionBytes` | 16 MiB  | That session stops recording, a `truncated` marker (`session_limit`) is written, and the session status becomes `truncated` |
-| `limits.storeBytes`   | 128 MiB | `start()` throws `RxDBReplayError('store_limit')`                                 |
+| `limits.storeBytes`   | 128 MiB | `start()` throws `RxDBReplayError('store_limit')`                                                                           |
 
 The plugin **never automatically deletes** old recordings; the only way to free space is to call `deleteSession()`.
 
@@ -148,23 +148,23 @@ pnpm nx e2e dev-rxdb-angular-e2e -- replay.spec
 
 Angular e2e does not turn recording on by default, so the artifacts left by a failed e2e run contain **no** rrweb recording:
 
-| Artifact                                      | When produced                                              | How to view                                                       |
-| --------------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------- |
-| Playwright trace (`trace.zip`)                | Kept on failed cases, not kept on passing cases            | `npx playwright show-trace <trace.zip>`, or click Trace in the HTML report |
-| Data archive (attachment `rxdb-failure-archive`) | Exported automatically when a case fails; `failure-archive.spec.ts` exports it proactively | Import on the demo's `/failure-archive` page                     |
+| Artifact                                         | When produced                                                                              | How to view                                                                |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| Playwright trace (`trace.zip`)                   | Kept on failed cases, not kept on passing cases                                            | `npx playwright show-trace <trace.zip>`, or click Trace in the HTML report |
+| Data archive (attachment `rxdb-failure-archive`) | Exported automatically when a case fails; `failure-archive.spec.ts` exports it proactively | Import on the demo's `/failure-archive` page                               |
 
 Both live under `apps/dev-rxdb-angular-e2e/test-output/playwright/`: traces in `output/<case>/`, attachments in `report/data/*.bin` (starting with `RXDBBAK`). Open the report with
 `npx playwright show-report apps/dev-rxdb-angular-e2e/test-output/playwright/report` to see which case each attachment belongs to. Every e2e run overwrites this directory.
 
 Verification on the import page (`http://localhost:4200/failure-archive`; the `data-phase` of the page root node reflects the state):
 
-| Scenario      | Action                                          | Expected                                                    |
-| ------------- | ----------------------------------------------- | ----------------------------------------------------------- |
-| Parse         | Select an archive file                          | `idle` → `parsed`, showing database name, creation time, format version |
-| Import        | Click "Import and open"                         | after `importing` the whole page reloads, and an imported-database banner appears at the top |
-| Invalid file  | Select a non-archive file                       | `error`, showing the error code, no "Open this database"    |
-| Duplicate import | Import the same archive again after "Back to default database" | `target_not_empty`, "Open this database" opens the previously imported database |
-| Target busy   | Import again while the imported database is open in another tab | `target_busy`, likewise offering "Open this database"       |
+| Scenario         | Action                                                          | Expected                                                                                     |
+| ---------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Parse            | Select an archive file                                          | `idle` → `parsed`, showing database name, creation time, format version                      |
+| Import           | Click "Import and open"                                         | after `importing` the whole page reloads, and an imported-database banner appears at the top |
+| Invalid file     | Select a non-archive file                                       | `error`, showing the error code, no "Open this database"                                     |
+| Duplicate import | Import the same archive again after "Back to default database"  | `target_not_empty`, "Open this database" opens the previously imported database              |
+| Target busy      | Import again while the imported database is open in another tab | `target_busy`, likewise offering "Open this database"                                        |
 
 - The archive restores to the **original database name**: importing in the same browser profile that produced the archive hits `target_not_empty` directly, so for manual testing use an incognito window or another profile.
 - After import the application keeps the imported database open (localStorage key `rxdb-demo-imported-db-name`); click "Back to default database" on the banner to restore.
@@ -184,58 +184,58 @@ trace, `rxdb-failure-archive` and `rxdb-failure-summary`: look at the trace firs
 
 ## Classes
 
-| Class | Description |
-| ------ | ------ |
-| [ReplayEventRecord](classes/ReplayEventRecord.md) | One rrweb event (table `replay_event`), existing only in the recording database. |
-| [ReplaySessionRecord](classes/ReplaySessionRecord.md) | A recording session (table `replay_session`), existing only in the recording database. |
-| [RxDBPluginReplay](classes/RxDBPluginReplay.md) | Main class of `@aiao/rxdb-plugin-replay`: creates one ReplayRuntime per connection epoch, and stops recording and destroys the recording database when the epoch is released. |
-| [RxDBReplayError](classes/RxDBReplayError.md) | All business errors thrown by `@aiao/rxdb-plugin-replay`. |
+| Class                                                 | Description                                                                                                                                                                   |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [ReplayEventRecord](classes/ReplayEventRecord.md)     | One rrweb event (table `replay_event`), existing only in the recording database.                                                                                              |
+| [ReplaySessionRecord](classes/ReplaySessionRecord.md) | A recording session (table `replay_session`), existing only in the recording database.                                                                                        |
+| [RxDBPluginReplay](classes/RxDBPluginReplay.md)       | Main class of `@aiao/rxdb-plugin-replay`: creates one ReplayRuntime per connection epoch, and stops recording and destroys the recording database when the epoch is released. |
+| [RxDBReplayError](classes/RxDBReplayError.md)         | All business errors thrown by `@aiao/rxdb-plugin-replay`.                                                                                                                     |
 
 ## Interfaces
 
-| Interface | Description |
-| ------ | ------ |
-| [ReplayCommitMarker](interfaces/ReplayCommitMarker.md) | A commit marker in the recording (`listCommitMarkers()`). |
-| [ReplayerCommitRestoreEvent](interfaces/ReplayerCommitRestoreEvent.md) | Result of clicking a commit marker to restore; `reason` is `'error'` when `restoreToCommit()` throws. |
-| [ReplayerHandle](interfaces/ReplayerHandle.md) | Handle returned by [mountReplayer](functions/mountReplayer.md). In the non-ready state `play` / `pause` / `seek` are no-ops, and everything is a no-op after `destroy()`. |
-| [ReplayerOptions](interfaces/ReplayerOptions.md) | Input of the replayer (`git show 2e820521:specs/005-us-909-session-replay/contracts/replayer-component.md` §1). |
-| [ReplayEventRange](interfaces/ReplayEventRange.md) | Time range of `readEvents()` (closed interval, epoch ms). |
-| [ReplayManager](interfaces/ReplayManager.md) | Recording/replay entry point (`rxdb.replay`). |
-| [ReplayMarkerPayloads](interfaces/ReplayMarkerPayloads.md) | Payload shape of each marker tag. |
-| [ReplaySessionExport](interfaces/ReplaySessionExport.md) | Result of `exportSession()`: session summary + all events ordered by `seq`. |
-| [ReplaySessionInfo](interfaces/ReplaySessionInfo.md) | Summary of one recording session (`listSessions()` / `exportSession()`). |
-| [ReplayUsage](interfaces/ReplayUsage.md) | Recording database usage (`usage()`). |
-| [ResolvedReplayOptions](interfaces/ResolvedReplayOptions.md) | Options with defaults filled in and validated. |
-| [RxDBReplayOptions](interfaces/RxDBReplayOptions.md) | Options of `rxdb.use(rxDBPluginReplay, options)`. |
+| Interface                                                              | Description                                                                                                                                                               |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [ReplayCommitMarker](interfaces/ReplayCommitMarker.md)                 | A commit marker in the recording (`listCommitMarkers()`).                                                                                                                 |
+| [ReplayerCommitRestoreEvent](interfaces/ReplayerCommitRestoreEvent.md) | Result of clicking a commit marker to restore; `reason` is `'error'` when `restoreToCommit()` throws.                                                                     |
+| [ReplayerHandle](interfaces/ReplayerHandle.md)                         | Handle returned by [mountReplayer](functions/mountReplayer.md). In the non-ready state `play` / `pause` / `seek` are no-ops, and everything is a no-op after `destroy()`. |
+| [ReplayerOptions](interfaces/ReplayerOptions.md)                       | Input of the replayer (`git show 2e820521:specs/005-us-909-session-replay/contracts/replayer-component.md` §1).                                                           |
+| [ReplayEventRange](interfaces/ReplayEventRange.md)                     | Time range of `readEvents()` (closed interval, epoch ms).                                                                                                                 |
+| [ReplayManager](interfaces/ReplayManager.md)                           | Recording/replay entry point (`rxdb.replay`).                                                                                                                             |
+| [ReplayMarkerPayloads](interfaces/ReplayMarkerPayloads.md)             | Payload shape of each marker tag.                                                                                                                                         |
+| [ReplaySessionExport](interfaces/ReplaySessionExport.md)               | Result of `exportSession()`: session summary + all events ordered by `seq`.                                                                                               |
+| [ReplaySessionInfo](interfaces/ReplaySessionInfo.md)                   | Summary of one recording session (`listSessions()` / `exportSession()`).                                                                                                  |
+| [ReplayUsage](interfaces/ReplayUsage.md)                               | Recording database usage (`usage()`).                                                                                                                                     |
+| [ResolvedReplayOptions](interfaces/ResolvedReplayOptions.md)           | Options with defaults filled in and validated.                                                                                                                            |
+| [RxDBReplayOptions](interfaces/RxDBReplayOptions.md)                   | Options of `rxdb.use(rxDBPluginReplay, options)`.                                                                                                                         |
 
 ## Type Aliases
 
-| Type Alias | Description |
-| ------ | ------ |
-| [ReplayMarker](type-aliases/ReplayMarker.md) | Result of [parseReplayMarker](functions/parseReplayMarker.md). |
-| [ReplayMarkerTag](type-aliases/ReplayMarkerTag.md) | Marker tags of this plugin. |
+| Type Alias                                                           | Description                                                                                                                               |
+| -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| [ReplayMarker](type-aliases/ReplayMarker.md)                         | Result of [parseReplayMarker](functions/parseReplayMarker.md).                                                                            |
+| [ReplayMarkerTag](type-aliases/ReplayMarkerTag.md)                   | Marker tags of this plugin.                                                                                                               |
 | [ReplayRecordingDbFactory](type-aliases/ReplayRecordingDbFactory.md) | Recording database factory: receives this plugin's entity list and returns a **separate** `RxDB` (not the recorded application database). |
-| [ReplayRestoreRejection](type-aliases/ReplayRestoreRejection.md) | The four reasons `restoreToCommit()` is rejected (same values as the working tree `restore()` `reason`). |
-| [ReplayRestoreResult](type-aliases/ReplayRestoreResult.md) | Result of `restoreToCommit()`: the part of the working tree `restore()` result that replay uses. |
-| [ReplaySessionStatus](type-aliases/ReplaySessionStatus.md) | Status of a session row: recording → stopped / truncated (terminal states). |
-| [ReplayState](type-aliases/ReplayState.md) | Value of `rxdb.replay.state$`. |
-| [ReplayTruncatedCode](type-aliases/ReplayTruncatedCode.md) | Reason a session was truncated: single-session limit or total recording database limit. |
-| [RxDBReplayErrorCode](type-aliases/RxDBReplayErrorCode.md) | Discriminable reason of [RxDBReplayError](classes/RxDBReplayError.md). |
-| [RxDBReplayRecordOptions](type-aliases/RxDBReplayRecordOptions.md) | Subset of masking / blocking options passed through to rrweb `record()`; their meaning follows the rrweb documentation. |
+| [ReplayRestoreRejection](type-aliases/ReplayRestoreRejection.md)     | The four reasons `restoreToCommit()` is rejected (same values as the working tree `restore()` `reason`).                                  |
+| [ReplayRestoreResult](type-aliases/ReplayRestoreResult.md)           | Result of `restoreToCommit()`: the part of the working tree `restore()` result that replay uses.                                          |
+| [ReplaySessionStatus](type-aliases/ReplaySessionStatus.md)           | Status of a session row: recording → stopped / truncated (terminal states).                                                               |
+| [ReplayState](type-aliases/ReplayState.md)                           | Value of `rxdb.replay.state$`.                                                                                                            |
+| [ReplayTruncatedCode](type-aliases/ReplayTruncatedCode.md)           | Reason a session was truncated: single-session limit or total recording database limit.                                                   |
+| [RxDBReplayErrorCode](type-aliases/RxDBReplayErrorCode.md)           | Discriminable reason of [RxDBReplayError](classes/RxDBReplayError.md).                                                                    |
+| [RxDBReplayRecordOptions](type-aliases/RxDBReplayRecordOptions.md)   | Subset of masking / blocking options passed through to rrweb `record()`; their meaning follows the rrweb documentation.                   |
 
 ## Variables
 
-| Variable | Description |
-| ------ | ------ |
+| Variable                                                      | Description                                                                                                                                                                                                                                      |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | [REPLAY\_BLOCK\_SELECTOR](variables/REPLAY_BLOCK_SELECTOR.md) | Selector always merged into `record.blockSelector`: add the `data-rxdb-replay-block` attribute to an element and only a same-size placeholder block remains in the recording. Applications can mark sensitive areas without understanding rrweb. |
-| [REPLAY\_ENTITIES](variables/REPLAY_ENTITIES.md) | All entities the recording database needs; this is the set the `createRecordingDb` factory receives, to pass as-is to `new RxDB({ entities })`. |
-| [REPLAY\_MARKER\_TAGS](variables/REPLAY_MARKER_TAGS.md) | The three marker tags this plugin writes into the recording. |
-| [rxDBPluginReplay](variables/rxDBPluginReplay.md) | Recording/replay plugin factory: `rxdb.use(rxDBPluginReplay, { createRecordingDb })`. |
+| [REPLAY\_ENTITIES](variables/REPLAY_ENTITIES.md)              | All entities the recording database needs; this is the set the `createRecordingDb` factory receives, to pass as-is to `new RxDB({ entities })`.                                                                                                  |
+| [REPLAY\_MARKER\_TAGS](variables/REPLAY_MARKER_TAGS.md)       | The three marker tags this plugin writes into the recording.                                                                                                                                                                                     |
+| [rxDBPluginReplay](variables/rxDBPluginReplay.md)             | Recording/replay plugin factory: `rxdb.use(rxDBPluginReplay, { createRecordingDb })`.                                                                                                                                                            |
 
 ## Functions
 
-| Function | Description |
-| ------ | ------ |
-| [mountReplayer](functions/mountReplayer.md) | Renders the replayer for one session inside `host`: rrweb replay, play / pause, timeline, commit markers (click restores the working tree) and restore results. |
-| [parseReplayMarker](functions/parseReplayMarker.md) | Parses an rrweb event into a marker of this plugin. |
-| [replayRestoreHint](functions/replayRestoreHint.md) | One-line English hint shown to the user when `restoreToCommit()` is rejected (`git show 2e820521:specs/005-us-909-session-replay/research.md` D8). |
+| Function                                            | Description                                                                                                                                                     |
+| --------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [mountReplayer](functions/mountReplayer.md)         | Renders the replayer for one session inside `host`: rrweb replay, play / pause, timeline, commit markers (click restores the working tree) and restore results. |
+| [parseReplayMarker](functions/parseReplayMarker.md) | Parses an rrweb event into a marker of this plugin.                                                                                                             |
+| [replayRestoreHint](functions/replayRestoreHint.md) | One-line English hint shown to the user when `restoreToCommit()` is rejected (`git show 2e820521:specs/005-us-909-session-replay/research.md` D8).              |

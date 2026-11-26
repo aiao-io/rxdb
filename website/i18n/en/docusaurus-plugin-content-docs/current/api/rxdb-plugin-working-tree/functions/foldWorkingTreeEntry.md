@@ -10,10 +10,10 @@ Folds one capture into the existing working tree unit
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                                            | Description                                                                 |
+| ---------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | `existing` | \| [`WorkingTreeEntryRow`](../interfaces/WorkingTreeEntryRow.md) \| `undefined` | The entity's existing uncommitted unit; pass `undefined` when there is none |
-| `write` | [`CapturedWrite`](../interfaces/CapturedWrite.md) | The write captured this time |
+| `write`    | [`CapturedWrite`](../interfaces/CapturedWrite.md)                               | The write captured this time                                                |
 
 ## Returns
 

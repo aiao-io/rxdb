@@ -10,10 +10,10 @@ Restore complete → writes the pending switch record and reloads the whole page
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                            |
+| --------- | ----------------------------------------------- |
 | `storage` | [`BoardStorage`](../interfaces/BoardStorage.md) |
-| `dbName` | `string` |
+| `dbName`  | `string`                                        |
 
 ## Returns
 

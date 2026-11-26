@@ -27,14 +27,14 @@ push, and cloud backup.
 
 ## Comparison with other adapters
 
-| Feature        | Supabase        | PGlite     | wa-sqlite |
-| -------------- | --------------- | ---------- | --------- |
-| Deployment     | Cloud/self-host | Local      | Local     |
-| Multi-device sync | ✅           | ❌         | ❌        |
-| Realtime subscription | ✅       | ❌         | ❌        |
-| Offline-first  | ✅ (hybrid)     | ✅         | ✅        |
-| Database       | PostgreSQL      | PostgreSQL | SQLite    |
-| Auth integration | ✅            | ❌         | ❌        |
+| Feature               | Supabase        | PGlite     | wa-sqlite |
+| --------------------- | --------------- | ---------- | --------- |
+| Deployment            | Cloud/self-host | Local      | Local     |
+| Multi-device sync     | ✅              | ❌         | ❌        |
+| Realtime subscription | ✅              | ❌         | ❌        |
+| Offline-first         | ✅ (hybrid)     | ✅         | ✅        |
+| Database              | PostgreSQL      | PostgreSQL | SQLite    |
+| Auth integration      | ✅              | ❌         | ❌        |
 
 ## Installation
 
@@ -334,12 +334,12 @@ class SupabaseRepository<T> extends RepositoryBase<T> {
 
 Capability boundaries of relation conditions:
 
-| Form                       | Supported | Generated PostgREST construct          |
-| -------------------------- | --------- | -------------------------------------- |
-| `exists` (no `where`)      | ✅        | `relation=not.is.null`                 |
-| `exists` + `where`         | ✅        | `relation!inner(*)` + nested filters   |
-| `notExists` (no `where`)   | ✅        | `relation=is.null`                     |
-| `notExists` + `where`      | ❌        | **throws** — PostgREST cannot express anti-joins |
+| Form                     | Supported | Generated PostgREST construct                    |
+| ------------------------ | --------- | ------------------------------------------------ |
+| `exists` (no `where`)    | ✅        | `relation=not.is.null`                           |
+| `exists` + `where`       | ✅        | `relation!inner(*)` + nested filters             |
+| `notExists` (no `where`) | ✅        | `relation=is.null`                               |
+| `notExists` + `where`    | ❌        | **throws** — PostgREST cannot express anti-joins |
 
 `notExists` with sub-conditions throws during query construction and never
 issues a request. The reason: PostgREST's nested filters only trim the embedded
@@ -429,13 +429,13 @@ visibility requirement is added because of this return value requirement.
 `p_updates` → `p_deletes`; for non-main branches the three write arrays are
 empty and only change records are written):
 
-| Parameter     | Shape                                              | Landing approach                                                                           |
-| ------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `p_upserts`   | `[{ table, schema, data: [{ id, ...all columns }] }]` | New entities: `INSERT … ON CONFLICT (id) DO UPDATE`                                        |
-| `p_updates`   | `[{ table, schema, data: [{ id, ...changed columns }] }]` | Modified entities: ordinary `UPDATE`, only changing the columns present; absent columns keep their original values |
-| `p_deletes`   | `[{ table, schema, ids: [...] }]`                  | Deleted entities                                                                           |
-| `p_changes`   | `RxDBChange[]`                                     | Written into `rxdb_change`; on duplicate `(clientId, localId)` the whole batch's entity operations are skipped |
-| `p_skip_sync` | `boolean`                                          | When `true`, explicit changes use `p_changes`, triggers capture actual deletes, and the RPC writes implicit DELETEs uniformly after the source log |
+| Parameter     | Shape                                                     | Landing approach                                                                                                                                   |
+| ------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `p_upserts`   | `[{ table, schema, data: [{ id, ...all columns }] }]`     | New entities: `INSERT … ON CONFLICT (id) DO UPDATE`                                                                                                |
+| `p_updates`   | `[{ table, schema, data: [{ id, ...changed columns }] }]` | Modified entities: ordinary `UPDATE`, only changing the columns present; absent columns keep their original values                                 |
+| `p_deletes`   | `[{ table, schema, ids: [...] }]`                         | Deleted entities                                                                                                                                   |
+| `p_changes`   | `RxDBChange[]`                                            | Written into `rxdb_change`; on duplicate `(clientId, localId)` the whole batch's entity operations are skipped                                     |
+| `p_skip_sync` | `boolean`                                                 | When `true`, explicit changes use `p_changes`, triggers capture actual deletes, and the RPC writes implicit DELETEs uniformly after the source log |
 
 The push return object contains `upserted` (inserted rows) / `updated`
 (modification count) / `deleted` / `changes` / `max_change_id` /
@@ -449,10 +449,10 @@ shared-edit tables. When an update affects 0 rows the whole batch rolls back
 and errors, and the `DETAIL` of both error kinds is the JSON
 `{"op","schema","table","entityId","reason"}`:
 
-| SQLSTATE | `reason` | Meaning                                                  |
-| -------- | -------- | -------------------------------------------------------- |
+| SQLSTATE | `reason` | Meaning                                                                                |
+| -------- | -------- | -------------------------------------------------------------------------------------- |
 | `42501`  | `denied` | The row still exists, but the caller's row-level privilege does not allow modifying it |
-| `RX001`  | `gone`   | The row no longer exists (deleted); a partial row is never inserted to resurrect it |
+| `RX001`  | `gone`   | The row no longer exists (deleted); a partial row is never inserted to resurrect it    |
 
 Error code semantics are in [US-220 sqlstate-registry](https://github.com/aiao-io/rxdb/blob/8cc005bb2dda3de51ab0eabb0cdea7e833395c35/specs/006-us220-update-push-semantics/contracts/sqlstate-registry.md).
 Upgrading from an old version requires running the new SQL first and then
@@ -563,29 +563,29 @@ MIT
 
 ## Classes
 
-| Class | Description |
-| ------ | ------ |
-| [RxDBAdapterSupabase](classes/RxDBAdapterSupabase.md) | The Supabase adapter |
-| [SupabaseConfigError](classes/SupabaseConfigError.md) | Configuration error |
-| [SupabaseDataError](classes/SupabaseDataError.md) | Data error |
-| [~~SupabaseNetworkError~~](classes/SupabaseNetworkError.md) | Network error |
-| [SupabaseRepository](classes/SupabaseRepository.md) | Supabase Repository — provides CRUD operations on Supabase tables |
-| [SupabaseSyncError](classes/SupabaseSyncError.md) | The base class of Supabase sync errors |
-| [SupabaseTreeRepository](classes/SupabaseTreeRepository.md) | Supabase Tree Repository — provides query operations on tree structures |
+| Class                                                                                   | Description                                                                                             |
+| --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| [RxDBAdapterSupabase](classes/RxDBAdapterSupabase.md)                                   | The Supabase adapter                                                                                    |
+| [SupabaseConfigError](classes/SupabaseConfigError.md)                                   | Configuration error                                                                                     |
+| [SupabaseDataError](classes/SupabaseDataError.md)                                       | Data error                                                                                              |
+| [~~SupabaseNetworkError~~](classes/SupabaseNetworkError.md)                             | Network error                                                                                           |
+| [SupabaseRepository](classes/SupabaseRepository.md)                                     | Supabase Repository — provides CRUD operations on Supabase tables                                       |
+| [SupabaseSyncError](classes/SupabaseSyncError.md)                                       | The base class of Supabase sync errors                                                                  |
+| [SupabaseTreeRepository](classes/SupabaseTreeRepository.md)                             | Supabase Tree Repository — provides query operations on tree structures                                 |
 | [SupabaseUnsupportedPropertyTypeError](classes/SupabaseUnsupportedPropertyTypeError.md) | The configuration error thrown when the Supabase remote encounters an unsupported entity property type. |
 
 ## Interfaces
 
-| Interface | Description |
-| ------ | ------ |
-| [SupabaseAdapterOptions](interfaces/SupabaseAdapterOptions.md) | Supabase Adapter configuration options |
+| Interface                                                          | Description                                                                                     |
+| ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| [SupabaseAdapterOptions](interfaces/SupabaseAdapterOptions.md)     | Supabase Adapter configuration options                                                          |
 | [SupabaseDataErrorOptions](interfaces/SupabaseDataErrorOptions.md) | The fields [SupabaseDataError](classes/SupabaseDataError.md) keeps from the database error body |
-| [SupabaseRlsCheckOptions](interfaces/SupabaseRlsCheckOptions.md) | - |
-| [SupabaseRlsCheckTable](interfaces/SupabaseRlsCheckTable.md) | - |
+| [SupabaseRlsCheckOptions](interfaces/SupabaseRlsCheckOptions.md)   | -                                                                                               |
+| [SupabaseRlsCheckTable](interfaces/SupabaseRlsCheckTable.md)       | -                                                                                               |
 
 ## Variables
 
-| Variable | Description |
-| ------ | ------ |
-| [ADAPTER\_NAME](variables/ADAPTER_NAME.md) | - |
+| Variable                                                    | Description                                                                                                               |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| [ADAPTER\_NAME](variables/ADAPTER_NAME.md)                  | -                                                                                                                         |
 | [SUPABASE\_SDK\_VERSION](variables/SUPABASE_SDK_VERSION.md) | The minimum supported @supabase/supabase-js version this adapter is based on (aligned with package.json peerDependencies) |

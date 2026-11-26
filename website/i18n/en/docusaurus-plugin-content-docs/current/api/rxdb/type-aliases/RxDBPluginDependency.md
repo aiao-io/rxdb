@@ -1,10 +1,7 @@
 # RxDBPluginDependency
 
 ```ts
-type RxDBPluginDependency = 
-  | "adapter:local"
-  | "adapter:remote"
-  | `plugin:${Uncapitalize<string>}`;
+type RxDBPluginDependency = 'adapter:local' | 'adapter:remote' | `plugin:${Uncapitalize<string>}`;
 ```
 
 Defined in: [packages/rxdb/src/rxdb-plugin.ts:51](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-plugin.ts#L51)
@@ -24,5 +21,6 @@ the former collides with built-in resource keys that may be added in the future,
 the `Uncapitalize<string>` of [IRxDBPlugin.name](../interfaces/IRxDBPlugin.md#name), so the lookup is guaranteed to miss.
 
 There are two readiness criteria, and both mean "usable" rather than "present":
+
 - `adapter:*` — the adapter's bootstrap chain (migration, table creation, index reconcile) has finished
 - `plugin:*` — the plugin has entered `active`

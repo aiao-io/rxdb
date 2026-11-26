@@ -16,7 +16,7 @@ Defined in: [palette/controller.ts:50](https://github.com/aiao-io/rxdb/blob/b523
 
 The index among all results, used by keyboard navigation.
 
-***
+---
 
 ### item \{#item\}
 
@@ -28,7 +28,7 @@ Defined in: [palette/controller.ts:44](https://github.com/aiao-io/rxdb/blob/b523
 
 The executable entry.
 
-***
+---
 
 ### segments \{#segments\}
 
@@ -40,7 +40,7 @@ Defined in: [palette/controller.ts:48](https://github.com/aiao-io/rxdb/blob/b523
 
 The primary text split into segments by match.
 
-***
+---
 
 ### sourceId \{#sourceid\}
 

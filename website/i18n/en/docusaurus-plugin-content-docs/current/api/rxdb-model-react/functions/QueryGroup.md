@@ -10,8 +10,8 @@ Query rule group component (recursive).
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter           | Type                                                  |
+| ------------------- | ----------------------------------------------------- |
 | `__namedParameters` | [`QueryGroupProps`](../interfaces/QueryGroupProps.md) |
 
 ## Returns

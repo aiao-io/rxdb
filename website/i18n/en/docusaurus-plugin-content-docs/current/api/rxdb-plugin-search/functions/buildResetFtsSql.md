@@ -14,9 +14,9 @@ Must use `INSERT INTO <fts>(<fts>) VALUES('delete-all')` — FTS5 virtual tables
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `plan` | [`FtsInstallPlan`](../interfaces/FtsInstallPlan.md) |
+| Parameter | Type                                                |
+| --------- | --------------------------------------------------- |
+| `plan`    | [`FtsInstallPlan`](../interfaces/FtsInstallPlan.md) |
 
 ## Returns
 

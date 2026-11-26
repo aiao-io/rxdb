@@ -16,15 +16,15 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts:6](
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `path`    | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### mkdirSync() \{#mkdirsync\}
 
@@ -36,16 +36,16 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts:7](
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `string` |
+| Parameter    | Type      |
+| ------------ | --------- |
+| `path`       | `string`  |
 | `recursive?` | `boolean` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### readFileSync() \{#readfilesync\}
 
@@ -57,16 +57,16 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts:8](
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `string` |
+| Parameter  | Type       |
+| ---------- | ---------- |
+| `path`     | `string`   |
 | `encoding` | `"base64"` |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### unlinkSync() \{#unlinksync\}
 
@@ -78,15 +78,15 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts:9](
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `path`    | `string` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### writeFileSync() \{#writefilesync\}
 
@@ -98,10 +98,10 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts:10]
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `path` | `string` |
-| `data` | `ArrayBuffer` |
+| Parameter | Type          |
+| --------- | ------------- |
+| `path`    | `string`      |
+| `data`    | `ArrayBuffer` |
 
 #### Returns
 

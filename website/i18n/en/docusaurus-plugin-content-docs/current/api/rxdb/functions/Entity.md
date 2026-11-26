@@ -10,6 +10,7 @@ Entity decorator.
 Marks a class as an RxDB entity and handles metadata, proxies, and lifecycle.
 
 The decorator:
+
 1. Transforms and stores the entity metadata
 2. Handles the entity's default values and initial values
 3. Creates a proxy for the entity to support change tracking and relation management
@@ -17,8 +18,8 @@ The decorator:
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter         | Type                                                              | Description                                                                                                    |
+| ----------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
 | `metadataOptions` | [`EntityMetadataOptions`](../interfaces/EntityMetadataOptions.md) | Entity metadata options, including name, display name, properties, relations, indexes, and other configuration |
 
 ## Returns

@@ -1,24 +1,24 @@
 # ReplayState
 
 ```ts
-type ReplayState = 
+type ReplayState =
   | {
-  kind: "idle";
-}
+      kind: 'idle';
+    }
   | {
-  kind: "recording";
-  sessionId: string;
-}
+      kind: 'recording';
+      sessionId: string;
+    }
   | {
-  code: ReplayTruncatedCode;
-  kind: "truncated";
-  sessionId: string;
-}
+      code: ReplayTruncatedCode;
+      kind: 'truncated';
+      sessionId: string;
+    }
   | {
-  error: Error;
-  kind: "error";
-  sessionId: string | null;
-};
+      error: Error;
+      kind: 'error';
+      sessionId: string | null;
+    };
 ```
 
 Defined in: [packages/rxdb-plugin-replay/src/types.ts:35](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-replay/src/types.ts#L35)

@@ -1,23 +1,23 @@
 # WorktreeUnavailableReason
 
 ```ts
-type WorktreeUnavailableReason = 
-  | "not_configured"
-  | "unsupported_adapter"
-  | "adapter_mismatch"
-  | "branch_not_found"
-  | "branch_not_materialized"
-  | "incomplete_entities"
-  | "unreachable_target"
-  | "incompatible_schema"
-  | "restoring_working_tree"
-  | "locks_unavailable"
-  | "in_use"
-  | "not_found"
-  | "schema_mismatch"
-  | "schema_rebuild_failed"
-  | "invalid_name"
-  | "name_taken";
+type WorktreeUnavailableReason =
+  | 'not_configured'
+  | 'unsupported_adapter'
+  | 'adapter_mismatch'
+  | 'branch_not_found'
+  | 'branch_not_materialized'
+  | 'incomplete_entities'
+  | 'unreachable_target'
+  | 'incompatible_schema'
+  | 'restoring_working_tree'
+  | 'locks_unavailable'
+  | 'in_use'
+  | 'not_found'
+  | 'schema_mismatch'
+  | 'schema_rebuild_failed'
+  | 'invalid_name'
+  | 'name_taken';
 ```
 
 Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-errors.ts:31](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/checkout/worktree-errors.ts#L31)

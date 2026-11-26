@@ -1,7 +1,7 @@
 # ACTIVE_BRANCH_KEY
 
 ```ts
-const ACTIVE_BRANCH_KEY: "*active*" = '*active*';
+const ACTIVE_BRANCH_KEY: '*active*' = '*active*';
 ```
 
 Defined in: [packages/rxdb/src/system/active-branch-guard.ts:54](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/active-branch-guard.ts#L54)

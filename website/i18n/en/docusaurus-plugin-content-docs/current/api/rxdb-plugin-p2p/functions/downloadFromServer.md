@@ -10,16 +10,16 @@ Verifies the server response stream chunk-by-chunk against the manifest and writ
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `options` | \{ `fallback`: [`P2PServerFallback`](../interfaces/P2PServerFallback.md); `manifest`: [`P2PFileManifest`](../interfaces/P2PFileManifest.md); `onProgress?`: (`progress`) => `void`; `readChunk?`: (`index`) => `Promise`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt;; `signal?`: `AbortSignal`; `token?`: `string`; `writeChunk`: (`index`, `bytes`) => `Promise`&lt;`void`&gt;; \} |
-| `options.fallback` | [`P2PServerFallback`](../interfaces/P2PServerFallback.md) |
-| `options.manifest` | [`P2PFileManifest`](../interfaces/P2PFileManifest.md) |
-| `options.onProgress?` | (`progress`) => `void` |
-| `options.readChunk?` | (`index`) => `Promise`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt; |
-| `options.signal?` | `AbortSignal` |
-| `options.token?` | `string` |
-| `options.writeChunk` | (`index`, `bytes`) => `Promise`&lt;`void`&gt; |
+| Parameter             | Type                                                                                                                                                                                                                                                                                                                                                                                 |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `options`             | \{ `fallback`: [`P2PServerFallback`](../interfaces/P2PServerFallback.md); `manifest`: [`P2PFileManifest`](../interfaces/P2PFileManifest.md); `onProgress?`: (`progress`) => `void`; `readChunk?`: (`index`) => `Promise`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt;; `signal?`: `AbortSignal`; `token?`: `string`; `writeChunk`: (`index`, `bytes`) => `Promise`&lt;`void`&gt;; \} |
+| `options.fallback`    | [`P2PServerFallback`](../interfaces/P2PServerFallback.md)                                                                                                                                                                                                                                                                                                                            |
+| `options.manifest`    | [`P2PFileManifest`](../interfaces/P2PFileManifest.md)                                                                                                                                                                                                                                                                                                                                |
+| `options.onProgress?` | (`progress`) => `void`                                                                                                                                                                                                                                                                                                                                                               |
+| `options.readChunk?`  | (`index`) => `Promise`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt;                                                                                                                                                                                                                                                                                                                  |
+| `options.signal?`     | `AbortSignal`                                                                                                                                                                                                                                                                                                                                                                        |
+| `options.token?`      | `string`                                                                                                                                                                                                                                                                                                                                                                             |
+| `options.writeChunk`  | (`index`, `bytes`) => `Promise`&lt;`void`&gt;                                                                                                                                                                                                                                                                                                                                        |
 
 ## Returns
 

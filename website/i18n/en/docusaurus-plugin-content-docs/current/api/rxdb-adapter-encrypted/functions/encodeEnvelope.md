@@ -10,9 +10,9 @@ Serializes an envelope into the on-disk text form.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `env` | [`CryptoEnvelope`](../interfaces/CryptoEnvelope.md) |
+| Parameter | Type                                                |
+| --------- | --------------------------------------------------- |
+| `env`     | [`CryptoEnvelope`](../interfaces/CryptoEnvelope.md) |
 
 ## Returns
 

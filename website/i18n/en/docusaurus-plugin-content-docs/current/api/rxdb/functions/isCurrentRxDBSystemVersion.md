@@ -10,9 +10,9 @@ Determines whether the library has already stopped at the current watermark; bot
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `state` | [`RxDBSystemVersionState`](../interfaces/RxDBSystemVersionState.md) | The result of [getRxDBSystemVersionState](getRxDBSystemVersionState.md) |
+| Parameter | Type                                                                | Description                                                             |
+| --------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `state`   | [`RxDBSystemVersionState`](../interfaces/RxDBSystemVersionState.md) | The result of [getRxDBSystemVersionState](getRxDBSystemVersionState.md) |
 
 ## Returns
 

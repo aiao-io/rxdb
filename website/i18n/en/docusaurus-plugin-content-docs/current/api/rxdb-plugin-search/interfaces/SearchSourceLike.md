@@ -18,9 +18,9 @@ Defined in: [packages/rxdb-plugin-search/src/types.ts:113](https://github.com/ai
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `query` | `string` |
+| Parameter  | Type                                |
+| ---------- | ----------------------------------- |
+| `query`    | `string`                            |
 | `options?` | [`SearchOptions`](SearchOptions.md) |
 
 #### Returns

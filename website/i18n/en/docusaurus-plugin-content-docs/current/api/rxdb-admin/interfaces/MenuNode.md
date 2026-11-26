@@ -1,5 +1,5 @@
 ---
-sidebar_label: "MenuNode⟨TIcon⟩"
+sidebar_label: 'MenuNode⟨TIcon⟩'
 ---
 
 # MenuNode`<TIcon>`
@@ -10,9 +10,9 @@ A navigation menu node.
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-ticon"></a> `TIcon` | `unknown` |
+| Type Parameter                            | Default type |
+| ----------------------------------------- | ------------ |
+| <a id="type-parameter-ticon"></a> `TIcon` | `unknown`    |
 
 ## Properties
 
@@ -26,7 +26,7 @@ Defined in: [layout/menu.ts:14](https://github.com/aiao-io/rxdb/blob/b5232040240
 
 The child nodes.
 
-***
+---
 
 ### expanded? \{#expanded\}
 
@@ -38,7 +38,7 @@ Defined in: [layout/menu.ts:16](https://github.com/aiao-io/rxdb/blob/b5232040240
 
 Whether the group is initially expanded; the group containing the current page is always expanded.
 
-***
+---
 
 ### icon? \{#icon\}
 
@@ -50,7 +50,7 @@ Defined in: [layout/menu.ts:10](https://github.com/aiao-io/rxdb/blob/b5232040240
 
 The icon; its type is determined by the three framework bindings (React node, Vue component, Angular icon name, etc.).
 
-***
+---
 
 ### id \{#id\}
 
@@ -62,7 +62,7 @@ Defined in: [layout/menu.ts:6](https://github.com/aiao-io/rxdb/blob/b5232040240c
 
 The unique identifier.
 
-***
+---
 
 ### label \{#label\}
 
@@ -74,7 +74,7 @@ Defined in: [layout/menu.ts:8](https://github.com/aiao-io/rxdb/blob/b5232040240c
 
 The display text.
 
-***
+---
 
 ### route? \{#route\}
 
@@ -86,7 +86,7 @@ Defined in: [layout/menu.ts:12](https://github.com/aiao-io/rxdb/blob/b5232040240
 
 The route URL; pure group nodes do not have one.
 
-***
+---
 
 ### testId? \{#testid\}
 

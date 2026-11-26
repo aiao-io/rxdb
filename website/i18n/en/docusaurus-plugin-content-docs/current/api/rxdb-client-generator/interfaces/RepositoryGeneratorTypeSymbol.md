@@ -16,7 +16,7 @@ Defined in: [generators/RepositoryGenerator.interface.ts:54](https://github.com/
 
 Whether it is re-exported by `index.d.ts`; in split mode the exported name occupies a scope of its own.
 
-***
+---
 
 ### name \{#name\}
 

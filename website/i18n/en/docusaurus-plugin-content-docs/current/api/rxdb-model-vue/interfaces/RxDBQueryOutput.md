@@ -1,5 +1,5 @@
 ---
-sidebar_label: "RxDBQueryOutput⟨T⟩"
+sidebar_label: 'RxDBQueryOutput⟨T⟩'
 ---
 
 # RxDBQueryOutput`<T>`
@@ -10,8 +10,8 @@ RxDB query output format (aligned with `RxDBQueryOutput` on the Angular side).
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Properties
@@ -19,12 +19,12 @@ RxDB query output format (aligned with `RxDBQueryOutput` on the Angular side).
 ### combinator \{#combinator\}
 
 ```ts
-combinator: "and" | "or";
+combinator: 'and' | 'or';
 ```
 
 Defined in: [packages/rxdb-model-vue/src/query-builder/query-builder/query-builder-types.ts:5](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-model-vue/src/query-builder/query-builder/query-builder-types.ts#L5)
 
-***
+---
 
 ### rules \{#rules\}
 

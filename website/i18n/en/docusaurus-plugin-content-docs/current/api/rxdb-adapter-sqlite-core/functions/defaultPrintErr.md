@@ -10,9 +10,9 @@ Default `printErr` implementation: filters out known noise, then forwards to `co
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `msg` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `msg`     | `string` |
 
 ## Returns
 

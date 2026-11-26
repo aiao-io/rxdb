@@ -10,9 +10,9 @@ Formats an integer as an SQL numeric literal.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `number` | The integer value (branch generation, headRevision, etc.) |
+| Parameter | Type     | Description                                               |
+| --------- | -------- | --------------------------------------------------------- |
+| `value`   | `number` | The integer value (branch generation, headRevision, etc.) |
 
 ## Returns
 

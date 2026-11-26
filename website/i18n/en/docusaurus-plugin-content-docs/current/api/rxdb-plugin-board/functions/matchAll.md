@@ -15,7 +15,7 @@ Empty rule group that matches all rows.
 ### combinator
 
 ```ts
-combinator: "and";
+combinator: 'and';
 ```
 
 ### rules

@@ -16,15 +16,15 @@ Defined in: [packages/rxdb-plugin-board-vue/src/use-board.ts:59](https://github.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `key` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `key`     | `string` |
 
 #### Returns
 
 `string` \| `null`
 
-***
+---
 
 ### set() \{#set\}
 
@@ -36,10 +36,10 @@ Defined in: [packages/rxdb-plugin-board-vue/src/use-board.ts:60](https://github.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `key` | `string` |
-| `value` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `key`     | `string` |
+| `value`   | `string` |
 
 #### Returns
 

@@ -13,8 +13,8 @@ an unknown platform id throws `MiniProgramUnknownPlatformError` directly.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                                            |
+| --------- | ----------------------------------------------------------------------------------------------- |
 | `options` | [`MiniProgramRuntimeCapabilityOptions`](../type-aliases/MiniProgramRuntimeCapabilityOptions.md) |
 
 ## Returns

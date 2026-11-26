@@ -26,7 +26,7 @@ When true, the undo/redo history boundary is no longer valid and the undo histor
 
 [`SyncProgress`](SyncProgress.md).[`historyInvalidated`](SyncProgress.md#historyinvalidated)
 
-***
+---
 
 ### persistedProgress \{#persistedprogress\}
 
@@ -45,7 +45,7 @@ When true, part of this sync's results will **not** be rolled back, and a retry 
 
 [`SyncProgress`](SyncProgress.md).[`persistedProgress`](SyncProgress.md#persistedprogress)
 
-***
+---
 
 ### pullResult \{#pullresult\}
 
@@ -57,7 +57,7 @@ Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:629](ht
 
 Pull result.
 
-***
+---
 
 ### pushResult \{#pushresult\}
 

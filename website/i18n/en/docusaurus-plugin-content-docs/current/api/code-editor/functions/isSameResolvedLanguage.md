@@ -10,10 +10,10 @@ Determines whether two resolution results are equivalent — equivalent means "n
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `left` | \| [`ResolvedCodeEditorLanguage`](../type-aliases/ResolvedCodeEditorLanguage.md) \| `undefined` | The previously effective resolution result; `undefined` means nothing has been resolved yet |
-| `right` | [`ResolvedCodeEditorLanguage`](../type-aliases/ResolvedCodeEditorLanguage.md) | This resolution's result |
+| Parameter | Type                                                                                            | Description                                                                                 |
+| --------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `left`    | \| [`ResolvedCodeEditorLanguage`](../type-aliases/ResolvedCodeEditorLanguage.md) \| `undefined` | The previously effective resolution result; `undefined` means nothing has been resolved yet |
+| `right`   | [`ResolvedCodeEditorLanguage`](../type-aliases/ResolvedCodeEditorLanguage.md)                   | This resolution's result                                                                    |
 
 ## Returns
 

@@ -10,9 +10,9 @@ Computes the overrides to write to the root node's `style` (custom properties or
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `prefs` | [`AdminPreferences`](../interfaces/AdminPreferences.md) | The preferences. |
+| Parameter | Type                                                    | Description      |
+| --------- | ------------------------------------------------------- | ---------------- |
+| `prefs`   | [`AdminPreferences`](../interfaces/AdminPreferences.md) | The preferences. |
 
 ## Returns
 

@@ -16,7 +16,7 @@ Defined in: [tabs/tabs-store.ts:40](https://github.com/aiao-io/rxdb/blob/b523204
 
 The configuration, which follows the preferences.
 
-***
+---
 
 ### storageKey? \{#storagekey\}
 
@@ -28,7 +28,7 @@ Defined in: [tabs/tabs-store.ts:44](https://github.com/aiao-io/rxdb/blob/b523204
 
 The storage key, defaulting to [TABS\_STORAGE\_KEY](../variables/TABS_STORAGE_KEY.md).
 
-***
+---
 
 ### storages \{#storages\}
 

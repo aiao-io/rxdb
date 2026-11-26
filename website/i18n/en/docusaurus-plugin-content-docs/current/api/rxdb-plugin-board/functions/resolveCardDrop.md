@@ -1,12 +1,7 @@
 # resolveCardDrop()
 
 ```ts
-function resolveCardDrop(
-   columns, 
-   movedId, 
-   x, 
-   y
-): CardDropTarget | null;
+function resolveCardDrop(columns, movedId, x, y): CardDropTarget | null;
 ```
 
 Defined in: [packages/rxdb-plugin-board/src/drop-resolution.ts:47](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board/src/drop-resolution.ts#L47)
@@ -15,12 +10,12 @@ Pointer coordinates → column head / between two neighbors / column tail / empt
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type                                                                   |
+| --------- | ---------------------------------------------------------------------- |
 | `columns` | readonly [`CardDropColumnView`](../interfaces/CardDropColumnView.md)[] |
-| `movedId` | `` `${string}-${string}-${string}-${string}-${string}` `` |
-| `x` | `number` |
-| `y` | `number` |
+| `movedId` | `` `${string}-${string}-${string}-${string}-${string}` ``              |
+| `x`       | `number`                                                               |
+| `y`       | `number`                                                               |
 
 ## Returns
 

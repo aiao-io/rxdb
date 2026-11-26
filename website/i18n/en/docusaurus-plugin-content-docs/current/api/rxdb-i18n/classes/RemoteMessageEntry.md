@@ -36,7 +36,7 @@ Deterministic JSON encoding of locale, namespace and key.
 
 [`MessageEntry`](MessageEntry.md).[`id`](MessageEntry.md#id)
 
-***
+---
 
 ### key \{#key\}
 
@@ -52,7 +52,7 @@ Message key.
 
 [`MessageEntry`](MessageEntry.md).[`key`](MessageEntry.md#key)
 
-***
+---
 
 ### locale \{#locale\}
 
@@ -68,7 +68,7 @@ Canonicalized locale.
 
 [`MessageEntry`](MessageEntry.md).[`locale`](MessageEntry.md#locale)
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -84,7 +84,7 @@ Namespace.
 
 [`MessageEntry`](MessageEntry.md).[`namespace`](MessageEntry.md#namespace)
 
-***
+---
 
 ### source \{#source\}
 
@@ -100,7 +100,7 @@ Source marker of the remote cache.
 
 [`MessageEntry`](MessageEntry.md).[`source`](MessageEntry.md#source)
 
-***
+---
 
 ### updatedAt \{#updatedat\}
 
@@ -116,7 +116,7 @@ Most recent update time.
 
 [`MessageEntry`](MessageEntry.md).[`updatedAt`](MessageEntry.md#updatedat)
 
-***
+---
 
 ### value \{#value\}
 

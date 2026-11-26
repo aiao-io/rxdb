@@ -1,7 +1,7 @@
 # AnyDevToolsMessage
 
 ```ts
-type AnyDevToolsMessage = 
+type AnyDevToolsMessage =
   | HandshakeMessage
   | HandshakeAckMessage
   | EventMessage

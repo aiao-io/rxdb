@@ -27,7 +27,7 @@ protected readonly locked: Signal<boolean>;
 
 Defined in: [rxdb-admin-angular/src/lock/lock-screen.component.ts:123](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-admin-angular/src/lock/lock-screen.component.ts#L123)
 
-***
+---
 
 ### t \{#t\}
 
@@ -41,9 +41,9 @@ Translates shell text.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `key` | `string` | Text key. |
+| Parameter | Type                                | Description     |
+| --------- | ----------------------------------- | --------------- |
+| `key`     | `string`                            | Text key.       |
 | `params?` | `Record`&lt;`string`, `unknown`&gt; | ICU parameters. |
 
 #### Returns

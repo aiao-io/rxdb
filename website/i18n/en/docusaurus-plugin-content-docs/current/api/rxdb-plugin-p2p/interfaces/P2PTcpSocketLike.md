@@ -32,7 +32,7 @@ Closes the connection immediately and releases the underlying resources.
 
 `void`
 
-***
+---
 
 ### off() \{#off\}
 
@@ -48,9 +48,9 @@ Unsubscribes from socket events.
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `"data"` |
+| Parameter  | Type                |
+| ---------- | ------------------- |
+| `event`    | `"data"`            |
 | `listener` | (`chunk`) => `void` |
 
 ##### Returns
@@ -67,9 +67,9 @@ Defined in: [packages/rxdb-plugin-p2p/src/session/tcp-transport.ts:21](https://g
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `"error"` |
+| Parameter  | Type                |
+| ---------- | ------------------- |
+| `event`    | `"error"`           |
 | `listener` | (`error`) => `void` |
 
 ##### Returns
@@ -86,16 +86,16 @@ Defined in: [packages/rxdb-plugin-p2p/src/session/tcp-transport.ts:22](https://g
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `"close"` \| `"drain"` |
-| `listener` | () => `void` |
+| Parameter  | Type                   |
+| ---------- | ---------------------- |
+| `event`    | `"close"` \| `"drain"` |
+| `listener` | () => `void`           |
 
 ##### Returns
 
 `void`
 
-***
+---
 
 ### on() \{#on\}
 
@@ -111,9 +111,9 @@ Subscribes to socket events: `data` carries bytes, `error` carries an error, `cl
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `"data"` |
+| Parameter  | Type                |
+| ---------- | ------------------- |
+| `event`    | `"data"`            |
 | `listener` | (`chunk`) => `void` |
 
 ##### Returns
@@ -130,9 +130,9 @@ Defined in: [packages/rxdb-plugin-p2p/src/session/tcp-transport.ts:17](https://g
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `"error"` |
+| Parameter  | Type                |
+| ---------- | ------------------- |
+| `event`    | `"error"`           |
 | `listener` | (`error`) => `void` |
 
 ##### Returns
@@ -149,16 +149,16 @@ Defined in: [packages/rxdb-plugin-p2p/src/session/tcp-transport.ts:18](https://g
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | `"close"` \| `"drain"` |
-| `listener` | () => `void` |
+| Parameter  | Type                   |
+| ---------- | ---------------------- |
+| `event`    | `"close"` \| `"drain"` |
+| `listener` | () => `void`           |
 
 ##### Returns
 
 `void`
 
-***
+---
 
 ### write() \{#write\}
 
@@ -172,9 +172,9 @@ Writes a byte span; returning false means the write buffer is full and writing m
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `data` | `Uint8Array` |
+| Parameter | Type         |
+| --------- | ------------ |
+| `data`    | `Uint8Array` |
 
 #### Returns
 

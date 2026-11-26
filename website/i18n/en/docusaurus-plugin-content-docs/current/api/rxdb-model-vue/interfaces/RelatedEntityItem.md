@@ -16,7 +16,7 @@ Defined in: packages/rxdb-model/dist/entity-form/interfaces.d.ts:110
 
 Display name
 
-***
+---
 
 ### id \{#id\}
 

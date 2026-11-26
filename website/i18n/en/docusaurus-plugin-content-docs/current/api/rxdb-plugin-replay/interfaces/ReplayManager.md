@@ -34,8 +34,8 @@ Deletes a session and all of its events (in the same transaction). This is the o
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter   | Type     |
+| ----------- | -------- |
 | `sessionId` | `string` |
 
 #### Returns
@@ -46,7 +46,7 @@ Deletes a session and all of its events (in the same transaction). This is the o
 
 `RxDBReplayError`: `session_recording` (still recording), `session_not_found`
 
-***
+---
 
 ### exportSession() \{#exportsession\}
 
@@ -60,8 +60,8 @@ Exports the whole session (can be `JSON.stringify`ed for archiving or sharing).
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter   | Type     |
+| ----------- | -------- |
 | `sessionId` | `string` |
 
 #### Returns
@@ -72,7 +72,7 @@ Exports the whole session (can be `JSON.stringify`ed for archiving or sharing).
 
 `RxDBReplayError('session_not_found')`
 
-***
+---
 
 ### listCommitMarkers() \{#listcommitmarkers\}
 
@@ -86,8 +86,8 @@ Commit markers in the session, in ascending `seq` order.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter   | Type     |
+| ----------- | -------- |
 | `sessionId` | `string` |
 
 #### Returns
@@ -98,7 +98,7 @@ Commit markers in the session, in ascending `seq` order.
 
 `RxDBReplayError('session_not_found')`
 
-***
+---
 
 ### listSessions() \{#listsessions\}
 
@@ -114,7 +114,7 @@ All sessions, in descending `startedAt` order.
 
 `Promise`&lt;[`ReplaySessionInfo`](ReplaySessionInfo.md)[]&gt;
 
-***
+---
 
 ### readEvents() \{#readevents\}
 
@@ -128,10 +128,10 @@ Reads the events of a session in ascending `seq` order; when a range is given, o
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `sessionId` | `string` |
-| `range?` | [`ReplayEventRange`](ReplayEventRange.md) |
+| Parameter   | Type                                      |
+| ----------- | ----------------------------------------- |
+| `sessionId` | `string`                                  |
+| `range?`    | [`ReplayEventRange`](ReplayEventRange.md) |
 
 #### Returns
 
@@ -141,7 +141,7 @@ Reads the events of a session in ascending `seq` order; when a range is given, o
 
 `RxDBReplayError('session_not_found')`
 
-***
+---
 
 ### restoreToCommit() \{#restoretocommit\}
 
@@ -155,8 +155,8 @@ Restores the working tree to a commit (fetches fresh credentials from the moment
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `commitId` | `string` |
 
 #### Returns
@@ -167,7 +167,7 @@ Restores the working tree to a commit (fetches fresh credentials from the moment
 
 `RxDBReplayError('working_tree_unavailable')`: the working tree plugin is not installed; other errors are passed through as-is
 
-***
+---
 
 ### start() \{#start\}
 
@@ -189,7 +189,7 @@ Id of the new session
 
 `RxDBReplayError`: `no_dom`, `already_recording`, `store_limit`, `recording_db_unavailable`
 
-***
+---
 
 ### stop() \{#stop\}
 
@@ -205,7 +205,7 @@ Stops recording and flushes remaining events; returns immediately when not recor
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### usage() \{#usage\}
 

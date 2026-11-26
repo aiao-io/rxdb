@@ -10,8 +10,8 @@ Whether the time window actually needs to be wired into the pipeline.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type     | Description                         |
+| ---------- | -------- | ----------------------------------- |
 | `duration` | `number` | The window duration in milliseconds |
 
 ## Returns

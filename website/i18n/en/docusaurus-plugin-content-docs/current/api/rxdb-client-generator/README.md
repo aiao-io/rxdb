@@ -97,6 +97,7 @@ RxDB Client Generator
 The RxDB client code generator, generating type definitions and entity class code from entity metadata
 
 Main features:
+
 - Generates .d.ts type definition files from EntityMetadata
 - Generates the .js files of entity classes (using decorators)
 - Supports both split-file (splitFiles) and single-file generation modes
@@ -104,37 +105,37 @@ Main features:
 
 ## Classes
 
-| Class | Description |
-| ------ | ------ |
-| [RepositoryGeneratorBase](classes/RepositoryGeneratorBase.md) | Base Repository generator (abstract base class). Provides common utility methods; subclasses generate their own Repository properties and methods |
-| [RepositoryMethodsGenerator](classes/RepositoryMethodsGenerator.md) | Repository generator. Generates common CRUD properties and methods for all entities: get, find, findOne, save, remove, etc. |
-| [RxDBClientGenerator](classes/RxDBClientGenerator.md) | RxDB Client generator |
+| Class                                                               | Description                                                                                                                                       |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [RepositoryGeneratorBase](classes/RepositoryGeneratorBase.md)       | Base Repository generator (abstract base class). Provides common utility methods; subclasses generate their own Repository properties and methods |
+| [RepositoryMethodsGenerator](classes/RepositoryMethodsGenerator.md) | Repository generator. Generates common CRUD properties and methods for all entities: get, find, findOne, save, remove, etc.                       |
+| [RxDBClientGenerator](classes/RxDBClientGenerator.md)               | RxDB Client generator                                                                                                                             |
 
 ## Interfaces
 
-| Interface | Description |
-| ------ | ------ |
-| [EntitySourceGetter](interfaces/EntitySourceGetter.md) | Read-only getter carried from the entity source into the generation runtime and declaration files. |
-| [GeneratorContext](interfaces/GeneratorContext.md) | Generator context. Contains all context information needed for generating properties and methods |
-| [IRepositoryGenerator](interfaces/IRepositoryGenerator.md) | Repository generator interface |
-| [RepositoryGeneratorSymbols](interfaces/RepositoryGeneratorSymbols.md) | Output symbols self-reported by the generator |
-| [RepositoryGeneratorTypeSymbol](interfaces/RepositoryGeneratorTypeSymbol.md) | One top-level type name self-reported by the generator. |
-| [RuleTypeData](interfaces/RuleTypeData.md) | Type description of a single query rule. |
-| [RxDBClientGeneratorOptions](interfaces/RxDBClientGeneratorOptions.md) | Code shape and query type configuration of the RxDB client generator. |
-| [SourceFile](interfaces/SourceFile.md) | The lightweight source file interface used by the generator. |
+| Interface                                                                    | Description                                                                                        |
+| ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| [EntitySourceGetter](interfaces/EntitySourceGetter.md)                       | Read-only getter carried from the entity source into the generation runtime and declaration files. |
+| [GeneratorContext](interfaces/GeneratorContext.md)                           | Generator context. Contains all context information needed for generating properties and methods   |
+| [IRepositoryGenerator](interfaces/IRepositoryGenerator.md)                   | Repository generator interface                                                                     |
+| [RepositoryGeneratorSymbols](interfaces/RepositoryGeneratorSymbols.md)       | Output symbols self-reported by the generator                                                      |
+| [RepositoryGeneratorTypeSymbol](interfaces/RepositoryGeneratorTypeSymbol.md) | One top-level type name self-reported by the generator.                                            |
+| [RuleTypeData](interfaces/RuleTypeData.md)                                   | Type description of a single query rule.                                                           |
+| [RxDBClientGeneratorOptions](interfaces/RxDBClientGeneratorOptions.md)       | Code shape and query type configuration of the RxDB client generator.                              |
+| [SourceFile](interfaces/SourceFile.md)                                       | The lightweight source file interface used by the generator.                                       |
 
 ## Variables
 
-| Variable | Description |
-| ------ | ------ |
-| [NAMESPACE\_PUBLIC](variables/NAMESPACE_PUBLIC.md) | The default namespace used by generated code. Entities without a namespace fall into this space. |
-| [REPOSITORY\_TYPE\_GRAPH\_REPOSITORY](variables/REPOSITORY_TYPE_GRAPH_REPOSITORY.md) | Registration name of the graph Repository generator, for plugin extensions. |
-| [REPOSITORY\_TYPE\_REPOSITORY](variables/REPOSITORY_TYPE_REPOSITORY.md) | Registration name of the built-in plain Repository generator. |
-| [REPOSITORY\_TYPE\_TREE\_REPOSITORY](variables/REPOSITORY_TYPE_TREE_REPOSITORY.md) | Registration name of the tree Repository generator, for plugin extensions. |
+| Variable                                                                             | Description                                                                                      |
+| ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| [NAMESPACE\_PUBLIC](variables/NAMESPACE_PUBLIC.md)                                   | The default namespace used by generated code. Entities without a namespace fall into this space. |
+| [REPOSITORY\_TYPE\_GRAPH\_REPOSITORY](variables/REPOSITORY_TYPE_GRAPH_REPOSITORY.md) | Registration name of the graph Repository generator, for plugin extensions.                      |
+| [REPOSITORY\_TYPE\_REPOSITORY](variables/REPOSITORY_TYPE_REPOSITORY.md)              | Registration name of the built-in plain Repository generator.                                    |
+| [REPOSITORY\_TYPE\_TREE\_REPOSITORY](variables/REPOSITORY_TYPE_TREE_REPOSITORY.md)   | Registration name of the tree Repository generator, for plugin extensions.                       |
 
 ## Functions
 
-| Function | Description |
-| ------ | ------ |
-| [buildRules](functions/buildRules.md) | Renders rule data into rule type literals, registering the required named imports along the way. |
+| Function                                                | Description                                                                                           |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| [buildRules](functions/buildRules.md)                   | Renders rule data into rule type literals, registering the required named imports along the way.      |
 | [generateEntityRules](functions/generateEntityRules.md) | Recursively collects all query rules of an entity (including foreign keys and relation counterparts). |

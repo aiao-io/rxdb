@@ -1,11 +1,7 @@
 # validateField()
 
 ```ts
-function validateField(
-   field, 
-   value, 
-   i18n?
-): FieldValidationError | null;
+function validateField(field, value, i18n?): FieldValidationError | null;
 ```
 
 Defined in: packages/rxdb-model/dist/entity-form/form-validation.d.ts:10
@@ -14,11 +10,11 @@ Validates a single form field value
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `field` | [`FormFieldConfig`](../interfaces/FormFieldConfig.md) | Form field config |
-| `value` | `unknown` | The field value to validate |
-| `i18n?` | [`ModelI18n`](../interfaces/ModelI18n.md) | - |
+| Parameter | Type                                                  | Description                 |
+| --------- | ----------------------------------------------------- | --------------------------- |
+| `field`   | [`FormFieldConfig`](../interfaces/FormFieldConfig.md) | Form field config           |
+| `value`   | `unknown`                                             | The field value to validate |
+| `i18n?`   | [`ModelI18n`](../interfaces/ModelI18n.md)             | -                           |
 
 ## Returns
 

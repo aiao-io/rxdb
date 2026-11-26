@@ -30,16 +30,16 @@ Format a date using the current language.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `Date` |
+| Parameter  | Type                    |
+| ---------- | ----------------------- |
+| `value`    | `Date`                  |
 | `options?` | `DateTimeFormatOptions` |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### formatNumber()? \{#formatnumber\}
 
@@ -53,16 +53,16 @@ Format a number using the current language.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `number` |
+| Parameter  | Type                  |
+| ---------- | --------------------- |
+| `value`    | `number`              |
 | `options?` | `NumberFormatOptions` |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### resolve()? \{#resolve\}
 
@@ -76,9 +76,9 @@ Check whether a message exists in the catalog without recording missing-entry di
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `key` | `string` |
+| Parameter    | Type     |
+| ------------ | -------- |
+| `key`        | `string` |
 | `namespace?` | `string` |
 
 #### Returns
@@ -91,14 +91,14 @@ Check whether a message exists in the catalog without recording missing-entry di
 readonly value?: string;
 ```
 
-***
+---
 
 ### t() \{#t\}
 
 ```ts
 t(
-   key, 
-   params?, 
+   key,
+   params?,
    namespace?
 ): string;
 ```
@@ -109,11 +109,11 @@ Resolve a message in the namespace.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `key` | `string` |
-| `params?` | `Record`&lt;`string`, `unknown`&gt; |
-| `namespace?` | `string` |
+| Parameter    | Type                                |
+| ------------ | ----------------------------------- |
+| `key`        | `string`                            |
+| `params?`    | `Record`&lt;`string`, `unknown`&gt; |
+| `namespace?` | `string`                            |
 
 #### Returns
 

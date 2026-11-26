@@ -18,7 +18,7 @@ auth?: HttpAuthHook;
 
 Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:520](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-http/src/http.interface.ts#L520)
 
-***
+---
 
 ### baseUrl \{#baseurl\}
 
@@ -30,7 +30,7 @@ Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:518](https://githu
 
 Base address for relative URLs; ignored when the handler returns an absolute URL
 
-***
+---
 
 ### changeFeed? \{#changefeed\}
 
@@ -64,10 +64,10 @@ new RxDBAdapterHttp(rxdb, {
 });
 ```
 
- Outside the 1.0 compatibility promise: the protocol currently has only one implementation — the reference backend — and the wire shape may adjust with a second implementation.
+Outside the 1.0 compatibility promise: the protocol currently has only one implementation — the reference backend — and the wire shape may adjust with a second implementation.
 For the tiering basis see `requirements/versioning-policy.md` "experimental tier".
 
-***
+---
 
 ### conditionalCacheSize? \{#conditionalcachesize\}
 
@@ -87,7 +87,7 @@ One page / one chunk each takes one entry, so the cap should be sized by the **t
 
 [`HttpNumericConfig`](HttpNumericConfig.md).[`conditionalCacheSize`](HttpNumericConfig.md#conditionalcachesize)
 
-***
+---
 
 ### conditionalRequests? \{#conditionalrequests\}
 
@@ -109,7 +109,7 @@ Of the three header groups, only one enters the request fingerprint. [HttpReques
 
 **Switching users must go through `disconnect()` / `connect()`**: that's the price of auth headers not entering the fingerprint — swapping the token directly on the same instance will read responses from the previous identity.
 
-***
+---
 
 ### handlers \{#handlers\}
 
@@ -119,7 +119,7 @@ handlers: HttpHandlers;
 
 Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:519](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-http/src/http.interface.ts#L519)
 
-***
+---
 
 ### headers? \{#headers\}
 
@@ -131,7 +131,7 @@ Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:522](https://githu
 
 Headers attached to all requests; on conflict with the auth hook, the auth hook wins
 
-***
+---
 
 ### idChunkSize? \{#idchunksize\}
 
@@ -147,7 +147,7 @@ ids per `findByIds` chunk. Default `100` (matches `SUPABASE_IN_CHUNK_SIZE`)
 
 [`HttpNumericConfig`](HttpNumericConfig.md).[`idChunkSize`](HttpNumericConfig.md#idchunksize)
 
-***
+---
 
 ### maxEmptyPages? \{#maxemptypages\}
 
@@ -163,7 +163,7 @@ Tolerance for consecutive empty pages in token mode. Default `3`; `0` = no toler
 
 [`HttpNumericConfig`](HttpNumericConfig.md).[`maxEmptyPages`](HttpNumericConfig.md#maxemptypages)
 
-***
+---
 
 ### maxPages? \{#maxpages\}
 
@@ -179,7 +179,7 @@ Total page cap for a single `fetchMetadata`. Default `1000`; hitting the cap **t
 
 [`HttpNumericConfig`](HttpNumericConfig.md).[`maxPages`](HttpNumericConfig.md#maxpages)
 
-***
+---
 
 ### onEtagUnreadable? \{#onetagunreadable\}
 
@@ -216,7 +216,7 @@ new RxDBAdapterHttp(rxdb, {
 });
 ```
 
-***
+---
 
 ### pageSize? \{#pagesize\}
 
@@ -232,7 +232,7 @@ Rows per page, passed through as the handler's `ctx.limit`. Default `1000` (matc
 
 [`HttpNumericConfig`](HttpNumericConfig.md).[`pageSize`](HttpNumericConfig.md#pagesize)
 
-***
+---
 
 ### requestTimeoutMs? \{#requesttimeoutms\}
 

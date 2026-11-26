@@ -1,5 +1,5 @@
 ---
-sidebar_label: "QueryTask⟨T, RT⟩"
+sidebar_label: 'QueryTask⟨T, RT⟩'
 ---
 
 # QueryTask`<T, RT>`
@@ -9,6 +9,7 @@ Defined in: [packages/rxdb/src/repository/QueryTask.ts:116](https://github.com/a
 Query task implementation
 
 Encapsulates the creation and lifecycle management of query tasks
+
 - Manages the refresh and destroy signals of a task
 - Handles observer subscription and unsubscription
 - Maintains entity type dependencies
@@ -16,10 +17,10 @@ Encapsulates the creation and lifecycle management of query tasks
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) | - |
-| <a id="type-parameter-rt"></a> `RT` | `unknown` |
+| Type Parameter                                                                            | Default type |
+| ----------------------------------------------------------------------------------------- | ------------ |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) | -            |
+| <a id="type-parameter-rt"></a> `RT`                                                       | `unknown`    |
 
 ## Constructors
 
@@ -33,9 +34,9 @@ Defined in: [packages/rxdb/src/repository/QueryTask.ts:260](https://github.com/a
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `opt` | [`QueryTaskOptions`](../interfaces/QueryTaskOptions.md)&lt;`T`, `RT`&gt; |
+| Parameter | Type                                                                     |
+| --------- | ------------------------------------------------------------------------ |
+| `opt`     | [`QueryTaskOptions`](../interfaces/QueryTaskOptions.md)&lt;`T`, `RT`&gt; |
 
 #### Returns
 
@@ -53,7 +54,7 @@ Defined in: [packages/rxdb/src/repository/QueryTask.ts:186](https://github.com/a
 
 Whether to automatically cache query results as an entity or an entity array
 
-***
+---
 
 ### cacheKey \{#cachekey\}
 
@@ -63,7 +64,7 @@ readonly cacheKey: string;
 
 Defined in: [packages/rxdb/src/repository/QueryTask.ts:180](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/QueryTask.ts#L180)
 
-***
+---
 
 ### destroy$ \{#destroy\}
 
@@ -76,7 +77,7 @@ Defined in: [packages/rxdb/src/repository/QueryTask.ts:198](https://github.com/a
 Query destroy stream
 Fired when the query task is destroyed
 
-***
+---
 
 ### entityType \{#entitytype\}
 
@@ -86,7 +87,7 @@ readonly entityType: T;
 
 Defined in: [packages/rxdb/src/repository/QueryTask.ts:181](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/QueryTask.ts#L181)
 
-***
+---
 
 ### getFingerprint \{#getfingerprint\}
 
@@ -101,14 +102,14 @@ Result fingerprint computation method
 #### Parameters
 
 | Parameter | Type |
-| ------ | ------ |
-| `result` | `RT` |
+| --------- | ---- |
+| `result`  | `RT` |
 
 #### Returns
 
 [`Fingerprint`](../type-aliases/Fingerprint.md)[]
 
-***
+---
 
 ### observerCount \{#observercount\}
 
@@ -121,7 +122,7 @@ Defined in: [packages/rxdb/src/repository/QueryTask.ts:237](https://github.com/a
 Observer count
 Records how many subscribers are currently listening to this query result
 
-***
+---
 
 ### observers \{#observers\}
 
@@ -134,12 +135,12 @@ Defined in: [packages/rxdb/src/repository/QueryTask.ts:167](https://github.com/a
 Observer set
 Stores all observers subscribed to this query result
 
-***
+---
 
 ### options \{#options\}
 
 ```ts
-readonly options: 
+readonly options:
   | EntityStaticType<T, "idType">
   | FindOneOptions<T, RuleGroup<InstanceType<T>>, string>
   | FindOneOrFailOptions<T, RuleGroup<InstanceType<T>>, string>
@@ -153,7 +154,7 @@ Defined in: [packages/rxdb/src/repository/QueryTask.ts:231](https://github.com/a
 
 Query options
 
-***
+---
 
 ### refresh$ \{#refresh\}
 
@@ -166,7 +167,7 @@ Defined in: [packages/rxdb/src/repository/QueryTask.ts:192](https://github.com/a
 Refresh trigger stream
 Emits the refresh count on each refresh, used to trigger the query to re-execute
 
-***
+---
 
 ### refreshCount \{#refreshcount\}
 
@@ -179,7 +180,7 @@ Defined in: [packages/rxdb/src/repository/QueryTask.ts:242](https://github.com/a
 Refresh count
 Records the total number of times the query has been refreshed and executed
 
-***
+---
 
 ### relationEntityTypes \{#relationentitytypes\}
 
@@ -192,7 +193,7 @@ Defined in: [packages/rxdb/src/repository/QueryTask.ts:204](https://github.com/a
 Related entity type set
 Stores all related entity types involved in the query
 
-***
+---
 
 ### result? \{#result\}
 
@@ -205,7 +206,7 @@ Defined in: [packages/rxdb/src/repository/QueryTask.ts:247](https://github.com/a
 Query result
 The cached latest query result data
 
-***
+---
 
 ### result$ \{#result-1\}
 
@@ -218,7 +219,7 @@ Defined in: [packages/rxdb/src/repository/QueryTask.ts:258](https://github.com/a
 Query result stream
 The reactive stream that sends query results via Observable
 
-***
+---
 
 ### resultEntityIds \{#resultentityids\}
 
@@ -230,7 +231,7 @@ Defined in: [packages/rxdb/src/repository/QueryTask.ts:209](https://github.com/a
 
 The entity ID set of the query
 
-***
+---
 
 ### resultEntitySet \{#resultentityset\}
 
@@ -243,7 +244,7 @@ Defined in: [packages/rxdb/src/repository/QueryTask.ts:215](https://github.com/a
 The entity set of the query
 Stores all entity instances contained in the query results
 
-***
+---
 
 ### rxdb \{#rxdb\}
 
@@ -253,7 +254,7 @@ readonly rxdb: RxDB;
 
 Defined in: [packages/rxdb/src/repository/QueryTask.ts:182](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/QueryTask.ts#L182)
 
-***
+---
 
 ### serialize \{#serialize\}
 
@@ -267,9 +268,9 @@ Restores the payload of a local entity event into an entity instance
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `data` | [`RxDBEntityLocalEventData`](../type-aliases/RxDBEntityLocalEventData.md)&lt;`T`&gt; |
+| Parameter | Type                                                                                 |
+| --------- | ------------------------------------------------------------------------------------ |
+| `data`    | [`RxDBEntityLocalEventData`](../type-aliases/RxDBEntityLocalEventData.md)&lt;`T`&gt; |
 
 #### Returns
 
@@ -282,12 +283,12 @@ to turn matched event data into entities (`query/merge_create.ts`). The cost of 
 but **two sets of restore semantics** — this function goes through `createEntityRef`, respects the entity cache, and the same id is still the same object;
 a hand-rolled instance from `Object.assign` bypasses the cache, so the same row becomes two objects in different queries.
 
-***
+---
 
 ### type \{#type\}
 
 ```ts
-readonly type: 
+readonly type:
   | "find"
   | "get"
   | "findOne"
@@ -331,7 +332,7 @@ Complete the observers before tearing down the pipeline: on the normal unsubscri
 those subscribers neither receive new data nor ever end, and operators that wait for the termination signal like
 `toArray()` / `lastValueFrom()` hang forever.
 
-***
+---
 
 ### error() \{#error\}
 
@@ -345,9 +346,9 @@ Sends an error to all observers
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `err` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `err`     | `unknown` |
 
 #### Returns
 
@@ -358,7 +359,7 @@ Sends an error to all observers
 First let the host stop reusing this task via `onError`, then distribute by snapshot: observers that re-subscribe synchronously
 inside the error callback belong to the next generation and do not receive this round's error.
 
-***
+---
 
 ### next() \{#next\}
 
@@ -372,16 +373,16 @@ Sends the result to all observers
 
 #### Parameters
 
-| Parameter | Type | Default value | Description |
-| ------ | ------ | ------ | ------ |
-| `result` | `RT` | `undefined` | Query result |
-| `autoCache?` | `boolean` | `true` | Whether to automatically cache the result entities |
+| Parameter    | Type      | Default value | Description                                        |
+| ------------ | --------- | ------------- | -------------------------------------------------- |
+| `result`     | `RT`      | `undefined`   | Query result                                       |
+| `autoCache?` | `boolean` | `true`        | Whether to automatically cache the result entities |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### refresh() \{#refresh-1\}
 
@@ -397,7 +398,7 @@ Manually refreshes the query
 
 `void`
 
-***
+---
 
 ### run() \{#run\}
 

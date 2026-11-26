@@ -16,7 +16,7 @@ Defined in: [packages/rxdb/src/system/capability-watermark.ts:33](https://github
 
 The capability name, same value as the `IRxDBPlugin.name` of the plugin that contributes it
 
-***
+---
 
 ### packageSpecifier \{#packagespecifier\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb/src/system/capability-watermark.ts:39](https://github
 
 The package specifier, e.g. `@aiao/rxdb-plugin-working-tree`; reported to the user as-is when unclaimed
 
-***
+---
 
 ### version \{#version\}
 

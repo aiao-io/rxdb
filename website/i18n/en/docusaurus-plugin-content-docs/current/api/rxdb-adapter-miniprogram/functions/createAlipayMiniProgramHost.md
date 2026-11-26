@@ -18,9 +18,9 @@ When `my` fields are missing, the corresponding getters return `undefined`, lett
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `my` | [`MiniProgramAlipayApi`](../interfaces/MiniProgramAlipayApi.md) | The Alipay global `my` |
+| Parameter | Type                                                                            | Description                                                                            |
+| --------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| `my`      | [`MiniProgramAlipayApi`](../interfaces/MiniProgramAlipayApi.md)                 | The Alipay global `my`                                                                 |
 | `options` | [`AlipayMiniProgramHostOptions`](../interfaces/AlipayMiniProgramHostOptions.md) | The random Worker, the logic layer's `WebAssembly`, and an optional real global object |
 
 ## Returns

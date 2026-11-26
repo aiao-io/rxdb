@@ -1,5 +1,5 @@
 ---
-sidebar_label: "RelationEntitiesObservable⟨T⟩"
+sidebar_label: 'RelationEntitiesObservable⟨T⟩'
 ---
 
 # RelationEntitiesObservable`<T>`
@@ -15,9 +15,9 @@ Provides observation and manipulation of a set of related entities
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                            |
+| ----------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 ## Properties
 
@@ -33,15 +33,15 @@ Adds related entities
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter     | Type                        | Description                 |
+| ------------- | --------------------------- | --------------------------- |
 | ...`entities` | `InstanceType`&lt;`T`&gt;[] | The list of entities to add |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### count$ \{#count\}
 
@@ -53,12 +53,12 @@ Defined in: [packages/rxdb/src/entity/entity.interface.ts:225](https://github.co
 
 Observable of the number of related entities
 
-***
+---
 
 ### ~~operator~~ \{#operator\}
 
 ```ts
-operator: Operator<any, InstanceType<T>[]> | undefined;
+operator: (Operator<any, InstanceType<T>[]>) | undefined;
 ```
 
 Defined in: node\_modules/.pnpm/rxjs@7.8.2/node\_modules/rxjs/dist/types/internal/Observable.d.ts:17
@@ -71,7 +71,7 @@ Internal implementation detail, do not use directly. Will be made internal in v8
 
 `Observable.operator`
 
-***
+---
 
 ### remove \{#remove\}
 
@@ -85,20 +85,20 @@ Removes related entities
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter     | Type                        | Description                    |
+| ------------- | --------------------------- | ------------------------------ |
 | ...`entities` | `InstanceType`&lt;`T`&gt;[] | The list of entities to remove |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### ~~source~~ \{#source\}
 
 ```ts
-source: Observable<any> | undefined;
+source: (Observable<any>) | undefined;
 ```
 
 Defined in: node\_modules/.pnpm/rxjs@7.8.2/node\_modules/rxjs/dist/types/internal/Observable.d.ts:13
@@ -126,7 +126,7 @@ Defined in: node\_modules/.pnpm/rxjs@7.8.2/node\_modules/rxjs/dist/types/interna
 Used as a NON-CANCELLABLE means of subscribing to an observable, for use with
 APIs that expect promises, like `async/await`. You cannot unsubscribe from this.
 
-**WARNING**: Only use this with observables you *know* will complete. If the source
+**WARNING**: Only use this with observables you _know_ will complete. If the source
 observable does not complete, you will end up with a promise that is hung up, and
 potentially all of the state of an async function hanging out in memory. To avoid
 this situation, look into adding something like timeout, take,
@@ -150,9 +150,7 @@ async function getTotal() {
   return total;
 }
 
-getTotal().then(
-  total => console.log('Total: ' + total)
-);
+getTotal().then(total => console.log('Total: ' + total));
 
 // Expected:
 // 'observable -> 0'
@@ -164,9 +162,9 @@ getTotal().then(
 
 ##### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `next` | (`value`) => `void` | A handler for each value emitted by the observable. |
+| Parameter | Type                | Description                                         |
+| --------- | ------------------- | --------------------------------------------------- |
+| `next`    | (`value`) => `void` | A handler for each value emitted by the observable. |
 
 ##### Returns
 
@@ -189,9 +187,9 @@ Defined in: node\_modules/.pnpm/rxjs@7.8.2/node\_modules/rxjs/dist/types/interna
 
 ##### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `next` | (`value`) => `void` | a handler for each value emitted by the observable |
+| Parameter     | Type                     | Description                                            |
+| ------------- | ------------------------ | ------------------------------------------------------ |
+| `next`        | (`value`) => `void`      | a handler for each value emitted by the observable     |
 | `promiseCtor` | `PromiseConstructorLike` | a constructor function used to instantiate the Promise |
 
 ##### Returns
@@ -199,7 +197,7 @@ Defined in: node\_modules/.pnpm/rxjs@7.8.2/node\_modules/rxjs/dist/types/interna
 `Promise`&lt;`void`&gt;
 
 a promise that either resolves on observable completion or
- rejects with the handled error
+rejects with the handled error
 
 ##### Deprecated
 
@@ -213,7 +211,7 @@ to whatever promise implementation you wanted. Will be removed in v8.
 
 `Observable.forEach`
 
-***
+---
 
 ### ~~lift()~~ \{#lift\}
 
@@ -228,14 +226,14 @@ operator defined as the new observable's operator.
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-r"></a> `R` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type                                               | Description                                                   |
+| ----------- | -------------------------------------------------- | ------------------------------------------------------------- |
 | `operator?` | `Operator`&lt;`InstanceType`&lt;`T`&gt;[], `R`&gt; | the operator defining the operation to take on the observable |
 
 #### Returns
@@ -255,7 +253,7 @@ scratch" section here: https://rxjs.dev/guide/operators
 
 `Observable.lift`
 
-***
+---
 
 ### pipe() \{#pipe\}
 
@@ -285,15 +283,15 @@ Defined in: node\_modules/.pnpm/rxjs@7.8.2/node\_modules/rxjs/dist/types/interna
 
 ##### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-a"></a> `A` |
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `op1` | `OperatorFunction`&lt;`InstanceType`&lt;`T`&gt;[], `A`&gt; |
+| Parameter | Type                                                       |
+| --------- | ---------------------------------------------------------- |
+| `op1`     | `OperatorFunction`&lt;`InstanceType`&lt;`T`&gt;[], `A`&gt; |
 
 ##### Returns
 
@@ -313,17 +311,17 @@ Defined in: node\_modules/.pnpm/rxjs@7.8.2/node\_modules/rxjs/dist/types/interna
 
 ##### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                      |
+| ----------------------------------- |
 | <a id="type-parameter-a-1"></a> `A` |
-| <a id="type-parameter-b"></a> `B` |
+| <a id="type-parameter-b"></a> `B`   |
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `op1` | `OperatorFunction`&lt;`InstanceType`&lt;`T`&gt;[], `A`&gt; |
-| `op2` | `OperatorFunction`&lt;`A`, `B`&gt; |
+| Parameter | Type                                                       |
+| --------- | ---------------------------------------------------------- |
+| `op1`     | `OperatorFunction`&lt;`InstanceType`&lt;`T`&gt;[], `A`&gt; |
+| `op2`     | `OperatorFunction`&lt;`A`, `B`&gt;                         |
 
 ##### Returns
 
@@ -337,8 +335,8 @@ Defined in: node\_modules/.pnpm/rxjs@7.8.2/node\_modules/rxjs/dist/types/interna
 
 ```ts
 pipe<A, B, C>(
-   op1, 
-   op2, 
+   op1,
+   op2,
    op3
 ): Observable<C>;
 ```
@@ -347,19 +345,19 @@ Defined in: node\_modules/.pnpm/rxjs@7.8.2/node\_modules/rxjs/dist/types/interna
 
 ##### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                      |
+| ----------------------------------- |
 | <a id="type-parameter-a-2"></a> `A` |
 | <a id="type-parameter-b-1"></a> `B` |
-| <a id="type-parameter-c"></a> `C` |
+| <a id="type-parameter-c"></a> `C`   |
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `op1` | `OperatorFunction`&lt;`InstanceType`&lt;`T`&gt;[], `A`&gt; |
-| `op2` | `OperatorFunction`&lt;`A`, `B`&gt; |
-| `op3` | `OperatorFunction`&lt;`B`, `C`&gt; |
+| Parameter | Type                                                       |
+| --------- | ---------------------------------------------------------- |
+| `op1`     | `OperatorFunction`&lt;`InstanceType`&lt;`T`&gt;[], `A`&gt; |
+| `op2`     | `OperatorFunction`&lt;`A`, `B`&gt;                         |
+| `op3`     | `OperatorFunction`&lt;`B`, `C`&gt;                         |
 
 ##### Returns
 
@@ -373,9 +371,9 @@ Defined in: node\_modules/.pnpm/rxjs@7.8.2/node\_modules/rxjs/dist/types/interna
 
 ```ts
 pipe<A, B, C, D>(
-   op1, 
-   op2, 
-   op3, 
+   op1,
+   op2,
+   op3,
    op4
 ): Observable<D>;
 ```
@@ -384,21 +382,21 @@ Defined in: node\_modules/.pnpm/rxjs@7.8.2/node\_modules/rxjs/dist/types/interna
 
 ##### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                      |
+| ----------------------------------- |
 | <a id="type-parameter-a-3"></a> `A` |
 | <a id="type-parameter-b-2"></a> `B` |
 | <a id="type-parameter-c-1"></a> `C` |
-| <a id="type-parameter-d"></a> `D` |
+| <a id="type-parameter-d"></a> `D`   |
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `op1` | `OperatorFunction`&lt;`InstanceType`&lt;`T`&gt;[], `A`&gt; |
-| `op2` | `OperatorFunction`&lt;`A`, `B`&gt; |
-| `op3` | `OperatorFunction`&lt;`B`, `C`&gt; |
-| `op4` | `OperatorFunction`&lt;`C`, `D`&gt; |
+| Parameter | Type                                                       |
+| --------- | ---------------------------------------------------------- |
+| `op1`     | `OperatorFunction`&lt;`InstanceType`&lt;`T`&gt;[], `A`&gt; |
+| `op2`     | `OperatorFunction`&lt;`A`, `B`&gt;                         |
+| `op3`     | `OperatorFunction`&lt;`B`, `C`&gt;                         |
+| `op4`     | `OperatorFunction`&lt;`C`, `D`&gt;                         |
 
 ##### Returns
 
@@ -412,10 +410,10 @@ Defined in: node\_modules/.pnpm/rxjs@7.8.2/node\_modules/rxjs/dist/types/interna
 
 ```ts
 pipe<A, B, C, D, E>(
-   op1, 
-   op2, 
-   op3, 
-   op4, 
+   op1,
+   op2,
+   op3,
+   op4,
    op5
 ): Observable<E>;
 ```
@@ -424,23 +422,23 @@ Defined in: node\_modules/.pnpm/rxjs@7.8.2/node\_modules/rxjs/dist/types/interna
 
 ##### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                      |
+| ----------------------------------- |
 | <a id="type-parameter-a-4"></a> `A` |
 | <a id="type-parameter-b-3"></a> `B` |
 | <a id="type-parameter-c-2"></a> `C` |
 | <a id="type-parameter-d-1"></a> `D` |
-| <a id="type-parameter-e"></a> `E` |
+| <a id="type-parameter-e"></a> `E`   |
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `op1` | `OperatorFunction`&lt;`InstanceType`&lt;`T`&gt;[], `A`&gt; |
-| `op2` | `OperatorFunction`&lt;`A`, `B`&gt; |
-| `op3` | `OperatorFunction`&lt;`B`, `C`&gt; |
-| `op4` | `OperatorFunction`&lt;`C`, `D`&gt; |
-| `op5` | `OperatorFunction`&lt;`D`, `E`&gt; |
+| Parameter | Type                                                       |
+| --------- | ---------------------------------------------------------- |
+| `op1`     | `OperatorFunction`&lt;`InstanceType`&lt;`T`&gt;[], `A`&gt; |
+| `op2`     | `OperatorFunction`&lt;`A`, `B`&gt;                         |
+| `op3`     | `OperatorFunction`&lt;`B`, `C`&gt;                         |
+| `op4`     | `OperatorFunction`&lt;`C`, `D`&gt;                         |
+| `op5`     | `OperatorFunction`&lt;`D`, `E`&gt;                         |
 
 ##### Returns
 
@@ -454,11 +452,11 @@ Defined in: node\_modules/.pnpm/rxjs@7.8.2/node\_modules/rxjs/dist/types/interna
 
 ```ts
 pipe<A, B, C, D, E, F>(
-   op1, 
-   op2, 
-   op3, 
-   op4, 
-   op5, 
+   op1,
+   op2,
+   op3,
+   op4,
+   op5,
    op6
 ): Observable<F>;
 ```
@@ -467,25 +465,25 @@ Defined in: node\_modules/.pnpm/rxjs@7.8.2/node\_modules/rxjs/dist/types/interna
 
 ##### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                      |
+| ----------------------------------- |
 | <a id="type-parameter-a-5"></a> `A` |
 | <a id="type-parameter-b-4"></a> `B` |
 | <a id="type-parameter-c-3"></a> `C` |
 | <a id="type-parameter-d-2"></a> `D` |
 | <a id="type-parameter-e-1"></a> `E` |
-| <a id="type-parameter-f"></a> `F` |
+| <a id="type-parameter-f"></a> `F`   |
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `op1` | `OperatorFunction`&lt;`InstanceType`&lt;`T`&gt;[], `A`&gt; |
-| `op2` | `OperatorFunction`&lt;`A`, `B`&gt; |
-| `op3` | `OperatorFunction`&lt;`B`, `C`&gt; |
-| `op4` | `OperatorFunction`&lt;`C`, `D`&gt; |
-| `op5` | `OperatorFunction`&lt;`D`, `E`&gt; |
-| `op6` | `OperatorFunction`&lt;`E`, `F`&gt; |
+| Parameter | Type                                                       |
+| --------- | ---------------------------------------------------------- |
+| `op1`     | `OperatorFunction`&lt;`InstanceType`&lt;`T`&gt;[], `A`&gt; |
+| `op2`     | `OperatorFunction`&lt;`A`, `B`&gt;                         |
+| `op3`     | `OperatorFunction`&lt;`B`, `C`&gt;                         |
+| `op4`     | `OperatorFunction`&lt;`C`, `D`&gt;                         |
+| `op5`     | `OperatorFunction`&lt;`D`, `E`&gt;                         |
+| `op6`     | `OperatorFunction`&lt;`E`, `F`&gt;                         |
 
 ##### Returns
 
@@ -499,12 +497,12 @@ Defined in: node\_modules/.pnpm/rxjs@7.8.2/node\_modules/rxjs/dist/types/interna
 
 ```ts
 pipe<A, B, C, D, E, F, G>(
-   op1, 
-   op2, 
-   op3, 
-   op4, 
-   op5, 
-   op6, 
+   op1,
+   op2,
+   op3,
+   op4,
+   op5,
+   op6,
    op7
 ): Observable<G>;
 ```
@@ -513,27 +511,27 @@ Defined in: node\_modules/.pnpm/rxjs@7.8.2/node\_modules/rxjs/dist/types/interna
 
 ##### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                      |
+| ----------------------------------- |
 | <a id="type-parameter-a-6"></a> `A` |
 | <a id="type-parameter-b-5"></a> `B` |
 | <a id="type-parameter-c-4"></a> `C` |
 | <a id="type-parameter-d-3"></a> `D` |
 | <a id="type-parameter-e-2"></a> `E` |
 | <a id="type-parameter-f-1"></a> `F` |
-| <a id="type-parameter-g"></a> `G` |
+| <a id="type-parameter-g"></a> `G`   |
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `op1` | `OperatorFunction`&lt;`InstanceType`&lt;`T`&gt;[], `A`&gt; |
-| `op2` | `OperatorFunction`&lt;`A`, `B`&gt; |
-| `op3` | `OperatorFunction`&lt;`B`, `C`&gt; |
-| `op4` | `OperatorFunction`&lt;`C`, `D`&gt; |
-| `op5` | `OperatorFunction`&lt;`D`, `E`&gt; |
-| `op6` | `OperatorFunction`&lt;`E`, `F`&gt; |
-| `op7` | `OperatorFunction`&lt;`F`, `G`&gt; |
+| Parameter | Type                                                       |
+| --------- | ---------------------------------------------------------- |
+| `op1`     | `OperatorFunction`&lt;`InstanceType`&lt;`T`&gt;[], `A`&gt; |
+| `op2`     | `OperatorFunction`&lt;`A`, `B`&gt;                         |
+| `op3`     | `OperatorFunction`&lt;`B`, `C`&gt;                         |
+| `op4`     | `OperatorFunction`&lt;`C`, `D`&gt;                         |
+| `op5`     | `OperatorFunction`&lt;`D`, `E`&gt;                         |
+| `op6`     | `OperatorFunction`&lt;`E`, `F`&gt;                         |
+| `op7`     | `OperatorFunction`&lt;`F`, `G`&gt;                         |
 
 ##### Returns
 
@@ -547,13 +545,13 @@ Defined in: node\_modules/.pnpm/rxjs@7.8.2/node\_modules/rxjs/dist/types/interna
 
 ```ts
 pipe<A, B, C, D, E, F, G, H>(
-   op1, 
-   op2, 
-   op3, 
-   op4, 
-   op5, 
-   op6, 
-   op7, 
+   op1,
+   op2,
+   op3,
+   op4,
+   op5,
+   op6,
+   op7,
    op8
 ): Observable<H>;
 ```
@@ -562,8 +560,8 @@ Defined in: node\_modules/.pnpm/rxjs@7.8.2/node\_modules/rxjs/dist/types/interna
 
 ##### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                      |
+| ----------------------------------- |
 | <a id="type-parameter-a-7"></a> `A` |
 | <a id="type-parameter-b-6"></a> `B` |
 | <a id="type-parameter-c-5"></a> `C` |
@@ -571,20 +569,20 @@ Defined in: node\_modules/.pnpm/rxjs@7.8.2/node\_modules/rxjs/dist/types/interna
 | <a id="type-parameter-e-3"></a> `E` |
 | <a id="type-parameter-f-2"></a> `F` |
 | <a id="type-parameter-g-1"></a> `G` |
-| <a id="type-parameter-h"></a> `H` |
+| <a id="type-parameter-h"></a> `H`   |
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `op1` | `OperatorFunction`&lt;`InstanceType`&lt;`T`&gt;[], `A`&gt; |
-| `op2` | `OperatorFunction`&lt;`A`, `B`&gt; |
-| `op3` | `OperatorFunction`&lt;`B`, `C`&gt; |
-| `op4` | `OperatorFunction`&lt;`C`, `D`&gt; |
-| `op5` | `OperatorFunction`&lt;`D`, `E`&gt; |
-| `op6` | `OperatorFunction`&lt;`E`, `F`&gt; |
-| `op7` | `OperatorFunction`&lt;`F`, `G`&gt; |
-| `op8` | `OperatorFunction`&lt;`G`, `H`&gt; |
+| Parameter | Type                                                       |
+| --------- | ---------------------------------------------------------- |
+| `op1`     | `OperatorFunction`&lt;`InstanceType`&lt;`T`&gt;[], `A`&gt; |
+| `op2`     | `OperatorFunction`&lt;`A`, `B`&gt;                         |
+| `op3`     | `OperatorFunction`&lt;`B`, `C`&gt;                         |
+| `op4`     | `OperatorFunction`&lt;`C`, `D`&gt;                         |
+| `op5`     | `OperatorFunction`&lt;`D`, `E`&gt;                         |
+| `op6`     | `OperatorFunction`&lt;`E`, `F`&gt;                         |
+| `op7`     | `OperatorFunction`&lt;`F`, `G`&gt;                         |
+| `op8`     | `OperatorFunction`&lt;`G`, `H`&gt;                         |
 
 ##### Returns
 
@@ -598,14 +596,14 @@ Defined in: node\_modules/.pnpm/rxjs@7.8.2/node\_modules/rxjs/dist/types/interna
 
 ```ts
 pipe<A, B, C, D, E, F, G, H, I>(
-   op1, 
-   op2, 
-   op3, 
-   op4, 
-   op5, 
-   op6, 
-   op7, 
-   op8, 
+   op1,
+   op2,
+   op3,
+   op4,
+   op5,
+   op6,
+   op7,
+   op8,
    op9
 ): Observable<I>;
 ```
@@ -614,8 +612,8 @@ Defined in: node\_modules/.pnpm/rxjs@7.8.2/node\_modules/rxjs/dist/types/interna
 
 ##### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                      |
+| ----------------------------------- |
 | <a id="type-parameter-a-8"></a> `A` |
 | <a id="type-parameter-b-7"></a> `B` |
 | <a id="type-parameter-c-6"></a> `C` |
@@ -624,21 +622,21 @@ Defined in: node\_modules/.pnpm/rxjs@7.8.2/node\_modules/rxjs/dist/types/interna
 | <a id="type-parameter-f-3"></a> `F` |
 | <a id="type-parameter-g-2"></a> `G` |
 | <a id="type-parameter-h-1"></a> `H` |
-| <a id="type-parameter-i"></a> `I` |
+| <a id="type-parameter-i"></a> `I`   |
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `op1` | `OperatorFunction`&lt;`InstanceType`&lt;`T`&gt;[], `A`&gt; |
-| `op2` | `OperatorFunction`&lt;`A`, `B`&gt; |
-| `op3` | `OperatorFunction`&lt;`B`, `C`&gt; |
-| `op4` | `OperatorFunction`&lt;`C`, `D`&gt; |
-| `op5` | `OperatorFunction`&lt;`D`, `E`&gt; |
-| `op6` | `OperatorFunction`&lt;`E`, `F`&gt; |
-| `op7` | `OperatorFunction`&lt;`F`, `G`&gt; |
-| `op8` | `OperatorFunction`&lt;`G`, `H`&gt; |
-| `op9` | `OperatorFunction`&lt;`H`, `I`&gt; |
+| Parameter | Type                                                       |
+| --------- | ---------------------------------------------------------- |
+| `op1`     | `OperatorFunction`&lt;`InstanceType`&lt;`T`&gt;[], `A`&gt; |
+| `op2`     | `OperatorFunction`&lt;`A`, `B`&gt;                         |
+| `op3`     | `OperatorFunction`&lt;`B`, `C`&gt;                         |
+| `op4`     | `OperatorFunction`&lt;`C`, `D`&gt;                         |
+| `op5`     | `OperatorFunction`&lt;`D`, `E`&gt;                         |
+| `op6`     | `OperatorFunction`&lt;`E`, `F`&gt;                         |
+| `op7`     | `OperatorFunction`&lt;`F`, `G`&gt;                         |
+| `op8`     | `OperatorFunction`&lt;`G`, `H`&gt;                         |
+| `op9`     | `OperatorFunction`&lt;`H`, `I`&gt;                         |
 
 ##### Returns
 
@@ -652,15 +650,15 @@ Defined in: node\_modules/.pnpm/rxjs@7.8.2/node\_modules/rxjs/dist/types/interna
 
 ```ts
 pipe<A, B, C, D, E, F, G, H, I>(
-   op1, 
-   op2, 
-   op3, 
-   op4, 
-   op5, 
-   op6, 
-   op7, 
-   op8, 
-   op9, 
+   op1,
+   op2,
+   op3,
+   op4,
+   op5,
+   op6,
+   op7,
+   op8,
+   op9,
    ...operations
 ): Observable<unknown>;
 ```
@@ -669,8 +667,8 @@ Defined in: node\_modules/.pnpm/rxjs@7.8.2/node\_modules/rxjs/dist/types/interna
 
 ##### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                      |
+| ----------------------------------- |
 | <a id="type-parameter-a-9"></a> `A` |
 | <a id="type-parameter-b-8"></a> `B` |
 | <a id="type-parameter-c-7"></a> `C` |
@@ -683,18 +681,18 @@ Defined in: node\_modules/.pnpm/rxjs@7.8.2/node\_modules/rxjs/dist/types/interna
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `op1` | `OperatorFunction`&lt;`InstanceType`&lt;`T`&gt;[], `A`&gt; |
-| `op2` | `OperatorFunction`&lt;`A`, `B`&gt; |
-| `op3` | `OperatorFunction`&lt;`B`, `C`&gt; |
-| `op4` | `OperatorFunction`&lt;`C`, `D`&gt; |
-| `op5` | `OperatorFunction`&lt;`D`, `E`&gt; |
-| `op6` | `OperatorFunction`&lt;`E`, `F`&gt; |
-| `op7` | `OperatorFunction`&lt;`F`, `G`&gt; |
-| `op8` | `OperatorFunction`&lt;`G`, `H`&gt; |
-| `op9` | `OperatorFunction`&lt;`H`, `I`&gt; |
-| ...`operations` | `OperatorFunction`&lt;`any`, `any`&gt;[] |
+| Parameter       | Type                                                       |
+| --------------- | ---------------------------------------------------------- |
+| `op1`           | `OperatorFunction`&lt;`InstanceType`&lt;`T`&gt;[], `A`&gt; |
+| `op2`           | `OperatorFunction`&lt;`A`, `B`&gt;                         |
+| `op3`           | `OperatorFunction`&lt;`B`, `C`&gt;                         |
+| `op4`           | `OperatorFunction`&lt;`C`, `D`&gt;                         |
+| `op5`           | `OperatorFunction`&lt;`D`, `E`&gt;                         |
+| `op6`           | `OperatorFunction`&lt;`E`, `F`&gt;                         |
+| `op7`           | `OperatorFunction`&lt;`F`, `G`&gt;                         |
+| `op8`           | `OperatorFunction`&lt;`G`, `H`&gt;                         |
+| `op9`           | `OperatorFunction`&lt;`H`, `I`&gt;                         |
+| ...`operations` | `OperatorFunction`&lt;`any`, `any`&gt;[]                   |
 
 ##### Returns
 
@@ -704,7 +702,7 @@ Defined in: node\_modules/.pnpm/rxjs@7.8.2/node\_modules/rxjs/dist/types/interna
 
 `Observable.pipe`
 
-***
+---
 
 ### subscribe() \{#subscribe\}
 
@@ -718,8 +716,8 @@ Defined in: node\_modules/.pnpm/rxjs@7.8.2/node\_modules/rxjs/dist/types/interna
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter         | Type                                                                                       |
+| ----------------- | ------------------------------------------------------------------------------------------ |
 | `observerOrNext?` | \| `Partial`&lt;`Observer`&lt;`InstanceType`&lt;`T`&gt;[]&gt;&gt; \| ((`value`) => `void`) |
 
 ##### Returns
@@ -734,8 +732,8 @@ Defined in: node\_modules/.pnpm/rxjs@7.8.2/node\_modules/rxjs/dist/types/interna
 
 ```ts
 subscribe(
-   next?, 
-   error?, 
+   next?,
+   error?,
    complete?
 ): Subscription;
 ```
@@ -744,11 +742,11 @@ Defined in: node\_modules/.pnpm/rxjs@7.8.2/node\_modules/rxjs/dist/types/interna
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `next?` | ((`value`) => `void`) \| `null` |
-| `error?` | ((`error`) => `void`) \| `null` |
-| `complete?` | (() => `void`) \| `null` |
+| Parameter   | Type                            |
+| ----------- | ------------------------------- |
+| `next?`     | ((`value`) => `void`) \| `null` |
+| `error?`    | ((`error`) => `void`) \| `null` |
+| `complete?` | (() => `void`) \| `null`        |
 
 ##### Returns
 
@@ -762,7 +760,7 @@ Instead of passing separate callback arguments, use an observer argument. Signat
 
 `Observable.subscribe`
 
-***
+---
 
 ### ~~toPromise()~~ \{#topromise\}
 
@@ -796,8 +794,8 @@ Defined in: node\_modules/.pnpm/rxjs@7.8.2/node\_modules/rxjs/dist/types/interna
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter     | Type                 |
+| ------------- | -------------------- |
 | `PromiseCtor` | `PromiseConstructor` |
 
 ##### Returns
@@ -822,8 +820,8 @@ Defined in: node\_modules/.pnpm/rxjs@7.8.2/node\_modules/rxjs/dist/types/interna
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter     | Type                     |
+| ------------- | ------------------------ |
 | `PromiseCtor` | `PromiseConstructorLike` |
 
 ##### Returns

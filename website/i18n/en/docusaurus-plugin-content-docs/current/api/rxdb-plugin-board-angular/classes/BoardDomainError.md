@@ -20,10 +20,10 @@ Defined in: packages/rxdb-plugin-board/dist/errors.d.ts:12
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `code` | [`BoardErrorCode`](../../rxdb-plugin-board/type-aliases/BoardErrorCode.md) |
-| `message` | `string` |
+| Parameter | Type                                                                       |
+| --------- | -------------------------------------------------------------------------- |
+| `code`    | [`BoardErrorCode`](../../rxdb-plugin-board/type-aliases/BoardErrorCode.md) |
+| `message` | `string`                                                                   |
 
 #### Returns
 
@@ -47,7 +47,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 `Error.cause`
 
-***
+---
 
 ### code \{#code\}
 
@@ -57,7 +57,7 @@ readonly code: BoardErrorCode;
 
 Defined in: packages/rxdb-plugin-board/dist/errors.d.ts:11
 
-***
+---
 
 ### message \{#message\}
 
@@ -71,7 +71,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 `Error.message`
 
-***
+---
 
 ### name \{#name\}
 
@@ -85,7 +85,7 @@ Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb141
 
 `Error.name`
 
-***
+---
 
 ### stack? \{#stack\}
 

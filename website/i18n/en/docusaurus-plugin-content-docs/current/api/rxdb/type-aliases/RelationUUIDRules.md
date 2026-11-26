@@ -1,5 +1,5 @@
 ---
-sidebar_label: "RelationUUIDRules⟨K, VT⟩"
+sidebar_label: 'RelationUUIDRules⟨K, VT⟩'
 ---
 
 # RelationUUIDRules`<K, VT>`
@@ -14,7 +14,7 @@ UUID
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-k"></a> `K` |
+| Type Parameter                      |
+| ----------------------------------- |
+| <a id="type-parameter-k"></a> `K`   |
 | <a id="type-parameter-vt"></a> `VT` |

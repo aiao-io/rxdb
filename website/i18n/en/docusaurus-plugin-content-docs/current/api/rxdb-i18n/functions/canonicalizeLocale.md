@@ -10,9 +10,9 @@ Canonicalizes a non-empty BCP 47 tag; throws RangeError on invalid tags.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `locale` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `locale`  | `string` |
 
 ## Returns
 

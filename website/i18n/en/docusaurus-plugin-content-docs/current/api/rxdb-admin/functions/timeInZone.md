@@ -10,10 +10,10 @@ The local time of the instant in the given time zone.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `zone` | `string` | The IANA name. |
-| `date` | `Date` | The instant. |
+| Parameter | Type     | Description    |
+| --------- | -------- | -------------- |
+| `zone`    | `string` | The IANA name. |
+| `date`    | `Date`   | The instant.   |
 
 ## Returns
 

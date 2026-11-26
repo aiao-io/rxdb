@@ -12,9 +12,9 @@ Decides whether an error of a detached event task is ignorable
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `error` | `unknown` | The error thrown by the task |
+| Parameter | Type      | Description                  |
+| --------- | --------- | ---------------------------- |
+| `error`   | `unknown` | The error thrown by the task |
 
 ## Returns
 
@@ -25,6 +25,7 @@ Returns `true` when it is connection-teardown noise
 ## Remarks
 
 Includes:
+
 - errno 44 = ENODEV (Emscripten IDBFS connection closed)
 - name === 'AbortError'
 - adapter shutdown errors (a unified string-matching pattern)

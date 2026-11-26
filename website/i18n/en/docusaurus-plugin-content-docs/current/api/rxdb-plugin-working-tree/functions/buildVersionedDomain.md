@@ -10,8 +10,8 @@ Computes the versioned domain from entity registrations
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                                                   | Description                                       |
+| ---------- | -------------------------------------------------------------------------------------- | ------------------------------------------------- |
 | `entities` | readonly [`VersionedDomainEntityInput`](../interfaces/VersionedDomainEntityInput.md)[] | All registered entities; **will not be modified** |
 
 ## Returns
@@ -54,19 +54,33 @@ when all agree".
 
 ```ts
 const domain = buildVersionedDomain([
-  { entityName: 'Post', namespace: 'public', physicalTableNames: ['post', 'public$post'],
-    syncType: SyncType.Full, derivedIndexColumns: ['title_norm'] },
-  { entityName: 'ProductCache', namespace: 'public', physicalTableNames: ['productcache'],
-    syncType: SyncType.QueryCache },
-  { entityName: 'FileMeta', namespace: 'storage', physicalTableNames: ['file_meta'],
-    syncType: SyncType.None, log: false }
+  {
+    entityName: 'Post',
+    namespace: 'public',
+    physicalTableNames: ['post', 'public$post'],
+    syncType: SyncType.Full,
+    derivedIndexColumns: ['title_norm']
+  },
+  {
+    entityName: 'ProductCache',
+    namespace: 'public',
+    physicalTableNames: ['productcache'],
+    syncType: SyncType.QueryCache
+  },
+  {
+    entityName: 'FileMeta',
+    namespace: 'storage',
+    physicalTableNames: ['file_meta'],
+    syncType: SyncType.None,
+    log: false
+  }
 ]);
 
-domain.classifyEntity('Post');                     // 'tracked'
-domain.classifyEntity('ProductCache');             // 'untracked'
-domain.classifyEntity('FileMeta');                 // 'untracked' — change logging is off
-domain.classifyEntity('Post', 'shop');             // 'tracked' — no such registration, falls back to the default
-domain.hasEntity('Post', 'shop');                  // false — this is where it differs from the line above
-domain.isUntrackedField('Post', 'title_norm');     // true — a registered derived column
-domain.isUntrackedField('Comment', 'title_norm');  // false — another table's same-named column is not exempt along with it
+domain.classifyEntity('Post'); // 'tracked'
+domain.classifyEntity('ProductCache'); // 'untracked'
+domain.classifyEntity('FileMeta'); // 'untracked' — change logging is off
+domain.classifyEntity('Post', 'shop'); // 'tracked' — no such registration, falls back to the default
+domain.hasEntity('Post', 'shop'); // false — this is where it differs from the line above
+domain.isUntrackedField('Post', 'title_norm'); // true — a registered derived column
+domain.isUntrackedField('Comment', 'title_norm'); // false — another table's same-named column is not exempt along with it
 ```

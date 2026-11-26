@@ -1,5 +1,5 @@
 ---
-sidebar_label: "UpdateDataCache⟨T⟩"
+sidebar_label: 'UpdateDataCache⟨T⟩'
 ---
 
 # UpdateDataCache`<T>`
@@ -16,9 +16,9 @@ Multiple events with the same id are folded into one via foldUpdate at construct
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) |
+| Type Parameter                                                                            |
+| ----------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../type-aliases/EntityType.md) |
 
 ## Constructors
 
@@ -32,10 +32,10 @@ Defined in: [packages/rxdb/src/query/merge-update.utils.ts:128](https://github.c
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `data` | [`RxDBEntityLocalUpdatedEventData`](../interfaces/RxDBEntityLocalUpdatedEventData.md)&lt;`T`&gt;[] |
-| `serialize` | (`event`) => `InstanceType`&lt;`T`&gt; |
+| Parameter   | Type                                                                                               |
+| ----------- | -------------------------------------------------------------------------------------------------- |
+| `data`      | [`RxDBEntityLocalUpdatedEventData`](../interfaces/RxDBEntityLocalUpdatedEventData.md)&lt;`T`&gt;[] |
+| `serialize` | (`event`) => `InstanceType`&lt;`T`&gt;                                                             |
 
 #### Returns
 
@@ -46,7 +46,7 @@ Defined in: [packages/rxdb/src/query/merge-update.utils.ts:128](https://github.c
 ### getData() \{#getdata\}
 
 ```ts
-getData(id): 
+getData(id):
   | RxDBEntityLocalUpdatedEventData<T>
   | undefined;
 ```
@@ -57,16 +57,16 @@ Gets the raw update data
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `id` | [`RxDBEntityId`](../type-aliases/RxDBEntityId.md) |
+| Parameter | Type                                              |
+| --------- | ------------------------------------------------- |
+| `id`      | [`RxDBEntityId`](../type-aliases/RxDBEntityId.md) |
 
 #### Returns
 
-  \| [`RxDBEntityLocalUpdatedEventData`](../interfaces/RxDBEntityLocalUpdatedEventData.md)&lt;`T`&gt;
-  \| `undefined`
+\| [`RxDBEntityLocalUpdatedEventData`](../interfaces/RxDBEntityLocalUpdatedEventData.md)&lt;`T`&gt;
+\| `undefined`
 
-***
+---
 
 ### getSerializedBefore() \{#getserializedbefore\}
 
@@ -89,15 +89,15 @@ The before-state is cached by id with only one copy, so old values from the call
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `id` | [`RxDBEntityId`](../type-aliases/RxDBEntityId.md) | Entity id |
+| Parameter | Type                                              | Description |
+| --------- | ------------------------------------------------- | ----------- |
+| `id`      | [`RxDBEntityId`](../type-aliases/RxDBEntityId.md) | Entity id   |
 
 #### Returns
 
 `InstanceType`&lt;`T`&gt; \| `undefined`
 
-***
+---
 
 ### getSerializedUpdate() \{#getserializedupdate\}
 
@@ -111,9 +111,9 @@ Gets the serialized update data
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `id` | [`RxDBEntityId`](../type-aliases/RxDBEntityId.md) |
+| Parameter | Type                                              |
+| --------- | ------------------------------------------------- |
+| `id`      | [`RxDBEntityId`](../type-aliases/RxDBEntityId.md) |
 
 #### Returns
 

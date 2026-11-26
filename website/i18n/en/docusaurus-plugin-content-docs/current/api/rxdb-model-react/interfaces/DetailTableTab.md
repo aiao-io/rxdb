@@ -20,7 +20,7 @@ Defined in: packages/rxdb-model/dist/entity-detail/interfaces.d.ts:39
 
 ONE_TO_MANY: the foreign-key field in the related entity pointing to the current entity, e.g. 'ownerId'
 
-***
+---
 
 ### key \{#key\}
 
@@ -36,7 +36,7 @@ Unique identifier of the tab
 
 [`DetailTabBase`](DetailTabBase.md).[`key`](DetailTabBase.md#key)
 
-***
+---
 
 ### label \{#label\}
 
@@ -52,7 +52,7 @@ Display name of the tab
 
 [`DetailTabBase`](DetailTabBase.md).[`label`](DetailTabBase.md#label)
 
-***
+---
 
 ### mappedProperty? \{#mappedproperty\}
 
@@ -64,7 +64,7 @@ Defined in: packages/rxdb-model/dist/entity-detail/interfaces.d.ts:41
 
 MANY_TO_MANY: the relation property name in the related entity pointing to the current entity, e.g. 'orderItems'
 
-***
+---
 
 ### relatedEntityName \{#relatedentityname\}
 
@@ -76,7 +76,7 @@ Defined in: packages/rxdb-model/dist/entity-detail/interfaces.d.ts:33
 
 Related entity name
 
-***
+---
 
 ### relatedNamespace \{#relatednamespace\}
 
@@ -88,7 +88,7 @@ Defined in: packages/rxdb-model/dist/entity-detail/interfaces.d.ts:35
 
 Namespace of the related entity
 
-***
+---
 
 ### relationKind \{#relationkind\}
 
@@ -100,7 +100,7 @@ Defined in: packages/rxdb-model/dist/entity-detail/interfaces.d.ts:37
 
 Relation kind
 
-***
+---
 
 ### relationName \{#relationname\}
 
@@ -112,12 +112,12 @@ Defined in: packages/rxdb-model/dist/entity-detail/interfaces.d.ts:31
 
 Relation name
 
-***
+---
 
 ### type \{#type\}
 
 ```ts
-type: "table";
+type: 'table';
 ```
 
 Defined in: packages/rxdb-model/dist/entity-detail/interfaces.d.ts:29

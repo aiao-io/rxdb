@@ -18,7 +18,7 @@ entityName: string;
 
 Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:60](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-http/src/http.interface.ts#L60)
 
-***
+---
 
 ### limit \{#limit\}
 
@@ -30,7 +30,7 @@ Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:65](https://github
 
 Comes from `pageSize`; the adapter guarantees a finite positive integer
 
-***
+---
 
 ### offset \{#offset\}
 
@@ -42,7 +42,7 @@ Defined in: [packages/rxdb-adapter-http/src/http.interface.ts:63](https://github
 
 Starting offset of this page; can be ignored in token mode
 
-***
+---
 
 ### pageToken? \{#pagetoken\}
 
@@ -58,7 +58,7 @@ The `nextPageToken` returned by the previous page; `undefined` on the first page
 
 **Opaque**: the adapter only performs three judgments — equal / not equal / is it `undefined` — and never parses the internal structure. Deliberately not called `cursor` — core's `findByCursor` uses "cursor" for the keyset anchor made from an **entity instance**, a cursor that gets compiled into a `where` rule group inside the Repository and can be compared field by field, which the adapter never sees; this one can only be sent back to the remote as-is. The same name would make people think the latter can be taken apart too.
 
-***
+---
 
 ### where \{#where\}
 

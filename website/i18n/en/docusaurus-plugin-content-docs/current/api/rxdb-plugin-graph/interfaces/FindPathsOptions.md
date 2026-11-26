@@ -1,5 +1,5 @@
 ---
-sidebar_label: "FindPathsOptions⟨T, U, V⟩"
+sidebar_label: 'FindPathsOptions⟨T, U, V⟩'
 ---
 
 # FindPathsOptions`<T, U, V>`
@@ -10,11 +10,11 @@ Graph path query options (basic)
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) | [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
-| <a id="type-parameter-u"></a> `U` | [`GraphWhere`](../type-aliases/GraphWhere.md)&lt;`T`&gt; |
-| <a id="type-parameter-v"></a> `V` *extends* [`EdgeFilterOptions`](../type-aliases/EdgeFilterOptions.md) | [`EdgeFilterOptions`](../type-aliases/EdgeFilterOptions.md) |
+| Type Parameter                                                                                          | Default type                                                |
+| ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md)       | [`EntityType`](../../rxdb/type-aliases/EntityType.md)       |
+| <a id="type-parameter-u"></a> `U`                                                                       | [`GraphWhere`](../type-aliases/GraphWhere.md)&lt;`T`&gt;    |
+| <a id="type-parameter-v"></a> `V` _extends_ [`EdgeFilterOptions`](../type-aliases/EdgeFilterOptions.md) | [`EdgeFilterOptions`](../type-aliases/EdgeFilterOptions.md) |
 
 ## Properties
 
@@ -27,6 +27,7 @@ direction?: "in" | "out" | "both";
 Defined in: [rxdb-plugin-graph/src/graph-repository.interface.ts:259](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-graph/src/graph-repository.interface.ts#L259)
 
 Query direction
+
 - 'in': in-edge paths
 - 'out': out-edge paths
 - 'both': paths in both directions (default)
@@ -34,10 +35,10 @@ Query direction
 #### Default
 
 ```ts
-'both'
+'both';
 ```
 
-***
+---
 
 ### edgeWhere? \{#edgewhere\}
 
@@ -54,25 +55,25 @@ Applied to all edges along the path
 
 ```typescript
 // Only travel on highways
-edgeWhere: `{ properties: { roadType: 'highway' } }`
+edgeWhere: `{ properties: { roadType: 'highway' } }`;
 
 // Avoid congested segments (requires weight enabled)
-edgeWhere: `{ weight: { max: 10 } }`
+edgeWhere: `{ weight: { max: 10 } }`;
 ```
 
-***
+---
 
 ### fromId \{#fromid\}
 
 ```ts
-fromId: EntityStaticType<T, "idType">;
+fromId: EntityStaticType<T, 'idType'>;
 ```
 
 Defined in: [rxdb-plugin-graph/src/graph-repository.interface.ts:245](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-graph/src/graph-repository.interface.ts#L245)
 
 Source node ID
 
-***
+---
 
 ### limit? \{#limit\}
 
@@ -87,14 +88,14 @@ Maximum number of paths returned.
 #### Default
 
 ```ts
-1000
+1000;
 ```
 
 #### Maximum
 
 10000
 
-***
+---
 
 ### maxDepth? \{#maxdepth\}
 
@@ -109,7 +110,7 @@ Maximum search depth (to prevent over-searching)
 #### Default
 
 ```ts
-10
+10;
 ```
 
 #### Maximum
@@ -121,19 +122,19 @@ Maximum search depth (to prevent over-searching)
 Path search complexity grows exponentially with depth
 Adjust this value based on the actual density of the graph
 
-***
+---
 
 ### toId \{#toid\}
 
 ```ts
-toId: EntityStaticType<T, "idType">;
+toId: EntityStaticType<T, 'idType'>;
 ```
 
 Defined in: [rxdb-plugin-graph/src/graph-repository.interface.ts:250](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-graph/src/graph-repository.interface.ts#L250)
 
 Target node ID
 
-***
+---
 
 ### where? \{#where\}
 

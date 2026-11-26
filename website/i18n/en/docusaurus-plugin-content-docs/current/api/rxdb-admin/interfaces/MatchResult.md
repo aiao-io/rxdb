@@ -16,7 +16,7 @@ Defined in: [palette/fuzzy.ts:9](https://github.com/aiao-io/rxdb/blob/b523204024
 
 The match ranges, sorted and merged.
 
-***
+---
 
 ### score \{#score\}
 

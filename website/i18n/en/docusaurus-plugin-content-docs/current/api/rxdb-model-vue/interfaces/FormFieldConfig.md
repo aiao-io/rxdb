@@ -16,7 +16,7 @@ Defined in: packages/rxdb-model/dist/entity-form/interfaces.d.ts:14
 
 Display name
 
-***
+---
 
 ### encrypted? \{#encrypted\}
 
@@ -28,7 +28,7 @@ Defined in: packages/rxdb-model/dist/entity-form/interfaces.d.ts:38
 
 Whether this is an encrypted column
 
-***
+---
 
 ### enumValues? \{#enumvalues\}
 
@@ -40,7 +40,7 @@ Defined in: packages/rxdb-model/dist/entity-form/interfaces.d.ts:26
 
 Optional values of the enum type
 
-***
+---
 
 ### field \{#field\}
 
@@ -52,7 +52,7 @@ Defined in: packages/rxdb-model/dist/entity-form/interfaces.d.ts:12
 
 Field name
 
-***
+---
 
 ### format? \{#format\}
 
@@ -64,7 +64,7 @@ Defined in: packages/rxdb-model/dist/entity-form/interfaces.d.ts:34
 
 Semantic annotation of the field (only affects presentation and control selection; does not change the runtime value type)
 
-***
+---
 
 ### helpText? \{#helptext\}
 
@@ -76,7 +76,7 @@ Defined in: packages/rxdb-model/dist/entity-form/interfaces.d.ts:46
 
 Help text
 
-***
+---
 
 ### hidden? \{#hidden\}
 
@@ -88,7 +88,7 @@ Defined in: packages/rxdb-model/dist/entity-form/interfaces.d.ts:40
 
 Whether the field is hidden
 
-***
+---
 
 ### keyValueSchema? \{#keyvalueschema\}
 
@@ -100,7 +100,7 @@ Defined in: packages/rxdb-model/dist/entity-form/interfaces.d.ts:28
 
 Schema of a key-value typed field
 
-***
+---
 
 ### nullable? \{#nullable\}
 
@@ -112,7 +112,7 @@ Defined in: packages/rxdb-model/dist/entity-form/interfaces.d.ts:20
 
 Whether the field can be null
 
-***
+---
 
 ### options? \{#options\}
 
@@ -124,7 +124,7 @@ Defined in: packages/rxdb-model/dist/entity-form/interfaces.d.ts:36
 
 Display metadata for enum / multi-select values (label / color / disabled)
 
-***
+---
 
 ### order? \{#order\}
 
@@ -136,7 +136,7 @@ Defined in: packages/rxdb-model/dist/entity-form/interfaces.d.ts:42
 
 Ordering weight
 
-***
+---
 
 ### placeholder? \{#placeholder\}
 
@@ -148,7 +148,7 @@ Defined in: packages/rxdb-model/dist/entity-form/interfaces.d.ts:44
 
 Placeholder hint
 
-***
+---
 
 ### readonly? \{#readonly\}
 
@@ -160,7 +160,7 @@ Defined in: packages/rxdb-model/dist/entity-form/interfaces.d.ts:18
 
 Whether the field is read-only
 
-***
+---
 
 ### relatedEntityName? \{#relatedentityname\}
 
@@ -172,7 +172,7 @@ Defined in: packages/rxdb-model/dist/entity-form/interfaces.d.ts:30
 
 Name of the entity that the relation field points to
 
-***
+---
 
 ### relatedNamespace? \{#relatednamespace\}
 
@@ -184,7 +184,7 @@ Defined in: packages/rxdb-model/dist/entity-form/interfaces.d.ts:32
 
 Namespace of the entity that the relation field points to
 
-***
+---
 
 ### required? \{#required\}
 
@@ -196,7 +196,7 @@ Defined in: packages/rxdb-model/dist/entity-form/interfaces.d.ts:22
 
 Whether the field is required
 
-***
+---
 
 ### span? \{#span\}
 
@@ -208,7 +208,7 @@ Defined in: packages/rxdb-model/dist/entity-form/interfaces.d.ts:48
 
 Number of grid columns the field occupies (1 or 2)
 
-***
+---
 
 ### type \{#type\}
 
@@ -220,7 +220,7 @@ Defined in: packages/rxdb-model/dist/entity-form/interfaces.d.ts:16
 
 Field type
 
-***
+---
 
 ### unique? \{#unique\}
 

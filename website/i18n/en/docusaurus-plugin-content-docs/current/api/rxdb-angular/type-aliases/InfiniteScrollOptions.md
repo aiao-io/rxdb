@@ -1,13 +1,12 @@
 ---
-sidebar_label: "InfiniteScrollOptions⟨T⟩"
+sidebar_label: 'InfiniteScrollOptions⟨T⟩'
 ---
 
 # InfiniteScrollOptions`<T>`
 
 ```ts
-type InfiniteScrollOptions<T> = 
-  | EntityStaticType<T, "findByCursorOptions">
-  | (() => EntityStaticType<T, "findByCursorOptions">);
+type InfiniteScrollOptions<T> =
+  EntityStaticType<T, 'findByCursorOptions'> | (() => EntityStaticType<T, 'findByCursorOptions'>);
 ```
 
 Defined in: [rxdb-angular/src/InfiniteScrollingList.ts:79](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-angular/src/InfiniteScrollingList.ts#L79)
@@ -16,9 +15,9 @@ Angular infinite scroll query options or a reactive options reader.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                    |
+| ------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 ## Remarks
 

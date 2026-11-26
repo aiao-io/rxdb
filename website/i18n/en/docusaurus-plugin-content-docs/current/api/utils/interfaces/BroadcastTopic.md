@@ -1,5 +1,5 @@
 ---
-sidebar_label: "BroadcastTopic⟨T⟩"
+sidebar_label: 'BroadcastTopic⟨T⟩'
 ---
 
 # BroadcastTopic`<T>`
@@ -8,9 +8,9 @@ Defined in: [packages/utils/src/@browser/broadcast-channel-pool.ts:3](https://gi
 
 ## Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| <a id="type-parameter-t"></a> `T` | `unknown` |
+| Type Parameter                    | Default type |
+| --------------------------------- | ------------ |
+| <a id="type-parameter-t"></a> `T` | `unknown`    |
 
 ## Properties
 
@@ -32,7 +32,7 @@ Closes the channel held by this topic. Idempotent; after closing, `emit` is a no
 
 UTL-009: previously the channel's lifecycle was tied to the RxJS observer count (closed on the last unsubscribe), making "who owns this resource" implicit and accidentally triggered by subscription timing. It is now **explicit ownership**.
 
-***
+---
 
 ### emit \{#emit\}
 
@@ -45,14 +45,14 @@ Defined in: [packages/utils/src/@browser/broadcast-channel-pool.ts:5](https://gi
 #### Parameters
 
 | Parameter | Type |
-| ------ | ------ |
-| `message` | `T` |
+| --------- | ---- |
+| `message` | `T`  |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### message$ \{#message\}
 

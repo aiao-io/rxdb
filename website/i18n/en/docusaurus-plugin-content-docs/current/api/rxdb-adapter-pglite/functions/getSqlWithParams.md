@@ -11,10 +11,10 @@ Used for bulk operations where parameterized queries cannot be used
 
 ## Parameters
 
-| Parameter | Type | Default value |
-| ------ | ------ | ------ |
-| `sql` | `string` | `undefined` |
-| `params?` | `unknown`[] | `[]` |
+| Parameter | Type        | Default value |
+| --------- | ----------- | ------------- |
+| `sql`     | `string`    | `undefined`   |
+| `params?` | `unknown`[] | `[]`          |
 
 ## Returns
 

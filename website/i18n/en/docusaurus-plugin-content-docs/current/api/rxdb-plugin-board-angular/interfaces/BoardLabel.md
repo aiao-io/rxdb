@@ -23,7 +23,7 @@ boardId: `${string}-${string}-${string}-${string}-${string}`;
 
 Defined in: packages/rxdb-plugin-board/dist/entities/board-label.entity.d.ts:10
 
-***
+---
 
 ### color \{#color\}
 
@@ -33,7 +33,7 @@ color: string;
 
 Defined in: packages/rxdb-plugin-board/dist/entities/board-label.entity.d.ts:12
 
-***
+---
 
 ### createdAt \{#createdat\}
 
@@ -50,7 +50,7 @@ Automatically set to the current time when the entity is created
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`createdAt`](../../rxdb/classes/EntityBase.md#createdat)
 
-***
+---
 
 ### createdBy? \{#createdby\}
 
@@ -67,7 +67,7 @@ Records the user ID that created this entity
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`createdBy`](../../rxdb/classes/EntityBase.md#createdby)
 
-***
+---
 
 ### id \{#id\}
 
@@ -84,7 +84,7 @@ Auto-generated UUID used as the primary key
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`id`](../../rxdb/classes/EntityBase.md#id)
 
-***
+---
 
 ### name \{#name\}
 
@@ -94,7 +94,7 @@ name: string;
 
 Defined in: packages/rxdb-plugin-board/dist/entities/board-label.entity.d.ts:11
 
-***
+---
 
 ### remove \{#remove\}
 
@@ -114,7 +114,7 @@ Delete
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`remove`](../../rxdb/classes/EntityBase.md#remove)
 
-***
+---
 
 ### reset \{#reset\}
 
@@ -134,7 +134,7 @@ Reset data
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`reset`](../../rxdb/classes/EntityBase.md#reset)
 
-***
+---
 
 ### save \{#save\}
 
@@ -160,7 +160,7 @@ See [RxDBAdapterLocalBase.transaction](../../rxdb/classes/RxDBAdapterLocalBase.m
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`save`](../../rxdb/classes/EntityBase.md#save)
 
-***
+---
 
 ### updatedAt \{#updatedat\}
 
@@ -177,7 +177,7 @@ Automatically set to the current time when the entity is created or updated
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`updatedAt`](../../rxdb/classes/EntityBase.md#updatedat)
 
-***
+---
 
 ### updatedBy? \{#updatedby\}
 

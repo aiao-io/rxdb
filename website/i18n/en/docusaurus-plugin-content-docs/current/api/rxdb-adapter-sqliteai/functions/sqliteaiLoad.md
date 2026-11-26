@@ -14,8 +14,8 @@ never enabled it, it reloads once to apply the patch.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                            | Description                                                  |
+| ---------- | --------------------------------------------------------------- | ------------------------------------------------------------ |
 | `options?` | [`SqliteaiLoadOptions`](../type-aliases/SqliteaiLoadOptions.md) | The load options (including OPFS / wasmPath / printErr etc.) |
 
 ## Returns

@@ -18,16 +18,16 @@ Writes attributes and styles; anything written before but absent this time is re
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `attributes` | `Readonly`&lt;`Record`&lt;`string`, `string`&gt;&gt; | The attributes. |
-| `style` | `Readonly`&lt;`Record`&lt;`string`, `string`&gt;&gt; | The styles (custom properties or ordinary CSS property names). |
+| Parameter    | Type                                                 | Description                                                    |
+| ------------ | ---------------------------------------------------- | -------------------------------------------------------------- |
+| `attributes` | `Readonly`&lt;`Record`&lt;`string`, `string`&gt;&gt; | The attributes.                                                |
+| `style`      | `Readonly`&lt;`Record`&lt;`string`, `string`&gt;&gt; | The styles (custom properties or ordinary CSS property names). |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### clear() \{#clear\}
 

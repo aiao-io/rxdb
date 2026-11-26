@@ -1,12 +1,7 @@
 # generate_table_set_trigger_sql()
 
 ```ts
-function generate_table_set_trigger_sql(
-   adapter, 
-   tableSet, 
-   branchId, 
-   transactionId?
-): string;
+function generate_table_set_trigger_sql(adapter, tableSet, branchId, transactionId?): string;
 ```
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/table/trigger\_sql.ts:285](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/table/trigger_sql.ts#L285)
@@ -15,12 +10,12 @@ Rebuilds only one table set's change triggers: both the table set and the branch
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `adapter` | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md) | SQLite adapter |
-| `tableSet` | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md) | Which table set's triggers to rebuild |
-| `branchId` | `string` | Branch the triggers write into the change history |
-| `transactionId?` | `` `${string}-${string}-${string}-${string}-${string}` `` | Transaction id stamped into the triggers; only given for the two rebuilds at the start and end of each logging transaction |
+| Parameter        | Type                                                           | Description                                                                                                                |
+| ---------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `adapter`        | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md) | SQLite adapter                                                                                                             |
+| `tableSet`       | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md)   | Which table set's triggers to rebuild                                                                                      |
+| `branchId`       | `string`                                                       | Branch the triggers write into the change history                                                                          |
+| `transactionId?` | `` `${string}-${string}-${string}-${string}-${string}` ``      | Transaction id stamped into the triggers; only given for the two rebuilds at the start and end of each logging transaction |
 
 ## Returns
 

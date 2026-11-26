@@ -10,9 +10,9 @@ Reduces any error to a displayable reason: stable error codes first (`reason` / 
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `error` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `error`   | `unknown` |
 
 ## Returns
 

@@ -10,9 +10,9 @@ Builds a chunk request handler that serves only this manifest's content.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `manifest` | [`P2PFileManifest`](../interfaces/P2PFileManifest.md) |
+| Parameter   | Type                                                                         |
+| ----------- | ---------------------------------------------------------------------------- |
+| `manifest`  | [`P2PFileManifest`](../interfaces/P2PFileManifest.md)                        |
 | `readRange` | (`offset`, `size`) => `Promise`&lt;`Uint8Array`&lt;`ArrayBufferLike`&gt;&gt; |
 
 ## Returns

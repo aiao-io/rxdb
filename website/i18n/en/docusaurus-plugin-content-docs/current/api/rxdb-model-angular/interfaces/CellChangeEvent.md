@@ -16,7 +16,7 @@ Defined in: packages/rxdb-model/dist/entity-table/interfaces.d.ts:23
 
 Index of the column where the change occurred
 
-***
+---
 
 ### field \{#field\}
 
@@ -28,7 +28,7 @@ Defined in: packages/rxdb-model/dist/entity-table/interfaces.d.ts:27
 
 The name of the changed field
 
-***
+---
 
 ### record \{#record\}
 
@@ -40,7 +40,7 @@ Defined in: packages/rxdb-model/dist/entity-table/interfaces.d.ts:31
 
 The record of the row where the change occurred
 
-***
+---
 
 ### row \{#row\}
 
@@ -52,7 +52,7 @@ Defined in: packages/rxdb-model/dist/entity-table/interfaces.d.ts:25
 
 Index of the row where the change occurred
 
-***
+---
 
 ### value \{#value\}
 

@@ -17,7 +17,7 @@ Defined in: [packages/rxdb/src/entity/conditional-unique-index.ts:32](https://gi
 
 The physical column names of the index columns (in declaration order).
 
-***
+---
 
 ### name \{#name\}
 
@@ -29,7 +29,7 @@ Defined in: [packages/rxdb/src/entity/conditional-unique-index.ts:30](https://gi
 
 The deterministic index name (starting with `uq_`, containing the definition hash).
 
-***
+---
 
 ### normalized \{#normalized\}
 
@@ -42,7 +42,7 @@ Defined in: [packages/rxdb/src/entity/conditional-unique-index.ts:34](https://gi
 Whether the columns participate in comparison by the `normalized` measure
 (`lower(COALESCE(CAST(column AS TEXT), ''))`).
 
-***
+---
 
 ### where \{#where\}
 

@@ -9,21 +9,22 @@ Defined in: [packages/rxdb/src/sync-contract/compact-changes.ts:46](https://gith
 Compacts a change list into SwitchVersionActions (specialized for the Push scenario).
 
 Uses state-machine logic to process change compaction, specialized for the Push scenario:
+
 - Data created locally and then deleted (INSERT → DELETE with `inversePatch` null) does not need to be pushed
 - Deletion of data that already exists remotely (`inversePatch` not null) must push a DELETE
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`IRxDBChange`](../interfaces/IRxDBChange.md) |
+| Type Parameter                                                                            |
+| ----------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`IRxDBChange`](../interfaces/IRxDBChange.md) |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `changes` | `T`[] | The raw change list (sorted by id automatically) |
-| `actions?` | [`SwitchVersionActions`](../interfaces/SwitchVersionActions.md) | - |
+| Parameter  | Type                                                            | Description                                      |
+| ---------- | --------------------------------------------------------------- | ------------------------------------------------ |
+| `changes`  | `T`[]                                                           | The raw change list (sorted by id automatically) |
+| `actions?` | [`SwitchVersionActions`](../interfaces/SwitchVersionActions.md) | -                                                |
 
 ## Returns
 
@@ -54,6 +55,7 @@ const actions2 = compactChanges(changes2);
 ## Remarks
 
 **Compaction rules (Push-only)**:
+
 - `INSERT → DELETE` + `inversePatch === null` → cancel out (created locally, the server has never seen it)
 - `INSERT → DELETE` + `inversePatch !== null` → keep the DELETE (the server already has the old data)
 - `INSERT → UPDATE*` → merge into INSERT (insert the final state at once)
@@ -61,5 +63,6 @@ const actions2 = compactChanges(changes2);
 - `UPDATE → DELETE` → keep the DELETE (the server must know the data was deleted)
 
 **Difference from `get_switch_version_actions`**:
+
 - `get_switch_version_actions`: branch switch scenario, `INSERT → DELETE` cancels out completely
 - `compactChanges`: Push scenario, decides whether the server must be notified based on `inversePatch`

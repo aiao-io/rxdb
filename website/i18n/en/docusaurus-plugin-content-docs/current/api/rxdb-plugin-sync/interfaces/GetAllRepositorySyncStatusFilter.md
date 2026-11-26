@@ -19,7 +19,7 @@ If true, only enabled repositories are returned
 If false, only disabled repositories are returned
 If undefined, everything is returned
 
-***
+---
 
 ### hasPendingChanges? \{#haspendingchanges\}
 
@@ -34,7 +34,7 @@ If true, only repositories with pushableCount \> 0 or pullableCount \> 0 are ret
 If false, only repositories without pending changes are returned
 If undefined, everything is returned
 
-***
+---
 
 ### syncType? \{#synctype\}
 

@@ -10,9 +10,9 @@ Verifies the length and hash of a chunk.
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `bytes` | `Uint8Array` |
+| Parameter    | Type                                                                                            |
+| ------------ | ----------------------------------------------------------------------------------------------- |
+| `bytes`      | `Uint8Array`                                                                                    |
 | `descriptor` | `Pick`&lt;[`P2PChunkDescriptor`](../interfaces/P2PChunkDescriptor.md), `"size"` \| `"hash"`&gt; |
 
 ## Returns

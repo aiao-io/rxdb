@@ -10,9 +10,9 @@ Checks whether a value is a canonical (lowercase, hyphenated) UUID v4.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | The value to check. |
+| Parameter | Type      | Description         |
+| --------- | --------- | ------------------- |
+| `value`   | `unknown` | The value to check. |
 
 ## Returns
 

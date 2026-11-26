@@ -10,9 +10,9 @@ Negotiates the transfer limit that actually takes effect.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `limits` | `unknown` | The limits declared by the panel / connector / provider respectively. |
+| Parameter | Type      | Description                                                           |
+| --------- | --------- | --------------------------------------------------------------------- |
+| `limits`  | `unknown` | The limits declared by the panel / connector / provider respectively. |
 
 ## Returns
 

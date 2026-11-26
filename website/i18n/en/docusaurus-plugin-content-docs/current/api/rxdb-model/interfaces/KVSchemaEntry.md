@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-model/src/entity-table/columns/column-utils.ts:104](h
 
 The display label (defaults to the key name)
 
-***
+---
 
 ### nullable? \{#nullable\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-model/src/entity-table/columns/column-utils.ts:110](h
 
 Whether null is allowed
 
-***
+---
 
 ### required? \{#required\}
 
@@ -40,7 +40,7 @@ Defined in: [packages/rxdb-model/src/entity-table/columns/column-utils.ts:108](h
 
 Whether it is required
 
-***
+---
 
 ### type? \{#type\}
 

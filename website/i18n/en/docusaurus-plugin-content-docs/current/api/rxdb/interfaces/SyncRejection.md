@@ -20,7 +20,7 @@ Defined in: [packages/rxdb/src/sync-state.ts:71](https://github.com/aiao-io/rxdb
 
 The push-commit moment.
 
-***
+---
 
 ### changeIds \{#changeids\}
 
@@ -32,7 +32,7 @@ Defined in: [packages/rxdb/src/sync-state.ts:73](https://github.com/aiao-io/rxdb
 
 The local change ids (`RxDBChange.id`) of this entity that were marked rejected together.
 
-***
+---
 
 ### code \{#code\}
 
@@ -48,12 +48,12 @@ Database SQLSTATE, e.g. `42501`, `RX001`, `23503`.
 
 [`SyncRejectionReport`](SyncRejectionReport.md).[`code`](SyncRejectionReport.md#code)
 
-***
+---
 
 ### dependsOn? \{#dependson\}
 
 ```ts
-dependsOn?: 
+dependsOn?:
   | RemoteEntityRef
   | {
   constraint: string;
@@ -69,7 +69,7 @@ be located.
 
 [`SyncRejectionReport`](SyncRejectionReport.md).[`dependsOn`](SyncRejectionReport.md#dependson)
 
-***
+---
 
 ### entity \{#entity\}
 
@@ -85,7 +85,7 @@ Entity name.
 
 [`SyncRejectionReport`](SyncRejectionReport.md).[`entity`](SyncRejectionReport.md#entity)
 
-***
+---
 
 ### entityId \{#entityid\}
 
@@ -101,7 +101,7 @@ The rejected entity's primary key.
 
 [`SyncRejectionReport`](SyncRejectionReport.md).[`entityId`](SyncRejectionReport.md#entityid)
 
-***
+---
 
 ### message \{#message\}
 
@@ -117,7 +117,7 @@ The remote's raw message.
 
 [`SyncRejectionReport`](SyncRejectionReport.md).[`message`](SyncRejectionReport.md#message)
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -133,12 +133,12 @@ Entity namespace.
 
 [`SyncRejectionReport`](SyncRejectionReport.md).[`namespace`](SyncRejectionReport.md#namespace)
 
-***
+---
 
 ### op \{#op\}
 
 ```ts
-op: "INSERT" | "UPDATE" | "DELETE";
+op: 'INSERT' | 'UPDATE' | 'DELETE';
 ```
 
 Defined in: [packages/rxdb/src/sync-state.ts:55](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-state.ts#L55)
@@ -149,12 +149,12 @@ The merged remote operation (taken from the remote receipt, not the type of a si
 
 [`SyncRejectionReport`](SyncRejectionReport.md).[`op`](SyncRejectionReport.md#op)
 
-***
+---
 
 ### reason \{#reason\}
 
 ```ts
-reason: "denied" | "gone" | "dependency";
+reason: 'denied' | 'gone' | 'dependency';
 ```
 
 Defined in: [packages/rxdb/src/sync-state.ts:59](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-state.ts#L59)

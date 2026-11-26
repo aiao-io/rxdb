@@ -18,7 +18,7 @@ readonly HEAP32: Int32Array;
 
 Defined in: [packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts:172](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts#L172)
 
-***
+---
 
 ### HEAPU8 \{#heapu8\}
 
@@ -40,23 +40,23 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts:174
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `database` | `number` |
+| Parameter   | Type     |
+| ----------- | -------- |
+| `database`  | `number` |
 | `statement` | `number` |
 
 #### Returns
 
 `number`
 
-***
+---
 
 ### setValue() \{#setvalue\}
 
 ```ts
 setValue(
-   pointer, 
-   value, 
+   pointer,
+   value,
    type
 ): void;
 ```
@@ -65,24 +65,24 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts:177
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `pointer` | `number` |
-| `value` | `number` |
-| `type` | `"double"` |
+| Parameter | Type       |
+| --------- | ---------- |
+| `pointer` | `number`   |
+| `value`   | `number`   |
+| `type`    | `"double"` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### stringToUTF8() \{#stringtoutf8\}
 
 ```ts
 stringToUTF8(
-   value, 
-   pointer, 
+   value,
+   pointer,
    maximumBytes
 ): void;
 ```
@@ -91,17 +91,17 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts:176
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `value` | `string` |
-| `pointer` | `number` |
+| Parameter      | Type     |
+| -------------- | -------- |
+| `value`        | `string` |
+| `pointer`      | `number` |
 | `maximumBytes` | `number` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### UTF8ToString() \{#utf8tostring\}
 
@@ -113,8 +113,8 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts:175
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type     |
+| --------- | -------- |
 | `pointer` | `number` |
 
 #### Returns

@@ -64,8 +64,8 @@ When `clientId` is missing or identical on both sides there is nothing to discri
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                    | Description          |
+| ---------- | --------------------------------------- | -------------------- |
 | `conflict` | [`Conflict`](../interfaces/Conflict.md) | Conflict information |
 
 #### Returns
@@ -78,7 +78,7 @@ Conflict resolution result
 
 [`ConflictResolver`](../interfaces/ConflictResolver.md).[`resolve`](../interfaces/ConflictResolver.md#resolve)
 
-***
+---
 
 ### resolveAll() \{#resolveall\}
 
@@ -94,8 +94,8 @@ Calls resolve() one by one
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type                                      | Description       |
+| ----------- | ----------------------------------------- | ----------------- |
 | `conflicts` | [`Conflict`](../interfaces/Conflict.md)[] | The conflict list |
 
 #### Returns

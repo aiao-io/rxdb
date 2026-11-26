@@ -1,12 +1,7 @@
 # generateKeyBetween()
 
 ```ts
-function generateKeyBetween(
-   a, 
-   b, 
-   digits?, 
-   intDigits?
-): string;
+function generateKeyBetween(a, b, digits?, intDigits?): string;
 ```
 
 Defined in: [packages/utils/src/indexing/fractional-indexing.ts:492](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/utils/src/indexing/fractional-indexing.ts#L492)
@@ -22,12 +17,12 @@ Note that `digits` only defines the **digit values** of the key. The integer par
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `a` | `OrderKey` | The lower-bound key (null means the start of the list) |
-| `b` | `OrderKey` | The upper-bound key (null means the end of the list) |
-| `digits?` | `string` | The digit alphabet; characters must be single-byte (char codes 0-255) and in ascending char-code order; defaults to [BASE\_62\_DIGITS](../variables/BASE_62_DIGITS.md). Because `intDigits` defaults to `digits`, a `digits` of odd length must be paired with an explicit even-length `intDigits` |
-| `intDigits?` | `string` | The head alphabet; must have even length and be in ascending char-code order; the first half are negative-length heads, the second half positive-length heads. The outermost characters mark the longest integer part; the two characters straddling the midpoint mark the shortest (length 2). The integer part can only grow up to the outermost heads, so a shorter alphabet limits how large / small the integer part of a key can become |
+| Parameter    | Type       | Description                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ------------ | ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `a`          | `OrderKey` | The lower-bound key (null means the start of the list)                                                                                                                                                                                                                                                                                                                                                                                        |
+| `b`          | `OrderKey` | The upper-bound key (null means the end of the list)                                                                                                                                                                                                                                                                                                                                                                                          |
+| `digits?`    | `string`   | The digit alphabet; characters must be single-byte (char codes 0-255) and in ascending char-code order; defaults to [BASE\_62\_DIGITS](../variables/BASE_62_DIGITS.md). Because `intDigits` defaults to `digits`, a `digits` of odd length must be paired with an explicit even-length `intDigits`                                                                                                                                            |
+| `intDigits?` | `string`   | The head alphabet; must have even length and be in ascending char-code order; the first half are negative-length heads, the second half positive-length heads. The outermost characters mark the longest integer part; the two characters straddling the midpoint mark the shortest (length 2). The integer part can only grow up to the outermost heads, so a shorter alphabet limits how large / small the integer part of a key can become |
 
 ## Returns
 

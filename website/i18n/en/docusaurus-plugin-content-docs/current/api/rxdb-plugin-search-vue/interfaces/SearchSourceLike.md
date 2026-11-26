@@ -19,9 +19,9 @@ Defined in: packages/rxdb-plugin-search/dist/types.d.ts:107
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `query` | `string` |
+| Parameter  | Type                                |
+| ---------- | ----------------------------------- |
+| `query`    | `string`                            |
 | `options?` | [`SearchOptions`](SearchOptions.md) |
 
 #### Returns

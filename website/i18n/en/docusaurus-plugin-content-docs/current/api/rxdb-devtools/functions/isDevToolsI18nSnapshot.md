@@ -10,9 +10,9 @@ Validates an internationalization snapshot from the debug channel.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | Untrusted response or event data. |
+| Parameter | Type      | Description                       |
+| --------- | --------- | --------------------------------- |
+| `value`   | `unknown` | Untrusted response or event data. |
 
 ## Returns
 

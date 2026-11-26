@@ -1,11 +1,11 @@
 ---
-sidebar_label: "WorkingTreeQueryState⟨T⟩"
+sidebar_label: 'WorkingTreeQueryState⟨T⟩'
 ---
 
 # WorkingTreeQueryState`<T>`
 
 ```ts
-type WorkingTreeQueryState<T> = 
+type WorkingTreeQueryState<T> =
   | WorkingTreeIdleState
   | WorkingTreeLoadingState
   | WorkingTreeSuccessState<T>
@@ -19,8 +19,8 @@ The observable state of a query: **exactly one more** empty than commands (§4).
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Remarks

@@ -12,9 +12,9 @@ Complementary to [isMSTime](isMSTime.md): the latter only narrows the **string**
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `value` | `unknown` | The value to check |
+| Parameter | Type      | Description        |
+| --------- | --------- | ------------------ |
+| `value`   | `unknown` | The value to check |
 
 ## Returns
 

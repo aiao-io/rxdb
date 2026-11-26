@@ -18,7 +18,7 @@ Defined in: [accessibility.ts:27](https://github.com/aiao-io/rxdb/blob/b52320402
 
 Id of the descriptive text element, mapped to `aria-describedby`.
 
-***
+---
 
 ### disabled? \{#disabled\}
 
@@ -30,7 +30,7 @@ Defined in: [accessibility.ts:29](https://github.com/aiao-io/rxdb/blob/b52320402
 
 Whether the editor is currently in an **effective disabled** state (the merged result of `disabled` and form disabling).
 
-***
+---
 
 ### label? \{#label\}
 
@@ -42,7 +42,7 @@ Defined in: [accessibility.ts:31](https://github.com/aiao-io/rxdb/blob/b52320402
 
 Accessible name, mapped to `aria-label`.
 
-***
+---
 
 ### labelledBy? \{#labelledby\}
 

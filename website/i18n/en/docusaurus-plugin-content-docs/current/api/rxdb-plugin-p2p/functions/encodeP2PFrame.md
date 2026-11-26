@@ -10,9 +10,9 @@ Encodes a frame: 4-byte unsigned big-endian metadata length + JSON metadata + pa
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `frame` | [`P2PFrame`](../type-aliases/P2PFrame.md) |
+| Parameter | Type                                      |
+| --------- | ----------------------------------------- |
+| `frame`   | [`P2PFrame`](../type-aliases/P2PFrame.md) |
 
 ## Returns
 

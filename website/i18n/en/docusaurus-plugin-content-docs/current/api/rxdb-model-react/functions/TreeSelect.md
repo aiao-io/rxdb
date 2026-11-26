@@ -10,8 +10,8 @@ Tree dropdown select component: Popover API + filtering + expand/collapse + keyb
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter           | Type                                                  |
+| ------------------- | ----------------------------------------------------- |
 | `__namedParameters` | [`TreeSelectProps`](../interfaces/TreeSelectProps.md) |
 
 ## Returns

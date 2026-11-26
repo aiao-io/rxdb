@@ -1,7 +1,7 @@
 # CodeEditorTheme
 
 ```ts
-type CodeEditorTheme = "light" | "dark";
+type CodeEditorTheme = 'light' | 'dark';
 ```
 
 Defined in: packages/code-editor/dist/index.d.ts:19

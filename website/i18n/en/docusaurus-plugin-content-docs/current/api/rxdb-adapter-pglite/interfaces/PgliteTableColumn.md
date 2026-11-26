@@ -17,7 +17,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:93](https://gi
 
 Maximum length of a character type
 
-***
+---
 
 ### character\_octet\_length? \{#character_octet_length\}
 
@@ -29,7 +29,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:95](https://gi
 
 Byte length of a character type
 
-***
+---
 
 ### character\_set\_catalog? \{#character_set_catalog\}
 
@@ -41,7 +41,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:109](https://g
 
 Character set catalog
 
-***
+---
 
 ### character\_set\_name? \{#character_set_name\}
 
@@ -53,7 +53,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:113](https://g
 
 Character set name
 
-***
+---
 
 ### character\_set\_schema? \{#character_set_schema\}
 
@@ -65,7 +65,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:111](https://g
 
 Character set schema
 
-***
+---
 
 ### collation\_catalog? \{#collation_catalog\}
 
@@ -77,7 +77,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:115](https://g
 
 Collation catalog
 
-***
+---
 
 ### collation\_name? \{#collation_name\}
 
@@ -89,7 +89,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:119](https://g
 
 Collation name
 
-***
+---
 
 ### collation\_schema? \{#collation_schema\}
 
@@ -101,7 +101,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:117](https://g
 
 Collation schema
 
-***
+---
 
 ### column\_default \{#column_default\}
 
@@ -113,7 +113,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:87](https://gi
 
 Default value of the column
 
-***
+---
 
 ### column\_name \{#column_name\}
 
@@ -125,7 +125,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:83](https://gi
 
 Column name
 
-***
+---
 
 ### constraint\_type \{#constraint_type\}
 
@@ -137,7 +137,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:165](https://g
 
 Constraint type
 
-***
+---
 
 ### data\_type \{#data_type\}
 
@@ -149,7 +149,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:91](https://gi
 
 Data type
 
-***
+---
 
 ### datetime\_precision? \{#datetime_precision\}
 
@@ -161,7 +161,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:103](https://g
 
 Precision of a date-time type
 
-***
+---
 
 ### domain\_catalog? \{#domain_catalog\}
 
@@ -173,7 +173,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:121](https://g
 
 Domain catalog
 
-***
+---
 
 ### domain\_name? \{#domain_name\}
 
@@ -185,7 +185,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:125](https://g
 
 Domain name
 
-***
+---
 
 ### domain\_schema? \{#domain_schema\}
 
@@ -197,7 +197,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:123](https://g
 
 Domain schema
 
-***
+---
 
 ### dtd\_identifier \{#dtd_identifier\}
 
@@ -209,7 +209,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:141](https://g
 
 Data type descriptor identifier
 
-***
+---
 
 ### generation\_expression? \{#generation_expression\}
 
@@ -221,7 +221,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:161](https://g
 
 Generation expression of a generated column
 
-***
+---
 
 ### identity\_cycle \{#identity_cycle\}
 
@@ -233,7 +233,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:157](https://g
 
 Whether the identity column cycles
 
-***
+---
 
 ### identity\_generation? \{#identity_generation\}
 
@@ -245,7 +245,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:147](https://g
 
 Generation mode of the identity column
 
-***
+---
 
 ### identity\_increment? \{#identity_increment\}
 
@@ -257,7 +257,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:151](https://g
 
 Increment of the identity column
 
-***
+---
 
 ### identity\_maximum? \{#identity_maximum\}
 
@@ -269,7 +269,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:153](https://g
 
 Maximum value of the identity column
 
-***
+---
 
 ### identity\_minimum? \{#identity_minimum\}
 
@@ -281,7 +281,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:155](https://g
 
 Minimum value of the identity column
 
-***
+---
 
 ### identity\_start? \{#identity_start\}
 
@@ -293,7 +293,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:149](https://g
 
 Start value of the identity column
 
-***
+---
 
 ### interval\_precision? \{#interval_precision\}
 
@@ -305,7 +305,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:107](https://g
 
 Interval precision
 
-***
+---
 
 ### interval\_type? \{#interval_type\}
 
@@ -317,7 +317,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:105](https://g
 
 Interval type
 
-***
+---
 
 ### is\_generated \{#is_generated\}
 
@@ -329,7 +329,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:159](https://g
 
 Whether the column is generated
 
-***
+---
 
 ### is\_identity \{#is_identity\}
 
@@ -341,19 +341,19 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:145](https://g
 
 Whether the column is an identity column
 
-***
+---
 
 ### is\_nullable \{#is_nullable\}
 
 ```ts
-is_nullable: "YES" | "NO";
+is_nullable: 'YES' | 'NO';
 ```
 
 Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:89](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-pglite/src/pglite.interface.ts#L89)
 
 Whether the column can be NULL
 
-***
+---
 
 ### is\_self\_referencing \{#is_self_referencing\}
 
@@ -365,7 +365,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:143](https://g
 
 Whether it is self-referencing
 
-***
+---
 
 ### is\_updatable \{#is_updatable\}
 
@@ -377,7 +377,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:163](https://g
 
 Whether it is updatable
 
-***
+---
 
 ### maximum\_cardinality? \{#maximum_cardinality\}
 
@@ -389,7 +389,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:139](https://g
 
 Maximum cardinality
 
-***
+---
 
 ### numeric\_precision? \{#numeric_precision\}
 
@@ -401,7 +401,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:97](https://gi
 
 Precision of a numeric type
 
-***
+---
 
 ### numeric\_precision\_radix? \{#numeric_precision_radix\}
 
@@ -413,7 +413,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:99](https://gi
 
 Radix of the numeric precision
 
-***
+---
 
 ### numeric\_scale? \{#numeric_scale\}
 
@@ -425,7 +425,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:101](https://g
 
 Scale of a numeric type
 
-***
+---
 
 ### ordinal\_position \{#ordinal_position\}
 
@@ -437,7 +437,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:85](https://gi
 
 Ordinal position of the column within the table
 
-***
+---
 
 ### scope\_catalog? \{#scope_catalog\}
 
@@ -449,7 +449,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:133](https://g
 
 Scope catalog
 
-***
+---
 
 ### scope\_name? \{#scope_name\}
 
@@ -461,7 +461,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:137](https://g
 
 Scope name
 
-***
+---
 
 ### scope\_schema? \{#scope_schema\}
 
@@ -473,7 +473,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:135](https://g
 
 Scope schema
 
-***
+---
 
 ### table\_catalog \{#table_catalog\}
 
@@ -485,7 +485,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:77](https://gi
 
 Database catalog name
 
-***
+---
 
 ### table\_name \{#table_name\}
 
@@ -497,7 +497,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:81](https://gi
 
 Table name
 
-***
+---
 
 ### table\_schema \{#table_schema\}
 
@@ -509,7 +509,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:79](https://gi
 
 Database schema name
 
-***
+---
 
 ### udt\_catalog \{#udt_catalog\}
 
@@ -521,7 +521,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:127](https://g
 
 User-defined type catalog
 
-***
+---
 
 ### udt\_name \{#udt_name\}
 
@@ -533,7 +533,7 @@ Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:131](https://g
 
 User-defined type name
 
-***
+---
 
 ### udt\_schema \{#udt_schema\}
 

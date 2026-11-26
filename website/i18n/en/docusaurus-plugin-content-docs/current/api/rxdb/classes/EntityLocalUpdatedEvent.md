@@ -18,8 +18,8 @@ Defined in: [packages/rxdb/src/rxdb-events.ts:348](https://github.com/aiao-io/rx
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                                                                                         |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | `entities` | [`RxDBEntityLocalUpdatedEventData`](../interfaces/RxDBEntityLocalUpdatedEventData.md)&lt;[`EntityType`](../type-aliases/EntityType.md)&gt;[] |
 
 #### Returns
@@ -36,12 +36,12 @@ readonly entities: RxDBEntityLocalUpdatedEventData<EntityType>[];
 
 Defined in: [packages/rxdb/src/rxdb-events.ts:348](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-events.ts#L348)
 
-***
+---
 
 ### type \{#type\}
 
 ```ts
-type: "ENTITY_LOCAL_UPDATE" = ENTITY_LOCAL_UPDATE_EVENT;
+type: 'ENTITY_LOCAL_UPDATE' = ENTITY_LOCAL_UPDATE_EVENT;
 ```
 
 Defined in: [packages/rxdb/src/rxdb-events.ts:347](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-events.ts#L347)

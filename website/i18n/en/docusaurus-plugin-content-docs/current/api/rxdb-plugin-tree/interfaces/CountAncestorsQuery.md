@@ -1,5 +1,5 @@
 ---
-sidebar_label: "CountAncestorsQuery⟨T⟩"
+sidebar_label: 'CountAncestorsQuery⟨T⟩'
 ---
 
 # CountAncestorsQuery`<T>`
@@ -11,9 +11,9 @@ Counts the ancestor nodes of the given entity
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+| Type Parameter                                                                                    |
+| ------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
 
 ## Properties
 
@@ -25,12 +25,12 @@ options: FindTreeOptions<T>;
 
 Defined in: [rxdb-plugin-tree/src/query/tree-query.interface.ts:45](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-tree/src/query/tree-query.interface.ts#L45)
 
-***
+---
 
 ### type \{#type\}
 
 ```ts
-type: "countAncestors";
+type: 'countAncestors';
 ```
 
 Defined in: [rxdb-plugin-tree/src/query/tree-query.interface.ts:44](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-tree/src/query/tree-query.interface.ts#L44)

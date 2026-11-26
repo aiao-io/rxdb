@@ -14,7 +14,7 @@ readonly bindings: readonly SQLiteCompatibleType[];
 
 Defined in: packages/rxdb-adapter-sqlite-core/dist/desktop/desktop-host-protocol.d.ts:120
 
-***
+---
 
 ### kind \{#kind\}
 
@@ -24,7 +24,7 @@ readonly kind: "execute";
 
 Defined in: packages/rxdb-adapter-sqlite-core/dist/desktop/desktop-host-protocol.d.ts:117
 
-***
+---
 
 ### sessionId \{#sessionid\}
 
@@ -34,7 +34,7 @@ readonly sessionId: string;
 
 Defined in: packages/rxdb-adapter-sqlite-core/dist/desktop/desktop-host-protocol.d.ts:118
 
-***
+---
 
 ### sql \{#sql\}
 

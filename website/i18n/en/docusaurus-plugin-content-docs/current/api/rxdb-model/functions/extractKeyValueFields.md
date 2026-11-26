@@ -10,8 +10,8 @@ Extracts the list of child fields from the `properties` of a keyValue property.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter    | Type                                                                                | Description                                                  |
+| ------------ | ----------------------------------------------------------------------------------- | ------------------------------------------------------------ |
 | `properties` | [`KeyValuePropertyMetadata`](../../rxdb/type-aliases/KeyValuePropertyMetadata.md)[] | Metadata list of the child properties of a keyValue property |
 
 ## Returns

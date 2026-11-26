@@ -13,7 +13,7 @@ In most cases use NO_ACTION or RESTRICT
 ### CASCADE \{#cascade\}
 
 ```ts
-CASCADE: "CASCADE";
+CASCADE: 'CASCADE';
 ```
 
 Defined in: [packages/rxdb/src/entity/relation-types.interface.ts:139](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/relation-types.interface.ts#L139)
@@ -28,12 +28,12 @@ When the user ID is updated, automatically update user_id in all orders
 **Warning:** high performance overhead, frequent use is not recommended
 ```
 
-***
+---
 
 ### NO\_ACTION \{#no_action\}
 
 ```ts
-NO_ACTION: "NO ACTION";
+NO_ACTION: 'NO ACTION';
 ```
 
 Defined in: [packages/rxdb/src/entity/relation-types.interface.ts:125](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/relation-types.interface.ts#L125)
@@ -48,12 +48,12 @@ If references exist, the update fails (foreign key constraint violation)
 
 ```
 
-***
+---
 
 ### RESTRICT \{#restrict\}
 
 ```ts
-RESTRICT: "RESTRICT";
+RESTRICT: 'RESTRICT';
 ```
 
 Defined in: [packages/rxdb/src/entity/relation-types.interface.ts:131](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/relation-types.interface.ts#L131)
@@ -61,12 +61,12 @@ Defined in: [packages/rxdb/src/entity/relation-types.interface.ts:131](https://g
 Restrict the update
 If child table references exist, prevent updating the parent table's primary key
 
-***
+---
 
 ### SET\_DEFAULT \{#set_default\}
 
 ```ts
-SET_DEFAULT: "SET DEFAULT";
+SET_DEFAULT: 'SET DEFAULT';
 ```
 
 Defined in: [packages/rxdb/src/entity/relation-types.interface.ts:153](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/relation-types.interface.ts#L153)
@@ -75,12 +75,12 @@ Set to default value
 When the parent table's primary key is updated, set the child table's foreign key fields to their default values
 **Requires:** the foreign key field must have a DEFAULT value defined
 
-***
+---
 
 ### SET\_NULL \{#set_null\}
 
 ```ts
-SET_NULL: "SET NULL";
+SET_NULL: 'SET NULL';
 ```
 
 Defined in: [packages/rxdb/src/entity/relation-types.interface.ts:146](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/relation-types.interface.ts#L146)

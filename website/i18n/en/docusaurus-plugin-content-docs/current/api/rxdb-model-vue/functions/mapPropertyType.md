@@ -10,9 +10,9 @@ Maps PropertyType to the type of FieldMetadata
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `type` | [`PropertyType`](../../rxdb/enumerations/PropertyType.md) | RxDB property type |
+| Parameter | Type                                                      | Description        |
+| --------- | --------------------------------------------------------- | ------------------ |
+| `type`    | [`PropertyType`](../../rxdb/enumerations/PropertyType.md) | RxDB property type |
 
 ## Returns
 
@@ -23,7 +23,7 @@ QueryBuilder property type
 ## Example
 
 ```typescript
-mapPropertyType(PropertyType.string) // 'string'
-mapPropertyType(PropertyType.number) // 'number'
-mapPropertyType(PropertyType.boolean) // 'boolean'
+mapPropertyType(PropertyType.string); // 'string'
+mapPropertyType(PropertyType.number); // 'number'
+mapPropertyType(PropertyType.boolean); // 'boolean'
 ```

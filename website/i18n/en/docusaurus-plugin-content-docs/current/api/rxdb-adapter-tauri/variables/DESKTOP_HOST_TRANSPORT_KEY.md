@@ -1,7 +1,7 @@
 # DESKTOP_HOST_TRANSPORT_KEY
 
 ```ts
-const DESKTOP_HOST_TRANSPORT_KEY: "__aiaoRxdbDesktopHost__" = "__aiaoRxdbDesktopHost__";
+const DESKTOP_HOST_TRANSPORT_KEY: '__aiaoRxdbDesktopHost__' = '__aiaoRxdbDesktopHost__';
 ```
 
 Defined in: packages/rxdb-adapter-sqlite-core/dist/desktop/desktop-sqlite-client.d.ts:70

@@ -2,18 +2,18 @@
 
 ```ts
 function parseEntityFieldValueStrict(
-   type, 
-   raw, 
-   i18n?
-): 
+  type,
+  raw,
+  i18n?
+):
   | {
-  ok: true;
-  value: unknown;
-}
+      ok: true;
+      value: unknown;
+    }
   | {
-  message: string;
-  ok: false;
-};
+      message: string;
+      ok: false;
+    };
 ```
 
 Defined in: packages/rxdb-model/dist/entity-value.utils.d.ts:24
@@ -22,19 +22,19 @@ Strictly parses form input; on failure it returns a structured reason and the ca
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `type` | `string` |
-| `raw` | `unknown` |
-| `i18n?` | [`ModelI18n`](../interfaces/ModelI18n.md) |
+| Parameter | Type                                      |
+| --------- | ----------------------------------------- |
+| `type`    | `string`                                  |
+| `raw`     | `unknown`                                 |
+| `i18n?`   | [`ModelI18n`](../interfaces/ModelI18n.md) |
 
 ## Returns
 
-  \| \{
-  `ok`: `true`;
-  `value`: `unknown`;
+\| \{
+`ok`: `true`;
+`value`: `unknown`;
 \}
-  \| \{
-  `message`: `string`;
-  `ok`: `false`;
+\| \{
+`message`: `string`;
+`ok`: `false`;
 \}

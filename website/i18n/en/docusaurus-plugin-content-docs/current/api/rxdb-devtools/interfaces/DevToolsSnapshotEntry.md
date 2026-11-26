@@ -16,7 +16,7 @@ Defined in: [native/native-snapshot-source.ts:39](https://github.com/aiao-io/rxd
 
 The content version; `null` when absent.
 
-***
+---
 
 ### id \{#id\}
 
@@ -28,7 +28,7 @@ Defined in: [native/native-snapshot-source.ts:35](https://github.com/aiao-io/rxd
 
 The record ID; the second ordering key, `null` when absent.
 
-***
+---
 
 ### logicalPath \{#logicalpath\}
 
@@ -40,7 +40,7 @@ Defined in: [native/native-snapshot-source.ts:33](https://github.com/aiao-io/rxd
 
 The logical path; the first ordering key.
 
-***
+---
 
 ### size \{#size\}
 

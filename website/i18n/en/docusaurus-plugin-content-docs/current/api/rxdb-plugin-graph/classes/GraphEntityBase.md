@@ -24,8 +24,8 @@ Subclasses enhance this constructor through the Entity decorator
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter   | Type      |
+| ----------- | --------- |
 | `initData?` | `unknown` |
 
 #### Returns
@@ -53,7 +53,7 @@ Automatically set to the current time when the entity is created
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`createdAt`](../../rxdb/classes/EntityBase.md#createdat)
 
-***
+---
 
 ### createdBy? \{#createdby\}
 
@@ -70,7 +70,7 @@ Records the user ID that created this entity
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`createdBy`](../../rxdb/classes/EntityBase.md#createdby)
 
-***
+---
 
 ### id \{#id\}
 
@@ -87,7 +87,7 @@ An auto-generated UUID serving as the primary key
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`id`](../../rxdb/classes/EntityBase.md#id)
 
-***
+---
 
 ### remove \{#remove\}
 
@@ -107,7 +107,7 @@ Deletes
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`remove`](../../rxdb/classes/EntityBase.md#remove)
 
-***
+---
 
 ### reset \{#reset\}
 
@@ -127,7 +127,7 @@ Resets data
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`reset`](../../rxdb/classes/EntityBase.md#reset)
 
-***
+---
 
 ### save \{#save\}
 
@@ -151,7 +151,7 @@ This entry point does not hold a transaction executor and re-enters the adapter 
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`save`](../../rxdb/classes/EntityBase.md#save)
 
-***
+---
 
 ### updatedAt \{#updatedat\}
 
@@ -168,7 +168,7 @@ Automatically set to the current time when the entity is created or updated
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`updatedAt`](../../rxdb/classes/EntityBase.md#updatedat)
 
-***
+---
 
 ### updatedBy? \{#updatedby\}
 
@@ -185,7 +185,7 @@ Records the user ID that last updated this entity
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`updatedBy`](../../rxdb/classes/EntityBase.md#updatedby)
 
-***
+---
 
 ### addEdge \{#addedge\}
 
@@ -199,18 +199,18 @@ Adds an edge
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| `T` *extends* `GraphEntityBase` |
+| Type Parameter                  |
+| ------------------------------- |
+| `T` _extends_ `GraphEntityBase` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `this` | new () => `T` | - |
-| `from` | `T` | Source node |
-| `to` | `T` | Target node |
-| `weight?` | `number` \| `null` | Edge weight (optional) |
+| Parameter     | Type                                                                                     | Description                |
+| ------------- | ---------------------------------------------------------------------------------------- | -------------------------- |
+| `this`        | new () => `T`                                                                            | -                          |
+| `from`        | `T`                                                                                      | Source node                |
+| `to`          | `T`                                                                                      | Target node                |
+| `weight?`     | `number` \| `null`                                                                       | Edge weight (optional)     |
 | `properties?` | \| [`GraphEdgePropertiesRecord`](../type-aliases/GraphEdgePropertiesRecord.md) \| `null` | Edge properties (optional) |
 
 #### Returns
@@ -225,7 +225,7 @@ const userB = new User();
 await User.addEdge(userA, userB, 8, { category: 'colleague' });
 ```
 
-***
+---
 
 ### count \{#count\}
 
@@ -239,15 +239,15 @@ Counts entities
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| `T` *extends* [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
+| Type Parameter                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------- |
+| `T` _extends_ [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `this` | new () => `T` | - |
+| Parameter | Type                                                                         | Description                                  |
+| --------- | ---------------------------------------------------------------------------- | -------------------------------------------- |
+| `this`    | new () => `T`                                                                | -                                            |
 | `options` | [`CountOptions`](../../rxdb/interfaces/CountOptions.md)&lt;new () => `T`&gt; | Query options, including the where condition |
 
 #### Returns
@@ -260,7 +260,7 @@ The count wrapped in an Observable
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`count`](../../rxdb/classes/EntityBase.md#count)
 
-***
+---
 
 ### countNeighbors \{#countneighbors\}
 
@@ -274,16 +274,16 @@ Counts neighbor nodes
 
 #### Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| `T` *extends* `GraphEntityBase` | - |
-| `U` *extends* `object` | `object` |
+| Type Parameter                  | Default type |
+| ------------------------------- | ------------ |
+| `T` _extends_ `GraphEntityBase` | -            |
+| `U` _extends_ `object`          | `object`     |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `this` | new () => `T` | - |
+| Parameter | Type                                                                                                                                                          | Description            |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- |
+| `this`    | new () => `T`                                                                                                                                                 | -                      |
 | `options` | [`FindNeighborsOptions`](../interfaces/FindNeighborsOptions.md)&lt;new () => `T`, [`GraphWhere`](../type-aliases/GraphWhere.md)&lt;new () => `T`&gt;, `U`&gt; | Neighbor query options |
 
 #### Returns
@@ -301,7 +301,7 @@ User.countNeighbors$({ entityId: 'user1', level: 1 }).subscribe(count => {
 });
 ```
 
-***
+---
 
 ### countNeighbors$ \{#countneighbors-1\}
 
@@ -315,23 +315,23 @@ Reactive version of counting neighbor nodes.
 
 #### Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| `T` *extends* `GraphEntityBase` | - |
-| `U` *extends* `object` | `object` |
+| Type Parameter                  | Default type |
+| ------------------------------- | ------------ |
+| `T` _extends_ `GraphEntityBase` | -            |
+| `U` _extends_ `object`          | `object`     |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `this` | new () => `T` |
+| Parameter | Type                                                                                                                                                          |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `this`    | new () => `T`                                                                                                                                                 |
 | `options` | [`FindNeighborsOptions`](../interfaces/FindNeighborsOptions.md)&lt;new () => `T`, [`GraphWhere`](../type-aliases/GraphWhere.md)&lt;new () => `T`&gt;, `U`&gt; |
 
 #### Returns
 
 `Observable`&lt;`number`&gt;
 
-***
+---
 
 ### find \{#find\}
 
@@ -345,15 +345,15 @@ Finds multiple entities
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| `T` *extends* [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
+| Type Parameter                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------- |
+| `T` _extends_ [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `this` | new () => `T` | - |
+| Parameter | Type                                                                       | Description                                                       |
+| --------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| `this`    | new () => `T`                                                              | -                                                                 |
 | `options` | [`FindOptions`](../../rxdb/interfaces/FindOptions.md)&lt;new () => `T`&gt; | Query options, including the where condition, limit, offset, etc. |
 
 #### Returns
@@ -366,7 +366,7 @@ The entity instance array wrapped in an Observable
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`find`](../../rxdb/classes/EntityBase.md#find)
 
-***
+---
 
 ### findAll \{#findall\}
 
@@ -380,15 +380,15 @@ Finds all entities
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| `T` *extends* [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
+| Type Parameter                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------- |
+| `T` _extends_ [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `this` | new () => `T` | - |
+| Parameter | Type                                                                             | Description                                                          |
+| --------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `this`    | new () => `T`                                                                    | -                                                                    |
 | `options` | [`FindAllOptions`](../../rxdb/interfaces/FindAllOptions.md)&lt;new () => `T`&gt; | Query options, including the where condition and ordering (no limit) |
 
 #### Returns
@@ -401,7 +401,7 @@ The entity instance array wrapped in an Observable
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`findAll`](../../rxdb/classes/EntityBase.md#findall)
 
-***
+---
 
 ### findByCursor \{#findbycursor\}
 
@@ -415,15 +415,15 @@ Paginated query via cursor
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| `T` *extends* [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
+| Type Parameter                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------- |
+| `T` _extends_ [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `this` | new () => `T` | - |
+| Parameter | Type                                                                                       | Description                                                               |
+| --------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------- |
+| `this`    | new () => `T`                                                                              | -                                                                         |
 | `options` | [`FindByCursorOptions`](../../rxdb/interfaces/FindByCursorOptions.md)&lt;new () => `T`&gt; | Cursor pagination options, including orderBy and the before/after cursors |
 
 #### Returns
@@ -436,7 +436,7 @@ The entity instance array wrapped in an Observable
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`findByCursor`](../../rxdb/classes/EntityBase.md#findbycursor)
 
-***
+---
 
 ### findNeighbors \{#findneighbors\}
 
@@ -450,16 +450,16 @@ Finds neighbor nodes (with edge information)
 
 #### Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| `T` *extends* `GraphEntityBase` | - |
-| `U` *extends* `object` | `object` |
+| Type Parameter                  | Default type |
+| ------------------------------- | ------------ |
+| `T` _extends_ `GraphEntityBase` | -            |
+| `U` _extends_ `object`          | `object`     |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `this` | new () => `T` | - |
+| Parameter | Type                                                                                                                                                          | Description                                                                          |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `this`    | new () => `T`                                                                                                                                                 | -                                                                                    |
 | `options` | [`FindNeighborsOptions`](../interfaces/FindNeighborsOptions.md)&lt;new () => `T`, [`GraphWhere`](../type-aliases/GraphWhere.md)&lt;new () => `T`&gt;, `U`&gt; | Neighbor query options, including the starting node, direction, number of hops, etc. |
 
 #### Returns
@@ -479,7 +479,7 @@ User.findNeighbors$({ entityId: 'user1', level: 1 }).subscribe(neighbors => {
 });
 ```
 
-***
+---
 
 ### findNeighbors$ \{#findneighbors-1\}
 
@@ -493,23 +493,23 @@ Reactive version of finding neighbor nodes.
 
 #### Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| `T` *extends* `GraphEntityBase` | - |
-| `U` *extends* `object` | `object` |
+| Type Parameter                  | Default type |
+| ------------------------------- | ------------ |
+| `T` _extends_ `GraphEntityBase` | -            |
+| `U` _extends_ `object`          | `object`     |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `this` | new () => `T` |
+| Parameter | Type                                                                                                                                                          |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `this`    | new () => `T`                                                                                                                                                 |
 | `options` | [`FindNeighborsOptions`](../interfaces/FindNeighborsOptions.md)&lt;new () => `T`, [`GraphWhere`](../type-aliases/GraphWhere.md)&lt;new () => `T`&gt;, `U`&gt; |
 
 #### Returns
 
 `Observable`&lt;[`GraphQueryResult`](../type-aliases/GraphQueryResult.md)&lt;[`NeighborResult`](../interfaces/NeighborResult.md)&lt;new () => `T`, [`GraphEdgeInfoType`](../type-aliases/GraphEdgeInfoType.md)&lt;`U`&gt;&gt;&gt;&gt;
 
-***
+---
 
 ### findOne \{#findone\}
 
@@ -523,15 +523,15 @@ Finds one entity
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| `T` *extends* [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
+| Type Parameter                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------- |
+| `T` _extends_ [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `this` | new () => `T` | - |
+| Parameter | Type                                                                             | Description                                  |
+| --------- | -------------------------------------------------------------------------------- | -------------------------------------------- |
+| `this`    | new () => `T`                                                                    | -                                            |
 | `options` | [`FindOneOptions`](../../rxdb/interfaces/FindOneOptions.md)&lt;new () => `T`&gt; | Query options, including the where condition |
 
 #### Returns
@@ -544,7 +544,7 @@ The entity instance or null wrapped in an Observable
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`findOne`](../../rxdb/classes/EntityBase.md#findone)
 
-***
+---
 
 ### findOneOrFail \{#findoneorfail\}
 
@@ -558,15 +558,15 @@ Finds one entity, throws when none is found
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| `T` *extends* [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
+| Type Parameter                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------- |
+| `T` _extends_ [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `this` | new () => `T` | - |
+| Parameter | Type                                                                                         | Description                                  |
+| --------- | -------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| `this`    | new () => `T`                                                                                | -                                            |
 | `options` | [`FindOneOrFailOptions`](../../rxdb/interfaces/FindOneOrFailOptions.md)&lt;new () => `T`&gt; | Query options, including the where condition |
 
 #### Returns
@@ -579,7 +579,7 @@ The entity instance wrapped in an Observable
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`findOneOrFail`](../../rxdb/classes/EntityBase.md#findoneorfail)
 
-***
+---
 
 ### findPaths \{#findpaths\}
 
@@ -593,16 +593,16 @@ Finds all paths between two nodes
 
 #### Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| `T` *extends* `GraphEntityBase` | - |
-| `U` *extends* `object` | `object` |
+| Type Parameter                  | Default type |
+| ------------------------------- | ------------ |
+| `T` _extends_ `GraphEntityBase` | -            |
+| `U` _extends_ `object`          | `object`     |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `this` | new () => `T` | - |
+| Parameter | Type                                                                                                                                                  | Description                                                             |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `this`    | new () => `T`                                                                                                                                         | -                                                                       |
 | `options` | [`FindPathsOptions`](../interfaces/FindPathsOptions.md)&lt;new () => `T`, [`GraphWhere`](../type-aliases/GraphWhere.md)&lt;new () => `T`&gt;, `U`&gt; | Path query options, including the start, the end, the depth limit, etc. |
 
 #### Returns
@@ -625,7 +625,7 @@ City.findPaths$({
 });
 ```
 
-***
+---
 
 ### findPaths$ \{#findpaths-1\}
 
@@ -639,23 +639,23 @@ Reactive version of finding paths.
 
 #### Type Parameters
 
-| Type Parameter | Default type |
-| ------ | ------ |
-| `T` *extends* `GraphEntityBase` | - |
-| `U` *extends* `object` | `object` |
+| Type Parameter                  | Default type |
+| ------------------------------- | ------------ |
+| `T` _extends_ `GraphEntityBase` | -            |
+| `U` _extends_ `object`          | `object`     |
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `this` | new () => `T` |
+| Parameter | Type                                                                                                                                                  |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `this`    | new () => `T`                                                                                                                                         |
 | `options` | [`FindPathsOptions`](../interfaces/FindPathsOptions.md)&lt;new () => `T`, [`GraphWhere`](../type-aliases/GraphWhere.md)&lt;new () => `T`&gt;, `U`&gt; |
 
 #### Returns
 
 `Observable`&lt;[`GraphQueryResult`](../type-aliases/GraphQueryResult.md)&lt;[`GraphPath`](../interfaces/GraphPath.md)&lt;new () => `T`&gt;&gt;&gt;
 
-***
+---
 
 ### get \{#get\}
 
@@ -669,16 +669,16 @@ Gets an entity by id
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| `T` *extends* [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
+| Type Parameter                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------- |
+| `T` _extends_ [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `this` | new () => `T` | - |
-| `id` | `T`\[`"id"`\] | The entity's unique identifier |
+| Parameter | Type          | Description                    |
+| --------- | ------------- | ------------------------------ |
+| `this`    | new () => `T` | -                              |
+| `id`      | `T`\[`"id"`\] | The entity's unique identifier |
 
 #### Returns
 
@@ -690,7 +690,7 @@ The entity instance wrapped in an Observable
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`get`](../../rxdb/classes/EntityBase.md#get)
 
-***
+---
 
 ### removeEdge \{#removeedge\}
 
@@ -704,17 +704,17 @@ Removes an edge
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| `T` *extends* `GraphEntityBase` |
+| Type Parameter                  |
+| ------------------------------- |
+| `T` _extends_ `GraphEntityBase` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `this` | new () => `T` | - |
-| `from` | `T` | Source node |
-| `to` | `T` | Target node |
+| Parameter | Type          | Description |
+| --------- | ------------- | ----------- |
+| `this`    | new () => `T` | -           |
+| `from`    | `T`           | Source node |
+| `to`      | `T`           | Target node |
 
 #### Returns
 

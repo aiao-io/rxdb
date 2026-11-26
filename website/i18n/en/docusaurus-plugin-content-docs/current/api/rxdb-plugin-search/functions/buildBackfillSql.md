@@ -10,9 +10,9 @@ Backfill SQL: external-content FTS5 tables bind the primary key via rowid; strin
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `plan` | [`FtsInstallPlan`](../interfaces/FtsInstallPlan.md) |
+| Parameter | Type                                                |
+| --------- | --------------------------------------------------- |
+| `plan`    | [`FtsInstallPlan`](../interfaces/FtsInstallPlan.md) |
 
 ## Returns
 

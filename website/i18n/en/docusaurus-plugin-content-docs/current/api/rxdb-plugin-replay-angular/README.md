@@ -54,14 +54,14 @@ export class SessionPlayer {
 
 Pass `db.replay` as `replay`. The recording plugin must be installed into the connection epoch first (`db.use(rxDBPluginReplay, …)` then `await db.connect()`), otherwise the component gets `not_installed` when loading the session.
 
-| Member                            | Description                                                                                                         |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| `replay` (required)               | `ReplayManager`; switching to a different facade reloads                                                            |
-| `sessionId` (required)            | The session to replay                                                                                                |
-| `initialTime`                     | The moment to land on after loading completes (ms relative to the session start, default 0); changing it afterwards is equivalent to `seek()` |
-| `aoTimeChange`                    | Emits the current time (ms) during playback / timeline scrubbing                                                     |
+| Member                            | Description                                                                                                                                                                     |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `replay` (required)               | `ReplayManager`; switching to a different facade reloads                                                                                                                        |
+| `sessionId` (required)            | The session to replay                                                                                                                                                           |
+| `initialTime`                     | The moment to land on after loading completes (ms relative to the session start, default 0); changing it afterwards is equivalent to `seek()`                                   |
+| `aoTimeChange`                    | Emits the current time (ms) during playback / timeline scrubbing                                                                                                                |
 | `aoCommitRestore`                 | The result of restoring the working tree after clicking a commit marker; on rejection use `replayRestoreHint(reason)` for the hint; when `reason` is `'error'`, look at `error` |
-| `play()` / `pause()` / `seek(ms)` | Called via a template reference; calls before loading completes are no-ops (`seek` records the target time)         |
+| `play()` / `pause()` / `seek(ms)` | Called via a template reference; calls before loading completes are no-ops (`seek` records the target time)                                                                     |
 
 The replayer is automatically released when the component is destroyed. The rrweb playback side is only lazily `import('rrweb')`ed when the component first loads a session.
 
@@ -83,18 +83,18 @@ Same set of inputs / outputs / commands as the React / Vue `Replayer` (contracts
 
 ## Classes
 
-| Class | Description |
-| ------ | ------ |
+| Class                                             | Description                                                                                                                                                                 |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [ReplayerComponent](classes/ReplayerComponent.md) | The session replay component: mounts core's `mountReplayer` on a `div` inside the component, routes input changes through `update()`, and calls `destroy()` on destruction. |
 
 ## Interfaces
 
-| Interface | Description |
-| ------ | ------ |
+| Interface                                                              | Description                                                                                                   |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | [ReplayerCommitRestoreEvent](interfaces/ReplayerCommitRestoreEvent.md) | The result of restoring after clicking a commit marker; `reason` is `'error'` when `restoreToCommit()` threw. |
 
 ## Variables
 
-| Variable | Description |
-| ------ | ------ |
+| Variable                                            | Description                                                                                                                                          |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [replayRestoreHint](variables/replayRestoreHint.md) | A one-line English hint shown to the user when `restoreToCommit()` is rejected (`git show 2e820521:specs/005-us-909-session-replay/research.md` D8). |

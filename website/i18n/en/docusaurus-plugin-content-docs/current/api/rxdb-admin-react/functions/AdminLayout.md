@@ -11,9 +11,9 @@ Layout mode, sizes, and visibility are all driven by shell preferences; router-a
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `props` | [`AdminLayoutProps`](../interfaces/AdminLayoutProps.md) | Menu, current URL, route outlet, and extension slots. |
+| Parameter | Type                                                    | Description                                           |
+| --------- | ------------------------------------------------------- | ----------------------------------------------------- |
+| `props`   | [`AdminLayoutProps`](../interfaces/AdminLayoutProps.md) | Menu, current URL, route outlet, and extension slots. |
 
 ## Returns
 

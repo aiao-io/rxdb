@@ -16,7 +16,7 @@ Defined in: [palette/fuzzy.ts:17](https://github.com/aiao-io/rxdb/blob/b52320402
 
 Whether it matched.
 
-***
+---
 
 ### text \{#text\}
 

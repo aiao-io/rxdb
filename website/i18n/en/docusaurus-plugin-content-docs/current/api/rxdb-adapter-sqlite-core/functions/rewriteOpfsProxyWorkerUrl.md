@@ -12,10 +12,10 @@ Used for scenarios where the bundler outputs the worker script to a non-default 
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `scriptUrl` | `string` \| `URL` | Original worker URL (from sqlite3's internal `new Worker(...)`) |
-| `opfsProxyPath` | `string` | Alternative path specified by the user |
+| Parameter       | Type              | Description                                                     |
+| --------------- | ----------------- | --------------------------------------------------------------- |
+| `scriptUrl`     | `string` \| `URL` | Original worker URL (from sqlite3's internal `new Worker(...)`) |
+| `opfsProxyPath` | `string`          | Alternative path specified by the user                          |
 
 ## Returns
 

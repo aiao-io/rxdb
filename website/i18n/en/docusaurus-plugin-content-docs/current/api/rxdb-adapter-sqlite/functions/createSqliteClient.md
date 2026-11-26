@@ -10,9 +10,9 @@ Creates and initializes the official sqlite-wasm client.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `dbName` | `string` | Database name |
+| Parameter | Type                                                              | Description                                  |
+| --------- | ----------------------------------------------------------------- | -------------------------------------------- |
+| `dbName`  | `string`                                                          | Database name                                |
 | `options` | [`SqliteOfficialOptions`](../interfaces/SqliteOfficialOptions.md) | Options for the official sqlite-wasm adapter |
 
 ## Returns

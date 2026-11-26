@@ -10,6 +10,7 @@ Generates the NOTIFY trigger function SQL
 
 Creates a generic trigger function reusable across multiple tables
 The trigger:
+
 1. Collects all changes in the current transaction
 2. Sends NOTIFY messages in batch (containing the operation and id arrays)
 3. Passes the payload in JSON format

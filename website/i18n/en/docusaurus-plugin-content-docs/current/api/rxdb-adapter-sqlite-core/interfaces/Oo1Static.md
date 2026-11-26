@@ -14,7 +14,7 @@ capi: Oo1Capi;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/oo1-types.ts:74](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/oo1-types.ts#L74)
 
-***
+---
 
 ### config? \{#config\}
 
@@ -32,8 +32,8 @@ error: (...args) => void;
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type        |
+| --------- | ----------- |
 | ...`args` | `unknown`[] |
 
 ##### Returns
@@ -48,15 +48,15 @@ warn: (...args) => void;
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter | Type        |
+| --------- | ----------- |
 | ...`args` | `unknown`[] |
 
 ##### Returns
 
 `void`
 
-***
+---
 
 ### oo1 \{#oo1\}
 
@@ -74,11 +74,11 @@ DB: new (filename?, flags?, vfs?) => Oo1Database;
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter   | Type     |
+| ----------- | -------- |
 | `filename?` | `string` |
-| `flags?` | `string` |
-| `vfs?` | `string` |
+| `flags?`    | `string` |
+| `vfs?`      | `string` |
 
 ##### Returns
 
@@ -92,16 +92,16 @@ OpfsDb?: new (filename?, flags?) => Oo1Database;
 
 ##### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter   | Type     |
+| ----------- | -------- |
 | `filename?` | `string` |
-| `flags?` | `string` |
+| `flags?`    | `string` |
 
 ##### Returns
 
 [`Oo1Database`](Oo1Database.md)
 
-***
+---
 
 ### opfs? \{#opfs\}
 
@@ -111,7 +111,7 @@ opfs?: unknown;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/oo1-types.ts:79](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/oo1-types.ts#L79)
 
-***
+---
 
 ### version \{#version\}
 

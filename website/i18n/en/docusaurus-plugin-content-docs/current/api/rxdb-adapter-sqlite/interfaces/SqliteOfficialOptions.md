@@ -28,7 +28,7 @@ Defined in: [packages/rxdb-adapter-sqlite/src/sqlite-official.interface.ts:31](h
 
 `SqliteOfficialOptionsBase.batchTimeout`
 
-***
+---
 
 ### cacheSizeKb? \{#cachesizekb\}
 
@@ -45,14 +45,14 @@ https://www.sqlite.org/pragma.html#pragma_cache_size
 #### Default
 
 ```ts
-51200
+51200;
 ```
 
 #### Inherited from
 
 `SqliteOfficialOptionsBase.cacheSizeKb`
 
-***
+---
 
 ### locateFile? \{#locatefile\}
 
@@ -66,9 +66,9 @@ Custom Emscripten resource location function; cannot be passed to a worker.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `name` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `name`    | `string` |
 
 #### Returns
 
@@ -84,7 +84,7 @@ inline closure each time (even with identical source) is treated as a different 
 
 `SqliteOfficialOptionsBase.locateFile`
 
-***
+---
 
 ### opfs? \{#opfs\}
 
@@ -100,7 +100,7 @@ Whether to use OPFS to persist the database.
 
 `SqliteOfficialOptionsBase.opfs`
 
-***
+---
 
 ### opfsFallback? \{#opfsfallback\}
 
@@ -120,7 +120,7 @@ Oo1ClientBase
 
 `SqliteOfficialOptionsBase.opfsFallback`
 
-***
+---
 
 ### opfsProxyPath? \{#opfsproxypath\}
 
@@ -136,7 +136,7 @@ Explicit URL of the OPFS proxy worker file.
 
 `SqliteOfficialOptionsBase.opfsProxyPath`
 
-***
+---
 
 ### print? \{#print\}
 
@@ -150,9 +150,9 @@ Handler for sqlite standard output; cannot be passed to a worker.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `msg` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `msg`     | `string` |
 
 #### Returns
 
@@ -162,7 +162,7 @@ Handler for sqlite standard output; cannot be passed to a worker.
 
 `SqliteOfficialOptionsBase.print`
 
-***
+---
 
 ### printErr? \{#printerr\}
 
@@ -176,9 +176,9 @@ Handler for sqlite standard error output; cannot be passed to a worker.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `msg` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `msg`     | `string` |
 
 #### Returns
 
@@ -188,7 +188,7 @@ Handler for sqlite standard error output; cannot be passed to a worker.
 
 `SqliteOfficialOptionsBase.printErr`
 
-***
+---
 
 ### repositories? \{#repositories\}
 
@@ -200,7 +200,7 @@ Defined in: [packages/rxdb-adapter-sqlite/src/sqlite-official.interface.ts:53](h
 
 Overrides the default Repository / TreeRepository constructors by entity name.
 
-***
+---
 
 ### sharedWorker? \{#sharedworker\}
 
@@ -216,7 +216,7 @@ Whether to run the client in a shared worker.
 
 `SqliteOfficialOptionsBase.sharedWorker`
 
-***
+---
 
 ### sharedWorkerInstance? \{#sharedworkerinstance\}
 
@@ -232,7 +232,7 @@ A shared worker created and owned by the caller.
 
 `SqliteOfficialOptionsBase.sharedWorkerInstance`
 
-***
+---
 
 ### wasmPath? \{#wasmpath\}
 
@@ -248,7 +248,7 @@ Explicit URL of the sqlite WASM file.
 
 `SqliteOfficialOptionsBase.wasmPath`
 
-***
+---
 
 ### worker? \{#worker\}
 
@@ -264,7 +264,7 @@ Whether to run the client in a dedicated worker.
 
 `SqliteOfficialOptionsBase.worker`
 
-***
+---
 
 ### workerInstance? \{#workerinstance\}
 

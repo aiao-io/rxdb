@@ -1,7 +1,7 @@
 # REPLAY_BLOCK_SELECTOR
 
 ```ts
-const REPLAY_BLOCK_SELECTOR: "[data-rxdb-replay-block]" = '[data-rxdb-replay-block]';
+const REPLAY_BLOCK_SELECTOR: '[data-rxdb-replay-block]' = '[data-rxdb-replay-block]';
 ```
 
 Defined in: [packages/rxdb-plugin-replay/src/options.ts:9](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-replay/src/options.ts#L9)

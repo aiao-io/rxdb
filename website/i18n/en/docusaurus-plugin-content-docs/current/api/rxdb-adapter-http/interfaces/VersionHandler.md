@@ -18,15 +18,15 @@ Parses the **remote server version**, consistent with the sqlite / pglite / supa
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `body` | `unknown` |
+| Parameter | Type      |
+| --------- | --------- |
+| `body`    | `unknown` |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### request() \{#request\}
 

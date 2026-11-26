@@ -20,7 +20,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/commit-conflict.
 
 The current value of `CommitBranchRef.headRevision`
 
-***
+---
 
 ### token \{#token\}
 
@@ -32,7 +32,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/commit-conflict.
 
 The active branch token read inside the transaction
 
-***
+---
 
 ### workingTreeRevision \{#workingtreerevision\}
 

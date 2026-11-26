@@ -10,9 +10,9 @@ Formats a key combo into key caps.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `combo` | [`ParsedCombo`](../interfaces/ParsedCombo.md) | The parsed key combo. |
+| Parameter  | Type                                                      | Description           |
+| ---------- | --------------------------------------------------------- | --------------------- |
+| `combo`    | [`ParsedCombo`](../interfaces/ParsedCombo.md)             | The parsed key combo. |
 | `platform` | [`ShortcutPlatform`](../type-aliases/ShortcutPlatform.md) | The running platform. |
 
 ## Returns

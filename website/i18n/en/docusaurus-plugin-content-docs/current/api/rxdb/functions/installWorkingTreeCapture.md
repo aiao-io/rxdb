@@ -10,10 +10,10 @@ Installs the four capture mount points on a local adapter instance.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `target` | [`WorkingTreeCaptureMountTarget`](../type-aliases/WorkingTreeCaptureMountTarget.md) | The adapter instance |
-| `hook` | [`WorkingTreeCaptureHook`](../interfaces/WorkingTreeCaptureHook.md) | The capture runtime that takes over the four mount points |
+| Parameter | Type                                                                                | Description                                               |
+| --------- | ----------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `target`  | [`WorkingTreeCaptureMountTarget`](../type-aliases/WorkingTreeCaptureMountTarget.md) | The adapter instance                                      |
+| `hook`    | [`WorkingTreeCaptureHook`](../interfaces/WorkingTreeCaptureHook.md)                 | The capture runtime that takes over the four mount points |
 
 ## Returns
 

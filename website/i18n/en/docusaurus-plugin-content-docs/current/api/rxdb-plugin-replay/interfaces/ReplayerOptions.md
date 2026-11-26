@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts:17](http
 
 Moment to land on once ready: ms relative to the session start, default 0.
 
-***
+---
 
 ### onCommitRestore? \{#oncommitrestore\}
 
@@ -30,15 +30,15 @@ Result after clicking a commit marker to restore.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `event` | [`ReplayerCommitRestoreEvent`](ReplayerCommitRestoreEvent.md) |
+| Parameter | Type                                                          |
+| --------- | ------------------------------------------------------------- |
+| `event`   | [`ReplayerCommitRestoreEvent`](ReplayerCommitRestoreEvent.md) |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### onTimeChange? \{#ontimechange\}
 
@@ -52,15 +52,15 @@ Time changes (seeks, frame-by-frame during playback, finished playback).
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `timeMs` | `number` |
+| Parameter | Type     |
+| --------- | -------- |
+| `timeMs`  | `number` |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### replay \{#replay\}
 
@@ -72,7 +72,7 @@ Defined in: [packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts:13](http
 
 Source for reading events, reading markers, and restoring to a commit; usually `rxdb.replay`.
 
-***
+---
 
 ### sessionId \{#sessionid\}
 

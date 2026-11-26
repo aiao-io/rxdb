@@ -29,8 +29,8 @@ Subclasses enhance this constructor through the Entity decorator
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter   | Type      |
+| ----------- | --------- |
 | `initData?` | `unknown` |
 
 #### Returns
@@ -51,7 +51,7 @@ boardId: `${string}-${string}-${string}-${string}-${string}`;
 
 Defined in: [packages/rxdb-plugin-board/src/entities/board-label.entity.ts:32](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board/src/entities/board-label.entity.ts#L32)
 
-***
+---
 
 ### color \{#color\}
 
@@ -61,7 +61,7 @@ color: string;
 
 Defined in: [packages/rxdb-plugin-board/src/entities/board-label.entity.ts:34](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board/src/entities/board-label.entity.ts#L34)
 
-***
+---
 
 ### createdAt \{#createdat\}
 
@@ -78,7 +78,7 @@ Automatically set to the current time when the entity is created
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`createdAt`](../../rxdb/classes/EntityBase.md#createdat)
 
-***
+---
 
 ### createdBy? \{#createdby\}
 
@@ -95,7 +95,7 @@ Records the ID of the user who created this entity
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`createdBy`](../../rxdb/classes/EntityBase.md#createdby)
 
-***
+---
 
 ### id \{#id\}
 
@@ -112,7 +112,7 @@ An auto-generated UUID, used as the primary key
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`id`](../../rxdb/classes/EntityBase.md#id)
 
-***
+---
 
 ### name \{#name\}
 
@@ -122,7 +122,7 @@ name: string;
 
 Defined in: [packages/rxdb-plugin-board/src/entities/board-label.entity.ts:33](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-board/src/entities/board-label.entity.ts#L33)
 
-***
+---
 
 ### remove \{#remove\}
 
@@ -142,7 +142,7 @@ Delete
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`remove`](../../rxdb/classes/EntityBase.md#remove)
 
-***
+---
 
 ### reset \{#reset\}
 
@@ -162,7 +162,7 @@ Reset data
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`reset`](../../rxdb/classes/EntityBase.md#reset)
 
-***
+---
 
 ### save \{#save\}
 
@@ -188,7 +188,7 @@ See [RxDBAdapterLocalBase.transaction](../../rxdb/classes/RxDBAdapterLocalBase.m
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`save`](../../rxdb/classes/EntityBase.md#save)
 
-***
+---
 
 ### updatedAt \{#updatedat\}
 
@@ -205,7 +205,7 @@ Automatically set to the current time when the entity is created or updated
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`updatedAt`](../../rxdb/classes/EntityBase.md#updatedat)
 
-***
+---
 
 ### updatedBy? \{#updatedby\}
 
@@ -222,7 +222,7 @@ Records the ID of the user who last updated this entity
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`updatedBy`](../../rxdb/classes/EntityBase.md#updatedby)
 
-***
+---
 
 ### count \{#count\}
 
@@ -236,15 +236,15 @@ Counts entities
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| `T` *extends* [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
+| Type Parameter                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------- |
+| `T` _extends_ [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `this` | new () => `T` | - |
+| Parameter | Type                                                                         | Description                               |
+| --------- | ---------------------------------------------------------------------------- | ----------------------------------------- |
+| `this`    | new () => `T`                                                                | -                                         |
 | `options` | [`CountOptions`](../../rxdb/interfaces/CountOptions.md)&lt;new () => `T`&gt; | Query options, including where conditions |
 
 #### Returns
@@ -257,7 +257,7 @@ The count wrapped in an Observable
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`count`](../../rxdb/classes/EntityBase.md#count)
 
-***
+---
 
 ### find \{#find\}
 
@@ -271,15 +271,15 @@ Finds multiple entities
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| `T` *extends* [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
+| Type Parameter                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------- |
+| `T` _extends_ [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `this` | new () => `T` | - |
+| Parameter | Type                                                                       | Description                                                    |
+| --------- | -------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `this`    | new () => `T`                                                              | -                                                              |
 | `options` | [`FindOptions`](../../rxdb/interfaces/FindOptions.md)&lt;new () => `T`&gt; | Query options, including where conditions, limit, offset, etc. |
 
 #### Returns
@@ -292,7 +292,7 @@ Array of entity instances wrapped in an Observable
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`find`](../../rxdb/classes/EntityBase.md#find)
 
-***
+---
 
 ### findAll \{#findall\}
 
@@ -306,15 +306,15 @@ Finds all entities
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| `T` *extends* [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
+| Type Parameter                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------- |
+| `T` _extends_ [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `this` | new () => `T` | - |
+| Parameter | Type                                                                             | Description                                                                |
+| --------- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `this`    | new () => `T`                                                                    | -                                                                          |
 | `options` | [`FindAllOptions`](../../rxdb/interfaces/FindAllOptions.md)&lt;new () => `T`&gt; | Query options, including where conditions and ordering (no quantity limit) |
 
 #### Returns
@@ -327,7 +327,7 @@ Array of entity instances wrapped in an Observable
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`findAll`](../../rxdb/classes/EntityBase.md#findall)
 
-***
+---
 
 ### findByCursor \{#findbycursor\}
 
@@ -341,15 +341,15 @@ Paginated query via a cursor
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| `T` *extends* [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
+| Type Parameter                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------- |
+| `T` _extends_ [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `this` | new () => `T` | - |
+| Parameter | Type                                                                                       | Description                                                           |
+| --------- | ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
+| `this`    | new () => `T`                                                                              | -                                                                     |
 | `options` | [`FindByCursorOptions`](../../rxdb/interfaces/FindByCursorOptions.md)&lt;new () => `T`&gt; | Cursor pagination options, including orderBy and before/after cursors |
 
 #### Returns
@@ -362,7 +362,7 @@ Array of entity instances wrapped in an Observable
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`findByCursor`](../../rxdb/classes/EntityBase.md#findbycursor)
 
-***
+---
 
 ### findOne \{#findone\}
 
@@ -376,15 +376,15 @@ Finds one entity
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| `T` *extends* [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
+| Type Parameter                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------- |
+| `T` _extends_ [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `this` | new () => `T` | - |
+| Parameter | Type                                                                             | Description                               |
+| --------- | -------------------------------------------------------------------------------- | ----------------------------------------- |
+| `this`    | new () => `T`                                                                    | -                                         |
 | `options` | [`FindOneOptions`](../../rxdb/interfaces/FindOneOptions.md)&lt;new () => `T`&gt; | Query options, including where conditions |
 
 #### Returns
@@ -397,7 +397,7 @@ Entity instance or null wrapped in an Observable
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`findOne`](../../rxdb/classes/EntityBase.md#findone)
 
-***
+---
 
 ### findOneOrFail \{#findoneorfail\}
 
@@ -411,15 +411,15 @@ Finds one entity, throwing an error when none is found
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| `T` *extends* [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
+| Type Parameter                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------- |
+| `T` _extends_ [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `this` | new () => `T` | - |
+| Parameter | Type                                                                                         | Description                               |
+| --------- | -------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| `this`    | new () => `T`                                                                                | -                                         |
 | `options` | [`FindOneOrFailOptions`](../../rxdb/interfaces/FindOneOrFailOptions.md)&lt;new () => `T`&gt; | Query options, including where conditions |
 
 #### Returns
@@ -432,7 +432,7 @@ Entity instance wrapped in an Observable
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`findOneOrFail`](../../rxdb/classes/EntityBase.md#findoneorfail)
 
-***
+---
 
 ### get \{#get\}
 
@@ -446,16 +446,16 @@ Gets an entity by id
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
-| `T` *extends* [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
+| Type Parameter                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------------------------- |
+| `T` _extends_ [`EntityBase`](../../rxdb/classes/EntityBase.md)&lt;[`RxDBEntityId`](../../rxdb/type-aliases/RxDBEntityId.md)&gt; |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `this` | new () => `T` | - |
-| `id` | `T`\[`"id"`\] | Unique identifier of the entity |
+| Parameter | Type          | Description                     |
+| --------- | ------------- | ------------------------------- |
+| `this`    | new () => `T` | -                               |
+| `id`      | `T`\[`"id"`\] | Unique identifier of the entity |
 
 #### Returns
 

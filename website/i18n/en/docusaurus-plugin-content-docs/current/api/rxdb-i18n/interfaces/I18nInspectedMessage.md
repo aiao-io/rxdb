@@ -16,7 +16,7 @@ Defined in: [inspection.ts:16](https://github.com/aiao-io/rxdb/blob/b5232040240c
 
 This row is the highest-priority version of the same locale, namespace and key.
 
-***
+---
 
 ### key \{#key\}
 
@@ -28,7 +28,7 @@ Defined in: [inspection.ts:10](https://github.com/aiao-io/rxdb/blob/b5232040240c
 
 Message key.
 
-***
+---
 
 ### locale \{#locale\}
 
@@ -40,7 +40,7 @@ Defined in: [inspection.ts:6](https://github.com/aiao-io/rxdb/blob/b5232040240cf
 
 Canonicalized locale.
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -52,7 +52,7 @@ Defined in: [inspection.ts:8](https://github.com/aiao-io/rxdb/blob/b5232040240cf
 
 Catalog namespace.
 
-***
+---
 
 ### source \{#source\}
 
@@ -64,7 +64,7 @@ Defined in: [inspection.ts:14](https://github.com/aiao-io/rxdb/blob/b5232040240c
 
 The bundle, remote or db storage layer.
 
-***
+---
 
 ### value \{#value\}
 

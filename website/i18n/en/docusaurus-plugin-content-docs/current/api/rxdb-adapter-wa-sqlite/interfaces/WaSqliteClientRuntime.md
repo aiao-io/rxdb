@@ -1,5 +1,5 @@
 ---
-sidebar_label: "WaSqliteClientRuntime⟨TOptions⟩"
+sidebar_label: 'WaSqliteClientRuntime⟨TOptions⟩'
 ---
 
 # WaSqliteClientRuntime`<TOptions>`
@@ -10,9 +10,9 @@ Platform runtime of the wa-sqlite client.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-toptions"></a> `TOptions` *extends* `object` |
+| Type Parameter                                                     |
+| ------------------------------------------------------------------ |
+| <a id="type-parameter-toptions"></a> `TOptions` _extends_ `object` |
 
 ## Properties
 
@@ -29,22 +29,22 @@ Defined in: [packages/rxdb-adapter-wa-sqlite/src/WaSqliteClientBase.ts:48](https
 ### initializationSql()? \{#initializationsql\}
 
 ```ts
-initializationSql?(cacheSizeKb): string;
+initializationSql ? cacheSizeKb : string;
 ```
 
 Defined in: [packages/rxdb-adapter-wa-sqlite/src/WaSqliteClientBase.ts:53](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-wa-sqlite/src/WaSqliteClientBase.ts#L53)
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter     | Type     |
+| ------------- | -------- |
 | `cacheSizeKb` | `number` |
 
 #### Returns
 
 `string`
 
-***
+---
 
 ### load() \{#load\}
 
@@ -56,23 +56,23 @@ Defined in: [packages/rxdb-adapter-wa-sqlite/src/WaSqliteClientBase.ts:49](https
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `dbName` | `string` |
+| Parameter | Type       |
+| --------- | ---------- |
+| `dbName`  | `string`   |
 | `options` | `TOptions` |
 
 #### Returns
 
 `Promise`&lt;`LoadedWaSqliteClientRuntime`&gt;
 
-***
+---
 
 ### open() \{#open\}
 
 ```ts
 open<T>(
-   attempt, 
-   dbName, 
+   attempt,
+   dbName,
    options
 ): Promise<T>;
 ```
@@ -83,17 +83,17 @@ Performs the open and decides whether to start over entirely after a failed open
 
 #### Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter | Type                       | Description                                                                                                                            |
+| --------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
 | `attempt` | () => `Promise`&lt;`T`&gt; | One complete open: `load` creates the module and VFS → `open_v2` → initialization SQL; this attempt's VFS is already closed on failure |
-| `dbName` | `string` | Database name |
-| `options` | `TOptions` | Platform loading configuration |
+| `dbName`  | `string`                   | Database name                                                                                                                          |
+| `options` | `TOptions`                 | Platform loading configuration                                                                                                         |
 
 #### Returns
 
@@ -106,7 +106,7 @@ Result of `attempt`
 Starting over calls `attempt` again, without reusing the failed attempt's module and VFS. Browsers retry `OPFSCoopSyncVFS` with backoff (US-221: on a full page refresh
 the previous page still holds the database file's sync access handle); platforms that need no retry simply call `attempt()`.
 
-***
+---
 
 ### releaseListener()? \{#releaselistener\}
 
@@ -120,15 +120,15 @@ Releases the runtime's remote listener proxy; platforms using local callbacks do
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type                                                                                                                                                      |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `listener` | [`EventListener`](../../utils/type-aliases/EventListener.md)&lt;[`SqliteChangeEvent`](../../rxdb-adapter-sqlite-core/interfaces/SqliteChangeEvent.md)&gt; |
 
 #### Returns
 
 `void`
 
-***
+---
 
 ### resolve() \{#resolve\}
 
@@ -140,9 +140,9 @@ Defined in: [packages/rxdb-adapter-wa-sqlite/src/WaSqliteClientBase.ts:50](https
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `dbName` | `string` |
+| Parameter | Type       |
+| --------- | ---------- |
+| `dbName`  | `string`   |
 | `options` | `TOptions` |
 
 #### Returns

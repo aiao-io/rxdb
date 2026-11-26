@@ -10,9 +10,9 @@ Extra content on the right of menu items (badges, counts).
 
 ## Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `node` | `Node` |
+| Parameter | Type   |
+| --------- | ------ |
+| `node`    | `Node` |
 
 ## Returns
 

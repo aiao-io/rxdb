@@ -23,7 +23,7 @@ Defined in: node\_modules/.pnpm/@electric-sql+pglite@0.5.12/node\_modules/@elect
 
 `PGliteOptions.database`
 
-***
+---
 
 ### dataDir? \{#datadir\}
 
@@ -37,7 +37,7 @@ Defined in: node\_modules/.pnpm/@electric-sql+pglite@0.5.12/node\_modules/@elect
 
 `PGliteOptions.dataDir`
 
-***
+---
 
 ### debug? \{#debug\}
 
@@ -51,7 +51,7 @@ Defined in: node\_modules/.pnpm/@electric-sql+pglite@0.5.12/node\_modules/@elect
 
 `PGliteOptions.debug`
 
-***
+---
 
 ### extensions? \{#extensions\}
 
@@ -65,7 +65,7 @@ Defined in: node\_modules/.pnpm/@electric-sql+pglite@0.5.12/node\_modules/@elect
 
 `PGliteOptions.extensions`
 
-***
+---
 
 ### fs? \{#fs\}
 
@@ -79,7 +79,7 @@ Defined in: node\_modules/.pnpm/@electric-sql+pglite@0.5.12/node\_modules/@elect
 
 `PGliteOptions.fs`
 
-***
+---
 
 ### fsBundle? \{#fsbundle\}
 
@@ -93,7 +93,7 @@ Defined in: node\_modules/.pnpm/@electric-sql+pglite@0.5.12/node\_modules/@elect
 
 `PGliteOptions.fsBundle`
 
-***
+---
 
 ### icuDataDir? \{#icudatadir\}
 
@@ -107,7 +107,7 @@ Defined in: node\_modules/.pnpm/@electric-sql+pglite@0.5.12/node\_modules/@elect
 
 `PGliteOptions.icuDataDir`
 
-***
+---
 
 ### initDbStartParams? \{#initdbstartparams\}
 
@@ -121,7 +121,7 @@ Defined in: node\_modules/.pnpm/@electric-sql+pglite@0.5.12/node\_modules/@elect
 
 `PGliteOptions.initDbStartParams`
 
-***
+---
 
 ### initdbWasmModule? \{#initdbwasmmodule\}
 
@@ -135,7 +135,7 @@ Defined in: node\_modules/.pnpm/@electric-sql+pglite@0.5.12/node\_modules/@elect
 
 `PGliteOptions.initdbWasmModule`
 
-***
+---
 
 ### initialMemory? \{#initialmemory\}
 
@@ -149,7 +149,7 @@ Defined in: node\_modules/.pnpm/@electric-sql+pglite@0.5.12/node\_modules/@elect
 
 `PGliteOptions.initialMemory`
 
-***
+---
 
 ### loadDataDir? \{#loaddatadir\}
 
@@ -163,7 +163,7 @@ Defined in: node\_modules/.pnpm/@electric-sql+pglite@0.5.12/node\_modules/@elect
 
 `PGliteOptions.loadDataDir`
 
-***
+---
 
 ### noInitDb? \{#noinitdb\}
 
@@ -177,7 +177,7 @@ Defined in: node\_modules/.pnpm/@electric-sql+pglite@0.5.12/node\_modules/@elect
 
 `PGliteOptions.noInitDb`
 
-***
+---
 
 ### onStderr? \{#onstderr\}
 
@@ -189,9 +189,9 @@ Defined in: node\_modules/.pnpm/@electric-sql+pglite@0.5.12/node\_modules/@elect
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `text` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `text`    | `string` |
 
 #### Returns
 
@@ -201,7 +201,7 @@ Defined in: node\_modules/.pnpm/@electric-sql+pglite@0.5.12/node\_modules/@elect
 
 `PGliteOptions.onStderr`
 
-***
+---
 
 ### onStdout? \{#onstdout\}
 
@@ -213,9 +213,9 @@ Defined in: node\_modules/.pnpm/@electric-sql+pglite@0.5.12/node\_modules/@elect
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `text` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `text`    | `string` |
 
 #### Returns
 
@@ -225,7 +225,7 @@ Defined in: node\_modules/.pnpm/@electric-sql+pglite@0.5.12/node\_modules/@elect
 
 `PGliteOptions.onStdout`
 
-***
+---
 
 ### parsers? \{#parsers\}
 
@@ -239,7 +239,7 @@ Defined in: node\_modules/.pnpm/@electric-sql+pglite@0.5.12/node\_modules/@elect
 
 `PGliteOptions.parsers`
 
-***
+---
 
 ### pgliteWasmModule? \{#pglitewasmmodule\}
 
@@ -253,7 +253,7 @@ Defined in: node\_modules/.pnpm/@electric-sql+pglite@0.5.12/node\_modules/@elect
 
 `PGliteOptions.pgliteWasmModule`
 
-***
+---
 
 ### postgresqlconf? \{#postgresqlconf\}
 
@@ -267,7 +267,7 @@ Defined in: node\_modules/.pnpm/@electric-sql+pglite@0.5.12/node\_modules/@elect
 
 `PGliteOptions.postgresqlconf`
 
-***
+---
 
 ### relaxedDurability? \{#relaxeddurability\}
 
@@ -281,7 +281,7 @@ Defined in: node\_modules/.pnpm/@electric-sql+pglite@0.5.12/node\_modules/@elect
 
 `PGliteOptions.relaxedDurability`
 
-***
+---
 
 ### restoredDatabase? \{#restoreddatabase\}
 
@@ -297,7 +297,7 @@ Claims the database obtained by [restorePGliteDatabase](../functions/restorePGli
 
 Can only be used with memory storage; the handle can only be claimed once, and only by the RxDB instance that was verified at restore time, with the same set of extensions.
 
-***
+---
 
 ### serializers? \{#serializers\}
 
@@ -311,7 +311,7 @@ Defined in: node\_modules/.pnpm/@electric-sql+pglite@0.5.12/node\_modules/@elect
 
 `PGliteOptions.serializers`
 
-***
+---
 
 ### startParams? \{#startparams\}
 
@@ -325,7 +325,7 @@ Defined in: node\_modules/.pnpm/@electric-sql+pglite@0.5.12/node\_modules/@elect
 
 `PGliteOptions.startParams`
 
-***
+---
 
 ### store? \{#store\}
 
@@ -336,11 +336,12 @@ store?: "memory" | "idb";
 Defined in: [packages/rxdb-adapter-pglite/src/pglite.interface.ts:60](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-pglite/src/pglite.interface.ts#L60)
 
 Storage type
+
 - 'memory': in-memory storage
 - 'idb': IndexedDB storage
-When dataDir is passed explicitly, dataDir takes precedence
+  When dataDir is passed explicitly, dataDir takes precedence
 
-***
+---
 
 ### username? \{#username\}
 

@@ -24,7 +24,7 @@ target currently, produce no entries; a deletion is kept when the target
 independently created an entity with the same primary key, because the merge
 really will delete it.
 
-***
+---
 
 ### merged \{#merged\}
 
@@ -38,7 +38,7 @@ Consistent with the `merged` returned by the subsequent `mergeBranch()`:
 compressed to the net operation count, which per entry is the number of source
 branch changes.
 
-***
+---
 
 ### sourceBranchId \{#sourcebranchid\}
 
@@ -50,7 +50,7 @@ Defined in: [packages/rxdb-plugin-history/src/branch-compare.ts:138](https://git
 
 The source branch.
 
-***
+---
 
 ### strategy \{#strategy\}
 
@@ -62,7 +62,7 @@ Defined in: [packages/rxdb-plugin-history/src/branch-compare.ts:144](https://git
 
 The strategy the preview is based on.
 
-***
+---
 
 ### targetBranchId \{#targetbranchid\}
 

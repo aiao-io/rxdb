@@ -10,16 +10,16 @@ Derives a read-only store from multiple stores.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
-| <a id="type-parameter-s"></a> `S` *extends* readonly [`ReadableStore`](../interfaces/ReadableStore.md)&lt;`unknown`&gt;[] |
-| <a id="type-parameter-r"></a> `R` |
+| Type Parameter                                                                                                            |
+| ------------------------------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-s"></a> `S` _extends_ readonly [`ReadableStore`](../interfaces/ReadableStore.md)&lt;`unknown`&gt;[] |
+| <a id="type-parameter-r"></a> `R`                                                                                         |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `sources` | `S` | The source stores. |
+| Parameter | Type                 | Description                   |
+| --------- | -------------------- | ----------------------------- |
+| `sources` | `S`                  | The source stores.            |
 | `project` | (...`values`) => `R` | The pure projection function. |
 
 ## Returns

@@ -10,9 +10,9 @@ Gets the SQL representation of a rule value.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `rule` | `QueryRuleValue` | The rule object |
+| Parameter | Type             | Description     |
+| --------- | ---------------- | --------------- |
+| `rule`    | `QueryRuleValue` | The rule object |
 
 ## Returns
 

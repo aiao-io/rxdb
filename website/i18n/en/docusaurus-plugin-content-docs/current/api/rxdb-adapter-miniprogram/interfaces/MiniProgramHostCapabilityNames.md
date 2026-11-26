@@ -16,7 +16,7 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts:60]
 
 The synchronous file system entry.
 
-***
+---
 
 ### userDataPath \{#userdatapath\}
 

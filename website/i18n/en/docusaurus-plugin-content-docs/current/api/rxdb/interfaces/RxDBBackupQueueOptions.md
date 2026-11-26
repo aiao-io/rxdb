@@ -16,7 +16,7 @@ Defined in: [packages/rxdb/src/backup/backup-queue.ts:11](https://github.com/aia
 
 The operation name in error messages, such as `PGlite backup`.
 
-***
+---
 
 ### signal? \{#signal\}
 
@@ -28,7 +28,7 @@ Defined in: [packages/rxdb/src/backup/backup-queue.ts:7](https://github.com/aiao
 
 Cancellation signal: only takes effect while queued.
 
-***
+---
 
 ### timeoutMs \{#timeoutms\}
 

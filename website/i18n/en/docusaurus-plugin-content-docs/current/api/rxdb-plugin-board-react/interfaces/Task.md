@@ -26,7 +26,7 @@ columnId: `${string}-${string}-${string}-${string}-${string}`;
 
 Defined in: packages/rxdb-plugin-board/dist/entities/task.entity.d.ts:12
 
-***
+---
 
 ### createdAt \{#createdat\}
 
@@ -43,7 +43,7 @@ Automatically set to the current time when the entity is created.
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`createdAt`](../../rxdb/classes/EntityBase.md#createdat)
 
-***
+---
 
 ### createdBy? \{#createdby\}
 
@@ -60,7 +60,7 @@ Records the ID of the user who created this entity.
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`createdBy`](../../rxdb/classes/EntityBase.md#createdby)
 
-***
+---
 
 ### description \{#description\}
 
@@ -70,7 +70,7 @@ description: string | null;
 
 Defined in: packages/rxdb-plugin-board/dist/entities/task.entity.d.ts:14
 
-***
+---
 
 ### dueDate \{#duedate\}
 
@@ -80,7 +80,7 @@ dueDate: string | null;
 
 Defined in: packages/rxdb-plugin-board/dist/entities/task.entity.d.ts:15
 
-***
+---
 
 ### id \{#id\}
 
@@ -97,7 +97,7 @@ An automatically generated UUID used as the primary key.
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`id`](../../rxdb/classes/EntityBase.md#id)
 
-***
+---
 
 ### remove \{#remove\}
 
@@ -117,7 +117,7 @@ Deletes the entity.
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`remove`](../../rxdb/classes/EntityBase.md#remove)
 
-***
+---
 
 ### reset \{#reset\}
 
@@ -137,7 +137,7 @@ Resets the data.
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`reset`](../../rxdb/classes/EntityBase.md#reset)
 
-***
+---
 
 ### save \{#save\}
 
@@ -161,7 +161,7 @@ This entry point does not hold a transaction executor and re-enters the adapter 
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`save`](../../rxdb/classes/EntityBase.md#save)
 
-***
+---
 
 ### sortOrder \{#sortorder\}
 
@@ -177,7 +177,7 @@ Sort key, non-null.
 
 `ISortableEntity.sortOrder`
 
-***
+---
 
 ### title \{#title\}
 
@@ -187,7 +187,7 @@ title: string;
 
 Defined in: packages/rxdb-plugin-board/dist/entities/task.entity.d.ts:13
 
-***
+---
 
 ### updatedAt \{#updatedat\}
 
@@ -204,7 +204,7 @@ Automatically set to the current time when the entity is created or updated.
 
 [`EntityBase`](../../rxdb/classes/EntityBase.md).[`updatedAt`](../../rxdb/classes/EntityBase.md#updatedat)
 
-***
+---
 
 ### updatedBy? \{#updatedby\}
 

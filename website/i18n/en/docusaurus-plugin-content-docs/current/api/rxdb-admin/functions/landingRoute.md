@@ -10,15 +10,15 @@ The node's landing route: its own route, otherwise the first descendant's route.
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `node` | [`MenuNode`](../interfaces/MenuNode.md)&lt;`T`&gt; | The menu node. |
+| Parameter | Type                                               | Description    |
+| --------- | -------------------------------------------------- | -------------- |
+| `node`    | [`MenuNode`](../interfaces/MenuNode.md)&lt;`T`&gt; | The menu node. |
 
 ## Returns
 

@@ -38,15 +38,15 @@ Opens a chunked disk receiver for one transfer; only a valid COMPLETE commits.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `name` | `string` |
+| Parameter | Type     |
+| --------- | -------- |
+| `name`    | `string` |
 
 #### Returns
 
 [`DevToolsChunkSink`](DevToolsChunkSink.md)
 
-***
+---
 
 ### createChunkSource() \{#createchunksource\}
 
@@ -60,8 +60,8 @@ Opens a byte source for a successful `files.download`.
 
 #### Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter   | Type     | Description                                  |
+| ----------- | -------- | -------------------------------------------- |
 | `requestId` | `string` | The REQUEST ID that triggered this download. |
 
 #### Returns
@@ -76,7 +76,7 @@ The byte source to put on the wire, or `undefined`.
 
 `requestId` is used as the key instead of minting a new ID: the only reliable way for the provider to recognize "the file I just agreed to download" is that call itself, and the transferId does not exist yet at this point (it is minted by the endpoint only after this method returns).
 
-***
+---
 
 ### provider() \{#provider\}
 
@@ -90,9 +90,9 @@ Gets the provider of a domain.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `domain` | `"database"` \| `"files"` \| `"settings"` |
+| Parameter | Type                                      |
+| --------- | ----------------------------------------- |
+| `domain`  | `"database"` \| `"files"` \| `"settings"` |
 
 #### Returns
 

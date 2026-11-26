@@ -10,9 +10,9 @@ Validates the preconditions the caller **explicitly stated** (FR-017, FR-020).
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md) | The caller's read-only transaction executor |
+| Parameter  | Type                                                                                        | Description                                                            |
+| ---------- | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md)                       | The caller's read-only transaction executor                            |
 | `options?` | [`RxDBBranchSwitchPreconditions`](../../rxdb/type-aliases/RxDBBranchSwitchPreconditions.md) | The preconditions stated by the caller; not passing any states nothing |
 
 ## Returns

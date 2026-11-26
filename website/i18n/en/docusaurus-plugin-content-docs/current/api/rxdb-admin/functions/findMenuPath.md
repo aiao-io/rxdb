@@ -10,16 +10,16 @@ Finds the menu path (root to leaf) that the URL lives on. The longest route pref
 
 ## Type Parameters
 
-| Type Parameter |
-| ------ |
+| Type Parameter                    |
+| --------------------------------- |
 | <a id="type-parameter-t"></a> `T` |
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `nodes` | readonly [`MenuNode`](../interfaces/MenuNode.md)&lt;`T`&gt;[] | The menu tree. |
-| `url` | `string` | The current URL. |
+| Parameter | Type                                                          | Description      |
+| --------- | ------------------------------------------------------------- | ---------------- |
+| `nodes`   | readonly [`MenuNode`](../interfaces/MenuNode.md)&lt;`T`&gt;[] | The menu tree.   |
+| `url`     | `string`                                                      | The current URL. |
 
 ## Returns
 

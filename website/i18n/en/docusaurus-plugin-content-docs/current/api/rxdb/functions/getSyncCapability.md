@@ -10,8 +10,8 @@ Reads the capabilities of a given sync type.
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter  | Type                                                          | Description   |
+| ---------- | ------------------------------------------------------------- | ------------- |
 | `syncType` | [`RepositorySyncType`](../type-aliases/RepositorySyncType.md) | The sync type |
 
 ## Returns
@@ -23,7 +23,7 @@ The capabilities of this type in both pull and push directions.
 ## Example
 
 ```ts
-getSyncCapability('remote');     // `{ pull: true,  push: false, offlineWrite: false }`
+getSyncCapability('remote'); // `{ pull: true,  push: false, offlineWrite: false }`
 getSyncCapability('querycache'); // `{ pull: true,  push: false, offlineWrite: true }`
-getSyncCapability('local');      // `{ pull: false, push: false, offlineWrite: false }`
+getSyncCapability('local'); // `{ pull: false, push: false, offlineWrite: false }`
 ```

@@ -16,7 +16,7 @@ Defined in: [catalog.ts:24](https://github.com/aiao-io/rxdb/blob/b5232040240cf1c
 
 Message key.
 
-***
+---
 
 ### locale \{#locale\}
 
@@ -28,7 +28,7 @@ Defined in: [catalog.ts:20](https://github.com/aiao-io/rxdb/blob/b5232040240cf1c
 
 Canonicalized locale.
 
-***
+---
 
 ### namespace \{#namespace\}
 
@@ -40,7 +40,7 @@ Defined in: [catalog.ts:22](https://github.com/aiao-io/rxdb/blob/b5232040240cf1c
 
 Namespace.
 
-***
+---
 
 ### value \{#value\}
 

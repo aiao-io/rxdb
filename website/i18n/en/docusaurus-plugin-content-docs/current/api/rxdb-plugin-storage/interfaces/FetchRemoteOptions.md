@@ -23,7 +23,7 @@ parameters like `; charset=...` automatically stripped); when both are missing
 it throws [StorageMimeTypeMissingError](../classes/StorageMimeTypeMissingError.md)
 and never falls back to `application/octet-stream`.
 
-***
+---
 
 ### signal? \{#signal\}
 
@@ -35,7 +35,7 @@ Defined in: [packages/rxdb-plugin-storage/src/storage.helpers.ts:111](https://gi
 
 The AbortSignal passed through to the underlying fetch; throws `AbortError` when triggered.
 
-***
+---
 
 ### url \{#url\}
 

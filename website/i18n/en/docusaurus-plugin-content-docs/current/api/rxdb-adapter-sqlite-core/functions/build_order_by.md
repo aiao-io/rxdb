@@ -1,12 +1,7 @@
 # build_order_by()
 
 ```ts
-function build_order_by(
-   orderBy?, 
-   metadata?, 
-   adapter?, 
-   fieldAliasMap?
-): string | undefined;
+function build_order_by(orderBy?, metadata?, adapter?, fieldAliasMap?): string | undefined;
 ```
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/query/query\_sql.ts:72](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/query/query_sql.ts#L72)
@@ -15,12 +10,12 @@ Builds ordering SQL
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `orderBy?` | [`OrderBy`](../../rxdb/interfaces/OrderBy.md)&lt;`string`&gt;[] | Ordering conditions |
-| `metadata?` | `Readonly`&lt;[`EntityMetadataType`](../../rxdb/interfaces/EntityMetadataType.md)&gt; | Entity metadata |
-| `adapter?` | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md) | SQLite adapter instance |
-| `fieldAliasMap?` | `Map`&lt;`string`, `string`&gt; | Mapping from fields to JOIN aliases / json_extract expressions |
+| Parameter        | Type                                                                                  | Description                                                    |
+| ---------------- | ------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `orderBy?`       | [`OrderBy`](../../rxdb/interfaces/OrderBy.md)&lt;`string`&gt;[]                       | Ordering conditions                                            |
+| `metadata?`      | `Readonly`&lt;[`EntityMetadataType`](../../rxdb/interfaces/EntityMetadataType.md)&gt; | Entity metadata                                                |
+| `adapter?`       | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md)                        | SQLite adapter instance                                        |
+| `fieldAliasMap?` | `Map`&lt;`string`, `string`&gt;                                                       | Mapping from fields to JOIN aliases / json_extract expressions |
 
 ## Returns
 

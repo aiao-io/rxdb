@@ -20,7 +20,7 @@ Returns the singleton row; returns `null` when the keyring table is empty.
 
 `Promise`&lt;[`KeyringRow`](KeyringRow.md) \| `null`&gt;
 
-***
+---
 
 ### writeSingleton() \{#writesingleton\}
 
@@ -34,9 +34,9 @@ Inserts the singleton row. If the row already exists, the implementation must th
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
-| `row` | [`KeyringRow`](KeyringRow.md) |
+| Parameter | Type                          |
+| --------- | ----------------------------- |
+| `row`     | [`KeyringRow`](KeyringRow.md) |
 
 #### Returns
 

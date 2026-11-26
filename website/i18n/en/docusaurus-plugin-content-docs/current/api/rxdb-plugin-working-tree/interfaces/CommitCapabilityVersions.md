@@ -20,7 +20,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-capability.ts:4
 
 The patch codec version
 
-***
+---
 
 ### protocolVersion \{#protocolversion\}
 
@@ -32,7 +32,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-capability.ts:3
 
 The command-layer protocol version
 
-***
+---
 
 ### schemaVersion \{#schemaversion\}
 

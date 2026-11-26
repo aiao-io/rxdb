@@ -43,15 +43,15 @@ Checks whether a directory exists.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter       | Type     |
+| --------------- | -------- |
 | `directoryPath` | `string` |
 
 #### Returns
 
 `Promise`&lt;`boolean`&gt;
 
-***
+---
 
 ### dispose() \{#dispose\}
 
@@ -67,7 +67,7 @@ Releases cached handles and connections; called once when the service is destroy
 
 `void`
 
-***
+---
 
 ### ensureDirectory() \{#ensuredirectory\}
 
@@ -81,15 +81,15 @@ Creates the directory and any missing parent directories; a no-op when it alread
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter       | Type     |
+| --------------- | -------- |
 | `directoryPath` | `string` |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### ensureRoot() \{#ensureroot\}
 
@@ -106,7 +106,7 @@ when the environment does not support it.
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### fileExists() \{#fileexists\}
 
@@ -120,15 +120,15 @@ Checks whether a file exists.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `filePath` | `string` |
 
 #### Returns
 
 `Promise`&lt;`boolean`&gt;
 
-***
+---
 
 ### list() \{#list\}
 
@@ -142,8 +142,8 @@ Enumerates the direct entries of a directory.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter       | Type     |
+| --------------- | -------- |
 | `directoryPath` | `string` |
 
 #### Returns
@@ -156,7 +156,7 @@ Returns a **lazy** sequence: the service layer collects it into an array itself
 when it needs "materialize then delete"; implementors need not, and should not,
 materialize eagerly.
 
-***
+---
 
 ### moveDirectory() \{#movedirectory\}
 
@@ -170,16 +170,16 @@ Moves a directory natively; only called when [StorageFilesystem.supportsDirector
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `fromPath` | `string` |
-| `toPath` | `string` |
+| `toPath`   | `string` |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### moveFile() \{#movefile\}
 
@@ -193,16 +193,16 @@ Moves a file natively; only called when [StorageFilesystem.supportsFileMove](#su
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `fromPath` | `string` |
-| `toPath` | `string` |
+| `toPath`   | `string` |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### openRead() \{#openread\}
 
@@ -216,8 +216,8 @@ Opens a read stream for the file; throws NotFound when the file does not exist.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `filePath` | `string` |
 
 #### Returns
@@ -229,7 +229,7 @@ Opens a read stream for the file; throws NotFound when the file does not exist.
 The read/write isolation guarantee is the same as [StorageFilesystem.readBlob](#readblob)
 — that is, no guarantee at all.
 
-***
+---
 
 ### openWrite() \{#openwrite\}
 
@@ -243,15 +243,15 @@ Opens a write handle for the file, creating missing parent directories along the
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `filePath` | `string` |
 
 #### Returns
 
 `Promise`&lt;[`StorageFileWriter`](StorageFileWriter.md)&gt;
 
-***
+---
 
 ### readBlob() \{#readblob\}
 
@@ -265,8 +265,8 @@ Reads the full contents of a file.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `filePath` | `string` |
 
 #### Returns
@@ -288,7 +288,7 @@ method's. Callers that need read-then-write should still spill to a temporary
 file via [StorageFilesystem.openRead](#openread) and not keep the return value
 around as a long-term snapshot.
 
-***
+---
 
 ### removeDirectory() \{#removedirectory\}
 
@@ -302,15 +302,15 @@ Recursively deletes a directory; returns silently when the directory does not ex
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter       | Type     |
+| --------------- | -------- |
 | `directoryPath` | `string` |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### removeFile() \{#removefile\}
 
@@ -324,15 +324,15 @@ Deletes a file; returns silently when the file does not exist.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `filePath` | `string` |
 
 #### Returns
 
 `Promise`&lt;`void`&gt;
 
-***
+---
 
 ### supportsDirectoryMove() \{#supportsdirectorymove\}
 
@@ -346,15 +346,15 @@ Checks whether the directory supports native moves; throws NotFound when the dir
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter       | Type     |
+| --------------- | -------- |
 | `directoryPath` | `string` |
 
 #### Returns
 
 `Promise`&lt;`boolean`&gt;
 
-***
+---
 
 ### supportsFileMove() \{#supportsfilemove\}
 
@@ -368,8 +368,8 @@ Checks whether the file supports native moves.
 
 #### Parameters
 
-| Parameter | Type |
-| ------ | ------ |
+| Parameter  | Type     |
+| ---------- | -------- |
 | `filePath` | `string` |
 
 #### Returns

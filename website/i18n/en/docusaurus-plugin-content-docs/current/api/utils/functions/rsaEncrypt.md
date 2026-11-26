@@ -10,9 +10,9 @@ RSA encryption
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
-| `text` | `string` | The plaintext |
+| Parameter      | Type     | Description                  |
+| -------------- | -------- | ---------------------------- |
+| `text`         | `string` | The plaintext                |
 | `publicKeyPem` | `string` | The public key in PEM format |
 
 ## Returns

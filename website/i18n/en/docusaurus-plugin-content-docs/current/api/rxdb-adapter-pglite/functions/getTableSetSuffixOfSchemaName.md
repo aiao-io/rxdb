@@ -10,8 +10,8 @@ Recognizes which shadow table set a catalog schema name belongs to: it is a matc
 
 ## Parameters
 
-| Parameter | Type | Description |
-| ------ | ------ | ------ |
+| Parameter    | Type     | Description                         |
+| ------------ | -------- | ----------------------------------- |
 | `schemaName` | `string` | The schema name from `pg_namespace` |
 
 ## Returns

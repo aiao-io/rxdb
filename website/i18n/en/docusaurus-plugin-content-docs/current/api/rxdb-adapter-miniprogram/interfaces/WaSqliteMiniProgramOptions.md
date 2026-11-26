@@ -28,7 +28,7 @@ The SQLite page cache, in KB.
 
 [`WaSqliteMiniProgramBaseOptions`](WaSqliteMiniProgramBaseOptions.md).[`cacheSizeKb`](WaSqliteMiniProgramBaseOptions.md#cachesizekb)
 
-***
+---
 
 ### databaseRoot? \{#databaseroot\}
 
@@ -44,7 +44,7 @@ The database file directory. Defaults to `${host.userDataPath}/rxdb-wa-sqlite` (
 
 [`WaSqliteMiniProgramBaseOptions`](WaSqliteMiniProgramBaseOptions.md).[`databaseRoot`](WaSqliteMiniProgramBaseOptions.md#databaseroot)
 
-***
+---
 
 ### host? \{#host\}
 
@@ -56,7 +56,7 @@ Defined in: [packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts:234
 
 Mutually exclusive with `wechat`.
 
-***
+---
 
 ### moduleFactory \{#modulefactory\}
 
@@ -72,7 +72,7 @@ The synchronous wa-sqlite module factory, obtained from `loadSubframeModuleFacto
 
 [`WaSqliteMiniProgramBaseOptions`](WaSqliteMiniProgramBaseOptions.md).[`moduleFactory`](WaSqliteMiniProgramBaseOptions.md#modulefactory)
 
-***
+---
 
 ### repositories? \{#repositories\}
 
@@ -88,7 +88,7 @@ Overrides the default repository implementations.
 
 [`WaSqliteMiniProgramBaseOptions`](WaSqliteMiniProgramBaseOptions.md).[`repositories`](WaSqliteMiniProgramBaseOptions.md#repositories)
 
-***
+---
 
 ### wasmPath? \{#wasmpath\}
 
@@ -104,7 +104,7 @@ The in-package wasm path. Mini program WASM runtimes do not accept URLs or Array
 
 [`WaSqliteMiniProgramBaseOptions`](WaSqliteMiniProgramBaseOptions.md).[`wasmPath`](WaSqliteMiniProgramBaseOptions.md#wasmpath)
 
-***
+---
 
 ### wasmRuntime \{#wasmruntime\}
 
@@ -120,7 +120,7 @@ The mini program WASM runtime: the global `WXWebAssembly` for WeChat, `TTWebAsse
 
 [`WaSqliteMiniProgramBaseOptions`](WaSqliteMiniProgramBaseOptions.md).[`wasmRuntime`](WaSqliteMiniProgramBaseOptions.md#wasmruntime)
 
-***
+---
 
 ### wechat \{#wechat\}
 
