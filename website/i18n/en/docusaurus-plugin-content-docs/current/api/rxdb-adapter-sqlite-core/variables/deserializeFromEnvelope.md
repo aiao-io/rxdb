@@ -6,10 +6,10 @@ const deserializeFromEnvelope: (bytes, property) => unknown;
 
 Defined in: packages/rxdb-adapter-encrypted/dist/serialize.d.ts:25
 
-Restores authenticated plaintext bytes to business values according to the property types at persistence time.
+Restores authenticated plaintext bytes into business values according to the property types at persistence time.
 
-`null` never enters this function; the adapter should return the database NULL directly. Structured values, boolean, number, integer,
-bigint and date are all strictly validated, to avoid silently rewriting a corrupted payload into a legal business value. `binary` returns an independent copy.
+`null` does not enter this function; the adapter should return the database NULL directly. Structured values, boolean, number, integer,
+bigint, and date are all strictly validated, to avoid silently rewriting a corrupt payload into a legitimate business value. `binary` returns an independent copy.
 
 ## Parameters
 
@@ -24,4 +24,4 @@ bigint and date are all strictly validated, to avoid silently rewriting a corrup
 
 ## Throws
 
-EncryptedDecryptError The payload cannot be decoded as the declared persistence type
+EncryptedDecryptError when the payload cannot be decoded according to the declared persistence type

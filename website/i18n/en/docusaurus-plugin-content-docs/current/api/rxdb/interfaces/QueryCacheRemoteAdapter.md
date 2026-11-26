@@ -2,7 +2,7 @@
 
 Defined in: [packages/rxdb/src/repository/query-cache.interface.ts:33](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query-cache.interface.ts#L33)
 
-QueryCache adapter interface (remote)
+QueryCache adapter interface (remote).
 
 ## Methods
 
@@ -14,7 +14,7 @@ create?<T>(entityName, data): Observable<T>;
 
 Defined in: [packages/rxdb/src/repository/query-cache.interface.ts:39](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query-cache.interface.ts#L39)
 
-Creates an entity (optional - needed for write operations)
+Creates an entity (optional — needed by write operations).
 
 #### Type Parameters
 
@@ -43,7 +43,7 @@ delete?(entityName, ids): Observable<void>;
 
 Defined in: [packages/rxdb/src/repository/query-cache.interface.ts:43](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query-cache.interface.ts#L43)
 
-Deletes entities (optional - needed for write operations)
+Deletes entities (optional — needed by write operations).
 
 #### Parameters
 
@@ -66,7 +66,7 @@ fetchMetadata<TEntity>(entityName, query): Observable<QueryCacheEntityMetadata[]
 
 Defined in: [packages/rxdb/src/repository/query-cache.interface.ts:35](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query-cache.interface.ts#L35)
 
-Fetches entity metadata satisfying the query conditions
+Gets the metadata of entities satisfying the query conditions.
 
 #### Type Parameters
 
@@ -95,7 +95,7 @@ findByIds<T>(entityName, ids): Observable<T[]>;
 
 Defined in: [packages/rxdb/src/repository/query-cache.interface.ts:37](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query-cache.interface.ts#L37)
 
-Fetches full data in bulk by ID
+Gets complete data by ID in bulk.
 
 #### Type Parameters
 
@@ -128,7 +128,7 @@ update?<T>(
 
 Defined in: [packages/rxdb/src/repository/query-cache.interface.ts:41](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query-cache.interface.ts#L41)
 
-Updates an entity (optional - needed for write operations)
+Updates an entity (optional — needed by write operations).
 
 #### Type Parameters
 

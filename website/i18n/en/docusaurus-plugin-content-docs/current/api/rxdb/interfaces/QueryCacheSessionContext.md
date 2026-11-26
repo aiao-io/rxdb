@@ -6,13 +6,13 @@ sidebar_label: "QueryCacheSessionContext⟨T⟩"
 
 Defined in: [packages/rxdb/src/repository/query-cache-engine.interface.ts:91](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query-cache-engine.interface.ts#L91)
 
-Everything needed to build a session, all prepared and injected by the core.
+Everything needed to build a session, prepared and injected by the core.
 
 ## Type Parameters
 
 | Type Parameter | Description |
 | ------ | ------ |
-| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) | The entity type |
+| <a id="type-parameter-t"></a> `T` *extends* [`EntityType`](../type-aliases/EntityType.md) | Entity type |
 
 ## Properties
 
@@ -24,7 +24,7 @@ entityName: string;
 
 Defined in: [packages/rxdb/src/repository/query-cache-engine.interface.ts:95](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query-cache-engine.interface.ts#L95)
 
-The entity name in the metadata (`EntityType.name` is unreliable after bundling/minification)
+The entity name in the metadata (`EntityType.name` is unreliable after bundling/minification).
 
 ***
 
@@ -36,7 +36,7 @@ EntityType: T;
 
 Defined in: [packages/rxdb/src/repository/query-cache-engine.interface.ts:93](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query-cache-engine.interface.ts#L93)
 
-The entity class
+The entity class.
 
 ***
 
@@ -48,7 +48,7 @@ localCacheFirst: boolean;
 
 Defined in: [packages/rxdb/src/repository/query-cache-engine.interface.ts:97](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query-cache-engine.interface.ts#L97)
 
-`sync.local.localCacheFirst`, taken out by the call site where the union type has already been narrowed
+`sync.local.localCacheFirst`, taken by the call site where the union type has been narrowed.
 
 ***
 
@@ -60,15 +60,16 @@ pendingWriteIds: QueryCachePendingWriteIds;
 
 Defined in: [packages/rxdb/src/repository/query-cache-engine.interface.ts:114](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query-cache-engine.interface.ts#L114)
 
-Which ids the query outbox queue currently holds.
+Which ids the query outbox currently occupies.
 
 #### Remarks
 
-The production implementation is `@aiao/rxdb-plugin-sync`'s `pendingQueryCacheWriteIds`, which reads the `rxdb_change` / `rxdb_sync` system tables
-on the local adapter via `localAdapter$` (no longer through
-`versionManager` since US-025 phase C, and moved out of the core together with the outbox queue since phase D). **Injected by the core** rather than letting the plugin ask on its own
-is the whole content of B5: the read-path plugin keeps zero dependency on the write-back-to-outbox implementation — the two plugins don't know each other
-and only meet at the `Repository` line.
+The production implementation is `@aiao/rxdb-plugin-sync`'s `pendingQueryCacheWriteIds`, which reads the
+`rxdb_change` / `rxdb_sync` system tables on the local adapter via `localAdapter$` (since US-025 phase C no
+longer via `versionManager`; since phase D it leaves the core together with the outbox). **Being injected by
+the core** instead of letting the plugin ask by itself is the entire content of B5: the read-path plugin keeps
+zero dependency on the write-back-outbox implementation — the two plugins do not know each other and only meet
+at the single line of `Repository`.
 
 ***
 
@@ -80,7 +81,7 @@ reachability: ReachabilityMonitor;
 
 Defined in: [packages/rxdb/src/repository/query-cache-engine.interface.ts:101](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query-cache-engine.interface.ts#L101)
 
-Remote reachability monitor
+Remote reachability monitor.
 
 ***
 
@@ -92,7 +93,7 @@ syncStaleTime: number | undefined;
 
 Defined in: [packages/rxdb/src/repository/query-cache-engine.interface.ts:99](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query-cache-engine.interface.ts#L99)
 
-`sync.local.syncStaleTime`; `undefined` means the implementation side's default window is used
+`sync.local.syncStaleTime`; `undefined` means using the implementation side's default window.
 
 ***
 
@@ -104,4 +105,4 @@ syncState: SyncStateHub;
 
 Defined in: [packages/rxdb/src/repository/query-cache-engine.interface.ts:103](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query-cache-engine.interface.ts#L103)
 
-Sync state panel
+Sync state hub.

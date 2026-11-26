@@ -6,7 +6,7 @@ type WorkingTreeStatePatch = <K>(key, state) => void;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/working-tree-commands.ts:60](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/working-tree-commands.ts#L60)
 
-Writes a new phase into one state slot.
+Writing a new phase into a state slot.
 
 ## Type Parameters
 
@@ -27,5 +27,6 @@ Writes a new phase into one state slot.
 
 ## Remarks
 
-Slot by key rather than replacing the whole object: while `commit()` is in flight, `statusState` should not also become `loading`,
-and whole-object replacement either has to achieve that, or force each framework to hand-assemble a "keep the other six slots" spread.
+Per-key slots rather than wholesale replacement: while `commit()` is in flight, `statusState` should not
+turn `loading` too — and wholesale replacement would either have to guarantee that, or force every framework
+to hand-assemble a "keep the other six slots" spread of its own.

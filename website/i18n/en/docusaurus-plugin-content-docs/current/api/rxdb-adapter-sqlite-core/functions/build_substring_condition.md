@@ -16,27 +16,27 @@ Generates the SQL condition for substring-like operators
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `fieldSql` | `string` | The already-qualified column SQL |
-| `operator` | `string` | The substring-like operator |
-| `value` | `unknown` | The rule value |
+| `fieldSql` | `string` | Qualified column SQL |
+| `operator` | `string` | Substring-like operator |
+| `value` | `unknown` | Rule value |
 
 ## Returns
 
 `string`
 
-The SQL condition string
+SQL condition string
 
 ## Remarks
 
-Does not use `LIKE`: SQLite's `LIKE` treats `%` `_` in the value as wildcards and is case-insensitive for ASCII,
-contradicting the JS incremental match of `String.includes` / `startsWith` / `endsWith` — with the same data,
-a row matches the first SQL query but the incremental match after a write does not, and the reactive query drifts on its own (SQLC-007).
-`instr` / `substr` use binary comparison, naturally "literal + case-sensitive", so no `ESCAPE` clause is needed either.
+Does not use `LIKE`: SQLite's `LIKE` treats `%` `_` in the value as wildcards and is ASCII case-insensitive,
+contradicting JS incremental matching's `String.includes` / `startsWith` / `endsWith` — the same data
+hits on the first SQL query but misses on the incremental match after a write, and the reactive query drifts on its own (SQLC-007).
+`instr` / `substr` use binary comparison, which is naturally "literal + case-sensitive", so no `ESCAPE` clause is needed.
 
-The empty-string edge cases match JS: `instr(X, '')` returns 1, `substr(X, length(X) + 1)` returns `''`,
-corresponding to `includes('')` / `startsWith('')` / `endsWith('')` always being true.
+Empty string boundaries match JS: `instr(X, '')` returns 1 and `substr(X, length(X) + 1)` returns `''`,
+corresponding to `includes('')` / `startsWith('')` / `endsWith('')` being always true.
 
-Everything produced is a single comparison expression, which binds tighter than AND/OR, so it needs no parentheses of its own
+The output is always a single comparison expression with higher precedence than AND/OR, so it needs no parentheses of its own
 (compare the two-part condition of [handle\_array\_in](handle_array_in.md)).
 
 ## Throws

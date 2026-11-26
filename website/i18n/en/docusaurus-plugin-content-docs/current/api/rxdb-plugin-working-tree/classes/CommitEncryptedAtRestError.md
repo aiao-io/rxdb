@@ -2,19 +2,19 @@
 
 Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-codec.ts:142](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/commit/commit-codec.ts#L142)
 
-A value in an encrypted column entered a commit without its at-rest form (FR-038).
+An encrypted column's value did not enter the commit in its at-rest form (FR-038).
 
 ## Remarks
 
-Everything it carries is **identity and position**: namespace, entity name, entity primary key, unit id, column name, property name, cause.
-**It does not carry the value itself** — diagnostics like `errorSurfaceOf` serialize the error's own properties as a whole,
-and the value rejected here happens to very likely be plaintext; carrying it would be writing plaintext into the log.
+It carries only **identity and location**: namespace, entity name, entity primary key, unit id, column name, property name, cause.
+**It does not carry the value itself** — diagnostics such as `errorSurfaceOf` serialize the error's own properties wholesale,
+and the rejected value here is very likely plaintext; including it would mean writing plaintext into logs.
 
-The entity primary key can be carried: `@aiao/rxdb-adapter-encrypted`'s `validateEncryptedPropertyMetadata`
+The entity primary key is safe to include: `@aiao/rxdb-adapter-encrypted`'s `validateEncryptedPropertyMetadata`
 forbids declaring the primary key as an encrypted column, so `entityId` is never an encrypted field value.
 
 There is no corresponding [CommitErrorCode](../type-aliases/CommitErrorCode.md): that code table is pinned by `commit-error-codes.spec.ts` to
-"exactly eight, no more, no less", while this error is pre-write input validation, not a database state the caller needs to branch on.
+"exactly eight, no more, no less", while this error is pre-write argument validation, not a database state the caller needs to branch on.
 
 ## Extends
 
@@ -38,18 +38,18 @@ new CommitEncryptedAtRestError(
 
 Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-codec.ts:152](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/commit/commit-codec.ts#L152)
 
-Constructed only by this file's `assertColumnEncryptedAtRest` during the per-column scan.
+Constructed only by `assertColumnEncryptedAtRest` in this file during its per-column scan.
 
 #### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `namespace` | `string` | Namespace of the target entity |
-| `entity` | `string` | Name of the target entity |
-| `entityId` | `string` | Primary key of the target entity |
-| `unitId` | `string` | The change unit the match belongs to |
-| `column` | [`CommitPatchColumn`](../type-aliases/CommitPatchColumn.md) | The column the match is in |
-| `property` | `string` | Name of the encrypted property that matched |
+| `namespace` | `string` | The target entity's namespace |
+| `entity` | `string` | The target entity name |
+| `entityId` | `string` | The target entity primary key |
+| `unitId` | `string` | The change unit the hit belongs to |
+| `column` | [`CommitPatchColumn`](../type-aliases/CommitPatchColumn.md) | The column the hit is in |
+| `property` | `string` | The encrypted property name at the hit |
 | `reason` | [`CommitEncryptedAtRestReason`](../type-aliases/CommitEncryptedAtRestReason.md) | See [CommitEncryptedAtRestReason](../type-aliases/CommitEncryptedAtRestReason.md) |
 
 #### Returns
@@ -58,10 +58,10 @@ Constructed only by this file's `assertColumnEncryptedAtRest` during the per-col
 
 #### Remarks
 
-All seven are parameter properties, so the invariant "the error's own properties are exactly identity and position, and nothing else"
-can be verified on the signature alone. Anyone wanting to add context to the error must change this signature, instead of `Object.assign`ing
-a field at the throw site — the latter produces no compile error at all, yet is enough to let the rejected value (very likely plaintext)
-leak out through diagnostic serialization; not letting it leak out is the reason this class exists (see the class comment).
+All seven fields are parameter properties, so the invariant "the error's own properties are exactly identity and location, and only identity and location"
+can be verified at the signature level. Anyone wanting to add context to the error must change this signature rather than `Object.assign`
+a field onto it at the throw site — the latter produces no compile error whatsoever, yet is enough to let the rejected value
+(very likely plaintext) leak out through diagnostic serialization, and keeping it from leaking is the very reason this class exists (see the class comment).
 
 #### Overrides
 
@@ -91,7 +91,7 @@ readonly column: CommitPatchColumn;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-codec.ts:162](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/commit/commit-codec.ts#L162)
 
-The column the match is in
+The column the hit is in
 
 ***
 
@@ -103,7 +103,7 @@ readonly entity: string;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-codec.ts:156](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/commit/commit-codec.ts#L156)
 
-Name of the target entity
+The target entity name
 
 ***
 
@@ -115,7 +115,7 @@ readonly entityId: string;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-codec.ts:158](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/commit/commit-codec.ts#L158)
 
-Primary key of the target entity
+The target entity primary key
 
 ***
 
@@ -155,7 +155,7 @@ readonly namespace: string;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-codec.ts:154](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/commit/commit-codec.ts#L154)
 
-Namespace of the target entity
+The target entity's namespace
 
 ***
 
@@ -167,7 +167,7 @@ readonly property: string;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-codec.ts:164](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/commit/commit-codec.ts#L164)
 
-Name of the encrypted property that matched
+The encrypted property name at the hit
 
 ***
 
@@ -205,7 +205,7 @@ readonly unitId: string;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-codec.ts:160](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/commit/commit-codec.ts#L160)
 
-The change unit the match belongs to
+The change unit the hit belongs to
 
 ***
 

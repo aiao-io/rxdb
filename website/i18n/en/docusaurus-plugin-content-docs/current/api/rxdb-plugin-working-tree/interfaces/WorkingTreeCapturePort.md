@@ -2,14 +2,14 @@
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:320](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts#L320)
 
-The persistence operations capture needs.
+The persistence operations capture needs
 
 ## Remarks
 
-The port is **injected**: capture itself opens no transaction and picks no adapter; it only issues these few writes in order within the transaction context the caller provides. The atomicity of the real transaction is guaranteed by the adapter (verified by the conformance suite across 6 backends); what this module owns is **order, conditions and the scope of side effects**.
+The port is **injected**: capture opens no transaction and picks no adapter itself; it only issues these few calls in order within the caller-provided transaction context. Real transaction atomicity is guaranteed by the adapter (the conformance suite verifies it on 6 backends); this module owns **order, conditions and side-effect scope**.
 
-Implementations bind to the current branch at construction, which is why the method signatures carry no `branch` —
-[captureCrudWrite](../functions/captureCrudWrite.md) validates the token first to confirm that this branch is exactly the one the caller thinks it is.
+Implementations are bound to the current branch at construction, so the method signatures carry no `branch` —
+[captureCrudWrite](../functions/captureCrudWrite.md) validates the token first, confirming the branch is exactly the one the caller believes it is.
 
 ## Methods
 
@@ -27,7 +27,7 @@ Increments `workingTreeRevision` and adds the delta to `entryCount`
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `entryCountDelta` | `number` | The entry count change produced by this fold |
+| `entryCountDelta` | `number` | The entry count change this fold produced |
 
 #### Returns
 
@@ -51,8 +51,8 @@ Persists the fold result
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `row` | [`WorkingTreeEntryRow`](WorkingTreeEntryRow.md) \| `undefined` | The folded row; `undefined` means **delete** the entity's unit (net no change) |
-| `entryCountDelta` | `number` | Comes from the same fold as `row`, passed through as-is |
+| `row` | [`WorkingTreeEntryRow`](WorkingTreeEntryRow.md) \| `undefined` | The folded row; `undefined` means **delete** that entity's unit (net no change) |
+| `entryCountDelta` | `number` | Comes from the same fold as `row`, forwarded as-is |
 
 #### Returns
 
@@ -68,7 +68,7 @@ readActiveBranchToken(): Promise<ActiveBranchToken>;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:330](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts#L330)
 
-Reads the currently persisted active branch token in the database
+Reads the currently persisted active branch token from the database
 
 #### Returns
 
@@ -78,7 +78,7 @@ The current branch identity
 
 #### Remarks
 
-Must read the **persisted** state. A `BroadcastChannel` or an in-memory copy does not survive a process restart, and what this validation must catch is exactly "another realm switched branches in the meantime".
+Must read the **persisted** state. A `BroadcastChannel` or in-memory copy does not survive process restarts, and what this validation exists to block is precisely "another realm switched branches in the meantime".
 
 ***
 
@@ -90,7 +90,7 @@ readEntry(key): Promise<WorkingTreeEntryRow | undefined>;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:338](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts#L338)
 
-Reads the entity's existing uncommitted unit
+Reads that entity's existing uncommitted unit
 
 #### Parameters
 

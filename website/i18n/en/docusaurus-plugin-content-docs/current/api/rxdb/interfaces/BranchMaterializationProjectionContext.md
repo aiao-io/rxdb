@@ -2,7 +2,7 @@
 
 Defined in: [packages/rxdb/src/sync-contract/branch-materialization-source.ts:93](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/branch-materialization-source.ts#L93)
 
-The scene handed to the source side when projecting a page into local write operations.
+The scene handed to the source side when projecting one page into local write operations.
 
 ## Extends
 
@@ -18,12 +18,13 @@ readonly executor: TransactionExecutor;
 
 Defined in: [packages/rxdb/src/sync-contract/branch-materialization-source.ts:89](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/branch-materialization-source.ts#L89)
 
-The executor of the barrier transaction; **reads and writes must go through it**
+The executor of the barrier transaction; **must be used for reads and writes**.
 
 #### Remarks
 
-Anything written by an implementation that opens its own transaction stays in the database if any later step of the barrier fails — the user sees
-half of the target branch's data while active still points at the source branch.
+What an implementation writing its own transaction persists would remain in the database if any later step of
+the barrier fails — the user would see half of the target branch's data while active still points at the
+source branch.
 
 #### Inherited from
 
@@ -39,7 +40,7 @@ readonly intent: BranchMaterializationIntent;
 
 Defined in: [packages/rxdb/src/sync-contract/branch-materialization-source.ts:80](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/branch-materialization-source.ts#L80)
 
-The intent frozen on the staging
+The intent frozen on the staging.
 
 #### Inherited from
 
@@ -55,7 +56,7 @@ readonly page: BranchMaterializationPage;
 
 Defined in: [packages/rxdb/src/sync-contract/branch-materialization-source.ts:95](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/branch-materialization-source.ts#L95)
 
-This page
+This page.
 
 ***
 
@@ -67,7 +68,7 @@ readonly targetBranchId: string;
 
 Defined in: [packages/rxdb/src/sync-contract/branch-materialization-source.ts:77](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/branch-materialization-source.ts#L77)
 
-The id of the target branch being materialized
+The id of the target branch being materialized.
 
 #### Inherited from
 

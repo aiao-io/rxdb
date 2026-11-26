@@ -19,7 +19,7 @@ readonly name: string;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:268](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L268)
 
-The adapter name, same as the key used when registering with `RxDB.adapter()`; error messages and `getAdapter()` both identify adapters by it
+The adapter name, same value as the key used when registering with `RxDB.adapter()`; both error messages and `getAdapter()` recognize adapters by it
 
 #### Inherited from
 
@@ -77,7 +77,7 @@ abstract backendId(): Promise<string>;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:958](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L958)
 
-Remote identity: an identifier generated when the remote database is created and changed when it is rebuilt
+Remote identity: an identifier generated when the remote database is created and changed after a rebuild
 
 #### Returns
 
@@ -87,12 +87,9 @@ The identity value of the current remote database; repeated calls on the same re
 
 #### Remarks
 
-The pull cursor is a remote change id, which is only monotonic within one remote database. After the remote is rebuilt or its change log is cleared and recounted,
-an old client's cursor would skip past all the ids of the new database and the pull would silently come up empty. The sync plugin stores this value in the same row as the cursor
-(`RxDBSync.remoteBackendId`), compares it before exchanging data with the remote, and stops syncing when they do not match.
+Pull cursors are remote change ids, monotonic only within the same remote database. After the remote is rebuilt or its change log is cleared and recounting starts, an old client's cursor would skip past all ids of the new database, and pulls would silently come back empty. The sync plugin stores this value and the cursor in the same row (`RxDBSync.remoteBackendId`) and compares it before exchanging data with the remote; a mismatch stops the sync.
 
-Both a remote rebuild and a change log clear must produce a new value; a connection address, project name or anything else that survives a rebuild cannot be a substitute.
-Adapters that do not support change log sync throw an unsupported error directly; do not return a placeholder value.
+Both a remote rebuild and a change-log clear must produce a new value; do not substitute things that survive a rebuild, such as a connection address or project name. Adapters that do not support change-log sync should throw a not-supported error directly rather than returning a placeholder value.
 
 #### Inherited from
 
@@ -138,12 +135,11 @@ Establishes the connection and brings the system tables up to the current waterm
 
 `Promise`&lt;[`IRxDBAdapter`](IRxDBAdapter.md)&gt;
 
-Itself, for convenient chaining
+Itself, for chaining
 
 #### Remarks
 
-Table creation and system migration both happen here (see `isCurrentRxDBSystemVersion`), so it can be slow,
-and it may throw `UnsupportedRxDBSystemVersionError` because the database is newer than this process.
+Table creation and system migration both happen here (see `isCurrentRxDBSystemVersion`), so it can be slow, and it can throw `UnsupportedRxDBSystemVersionError` when the database is newer than this process.
 
 #### Inherited from
 
@@ -183,7 +179,7 @@ create(entity): Promise<RxDBChange>;
 
 Defined in: [packages/rxdb/src/system/types.remote.ts:88](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.remote.ts#L88)
 
-Creates an entity
+Create an entity
 
 #### Parameters
 
@@ -215,8 +211,7 @@ Disconnects and releases the underlying handle.
 
 #### Remarks
 
-Unlike `RxDB.destroy()`, disconnecting is **reversible**: the same adapter instance can `connect()` again afterwards.
-Implementations must be idempotent — calling it while not connected is a no-op, not an error.
+Unlike `RxDB.destroy()`, disconnecting is **reversible**: the same adapter instance can `connect()` again afterwards. Implementations must be idempotent — calling while not connected is a no-op, not an error.
 
 #### Inherited from
 
@@ -234,7 +229,7 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:1080](https://github.com/aiao-io/
 
 Fetches entity metadata for freshness comparison (QueryCache only)
 
-Returns only `{ id, updatedAt }` metadata, cutting network transfer by 90%+ compared with full data.
+Returns only `{ id, updatedAt }` metadata, reducing network transfer by 90%+ compared with full data.
 This is the core capability of the QueryCache sync strategy.
 
 #### Parameters
@@ -261,27 +256,19 @@ adapter.fetchMetadata('Product', { where: { status: 'active' } })
 
 #### Remarks
 
-Implementations must satisfy the following two contracts; both are preconditions the callers **load-bear** on, not suggestions (RV-001 / RV-002):
+Implementations must satisfy the following two contracts; both are load-bearing premises for callers, not suggestions (RV-001 / RV-002):
 
 **1. Emit the full result exactly once, then `complete`.**
-Paged implementations must stitch all pages together and emit once, not once per page. The reason is that the two call sites have exactly opposite semantics:
-- `QueryCacheEngine` (`#syncQuery` / `#syncAndReadLocal`) uses `forkJoin` — only the **last**
-  emission is kept, and **without `complete` it never produces at all**. Emitting page by page would silently drop all metadata except the last page,
-  which would then be misjudged as orphans and evicted from the local cache.
-- `#fetchMetadata` of `query-cache-primary` uses `firstValueFrom` — only the **first** emission is taken.
-  Emitting page by page would leave it seeing only the first page.
+Paged implementations must stitch all pages together before the single emission, not emit per page. The reason is that the two call sites have opposite semantics:
+- `QueryCacheEngine` (`#syncQuery` / `#syncAndReadLocal`) uses `forkJoin` — it keeps only the **last** emission and **never produces without `complete`**. Page-by-page emission would silently discard all metadata except the last page, misjudge them as orphans and evict them from the local cache.
+- `query-cache-primary`'s `#fetchMetadata` uses `firstValueFrom` — it takes only the **first** emission. Page-by-page emission would let it see only the first page.
 
-**2. Transport failures must be judged `true` by `isNetworkError`, and business failures `false`.**
-The cheapest and most reliable approach is to throw `NetworkOfflineError` directly on transport failure (`isNetworkError`'s first
-criterion is `instanceof`, which does not depend on any string convention and returns `true` on a hit).
+**2. Transport failures must be classified `true` by `isNetworkError`, and business failures `false`.**
+The easiest and most reliable approach is to throw `NetworkOfflineError` directly on transport failure (the first criterion of `isNetworkError` is `instanceof`, relying on no string convention; a match is `true`).
 
-Only when throwing **other** error types must one beware of a numeric `status` property: the second criterion is "numeric `status` ⇒ not
-a network error", and it decides before criteria 3, 4 and 5 (`errno` / `name` / `TypeError` + message regex).
-In other words, a transport failure carrying `status` would be judged a business failure, while a business failure **should** carry `status` —
-that is exactly why HTTP adapters let `HttpResponseError` carry a status code and `HttpDisconnectedError` not.
+Only when throwing **other** error types must one watch out for a numeric `status` property: the second criterion is "a numeric `status` ⇒ not a network error", and it decides the case before criteria 3, 4 and 5 (`errno` / `name` / `TypeError` + message regex) get a look. In other words, a transport failure carrying `status` would be classified as a business failure, while business failures **should** carry `status` — that is exactly why HTTP adapters give `HttpResponseError` a status code and `HttpDisconnectedError` none.
 
-Misclassification does not throw; it only makes `find({ offlineFallback: true })` throw an exception instead of returning cache when offline;
-getting it backwards (treating an RLS rejection as offline) leaves the caller with stale cache and no sight of the real failure reason.
+A wrong classification does not error out — it just makes `find({ offlineFallback: true })` throw instead of returning the cache when offline; getting it backwards (treating an RLS rejection as offline) hands the caller a stale cache and hides the real reason for failure.
 
 #### Inherited from
 
@@ -309,7 +296,7 @@ find query
 
 `Promise`&lt;[`RxDBChange`](../classes/RxDBChange.md)[]&gt;
 
-Returns the query result array
+Returns the array of query results
 
 ***
 
@@ -321,9 +308,9 @@ abstract findByIds<T>(entityName, ids): Observable<T[]>;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:1103](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L1103)
 
-Fetches full data in bulk by ID list (QueryCache only)
+Fetches full data in bulk by a list of IDs (QueryCache only)
 
-Used to pull stale or missing data, avoiding the N+1 problem.
+Used to fetch stale or missing data, avoiding the N+1 problem.
 
 #### Type Parameters
 
@@ -355,8 +342,7 @@ adapter.findByIds('Product', ['p1', 'p2', 'p3'])
 
 #### Remarks
 
-Same contract as RxDBAdapter.fetchMetadata: **emit exactly once** (chunked `ids` queries must be merged before emitting,
-the caller also uses `forkJoin`) and `complete`; transport failures must throw an error judged `true` by `isNetworkError`.
+Same contract as RxDBAdapter.fetchMetadata: **emit exactly once** (chunked queries over `ids` must be merged before emitting; callers likewise use `forkJoin`) and `complete`; transport failures must throw errors classifiable as `true` by `isNetworkError`.
 
 #### Inherited from
 
@@ -379,10 +365,10 @@ abstract getChangeCount(
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:993](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L993)
 
-Gets the count of remote changes (lightweight, downloads no data)
+Gets the remote change count (lightweight, downloads no data)
 
-This method only queries how many new changes the remote has and returns no actual data.
-Used to implement the checkRepositoryUpdates() feature, saving bandwidth.
+This method only queries how many new changes exist on the remote, without returning actual data.
+Used to implement the checkRepositoryUpdates() feature and save bandwidth.
 
 #### Parameters
 
@@ -390,7 +376,7 @@ Used to implement the checkRepositoryUpdates() feature, saving bandwidth.
 | ------ | ------ | ------ |
 | `sinceId` | `number` | The starting changeId (exclusive) |
 | `repositoryFilter?` | `string`[] | Optional entity filter list |
-| `branchId?` | `string` | Optional branch ID (counts changes of that branch only) |
+| `branchId?` | `string` | Optional branch ID (only counts changes of that branch) |
 
 #### Returns
 
@@ -415,7 +401,7 @@ abstract getRepository<T, RT>(EntityType): RT;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:382](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L382)
 
-Gets the repository instance of this entity on **this adapter**.
+Gets the repository instance of this entity **on this adapter**.
 
 #### Type Parameters
 
@@ -436,8 +422,7 @@ Gets the repository instance of this entity on **this adapter**.
 
 #### Remarks
 
-Returns the repository on the adapter axis (see [AdapterRepositoryConstructor](../type-aliases/AdapterRepositoryConstructor.md)),
-not the same object as the facade repository `RxDB.getRepository()` that users normally get.
+Returns the repository on the adapter axis (see [AdapterRepositoryConstructor](../type-aliases/AdapterRepositoryConstructor.md)), not the same object as the facade repository users usually get from `RxDB.getRepository()`.
 
 #### Inherited from
 
@@ -467,7 +452,7 @@ Whether the table for this entity already exists in the database.
 
 #### Remarks
 
-It asks about the **physical table**, not whether the entity is registered in the metadata.
+Asks about the **physical table**, not whether the entity is registered in the metadata.
 
 #### Inherited from
 
@@ -491,17 +476,17 @@ Applies compacted changes to the remote entity tables
 
 Implementation strategy (Supabase):
 1. Convert actions (Map) into RemoteChange records
-2. Within a transaction:
-   a) Write into the remote RemoteChange table (for other clients to pull)
+2. In a transaction:
+   a) Write to the remote RemoteChange table (for other clients to pull)
    b) Operate directly on the remote entity tables (INSERT/UPDATE/DELETE)
 
 #### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `actions` | [`SwitchVersionActions`](SwitchVersionActions.md) | The compacted change operation set (pushed from local) |
-| `branchId?` | `string` | Branch ID (used to set branchId in the remote change records) |
-| `changes?` | [`IRxDBChange`](IRxDBChange.md)[] | The complete original change records (optional, for keeping the full change history) |
+| `actions` | [`SwitchVersionActions`](SwitchVersionActions.md) | The compacted set of change operations (pushed from local) |
+| `branchId?` | `string` | Branch ID (used to set branchId on the remote change records) |
+| `changes?` | [`IRxDBChange`](IRxDBChange.md)[] | The complete original change records (optional, used to preserve the full change history) |
 
 #### Returns
 
@@ -511,8 +496,7 @@ The maximum ID of the created remote RxDBChange (used to update lastPullRemoteCh
 
 #### Remarks
 
-When `changes` is provided, the implementation must use client ID and local change ID as the idempotency key. Retrying the same batch must not repeat
-the entity side effects, and must return, for each local change ID, the same remote ID obtained from its first commit.
+When `changes` is provided, implementations must use the client ID and local change ID as idempotency keys. Retrying the same batch must not re-execute entity side effects, and each local change ID must be returned the same remote ID it got from the first commit.
 
 #### Inherited from
 
@@ -528,7 +512,7 @@ mutations<T>(options): Promise<InstanceType<T>[]>;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:324](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L324)
 
-Mutates entities in bulk (create/update/remove)
+Bulk-modifies entities (create/update/delete)
 
 #### Type Parameters
 
@@ -594,18 +578,17 @@ Pulls change records from the remote
 | `limit?` | `number` | Maximum number to pull |
 | `repositoryFilter?` | `string`[] | Optional entity filter list (for repository-level sync) |
 | `filter?` | [`RuleGroup`](../type-aliases/RuleGroup.md) | Optional row-level filter conditions (for SyncType.Filter) |
-| `branchId?` | `string` | Optional branch ID (pulls changes of that branch only) |
+| `branchId?` | `string` | Optional branch ID (only pulls changes of that branch) |
 
 #### Returns
 
 `Promise`&lt;[`RemoteChange`](RemoteChange.md)[]&gt;
 
-Change record array, ordered by id ASC
+Array of change records, ordered by id ASC
 
 #### Remarks
 
-When the filter parameter is provided, the entity tables are JOINed and the filter conditions applied,
-returning only the change records corresponding to entities that match the conditions.
+When the filter parameter is provided, it JOINs the entity tables and applies the filter conditions, returning only the change records for entities that satisfy the conditions.
 
 #### Inherited from
 
@@ -627,22 +610,22 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:1037](https://github.com/aiao-io/
 
 Pulls change records for multiple entities in bulk (a single HTTP request)
 
-Each entity can have a different sinceId (watermark), combined by server-side OR filtering
-to fetch the changes of all entities in one request.
+Each entity can have a different sinceId (watermark); server-side OR filtering
+fetches all entities' changes in a single request.
 
 #### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `requests` | [`PullBatchRequest`](PullBatchRequest.md)[] | The pull request for each entity (namespace + entity name + sinceId) |
+| `requests` | [`PullBatchRequest`](PullBatchRequest.md)[] | The pull request of each entity (namespace + entity name + sinceId) |
 | `limit` | `number` | Maximum number to pull |
-| `branchIds?` | `string`[] | Branch ID list (ancestor branches are supported) |
+| `branchIds?` | `string`[] | List of branch IDs (ancestor branches supported) |
 
 #### Returns
 
 `Promise`&lt;[`RemoteChange`](RemoteChange.md)[]&gt;
 
-Change record array, ordered by id ASC
+Array of change records, ordered by id ASC
 
 #### Inherited from
 
@@ -688,7 +671,7 @@ rawQuery?(sql, params?): Promise<RawQueryResult>;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:346](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L346)
 
-Executes a raw SQL query (for scenarios like conditional UPDATE that bypass the ORM)
+Executes a raw SQL query (scenarios that bypass the ORM, such as conditional UPDATEs)
 
 #### Parameters
 
@@ -703,13 +686,9 @@ Executes a raw SQL query (for scenarios like conditional UPDATE that bypass the 
 
 #### Remarks
 
-**An optional method**, and that has consequences: core cannot wrap it on the adapter's behalf the way it does for the four write primitives,
-so on a database with the commit capability enabled, the raw write gate can only be done by each adapter's own implementation calling
-`gateRawWrite(sql, ctx, …)` (`ctx` taken from
-[RxDBAdapterLocalBase.workingTreeRawWriteContext](../classes/RxDBAdapterLocalBase.md#workingtreerawwritecontext)). Missing that one line
-means every write on this path bypasses change capture.
+An **optional method**, and that has consequences: core cannot wrap it on the adapter's behalf the way it wraps the four write primitives, so on databases with the commit capability enabled, gating raw writes can only be done by each adapter's own implementation calling `gateRawWrite(sql, ctx, …)` (`ctx` from [RxDBAdapterLocalBase.workingTreeRawWriteContext](../classes/RxDBAdapterLocalBase.md#workingtreerawwritecontext)). Missing that call means all writes on this path bypass change capture.
 
-Writes going through here do not pass the entity Proxy, so they produce no entity events and cached instances do not refresh automatically.
+Writes through here do not go through the entity Proxy, so they produce no entity events, and cached instances do not refresh automatically.
 
 #### Inherited from
 
@@ -725,19 +704,19 @@ remove(entity): Promise<RxDBChange>;
 
 Defined in: [packages/rxdb/src/system/types.remote.ts:106](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.remote.ts#L106)
 
-Removes an entity
+Delete an entity
 
 #### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `entity` | [`RxDBChange`](../classes/RxDBChange.md) | The entity to remove |
+| `entity` | [`RxDBChange`](../classes/RxDBChange.md) | The entity to delete |
 
 #### Returns
 
 `Promise`&lt;[`RxDBChange`](../classes/RxDBChange.md)&gt;
 
-Returns the removed entity
+Returns the deleted entity
 
 ***
 
@@ -749,7 +728,7 @@ removeMany<T>(entities): Promise<InstanceType<T>[]>;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:319](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L319)
 
-Removes entities in bulk.
+Bulk-deletes entities.
 
 #### Type Parameters
 
@@ -767,7 +746,7 @@ Removes entities in bulk.
 
 `Promise`&lt;`InstanceType`&lt;`T`&gt;[]&gt;
 
-The removed entities
+The deleted entities
 
 #### Inherited from
 
@@ -814,7 +793,7 @@ saveMany<T>(entities): Promise<InstanceType<T>[]>;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:312](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L312)
 
-Writes entities in bulk (insert if absent, update if present).
+Bulk-writes entities (inserts when absent, updates when present).
 
 #### Type Parameters
 
@@ -848,7 +827,7 @@ update(entity, patch): Promise<RxDBChange>;
 
 Defined in: [packages/rxdb/src/system/types.remote.ts:96](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.remote.ts#L96)
 
-Updates an entity
+Update an entity
 
 #### Parameters
 
@@ -873,7 +852,7 @@ version(): Promise<string>;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:296](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L296)
 
-The version number of the underlying database engine (such as SQLite's `3.45.0`), used for diagnostics and capability judgment.
+The version number of the underlying database engine (e.g. `3.45.0` for SQLite), used for diagnostics and capability checks.
 
 #### Returns
 
@@ -881,7 +860,7 @@ The version number of the underlying database engine (such as SQLite's `3.45.0`)
 
 #### Remarks
 
-Unrelated to the system table watermark number (`RXDB_SYSTEM_SCHEMA_VERSION`) — that is RxDB's own number.
+Unrelated to the system table watermark number (`RXDB_SYSTEM_SCHEMA_VERSION`), which is RxDB's own number.
 
 #### Inherited from
 

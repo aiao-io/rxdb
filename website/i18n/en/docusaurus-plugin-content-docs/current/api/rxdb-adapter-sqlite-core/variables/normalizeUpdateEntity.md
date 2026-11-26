@@ -13,7 +13,7 @@ Normalizes update data and filters out readonly fields.
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
 | `metadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | Entity metadata |
-| `entity` | [`EntityData`](../../rxdb/type-aliases/EntityData.md) | The update data submitted by the user |
+| `entity` | [`EntityData`](../../rxdb/type-aliases/EntityData.md) | Update data submitted by the user |
 
 ## Returns
 

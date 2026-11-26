@@ -10,10 +10,12 @@ The version number this capability writes into the watermark row
 
 ## Remarks
 
-It is a **different axis** from `COMMIT_PROTOCOL_VERSION` / `COMMIT_GRAPH_SCHEMA_VERSION`; do not merge them.
-Those two describe "how the commit graph's content is encoded", and `assertSupportedCommitCapability()` strictly compares them field by field on the capability row;
-this one only describes "which version of this plugin has touched this database", the core uses it to write the watermark row and does **not compare it**
-(see [RxDBSystemContribution.version](../../rxdb/interfaces/RxDBSystemContribution.md#version)).
+Together with `COMMIT_PROTOCOL_VERSION` / `COMMIT_GRAPH_SCHEMA_VERSION` this is **three different axes** —
+do not merge them. The other two describe "how the commit graph's contents are encoded" and are strictly
+compared field by field on the capability row by `assertSupportedCommitCapability()`; this one only describes
+"which version of this plugin has touched the database", and the core uses it to write the watermark row but
+does **not compare it** (see [RxDBSystemContribution.version](../../rxdb/interfaces/RxDBSystemContribution.md#version)).
 
-The cost of merging into one axis is concrete: bump the commit graph encoding once, and the watermark row name (`__rxdb_capability__:workingTree:N:…`)
-changes with it, and renaming means the claim on existing databases **no longer matches** — the guard would judge a batch of databases with the plugin installed as unclaimed.
+The cost of merging them into one axis is concrete: every commit graph encoding bump would rename the
+watermark row (`__rxdb_capability__:workingTree:N:…`), and a rename means the claim on existing databases
+**no longer matches** — the guard would judge a whole batch of plugin-installed databases as unclaimed.

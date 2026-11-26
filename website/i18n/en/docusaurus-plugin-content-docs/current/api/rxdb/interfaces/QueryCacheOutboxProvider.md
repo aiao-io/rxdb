@@ -2,12 +2,13 @@
 
 Defined in: [packages/rxdb/src/repository/query-cache-outbox.interface.ts:31](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query-cache-outbox.interface.ts#L31)
 
-Query outbox provider — registered by plugins via `RxDB.queryCacheOutbox()` inside `install(scope)`.
+Query outbox provider — registered by a plugin via `RxDB.queryCacheOutbox()` inside `install(scope)`.
 
 ## Remarks
 
-Only exposes the one question the core really needs to ask. `flushQueryCacheOutbox` / `countQueryCacheOutbox`
-are not here: their callers (sync listeners, DevTools panels) are already on the plugin side, and the core has no need to know them.
+Only exposes the one question the core actually needs to ask. `flushQueryCacheOutbox` /
+`countQueryCacheOutbox` are not here: their callers (the sync listener, the DevTools panel) are already on the
+plugin side, and the core does not need to know them.
 
 ## Methods
 
@@ -19,7 +20,7 @@ pendingWriteIds(namespace, entity): Promise<ReadonlySet<string>>;
 
 Defined in: [packages/rxdb/src/repository/query-cache-outbox.interface.ts:39](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query-cache-outbox.interface.ts#L39)
 
-Fetches the entity ids of a QueryCache repository currently **held by the outbox queue**.
+Gets the entity ids of a QueryCache repository that are currently **occupied by the outbox queue**.
 
 #### Parameters
 
@@ -32,4 +33,4 @@ Fetches the entity ids of a QueryCache repository currently **held by the outbox
 
 `Promise`&lt;`ReadonlySet`&lt;`string`&gt;&gt;
 
-The entity ids still in the queue not yet pushed back to the remote; an empty set when the queue is empty
+The entity ids in the queue that have not yet been pushed back to the remote; an empty set when the queue is empty.

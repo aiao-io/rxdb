@@ -2,7 +2,7 @@
 
 Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:53](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/VersionManager.interface.ts#L53)
 
-Pull operation result
+Pull operation result.
 
 ## Extends
 
@@ -18,7 +18,7 @@ applied: number;
 
 Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:68](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/VersionManager.interface.ts#L68)
 
-The number of changes successfully applied locally (after compaction)
+The number of changes successfully applied locally (after compaction).
 
 ***
 
@@ -30,8 +30,8 @@ compacted: number;
 
 Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:63](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/VersionManager.interface.ts#L63)
 
-The number of changes compacted/discarded
-Example: an INSERT → DELETE change is discarded
+The number of changes compacted/discarded.
+For example: INSERT → DELETE changes are discarded.
 
 ***
 
@@ -43,7 +43,7 @@ conflictsDeferred: number;
 
 Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:83](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/VersionManager.interface.ts#L83)
 
-The number of conflicts deferred for later handling
+The number of conflicts deferred for later handling.
 
 ***
 
@@ -55,7 +55,7 @@ conflictsResolved: number;
 
 Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:78](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/VersionManager.interface.ts#L78)
 
-The number of conflicts resolved automatically
+The number of automatically resolved conflicts.
 
 ***
 
@@ -67,9 +67,10 @@ failures: SyncFailure[];
 
 Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:90](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/VersionManager.interface.ts#L90)
 
-All repositories that failed in this pull (in repository order); an empty array when nothing failed
+All repositories that failed in this pull (in repository order); an empty array when nothing failed.
 
-With multi-repository aggregation you cannot keep only the first error, otherwise the failures of the later repositories would be nowhere to be found.
+In multi-repository aggregation, keeping only the first error would leave the failures of the remaining
+repositories nowhere to be found.
 
 ***
 
@@ -81,7 +82,7 @@ hasMore: boolean;
 
 Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:73](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/VersionManager.interface.ts#L73)
 
-Whether there is more data to pull
+Whether there is more data to pull.
 
 ***
 
@@ -93,9 +94,9 @@ historyInvalidated: boolean;
 
 Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:32](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/VersionManager.interface.ts#L32)
 
-Whether any remote change rewrote local entity data
+Whether remote changes rewrote local entity data.
 
-When true, the undo/redo history boundary has been invalidated and the undo history must be cleared.
+When true, the undo/redo history boundary is no longer valid and the undo history must be cleared.
 
 #### Inherited from
 
@@ -111,7 +112,8 @@ persistedProgress: boolean;
 
 Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:25](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/VersionManager.interface.ts#L25)
 
-Whether any write has already been persisted (watermark advance / `remoteId` backfill / change application — any one of them)
+Whether any write has been persisted (watermark advance / `remoteId` backfill / change application —
+any one of them).
 
 When true, part of this sync's results will **not** be rolled back, and a retry continues from the current watermark.
 
@@ -129,4 +131,4 @@ pulled: number;
 
 Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:57](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/VersionManager.interface.ts#L57)
 
-The number of changes pulled from the remote (before compaction)
+The number of changes pulled from the remote (before compaction).

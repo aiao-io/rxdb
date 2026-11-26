@@ -6,8 +6,8 @@ sidebar_label: "RuleGroupBase⟨T, K, RT⟩"
 
 Defined in: [packages/rxdb/src/repository/query.interface.ts:123](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query.interface.ts#L123)
 
-Query rule group (base)
-Used in generated type files; can be composed into more complex types
+Query rule group (base).
+Used for generated type files; more complex types can be composed from it.
 
 ## Type Parameters
 

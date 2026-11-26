@@ -10,5 +10,6 @@ The classification of an entity within the versioned domain
 
 ## Remarks
 
-Only two values, because "partially tracked" cannot be expressed: an entity either can have its net change replayed, or it cannot.
-Field-level exemption is handled by [VersionedDomain.isUntrackedField](../interfaces/VersionedDomain.md#isuntrackedfield), not at this layer.
+Only two values, because "partially tracked" cannot be expressed: an entity's net changes can either be
+replayed or not. Field-level exemptions are handled by
+[VersionedDomain.isUntrackedField](../interfaces/VersionedDomain.md#isuntrackedfield), not at this layer.

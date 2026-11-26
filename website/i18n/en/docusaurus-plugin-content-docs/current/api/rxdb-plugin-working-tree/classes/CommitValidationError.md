@@ -2,14 +2,14 @@
 
 Defined in: [packages/rxdb-plugin-working-tree/src/commit/write-commit.ts:80](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/commit/write-commit.ts#L80)
 
-Input failed validation; thrown **before any read or write**.
+Arguments failed validation; thrown **before any read or write**.
 
 ## Remarks
 
 The error carries only [CommitValidationError.reason](#reason) and [CommitValidationError.kind](#kind),
-**no input values at all**. A common logging pattern in callers serializes the whole error object
-(`JSON.stringify(error, Object.getOwnPropertyNames(error))`); carrying message / patch
-would mean copying plaintext of encrypted columns into the log (FR-038).
+**no argument values whatsoever**. A common caller-side logging pattern serializes the whole error object
+(`JSON.stringify(error, Object.getOwnPropertyNames(error))`); carrying message / patch would mean copying
+encrypted columns' plaintext into the log (FR-038).
 
 ## Extends
 
@@ -25,14 +25,14 @@ new CommitValidationError(reason, kind): CommitValidationError;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/commit/write-commit.ts:89](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/commit/write-commit.ts#L89)
 
-Constructed only by this file's `assertValidCommitInput`, and **before** any read or write.
+Constructed only by `assertValidCommitInput` in this file, and **before** any read or write.
 
 #### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `reason` | [`CommitValidationReason`](../type-aliases/CommitValidationReason.md) | Discriminable rejection reason |
-| `kind` | [`CommitKind`](../type-aliases/CommitKind.md) | The offending commit type; contains no user content |
+| `reason` | [`CommitValidationReason`](../type-aliases/CommitValidationReason.md) | The discriminable rejection reason |
+| `kind` | [`CommitKind`](../type-aliases/CommitKind.md) | The kind of the commit at fault; contains no user content |
 
 #### Returns
 
@@ -40,9 +40,9 @@ Constructed only by this file's `assertValidCommitInput`, and **before** any rea
 
 #### Remarks
 
-Takes the two enums "which constraint" and "which kind of commit", not the violating input — that is where the class comment's
-"no input values at all" lands on the signature: the value domains of both parameters are finite literal sets,
-so serializing the whole error object cannot carry user content out either.
+It receives the two enums "which constraint" and "which kind of commit", not the violating argument —
+this is where the class comment's "no argument values" lands in the signature: both parameters' value
+domains are finite literal sets, so serializing the entire error object cannot leak user content either.
 
 #### Overrides
 
@@ -72,7 +72,7 @@ readonly kind: CommitKind;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/commit/write-commit.ts:93](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/commit/write-commit.ts#L93)
 
-The offending commit type; contains no user content
+The kind of the commit at fault; contains no user content
 
 ***
 
@@ -112,7 +112,7 @@ readonly reason: CommitValidationReason;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/commit/write-commit.ts:91](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/commit/write-commit.ts#L91)
 
-Discriminable rejection reason
+The discriminable rejection reason
 
 ***
 

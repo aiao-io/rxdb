@@ -6,7 +6,7 @@ sidebar_label: "FindOneOptions⟨T, U, W⟩"
 
 Defined in: [packages/rxdb/src/repository/query-options.interface.ts:23](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query-options.interface.ts#L23)
 
-FindOne query options
+FindOne query options.
 
 ## Type Parameters
 

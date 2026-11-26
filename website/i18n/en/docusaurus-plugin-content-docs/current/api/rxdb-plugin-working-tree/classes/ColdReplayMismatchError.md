@@ -2,7 +2,7 @@
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/cold-replay.ts:322](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/cold-replay.ts#L322)
 
-A cold replay invariant was violated.
+The cold replay invariant is broken.
 
 ## Extends
 
@@ -22,7 +22,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/cold-replay.ts:3
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `mismatches` | readonly [`ColdReplayMismatch`](../type-aliases/ColdReplayMismatch.md)[] | Differences produced by [diffColdReplay](../functions/diffColdReplay.md); **must be non-empty** |
+| `mismatches` | readonly [`ColdReplayMismatch`](../type-aliases/ColdReplayMismatch.md)[] | The differences produced by [diffColdReplay](../functions/diffColdReplay.md), **must be non-empty** |
 
 #### Returns
 

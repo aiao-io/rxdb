@@ -6,7 +6,7 @@ sidebar_label: "FindAllOptions⟨T, U, W⟩"
 
 Defined in: [packages/rxdb/src/repository/query-options.interface.ts:175](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query-options.interface.ts#L175)
 
-FindAll query options
+FindAll query options.
 
 ## Type Parameters
 
@@ -26,14 +26,14 @@ orderBy?: OrderBy<W>[];
 
 Defined in: [packages/rxdb/src/repository/query-options.interface.ts:206](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query-options.interface.ts#L206)
 
-Ordering conditions
+Ordering conditions.
 
 #### Example
 
 ```ts
 orderBy: [
   \{ field: 'createdAt', sort: 'desc' \},
-  \{ field: 'id', sort: 'asc' \} // must include an ordering by a unique value
+  \{ field: 'id', sort: 'asc' \} // must include ordering by a unique value
 ]
 
 ***
@@ -46,9 +46,9 @@ where: U;
 
 Defined in: [packages/rxdb/src/repository/query-options.interface.ts:195](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query-options.interface.ts#L195)
 
-Query conditions
-Used to filter query results
-Supports combined queries
+Query conditions.
+Used to filter query results.
+Supports combined queries.
 
 #### Example
 

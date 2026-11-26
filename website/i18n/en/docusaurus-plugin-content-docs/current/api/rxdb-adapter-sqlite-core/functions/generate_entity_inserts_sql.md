@@ -15,7 +15,7 @@ function generate_entity_inserts_sql<T>(
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/entity/inserts\_sql.ts:23](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/entity/inserts_sql.ts#L23)
 
-Generates parameterized SQL for batch-creating entities
+Generates parameterized SQL for bulk-creating entities
 
 ## Type Parameters
 

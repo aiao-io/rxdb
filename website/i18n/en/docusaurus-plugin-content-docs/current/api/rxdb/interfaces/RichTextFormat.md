@@ -6,8 +6,8 @@ Rich text.
 
 ## Remarks
 
-The wire format must be `text/markdown` or `text/html`; using an editor's private JSON as a public protocol is forbidden.
-This layer only passes through losslessly; it does no sanitization and makes no content safety promises.
+The communication format must be `text/markdown` or `text/html`; an editor's private JSON must not be used as a
+public protocol. This layer only passes it through losslessly — no sanitization and no content-safety guarantee.
 
 ## Properties
 

@@ -6,9 +6,9 @@ The redundant column does not match the actual entry row count.
 
 ## Remarks
 
-**Does not invent a tenth `CommitErrorCode`**: the table in `contracts/core-api.md` §7 is closed,
-and this is not the failure exit of some command, but the scene of "two truths in the database disagree" — the same kind as cold-replay's
-`WorkingTreeReplayCorruptionError`. Discrimination is given by `name` and three fact fields.
+**Does not invent a tenth `CommitErrorCode`**: the table in `contracts/core-api.md` §7 is closed, and this is
+not a command's failure exit but the scene of "two truths in the database disagreeing" — the same class of
+thing as cold-replay's `WorkingTreeReplayCorruptionError`. The discriminators are `name` and three factual fields.
 
 ## Extends
 
@@ -28,15 +28,16 @@ new WorkingTreeEntryCountMismatchError(
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/status.ts:94](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/status.ts#L94)
 
-Constructed only by [assertWorkingTreeEntryCountIntact](../functions/assertWorkingTreeEntryCountIntact.md); both directions of the deviation go through here.
+Constructed only by [assertWorkingTreeEntryCountIntact](../functions/assertWorkingTreeEntryCountIntact.md);
+both directions of deviation come through here.
 
 #### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `branchId` | `string` | The offending branch |
-| `expected` | `number` | The number claimed by the redundant column |
-| `actual` | `number` | The actual row count in the entry table |
+| `branchId` | `string` | The branch at fault |
+| `expected` | `number` | The number the redundant column claims |
+| `actual` | `number` | The real row count in the entry table |
 
 #### Returns
 
@@ -44,8 +45,9 @@ Constructed only by [assertWorkingTreeEntryCountIntact](../functions/assertWorki
 
 #### Remarks
 
-All three parameters are **facts**, not conclusions: the difference is not precomputed, and no direction marker is carried — computing it would make "which side does a positive sign mean has more"
-a fourth convention to align on both the read and write sides, while `expected` / `actual` sitting there cannot be misread by anyone.
+All three parameters are **facts**, not conclusions: the difference is not precomputed and no direction marker
+is attached — if it were, "which side a positive sign means" would become a fourth convention that both the
+read and write sides must agree on, whereas `expected` / `actual` laid out plainly cannot be misread by anyone.
 
 #### Overrides
 
@@ -61,7 +63,7 @@ readonly actual: number;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/status.ts:100](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/status.ts#L100)
 
-The actual row count in the entry table
+The real row count in the entry table
 
 ***
 
@@ -73,7 +75,7 @@ readonly branchId: string;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/status.ts:96](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/status.ts#L96)
 
-The offending branch
+The branch at fault
 
 ***
 
@@ -99,7 +101,7 @@ readonly expected: number;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/status.ts:98](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/status.ts#L98)
 
-The number claimed by the redundant column
+The number the redundant column claims
 
 ***
 

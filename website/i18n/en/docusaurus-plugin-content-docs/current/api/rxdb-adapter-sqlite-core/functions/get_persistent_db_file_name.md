@@ -8,14 +8,14 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/sqlite-client.utils.ts:100](h
 
 Normalizes a database name into a persistent file path.
 
-Strips leading and trailing whitespace, appends the `.sqlite3` extension and the root path prefix automatically,
-so the same dbName yields a consistent file name across different backends.
+Strips leading and trailing whitespace, automatically appends the `.sqlite3` extension and the root path prefix,
+so the same dbName yields a consistent file name across backends.
 
 ## Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `dbName` | `string` | The database logical name, must not contain `/` or `\` @returns a path starting with `/` and ending with `.sqlite3` |
+| `dbName` | `string` | Database logical name; must not contain `/` or `\` @returns a path starting with `/` and ending with `.sqlite3` |
 
 ## Returns
 
@@ -23,11 +23,11 @@ so the same dbName yields a consistent file name across different backends.
 
 ## Remarks
 
-OPFS's file name space is flat; no directory separator normalization is done here.
-Earlier, `/` and `\` were all replaced with `_`, so `a/b`, `a\b`, `a_b` landed on the same physical file
-`/a_b.sqlite3` — two logically different databases overwriting each other's data, with no diagnostic signal at all.
-Normalization produces a **deterministic collision**; there is no encoding that both preserves separators and avoids collisions,
-so it is rejected outright at the entry. Database names without separators produce file paths byte-identical to the historical implementation; existing data is unaffected.
+OPFS's file name space is flat, so no directory separator normalization is done here.
+Earlier `/` and `\` were all replaced with `_`, so `a/b`, `a\b`, and `a_b` landed on the same physical file
+`/a_b.sqlite3` — two logically different databases overwrote each other's data with no diagnostic signal at all.
+Normalization produces **deterministic collisions**, and no encoding exists that preserves the separators without colliding,
+so it rejects at the entry point directly. File paths of database names without separators match the historical implementation verbatim; existing data is unaffected.
 
 ## Throws
 

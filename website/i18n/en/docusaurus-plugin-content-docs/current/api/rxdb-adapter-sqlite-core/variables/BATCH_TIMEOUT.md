@@ -7,8 +7,8 @@ const BATCH_TIMEOUT: object;
 Defined in: [packages/rxdb-adapter-sqlite-core/src/sqlite-client.utils.ts:23](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/sqlite-client.utils.ts#L23)
 
 Change event batching timeout tiers (milliseconds).
-The shorter, the lower the latency but the more frequent CPU wakeups; the longer, the more power saved but the more delayed UI response.
-- `IMMEDIATE` (0): synchronous dispatch, for test scenarios only
+Shorter means lower latency but more frequent CPU wakeups; longer saves power but delays UI response.
+- `IMMEDIATE` (0): synchronous dispatch, only for test scenarios
 - `FAST` (4):     merged within about one frame
 - `BALANCED` (16): the default, about one frame (60fps)
 - `POWER_SAVE` (50): mobile / background scenarios

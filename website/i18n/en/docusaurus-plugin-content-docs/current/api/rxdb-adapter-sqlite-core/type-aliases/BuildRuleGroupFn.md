@@ -6,7 +6,7 @@ type BuildRuleGroupFn = (rg, fam, em?, ad?, queryParams?, scope?) => string;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/query/query\_sql.utils.ts:583](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/query/query_sql.utils.ts#L583)
 
-The function shape of `buildRuleGroup`: called back when an EXISTS subquery recursively compiles a where
+Function form of `buildRuleGroup`: called back when recursively compiling WHERE for EXISTS subqueries
 
 ## Parameters
 

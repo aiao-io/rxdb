@@ -2,13 +2,11 @@
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/versioned-domain.ts:129](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/versioned-domain.ts#L129)
 
-The versioned domain projected onto the **table / column** plane — the port the raw-write judgment consumes.
+The versioned domain's projection on the **table / column** plane, i.e. the port raw-write judgment consumes
 
 ## Remarks
 
-Deliberately only two members: what the raw judgment receives is a SQL statement; it recognizes only table names and column names, not entity names,
-and certainly not the concept of "QueryCache" — it only checks whether a table is in the set. A wider port would let the judgment branch on entity
-semantics, and the same thing would then have one criterion on the entity plane and another on the table plane.
+The members are deliberately only two: raw judgment receives a piece of SQL, it recognizes only table names and column names, not entity names, and certainly not the "QueryCache" concept — it only checks whether the table is in the set. Opening the port wider would make the judgment branch on entity semantics, giving the same thing one criterion on the entity plane and another on the table plane.
 
 ## Extended by
 
@@ -24,22 +22,15 @@ readonly versionedTables: ReadonlySet<string>;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/versioned-domain.ts:147](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/versioned-domain.ts#L147)
 
-The set of **addressable table names** of all tracked entities, lowercase, unquoted, no dot-schema qualification
+The **addressable table name** set of all tracked entities, lowercase, unquoted, no dotted schema qualification
 
 #### Remarks
 
-If it held entity names, `UPDATE post` would never match `Post`, and the whole raw defense line would silently fail.
+Put entity names in and `UPDATE post` never matches `Post`, silently disabling the whole raw defense line.
 
-The names come from the adapter ([VersionedDomainEntityInput.physicalTableNames](VersionedDomainEntityInput.md#physicaltablenames)), usually two per table:
-the logical table name (`post`) and the physical table name after the SQLite family folds the namespace in (`public$post`). Both are needed,
-because the 6 v1 backends come in two physical shapes — PGlite has real schemas, table references look like `"public"."post"`, and the judgment strips
-the dot qualification to get back to `post`; the other 5 SQLite-family backends have **no** schema, the namespace is folded into the name itself,
-and that is the **only** table name they can use. If only the logical name were registered, the raw gate would fail entirely on 5/6 of the backends: users could write
-through versioned business tables using the only table name the backend accepts, the capture chain would know nothing, and cold replay would no longer reconcile.
+The names come from the adapter ([VersionedDomainEntityInput.physicalTableNames](VersionedDomainEntityInput.md#physicaltablenames)); a table usually has two: the logical table name (`post`) and the physical table name after the SQLite family folds the namespace in (`public$post`). Both are needed because the 6 v1 backends come in two physical shapes — PGlite has real schemas, table references are `"public"."post"`, and after the judgment strips the dotted qualification it returns to `post`; the other 5 SQLite-family backends have **no** schema, the namespace is folded into the name itself, and that is the **only** table name they can use. Registering only the logical name disables the raw gate entirely on 5/6 of the backends: users can write through versioned business tables using the only table name the backend accepts, the capture chain knows nothing, and cold replay never matches again.
 
-Aliases are registered instead of having the judgment split on `$`: `_fts_public$post` (rxdb-plugin-search's shadow table,
-an explicitly out-of-domain target in spec.md) would split to exactly `post`, and a write that should pass would start erroring.
-The judgment side keeps doing pure set membership, and each additional physical shape is reported by the **adapter that writes the table**.
+Register the alias rather than making the judgment split on `$`: `_fts_public$post` (rxdb-plugin-search's shadow table, an explicitly out-of-domain target in spec.md) splits exactly into `post`, so a write that should pass starts erroring. The judgment side keeps doing set membership only; a new physical shape is reported by **the adapter that writes the table** reporting one more name.
 
 ## Methods
 
@@ -51,7 +42,7 @@ untrackedFieldsOf(table): ReadonlySet<string>;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/versioned-domain.ts:155](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/versioned-domain.ts#L155)
 
-Fetches the set of columns on a table that do not constitute a net business change
+Gets the column set that does not constitute a net business change on some table
 
 #### Parameters
 

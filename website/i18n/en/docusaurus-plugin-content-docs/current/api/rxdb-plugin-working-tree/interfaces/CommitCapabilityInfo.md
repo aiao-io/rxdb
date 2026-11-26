@@ -46,7 +46,7 @@ readonly enabledAt: Date | null;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-capability.ts:50](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/commit/commit-capability.ts#L50)
 
-The moment it was enabled; `null` when not enabled
+The enable moment; `null` when not enabled
 
 ***
 
@@ -74,7 +74,7 @@ readonly schemaVersion: number;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-capability.ts:40](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/commit/commit-capability.ts#L40)
 
-The physical shape version of the commit graph
+The commit graph's physical shape version
 
 #### Inherited from
 

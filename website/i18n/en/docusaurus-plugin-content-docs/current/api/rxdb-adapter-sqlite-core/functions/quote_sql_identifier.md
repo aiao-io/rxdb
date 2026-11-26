@@ -12,20 +12,20 @@ Escapes an identifier (table name, column name, trigger name, etc.) into a doubl
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `name` | `string` | The identifier string |
+| `name` | `string` | Identifier string |
 
 ## Returns
 
 `string`
 
-The double-quoted SQL identifier
+Double-quoted SQL identifier
 
 ## Throws
 
-RxDBError When the identifier is empty or contains NUL
+RxDBError when the identifier is empty or contains NUL
 
 ## Remarks
 
-Directly reuses the core's [quoteSqlIdentifier](../../rxdb/functions/quoteSqlIdentifier.md) rather than writing another copy: if the two escaping rules diverge,
-what diverges is necessarily **which inputs are rejected**, not the quoting itself — this adapter's copy originally let the empty string and NUL through,
-and SQLite **silently truncates** at NUL, producing a syntactically correct statement that targets a different name.
+Directly reuses the core's [quoteSqlIdentifier](../../rxdb/functions/quoteSqlIdentifier.md) rather than writing another copy: once two escaping rules diverge,
+what diverges is necessarily **which inputs are rejected**, not the quoting style — this adapter's copy used to let empty strings and NUL
+through unconditionally, while SQLite **silently truncates** at NUL, splicing out a syntactically correct statement that lands on a different name.

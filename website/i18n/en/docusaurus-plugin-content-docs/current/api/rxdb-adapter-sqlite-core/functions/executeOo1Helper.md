@@ -11,16 +11,17 @@ function executeOo1Helper(
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/execute\_oo1\_helper.ts:84](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/execute_oo1_helper.ts#L84)
 
-SQL execution helper suitable for any `oo1.DB`-style runtime.
+SQL execution helper that works with any `oo1.DB`-style runtime.
 
 `oo1` = the upstream official SQLite WASM's Object Oriented API v1 (`sqlite3.oo1.DB`),
 unrelated to wa-sqlite's C-style execution path.
 
-- When the runtime exposes `prepare()`, uses the prepared statement fast path for single-statement SELECT / EXPLAIN / ... RETURNING ...
-- Otherwise falls back to `db.exec()`.
+- When the runtime exposes `prepare()`, it uses the prepared statement fast path for single-statement
+  SELECT / EXPLAIN / ... RETURNING ....
+- Other cases fall back to `db.exec()`.
 
-Both `@sqlite.org/sqlite-wasm` and `@sqliteai/sqlite-wasm` expose a synchronous
-`oo1.DB.exec()` that handles multi-statement SQL internally, so we collect
+Both `@sqlite.org/sqlite-wasm` and `@sqliteai/sqlite-wasm` expose the synchronous
+`oo1.DB.exec()`, which handles multi-statement SQL internally, so we collect
 `resultRows` and `columnNames` directly from it.
 
 ## Parameters

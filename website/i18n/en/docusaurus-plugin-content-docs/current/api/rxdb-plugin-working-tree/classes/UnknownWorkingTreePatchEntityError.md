@@ -2,12 +2,12 @@
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/working-tree-patch-codec.ts:75](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/working-tree-patch-codec.ts#L75)
 
-Error thrown on the encoding side when the target entity is not registered in this process.
+Error thrown by the encoding side when the target entity is not registered in this process.
 
 ## Remarks
 
-A dedicated class rather than a bare `Error`, so the catching path can handle it separately from "wrong patch shape"
-(TypeError): the former is a registry problem, the latter a data problem.
+A class of its own rather than a bare `Error`, so the catching path can treat it separately from
+"patch shape is wrong" (TypeError): the former is a registry problem, the latter a data problem.
 
 ## Extends
 
@@ -23,14 +23,14 @@ new UnknownWorkingTreePatchEntityError(target): UnknownWorkingTreePatchEntityErr
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/working-tree-patch-codec.ts:96](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/working-tree-patch-codec.ts#L96)
 
-Constructed at the metadata lookup failures on both sides of the codec: this file's [encodeWorkingTreePatch](../functions/encodeWorkingTreePatch.md),
-and `commit-codec.ts`'s `assertCommitUnitsEncryptedAtRest`.
+Constructed at each side's metadata lookup failure: [encodeWorkingTreePatch](../functions/encodeWorkingTreePatch.md)
+in this file, and `assertCommitUnitsEncryptedAtRest` in `commit-codec.ts`.
 
 #### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `target` | [`WorkingTreePatchTarget`](../interfaces/WorkingTreePatchTarget.md) | The `namespace` / `entity` two columns on the row |
+| `target` | [`WorkingTreePatchTarget`](../interfaces/WorkingTreePatchTarget.md) | The `namespace` / `entity` columns on the row |
 
 #### Returns
 
@@ -38,8 +38,9 @@ and `commit-codec.ts`'s `assertCommitUnitsEncryptedAtRest`.
 
 #### Remarks
 
-`target` only goes into the message text and is not kept as an own property: these two columns are **table structure** rather than user content; keeping them would just
-copy what is already in the message, and every extra own property is one more path for leaking out through diagnostic serialization.
+`target` only goes into the message and is not kept as an own property: these two columns are **table
+structure**, not user content; keeping them would just copy what is already in the message, and every extra
+own property is one more path for data to leak out through diagnostic serialization.
 
 #### Overrides
 
@@ -83,13 +84,13 @@ readonly name: "UnknownWorkingTreePatchEntityError" = 'UnknownWorkingTreePatchEn
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/working-tree-patch-codec.ts:84](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/working-tree-patch-codec.ts#L84)
 
-Discriminator, always `'UnknownWorkingTreePatchEntityError'`
+The discriminator, always `'UnknownWorkingTreePatchEntityError'`
 
 #### Remarks
 
-Written as an `override readonly` field rather than assigned in the constructor: the cross-realm side (logs, reporting)
-cannot receive this process's class and can only discriminate by name; `readonly` turns "can the name be changed by a later assignment"
-into a compile-time question instead of an investigation-time question.
+Written as an `override readonly` field rather than assigned in the constructor: the cross-realm side (logs,
+reporting) cannot receive this process's class and can only discriminate by name; `readonly` turns "could the
+name be changed by a later assignment" into a compile-time question instead of a debugging-time one.
 
 #### Overrides
 

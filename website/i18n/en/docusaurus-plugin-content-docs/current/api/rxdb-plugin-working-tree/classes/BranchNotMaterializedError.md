@@ -2,21 +2,25 @@
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/branch-materialization.ts:123](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/branch-materialization.ts#L123)
 
-Insufficient materialization evidence; the whole attempt rolls back fully with `branch_not_materialized` (FR-044).
+Insufficient materialization basis; the whole attempt rolls back entirely with `branch_not_materialized` (FR-044).
 
 ## Remarks
 
-All the distinguishing power of the eight causes lives on this class, so it is not a bare [RxDBError](../../rxdb/classes/RxDBError.md): `stage_missing` means pull it again from scratch,
-`stage_incomplete` means continue from where the last pull stopped, `intent_drift` means redo with a fresh intent, `stage_tampered` means throw this
-staging away entirely and re-pull (continuing would only leave the bad pages in place), `page_conflict` means another path is continuing the same
-staging (it is not broken itself; re-judge once, reuse the position, then keep pulling), `target_already_materialized` means this branch
-should never have gone down this path; `source_unavailable` and `source_failed` have nothing to do with in-database state — the former says
-there is no snapshot source on this connection yet (the sync plugin is not installed or not connected), the latter says the source did not deliver this time (most likely
-the network); already-persisted pages stay, and the next switch continues pulling. After merging into one error code, callers can only redo everything.
+The discriminative power of the eight causes lives entirely in this class, which is why it is not a bare
+[RxDBError](../../rxdb/classes/RxDBError.md): `stage_missing` means pull again from scratch, `stage_incomplete` means
+continue from where the last pull stopped, `intent_drift` means retry with a fresh intent, `stage_tampered` means
+throw this staging away wholesale and re-pull (continuing would only leave the bad pages in place), `page_conflict`
+means another path is continuing the same staging (it is not corrupted itself — re-judge the resume position once
+and keep pulling), and `target_already_materialized` means this branch should never have taken this path;
+`source_unavailable` and `source_failed` have nothing to do with the database's state — the former means this
+connection has no snapshot source yet (the sync plugin is not installed or not connected), the latter means the
+source failed to deliver this time (most likely the network), and the pages already persisted stay put for the
+next switch to continue from. Collapsing these into one error code would leave callers no choice but to start
+over every time.
 
-When thrown, the staging is **not cleaned up on the side**: that half payload together with its `scopeManifest` is exactly what diagnosing "why the last attempt
-did not connect" needs. Cleanup is a separate capability listed under FR-044 (discardMaterializationAttempt);
-it is the caller's decision, not a side effect of the judgment.
+The staging is **not deleted as a side effect** of throwing: that half payload, together with its `scopeManifest`,
+is exactly what diagnosing "why the last attempt did not connect" needs. Cleanup is a capability listed separately
+under FR-044 (discardMaterializationAttempt); it is the caller's decision, not a side effect of the judgment.
 
 ## Extends
 
@@ -42,10 +46,10 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/branch-materiali
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `branchId` | `string` | Id of the target branch whose materialization failed |
-| `attemptId` | `string` \| `null` | The attempt id of this try, usable for cleanup or continuation; `null` when nothing has started yet |
+| `branchId` | `string` | The id of the target branch whose materialization failed |
+| `attemptId` | `string` \| `null` | The attempt id of this attempt, usable for cleanup or resumption; `null` when no attempt has started yet |
 | `reason` | [`BranchNotMaterializedReason`](../type-aliases/BranchNotMaterializedReason.md) | The cause |
-| `detail` | `string` | Human-readable supplementary note |
+| `detail` | `string` | A human-readable supplement |
 | `cause?` | `unknown` | The original error thrown by the source; only `source_failed` carries it |
 
 #### Returns
@@ -54,13 +58,13 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/branch-materiali
 
 #### Remarks
 
-`attemptId` is nullable because `source_unavailable` (and `source_failed` when the intent fails while freezing) is judged
-**before any** attempt starts: at that moment there is not even one staging row in the database. Making up a nonexistent id for it
-would make discardMaterializationAttempt silently succeed when the user passes it (cleanup is idempotent),
+`attemptId` is nullable because `source_unavailable` (and `source_failed` failing at intent-freeze time) is judged
+**before any** attempt begins: at that moment the database has not a single staging row. Inventing a nonexistent
+id would make discardMaterializationAttempt silently succeed when the user passes it (cleanup is idempotent),
 so "what does this id point to" could never be answered.
 
-`cause` is attached as-is rather than folded into `detail`: the type and status code of the network error are what the caller uses to decide between "retry later" and
-"prompt the user"; folded into a string, only one sentence remains.
+`cause` is carried as-is rather than folded into `detail`: the network error's type and status code are what the
+caller uses to decide between "retry later" and "prompt the user", and folding them into a string leaves only a sentence.
 
 #### Overrides
 
@@ -76,7 +80,7 @@ readonly attemptId: string | null;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/branch-materialization.ts:145](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/branch-materialization.ts#L145)
 
-The attempt id of this try, usable for cleanup or continuation; `null` when nothing has started yet
+The attempt id of this attempt, usable for cleanup or resumption; `null` when no attempt has started yet
 
 ***
 
@@ -88,7 +92,7 @@ readonly branchId: string;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/branch-materialization.ts:144](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/branch-materialization.ts#L144)
 
-Id of the target branch whose materialization failed
+The id of the target branch whose materialization failed
 
 ***
 
@@ -116,7 +120,7 @@ readonly code: CommitErrorCode = CommitErrorCode.branch_not_materialized;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/branch-materialization.ts:125](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/branch-materialization.ts#L125)
 
-Error code, always [CommitErrorCode.branch\_not\_materialized](../variables/CommitErrorCode.md#branch_not_materialized)
+The error code, always [CommitErrorCode.branch\_not\_materialized](../variables/CommitErrorCode.md#branch_not_materialized)
 
 ***
 
@@ -128,7 +132,7 @@ readonly detail: string;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/branch-materialization.ts:147](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/branch-materialization.ts#L147)
 
-Human-readable supplementary note
+A human-readable supplement
 
 ***
 

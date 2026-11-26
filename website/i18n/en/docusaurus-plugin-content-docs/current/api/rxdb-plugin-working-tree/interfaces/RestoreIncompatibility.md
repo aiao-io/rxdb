@@ -2,13 +2,13 @@
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/restore-precheck.ts:117](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/restore-precheck.ts#L117)
 
-A stable description of the first incompatible node (FR-050).
+The stable description of the first incompatible node (FR-050).
 
 ## Remarks
 
-All four are indispensable: without `commitId` the user does not know which node to inspect; without `direction` they do not know whether to look at `patch` or `inversePatch`; without `namespace` / `entity` they do not know which table; without `manifest` they do not know whether to upgrade the client or downgrade the data.
+All four pieces are indispensable: without `commitId` the user doesn't know which node to inspect; without `direction` they don't know whether to look at `patch` or `inversePatch`; without `namespace` / `entity` they don't know which table; without `manifest` they don't know whether to upgrade the client or downgrade the data.
 
-**Carries no patch content.** This object goes into logs and reports, and a patch may hold ciphertext of encrypted columns (FR-043).
+**Does not carry patch content.** This object goes into logs and reports, and the patch may hold ciphertext of encrypted columns (FR-043).
 
 ## Properties
 
@@ -44,7 +44,7 @@ readonly entity: string;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/restore-precheck.ts:128](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/restore-precheck.ts#L128)
 
-The target entity name of this ChangeSet
+The ChangeSet's target entity name
 
 ***
 
@@ -68,4 +68,4 @@ readonly namespace: string;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/restore-precheck.ts:125](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/restore-precheck.ts#L125)
 
-The target entity namespace of this ChangeSet
+The ChangeSet's target entity namespace

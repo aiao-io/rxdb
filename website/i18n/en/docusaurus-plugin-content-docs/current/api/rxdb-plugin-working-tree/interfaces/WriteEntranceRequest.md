@@ -2,11 +2,11 @@
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry-matrix.ts:75](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/write-entry-matrix.ts#L75)
 
-One write handed to [classifyWriteEntrance](../functions/classifyWriteEntrance.md).
+One write handed to [classifyWriteEntrance](../functions/classifyWriteEntrance.md)
 
 ## Remarks
 
-Entrance identity and column set are **both indispensable**: the entrance alone cannot express matrix row 4, and the column set alone cannot express the opposite conclusions of rows 6 and 9.
+The entrance identity and the column set are **both indispensable**: the entrance alone cannot express matrix row 4, the column set alone cannot express the opposite conclusions of rows 6 and 9.
 
 ## Properties
 
@@ -18,7 +18,7 @@ readonly capabilityEnabled: boolean;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry-matrix.ts:98](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/write-entry-matrix.ts#L98)
 
-Whether this database has the commit capability enabled
+Does this database have the commit capability enabled
 
 ***
 
@@ -30,7 +30,7 @@ readonly columns: WriteColumns;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry-matrix.ts:86](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/write-entry-matrix.ts#L86)
 
-Which columns this write touched
+Which columns this write touches
 
 ***
 
@@ -65,7 +65,7 @@ readonly operation: WriteOperation;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry-matrix.ts:83](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/write-entry-matrix.ts#L83)
 
-Which kind of operation is being written
+What kind of operation the write is
 
 ***
 
@@ -77,7 +77,7 @@ readonly targetClass: "system" | "versioned" | "untracked";
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry-matrix.ts:80](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/write-entry-matrix.ts#L80)
 
-Which class of table is being written
+What class of table is being written
 
 ***
 
@@ -93,5 +93,4 @@ The column names on the target table that do not constitute a net business chang
 
 #### Remarks
 
-Injected by the caller from `VersionedDomainView.untrackedFieldsOf()`. The judgment carrying its own copy
-would be building the second list that spec.md explicitly forbids.
+Fetched from `VersionedDomainView.untrackedFieldsOf()` and injected by the caller. The judgment keeping its own copy is building the second list spec.md explicitly forbids.

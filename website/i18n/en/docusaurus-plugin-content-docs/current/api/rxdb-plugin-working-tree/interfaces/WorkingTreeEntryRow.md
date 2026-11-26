@@ -2,11 +2,11 @@
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:75](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts#L75)
 
-The row persisted after folding (the mutable part of `rxdb_working_tree_entry`).
+The row persisted after folding (the mutable part of `rxdb_working_tree_entry`)
 
 ## Remarks
 
-Excludes `id` / `branch` / `createdAt` / `updatedAt`: those four fields are decided by the storage layer and unique constraints, and the folding rules have no opinion about them. Including them would only force the pure function to fabricate primary keys and timestamps.
+Does not include `id` / `branch` / `createdAt` / `updatedAt`: those four fields are decided by the storage layer and unique constraints, and the fold rules have no opinion about them. Including them would force a pure function to fabricate primary keys and timestamps.
 
 ## Properties
 
@@ -54,7 +54,7 @@ readonly inversePatch: WorkingTreePatch;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:92](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts#L92)
 
-The inverse patch of the **first capture**
+The inverse patch from the **first capture**
 
 ***
 
@@ -90,7 +90,7 @@ readonly origin: WriteEntryOrigin;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:98](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts#L98)
 
-The origin of the latest write
+The latest write's origin
 
 ***
 
@@ -114,7 +114,7 @@ readonly sourceChangeId: number | null;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:107](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts#L107)
 
-The source change of the latest write; diagnostics only
+The latest write's source change; diagnostics only
 
 ***
 

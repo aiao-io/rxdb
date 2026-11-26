@@ -6,8 +6,8 @@ The result of a successful backup.
 
 ## Remarks
 
-Returned only after the archive has been fully written and the output `WritableStream.close()` has resolved.
-Persistence after the output close (such as writing to disk or uploading) is the responsibility of the stream provided by the caller.
+Returned only after the archive has been fully written and the output side's `WritableStream.close()` has resolved.
+Persistence after the output side closes (e.g. writing to disk, uploading) is the responsibility of the caller-provided stream.
 
 ## Extends
 
@@ -23,7 +23,7 @@ readonly bytes: number;
 
 Defined in: [packages/rxdb/src/backup/backup.interface.ts:101](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/backup/backup.interface.ts#L101)
 
-Total bytes of the file data.
+Total number of file data bytes.
 
 #### Inherited from
 
@@ -39,7 +39,7 @@ readonly entries: number;
 
 Defined in: [packages/rxdb/src/backup/backup.interface.ts:99](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/backup/backup.interface.ts#L99)
 
-Entry count (files + directories).
+Number of entries (files + directories).
 
 #### Inherited from
 
@@ -75,7 +75,7 @@ readonly sha256: string;
 
 Defined in: [packages/rxdb/src/backup/backup.interface.ts:103](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/backup/backup.interface.ts#L103)
 
-The SHA-256 of all archive bytes before the end marker.
+SHA-256 of all archive bytes before the end marker.
 
 #### Inherited from
 

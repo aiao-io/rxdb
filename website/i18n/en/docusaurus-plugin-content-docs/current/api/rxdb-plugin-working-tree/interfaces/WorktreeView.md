@@ -14,7 +14,7 @@ readonly id: string;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-manager.ts:105](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/checkout/worktree-manager.ts#L105)
 
-The checkout id, i.e. the primary key of the registration row
+The checkout id, i.e. the registry row's primary key
 
 ***
 
@@ -42,7 +42,7 @@ The read-only instance.
 
 #### Remarks
 
-Public write entry points throw `RxDBReadOnlyError`. Entity classes are clones of the main instance's: queries must use the classes swapped in by [WorktreeView.entityOf](#entityof).
+Public write entries throw `RxDBReadOnlyError`. Entity classes are clones of the main instance's: queries must use the classes swapped in via [WorktreeView.entityOf](#entityof).
 
 ***
 
@@ -66,7 +66,7 @@ close(): Promise<void>;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-manager.ts:132](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/checkout/worktree-manager.ts#L132)
 
-Closes the read-only instance and deletes the snapshot database and the registration row; repeated calls have no side effects
+Closes the read-only instance, deletes the snapshot database and the registry row; repeated calls have no side effects
 
 #### Returns
 
@@ -82,7 +82,7 @@ entityOf<T>(EntityClass): T;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-manager.ts:124](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/checkout/worktree-manager.ts#L124)
 
-The counterpart class on the read-only instance of a main-instance entity class.
+The counterpart class of a main-instance entity class on the read-only instance.
 
 #### Type Parameters
 
@@ -104,7 +104,7 @@ The clone class with the same namespace and name
 
 #### Throws
 
-[WorktreeUnavailableError](../classes/WorktreeUnavailableError.md) `incomplete_entities`: the snapshot does not have this entity
+[WorktreeUnavailableError](../classes/WorktreeUnavailableError.md) `incomplete_entities`: the snapshot has no such entity
 
 ***
 
@@ -134,7 +134,7 @@ release(): Promise<void>;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-manager.ts:139](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/checkout/worktree-manager.ts#L139)
 
-Closes only the read-only instance here and returns the lock; the snapshot database and the registration row stay.
+Only closes this read-only instance here and returns the lock; the snapshot database and the registry row stay.
 
 #### Returns
 
@@ -142,4 +142,4 @@ Closes only the read-only instance here and returns the lock; the snapshot datab
 
 #### Remarks
 
-A persistently owned checkout is reopened later with [WorktreeManager.attach](../classes/WorktreeManager.md#attach); a session-owned one is left for `prune()` to reclaim.
+A persistently owned checkout is later re-opened with [WorktreeManager.attach](../classes/WorktreeManager.md#attach); a session-owned one is left for `prune()` to reclaim.

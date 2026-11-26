@@ -6,23 +6,22 @@ sidebar_label: "Oo1ClientBase⟨TLoadOptions⟩"
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/Oo1ClientBase.ts:86](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/Oo1ClientBase.ts#L86)
 
-Base class for SQLite clients wrapping an `oo1.DB`-style runtime
-(`@sqlite.org/sqlite-wasm`, `@sqliteai/sqlite-wasm`, etc.).
+SQLite client base class wrapping `oo1.DB`-style runtimes (`@sqlite.org/sqlite-wasm`, `@sqliteai/sqlite-wasm`, etc.).
 
-## Why "Oo1"
+## Why the name Oo1
 
 `oo1` is the upstream official SQLite WASM's **Object Oriented API v1** naming
 (`sqlite3.oo1.DB` / `OpfsDb`), not an abbreviation invented by this repository.
-All adapters working at this layer (sqlite / sqliteai) extend this base class;
-wa-sqlite works with the C API and does **not** reuse it.
+All adapters on this layer (sqlite / sqliteai) inherit this base class;
+wa-sqlite goes through the C API and does **not** reuse it here.
 
 Subclasses only need to implement [loadModule](#loadmodule) and [clientName](#clientname);
-everything else (queue management, the init/disconnect lifecycle, change event batching,
+everything else (queue management, init/disconnect lifecycle, change event batching,
 custom function registration, OPFS fallback) lives here.
 
 ## See
 
-[Oo1Static](../interfaces/Oo1Static.md) — the minimal contract of the `oo1` runtime
+[Oo1Static](../interfaces/Oo1Static.md) — minimal contract of the `oo1` runtime
 
 ## Extends
 
@@ -91,7 +90,7 @@ get abstract protected clientName(): string;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/Oo1ClientBase.ts:103](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/Oo1ClientBase.ts#L103)
 
-The short identifier used in error messages (for example `'sqliteai'`).
+Short identifier used in error messages (e.g. `'sqliteai'`).
 
 ##### Returns
 
@@ -139,7 +138,7 @@ beginSystemMigrationTransactionSql(): string;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/Oo1ClientBase.ts:160](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/Oo1ClientBase.ts#L160)
 
-Gets the strongest lock the backend supports for system schema upgrades.
+Gets the strongest lock the backend supports during system schema upgrades.
 
 #### Returns
 
@@ -159,7 +158,7 @@ beginTransactionSql(): string;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/Oo1ClientBase.ts:147](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/Oo1ClientBase.ts#L147)
 
-The SQL used to begin a transaction, default `'BEGIN;'`.
+SQL used when opening a transaction, default `'BEGIN;'`.
 
 #### Returns
 
@@ -167,12 +166,12 @@ The SQL used to begin a transaction, default `'BEGIN;'`.
 
 #### Remarks
 
-Backends can override it to prepend their own lock strategy statements — for example wa-sqlite's
-`IDBBatchAtomicVFS`/`OPFSAdaptiveVFS`, when using the `shared+hint` lock strategy,
-must issue `PRAGMA write_hint;` first during the shared-lock phase to avoid
+Backends may override to insert their own lock-strategy preamble — for example, when wa-sqlite's
+`IDBBatchAtomicVFS`/`OPFSAdaptiveVFS` chooses the `shared+hint` lock strategy,
+it needs to issue `PRAGMA write_hint;` first during the shared-lock phase to avoid
 `SQLITE_BUSY` when upgrading SHARED→RESERVED (see wa-sqlite's `WebLocksMixin`).
 
-A Comlink remote client returns a Promise even when the implementation is synchronous; registrants must await it.
+A Comlink remote client returns a Promise even when its implementation is synchronous; registrants must await.
 
 #### Implementation of
 
@@ -188,13 +187,13 @@ describeBlankDatabase(): Promise<SqliteBlankDatabase>;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/Oo1ClientBase.ts:169](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/Oo1ClientBase.ts#L169)
 
-Opens a temporary `:memory:` connection on the same module and describes what a freshly created empty database of this engine looks like.
+Opens a temporary `:memory:` connection on the same module to describe what a freshly created empty database of this engine looks like.
 
 #### Returns
 
 `Promise`&lt;[`SqliteBlankDatabase`](../interfaces/SqliteBlankDatabase.md)&gt;
 
-The object list and description of the empty database
+Object list and description of the empty database
 
 #### Implementation of
 
@@ -230,8 +229,8 @@ Defined in: packages/utils/dist/tools/event.d.ts:60
 
 Dispatches an event synchronously.
 
-Iterates over a snapshot rather than the live collection: a listener calling `addEventListener` during handling does not feed
-the current iteration (otherwise a single synchronous dispatch could be extended indefinitely by third-party listeners, UTL-011).
+It iterates a snapshot rather than the live set: a listener calling `addEventListener` during handling does not feed
+the current iteration (otherwise a single synchronous dispatch could be extended indefinitely by a third-party listener, UTL-011).
 
 #### Type Parameters
 
@@ -243,8 +242,8 @@ the current iteration (otherwise a single synchronous dispatch could be extended
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `type` | `T` | The event name |
-| `data` | [`Oo1ClientEvents`](../interfaces/Oo1ClientEvents.md)\[`T`\] | The event data |
+| `type` | `T` | Event name |
+| `data` | [`Oo1ClientEvents`](../interfaces/Oo1ClientEvents.md)\[`T`\] | Event data |
 
 #### Returns
 
@@ -252,7 +251,7 @@ the current iteration (otherwise a single synchronous dispatch could be extended
 
 #### Throws
 
-Any exception thrown by a listener, bubbling up as-is; subsequent listeners do not run
+Any exception thrown by a listener, bubbling up unchanged; remaining listeners do not run
 
 #### Inherited from
 
@@ -274,18 +273,18 @@ Executes SQL.
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `sql` | `string` | The SQL statement |
-| `bindings?` | [`SQLiteCompatibleType`](../type-aliases/SQLiteCompatibleType.md)[] | Bound parameters |
+| `sql` | `string` | SQL statement |
+| `bindings?` | [`SQLiteCompatibleType`](../type-aliases/SQLiteCompatibleType.md)[] | Bind parameters |
 
 #### Returns
 
 `Promise`&lt;[`SqliteSuccessResult`](../interfaces/SqliteSuccessResult.md)&gt;
 
-The execution result
+Execution result
 
 #### Throws
 
-The client is disconnected, or `init` has not completed
+The client is disconnected, or has not finished `init` yet
 
 #### Implementation of
 
@@ -313,8 +312,8 @@ Queries whether a listener is registered. Does not create a collection for unkno
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `type` | `T` | The event name |
-| `listener` | [`EventListener`](../../utils/type-aliases/EventListener.md)&lt;[`Oo1ClientEvents`](../interfaces/Oo1ClientEvents.md)\[`T`\]&gt; | The listener |
+| `type` | `T` | Event name |
+| `listener` | [`EventListener`](../../utils/type-aliases/EventListener.md)&lt;[`Oo1ClientEvents`](../interfaces/Oo1ClientEvents.md)\[`T`\]&gt; | Listener |
 
 #### Returns
 
@@ -379,10 +378,10 @@ protected normalizeRowId(rowId): bigint;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/Oo1ClientBase.ts:249](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/Oo1ClientBase.ts#L249)
 
-Normalizes the rowId output by `sqlite3_update_hook` to bigint.
+Normalizes the rowId from `sqlite3_update_hook` to bigint.
 
-`@sqlite.org/sqlite-wasm` may give a plain `number` for small rowIds;
-the official client overrides this method to force a `bigint` conversion. Subclasses whose runtime always outputs `bigint` can keep the default.
+`@sqlite.org/sqlite-wasm` may give a plain `number` when the rowId is small;
+the official client overrides this method to force `bigint`; subclasses whose runtime always outputs `bigint` can keep the default.
 
 #### Parameters
 
@@ -404,7 +403,7 @@ removeAllEventListeners(): void;
 
 Defined in: packages/utils/dist/tools/event.d.ts:62
 
-Clears all listeners under all event names.
+Clears all listeners under every event name.
 
 #### Returns
 
@@ -424,9 +423,9 @@ removeEventListener<T>(type, listener): void;
 
 Defined in: packages/utils/dist/tools/event.d.ts:49
 
-Removes a listener. An unknown event name or an unregistered listener is a no-op, and no empty collection is created.
+Removes a listener. Unknown event names or unregistered listeners are both no-ops, and no empty collection is created.
 
-If removed during a `dispatchEvent`, the removed listener **still** receives the current event (snapshot semantics).
+If removed during a `dispatchEvent`, the removed one **still** receives this event (snapshot semantics).
 
 #### Type Parameters
 
@@ -438,8 +437,8 @@ If removed during a `dispatchEvent`, the removed listener **still** receives the
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `type` | `T` | The event name |
-| `listener` | [`EventListener`](../../utils/type-aliases/EventListener.md)&lt;[`Oo1ClientEvents`](../interfaces/Oo1ClientEvents.md)\[`T`\]&gt; | The listener |
+| `type` | `T` | Event name |
+| `listener` | [`EventListener`](../../utils/type-aliases/EventListener.md)&lt;[`Oo1ClientEvents`](../interfaces/Oo1ClientEvents.md)\[`T`\]&gt; | Listener |
 
 #### Returns
 
@@ -465,7 +464,7 @@ Pauses / resumes change event collection.
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `muted` | `boolean` | When `true`, the update hook ignores writes outright — neither batched nor dispatched |
+| `muted` | `boolean` | When `true` the update hook ignores writes directly, neither batching nor dispatching |
 
 #### Returns
 

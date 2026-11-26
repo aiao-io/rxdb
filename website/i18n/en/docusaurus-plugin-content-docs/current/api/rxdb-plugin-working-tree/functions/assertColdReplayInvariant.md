@@ -12,7 +12,7 @@ Verifies the cold replay invariant
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `input` | [`ColdReplayInvariantInput`](../interfaces/ColdReplayInvariantInput.md) | HEAD projection, all units, actual business table content |
+| `input` | [`ColdReplayInvariantInput`](../interfaces/ColdReplayInvariantInput.md) | The HEAD projection, all units, and the actual contents of the business tables |
 
 ## Returns
 
@@ -20,16 +20,16 @@ Verifies the cold replay invariant
 
 ## Throws
 
-[ColdReplayMismatchError](../classes/ColdReplayMismatchError.md) the replay result does not match the business tables
+[ColdReplayMismatchError](../classes/ColdReplayMismatchError.md) when the replay result does not match the business tables
 
 ## Throws
 
-[WorkingTreeReplayCorruptionError](../classes/WorkingTreeReplayCorruptionError.md) a unit violated the fold invariant
+[WorkingTreeReplayCorruptionError](../classes/WorkingTreeReplayCorruptionError.md) when a unit violates a folding invariant
 
 ## Remarks
 
-Called at the end of every test case group in the capture suite. Returns silently when equal — it does not print "passed", because in the logs of 6 backends × a dozen groups,
-success lines would only drown the failure lines.
+Called at the end of every capture suite test case. It returns silently on equality — no "passed" line is
+printed, because in the logs of 6 backends × a dozen groups, success lines only drown the failure lines.
 
 ## Example
 

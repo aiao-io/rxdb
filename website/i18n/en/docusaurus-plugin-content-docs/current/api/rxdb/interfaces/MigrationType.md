@@ -5,7 +5,7 @@ Defined in: [packages/rxdb/src/rxdb.interface.ts:20](https://github.com/aiao-io/
 Upgrade script
 
 The same `name` can only be recorded once in history; re-running a migration with the same name is skipped.
-`name` is used as the primary key of the `RxDBMigration` table, so it **must not be renamed**.
+`name` serves as the primary key of the `RxDBMigration` table, so it **cannot be renamed**.
 
 ## Properties
 
@@ -17,7 +17,7 @@ name: string;
 
 Defined in: [packages/rxdb/src/rxdb.interface.ts:24](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb.interface.ts#L24)
 
-Migration name, unique across the database
+The migration name, unique across the database
 
 ## Methods
 
@@ -37,8 +37,8 @@ Rolls back
 
 #### Remarks
 
-RxDB does not currently trigger `down()` on its own; it is kept to prepare for future "reverse migrations".
-Integrators should implement an idempotent rollback path, to make it easy to undo unfinished changes when merging branches.
+Current RxDB does not proactively trigger `down()`; it is kept as preparation for future "reverse migrations".
+Integrators should implement an idempotent rollback path so unfinished changes can be undone on branch merges.
 
 ***
 
@@ -64,9 +64,9 @@ Migrates forward.
 
 #### Remarks
 
-`up()` is the **only** user code that can run inside a transaction body. All data writes in a migration must go through
-`executor.getRepository(X)` / `executor.query()` — calling `entity.save()` or
-`adapter.query()` directly falls back into the adapter queue, whose single slot is occupied by the transaction this migration runs in,
-hanging forever (see ruling ④ in `code-reviews/transaction-executor-design.md`).
+`up()` is the **only** user code that can run inside a transaction body. All data writes in a migration must be issued
+through `executor.getRepository(X)` / `executor.query()` — a direct `entity.save()` or
+`adapter.query()` falls back onto the adapter queue, and the queue's single slot is occupied by the transaction this migration runs in,
+so it hangs forever (see ruling ④ in `code-reviews/transaction-executor-design.md`).
 
-The parameter may be omitted (TS allows implementations with fewer parameters); migrations that write no data need not care about it.
+The parameter can be omitted (TS allows implementations with fewer parameters); migrations that write no data need not care about it.

@@ -6,10 +6,9 @@ The read-only view of the activation state singleton row.
 
 ## Remarks
 
-Deliberately not reusing the entity class: entity instances carry writable shapes like `save()`, while every change to this row
-must go through CAS (US-308); no path should ever "read it out, tweak it, and save it back".
+Deliberately does not reuse the entity class: entity instances carry writable shapes like `save()`, while every change to this row must go through CAS (US-308), and no path should ever "read it, change it, save it back".
 
-Exactly these two fields. **Must not** add `activeBranchId` — the rationale is in this file's `@fileoverview`.
+Just these two fields. **Must not** add `activeBranchId` — see this file's `@fileoverview` for the reason.
 
 ## Properties
 
@@ -21,7 +20,7 @@ readonly activationRevision: number;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/activation-state.ts:48](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/activation-state.ts#L48)
 
-The activation revision; +1 after a successful switch branch CAS (the increment belongs to US-308)
+The activation state revision; +1 after a successful switch-branch CAS (the increment belongs to US-308)
 
 ***
 
@@ -33,4 +32,4 @@ readonly branchGenerationSeq: number;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/activation-state.ts:50](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/activation-state.ts#L50)
 
-The monotonic source of branch generations; incremented and consumed on create branch, so the first issued generation is 1
+The branch generation monotonic source; +1 and consumed on create branch, so the first issued generation is 1

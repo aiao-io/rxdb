@@ -28,7 +28,7 @@ Which columns this write touched
 }
 ```
 
-The whole row is replaced: the shape of bulk write primitives and upsert; **never** an untracked subset
+The whole row is replaced: the shape of batch write primitives and upserts — **never** an untracked subset
 
 #### kind
 
@@ -36,7 +36,7 @@ The whole row is replaced: the shape of bulk write primitives and upsert; **neve
 readonly kind: "whole_row";
 ```
 
-Discriminator: whole-row replacement
+The discriminator: whole-row replacement
 
 ***
 
@@ -56,7 +56,7 @@ The written columns cannot be resolved: treated as "not an untracked subset" (fa
 readonly kind: "unknown";
 ```
 
-Discriminator: the written columns cannot be resolved
+The discriminator: the written columns cannot be resolved
 
 ***
 
@@ -77,7 +77,7 @@ An explicit set of written column names; an empty array is a semantic no-op
 readonly kind: "columns";
 ```
 
-Discriminator: the written columns are known
+The discriminator: the written columns are known
 
 #### names
 
@@ -85,10 +85,11 @@ Discriminator: the written columns are known
 readonly names: readonly string[];
 ```
 
-Names of the written columns; an empty array is a semantic no-op, the opposite conclusion of `whole_row`
+The written column names; an empty array is a semantic no-op, the opposite conclusion of `whole_row`
 
 ## Remarks
 
-Three states rather than "one possibly-empty array": `whole_row` (whole-row replacement) and `columns: []` (no column written)
-are semantically opposite, and `unknown` (cannot be resolved) differs from both. Compressed into an array, `[]` would have to express three things,
-and two of them have opposite correct conclusions.
+Three states rather than "an array that may be empty": `whole_row` (the whole row is replaced) and
+`columns: []` (not a single column was written) are semantically opposite, and `unknown` (cannot be resolved)
+differs from both. Compressed into an array, `[]` would have to express three things at once, two of which
+have opposite correct conclusions.

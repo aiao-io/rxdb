@@ -6,8 +6,8 @@ The return shape of [IRxDBAdapter.rawQuery](IRxDBAdapter.md#rawquery)
 
 ## Remarks
 
-Rows are a **two-dimensional array** rather than an array of objects: the column names of a raw query are decided by the SQL itself, and the adapter has no metadata to name them by;
-column names live separately in `columns`, one-to-one with each row's indices. Callers wanting object form must zip it themselves.
+Rows are a **two-dimensional array**, not an array of objects: the column names of a raw query are decided by the SQL itself,
+and the adapter has no metadata to name them by; column names live separately in `columns`, one-to-one with each row's indices. Callers wanting object shape must zip it themselves.
 
 Write statements (UPDATE / DELETE) only fill `rowsAffected`; `rows` and `columns` are empty.
 

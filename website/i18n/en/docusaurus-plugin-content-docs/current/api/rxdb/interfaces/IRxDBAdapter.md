@@ -2,7 +2,7 @@
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:266](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L266)
 
-RxDB database adapter interface
+RxDB database adapter interface.
 
 ## Extended by
 
@@ -19,7 +19,8 @@ readonly name: string;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:268](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L268)
 
-The adapter name, the same value as the key used when registering with `RxDB.adapter()`; error messages and `getAdapter()` both identify by it
+The adapter name — the same value as the key used when registering via `RxDB.adapter()`; both error messages
+and `getAdapter()` recognize it by this.
 
 ## Methods
 
@@ -37,12 +38,12 @@ Establishes the connection and brings the system tables up to the current waterm
 
 `Promise`&lt;`IRxDBAdapter`&gt;
 
-Itself, for chaining
+Itself, for chaining.
 
 #### Remarks
 
-Both table creation and system migrations happen here (see `isCurrentRxDBSystemVersion`), so it may be slow
-and may throw `UnsupportedRxDBSystemVersionError` because the database is newer than this process.
+Table creation and system migrations both happen here (see `isCurrentRxDBSystemVersion`), so it may be slow,
+and it may throw `UnsupportedRxDBSystemVersionError` because the database is newer than this process.
 
 ***
 
@@ -62,8 +63,8 @@ Disconnects and releases the underlying handle.
 
 #### Remarks
 
-Unlike `RxDB.destroy()`, disconnecting is **reversible**: the same adapter instance can `connect()` again afterwards.
-Implementations must be idempotent — calling while not connected is a no-op, not an error.
+Unlike `RxDB.destroy()`, disconnecting is **reversible**: the same adapter instance can `connect()` again
+afterwards. The implementation must be idempotent — calling it while not connected is a no-op, not an error.
 
 ***
 
@@ -75,7 +76,7 @@ getRepository<T, RT>(EntityType): RT;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:305](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L305)
 
-Fetches the repository instance of this entity on **this adapter**.
+Gets this entity's repository instance on **this adapter**.
 
 #### Type Parameters
 
@@ -96,7 +97,7 @@ Fetches the repository instance of this entity on **this adapter**.
 
 #### Remarks
 
-What comes back is the adapter-axis repository (see [AdapterRepositoryConstructor](../type-aliases/AdapterRepositoryConstructor.md)),
+Returns a repository on the adapter axis (see [AdapterRepositoryConstructor](../type-aliases/AdapterRepositoryConstructor.md)) —
 not the same object as the facade repository users usually get from `RxDB.getRepository()`.
 
 ***
@@ -109,7 +110,7 @@ isTableExisted(EntityType): Promise<boolean>;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:332](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L332)
 
-Whether the table for this entity already exists in the database.
+Whether this entity's table already exists in the database.
 
 #### Parameters
 
@@ -123,7 +124,7 @@ Whether the table for this entity already exists in the database.
 
 #### Remarks
 
-It asks about the **physical table**, not whether this entity is registered in the metadata.
+Asks about the **physical table**, not whether the entity is registered in the metadata.
 
 ***
 
@@ -135,7 +136,7 @@ mutations<T>(options): Promise<InstanceType<T>[]>;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:324](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L324)
 
-Mutates entities in bulk (create/update/delete)
+Batch-mutates entities (create/update/delete).
 
 #### Type Parameters
 
@@ -163,7 +164,7 @@ rawQuery?(sql, params?): Promise<RawQueryResult>;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:346](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L346)
 
-Executes a raw SQL query (conditional UPDATE and other scenarios that bypass the ORM)
+Executes a raw SQL query (for scenarios that bypass the ORM, such as conditional UPDATE).
 
 #### Parameters
 
@@ -178,13 +179,14 @@ Executes a raw SQL query (conditional UPDATE and other scenarios that bypass the
 
 #### Remarks
 
-**An optional method**, and that has consequences: the core package cannot wrap it for adapters the way it does the four write primitives,
-so on libraries with the commit capability enabled, the raw-write gate can only be done by each adapter's own implementation calling
-`gateRawWrite(sql, ctx, …)` (`ctx` comes from
-[RxDBAdapterLocalBase.workingTreeRawWriteContext](../classes/RxDBAdapterLocalBase.md#workingtreerawwritecontext)). Missing that line
-means all writes on this path bypass change capture.
+**An optional method, and that has consequences**: the core package cannot wrap it for the adapters the way it
+does for the four write primitives, so on a database with the commit capability enabled, the raw-write gate
+can only be done by each adapter's own implementation calling `gateRawWrite(sql, ctx, …)` (with `ctx` taken
+from [RxDBAdapterLocalBase.workingTreeRawWriteContext](../classes/RxDBAdapterLocalBase.md#workingtreerawwritecontext)).
+Missing that one call means all writes on this path bypass change capture.
 
-Writes through here do not go through the entity Proxy, so they produce no entity events and cached instances are not refreshed automatically.
+Writes through here do not go through the entity Proxy, so they produce no entity events, and instances in
+the cache are not refreshed automatically.
 
 ***
 
@@ -196,7 +198,7 @@ removeMany<T>(entities): Promise<InstanceType<T>[]>;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:319](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L319)
 
-Deletes entities in bulk.
+Batch-deletes entities.
 
 #### Type Parameters
 
@@ -214,7 +216,7 @@ Deletes entities in bulk.
 
 `Promise`&lt;`InstanceType`&lt;`T`&gt;[]&gt;
 
-The deleted entities
+The deleted entities.
 
 ***
 
@@ -226,7 +228,7 @@ saveMany<T>(entities): Promise<InstanceType<T>[]>;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:312](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L312)
 
-Writes entities in bulk (inserts when absent, updates when present).
+Batch-writes entities (inserts when absent, updates when present).
 
 #### Type Parameters
 
@@ -244,7 +246,8 @@ Writes entities in bulk (inserts when absent, updates when present).
 
 `Promise`&lt;`InstanceType`&lt;`T`&gt;[]&gt;
 
-The entities after being persisted; fields backfilled by the database, such as the primary key and database-side defaults, only have values here
+The entities after persistence; fields backfilled by the database (primary keys, database-side defaults,
+etc.) only have values here.
 
 ***
 
@@ -256,7 +259,7 @@ version(): Promise<string>;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:296](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L296)
 
-The version number of the underlying database engine (e.g. SQLite's `3.45.0`), for diagnostics and capability determination.
+The underlying database engine's version number (e.g. SQLite's `3.45.0`), for diagnostics and capability checks.
 
 #### Returns
 
@@ -264,4 +267,4 @@ The version number of the underlying database engine (e.g. SQLite's `3.45.0`), f
 
 #### Remarks
 
-Unrelated to the system-table watermark (`RXDB_SYSTEM_SCHEMA_VERSION`), which is RxDB's own number.
+Unrelated to the system-table watermark number (`RXDB_SYSTEM_SCHEMA_VERSION`) — that is RxDB's own number.

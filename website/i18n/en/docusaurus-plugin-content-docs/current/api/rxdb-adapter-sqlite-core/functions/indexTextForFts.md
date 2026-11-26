@@ -12,23 +12,23 @@ Index-side transform: replaces each run of consecutive CJK in the text with a sp
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `value` | `string` | The raw field text |
+| `value` | `string` | Raw field text |
 
 ## Returns
 
 `string`
 
-The text for FTS5 to index; non-CJK parts are kept as-is
+Text for FTS5 to index; non-CJK parts are kept as-is
 
 ## Remarks
 
-Only rewrites what goes into the FTS index, **does not modify the source table**. Snippets are still cut by `search-engine` from the source table's original text,
-so users never see bigram traces in snippets.
+Only rewrites what goes into the FTS index and does **not modify the source table**. Snippets are still extracted by `search-engine` from the source table's original text,
+so bigram traces never appear in what the user sees.
 
-A space is inserted between a CJK run and adjacent Latin/digit characters (SQLC-013): `unicode61` does not cut words at script boundaries,
+A space is inserted between a CJK run and adjacent Latin/digits (SQLC-013): `unicode61` does not split words at script boundaries,
 so `rxdb搜索` without the space is **one** token, while the query side [compileCjkToken](compileCjkToken.md) compiles it segment by segment into
 `("rxdb" OR "rxdb"*) AND "搜索"` — neither token exists in the index, zero recall.
-Boundaries that are already whitespace are not padded again, so `'rxdb 全文搜索 guide'` produces no consecutive spaces.
+Boundaries that are already whitespace are not duplicated, so `'rxdb 全文搜索 guide'` produces no consecutive spaces.
 
 ## Example
 

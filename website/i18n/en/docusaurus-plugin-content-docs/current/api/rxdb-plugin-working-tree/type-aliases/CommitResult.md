@@ -16,7 +16,7 @@ type CommitResult =
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/commit-command.ts:74](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/commit-command.ts#L74)
 
-The result of one `commit()` call.
+The result of a `commit()` call.
 
 ## Union Members
 
@@ -37,7 +37,7 @@ The result of one `commit()` call.
 readonly changeSetCount: number;
 ```
 
-Number of change units in this commit
+The number of change units in this commit
 
 #### commitId
 
@@ -45,7 +45,7 @@ Number of change units in this commit
 readonly commitId: string;
 ```
 
-Id of the new commit
+The new commit's id
 
 #### headRevision
 
@@ -53,7 +53,7 @@ Id of the new commit
 readonly headRevision: number;
 ```
 
-The HEAD revision after advancing
+The HEAD revision after the advance
 
 #### ok
 
@@ -61,7 +61,7 @@ The HEAD revision after advancing
 readonly ok: true;
 ```
 
-This commit has landed in the database
+This commit has been persisted
 
 ***
 
@@ -80,7 +80,7 @@ This commit has landed in the database
 readonly conflict: CommitConflict;
 ```
 
-Diagnostic value; **not persisted**, and there is no "clear conflict" API
+The diagnostic value; **not persisted**, and there is no "clear the conflict" API
 
 #### ok
 
@@ -88,9 +88,10 @@ Diagnostic value; **not persisted**, and there is no "clear conflict" API
 readonly ok: false;
 ```
 
-One of the three captured positions does not match, and not one byte of this commit landed
+One of the three captured slots does not match, and not a single byte of this commit was persisted
 
 ## Remarks
 
-The discriminator is `ok`, not "is `conflict` present": the latter forces callers to use `'conflict' in result`
-or optional-property emptiness checks, and optional properties silently collapse to "always succeeds" on consumers with `strictNullChecks` off.
+The discriminator is `ok` rather than "is `conflict` present": the latter forces callers to check with
+`'conflict' in result` or an optional property, and optional properties silently collapse into "always
+succeeds" on consumers with `strictNullChecks` turned off.

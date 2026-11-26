@@ -3,7 +3,7 @@
 Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:272](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/VersionManager.interface.ts#L272)
 
 History record item
-Represents an operation unit that can be undone/redone
+Represents an undoable/redoable unit of operations
 
 ## Properties
 
@@ -37,7 +37,7 @@ count: number;
 
 Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:317](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/VersionManager.interface.ts#L317)
 
-Change count
+Number of changes
 
 ***
 
@@ -61,12 +61,12 @@ description: string;
 
 Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:302](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/VersionManager.interface.ts#L302)
 
-Description text (for UI display)
+Description (for UI display)
 
 #### Example
 
 ```ts
-- Single change: "Created User" "Updated Todo" "Removed Post"
+- Single change: "Create User" "Update Todo" "Delete Post"
 - Multiple changes: "Transaction: 2 created, 3 updated"
 ```
 
@@ -92,7 +92,7 @@ fingerprint: string;
 
 Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:278](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/VersionManager.interface.ts#L278)
 
-Unique fingerprint, used to identify this history item
+Unique fingerprint identifying this history item
 
 ***
 
@@ -117,7 +117,7 @@ redoInvalidated: boolean;
 Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:334](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/VersionManager.interface.ts#L334)
 
 Whether redo is invalidated
-true means the redo operation of this history item has been discarded (true as soon as any one change is discarded)
+true means this history item's redo operation has been discarded (true when any one change is discarded)
 
 ***
 
@@ -130,7 +130,7 @@ reverted: boolean;
 Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:328](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/VersionManager.interface.ts#L328)
 
 Whether it has been undone
-true means this history item has been undone (true as soon as any one change is undone)
+true means this history item has been undone (true when any one change is undone)
 
 ***
 

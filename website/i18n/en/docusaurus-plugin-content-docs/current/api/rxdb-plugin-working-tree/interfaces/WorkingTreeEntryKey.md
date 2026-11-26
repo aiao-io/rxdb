@@ -2,7 +2,7 @@
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:298](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts#L298)
 
-The identity triple of a working tree unit, matching the unique constraint minus `branch`.
+The working tree unit's identity triple, corresponding to the unique constraint minus `branch`.
 
 ## Properties
 

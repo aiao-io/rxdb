@@ -14,22 +14,22 @@ function build_rule(
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/query/query\_sql.utils.ts:636](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/query/query_sql.utils.ts#L636)
 
-Generates the rule sql query condition
+Generates the SQL query condition for a rule
 
 ## Parameters
 
 | Parameter | Type | Default value | Description |
 | ------ | ------ | ------ | ------ |
-| `rule` | `QueryRule` | `undefined` | The rule object |
+| `rule` | `QueryRule` | `undefined` | Rule object |
 | `fieldAliasMap` | `Map`&lt;`string`, `string`&gt; | `undefined` | Field alias map |
 | `entityMetadata?` | `Readonly`&lt;[`EntityMetadataType`](../../rxdb/interfaces/EntityMetadataType.md)&gt; | `undefined` | Entity metadata |
-| `adapter?` | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md) | `undefined` | The SQLite adapter instance (optional, for EXISTS queries) |
-| `buildRuleGroupFn?` | [`BuildRuleGroupFn`](../type-aliases/BuildRuleGroupFn.md) | `undefined` | A buildRuleGroup function reference (optional, for EXISTS subqueries) |
+| `adapter?` | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md) | `undefined` | SQLite adapter instance (optional, used for EXISTS queries) |
+| `buildRuleGroupFn?` | [`BuildRuleGroupFn`](../type-aliases/BuildRuleGroupFn.md) | `undefined` | buildRuleGroup function reference (optional, used for EXISTS subqueries) |
 | `params?` | [`SQLiteCompatibleType`](../type-aliases/SQLiteCompatibleType.md)[] | `undefined` | Collector for bigint/binary query parameters |
-| `scope?` | [`RuleScope`](../interfaces/RuleScope.md) | `MAIN_RULE_SCOPE` | The query layer the rule lives in; default is the top-level main table `_` |
+| `scope?` | [`RuleScope`](../interfaces/RuleScope.md) | `MAIN_RULE_SCOPE` | The query layer the rule sits in, defaulting to the top-level main table `_` |
 
 ## Returns
 
 `string`
 
-The SQL condition string
+SQL condition string

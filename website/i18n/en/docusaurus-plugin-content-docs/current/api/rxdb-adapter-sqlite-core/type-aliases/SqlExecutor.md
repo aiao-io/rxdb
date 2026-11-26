@@ -10,8 +10,8 @@ A transaction facade that can issue SQL directly.
 
 ## Remarks
 
-Declares only `execute` instead of taking the whole `SqliteTransactionExecutor`: the only capability needed here is
-"issue one SQL statement on the **current** transaction connection"; narrowing to this single method lets tests pass a minimal stand-in.
+Declares only `execute` rather than taking a whole `SqliteTransactionExecutor`: all the capability needed here is
+"issue one SQL statement on the **current** transaction's connection"; narrowing it to this one method lets tests pass a minimal stand-in.
 
 ## Methods
 

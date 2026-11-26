@@ -2,7 +2,7 @@
 
 Defined in: [packages/rxdb/src/entity/cascade-options.interface.ts:86](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/cascade-options.interface.ts#L86)
 
-Currency. `currency` is only validated against the ISO 4217 code shape `/^[A-Z]{3}$/`; no currency allocation table is built in.
+Currency. `currency` only validates the ISO 4217 code shape `/^[A-Z]{3}$/`; no currency assignment table is built in.
 
 ## Properties
 

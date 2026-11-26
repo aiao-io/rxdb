@@ -54,7 +54,7 @@ readonly systemEntityIdentities: ReadonlySet<string>;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/capture-hook.ts:101](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/capture-hook.ts#L101)
 
-The identity set of system entities (`namespace:name`, e.g. `rxdb:RxDBBranch`); used when the namespace is known
+The system entities' identity set (`namespace:name`, shaped like `rxdb:RxDBBranch`); used when the namespace is known
 
 ***
 
@@ -66,10 +66,9 @@ readonly systemEntityNames: ReadonlySet<string>;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/capture-hook.ts:98](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/capture-hook.ts#L98)
 
-The bare-name set of system entities; used when only the entity name is available (mount point 4)
+The system entities' bare-name set; used in entity-name-only situations (mount point 4)
 
 #### Remarks
 
-Two projections of the same registry as [systemEntityIdentities](#systementityidentities), not two lists. Bare-name judgment inherently
-cannot see namespaces, so it only speaks when [domain](#domain) does not recognize the name — see
+Two projections of the same registry as [systemEntityIdentities](#systementityidentities), not two lists. Bare-name matching inherently cannot recognize namespaces, so it only has a say when [domain](#domain) does not recognize the name — see
 [WorkingTreeCaptureRuntime.targetClassOf](../classes/WorkingTreeCaptureRuntime.md#targetclassof).

@@ -2,7 +2,7 @@
 
 Defined in: [packages/rxdb/src/system/types.ts:655](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L655)
 
-Initialization data
+Initialization data.
 
 ## Properties
 
@@ -14,7 +14,7 @@ createdAt?: Date;
 
 Defined in: [packages/rxdb/src/system/types.ts:696](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L696)
 
-Creation time
+Creation time.
 
 #### Default
 
@@ -32,7 +32,7 @@ entity?: string;
 
 Defined in: [packages/rxdb/src/system/types.ts:679](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L679)
 
-Entity
+Entity.
 
 ***
 
@@ -44,7 +44,7 @@ entityId?: RxDBEntityId;
 
 Defined in: [packages/rxdb/src/system/types.ts:683](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L683)
 
-Entity ID
+Entity ID.
 
 ***
 
@@ -56,7 +56,7 @@ id?: number;
 
 Defined in: [packages/rxdb/src/system/types.ts:659](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L659)
 
-id
+id.
 
 ***
 
@@ -68,7 +68,7 @@ inversePatch?: Record<string, unknown> | null;
 
 Defined in: [packages/rxdb/src/system/types.ts:687](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L687)
 
-Inverse patch
+Inverse patch.
 
 ***
 
@@ -80,7 +80,7 @@ namespace?: string;
 
 Defined in: [packages/rxdb/src/system/types.ts:675](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L675)
 
-Namespace
+Namespace.
 
 ***
 
@@ -92,7 +92,7 @@ patch?: Record<string, unknown> | null;
 
 Defined in: [packages/rxdb/src/system/types.ts:691](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L691)
 
-Patch
+Patch.
 
 ***
 
@@ -104,7 +104,7 @@ redoInvalidatedAt?: Date | null;
 
 Defined in: [packages/rxdb/src/system/types.ts:713](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L713)
 
-Redo invalidation time
+Redo invalidation time.
 
 ***
 
@@ -116,7 +116,7 @@ remoteId?: number | null;
 
 Defined in: [packages/rxdb/src/system/types.ts:663](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L663)
 
-Remote ID
+Remote ID.
 
 ***
 
@@ -128,7 +128,7 @@ revertChangedAt?: Date | null;
 
 Defined in: [packages/rxdb/src/system/types.ts:705](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L705)
 
-Revert time
+Revert time.
 
 ***
 
@@ -140,7 +140,7 @@ revertChangeId?: number | null;
 
 Defined in: [packages/rxdb/src/system/types.ts:709](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L709)
 
-Revert change ID
+Revert change ID.
 
 ***
 
@@ -152,7 +152,7 @@ transactionId?: `${string}-${string}-${string}-${string}-${string}` | null;
 
 Defined in: [packages/rxdb/src/system/types.ts:671](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L671)
 
-Transaction ID
+Transaction ID.
 
 ***
 
@@ -164,7 +164,7 @@ type?: string;
 
 Defined in: [packages/rxdb/src/system/types.ts:667](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L667)
 
-Type
+Type.
 
 ***
 
@@ -176,7 +176,7 @@ updatedAt?: Date;
 
 Defined in: [packages/rxdb/src/system/types.ts:701](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L701)
 
-Update time
+Update time.
 
 #### Default
 

@@ -20,7 +20,8 @@ type FoldOutcome =
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:111](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts#L111)
 
-The conclusion of a fold; the three `kind`s correspond one-to-one with `entryCountDelta`, so callers do not need to count rows themselves.
+The outcome of folding; the three `kind`s correspond one-to-one with `entryCountDelta`, so callers do not
+need to count rows themselves.
 
 ## Union Members
 
@@ -111,7 +112,8 @@ Folded into an existing unit
 readonly entryCountDelta: -1;
 ```
 
-Always `-1`; **not** saturating subtraction, otherwise after "decrement to zero then write again" the count would exceed the row count by one
+Always `-1`; **not** a saturating subtraction, otherwise "write after reaching zero" would leave the count one
+higher than the row count
 
 #### kind
 
@@ -119,4 +121,4 @@ Always `-1`; **not** saturating subtraction, otherwise after "decrement to zero 
 readonly kind: "remove";
 ```
 
-No net change: delete this row
+Net no change: delete this row

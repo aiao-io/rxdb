@@ -18,14 +18,14 @@ Handles the EXISTS/NOT EXISTS operators
 
 | Parameter | Type | Default value | Description |
 | ------ | ------ | ------ | ------ |
-| `rule` | `QueryRule` | `undefined` | The rule object |
-| `entityMetadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | `undefined` | The outer entity's metadata |
-| `adapter` | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md) | `undefined` | The SQLite adapter instance |
-| `buildWhere?` | (`ruleGroup`, `relationMetadata`, `existsScope`) => [`ExistsSubquery`](../interfaces/ExistsSubquery.md) | `undefined` | The subquery where compiler, returning the condition and the JOINs needed inside the subquery (SQLC-010); the third parameter is the alias assigned to this layer's subquery, and fields in the where must hang on `existsScope.alias` |
-| `scope?` | [`RuleScope`](../interfaces/RuleScope.md) | `MAIN_RULE_SCOPE` | The query layer this rule lives in, default the top-level main table `_`; the "current entity" side of the relation condition uses its alias |
+| `rule` | `QueryRule` | `undefined` | Rule object |
+| `entityMetadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | `undefined` | Outer entity metadata |
+| `adapter` | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md) | `undefined` | SQLite adapter instance |
+| `buildWhere?` | (`ruleGroup`, `relationMetadata`, `existsScope`) => [`ExistsSubquery`](../interfaces/ExistsSubquery.md) | `undefined` | Subquery where compiler, returning the condition and the JOINs needed inside the subquery (SQLC-010); the third parameter is the alias assigned to this layer of the subquery, and fields in the where must hang on `existsScope.alias` |
+| `scope?` | [`RuleScope`](../interfaces/RuleScope.md) | `MAIN_RULE_SCOPE` | The query layer this rule sits in, defaulting to the top-level main table `_`; the "current entity" side of relation conditions uses its alias |
 
 ## Returns
 
 `string` \| `null`
 
-The EXISTS condition SQL; returns null when the rule is not exists/notExists or the field is not a relation
+EXISTS condition SQL; returns null when the rule is not exists/notExists or the field is not a relation

@@ -27,7 +27,7 @@ type ColdReplayMismatch =
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/cold-replay.ts:57](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/cold-replay.ts#L57)
 
-One difference between the replay result and the actual business table content.
+One difference between the replay result and the actual contents of the business tables.
 
 ## Union Members
 
@@ -59,7 +59,7 @@ The value in the business table; `undefined` when the column does not exist
 readonly entity: string;
 ```
 
-Entity name
+The entity name
 
 #### entityId
 
@@ -67,7 +67,7 @@ Entity name
 readonly entityId: string;
 ```
 
-Entity primary key
+The entity primary key
 
 #### field
 
@@ -75,7 +75,7 @@ Entity primary key
 readonly field: string;
 ```
 
-The column name that does not match
+The column name that mismatches
 
 #### kind
 
@@ -83,7 +83,7 @@ The column name that does not match
 readonly kind: "field_mismatch";
 ```
 
-Some column of the same row does not match
+A column of the same row mismatches
 
 #### namespace
 
@@ -99,7 +99,7 @@ The namespace the entity belongs to
 readonly replayed: unknown;
 ```
 
-The value obtained from replay; `undefined` when the column does not exist
+The value produced by the replay; `undefined` when the column does not exist
 
 ***
 
@@ -120,7 +120,7 @@ The value obtained from replay; `undefined` when the column does not exist
 readonly entity: string;
 ```
 
-Entity name
+The entity name
 
 #### entityId
 
@@ -128,7 +128,7 @@ Entity name
 readonly entityId: string;
 ```
 
-Entity primary key
+The entity primary key
 
 #### kind
 
@@ -136,7 +136,8 @@ Entity primary key
 readonly kind: "replay_only_row";
 ```
 
-The replay produced a row the business table does not have — **phantom capture**, a unit was written that should not have been
+The replay produced a row the business tables do not have — a **phantom capture**, a unit written that should
+not have been
 
 #### namespace
 
@@ -165,7 +166,7 @@ The namespace the entity belongs to
 readonly entity: string;
 ```
 
-Entity name
+The entity name
 
 #### entityId
 
@@ -173,7 +174,7 @@ Entity name
 readonly entityId: string;
 ```
 
-Entity primary key
+The entity primary key
 
 #### kind
 
@@ -181,7 +182,7 @@ Entity primary key
 readonly kind: "business_only_row";
 ```
 
-The business table has it but the replay does not — **a mount point missed the capture**
+The business table has a row the replay does not — a **missed mount point capture**
 
 #### namespace
 

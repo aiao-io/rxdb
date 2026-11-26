@@ -7,7 +7,7 @@ sidebar_label: "RelationEntitiesObservable⟨T⟩"
 Defined in: [packages/rxdb/src/entity/entity.interface.ts:221](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity.interface.ts#L221)
 
 Access interface for multiple relation objects
-Provides observation and manipulation capabilities over a collection of related entities
+Provides observation and manipulation of a set of related entities
 
 ## Extends
 
@@ -51,7 +51,7 @@ count$: Observable<number>;
 
 Defined in: [packages/rxdb/src/entity/entity.interface.ts:225](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity.interface.ts#L225)
 
-Observable of the related entity count
+Observable of the number of related entities
 
 ***
 

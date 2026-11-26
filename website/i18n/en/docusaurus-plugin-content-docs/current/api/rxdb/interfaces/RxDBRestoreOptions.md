@@ -19,4 +19,4 @@ readonly signal?: AbortSignal;
 
 Defined in: [packages/rxdb/src/backup/backup.interface.ts:148](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/backup/backup.interface.ts#L148)
 
-Cancels before the successful commit boundary.
+Cancels before the successful-commit boundary.

@@ -2,17 +2,15 @@
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/diff.ts:70](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/diff.ts#L70)
 
-What one uncommitted unit looks like in a diff.
+How one uncommitted unit looks in the diff.
 
 ## Remarks
 
-The nine fields align one-to-one with `CommitChangeSet`'s nine columns — at commit time these units become the change set as-is,
-and a mismatch between the two field sets would mean "what I see" and "what I commit" are not the same data.
+The nine fields align one-to-one with `CommitChangeSet`'s nine columns — at commit time these units become the change set as-is, and mismatched field sets on the two sides would mean "what I see" and "what I commit" are not the same batch of data.
 
-**Carries no `sourceChangeId`.** It is diagnostics-only, and the `rxdb_change` row it points to can be taken away by branch-deletion cascade,
-compaction merges and invalidation cleanup; spreading it into the diff would be inviting callers to treat it as a replay data source.
-No `id` or `fingerprint` either: the former is the internal carrier of the pagination cursor (see [WorkingTreeDiff.nextCursor](WorkingTreeDiff.md#nextcursor)),
-the latter is for the folding judgment, and neither is part of "what changed this time".
+**Does not carry `sourceChangeId`.** It is diagnostics-only, and the `rxdb_change` row it points to can be taken away by branch-delete cascade, compaction merge and expiry cleanup; spreading it into the diff invites callers to use it as a replay data source.
+Nor does it carry `id` or `fingerprint`: the former is the pagination cursor's internal carrier (see [WorkingTreeDiff.nextCursor](WorkingTreeDiff.md#nextcursor)),
+the latter is for fold judgment — neither is part of "what changed this time".
 
 ## Properties
 
@@ -120,4 +118,4 @@ readonly unitId: string;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/diff.ts:72](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/diff.ts#L72)
 
-The change unit id; all entities of a complete transaction share the same one
+The change unit id; shared by all entities of the complete transaction

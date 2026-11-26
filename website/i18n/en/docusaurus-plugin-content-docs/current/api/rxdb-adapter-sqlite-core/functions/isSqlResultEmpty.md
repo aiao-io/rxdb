@@ -12,10 +12,10 @@ Checks whether a sqlite result is empty
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `result` | [`SqliteSuccessResult`](../interfaces/SqliteSuccessResult.md) | The SQLite query result |
+| `result` | [`SqliteSuccessResult`](../interfaces/SqliteSuccessResult.md) | SQLite query result |
 
 ## Returns
 
 `boolean`
 
-Whether it is an empty result
+Whether the result is empty

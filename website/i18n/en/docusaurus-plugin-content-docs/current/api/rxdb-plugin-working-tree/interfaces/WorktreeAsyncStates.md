@@ -2,7 +2,7 @@
 
 Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts:28](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts#L28)
 
-The per-slot async states of the checkout entry points.
+The per-cell async states of the checkout entry point.
 
 ## Properties
 
@@ -14,7 +14,7 @@ readonly addState: WorkingTreeCommandState<Worktree>;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts:38](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts#L38)
 
-The state of `add()`: the registration row of the created writable checkout
+The state of `add()`: the created writable checkout's registry row
 
 ***
 
@@ -86,7 +86,7 @@ readonly pruneState: WorkingTreeCommandState<readonly string[]>;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts:36](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts#L36)
 
-The state of `prune()`; reclaiming zero is also a result, not empty
+The state of `prune()`; reclaiming zero is a result, not empty
 
 ***
 
@@ -122,4 +122,4 @@ readonly renameState: WorkingTreeCommandState<Worktree>;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts:48](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts#L48)
 
-The state of `rename()`: the registration row after the rename
+The state of `rename()`: the registry row after the rename

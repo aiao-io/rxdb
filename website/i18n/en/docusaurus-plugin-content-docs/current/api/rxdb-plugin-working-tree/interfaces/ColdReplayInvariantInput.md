@@ -26,7 +26,7 @@ readonly entries: readonly WorkingTreeEntry[];
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/cold-replay.ts:343](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/cold-replay.ts#L343)
 
-All uncommitted units on this branch
+All uncommitted units on that branch
 
 ***
 
@@ -38,4 +38,4 @@ readonly head: ColdReplaySnapshot;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/cold-replay.ts:340](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/cold-replay.ts#L340)
 
-The business data projection of HEAD
+HEAD's business data projection

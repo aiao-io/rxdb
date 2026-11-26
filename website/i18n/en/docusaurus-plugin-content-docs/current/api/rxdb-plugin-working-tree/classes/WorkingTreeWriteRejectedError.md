@@ -6,12 +6,12 @@ A write rejected by the gate
 
 ## Remarks
 
-The rejection happens **before the statement executes**; business tables are completely unchanged — not write-then-rollback. On the raw channel there is no transaction to roll back at all,
-and that is exactly why the raw channel exists.
+The rejection happens **before the statement executes**, leaving business tables untouched — it is not a rollback
+after the write. The raw channel has no transaction to roll back at all, which is precisely why the raw channel exists.
 
-Two discriminator bits are given: `name` as a fallback beyond `instanceof` within this process, and `code` for cross-realm discrimination.
-`entrance` tells the caller which path was blocked — the same code can be thrown at all four mount points and on all six adapters;
-without it, the log only says "someone raw-wrote a versioned table".
+Two discriminators are provided: `name` as a fallback within this process beyond `instanceof`, and `code` for
+cross-realm discrimination. `entrance` lets the caller know which path was blocked — the same code can be thrown
+at all four mount points and on all six adapters; without it, the log only says "someone wrote to a versioned table raw".
 
 ## Extends
 
@@ -27,13 +27,13 @@ new WorkingTreeWriteRejectedError(rejection): WorkingTreeWriteRejectedError;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry-matrix.ts:185](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/write-entry-matrix.ts#L185)
 
-Constructed at five rejection points: the gates of the four mount points, plus the raw channel judgment.
+Constructed from the five rejection points: the gate at each of the four mount points, plus the raw channel's judgment.
 
 #### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `rejection` | \{ `entityName?`: `string`; `entrance`: \| `"unknown"` \| `"crud"` \| `"domain_recompute"` \| `"remote_entity_apply"` \| `"cleanup_expired"` \| `"projection_rewrite"` \| `"metadata_only_prefetch"` \| `"query_cache_maintenance"` \| `"raw_write"` \| `"bulk_write"` \| `"notify_external_update"`; `message`: `string`; \} | The rejection scene: the blocked entrance, the entity name resolved (on the raw channel it may fail to resolve), and the already-assembled message |
+| `rejection` | \{ `entityName?`: `string`; `entrance`: \| `"unknown"` \| `"crud"` \| `"domain_recompute"` \| `"remote_entity_apply"` \| `"cleanup_expired"` \| `"projection_rewrite"` \| `"metadata_only_prefetch"` \| `"query_cache_maintenance"` \| `"raw_write"` \| `"bulk_write"` \| `"notify_external_update"`; `message`: `string`; \} | The rejection scene: the blocked entrance, the resolved entity name (may be unresolvable on the raw channel), and the already-composed message |
 | `rejection.entityName?` | `string` | - |
 | `rejection.entrance` | \| `"unknown"` \| `"crud"` \| `"domain_recompute"` \| `"remote_entity_apply"` \| `"cleanup_expired"` \| `"projection_rewrite"` \| `"metadata_only_prefetch"` \| `"query_cache_maintenance"` \| `"raw_write"` \| `"bulk_write"` \| `"notify_external_update"` | - |
 | `rejection.message` | `string` | - |
@@ -44,9 +44,10 @@ Constructed at five rejection points: the gates of the four mount points, plus t
 
 #### Remarks
 
-Takes an object instead of three positional parameters: two of the three are strings; with positional parameters, swapping `entityName` and
-`message` would produce no compile error, only turning the entity name in the log into a whole sentence — while the purpose of this error
-is precisely to let the log answer "who is raw-writing a versioned table".
+Takes one object rather than three positional parameters: two of the three are strings, and under positional
+parameters swapping `entityName` and `message` would produce no compile error — only turn the entity name in the
+log into a whole sentence, when this error's whole purpose is to let the log answer "who is writing to versioned
+tables raw".
 
 #### Overrides
 
@@ -76,7 +77,7 @@ readonly code: "commit_capability_mismatch" = CommitErrorCode.commit_capability_
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry-matrix.ts:166](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/write-entry-matrix.ts#L166)
 
-Stable error code specified by epic-006, taken from [CommitErrorCode](../variables/CommitErrorCode.md)
+The stable error code specified by epic-006, taken from [CommitErrorCode](../variables/CommitErrorCode.md)
 
 ***
 
@@ -88,7 +89,7 @@ readonly entityName: string | undefined;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry-matrix.ts:172](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/write-entry-matrix.ts#L172)
 
-Name of the entity being written; `undefined` when the entity cannot be resolved on the raw channel
+The name of the entity being written; `undefined` when no entity can be resolved on the raw channel
 
 ***
 

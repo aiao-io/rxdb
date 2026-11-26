@@ -12,16 +12,16 @@ Query-side transform: compiles a query token into an FTS5 MATCH fragment.
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `token` | `string` | The already-cleaned query token (without FTS5 reserved characters) |
+| `token` | `string` | Cleaned query token (without FTS5 reserved characters) |
 
 ## Returns
 
 `string` \| `undefined`
 
-The MATCH fragment; returns `undefined` for non-CJK tokens, letting the caller compile them by the original rules
+MATCH fragment; returns `undefined` for non-CJK tokens, leaving the caller to compile them with the original rules
 
 ## Remarks
 
-- A CJK run of ≥2 characters is cut into bigrams and joined with `AND`, giving "approximate consecutive substring" semantics:
-  `数据库优化` does not match `数据库索引优化` (missing `库优`), which matches intuition.
+- CJK runs of ≥2 characters are cut into bigrams joined with `AND`, giving "approximate contiguous substring" semantics:
+  `数据库优化` does not hit `数据库索引优化` (missing `库优`), which matches intuition.
 - A single character cannot form a bigram, so it degrades to `("X" OR "X"*)` prefix matching, hitting bigrams that start with that character.

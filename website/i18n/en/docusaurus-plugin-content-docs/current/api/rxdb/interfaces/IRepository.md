@@ -8,16 +8,15 @@ Defined in: [packages/rxdb/src/repository/repository.interface.ts:16](https://gi
 
 Data repository management interface
 
-One IRepository corresponds to **one** entity's full CRUD + query capability.
+One IRepository corresponds to all CRUD + query capabilities of **one** entity.
 Adapters (`rxdb-adapter-sqlite` / `-pglite` / `-supabase` / `-sqliteai`)
 provide implementations of this interface through [AdapterRepositoryConstructor](../type-aliases/AdapterRepositoryConstructor.md),
-and `Repository` ([Repository](../classes/Repository.md)) layers "sync + transactions + caching" on top.
+and `Repository` ([Repository](../classes/Repository.md)) layers "sync + transactions + cache" on top.
 
 ## Remarks
 
-**No merging**: writes are per-entity; callers that need transactions go through [TransactionExecutor](TransactionExecutor.md);
-**no subscriptions**: this interface only promises pull-style results in `Promise` form; live notifications are handled separately by the
-`Observable` of [QueryManager](QueryManager.md) — the two APIs each do their own job, and callers pick as needed.
+**No merging**: writes are per-entity; callers needing transactions go through [TransactionExecutor](TransactionExecutor.md);
+**No subscriptions**: this interface only promises pull-style results in the form of `Promise`s, with live notifications carried separately by [QueryManager](QueryManager.md)'s `Observable` — letting the two APIs do their own jobs and letting callers pick as needed.
 
 ## Extended by
 
@@ -47,13 +46,13 @@ Counts entities
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `options` | [`EntityStaticType`](../type-aliases/EntityStaticType.md)&lt;`T`, `"countOptions"`&gt; | Query options (see [CountOptions](CountOptions.md) for details) |
+| `options` | [`EntityStaticType`](../type-aliases/EntityStaticType.md)&lt;`T`, `"countOptions"`&gt; | Query options (see [CountOptions](CountOptions.md)) |
 
 #### Returns
 
 `Promise`&lt;`number`&gt;
 
-The number of rows matching the conditions
+Number of rows satisfying the conditions
 
 ***
 
@@ -65,7 +64,7 @@ create(entity): Promise<InstanceType<T>>;
 
 Defined in: [packages/rxdb/src/repository/repository.interface.ts:43](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/repository.interface.ts#L43)
 
-Creates an entity
+Create an entity
 
 #### Parameters
 
@@ -89,24 +88,23 @@ find(options): Promise<InstanceType<T>[]>;
 
 Defined in: [packages/rxdb/src/repository/repository.interface.ts:27](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/repository.interface.ts#L27)
 
-Queries multiple entities
+Finds multiple entities
 
 #### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `options` | [`EntityStaticType`](../type-aliases/EntityStaticType.md)&lt;`T`, `"findOptions"`&gt; | Query options (see [FindOptions](FindOptions.md) for details) |
+| `options` | [`EntityStaticType`](../type-aliases/EntityStaticType.md)&lt;`T`, `"findOptions"`&gt; | Query options (see [FindOptions](FindOptions.md)) |
 
 #### Returns
 
 `Promise`&lt;`InstanceType`&lt;`T`&gt;[]&gt;
 
-The array of entities matching the conditions; no match returns an empty array (does **not** throw)
+Array of entities satisfying the conditions; returns an empty array on no match (**does not** throw)
 
 #### Remarks
 
-Returns entity instances (with the state machine), not bare data — the caller's subsequent `save()` / `remove()`
-operations reuse the same state object, avoiding "context lost right after the query".
+Returns entity instances (with the state machine), not bare data — callers' subsequent `save()` / `remove()` operations reuse the same state object, avoiding "losing context the moment a query comes back".
 
 ***
 
@@ -118,19 +116,19 @@ remove(entity): Promise<InstanceType<T>>;
 
 Defined in: [packages/rxdb/src/repository/repository.interface.ts:60](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/repository.interface.ts#L60)
 
-Removes an entity
+Delete an entity
 
 #### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The entity to remove (located by `id`) |
+| `entity` | `InstanceType`&lt;`T`&gt; | The entity to delete (located by `id`) |
 
 #### Returns
 
 `Promise`&lt;`InstanceType`&lt;`T`&gt;&gt;
 
-The entity after removal (fields cleared, `local` set to `false`)
+The entity after deletion (fields cleared, `local` set to `false`)
 
 ***
 
@@ -142,14 +140,14 @@ update(entity, patch): Promise<InstanceType<T>>;
 
 Defined in: [packages/rxdb/src/repository/repository.interface.ts:52](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/repository.interface.ts#L52)
 
-Updates an entity
+Update an entity
 
 #### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The entity to update (provides the `id` and the latest fields) |
-| `patch` | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; | Field-level patch; fields not listed are not modified |
+| `entity` | `InstanceType`&lt;`T`&gt; | The entity to update (provides `id` and the latest fields) |
+| `patch` | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; | Field-level patch; fields not listed are untouched |
 
 #### Returns
 

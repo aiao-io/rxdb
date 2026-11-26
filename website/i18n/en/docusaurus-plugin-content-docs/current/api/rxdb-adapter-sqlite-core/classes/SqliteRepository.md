@@ -6,7 +6,7 @@ sidebar_label: "SqliteRepository⟨T⟩"
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/repository/SqliteRepository.ts:23](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/repository/SqliteRepository.ts#L23)
 
-Repository for operating on entities
+Entity repository operations
 
 ## Extends
 
@@ -117,13 +117,13 @@ protected static _STATIC_METHODS: string[];
 
 Defined in: packages/rxdb/dist/repository/RepositoryBase.d.ts:29
 
-The list of "static method names" declared by subclasses, used to inject methods such as `User.findOne(...)`
-onto the entity class (attached at [EntityManager.init](../../rxdb/interfaces/EntityManager.md#init) time).
+List of "static method names" declared by subclasses, used to inject methods such as
+`User.findOne(...)` onto the entity class (attached during [EntityManager.init](../../rxdb/interfaces/EntityManager.md#init)).
 
 #### Remarks
 
-Uses a class field `static` rather than assignment in the constructor — field initialization is merged **bottom-up**
-along the `extends` chain, so `_STATIC_METHODS` defined by subclasses is not lost; runtime reflection reads the current class's field.
+Uses a class field `static` rather than assigning in the constructor — field initialization merges **bottom-up**
+along the `extends` chain, so a subclass's `_STATIC_METHODS` is not lost; runtime reflection reads the current class's field.
 
 #### Inherited from
 
@@ -141,12 +141,12 @@ get static staticMethods(): string[];
 
 Defined in: packages/rxdb/dist/repository/RepositoryBase.d.ts:37
 
-All static method names declared by the current class (including every layer of the inheritance chain)
+All static method names declared by the current class (including each layer of the inheritance chain)
 
 ##### Remarks
 
-**Not** accumulated along the prototype chain: each subclass writes its own `_STATIC_METHODS`, avoiding names like an ancestor's
-`get` / `findOne` being reflected at runtime and then accidentally overridden once more by a descendant.
+Does **not** accumulate along the prototype chain: each subclass writes its own copy of `_STATIC_METHODS`, to avoid
+runtime reflection picking up ancestor names like `get` / `findOne` and then a descendant accidentally overriding them once more.
 
 ##### Returns
 
@@ -177,8 +177,8 @@ Adds to the cache
 | Parameter | Type | Default value | Description |
 | ------ | ------ | ------ | ------ |
 | `sqliteSuccessResult` | [`SqliteSuccessResult`](../interfaces/SqliteSuccessResult.md) | `undefined` | - |
-| `forcedUpdate?` | `boolean` | `false` | Force refresh; updates the data even when it already exists — needed when the data has been modified |
-| `submissions?` | `SqliteWriteSubmissions`&lt;`T`&gt; | `undefined` | Write-receipt only: the submission records of this write (indexed by the written entity); new edits made after the submission are preserved during backfill |
+| `forcedUpdate?` | `boolean` | `false` | Force refresh; updates data even when data exists, needed when data has been modified |
+| `submissions?` | `SqliteWriteSubmissions`&lt;`T`&gt; | `undefined` | Write-receipt only: submission records of this write (indexed by the entities written), keeping new edits made after submission during backfill |
 
 #### Returns
 
@@ -210,7 +210,7 @@ Queries the number of entities
 
 `Promise`&lt;`number`&gt;
 
-The number of rows satisfying the condition
+Number of rows matching the condition
 
 #### Implementation of
 
@@ -232,13 +232,13 @@ Creates an entity
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The entity instance (usually created by [EntityManager.instantiate](../../rxdb/interfaces/EntityManager.md#instantiate)) |
+| `entity` | `InstanceType`&lt;`T`&gt; | Entity instance (usually created by [EntityManager.instantiate](../../rxdb/interfaces/EntityManager.md#instantiate)) |
 
 #### Returns
 
 `Promise`&lt;`InstanceType`&lt;`T`&gt;&gt;
 
-The entity after persistence completes; **not** the same reference as the argument (the implementation may swap in a new instance)
+The entity after persistence; **not** the same reference as the input (implementations may swap in a new instance)
 
 #### Implementation of
 
@@ -260,17 +260,17 @@ Creates (or reuses) an entity reference
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `data` | [`EntityUpdateData`](../../rxdb/type-aliases/EntityUpdateData.md)&lt;`T`&gt; | Initial field values; `id` is generated automatically when omitted |
+| `data` | [`EntityUpdateData`](../../rxdb/type-aliases/EntityUpdateData.md)&lt;`T`&gt; | Initial field values; `id` is auto-generated when omitted |
 
 #### Returns
 
 [`EntityInstanceType`](../../rxdb/type-aliases/EntityInstanceType.md)&lt;`T`&gt;
 
-The entity instance already attached to the [EntityManager](../../rxdb/interfaces/EntityManager.md) cache
+Entity instance already attached to the [EntityManager](../../rxdb/interfaces/EntityManager.md) cache
 
 #### Remarks
 
-Regardless of whether the input `id` already exists in the cache, the cached instance is **preferred** (overwrite refresh);
+Regardless of whether the input `id` already exists in the cache, it **preferentially** returns the cached instance (overwrite-style refresh);
 it goes through `rxdb.entityManager.createEntityRef` to reuse the same reference semantics, avoiding
 two out-of-sync clones in different call stacks.
 
@@ -300,18 +300,18 @@ Reads entities by query conditions and merges the result rows into the identity 
 
 `Promise`&lt;`InstanceType`&lt;`T`&gt;[]&gt;
 
-The entities corresponding to the result rows (same reference for cache hits)
+Entities for the result rows (cache hits return the same reference)
 
 #### Remarks
 
 Backfill goes through [SqliteRepositoryBase.mergeQueryCache](SqliteRepositoryBase.md#mergequerycache) rather than `addQueryCache(result)`:
-the latter, under `forcedUpdate = false`, **only creates new entities and never touches cached ones**, so after any write that bypasses the ORM
-(the commit graph's HEAD CAS, CAS with commit capability enabled) lands in the database, no matter how many times this process calls `find()`, it only reads
-the stale value in the cache — the CAS clearly pushed `headRevision` to 1, but the read-back is still 0, so the next commit
-always hits `head_revision_conflict`. On the PGlite side every read backfills; the same code behaves differently on the two backends.
+with `forcedUpdate = false` the latter **only creates new entities and never touches cached ones**, so after any write that bypasses the ORM
+(the commit graph's HEAD CAS, the CAS that enables commit capability) lands in the database, no matter how many `find()` calls this process makes it only reads
+the stale value in the cache — CAS has clearly pushed `headRevision` to 1, but reads still come back 0, so the next commit
+always hits `head_revision_conflict`. The PGlite side backfills on every read, so the same code behaves differently on the two backends.
 
-`addQueryCache(result, true)` is not used either: that is whole-row overwrite + resetting `modified` to zero, which writes the user's unsaved
-edits into the baseline and then silently clears them (see `entity-status.ts#applyExternal`).
+It also does not use `addQueryCache(result, true)`: that is whole-row overwrite plus zeroing `modified`, which would write the user's
+unsaved edits into the baseline and silently clear them (see `entity-status.ts#applyExternal`).
 
 #### Implementation of
 
@@ -400,14 +400,14 @@ Looks up an entity by ID in the current process's entity cache
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `id` | [`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | The entity primary key |
+| `id` | [`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | Entity primary key |
 
 #### Returns
 
   \| [`EntityInstanceType`](../../rxdb/type-aliases/EntityInstanceType.md)&lt;`T`&gt;
   \| `undefined`
 
-The instance on cache hit, `undefined` on miss (**does not** trigger a database query)
+Returns the instance on a cache hit, `undefined` on a miss (**does not** trigger a database query)
 
 #### Inherited from
 
@@ -429,17 +429,17 @@ Determines whether the given ID exists in the current process's entity cache
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `id` | [`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | The entity primary key |
+| `id` | [`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"idType"`&gt; | Entity primary key |
 
 #### Returns
 
 `boolean`
 
-`true` on cache hit, otherwise `false`
+Returns `true` on a cache hit, otherwise `false`
 
 #### Remarks
 
-Equivalent to `getEntityRef(id) !== undefined`; provided separately so hot paths such as "batch warm-up" and
+Equivalent to `getEntityRef(id) !== undefined`; provided separately so that hot paths like "batch warm-up" and
 "diff sync" save the cost of one reference creation / state read.
 
 #### Inherited from
@@ -456,27 +456,27 @@ protected mergeQueryCache(sqliteSuccessResult): Promise<InstanceType<T>[]>;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/repository/SqliteRepositoryBase.ts:99](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/repository/SqliteRepositoryBase.ts#L99)
 
-Merges result rows into the identity map: clean entities get a whole-row refresh, dirty entities dodge unsaved edits field by field.
+Merges result rows into the identity map: clean entities get whole-row refresh, dirty entities avoid unsaved edits field by field.
 
 #### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `sqliteSuccessResult` | [`SqliteSuccessResult`](../interfaces/SqliteSuccessResult.md) | The result set of one SELECT |
+| `sqliteSuccessResult` | [`SqliteSuccessResult`](../interfaces/SqliteSuccessResult.md) | Result set of one SELECT |
 
 #### Returns
 
 `Promise`&lt;`InstanceType`&lt;`T`&gt;[]&gt;
 
-The entities corresponding to the result rows (same reference for cache hits)
+Entities for the result rows (cache hits return the same reference)
 
 #### Remarks
 
-The division of labor with [addQueryCache](SqliteRepositoryBase.md#addquerycache) is "read" vs "write": the write path (`create` / `update`) knows
-what it just wrote, and overwriting the whole row with `forcedUpdate` is correct; the read path receives rows written by **someone else**, which may
+The division of labor with [addQueryCache](SqliteRepositoryBase.md#addquerycache) is "read" vs "write": the write path (`create` / `update`) knows what
+it just wrote, so overwriting the whole row with `forcedUpdate` is correct; the read path receives rows written by **someone else**, which may
 land on an entity the user is editing, so only the pair of strategies `state.modified ? mergeExternal : replace`
-can be used — this is exactly the semantics of `entity-status.ts#applyExternal`, which explicitly lists "query result backfill"
-as one of the three paths that must be branched.
+applies — that is exactly the semantics of `entity-status.ts#applyExternal`, which explicitly lists "query result backfill"
+as one of the three paths that must be routed separately.
 
 #### Inherited from
 
@@ -498,13 +498,13 @@ Deletes an entity
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The entity to delete (located by `id`) |
+| `entity` | `InstanceType`&lt;`T`&gt; | Entity to delete (located by `id`) |
 
 #### Returns
 
 `Promise`&lt;`InstanceType`&lt;`T`&gt;&gt;
 
-The entity after deletion completes (fields cleared, `local` set to `false`)
+The entity after deletion (fields cleared, `local` set to `false`)
 
 #### Implementation of
 
@@ -526,14 +526,14 @@ Updates an entity
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The entity to update (provides `id` and the latest fields) |
+| `entity` | `InstanceType`&lt;`T`&gt; | Entity to update (provides `id` and the latest fields) |
 | `patch` | `Partial`&lt;`InstanceType`&lt;`T`&gt;&gt; | Field-level patch; fields not listed are not modified |
 
 #### Returns
 
 `Promise`&lt;`InstanceType`&lt;`T`&gt;&gt;
 
-The entity after persistence completes
+The entity after persistence
 
 #### Implementation of
 
@@ -555,8 +555,8 @@ Overwrites entity fields with `update`
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; | The target entity |
-| `update` | `InstanceType`&lt;`T`&gt; | The fields to write; the primary key `id` is also assigned (for hydrate scenarios) |
+| `entity` | `InstanceType`&lt;`T`&gt; | Target entity |
+| `update` | `InstanceType`&lt;`T`&gt; | Fields to write; the primary key `id` is also assigned (for the hydrate scenario) |
 
 #### Returns
 
@@ -564,9 +564,9 @@ Overwrites entity fields with `update`
 
 #### Remarks
 
-Goes through [EntityStatus.applyExternal](../../rxdb/interfaces/EntityStatus.md#applyexternal), ensuring dirty tracking and patch generation take the same path,
-and dodges field by field instead of overwriting the whole row when the entity has unsaved edits — a live query's batch backfill can hit entities already changed by the user,
-and unconditional `replace` would silently eat those edits.
+Goes through [EntityStatus.applyExternal](../../rxdb/interfaces/EntityStatus.md#applyexternal), guaranteeing that dirty tracking and patch generation share the same path,
+and that entities with unsaved edits are avoided field by field instead of whole-row overwritten — live query batch backfill hits entities the user has already modified,
+and an unconditional `replace` would silently eat those edits.
 
 #### Inherited from
 

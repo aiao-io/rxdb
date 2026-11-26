@@ -2,12 +2,13 @@
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/capture-hook.ts:305](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/capture-hook.ts#L305)
 
-Capture runtime
+The capture runtime
 
 ## Remarks
 
-One instance per database, installed on the local adapter by `RxDB.connect()` (capability bit already on) or `workingTree.enable()` (just turned on).
-On a database without commit capability enabled, this class is never constructed even once.
+One instance per database, installed onto the local adapter by `RxDB.connect()` (capability bit already on)
+or `workingTree.enable()` (just flipped on). On a database without the commit capability enabled, this class
+is never constructed.
 
 ## Implements
 
@@ -23,7 +24,8 @@ new WorkingTreeCaptureRuntime(options): WorkingTreeCaptureRuntime;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/capture-hook.ts:339](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/capture-hook.ts#L339)
 
-Constructed by [createWorkingTreeCaptureRuntime](../functions/createWorkingTreeCaptureRuntime.md); on a database without commit capability enabled it is never invoked even once.
+Constructed by [createWorkingTreeCaptureRuntime](../functions/createWorkingTreeCaptureRuntime.md); on a database
+without the commit capability enabled it is never called.
 
 #### Parameters
 
@@ -37,10 +39,10 @@ Constructed by [createWorkingTreeCaptureRuntime](../functions/createWorkingTreeC
 
 #### Remarks
 
-Entity classification and the system table list are frozen here; the raw SQL gate follows the physical table catalog through the option's getters.
-The constructor does **not** touch the mount target — `#target` is written by
-[bindMountTarget](#bindmounttarget) only at the moment of installation onto the adapter, so the same runtime can be built first,
-then decide which adapter to install on.
+Entity classification and the system table list are frozen here; the raw SQL gate follows the physical table
+catalog through the options' getters. The constructor does **not** touch the mount target — `#target` is only
+written by [bindMountTarget](#bindmounttarget) at the moment of installation onto the adapter, so the same
+runtime can be created first and then decide which adapter to install on.
 
 ## Accessors
 
@@ -58,11 +60,13 @@ The versioned domain this runtime recognizes
 
 ##### Remarks
 
-**Not on the core's [WorkingTreeCaptureHook](../../rxdb/interfaces/WorkingTreeCaptureHook.md) contract**: the core never reads it. Putting it there would make the core
-vouch for the shape of "what the judgment recognizes", which is exactly the thing that changes with capture rules and must stay in this package.
+**Not on the core's [WorkingTreeCaptureHook](../../rxdb/interfaces/WorkingTreeCaptureHook.md) contract**: the
+core never reads it. Putting it there would have the core vouch for the shape of "what judgment recognizes",
+which is exactly the thing that changes with the capture rules and must stay in this package.
 
-Exposed on the class for this package itself and the conformance suite to check "which tables are protected". Physical table names are fetched from the adapter each time:
-creating checkouts and reconnecting can both add shadow tables, so the physical catalog at install time cannot be reused.
+Exposed on the class so this package itself and the conformance suites can verify "which tables are
+protected". Physical table names are fetched fresh from the adapter every time: creating worktrees and
+reconnecting can both add shadow tables, so the physical catalog from installation time cannot be reused.
 
 ##### Returns
 
@@ -78,13 +82,14 @@ bindMountTarget(target): void;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/capture-hook.ts:356](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/capture-hook.ts#L356)
 
-Claims the installation host and its unintercepted primitives; called once immediately after [installWorkingTreeCapture](../../rxdb/functions/installWorkingTreeCapture.md)
+Claims the install host and its unintercepted primitives; called once immediately after
+[installWorkingTreeCapture](../../rxdb/functions/installWorkingTreeCapture.md)
 
 #### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `target` | [`WorkingTreeCaptureMountTarget`](../../rxdb/type-aliases/WorkingTreeCaptureMountTarget.md) | The adapter instance the mount points are installed on; also the scope key for adapter-level write intent declarations |
+| `target` | [`WorkingTreeCaptureMountTarget`](../../rxdb/type-aliases/WorkingTreeCaptureMountTarget.md) | The adapter instance the mount points were installed on; also the scope key for adapter-level write intent declarations |
 
 #### Returns
 
@@ -92,10 +97,11 @@ Claims the installation host and its unintercepted primitives; called once immed
 
 #### Remarks
 
-Both things are known only to the installer, and the runtime needs both: `target` is
-the scope identity used by [declareTrustedWrite](../../rxdb/functions/declareTrustedWrite.md) — callers of mount points 2 / 3 declare intent on the adapter,
-and the runtime must hold the same object to look it up; `raw` is the only safe entry for capture's own writes,
-since going through the intercepted one would immediately recurse back into the mount point itself.
+Both are known only to the installer, yet both are needed by the runtime: `target` is the scope identity
+used by [declareTrustedWrite](../../rxdb/functions/declareTrustedWrite.md) — mount points 2 / 3's callers
+declare their intent on the adapter, and the runtime must hold the same object to look it up; `raw` is the
+only safe entry for capture's own writes, since going through the intercepted one would immediately recurse
+back into the mount point itself.
 
 #### Implementation of
 
@@ -115,40 +121,43 @@ gateExternalNotify<T>(
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/capture-hook.ts:526](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/capture-hook.ts#L526)
 
-Hand-off gate 2: one `notifyExternalUpdate()` (write entrance semantics matrix row 11)
+Hand-off gate 2: a `notifyExternalUpdate()` call (row 11 of the write entrance semantics matrix)
 
 #### Type Parameters
 
 | Type Parameter | Description |
 | ------ | ------ |
-| <a id="type-parameter-t"></a> `T` | Return type of the notification body; passed through as-is when allowed |
+| <a id="type-parameter-t"></a> `T` | The notification body's return type; passed through unchanged when allowed |
 
 #### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `entityName` | `string` | Name of the entity being notified |
+| `entityName` | `string` | The notified entity's name |
 | `namespace` | `string` \| `undefined` | Used directly when known; `rxdb` means system tables |
-| `notify` | () => `T` | The notification body, **not yet called** |
+| `notify` | () => `T` | The **not-yet-invoked** notification body |
 
 #### Returns
 
 `T`
 
-The return value of `notify()` itself
+`notify()`'s return value itself
 
 #### Throws
 
-Thrown when the target is a versioned business entity; in that case no event is dispatched at all
+Thrown when the target is a versioned business entity; in that case not a single event is dispatched
 
 #### Remarks
 
-It sits on this contract for the same reason as [gateRawWrite](../../rxdb/interfaces/WorkingTreeCaptureHook.md#gaterawwrite): the core's `notifyExternalUpdate()` can stop
-itself, but cannot answer "which category does this entity belong to" — that requires the domain, and the domain is capture's. The core therefore only hands over the entity identity,
-leaving the whole "which category, and does row 11 allow or reject this category" to the runtime.
+On this contract for the same reason as [gateRawWrite](../../rxdb/interfaces/WorkingTreeCaptureHook.md#gaterawwrite):
+the core's `notifyExternalUpdate()` can intercept itself, but cannot answer "which class does this entity
+belong to" — that requires asking the domain, and the domain belongs to capture. The core therefore only
+hands over the entity identity, leaving the whole "which class, and does that class allow or reject on row
+11" judgment to the runtime.
 
-**The gate wraps the notification body, it is not an assertion appended after the notification**: what it receives is an uncalled callback, so "judge first" is
-the only possible formulation at the type level; written as dispatch-first-check-later, rejection could not prevent the event from already having gone out.
+**The gate wraps the notification body; it is not an assertion added after the notification**: what it
+receives is a callback that has not been called yet, so "judge first" is the only possible typing; written as
+dispatch-then-check, a rejection could not stop events that have already gone out.
 
 #### Implementation of
 
@@ -164,37 +173,41 @@ gateRawWrite<T>(sql, execute): Promise<T>;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/capture-hook.ts:514](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/capture-hook.ts#L514)
 
-Hand-off gate 1: one raw write statement (the 4-step judgment of adapter-contract.md §2)
+Hand-off gate 1: a raw write statement (the 4-step judgment of adapter-contract.md §2)
 
 #### Type Parameters
 
 | Type Parameter | Description |
 | ------ | ------ |
-| <a id="type-parameter-t-1"></a> `T` | Return type of the statement execution body; passed through as-is when allowed |
+| <a id="type-parameter-t-1"></a> `T` | The statement executor's return type; passed through unchanged when allowed |
 
 #### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `sql` | `string` | The original text of the statement to judge |
-| `execute` | () => `T` \| `Promise`&lt;`T`&gt; | The execution body, **not yet called** |
+| `sql` | `string` | The statement text to be judged |
+| `execute` | () => `T` \| `Promise`&lt;`T`&gt; | The **not-yet-invoked** executor |
 
 #### Returns
 
 `Promise`&lt;`T`&gt;
 
-The return value of `execute()` itself
+`execute()`'s return value itself
 
 #### Throws
 
-Thrown when the target is a versioned business table and no allow condition is met; in that case `execute` is never called even once
+Thrown when the target lands on a versioned business table and satisfies no allow condition; in that case
+`execute` is never called
 
 #### Remarks
 
-`rawQuery?()` is an **optional method** on the adapter interface; the core package cannot wrap it on behalf of the adapter the way it does the four mount points,
-so the judgment can only be triggered by each adapter's own implementation calling [gateRawWrite](../../rxdb/interfaces/WorkingTreeCaptureHook.md#gaterawwrite). And that function is reduced to a single dispatch in the core:
-pass through directly when the capability bit is false, hand over here when true. **Not one word of the judgment implementation is in the core** — it recognizes statement lexemes,
-the six physical forms of table names, and trusted intent, all three of which change with capture rules.
+`rawQuery?()` is an **optional method** on the adapter interface, so the core cannot wrap it on the adapter's
+behalf the way it does the four mount points; the judgment can only be invoked by each adapter's own
+implementation calling [gateRawWrite](../../rxdb/interfaces/WorkingTreeCaptureHook.md#gaterawwrite). And that
+function in the core is reduced to a single dispatch: if the capability bit is false, allow it through; if
+true, hand it over here. **Not one word of the judgment implementation lives in the core** — it recognizes
+statement lexemes, the six physical forms of table names, and trusted intents, all three of which change with
+the capture rules.
 
 #### Implementation of
 
@@ -232,11 +245,13 @@ Mount point 4: the gate for `upsertMany` / `deleteByIds`
 
 #### Remarks
 
-Synchronous forwarding, no `await` in between: the gate must throw before the Observable exists (adapter-contract.md §1.1).
+Forwards synchronously, with no `await` in between: the gate must throw before the Observable exists
+(adapter-contract.md §1.1).
 
-`entityName` is split once on `namespace:entity` before judging: this layer's contract has no separate namespace parameter,
-and the qualified name is the established form (`resolveQueryCacheTarget` parses it that way). What goes into the gate is still the **original**
-`entityName`, so the rejection message can point back at the name the caller wrote.
+`entityName` is split once on `namespace:entity` before judging: this layer's contract has no separate
+namespace parameter, and the qualified name is the established form (`resolveQueryCacheTarget` parses it that
+way). What is sent into the gate is still the **unchanged** `entityName`, so the rejection message can point
+back at the name the caller wrote.
 
 #### Implementation of
 
@@ -276,13 +291,15 @@ Mount point 2: local `mergeChanges`
 
 #### Remarks
 
-Business writes and capture share the one transaction obtained via `host.runInTransaction()`: inside, `mergeChanges` also goes through
-`runInTransaction`; routing it to the facade of that transaction executor makes it reuse the transaction instead of opening a new one. Therefore
-"wrote business tables but left no unit" has no crash window at this mount point.
+Business writes and capture share the one transaction obtained from `host.runInTransaction()`: `mergeChanges`
+also goes through `runInTransaction` internally, and dispatching it onto that transaction executor's facade
+makes it reuse the transaction instead of opening a new one. So on this mount point there is no crash window
+where "the business tables were written but no unit was left behind".
 
-The change rows produced by this write must be registered into CONSUMED\_CHANGE\_IDS: when embedded in mount point 1's transaction body
-(the normal strategy of `merge_branch` is exactly this shape), the outer incremental read would otherwise judge the same batch of writes again.
-When not in the nested shape the slot does not exist, `has()` is false, and even that watermark read is not issued.
+The change rows produced by this write must be registered into CONSUMED\_CHANGE\_IDS: when nested inside
+mount point 1's transaction body (`merge_branch`'s normal strategy has exactly this shape), the outer
+incremental read would otherwise judge the same batch of writes again. Outside the nested form the slot does
+not exist, `has()` is false, and not even that watermark read is issued.
 
 #### Implementation of
 
@@ -318,9 +335,10 @@ Mount point 3: `switchBranch`
 
 #### Remarks
 
-The rejection judgment completes synchronously **before** `next()`, so an unregistered call cannot change even one row of business data. Capture can only
-open another transaction after `next()` — `switch_branch()` opens its own transaction and flushes the change pipeline before and after, so it cannot be wrapped.
-See the note about the §5 deviation at the top of this file.
+The rejection judgment completes synchronously **before** `next()`, so an unregistered call cannot change a
+single row of business data. Capture can only open its own transaction after `next()` — `switch_branch()`
+opens its own transaction and flushes the change pipeline before and after, so it cannot be wrapped. See the
+note on the §5 deviation at the top of this file.
 
 #### Implementation of
 
@@ -358,14 +376,17 @@ Mount point 1: the whole transaction shares one `unitId`
 
 #### Remarks
 
-The watermark read happens before `fun`, the incremental read after `fun`, both with the **same** executor: switching to adapter-level reads
-would see an uncommitted range outside the transaction, and the captured row count would depend on how fast other transactions commit.
+The watermark read happens before `fun` and the incremental read after `fun`, both through **the same**
+executor: switching to adapter-level reads would see an uncommitted range outside the transaction, and the
+number of rows captured would depend on how fast other transactions commit.
 
-Without an intent declaration the entrance is `crud`, not rejection — `transaction()` is the normal channel for all business writes,
-and fail-closing it would turn the whole database read-only. The trusted paths' fail-closed behavior lands on mount points 2 / 3.
+Without an intent declaration the entrance is `crud`, not a rejection — `transaction()` is the normal channel
+for all business writes, and fail-closed against it would turn the whole database read-only. The trusted
+paths' fail-closed sits on mount points 2 / 3.
 
-Transaction bodies carrying the CAPTURE\_OWNED\_TRANSACTION flag are passed through as-is: those are the transactions mount points 2 / 3 opened themselves to write working tree rows;
-the business writes inside have already been captured over there under a trusted entrance.
+Transaction bodies carrying the CAPTURE\_OWNED\_TRANSACTION marker are allowed through unchanged: those are
+transactions mount points 2 / 3 open themselves to write working tree rows, and the business writes have
+already been captured over there as trusted entrances.
 
 #### Implementation of
 
@@ -381,14 +402,14 @@ targetClassOf(entityName, namespace?): "system" | "versioned" | "untracked";
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/capture-hook.ts:502](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/capture-hook.ts#L502)
 
-Entity name → target class in the write entrance semantics matrix
+Entity name → the target class in the write entrance semantics matrix
 
 #### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `entityName` | `string` | Entity name (without namespace) |
-| `namespace?` | `string` | Judged precisely by identity when known; judged by bare name when omitted |
+| `entityName` | `string` | The entity name (without namespace) |
+| `namespace?` | `string` | When known, judges precisely by identity; when omitted, judges by bare name |
 
 #### Returns
 
@@ -398,15 +419,22 @@ One of `system` / `untracked` / `versioned`
 
 #### Remarks
 
-**Ask the domain first; only if the domain does not recognize it, ask the system table list.** The domain contains only business entities ([createWorkingTreeCaptureRuntime](../functions/createWorkingTreeCaptureRuntime.md)
-already removed the system tables when building the domain), so "the domain recognizes this name" is itself proof that "it is not a system table". Judging system tables first
-is exactly the hole of review #5: once an adopter names an entity `Commit` (epic-006 happens to have a `rxdb:Commit`),
-all writes to that business table would be judged `system` as a whole batch and silently bypass capture — changes do not enter commits, and there is no error shape.
+**Ask the domain first; only if the domain does not recognize it, ask the system table list.** The domain
+holds only business entities ([createWorkingTreeCaptureRuntime](../functions/createWorkingTreeCaptureRuntime.md)
+already excluded system tables when building it), so "the domain recognizes this name" is itself proof that
+"it is not a system table". Judging system tables first, on the other hand, is review #5's hole: once an
+integration names an entity `Commit` (epic-006 happens to have an `rxdb:Commit`), that business table's
+writes would be judged `system` wholesale and silently bypass capture — changes never enter commits, with no
+error shape at all.
 
-The two projections of the system table list are chosen by whether a namespace is at hand: compare by identity (`rxdb:RxDBBranch`) when there is one, compare by bare name when there is not.
-Both are computed from the same registry ([getSystemEntityNames](../../rxdb/functions/getSystemEntityNames.md) / [getSystemEntityIdentities](../../rxdb/functions/getSystemEntityIdentities.md)),
-not two lists. No longer cut by `namespace === 'rxdb'` in one stroke: namespaces are free for adopters to choose,
-and a business entity that happens to be named `rxdb` has no reason to exit version control as a whole batch.
+The system table list's two projections are chosen based on whether a namespace is at hand: with one, compare
+identities (`rxdb:RxDBBranch`); without, compare bare names. Both are computed from the same registry
+([getSystemEntityNames](../../rxdb/functions/getSystemEntityNames.md) / [getSystemEntityIdentities](../../rxdb/functions/getSystemEntityIdentities.md)),
+not two separate lists. The old `namespace === 'rxdb'` blanket cut is gone: namespaces are something
+integrations choose themselves, and a business entity that happens to be named `rxdb` has no reason to drop
+out of version control wholesale.
 
-Like [domain](#domain), it is **not on the core contract**: the core's `notifyExternalUpdate()` used to ask the classification itself and then feed the result into the gate; now it only hands over the entity identity, and the whole judgment goes through [gateExternalNotify](../functions/gateExternalNotify.md).
-Thus "which category does it belong to" never appears even once on the core side.
+Like [domain](#domain), it is **not on the core contract**: the core's `notifyExternalUpdate()` used to ask
+for a classification itself and then feed the result into the gate; now it only hands over the entity
+identity and the whole judgment goes through [gateExternalNotify](../functions/gateExternalNotify.md). So
+"which class does it belong to" never appears on the core side at all.

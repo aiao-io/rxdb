@@ -2,7 +2,7 @@
 
 Defined in: [packages/rxdb/src/network/reachability.ts:41](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/network/reachability.ts#L41)
 
-Construction options of [ReachabilityMonitor](../classes/ReachabilityMonitor.md)
+Construction options of [ReachabilityMonitor](../classes/ReachabilityMonitor.md).
 
 ## Properties
 
@@ -14,7 +14,7 @@ readonly addEventListener?: (type, listener) => void;
 
 Defined in: [packages/rxdb/src/network/reachability.ts:57](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/network/reachability.ts#L57)
 
-Registers `online` / `offline` listeners; when not provided, the global `addEventListener` is auto-detected
+Registers the `online` / `offline` listeners; when omitted, the global `addEventListener` is auto-detected.
 
 #### Parameters
 
@@ -37,7 +37,7 @@ readonly baseDelayMs?: number;
 
 Defined in: [packages/rxdb/src/network/reachability.ts:43](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/network/reachability.ts#L43)
 
-Backoff starting interval, defaults to 1000ms
+Backoff starting interval; defaults to 1000ms.
 
 ***
 
@@ -49,7 +49,7 @@ readonly maxDelayMs?: number;
 
 Defined in: [packages/rxdb/src/network/reachability.ts:46](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/network/reachability.ts#L46)
 
-Backoff ceiling interval, defaults to 30000ms
+Backoff ceiling interval; defaults to 30000ms.
 
 ***
 
@@ -61,7 +61,7 @@ readonly navigatorOnLine?: () => boolean;
 
 Defined in: [packages/rxdb/src/network/reachability.ts:54](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/network/reachability.ts#L54)
 
-Reads `navigator.onLine`
+Reads `navigator.onLine`.
 
 #### Returns
 
@@ -69,7 +69,8 @@ Reads `navigator.onLine`
 
 #### Remarks
 
-When not provided, the global `navigator` is auto-detected; explicitly passing a value other than `undefined` can be used for tests and non-browser hosts.
+When omitted, the global `navigator` is auto-detected; explicitly passing a value other than `undefined` can
+be used for tests and non-browser hosts.
 
 ***
 
@@ -81,7 +82,7 @@ readonly removeEventListener?: (type, listener) => void;
 
 Defined in: [packages/rxdb/src/network/reachability.ts:60](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/network/reachability.ts#L60)
 
-Unregisters the listener; must be provided as a pair with [ReachabilityOptions.addEventListener](#addeventlistener)
+Unregisters the listener; must be provided as a pair with [ReachabilityOptions.addEventListener](#addeventlistener).
 
 #### Parameters
 

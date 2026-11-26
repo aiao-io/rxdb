@@ -38,7 +38,7 @@ create(entity): Promise<RxDBBranch>;
 
 Defined in: [packages/rxdb/src/system/types.local.ts:44](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.local.ts#L44)
 
-Creates an entity
+Create an entity
 
 #### Parameters
 
@@ -74,7 +74,7 @@ find query
 
 `Promise`&lt;[`RxDBBranch`](../classes/RxDBBranch.md)[]&gt;
 
-Returns the query result array
+Returns the array of query results
 
 ***
 
@@ -86,19 +86,19 @@ remove(entity): Promise<RxDBBranch>;
 
 Defined in: [packages/rxdb/src/system/types.local.ts:62](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.local.ts#L62)
 
-Removes an entity
+Delete an entity
 
 #### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `entity` | [`RxDBBranch`](../classes/RxDBBranch.md) | The entity to remove |
+| `entity` | [`RxDBBranch`](../classes/RxDBBranch.md) | The entity to delete |
 
 #### Returns
 
 `Promise`&lt;[`RxDBBranch`](../classes/RxDBBranch.md)&gt;
 
-Returns the removed entity
+Returns the deleted entity
 
 ***
 
@@ -110,7 +110,7 @@ update(entity, patch): Promise<RxDBBranch>;
 
 Defined in: [packages/rxdb/src/system/types.local.ts:52](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.local.ts#L52)
 
-Updates an entity
+Update an entity
 
 #### Parameters
 

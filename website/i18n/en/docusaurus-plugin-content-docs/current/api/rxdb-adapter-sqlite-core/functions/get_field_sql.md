@@ -20,7 +20,7 @@ Gets the SQL representation of a field
 | `originalField` | `string` | `undefined` | - |
 | `aliasField?` | `string` | `undefined` | - |
 | `entityMetadata?` | `Readonly`&lt;[`EntityMetadataType`](../../rxdb/interfaces/EntityMetadataType.md)&gt; | `undefined` | - |
-| `tableAlias?` | `string` | `MAIN_TABLE_ALIAS` | The table alias on which own-table fields without an alias mapping hang; default is the top-level main table `_` |
+| `tableAlias?` | `string` | `MAIN_TABLE_ALIAS` | Which table alias fields of the current table without an alias mapping hang on, defaulting to the top-level main table `_` |
 
 ## Returns
 

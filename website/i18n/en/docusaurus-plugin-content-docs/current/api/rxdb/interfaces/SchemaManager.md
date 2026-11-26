@@ -26,12 +26,14 @@ get generatedEntities(): readonly EntityType[];
 
 Defined in: [packages/rxdb/src/schema/SchemaManager.ts:68](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/schema/SchemaManager.ts#L68)
 
-The entity classes generated when this instance `init()`s: the products of the repository `entityGenerator` and the many-to-many junction tables (US-313)
+The entity classes generated during this instance's `init()`: the products of the repository `entityGenerator`
+and the many-to-many junction tables (US-313).
 
 ##### Remarks
 
-They are also in `config.entities`, but they are not declared by the integrator. When opening another instance (such as a read-only checkout's snapshot database), they cannot be
-passed in as entities to clone: the new instance's `SchemaManager` generates its own copy, and two copies with the same name collide.
+They are also in `config.entities`, but they were not declared by the integrating side. When opening another
+instance (such as a read-only checkout's snapshot database), they must not be passed in as entities to clone:
+the new instance's `SchemaManager` generates its own copy, and two copies with the same name would collide.
 
 ##### Returns
 
@@ -47,7 +49,7 @@ findMappedRelation(meta, relation): FindMappedRelationResult<EntityRelationMetad
 
 Defined in: [packages/rxdb/src/schema/SchemaManager.ts:234](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/schema/SchemaManager.ts#L234)
 
-Finds the mapped relation of the current relation property
+Finds the mapped relation of the current relation property.
 
 #### Parameters
 
@@ -72,7 +74,7 @@ getEntityMetadata(name, namespace):
 
 Defined in: [packages/rxdb/src/schema/SchemaManager.ts:310](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/schema/SchemaManager.ts#L310)
 
-Fetches entity metadata
+Gets entity metadata.
 
 #### Parameters
 
@@ -98,7 +100,7 @@ getEntityMetadataByTableName(tableName, namespace):
 
 Defined in: [packages/rxdb/src/schema/SchemaManager.ts:338](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/schema/SchemaManager.ts#L338)
 
-Fetches entity metadata by tableName
+Gets entity metadata by tableName.
 
 #### Parameters
 
@@ -122,7 +124,7 @@ getEntityType<T>(name, namespace): T | undefined;
 
 Defined in: [packages/rxdb/src/schema/SchemaManager.ts:318](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/schema/SchemaManager.ts#L318)
 
-Fetches entity metadata
+Gets entity metadata.
 
 #### Type Parameters
 
@@ -151,7 +153,7 @@ getEntityTypeByTableName<T>(tableName, namespace): T | undefined;
 
 Defined in: [packages/rxdb/src/schema/SchemaManager.ts:328](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/schema/SchemaManager.ts#L328)
 
-Fetches the entity type by tableName
+Gets the entity type by tableName.
 
 #### Type Parameters
 
@@ -180,14 +182,14 @@ getFieldRelations(metadata, field): GetFieldRelationsResult;
 
 Defined in: [packages/rxdb/src/schema/SchemaManager.ts:271](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/schema/SchemaManager.ts#L271)
 
-Finds the relation array via the query condition's field
+Finds the relation array through the field of a query condition.
 
 #### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
 | `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) | - |
-| `field` | `string` | The query condition's field |
+| `field` | `string` | The field of the query condition |
 
 #### Returns
 
@@ -211,20 +213,25 @@ Registers all entity metadata and adds the missing system tables into `config.en
 
 #### Remarks
 
-The backfill is judged **table by table**, without treating any single table as an "already injected" sentinel.
-Before, this wrote `if (!entities.includes(RxDBBranch)) entities.push(...SYSTEM_ENTITIES)`,
-while `RxDBBranch` / `RxDBChange` / `RxDBMigration` / `RxDBSync` are all publicly exported from `src/index.ts`
-— as soon as an integrator writes `RxDBBranch` into their own `entities` (to add relations to it,
-or to register it separately in devtools — both are common), the whole batch of system tables would not be backfilled at all.
+Table addition is judged **one table at a time**; no single table is used as an "already injected" sentinel.
+Previously this was written as `if (!entities.includes(RxDBBranch)) entities.push(...SYSTEM_ENTITIES)`, but the
+four tables `RxDBBranch` / `RxDBChange` / `RxDBMigration` / `RxDBSync` are all publicly exported from
+`src/index.ts` — if the integrating side wrote one of them, `RxDBBranch`, into its own `entities` (which
+happens both to give it relations and to register it separately in devtools), not one of the whole batch of
+system tables would be added.
 
-Before epic-006 this consequence stayed hidden: people who write `RxDBBranch` usually write all four together, and the missing part
-happened to be the empty set. Now a library with `@aiao/rxdb-plugin-working-tree` installed has 14 tables, 10 of which are **not publicly
-exported**, and no way an integrator can list them all — so tables are inevitably missing, with the symptom that the first `commit()` makes
-`entityManager.instantiate(CommitBranchRef)` throw `need init rxdb`, an error with no readable subject.
+Before epic-006 this consequence stayed hidden: people who write `RxDBBranch` usually write all four together,
+and the missing part happened to be the empty set. Now a database with `@aiao/rxdb-plugin-working-tree`
+installed has 14 tables, 10 of which are **not publicly exported**, so there is no way for the integrating side
+to list them all — missing tables are inevitable. The symptom: on the first `commit()`,
+`entityManager.instantiate(CommitBranchRef)` throws `need init rxdb`, an error from which the subject cannot be
+read.
 
-The table-by-table check also preserves the problem the old sentinel was really solving: `entities` is **the mutable array itself** on `config`,
-and `init()` re-runs on disconnect → reconnect, so unconditional pushes would grow it without bound.
+Judging one table at a time also preserves the problem the old sentinel really solved: `entities` is that
+**mutable array itself** on `config`, and `init()` reruns on disconnect → reconnect, so an unconditional push
+would make it grow without bound.
 
-The list comes from [RxDB.systemEntities](../classes/RxDB.md#systementities) (the core four + contributions `use()`d by **this instance**),
-not the module-level `SYSTEM_ENTITIES`. The latter is a live view for determination that only ever grows: using it for injection would mean that
-as long as any library in the process has a contributor installed, libraries without it would also get those tables created and eat their migrations.
+The list comes from [RxDB.systemEntities](../classes/RxDB.md#systementities) (the core four + the
+contributions `use()`d by **this instance**), not the module-level `SYSTEM_ENTITIES`. The latter is a live
+view used for judging that only grows: injecting from it would make a database without a contributor still get
+those tables created — and pay for their migrations — as long as any database in the process had it installed.

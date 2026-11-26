@@ -30,7 +30,7 @@ type WorkingTreeRestoreResult =
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/restore-command.ts:102](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/restore-command.ts#L102)
 
-The result of one `restore()` call.
+The result of a `restore()` call.
 
 ## Union Members
 
@@ -51,7 +51,7 @@ The result of one `restore()` call.
 readonly ok: true;
 ```
 
-This restore has landed in the database; with `restoredCount: 0` it is a no-op that wrote nothing
+This restore has been persisted; with `restoredCount: 0` it is a no-op that wrote nothing
 
 #### restoredCount
 
@@ -59,7 +59,7 @@ This restore has landed in the database; with `restoredCount: 0` it is a no-op t
 readonly restoredCount: number;
 ```
 
-Number of entries written into the working tree
+The number of entries written into the working tree
 
 #### sessionId
 
@@ -67,7 +67,7 @@ Number of entries written into the working tree
 readonly sessionId: string | null;
 ```
 
-Id of the restore session created by this call; `null` on a no-op (no session created)
+The id of the restore session created this time; `null` on a no-op (no session was created)
 
 #### workingTreeRevision
 
@@ -75,7 +75,7 @@ Id of the restore session created by this call; `null` on a no-op (no session cr
 readonly workingTreeRevision: number;
 ```
 
-The working tree revision after this call; on a no-op it equals the value before the call
+The working tree revision after this call; on a no-op, the value from before the call
 
 ***
 
@@ -95,7 +95,7 @@ The working tree revision after this call; on a no-op it equals the value before
 readonly conflict: CommitConflict;
 ```
 
-Diagnostic value; **not persisted**, and there is no "clear conflict" API
+The diagnostic value; **not persisted**, and there is no "clear the conflict" API
 
 #### ok
 
@@ -103,7 +103,7 @@ Diagnostic value; **not persisted**, and there is no "clear conflict" API
 readonly ok: false;
 ```
 
-The three captured positions do not match, or the CAS missed; not one byte landed
+The three captured slots do not match, or the CAS missed; not a single byte was persisted
 
 #### reason
 
@@ -111,7 +111,7 @@ The three captured positions do not match, or the CAS missed; not one byte lande
 readonly reason: "conflict";
 ```
 
-Discriminator
+The discriminator
 
 ***
 
@@ -130,7 +130,7 @@ Discriminator
 readonly ok: false;
 ```
 
-The working tree is not clean, and this restore was rejected; persistent state is completely unchanged
+The working tree is not clean, and this restore was rejected; persistent state is unchanged
 
 #### reason
 
@@ -138,7 +138,7 @@ The working tree is not clean, and this restore was rejected; persistent state i
 readonly reason: "dirty_working_tree";
 ```
 
-Discriminator
+The discriminator
 
 ***
 
@@ -158,7 +158,7 @@ Discriminator
 readonly incompatible: RestoreIncompatibility;
 ```
 
-Stable description of the first incompatible node, **without patch content** (FR-050, FR-043)
+The stable description of the first incompatible node, **with no patch content** (FR-050, FR-043)
 
 #### ok
 
@@ -166,7 +166,7 @@ Stable description of the first incompatible node, **without patch content** (FR
 readonly ok: false;
 ```
 
-There are entities this client does not recognize on the replay path; persistent state is completely unchanged
+The replay path contains entities this client does not recognize; persistent state is unchanged
 
 #### reason
 
@@ -174,7 +174,7 @@ There are entities this client does not recognize on the replay path; persistent
 readonly reason: "incompatible_schema";
 ```
 
-Discriminator
+The discriminator
 
 ***
 
@@ -193,7 +193,7 @@ Discriminator
 readonly ok: false;
 ```
 
-The target commit is not reachable from the current HEAD; persistent state is completely unchanged
+The target commit cannot be reached from the current HEAD; persistent state is unchanged
 
 #### reason
 
@@ -201,13 +201,14 @@ The target commit is not reachable from the current HEAD; persistent state is co
 readonly reason: "unreachable_target";
 ```
 
-Discriminator
+The discriminator
 
 ## Remarks
 
-The success exit has exactly four fields, **not one more**: when the caller wants to see "what was restored", the most convenient implementation is to copy
-the patch and hang it on, and that patch may contain ciphertext of encrypted columns (FR-043). To see the content, use `diff()`; the restored
-entries have the same shape there as hand-written changes.
+The success exit has exactly four fields, **not one more**: when a caller wants to see "what was restored",
+the handiest implementation is to copy the patch onto it, and that patch may hold ciphertext of encrypted
+columns (FR-043). To see the content, use `diff()` — restored entries have the same shape there as
+hand-written changes.
 
-`restoredCount: 0` plus `sessionId: null` is the full meaning of a no-op; no separate `noop` boolean is created — one more bit
-is one more place that can disagree with `restoredCount` (FR-042).
+`restoredCount: 0` plus `sessionId: null` is the entire meaning of a no-op; no separate `noop` boolean bit is
+added — one more bit is one more place that can disagree with `restoredCount` (FR-042).

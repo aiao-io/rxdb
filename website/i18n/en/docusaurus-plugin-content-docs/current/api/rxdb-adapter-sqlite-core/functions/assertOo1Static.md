@@ -6,13 +6,13 @@ function assertOo1Static(value): asserts value is Oo1Static;
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/oo1-types.ts:103](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/oo1-types.ts#L103)
 
-Asserts that a third-party sqlite-wasm initialization result satisfies the minimal runtime contract of the shared oo1 client.
+Asserts that a third-party sqlite-wasm init result satisfies the minimal runtime contract of the shared oo1 client.
 
 ## Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `value` | `unknown` | The unknown value returned by the sqlite-wasm initialization function |
+| `value` | `unknown` | Unknown value returned by the sqlite-wasm init function |
 
 ## Returns
 
@@ -20,4 +20,4 @@ Asserts that a third-party sqlite-wasm initialization result satisfies the minim
 
 ## Throws
 
-Throws `TypeError` when the return value lacks the database constructor, the update hook, or version information
+Throws `TypeError` when the return value lacks the database constructor, update hook, or version information

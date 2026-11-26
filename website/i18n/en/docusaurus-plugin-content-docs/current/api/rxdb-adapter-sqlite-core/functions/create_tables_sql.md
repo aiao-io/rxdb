@@ -24,11 +24,11 @@ Generates SQL for creating multiple tables
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `adapter` | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md) | The adapter instance |
-| `tableSet` | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md) | Which business table set to create into; the triggers are also attached to this set |
-| `EntityTypes` | `T`[] | The array of entity types |
-| `branchId` | `string` | The branch id the new tables' triggers write into the change history — **required**. This function only assembles the SQL string; it has no transaction executor to query with, and it should not guess here: when a new database creates tables for the first time, the `rxdb_branch` table often has no rows yet (or is not even created), and the concept of "current active branch" simply cannot be read at this point. The caller ([RxDBAdapterSqliteBase.createTables](../classes/RxDBAdapterSqliteBase.md#createtables)) holds a transaction executor and must read the real value first — even if the conclusion is main — and pass it in, rather than letting this function silently decide which branch to write for it. |
-| `entities?` | `InstanceType`&lt;`T`&gt;[] | Optional, the array of initial data entities |
+| `adapter` | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md) | Adapter instance |
+| `tableSet` | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md) | Which business table set to create into; triggers also mount on this set |
+| `EntityTypes` | `T`[] | Entity type array |
+| `branchId` | `string` | The branch id new table triggers should write change history into — **required**. This function only assembles the SQL string; it has no transaction executor to query with, and it should not guess here: when a fresh database creates its first tables, the `rxdb_branch` table often has no rows yet (or has not even been created), so the concept "current active branch" cannot be read at this moment at all. The caller ([RxDBAdapterSqliteBase.createTables](../classes/RxDBAdapterSqliteBase.md#createtables)) holds a transaction executor and must read the real value first — even if the conclusion is just main — and pass it in, rather than letting this function silently decide which branch to write on its behalf. |
+| `entities?` | `InstanceType`&lt;`T`&gt;[] | Optional, initial data entity array |
 
 ## Returns
 

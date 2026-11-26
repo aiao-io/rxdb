@@ -6,7 +6,8 @@ sidebar_label: "RepositoryInstance⟨T⟩"
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:104](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L104)
 
-Repository constructor type — must be instantiable (a concrete class), not an abstract class; supports repositories with extra generic parameters
+Repository constructor type — must be instantiable (a concrete class), not an abstract class; supports
+repositories with extra generic parameters.
 
 ## Type Parameters
 

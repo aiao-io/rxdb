@@ -6,10 +6,7 @@ The current branch's not-yet-finished restore session (contracts/core-api.md §5
 
 ## Remarks
 
-Exactly four fields, **without the two revisions**. They are the internal basis of `status()`'s `restoring` / `conflicted` judgment;
-handing them out would only add one more algorithm: callers comparing the two numbers themselves, and that comparison
-would eventually diverge from the one in `status.ts`. To know whether the session still holds, read `status()` —
-the `restoring` / `conflicted` there is the single outlet of that same judgment.
+Exactly four fields, **without the two revisions**. They are the internal basis for `status()` judging `restoring` / `conflicted`, and handing them out only adds another algorithm: the caller compares two numbers itself, and that comparison eventually diverges from the one in `status.ts`. To know whether the session still holds, read `status()` — its `restoring` / `conflicted` are the only exit of the same judgment.
 
 ## Properties
 
@@ -33,7 +30,7 @@ readonly id: string;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/restore-command.ts:445](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/restore-command.ts#L445)
 
-The primary key of the session row
+The session row's primary key
 
 ***
 
@@ -57,4 +54,4 @@ readonly targetCommitId: string;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/restore-command.ts:449](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/restore-command.ts#L449)
 
-The source commit of this restore
+The commit this restore came from

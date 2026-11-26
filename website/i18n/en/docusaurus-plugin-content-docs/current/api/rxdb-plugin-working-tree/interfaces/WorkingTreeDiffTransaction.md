@@ -6,7 +6,7 @@ A group of units at transaction granularity.
 
 ## Remarks
 
-Units with `transactionId` of `null` are **each their own group**, not merged into one "no transaction" bucket: merging them into one bucket would claim that two unrelated `save()` calls belong to the same atomic operation, and the UI would show the user "undo this group".
+Units with a `null` `transactionId` **each form their own group**, not merged into one "no transaction" bucket: merging into one bucket claims two unrelated `save()` calls belong to the same atomic operation, and what the user sees in the UI is "undo this group".
 
 ## Properties
 
@@ -30,4 +30,4 @@ readonly transactionId: string | null;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/diff.ts:108](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/diff.ts#L108)
 
-The transaction id of this group; `null` means this group contains only one independent write
+This group's transaction id; `null` means this group holds only one independent write

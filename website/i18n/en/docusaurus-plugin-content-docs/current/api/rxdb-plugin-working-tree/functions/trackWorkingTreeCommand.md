@@ -18,23 +18,25 @@ Runs a command, emitting loading → success | error along the way.
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `emit` | [`WorkingTreeStateSink`](../type-aliases/WorkingTreeStateSink.md)&lt;[`WorkingTreeCommandState`](../type-aliases/WorkingTreeCommandState.md)&lt;`T`&gt;&gt; | Where the state goes |
+| `emit` | [`WorkingTreeStateSink`](../type-aliases/WorkingTreeStateSink.md)&lt;[`WorkingTreeCommandState`](../type-aliases/WorkingTreeCommandState.md)&lt;`T`&gt;&gt; | Where state goes |
 | `run` | () => `Promise`&lt;`T`&gt; | The real call |
 
 ## Returns
 
 `Promise`&lt;`T`&gt;
 
-The return value of `run`
+`run`'s return value
 
 ## Throws
 
-The **original** error thrown by `run`
+`run`'s error, thrown **unchanged**
 
 ## Remarks
 
-**`loading` is emitted synchronously before `run()`**, not after the first `await`: there must be no silence during
-`commit()` (§4), and "emit a loading after the result comes back" would mean the whole waiting period has no state.
+**`loading` is emitted synchronously before `run()`**, not after the first `await`: `commit()` must not be
+silent while in flight (§4), and "add a loading after the result comes back" means the entire wait has no
+state at all.
 
-**Errors are still rethrown upward**, not swallowed into a call that has only state and no exception: the caller's `await commit()`
-must be able to reject, otherwise "commit failed" is only known to the part of the UI subscribed to the state.
+**Errors are still thrown upward**, not swallowed into a state-only call with no exception: the caller's
+`await commit()` must be able to reject, otherwise "the commit failed" is only known to the part of the UI
+that subscribed to the state.

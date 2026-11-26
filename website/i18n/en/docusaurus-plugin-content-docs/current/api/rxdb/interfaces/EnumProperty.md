@@ -2,15 +2,17 @@
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:256](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L256)
 
-Property with a controlled set of values
+Property with a controlled set of values.
 
 ## Remarks
 
-The storage form is simply a string, no different from [StringProperty](StringProperty.md) in the database — `enum` narrows the
-**type and metadata**, not a database-level constraint. So rows already persisted do not become unreadable because a value was later removed from `enum`;
-cleaning up historical values is a migration's job.
+The storage form is just a string — no difference from [StringProperty](StringProperty.md) in the database.
+What `enum` narrows is the **type and metadata**, not a database-level constraint. So rows already persisted
+do not become unreadable because a value was later removed from `enum`; cleaning up historical values is a
+migration's job.
 
-`enum` is declared as `readonly string[]`; passing it with `as const` is what lets entity fields infer a literal union instead of `string`.
+`enum` is declared as `readonly string[]`; pass it with `as const` so the entity field is inferred as a literal
+union instead of `string`.
 
 ## Extends
 
@@ -27,8 +29,9 @@ check?: PropertyCheckRule;
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:95](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L95)
 
-Property-level CHECK constraint (syntactic sugar): a [PropertyCheckRule](../type-aliases/PropertyCheckRule.md) with `field` omitted,
-compiled into an entity-level CHECK named after the property, and — like entity-level `checks` — taking part in inheritance overrides by `name`.
+Property-level CHECK constraint (syntactic sugar): a [PropertyCheckRule](../type-aliases/PropertyCheckRule.md)
+with `field` omitted, compiled into an entity-level CHECK named after the property; like entity-level `checks`,
+it participates in inheritance overriding by `name`.
 
 #### Example
 
@@ -50,8 +53,8 @@ columnName?: string;
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:37](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L37)
 
-The column name in the database
-If not provided it is the same as name
+The column name in the database.
+When omitted, it is the same as `name`.
 
 #### Inherited from
 
@@ -67,7 +70,7 @@ default?: string | (() => string);
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:270](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L270)
 
-Default value
+Default value.
 
 ***
 
@@ -79,7 +82,7 @@ displayName?: string;
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:43](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L43)
 
-Display name
+Display name.
 
 #### Example
 
@@ -101,11 +104,11 @@ encrypted?: boolean;
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:84](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L84)
 
-Whether this is an encrypted column (transparent field-level encryption)
+Whether this is an encrypted column (transparent field-level encryption).
 
-Encrypted with AES-GCM-256 by `@aiao/rxdb-adapter-encrypted` before writes and
-transparently decrypted after reads. An encrypted column cannot also be:
-primary key / foreign key / unique / sortable / index / computed field / FTS column.
+Encrypted by `@aiao/rxdb-adapter-encrypted` with AES-GCM-256 before writing, and transparently decrypted
+after reading. An encrypted column cannot also be:
+a primary key / foreign key / unique / sortable / index / computed property / FTS column.
 
 #### Default
 
@@ -127,8 +130,8 @@ enum: readonly string[];
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:266](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L266)
 
-The list of enum options
-Defines all the enum values this field allows
+Enum option list.
+Defines all enum values allowed for this field.
 
 #### Example
 
@@ -146,7 +149,7 @@ format?: SingleSelectFormat;
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:281](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L281)
 
-Field semantics annotation. An enum property can only declare single selection
+Field semantic annotation. An enum property can only declare single-select.
 
 #### Default
 
@@ -164,8 +167,8 @@ name: Uncapitalize<string>;
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:31](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L31)
 
-Name
-An English word not starting with an uppercase letter; may only contain English letters and underscores
+Name.
+An English word not starting with a capital letter; may only contain English words and underscores.
 
 #### Inherited from
 
@@ -181,7 +184,7 @@ nullable?: boolean;
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:64](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L64)
 
-Whether it can be NULL
+Whether NULL is allowed.
 
 #### Default
 
@@ -203,7 +206,7 @@ options?: Readonly<Record<string, FieldOptionDisplay>>;
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:285](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L285)
 
-Display metadata of the enum values; keys must be a subset of `enum`
+Display metadata of enum values; keys must be a subset of `enum`.
 
 ***
 
@@ -215,9 +218,9 @@ readonly?: boolean;
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:58](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L58)
 
-Whether it is read-only
-If true, the value is written only once at creation and the column is not updated when the data is updated
-If false, the column is updated when the data is updated
+Whether it is read-only.
+If true, this column is written only once at creation; its value is not updated when the row is updated.
+If false, its value is updated when the row is updated.
 
 #### Default
 
@@ -239,10 +242,10 @@ required?: boolean;
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:73](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L73)
 
-Whether it is required
-Used for front-end validation
-If true, a value must be provided for this column when creating data
-Empty strings and empty arrays are not allowed; the number 0 is allowed
+Whether it is required.
+Used for frontend validation.
+If true, a value must be provided for this column when creating data.
+Empty strings and empty arrays are not allowed; the number 0 is allowed.
 
 #### Default
 
@@ -264,7 +267,7 @@ searchable?: boolean;
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:276](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L276)
 
-Whether to include it in global search (indexed by the raw string)
+Whether to include it in global search (indexed by the raw string).
 
 #### Default
 
@@ -286,7 +289,7 @@ sortable?: boolean;
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:107](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L107)
 
-Whether it is sortable
+Whether it is sortable.
 
 #### Default
 
@@ -308,7 +311,7 @@ type: "enum" | enum;
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:260](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L260)
 
-Property type
+Property type.
 
 ***
 
@@ -320,8 +323,8 @@ unique?: boolean;
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:50](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L50)
 
-Whether it is unique
-If true, the value of this column must not repeat
+Whether it is unique.
+If true, duplicate values are not allowed.
 
 #### Default
 

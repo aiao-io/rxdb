@@ -14,7 +14,7 @@ type RestoreCompatibility =
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/restore-precheck.ts:142](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/restore-precheck.ts#L142)
 
-Preflight conclusion.
+The preflight conclusion.
 
 ## Union Members
 
@@ -41,7 +41,7 @@ The whole path is compatible
 readonly path: readonly string[];
 ```
 
-The chosen replay path, in replay order (HEAD first), **not including** the target node itself
+The chosen replay path, in replay order (HEAD first), **excluding** the target node itself
 
 ***
 
@@ -68,10 +68,11 @@ The first incompatible node, see [RestoreIncompatibility](../interfaces/RestoreI
 readonly ok: false;
 ```
 
-Some node on the path is incompatible
+There is an incompatible node on the path
 
 ## Remarks
 
-A discriminated union rather than "two optional fields": the object assembled from the latter has four possible values, of which "both ok and carrying
-incompatible" and "neither ok nor carrying anything" are meaningless, while the `if` at the call site only covers one of them.
-After discrimination, those two are inexpressible at compile time.
+A discriminated union rather than "two optional fields": the object assembled from the latter has four
+possible values, two of which — "both ok and carrying incompatible" and "neither ok nor carrying anything" —
+are meaningless, while a call site's `if` covers only one of them. With discrimination, those two are
+inexpressible at compile time.

@@ -6,8 +6,9 @@ The switch was rejected because the working tree is not empty (FR-017).
 
 ## Remarks
 
-Carries `branchId` and `entryCount`, not just a sentence: a UI holding a bare `Error` can only paste the message as-is;
-with these two it can say "main still has 2 uncommitted changes; commit or discard them first".
+Carries `branchId` and `entryCount`, not just a sentence: with a bare `Error` the UI can only paste the
+message verbatim, but with these two it can say "main still has 2 uncommitted changes — commit or discard
+them first".
 
 ## Extends
 
@@ -27,8 +28,8 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/switch-branch-op
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `branchId` | `string` | The branch at the time of rejection |
-| `entryCount` | `number` | Number of uncommitted entries on that branch |
+| `branchId` | `string` | The branch it was on when rejected |
+| `entryCount` | `number` | The number of uncommitted entries on that branch |
 
 #### Returns
 
@@ -48,7 +49,7 @@ readonly branchId: string;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/switch-branch-options.ts:48](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/switch-branch-options.ts#L48)
 
-The branch at the time of rejection
+The branch it was on when rejected
 
 ***
 
@@ -74,7 +75,7 @@ readonly code: "working_tree_dirty" = 'working_tree_dirty';
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/switch-branch-options.ts:45](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/switch-branch-options.ts#L45)
 
-Stable error code
+The stable error code
 
 ***
 
@@ -86,7 +87,7 @@ readonly entryCount: number;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/switch-branch-options.ts:51](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/switch-branch-options.ts#L51)
 
-Number of uncommitted entries on that branch
+The number of uncommitted entries on that branch
 
 ***
 

@@ -2,13 +2,11 @@
 
 Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-log.ts:94](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/commit/commit-log.ts#L94)
 
-The result of one `listCommits()` call.
+The result of one `listCommits()`.
 
 ## Remarks
 
-An empty `entries` is a **semantically empty** result (this branch has no history yet), which makes it one of the two sources
-of the three frameworks' empty states (tri-framework-api.md §4). A database that just finished `0004` and has never committed
-is in exactly this state — it is not an error.
+An empty `entries` is a **semantically meaningful empty** (this branch has no history yet), which is why it is one of the two sources of the three bindings' empty state (tri-framework-api.md §4). A database that just ran `0004` and has never committed is in this state — not an error.
 
 ## Properties
 
@@ -44,4 +42,4 @@ readonly headCommitId: string | null;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-log.ts:99](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/commit/commit-log.ts#L99)
 
-The branch's current HEAD; `null` when it has never committed
+That branch's current HEAD; `null` when nothing has ever been committed

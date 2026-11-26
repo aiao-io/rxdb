@@ -2,7 +2,7 @@
 
 Defined in: [packages/rxdb/src/entity/exclusion-constraint.ts:100](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/exclusion-constraint.ts#L100)
 
-A compiled range exclusion: shared by the DDL of both backends, drift comparison and violation normalization.
+A compiled exclusion range: shared by both backends' DDL, drift comparison, and violation normalization.
 
 ## Properties
 
@@ -26,7 +26,7 @@ name: string;
 
 Defined in: [packages/rxdb/src/entity/exclusion-constraint.ts:102](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/exclusion-constraint.ts#L102)
 
-Deterministic constraint name (starts with `ex_`, includes the definition hash).
+The deterministic constraint name (starting with `ex_`, containing the definition hash).
 
 ***
 

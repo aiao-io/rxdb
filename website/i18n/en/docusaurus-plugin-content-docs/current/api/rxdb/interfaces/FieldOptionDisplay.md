@@ -6,8 +6,9 @@ Display metadata of a single enum option.
 
 ## Remarks
 
-The single source of truth for option values is the `enum` array; this interface only carries display information: deleting, disabling, or renaming `label`
-cannot corrupt existing data. `disabled` only affects display and does not change enum validity.
+The single source of truth for option values is the `enum` array; this interface only carries display
+information: deleting, disabling, or renaming a `label` cannot break existing data. `disabled` only affects
+display, not the enum's validity.
 
 ## Properties
 

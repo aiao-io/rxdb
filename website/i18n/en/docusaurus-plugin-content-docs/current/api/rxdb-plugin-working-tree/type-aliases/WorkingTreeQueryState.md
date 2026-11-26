@@ -15,7 +15,7 @@ type WorkingTreeQueryState<T> =
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts:113](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts#L113)
 
-Observable state of a query: **exactly one** empty more than a command (§4).
+The observable state of a query: **exactly one more** empty than commands (§4).
 
 ## Type Parameters
 
@@ -25,8 +25,10 @@ Observable state of a query: **exactly one** empty more than a command (§4).
 
 ## Remarks
 
-Only five things have empty semantics: `status()` with no uncommitted changes, `diff()` with nothing to show,
-`listCommits()` with no history, `commitChanges()` with no change units (baseline nodes), `restoreSession()`
-with no unfinished session. The criteria are [isWorkingTreeStatusEmpty](../functions/isWorkingTreeStatusEmpty.md), [isWorkingTreeDiffEmpty](../functions/isWorkingTreeDiffEmpty.md),
-[isCommitLogPageEmpty](../functions/isCommitLogPageEmpty.md), `isCommitChangeSetPageEmpty()`,
+Only five things have empty semantics: `status()` with no uncommitted changes, `diff()` with no changes to
+show, `listCommits()` with no history, `commitChanges()` with no change units (baseline nodes), and
+`restoreSession()` with no unfinished session. The criteria are
+[isWorkingTreeStatusEmpty](../functions/isWorkingTreeStatusEmpty.md),
+[isWorkingTreeDiffEmpty](../functions/isWorkingTreeDiffEmpty.md),
+[isCommitLogPageEmpty](../functions/isCommitLogPageEmpty.md), `isCommitChangeSetPageEmpty()`, and
 [isWorkingTreeRestoreSessionEmpty](../functions/isWorkingTreeRestoreSessionEmpty.md).

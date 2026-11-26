@@ -20,6 +20,6 @@ Transaction callback.
 
 ## Remarks
 
-The parameter is this transaction's [SqliteTransactionExecutor](../classes/SqliteTransactionExecutor.md) — only holding it counts as "inside this transaction".
-It keeps the `execute()` passthrough, so the existing `transaction(async tx => tx.execute(sql))` style is unaffected;
-the cross-adapter portable entry points are `tx.query()` / `tx.getRepository()`.
+The parameter is this transaction's [SqliteTransactionExecutor](../classes/SqliteTransactionExecutor.md) — holding it counts as "inside this transaction".
+It keeps the `execute()` pass-through, so the existing `transaction(async tx => tx.execute(sql))` style is unaffected;
+the cross-adapter portable entries are `tx.query()` / `tx.getRepository()`.

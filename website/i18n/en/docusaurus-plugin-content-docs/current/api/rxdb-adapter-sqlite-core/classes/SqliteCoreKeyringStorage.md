@@ -2,8 +2,8 @@
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/keyring/sqlite-core-keyring-storage.ts:43](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/keyring/sqlite-core-keyring-storage.ts#L43)
 
-Persists the single-row keyring into the adapter's own SQLite database.
-Used by both subclasses, wa-sqlite and sqliteai.
+Persists the keyring singleton row into the SQLite database that comes with the adapter.
+Used by both the wa-sqlite and sqliteai subclasses.
 
 ## Implements
 
@@ -65,7 +65,7 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/keyring/sqlite-core-keyring-s
 
 Inserts the singleton row. If the row already exists, the implementation must throw
 `EncryptedConfigurationError(code: 'keyring_singleton_conflict')`
-(using `INSERT OR FAIL` / `INSERT … ON CONFLICT DO NOTHING` + validation).
+(using `INSERT OR FAIL` / `INSERT … ON CONFLICT DO NOTHING` + verification).
 
 #### Parameters
 

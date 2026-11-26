@@ -8,7 +8,7 @@ Defined in: [packages/rxdb-adapter-sqlite-core/src/sqlite-oo1-load.utils.ts:66](
 
 Temporarily sets `globalThis.sqlite3ApiConfig`, runs `run`, then restores the original value.
 
-`@sqlite.org/sqlite-wasm` passes initialization configuration through a global variable;
+`@sqlite.org/sqlite-wasm` passes init configuration through a global variable;
 this function guarantees that multiple concurrent loads do not overwrite each other's configuration.
 
 ## Type Parameters
@@ -22,10 +22,10 @@ this function guarantees that multiple concurrent loads do not overwrite each ot
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
 | `config` | `Record`&lt;`string`, `unknown`&gt; | Fields to merge into the existing configuration |
-| `run` | () => `Promise`&lt;`T`&gt; | The async function executed while the configuration is in effect |
+| `run` | () => `Promise`&lt;`T`&gt; | Async function to execute while the configuration is in effect |
 
 ## Returns
 
 `Promise`&lt;`T`&gt;
 
-The return value of `run`
+`run`'s return value

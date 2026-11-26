@@ -6,7 +6,7 @@ URL.
 
 ## Remarks
 
-Every item in `schemes` must match `/^[A-Za-z][A-Za-z0-9+.-]*$/` (without the colon).
+Each item in `schemes` must match `/^[A-Za-z][A-Za-z0-9+.-]*$/` (without the colon).
 
 ## Properties
 

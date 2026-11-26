@@ -10,14 +10,14 @@ function readCommitChangeSetPage(
 
 Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-changes.ts:37](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/commit/commit-changes.ts#L37)
 
-Reads all change units of one commit.
+Reads all change units of a commit.
 
 ## Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
 | `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md) | The executor of the caller's transaction; this function does **not open its own transaction** |
-| `codec` | [`WorkingTreePatchCodecContext`](../interfaces/WorkingTreePatchCodecContext.md) | Metadata resolution context for decoding; no at-rest recognizer needed (this function neither judges nor decrypts) |
+| `codec` | [`WorkingTreePatchCodecContext`](../interfaces/WorkingTreePatchCodecContext.md) | The metadata resolution context for decoding; no at-rest recognizer is needed (this function does not judge, nor decrypt) |
 | `commitId` | `string` | The commit id to read |
 
 ## Returns

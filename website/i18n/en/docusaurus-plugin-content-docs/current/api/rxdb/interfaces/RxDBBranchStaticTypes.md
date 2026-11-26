@@ -2,7 +2,7 @@
 
 Defined in: [packages/rxdb/src/system/types.ts:719](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L719)
 
-Static types
+Static types.
 
 ## Properties
 
@@ -14,7 +14,7 @@ countOptions: CountOptions<typeof RxDBBranch, RxDBBranchRuleGroup>;
 
 Defined in: [packages/rxdb/src/system/types.ts:751](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L751)
 
-Query options
+Query options.
 
 ***
 
@@ -26,7 +26,7 @@ entity: RxDBBranch;
 
 Defined in: [packages/rxdb/src/system/types.ts:755](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L755)
 
-The entity being queried
+The entity being queried.
 
 ***
 
@@ -38,7 +38,7 @@ findAllOptions: FindAllOptions<typeof RxDBBranch, RxDBBranchRuleGroup, RxDBBranc
 
 Defined in: [packages/rxdb/src/system/types.ts:743](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L743)
 
-Query options
+Query options.
 
 ***
 
@@ -50,7 +50,7 @@ findByCursorOptions: FindByCursorOptions<typeof RxDBBranch, RxDBBranchRuleGroup,
 
 Defined in: [packages/rxdb/src/system/types.ts:747](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L747)
 
-Query options
+Query options.
 
 ***
 
@@ -62,7 +62,7 @@ findOneOptions: FindOneOptions<typeof RxDBBranch, RxDBBranchRuleGroup, RxDBBranc
 
 Defined in: [packages/rxdb/src/system/types.ts:739](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L739)
 
-Query options
+Query options.
 
 ***
 
@@ -74,7 +74,7 @@ findOneOrFailOptions: FindOneOrFailOptions<typeof RxDBBranch, RxDBBranchRuleGrou
 
 Defined in: [packages/rxdb/src/system/types.ts:731](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L731)
 
-Query options
+Query options.
 
 ***
 
@@ -86,7 +86,7 @@ findOptions: FindOptions<typeof RxDBBranch, RxDBBranchRuleGroup, RxDBBranchOrder
 
 Defined in: [packages/rxdb/src/system/types.ts:735](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L735)
 
-Query options
+Query options.
 
 ***
 
@@ -98,7 +98,7 @@ getOptions: string;
 
 Defined in: [packages/rxdb/src/system/types.ts:727](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L727)
 
-Query options
+Query options.
 
 ***
 
@@ -110,4 +110,4 @@ idType: string;
 
 Defined in: [packages/rxdb/src/system/types.ts:723](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L723)
 
-The id type
+id type.

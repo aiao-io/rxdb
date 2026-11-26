@@ -2,19 +2,15 @@
 
 Defined in: packages/rxdb/dist/capture/capture-mount-points.d.ts:16
 
-The signature identity of a write primitive.
+A write primitive's signature identity
 
 ## Remarks
 
-The formal parameter **name sequence** participates in the identity so the discrimination works across overloads: `mergeChanges` has the same name on the local and remote base classes,
-one writes the local business projection (must be captured), the other pushes to the remote side (capturing it would record one push as a batch of uncommitted changes,
-the user commits once and the working tree ends up dirtier). An implementation that discriminates by function name would mount both.
+The formal parameter **name sequence** participates in the identity so the discriminator works for overloads: `mergeChanges` has the same name on the local and remote base classes, one writes the local business projection (must capture), one pushes to the remote (capturing it records a push as a batch of uncommitted changes — the user commits once, the working tree gets dirty instead). An implementation discriminating by function name would mount both.
 
-A drifted parameter name (someone renames `disableTriggers` to `silent`) is therefore **judged not to be a mount point**, with no fuzzy matching:
-fuzzy matching would keep capture "working" after a rename while the hook site has actually gone out of sync.
+Formal parameter name drift (someone renames `disableTriggers` to `silent`) is therefore **judged as not a mount point**, no fuzzy matching: fuzzy matching keeps capture "working" after a rename while the hook site has actually mismatched.
 
-`method` is a bare `string` here — the signature to be judged comes from source text, and names like `rawQuery` that are **not** mount points must also be queryable.
-The registry side narrows it to [WorkingTreeCaptureMountPoint.method](WorkingTreeCaptureMountPoint.md#method).
+`method` is a bare `string` here — the signatures being judged come from source text, and method names like `rawQuery` that are **not** mount points must also be askable. The registry side narrows to [WorkingTreeCaptureMountPoint.method](WorkingTreeCaptureMountPoint.md#method).
 
 ## Extended by
 
@@ -30,7 +26,7 @@ readonly host: string;
 
 Defined in: packages/rxdb/dist/capture/capture-mount-points.d.ts:18
 
-The name of the abstract base class that declares this method
+The name of the abstract base class declaring the method
 
 ***
 
@@ -54,4 +50,4 @@ readonly parameters: readonly string[];
 
 Defined in: packages/rxdb/dist/capture/capture-mount-points.d.ts:22
 
-The formal parameter names, in declaration order; optionality markers and types do not participate
+The formal parameter names, in declaration order; optional markers and types do not participate

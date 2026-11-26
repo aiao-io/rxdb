@@ -2,12 +2,11 @@
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/commit-conflict.ts:96](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/commit-conflict.ts#L96)
 
-The current values of the three positions the command reads inside its own write transaction.
+The current values of the three positions the command read inside its own write transaction.
 
 ## Remarks
 
-Deliberately a different shape from [WorkingTreeCredentials](WorkingTreeCredentials.md): if the two had the same shape, a caller could pass the same
-object as both the expected and the actual value into [findCommitConflict](../functions/findCommitConflict.md), which is exactly the pattern item 2 exists to rule out.
+Deliberately shaped differently from [WorkingTreeCredentials](WorkingTreeCredentials.md): if the two shared a shape, the caller could pass the same object as both expected and actual into [findCommitConflict](../functions/findCommitConflict.md), which is exactly the pattern point 2 exists to rule out.
 
 ## Properties
 
@@ -31,7 +30,7 @@ readonly token: ActiveBranchToken;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/commit-conflict.ts:98](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/commit-conflict.ts#L98)
 
-The active branch token read within the transaction
+The active branch token read inside the transaction
 
 ***
 

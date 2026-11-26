@@ -6,7 +6,7 @@ sidebar_label: "RxDBEntityRemoteRemovedEventData⟨T⟩"
 
 Defined in: [packages/rxdb/src/rxdb-events.ts:310](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-events.ts#L310)
 
-The payload of [ENTITY\_REMOTE\_REMOVE\_EVENT](../variables/ENTITY_REMOTE_REMOVE_EVENT.md); `data` is the entire row **before** the removal
+The payload of [ENTITY\_REMOTE\_REMOVE\_EVENT](../variables/ENTITY_REMOTE_REMOVE_EVENT.md); `data` is the whole row **before** deletion
 
 ## Extends
 
@@ -86,7 +86,7 @@ id: EntityStaticType<T, "idType">;
 
 Defined in: [packages/rxdb/src/rxdb-events.ts:202](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-events.ts#L202)
 
-Entity unique identifier
+The entity's unique identifier
 
 #### Inherited from
 
@@ -118,7 +118,7 @@ origin?: "cross-tab";
 
 Defined in: [packages/rxdb/src/rxdb-events.ts:210](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-events.ts#L210)
 
-Event origin: undefined = the local current tab, 'cross-tab' = received from another tab via BroadcastChannel
+Event origin: undefined = the local current tab, 'cross-tab' = received from other tabs through BroadcastChannel
 
 #### Inherited from
 
@@ -150,12 +150,11 @@ tableSetSuffix?: string;
 
 Defined in: [packages/rxdb/src/rxdb-events.ts:218](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-events.ts#L218)
 
-Which writable checkout's shadow tables this row was written to (US-314 B2.3); the main table set when absent.
+Which writable-checkout shadow table set this row was written on (US-314 B2.3); default is the primary table set.
 
 #### Remarks
 
-An instance only accepts, by `WorktreeTableSet.accepts`, the events readable from the table set it is mounted on; the cross-tab gateway forwards them unchanged.
-Events on the main table set do not carry this field; the event shape of a database without checkouts is verbatim the same as before.
+Instances accept only events readable from the table set they have mounted, per `WorktreeTableSet.accepts`; the cross-tab gateway forwards it as-is. Events on the primary table set do not carry this field, and on databases without checkouts the event shape is byte-for-byte what it was before.
 
 #### Inherited from
 

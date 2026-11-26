@@ -6,8 +6,8 @@ const unenvelopePlaintextPatches: (args) => Promise<Record<string, unknown>>;
 
 Defined in: packages/rxdb-adapter-encrypted/dist/encrypt-patch.d.ts:19
 
-The inverse of `envelopePlaintextPatches`: decrypts top-level envelope strings back to plaintext.
-Used when applying undo/redo `inversePatch`.
+Inverse of `envelopePlaintextPatches`: decrypts top-level envelope strings back to plaintext.
+Used when applying the `inversePatch` of undo/redo.
 
 ## Parameters
 

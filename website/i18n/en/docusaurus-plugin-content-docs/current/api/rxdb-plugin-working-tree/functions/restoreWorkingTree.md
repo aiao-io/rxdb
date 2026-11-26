@@ -19,8 +19,8 @@ Writes the target commit's contents back into the current working tree as new un
 | ------ | ------ | ------ |
 | `executor` | [`TransactionExecutor`](../../rxdb/interfaces/TransactionExecutor.md) | The executor of the caller's write transaction; this function does **not open its own transaction** |
 | `context` | `CommitWriteContext` | See CommitWriteContext: the entity manager for building entry rows and the codec resolution context |
-| `target` | [`WorkingTreeRestoreTarget`](../interfaces/WorkingTreeRestoreTarget.md) | See [WorkingTreeRestoreTarget](../interfaces/WorkingTreeRestoreTarget.md); with `entities` omitted it is the whole commit |
-| `options` | [`WorkingTreeCredentials`](../interfaces/WorkingTreeCredentials.md) | See [WorkingTreeRestoreOptions](../type-aliases/WorkingTreeRestoreOptions.md); all three captured positions are required |
+| `target` | [`WorkingTreeRestoreTarget`](../interfaces/WorkingTreeRestoreTarget.md) | See [WorkingTreeRestoreTarget](../interfaces/WorkingTreeRestoreTarget.md); default `entities` means the whole commit |
+| `options` | [`WorkingTreeCredentials`](../interfaces/WorkingTreeCredentials.md) | See [WorkingTreeRestoreOptions](../type-aliases/WorkingTreeRestoreOptions.md); the three captured slots are all required |
 
 ## Returns
 
@@ -34,24 +34,28 @@ CommitGraphCorruptedError when the current branch's commit graph is corrupted (F
 
 ## Throws
 
-TypeError what is stored in a history row's `patch` column is not a plain object
+TypeError when a history row's `patch` column does not hold a plain object
 
 ## Remarks
 
-Every step's order has a reason:
+Every step of the order has a reason:
 
-1. **Read the active branch token first**; everything after targets it. Querying again mid-transaction and writing the restore there would land a restore
-   the user clicked on branch A into branch B's working tree.
-2. **The corruption guard comes before everything.** Reversed, a restore on an already-corrupted chain whose credentials happen to match would land directly,
-   materializing a stretch of history that cannot even validate itself into the working tree (FR-051).
-3. **The three comparisons, the dirty guard, reachability, the emptiness judgment, and the compatibility precheck** all come before any write. Any failure returns the failure
-   exit, at which point nothing needs rolling back — this is exactly why they are return values rather than exceptions (the physical meaning of FR-033's "zero change"
-   here is this ordering).
-4. **CAS, writing entries, writing the session**, all inside the caller's one transaction (see writeRestore).
+1. **Read the active branch token first**, and everything after is done against it. Querying again mid-
+   transaction and writing the restore there would mean a restore the user clicked on branch A landing in
+   branch B's working tree.
+2. **The corruption guard comes before everything.** Reversed, a restore whose credentials happen to match on
+   an already-corrupted chain would persist directly, materializing a stretch of history that cannot even
+   validate itself into the working tree (FR-051).
+3. **The three comparisons, the dirty guard, reachability, the emptiness check, and the compatibility
+   preflight all precede any write.** If any fails, the failure exit returns — at which point there is
+   nothing to roll back, which is exactly why these are return values rather than exceptions (the physical
+   meaning of FR-033's "zero change" here is this order).
+4. **The CAS, entry writes, and session write all happen in the caller's one transaction** (see writeRestore).
 
-The dirty criterion reads `state.entryCount` — the **same expression** as `status().clean`. Implemented separately, the two will eventually
-diverge at some change, and the symptom of divergence is "the UI says clean, restore says dirty", with no way for the user to find out where the difference is
-(FR-014).
+The dirty criterion reads `state.entryCount` — the **same expression** as `status().clean`. Implemented
+separately, the two would inevitably diverge in some future change, and the symptom of the divergence is
+"the UI says clean, restore says dirty" with no way for the user to find the discrepancy (FR-014).
 
-An empty materialization result (none of the `entities` matched) and an empty replay path take the **same** no-op exit: what both would write is
-zero, and creating an active session row for a zero write is exactly the dead corner named by FR-042.
+An empty materialization result (`entities` matched nothing) and an empty replay path take the **same** no-op
+exit: both have zero things to write, and creating an active session row for a zero-write is precisely the
+dead corner FR-042 calls out.

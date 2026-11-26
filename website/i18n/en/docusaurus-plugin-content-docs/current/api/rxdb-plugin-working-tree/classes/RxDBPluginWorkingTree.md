@@ -2,14 +2,16 @@
 
 Defined in: [packages/rxdb-plugin-working-tree/src/plugin.ts:221](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/plugin.ts#L221)
 
-The plugin lifecycle object that installs the working tree and commit history on a single RxDB instance.
+The plugin lifecycle object that installs the working tree and commit history onto a single RxDB instance.
 
 ## Remarks
 
-All the shape differences from plugins like `@aiao/rxdb-plugin-storage` come from **timing**: storage's services are connection-epoch
-resources (it holds OPFS handles), so all three things are registered in the scope and torn down in reverse order on disconnect; the entry this plugin mounts is
-a property of the in-process database version, and the tables it contributes must be in place before the moment tables are created — both are earlier than `install()`, and neither has
-a symmetric teardown obligation. The only thing that really lands in the scope is the cross-connection capability-enabled listener (see [RxDBPluginWorkingTree.install](#install)).
+Every shape difference from plugins like `@aiao/rxdb-plugin-storage` comes down to **timing**: storage's
+services are connection-scoped resources (it holds OPFS handles), so all three of its concerns are registered
+in the scope and torn down in reverse order on disconnect; the entry point this plugin mounts is a property of
+the in-process library version, and the contributed tables must be in place before the moment of table creation —
+both precede `install()`, and neither carries a symmetric teardown obligation. The only thing that really lives
+in the scope is the cross-connection capability-enable listener (see [RxDBPluginWorkingTree.install](#install)).
 
 ## Extends
 
@@ -29,14 +31,14 @@ new RxDBPluginWorkingTree(rxdb, options?): RxDBPluginWorkingTree;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/plugin.ts:265](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/plugin.ts#L265)
 
-Builds the plugin object and mounts `rxdb.workingTree`.
+Builds the plugin object and mounts `rxdb.workingTree` onto it.
 
 #### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
 | `rxdb` | [`RxDB`](../../rxdb/classes/RxDB.md) | The host instance |
-| `options?` | [`RxDBPluginWorkingTreeOptions`](../interfaces/RxDBPluginWorkingTreeOptions.md) | Plugin options; `worktrees` is for read-only checkouts |
+| `options?` | [`RxDBPluginWorkingTreeOptions`](../interfaces/RxDBPluginWorkingTreeOptions.md) | The plugin options; `worktrees` is for read-only worktrees |
 
 #### Returns
 
@@ -44,15 +46,18 @@ Builds the plugin object and mounts `rxdb.workingTree`.
 
 #### Remarks
 
-The mount lives in the **constructor** rather than `install()`: in `use()` the plugin factory is evaluated synchronously, so the entry exists from the moment of `use()`,
-earlier than `init()` / `connect()`. Mounting it in `install()` — which runs inside `init()` — would make
-"does the entry exist" a function of the connection epoch, while contracts/core-api.md §1 requires it to be a property of the **in-process database version**.
-[WorkingTreeManager](WorkingTreeManager.md) itself holds no epoch resources (the adapter is fetched per call),
-so the entry is not torn down during the connection; checkout claim locks are returned uniformly by `instanceLifecycle` when the instance is destroyed.
+Mounting happens in the **constructor** rather than `install()`: inside `use()` the plugin factory is
+evaluated synchronously, so the entry point exists from the moment of `use()`, earlier than `init()` /
+`connect()`. `install()` runs inside `init()`, and mounting there would make "does the entry point exist"
+a function of the connection epoch — while contracts/core-api.md §1 requires it to be a property of the
+**in-process library version**. [WorkingTreeManager](WorkingTreeManager.md) itself holds no epoch resources
+(the adapter is fetched fresh on every call), so the entry point is not torn down during the connection;
+worktree claim locks are returned all at once by `instanceLifecycle` when the instance is disposed.
 
-`configurable: false` / `writable: false`: subscriptions like `status$()` rely on the **stable identity** of the entry,
-and a redefinable property would let a second plugin instance swap it out behind the subscribers. If it is already mounted on the same instance, just return —
-whoever installed it owns it — the same reason as the storage plugin's `hasOwnProperty` guard.
+`configurable: false` / `writable: false`: subscriptions like `status$()` rely on the entry point's
+**stable identity**; a redefinable property would let a second plugin instance swap it out from under the
+subscribers. If the same instance already has one mounted, it is returned as-is — whoever installed it owns
+it — the same rationale as the storage plugin's `hasOwnProperty` guard.
 
 #### Overrides
 
@@ -68,7 +73,7 @@ readonly instanceLifecycle: object;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/plugin.ts:232](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/plugin.ts#L232)
 
-Claim locks survive across connections and are returned after local transactions exit when the instance is destroyed.
+Claim locks are kept across connections; on instance disposal they are returned after local transactions drain.
 
 #### dispose
 
@@ -104,7 +109,7 @@ readonly lifecycle: "scoped";
 
 Defined in: [packages/rxdb-plugin-working-tree/src/plugin.ts:229](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/plugin.ts#L229)
 
-Migrated to scope-based teardown; the host no longer calls `destroy()`.
+Migrated to scope teardown; the host no longer calls `destroy()`.
 
 #### Implementation of
 
@@ -120,7 +125,7 @@ readonly name: "workingTree" = WORKING_TREE_CAPABILITY;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/plugin.ts:238](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/plugin.ts#L238)
 
-Unique name of the RxDB plugin.
+The plugin's unique name within RxDB.
 
 #### Implementation of
 
@@ -150,7 +155,8 @@ readonly system: RxDBSystemContribution;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/plugin.ts:241](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/plugin.ts#L241)
 
-System-layer contribution; the host reads this field **synchronously** in `use()`, see [RxDBSystemContribution](../../rxdb/interfaces/RxDBSystemContribution.md).
+The system-layer contribution; the host reads this field **synchronously** inside `use()`,
+see [RxDBSystemContribution](../../rxdb/interfaces/RxDBSystemContribution.md).
 
 #### Implementation of
 
@@ -166,7 +172,7 @@ install(scope): void;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/plugin.ts:299](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/plugin.ts#L299)
 
-Registers exactly one thing: the cross-connection capability-enabled notification (FR-037).
+Registers exactly one thing: the cross-connection capability-enable notification (FR-037).
 
 #### Parameters
 
@@ -180,21 +186,24 @@ Registers exactly one thing: the cross-connection capability-enabled notificatio
 
 #### Remarks
 
-The other three things are **not** here; each has its own timing:
+The other three concerns are **not** here; each has its own timing:
 
-- `rxdb.workingTree` is mounted at **construction time** (see the constructor), and must be earlier than `init()`;
-- the 12 tables, initial rows, and bootstrap migrations are declared via [RxDBPluginWorkingTree.system](#system) and orchestrated by the host at the moment of table
-  creation — a contribution that goes through `install()` can never catch up with its own tables (see [RxDBSystemContribution](../../rxdb/interfaces/RxDBSystemContribution.md));
-- this connection's own wiring is done by `bootstrapExisting()` (reads the capability bit of an existing database) and
-  [WorkingTreeManager.enable](WorkingTreeManager.md#enable) (this connection just enabled it).
+- `rxdb.workingTree` is mounted **at construction** (see the constructor) and must precede `init()`;
+- the 12 tables, initial rows, and bootstrap migration are declared via [RxDBPluginWorkingTree.system](#system)
+  and orchestrated by the host at the moment of table creation — a contribution going through `install()`
+  can never make it in time for its own tables (see [RxDBSystemContribution](../../rxdb/interfaces/RxDBSystemContribution.md));
+- this connection's own bring-up is done by `bootstrapExisting()` (reading the capability bit on an existing
+  database) and [WorkingTreeManager.enable](WorkingTreeManager.md#enable) (this connection just enabled it).
 
-What remains here is only the fourth arrangement: **another connection enabled it, while this connection has long been connected**. It lands here rather than in
-`bootstrapExisting()`, even though an adapter is right at hand there — because that hook **only runs on existing databases**
-(see the @remarks of [RxDBSystemContribution.bootstrapExisting](../../rxdb/interfaces/RxDBSystemContribution.md#bootstrapexisting)). Mounting the listener there
-would mean the client that creates the database never receives it once, and "A creates the database, B connects, B enables" is exactly the arrangement this channel most needs to rescue.
+What is left for here is only the fourth permutation: **another connection enabled it, while this connection
+was already up**. It lives here rather than in `bootstrapExisting()`, even though the adapter is right at hand
+over there — because that hook **only runs on an existing database** (see the @remarks of
+[RxDBSystemContribution.bootstrapExisting](../../rxdb/interfaces/RxDBSystemContribution.md#bootstrapexisting)).
+Hanging the listener there would mean the client that created the database never receives it, and "A creates
+the database, B connects, B enables" is exactly the permutation this channel exists to save.
 
-Registered in the scope rather than mounted bare: the listener points at the adapter resolution path of **this epoch**; if it leaked, the next epoch would have
-two listeners, each installing hooks onto its own generation.
+Registered in the scope rather than hung bare: the listener points at **this epoch's** adapter resolution
+path; if it leaked, the next epoch would have two listeners, each installing hooks onto its own generation.
 
 #### Implementation of
 

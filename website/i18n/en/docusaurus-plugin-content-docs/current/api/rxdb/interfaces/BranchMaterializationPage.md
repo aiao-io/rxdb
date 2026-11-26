@@ -2,7 +2,7 @@
 
 Defined in: [packages/rxdb/src/sync-contract/branch-materialization-source.ts:42](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/branch-materialization-source.ts#L42)
 
-A page already persisted into staging; `pageIndex` is the page order it received when persisted.
+A page that has been persisted into staging; `pageIndex` is the page order it got when it was persisted.
 
 ## Extends
 
@@ -18,7 +18,7 @@ readonly fingerprint: string;
 
 Defined in: [packages/rxdb/src/sync-contract/branch-materialization-source.ts:38](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/branch-materialization-source.ts#L38)
 
-The value computed by [branchMaterializationPageFingerprint](../functions/branchMaterializationPageFingerprint.md) over `payload`
+The value computed from `payload` by [branchMaterializationPageFingerprint](../functions/branchMaterializationPageFingerprint.md).
 
 #### Inherited from
 
@@ -34,7 +34,7 @@ readonly pageIndex: number;
 
 Defined in: [packages/rxdb/src/sync-contract/branch-materialization-source.ts:44](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/branch-materialization-source.ts#L44)
 
-Dense page order starting from 0
+The dense page order starting from 0.
 
 ***
 
@@ -46,7 +46,7 @@ readonly payload: Record<string, unknown>;
 
 Defined in: [packages/rxdb/src/sync-contract/branch-materialization-source.ts:35](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/branch-materialization-source.ts#L35)
 
-The content of this page; may only contain JSON-expressible values, read back as-is after being persisted
+The content of this page; may only contain JSON-expressible values and is read back exactly as persisted.
 
 #### Inherited from
 

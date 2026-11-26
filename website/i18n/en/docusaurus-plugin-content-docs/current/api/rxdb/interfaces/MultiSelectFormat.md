@@ -2,7 +2,7 @@
 
 Defined in: [packages/rxdb/src/entity/cascade-options.interface.ts:133](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/cascade-options.interface.ts#L133)
 
-Multiple selection. The carrier is [StringArrayProperty](StringArrayProperty.md), whose `enum` is then required.
+Multi-select. The carrier is [StringArrayProperty](StringArrayProperty.md), whose `enum` is required in this case.
 
 ## Properties
 

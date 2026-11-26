@@ -2,16 +2,14 @@
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/commit-command.ts:59](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/commit-command.ts#L59)
 
-The input of one `commit()` call (contracts/core-api.md §4).
+The input of one `commit()` (contracts/core-api.md §4).
 
 ## Remarks
 
-**Both `authorId` and `operationId` are required.** If the author were optional, one history would contain commits
-both with and without authors, and the latter can never be attributed in a multi-device scenario; if the operation id were optional,
-the idempotency key could only be synthesized from content, and "two commits of the same content" would be judged as the same one (see
+**`authorId` and `operationId` are both required.** If the author were optional, one history would contain commits both with and without authors, and the latter can never say who committed in multi-device scenarios; if the operation id were optional, the idempotency key could only be composed from content, so "two commits with the same content" get judged as the same one (see
 `commit/commit-idempotency.ts`).
 
-**No selection parameter** — this is v1 hard ruling 1, not an unfinished signature (FR-041).
+**There is no selection input** — that is v1 hard ruling 1, not an incomplete signature (FR-041).
 
 ## Extends
 
@@ -27,7 +25,7 @@ readonly authorId: string;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/commit-command.ts:61](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/commit-command.ts#L61)
 
-The commit author; lands in `Commit.author` of the immutable history
+The commit author; lands in the immutable history's `Commit.author`
 
 ***
 

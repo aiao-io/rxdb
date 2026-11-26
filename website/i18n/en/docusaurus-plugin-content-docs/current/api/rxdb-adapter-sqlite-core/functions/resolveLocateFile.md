@@ -14,10 +14,10 @@ Priority: `locateFile` \> `wasmPath` (wrapped into a function) \> undefined (use
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `options?` | [`Oo1LoadOptions`](../interfaces/Oo1LoadOptions.md) | The load options |
+| `options?` | [`Oo1LoadOptions`](../interfaces/Oo1LoadOptions.md) | Load options |
 
 ## Returns
 
 ((`name`) => `string`) \| `undefined`
 
-A `locateFile` function to pass to Emscripten, or undefined
+A `locateFile` function passable to Emscripten, or undefined

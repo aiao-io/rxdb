@@ -2,13 +2,13 @@
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/query-cache-row-contract.ts:22](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/query-cache-row-contract.ts#L22)
 
-Raised when a remote row fails the local table column contract while QueryCache materializes a pull.
+Raised when QueryCache lands a fetch and a remote row does not satisfy the local table's column contract.
 
 ## Remarks
 
-A separate type instead of reusing [RxDBAdapterSqliteError](RxDBAdapterSqliteError.md) lets callers handle
-**"the remote gave wrong data"** separately from the rest of this adapter's failures (connection, SQL, encryption) —
-the fix for the former lies in the backend or protocol implementation, and retrying any number of times will not change it.
+A separate type instead of reusing [RxDBAdapterSqliteError](RxDBAdapterSqliteError.md), so that callers can handle
+**"the remote gave wrong data"** separately from this adapter's other failures (connection, SQL, encryption) —
+the fix for the former lies in the backend or the protocol implementation, and no number of retries will change it.
 
 ## Example
 

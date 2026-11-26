@@ -10,12 +10,12 @@ The static types of an entity
 
 ## Remarks
 
-Only the minimal promise of a "shape attachable to a class constructor". It has **no** runtime field:
-`ENTITY_STATIC_TYPES` is a `unique symbol`, not a string key; type inference only takes
-the `StaticTypes` generic parameter, and it does not become an enumerable own property after compilation.
+Only a minimal commitment to "a shape attachable to a class constructor". Has **no** runtime field:
+`ENTITY_STATIC_TYPES` is a `unique symbol` rather than a string key, so type inference only takes
+the `StaticTypes` generic parameter, and nothing enumerable becomes an own property after compilation.
 
-The operation that actually attaches the "declared static types" to a class is done by the
-back-reference (`ENTITY_TYPE` slot) of [transitionMetadata](../functions/transitionMetadata.md); this interface only plays the type-merging role.
+Actually attaching the "declared static types" to the class is done by the back-reference of [transitionMetadata](../functions/transitionMetadata.md)
+(the `ENTITY_TYPE` slot); this interface only plays the role of type merging.
 
 ## Type Parameters
 

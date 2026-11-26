@@ -2,7 +2,7 @@
 
 Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts:74](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts#L74)
 
-The checkout commands exposed by the three-framework entry points; the signatures match the same-named methods on [WorktreeManager](../classes/WorktreeManager.md).
+The checkout commands exposed by the three binding entry points; signatures match the same-named methods on [WorktreeManager](../classes/WorktreeManager.md).
 
 ## Properties
 
@@ -14,7 +14,7 @@ readonly add: (branchId, options?) => Promise<Worktree>;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts:84](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts#L84)
 
-Opens a writable checkout: registers it, holds the branch, creates tables, seeds; created but not mounted, this context claims it
+Opens a writable checkout: registers, holds the branch, creates tables, seeds; after creation it is not mounted, this context claims it
 
 #### Parameters
 
@@ -37,7 +37,7 @@ readonly attach: (id) => Promise<WorktreeView>;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts:80](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts#L80)
 
-Reopens a persistently owned checkout
+Re-opens a persistently owned checkout
 
 #### Parameters
 
@@ -59,7 +59,7 @@ readonly list: () => Promise<readonly Worktree[]>;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts:76](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts#L76)
 
-The registered checkouts; re-read after a successful open, reopen, close, release or prune
+The registered checkouts; re-read as a side effect after successful open, re-open, close, release and prune
 
 #### Returns
 
@@ -75,7 +75,7 @@ readonly mount: (id) => Promise<void>;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts:86](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts#L86)
 
-Makes the main instance mount a writable checkout; rebuilt within the mounting transaction when the fingerprint does not match
+Makes the main instance mount a writable checkout; rebuilds it in the mounting transaction when the fingerprint disagrees
 
 #### Parameters
 
@@ -97,7 +97,7 @@ readonly mountMain: () => Promise<void>;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts:88](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts#L88)
 
-Makes the main instance mount back the primary checkout
+Makes the main instance mount back onto the main checkout
 
 #### Returns
 
@@ -136,7 +136,7 @@ readonly prune: () => Promise<readonly string[]>;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts:82](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts#L82)
 
-Reclaims checkouts nobody is using (including orphan table sets without a registration row)
+Reclaims checkouts nobody is using (including orphan table sets with no registry row)
 
 #### Returns
 
@@ -152,7 +152,7 @@ readonly release: (id) => Promise<void>;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts:90](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts#L90)
 
-Gives up the claim on a writable checkout
+Gives up a claim on a writable checkout
 
 #### Parameters
 
@@ -174,7 +174,7 @@ readonly remove: (id) => Promise<void>;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts:92](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts#L92)
 
-Deletes a writable checkout; uncommitted changes stay on the branch it holds
+Deletes a writable checkout; uncommitted changes remain on the branch it holds
 
 #### Parameters
 

@@ -6,7 +6,7 @@ function fingerprintOf(operation, patch): string;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/capture-runtime.ts:120](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/capture-runtime.ts#L120)
 
-The fingerprint of the unit's current state (FNV-1a/32, fixed 8 hex digits).
+The fingerprint of a unit's current state (FNV-1a/32, fixed 8 hexadecimal digits).
 
 ## Parameters
 
@@ -23,8 +23,8 @@ The fingerprint string
 
 ## Remarks
 
-A non-cryptographic hash is used because what it guards against is not forgery but **false equality**, and both ends compute it with the same implementation.
+A non-cryptographic hash is used because it guards against **mistaken equality**, not forgery, and both ends compute it with the same implementation.
 
-**No production code compares this column today**: cold replay, commit and diff do not read it (see `cold-replay.ts` and `toChangeUnit` in `commit-command.ts`); the content fingerprint of a commit goes through `computeChangeUnitFingerprint`'s SHA-256 instead; the conflict detection delivered by US-308 does not read it either — it uses the revision CAS and the active branch token. If a future consumer compares this column pairwise per identity across the two sides of the same entity, the probability of false equality is about 2⁻³² per pair, and about 2×10⁻⁵ across a hundred thousand pairs; the birthday bound of "about 77k entries for a half chance of collision" only applies when the fingerprint is used as a key across entities. Switching to SHA-256 would need neither async nor a new dependency (`@aiao/rxdb`'s `sha256Hex` is synchronous and already used by this plugin); the cost is one extra pure-JS digest per write on the capture hot path and a column width growing from 8 to 64 digits. Whether to switch is up to the first consumer that compares this column, and it is filed under "epic-006 architecture items deferred by review" in `requirements/roadmap.md`.
+**No production code compares this column today**: cold replay, commit and diff don't read it (see `cold-replay.ts` and `toChangeUnit` in `commit-command.ts`); the commit content fingerprint goes through `computeChangeUnitFingerprint`'s SHA-256 separately; and the conflict detection delivered by US-308 doesn't read it either, going through revision CAS and the active branch token. If a future consumer compares this column **pairwise by identity** between the two sides of the same entity, the mistaken-equality probability is about 2⁻³² per pair, about 2×10⁻⁵ over a hundred thousand pairs; the birthday bound of "about 77 thousand entries to reach a collision probability above half" only holds when the fingerprint is used as a key across entities. If it were actually replaced with SHA-256, no async and no new dependency would be needed (`sha256Hex` in `@aiao/rxdb` is synchronous and this plugin already uses it), at the cost of one extra pure-JS digest per write on the capture hot path and the column width going from 8 to 64 digits. Whether to switch is decided by the first consumer that compares this column, and is registered in `requirements/roadmap.md` under "epic-006 architecture items deferred in review".
 
-`operation` participates in the hash: the same patch under `insert` versus `update` is two different intents, and hashing only the patch would give the two the same fingerprint.
+`operation` participates in the hash: the same patch under `insert` and `update` is two different intents, and hashing only the patch would give the two identical fingerprints.

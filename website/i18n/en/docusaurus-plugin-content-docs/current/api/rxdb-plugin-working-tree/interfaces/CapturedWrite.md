@@ -2,11 +2,11 @@
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:33](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts#L33)
 
-One captured write.
+One captured write
 
 ## Remarks
 
-Same shape as the persisted row but deliberately not the same type: the capture is the fact of **this** write, the row is the state **after folding**. Two writes to the same entity produce two `CapturedWrite`s but only one row.
+Same shape as the persisted row but a different type: the capture is the fact of **this one** write, the row is the state **after folding**. Two writes to the same entity produce two `CapturedWrite`s, but only one row.
 
 ## Properties
 
@@ -90,7 +90,7 @@ readonly origin: WriteEntryOrigin;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:56](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts#L56)
 
-The origin of this write
+Where this write came from
 
 ***
 
@@ -126,7 +126,7 @@ readonly transactionId: string | null;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:62](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts#L62)
 
-The owning transaction; `null` when there is no explicit transaction
+The owning transaction; `null` without an explicit transaction
 
 ***
 
@@ -138,4 +138,4 @@ readonly unitId: string;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:59](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts#L59)
 
-The owning atomic unit; all entities of a complete transaction share the same one
+The owning atomic unit; shared by all entities of the complete transaction

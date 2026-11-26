@@ -14,7 +14,7 @@ readonly actual?: unknown;
 
 Defined in: [packages/rxdb/src/backup/backup-error.ts:53](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/backup/backup-error.ts#L53)
 
-The actual value in the archive or on site.
+The actual value in the archive or at the scene.
 
 ***
 
@@ -26,7 +26,7 @@ readonly expected?: unknown;
 
 Defined in: [packages/rxdb/src/backup/backup-error.ts:51](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/backup/backup-error.ts#L51)
 
-The value the target expects.
+The value expected by the target.
 
 ***
 

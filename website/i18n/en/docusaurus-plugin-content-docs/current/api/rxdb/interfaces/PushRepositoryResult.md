@@ -14,7 +14,7 @@ compacted: number;
 
 Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:598](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/VersionManager.interface.ts#L598)
 
-The number of changes compacted/discarded
+Number of changes compacted/discarded
 
 ***
 
@@ -26,7 +26,7 @@ error?: Error;
 
 Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:569](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/VersionManager.interface.ts#L569)
 
-The error message when the repository sync fails
+The error when repository sync fails
 
 ***
 
@@ -38,7 +38,7 @@ failed: number;
 
 Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:593](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/VersionManager.interface.ts#L593)
 
-The number of changes that failed to push
+Number of changes that failed to push
 
 ***
 
@@ -50,12 +50,12 @@ failures: SyncFailure[];
 
 Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:619](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/VersionManager.interface.ts#L619)
 
-All repositories that failed to sync in this call (including the target repository itself), in execution order
+All repositories whose sync failed in this call (including the target repository itself), ordered by execution order
 
 #### Remarks
 
 Required rather than optional: an optional field would make callers write `result.failures ?? []` as a fallback,
-but "field missing" and "no failures" are two different things. Skipped by policy (`skipped`) does not count as a failure,
+but "field missing" and "no failures" are two different things. Skipping by policy (`skipped`) is not a failure,
 and does not enter this list.
 
 ***
@@ -68,7 +68,7 @@ originalCount: number;
 
 Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:604](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/VersionManager.interface.ts#L604)
 
-The original count of unpushed changes (before compaction)
+Original number of unpushed changes (before compaction)
 Relation: originalCount = pushed + failed + rejected + compacted
 
 ***
@@ -81,7 +81,7 @@ pushed: number;
 
 Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:579](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/VersionManager.interface.ts#L579)
 
-The number of changes accepted (applied) by the remote (after compaction)
+Number of changes accepted (applied) by the remote (after compaction)
 
 ***
 
@@ -93,11 +93,11 @@ rejected: number;
 
 Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:588](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/VersionManager.interface.ts#L588)
 
-The number of changes rejected by the remote and already marked locally (after compaction, same convention as `pushed`)
+Number of changes rejected by the remote and already marked locally (after compaction, same measure as `pushed`)
 
 #### Remarks
 
-Counted only when the receipt is persisted together with the watermark; 0 when not persisted (a batch failed, the local commit failed, or it was blocked by a dependency) —
+Counted only when the receipt is persisted together with the watermark; 0 when not persisted (a batch failed, the local commit failed, or blocked by a dependency) —
 those entries count into `failed` and are re-pushed as-is next round.
 
 ***
@@ -110,7 +110,7 @@ relatedResults?: PushRepositoryResult[];
 
 Defined in: [packages/rxdb/src/sync-contract/VersionManager.interface.ts:609](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-contract/VersionManager.interface.ts#L609)
 
-The results of related repositories (when includeRelated=true)
+Results of related repositories (when includeRelated=true)
 
 ***
 

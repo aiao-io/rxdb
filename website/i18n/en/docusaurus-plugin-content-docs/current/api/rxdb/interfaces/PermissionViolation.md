@@ -2,7 +2,7 @@
 
 Defined in: [packages/rxdb/src/entity/entity-permissions.ts:77](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-permissions.ts#L77)
 
-One permission violation: which write operation of which entity was rejected by a public write entrance
+One permission violation: which write operation of which entity was rejected by the public write entry points.
 
 ## Properties
 
@@ -14,7 +14,7 @@ readonly entity: string;
 
 Defined in: [packages/rxdb/src/entity/entity-permissions.ts:81](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-permissions.ts#L81)
 
-The entity name (the `name` in the metadata)
+Entity name (the `name` in the metadata).
 
 ***
 
@@ -26,7 +26,7 @@ readonly namespace: string;
 
 Defined in: [packages/rxdb/src/entity/entity-permissions.ts:79](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-permissions.ts#L79)
 
-The entity's namespace
+The namespace the entity lives in.
 
 ***
 
@@ -38,4 +38,4 @@ readonly operation: EntityOperation;
 
 Defined in: [packages/rxdb/src/entity/entity-permissions.ts:83](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-permissions.ts#L83)
 
-The rejected write operation
+The rejected write operation.

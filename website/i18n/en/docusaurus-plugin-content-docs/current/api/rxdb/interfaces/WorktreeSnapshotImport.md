@@ -2,7 +2,7 @@
 
 Defined in: [packages/rxdb/src/worktree-snapshot.interface.ts:42](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/worktree-snapshot.interface.ts#L42)
 
-One snapshot import: the tables copied, and the increments applied on top of the copied rows.
+One snapshot import: the tables to copy, and the increments applied on top of the copied rows.
 
 ## Properties
 
@@ -14,11 +14,11 @@ readonly actions: SwitchVersionActions;
 
 Defined in: [packages/rxdb/src/worktree-snapshot.interface.ts:51](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/worktree-snapshot.interface.ts#L51)
 
-The increments leading from the main database's current active branch to the target point.
+The increments leading from the primary database's current active branch to the target point.
 
 #### Remarks
 
-The patches are in the storage form of the change log, with encrypted columns as envelopes; contains only entities present on the snapshot instance.
+The patches are in the change log's storage form; encrypted columns are envelopes; contains only entities present on the snapshot instance.
 
 ***
 

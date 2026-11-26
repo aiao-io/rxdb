@@ -15,7 +15,7 @@ type WorkingTreeDiscardResult =
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/discard-command.ts:58](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/discard-command.ts#L58)
 
-The result of one `discard()` call.
+The result of a `discard()` call.
 
 ## Union Members
 
@@ -35,7 +35,7 @@ The result of one `discard()` call.
 readonly discardedCount: number;
 ```
 
-Number of units discarded this time; `0` is a semantic no-op
+The number of units discarded this time; `0` is a semantic no-op
 
 #### ok
 
@@ -51,7 +51,7 @@ The working tree is back at HEAD
 readonly workingTreeRevision: number;
 ```
 
-The working tree revision after discarding; on a no-op it is the original value
+The working tree revision after the discard; on a no-op, the original value
 
 ***
 
@@ -70,7 +70,7 @@ The working tree revision after discarding; on a no-op it is the original value
 readonly conflict: CommitConflict;
 ```
 
-Diagnostic value; **not persisted**
+The diagnostic value; **not persisted**
 
 #### ok
 
@@ -78,9 +78,9 @@ Diagnostic value; **not persisted**
 readonly ok: false;
 ```
 
-One of the three captured positions does not match, and not one byte of this discard landed
+One of the three captured slots does not match, and not a single byte of this discard was persisted
 
 ## Remarks
 
-The success exit has **no `noop` boolean**: `discardedCount === 0` is the no-op; one more bit is a second
-truth, and of two truths one will eventually be stale.
+The success exit has **no `noop` boolean bit**: `discardedCount === 0` is the no-op, and one more bit is a
+second copy of the truth — and of two copies, one is bound to be stale eventually.

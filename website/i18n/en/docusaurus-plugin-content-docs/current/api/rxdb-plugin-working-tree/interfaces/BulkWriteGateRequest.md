@@ -2,13 +2,13 @@
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/bulk-write-gate.ts:43](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/bulk-write-gate.ts#L43)
 
-The judgment input of one bulk write.
+The judgment input for one bulk write
 
 ## Remarks
 
-**No batch size.** Once the judgment starts looking at row counts, "send an empty batch first to probe" becomes a legitimate use; and the six backends do not agree on which step short-circuits an empty batch, so the same calling code would be blocked or let through differently depending on the backend.
+**There is no batch size.** Once the judgment starts looking at row counts, "send an empty batch to probe" becomes a legal pattern; and the six backends don't agree on where an empty batch short-circuits, so the same calling code gets blocked or let through depending on the backend.
 
-**No column set** either: these two methods take whole rows as input, and versioned entities always land on step 4.
+There is also **no column set**: these two methods take whole rows as input, and versioned entities always land at step 4.
 
 ## Properties
 
@@ -20,7 +20,7 @@ readonly capabilityEnabled: boolean;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/bulk-write-gate.ts:54](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/bulk-write-gate.ts#L54)
 
-Whether this database has the commit capability enabled
+Does this database have the commit capability enabled
 
 ***
 

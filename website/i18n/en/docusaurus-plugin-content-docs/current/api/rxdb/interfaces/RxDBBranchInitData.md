@@ -2,7 +2,7 @@
 
 Defined in: [packages/rxdb/src/system/types.ts:761](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L761)
 
-Initialization data
+Initialization data.
 
 ## Properties
 
@@ -14,7 +14,7 @@ activated?: boolean;
 
 Defined in: [packages/rxdb/src/system/types.ts:769](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L769)
 
-Whether it is activated
+Whether it is activated.
 
 ***
 
@@ -26,7 +26,7 @@ createdAt?: Date | null;
 
 Defined in: [packages/rxdb/src/system/types.ts:786](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L786)
 
-Creation time
+Creation time.
 
 #### Default
 
@@ -44,7 +44,7 @@ fromChangeId?: number | null;
 
 Defined in: [packages/rxdb/src/system/types.ts:773](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L773)
 
-Source change ID
+Source change ID.
 
 ***
 
@@ -56,7 +56,7 @@ id?: string;
 
 Defined in: [packages/rxdb/src/system/types.ts:765](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L765)
 
-id
+id.
 
 ***
 
@@ -68,7 +68,7 @@ local?: boolean;
 
 Defined in: [packages/rxdb/src/system/types.ts:777](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L777)
 
-Whether it is local
+Whether it is local.
 
 ***
 
@@ -80,7 +80,7 @@ remote?: boolean;
 
 Defined in: [packages/rxdb/src/system/types.ts:781](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L781)
 
-Whether it is remote
+Whether it is remote.
 
 ***
 
@@ -92,7 +92,7 @@ updatedAt?: Date | null;
 
 Defined in: [packages/rxdb/src/system/types.ts:791](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.ts#L791)
 
-Update time
+Update time.
 
 #### Default
 

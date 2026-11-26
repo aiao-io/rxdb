@@ -6,12 +6,9 @@ The five write primitives before interception
 
 ## Remarks
 
-Retained as-is at installation time, for two kinds of callers: the **bootstrap phase** (`bootstrapTransaction` — table creation and migration belong to
-no user change, and capturing them would grow rows for the entire database out of thin air in the working tree), and **the capture runtime itself**
-(the hook must wrap the primitives in an extra layer, so it has to be able to get the layer without itself, otherwise it recurses).
+Captured as-is at install time, for two kinds of callers: **the bootstrap phase** (`bootstrapTransaction` — table creation and migrations are not user changes; capturing them would make whole-database rows sprout out of nowhere in the working tree), and **the capture runtime itself** (the hook wraps a layer around the primitives, and must be able to obtain the layer that does not contain itself, otherwise it recurses).
 
-All five functions here are **bound to the installation host**. The one that needs rebinding per calling host (`mergeChanges`) is
-provided separately by [MergeChangesNext](../type-aliases/MergeChangesNext.md), not through here.
+All five functions here are **bound to the host they were installed on**. The one that needs rebinding per calling host (`mergeChanges`) is provided separately by [MergeChangesNext](../type-aliases/MergeChangesNext.md) and does not go through here.
 
 ## Methods
 

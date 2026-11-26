@@ -45,7 +45,7 @@ Allowed: the statement executes as usual
 readonly reason: RawWriteAllowReason;
 ```
 
-Why it was allowed
+Why it is allowed
 
 #### step
 
@@ -82,7 +82,7 @@ epic-006's stable error code
 readonly kind: "reject";
 ```
 
-Rejected: the statement is **not issued at all**
+Rejected: the statement is **not dispatched at all**
 
 #### step
 
@@ -98,4 +98,4 @@ Always 3
 readonly tables: readonly string[];
 ```
 
-The versioned tables that were hit; an empty array when the target tables cannot be resolved
+The versioned tables that were hit; an empty array when no target table can be resolved

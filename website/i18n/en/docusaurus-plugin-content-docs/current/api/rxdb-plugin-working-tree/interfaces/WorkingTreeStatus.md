@@ -2,13 +2,13 @@
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/status.ts:49](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/status.ts#L49)
 
-The complete answer of one `status()` call (contracts/core-api.md §3).
+Everything one `status()` answers (contracts/core-api.md §3).
 
 ## Remarks
 
 The three revision fields ([WorkingTreeStatus.activationRevision](#activationrevision) /
 [WorkingTreeStatus.headRevision](#headrevision) / [WorkingTreeStatus.workingTreeRevision](#workingtreerevision))
-are all indispensable: they are exactly the three positions `commit()` / `discard()` require callers to capture. With one missing, a caller can never construct a commit that will not hit `CommitConflict`.
+are indispensable: they are exactly the three positions `commit()` / `discard()` require the caller to capture. Leave one out and the caller can never construct a commit that won't hit `CommitConflict`.
 
 ## Properties
 
@@ -56,7 +56,7 @@ readonly clean: boolean;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/status.ts:57](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/status.ts#L57)
 
-No uncommitted entries
+There are no uncommitted entries
 
 ***
 
@@ -68,7 +68,7 @@ readonly conflicted: boolean;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/status.ts:63](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/status.ts#L63)
 
-There is an unfinished restore session, but the revisions it captured have already diverged
+There is an unfinished restore session, but the revision it captured has already diverged
 
 ***
 

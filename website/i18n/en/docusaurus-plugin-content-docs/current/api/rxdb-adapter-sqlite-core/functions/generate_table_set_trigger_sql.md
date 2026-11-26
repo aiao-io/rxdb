@@ -11,27 +11,27 @@ function generate_table_set_trigger_sql(
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/table/trigger\_sql.ts:285](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/table/trigger_sql.ts#L285)
 
-Rebuilds only the change triggers of one table set: both the table set and the branch are provided by the caller; branch tables are not touched.
+Rebuilds only one table set's change triggers: both the table set and the branch are provided by the caller, branch tables are untouched.
 
 ## Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `adapter` | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md) | The SQLite adapter |
+| `adapter` | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md) | SQLite adapter |
 | `tableSet` | [`WorktreeTableSet`](../../rxdb/classes/WorktreeTableSet.md) | Which table set's triggers to rebuild |
-| `branchId` | `string` | The branch the triggers write into the change log |
-| `transactionId?` | `` `${string}-${string}-${string}-${string}-${string}` `` | The transaction id branded into the triggers; only given for the two rebuilds at the start and end of each logged transaction |
+| `branchId` | `string` | Branch the triggers write into the change history |
+| `transactionId?` | `` `${string}-${string}-${string}-${string}-${string}` `` | Transaction id stamped into the triggers; only given for the two rebuilds at the start and end of each logging transaction |
 
 ## Returns
 
 `string`
 
-For each entity, `DROP TRIGGER IF EXISTS` then `CREATE TRIGGER`; the empty string when this table set has no logged entities
+`DROP TRIGGER IF EXISTS` then `CREATE TRIGGER` for each entity; empty string when no entity in this table set records history
 
 ## Remarks
 
-The start and end of every logged transaction, branch switching, after `withTriggersDisabled`, system migrations, and table set creation all go through this one entry (US-314 B1.3).
-"Changing the activation state" is split from it: only a real branch switch writes `rxdb_branch` (`version/switch_branch.ts`).
+Every logging transaction's start and end, branch switching, after `withTriggersDisabled`, system migration, and table set creation all go through this single entry (US-314 B1.3).
+"Changing the activation state" is split out from it: only a real branch switch writes `rxdb_branch` (`version/switch_branch.ts`).
 
-Does not swallow exceptions: a trigger generation failure for any entity must roll back the caller's whole write, otherwise that table would keep accepting writes
-in a triggerless state, silently losing history, undo/redo, and sync.
+Does not swallow exceptions: if any entity's trigger generation fails, the caller's whole write must roll back, otherwise that table keeps accepting writes
+in a trigger-less state, silently losing history, undo/redo, and sync.

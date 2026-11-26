@@ -14,7 +14,7 @@ type WorkingTreeCreateBranchFromCommitResult =
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/branch-from-commit.ts:55](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/branch-from-commit.ts#L55)
 
-Result of [WorkingTreeManager.createBranchFromCommit](../classes/WorkingTreeManager.md#createbranchfromcommit)
+The result of [WorkingTreeManager.createBranchFromCommit](../classes/WorkingTreeManager.md#createbranchfromcommit)
 
 ## Union Members
 
@@ -33,7 +33,7 @@ Result of [WorkingTreeManager.createBranchFromCommit](../classes/WorkingTreeMana
 readonly branch: RxDBBranch;
 ```
 
-The branch just created; nothing has switched over
+The newly created branch; not switched to
 
 #### ok
 
@@ -41,7 +41,7 @@ The branch just created; nothing has switched over
 readonly ok: true;
 ```
 
-Discriminator: created
+The discriminator: it was created
 
 ***
 
@@ -60,7 +60,7 @@ Discriminator: created
 readonly ok: false;
 ```
 
-Discriminator: not created, not one row written
+The discriminator: not created, not a single row was written
 
 #### reason
 
@@ -68,4 +68,4 @@ Discriminator: not created, not one row written
 readonly reason: WorkingTreeBranchFromCommitRejection;
 ```
 
-Why it was not created
+The cause of not creating it

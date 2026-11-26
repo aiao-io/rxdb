@@ -2,7 +2,7 @@
 
 Defined in: [packages/rxdb/src/repository/query-cache.interface.ts:49](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query-cache.interface.ts#L49)
 
-QueryCache adapter interface (local)
+QueryCache adapter interface (local).
 
 ## Methods
 
@@ -14,7 +14,7 @@ deleteByIds(entityName, ids): Observable<void>;
 
 Defined in: [packages/rxdb/src/repository/query-cache.interface.ts:55](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query-cache.interface.ts#L55)
 
-Deletes data in bulk
+Deletes data in bulk.
 
 #### Parameters
 
@@ -37,7 +37,7 @@ findAll?<T>(entityName): Observable<T[]>;
 
 Defined in: [packages/rxdb/src/repository/query-cache.interface.ts:71](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query-cache.interface.ts#L71)
 
-Fetches all locally cached data
+Gets all locally cached data.
 
 #### Type Parameters
 
@@ -57,8 +57,9 @@ Fetches all locally cached data
 
 #### Deprecated
 
-Same as [QueryCacheLocalAdapter.findByIds](#findbyids). The cache-first read of SWR is now handled by
-[QueryCacheLocalReader](QueryCacheLocalReader.md), pushed down by `where`, no longer "load the whole table into memory and filter in JS".
+Same as [QueryCacheLocalAdapter.findByIds](#findbyids). SWR's cache-first reads are now pushed down to
+[QueryCacheLocalReader](QueryCacheLocalReader.md) by `where`, instead of "loading the whole table into memory
+and then filtering in JS".
 
 ***
 
@@ -70,7 +71,7 @@ findByIds?<T>(entityName, ids): Observable<T[]>;
 
 Defined in: [packages/rxdb/src/repository/query-cache.interface.ts:64](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query-cache.interface.ts#L64)
 
-Fetches full data by ID
+Gets complete data by ID.
 
 #### Type Parameters
 
@@ -91,10 +92,10 @@ Fetches full data by ID
 
 #### Deprecated
 
-Local reads now go through [QueryCacheLocalReader](QueryCacheLocalReader.md) (US-020 D8).
+Local reads have moved to [QueryCacheLocalReader](QueryCacheLocalReader.md) (US-020 D8).
 This duck is no longer called by `QueryCacheEngine`: it returns raw rows rather than entity instances,
-and the "adapter not implemented means not found" fallback would disguise cache failures as "the remote has no data".
-Kept only to avoid breaking adapters that implement it; to be removed in the next major version.
+and its "adapter didn't implement it, so nothing found" degradation would disguise a cache failure as
+"the remote has no data". Kept only to avoid breaking adapters that implement it; removed in the next major version.
 
 ***
 
@@ -106,7 +107,7 @@ getMetadataByIds(entityName, ids): Observable<Map<string, string>>;
 
 Defined in: [packages/rxdb/src/repository/query-cache.interface.ts:51](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query-cache.interface.ts#L51)
 
-Fetches the local metadata for the given IDs
+Gets the local metadata of the given IDs.
 
 #### Parameters
 
@@ -129,7 +130,7 @@ upsertMany<T>(entityName, data): Observable<void>;
 
 Defined in: [packages/rxdb/src/repository/query-cache.interface.ts:53](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query-cache.interface.ts#L53)
 
-Writes/updates data in bulk
+Bulk-inserts/updates data.
 
 #### Type Parameters
 

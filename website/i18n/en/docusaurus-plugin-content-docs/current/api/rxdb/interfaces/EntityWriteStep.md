@@ -6,7 +6,7 @@ sidebar_label: "EntityWriteStep⟨T⟩"
 
 Defined in: [packages/rxdb/src/system/exclusion-write-order.ts:132](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/exclusion-write-order.ts#L132)
 
-One step of a bulk write: a group of creates / updates / removes for one entity type.
+One step of a bulk write: a set of creates / updates / deletes for one entity type.
 
 ## Type Parameters
 
@@ -24,7 +24,7 @@ readonly entities: InstanceType<T>[];
 
 Defined in: [packages/rxdb/src/system/exclusion-write-order.ts:138](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/exclusion-write-order.ts#L138)
 
-The entities written in this step (original order is kept within one type)
+The entities written in this step (original order preserved within the type)
 
 ***
 

@@ -18,17 +18,17 @@ Computes the JOIN string needed by a query
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `adapter` | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md) | The adapter |
-| `entityMetadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | The metadata of the entity to query |
-| `ruleGroup` | [`RuleGroup`](../../rxdb/type-aliases/RuleGroup.md) | The query conditions |
-| `orderBy?` | [`OrderBy`](../../rxdb/interfaces/OrderBy.md)&lt;`string`&gt;[] | Ordering conditions; dotted fields in it also participate in JOIN planning |
-| `options?` | [`RuleGroupJoinOptions`](../interfaces/RuleGroupJoinOptions.md) | Planning context rewrites for subquery / recursive member scenarios |
+| `adapter` | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md) | Adapter |
+| `entityMetadata` | [`EntityMetadata`](../../rxdb/type-aliases/EntityMetadata.md) | Metadata of the entity to query |
+| `ruleGroup` | [`RuleGroup`](../../rxdb/type-aliases/RuleGroup.md) | Query conditions |
+| `orderBy?` | [`OrderBy`](../../rxdb/interfaces/OrderBy.md)&lt;`string`&gt;[] | Ordering conditions; dotted fields in them also participate in JOIN planning |
+| `options?` | [`RuleGroupJoinOptions`](../interfaces/RuleGroupJoinOptions.md) | Planning context rewrite for subquery / recursive member scenarios |
 
 ## Returns
 
 `object`
 
-The JOIN SQL, the field alias map, and the orderBy after foreign key normalization
+JOIN SQL, the field alias map, and the orderBy after foreign key normalization
 
 ### fieldAliasMap
 
@@ -50,7 +50,7 @@ orderBy: object[] | undefined = normalizedOrderBy;
 
 ## Remarks
 
-where and orderBy must share the same JoinContext (SQLC-025): only when both sides reference the same relation is the same table alias reused,
-otherwise the same table is LEFT JOINed twice and the row count doubles. After passing orderBy in, take the normalized result from the returned `orderBy` field —
-`_process_dotted_field` rewrites foreign key paths into own-table column names on the spot (`owner.id` → `ownerId`);
-here it shallow-copies first and then iterates, to avoid polluting the caller's orderBy array.
+where and orderBy must share the same JoinContext (SQLC-025): only then do the two sides referencing the same relation reuse the same table alias;
+otherwise the same table gets LEFT JOINed twice and the row count doubles. After orderBy is passed in, take the normalized result from the returned `orderBy` field —
+`_process_dotted_field` rewrites foreign key paths into local table column names in place (`owner.id` → `ownerId`);
+this does a shallow copy before iterating, to avoid polluting the caller's orderBy array.

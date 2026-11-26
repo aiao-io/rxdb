@@ -6,16 +6,18 @@ QueryCache entities and other entities were mixed into the same transaction unit
 
 ## Remarks
 
-Inherits the existing [RxDBMixedVersionedCacheTransactionError](../../rxdb/classes/RxDBMixedVersionedCacheTransactionError.md) instead of starting a new class: spec.md specifies that
-it is the carrier, so existing `catch` branches and `instanceof` checks keep matching, and the `cacheEntities` /
-`versionedEntities` arrays remain readable as usual. What is added here is something **only the streaming guard knows** — which two
-entities collided. The parent class's array shape serves the batch path of "scan the whole batch, then report"; on that path there is no concept of "which operation collided".
-The two fields reuse the parent's two-side naming: the "versioned" side is all entities outside QueryCache,
-consistent with the core's `isQueryCacheBatch` split.
+Extends the existing [RxDBMixedVersionedCacheTransactionError](../../rxdb/classes/RxDBMixedVersionedCacheTransactionError.md)
+instead of creating a new class: spec.md names it as the carrier, so existing `catch` branches and `instanceof`
+checks keep matching, and the `cacheEntities` / `versionedEntities` arrays remain readable as usual. What is
+added here is something **only the streaming guard knows** — which two entities collided. The parent class's
+array shape serves the batch path that "scans the whole batch once and then reports", a path on which "which
+operation hit it" does not exist as a concept. The two fields keep the parent's naming on both sides: the
+"versioned" side is every entity outside QueryCache, matching the core's `isQueryCacheBatch` split.
 
-Throwing rolls back the whole transaction: the write semantics of the two are irreconcilable (other entities write local transactions, QueryCache entities
-write to the remote first and then land in a discardable cache), so the same batch would only end up "half into the local transaction, half already sent to the remote". The rollback is guaranteed by the adapter
-(throw ⇒ rollback), not by this class.
+Throwing rolls back the entire transaction: the two write semantics are irreconcilable (other entities write a
+local transaction; QueryCache entities write to the remote first and then land in a discardable cache), and the
+same batch would otherwise end up "half in a local transaction, half already sent to the remote". The rollback
+is guaranteed by the adapter (throw ⇒ rollback), not by this class.
 
 ## Extends
 
@@ -31,14 +33,14 @@ new MixedVersionedCacheTransactionError(versionedEntityName, cacheEntityName): M
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/versioned-domain.ts:267](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/versioned-domain.ts#L267)
 
-Constructed only by `createTransactionGuard()` at the moment the entity from **the other side** first appears.
+Constructed only by `createTransactionGuard()` at the moment an entity **from the other side first appears**.
 
 #### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `versionedEntityName` | `string` | Name of the first non-QueryCache entity hit in this transaction |
-| `cacheEntityName` | `string` | Name of the first QueryCache entity hit in this transaction |
+| `versionedEntityName` | `string` | The name of the first non-QueryCache entity hit within this transaction |
+| `cacheEntityName` | `string` | The name of the first QueryCache entity hit within this transaction |
 
 #### Returns
 
@@ -46,9 +48,10 @@ Constructed only by `createTransactionGuard()` at the moment the entity from **t
 
 #### Remarks
 
-The two parameters take the **first one hit** on each side, not the full set (reason in `createTransactionGuard`).
-When handed to the parent class, each is wrapped into a single-element array: the parent's two array shapes serve the batch path of "scan the whole batch, then report",
-while on the streaming guard side there is no full set to hand over at all.
+The two parameters are each side's **first hit**, not the full set (see `createTransactionGuard` for why).
+Each is wrapped into a single-element array when handed to the parent: the parent's two arrays serve the
+batch path that "scans the whole batch once and then reports", while the streaming guard has no full set to
+hand over at all.
 
 #### Overrides
 
@@ -64,7 +67,7 @@ readonly cacheEntities: readonly string[];
 
 Defined in: packages/rxdb/dist/RxDBError.d.ts:192
 
-Names of the entities in this batch that go through QueryCache
+The names of the entities in this batch that go through QueryCache
 
 #### Inherited from
 
@@ -80,7 +83,7 @@ readonly cacheEntityName: string;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/versioned-domain.ts:271](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/versioned-domain.ts#L271)
 
-Name of the first QueryCache entity hit in this transaction
+The name of the first QueryCache entity hit within this transaction
 
 ***
 
@@ -106,7 +109,7 @@ readonly code: "mixed_versioned_cache_transaction" = "mixed_versioned_cache_tran
 
 Defined in: packages/rxdb/dist/RxDBError.d.ts:196
 
-Stable error code specified by US-306 FR-046; the reason for writing a literal instead of taking from the code table is in this class
+The stable error code specified by US-306 FR-046; see this class for why a literal is written instead of taking it from the code table
 
 #### Remarks
 
@@ -166,7 +169,7 @@ readonly versionedEntities: readonly string[];
 
 Defined in: packages/rxdb/dist/RxDBError.d.ts:194
 
-Names of the entities in this batch that go through versioned sync
+The names of the entities in this batch that go through versioned sync
 
 #### Inherited from
 
@@ -182,7 +185,7 @@ readonly versionedEntityName: string;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/versioned-domain.ts:269](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/versioned-domain.ts#L269)
 
-Name of the first non-QueryCache entity hit in this transaction
+The name of the first non-QueryCache entity hit within this transaction
 
 ***
 

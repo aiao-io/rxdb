@@ -10,36 +10,38 @@ function applyRawWriteJudgment<T>(
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/raw-write-judgment.ts:836](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/raw-write-judgment.ts#L836)
 
-Judges, and executes the statement when allowed; implementation of the capture runtime's `gateRawWrite()`
+Judges and, when allowed, executes the statements; the body of the capture runtime's `gateRawWrite()`
 
 ## Type Parameters
 
 | Type Parameter | Description |
 | ------ | ------ |
-| <a id="type-parameter-t"></a> `T` | Return type of the executor |
+| <a id="type-parameter-t"></a> `T` | The executor's return type |
 
 ## Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `sql` | `string` | The original statement |
-| `context` | [`RawWriteJudgmentContext`](../interfaces/RawWriteJudgmentContext.md) | Judgment context |
-| `execute` | () => `T` \| `Promise`&lt;`T`&gt; | The executor that actually issues the statement |
+| `sql` | `string` | The raw statement |
+| `context` | [`RawWriteJudgmentContext`](../interfaces/RawWriteJudgmentContext.md) | The judgment context |
+| `execute` | () => `T` \| `Promise`&lt;`T`&gt; | The executor that really dispatches the statement |
 
 ## Returns
 
 `Promise`&lt;`T`&gt;
 
-The executor's return value, passed through as-is
+The executor's return value, passed through unchanged
 
 ## Throws
 
-[WorkingTreeWriteRejectedError](../classes/WorkingTreeWriteRejectedError.md) thrown when it lands on step 3; the **executor is never called even once**
+[WorkingTreeWriteRejectedError](../classes/WorkingTreeWriteRejectedError.md) thrown when it lands on step 3, and **the executor is never called**
 
 ## Remarks
 
-The rejection happens **before** the statement is issued; business tables are completely unchanged — not write-then-rollback. On the raw channel there is no transaction to roll back at all,
-and that is exactly why the raw channel exists.
+The rejection happens **before** the statement is dispatched, leaving business tables untouched — it is not a
+rollback after the write. The raw channel has no transaction to roll back at all, which is precisely why the
+raw channel exists.
 
-The name is not `gateRawWrite`: that name belongs to the core's seam function — adapters call it, and the six call sites' imports
-also spell it. Two same-name functions, one in the core and one in the plugin, would produce no compile error when the wrong one is edited.
+It is not named `gateRawWrite`: that name belongs to the core's seam function — adapters call it, and the
+imports at the six call sites spell it. Two functions of the same name, one in the core and one in the
+plugin, would let a change to the wrong one compile cleanly.

@@ -2,12 +2,13 @@
 
 Defined in: [packages/rxdb/src/trusted-write/trusted-write-intent.ts:103](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/trusted-write/trusted-write-intent.ts#L103)
 
-One row of the registry
+One row of the registry.
 
 ## Remarks
 
-Deliberately does **not** carry a "produces working tree units" field: that column is the matrix's conclusion, and copying it here would create a second source of truth, and of the two truths
-one would eventually go stale. To get that answer, call the plugin side's `producesWorkingTreeEntry()`.
+Deliberately **does not carry** the "produces a working-tree unit" field: that column is the conclusion of the
+matrix, and copying it here would make a second source of truth — and of two sources of truth, sooner or later
+one is stale. To get that answer, call the plugin side's `producesWorkingTreeEntry()`.
 
 ## Properties
 
@@ -30,7 +31,7 @@ readonly entrance:
 
 Defined in: [packages/rxdb/src/trusted-write/trusted-write-intent.ts:125](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/trusted-write/trusted-write-intent.ts#L125)
 
-The row of this intent in the write-entrance semantics matrix
+This intent's row in the write-entry semantics matrix.
 
 ***
 
@@ -42,14 +43,16 @@ readonly file: string;
 
 Defined in: [packages/rxdb/src/trusted-write/trusted-write-intent.ts:113](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/trusted-write/trusted-write-intent.ts#L113)
 
-The file **basename**, without directory or package name
+File **basename**, without directory and without package name.
 
 #### Remarks
 
-Deliberately stores only the basename: #1~#6 live in `@aiao/rxdb-plugin-history/src/` and #7~#9 in `@aiao/rxdb-plugin-sync/src/`,
-and the US-025 package extraction was exactly the move that took them out of the core's `version/` — had the directory been stored, this table would have
-mismatched wholesale at that move, while not a single one of the nine mismatched rows had actually drifted. Basename plus symbol name uniquely locate a call site,
-and duplicates are caught by T066's whole-repo scan (declarations with the same key appearing in same-named files are reported as duplicate registrations).
+Deliberately stores only the basename: #1~#6 live in `@aiao/rxdb-plugin-history/src/` and #7~#9 in
+`@aiao/rxdb-plugin-sync/src/`, and US-025's package extraction is exactly the move that took them out of the
+core `version/` — had the directory been stored, this table would have gone fully out of match at that move,
+and of the nine mismatched rows not one had really drifted. The basename together with the symbol name uniquely
+locates one call site; name collisions are caught by T066's whole-repo scan (a same-key declaration appearing
+in a same-name file is reported as a duplicate registration).
 
 ***
 
@@ -61,7 +64,7 @@ readonly intent: TrustedWriteIntent;
 
 Defined in: [packages/rxdb/src/trusted-write/trusted-write-intent.ts:122](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/trusted-write/trusted-write-intent.ts#L122)
 
-The intent self-reported by the call site
+The intent self-reported by the call site.
 
 ***
 
@@ -73,7 +76,7 @@ readonly symbol: string;
 
 Defined in: [packages/rxdb/src/trusted-write/trusted-write-intent.ts:116](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/trusted-write/trusted-write-intent.ts#L116)
 
-The innermost named function that actually initiated this bulk rewrite
+The innermost named function that actually initiated this batch rewrite.
 
 ***
 
@@ -85,7 +88,7 @@ readonly verifiedAtLine: number;
 
 Defined in: [packages/rxdb/src/trusted-write/trusted-write-intent.ts:128](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/trusted-write/trusted-write-intent.ts#L128)
 
-The line number at the time of this check; **archival only**, not part of the registration key
+The line number at the time of this verification; **archive only**, not part of the registration key.
 
 ***
 
@@ -97,4 +100,4 @@ readonly writePrimitive: TrustedWritePrimitive;
 
 Defined in: [packages/rxdb/src/trusted-write/trusted-write-intent.ts:119](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/trusted-write/trusted-write-intent.ts#L119)
 
-Which write primitive this row calls
+Which write primitive this row calls.

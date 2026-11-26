@@ -6,9 +6,9 @@ Number array property
 
 ## Remarks
 
-Serialized as a whole into one column, **not** a join table: it can neither index by element nor update just one item —
-any modification requires reassigning the whole value (in-place `push` does not trigger the entity Proxy and will not be persisted).
-Use a one-to-many relation when per-element queries or indexing are needed.
+Serialized whole into one column, **not** a relation table: it can neither be indexed per element nor have just one element updated —
+any modification requires reassigning the whole value (in-place `push` does not trigger the entity Proxy and is not persisted).
+For per-element queries or indexes, use a one-to-many relation instead.
 
 ## Extends
 
@@ -25,8 +25,7 @@ check?: PropertyCheckRule;
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:95](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L95)
 
-Property-level CHECK constraint (syntactic sugar): a [PropertyCheckRule](../type-aliases/PropertyCheckRule.md) with `field` omitted,
-compiled into an entity-level CHECK with the property name as its `name`, and participating in inheritance overriding by `name` just like entity-level `checks`.
+Property-level CHECK constraint (syntactic sugar): a [PropertyCheckRule](../type-aliases/PropertyCheckRule.md) with `field` omitted, compiled into an entity-level CHECK named after the property, which participates in inheritance override by `name` the same way as entity-level `checks`.
 
 #### Example
 
@@ -49,7 +48,7 @@ columnName?: string;
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:37](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L37)
 
 Column name in the database
-Same as name when not provided
+Defaults to the `name` when omitted
 
 #### Inherited from
 
@@ -99,9 +98,7 @@ Defined in: [packages/rxdb/src/entity/property-types.interface.ts:84](https://gi
 
 Whether this is an encrypted column (transparent field-level encryption)
 
-Encrypted with AES-GCM-256 by `@aiao/rxdb-adapter-encrypted` before writes and
-transparently decrypted after reads. An encrypted column cannot also be:
-primary key / foreign key / unique / sortable / index / computed property / FTS column.
+Encrypted with AES-GCM-256 by `@aiao/rxdb-adapter-encrypted` before writes and transparently decrypted after reads. An encrypted column cannot simultaneously be: primary key / foreign key / unique / sortable / index / computed property / FTS column.
 
 #### Default
 
@@ -124,7 +121,7 @@ name: Uncapitalize<string>;
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:31](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L31)
 
 Name
-A lowercase-initial English word; may only contain English words and underscores
+An English word not starting with an uppercase letter; may only contain English words and underscores
 
 #### Inherited from
 
@@ -140,7 +137,7 @@ nullable?: boolean;
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:64](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L64)
 
-Whether NULL is allowed
+Whether the value can be NULL
 
 #### Default
 
@@ -163,8 +160,8 @@ readonly?: boolean;
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:58](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L58)
 
 Whether it is read-only
-If true, this data is written only once at creation; when updating data, the value of this column is not updated
-If false, the value of this column is updated when updating data
+If true, the data is written only once at creation; when data is updated, this column's value is not updated
+If false, the column's value is updated when data is updated
 
 #### Default
 
@@ -187,8 +184,8 @@ required?: boolean;
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:73](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L73)
 
 Whether it is required
-Used for front-end validation
-If true, this column must be provided when creating data
+Used for frontend validation
+If true, the column must have a value when data is created
 Empty strings and empty arrays are not allowed; the number 0 is allowed
 
 #### Default
@@ -246,7 +243,7 @@ unique?: boolean;
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:50](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L50)
 
 Whether it is unique
-If true, the value of this data must not repeat
+If true, duplicate values are not allowed for this data
 
 #### Default
 

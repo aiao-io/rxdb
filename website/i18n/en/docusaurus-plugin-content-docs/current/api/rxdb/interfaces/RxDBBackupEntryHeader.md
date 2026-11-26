@@ -24,7 +24,8 @@ readonly path: string;
 
 Defined in: [packages/rxdb/src/backup/backup-archive.ts:34](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/backup/backup-archive.ts#L34)
 
-A POSIX path relative to the engine data directory; does not start with `/` and contains no empty segments, `.`, `..`, backslashes, or NUL.
+A POSIX path relative to the engine data directory; does not start with `/` and contains no empty segments,
+`.` , `..`, backslashes, or NUL.
 
 ***
 
@@ -36,4 +37,4 @@ readonly size: number;
 
 Defined in: [packages/rxdb/src/backup/backup-archive.ts:37](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/backup/backup-archive.ts#L37)
 
-The file's byte count; always 0 for directories.
+File byte count; always 0 for directories.

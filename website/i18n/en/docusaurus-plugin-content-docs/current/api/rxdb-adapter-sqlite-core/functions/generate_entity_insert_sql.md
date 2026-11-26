@@ -11,7 +11,7 @@ function generate_entity_insert_sql<T>(
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/entity/insert\_sql.ts:59](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/entity/insert_sql.ts#L59)
 
-Generates the sql statement for creating an entity
+Generates the SQL statement for creating an entity
 
 ## Type Parameters
 

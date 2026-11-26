@@ -2,16 +2,16 @@
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:363](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L363)
 
-Date/time property
+Date-time property
 
 ## Remarks
 
-Besides `Date` and a generator function, `default` also accepts the sentinel string `'CURRENT_TIMESTAMP'`,
-which declares a **database-side DEFAULT at table creation** (PGlite renders it as `now()`), not a string literal.
-Use it when timestamps must be comparable across devices — client clocks all differ.
+Besides `Date` and generator functions, `default` also accepts the sentinel string `'CURRENT_TIMESTAMP'`,
+which declares a **database-side DEFAULT at table creation** (materialized as `now()` in PGlite), not a string literal.
+Use it when timestamps must be comparable across devices — client clocks differ.
 
-Note that not every write path evaluates it in the database: bulk inserts explicitly provide every column and bypass the DB DEFAULT,
-so the adapter replaces the sentinel with the client's current time on the spot there (see `inserts_sql.ts`).
+Note that not all write paths let the database evaluate it: bulk inserts give every column explicitly and bypass the DB DEFAULT,
+and the adapter swaps the sentinel for the client's current time right there (see `inserts_sql.ts`).
 The sentinel **must not** appear in values read back — `new Date('CURRENT_TIMESTAMP')` is an Invalid Date.
 
 ## Extends
@@ -29,8 +29,7 @@ check?: PropertyCheckRule;
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:95](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L95)
 
-Property-level CHECK constraint (syntactic sugar): a [PropertyCheckRule](../type-aliases/PropertyCheckRule.md) with `field` omitted,
-compiled into an entity-level CHECK with the property name as its `name`, and participating in inheritance overriding by `name` just like entity-level `checks`.
+Property-level CHECK constraint (syntactic sugar): a [PropertyCheckRule](../type-aliases/PropertyCheckRule.md) with `field` omitted, compiled into an entity-level CHECK named after the property, which participates in inheritance override by `name` the same way as entity-level `checks`.
 
 #### Example
 
@@ -53,7 +52,7 @@ columnName?: string;
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:37](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L37)
 
 Column name in the database
-Same as name when not provided
+Defaults to the `name` when omitted
 
 #### Inherited from
 
@@ -103,9 +102,7 @@ Defined in: [packages/rxdb/src/entity/property-types.interface.ts:84](https://gi
 
 Whether this is an encrypted column (transparent field-level encryption)
 
-Encrypted with AES-GCM-256 by `@aiao/rxdb-adapter-encrypted` before writes and
-transparently decrypted after reads. An encrypted column cannot also be:
-primary key / foreign key / unique / sortable / index / computed property / FTS column.
+Encrypted with AES-GCM-256 by `@aiao/rxdb-adapter-encrypted` before writes and transparently decrypted after reads. An encrypted column cannot simultaneously be: primary key / foreign key / unique / sortable / index / computed property / FTS column.
 
 #### Default
 
@@ -127,7 +124,7 @@ format?: DateTimeFormat;
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:370](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L370)
 
-Field semantics annotation. `display` only affects presentation and does not change the persistence precision
+Field semantic annotation. `display` only affects presentation, not the persistence precision
 
 #### Default
 
@@ -146,7 +143,7 @@ name: Uncapitalize<string>;
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:31](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L31)
 
 Name
-A lowercase-initial English word; may only contain English words and underscores
+An English word not starting with an uppercase letter; may only contain English words and underscores
 
 #### Inherited from
 
@@ -162,7 +159,7 @@ nullable?: boolean;
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:64](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L64)
 
-Whether NULL is allowed
+Whether the value can be NULL
 
 #### Default
 
@@ -185,8 +182,8 @@ readonly?: boolean;
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:58](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L58)
 
 Whether it is read-only
-If true, this data is written only once at creation; when updating data, the value of this column is not updated
-If false, the value of this column is updated when updating data
+If true, the data is written only once at creation; when data is updated, this column's value is not updated
+If false, the column's value is updated when data is updated
 
 #### Default
 
@@ -209,8 +206,8 @@ required?: boolean;
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:73](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L73)
 
 Whether it is required
-Used for front-end validation
-If true, this column must be provided when creating data
+Used for frontend validation
+If true, the column must have a value when data is created
 Empty strings and empty arrays are not allowed; the number 0 is allowed
 
 #### Default
@@ -266,7 +263,7 @@ unique?: boolean;
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:50](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L50)
 
 Whether it is unique
-If true, the value of this data must not repeat
+If true, duplicate values are not allowed for this data
 
 #### Default
 

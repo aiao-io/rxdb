@@ -22,7 +22,7 @@ type WriteEntranceDecision =
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry-matrix.ts:125](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/write-entry-matrix.ts#L125)
 
-Conclusion of [classifyWriteEntrance](../functions/classifyWriteEntrance.md).
+The conclusion of [classifyWriteEntrance](../functions/classifyWriteEntrance.md).
 
 ## Union Members
 
@@ -43,7 +43,7 @@ Conclusion of [classifyWriteEntrance](../functions/classifyWriteEntrance.md).
 readonly kind: "capture";
 ```
 
-This write should become a working tree unit
+This write is to become a working tree unit
 
 #### origin
 
@@ -59,7 +59,7 @@ Whether the unit's author is a local user or the sync mechanism
 readonly pushableChange: boolean;
 ```
 
-Can this unit be pushed back to the remote? Pushing a `remote_sync` unit back is a push echo
+Can this unit be pushed back to the remote; pushing a `remote_sync` unit back would be a push echo
 
 #### revisionBump
 
@@ -67,7 +67,7 @@ Can this unit be pushed back to the remote? Pushing a `remote_sync` unit back is
 readonly revisionBump: true;
 ```
 
-Always `true`: landing the unit and bumping the revision live and die together
+Always `true`: landing the unit and incrementing the revision live and die together
 
 ***
 
@@ -87,7 +87,7 @@ Always `true`: landing the unit and bumping the revision live and die together
 readonly kind: "no_capture";
 ```
 
-This write happens as usual, but produces no unit
+This write proceeds as usual, but produces no unit
 
 #### reason
 
@@ -131,7 +131,7 @@ epic-006's stable error code
 readonly kind: "reject";
 ```
 
-This write **must not happen at all**; the caller must throw before the statement is issued
+This write **must not happen at all**; the caller must throw before the statement is dispatched
 
 #### revisionBump
 

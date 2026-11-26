@@ -12,14 +12,14 @@ Whether this batch of statements should be rejected on a read-only connection: s
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `sql` | `string` | The raw statement, which may be a semicolon-separated batch |
+| `sql` | `string` | The raw statement, possibly a semicolon-separated statement batch |
 
 ## Returns
 
 `boolean`
 
-`true` if any statement should be rejected; "changes data" uses the same criterion as step 2 of [judgeRawWrite](judgeRawWrite.md)
+`true` when any one statement should be rejected; "changes data" uses the same criterion as step 2 of [judgeRawWrite](judgeRawWrite.md)
 
 ## Remarks
 
-The read-only hook of a read-only checkout uses it to block raw calls (US-313): there is no versioned domain to consult there, so any write is rejected; session settings are rejected too, because the engine seal is itself a piece of session state, and a single `PRAGMA query_only = 0` can undo it.
+The read-only checkout's read-only hook uses it to block raw calls (US-313): there is no versioned domain to ask there, any write is rejected; session settings are rejected too, because the engine seal itself is session state, and one `PRAGMA query_only = 0` would undo it.

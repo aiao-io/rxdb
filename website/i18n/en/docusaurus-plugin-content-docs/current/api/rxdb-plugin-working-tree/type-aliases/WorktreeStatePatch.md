@@ -6,7 +6,7 @@ type WorktreeStatePatch = <K>(key, state) => void;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts:71](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/checkout/worktree-commands.ts#L71)
 
-Writes a new phase into one state slot.
+Writing a new phase into a state slot.
 
 ## Type Parameters
 

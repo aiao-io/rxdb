@@ -2,15 +2,15 @@
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:34](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L34)
 
-The watermark request for **a single entity** within one batch pull
+The watermark request for a **single entity** within one bulk pull
 
 ## Remarks
 
-The reason each entity carries its own `sinceId` instead of one shared watermark for the whole database: the change log has globally monotonic ids,
-but the sync progress of entities is not level (some tables were just created, others have caught up to the latest). Sharing the minimum watermark
-would re-download changes already fetched, and sharing the maximum watermark would miss changes of lagging tables.
+Each entity carries its own `sinceId` rather than the whole database sharing one: change-log ids are globally monotonic,
+but the sync progress of different entities is not level (some tables are newly created, others already caught up). A shared minimum watermark
+would re-download changes already fetched; a shared maximum watermark would miss changes of lagging tables.
 
-When `namespace` is omitted, the adapter resolves it by the database's current default namespace.
+When `namespace` is omitted, the adapter resolves it from the current database's default namespace.
 
 ## Properties
 

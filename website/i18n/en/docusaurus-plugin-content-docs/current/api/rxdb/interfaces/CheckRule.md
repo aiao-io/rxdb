@@ -2,11 +2,11 @@
 
 Defined in: [packages/rxdb/src/entity/check-constraint.ts:83](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/check-constraint.ts#L83)
 
-CHECK single-row rule: a field compared against a literal, or a field-to-field (`ref`) comparison, or a null check.
+A CHECK single-row rule: a field compared with a literal, or a field-to-field (`ref`) comparison, or a null check.
 
-- `value` only appears on comparison / membership / range operators, and is compiled into a literal according to the field's column type;
-- `ref` points to another column of the same entity, only pairs with comparison operators, and is mutually exclusive with `value`;
-- `null` / `notNull` carry neither.
+- `value` appears only on comparison / membership / range operators, compiled into a literal according to the field column type;
+- `ref` points to another column of the same entity, only paired with comparison operators, mutually exclusive with `value`;
+- `null` / `notNull` take neither.
 
 ## Properties
 
@@ -18,7 +18,7 @@ field: string;
 
 Defined in: [packages/rxdb/src/entity/check-constraint.ts:85](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/check-constraint.ts#L85)
 
-The field participating in the comparison (a property name; relation paths are not supported).
+The field taking part in the comparison (property name; relation paths are not supported).
 
 ***
 
@@ -42,7 +42,7 @@ operator:
 
 Defined in: [packages/rxdb/src/entity/check-constraint.ts:87](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/check-constraint.ts#L87)
 
-The operator, limited to [CHECK\_OPERATORS](../variables/CHECK_OPERATORS.md).
+The operator, restricted to [CHECK\_OPERATORS](../variables/CHECK_OPERATORS.md).
 
 ***
 
@@ -54,7 +54,7 @@ ref?: string;
 
 Defined in: [packages/rxdb/src/entity/check-constraint.ts:91](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/check-constraint.ts#L91)
 
-The target field of the field-to-field comparison (another column of the same entity).
+The target field of a field-to-field comparison (another column of the same entity).
 
 ***
 

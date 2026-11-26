@@ -6,7 +6,7 @@ A write primitive that must have working tree capture mounted.
 
 ## Remarks
 
-`method` is narrowed to `keyof RawWritePrimitives`: registering a nonexistent primitive, or forgetting to update this after a primitive rename, is a **compile error** rather than a silently mismatched rule.
+`method` narrows to `keyof RawWritePrimitives`: registering a nonexistent primitive, or renaming a primitive and forgetting to change this, is a **compile error** rather than a silently mismatched rule.
 
 ## Extends
 
@@ -22,7 +22,7 @@ readonly host: string;
 
 Defined in: packages/rxdb/dist/capture/capture-mount-points.d.ts:18
 
-The name of the abstract base class that declares this method
+The name of the abstract base class declaring the method
 
 #### Inherited from
 
@@ -66,7 +66,7 @@ readonly parameters: readonly string[];
 
 Defined in: packages/rxdb/dist/capture/capture-mount-points.d.ts:22
 
-The formal parameter names, in declaration order; optionality markers and types do not participate
+The formal parameter names, in declaration order; optional markers and types do not participate
 
 #### Inherited from
 

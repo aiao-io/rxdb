@@ -10,7 +10,7 @@ function generate_entity_deletes_sql<T>(
 
 Defined in: [packages/rxdb-adapter-sqlite-core/src/entity/deletes\_sql.ts:8](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/entity/deletes_sql.ts#L8)
 
-Generates SQL statements for batch-deleting entities
+Generates SQL statements for bulk-deleting entities
 
 ## Type Parameters
 

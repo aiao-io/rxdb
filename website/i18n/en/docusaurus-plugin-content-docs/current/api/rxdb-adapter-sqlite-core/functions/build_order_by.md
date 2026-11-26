@@ -19,17 +19,17 @@ Builds ordering SQL
 | ------ | ------ | ------ |
 | `orderBy?` | [`OrderBy`](../../rxdb/interfaces/OrderBy.md)&lt;`string`&gt;[] | Ordering conditions |
 | `metadata?` | `Readonly`&lt;[`EntityMetadataType`](../../rxdb/interfaces/EntityMetadataType.md)&gt; | Entity metadata |
-| `adapter?` | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md) | The SQLite adapter instance |
+| `adapter?` | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md) | SQLite adapter instance |
 | `fieldAliasMap?` | `Map`&lt;`string`, `string`&gt; | Mapping from fields to JOIN aliases / json_extract expressions |
 
 ## Returns
 
 `string` \| `undefined`
 
-The SQL ordering clause
+SQL ordering clause
 
 ## Remarks
 
 `fieldAliasMap` must come from `build_rule_group_join` (pass orderBy into it as well), otherwise relation paths and
-keyValue paths get no alias: `resolve_column_name` only recognizes this table's propertyMap, so strings like `owner.name` are
-pasted verbatim as a column name into `_."owner.name"`, and SQLite reports no such column directly (SQLC-025).
+keyValue paths get no alias: `resolve_column_name` only recognizes the current table's propertyMap, and strings like `owner.name` get
+spliced in as column names verbatim, producing `_."owner.name"` and SQLite reports no such column directly (SQLC-025).

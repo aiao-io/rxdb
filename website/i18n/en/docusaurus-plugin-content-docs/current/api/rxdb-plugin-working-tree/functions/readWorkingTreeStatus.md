@@ -22,7 +22,7 @@ See [WorkingTreeStatus](../interfaces/WorkingTreeStatus.md)
 
 ## Throws
 
-NoActiveBranchError when there is not one active branch row
+NoActiveBranchError when there is not a single active branch row
 
 ## Throws
 
@@ -34,5 +34,7 @@ RxDBError when the ref row or the working tree state row is missing
 
 ## Remarks
 
-The `entryCount` self-consistency is **not validated here**: that would require scanning the entry table, and the whole point of a summary is not to scan.
-The invariant is left to [assertWorkingTreeEntryCountIntact](assertWorkingTreeEntryCountIntact.md), called by the conformance suite and the write paths.
+The `entryCount` self-consistency is **not validated here**: that would require scanning the entry table, and
+the entire point of the summary is not to scan. The invariant is left to
+[assertWorkingTreeEntryCountIntact](assertWorkingTreeEntryCountIntact.md), called by the conformance suites
+and the write path.

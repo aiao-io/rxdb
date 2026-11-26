@@ -2,17 +2,19 @@
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/working-tree-facade.ts:76](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/working-tree-facade.ts#L76)
 
-A managed member was called on a database where commit capability is not enabled.
+A managed member was called on a database without the commit capability enabled.
 
 ## Remarks
 
-Two discriminator bits are given: `name` as a fallback check beyond `instanceof` within this process, and `code` for cross-realm
-scenarios (logs, reporting, error branches in the three framework bindings). With only `name`, the cross-realm side can only
-match error text; with only `code`, every in-process check must first import a constants module.
+Two discriminators are provided: `name` as a fallback judgment within this process beyond `instanceof`, and
+`code` for cross-realm scenarios (logs, reporting, the three framework bindings' error branches). With only
+`name`, the cross-realm side can only match against the error text; with only `code`, every in-process check
+would first have to import a constants module.
 
-This is a different thing from "version incompatibility" (`UnsupportedRxDBSystemVersionError`, thrown by assertSupportedCommitCapability): here the meaning is **not enabled yet**,
-and the way out is calling [WorkingTreeManager.enable](WorkingTreeManager.md#enable); there the meaning is **enabled but the version does not match**,
-and the way out is upgrading the client or running migrations.
+This is distinct from "version incompatibility" (the `UnsupportedRxDBSystemVersionError` thrown by
+assertSupportedCommitCapability): here the capability is **not enabled yet**, and the way out is calling
+[WorkingTreeManager.enable](WorkingTreeManager.md#enable); there it is **enabled but the numbers do not match**,
+and the way out is upgrading the client or running a migration.
 
 ## Extends
 
@@ -28,7 +30,8 @@ new WorkingTreeCapabilityDisabledError(): WorkingTreeCapabilityDisabledError;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/working-tree-facade.ts:88](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/working-tree-facade.ts#L88)
 
-Constructed by the gate (`runEnabled()`) that all `WorkingTreeManager` managed members go through; takes no arguments.
+Constructed by the gate (`runEnabled()`) that all of `WorkingTreeManager`'s managed members pass through;
+takes no arguments.
 
 #### Returns
 
@@ -36,9 +39,10 @@ Constructed by the gate (`runEnabled()`) that all `WorkingTreeManager` managed m
 
 #### Remarks
 
-Does not carry "which member you called": the way out is the same for every managed member — call `enable()` first;
-carrying the member name would only grow ten copies of message text out of the same failure, and the call site needed for locating it is already in the stack.
-Discrimination is uniformly handled by `name` and `code` (see the class comment).
+Does not carry "which member you called": the way out is the same for every managed member — call `enable()`
+first. Carrying the member name would only spawn ten different texts for the same failure, and the call site
+needed for locating it is already in the stack. Discrimination is handled uniformly by `name` and `code`
+(see the class comment).
 
 #### Overrides
 
@@ -68,7 +72,7 @@ readonly code: "commit_capability_disabled" = CommitErrorCode.commit_capability_
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/working-tree-facade.ts:78](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/working-tree-facade.ts#L78)
 
-Stable error code specified by epic-006, taken from [CommitErrorCode](../variables/CommitErrorCode.md)
+The stable error code specified by epic-006, taken from [CommitErrorCode](../variables/CommitErrorCode.md)
 
 ***
 

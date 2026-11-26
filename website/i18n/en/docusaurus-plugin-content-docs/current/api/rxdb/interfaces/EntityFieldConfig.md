@@ -4,8 +4,8 @@ Defined in: [packages/rxdb/src/entity/entity-field.utils.ts:57](https://github.c
 
 ## Deprecated
 
-Replaced by [EntityFieldDescriptor](../type-aliases/EntityFieldDescriptor.md). All boolean flags of this interface are optional,
-"not declared" and "declared as false" are indistinguishable, and it has no `encrypted` / `format` / `options` at all.
+Superseded by [EntityFieldDescriptor](../type-aliases/EntityFieldDescriptor.md). All boolean flags on this interface are optional,
+so "not declared" and "declared as false" are indistinguishable, and it has no `encrypted` / `format` / `options` at all.
 
 ## Properties
 

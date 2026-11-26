@@ -2,12 +2,11 @@
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:267](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts#L267)
 
-The active branch identity captured by the caller **when reading / instantiating entities** (FR-020).
+The active branch identity the caller captured **when reading / instantiating an entity** (FR-020)
 
 ## Remarks
 
-Both fields are indispensable: `branchId` identifies "which branch", `activationRevision` identifies "which activation".
-With only `branchId`, after a round trip of `main → feature → main` the token would "match" again, while the working tree had already been swapped twice in between.
+The two fields are both indispensable: `branchId` says "which branch", `activationRevision` says "which activation". With only `branchId`, after one `main → feature → main` round trip the token "matches" again — while the working tree has been swapped twice in between.
 
 ## Properties
 
@@ -19,7 +18,7 @@ readonly activationRevision: number;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:272](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts#L272)
 
-The activation revision at capture time; +1 on every branch switch
+The activation revision at capture time; +1 per branch switch
 
 ***
 

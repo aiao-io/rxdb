@@ -2,24 +2,21 @@
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts:139](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts#L139)
 
-All state held by the three-framework entry points, one field per capability.
+All the state held by the three binding entry points, one field per capability.
 
 ## Remarks
 
-The key set is the six items closed by US-306 phase C, plus `restore()` / `restoreSession()` added by T110,
-plus `switchBranch()` added by T123, plus `commitChanges()` on the commit-detail side,
-and `enableIfEmpty()` from auto-enable — all twelve items of the tri-framework-api.md §3 list; US-314 phase A added
-`checkBranchFromCommit()` / `createBranchFromCommit()` for creating branches from commits, fourteen in total.
+The key set is the six closed by US-308 phase C, plus `restore()` / `restoreSession()` added by T110, plus `switchBranch()` added by T123, plus `commitChanges()` on the commit-detail side, plus `enableIfEmpty()` added by auto-enable — tri-framework-api.md §3's list of twelve complete; US-314 phase A added the create-branch-from-commit pair `checkBranchFromCommit()` / `createBranchFromCommit()`, fourteen in all.
 
-`switchBranchState` uses the **command** state rather than the query one: switching branches has no "empty" shape, success means it switched
+`switchBranchState` goes through **command** state rather than query: a branch switch has no "empty" shape — success means the switch happened
 (`VersionManager.switchBranch()` returns `void`), and being rejected by `requireClean` is a
-`WorkingTreeDirtyError`, which lands in the `error` phase. Switching to the current branch is a no-op **success**,
-the same shape as `discard()`'s `discardedCount: 0`, not "there is nothing here".
+`WorkingTreeDirtyError`, landing in the `error` phase. Switching to the current branch is a no-op **success**,
+same shape as `discard()`'s `discardedCount: 0`, not "there is nothing here".
 
-A single record rather than fourteen independent containers: the reactive primitives of all three frameworks work on "one write triggers one notification",
-fourteen containers would be fourteen notification paths, and one `commit()` changes both `commitState` and `statusState`
-(the summary refreshes after the command succeeds) — when the two paths arrive at different times, the UI would see the frame
-of "the commit succeeded but the summary is still the old one".
+Made into one record rather than fourteen independent containers: the three bindings' reactive primitives all work on "one write triggers one notification",
+fourteen containers are fourteen notification paths, and one `commit()` changes both `commitState` and `statusState` at once
+(the summary refreshes after a successful command) — when the two paths arrive at different times, the UI shows "the commit succeeded but the summary is still the old one"
+for one frame.
 
 ## Properties
 
@@ -31,7 +28,7 @@ readonly checkBranchFromCommitState: WorkingTreeCommandState<WorkingTreeBranchFr
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts:177](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts#L177)
 
-The state of `checkBranchFromCommit()`; **no empty** — creatable and the three rejection causes are all results
+The state of `checkBranchFromCommit()`; **no empty** — can-create and the three rejection causes are all results
 
 ***
 
@@ -103,7 +100,7 @@ readonly enableIfEmptyState: WorkingTreeCommandState<WorkingTreeEnableIfEmptyRes
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts:147](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts#L147)
 
-The state of `enableIfEmpty()`; **no empty** — `not_empty` is a result, not "there is no content"
+The state of `enableIfEmpty()`; **no empty** — `not_empty` is a result, not "no content"
 
 ***
 
@@ -189,4 +186,4 @@ readonly switchBranchState: WorkingTreeCommandState<void>;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts:174](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts#L174)
 
-The state of `switchBranch()`; **no empty** — a switch has only two outcomes: "switched" and "rejected / errored"
+The state of `switchBranch()`; **no empty** — a switch has only two outcomes: "switched" and "rejected/errored"

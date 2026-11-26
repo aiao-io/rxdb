@@ -6,7 +6,7 @@ One commit node in the history.
 
 ## Remarks
 
-The fields are a **subset** of the `Commit` entity's columns: `operationId` and `contentFingerprint` are deliberately kept out (see the file header). `id` is renamed `commitId` and `author` renamed `authorId`, aligned with CommitResult.commitId and [CommitOptions.authorId](CommitOptions.md#authorid) — the same concept should have only one name on the public surface.
+The fields are **a subset** of the `Commit` entity's columns: `operationId` and `contentFingerprint` are deliberately kept out (see this file's header). `id` is renamed to `commitId` and `author` to `authorId`, aligning with CommitResult.commitId and [CommitOptions.authorId](CommitOptions.md#authorid) — one concept should have exactly one name on the public surface.
 
 ## Properties
 
@@ -102,4 +102,4 @@ readonly parentIds: readonly string[];
 
 Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-log.ts:65](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/commit/commit-log.ts#L65)
 
-All parent nodes, in write order; an empty array for the root node, several for a merge
+All parents, in write order; an empty array for the root node, multiple for a merge

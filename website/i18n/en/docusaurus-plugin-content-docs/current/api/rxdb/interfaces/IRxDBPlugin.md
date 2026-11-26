@@ -6,13 +6,13 @@ RxDB plugin interface
 
 ## Remarks
 
-In `install()` a plugin receives a [LifecycleScope](../../utils/classes/LifecycleScope.md) **exclusive to this connection epoch**:
-each host change registered acquires one undo entry on the scope; on disconnect the host releases them
-serially in reverse order. Plugins therefore do not need to maintain their own list of "what was installed and what must be torn down",
-nor a terminal-state flag — the scope itself has the three states `active / disposing / disposed`.
+In `install()`, a plugin receives a [LifecycleScope](../../utils/classes/LifecycleScope.md) **exclusive to this connection epoch**:
+for every host change registered, it `acquire()`s one undo entry on the scope; on disconnect the host
+releases them in reverse order, serially. Plugins therefore need no list of "what was installed, what to tear down" of their own,
+and no terminal-state flag — the scope itself has the three states `active / disposing / disposed`.
 
 The scope is **not reused across epochs**: after `disconnectAll()` and a new `connect()`, `install()`
-is passed a brand-new scope instance. Storing it on an instance field and reading it across epochs reads a released old object.
+receives a brand-new scope instance. Storing it on an instance field and reading it across epochs reads the old, released object.
 
 ## Example
 
@@ -44,22 +44,22 @@ Declares which dependencies must be ready before this plugin can be installed.
 
 #### Remarks
 
-Not declaring (or declaring an empty array) = no dependencies, installed immediately at `init()`, with behavior exactly as before this field existed.
+Not declaring (or declaring an empty array) = no dependencies, installed immediately at `init()`, behavior exactly as before this field existed.
 
-Once declared, the host owns the timing, and the plugin must **not** wait for it again inside `install()`: the host's
-`connect()` is itself waiting for plugin installation, and a plugin waiting back on `connect()` would self-wait into a deadlock. That is exactly why this field
-exists — before it, the search plugin could only rely on the fragile timing convention that
-"`adapterConnected$` is set before plugin installation" to work around the deadlock.
+Once declared, the host owns the ordering; plugins **must not** wait again inside `install()`: the host's
+`connect()` is itself waiting on plugin installation, and a plugin waiting back on `connect()` would self-deadlock. This is exactly
+why the field exists — before it, the search plugin could only dodge the deadlock with the fragile ordering convention that
+"`adapterConnected$` is set before plugin installation".
 
 When dependencies are unsatisfied: the plugin is **not installed**, produces no scope, and does not enter the host's installation wait set, so
-`connect()` resolves normally instead of hanging; the host additionally emits one `console.warn` listing the missing items — not silent.
+`connect()` resolves as usual instead of hanging; the host additionally emits one `console.warn` listing the missing items, not silent.
 
-Dependencies are accounted by **instance reference**, not by name or boolean bit. A same-name adapter swapped for a new instance (never becoming empty in between)
-also counts as an epoch change: the old scope is released, the plugin reinstalls with the new instance and gets a brand-new child scope.
-Conversely, an installation failure within the same epoch does **not** auto-retry — retries only happen when the epoch actually changes.
+Dependencies are accounted by **instance reference**, not by name or a boolean bit. A same-name adapter swapping in a new instance (never empty in between)
+also counts as an epoch change: the old scope is released, and the plugin reinstalls with the new instance and receives a brand-new child scope.
+Conversely, an installation failure within the same epoch is **not** retried automatically — retries only happen when the epoch really changes.
 
-Phase A only resolves `adapter:*`. Declaring `plugin:*` is syntactically legal at this point, but the resolution is always "not ready",
-the plugin stays waiting and triggers the above warn — it does not silently disappear.
+Phase A only resolves `adapter:*`. Declaring `plugin:*` is syntactically legal for now, but the resolution result is always "not ready";
+the plugin stays waiting and triggers the warn above — it does not silently vanish.
 
 #### Example
 
@@ -67,7 +67,7 @@ the plugin stays waiting and triggers the above warn — it does not silently di
 readonly inject = ['adapter:local'] as const;
 
 async install(scope: LifecycleScope) {
-  // By this point adapter:local is certainly ready; take and use it directly
+  // By this point adapter:local is definitely ready; just take it and use it
   const adapter = this.rxdb.localAdapterSync;
 }
 ```
@@ -82,10 +82,10 @@ readonly instanceLifecycle?: object;
 
 Defined in: [packages/rxdb/src/rxdb-plugin.ts:100](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-plugin.ts#L100)
 
-Resources that follow the instance, wound down only at `RxDB.destroy()`; ordinary disconnects do not call it.
+Resources following the instance, finalized only on `RxDB.destroy()`; ordinary disconnects do not call them.
 
 `stop` synchronously rejects new tasks; `dispose` releases resources after all adapters disconnect and in-flight transactions exit.
-Both steps must be idempotent; a failure in one does not stop the other plugins from winding down.
+Both steps must be idempotent; a failure in one does not prevent the remaining plugins from finalizing.
 
 #### dispose()
 
@@ -105,7 +105,7 @@ Releases instance resources after the adapters stop.
 stop(): void;
 ```
 
-Stops accepting tasks, without waiting for in-flight transactions.
+Stops accepting tasks without waiting for in-flight transactions.
 
 ##### Returns
 
@@ -121,16 +121,16 @@ readonly lifecycle?: "scoped";
 
 Defined in: [packages/rxdb/src/rxdb-plugin.ts:92](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-plugin.ts#L92)
 
-Declares that this plugin has migrated to scoped teardown.
+Declares that this plugin has migrated to scope teardown.
 
 #### Remarks
 
-When the value is `'scoped'`, the host stops once it has released the plugin's scope, and does **not** call [IRxDBPlugin.destroy](#destroy).
-Dual-version plugins (that must install into both old and new hosts) write both: old hosts do not recognize this field and only take
-`destroy()`; new hosts recognize it and only take the scope — neither side cleans up twice.
+With the value `'scoped'`, the host stops after releasing the plugin's scope and does **not** call [IRxDBPlugin.destroy](#destroy).
+Dual-version plugins (installable into both old and new hosts) write both: old hosts do not know this field and only run
+`destroy()`; new hosts know it and only run the scope, so neither side cleans up twice.
 
-The reason for an explicit marker instead of checking `install.length` for a parameter: transpilation output, `Function.prototype.bind`
-and minifiers all rewrite the parameter count, so treating it as a contract would misjudge.
+An explicit marker is required rather than checking whether `install.length` has a parameter: transpiled output, `Function.prototype.bind`
+and minifiers all rewrite parameter counts, so treating it as a contract would misjudge.
 
 ***
 
@@ -158,12 +158,12 @@ This plugin's contribution to the system layer: system entities, initial rows, s
 
 #### Remarks
 
-The host reads this field **synchronously** in `use()`, before any adapter action — it cannot go through [IRxDBPlugin.install](#install),
-for the reason given in the `@fileoverview` of [RxDBSystemContribution](RxDBSystemContribution.md) (a plugin declaring `inject` necessarily runs after
-table creation, while system tables must come out in the same batch as table creation).
+The host reads this field **synchronously** in `use()`, before any adapter action — it cannot go through [IRxDBPlugin.install](#install);
+see the `@fileoverview` of [RxDBSystemContribution](RxDBSystemContribution.md) (plugins declaring `inject` necessarily run after
+table creation, while system tables must come out in the same batch as the table creation).
 
-Plugins carrying this field must be `use()`d before `connect()`: if too late, the host **throws** rather than silently skipping.
-The consequence of silently skipping is a database where "the plugin is installed but the tables were never created" — and that produces no compile error.
+Plugins carrying this field must be `use()`d before `connect()`: too late, and the host **throws** instead of silently skipping.
+The consequence of a silent skip is a database "with the plugin installed but the tables never created" — which produces no compile error.
 
 ***
 
@@ -175,11 +175,11 @@ readonly worktreeTableSet?: WorktreeTableSetHooks;
 
 Defined in: [packages/rxdb/src/rxdb-plugin.ts:129](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-plugin.ts#L129)
 
-This plugin's contribution to the writable checkout table sets (US-314 B2.5), see [WorktreeTableSetHooks](WorktreeTableSetHooks.md).
+This plugin's contribution to the writable checkout's table set (US-314 B2.5); see [WorktreeTableSetHooks](WorktreeTableSetHooks.md).
 
 #### Remarks
 
-Only plugins that build auxiliary objects (like full-text indexes) on business tables need to declare this.
+Only plugins that build auxiliary objects (such as full-text indexes) on business tables need to declare it.
 
 ## Methods
 
@@ -199,13 +199,13 @@ Tears down the plugin.
 
 #### Deprecated
 
-Use `scope.acquire()` in `install(scope)` to register undo entries, and declare
+Use `scope.acquire()` inside `install(scope)` to register undo entries instead, and declare
 [IRxDBPlugin.lifecycle](#lifecycle) as `'scoped'`. This method is kept only for plugins that have not migrated:
-without `lifecycle` declared, the host calls it once more **after** releasing the plugin's scope.
+when `lifecycle` is not declared, the host calls it once more **after** releasing the plugin's scope.
 
-Per the repository's deprecation cycle, this member stays for at least one minor version (after 1.0, one major version cycle); removal happens in a breaking
-version and is recorded in the migration docs. Until then the calling contract is unchanged — migrated plugins just delete it,
-and dual-version plugins keeping it will not be cleaned up twice.
+Per the repository's deprecation cycle, this member is kept for at least one minor version (one major-version cycle after 1.0); removal happens in a breaking
+version and is recorded in the migration docs. Until then the calling contract is unchanged — migrated plugins can simply delete it,
+and dual-version plugins keeping it are not cleaned up twice.
 
 ***
 
@@ -223,7 +223,7 @@ Installs the plugin.
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `scope` | [`LifecycleScope`](../../utils/classes/LifecycleScope.md) | The plugin activation scope of this connection epoch; one `acquire()` wraps exactly one acquisition step that may throw |
+| `scope` | [`LifecycleScope`](../../utils/classes/LifecycleScope.md) | The plugin activation scope of this connection epoch; one `acquire()` wraps only one acquisition step that may throw |
 
 #### Returns
 
@@ -231,7 +231,7 @@ Installs the plugin.
 
 #### Remarks
 
-Throwing (including a `Promise` rejection) counts as an installation failure: the host first releases **the parts already registered on `scope`**
-in reverse order, then propagates the original error to `connect()`. Cleanup errors during the rollback are only logged, never covering up the installation error.
+Throwing (including `Promise` rejection) counts as an installation failure: the host first releases **the parts already registered into `scope`**
+in reverse order, then propagates the original error to `connect()`. Cleanup errors during the rollback are only logged and never cover up the installation error.
 
 Implementations omitting the parameter do not break the contract — `install()` and `install(scope)` both satisfy this interface.

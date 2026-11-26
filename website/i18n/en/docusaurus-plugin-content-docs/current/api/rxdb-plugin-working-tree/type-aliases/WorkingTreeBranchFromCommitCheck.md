@@ -13,7 +13,7 @@ type WorkingTreeBranchFromCommitCheck =
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/branch-from-commit.ts:38](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/branch-from-commit.ts#L38)
 
-Result of [WorkingTreeManager.checkBranchFromCommit](../classes/WorkingTreeManager.md#checkbranchfromcommit)
+The result of [WorkingTreeManager.checkBranchFromCommit](../classes/WorkingTreeManager.md#checkbranchfromcommit)
 
 ## Union Members
 
@@ -31,7 +31,7 @@ Result of [WorkingTreeManager.checkBranchFromCommit](../classes/WorkingTreeManag
 readonly ok: true;
 ```
 
-Discriminator: can be used to create a branch
+The discriminator: it can be used to create a branch
 
 ***
 
@@ -50,7 +50,7 @@ Discriminator: can be used to create a branch
 readonly ok: false;
 ```
 
-Discriminator: cannot be used to create a branch
+The discriminator: it cannot be used to create a branch
 
 #### reason
 
@@ -58,4 +58,4 @@ Discriminator: cannot be used to create a branch
 readonly reason: WorkingTreeBranchFromCommitRejection;
 ```
 
-Why it cannot
+The cause of not being usable

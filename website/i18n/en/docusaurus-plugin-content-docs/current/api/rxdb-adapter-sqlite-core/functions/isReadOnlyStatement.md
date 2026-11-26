@@ -20,6 +20,6 @@ Determines whether a statement is read-only (SELECT / EXPLAIN).
 
 ## Remarks
 
-SQLite's `db.changes()` is only meaningful after INSERT/UPDATE/DELETE; calling it on a SELECT returns the count
-left over by the **previous write statement**. Returning that number as the SELECT's `rowsAffected` gives the caller a number
-with nothing to do with this query (SQLC-030). DML with `RETURNING` does not count as read-only — it does modify rows.
+SQLite's `db.changes()` is only meaningful after INSERT/UPDATE/DELETE; calling it on a SELECT yields the count
+left over from the **previous write statement**. Returning that number as the SELECT's `rowsAffected` would give callers a number
+that has nothing to do with this query (SQLC-030). DML with `RETURNING` does not count as read-only — it really did change rows.

@@ -6,8 +6,9 @@ Entity-level foreign key constraint.
 
 ## Remarks
 
-Relation metadata handles single-column foreign keys; use this configuration to declare cross-column business invariants. `properties` and
-`mappedProperties` correspond one-to-one by position, and the referenced side must have a matching unique index.
+Relation metadata handles single-column foreign keys; cross-column business invariants are declared with this
+configuration. `properties` and `mappedProperties` correspond positionally one to one, and the referenced side
+must have a matching unique index.
 
 ## Extends
 
@@ -47,7 +48,7 @@ mappedProperties: [string, ...string[]];
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:586](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L586)
 
-The referenced entity's properties or relation ID fields.
+The referenced entity's property or relation-ID fields.
 
 ***
 
@@ -77,19 +78,19 @@ onDelete?:
 
 Defined in: [packages/rxdb/src/entity/relation-types.interface.ts:182](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/relation-types.interface.ts#L182)
 
-Cascade behavior on delete
-Defines how the foreign keys in child tables are handled when a parent-table record is deleted
+Cascade behavior on delete.
+Defines how the child table's foreign key is handled when the parent table record is deleted.
 
 #### Example
 
 ```typescript
-// Cascades deletes to orders when a user is deleted
+// Cascade-delete orders when the user is deleted
 onDelete: OnDeleteAction.CASCADE
 
-// Sets the category ID of products to NULL when a category is deleted
+// Set the product's category ID to NULL when the category is deleted
 onDelete: OnDeleteAction.SET_NULL
 
-// Prevents deleting a user that still has orders
+// Do not allow deleting a user who still has orders
 onDelete: OnDeleteAction.RESTRICT
 ```
 
@@ -119,23 +120,23 @@ onUpdate?:
 
 Defined in: [packages/rxdb/src/entity/relation-types.interface.ts:205](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/relation-types.interface.ts#L205)
 
-Cascade behavior on update
-Defines how the foreign keys in child tables are handled when the parent table's primary key is updated
+Cascade behavior on update.
+Defines how the child table's foreign key is handled when the parent table's primary key is updated.
 
 #### Example
 
 ```typescript
-// Cascades the user_id in orders when the user ID is updated
+// Cascade-update the order's user_id when the user ID is updated
 onUpdate: OnUpdateAction.CASCADE
 
-// Disallows primary key updates (recommended)
+// Do not allow updating the primary key (recommended)
 onUpdate: OnUpdateAction.RESTRICT
 ```
 
 #### Default
 
 ```ts
-OnUpdateAction.RESTRICT (primary key updates not recommended)
+OnUpdateAction.RESTRICT (updating the primary key is not recommended)
 ```
 
 #### Inherited from
@@ -152,4 +153,4 @@ properties: [string, ...string[]];
 
 Defined in: [packages/rxdb/src/entity/property-types.interface.ts:580](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/property-types.interface.ts#L580)
 
-The current entity's properties or relation ID fields.
+The current entity's property or relation-ID fields.

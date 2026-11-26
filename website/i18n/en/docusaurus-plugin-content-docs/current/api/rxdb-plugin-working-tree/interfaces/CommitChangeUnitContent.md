@@ -6,8 +6,8 @@ The part of the unit content that goes into the digest — exactly the nine colu
 
 ## Remarks
 
-Shaped as a single interface so computeChangeUnitFingerprint's parameter says plainly "which fields go into the digest".
-Adding a field to this interface = changing the criterion of every existing fingerprint in the database, and the `UNIT_DOMAIN` version number **must** be bumped at the same time.
+Shaped as a single column type so computeChangeUnitFingerprint's formal parameter says clearly "which fields go into the digest".
+Adding a field to this interface = changing the criteria of every existing fingerprint in the database, and the `UNIT_DOMAIN` version number **must** change with it.
 
 ## Properties
 
@@ -43,7 +43,7 @@ readonly inversePatch: Record<string, unknown> | null;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/commit/change-unit.ts:93](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/commit/change-unit.ts#L93)
 
-The reverse field change package, used for restore; `null` for NEW, which has no reverse content
+The reverse field change bundle, used for restore; `null` when NEW has no reverse content
 
 ***
 
@@ -91,7 +91,7 @@ readonly patch: Record<string, unknown> | null;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/commit/change-unit.ts:91](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/commit/change-unit.ts#L91)
 
-The forward field change package; `null` for DELETE, which has no forward content
+The forward field change bundle; `null` when DELETE has no forward content
 
 ***
 
@@ -115,4 +115,4 @@ readonly unitId: string;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/commit/change-unit.ts:79](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/commit/change-unit.ts#L79)
 
-The unit id; multiple rows of a complete transaction share the same value — splitting it would split one atomic write into several independent changes
+The unit id; multiple rows of the complete transaction share the same value — splitting it is splitting an atomic write into multiple independent changes

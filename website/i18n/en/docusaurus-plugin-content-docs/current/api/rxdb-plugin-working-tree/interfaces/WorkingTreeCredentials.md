@@ -2,16 +2,13 @@
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/commit-conflict.ts:78](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/commit-conflict.ts#L78)
 
-The three positions captured by the caller at read time (FR-020/FR-031).
+The three positions the caller captured at read time (FR-020/FR-031).
 
 ## Remarks
 
-Both `commit()`'s and `discard()`'s option types extend it rather than each declaring the three fields: two declarations would eventually
-diverge at some addition, and "the two commands use the same set of credentials" is exactly the premise that lets callers feed one
-`status()` result to both.
+`commit()` and `discard()`'s option types both inherit it rather than writing the three fields once each: two declarations eventually diverge at some future addition, while "both commands use the same credential set" is exactly what lets the caller feed one `status()` result to both.
 
-All three fields are **required**. Defaults would let callers skip one of the comparisons, and skipping any one
-falls back to the degenerate form described in item 1 above.
+All three fields are **required**. Defaults would let the caller skip some comparison, and skipping any one falls back into the degenerate shape described in point 1 above.
 
 ## Extended by
 

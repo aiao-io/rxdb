@@ -2,7 +2,7 @@
 
 Defined in: [packages/rxdb/src/entity/cascade-options.interface.ts:95](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/cascade-options.interface.ts#L95)
 
-Percentage. `scale` determines the inherent value range: `0..1` is `[0, 1]`, `0..100` is `[0, 100]`.
+Percentage. `scale` determines the intrinsic value domain: `0..1` means `[0, 1]`, `0..100` means `[0, 100]`.
 
 ## Properties
 

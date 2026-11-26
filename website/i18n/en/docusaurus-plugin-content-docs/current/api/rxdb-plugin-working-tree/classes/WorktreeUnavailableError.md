@@ -2,7 +2,7 @@
 
 Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-errors.ts:50](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/checkout/worktree-errors.ts#L50)
 
-The checkout could not be opened, or could not be renamed.
+A worktree cannot be opened, or cannot be renamed.
 
 ## Extends
 
@@ -27,8 +27,8 @@ Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-errors.ts:5
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
 | `reason` | [`WorktreeUnavailableReason`](../type-aliases/WorktreeUnavailableReason.md) | The reason |
-| `detail` | `string` | Human-readable supplementary note |
-| `options?` | `ErrorOptions` | `cause`: the original error that caused it (`schema_rebuild_failed` carries the rebuild error) |
+| `detail` | `string` | A human-readable supplement |
+| `options?` | `ErrorOptions` | `cause`: the original error behind it (`schema_rebuild_failed` carries the rebuild-time error) |
 
 #### Returns
 
@@ -62,7 +62,7 @@ readonly detail: string;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/checkout/worktree-errors.ts:58](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/checkout/worktree-errors.ts#L58)
 
-Human-readable supplementary note
+A human-readable supplement
 
 ***
 

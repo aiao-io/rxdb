@@ -6,12 +6,11 @@ sidebar_label: "WorkingTreeEmptyState⟨T⟩"
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts:74](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts#L74)
 
-The call succeeded, and the result is **semantically empty**.
+The call succeeded, and the result is a **semantically meaningful empty**.
 
 ## Remarks
 
-`value` is still there: empty is a refinement of success, not a replacement. Dropping the value would make the three revisions of an empty `status()`
-unreadable, and callers would have to query again to get them — and that second read might no longer see the database at the same moment.
+`value` is still there: empty is a refinement of success, not a replacement. Dropping the value makes the three revisions inside an empty `status()` unreadable, forcing the caller to query again just to get them — and what the second query returns may no longer be the same moment of the database.
 
 ## Type Parameters
 
@@ -29,7 +28,7 @@ readonly phase: "empty";
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts:76](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts#L76)
 
-The discriminator bit
+The discriminant
 
 ***
 
@@ -41,4 +40,4 @@ readonly value: T;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts:79](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts#L79)
 
-The return value as-is, except that it is empty
+The return value as-is, except it is empty

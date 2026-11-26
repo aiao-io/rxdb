@@ -12,17 +12,17 @@ Releases the MessagePort held by a Comlink proxy.
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `client` | `unknown` | The return value of [wrapWithComlink](wrapWithComlink.md) / [wrapWithComlinkEndpoint](wrapWithComlinkEndpoint.md), or `undefined` |
+| `client` | `unknown` | Return value of [wrapWithComlink](wrapWithComlink.md) / [wrapWithComlinkEndpoint](wrapWithComlinkEndpoint.md), or `undefined` |
 
 ## Returns
 
 `boolean`
 
-Whether a remote proxy was actually released
+Whether a remote proxy was really released
 
 ## Remarks
 
-Every proxy produced by `wrap()` holds a MessageChannel, and callback arguments each create another one.
-Without releasing, ports only grow across disconnect/reconnect cycles, and references on the Worker side stay alive
-(measured: remote methods are still callable after `disconnect()`).
-A local client has no `releaseProxy`, in which case this is a no-op — distinguished by the return value rather than silently swallowing the difference.
+Every proxy from `wrap()` holds a MessageChannel, and callback parameters each create another one.
+Without releasing, ports only grow across disconnect/reconnect cycles, and the Worker-side references stay alive too
+(measured: remote methods remain callable after `disconnect()`).
+A local client has no `releaseProxy`, so this is a no-op there — distinguished by the return value, not silently swallowing the difference.

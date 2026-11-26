@@ -44,7 +44,7 @@ The capability info after enabling
 readonly kind: "enabled";
 ```
 
-Discriminator: this call completed the enabling
+The discriminator: this call performed the enable
 
 ***
 
@@ -63,7 +63,7 @@ Discriminator: this call completed the enabling
 readonly capability: CommitCapabilityInfo;
 ```
 
-The capability info of the current state
+The capability info as it stands
 
 #### kind
 
@@ -71,7 +71,7 @@ The capability info of the current state
 readonly kind: "already_enabled";
 ```
 
-Discriminator: the database was already enabled, and this call changed nothing
+The discriminator: the database was already enabled, and this call changed nothing
 
 ***
 
@@ -89,10 +89,12 @@ Discriminator: the database was already enabled, and this call changed nothing
 readonly kind: "not_empty";
 ```
 
-Discriminator: the database already has content, and by the rule it is not auto-enabled; a manual `enable()` still works
+The discriminator: the database already has content, so per the rule it is not auto-enabled; a manual
+`enable()` still works
 
 ## Remarks
 
-A discriminated union rather than `{ enabled: boolean; … }`: the three outcomes each have their own payload — `enabled` and
-`already_enabled` carry capability info, `not_empty` has nothing. Flattened into one object, a capability info (or a nullable field) would have to be fabricated for the "enabling
-that did not happen", forcing callers to handle four combinations, two of which are fake.
+A discriminated union rather than `{ enabled: boolean; … }`: the three outcomes each carry their own
+payload — `enabled` and `already_enabled` carry capability info, `not_empty` carries nothing. Flattened into
+one object, a capability info (or a nullable field) would have to be fabricated for "the enable that did not
+happen", and callers would be forced to handle four combinations, two of which are fake.

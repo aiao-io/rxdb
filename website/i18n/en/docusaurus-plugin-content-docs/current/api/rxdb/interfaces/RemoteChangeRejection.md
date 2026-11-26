@@ -2,7 +2,7 @@
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:72](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L72)
 
-The reason the remote rejected a local change
+The reason the remote rejected a local change.
 
 ## Properties
 
@@ -14,7 +14,7 @@ code: string;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:74](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L74)
 
-The database SQLSTATE, e.g. `42501`
+Database SQLSTATE, e.g. `42501`.
 
 ***
 
@@ -30,7 +30,7 @@ dependsOn?:
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:82](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L82)
 
-Points to the parent entity when `reason = 'dependency'`; gives the constraint name when it cannot be located
+When `reason = 'dependency'`, points to the parent entity; gives the constraint name when it cannot be located.
 
 ***
 
@@ -42,7 +42,7 @@ entity: RemoteEntityRef;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:80](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L80)
 
-The rejected entity
+The rejected entity.
 
 ***
 
@@ -54,7 +54,7 @@ message: string;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:78](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L78)
 
-The remote's raw message
+The remote's raw message.
 
 ***
 
@@ -66,4 +66,4 @@ reason: "denied" | "gone" | "dependency";
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:76](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L76)
 
-Classification: permission denied / the target row no longer exists / the depended-on entity is unavailable
+Classification: permission denied / the target row no longer exists / the depended-on entity is unavailable.

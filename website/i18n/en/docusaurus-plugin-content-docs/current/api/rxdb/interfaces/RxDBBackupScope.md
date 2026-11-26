@@ -6,8 +6,9 @@ Backup scope declaration (AC#14).
 
 ## Remarks
 
-The archive only contains the database; the external files managed by `rxdb-plugin-storage` themselves are **not** in it,
-and callers must back them up separately and cannot report a "full application backup succeeded" based on this.
+The archive contains only the database; the external file bodies managed by `rxdb-plugin-storage` are **not**
+included, and the caller must back them up separately — this must not be reported as "complete application
+backup succeeded".
 
 ## Properties
 
@@ -19,7 +20,7 @@ readonly database: "included";
 
 Defined in: [packages/rxdb/src/backup/backup.interface.ts:20](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/backup/backup.interface.ts#L20)
 
-All persisted state of the database (user tables, system tables, change history, keyring non-secret metadata).
+All persisted database state (user tables, system tables, change history, non-secret keyring metadata).
 
 ***
 

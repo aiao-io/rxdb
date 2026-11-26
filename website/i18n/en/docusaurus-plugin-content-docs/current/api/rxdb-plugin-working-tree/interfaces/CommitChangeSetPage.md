@@ -2,7 +2,7 @@
 
 Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-changes.ts:18](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/commit/commit-changes.ts#L18)
 
-One page returned by commitChanges: all change units of a commit, in write order.
+One page returned by commitChanges: all change units of one commit, in write order.
 
 ## Properties
 
@@ -14,7 +14,7 @@ readonly commitId: string;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-changes.ts:20](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/commit/commit-changes.ts#L20)
 
-Which commit was read; verbatim identical to the input
+Which commit is being read; character-for-character identical to the input
 
 ***
 
@@ -26,4 +26,4 @@ readonly entries: readonly CommitChangeUnitContent[];
 
 Defined in: [packages/rxdb-plugin-working-tree/src/commit/commit-changes.ts:22](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/commit/commit-changes.ts#L22)
 
-The change units of this commit; in ascending `sequence` order, already decoded by the codec
+The commit's change units; ascending by `sequence`, already decoded through the codec

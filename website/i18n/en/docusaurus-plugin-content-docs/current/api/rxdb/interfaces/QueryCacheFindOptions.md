@@ -27,9 +27,9 @@ Defined in: [packages/rxdb/src/repository/query-cache.interface.ts:126](https://
 Local-cache-first mode (Stale-While-Revalidate)
 
 When set to true:
-1. Returns the local cache data immediately (if present)
-2. Validates and updates asynchronously in the background
-3. Emits the updated data if anything changed
+1. Return local cache data immediately (if present)
+2. Validate and update asynchronously in the background
+3. Emit the updated data if anything changed
 
 #### Default
 
@@ -50,8 +50,8 @@ Defined in: [packages/rxdb/src/repository/query-cache.interface.ts:136](https://
 Offline fallback mode
 
 When set to true:
-- Returns local cache data on network errors
-- Throws NetworkOfflineError if there is no local cache
+- Return local cache data on network errors
+- Throw NetworkOfflineError when there is no local cache
 
 #### Default
 
@@ -69,7 +69,7 @@ onRemoteError?: (error) => void;
 
 Defined in: [packages/rxdb/src/repository/query-cache.interface.ts:115](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query-cache.interface.ts#L115)
 
-The reporting channel for remote validation failures that are **swallowed** in SWR mode.
+Reporting outlet for remote validation failures **swallowed** in SWR mode.
 
 #### Parameters
 
@@ -83,10 +83,7 @@ The reporting channel for remote validation failures that are **swallowed** in S
 
 #### Remarks
 
-After the cache has already emitted, a remote error is swallowed into `EMPTY` (the consumer already has data, so terminating its subscription is pointless).
-But "the remote did not validate successfully this time" is a fact internal bookkeeping must know: without knowing it,
-the "just synced" memory would record a failed validation as a success, and no retry would happen for the whole window.
-This callback only reports; it does not change the behavior of the stream.
+After the cache has emitted, remote errors are swallowed into `EMPTY` (the consumer already has data; terminating its subscription would be pointless). But "the remote failed to validate this time" is a fact internal bookkeeping must know: without it, the "just synced" memory would record a failed validation as a success and stop retrying for the whole window. This callback only reports; it does not change the stream's behavior.
 
 ***
 
@@ -98,7 +95,7 @@ onSyncStats?: (stats) => void;
 
 Defined in: [packages/rxdb/src/repository/query-cache.interface.ts:105](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/repository/query-cache.interface.ts#L105)
 
-Sync completion callback, used to collect performance statistics
+Sync completion callback, used to obtain performance statistics
 
 #### Parameters
 

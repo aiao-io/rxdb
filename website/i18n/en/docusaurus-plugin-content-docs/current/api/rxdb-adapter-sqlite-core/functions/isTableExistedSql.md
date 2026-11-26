@@ -12,13 +12,13 @@ Checks whether a sqlite table exists
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `tableName` | `string` | The table name |
+| `tableName` | `string` | Table name |
 
 ## Returns
 
 `object`
 
-The parameterized SQL statement and its parameters
+Parameterized SQL statement and parameters
 
 ### params
 

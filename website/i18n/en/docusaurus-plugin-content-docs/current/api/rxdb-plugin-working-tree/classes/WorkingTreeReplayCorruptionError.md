@@ -2,14 +2,16 @@
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/cold-replay.ts:115](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/cold-replay.ts#L115)
 
-A working tree unit violated the fold invariant
+A working tree unit violated a folding invariant
 
 ## Remarks
 
-"Already exists in HEAD but marked `insert`", "not in HEAD but marked `delete`", "two rows with the same identity" — under the fold rules
-(data-model.md §2.7) these three inputs **cannot occur**; their appearance means the working tree is already broken.
+"Marked `insert` but already present in HEAD", "marked `delete` but absent from HEAD", "two rows with the same
+identity" — these three inputs **cannot be produced** under the folding rules (data-model.md §2.7); their
+appearance means the working tree is already broken.
 
-So there is no fallback here: "treat it as update" would let a broken working tree replay successfully, turning the sole criterion green.
+So there is no fallback here: "treat it as an update" would let a broken working tree replay successfully,
+turning the sole arbiter green.
 
 ## Extends
 
@@ -29,7 +31,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/cold-replay.ts:1
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `entry` | `Pick`&lt;`WorkingTreeEntry`, `"namespace"` \| `"entity"` \| `"entityId"` \| `"operation"`&gt; | The offending working tree unit |
+| `entry` | `Pick`&lt;`WorkingTreeEntry`, `"namespace"` \| `"entity"` \| `"entityId"` \| `"operation"`&gt; | The working tree unit at fault |
 | `reason` | `string` | Which invariant it violated |
 
 #### Returns
@@ -64,7 +66,7 @@ readonly identity: ColdReplayIdentity;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/cold-replay.ts:117](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/cold-replay.ts#L117)
 
-Identity of the offending row
+The identity of the row at fault
 
 ***
 
@@ -104,7 +106,7 @@ readonly operation: "insert" | "update" | "delete";
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/cold-replay.ts:120](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/cold-replay.ts#L120)
 
-The operation declared by the unit
+The operation the unit declares
 
 ***
 

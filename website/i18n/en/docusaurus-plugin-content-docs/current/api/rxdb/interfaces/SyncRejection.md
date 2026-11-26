@@ -2,7 +2,7 @@
 
 Defined in: [packages/rxdb/src/sync-state.ts:69](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-state.ts#L69)
 
-A rejection record with the moment it happened and the source changes
+A rejection record carrying the moment it happened and the source changes.
 
 ## Extends
 
@@ -18,7 +18,7 @@ at: Date;
 
 Defined in: [packages/rxdb/src/sync-state.ts:71](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-state.ts#L71)
 
-The push commit moment
+The push-commit moment.
 
 ***
 
@@ -30,7 +30,7 @@ changeIds: readonly number[];
 
 Defined in: [packages/rxdb/src/sync-state.ts:73](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-state.ts#L73)
 
-The local change ids marked as rejected together with this entity (`RxDBChange.id`)
+The local change ids (`RxDBChange.id`) of this entity that were marked rejected together.
 
 ***
 
@@ -42,7 +42,7 @@ code: string;
 
 Defined in: [packages/rxdb/src/sync-state.ts:57](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-state.ts#L57)
 
-The database SQLSTATE, e.g. `42501`, `RX001`, `23503`
+Database SQLSTATE, e.g. `42501`, `RX001`, `23503`.
 
 #### Inherited from
 
@@ -62,7 +62,8 @@ dependsOn?:
 
 Defined in: [packages/rxdb/src/sync-state.ts:63](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-state.ts#L63)
 
-Points to the parent entity when a dependency failed; gives the constraint name when the parent entity cannot be located
+Points to the parent entity when a dependency failed; gives the constraint name when the parent entity cannot
+be located.
 
 #### Inherited from
 
@@ -78,7 +79,7 @@ entity: string;
 
 Defined in: [packages/rxdb/src/sync-state.ts:51](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-state.ts#L51)
 
-Entity name
+Entity name.
 
 #### Inherited from
 
@@ -94,7 +95,7 @@ entityId: string;
 
 Defined in: [packages/rxdb/src/sync-state.ts:53](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-state.ts#L53)
 
-The primary key of the rejected entity
+The rejected entity's primary key.
 
 #### Inherited from
 
@@ -110,7 +111,7 @@ message: string;
 
 Defined in: [packages/rxdb/src/sync-state.ts:61](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-state.ts#L61)
 
-The remote's raw message
+The remote's raw message.
 
 #### Inherited from
 
@@ -126,7 +127,7 @@ namespace: string;
 
 Defined in: [packages/rxdb/src/sync-state.ts:49](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-state.ts#L49)
 
-Entity namespace
+Entity namespace.
 
 #### Inherited from
 
@@ -142,7 +143,7 @@ op: "INSERT" | "UPDATE" | "DELETE";
 
 Defined in: [packages/rxdb/src/sync-state.ts:55](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-state.ts#L55)
 
-The merged remote operation (taken from the remote's receipt, not the type of a single source change)
+The merged remote operation (taken from the remote receipt, not the type of a single source change).
 
 #### Inherited from
 
@@ -158,7 +159,8 @@ reason: "denied" | "gone" | "dependency";
 
 Defined in: [packages/rxdb/src/sync-state.ts:59](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/sync-state.ts#L59)
 
-Classification: `denied` rejected by RLS; `gone` the row no longer exists; `dependency` the depended-on parent entity failed
+Classification: `denied` rejected by RLS; `gone` the row no longer exists; `dependency` the depended-on parent
+entity failed.
 
 #### Inherited from
 

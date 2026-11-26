@@ -19,7 +19,7 @@ readonly name: string;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:268](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L268)
 
-The adapter name, same as the key used when registering with `RxDB.adapter()`; error messages and `getAdapter()` both identify adapters by it
+The adapter name, same value as the key used when registering with `RxDB.adapter()`; both error messages and `getAdapter()` recognize adapters by it
 
 #### Inherited from
 
@@ -79,13 +79,11 @@ get tableSet(): WorktreeTableSet;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:480](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L480)
 
-The business table set this instance is mounted on (US-314 in-database shadow tables)
+The set of business tables mounted on this instance (US-314 in-database shadow tables)
 
 ##### Remarks
 
-It lives on the RxDB instance ([RxDB.worktreeTableSet](../classes/RxDB.md#worktreetableset-1)); this is only a pass-through read: one instance mounts exactly one table set at a time,
-and the adapter storing another copy would be a second source of truth. All SQL that reads or writes business tables resolves physical names through it; system tables, QueryCache and other entities without replicas
-go to the main table set no matter which set is mounted.
+Lives on the RxDB instance ([RxDB.worktreeTableSet](../classes/RxDB.md#worktreetableset-1)); this is just a pass-through read: an instance mounts only one table set at a time, and a second copy stored on the adapter would be a second source of truth. SQL that reads or writes business tables resolves physical names through it; entities without copies, such as system tables and QueryCache, always land in the primary table set regardless of which set is mounted.
 
 ##### Returns
 
@@ -109,7 +107,7 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:442](https://github.com/aiao-io/r
 
 **`Internal`**
 
-The capture runtime; always `undefined` on a database without the commit capability enabled.
+The capture runtime; always `undefined` on databases without the commit capability enabled.
 
 ##### Returns
 
@@ -133,25 +131,15 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:468](https://github.com/aiao-io/r
 
 **`Internal`**
 
-The current raw write adjudication context of this adapter (adapter-contract.md §2)
+This adapter's current raw-write adjudication context (adapter-contract.md §2)
 
 ##### Remarks
 
-`rawQuery?()` is an **optional method** on this interface (see `IRxDBAdapter` above), so core cannot wrap it on the adapter's behalf the way it does for the four mount points —
-adjudication can only be done by each adapter's own `rawQuery` implementation calling `gateRawWrite(sql, ctx, …)`.
-The `ctx` that call needs is handed out here, so the only thing the six adapters have to get right is "passing it to the adjudication" —
-the two questions that are genuinely easy to get wrong, "how the capability bit is computed" and "where the domain comes from", never land on them at all.
+`rawQuery?()` is an **optional method** on this interface (see `IRxDBAdapter` above), and core cannot wrap it on the adapter's behalf the way it does the four mount points — adjudication can only be done by each adapter's own `rawQuery` implementation calling `gateRawWrite(sql, ctx, …)`. The `ctx` that call needs is handed out here, so all six adapters have to get right is that single line of "pass it to the adjudicator"; the two genuinely easy-to-get-wrong questions — how the capability bit is computed and where the scope comes from — never land on them.
 
-The capability bit is decided directly by **whether the capture runtime is installed**, with no separate boolean stored: the runtime is only installed when the bit is true
-(read as true by `RxDB.connect()`, or just flipped on by `workingTree.enable()`). Storing another copy would be a second source of truth,
-and the consequence of the two drifting is one-directional — the gate believes it is off, and every raw write is let through. The context object itself is created
-in `setWorkingTreeCaptureHook()` with **the same assignment** as the runtime, not recreated on every read: the getter is called on every
-raw statement, and it holds no per-call state. The two fields only change together in that one place, so "a new runtime installed but
-handing out a closure bound to the old runtime" is not a reachable state.
+The capability bit is decided directly by **whether the capture runtime is installed**, with no separately stored boolean: the runtime is installed only when the capability bit is true (`RxDB.connect()` reads true, or `workingTree.enable()` just flipped it). A second stored copy would be a second source of truth, and the consequence of the two diverging is one-directional — the gate believing itself off would let every raw write through. The context object itself is created in `setWorkingTreeCaptureHook()` **in the same assignment statement** as the runtime, not recreated on every read: the getter is called on every raw statement, and it holds no per-call state. The two fields change together in that one place, so "a new runtime installed while a closure bound to the old runtime is handed out" is not a reachable state.
 
-What is handed out is **the adjudication entry itself**, not the things the adjudication looks at (domain, column set, trusted intents). Core therefore never has to
-restate what capture recognizes, and there is no such thing as a double list where "a copy of the domain was made and the derived index columns a plugin registers later only land in one of the copies" —
-the adjudication always runs on the copy the runtime itself holds.
+What is handed out is the **adjudication entry point itself**, not the things adjudication looks at (scope, column sets, trusted intents). Core therefore does not have to restate what capture recognizes, and there is no dual-list problem of the kind "a copy of the scope was made, and derived index columns registered later by a plugin land in only one of the two" — adjudication always runs over the copy the runtime holds.
 
 ##### Returns
 
@@ -171,13 +159,13 @@ adoptWorktreeEncryption?(source): void;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:777](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L777)
 
-Adopts the keyring of the main database's adapter (read-only checkouts, US-313).
+Adopts the primary database adapter's keyring (read-only checkout, US-313).
 
 #### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `source` | [`LocalRxDBAdapter`](../type-aliases/LocalRxDBAdapter.md) | The main database's adapter, of the same backend as this adapter |
+| `source` | [`LocalRxDBAdapter`](../type-aliases/LocalRxDBAdapter.md) | The primary database's adapter, same backend as this adapter |
 
 #### Returns
 
@@ -185,8 +173,7 @@ Adopts the keyring of the main database's adapter (read-only checkouts, US-313).
 
 #### Remarks
 
-The envelope's AAD binds the database name, and the snapshot database's ciphertext is a byte-for-byte copy of the main database's envelopes, which only the main database's keyring can open.
-Call before this adapter connects for the first time. What is shared is the same object: `lock()` on the snapshot instance also locks the main database.
+The envelope's AAD binds the database name; the snapshot database's ciphertext is a byte-for-byte copy of the primary database's envelopes, decryptable only with the primary database's keyring. Called before this adapter's first connection. What is shared is the same object: calling `lock()` on the snapshot instance also locks the primary database.
 
 #### Inherited from
 
@@ -216,8 +203,8 @@ Executes a transaction in the **bootstrap phase** (table structure not yet ready
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `fun` | `T` | The transaction callback |
-| `transactionLog?` | `boolean` | Whether to write the transaction log. Default `true`; pure DDL / metadata bootstrap should pass `false` explicitly |
+| `fun` | `T` | Transaction callback function |
+| `transactionLog?` | `boolean` | Whether to write the transaction log. Defaults to `true`; pure DDL / metadata bootstrap should explicitly pass `false` |
 
 #### Returns
 
@@ -225,17 +212,11 @@ Executes a transaction in the **bootstrap phase** (table structure not yet ready
 
 #### Remarks
 
-The only difference from [transaction](../classes/RxDBAdapterLocalBase.md#transaction) is **skipping the "bootstrap complete" readiness gate**. What the adapter's readiness gate waits for is exactly
-`RxDB.connect()`, and the bootstrap-phase caller is inside that promise — going through [transaction](../classes/RxDBAdapterLocalBase.md#transaction) would wait on itself,
-hanging forever. Tables may not exist yet at this point; the caller is responsible for ordering.
+The only difference from [transaction](../classes/RxDBAdapterLocalBase.md#transaction) is that it **skips the "bootstrap complete" readiness gate**. The adapter's readiness gate is waiting on exactly `RxDB.connect()`, and the bootstrap-phase caller is inside that promise — going through [transaction](../classes/RxDBAdapterLocalBase.md#transaction) would wait on itself and hang forever. Tables may not exist yet at this point; callers are responsible for ordering.
 
-Callers are limited to two kinds: the bootstrap chain of `RxDB.connect()` itself (watermarks, table creation, migration), and
-**plugins installed inside `connect()`** (their `install()` also runs inside that promise,
-see the FTS installation of `@aiao/rxdb-plugin-search`). Business code always uses [transaction](../classes/RxDBAdapterLocalBase.md#transaction).
+Callers are limited to two kinds: the bootstrap chain of `RxDB.connect()` itself (watermarks, table creation, migration), and **plugins installed inside `connect()`** (their `install()` runs on that same promise; see the FTS installation in `@aiao/rxdb-plugin-search`). Business code always uses [transaction](../classes/RxDBAdapterLocalBase.md#transaction).
 
-`transactionLog` must be passable here: bootstrap-phase DDL belongs to no user change, and writing a log would needlessly trigger
-a branch number read and a full trigger rebuild. The default implementation simply delegates to [transaction](../classes/RxDBAdapterLocalBase.md#transaction);
-only adapters with their own readiness gate need to override.
+`transactionLog` must be passable here: bootstrap-phase DDL is not a user change, and writing the log would needlessly trigger a branch-number read and a full trigger rebuild. The default implementation delegates directly to [transaction](../classes/RxDBAdapterLocalBase.md#transaction); only adapters with their own readiness gate need to override.
 
 #### Inherited from
 
@@ -251,18 +232,17 @@ canDropStorage?(): boolean;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:811](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L811)
 
-Under the current configuration, whether [dropStorage](../classes/RxDBAdapterLocalBase.md#dropstorage) can delete this database (asked once before a read-only checkout builds its snapshot database, US-313).
+Whether, under the current configuration, [dropStorage](../classes/RxDBAdapterLocalBase.md#dropstorage) can delete this database (asked once before a read-only checkout creates the snapshot database, US-313).
 
 #### Returns
 
 `boolean`
 
-When `false`, `dropStorage()` will certainly refuse
+When `false`, `dropStorage()` will definitely refuse
 
 #### Remarks
 
-Looks only at configuration, never touches storage. There is no other way to know before building the snapshot: trying a delete first would delete a database whose identity is not yet verified —
-if the snapshot factory is misconfigured and points at the main database's storage, that delete hits the main database. And a snapshot database that could be built but not deleted throws on close, and errors on every later reclamation.
+Consults configuration only, never touches storage. Before creating the snapshot there is no other way to know: trying by deleting once would delete a database that has not yet been identified, and a misconfigured snapshot factory pointing at the primary database's storage would delete the primary database itself. A snapshot database that could be created but not deleted would throw on close, and every subsequent cleanup would report errors.
 
 #### Inherited from
 
@@ -278,8 +258,7 @@ checkEntityConstraints?(EntityTypes): Promise<void>;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:734](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L734)
 
-Read-only drift check: when the storage constraints declared by entity metadata do not match the actual constraints in the database, throws
-[RxDBConstraintDriftError](../classes/RxDBConstraintDriftError.md), listing the missing and superfluous constraint names (US-030 AC#10).
+Read-only drift check: throws [RxDBConstraintDriftError](../classes/RxDBConstraintDriftError.md) when the storage constraints declared in the entity metadata disagree with the actual constraints in the database, listing missing and extra constraint names (US-030 AC#10).
 
 #### Parameters
 
@@ -293,13 +272,9 @@ Read-only drift check: when the storage constraints declared by entity metadata 
 
 #### Remarks
 
-Called at the same moment as [RxDBAdapterLocalBase.reconcileEntityIndexes](../classes/RxDBAdapterLocalBase.md#reconcileentityindexes) (after user migrations and
-missing-table backfills), but **read-only, no automatic backfill** — backfill is written by users into `migrations`.
-The comparison only covers three kinds of objects: `ck_` CHECKs, `uq_` conditional unique indexes, and `ex_` range exclusions.
+Called at the same moment as [RxDBAdapterLocalBase.reconcileEntityIndexes](../classes/RxDBAdapterLocalBase.md#reconcileentityindexes) (after user migrations and missing-table backfills), but is **read-only and does not auto-backfill** — backfill is written by the user into `migrations`. The comparison covers only three kinds of objects: `ck_` CHECKs, `uq_` conditional unique indexes, and `ex_` exclusion ranges.
 
-Absence is a contract-permitted shape (consistent with `reconcileEntityIndexes`); but when the entity declares
-`checks` / conditional unique `where` / `exclusions` and the adapter lacks this method, `connect()` reports
-unsupported per US-030 AC#6 — no silent degradation.
+Absence is a contract-permitted shape (same as `reconcileEntityIndexes`); but when the entity declares `checks` / conditional-unique `where` / `exclusions` and the adapter lacks this method, `connect()` reports not-supported per US-030 AC#6 instead of silently degrading.
 
 #### Inherited from
 
@@ -325,10 +300,7 @@ Closes the **bootstrap window**: called once after `RxDB.connect()` finishes cre
 
 #### Remarks
 
-Adapters with their own readiness gate (SQLite family / PGlite) let `query()` / `rawQuery()` /
-`createTables()` skip the readiness gate inside the bootstrap window — that gate waits for the not-yet-settled `RxDB.connect()`.
-This method flips the state to `ready`, after which every entry goes through the normal readiness wait.
-Adapters without a readiness gate keep the default no-op implementation.
+Adapters with their own readiness gate (SQLite family / PGlite) let `query()` / `rawQuery()` / `createTables()` skip the readiness gate during the bootstrap window — that gate is waiting on exactly the `RxDB.connect()` that has not settled yet. This method flips the state to `ready`, after which every entry point goes through the normal readiness wait. Adapters without a readiness gate keep the default no-op implementation.
 
 #### Inherited from
 
@@ -350,12 +322,11 @@ Establishes the connection and brings the system tables up to the current waterm
 
 `Promise`&lt;[`IRxDBAdapter`](IRxDBAdapter.md)&gt;
 
-Itself, for convenient chaining
+Itself, for chaining
 
 #### Remarks
 
-Table creation and system migration both happen here (see `isCurrentRxDBSystemVersion`), so it can be slow,
-and it may throw `UnsupportedRxDBSystemVersionError` because the database is newer than this process.
+Table creation and system migration both happen here (see `isCurrentRxDBSystemVersion`), so it can be slow, and it can throw `UnsupportedRxDBSystemVersionError` when the database is newer than this process.
 
 #### Inherited from
 
@@ -395,7 +366,7 @@ create(entity): Promise<RxDBChange>;
 
 Defined in: [packages/rxdb/src/system/types.local.ts:90](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.local.ts#L90)
 
-Creates an entity
+Create an entity
 
 #### Parameters
 
@@ -448,15 +419,15 @@ createWorktreeTableSet?(
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:825](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L825)
 
-Creates the tables of a writable checkout inside the caller's transaction and seeds them (US-314 B1.5).
+Creates and seeds a set of tables for a writable checkout inside the caller's transaction (US-314 B1.5).
 
 #### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `executor` | [`TransactionExecutor`](TransactionExecutor.md) | An executor of a transaction on the main database; table creation, copying, increments and trigger mounting all happen in this one transaction, and the open flow writes the held key in the same transaction |
-| `tableSet` | [`WorktreeTableSet`](../classes/WorktreeTableSet.md) | The table set to create; must not be the main table set; members must keep change logs |
-| `seed` | [`WorktreeTableSetSeed`](WorktreeTableSetSeed.md) | The held branch and the increments to apply |
+| `executor` | [`TransactionExecutor`](TransactionExecutor.md) | The executor of a transaction on the primary database; table creation, copying, increments and trigger attachment all happen in this one transaction, and the open flow writes the held key in the same transaction |
+| `tableSet` | [`WorktreeTableSet`](../classes/WorktreeTableSet.md) | The table set to create; must not be the primary table set; members must keep change logs |
+| `seed` | [`WorktreeTableSetSeed`](WorktreeTableSetSeed.md) | The held branch and the increments to apply on top |
 
 #### Returns
 
@@ -464,9 +435,7 @@ Creates the tables of a writable checkout inside the caller's transaction and se
 
 #### Remarks
 
-The rows of the main table set are copied as-is (storage form, not decrypted), auto-increment sequences are aligned, and increments are applied — none of it writes change logs or dispatches events;
-finally the change triggers of the member tables are mounted onto the held branch. Same optional capability slot as [RxDBAdapterLocalBase.readWorktreeSnapshotPage](../classes/RxDBAdapterLocalBase.md#readworktreesnapshotpage):
-when absent, the working tree plugin reports unsupported when opening a writable checkout.
+Rows of the primary table set are copied as-is (storage form, not decrypted), auto-increment sequences aligned, and increments applied on top — none of it logged in the change log or dispatched as events; finally the change triggers of the member tables are attached to the held branch. Same optional capability slot as [RxDBAdapterLocalBase.readWorktreeSnapshotPage](../classes/RxDBAdapterLocalBase.md#readworktreesnapshotpage): when absent, the working tree plugin reports not-supported on opening a writable checkout.
 
 #### Inherited from
 
@@ -482,9 +451,9 @@ abstract deleteByIds(entityName, ids): Observable<void>;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:928](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L928)
 
-Deletes in bulk by ID list (QueryCache only)
+Deletes in bulk by a list of IDs (QueryCache only)
 
-Used to clean up data already removed remotely from the local cache.
+Used to clean up data already deleted remotely from the local cache.
 
 #### Parameters
 
@@ -527,8 +496,7 @@ Disconnects and releases the underlying handle.
 
 #### Remarks
 
-Unlike `RxDB.destroy()`, disconnecting is **reversible**: the same adapter instance can `connect()` again afterwards.
-Implementations must be idempotent — calling it while not connected is a no-op, not an error.
+Unlike `RxDB.destroy()`, disconnecting is **reversible**: the same adapter instance can `connect()` again afterwards. Implementations must be idempotent — calling while not connected is a no-op, not an error.
 
 #### Inherited from
 
@@ -544,7 +512,7 @@ dropStorage?(): Promise<void>;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:800](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L800)
 
-Permanently deletes the persistent storage of this adapter's database (read-only checkout reclamation of snapshot databases, US-313).
+Permanently deletes this adapter's persistent storage for this database (read-only checkout reclaims the snapshot database, US-313).
 
 #### Returns
 
@@ -552,12 +520,11 @@ Permanently deletes the persistent storage of this adapter's database (read-only
 
 #### Throws
 
-Throws while this adapter is still connected: disconnect first, then delete
+Throws when this adapter is still connected: disconnect first, then delete
 
 #### Remarks
 
-The storage location is derived by the same rules as at connect time (`rxdb.config.dbName` plus adapter options); does nothing when the database does not exist.
-An in-memory database is gone once disconnected, so this is a no-op there too. Deleted data cannot be recovered: the caller must first make sure no other context is still using this database.
+The storage location is derived with the same rules as at connection time (`rxdb.config.dbName` plus adapter options); does nothing when the database does not exist. An in-memory database is gone once disconnected, so this is also a no-op. What is deleted cannot be recovered: callers must first confirm that no other context is still using this database.
 
 #### Inherited from
 
@@ -573,14 +540,14 @@ dropWorktreeTableSet?(executor, tableSet): Promise<void>;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:840](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L840)
 
-Deletes the tables of a writable checkout inside the caller's transaction (US-314 B1.5).
+Drops a set of tables for a writable checkout inside the caller's transaction (US-314 B1.5).
 
 #### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `executor` | [`TransactionExecutor`](TransactionExecutor.md) | An executor of a transaction on the main database; the close flow releases the held key and deletes the registration row in the same transaction |
-| `tableSet` | [`WorktreeTableSet`](../classes/WorktreeTableSet.md) | The table set to delete; must not be the main table set |
+| `executor` | [`TransactionExecutor`](TransactionExecutor.md) | The executor of a transaction on the primary database; the close flow releases the held key and deletes the registry row in the same transaction |
+| `tableSet` | [`WorktreeTableSet`](../classes/WorktreeTableSet.md) | The table set to drop; must not be the primary table set |
 
 #### Returns
 
@@ -588,7 +555,7 @@ Deletes the tables of a writable checkout inside the caller's transaction (US-31
 
 #### Remarks
 
-Finds this table set by the catalog in the database, and also deletes half-built ones and those whose members have been removed from the configuration — reentrant; cascade deletes caused by dropping tables are not written to the change log.
+Locates the table set by the database's catalog; half-built ones and ones whose members were removed from the configuration are also deleted, re-entrantly; cascading deletes caused by dropping the tables are not recorded in the change log.
 
 #### Inherited from
 
@@ -616,7 +583,7 @@ find query
 
 `Promise`&lt;[`RxDBChange`](../classes/RxDBChange.md)[]&gt;
 
-Returns the query result array
+Returns the array of query results
 
 ***
 
@@ -628,22 +595,22 @@ abstract getMetadataByIds(entityName, ids): Observable<Map<string, string>>;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:896](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L896)
 
-Gets metadata for a given ID list (QueryCache only)
+Gets metadata for a list of IDs (QueryCache only)
 
-Used for local cache freshness checks, returning an ID → updatedAt mapping.
+Used for local cache freshness checks; returns an ID → updatedAt map.
 
 #### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
 | `entityName` | `string` | Entity name |
-| `ids` | `string`[] | Entity ID list |
+| `ids` | `string`[] | List of entity IDs |
 
 #### Returns
 
 `Observable`&lt;`Map`&lt;`string`, `string`&gt;&gt;
 
-`Observable<Map<string, string>>` - ID → updatedAt mapping
+`Observable<Map<string, string>>` - ID → updatedAt map
 
 #### Example
 
@@ -668,7 +635,7 @@ abstract getRepository<T, RT>(EntityType): RT;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:382](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L382)
 
-Gets the repository instance of this entity on **this adapter**.
+Gets the repository instance of this entity **on this adapter**.
 
 #### Type Parameters
 
@@ -689,8 +656,7 @@ Gets the repository instance of this entity on **this adapter**.
 
 #### Remarks
 
-Returns the repository on the adapter axis (see [AdapterRepositoryConstructor](../type-aliases/AdapterRepositoryConstructor.md)),
-not the same object as the facade repository `RxDB.getRepository()` that users normally get.
+Returns the repository on the adapter axis (see [AdapterRepositoryConstructor](../type-aliases/AdapterRepositoryConstructor.md)), not the same object as the facade repository users usually get from `RxDB.getRepository()`.
 
 #### Inherited from
 
@@ -724,7 +690,7 @@ importWorktreeSnapshot?(snapshot): Promise<void>;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:766](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L766)
 
-Writes rows and increments read from the main database into this adapter's database (read-only checkout snapshot building, US-313).
+Writes rows read from the primary database and the increments into this adapter's database (read-only checkout creates the snapshot, US-313).
 
 #### Parameters
 
@@ -738,8 +704,7 @@ Writes rows and increments read from the main database into this adapter's datab
 
 #### Remarks
 
-One transaction: first insert the rows of each table as-is, then apply the increments. No decryption and no encryption — the values of encrypted columns must already be envelopes,
-and plaintext throws immediately; no events dispatched, nothing enters the entity cache. Refused on a database with the capture runtime installed: snapshot writes do not fit the trusted write matrix.
+One transaction: first insert each table's rows as-is, then apply the increments. Neither decrypts nor encrypts; encrypted column values must already be envelopes, and plaintext causes an immediate throw; dispatches no events and does not enter the entity cache. Refused on databases with the capture runtime installed: snapshots cannot be written into the trusted-write matrix.
 
 #### Inherited from
 
@@ -755,7 +720,7 @@ isEncryptedAtRest?(value): boolean;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:535](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L535)
 
-Judges whether a persisted value is already in the "encrypted at-rest form" (FR-038).
+Determines whether a persisted value is already in the "encrypted at-rest form" (FR-038).
 
 #### Parameters
 
@@ -767,21 +732,15 @@ Judges whether a persisted value is already in the "encrypted at-rest form" (FR-
 
 `boolean`
 
-`true` when it is the encrypted persisted form
+`true` when it is in the encrypted persisted form
 
 #### Remarks
 
-**Absence is a contract-permitted shape**, same convention as [RxDBAdapterLocalBase.reconcileEntityIndexes](../classes/RxDBAdapterLocalBase.md#reconcileentityindexes):
-adapters that do not support column encryption do not implement it. Absence does **not** mean allow-through — when the caller (the commit write path) cannot get
-a judge but does have encrypted columns to judge, it throws fail-closed instead of skipping the check.
+**Absence is a contract-permitted shape**, same measure as [RxDBAdapterLocalBase.reconcileEntityIndexes](../classes/RxDBAdapterLocalBase.md#reconcileentityindexes): adapters without column encryption support do not implement it. Absence **does not mean letting it through** — when the caller (the commit write path) cannot get an adjudicator but genuinely has encrypted columns to adjudicate, it fails closed with an error rather than skipping the check.
 
-It is declared here and implemented by adapters because the authoritative judge is `isEnvelope` of `@aiao/rxdb-adapter-encrypted`,
-and `@aiao/rxdb` **cannot** depend on it: the former peer-depends on the latter, so the dependency direction is reversed.
-For an encrypted `PropertyType.string` column, plaintext and ciphertext are both strings — core guessing the shape on its own is installing
-a gatekeeper that will misread.
+Declared here and left for adapters to implement because the authoritative adjudicator is `isEnvelope` from `@aiao/rxdb-adapter-encrypted`, which `@aiao/rxdb` **cannot** depend on: the latter peer-depends on the former, and the dependency direction is reversed. For an encrypted `PropertyType.string` column, plaintext and ciphertext are both strings — core guessing the shape on its own would be installing a guard that misreads.
 
-Same "optional capability slot" as [RxDBAdapterLocalBase.setWorkingTreeCaptureHook](../classes/RxDBAdapterLocalBase.md#setworkingtreecapturehook): core
-only declares the position and the semantics, and does not decide existence for the six backends.
+Same "optional capability slot" as [RxDBAdapterLocalBase.setWorkingTreeCaptureHook](../classes/RxDBAdapterLocalBase.md#setworkingtreecapturehook): core declares only the position and semantics, and does not decide for the six backends whether they have it.
 
 #### Inherited from
 
@@ -811,7 +770,7 @@ Whether the table for this entity already exists in the database.
 
 #### Remarks
 
-It asks about the **physical table**, not whether the entity is registered in the metadata.
+Asks about the **physical table**, not whether the entity is registered in the metadata.
 
 #### Inherited from
 
@@ -827,7 +786,7 @@ listWorktreeTableSetSuffixes?(executor): Promise<readonly string[]>;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:853](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L853)
 
-Lists the existing writable checkout table sets by the catalog in the database (US-314 B2.6).
+Lists the existing writable-checkout table sets by the database's catalog (US-314 B2.6).
 
 #### Parameters
 
@@ -839,13 +798,11 @@ Lists the existing writable checkout table sets by the catalog in the database (
 
 `Promise`&lt;readonly `string`[]&gt;
 
-Table set suffixes (the shape of [WorktreeTableSet.isSuffix](../classes/WorktreeTableSet.md#issuffix)), sorted, without duplicates
+Table set suffixes (shaped like [WorktreeTableSet.isSuffix](../classes/WorktreeTableSet.md#issuffix)), ordered and without duplicates
 
 #### Remarks
 
-Orphan reclamation must know which table sets still exist, including those whose registration rows are already gone, so it looks by catalog, not by the registration table. The shape of physical names belongs to the adapter (the SQLite family reads the end of table names,
-PGlite reads the end of schema names); a configured entity whose main table happens to look like a suffix does not count — deleting it would delete the main table.
-Same optional capability slot for writable checkouts as [RxDBAdapterLocalBase.createWorktreeTableSet](../classes/RxDBAdapterLocalBase.md#createworktreetableset).
+Orphan reclamation needs to know which table sets still exist, including ones whose registry rows are already gone, so it looks by catalog rather than by the registry table. The shape of physical names belongs to the adapter (the SQLite family reads the end of the table name; PGlite reads the end of the schema name); when a configured entity's primary table happens to look like a suffix, it does not count — dropping it would be dropping the primary table. Same optional capability slot for writable checkouts as [RxDBAdapterLocalBase.createWorktreeTableSet](../classes/RxDBAdapterLocalBase.md#createworktreetableset).
 
 #### Inherited from
 
@@ -869,17 +826,17 @@ Applies compacted changes to the local entity tables
 
 Implementation strategy (SQLite):
 1. Convert actions into SQL operations
-2. Within a transaction:
+2. In a transaction:
    a) Execute the SQL operations on the entity tables (INSERT/UPDATE/DELETE)
    b) Bulk-insert localChanges into the RxDBChange table (for history tracking)
-3. Send local events to notify the UI of updates
+3. Send local events to notify the UI to update
 
 #### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `actions` | [`SwitchVersionActions`](SwitchVersionActions.md) | The compacted change operation set (pulled from the remote) |
-| `localChanges?` | `Omit`&lt;[`RxDBChange`](../classes/RxDBChange.md), `"id"`&gt;[] | Records to save into the local RxDBChange table (optional) |
+| `actions` | [`SwitchVersionActions`](SwitchVersionActions.md) | The compacted set of change operations (pulled from the remote) |
+| `localChanges?` | `Omit`&lt;[`RxDBChange`](../classes/RxDBChange.md), `"id"`&gt;[] | Records to save to the local RxDBChange table (optional) |
 | `disableTriggers?` | `boolean` | Whether to disable triggers (used for operations like pull, to avoid creating RxDBChange) |
 
 #### Returns
@@ -900,7 +857,7 @@ migrateSystemSchema(): Promise<void>;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:582](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L582)
 
-Upgrades the tables owned by RxDB before app migrations or repository operations run.
+Upgrades the tables owned by RxDB before applying migrations or running repositories.
 Adapters that do not need to persist system schema state keep the default no-op implementation.
 
 #### Returns
@@ -921,7 +878,7 @@ mutations<T>(options): Promise<InstanceType<T>[]>;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:324](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L324)
 
-Mutates entities in bulk (create/update/remove)
+Bulk-modifies entities (create/update/delete)
 
 #### Type Parameters
 
@@ -953,38 +910,29 @@ physicalTableNames(metadata): readonly string[];
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:574](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L574)
 
-All the names an entity table may be written as in SQL emitted by this adapter.
+All names an entity table can be written as in the SQL this adapter emits.
 
 #### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) | Entity metadata; the answer is decided by it alone, no instance state is read |
+| `metadata` | [`EntityMetadata`](../type-aliases/EntityMetadata.md) | Entity metadata; the answer is decided by it alone, reading no instance state |
 
 #### Returns
 
 readonly `string`[]
 
-Un-normalized physical table names without schema qualification; at least one
+Physical table names, unnormalized and without schema qualification; at least one
 
 #### Remarks
 
-**The naming rules belong to the side that writes the tables.** Before this capability,
-the versioned domain of `@aiao/rxdb-plugin-working-tree` re-assembled the sqlite family's folding rules itself by `'$'`.
-Copied rules do not error when the original changes — they just start computing wrong — and the consequence of computing wrong is one-directional:
-the raw write gate fails to recognize a versioned table, and thus **silently allows through** a write that bypasses capture.
+**Naming rules belong to the side that writes the table.** Before this capability, `@aiao/rxdb-plugin-working-tree`'s versioned domain re-assembled the SQLite family's folding rules around `'$'` on its own. A copied rule does not error out when the original changes — it just starts computing wrong — and the consequence of computing wrong is one-directional: the raw-write gate fails to recognize a version-controlled table and **silently lets through** a write that bypasses capture.
 
-The default implementation hands out the logical name and guesses nothing. Guessing a "common" shape for a backend (for example writing the sqlite family's
-`namespace$table` as the default) only moves the rule-copying from the plugin into core, and from then on no
-backend would ever be discovered for forgetting to override — it would keep computing its table names with someone else's rules.
+The default implementation hands out the logical name and guesses nothing. Guessing a "common" shape on behalf of a backend (e.g. hardcoding the SQLite family's `namespace$table` as the default) merely moves the rule-copying from the plugin into core — and from then on, no backend would ever be caught for forgetting to override: it would keep computing its own table names with someone else's rules.
 
-**Has a default implementation instead of being `abstract`**, same convention as [RxDBAdapterLocalBase.migrateSystemSchema](../classes/RxDBAdapterLocalBase.md#migratesystemschema):
-this is an extension of an existing base class, and `abstract` would make every out-of-repo self-built adapter fail to compile on upgrade,
-while the ones among them that **do not fold namespaces were right all along**. The cost is that "forgot to override" and
-"genuinely not needed" are type-identical; backends that fold namespaces (sqlite family) must override themselves.
+**Has a default implementation rather than being `abstract`**, same measure as [RxDBAdapterLocalBase.migrateSystemSchema](../classes/RxDBAdapterLocalBase.md#migratesystemschema): this is an extension to an existing base class, and `abstract` would break compilation outright for every self-built adapter outside the repo on upgrade — while the ones that **do not fold namespaces were already correct**. The cost is that "forgot to override" and "genuinely does not need to" are type-identical; backends that fold namespaces (the SQLite family) must override it themselves.
 
-No schema qualification: forms like `"public"."post"` have already been reduced to the
-logical name in the qualification-stripping step of raw adjudication, and registering them again here would be a second spelling of the same name. What must be registered is the kind that **cannot be stripped**.
+Without schema qualification: a shape like `"public"."post"` is already reduced back to the logical name by the qualifier-stripping step of raw adjudication, so registering it here again would just be a second spelling of the same name. What must be registered is the kind that **cannot be stripped**.
 
 #### Inherited from
 
@@ -1000,7 +948,7 @@ rawQuery?(sql, params?): Promise<RawQueryResult>;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:346](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L346)
 
-Executes a raw SQL query (for scenarios like conditional UPDATE that bypass the ORM)
+Executes a raw SQL query (scenarios that bypass the ORM, such as conditional UPDATEs)
 
 #### Parameters
 
@@ -1015,13 +963,9 @@ Executes a raw SQL query (for scenarios like conditional UPDATE that bypass the 
 
 #### Remarks
 
-**An optional method**, and that has consequences: core cannot wrap it on the adapter's behalf the way it does for the four write primitives,
-so on a database with the commit capability enabled, the raw write gate can only be done by each adapter's own implementation calling
-`gateRawWrite(sql, ctx, …)` (`ctx` taken from
-[RxDBAdapterLocalBase.workingTreeRawWriteContext](../classes/RxDBAdapterLocalBase.md#workingtreerawwritecontext)). Missing that one line
-means every write on this path bypasses change capture.
+An **optional method**, and that has consequences: core cannot wrap it on the adapter's behalf the way it wraps the four write primitives, so on databases with the commit capability enabled, gating raw writes can only be done by each adapter's own implementation calling `gateRawWrite(sql, ctx, …)` (`ctx` from [RxDBAdapterLocalBase.workingTreeRawWriteContext](../classes/RxDBAdapterLocalBase.md#workingtreerawwritecontext)). Missing that call means all writes on this path bypass change capture.
 
-Writes going through here do not pass the entity Proxy, so they produce no entity events and cached instances do not refresh automatically.
+Writes through here do not go through the entity Proxy, so they produce no entity events, and cached instances do not refresh automatically.
 
 #### Inherited from
 
@@ -1042,15 +986,15 @@ readWorktreeSnapshotPage?(
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:750](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L750)
 
-Reads one page of an entity table in storage form (read-only checkout snapshot building, US-313).
+Reads one page of an entity table in storage form (read-only checkout creates the snapshot, US-313).
 
 #### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `executor` | [`TransactionExecutor`](TransactionExecutor.md) | An executor of a transaction on the main database; all pages of one snapshot are read from the same transaction, consistent with each other |
-| `EntityType` | [`EntityType`](../type-aliases/EntityType.md) | The entity class on the main instance |
-| `after` | \| [`WorktreeSnapshotCursor`](../type-aliases/WorktreeSnapshotCursor.md) \| `null` | The [WorktreeSnapshotPage.next](WorktreeSnapshotPage.md#next) of the previous page; `null` reads from the start |
+| `executor` | [`TransactionExecutor`](TransactionExecutor.md) | The executor of a transaction on the primary database; all pages of one snapshot are read from the same transaction, consistent with each other |
+| `EntityType` | [`EntityType`](../type-aliases/EntityType.md) | The entity class on the primary instance |
+| `after` | \| [`WorktreeSnapshotCursor`](../type-aliases/WorktreeSnapshotCursor.md) \| `null` | The previous page's [WorktreeSnapshotPage.next](WorktreeSnapshotPage.md#next); `null` reads from the start |
 | `limit` | `number` | Maximum rows in this page |
 
 #### Returns
@@ -1061,9 +1005,7 @@ One page of rows in storage form; encrypted columns stay envelopes, not decrypte
 
 #### Remarks
 
-Pairs with [RxDBAdapterLocalBase.importWorktreeSnapshot](../classes/RxDBAdapterLocalBase.md#importworktreesnapshot): the rows in a page are only recognized by the same kind of adapter.
-Same optional capability slot as [RxDBAdapterLocalBase.isEncryptedAtRest](../classes/RxDBAdapterLocalBase.md#isencryptedatrest): absence is a contract-permitted shape,
-and the working tree plugin reports unsupported when opening a checkout on such a backend.
+Pairs with [RxDBAdapterLocalBase.importWorktreeSnapshot](../classes/RxDBAdapterLocalBase.md#importworktreesnapshot): the rows in a page are only recognizable by the same kind of adapter. Same optional capability slot as [RxDBAdapterLocalBase.isEncryptedAtRest](../classes/RxDBAdapterLocalBase.md#isencryptedatrest): absence is a contract-permitted shape, and the working tree plugin reports not-supported when opening a checkout on such a backend.
 
 #### Inherited from
 
@@ -1105,19 +1047,19 @@ remove(entity): Promise<RxDBChange>;
 
 Defined in: [packages/rxdb/src/system/types.local.ts:108](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.local.ts#L108)
 
-Removes an entity
+Delete an entity
 
 #### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `entity` | [`RxDBChange`](../classes/RxDBChange.md) | The entity to remove |
+| `entity` | [`RxDBChange`](../classes/RxDBChange.md) | The entity to delete |
 
 #### Returns
 
 `Promise`&lt;[`RxDBChange`](../classes/RxDBChange.md)&gt;
 
-Returns the removed entity
+Returns the deleted entity
 
 ***
 
@@ -1129,7 +1071,7 @@ removeMany<T>(entities): Promise<InstanceType<T>[]>;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:319](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L319)
 
-Removes entities in bulk.
+Bulk-deletes entities.
 
 #### Type Parameters
 
@@ -1147,7 +1089,7 @@ Removes entities in bulk.
 
 `Promise`&lt;`InstanceType`&lt;`T`&gt;[]&gt;
 
-The removed entities
+The deleted entities
 
 #### Inherited from
 
@@ -1194,7 +1136,7 @@ runInTransaction<T>(fun, transactionLog?): Promise<Awaited<ReturnType<T>>>;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:697](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L697)
 
-Starts a new transaction, **or** reuses the one the caller is already in.
+Opens a new transaction, **or** reuses the one the caller is already in.
 
 #### Type Parameters
 
@@ -1206,7 +1148,7 @@ Starts a new transaction, **or** reuses the one the caller is already in.
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `fun` | `T` | The transaction work; its argument is this transaction's executor |
+| `fun` | `T` | The transaction work; the parameter is this transaction's executor |
 | `transactionLog?` | `boolean` | Whether to write the transaction log |
 
 #### Returns
@@ -1217,14 +1159,9 @@ The return value of `fun`
 
 #### Remarks
 
-The difference from [transaction](../classes/RxDBAdapterLocalBase.md#transaction) is not in this method body, but in who `this` is: on a real adapter the two are synonymous,
-both starting a new queued transaction; while a caller inside a transaction gets the executor facade, which special-cases this method into
-`executor.run()` — reusing the current transaction and **never re-enqueueing**. The SQLite family's and PGlite's overrides only
-add disconnect / read-only assertions before that line; their semantics are verbatim the same.
+The difference from [transaction](../classes/RxDBAdapterLocalBase.md#transaction) is not in this method body but in who `this` is: on a real adapter the two are synonymous, both opening a new queued transaction; but a caller inside a transaction holds the executor facade, and the facade special-cases this method into `executor.run()` — reusing the current transaction and **never re-queueing**. The SQLite family's and PGlite's respective overrides merely add disconnect / read-only assertions in front of that line, semantically identical to this one word for word.
 
-The capture runtime must have an executor to write working tree rows, and "new or reuse" is only known by the calling host.
-Calling `transaction()` directly would make the inside-transaction half of the calls queue up waiting for a slot it is itself occupying — manifesting as
-a permanent hang rather than an error.
+The capture runtime must have an executor to write working tree rows, and only the calling host knows whether to open a new one or reuse. Calling `transaction()` directly would make the half of the calls inside the transaction queue up waiting for a slot they are occupying themselves — manifesting as a permanent hang rather than an error.
 
 #### Inherited from
 
@@ -1240,7 +1177,7 @@ saveMany<T>(entities): Promise<InstanceType<T>[]>;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:312](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L312)
 
-Writes entities in bulk (insert if absent, update if present).
+Bulk-writes entities (inserts when absent, updates when present).
 
 #### Type Parameters
 
@@ -1274,7 +1211,7 @@ sealWorktreeReadOnly?(): Promise<void>;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:789](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L789)
 
-Seals this adapter's database read-only (read-only checkouts, US-313): write statements are refused at the engine level from then on.
+Seals this adapter's database read-only (read-only checkout, US-313): subsequent write statements are refused at the engine level.
 
 #### Returns
 
@@ -1282,11 +1219,9 @@ Seals this adapter's database read-only (read-only checkouts, US-313): write sta
 
 #### Remarks
 
-Catches writes that bypass core's write entries and go straight at the adapter. The SQLite family uses `PRAGMA query_only`, PGlite uses read-only transactions.
+Catches writes that bypass core's write entry points and hit the adapter directly. For the SQLite family it is `PRAGMA query_only`; for PGlite it is a read-only transaction.
 
-The seal is state on the connection (on every transaction for PGlite), and session settings on the raw entry that could change it are refused by the read-only hook;
-statements issued through the executor (`adapter.transaction(executor => executor.query(…))`) are the adapter's own channel —
-the seal itself is laid down from here, so it cannot stop itself from being lifted from here — read-only checkouts guard against accidental writes, not code deliberately changing connection settings.
+The seal is a state on the connection (per transaction for PGlite); session settings that could change it on the raw entry point are refused by the read-only hook. Statements issued through the executor (`adapter.transaction(executor => executor.query(…))`) travel the adapter's own channel — the same one the seal itself is applied through, so it cannot block being lifted from there. The read-only checkout guards against accidental writes, not code that deliberately changes the connection configuration.
 
 #### Inherited from
 
@@ -1302,7 +1237,7 @@ protected settleRepositoryTransaction(executor, committed): void;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:931](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L931)
 
-Commits or rolls back the entity state of the public repository; must be called before handing the transaction queue back.
+Commits or rolls back the public repositories' entity state; must be called before handing the transaction queue back.
 
 #### Parameters
 
@@ -1337,7 +1272,7 @@ Installs or uninstalls the capture runtime (the four mount points of adapter-con
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `hook` | [`WorkingTreeCaptureHook`](WorkingTreeCaptureHook.md) \| `undefined` | The runtime that takes over the four mount points; `undefined` uninstalls |
+| `hook` | [`WorkingTreeCaptureHook`](WorkingTreeCaptureHook.md) \| `undefined` | The runtime taking over the four mount points; `undefined` uninstalls |
 
 #### Returns
 
@@ -1345,14 +1280,11 @@ Installs or uninstalls the capture runtime (the four mount points of adapter-con
 
 #### Remarks
 
-The mount is installed **here** rather than each of the six adapters inserting a line in its own `transaction()`: writing it one fewer time,
-or writing it one step late (validating the token only after the business write), would be discoverable by nothing — and that is exactly the shape "the adjudication implementation
-exists only once" in §2 is meant to rule out.
+The mounting happens **here**, not as a line each of the six adapters inserts into its own `transaction()`: writing it once fewer or once later (validating the token only after the business write) would be discoverable by nothing — exactly the shape §2 "there is only one adjudication implementation" exists to exclude.
 
-The callers are `RxDB.connect()` (after the capability bit is confirmed true) and `workingTree.enable()` (after the bit flip succeeds).
-On a database that is not enabled it is never called even once, so the four write primitives do not even have one layer of forwarding.
+Callers are `RxDB.connect()` (after confirming the capability bit is true) and `workingTree.enable()` (after the bit is successfully flipped). On databases without the capability enabled it is never called, so the four write primitives have not even one layer of forwarding.
 
-Idempotent: if already installed, uninstall first and then install — never stacked two layers deep.
+Idempotent: if already installed, it uninstalls first and then installs, never stacking into two layers.
 
 #### Inherited from
 
@@ -1394,7 +1326,7 @@ abstract transaction<T>(fun, transactionLog?): Promise<Awaited<ReturnType<T>>>;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:620](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L620)
 
-Reads and writes within the same transaction through the executor.
+Reads and writes within one transaction through the executor.
 
 ##### Type Parameters
 
@@ -1413,12 +1345,11 @@ Reads and writes within the same transaction through the executor.
 
 `Promise`&lt;`Awaited`&lt;`ReturnType`&lt;`T`&gt;&gt;&gt;
 
-The callback result
+The callback's result
 
 ##### Remarks
 
-`entity.save()` without an executor re-enqueues. Awaiting it inside the transaction callback waits on itself, and the transaction cannot finish.
-Inside a transaction use [TransactionExecutor.getRepository](TransactionExecutor.md#getrepository); for saving entity instances see [EntityBase.save](../classes/EntityBase.md#save).
+An `entity.save()` without an executor re-queues. Waiting on it inside the transaction callback waits on itself, and the transaction cannot finish. Inside a transaction use [TransactionExecutor.getRepository](TransactionExecutor.md#getrepository); for the save entry point of entity instances see [EntityBase.save](../classes/EntityBase.md#save).
 
 ##### Examples
 
@@ -1435,7 +1366,7 @@ await adapter.transaction(async executor => {
 ```
 
 ```ts
-// ❌ The entity instance holds no executor; save() re-enqueues and waits for the current transaction to finish.
+// ❌ Entity instances do not hold an executor; save() re-queues and waits for the current transaction to end.
 await adapter.transaction(async () => {
   await entity.save();
 });
@@ -1453,7 +1384,7 @@ abstract transaction(fun, transactionLog?): Promise<unknown>;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:653](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L653)
 
-Reads and writes within the same transaction through the executor.
+Reads and writes within one transaction through the executor.
 
 ##### Parameters
 
@@ -1466,12 +1397,11 @@ Reads and writes within the same transaction through the executor.
 
 `Promise`&lt;`unknown`&gt;
 
-The callback result
+The callback's result
 
 ##### Remarks
 
-`entity.save()` without an executor re-enqueues. Awaiting it inside the transaction callback waits on itself, and the transaction cannot finish.
-Inside a transaction use [TransactionExecutor.getRepository](TransactionExecutor.md#getrepository); for saving entity instances see [EntityBase.save](../classes/EntityBase.md#save).
+An `entity.save()` without an executor re-queues. Waiting on it inside the transaction callback waits on itself, and the transaction cannot finish. Inside a transaction use [TransactionExecutor.getRepository](TransactionExecutor.md#getrepository); for the save entry point of entity instances see [EntityBase.save](../classes/EntityBase.md#save).
 
 ##### Examples
 
@@ -1488,7 +1418,7 @@ await adapter.transaction(async executor => {
 ```
 
 ```ts
-// ❌ The entity instance holds no executor; save() re-enqueues and waits for the current transaction to finish.
+// ❌ Entity instances do not hold an executor; save() re-queues and waits for the current transaction to end.
 await adapter.transaction(async () => {
   await entity.save();
 });
@@ -1508,7 +1438,7 @@ protected transactionalRepository<T, R>(EntityType, repository): R;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:936](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L936)
 
-Puts the entire operation of a public repository into a transaction; not called when the executor creates the repository.
+Puts the public repository's whole operation into a transaction; not called when the executor creates the repository.
 
 #### Type Parameters
 
@@ -1542,7 +1472,7 @@ update(entity, patch): Promise<RxDBChange>;
 
 Defined in: [packages/rxdb/src/system/types.local.ts:98](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/system/types.local.ts#L98)
 
-Updates an entity
+Update an entity
 
 #### Parameters
 
@@ -1567,7 +1497,7 @@ abstract upsertMany<T>(entityName, data): Observable<void>;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:912](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L912)
 
-Upserts data in bulk (QueryCache only)
+Bulk-upserts data (QueryCache only)
 
 Executes INSERT OR REPLACE semantics, used to cache remotely pulled data.
 
@@ -1610,7 +1540,7 @@ version(): Promise<string>;
 
 Defined in: [packages/rxdb/src/rxdb-adapter.ts:296](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/rxdb-adapter.ts#L296)
 
-The version number of the underlying database engine (such as SQLite's `3.45.0`), used for diagnostics and capability judgment.
+The version number of the underlying database engine (e.g. `3.45.0` for SQLite), used for diagnostics and capability checks.
 
 #### Returns
 
@@ -1618,7 +1548,7 @@ The version number of the underlying database engine (such as SQLite's `3.45.0`)
 
 #### Remarks
 
-Unrelated to the system table watermark number (`RXDB_SYSTEM_SCHEMA_VERSION`) — that is RxDB's own number.
+Unrelated to the system table watermark number (`RXDB_SYSTEM_SCHEMA_VERSION`), which is RxDB's own number.
 
 #### Inherited from
 
@@ -1636,7 +1566,7 @@ Defined in: [packages/rxdb/src/rxdb-adapter.ts:546](https://github.com/aiao-io/r
 
 **`Internal`**
 
-Called after this instance remounts a table set (US-314 B1.4): clears the caches this adapter keeps by physical table. Nothing to do by default.
+Called after this instance mounts a different table set (US-314 B1.4): clears this adapter's caches keyed by physical table. Does nothing by default.
 
 #### Returns
 
@@ -1644,8 +1574,7 @@ Called after this instance remounts a table set (US-314 B1.4): clears the caches
 
 #### Remarks
 
-Called by [RxDB.mountWorktreeTableSet](../classes/RxDB.md#mountworktreetableset) inside the remounting transaction. The SQLite family's row number caches are kept by physical table; after remounting a set,
-the same row number points at a different row.
+Called by [RxDB.mountWorktreeTableSet](../classes/RxDB.md#mountworktreetableset) inside the mounting transaction. The SQLite family's row-number caches are keyed by physical table; once a different table set is mounted, the same row number points at a different row.
 
 #### Inherited from
 

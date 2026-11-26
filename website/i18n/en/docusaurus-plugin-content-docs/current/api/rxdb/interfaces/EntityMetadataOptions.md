@@ -2,13 +2,13 @@
 
 Defined in: [packages/rxdb/src/entity/entity-options.interface.ts:113](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-options.interface.ts#L113)
 
-Entity definition metadata options interface
-Configures the full options of the `@Entity` decorator, defining the structure and behavior of an entity
+Entity definition metadata options interface.
+Used to configure the complete options of the `@Entity` decorator, defining the structure and behavior of the entity.
 
-This interface is the core of entity definition and contains all configuration information of an entity:
+This interface is the core of entity definition and contains all of an entity's configuration:
 - Basic information: name, namespace, display name
 - Structural information: properties, relations, indexes
-- Behavioral information: abstract class marker, log configuration, sync strategy
+- Behavioral information: abstract-class flag, logging configuration, sync strategy
 
 ## Example
 
@@ -38,8 +38,8 @@ abstract?: boolean;
 
 Defined in: [packages/rxdb/src/entity/entity-options.interface.ts:188](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-options.interface.ts#L188)
 
-Whether this is an abstract entity
-Abstract classes cannot be instantiated
+Whether it is an abstract entity.
+Abstract classes cannot be instantiated.
 
 ***
 
@@ -53,12 +53,14 @@ Defined in: [packages/rxdb/src/entity/entity-options.interface.ts:281](https://g
 
 Entity-level CHECK constraints (single-row invariants, enforced at the storage layer).
 
-Property-level `check` is its syntactic sugar; the two go into inheritance merging together by `name` — a child entity's same-named item overrides
-the parent's, and differently-named items all take effect. Constraint names are deterministically generated from the `ck_` prefix + table name + `name` + an
-8-digit hash of the normalized expression; changing the expression without changing the name is judged as drift (US-030 AC#11).
+A property-level `check` is its syntactic sugar; the two join inheritance merging together by `name` — a
+same-name item on a child entity overrides the parent's, and items with different names all take effect. The
+constraint name is generated deterministically from the prefix `ck_` + table name + `name` + the 8-character
+hash of the normalized expression; changing the expression without renaming is judged as drift (US-030 AC#11).
 
-When the existing table disagrees with the declaration, `init()` throws `RxDBConstraintDriftError` and does not auto-create it;
-creating it is written into `migrations` by the user, which conveniently runs right before the drift check.
+When an existing table does not match the declaration, `init()` throws `RxDBConstraintDriftError` without
+auto-creating it; creation is written by the user into `migrations`, which happen to run right before the
+drift check.
 
 #### Example
 
@@ -94,17 +96,17 @@ computedProperties?: EntityPropertyMetadataOptions[];
 
 Defined in: [packages/rxdb/src/entity/entity-options.interface.ts:219](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-options.interface.ts#L219)
 
-Computed properties
-Dynamically computed read-only properties, not stored in the database
+Computed properties.
+Dynamically computed read-only properties, not stored in the database.
 
 ## Usage conditions
-- The corresponding feature must be enabled in `features` (e.g. `tree:{ hasChildren: true }`)
-- Readable on the entity only; not modifiable
+- The corresponding feature must be enabled in `features` (e.g. `tree: { hasChildren: true }`)
+- Readable on the entity only, not modifiable
 
 ## Computation sources
-1. **Database query**: e.g. the `hasChildren` property of tree structures
-2. **Class methods**: computed via getter methods, e.g. `fullName = firstName + lastName`
-3. **Complex logic**: generated dynamically from business rules (to be implemented)
+1. **Database query**: for example the `hasChildren` property of a tree structure
+2. **Class method**: computed via a getter method, e.g. `fullName = firstName + lastName`
+3. **Complex logic**: dynamically generated from business rules (to be implemented)
 
 #### Example
 
@@ -115,7 +117,7 @@ computedProperties: [
 ]
 ```
 
-**Note:** Currently only used in tree structures (the `tree` feature)
+**Note:** currently used only in tree structures (the `tree` feature).
 
 ***
 
@@ -127,7 +129,7 @@ displayName?: string;
 
 Defined in: [packages/rxdb/src/entity/entity-options.interface.ts:140](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-options.interface.ts#L140)
 
-Display name
+Display name.
 
 #### Example
 
@@ -145,16 +147,20 @@ exclusions?: EntityExclusionMetadataOptions[];
 
 Defined in: [packages/rxdb/src/entity/entity-options.interface.ts:312](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-options.interface.ts#L312)
 
-Entity-level range exclusion constraints: two rows whose equality columns are all equal and whose ranges intersect in every dimension are mutually exclusive (US-030 phase C).
+Entity-level interval exclusion constraints: two rows are mutually exclusive when all their equal columns are
+equal and their intervals intersect in every dimension (US-030 phase C).
 
-On PG this becomes `EXCLUDE USING gist` (`btree_gist` is loaded by the adapter); on SQLite it becomes two triggers for insert / update,
-and violations are normalized to `RxDBExclusionViolationError` on both backends, carrying both ranges. Merged into inheritance by `name` —
-a child entity's same-named item overrides the parent's, and differently-named items all take effect. Constraint names are deterministically generated from `ex_` + table name + `name` + a hash of the normalized definition;
-when the existing table disagrees with the declaration, `init()` throws `RxDBConstraintDriftError` and does not auto-create it.
+On PG this becomes `EXCLUDE USING gist` (`btree_gist` is loaded by the adapter); on SQLite it becomes two
+triggers for insert / update; violations are normalized on both backends into `RxDBExclusionViolationError`
+carrying both sides' intervals. Inheritance merging is by `name` — a same-name item on a child entity overrides
+the parent's, and items with different names all take effect. The constraint name is generated
+deterministically from `ex_` + table name + `name` + the hash of the normalized definition; when an existing
+table does not match the declaration, `init()` throws `RxDBConstraintDriftError` without auto-creating it.
 
-A NULL endpoint means that side is unbounded; empty and inverted ranges conflict with no rows — to reject inverted ranges, add a CHECK.
-Checks run immediately per row (no deferred checks): writes where two rows **swap** ranges — legal as a final state but overlapping no matter the order —
-are not supported and must be written in two steps through an intermediate value.
+A NULL endpoint means unbounded on that side; empty intervals and inverted intervals conflict with no row —
+to reject inverted intervals, add a separate CHECK. Checks run per row immediately (no deferred checks):
+writes where two rows **swap** intervals — a legal final state that nonetheless passes through overlap
+regardless of order — are not supported and must be done in two steps through an intermediate value.
 
 #### Example
 
@@ -184,8 +190,8 @@ extends?: string[];
 
 Defined in: [packages/rxdb/src/entity/entity-options.interface.ts:146](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-options.interface.ts#L146)
 
-List of inherited entity names
-Indicates which entities the current entity inherits from
+The list of inherited entity names.
+Indicates which entities the current entity inherits from.
 
 ***
 
@@ -197,7 +203,7 @@ features?: EntityMetadataFeatures;
 
 Defined in: [packages/rxdb/src/entity/entity-options.interface.ts:317](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-options.interface.ts#L317)
 
-Features
+Feature flags.
 
 ***
 
@@ -211,7 +217,8 @@ Defined in: [packages/rxdb/src/entity/entity-options.interface.ts:246](https://g
 
 Entity-level multi-column foreign key constraints.
 
-Single-column relations still use `relations`; use this configuration only when multiple columns need to be validated as a whole.
+Single-column relations still use `relations`; use this configuration only when multiple columns must be
+validated as one unit.
 
 ***
 
@@ -223,8 +230,8 @@ indexes?: EntityIndexMetadataOptions[];
 
 Defined in: [packages/rxdb/src/entity/entity-options.interface.ts:239](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-options.interface.ts#L239)
 
-The entity's index configuration
-Self-defined indexes, not including inherited ones
+The entity's index configuration.
+Indexes defined by this entity itself, not including inherited ones.
 
 ***
 
@@ -236,19 +243,21 @@ log?: boolean;
 
 Defined in: [packages/rxdb/src/entity/entity-options.interface.ts:177](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-options.interface.ts#L177)
 
-Whether to write a change log (`rxdb_change`)
+Whether to write a change log (`rxdb_change`).
 
 #### Remarks
 
-With it off, writes to this table produce no change log, so none of the capabilities built on top of it can see this entity:
+Once turned off, writes to this table produce no change-log entries, so none of the capabilities built on it
+can see this entity:
 
-- History and undo / redo do not record its changes;
-- Branch switching does not project its rows; all branches see the same data;
+- History and undo/redo do not record its changes;
+- Branch switches do not project its rows; all branches see the same data;
 - Sync push does not push its local changes;
-- Save does not dispatch the entity's CREATE / UPDATE events, so live queries cannot see inserts and modifications and must re-read themselves; deletes still dispatch REMOVE (and NEW at construction dispatches as usual);
-- The draft cache plugin does not collect its drafts; with the working tree plugin installed it is excluded from version control (status / diff / commit / restore all exclude it).
+- Saving does not dispatch the entity's CREATE / UPDATE events; live queries cannot see inserts and updates and must re-read themselves; removal still dispatches REMOVE as usual (and NEW at construction is dispatched as usual too);
+- The draft-cache plugin does not take its drafts; with the working-tree plugin installed it does not enter version control (status / diff / commit / restore all exclude it).
 
-Suitable for data the library maintains itself that needs no lookback (e.g. the storage plugin's file metadata); it is not a performance switch for business entities.
+Suitable for data maintained by the library itself that needs no traceability (such as the storage plugin's
+file metadata) — not a performance switch for business entities.
 
 #### Default
 
@@ -266,19 +275,22 @@ manualOrder?: boolean | ManualOrderOptions;
 
 Defined in: [packages/rxdb/src/entity/entity-options.interface.ts:360](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-options.interface.ts#L360)
 
-Manual ordering: `true` means a single sequence for the whole table, `{ groupBy }` means one sequence per grouping field
+Manual ordering: `true` means one sequence for the whole table, `{ groupBy }` means one sequence per group field.
 
 #### Remarks
 
-Explicit opt-in: enabled only when declared; entities that happen to have a `sortOrder` field keep their behavior unchanged.
-Once enabled, the entity must declare `sortOrder` itself: string, writable, non-computed, unencrypted, and non-null (`nullable` false, i.e. `NOT NULL` at table creation);
-violations are reported as `invalidManualOrder` at registration time. Inherited along the prototype chain to the nearest declaration; a subclass may write `false` to turn it off or change the grouping fields.
+Explicit opt-in: enabled only when declared; entities that merely happen to have a `sortOrder` field behave
+unchanged. Once enabled, the entity must declare its own `sortOrder`: string, writable, non-computed,
+unencrypted, non-null (`nullable` is false, i.e. `NOT NULL` at table creation) — violations report
+`invalidManualOrder` at registration time. Inherited nearest-first along the prototype chain; a subclass may
+write `false` to turn it off, or rewrite the group fields.
 
-Grouping fields can only be scalar columns of the entity itself (including many-to-one foreign key columns), non-computed, writable, and unencrypted — see [ManualOrderOptions](ManualOrderOptions.md).
-Queries without an `orderBy` default to `[grouping fields… asc, sortOrder asc, id asc]`;
-writes that change the grouping fields without providing a `sortOrder` are appended to the end of the new group within the transaction.
+Group fields must be scalar columns of the entity itself (including many-to-one foreign key columns),
+non-computed, writable, unencrypted — see [ManualOrderOptions](ManualOrderOptions.md). Queries without
+`orderBy` default to ordering by `[group fields… asc, sortOrder asc, id asc]`; writes that changed the group
+fields without providing a `sortOrder` are appended within the transaction to the end of the new group.
 
-Not named `sortable`: property-level / relation-level `sortable` already means "sortable by column header".
+Not called `sortable`: property-level / relation-level `sortable` already means "the column header can be sorted".
 
 #### Default
 
@@ -315,7 +327,7 @@ name: Capitalize<string>;
 
 Defined in: [packages/rxdb/src/entity/entity-options.interface.ts:127](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-options.interface.ts#L127)
 
-Name
+Name.
 
 ***
 
@@ -327,10 +339,10 @@ namespace?: Lowercase<string>;
 
 Defined in: [packages/rxdb/src/entity/entity-options.interface.ts:122](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-options.interface.ts#L122)
 
-Namespace
-May only contain lowercase English letters
-In postgres it becomes a schema
-In sqlite it becomes the table prefix
+Namespace.
+May only contain lowercase English letters.
+Becomes a schema in postgres.
+Becomes a table prefix in sqlite.
 
 #### Example
 
@@ -354,11 +366,11 @@ permissions?: EntityPermissionOptions;
 
 Defined in: [packages/rxdb/src/entity/entity-options.interface.ts:324](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-options.interface.ts#L324)
 
-Write operation permissions, see [EntityPermissionOptions](EntityPermissionOptions.md)
+Write-operation permissions, see [EntityPermissionOptions](EntityPermissionOptions.md).
 
 #### Default
 
-All three operations are `'both'`
+All three operations are `'both'`.
 
 ***
 
@@ -370,8 +382,8 @@ properties?: EntityPropertyMetadataOptions[];
 
 Defined in: [packages/rxdb/src/entity/entity-options.interface.ts:194](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-options.interface.ts#L194)
 
-The entity's property table
-Self-defined properties, not including inherited ones
+The entity's property table.
+Properties defined by this entity itself, not including inherited ones.
 
 ***
 
@@ -383,16 +395,17 @@ relations?: EntityRelationMetadataOptions[];
 
 Defined in: [packages/rxdb/src/entity/entity-options.interface.ts:233](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-options.interface.ts#L233)
 
-The entity's relation configuration
-Self-defined relations, not including inherited ones
+The entity's relation configuration.
+Relations defined by this entity itself, not including inherited ones.
 
 Defines the associations between this entity and other entities, supporting four relation types:
-- ONE_TO_ONE: one-to-one relation, e.g. a user and a user profile
-- ONE_TO_MANY: one-to-many relation, e.g. a user and the user's posts
-- MANY_TO_ONE: many-to-one relation, e.g. many posts and one author
-- MANY_TO_MANY: many-to-many relation, e.g. students and courses
+- ONE_TO_ONE: a one-to-one relation, such as a user and a user profile
+- ONE_TO_MANY: a one-to-many relation, such as a user and the user's many posts
+- MANY_TO_ONE: a many-to-one relation, such as many posts and one author
+- MANY_TO_MANY: a many-to-many relation, such as students and courses
 
-The system handles foreign keys, queries, and association operations automatically according to the relation configuration
+The system automatically handles foreign keys, queries and association operations according to the relation
+configuration.
 
 ***
 
@@ -404,14 +417,14 @@ repository?: RxDBRepositoryName;
 
 Defined in: [packages/rxdb/src/entity/entity-options.interface.ts:159](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-options.interface.ts#L159)
 
-Custom repository
+Custom repository.
 
 #### Remarks
 
-The value comes from the facade-axis registry [RxDBRepositoryName](../type-aliases/RxDBRepositoryName.md): the core `Repository`
-and the facades registered by plugins via `declare module` (such as `TreeRepository` / `GraphRepository`)
-are first-class citizens in completion alike.
-If the name has not been registered through `RxDB.repository()`, `EntityManager.init()` still throws to block it.
+The value comes from the facade-axis registry [RxDBRepositoryName](../type-aliases/RxDBRepositoryName.md): the
+core `Repository` and the facades plugins register via `declare module` (such as `TreeRepository` /
+`GraphRepository`) are first-class citizens alike in completion. When the name has not been registered via
+`RxDB.repository()`, `EntityManager.init()` still throws to block it.
 
 #### Default
 
@@ -429,7 +442,7 @@ sync?: SyncOptions;
 
 Defined in: [packages/rxdb/src/entity/entity-options.interface.ts:182](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-options.interface.ts#L182)
 
-Entity sync configuration
+Entity sync configuration.
 
 ***
 
@@ -441,6 +454,6 @@ tableName?: string;
 
 Defined in: [packages/rxdb/src/entity/entity-options.interface.ts:134](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity-options.interface.ts#L134)
 
-Table name
-The table name in the database
-If not provided it is the same as name
+Table name.
+The table name in the database.
+When omitted, it is the same as `name`.

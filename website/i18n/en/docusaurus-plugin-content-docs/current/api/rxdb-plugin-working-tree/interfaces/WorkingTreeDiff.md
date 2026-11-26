@@ -2,7 +2,7 @@
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/diff.ts:115](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/diff.ts#L115)
 
-The complete answer of one `diff()` call (contracts/core-api.md §3).
+Everything one `diff()` answers (contracts/core-api.md §3).
 
 ## Properties
 
@@ -14,7 +14,7 @@ readonly baseHeadCommitId: string | null;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/diff.ts:120](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/diff.ts#L120)
 
-The left side of the comparison: the commit the working tree is based on; `null` when the branch has no commits yet
+The comparison's left end: the commit the working tree is based on; `null` when the branch has no commits yet
 
 ***
 
@@ -86,4 +86,4 @@ readonly workingTreeRevision: number;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/diff.ts:123](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/diff.ts#L123)
 
-The right side of the comparison: the current working tree revision
+The comparison's right end: the current working tree revision

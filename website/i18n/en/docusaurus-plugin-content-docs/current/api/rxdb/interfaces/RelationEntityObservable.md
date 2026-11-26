@@ -6,8 +6,8 @@ sidebar_label: "RelationEntityObservable⟨T⟩"
 
 Defined in: [packages/rxdb/src/entity/entity.interface.ts:202](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity.interface.ts#L202)
 
-Access interface for a single relation object
-Provides observation and manipulation capability for a single associated entity
+Access interface of a single relation object.
+Provides observation and manipulation of a single related entity.
 
 ## Extends
 
@@ -49,8 +49,8 @@ remove: () => void;
 
 Defined in: [packages/rxdb/src/entity/entity.interface.ts:214](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity.interface.ts#L214)
 
-Removes the associated entity
-Equivalent to setting it to null
+Removes the related entity.
+Equivalent to setting it to null.
 
 #### Returns
 
@@ -66,13 +66,13 @@ set: (entity) => void;
 
 Defined in: [packages/rxdb/src/entity/entity.interface.ts:208](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/entity/entity.interface.ts#L208)
 
-Sets the associated entity
+Sets the related entity.
 
 #### Parameters
 
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
-| `entity` | `InstanceType`&lt;`T`&gt; \| `null` | The entity to set, or null (to unset the association) |
+| `entity` | `InstanceType`&lt;`T`&gt; \| `null` | The entity to set, or null (to break the relation) |
 
 #### Returns
 

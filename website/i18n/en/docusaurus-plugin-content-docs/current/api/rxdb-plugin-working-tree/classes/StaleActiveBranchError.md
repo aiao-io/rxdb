@@ -2,12 +2,13 @@
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:364](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts#L364)
 
-The active branch token held by the caller has expired
+The caller's active branch token has expired
 
 ## Remarks
 
-When thrown, business tables are **completely unchanged**: validation happens before business writes, not write-then-rollback.
-Handling is to let the user know the branch has been switched, then re-read entities with the new branch — not to retry the same write.
+Business tables are **untouched** when thrown: validation runs before the business write, not a rollback after the fact.
+The way to handle it is to let the user know the branch has been switched and re-read entities on the new branch —
+not to retry the same write.
 
 ## Extends
 
@@ -28,7 +29,7 @@ Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:3
 | Parameter | Type | Description |
 | ------ | ------ | ------ |
 | `expected` | [`ExpectedActiveBranch`](../interfaces/ExpectedActiveBranch.md) | The assertion proposed by the caller |
-| `actual` | [`ActiveBranchToken`](../interfaces/ActiveBranchToken.md) | The current token in the database |
+| `actual` | [`ActiveBranchToken`](../interfaces/ActiveBranchToken.md) | The token currently in the database |
 
 #### Returns
 
@@ -48,7 +49,7 @@ readonly actual: ActiveBranchToken;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:372](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts#L372)
 
-The current token in the database
+The token currently in the database
 
 ***
 
@@ -74,7 +75,7 @@ readonly code: "stale_active_branch" = CommitErrorCode.stale_active_branch;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:366](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts#L366)
 
-Stable error code, see [CommitErrorCode.stale\_active\_branch](../variables/CommitErrorCode.md#stale_active_branch)
+The stable error code; see [CommitErrorCode.stale\_active\_branch](../variables/CommitErrorCode.md#stale_active_branch)
 
 ***
 
@@ -86,7 +87,8 @@ readonly expected: ExpectedActiveBranch;
 
 Defined in: [packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts:369](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts#L369)
 
-The assertion proposed by the caller; a `null` `branchId` means only the generation was asserted (see [ExpectedActiveBranch](../interfaces/ExpectedActiveBranch.md))
+The assertion proposed by the caller; a `null` `branchId` means only the generation was asserted
+(see [ExpectedActiveBranch](../interfaces/ExpectedActiveBranch.md))
 
 ***
 
