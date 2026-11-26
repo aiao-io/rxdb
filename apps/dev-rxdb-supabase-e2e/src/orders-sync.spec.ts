@@ -4,13 +4,17 @@ import { switchIdentity } from './support/identity';
 const isRemoteE2E = process.env['REMOTE_E2E'] === 'true';
 
 /**
- * 订单：关系数据的推拉同步（US-227）——客户 1—n 订单 1—n 订单项，订单项 n—n 分类，Alice 与 Bob 各开一个浏览器。
+ * 订单：关系数据的推拉同步（US-227）——客户 1—n 订单 1—n 订单项，订单项 n—n 分类，客户 1—1 证件（互相引用），
+ * Alice 与 Bob 各开一个浏览器。
  *
- * 已登录身份共享全部订单（`supabase/orders-demo.sql`）。本轮的客户、单号、商品名与分类名带唯一后缀，结束时删掉
- * 本轮的客户（订单、订单项与关联行随之级联删除）和分类；不依赖库里已有的数据，也不动别人的行。
+ * 已登录身份共享全部订单（`supabase/orders-demo.sql`）。本轮的客户、单号、商品名、分类名与证件号带唯一后缀，结束时删掉
+ * 本轮的客户（订单、订单项、关联行与证件随之级联删除）和分类；不依赖库里已有的数据，也不动别人的行。
  */
 if (isRemoteE2E) {
   test.describe('Orders relational sync', () => {
+    // 这些用例读写同一批演示表，Bob 还会从头拉一遍全部订单：本地全并行时，一个用例推到一半，另一个用例从头拉取就会撞上
+    // 删除与修改分两次请求推送的窗口（见 sync.md「推送顺序」）。按顺序在一个 worker 里跑，清理也只跑一次（与 CI 一致）
+    test.describe.configure({ mode: 'default' });
     const runId = `${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
     const customer = `e2e-${runId}-客户`;
     const orderNumber = `e2e-${runId}-SO1`;
@@ -24,6 +28,9 @@ if (isRemoteE2E) {
     const digital = `e2e-${runId}-数码`;
     const gift = `e2e-${runId}-礼品`;
     const shared = `e2e-${runId}-共享`;
+    // 阶段 C（双向一对一）用自己的客户与证件
+    const cardCustomer = `e2e-${runId}-证件客户`;
+    const cardCode = `e2e-${runId}-ID`;
 
     /** 打开订单页；`mutations` 记下这个页面发出的每个推送请求（`rxdb_mutations`） */
     async function openOrders(browser: Browser, mutations: string[] = []): Promise<Page> {
@@ -67,6 +74,15 @@ if (isRemoteE2E) {
       await form.getByPlaceholder('客户名称').fill(name);
       await form.getByRole('button', { name: '新建客户' }).click();
       await expect(customerRow(page, name)).toBeVisible();
+    }
+
+    /** 新建客户时填上证件号码：客户与证件在同一批里新建、互相引用 */
+    async function createCustomerWithIdCard(page: Page, name: string, code: string): Promise<void> {
+      const form = page.getByTestId('orders-customer-form');
+      await form.getByPlaceholder('客户名称').fill(name);
+      await form.getByLabel('证件号码').fill(code);
+      await form.getByRole('button', { name: '新建客户' }).click();
+      await expect(customerRow(page, name).getByTestId('customer-id-card')).toHaveText(`证件：${code}`);
     }
 
     async function createOrder(page: Page, customerName: string, number: string): Promise<void> {
@@ -130,12 +146,15 @@ if (isRemoteE2E) {
     }
 
     // 用例中途失败时本轮的客户与分类可能还在远端：另开一个 Alice 的页面拉取，还在就删掉
-    // （订单、订单项与关联行随之级联删除）。放在 afterAll 而不是用例的 finally：清理出错时单独报出，不盖住用例本身的失败
+    // （订单、订单项、关联行与证件随之级联删除）。放在 afterAll 而不是用例的 finally：清理出错时单独报出，不盖住用例本身的失败
     test.afterAll(async ({ browser }) => {
       const page = await openAs(browser, 'alice', 'Alice');
       await pull(page);
       const removed =
-        (await removeRows([customerRow(page, customer), customerRow(page, categoryCustomer)], '删除客户')) +
+        (await removeRows(
+          [customer, categoryCustomer, cardCustomer].map(name => customerRow(page, name)),
+          '删除客户'
+        )) +
         (await removeRows(
           [digital, gift, shared].map(name => categoryRow(page, name)),
           '删除分类'
@@ -238,6 +257,33 @@ if (isRemoteE2E) {
         await expect(itemCategories(page, categorizedItem)).toContainText(shared);
         await expect(itemCategories(page, categorizedItem)).toContainText(digital);
       }
+    });
+
+    test('AC#10～#11 同批新建互相引用的客户与证件，一次推送、Bob 拉到一致的两行；删掉证件之后两端的客户都还在、没有证件', async ({
+      browser
+    }) => {
+      test.slow();
+      const alice = await openAs(browser, 'alice', 'Alice');
+      const bob = await openAs(browser, 'bob', 'Bob');
+
+      // AC#10：客户与证件互相引用、同一批新建；推送时客户的证件引用先写空，同一请求里再补写（US-038），一条都不被拒
+      await createCustomerWithIdCard(alice, cardCustomer, cardCode);
+      await push(alice);
+      await expect(alice.getByTestId('orders-sync-notice')).toHaveText('推送完成：推上去 2 条');
+      await expect(alice.getByTestId('sync-rejections-panel')).toContainText('最近没有被远端拒绝的推送');
+      await expect(alice.getByTestId('orders-pending-count')).toHaveText('0');
+      // 页面只在客户指向的证件也指回这位客户时显示证件号：Bob 看到它，就说明拉下来的两行一致
+      await pull(bob);
+      await expect(customerRow(bob, cardCustomer).getByTestId('customer-id-card')).toHaveText(`证件：${cardCode}`);
+
+      // AC#11：Alice 删掉证件并推送，Bob 拉取：两端的客户都还在，都没有证件
+      await customerRow(alice, cardCustomer).getByRole('button', { name: '删除证件' }).click();
+      await expect(customerRow(alice, cardCustomer).getByTestId('customer-id-card')).toHaveText('无证件');
+      await push(alice);
+      await expect(alice.getByTestId('sync-rejections-panel')).toContainText('最近没有被远端拒绝的推送');
+      await pull(bob);
+      await expect(customerRow(bob, cardCustomer)).toBeVisible();
+      await expect(customerRow(bob, cardCustomer).getByTestId('customer-id-card')).toHaveText('无证件');
     });
 
     test('AC#5 访客：客户、订单与订单项只存本机，推送与拉取不可用，不发推送请求', async ({ browser }) => {

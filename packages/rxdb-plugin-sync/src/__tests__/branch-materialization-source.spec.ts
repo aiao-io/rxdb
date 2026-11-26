@@ -10,12 +10,16 @@
 import {
   branchMaterializationPageFingerprint,
   createEntitySyncResolver,
+  Entity,
+  EntityBase,
   getEntityMetadata,
+  RelationKind,
   RxDBSync,
   SyncType,
   type BranchMaterializationIntent,
   type BranchMaterializationPage,
   type BranchMaterializationPagePayload,
+  type EntityType,
   type RemoteChange,
   type RuleGroup,
   type SyncOptions,
@@ -34,10 +38,33 @@ const BACKEND = 'backend-a';
 /** 远端被重建之后的身份 */
 const REBUILT_BACKEND = 'backend-b';
 
-const keyOf = (EntityClass: typeof User | typeof Tag): string => {
+const keyOf = (EntityClass: EntityType): string => {
   const { namespace, name } = getEntityMetadata(EntityClass);
   return `${namespace}:${name}`;
 };
+
+// 双向一对一（与 shop 的 User.idCard ↔ IdCard.owner 同形，US-038）：持有人一侧可空，证件一侧非空
+@Entity({
+  name: 'MaterializeOwner',
+  relations: [
+    {
+      name: 'card',
+      kind: RelationKind.ONE_TO_ONE,
+      mappedEntity: 'MaterializeCard',
+      mappedProperty: 'owner',
+      nullable: true
+    }
+  ]
+})
+class MaterializeOwner extends EntityBase {}
+
+@Entity({
+  name: 'MaterializeCard',
+  relations: [
+    { name: 'owner', kind: RelationKind.ONE_TO_ONE, mappedEntity: 'MaterializeOwner', mappedProperty: 'card' }
+  ]
+})
+class MaterializeCard extends EntityBase {}
 
 const USER = keyOf(User);
 const TAG = keyOf(Tag);
@@ -545,6 +572,28 @@ describe('同步插件的分支物化来源', () => {
         [USER]: rule,
         [TAG]: null
       });
+    });
+
+    // US-038：从前依赖图遇到两个实体互相持有外键就整体抛 Circular dependency，注册了这样一对实体的库切不过去。
+    // 投影在屏障那一笔事务里逐页执行，本地外键延迟到提交时检查，环内的行跨页也落得下
+    it('注册了双向一对一的实体：照常冻结范围，环内成员连续、持有非空外键的一侧在后', async () => {
+      const reader = { find: async () => [] };
+      const remote = { backendId: async () => BACKEND, getChangeCount: async () => ({ latestChangeId: 0 }) };
+      const sm = {
+        rxdb: {
+          config: { entities: [MaterializeCard, Tag, MaterializeOwner], sync: FULL_SYNC },
+          entitySync: createEntitySyncResolver(FULL_SYNC),
+          ...noIdentityDeclared
+        },
+        verifyRemoteBackend: async () => undefined,
+        getLocalRepositories: async () => ({ adapter: { getRepository: () => reader } }),
+        getRemoteRepositories: async () => ({ adapter: remote })
+      } as unknown as SyncManager;
+
+      const { syncScope } = await createSyncBranchMaterializationSource(sm).freezeIntent('main');
+
+      expect([...syncScope].sort()).toEqual([keyOf(MaterializeCard), keyOf(MaterializeOwner), TAG].sort());
+      expect(syncScope.indexOf(keyOf(MaterializeCard))).toBe(syncScope.indexOf(keyOf(MaterializeOwner)) + 1);
     });
   });
 

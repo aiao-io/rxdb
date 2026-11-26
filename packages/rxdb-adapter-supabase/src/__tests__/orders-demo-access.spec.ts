@@ -2,7 +2,7 @@
  * @fileoverview dev-rxdb-supabase 订单演示的表权限（US-227 AC#6）—— 真实 Supabase 栈
  *
  * @remarks
- * `apps/dev-rxdb-supabase/supabase/orders-demo.sql` 建的表（含订单项—分类的中间表）：都开了 RLS（demo 连接时的 RLS 自检读的就是
+ * `apps/dev-rxdb-supabase/supabase/orders-demo.sql` 建的表（含证件与订单项—分类的中间表）：都开了 RLS（demo 连接时的 RLS 自检读的就是
  * `rxdb_check_rls` 的结果），anon 没有表权限，已登录身份能读。只读，不写一行。
  */
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
@@ -17,6 +17,7 @@ const ORDER_TABLES = [
   'demo_orders',
   'demo_order_items',
   'demo_categories',
+  'demo_id_cards',
   'DemoCategory_DemoOrderItem'
 ] as const;
 

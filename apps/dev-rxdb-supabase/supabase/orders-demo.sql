@@ -2,8 +2,10 @@
 -- dev-rxdb-supabase：关系数据的推拉同步演示（US-227）
 -- ============================================
 -- 阶段 A：客户 1—n 订单 1—n 订单项。删客户级联删订单，删订单级联删订单项。
--- 阶段 B：订单项 n—n 分类，中间表 "DemoCategory_DemoOrderItem" 按 US-228 的契约建表。全部表都登记同步（未分区日志）。
--- 实体在 apps/dev-rxdb-supabase/src/app/orders/order-entities.ts，本地在多对一一侧声明同样的 ON DELETE CASCADE。
+-- 阶段 B：订单项 n—n 分类，中间表 "DemoCategory_DemoOrderItem" 按 US-228 的契约建表。
+-- 阶段 C：客户 1—1 证件，两边互相持有外键（US-038）：客户的 "idCardId" 可空、删证件时置空；证件的 "ownerId" 非空、
+-- 删客户时一并删掉。两条外键都不是 DEFERRABLE：同批新建的一对由 rxdb_mutations 先把 "idCardId" 写空、同一事务里再补写。
+-- 全部表都登记同步（未分区日志）。实体在 apps/dev-rxdb-supabase/src/app/orders/order-entities.ts，本地声明同样的删除动作。
 --
 -- 已登录身份共享全部行：Alice 与 Bob 读写同一批订单，演示的是外键关系的推拉，不是按身份授权（那一套见 catalog-demo.sql）。
 -- anon 没有任何表权限：生产权限下 anon 不能推送，也读不到未分区日志，访客的这些实体只存本地（demo-sync-overrides.ts）。
@@ -82,6 +84,40 @@ CREATE TABLE IF NOT EXISTS public."DemoCategory_DemoOrderItem" (
 CREATE INDEX IF NOT EXISTS "idx_DemoCategory_DemoOrderItem_orderItemsId"
   ON public."DemoCategory_DemoOrderItem" ("orderItemsId");
 
+-- 证件：一位客户至多一张（本地也给一对一外键建唯一索引）
+CREATE TABLE IF NOT EXISTS public.demo_id_cards (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  code varchar NOT NULL,
+  "ownerId" uuid NOT NULL,
+  "createdAt" timestamptz(3) NOT NULL DEFAULT now(),
+  "updatedAt" timestamptz(3) NOT NULL DEFAULT now(),
+  "createdBy" varchar,
+  "updatedBy" varchar,
+  CONSTRAINT "demo_id_cards_ownerId_key" UNIQUE ("ownerId"),
+  CONSTRAINT "demo_id_cards_ownerId_fkey"
+    FOREIGN KEY ("ownerId") REFERENCES public.demo_customers (id) ON DELETE CASCADE
+);
+
+-- 客户指回证件的那一侧：证件表建好之后才能加外键。已有的栈上 demo_customers 是阶段 A 建的，这里补列与约束
+ALTER TABLE public.demo_customers ADD COLUMN IF NOT EXISTS "idCardId" uuid;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_catalog.pg_constraint
+    WHERE conrelid = 'public.demo_customers'::regclass AND conname = 'demo_customers_idCardId_key'
+  ) THEN
+    ALTER TABLE public.demo_customers ADD CONSTRAINT "demo_customers_idCardId_key" UNIQUE ("idCardId");
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_catalog.pg_constraint
+    WHERE conrelid = 'public.demo_customers'::regclass AND conname = 'demo_customers_idCardId_fkey'
+  ) THEN
+    ALTER TABLE public.demo_customers ADD CONSTRAINT "demo_customers_idCardId_fkey"
+      FOREIGN KEY ("idCardId") REFERENCES public.demo_id_cards (id) ON DELETE SET NULL;
+  END IF;
+END $$;
+
 -- 行级安全：已登录身份读写全部行（Alice 与 Bob 共享数据）。策略也覆盖 UPDATE：US-038 的延迟列补写要用它。
 -- 先收回再授权：01 / 03 的整库授权与 Supabase 的默认权限都会把表权限放给 anon
 ALTER TABLE public.demo_customers ENABLE ROW LEVEL SECURITY;
@@ -112,6 +148,13 @@ CREATE POLICY demo_categories_shared ON public.demo_categories
 REVOKE ALL ON public.demo_categories FROM anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.demo_categories TO authenticated;
 
+ALTER TABLE public.demo_id_cards ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS demo_id_cards_shared ON public.demo_id_cards;
+CREATE POLICY demo_id_cards_shared ON public.demo_id_cards
+  FOR ALL TO authenticated USING (true) WITH CHECK (true);
+REVOKE ALL ON public.demo_id_cards FROM anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.demo_id_cards TO authenticated;
+
 ALTER TABLE public."DemoCategory_DemoOrderItem" ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "DemoCategory_DemoOrderItem_shared" ON public."DemoCategory_DemoOrderItem";
 CREATE POLICY "DemoCategory_DemoOrderItem_shared" ON public."DemoCategory_DemoOrderItem"
@@ -124,4 +167,5 @@ SELECT public.rxdb_enable_sync_for_table('demo_customers', 'public', 'DemoCustom
 SELECT public.rxdb_enable_sync_for_table('demo_orders', 'public', 'DemoOrder');
 SELECT public.rxdb_enable_sync_for_table('demo_order_items', 'public', 'DemoOrderItem');
 SELECT public.rxdb_enable_sync_for_table('demo_categories', 'public', 'DemoCategory');
+SELECT public.rxdb_enable_sync_for_table('demo_id_cards', 'public', 'DemoIdCard');
 SELECT public.rxdb_enable_sync_for_table('DemoCategory_DemoOrderItem', 'public', 'DemoCategory_DemoOrderItem');

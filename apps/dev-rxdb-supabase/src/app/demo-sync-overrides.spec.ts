@@ -9,7 +9,7 @@ import {
 import { CatalogItem, PublicCatalogItem, Todo } from '@aiao/rxdb-test/entities';
 import { describe, expect, it } from 'vitest';
 import { demoSyncOverrides, VISITOR_LOCAL_ONLY_ENTITIES } from './demo-sync-overrides';
-import { DemoCategory, DemoCustomer, DemoOrder, DemoOrderItem } from './orders/order-entities';
+import { DemoCategory, DemoCustomer, DemoIdCard, DemoOrder, DemoOrderItem } from './orders/order-entities';
 
 const LOCAL_ONLY = { type: SyncType.None, local: { adapter: 'wa-sqlite' } };
 
@@ -18,10 +18,17 @@ function overrideOf(overrides: ReturnType<typeof demoSyncOverrides>, entity: unk
 }
 
 describe('demoSyncOverrides', () => {
-  it('访客的 Todo 与订单演示的四个实体只存本地：它们走未分区的日志同步，只对登录身份开放（US-225）', () => {
+  it('访客的 Todo 与订单演示的五个实体只存本地：它们走未分区的日志同步，只对登录身份开放（US-225）', () => {
     const overrides = demoSyncOverrides({ kind: 'visitor', followed: () => ['数码'] });
 
-    expect(VISITOR_LOCAL_ONLY_ENTITIES).toEqual([Todo, DemoOrderItem, DemoOrder, DemoCustomer, DemoCategory]);
+    expect(VISITOR_LOCAL_ONLY_ENTITIES).toEqual([
+      Todo,
+      DemoOrderItem,
+      DemoOrder,
+      DemoIdCard,
+      DemoCustomer,
+      DemoCategory
+    ]);
     for (const entity of VISITOR_LOCAL_ONLY_ENTITIES) {
       expect(overrideOf(overrides, entity)).toEqual(LOCAL_ONLY);
     }

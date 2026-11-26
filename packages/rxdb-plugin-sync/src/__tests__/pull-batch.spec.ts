@@ -162,6 +162,8 @@ interface HarnessOptions {
   useBatch?: boolean;
   /** 应用事务落在哪一套业务表上，不给就是主表集 */
   tableSet?: WorktreeTableSet;
+  /** 业务表的本地行：拉取补齐外键环内的引用时查本地已有哪些（US-038） */
+  entityRows?: ReadonlyMap<EntityType, { id: string }[]>;
 }
 
 interface RemoteChangeInput {
@@ -318,6 +320,8 @@ function createHarness(options: HarnessOptions) {
     if (EntityClass === RxDBSync) return syncRepository;
     if (EntityClass === RxDBChange) return changeRepository;
     if (EntityClass === RxDBBranch) return branchRepository;
+    const rows = options.entityRows?.get(EntityClass as EntityType);
+    if (rows) return createRepository(rows);
     throw new Error('Unexpected local repository request');
   });
   // 直通替身：只记录调用与嵌套深度，真正的回滚语义由适配器套件的集成测试覆盖
@@ -1005,5 +1009,92 @@ describe('pullBatch 尊重 RxDBSync.enabled（RXD-029）', () => {
     expect(result.pulled).toBe(0);
     expect(harness.pullChangesBatch).not.toHaveBeenCalled();
     expect(harness.pullChanges).not.toHaveBeenCalled();
+  });
+});
+
+// 双向一对一：BatchCycleOwner.card 可空 ↔ BatchCycleCard.owner 非空（与 shop 的 User.idCard ↔ IdCard.owner 同形）
+@Entity({
+  name: 'BatchCycleOwner',
+  properties: [{ name: 'value', type: PropertyType.string }],
+  relations: [
+    {
+      name: 'card',
+      kind: RelationKind.ONE_TO_ONE,
+      mappedEntity: 'BatchCycleCard',
+      mappedProperty: 'owner',
+      nullable: true
+    }
+  ]
+})
+class BatchCycleOwner extends EntityBase {}
+
+@Entity({
+  name: 'BatchCycleCard',
+  properties: [{ name: 'value', type: PropertyType.string }],
+  relations: [{ name: 'owner', kind: RelationKind.ONE_TO_ONE, mappedEntity: 'BatchCycleOwner', mappedProperty: 'card' }]
+})
+class BatchCycleCard extends EntityBase {}
+
+describe('pullBatch 补齐外键环内的引用（US-038 AC#13）', () => {
+  const cycleSyncRecords = () => [
+    createSyncRecord('BatchCycleOwner', 'main', null),
+    createSyncRecord('BatchCycleCard', 'main', null)
+  ];
+  const ownerInsert = createRemoteChange({
+    id: 5,
+    entity: 'BatchCycleOwner',
+    entityId: 'u1',
+    type: 'INSERT',
+    patch: { id: 'u1', value: 'owner', cardId: 'c1' },
+    inversePatch: null
+  });
+  const cardInsert = createRemoteChange({
+    id: 6,
+    entity: 'BatchCycleCard',
+    entityId: 'c1',
+    type: 'INSERT',
+    patch: { id: 'c1', value: 'card', ownerId: 'u1' },
+    inversePatch: null
+  });
+
+  it('一页在环中间截断（持有人引用的证件不在本页、本地也没有）：事务之前从证件仓库续拉，两行在一个事务里落库', async () => {
+    const harness = createHarness({
+      entities: [BatchCycleCard, BatchCycleOwner],
+      syncRecords: cycleSyncRecords(),
+      entityRows: new Map([
+        [BatchCycleCard, []],
+        [BatchCycleOwner, []]
+      ])
+    });
+    harness.pullChangesBatch.mockResolvedValueOnce([ownerInsert]).mockResolvedValueOnce([cardInsert]);
+
+    const result = await pullBatch(harness.vm, { limit: 1 });
+
+    expect(harness.pullChangesBatch).toHaveBeenCalledTimes(2);
+    expect(harness.pullChangesBatch.mock.calls[1][0]).toEqual([
+      { namespace: 'public', entity: 'BatchCycleCard', sinceId: 0 }
+    ]);
+    expect(harness.pullChangesBatch.mock.invocationCallOrder[1]).toBeLessThan(
+      harness.transaction.mock.invocationCallOrder[0]
+    );
+    expect(harness.transaction).toHaveBeenCalledOnce();
+    expect(result).toMatchObject({ pulled: 2, failures: [] });
+  });
+
+  it('引用的证件本地已有：不续拉', async () => {
+    const harness = createHarness({
+      entities: [BatchCycleCard, BatchCycleOwner],
+      syncRecords: cycleSyncRecords(),
+      entityRows: new Map([
+        [BatchCycleCard, [{ id: 'c1' }]],
+        [BatchCycleOwner, []]
+      ])
+    });
+    harness.pullChangesBatch.mockResolvedValueOnce([ownerInsert]);
+
+    const result = await pullBatch(harness.vm, { limit: 1 });
+
+    expect(harness.pullChangesBatch).toHaveBeenCalledOnce();
+    expect(result).toMatchObject({ pulled: 1, failures: [] });
   });
 });

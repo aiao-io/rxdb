@@ -1686,11 +1686,19 @@
         "kind": "type"
       },
       {
+        "name": "RemoteDeferredForeignKey",
+        "kind": "type"
+      },
+      {
         "name": "RemoteEntityInvalidatedEvent",
         "kind": "both"
       },
       {
         "name": "RemoteEntityRef",
+        "kind": "type"
+      },
+      {
+        "name": "RemoteMergeOptions",
         "kind": "type"
       },
       {

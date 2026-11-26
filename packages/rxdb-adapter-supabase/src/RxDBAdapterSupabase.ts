@@ -124,14 +124,6 @@ type AuthStateChangeListener = (callback: (event: AuthChangeEvent, session: Sess
  * ```
  */
 export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBAdapter {
-  /**
-   * `rxdb_mutations` 能先把外键写空、再补写（`p_deferred_columns`，US-038）
-   *
-   * @remarks
-   * 服务端要升级到带第七个参数的 `rxdb_mutations`；没升级时需要补写的批次报 {@link SupabaseConfigError}，
-   * 不需要补写的推送照常可用。
-   */
-  override readonly supportsDeferredForeignKeys = true;
   #client: SupabaseClient;
   #channels: RealtimeChannel[] = [];
   #reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -145,6 +137,14 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
   #databaseVersion: string | null = null;
   #supabaseScope: string | null = null;
   readonly name = ADAPTER_NAME;
+  /**
+   * `rxdb_mutations` 能先把外键写空、再补写（`p_deferred_columns`，US-038）
+   *
+   * @remarks
+   * 服务端要升级到带第七个参数的 `rxdb_mutations`；没升级时需要补写的批次报 {@link SupabaseConfigError}，
+   * 不需要补写的推送照常可用。
+   */
+  override readonly supportsDeferredForeignKeys = true;
 
   get client(): SupabaseClient {
     return this.#client;
@@ -823,17 +823,6 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     );
   }
 
-  /** 延迟外键换成 `rxdb_mutations` 的 `p_deferred_columns`：表取实体的表名，列即属性名 */
-  #deferredColumns(options: RemoteMergeOptions | undefined): { schema: string; table: string; column: string }[] {
-    return (options?.deferredForeignKeys ?? []).map(key => {
-      const metadata = this.rxdb.schemaManager.getEntityMetadata(key.entity, key.namespace);
-      if (!metadata) {
-        throw new SupabaseConfigError(`Deferred foreign key references an unregistered entity: ${key.namespace}.${key.entity}`);
-      }
-      return { schema: metadata.namespace, table: metadata.tableName, column: key.property };
-    });
-  }
-
   /**
    * 批量拉取多个实体的变更记录（单次 HTTP 请求）
    *
@@ -1156,6 +1145,19 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     }
 
     return results;
+  }
+
+  /** 延迟外键换成 `rxdb_mutations` 的 `p_deferred_columns`：表取实体的表名，列即属性名 */
+  #deferredColumns(options: RemoteMergeOptions | undefined): { schema: string; table: string; column: string }[] {
+    return (options?.deferredForeignKeys ?? []).map(key => {
+      const metadata = this.rxdb.schemaManager.getEntityMetadata(key.entity, key.namespace);
+      if (!metadata) {
+        throw new SupabaseConfigError(
+          `Deferred foreign key references an unregistered entity: ${key.namespace}.${key.entity}`
+        );
+      }
+      return { schema: metadata.namespace, table: metadata.tableName, column: key.property };
+    });
   }
 
   #requireSupabaseScope(): string {

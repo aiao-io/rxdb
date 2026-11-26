@@ -467,13 +467,14 @@ const { data } = await client.rpc('rxdb_mutations', {
 });
 ```
 
-| 参数          | 类型      | 说明                                                                                |
-| ------------- | --------- | ----------------------------------------------------------------------------------- |
-| `p_upserts`   | `json[]`  | 按表分组的新增实体（全部列），`INSERT … ON CONFLICT DO UPDATE`                      |
-| `p_updates`   | `json[]`  | 按表分组的修改实体（`id` + 修改的列），普通 `UPDATE`                                |
-| `p_deletes`   | `json[]`  | 按表分组的删除 ID                                                                   |
-| `p_changes`   | `json[]`  | 变更记录（写入 RxDBChange 表）                                                      |
-| `p_skip_sync` | `boolean` | 显式变更是否使用 `p_changes`；触发器捕获实际删除，RPC 在源日志后统一写入隐式 DELETE |
+| 参数                 | 类型      | 说明                                                                                                |
+| -------------------- | --------- | --------------------------------------------------------------------------------------------------- |
+| `p_upserts`          | `json[]`  | 按表分组的新增实体（全部列），`INSERT … ON CONFLICT DO UPDATE`                                      |
+| `p_updates`          | `json[]`  | 按表分组的修改实体（`id` + 修改的列），普通 `UPDATE`                                                |
+| `p_deletes`          | `json[]`  | 按表分组的删除 ID                                                                                   |
+| `p_changes`          | `json[]`  | 变更记录（写入 RxDBChange 表）                                                                      |
+| `p_skip_sync`        | `boolean` | 显式变更是否使用 `p_changes`；触发器捕获实际删除，RPC 在源日志后统一写入隐式 DELETE                 |
+| `p_deferred_columns` | `json[]`  | 可选。外键成环时先写空、再补写的外键列 `{schema, table, column}`，见[外键成环](#外键成环的三遍执行) |
 
 实体表按 `p_upserts` → `p_updates` → `p_deletes` 的顺序执行。返回对象的 `upserted` 数组包含新增行，直写事务（`p_skip_sync = false`）另包含修改的服务器行；推送不返回修改行。`updated` / `deleted` 为计数；推送还返回变更 ID 映射，启用推送回执时另含逐实体结果。
 
@@ -509,6 +510,30 @@ const { data } = await client.rpc('rxdb_mutations', {
 同批显式删除的子行保留客户端日志与 ID 映射，触发器只捕获 `OLD`，避免重复日志；显式删除与实际删除按 id 列类型的等值关系配对（与 DELETE 同一判据，uuid 大小写、`numeric` 的 `1` 与 `1.00` 认成同一行），并按分区根表归并，经分区根表或叶分区删除同样只记一条。若它先被行级策略拒绝、随后被允许的父删除级联，最终回执以实际删除为准，记为 `applied`；最后一条显式 DELETE 的快照一律取实际删除的 `OLD`，客户端 DELETE 的 `inversePatch` 不含 `id`，不能替代。成功批次重试会跳过实体副作用，隐式日志不会重复产生。
 
 外键动作可删除调用方按业务表 RLS 看不到的子行。补出的日志沿用现有触发器模式的完整快照与可读范围，可能包含该子行的全部列。业务表 RLS 不会自动给日志提供逐行授权隔离，日志的读取策略必须按应用的数据边界单独设计。
+
+#### 外键成环的三遍执行
+
+两张表互相持有外键时（例如 shop 的 `"user"."idCardId"` ↔ `id_card."ownerId"`，都不是 `DEFERRABLE`），同批新建的一对无论先写哪一行都会撞外键。客户端在环上的可空外键处断环（见[外键成环](../collaboration/sync.md#外键成环)），把要先写空的列放进 `p_deferred_columns`，`rxdb_mutations` 在同一个事务里分三遍执行（US-038）：
+
+1. 写 INSERT / UPDATE，延迟列先从载荷里拿掉：新建的行这一列为空，修改不动这一列；
+2. 在执行 DELETE 之前补写延迟列；
+3. 执行 DELETE。
+
+补写以调用者身份执行普通 UPDATE，所以环上的表要给行的创建者开 UPDATE 策略。启用推送回执时，补写失败（`23503` / `42501` / `RX001`）的实体按补写的错误记为被拒，整轮回滚之后不带它重来，其余实体照常写入；被拒的实体被别的实体依赖时，那些实体随之以 `dependency` 被拒。配对校验、幂等跳过与日志都不变：日志的 `afterData` 是补写之后的最终值，重复调用不会重复写入。不带 `p_deferred_columns` 时只走一遍，与从前逐字相同。
+
+延迟列在写任何东西之前校验，不合格就以 `RX003` 拒绝整次调用：
+
+| 不合格的延迟列                                  | `RX003` 的 `message`                                                                      |
+| ----------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| 参数不是 JSON 数组                              | `rxdb: p_deferred_columns must be a JSON array`                                           |
+| 元素缺键、或标识符不合法                        | `rxdb: invalid deferred column …`                                                         |
+| 表或列不存在                                    | `rxdb: deferred column table … does not exist` / `rxdb: deferred column … does not exist` |
+| 列是 `id`                                       | `rxdb: the id of … cannot be deferred`                                                    |
+| 列非空                                          | `rxdb: deferred column … is NOT NULL`                                                     |
+| 列不属于任何外键                                | `rxdb: deferred column … is not part of a foreign key`                                    |
+| 列所在的复合外键是 `MATCH FULL`（一列空就违约） | `rxdb: deferred column … belongs to a MATCH FULL foreign key`                             |
+
+延迟列只对 main 分支生效：非 main 分支只写日志、不写业务表，客户端不发这个参数。服务端还没有这个参数时，PostgREST 找不到七个参数的签名（`PGRST202`），客户端报 `SupabaseConfigError`，指向[迁移说明](../migration/supabase-fk-cycle-push.md)；没有环的模型不发这个参数，照常推送。
 
 ### 树查询 RPC
 
@@ -774,6 +799,10 @@ REVOKE ALL ON FUNCTION public.rxdb_caller_can_edit(text, text, jsonb) FROM PUBLI
 
 已有部署在同一个事务里按增量脚本 → 02 → 04 → 生产权限脚本执行一次（与[从旧版本升级](#从旧版本升级)同一条命令），再重新加载自己的 `rxdb_caller_can_edit` 覆盖并再执行一次生产权限脚本。客户端无需升级就能继续同步，读历史要升级到带 `getEntityHistory` 的适配器。升级之前的写入没有历史。完整步骤见[迁移说明](../migration/supabase-change-history.md)。
 
+### 装上外键成环的推送
+
+已有部署在同一个事务里执行新版 `docker/sql/04-rxdb-utils-functions.sql` 与生产权限脚本：`psql --single-transaction -f docker/sql/04-rxdb-utils-functions.sql -f docker/sql/production/rxdb-change-grants.sql`。新版 04 删掉旧的六参数 `rxdb_mutations`、换成带 `p_deferred_columns` 的七参数版本，权限脚本按新签名重新授权。04 会把 `rxdb_caller_can_edit` 恢复成平台默认，覆盖过它的部署要重新加载自己的覆盖，再执行一次生产权限脚本。旧客户端不传这个参数，照常推送。环上的表要给行的创建者开 UPDATE 策略。完整步骤见[迁移说明](../migration/supabase-fk-cycle-push.md)。
+
 ### 日志同步只对已登录身份开放
 
 基础 SQL 里的 `docker/sql/01-rxdb-system-tables.sql` 与 `03-business-tables.sql` 以 `GRANT ALL ON ALL TABLES IN SCHEMA public` 给 `anon` / `authenticated` 授权；Supabase 的默认权限还会在建表、建函数时把执行权授给 `anon`。执行完基础 SQL 之后，再执行一次生产权限脚本：
@@ -898,6 +927,8 @@ ERROR: function rxdb_mutations does not exist
 确保已在 Supabase 数据库中创建所需的 RPC 函数（`rxdb_mutations`、`get_descendants` 等）。
 
 新客户端连旧版 SQL 时，推送报 `Could not find the function public.rxdb_mutations(p_changes, p_deletes, p_skip_sync, p_updates, p_upserts)`：按[迁移说明](../migration/supabase-update-push.md)在同一事务中更新新版 02 与 04，再重试。
+
+推送报 `SupabaseConfigError: The server rxdb_mutations does not accept p_deferred_columns`：模型里有外键成环的实体，服务端的 `rxdb_mutations` 还是旧版。按[外键成环迁移说明](../migration/supabase-fk-cycle-push.md)升级 04 与生产权限脚本，再重试。本地的行与待推变更都原样保留。
 
 同步入口报 `Could not find the function public.rxdb_backend_id`：库里还没有远端身份，按[远端身份迁移说明](../migration/supabase-remote-backend.md)建表并重跑 02。
 

@@ -1,7 +1,7 @@
 ---
 id: US-227
 title: dev-rxdb-supabase 关系数据的推拉同步演示与端到端验收
-status: In Progress
+status: In Review
 priority: Medium
 epic: epic-004-future-features
 created: 2026-11-25
@@ -45,7 +45,7 @@ INVEST 检查清单:
 | ---- | ---- | ------------------------------------------------------------------------------------------------- | --------- | ------------------------------------------- |
 | A    | ✅   | demo 自有表与实体（客户、订单、订单项）；订单页；一对多、多对一、级联删除、外键被拒；访客只存本地 | AC#1～6   | 前置 US-037 已合入；`e2e-remote` 新用例通过 |
 | B    | ✅   | 分类与订单项—分类多对多；挂上、摘掉分类；并发关联同一对                                           | AC#7～9   | 前置 US-228 已合入                          |
-| C    | ⬜   | 证件与客户的双向一对一；同批新建、一次推送；删除证件后两端一致                                    | AC#10～11 | 前置 US-038 已合入                          |
+| C    | ✅   | 证件与客户的双向一对一；同批新建、一次推送；删除证件后两端一致                                    | AC#10～11 | 前置 US-038 已合入                          |
 
 ## 范围边界
 
@@ -96,20 +96,21 @@ INVEST 检查清单:
 
 | #   | 前置条件   | 操作                                           | 预期结果                                 | 状态 |
 | --- | ---------- | ---------------------------------------------- | ---------------------------------------- | ---- |
-| 10  | Alice 登录 | 同批新建互相引用的客户与证件，点推送，Bob 拉取 | 两端两行都在，互相引用一致，被拒清单为空 | ⬜   |
-| 11  | AC#10 完成 | Alice 删除证件并推送，Bob 拉取                 | 两端的客户都还在，证件引用都为空         | ⬜   |
+| 10  | Alice 登录 | 同批新建互相引用的客户与证件，点推送，Bob 拉取 | 两端两行都在，互相引用一致，被拒清单为空 | ✅   |
+| 11  | AC#10 完成 | Alice 删除证件并推送，Bob 拉取                 | 两端的客户都还在，证件引用都为空         | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-验收证据（阶段 A、B；阶段 C 待 US-038 落地）：
+验收证据：
 
-| AC     | 证据                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| #1～#4 | 远端 e2e [orders-sync.spec.ts](../../../apps/dev-rxdb-supabase-e2e/src/orders-sync.spec.ts)「AC#1～#4」，Alice 与 Bob 各一个浏览器上下文：Alice 新建客户、订单与两条订单项并推送，推上去 4 条、被拒清单为空、待推归零；Bob 拉取后看到同一位客户、显示客户名的订单与两条订单项，金额一致；Alice 删订单并推送，Bob 拉取后订单与订单项都消失、客户还在；Bob 删客户并推送，Alice 不拉取就给这位客户新建订单并推送：被拒 1 条，被拒清单里是 DemoOrder「依赖未满足（23503）」，页面指出是哪位客户，Alice 本机的这张订单撤掉，拉取之后客户也消失。实体按子在前注册，由 [order-entities.spec.ts](../../../apps/dev-rxdb-supabase/src/app/orders/order-entities.spec.ts) 断言 `ORDER_ENTITIES` 的顺序 |
-| #5     | 同一文件「AC#5」：访客新建客户、订单与订单项，推送与拉取不可用，重新打开页面后数据还在，全程没有 `rxdb_mutations` 请求；[demo-sync-overrides.spec.ts](../../../apps/dev-rxdb-supabase/src/app/demo-sync-overrides.spec.ts) 断言访客的 Todo 与三个订单实体是 `None` + local，登录身份不覆盖                                                                                                                                                                                                                                                                                                                                                                                                   |
-| #6     | [supabase-rls-check.spec.ts](../../../apps/dev-rxdb-supabase/src/app/supabase-rls-check.spec.ts)：demo 的 RLS 自检含三张表；真栈 [orders-demo-access.spec.ts](../../../packages/rxdb-adapter-supabase/src/__tests__/orders-demo-access.spec.ts)：`rxdb_check_rls`（自检同一个 RPC）报三张表都开了 RLS，anon 直接读得到 `42501`，已登录身份可读。临时给 anon 授 `SELECT` 时这条用例变红                                                                                                                                                                                                                                                                                                       |
-| #7～#9 | 同一 e2e 文件「AC#7～#9」：Alice 新建三个分类，给订单项挂两个并推送，Bob 拉取后这条订单项显示两个分类；Alice 摘掉一个并推送，Bob 只剩一个；两人都不拉取、给同一条订单项挂同一个分类并各自推送，Bob 的推送是「推上去 1 条」、被拒清单为空，拉取之后两边都只有这一个关联。远端只落一行由 US-228 的真栈用例 `many-to-many-sync.spec.ts` 断言                                                                                                                                                                                                                                                                                                                                                    |
-| 页面   | [orders.page.spec.ts](../../../apps/dev-rxdb-supabase/src/app/orders/orders.page.spec.ts)（列表、本机新建与外键、校验、删除、推拉轮次、依赖被拒的提示、访客、纯本地模式）与 [orders-interactions.spec.ts](../../../apps/dev-rxdb-supabase/src/app/orders/orders-interactions.spec.ts)                                                                                                                                                                                                                                                                                                                                                                                                        |
+| AC       | 证据                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #1～#4   | 远端 e2e [orders-sync.spec.ts](../../../apps/dev-rxdb-supabase-e2e/src/orders-sync.spec.ts)「AC#1～#4」，Alice 与 Bob 各一个浏览器上下文：Alice 新建客户、订单与两条订单项并推送，推上去 4 条、被拒清单为空、待推归零；Bob 拉取后看到同一位客户、显示客户名的订单与两条订单项，金额一致；Alice 删订单并推送，Bob 拉取后订单与订单项都消失、客户还在；Bob 删客户并推送，Alice 不拉取就给这位客户新建订单并推送：被拒 1 条，被拒清单里是 DemoOrder「依赖未满足（23503）」，页面指出是哪位客户，Alice 本机的这张订单撤掉，拉取之后客户也消失。实体按子在前注册，由 [order-entities.spec.ts](../../../apps/dev-rxdb-supabase/src/app/orders/order-entities.spec.ts) 断言 `ORDER_ENTITIES` 的顺序 |
+| #5       | 同一文件「AC#5」：访客新建客户、订单与订单项，推送与拉取不可用，重新打开页面后数据还在，全程没有 `rxdb_mutations` 请求；[demo-sync-overrides.spec.ts](../../../apps/dev-rxdb-supabase/src/app/demo-sync-overrides.spec.ts) 断言访客的 Todo 与订单演示的五个实体（含分类、证件）是 `None` + local，登录身份不覆盖                                                                                                                                                                                                                                                                                                                                                                             |
+| #6       | [supabase-rls-check.spec.ts](../../../apps/dev-rxdb-supabase/src/app/supabase-rls-check.spec.ts)：demo 的 RLS 自检含订单演示的全部表；真栈 [orders-demo-access.spec.ts](../../../packages/rxdb-adapter-supabase/src/__tests__/orders-demo-access.spec.ts)：`rxdb_check_rls`（自检同一个 RPC）报六张表（含分类、中间表与证件）都开了 RLS，anon 直接读得到 `42501`，已登录身份可读。临时给 anon 授 `SELECT` 时这条用例变红                                                                                                                                                                                                                                                                     |
+| #7～#9   | 同一 e2e 文件「AC#7～#9」：Alice 新建三个分类，给订单项挂两个并推送，Bob 拉取后这条订单项显示两个分类；Alice 摘掉一个并推送，Bob 只剩一个；两人都不拉取、给同一条订单项挂同一个分类并各自推送，Bob 的推送是「推上去 1 条」、被拒清单为空，拉取之后两边都只有这一个关联。远端只落一行由 US-228 的真栈用例 `many-to-many-sync.spec.ts` 断言                                                                                                                                                                                                                                                                                                                                                    |
+| #10～#11 | 同一 e2e 文件「AC#10～#11」：Alice 新建客户时填上证件号码，客户与证件同一批新建、互相引用，推送是「推上去 2 条」、被拒清单为空、待推归零；Bob 拉取后这位客户一行显示同一个证件号（页面只在客户指向的证件也指回这位客户时显示，见 `idCardOf`）。Alice 删掉证件并推送，被拒清单为空；Bob 拉取后两边的客户都还在、都是「无证件」。远端行与延迟列补写由 US-038 的真栈用例 `fk-cycle-sync.spec.ts` 断言                                                                                                                                                                                                                                                                                           |
+| 页面     | [orders.page.spec.ts](../../../apps/dev-rxdb-supabase/src/app/orders/orders.page.spec.ts)（列表、本机新建与外键、校验、删除、推拉轮次、依赖被拒的提示、访客、纯本地模式、分类，以及阶段 C 的证件显示、同批新建与删除证件）与 [orders-interactions.spec.ts](../../../apps/dev-rxdb-supabase/src/app/orders/orders-interactions.spec.ts)                                                                                                                                                                                                                                                                                                                                                       |
 
 复验命令：`pnpm nx test dev-rxdb-supabase -- src/app/orders src/app/demo-sync-overrides.spec.ts src/app/supabase-rls-check.spec.ts`；真栈先 `pnpm nx run rxdb-adapter-supabase:test-env`，再 `pnpm nx test rxdb-adapter-supabase -- src/__tests__/orders-demo-access.spec.ts`（只读）；e2e 用 `VITE_SUPABASE_URL=… VITE_SUPABASE_KEY=… pnpm nx run dev-rxdb-supabase-e2e:e2e-remote --grep="Orders relational sync"`（只建、只删本轮自己的客户）。
 
@@ -141,6 +142,13 @@ INVEST 检查清单:
 - **访客**：两端（订单项、分类）都在 `VISITOR_LOCAL_ONLY_ENTITIES` 里，中间表按 US-228 跟随两端只存本地，由 `demo-sync-overrides.spec.ts` 断言。
 - **页面**：订单项上列出挂着的分类（`categories$`），× 摘掉、下拉选一个挂上；可选项只列还没挂上的分类。挂上、摘掉都写本机并保存这条订单项。
 
+### 阶段 C 的实现记录
+
+- **表**：`demo_id_cards` 的 `"ownerId"` 非空、`ON DELETE CASCADE`、`UNIQUE`；`demo_customers` 补 `"idCardId"` 列（可空、`ON DELETE SET NULL`、`UNIQUE`），外键在证件表建好之后才加，用 `ADD COLUMN IF NOT EXISTS` 与按约束名判断的 `DO` 块，已有的栈上重复执行收敛到同一形状。远端加 `UNIQUE` 与本地一致：本地给一对一外键建唯一索引。
+- **实体**：`DemoCustomer.idCard` 可空、`onDelete: SET_NULL`，`DemoIdCard.owner` 非空、`onDelete: CASCADE`，与技术笔记一致；`ORDER_ENTITIES` 里证件排在客户前面（证件持有非空的那一侧）。
+- **同批新建**：新建客户时填了证件号码，就先用 `uuid()` 定下两边的 id，各自带上对方的 id，经 `entityManager.saveMany` 一次保存；没填证件号码时与从前一样只建客户。
+- **显示**：客户一行显示「证件：号码」或「无证件」，只在客户指向的证件也指回这位客户时才算有证件（`idCardOf`），e2e 由此判断 Bob 拉下来的两行一致。删除证件时，本机由本地外键把客户的证件引用置空，客户留着。
+
 ## 实现文件
 
 | 阶段 | 路径                                                                                                               | 说明                             |
@@ -149,9 +157,9 @@ INVEST 检查清单:
 | A    | `docker/init-db.sh`、`.github/actions/supabase/action.yml`、`scripts/docker-supabase-scripts.spec.mjs`             | 加载链                           |
 | A～C | `apps/dev-rxdb-supabase/src/app/orders/`                                                                           | 实体、订单页与交互逻辑           |
 | A    | `apps/dev-rxdb-supabase/src/app/demo-sync-overrides.ts`、`setup_rxdb_wa-sqlite.ts`、`app.routes.ts`、`app-menu.ts` | 同步覆盖、注册实体、路由与菜单   |
-| A    | `apps/dev-rxdb-supabase/src/app/supabase-rls-check.ts`                                                             | RLS 自检                         |
+| A～C | `apps/dev-rxdb-supabase/src/app/supabase-rls-check.ts`                                                             | RLS 自检                         |
 | A～C | `apps/dev-rxdb-supabase-e2e/src/orders-sync.spec.ts`、`project.json`                                               | 两身份远端用例                   |
-| A    | `apps/dev-rxdb-supabase/README.md`                                                                                 | 「关系数据」一节                 |
+| A～C | `apps/dev-rxdb-supabase/README.md`                                                                                 | 「关系数据」一节                 |
 
 ## References
 

@@ -91,13 +91,6 @@ export async function pull(sm: SyncManager, options?: PullOptions): Promise<Pull
 }
 
 /**
- * 远端登记为分区的仓库（`namespace:entity`），只看批量拉取会覆盖的仓库（能 pull、不是 filter）
- *
- * @remarks
- * 并发问一次：批量拉取的每一轮与随后的按区拉取都用这一份，不再逐轮、逐实体串行打同一个 RPC。
- * 远端适配器不支持按区同步时为空集。
- */
-/**
  * 拉取补不齐的外键环（环上有按条件或按区同步的成员）与它们的下游（US-038）
  *
  * @returns 这一次不拉的仓库键，与每个仓库一条失败：环上的仓库报 `pull-unsupported-member`，下游报依赖失败
@@ -125,7 +118,10 @@ function blockedPullCycles(
     for (const repo of cycle.members) {
       if (excluded.has(repositoryKey(repo))) continue;
       excluded.add(repositoryKey(repo));
-      failures.push({ repository: repo, error: new RxDBForeignKeyCycleError(repo, cycle, 'pull-unsupported-member', detail) });
+      failures.push({
+        repository: repo,
+        error: new RxDBForeignKeyCycleError(repo, cycle, 'pull-unsupported-member', detail)
+      });
     }
     for (const child of downstreamOf(graph, cycle.members)) {
       if (excluded.has(repositoryKey(child))) continue;
@@ -152,6 +148,13 @@ function downstreamOf(graph: DependencyGraph, seeds: readonly RepositoryIdentifi
   return downstream;
 }
 
+/**
+ * 远端登记为分区的仓库（`namespace:entity`），只看批量拉取会覆盖的仓库（能 pull、不是 filter）
+ *
+ * @remarks
+ * 并发问一次：批量拉取的每一轮与随后的按区拉取都用这一份，不再逐轮、逐实体串行打同一个 RPC。
+ * 远端适配器不支持按区同步时为空集。
+ */
 async function findBucketedRepositories(sm: SyncManager): Promise<ReadonlySet<string>> {
   const candidates = sm.rxdb.config.entities
     .map(EntityType => getEntityMetadata(EntityType))

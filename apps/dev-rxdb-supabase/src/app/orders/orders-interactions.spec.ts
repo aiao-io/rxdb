@@ -4,6 +4,7 @@ import {
   describeDependencyRejections,
   describePullOutcome,
   describePushOutcome,
+  idCardOf,
   itemsByOrder,
   orderTotal,
   parseOrderItemDraft
@@ -158,5 +159,19 @@ describe('describePushOutcome / describePullOutcome', () => {
       notice: null,
       error: '拉取没有全部完成：DemoOrder：网络断了'
     });
+  });
+});
+
+describe('idCardOf（阶段 C）', () => {
+  const card = { id: 'card-1', ownerId: 'customer-1', code: 'ID-1' };
+
+  it('客户指向的证件也指回这位客户时，交出这张证件', () => {
+    expect(idCardOf({ id: 'customer-1', idCardId: 'card-1' }, [card])).toBe(card);
+  });
+
+  it('客户没有证件、证件不在本机、或两边的引用对不上时没有证件', () => {
+    expect(idCardOf({ id: 'customer-1', idCardId: null }, [card])).toBeUndefined();
+    expect(idCardOf({ id: 'customer-1', idCardId: 'card-9' }, [card])).toBeUndefined();
+    expect(idCardOf({ id: 'customer-2', idCardId: 'card-1' }, [card])).toBeUndefined();
   });
 });

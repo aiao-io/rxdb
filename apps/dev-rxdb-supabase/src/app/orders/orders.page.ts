@@ -1,4 +1,4 @@
-import { RxDB } from '@aiao/rxdb';
+import { RxDB, uuid } from '@aiao/rxdb';
 import { useFindAll, useSyncState } from '@aiao/rxdb-angular';
 import { AsyncPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
@@ -6,11 +6,12 @@ import { DemoSession } from '../demo-session';
 import { getErrorMessage } from '../error-message';
 import { RemoteSyncState } from '../remote-sync-state';
 import { SyncRejectionsPanel } from '../sync-rejections-panel';
-import { DemoCategory, DemoCustomer, DemoOrder, DemoOrderItem } from './order-entities';
+import { DemoCategory, DemoCustomer, DemoIdCard, DemoOrder, DemoOrderItem } from './order-entities';
 import {
   describeDependencyRejections,
   describePullOutcome,
   describePushOutcome,
+  idCardOf,
   itemsByOrder,
   orderTotal,
   parseOrderItemDraft,
@@ -40,7 +41,9 @@ function byCreated() {
  * 与 Todo 页同一口径：全量推送按外键把父实体排到前面（US-037），删除时子在前。
  * 已登录的身份共享全部订单（Alice 与 Bob 开两个浏览器对照）；别人已在远端删掉的客户，本机给他新建的订单推不上去，
  * 被拒清单里是这条订单，下面另外指出是哪位客户。给订单项挂上、摘掉分类写的是中间表：关联行 id 由两端派生，
- * 两个人给同一条订单项挂同一个分类只落成远端的一行（US-228）。访客的订单只存在本机（US-225）。
+ * 两个人给同一条订单项挂同一个分类只落成远端的一行（US-228）。客户与证件互相持有外键：新建客户时填上证件号码，
+ * 两行在同一批里新建、互相引用，推送时客户的证件引用先写空、同一请求里再补写；删掉证件只把客户的引用置空（US-038）。
+ * 访客的订单只存在本机（US-225）。
  */
 @Component({
   selector: 'app-orders-page',
@@ -52,8 +55,9 @@ function byCreated() {
       <header class="flex flex-col gap-1">
         <h1 class="text-2xl font-bold" data-testid="orders-title">订单 · 关系数据的推拉同步</h1>
         <p class="text-base-content/70 text-sm">
-          客户、订单与订单项之间有外键：删订单带走订单项，删客户带走订单。修改先存在本机，推送时父行排在前面、
-          删除时子行排在前面。开两个浏览器分别登录 Alice 与 Bob，推送一边、拉取另一边。
+          客户、订单与订单项之间有外键：删订单带走订单项，删客户带走订单与证件。客户与证件互相引用，可以在同一批里新建。
+          修改先存在本机，推送时父行排在前面、删除时子行排在前面。开两个浏览器分别登录 Alice 与
+          Bob，推送一边、拉取另一边。
         </p>
       </header>
 
@@ -130,7 +134,7 @@ function byCreated() {
           <form
             class="flex flex-wrap gap-2"
             #customerForm
-            (submit)="createCustomer($event, newCustomerName.value, customerForm)"
+            (submit)="createCustomer($event, newCustomerName.value, newIdCardCode.value, customerForm)"
             data-testid="orders-customer-form"
           >
             <input
@@ -141,15 +145,33 @@ function byCreated() {
               placeholder="客户名称"
               required
             />
+            <input
+              class="input input-sm"
+              #newIdCardCode
+              [disabled]="$busy()"
+              aria-label="证件号码"
+              placeholder="证件号码（可选）"
+            />
             <button class="btn btn-sm" [disabled]="$busy()" type="submit">新建客户</button>
           </form>
           <ul class="divide-base-200 divide-y">
             @for (customer of customers.value(); track customer.id) {
-              <li class="flex items-center justify-between gap-2 py-1" data-testid="customer">
+              @let idCard = $idCardByCustomer().get(customer.id);
+              <li class="flex flex-wrap items-center justify-between gap-2 py-1" data-testid="customer">
                 <span>{{ customer.name }}</span>
-                <button class="btn btn-xs btn-ghost" [disabled]="$busy()" (click)="remove(customer)" type="button">
-                  删除客户
-                </button>
+                <span class="flex flex-wrap items-center gap-2">
+                  <span class="text-base-content/70 text-sm" data-testid="customer-id-card">
+                    {{ idCard ? '证件：' + idCard.code : '无证件' }}
+                  </span>
+                  @if (idCard) {
+                    <button class="btn btn-xs btn-ghost" [disabled]="$busy()" (click)="remove(idCard)" type="button">
+                      删除证件
+                    </button>
+                  }
+                  <button class="btn btn-xs btn-ghost" [disabled]="$busy()" (click)="remove(customer)" type="button">
+                    删除客户
+                  </button>
+                </span>
               </li>
             } @empty {
               <li class="text-base-content/60 py-1 text-sm">还没有客户</li>
@@ -340,6 +362,7 @@ export default class OrdersPage {
   readonly session = inject(DemoSession);
 
   readonly customers = useFindAll(DemoCustomer, byCreated());
+  readonly idCards = useFindAll(DemoIdCard, byCreated());
   readonly orders = useFindAll(DemoOrder, byCreated());
   readonly items = useFindAll(DemoOrderItem, byCreated());
   readonly categories = useFindAll(DemoCategory, byCreated());
@@ -361,6 +384,10 @@ export default class OrdersPage {
   /** 上一次操作失败的原因 */
   readonly $error = this.#error.asReadonly();
   readonly $itemsByOrder = computed(() => itemsByOrder(this.items.value()));
+  /** 客户 id → 他的证件；两边的引用对得上才算（见 {@link idCardOf}） */
+  readonly $idCardByCustomer = computed(
+    () => new Map(this.customers.value().map(customer => [customer.id, idCardOf(customer, this.idCards.value())]))
+  );
   /** 依赖的客户已不在远端、因此被拒的订单 */
   readonly $dependencyNotices = computed(() =>
     describeDependencyRejections(this.#syncState.lastRejections(), this.customers.value())
@@ -373,11 +400,16 @@ export default class OrdersPage {
     return this.#customerNames().get(customerId) ?? customerId;
   }
 
-  createCustomer(event: Event, name: string, form: HTMLFormElement): Promise<void> {
+  /** 新建客户；填了证件号码时，客户与证件在同一批里新建、互相引用 */
+  createCustomer(event: Event, name: string, idCardCode: string, form: HTMLFormElement): Promise<void> {
     event.preventDefault();
     const trimmed = name.trim();
     if (!trimmed) return this.#fail('先填客户名称');
-    return this.#write(() => this.#rxdb.entityManager.instantiate(DemoCustomer, { name: trimmed }).save(), form);
+    const code = idCardCode.trim();
+    if (!code) {
+      return this.#write(() => this.#rxdb.entityManager.instantiate(DemoCustomer, { name: trimmed }).save(), form);
+    }
+    return this.#write(() => this.#saveCustomerWithIdCard(trimmed, code), form);
   }
 
   createOrder(event: Event, customerId: string, number: string, form: HTMLFormElement): Promise<void> {
@@ -414,8 +446,11 @@ export default class OrdersPage {
     return this.#write(() => this.#rxdb.entityManager.instantiate(DemoCategory, { name: trimmed }).save(), form);
   }
 
-  /** 删本机的行；子行（分类的是关联行）由本地外键级联删掉，推送时按子在前推上去 */
-  remove(entity: DemoCustomer | DemoOrder | DemoCategory): Promise<void> {
+  /**
+   * 删本机的行；子行（分类的是关联行，客户的是证件）由本地外键级联删掉，推送时按子在前推上去。
+   * 删证件时客户留着，它的证件引用由本地外键置空
+   */
+  remove(entity: DemoCustomer | DemoOrder | DemoCategory | DemoIdCard): Promise<void> {
     return this.#write(() => entity.remove());
   }
 
@@ -467,6 +502,23 @@ export default class OrdersPage {
   #fail(message: string): Promise<void> {
     this.#error.set(message);
     return Promise.resolve();
+  }
+
+  /**
+   * 同一批新建互相引用的客户与证件
+   *
+   * @remarks
+   * 两边的 id 先定下来，各自带上对方的 id：本地外键到提交时才检查，同一个事务里没有先后之分。推送时客户的证件引用
+   * 先写空、同一请求里再补写（US-038）。
+   */
+  #saveCustomerWithIdCard(name: string, code: string): Promise<unknown> {
+    const entityManager = this.#rxdb.entityManager;
+    const customerId = uuid();
+    const idCardId = uuid();
+    return entityManager.saveMany([
+      entityManager.instantiate(DemoCustomer, { id: customerId, name, idCardId }),
+      entityManager.instantiate(DemoIdCard, { id: idCardId, code, ownerId: customerId })
+    ]);
   }
 
   async #sync(direction: SyncDirection, operation: () => Promise<SyncOutcome>): Promise<void> {

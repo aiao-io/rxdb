@@ -1,11 +1,11 @@
 ---
 id: US-038
 title: 双向一对一的实体能开同步：同步层按可空外键断环
-status: Backlog
+status: In Review
 priority: High
 epic: epic-004-future-features
 created: 2026-11-25
-updated: 2026-11-25
+updated: 2026-11-26
 tags: [core, sync, relationship, one-to-one, supabase, sql]
 ---
 
@@ -36,7 +36,7 @@ INVEST 检查清单:
    if (relation.kind === RelationKind.MANY_TO_ONE || relation.kind === RelationKind.ONE_TO_ONE) {
    ```
 
-   随后 [`detectCycles`](../../../packages/rxdb-plugin-sync/src/dependency-graph.ts) 抛 `Circular dependency detected`。它只跳过自引用（树），两个实体互指的环照抛。一对一没有「持有外键的一侧」之分，两侧声明就各有一列外键。
+   随后环检测 `detectCycles` 抛 `Circular dependency detected`（本故事已把它换成按强连通分量找环的 `findDependencyCycles`）。它只跳过自引用（树），两个实体互指的环照抛。一对一没有「持有外键的一侧」之分，两侧声明就各有一列外键。
 
 2. 推送时每个仓库的级联都建全量依赖图（`pushWithCascade`），批量拉取（[`pullBatch`](../../../packages/rxdb-plugin-sync/src/pull-batch.ts)）、单仓拉取（`pullRepository`）与分支物化也一样。所以库里只要注册了这样一对实体，所有仓库的推拉都会失败，与这对实体有没有数据无关。
 
@@ -65,9 +65,9 @@ INVEST 检查清单:
 
 | 阶段 | 状态 | 交付                                                                                                     | 必过 AC   | 门禁                                                               |
 | ---- | ---- | -------------------------------------------------------------------------------------------------------- | --------- | ------------------------------------------------------------------ |
-| A    | ⬜   | 依赖图按强连通分量断环；推送把环内成员合进一次 `mergeChanges` 并带上延迟列；无法断开的环只拖垮自己和下游 | AC#1～5   | 与适配器无关，用假远端与 PGlite `ScriptedRemote` 验收；不改服务端  |
-| B    | ⬜   | `rxdb_mutations` 支持延迟列（三遍执行、按实体原子）；Supabase 适配器发送延迟列；夹具对齐                 | AC#6～12  | SQL 回归全绿；`rxdb-change-grants.sql` 签名清单同步；迁移文档随 PR |
-| C    | ⬜   | 拉取：翻页补齐环内引用、单仓拉取把环放进一个本地事务；删除与级联两端一致；文档                           | AC#13～17 | 真栈 AC#13～16 通过；分支物化不再因环失败                          |
+| A    | ✅   | 依赖图按强连通分量断环；推送把环内成员合进一次 `mergeChanges` 并带上延迟列；无法断开的环只拖垮自己和下游 | AC#1～5   | 与适配器无关，用假远端与 PGlite `ScriptedRemote` 验收；不改服务端  |
+| B    | ✅   | `rxdb_mutations` 支持延迟列（三遍执行、按实体原子）；Supabase 适配器发送延迟列；夹具对齐                 | AC#6～12  | SQL 回归全绿；`rxdb-change-grants.sql` 签名清单同步；迁移文档随 PR |
+| C    | ✅   | 拉取：翻页补齐环内引用、单仓拉取把环放进一个本地事务；删除与级联两端一致；文档                           | AC#13～17 | 真栈 AC#13～16 通过；分支物化不再因环失败                          |
 
 阶段 A 可以先合入：服务端还不支持时，Supabase 适配器的能力标志保持 `false`，环内需要延迟列的批次以 `remote-unsupported` 失败，不会推上去撞外键。阶段 B 拆成两个 PR：先 SQL 与回归（参数可选，单独合入安全），再适配器、夹具与真栈用例。
 
@@ -99,37 +99,52 @@ INVEST 检查清单:
 
 | #   | 前置条件                                                        | 操作                 | 预期结果                                                                                                                         | 状态 |
 | --- | --------------------------------------------------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 注册 shop 夹具全部实体，`SyncType.Full`                         | `push()` 与 `pull()` | 都不抛 `Circular dependency`；没有变更的仓库正常返回                                                                             | ⬜   |
-| 2   | 两个实体互相持有非空外键（排不出顺序），本地有待推变更          | `push()`             | 环内仓库以 `RxDBForeignKeyCycleError`（`unbreakable`）失败，消息指明环上的关系并提示把一侧改为可空；下游被阻断；环外仓库照常推送 | ⬜   |
-| 3   | 远端适配器不支持延迟列；本地同批新建互相引用的 User 与 IdCard   | `push()`             | 这一环以 `remote-unsupported` 失败，不发请求、不删本地行；其他仓库照常推送                                                       | ⬜   |
-| 4   | 假远端；本地有两对互相引用的 User / IdCard，`batchSize = 1`     | `push()`             | 每对各一次 `mergeChanges`，同一对不拆开；请求带上延迟列 `shop.User.idCardId`                                                     | ⬜   |
-| 5   | PGlite + `ScriptedRemote`；远端拒绝环内一个成员（`dependency`） | `push()`             | 两个仓库的回执、被拒对齐与水位线在一个本地事务里落库，没有本地外键错误                                                           | ⬜   |
+| 1   | 注册 shop 夹具全部实体，`SyncType.Full`                         | `push()` 与 `pull()` | 都不抛 `Circular dependency`；没有变更的仓库正常返回                                                                             | ✅   |
+| 2   | 两个实体互相持有非空外键（排不出顺序），本地有待推变更          | `push()`             | 环内仓库以 `RxDBForeignKeyCycleError`（`unbreakable`）失败，消息指明环上的关系并提示把一侧改为可空；下游被阻断；环外仓库照常推送 | ✅   |
+| 3   | 远端适配器不支持延迟列；本地同批新建互相引用的 User 与 IdCard   | `push()`             | 这一环以 `remote-unsupported` 失败，不发请求、不删本地行；其他仓库照常推送                                                       | ✅   |
+| 4   | 假远端；本地有两对互相引用的 User / IdCard，`batchSize = 1`     | `push()`             | 每对各一次 `mergeChanges`，同一对不拆开；请求带上延迟列 `shop.User.idCardId`                                                     | ✅   |
+| 5   | PGlite + `ScriptedRemote`；远端拒绝环内一个成员（`dependency`） | `push()`             | 两个仓库的回执、被拒对齐与水位线在一个本地事务里落库，没有本地外键错误                                                           | ✅   |
 
 ### 阶段 B：服务端协议与 Supabase 适配器
 
 | #   | 前置条件                                                                                 | 操作                                     | 预期结果                                                                         | 状态 |
 | --- | ---------------------------------------------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------- | ---- |
-| 6   | 一次调用里有 User（`idCardId = X`）与 IdCard X（`ownerId` = 该 User）                    | `rxdb_mutations` 带 `p_deferred_columns` | 两行都写入，复合外键成立；日志的 `afterData` 是最终值；无被拒                    | ⬜   |
-| 7   | 同 AC#6，不带延迟列（旧客户端）                                                          | `rxdb_mutations`                         | 行为与现在一致：一个实体以 `dependency` 被拒                                     | ⬜   |
-| 8   | 同 AC#6，IdCard 的写入被 RLS 拒绝                                                        | `rxdb_mutations` 带延迟列                | 两个实体都被拒（User 的补写以 `dependency` 失败）；两行都不存在，没有日志        | ⬜   |
-| 9   | 延迟列不合格：非空、不是外键、是 `id`、列不存在、所在复合外键是 `MATCH FULL`、标识符非法 | `rxdb_mutations` 带该延迟列              | 以 RX003 拒绝，什么都不写                                                        | ⬜   |
-| 10  | AC#6 的同一次调用重复执行                                                                | `rxdb_mutations`                         | 幂等：没有重复写入与重复日志                                                     | ⬜   |
-| 11  | 服务端未升级（没有 `p_deferred_columns`）                                                | 客户端推送需要延迟列的批次               | 报 `SupabaseConfigError`，指向迁移文档；本地不对齐、不删行；没有环的模型照常推送 | ⬜   |
-| 12  | 真栈；本地同批新建互相引用的 User 与 IdCard                                              | `push()`                                 | 远端两行都在、互相引用一致，无被拒                                               | ⬜   |
+| 6   | 一次调用里有 User（`idCardId = X`）与 IdCard X（`ownerId` = 该 User）                    | `rxdb_mutations` 带 `p_deferred_columns` | 两行都写入，复合外键成立；日志的 `afterData` 是最终值；无被拒                    | ✅   |
+| 7   | 同 AC#6，不带延迟列（旧客户端）                                                          | `rxdb_mutations`                         | 行为与现在一致：一个实体以 `dependency` 被拒                                     | ✅   |
+| 8   | 同 AC#6，IdCard 的写入被 RLS 拒绝                                                        | `rxdb_mutations` 带延迟列                | 两个实体都被拒（User 的补写以 `dependency` 失败）；两行都不存在，没有日志        | ✅   |
+| 9   | 延迟列不合格：非空、不是外键、是 `id`、列不存在、所在复合外键是 `MATCH FULL`、标识符非法 | `rxdb_mutations` 带该延迟列              | 以 RX003 拒绝，什么都不写                                                        | ✅   |
+| 10  | AC#6 的同一次调用重复执行                                                                | `rxdb_mutations`                         | 幂等：没有重复写入与重复日志                                                     | ✅   |
+| 11  | 服务端未升级（没有 `p_deferred_columns`）                                                | 客户端推送需要延迟列的批次               | 报 `SupabaseConfigError`，指向迁移文档；本地不对齐、不删行；没有环的模型照常推送 | ✅   |
+| 12  | 真栈；本地同批新建互相引用的 User 与 IdCard                                              | `push()`                                 | 远端两行都在、互相引用一致，无被拒                                               | ✅   |
 
 ### 阶段 C：拉取与端到端
 
 | #   | 前置条件                                      | 操作                                         | 预期结果                                                  | 状态 |
 | --- | --------------------------------------------- | -------------------------------------------- | --------------------------------------------------------- | ---- |
-| 13  | 客户端 A 完成 AC#12                           | 客户端 B 以 `limit = 1` 调 `pull()`          | 环内引用跨页时续拉；B 本地两行都在、互相引用一致          | ⬜   |
-| 14  | 同 AC#13                                      | 客户端 B 调 `pullRepository('shop', 'User')` | 环内成员在一个本地事务里落库；两行一致                    | ⬜   |
-| 15  | 两端都有 AC#12 的数据                         | A 删除 IdCard 并推送，B 拉取                 | 远端与 B 本地的 `User.idCardId` 都为空，User 仍在，无被拒 | ⬜   |
-| 16  | 两端都有 AC#12 的数据                         | A 删除 User 并推送，B 拉取                   | 远端与 B 本地的 IdCard 一并消失                           | ⬜   |
-| 17  | 环内有一个成员是 `SyncType.Filter` 或分区实体 | `pull()`                                     | 这一环以 `pull-unsupported-member` 失败；其他仓库照常拉取 | ⬜   |
+| 13  | 客户端 A 完成 AC#12                           | 客户端 B 以 `limit = 1` 调 `pull()`          | 环内引用跨页时续拉；B 本地两行都在、互相引用一致          | ✅   |
+| 14  | 同 AC#13                                      | 客户端 B 调 `pullRepository('shop', 'User')` | 环内成员在一个本地事务里落库；两行一致                    | ✅   |
+| 15  | 两端都有 AC#12 的数据                         | A 删除 IdCard 并推送，B 拉取                 | 远端与 B 本地的 `User.idCardId` 都为空，User 仍在，无被拒 | ✅   |
+| 16  | 两端都有 AC#12 的数据                         | A 删除 User 并推送，B 拉取                   | 远端与 B 本地的 IdCard 一并消失                           | ✅   |
+| 17  | 环内有一个成员是 `SyncType.Filter` 或分区实体 | `pull()`                                     | 这一环以 `pull-unsupported-member` 失败；其他仓库照常拉取 | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-验收证据：待实现。AC#1～5 由 `rxdb-plugin-sync` 单测与 `rxdb-adapter-pglite` 的 `ScriptedRemote` 用例覆盖；AC#6～10 由 SQL 回归套件（`rxdb-adapter-supabase:sql-security-regressions`）覆盖；AC#11 由适配器单测覆盖；AC#12～16 由 `rxdb-adapter-supabase` 真栈用例在 shop 表上覆盖；AC#17 由 `rxdb-plugin-sync` 单测覆盖。
+验收证据：
+
+| AC            | 证据                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #1            | plugin-sync [push-repository.spec.ts](../../../packages/rxdb-plugin-sync/src/__tests__/push-repository.spec.ts)「外键成环的推送（US-038）」：注册了成环的实体，`push()` 不抛 `Circular dependency`，没有变更的仓库正常返回。PGlite [fk-cycle-push.spec.ts](../../../packages/rxdb-adapter-pglite/src/__tests__/fk-cycle-push.spec.ts)「注册 shop 夹具全部实体」：`@aiao/rxdb-test/shop` 的 `ENTITIES` 全部注册，`push()` 与 `pull({ fetchAll: true })` 都没有失败。[dependency-graph.spec.ts](../../../packages/rxdb-plugin-sync/src/__tests__/dependency-graph.spec.ts)「双向一对一成环」：shop 同形的模型断在 User 的两条外键（共用可空的 `idCardId`），成员先 User 后 IdCard                                                                                                                                                                                                                                                                                                                                                                                  |
+| #2            | push-repository.spec AC#2：互相持有非空外键的 LockA ↔ LockB 以 `unbreakable` 失败，消息给出环路并提示把一侧改为可空；下游 LockChild 被依赖闸门挡下，环外仓库照常推送                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| #3            | push-repository.spec AC#3 与 PGlite「远端不支持延迟外键」：这一环以 `remote-unsupported` 失败，不发请求，本地两行与待推原样保留。环内的行没有互相引用时不带延迟列，远端不支持也照常推                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| #4            | push-repository.spec AC#4：两对、`batchSize = 1`，每对各一次 `mergeChanges`，同一对不拆开，带延迟列。PGlite AC#4 与 shop 夹具（含复合外键）：一次 `mergeChanges`，`deferredForeignKeys` 为 `shop.User.idCardId`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| #5            | PGlite AC#5：远端以 `dependency` 拒绝证件、用户的补写随之失败：两个仓库的回执、被拒对齐与水位线在一个本地事务里落库，没有本地外键错误                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| #6～#10       | SQL 回归 `deferred-cycle`：AC#6 两行写入、复合外键成立、日志 `afterData` 是最终值；AC#10 重复调用幂等；AC#7 不带延迟列时以 `dependency` 被拒、什么都不写；AC#8 证件被 RLS 拒绝时两个实体都被拒、两行都不在、没有日志；另覆盖只改延迟列的修改、DELETE 在补写之后执行，并核实子事务回滚时 `rxdb.captured_deletes` 一起撤销。`deferred-columns-validation`（AC#9）：非数组、标识符非法、表或列不存在、`id`、非空、不属于外键、`MATCH FULL` 都以 RX003 拒绝，什么都不写。整套 53 个用例逐个通过，整体在一个事务里再跑一遍也通过                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| #11           | Supabase [deferred-foreign-keys.spec.ts](../../../packages/rxdb-adapter-supabase/src/__tests__/deferred-foreign-keys.spec.ts)：适配器声明支持；main 分支把延迟外键换成 `p_deferred_columns`；没有延迟外键或不是 main 分支时不带这个参数；服务端报 `PGRST202` 时抛 `SupabaseConfigError`、指向迁移文档，只发一次请求                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| #12～#16      | 真栈 [fk-cycle-sync.spec.ts](../../../packages/rxdb-adapter-supabase/src/__tests__/fk-cycle-sync.spec.ts)：两个客户端（各一个内存 wa-sqlite）在 shop 表上。A 同批新建互相引用的用户与身份证，一次推送 2 条、无被拒；B 以 `limit = 1` 拉取后两行一致；新客户端 `pullRepository('shop', 'User')`，环内成员一起落库；A 删身份证后，远端与 B 的 `idCardId` 都为空、用户还在；A 删用户后，远端与 B 的身份证一并消失。变异核实：去掉续拉补齐，AC#13 报 `FOREIGN KEY constraint failed`；去掉延迟外键，AC#12 的两行都被远端拒绝。本文件只建、只删自己的行，结束时按 id 清掉日志与历史                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| #13、#14、#17 | plugin-sync [pull-cycle.spec.ts](../../../packages/rxdb-plugin-sync/src/__tests__/pull-cycle.spec.ts)：一页在环中间截断时从被引用仓库的水位线续拉，续拉到的行再缺就接着拉，远端拉空就原样交回；环上有不支持的成员时判出这个环。[pull-batch.spec.ts](../../../packages/rxdb-plugin-sync/src/__tests__/pull-batch.spec.ts)「补齐外键环内的引用」：续拉发生在事务之前，两行在一个事务里落库；引用的行本地已有时不续拉。[pull-repository.spec.ts](../../../packages/rxdb-plugin-sync/src/__tests__/pull-repository.spec.ts)「级联把外键环当一个单元拉」：整个环交给一次只拉环上仓库的批量拉取，环外的父仓单独拉；环上有 `Filter` 或分区成员、环外父仓失败、批量拉取抛错时环上每个成员各记一条失败。[pull-cycle-gate.spec.ts](../../../packages/rxdb-plugin-sync/src/__tests__/pull-cycle-gate.spec.ts)：`pull()` 把这样的环与下游排除出批量、分区与条件拉取，各记一条失败。PGlite AC#13（`limit = 1`，两对都在一个事务里落库）、AC#14（`pullRepository` 拉环上的一个仓库）、AC#17（环上有 `Filter` 成员：这一环以 `pull-unsupported-member` 失败，环外的仓库照常拉） |
+| 物化          | plugin-sync [branch-materialization-source.spec.ts](../../../packages/rxdb-plugin-sync/src/__tests__/branch-materialization-source.spec.ts)：注册了双向一对一的库照常冻结物化范围，环内成员连续；恢复「遇环抛错」时这条用例失败                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+
+复验命令：`pnpm nx test rxdb-plugin-sync -- src/__tests__/dependency-graph.spec.ts src/__tests__/topological-sort.spec.ts src/__tests__/push-repository.spec.ts src/__tests__/pull-cycle.spec.ts src/__tests__/pull-cycle-gate.spec.ts src/__tests__/pull-batch.spec.ts src/__tests__/pull-repository.spec.ts src/__tests__/branch-materialization-source.spec.ts`；`pnpm nx test rxdb-adapter-pglite -- src/__tests__/fk-cycle-push.spec.ts`（依赖从 dist 解析，先构建 `rxdb`、`rxdb-plugin-sync` 与 `rxdb-test`）；`pnpm nx test rxdb-adapter-supabase -- src/__tests__/deferred-foreign-keys.spec.ts`；SQL 回归 `pnpm nx run rxdb-adapter-supabase:sql-security-regressions`；真栈先 `pnpm nx run rxdb-adapter-supabase:test-env`，再 `pnpm nx test rxdb-adapter-supabase -- src/__tests__/fk-cycle-sync.spec.ts`。
 
 ## 技术笔记
 
@@ -149,20 +164,35 @@ INVEST 检查清单:
 - **与 US-229 的关系**：本故事重构 `rxdb_mutations` 第 3 步时，必须保留 US-229 加的变更历史写入。
 - **实现时先核实**：子事务回滚时，`rxdb.captured_deletes` 的 GUC 变更会一起撤销（加一条回归用例证明）；拉取删除「已被本地级联删掉的行」时不报错（由 AC#16 验证）。
 
+### 实现记录
+
+- **断环与排序**按技术笔记实现：`findDependencyCycles`（Tarjan 强连通分量）给环上每个节点挂同一份 `DependencyCycle`，记着成员、环内外键与断环边，断不开时记 `unbreakable` 与环路。依赖图的边带上关系名、属性与可空标记（`DependencyForeignKey`），复合外键也成边；一条外键里有可空属性就算可空（`MATCH SIMPLE` 下一列为空就不检查）。shop 夹具的断环边有两条：关系外键 `idCard` 与复合外键 `id_card_owner_consistency`，共用可空的 `idCardId`。
+- **文件与草案不同**：推送的切批在 `push-cycle.ts`（`planCycleBatches`），相位调度与回执分发留在 `push-repository.ts`（`runCyclePhase`、`pushCyclePlans`、`distributeCycleReceipts`），没有抽出 `push-plan.ts`；拉取补齐在 `pull-cycle.ts`；Supabase 只改了 `RxDBAdapterSupabase.ts`。`RxDBForeignKeyCycleError` 放在 `@aiao/rxdb-plugin-sync`，与 `RxDBDependencyFailedError` 同一层。
+- **切批只按关系外键并组**：复合外键与断环的关系外键共用那一列，由关系外键带上，并查集只看单属性外键。
+- **远端能力**：`RxDBAdapterRemoteBase.supportsDeferredForeignKeys` 默认 `false`；`mergeChanges` 的第四个参数是 `RemoteMergeOptions`，其中 `deferredForeignKeys` 是 `RemoteDeferredForeignKey[]`。只在本批确有指向同批行的非空值时才带；Supabase 适配器只在 main 分支发 `p_deferred_columns`。
+- **服务端三遍执行**：第 3 步抽成 `rxdb_mutations_apply_groups`；延迟列在 `rxdb_mutations_deferred_columns` 里校验，并换成按表的列清单；补写在 `rxdb_mutations_fill_deferred`。补写失败的实体与原因经 plpgsql 变量带出整轮回滚，`RX004` 只是内部的重来信号，不会抛给客户端。一开始用事务级设置传，它随子事务回滚一起撤销了；回归用例同时核实了 `rxdb.captured_deletes` 也会撤销，补写失败的那一轮不留脏的删除捕获。只改了延迟列的 UPDATE 在第一遍记为已写、直接跳过（否则是一条只有 `id` 的空 UPDATE），第二遍补写。同一个实体第二次补写失败直接抛错，循环必然收敛。
+- **拉取**：补齐在 `pullBatch` 开事务之前做，因为要问远端，不能握着写事务。`pull()` 与 `pullRepository` 的级联把整个环当一个单元，经 `pullBatch` 的 `onlyRepositories` 一次拉进一个本地事务。环上有 `Filter` 或分区成员时，`pull()` 把这个环与它的下游排除出批量、分区与条件拉取，环上每个成员记一条 `pull-unsupported-member`，下游记 `RxDBDependencyFailedError`。
+- **分支物化**：投影本来就在屏障那一笔事务里逐页执行，依赖图不再整体抛错就够了，物化代码没有改。
+- **夹具对齐**：shop 的 `User.idCard` 显式 `onDelete: SET_NULL`。改动之后 PGlite 与 SQLite 全量套件（1697 / 846 条）通过。
+- **已知限制**（本地全并行跑 dev-rxdb-supabase 远端 e2e 时发现）：删证件时，证件的删除走删除相位、客户的置空走新建/修改相位，是两次 `rxdb_mutations`。远端外键在第一次请求里就把 `idCardId` 置空了，但 `rxdb_mutations` 不给外键动作改动的行补日志，置空要等第二次请求才写进日志。两次请求之间，本地还没有这张证件、又在同一轮里拉到它的新建与删除的客户端（从头拉取的新客户端），客户还指着它，本地提交撞外键；这一轮不落库，下一次拉取恢复。这与环无关，任何 `SET NULL` 的外键都有同样的窗口，已写进 sync.md「推送顺序」。彻底修要让服务端像补级联删除的日志（US-224）那样，给外键动作置空的行补一条修改日志，本故事没有做。订单 e2e 改为文件内按顺序跑（与 CI 一致），不再让同文件的用例互相撞上这个窗口。
+- **文档**：[relations.md](../../../website/docs/model-definition/relations.md#双向一对一)、[sync.md](../../../website/docs/collaboration/sync.md#外键成环)、[supabase.md](../../../website/docs/adapters/supabase.md#外键成环的三遍执行) 与迁移说明 [supabase-fk-cycle-push.md](../../../website/docs/migration/supabase-fk-cycle-push.md)。
+
 ## 实现文件
 
-| 阶段 | 路径                                                                                         | 说明                                                     |
-| ---- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| A    | `packages/rxdb-plugin-sync/src/dependency-graph.ts`、`topological-sort.ts`                   | 强连通分量、断环边、凝聚图排序                           |
-| A    | `packages/rxdb-plugin-sync/src/push-component.ts`、`push-plan.ts`                            | 环内合批与回执分发；推送计划从 `push-repository.ts` 抽出 |
-| A    | `packages/rxdb/src/rxdb-adapter.ts`                                                          | `mergeChanges` 的 `options` 与能力标志                   |
-| B    | `docker/sql/04-rxdb-utils-functions.sql`                                                     | `p_deferred_columns`、校验函数、三遍执行                 |
-| B    | `docker/sql/production/rxdb-change-grants.sql`                                               | 签名清单                                                 |
-| B    | `packages/rxdb-adapter-supabase/src/supabase.merge-changes.ts`、`RxDBAdapterSupabase.ts`     | 发送延迟列、`PGRST202` 识别、能力标志                    |
-| B    | `packages/rxdb-adapter-supabase/src/__tests__/supabase-sql-security-regressions.sql`         | `deferred-cycle-*` 与 `deferred-columns-validation` 用例 |
-| B    | `packages/rxdb-test/shop/User.ts`                                                            | `idCard` 声明 `onDelete: SET_NULL`                       |
-| C    | `packages/rxdb-plugin-sync/src/pull-cycle-closure.ts`、`pull-batch.ts`、`pull-repository.ts` | 翻页补齐、环放进一个本地事务                             |
-| C    | `website/docs/`                                                                              | `relations.md`、`sync.md`、`supabase.md` 与迁移文档      |
+| 阶段 | 路径                                                                                            | 说明                                                   |
+| ---- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| A    | `packages/rxdb-plugin-sync/src/dependency-graph.ts`、`topological-sort.ts`                      | 强连通分量、断环边、按环为单元的拓扑排序               |
+| A    | `packages/rxdb-plugin-sync/src/push-cycle.ts`、`push-repository.ts`                             | 环内切批；环的相位调度与回执分发                       |
+| A    | `packages/rxdb-plugin-sync/src/foreign-key-cycle-error.ts`                                      | `RxDBForeignKeyCycleError`                             |
+| A    | `packages/rxdb/src/rxdb-adapter.ts`                                                             | `mergeChanges` 的 `options` 与能力标志                 |
+| B    | `docker/sql/04-rxdb-utils-functions.sql`                                                        | `p_deferred_columns`、校验函数、三遍执行               |
+| B    | `docker/sql/production/rxdb-change-grants.sql`                                                  | 签名清单                                               |
+| B    | `packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts`                                     | 发送延迟列、`PGRST202` 识别、能力标志                  |
+| B    | `packages/rxdb-adapter-supabase/src/__tests__/supabase-sql-security-regressions.sql`            | `deferred-cycle` 与 `deferred-columns-validation` 用例 |
+| B    | `packages/rxdb-test/shop/User.ts`                                                               | `idCard` 声明 `onDelete: SET_NULL`                     |
+| C    | `packages/rxdb-plugin-sync/src/pull-cycle.ts`、`pull-batch.ts`、`pull-repository.ts`、`pull.ts` | 续拉补齐；环放进一个本地事务；补不齐的环与下游         |
+| C    | `packages/rxdb-adapter-supabase/src/__tests__/fk-cycle-sync.spec.ts`                            | 两个客户端的真栈用例                                   |
+| C    | `website/docs/`                                                                                 | `relations.md`、`sync.md`、`supabase.md` 与迁移文档    |
 
 ## References
 

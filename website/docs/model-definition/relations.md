@@ -36,7 +36,7 @@
 来自当前仓库真实示例的简化版：
 
 ```ts
-import { Entity, EntityBase, PropertyType, RelationKind } from '@aiao/rxdb';
+import { Entity, EntityBase, OnDeleteAction, PropertyType, RelationKind } from '@aiao/rxdb';
 
 @Entity({
   name: 'User',
@@ -49,7 +49,9 @@ import { Entity, EntityBase, PropertyType, RelationKind } from '@aiao/rxdb';
       kind: RelationKind.ONE_TO_ONE,
       mappedEntity: 'IdCard',
       mappedProperty: 'owner',
-      nullable: true
+      nullable: true,
+      // 删掉身份证只把用户的引用置空；一对一默认是 CASCADE，会连用户一起删
+      onDelete: OnDeleteAction.SET_NULL
     }
   ]
 })
@@ -86,7 +88,15 @@ export class IdCard extends EntityBase {}
 - `nullable`
 - `unique`
 - `columnName`
-- `onDelete` / `onUpdate`
+- `onDelete` / `onUpdate`（一对一默认 `onDelete: CASCADE`，可空也一样）
+
+### 双向一对一
+
+上面两侧都声明了 `ONE_TO_ONE`，所以两侧各有一列外键：`User.idCardId` 指向身份证，`IdCard.ownerId` 指向用户，两张表互相引用。
+
+- **本地写入**：本地外键都延迟到事务提交时才检查。在同一个事务里新建这一对（`entityManager.saveMany([user, card])`）没有先后之分。
+- **同步**：两侧至少要有一侧可空，这里是 `User.idCard`。同步层在可空的一侧断环：推送时这一列先写空，在同一个请求里再补写。两侧都非空时排不出写入顺序，推送会以 `unbreakable` 失败，见[外键成环](../collaboration/sync.md#外键成环)。
+- **删除**：`onDelete` 要与远端外键一致。shop 的远端是 `ON DELETE SET NULL`（删身份证、留用户）和 `ON DELETE CASCADE`（删用户、连身份证一起删），所以 `User.idCard` 要显式写 `SET_NULL`。不写的话，本地删身份证会按默认的 `CASCADE` 把用户也删掉，与远端对不上。
 
 ## 一对多 / 多对一
 

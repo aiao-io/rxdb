@@ -1,6 +1,6 @@
 import { getEntityMetadata, OnDeleteAction, RelationKind, type EntityType } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
-import { DemoCategory, DemoCustomer, DemoOrder, DemoOrderItem, ORDER_ENTITIES } from './order-entities';
+import { DemoCategory, DemoCustomer, DemoIdCard, DemoOrder, DemoOrderItem, ORDER_ENTITIES } from './order-entities';
 
 function relation(entity: EntityType, name: string) {
   return getEntityMetadata(entity).relations.find(item => item.name === name);
@@ -11,15 +11,17 @@ describe('订单演示的实体（US-227）', () => {
     expect(ORDER_ENTITIES.map(entity => getEntityMetadata(entity).tableName)).toEqual([
       'demo_order_items',
       'demo_orders',
+      'demo_id_cards',
       'demo_customers',
       'demo_categories'
     ]);
   });
 
-  it('按子在前声明：订单项、订单、客户，让全量推送顺带守住 US-037 的外键顺序', () => {
+  it('按子在前声明：订单项、订单、证件、客户，让全量推送顺带守住 US-037 的外键顺序', () => {
     expect(ORDER_ENTITIES.map(entity => getEntityMetadata(entity).name)).toEqual([
       'DemoOrderItem',
       'DemoOrder',
+      'DemoIdCard',
       'DemoCustomer',
       'DemoCategory'
     ]);
@@ -59,6 +61,25 @@ describe('订单演示的实体（US-227）', () => {
       kind: RelationKind.MANY_TO_MANY,
       mappedEntity: 'DemoOrderItem',
       mappedProperty: 'categories'
+    });
+  });
+
+  it('阶段 C：客户与证件双向一对一，删除动作与 orders-demo.sql 的外键一致：删证件只把客户的引用置空，删客户带走证件', () => {
+    expect(relation(DemoCustomer, 'idCard')).toMatchObject({
+      kind: RelationKind.ONE_TO_ONE,
+      mappedEntity: 'DemoIdCard',
+      mappedProperty: 'owner',
+      columnName: 'idCardId',
+      nullable: true,
+      onDelete: OnDeleteAction.SET_NULL
+    });
+    expect(relation(DemoIdCard, 'owner')).toMatchObject({
+      kind: RelationKind.ONE_TO_ONE,
+      mappedEntity: 'DemoCustomer',
+      mappedProperty: 'idCard',
+      columnName: 'ownerId',
+      nullable: false,
+      onDelete: OnDeleteAction.CASCADE
     });
   });
 });

@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { DemoSession } from '../demo-session';
 import { RemoteSyncState } from '../remote-sync-state';
 import { SyncRejectionsPanel } from '../sync-rejections-panel';
-import { DemoCategory, DemoCustomer, DemoOrder, DemoOrderItem } from './order-entities';
+import { DemoCategory, DemoCustomer, DemoIdCard, DemoOrder, DemoOrderItem } from './order-entities';
 import OrdersPage from './orders.page';
 
 const angularMocks = vi.hoisted(() => ({ useFindAll: vi.fn(), useSyncState: vi.fn() }));
@@ -51,7 +51,9 @@ async function settle(fixture: ComponentFixture<unknown>): Promise<void> {
 }
 
 function render(options: { connected?: boolean; signedIn?: boolean; rejections?: SyncRejection[] } = {}) {
-  const customer = { id: 'c1', name: '星河客户', remove: vi.fn(() => Promise.resolve()) };
+  const customer = { id: 'c1', name: '星河客户', idCardId: 'card1', remove: vi.fn(() => Promise.resolve()) };
+  const noCard = { id: 'c2', name: '极光客户', idCardId: null, remove: vi.fn(() => Promise.resolve()) };
+  const idCard = { id: 'card1', ownerId: 'c1', code: 'ID-001', remove: vi.fn(() => Promise.resolve()) };
   const order = { id: 'o1', number: 'SO-1', customerId: 'c1', remove: vi.fn(() => Promise.resolve()) };
   const digital = { id: 'k1', name: '数码', remove: vi.fn(() => Promise.resolve()) };
   const gift = { id: 'k2', name: '礼品', remove: vi.fn(() => Promise.resolve()) };
@@ -77,20 +79,29 @@ function render(options: { connected?: boolean; signedIn?: boolean; rejections?:
   ];
   const saved: { entity: unknown; data: unknown }[] = [];
   const instantiate = vi.fn((entity: unknown, data: unknown) => ({
+    entity,
+    data,
     save: vi.fn(() => {
       saved.push({ entity, data });
       return Promise.resolve();
     })
   }));
+  /** 同一批保存的实体：每次调用一组 */
+  const savedTogether: { entity: unknown; data: unknown }[][] = [];
+  const saveMany = vi.fn((entities: { entity: unknown; data: unknown }[]) => {
+    savedTogether.push(entities.map(({ entity, data }) => ({ entity, data })));
+    return Promise.resolve(entities);
+  });
   const push = vi.fn(() => Promise.resolve(pushed));
   const pull = vi.fn(() => Promise.resolve(pulled));
   const rxdb = {
-    entityManager: { instantiate },
+    entityManager: { instantiate, saveMany },
     syncManager: { push, pull },
     versionManager: { pushableCount$: new BehaviorSubject(3), pullableCount$: new BehaviorSubject(1) }
   };
   const lists = new Map<unknown, unknown[]>([
-    [DemoCustomer, [customer]],
+    [DemoCustomer, [customer, noCard]],
+    [DemoIdCard, [idCard]],
     [DemoOrder, [order]],
     [DemoOrderItem, items],
     [DemoCategory, [digital, gift]]
@@ -136,10 +147,13 @@ function render(options: { connected?: boolean; signedIn?: boolean; rejections?:
     fill,
     submit,
     saved,
+    savedTogether,
     instantiate,
+    saveMany,
     push,
     pull,
     customer,
+    idCard,
     order,
     items,
     digital,
@@ -312,5 +326,47 @@ describe('OrdersPage（US-227 阶段 A）', () => {
 
     expect(byTestId('orders-local-mode')?.textContent).toContain('未连接远端');
     expect((byTestId('orders-push') as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('阶段 C：客户一行显示他的证件，没有证件的显示「无证件」', async () => {
+    const { fixture, root } = render();
+    await settle(fixture);
+
+    const cards = [...root.querySelectorAll('[data-testid="customer"]')].map(row =>
+      row.querySelector('[data-testid="customer-id-card"]')?.textContent?.trim()
+    );
+    expect(cards).toEqual(['证件：ID-001', '无证件']);
+  });
+
+  it('阶段 C：填了证件号码时，客户与证件在同一批里新建、互相引用（AC#10）', async () => {
+    const { fixture, root, fill, submit, saved, savedTogether, saveMany } = render();
+    await settle(fixture);
+
+    fill(root, '[data-testid="orders-customer-form"] input[aria-label="客户名称"]', '月光客户');
+    fill(root, '[data-testid="orders-customer-form"] input[aria-label="证件号码"]', ' ID-002 ');
+    submit('orders-customer-form');
+    await settle(fixture);
+
+    expect(saved).toEqual([]);
+    expect(saveMany).toHaveBeenCalledOnce();
+    const [[customerRow, cardRow]] = savedTogether;
+    const customerData = customerRow.data as { id: string; name: string; idCardId: string };
+    const cardData = cardRow.data as { id: string; code: string; ownerId: string };
+    expect(customerRow.entity).toBe(DemoCustomer);
+    expect(cardRow.entity).toBe(DemoIdCard);
+    expect(customerData).toMatchObject({ name: '月光客户', idCardId: cardData.id });
+    expect(cardData).toMatchObject({ code: 'ID-002', ownerId: customerData.id });
+    expect(customerData.id).not.toBe(cardData.id);
+  });
+
+  it('阶段 C：删除证件删的是本机的证件，客户还在（AC#11）', async () => {
+    const { fixture, root, button, customer, idCard } = render();
+    await settle(fixture);
+
+    button(root.querySelector('[data-testid="customer"]') as Element, '删除证件')?.click();
+    await settle(fixture);
+
+    expect(idCard.remove).toHaveBeenCalledOnce();
+    expect(customer.remove).not.toHaveBeenCalled();
   });
 });

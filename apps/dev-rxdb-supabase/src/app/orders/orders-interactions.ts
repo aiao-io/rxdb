@@ -51,6 +51,24 @@ export function itemsByOrder<T extends { readonly orderId: string }>(
 }
 
 /**
+ * 客户的证件
+ *
+ * @param customer - 客户
+ * @param cards - 本机的证件
+ * @returns 客户指向、而且指回这位客户的那张证件；客户没有证件、证件不在本机，或两边的引用对不上时为 `undefined`
+ *
+ * @remarks
+ * 客户与证件互相持有外键（US-038）：两边都对得上才算这位客户的证件，页面上看到证件号就说明两行一致。
+ */
+export function idCardOf<T extends { readonly id: string; readonly ownerId: string }>(
+  customer: { readonly id: string; readonly idCardId: string | null },
+  cards: readonly T[]
+): T | undefined {
+  if (!customer.idCardId) return undefined;
+  return cards.find(card => card.id === customer.idCardId && card.ownerId === customer.id);
+}
+
+/**
  * 校验新建订单项的表单
  *
  * @param input - 表单里原样的输入

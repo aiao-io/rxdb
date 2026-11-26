@@ -1,7 +1,7 @@
 import { getEntityMetadata, type EntityType } from '@aiao/rxdb';
 import { CatalogItem, PublicCatalogItem, Todo } from '@aiao/rxdb-test/entities';
 import { describe, expect, it } from 'vitest';
-import { DemoCategory, DemoCustomer, DemoOrder, DemoOrderItem } from './orders/order-entities';
+import { DemoCategory, DemoCustomer, DemoIdCard, DemoOrder, DemoOrderItem } from './orders/order-entities';
 import { DEMO_RLS_CHECK } from './supabase-rls-check';
 
 const tableOf = (entity: EntityType) => ({
@@ -14,7 +14,7 @@ describe('DEMO_RLS_CHECK', () => {
     expect(DEMO_RLS_CHECK.tables).not.toContainEqual(tableOf(Todo));
   });
 
-  it('日志表、分支表、按身份分区的商品表、公开视图与订单演示的表（含订单项—分类的中间表）照常自检', () => {
+  it('日志表、分支表、按身份分区的商品表、公开视图与订单演示的表（含证件与订单项—分类的中间表）照常自检', () => {
     expect(DEMO_RLS_CHECK.tables).toEqual([
       { schema: 'public', table: 'rxdb_change' },
       { schema: 'public', table: 'rxdb_branch' },
@@ -22,6 +22,7 @@ describe('DEMO_RLS_CHECK', () => {
       tableOf(PublicCatalogItem),
       tableOf(DemoOrderItem),
       tableOf(DemoOrder),
+      tableOf(DemoIdCard),
       tableOf(DemoCustomer),
       tableOf(DemoCategory),
       { schema: 'public', table: 'DemoCategory_DemoOrderItem' }
