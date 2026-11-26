@@ -1,11 +1,11 @@
 ---
 id: US-316
 title: 撤销/重做的多仓库作用域：几个实体合起来撤，跨它们的事务整条撤
-status: In Progress
+status: In Review
 priority: Medium
 epic: epic-016-local-change-workbench
 created: 2026-11-26
-updated: 2026-11-26
+updated: 2026-11-27
 tags: [collaboration, history, undo-redo, api]
 ---
 
@@ -27,7 +27,7 @@ INVEST 检查清单:
 **我想要** 用这几个实体合起来的作用域撤销、重做，例如 `history([DemoCustomer, DemoIdCard, DemoOrder, DemoOrderItem, DemoCategory])`
 **以便** 跨这几张表的事务能整条撤销，又不会撤到页面以外的数据
 
-## 现状
+## 背景（改动之前）
 
 1. 作用域只有三种，见 [`HistoryScope`](../../../packages/rxdb/src/sync-contract/VersionManager.interface.ts)：
 
@@ -68,21 +68,24 @@ INVEST 检查清单:
 
 | #   | 前置条件                                 | 操作                                              | 预期结果                                                                   | 状态 |
 | --- | ---------------------------------------- | ------------------------------------------------- | -------------------------------------------------------------------------- | ---- |
-| 1   | 作用域为客户、证件两个实体               | 一个 `saveMany` 新建客户与证件，然后 `undo()`     | 两行一起撤掉，不抛 `RxDBCrossScopeTransactionError`；`redo()` 两行一起回来 | ⬜   |
-| 2   | 同上，之后在 Todo 上写了一条             | 读 `undoCount$`，再 `undo()`                      | 计数不含 Todo 那条；撤的是作用域里最近的那个事务，Todo 不动                | ⬜   |
-| 3   | 作用域为订单项、分类两个实体             | 给订单项挂分类（事务里只有关联表一条）后 `undo()` | 这一步出现在作用域的历史里并整条撤掉；关联表随两端在作用域内               | ⬜   |
-| 4   | 作用域只有客户                           | 一个事务同时写客户与 Todo，然后 `undo()`          | 按 `crossScope` 拒绝，报错写明越界的仓库是 Todo                            | ⬜   |
-| 5   | 同一组实体                               | 先后以不同顺序调用 `history([...])`               | 拿到同一个作用域实例（缓存键与顺序无关）                                   | ⬜   |
-| 6   | —                                        | `history([])`                                     | 报参数错误，不退化成整库作用域                                             | ⬜   |
-| 7   | 作用域里最近一步已被子分支继承（US-315） | 读 `undoBarrier$`，再 `undo()`                    | 与单仓库作用域同样停在分叉点，`undoBarrier$` 给出继承它的分支              | ⬜   |
-| 8   | —                                        | 插件单测；`pnpm audit:api-surface`                | 通过；新增的类型成员与重载有 TSDoc，基线已更新                             | ⬜   |
+| 1   | 作用域为客户、证件两个实体               | 一个 `saveMany` 新建客户与证件，然后 `undo()`     | 两行一起撤掉，不抛 `RxDBCrossScopeTransactionError`；`redo()` 两行一起回来 | ✅   |
+| 2   | 同上，之后在 Todo 上写了一条             | 读 `undoCount$`，再 `undo()`                      | 计数不含 Todo 那条；撤的是作用域里最近的那个事务，Todo 不动                | ✅   |
+| 3   | 作用域为订单项、分类两个实体             | 给订单项挂分类（事务里只有关联表一条）后 `undo()` | 这一步出现在作用域的历史里并整条撤掉；关联表随两端在作用域内               | ✅   |
+| 4   | 作用域只有客户                           | 一个事务同时写客户与 Todo，然后 `undo()`          | 按 `crossScope` 拒绝，报错写明越界的仓库是 Todo                            | ✅   |
+| 5   | 同一组实体                               | 先后以不同顺序调用 `history([...])`               | 拿到同一个作用域实例（缓存键与顺序无关）                                   | ✅   |
+| 6   | —                                        | `history([])`                                     | 报参数错误，不退化成整库作用域                                             | ✅   |
+| 7   | 作用域里最近一步已被子分支继承（US-315） | 读 `undoBarrier$`，再 `undo()`                    | 与单仓库作用域同样停在分叉点，`undoBarrier$` 给出继承它的分支              | ✅   |
+| 8   | —                                        | 插件单测；`pnpm audit:api-surface`                | 通过；新增的类型成员与重载有 TSDoc，基线已更新                             | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-验收证据（实现时补齐，验证层级与 AC 一致）：
+验收证据：
 
-- AC#1～#7：`packages/rxdb-plugin-history/src/__tests__/` 下新增多仓库作用域用例（作用域判定的纯函数另在 `scope-selection` 的单测里覆盖）；`pnpm nx test rxdb-plugin-history`。
-- AC#8：`pnpm audit:api-surface`；若 `packages/rxdb/src/__tests__/contracts/public-type-compatibility.spec.ts` 钉了 `HistoryScopeType`，同步更新。
+- AC#1、#2、#7：`packages/rxdb-adapter-pglite/src/__tests__/version/repositories-history-scope.spec.ts`（真实 PGlite：一次写入整条撤销与重做、作用域外的写入不进计数也不被撤、被子分支继承时停在分叉点）；`pnpm nx test rxdb-adapter-pglite`。
+- AC#1、#4：`packages/rxdb-plugin-history/src/__tests__/HistoryManager.scopes-and-undo.spec.ts`「reverts the whole transaction from a scope listing both repositories」；`scope-selection.spec.ts` 的「repositories scope」（越界时报错写明越界的仓库）。
+- AC#3：`scope-selection.spec.ts` 的「repositoriesScopeOf」（两端都在作用域里的关联表进作用域）；真栈上 `apps/dev-rxdb-supabase-e2e/src/orders-sync.spec.ts` 的「US-231 AC#12～#14」用例给订单项挂分类后撤销、重做。
+- AC#5、#6：`HistoryManager.scopes-and-undo.spec.ts`「creates a repositories scope from an entity array, cached regardless of order」；`scope-selection.spec.ts`「rejects an empty list instead of widening to the database scope」。
+- AC#8：`pnpm nx test rxdb-plugin-history`；`pnpm audit:api-surface`。
 
 ## 技术笔记
 

@@ -68,26 +68,29 @@ export interface ScopedSyncAdapter {
     branchIds?: readonly string[]
   ): Promise<number>;
   /**
-   * 分区在游标之后、不是本客户端推上去的日志条数（US-233）
+   * 分区在游标之后的日志条数（US-233）
    *
    * @param namespace - 实体命名空间
    * @param entity - 实体名
    * @param bucket - 调用者可读的分区
    * @param afterId - 游标：只数 id 大于它的日志
    * @param branchIds - 只算这些分支，与拉取同口径
+   * @param ids - 给了就只数这些 id 里落在这个分区的；调用方每批不超过 100 个
    * @returns 条数；不求值实体同步规则，与 {@link ScopedSyncAdapter.getBucketSnapshotPoint} 同口径
    * @throws 分区此刻已不属于调用者时，同 {@link ScopedSyncAdapter.getBucketSnapshotPoint}
    *
    * @remarks
    * 待拉数靠它：日志 id 是全库共用的序列，拿快照点减游标会把别的实体、别的区的变更都算进来。
-   * 本客户端推上去的变更拉下来只回填、不落库，不算待拉；远端直写（没有客户端标识）照样计入。
+   * 不按客户端标识排除自己推的：那个标识每次启动都换，刷新之后认不出上一次会话推的。调用方拿本地记下的
+   * 远端 id（推送回执写的 `RxDBChange.remoteId`）按 `ids` 再问一次落在这个区的有几条，两次相减。
    */
   getBucketChangeCount(
     namespace: string,
     entity: string,
     bucket: string,
     afterId: number,
-    branchIds: readonly string[]
+    branchIds: readonly string[],
+    ids?: readonly number[]
   ): Promise<number>;
 
   /**

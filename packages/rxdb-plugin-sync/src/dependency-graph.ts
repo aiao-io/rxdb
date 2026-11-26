@@ -308,7 +308,11 @@ function analyzeCycle(graph: DependencyGraph, component: readonly string[]): Dep
   const breakEdges: DependencyForeignKey[] = [];
   const nullable = edges
     .filter(edge => edge.nullable)
-    .sort((a, b) => compareText(repositoryKey(a.from), repositoryKey(b.from)) || compareText(a.properties.join(','), b.properties.join(',')));
+    .sort(
+      (a, b) =>
+        compareText(repositoryKey(a.from), repositoryKey(b.from)) ||
+        compareText(a.properties.join(','), b.properties.join(','))
+    );
   for (const edge of nullable) {
     if (reaches(kept, repositoryKey(edge.to), repositoryKey(edge.from))) breakEdges.push(edge);
     else kept.push(edge);
@@ -337,7 +341,10 @@ function cycleEdgesOf(graph: DependencyGraph, key: string): readonly DependencyF
   );
 }
 
-const compareText = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+const compareText = (a: string, b: string): number =>
+  a < b ? -1
+  : a > b ? 1
+  : 0;
 
 /** 沿 `edges`（from → to）从 `start` 能不能走到 `target` */
 function reaches(edges: readonly DependencyForeignKey[], start: string, target: string): boolean {

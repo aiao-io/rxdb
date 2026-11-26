@@ -1,11 +1,11 @@
 ---
 id: US-317
 title: 待推送清单：与待推数同一口径的历史项流
-status: In Progress
+status: In Review
 priority: Medium
 epic: epic-016-local-change-workbench
 created: 2026-11-26
-updated: 2026-11-26
+updated: 2026-11-27
 tags: [collaboration, history, sync, push, api]
 ---
 
@@ -27,7 +27,7 @@ INVEST 检查清单:
 **我想要** 一条和 `pushableCount$` 同一口径的流，列出现在推送会推哪些本机修改——一个事务一项，带每条变更的改前改后
 **以便** 推送之前给用户看清单和 diff（像 git 的「领先 N 个提交」），而不用自己拼 `RxDBChange` 查询、和待推数对不上
 
-## 现状
+## 背景（改动之前）
 
 1. 只有数字：`versionManager.pushableCount$`。口径的唯一实现是 [`updatePushableCount`](../../../packages/rxdb-plugin-history/src/undo-redo-apply.ts)：当前分支上没撤销、没推上去的变更，再按仓库的推送资格与水位线裁剪——
 
@@ -67,21 +67,22 @@ INVEST 检查清单:
 
 | #   | 前置条件                                      | 操作                                                     | 预期结果                                                   | 状态 |
 | --- | --------------------------------------------- | -------------------------------------------------------- | ---------------------------------------------------------- | ---- |
-| 1   | 本机有两条独立写入、一次 `saveMany`，都未推送 | 订阅清单                                                 | 发出三项；`saveMany` 那一项的 `changes` 是该事务的全部变更 | ⬜   |
-| 2   | 任一状态                                      | 写入、撤销、重做、推送成功、部分被拒、切分支之后各读一次 | 每次稳定之后清单长度等于 `pushableCount$` 的值             | ⬜   |
-| 3   | 上次打开时离线改了两条、没推，库已重新打开    | 订阅清单                                                 | 两条都在清单里（`histories$` 里没有它们）                  | ⬜   |
-| 4   | 实体的同步类型是只存本地                      | 写入后订阅                                               | 不在清单里，计数也不含它                                   | ⬜   |
-| 5   | 一条变更被远端拒绝                            | 推送之后                                                 | 它离开清单                                                 | ⬜   |
-| 6   | 清单里有一条                                  | 撤销，再重做                                             | 撤销后离开清单，重做后回来                                 | ⬜   |
-| 7   | 实例挂在可写检出位上                          | 订阅清单                                                 | 空清单，与计数给 0 一致                                    | ⬜   |
-| 8   | —                                             | 插件单测；`pnpm audit:api-surface`                       | 通过；新增成员有 TSDoc，基线已更新                         | ⬜   |
+| 1   | 本机有两条独立写入、一次 `saveMany`，都未推送 | 订阅清单                                                 | 发出三项；`saveMany` 那一项的 `changes` 是该事务的全部变更 | ✅   |
+| 2   | 任一状态                                      | 写入、撤销、重做、推送成功、部分被拒、切分支之后各读一次 | 每次稳定之后清单长度等于 `pushableCount$` 的值             | ✅   |
+| 3   | 上次打开时离线改了两条、没推，库已重新打开    | 订阅清单                                                 | 两条都在清单里（`histories$` 里没有它们）                  | ✅   |
+| 4   | 实体的同步类型是只存本地                      | 写入后订阅                                               | 不在清单里，计数也不含它                                   | ✅   |
+| 5   | 一条变更被远端拒绝                            | 推送之后                                                 | 它离开清单                                                 | ✅   |
+| 6   | 清单里有一条                                  | 撤销，再重做                                             | 撤销后离开清单，重做后回来                                 | ✅   |
+| 7   | 实例挂在可写检出位上                          | 订阅清单                                                 | 空清单，与计数给 0 一致                                    | ✅   |
+| 8   | —                                             | 插件单测；`pnpm audit:api-surface`                       | 通过；新增成员有 TSDoc，基线已更新                         | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-验收证据（实现时补齐，验证层级与 AC 一致）：
+验收证据：
 
-- AC#1～#7：`packages/rxdb-plugin-history/src/__tests__/` 下新增清单用例，AC#2 用同一组写入序列同时断言计数与清单；`pnpm nx test rxdb-plugin-history`。
-- AC#8：`pnpm audit:api-surface`。
+- AC#1～#6：`packages/rxdb-adapter-pglite/src/__tests__/pushable-histories.spec.ts`（真实 PGlite 加脚本化远端：每一步都断言清单长度与 `pushableCount$` 同时相等，含切分支、推送成功、部分被拒、重新打开库）；`pnpm nx test rxdb-adapter-pglite`。
+- AC#7：`packages/rxdb-plugin-history/src/__tests__/pushable-count-records.spec.ts` 的「buildPendingPushWhere」——挂在可写检出位上时条件为 `null`，计数与清单共用这一个条件，清单为空。
+- AC#8：`pnpm nx test rxdb-plugin-history`；`pnpm audit:api-surface`。
 
 ## 技术笔记
 

@@ -108,7 +108,9 @@ export async function closeCycleReferences(
       const existing = await source.existingIds(repository, [...ids]);
       if ([...ids].every(id => existing.has(id))) continue;
       const repoKey = repositoryKey(repository);
-      const fetchedIds = round.filter(change => `${change.namespace}:${change.entity}` === repoKey).map(change => change.id);
+      const fetchedIds = round
+        .filter(change => `${change.namespace}:${change.entity}` === repoKey)
+        .map(change => change.id);
       const sinceId = fetchedIds.length > 0 ? Math.max(...fetchedIds) : (sinceIds.get(repoKey) ?? 0);
       const more = (await source.fetchAfter(repository, sinceId)).filter(change => !seen.has(change.id));
       for (const change of more) seen.add(change.id);

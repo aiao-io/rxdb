@@ -10,6 +10,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DemoSession } from '../demo-session';
 import { PageWorkbench } from '../page-workbench';
 import { RemoteSyncState } from '../remote-sync-state';
+import { Toasts } from '../toasts';
 import TodoPage from './todo.page';
 import todoPageTemplate from './todo.page.html?raw';
 
@@ -37,6 +38,7 @@ function renderTodoPage(
     canSyncTodo?: boolean;
     pull?: () => Promise<unknown>;
     push?: () => Promise<unknown>;
+    removeMany?: () => Promise<unknown>;
   } = {}
 ) {
   const history = {
@@ -52,7 +54,7 @@ function renderTodoPage(
   const push = vi.fn(options.push ?? (() => Promise.resolve()));
   const rxdb = {
     entityManager: {
-      removeMany: vi.fn(() => Promise.resolve()),
+      removeMany: vi.fn(options.removeMany ?? (() => Promise.resolve())),
       saveMany: vi.fn(() => Promise.resolve())
     },
     // 自 US-025 阶段 D 起推拉入口归 `@aiao/rxdb-plugin-sync`（`rxdb.syncManager`），
@@ -95,6 +97,18 @@ function renderTodoPage(
 
 describe('TodoPage：顶栏登记（epic-016）', () => {
   beforeEach(() => angularMocks.useFindAll.mockReset());
+
+  it('写入失败弹一条错误消息，不在列表上方插一行', async () => {
+    const { fixture } = renderTodoPage({ removeMany: () => Promise.reject(new Error('磁盘满了')) });
+
+    await fixture.componentInstance.clear_completed();
+    fixture.detectChanges();
+
+    expect(TestBed.inject(Toasts).list()).toEqual([
+      expect.objectContaining({ kind: 'error', message: '清理已完成任务失败：磁盘满了' })
+    ]);
+    expect((fixture.nativeElement as HTMLElement).querySelector('.alert-error')).toBeNull();
+  });
 
   // 无参 history() 是整库作用域：撤销会撤到页面外的实体（商品、订单）
   it('登记标题与 Todo 作用域；撤销、重做走 history(Todo)', async () => {

@@ -153,7 +153,8 @@ function createStatusHarness(options: StatusHarnessOptions) {
     return query.groupBy ? 0 : count;
   });
   const syncRepository = { find: syncFind };
-  const changeRepository = { count: changeCount };
+  // `find` 答待拉数里「本库推上去的远端 id」（US-233）：这些用例没有推过
+  const changeRepository = { count: changeCount, find: vi.fn(async () => []) };
   // 远端计数覆盖整条祖先链，`getAncestorBranchIds` 会沿 parentId 上溯；本文件的分支都挂在 main 下
   const branchFind = vi.fn(async (): Promise<RxDBBranch[]> => [{ id: branchId, parentId: 'main' } as RxDBBranch]);
   const branchRepository = { find: branchFind };

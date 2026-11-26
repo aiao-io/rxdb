@@ -3,6 +3,7 @@ import { CatalogItem } from '@aiao/rxdb-test/entities';
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { DemoSession } from '../demo-session';
 import { getErrorMessage } from '../error-message';
+import { Toasts } from '../toasts';
 import type { CatalogItemChanges, CatalogItemDraft } from './catalog-remote';
 import { CatalogRemoteState } from './catalog-remote-state';
 
@@ -22,16 +23,14 @@ export class CatalogLocalWrites {
   readonly #rxdb = inject(RxDB);
   readonly #session = inject(DemoSession);
   readonly #remote = inject(CatalogRemoteState);
+  readonly #toasts = inject(Toasts);
   readonly #busy = signal(false);
   readonly #error = signal<string | null>(null);
-  readonly #notice = signal<string | null>(null);
 
   /** 正在写本机 */
   readonly $busy = this.#busy.asReadonly();
-  /** 上一次操作失败的原因 */
+  /** 上一次操作失败的原因：留在原处（列表上方与编辑框里），不弹消息——模态的编辑框盖在消息之上 */
   readonly $error = this.#error.asReadonly();
-  /** 上一次操作的结果 */
-  readonly $notice = this.#notice.asReadonly();
   /** 当前身份能在本机改商品：登录了，且在至少一个租户里 */
   readonly $canWrite = computed(() => this.#session.signedIn && this.#remote.$myTenantIds().length > 0);
   /** 写入口关着的原因：访客只读，不在租户里没有能改的商品；能写时为 `null`（顶栏的撤销、重做据此给原因） */
@@ -76,13 +75,13 @@ export class CatalogLocalWrites {
     });
   }
 
-  async #run(notice: string | null, action: () => Promise<unknown>): Promise<void> {
+  /** 写一次本机；成功弹一条消息，失败把原因留在 {@link CatalogLocalWrites.$error} */
+  async #run(notice: string, action: () => Promise<unknown>): Promise<void> {
     this.#busy.set(true);
     this.#error.set(null);
-    this.#notice.set(null);
     try {
       await action();
-      if (notice) this.#notice.set(notice);
+      this.#toasts.show({ kind: 'success', message: notice });
     } catch (error) {
       this.#error.set(getErrorMessage(error, '操作失败'));
     } finally {

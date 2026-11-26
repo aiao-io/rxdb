@@ -9,22 +9,18 @@
 | 状态           | 数量 |
 | :------------- | :--- |
 | ✅ Done        | 100  |
-| 🚧 In Progress | 17   |
-| 👀 In Review   | 9    |
-| 📝 Backlog     | 32   |
+| 🚧 In Progress | 13   |
+| 👀 In Review   | 16   |
+| 📝 Backlog     | 29   |
 | 🚫 Blocked     | 0    |
 | **合计**       | 158  |
 
 统计只包含带 story frontmatter 的文件。辅助证据和无故事文件的候选不计数；同编号的辅助文件不算另一条故事。
 Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关闭而自动通过。当前可开工条件见 roadmap 与各故事的阶段表。
 
-## 进行中（17 条）
+## 进行中（13 条）
 
 - [US-211 多端小程序宿主（支付宝 / 抖音 / 百度 / QQ）](stories/adapter/US-211-multi-miniprogram-platforms.md)：未通过 AC#14、#16、#18（3/21）
-- [US-233 Supabase 待拉数与能拉的对不上：刷新后把自己推的算进去，分区按变更号差计](stories/adapter/US-233-supabase-pullable-count-accuracy.md)：未通过 AC#1～#5（5/5）
-- [US-316 撤销/重做的多仓库作用域：几个实体合起来撤，跨它们的事务整条撤](stories/collaboration/US-316-multi-repository-history-scope.md)：未通过 AC#1～#8（8/8）
-- [US-317 待推送清单：与待推数同一口径的历史项流](stories/collaboration/US-317-pushable-histories.md)：未通过 AC#1～#8（8/8）
-- [US-318 本地外键级联删除与源删除记进同一个事务：一次撤销整组恢复，互相引用的也撤得回来](stories/collaboration/US-318-cascade-delete-one-transaction.md)：未通过 AC#1～#6（6/6）
 - [US-403 实体组件 Headless API 与可定制展示层](stories/ui/US-403-entity-components-headless.md)：未通过 AC#1～#16、#18～#21（20/21）
 - [US-530 后台外壳偏好中心：声明式 schema 驱动的偏好抽屉与外观设置](stories/domain/US-530-admin-shell-preferences-appearance.md)：未通过 AC#1～#7（7/7）
 - [US-531 后台外壳布局：四种布局模式、侧栏图标轨、移动端抽屉与页签栏](stories/domain/US-531-admin-shell-layout-tabbar.md)：未通过 AC#1～#7（7/7）
@@ -38,7 +34,7 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 - [US-706 服务器兜底与认证](stories/future/US-706-p2p-fallback-auth.md)：未通过 AC#3～#5（3/6）
 - [US-707 跨运行时 demo 与多实例 e2e](stories/future/US-707-p2p-cross-runtime-e2e.md)：未通过 AC#4～#8（5/8）
 
-## 待评审（9 条）
+## 待评审（16 条）
 
 - [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)：AC 已全部通过
 - [US-034 分区实体的本地写入：本地增删改可撤销/重做，推送后锁定](stories/core/US-034-bucketed-entity-local-writes.md)：AC 已全部通过
@@ -48,6 +44,13 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 - [US-227 dev-rxdb-supabase 关系数据的推拉同步演示与端到端验收](stories/adapter/US-227-supabase-relational-sync-demo.md)：AC 已全部通过
 - [US-228 多对多关联在 Supabase 上可同步：中间表按实体形状建表，关联行 id 由两端确定](stories/adapter/US-228-supabase-many-to-many-sync.md)：AC 已全部通过
 - [US-229 Supabase 远端变更历史：每次业务写入记完整前后快照，只对能编辑的成员开放](stories/adapter/US-229-supabase-change-history.md)：AC 已全部通过
+- [US-230 dev-rxdb-supabase 顶栏统一推送与拉取：页面登记要哪些按钮，待拉数准确，推之前看得见会推什么](stories/adapter/US-230-supabase-header-sync.md)：AC 已全部通过
+- [US-231 dev-rxdb-supabase 三页交互统一：撤销、重做与操作历史同一位置、作用域写在控件上](stories/adapter/US-231-supabase-unified-undo-history.md)：AC 已全部通过
+- [US-232 dev-rxdb-supabase 商品「模拟服务端变更」收进右侧抽屉：主界面先看本机数据，需要时再打开](stories/adapter/US-232-supabase-catalog-server-drawer.md)：AC 已全部通过
+- [US-233 Supabase 待拉数与能拉的对不上：刷新后把自己推的算进去，分区按变更号差计](stories/adapter/US-233-supabase-pullable-count-accuracy.md)：AC 已全部通过
+- [US-316 撤销/重做的多仓库作用域：几个实体合起来撤，跨它们的事务整条撤](stories/collaboration/US-316-multi-repository-history-scope.md)：AC 已全部通过
+- [US-317 待推送清单：与待推数同一口径的历史项流](stories/collaboration/US-317-pushable-histories.md)：AC 已全部通过
+- [US-318 本地外键级联删除与源删除记进同一个事务：一次撤销整组恢复，互相引用的也撤得回来](stories/collaboration/US-318-cascade-delete-one-transaction.md)：AC 已全部通过
 - [US-713 P2P demo 管理后台：管理员总览并处置账号与服务](stories/future/US-713-p2p-admin-console.md)：未通过 AC#11（1/11）
 
 ## 阻塞（0 条）
@@ -259,13 +262,13 @@ US-704～US-707 已获 owner 授权，US-708 会话层由 owner 决定在 PR #17
 
 ### [本机修改工作台：推送、拉取、撤销与历史的统一交互](epics/epic-016-local-change-workbench.md)
 
-- ⬜ [US-230 dev-rxdb-supabase 顶栏统一推送与拉取：页面登记要哪些按钮，待拉数准确，推之前看得见会推什么](stories/adapter/US-230-supabase-header-sync.md)
-- ⬜ [US-231 dev-rxdb-supabase 三页交互统一：撤销、重做与操作历史同一位置、作用域写在控件上](stories/adapter/US-231-supabase-unified-undo-history.md)
-- ⬜ [US-232 dev-rxdb-supabase 商品「模拟服务端变更」收进右侧抽屉：主界面先看本机数据，需要时再打开](stories/adapter/US-232-supabase-catalog-server-drawer.md)
-- 🚧 [US-233 Supabase 待拉数与能拉的对不上：刷新后把自己推的算进去，分区按变更号差计](stories/adapter/US-233-supabase-pullable-count-accuracy.md)
-- 🚧 [US-316 撤销/重做的多仓库作用域：几个实体合起来撤，跨它们的事务整条撤](stories/collaboration/US-316-multi-repository-history-scope.md)
-- 🚧 [US-317 待推送清单：与待推数同一口径的历史项流](stories/collaboration/US-317-pushable-histories.md)
-- 🚧 [US-318 本地外键级联删除与源删除记进同一个事务：一次撤销整组恢复，互相引用的也撤得回来](stories/collaboration/US-318-cascade-delete-one-transaction.md)
+- 👀 [US-230 dev-rxdb-supabase 顶栏统一推送与拉取：页面登记要哪些按钮，待拉数准确，推之前看得见会推什么](stories/adapter/US-230-supabase-header-sync.md)
+- 👀 [US-231 dev-rxdb-supabase 三页交互统一：撤销、重做与操作历史同一位置、作用域写在控件上](stories/adapter/US-231-supabase-unified-undo-history.md)
+- 👀 [US-232 dev-rxdb-supabase 商品「模拟服务端变更」收进右侧抽屉：主界面先看本机数据，需要时再打开](stories/adapter/US-232-supabase-catalog-server-drawer.md)
+- 👀 [US-233 Supabase 待拉数与能拉的对不上：刷新后把自己推的算进去，分区按变更号差计](stories/adapter/US-233-supabase-pullable-count-accuracy.md)
+- 👀 [US-316 撤销/重做的多仓库作用域：几个实体合起来撤，跨它们的事务整条撤](stories/collaboration/US-316-multi-repository-history-scope.md)
+- 👀 [US-317 待推送清单：与待推数同一口径的历史项流](stories/collaboration/US-317-pushable-histories.md)
+- 👀 [US-318 本地外键级联删除与源删除记进同一个事务：一次撤销整组恢复，互相引用的也撤得回来](stories/collaboration/US-318-cascade-delete-one-transaction.md)
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 

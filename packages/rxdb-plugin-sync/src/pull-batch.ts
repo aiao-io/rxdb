@@ -34,7 +34,6 @@ import {
 import { getAncestorBranchIds } from './branch-utils.js';
 import { buildDependencyGraph } from './dependency-graph.js';
 import { pullAncestorBranchChanges } from './pull-ancestor-changes.js';
-import { closeCycleReferences } from './pull-cycle.js';
 import {
   countActions,
   createConflictActionEntries,
@@ -42,6 +41,7 @@ import {
   queryPendingLocalChanges,
   resolveConflictsAndBuildActions
 } from './pull-conflict-utils.js';
+import { closeCycleReferences } from './pull-cycle.js';
 import { backfillOwnChangeRemoteIds, splitRemoteChangesByOrigin } from './pull-round.js';
 import { instantiateSyncRecord } from './remote-backend.js';
 import { assertSyncOnMainCheckout } from './sync-manager.utils.js';

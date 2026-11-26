@@ -9,10 +9,10 @@ import { DemoSession } from './demo-session';
 import { PageWorkbench } from './page-workbench';
 import { SessionNotice } from './session-notice';
 import { SidePanelOutlet } from './side-panel';
-import { WorkbenchStatus } from './workbench-status';
+import { ToastOutlet } from './toast-outlet';
 
 @Component({
-  imports: [RouterOutlet, AppSidebar, AppHeader, SessionNotice, SidePanelOutlet, WorkbenchStatus],
+  imports: [RouterOutlet, AppSidebar, AppHeader, SessionNotice, SidePanelOutlet, ToastOutlet],
   selector: 'app-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -25,7 +25,6 @@ import { WorkbenchStatus } from './workbench-status';
       <div class="flex h-full min-w-0 grow flex-col" id="layout-container">
         <app-header></app-header>
         <app-session-notice></app-session-notice>
-        <app-workbench-status></app-workbench-status>
         <!-- 内容与右侧面板并排、各自滚动：宽屏面板占一栏不挡页面，窄屏面板是盖住页面的抽屉 -->
         <div class="flex min-h-0 grow">
           <div class="min-w-0 grow overflow-auto" id="layout-content">
@@ -35,6 +34,8 @@ import { WorkbenchStatus } from './workbench-status';
         </div>
       </div>
     </div>
+    <!-- 操作结果的消息：盖在页面与右侧面板之上 -->
+    <app-toast-outlet></app-toast-outlet>
   `,
   styles: [],
   host: {

@@ -8,6 +8,7 @@ import {
   type PageWorkbenchRegistration,
   type WorkbenchAction
 } from './page-workbench';
+import { Toasts } from './toasts';
 
 function action(overrides: Partial<{ disabled: string | null; pending: boolean; run: () => Promise<unknown> }> = {}) {
   return {
@@ -70,8 +71,9 @@ describe('PageWorkbench', () => {
     expect(workbench.current()).toBeNull();
   });
 
-  it('执行命令：不可用或进行中时不执行；失败的原因留给顶栏，下一次执行前清掉', async () => {
+  it('执行命令：不可用或进行中时不执行；失败的原因弹成一条错误消息', async () => {
     const workbench = TestBed.inject(PageWorkbench);
+    const toasts = TestBed.inject(Toasts);
     const disabled = action({ disabled: '没有可撤销的修改' });
     const busy = action({ pending: true });
     const failing = action({ run: () => Promise.reject(new Error('外键约束失败')) });
@@ -79,12 +81,13 @@ describe('PageWorkbench', () => {
     await workbench.run(disabled);
     await workbench.run(busy);
     await workbench.run(failing);
+    await workbench.run(action());
 
     expect(disabled.run).not.toHaveBeenCalled();
     expect(busy.run).not.toHaveBeenCalled();
-    expect(workbench.error()).toBe('外键约束失败');
-    await workbench.run(action());
-    expect(workbench.error()).toBeNull();
+    expect(toasts.list()).toEqual([
+      expect.objectContaining({ kind: 'error', message: '外键约束失败', source: 'workbench' })
+    ]);
   });
 
   it('⌘/Ctrl+Z 撤销、⌘/Ctrl+Shift+Z 重做，在页面空白处触发登记的命令', async () => {

@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { DemoSession } from './demo-session';
 
 /**
- * 切换身份失败，或会话已经在别处换成了另一个身份。
+ * 会话已经在别处换成了另一个身份（切换身份失败的原因弹成消息，见 `DemoSession.switchTo`）。
  *
  * @remarks
  * 会话保存在浏览器里、所有标签页共用。别的标签页换了身份之后，本页还开着上一个身份的本地库：
@@ -19,9 +19,6 @@ import { DemoSession } from './demo-session';
         </span>
         <button class="btn btn-sm" (click)="session.reload()" type="button">重新加载</button>
       </div>
-    }
-    @if (session.$error(); as error) {
-      <div class="alert alert-error rounded-none" role="alert">切换身份失败：{{ error }}</div>
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush

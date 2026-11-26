@@ -122,6 +122,19 @@ describe('待推送清单（US-317）', () => {
     await expectInStep(database, 0);
   });
 
+  it('AC#2：切到别的分支，清单与待推数一起换成那个分支的；切回来又是原来的', async () => {
+    const database = await createDatabase(newScript(), freshName(), 'memory');
+    await note('a').save();
+    await expectInStep(database, 1);
+
+    await database.versionManager.createBranch('feature');
+    await database.versionManager.switchBranch('feature');
+    await expectInStep(database, 0);
+
+    await database.versionManager.switchBranch('main');
+    await expectInStep(database, 1);
+  });
+
   it('AC#5：被远端拒绝的变更推送之后离开清单', async () => {
     const database = await createDatabase(newScript(rejected), freshName(), 'memory');
     await note('rejected').save();

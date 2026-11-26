@@ -4,6 +4,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it, vi } from 'vitest';
 import { DemoSession } from '../demo-session';
+import { Toasts } from '../toasts';
 import { CatalogLocalWrites } from './catalog-local-writes';
 import type { CatalogItemDraft } from './catalog-remote';
 import { CatalogRemoteState } from './catalog-remote-state';
@@ -42,7 +43,7 @@ function setup(options: { signedIn?: boolean; tenants?: string[] } = {}) {
       { provide: CatalogRemoteState, useValue: { $myTenantIds: signal(options.tenants ?? ['xinghe']) } }
     ]
   });
-  return { writes: TestBed.inject(CatalogLocalWrites), rxdb, created };
+  return { writes: TestBed.inject(CatalogLocalWrites), rxdb, created, toasts: TestBed.inject(Toasts) };
 }
 
 describe('CatalogLocalWrites：写入口', () => {
@@ -78,37 +79,38 @@ describe('CatalogLocalWrites：写入口', () => {
 });
 
 describe('CatalogLocalWrites：本机写入', () => {
-  it('新建：在本机存一件商品，报出结果', async () => {
-    const { writes, rxdb, created } = setup();
+  it('新建：在本机存一件商品，结果弹成一条成功消息', async () => {
+    const { writes, rxdb, created, toasts } = setup();
 
     await writes.create(draft);
 
     expect(rxdb.entityManager.instantiate).toHaveBeenCalledWith(CatalogItem, draft);
     expect(created.save).toHaveBeenCalled();
-    expect(writes.$notice()).toBe('「星河 X3 耳机」已在本机新建');
+    expect(toasts.list()).toEqual([expect.objectContaining({ kind: 'success', message: '「星河 X3 耳机」已在本机新建' })]);
     expect(writes.$error()).toBeNull();
   });
 
   it('修改失败：把没存进去的改动还原，失败原因报出来', async () => {
-    const { writes } = setup();
+    const { writes, toasts } = setup();
     const item = listedItem('xinghe', new Error('磁盘满了'));
 
     await writes.update(item, { name: '改名', category: '数码', price: 1, cost: 1 });
 
+    // 失败原因留在原处（编辑框里），不弹消息：模态的编辑框盖在消息之上
     expect(item.reset).toHaveBeenCalled();
     expect(writes.$error()).toBe('磁盘满了');
-    expect(writes.$notice()).toBeNull();
+    expect(toasts.list()).toEqual([]);
     expect(writes.$busy()).toBe(false);
   });
 
   it('改可见范围：在本机改，成功后报出改成了什么', async () => {
-    const { writes } = setup();
+    const { writes, toasts } = setup();
     const item = listedItem('xinghe');
 
     await writes.setVisibility(item, 'tenant');
 
     expect(item.visibility).toBe('tenant');
     expect(item.save).toHaveBeenCalled();
-    expect(writes.$notice()).toBe('「xinghe 的商品」已在本机收回为租户内部');
+    expect(toasts.list().map(toast => toast.message)).toEqual(['「xinghe 的商品」已在本机收回为租户内部']);
   });
 });

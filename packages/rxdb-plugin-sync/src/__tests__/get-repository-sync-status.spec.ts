@@ -131,7 +131,10 @@ function createStatusHarness(options: StatusHarnessOptions) {
     groupBy ? (options.records?.transactions ?? 0) : (options.records?.standalone ?? 0)
   );
   const syncRepository = { find: syncFind } as unknown as IRepository<typeof RxDBSync>;
-  const changeRepository = { count: changeCount } as unknown as IRepository<typeof RxDBChange>;
+  // `find` 答待拉数里「本库推上去的远端 id」（US-233）：这些用例没有推过
+  const changeRepository = { count: changeCount, find: vi.fn(async () => []) } as unknown as IRepository<
+    typeof RxDBChange
+  >;
   // 远端计数覆盖整条祖先链，`getAncestorBranchIds` 会沿 parentId 上溯；
   // 这里的分支都直接挂在 main 下
   const branchFind = vi.fn(async (): Promise<RxDBBranch[]> => [{ id: branchId, parentId: 'main' } as RxDBBranch]);

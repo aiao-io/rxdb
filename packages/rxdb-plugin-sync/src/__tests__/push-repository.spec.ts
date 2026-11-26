@@ -35,8 +35,8 @@ import { PushInFlightRegistry } from '@aiao/rxdb-plugin-history';
 import { type Observable, of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { bulkSync, type BulkSyncOptions, type BulkSyncResult } from '../bulk-sync.js';
-import { pushRepository, type PushRepositoryResult } from '../push-repository.js';
 import { RxDBForeignKeyCycleError } from '../foreign-key-cycle-error.js';
+import { pushRepository, type PushRepositoryResult } from '../push-repository.js';
 import { push } from '../push.js';
 import { RemoteBackendMismatchError } from '../remote-backend.js';
 import { syncRepository, type SyncRepositoryResult } from '../sync-repository.js';
@@ -2382,11 +2382,10 @@ describe('外键成环的推送（US-038）', () => {
   });
 
   it('AC#3：远端不支持延迟外键，同批新建互相引用的两行：这一环以 remote-unsupported 失败，不发请求、不动本地', async () => {
-    const harness = createCycleHarness([...pair(1, 1), createChange({ id: 3, entity: 'User' })], [
-      CycleCard,
-      CycleUser,
-      User
-    ]);
+    const harness = createCycleHarness(
+      [...pair(1, 1), createChange({ id: 3, entity: 'User' })],
+      [CycleCard, CycleUser, User]
+    );
 
     const result = await push(harness.vm);
 
@@ -2424,7 +2423,12 @@ describe('外键成环的推送（US-038）', () => {
   it('环内的行没有互相引用时不带延迟列：远端不支持也照常推', async () => {
     const harness = createCycleHarness(
       [
-        createChange({ id: 1, entity: 'CycleUser', entityId: userId(1), patch: { id: userId(1), name: 'u1', cardId: null } })
+        createChange({
+          id: 1,
+          entity: 'CycleUser',
+          entityId: userId(1),
+          patch: { id: userId(1), name: 'u1', cardId: null }
+        })
       ],
       [CycleCard, CycleUser]
     );

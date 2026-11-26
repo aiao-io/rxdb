@@ -96,8 +96,10 @@ export interface SyncHistoryBridge {
    *
    * @param token - {@link beginPullableSettlement} 签发的令牌
    * @param count - 按各仓库持久化水位线算出的待拉总数
+   * @returns 用上了为 `true`；令牌签发之后有 pull 结算过（或会话重置）时为 `false`：
+   * 这次数的是拉取之前的游标，计数不动，调用方该重算（US-233）
    */
-  reconcilePullableCount(token: number, count: number): void;
+  reconcilePullableCount(token: number, count: number): boolean;
 
   /**
    * 远端事件到达时累加待拉计数。

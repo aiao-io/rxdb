@@ -7,6 +7,7 @@ import { getErrorMessage } from './error-message';
 import { switchIdentity } from './identity-switch';
 import { getPreparedSession, type PreparedSession } from './setup_rxdb_wa-sqlite';
 import { DEMO_ACCOUNTS, signInAnonymousUser, signInDemoAccount, signOutToVisitor } from './supabase-session';
+import { Toasts } from './toasts';
 
 /**
  * 本页面打开的是哪个身份的库，以及切换身份。
@@ -20,8 +21,8 @@ import { DEMO_ACCOUNTS, signInAnonymousUser, signInDemoAccount, signOutToVisitor
 export class DemoSession {
   readonly #document = inject(DOCUMENT);
   readonly #rxdb = inject(RxDB);
+  readonly #toasts = inject(Toasts);
   readonly #switching = signal(false);
-  readonly #error = signal<string | null>(null);
   readonly #sessionMoved = signal(false);
 
   /** 远端模式的会话；本地模式（没有 Supabase 配置）为 `undefined` */
@@ -37,8 +38,6 @@ export class DemoSession {
 
   /** 正在登录或退出 */
   readonly $switching = this.#switching.asReadonly();
-  /** 上一次切换失败的原因 */
-  readonly $error = this.#error.asReadonly();
   /** 浏览器里的会话已经换成另一个身份，本页还开着上一个身份的库 */
   readonly $sessionMoved = this.#sessionMoved.asReadonly();
 
@@ -60,7 +59,6 @@ export class DemoSession {
     const prepared = this.prepared;
     if (!prepared || choice === this.currentChoice || this.#switching()) return;
     this.#switching.set(true);
-    this.#error.set(null);
     try {
       await switchIdentity({
         remoteConnected: () => firstValueFrom(this.#rxdb.adapterConnected$('supabase')),
@@ -70,7 +68,8 @@ export class DemoSession {
         reload: () => this.reload()
       });
     } catch (error) {
-      this.#error.set(getErrorMessage(error, '切换身份失败'));
+      // 失败时页面不重新加载：弹一条错误消息，留在原来的身份，可以再试
+      this.#toasts.show({ kind: 'error', message: `切换身份失败：${getErrorMessage(error, '未知错误')}` });
       this.#switching.set(false);
     }
   }

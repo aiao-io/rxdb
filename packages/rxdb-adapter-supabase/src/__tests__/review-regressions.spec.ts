@@ -528,18 +528,17 @@ describe('supabase review regressions', () => {
     expect(result).toEqual({ count: 0, latestChangeId: 17 });
   });
 
-  it('getChangeCount 只数别人的变更：排除本客户端推上去的，保留没有客户端标识的远端直写（US-233）', async () => {
+  it('getChangeCount 不按 clientId 排除：它每次启动都换，自己推的由同步插件按本地记下的远端 id 减掉（US-233）', async () => {
     const query = resolvedRecordingQuery({ data: [{ id: 9 }], count: 1, error: null });
     const from = vi.fn(() => query.proxy);
     const adapter = createAdapter({ from }, {}, [Todo]);
 
     await expect(adapter.getChangeCount(5, ['Todo'])).resolves.toEqual({ count: 1, latestChangeId: 9 });
 
-    // `clientId.neq.x` 单独用会把 clientId 为空的远端直写一并滤掉
-    expect(query.calls).toContainEqual({ method: 'or', args: ['clientId.is.null,clientId.neq.local-client'] });
+    expect(query.calls.filter(call => JSON.stringify(call.args).includes('clientId'))).toEqual([]);
   });
 
-  it('getBucketChangeCount 按实体、分区、游标与分支数，只数别人的变更（US-233）', async () => {
+  it('getBucketChangeCount 按实体、分区、游标与分支数，不按 clientId 排除（US-233）', async () => {
     const query = resolvedRecordingQuery({ data: null, count: 1, error: null });
     const from = vi.fn(() => query.proxy);
     const adapter = createAdapter({ from }, {}, [Todo]);
@@ -552,7 +551,25 @@ describe('supabase review regressions', () => {
     expect(query.calls).toContainEqual({ method: 'eq', args: ['bucket', 'tenant:a'] });
     expect(query.calls).toContainEqual({ method: 'gt', args: ['id', 68] });
     expect(query.calls).toContainEqual({ method: 'in', args: ['branchId', ['main']] });
-    expect(query.calls).toContainEqual({ method: 'or', args: ['clientId.is.null,clientId.neq.local-client'] });
+    expect(query.calls.filter(call => JSON.stringify(call.args).includes('clientId'))).toEqual([]);
+  });
+
+  it('getBucketChangeCount 给了 id 时只数这些 id（US-233：数本库推上去的有几条落在这个分区）', async () => {
+    const query = resolvedRecordingQuery({ data: null, count: 2, error: null });
+    const adapter = createAdapter({ from: vi.fn(() => query.proxy) }, {}, [Todo]);
+
+    await expect(adapter.getBucketChangeCount('public', 'Todo', 'public', 68, ['main'], [70, 71, 72])).resolves.toBe(2);
+
+    expect(query.calls).toContainEqual({ method: 'in', args: ['id', [70, 71, 72]] });
+  });
+
+  it('getBucketChangeCount 应答里没有条数时报数据错误，不当成 0', async () => {
+    const query = resolvedRecordingQuery({ data: null, count: null, error: null });
+    const adapter = createAdapter({ from: vi.fn(() => query.proxy) }, {}, [Todo]);
+
+    await expect(adapter.getBucketChangeCount('public', 'Todo', 'public', 0, ['main'])).rejects.toThrow(
+      new SupabaseDataError('Failed to count bucket changes: invalid response data')
+    );
   });
 
   it('getBucketChangeCount reports query errors', async () => {

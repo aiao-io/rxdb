@@ -558,13 +558,6 @@ export class EntityManager {
     return entity;
   }
 
-  /** 删除要不要走批量写入的事务：实体被引用，且写的是本地库（远端与 QueryCache 的删除不经本地外键） */
-  #removes_in_transaction(EntityType: EntityType): boolean {
-    if (!this.rxdb.schemaManager.isReferenced(EntityType)) return false;
-    const primary = resolveBatchPrimaryAdapter([EntityType], this.rxdb.entitySync);
-    return primary?.kind === 'local' && !isQueryCacheBatch([EntityType], this.rxdb.entitySync);
-  }
-
   /**
    * 重置实体
    *
@@ -696,6 +689,13 @@ export class EntityManager {
    */
   getRepository<T extends EntityType, RT extends Repository<T>>(EntityType: T): RT {
     return this.#get_entity_repository(EntityType);
+  }
+
+  /** 删除要不要走批量写入的事务：实体被引用，且写的是本地库（远端与 QueryCache 的删除不经本地外键） */
+  #removes_in_transaction(EntityType: EntityType): boolean {
+    if (!this.rxdb.schemaManager.isReferenced(EntityType)) return false;
+    const primary = resolveBatchPrimaryAdapter([EntityType], this.rxdb.entitySync);
+    return primary?.kind === 'local' && !isQueryCacheBatch([EntityType], this.rxdb.entitySync);
   }
 
   /**

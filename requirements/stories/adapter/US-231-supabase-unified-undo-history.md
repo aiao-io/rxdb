@@ -1,11 +1,11 @@
 ---
 id: US-231
 title: dev-rxdb-supabase 三页交互统一：撤销、重做与操作历史同一位置、作用域写在控件上
-status: Backlog
+status: In Review
 priority: Medium
 epic: epic-016-local-change-workbench
 created: 2026-11-26
-updated: 2026-11-26
+updated: 2026-11-27
 tags: [adapter, supabase, undo-redo, history, demo, ux, e2e]
 ---
 
@@ -27,27 +27,28 @@ INVEST 检查清单:
 **我想要** 三页的撤销、重做、操作历史长在同一个位置、长得一样、快捷键一样，并且控件上写明它们只作用于眼前这一页
 **以便** 换一页不用重新学一套操作，也不担心撤销撤到看不见的另一页
 
-## 现状
+## 背景
 
-1. Todo：[`TodoPage`](../../../apps/dev-rxdb-supabase/src/app/todo/todo.page.ts) 用 `history(Todo)`，图标按钮的读屏名是英文 `Undo` / `Redo`，次数贴在按钮上；操作历史是共享模块的 [`HistorySidebarComponent`](../../../modules/angular/src/components/history-sidebar.component.ts)，挂在列表左边，宽 `w-48`。为什么不用整库作用域，代码里写着：
+三页的撤销、重做与操作历史原先各写各的：Todo 页用 `history(Todo)` 加共享模块的
+[`HistorySidebarComponent`](../../../modules/angular/src/components/history-sidebar.component.ts)，商品页的文字按钮挤在商品卡片的标题行、
+没有操作历史，订单页没有撤销。页面骨架也不统一（三种最大宽度），订单页的写入失败与推拉失败共用一个错误位，显示在离表单很远的同步卡片里；
+三页都没有快捷键。
 
-   ```ts
-   // 与计数、侧栏同一份 Todo 作用域：无参 history() 是整库作用域，会撤销页面外的实体（商品目录）
-   ```
+订单页不能照抄前两页，dev 栈实测有两处挡着：
 
-2. 商品：[`CatalogLocalWrites`](../../../apps/dev-rxdb-supabase/src/app/catalog/catalog-local-writes.ts) 用 `history(CatalogItem)`，文字按钮「撤销」「重做」和「推送」「同步」挤在商品卡片的标题行；没有操作历史（单件商品的「历史」是 US-229 的远端变更历史，另一回事）。
-3. 订单：[`OrdersPage`](../../../apps/dev-rxdb-supabase/src/app/orders/orders.page.ts) 没有撤销、重做与历史。也不能照抄前两页，dev 栈访客的订单页实测有两处挡着：
-   - 写入跨实体。新建客户带证件时 [`#saveCustomerWithIdCard`](../../../apps/dev-rxdb-supabase/src/app/orders/orders.page.ts) 的 `saveMany` 记成一个含客户与证件的事务；给订单项挂分类记成一个只有关联表 `DemoCategory_DemoOrderItem` 一条插入的事务。单仓库作用域撤到前者，[`selectScopedHistories`](../../../packages/rxdb-plugin-history/src/scope-selection.ts) 把它归进 `crossScope`，调用方抛 [`RxDBCrossScopeTransactionError`](../../../packages/rxdb-plugin-history/src/scope-selection.ts)；后者不在任何手写实体的作用域里；整库作用域又会撤到 Todo 与商品。缺的是「几个仓库合起来」的作用域，由 [US-316](../collaboration/US-316-multi-repository-history-scope.md) 补。
-   - 删除带证件的客户之后，撤销第一步就以 `FOREIGN KEY constraint failed` 失败、撤销栈卡死：级联删掉的订单、订单项、关联行与证件各自是独立的历史项，不和源删除同一个事务。由 [US-318](../collaboration/US-318-cascade-delete-one-transaction.md) 补。
-4. 页面骨架各写各的：Todo 是 `max-w-4xl` 的标题栏加徽标，商品是 `max-w-7xl` 两栏，订单是 `max-w-5xl` 卡片堆叠。写入失败的位置也不一致：订单页的写入失败与推拉失败共用一个 `#error`，显示在「同步」卡片里，离出错的表单很远。
-5. 三页都没有 ⌘/Ctrl+Z 之类的快捷键。
+- 写入跨实体。新建客户带证件时 [`#saveCustomerWithIdCard`](../../../apps/dev-rxdb-supabase/src/app/orders/orders.page.ts) 的 `saveMany`
+  记成一个含客户与证件的事务，单仓库作用域撤到它时 [`selectScopedHistories`](../../../packages/rxdb-plugin-history/src/scope-selection.ts)
+  把它归进 `crossScope`；给订单项挂分类只记关联表一条，不在任何手写实体的作用域里。「几个仓库合起来」的作用域由
+  [US-316](../collaboration/US-316-multi-repository-history-scope.md) 提供。
+- 删除带证件的客户，级联删掉的行各自是独立的历史项，撤销第一步就以 `FOREIGN KEY constraint failed` 失败。级联与源删除同一个事务由
+  [US-318](../collaboration/US-318-cascade-delete-one-transaction.md) 提供。
 
 ## 交付阶段
 
 | 阶段 | 内容                                                                                                              | 前置                                                                                                                                     | 状态 |
 | ---- | ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| A    | 页面登记撤销、重做与操作历史，顶栏按登记渲染编辑组，Todo 与商品接入；新的操作历史面板；三页页面骨架与写入反馈统一 | 无。与 [US-230](US-230-supabase-header-sync.md) 阶段 A 共用页面登记服务与右侧面板壳，先落地的一方建，后落地的一方复用                    | ⬜   |
-| B    | 订单页接入：作用域为订单的五个实体与关联表；删除带子记录的数据后一次撤回整组                                      | [US-316](../collaboration/US-316-multi-repository-history-scope.md)、[US-318](../collaboration/US-318-cascade-delete-one-transaction.md) | ⬜   |
+| A    | 页面登记撤销、重做与操作历史，顶栏按登记渲染编辑组，Todo 与商品接入；新的操作历史面板；三页页面骨架与写入反馈统一 | 无。与 [US-230](US-230-supabase-header-sync.md) 阶段 A 共用页面登记服务与右侧面板壳，先落地的一方建，后落地的一方复用                    | ✅   |
+| B    | 订单页接入：作用域为订单的五个实体与关联表；删除带子记录的数据后一次撤回整组                                      | [US-316](../collaboration/US-316-multi-repository-history-scope.md)、[US-318](../collaboration/US-318-cascade-delete-one-transaction.md) | ✅   |
 
 两个阶段都是当前承诺；阶段 B 的前置落地之前，本故事不关闭。
 
@@ -77,34 +78,38 @@ INVEST 检查清单:
 
 | #   | 前置条件                                       | 操作                                         | 预期结果                                                                                                         | 状态 |
 | --- | ---------------------------------------------- | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | Alice 在 Todo 页                               | 看顶栏，再切到商品页、首页                   | Todo 与商品两页的编辑组位置、外观相同，作用域标签分别是 Todo、商品；首页没有编辑组                               | ⬜   |
-| 2   | Alice 在 Todo 页新建一条，再到商品页改一件商品 | 在商品页点「撤销」，再回 Todo 页点「撤销」   | 商品页撤掉商品的修改，Todo 不动；回到 Todo 页撤掉那条 Todo（「撤销只撤本页」与 US-034 一致）                     | ⬜   |
-| 3   | 商品页有可撤销的修改，焦点在页面空白处         | 按 ⌘/Ctrl+Z，再按 ⌘/Ctrl+Shift+Z             | 依次撤销、重做，与点按钮结果相同                                                                                 | ⬜   |
-| 4   | 焦点在 Todo 的新建输入框里，已输入文字         | 按 ⌘/Ctrl+Z                                  | 只撤输入框里的文字，数据不动                                                                                     | ⬜   |
-| 5   | Alice 推送成功、推上去至少一条                 | 看编辑组                                     | 撤销、重做不可点，原因是「推送之后不能再撤销」；操作历史里那些条目还在，只是不能再撤                             | ⬜   |
-| 6   | 访客打开商品页                                 | 看编辑组                                     | 撤销、重做不可点，原因是「访客只读」                                                                             | ⬜   |
-| 7   | Todo 页有三条可撤销的操作                      | 打开操作历史，撤销一条                       | 面板列出三条、最新在前，面板头写作用域 Todo 与「可撤销 3」；撤销后那条标「已撤销」，面板头变为可撤销 2、可重做 1 | ⬜   |
-| 8   | 操作历史里有一条修改                           | 展开                                         | 逐字段显示改之前与改之后                                                                                         | ⬜   |
-| 9   | 操作历史开着                                   | 打开同步中心，或商品的「模拟服务端变更」     | 右侧同一时刻只开一个面板；关掉之后焦点回到打开它的那个按钮                                                       | ⬜   |
-| 10  | 三页                                           | 对照页面骨架；在订单页提交只含空格的客户名称 | 三页同一最大宽度、同一页头结构与提示组件；订单页的「先填客户名称」显示在客户卡片里，不在别的卡片                 | ⬜   |
-| 11  | 375px 宽的窄屏                                 | 打开三页，再打开操作历史                     | 编辑组只剩图标，页面不出现横向滚动；操作历史是带遮罩的整屏抽屉                                                   | ⬜   |
+| 1   | Alice 在 Todo 页                               | 看顶栏，再切到商品页、首页                   | Todo 与商品两页的编辑组位置、外观相同，作用域标签分别是 Todo、商品；首页没有编辑组                               | ✅   |
+| 2   | Alice 在 Todo 页新建一条，再到商品页改一件商品 | 在商品页点「撤销」，再回 Todo 页点「撤销」   | 商品页撤掉商品的修改，Todo 不动；回到 Todo 页撤掉那条 Todo（「撤销只撤本页」与 US-034 一致）                     | ✅   |
+| 3   | 商品页有可撤销的修改，焦点在页面空白处         | 按 ⌘/Ctrl+Z，再按 ⌘/Ctrl+Shift+Z             | 依次撤销、重做，与点按钮结果相同                                                                                 | ✅   |
+| 4   | 焦点在 Todo 的新建输入框里，已输入文字         | 按 ⌘/Ctrl+Z                                  | 只撤输入框里的文字，数据不动                                                                                     | ✅   |
+| 5   | Alice 推送成功、推上去至少一条                 | 看编辑组                                     | 撤销、重做不可点，原因是「推送之后不能再撤销」；操作历史里那些条目还在，只是不能再撤                             | ✅   |
+| 6   | 访客打开商品页                                 | 看编辑组                                     | 撤销、重做不可点，原因是「访客只读」                                                                             | ✅   |
+| 7   | Todo 页有三条可撤销的操作                      | 打开操作历史，撤销一条                       | 面板列出三条、最新在前，面板头写作用域 Todo 与「可撤销 3」；撤销后那条标「已撤销」，面板头变为可撤销 2、可重做 1 | ✅   |
+| 8   | 操作历史里有一条修改                           | 展开                                         | 逐字段显示改之前与改之后                                                                                         | ✅   |
+| 9   | 操作历史开着                                   | 打开同步中心，或商品的「模拟服务端变更」     | 右侧同一时刻只开一个面板；关掉之后焦点回到打开它的那个按钮                                                       | ✅   |
+| 10  | 三页                                           | 对照页面骨架；在订单页提交只含空格的客户名称 | 三页同一最大宽度、同一页头结构与提示组件；订单页的「先填客户名称」显示在客户卡片里，不在别的卡片                 | ✅   |
+| 11  | 375px 宽的窄屏                                 | 打开三页，再打开操作历史                     | 编辑组只剩图标，页面不出现横向滚动；操作历史是盖住页面、带遮罩的抽屉                                             | ✅   |
 
 ### 阶段 B
 
 | #   | 前置条件                             | 操作                   | 预期结果                                                               | 状态 |
 | --- | ------------------------------------ | ---------------------- | ---------------------------------------------------------------------- | ---- |
-| 12  | Alice 在订单页新建了带证件号码的客户 | 点「撤销」             | 客户与证件一起撤掉，不报跨作用域错误；Todo 与商品不受影响              | ⬜   |
-| 13  | Alice 给一条订单项挂了一个分类       | 撤销，再重做，然后推送 | 分类先摘掉再挂回；Bob 拉取后看到的是重做后的结果                       | ⬜   |
-| 14  | Alice 删了一位有订单、有证件的客户   | 点一次「撤销」         | 客户、他的订单与订单项、证件、分类关联按删除前的样子回来；没有外键错误 | ⬜   |
-| 15  | 按 README 起好本地栈                 | 跑远端 e2e             | orders-sync 新增的撤销用例通过，原有场景一条不少                       | ⬜   |
+| 12  | Alice 在订单页新建了带证件号码的客户 | 点「撤销」             | 客户与证件一起撤掉，不报跨作用域错误；Todo 与商品不受影响              | ✅   |
+| 13  | Alice 给一条订单项挂了一个分类       | 撤销，再重做，然后推送 | 分类先摘掉再挂回；Bob 拉取后看到的是重做后的结果                       | ✅   |
+| 14  | Alice 删了一位有订单、有证件的客户   | 点一次「撤销」         | 客户、他的订单与订单项、证件、分类关联按删除前的样子回来；没有外键错误 | ✅   |
+| 15  | 按 README 起好本地栈                 | 跑远端 e2e             | orders-sync 新增的撤销用例通过，原有场景一条不少                       | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-验收证据（实现时补齐，验证层级与 AC 一致）：
+验收证据（单测：`pnpm nx test dev-rxdb-supabase`；远端 e2e：按 README 起栈后 `pnpm nx run dev-rxdb-supabase-e2e:e2e-remote`）：
 
-- AC#1～#10：`apps/dev-rxdb-supabase/src/app/app-header.spec.ts`（编辑组）、`page-workbench.spec.ts`（登记与快捷键，与 US-230 共用）、`operation-history-panel.spec.ts`（新）；`pnpm nx test dev-rxdb-supabase`。AC#2、#5 另由 `apps/dev-rxdb-supabase-e2e/src/catalog-local-writes.spec.ts` 在真栈上覆盖。
-- AC#11：远端 e2e 以 375px 视口断言没有横向滚动、抽屉带遮罩。
-- AC#12～#15：`apps/dev-rxdb-supabase-e2e/src/orders-sync.spec.ts`；按 README 起栈后 `pnpm nx run dev-rxdb-supabase-e2e:e2e-remote`。作用域与级联撤销本身的语义由 US-316、US-318 的单测守。
+- AC#1、#10：`apps/dev-rxdb-supabase-e2e/src/workbench.spec.ts` 的「三页的顶栏一样、内容同宽」；`app-header.spec.ts`；订单页的写入失败位置见 `orders/orders.page.spec.ts`「写入失败的原因显示在发起写入的那张卡片里」。
+- AC#2、#4：`workbench.spec.ts` 的「撤销只撤本页；输入框里的 ⌘/Ctrl+Z 只撤文字」；`page-workbench.spec.ts`（快捷键与可编辑目标）。
+- AC#3、#5、#6：`apps/dev-rxdb-supabase-e2e/src/catalog-local-writes.spec.ts`（快捷键、推送后与访客的不可用原因）；`history-actions.spec.ts`、`catalog/catalog.page.spec.ts`。
+- AC#7、#8：`operation-history-panel.spec.ts`、`field-diff.spec.ts`、`history-describe.spec.ts`。
+- AC#9：`side-panel.spec.ts`（同一时刻只开一个、关掉后焦点回到开关）。
+- AC#11：`workbench.spec.ts` 的 375px 用例。
+- AC#12～#15：`apps/dev-rxdb-supabase-e2e/src/orders-sync.spec.ts` 的「US-231 AC#12～#14」用例；作用域与级联撤销的语义另由 US-316、US-318 的单测与 PGlite 用例守。
 
 ## 技术笔记
 
@@ -113,7 +118,8 @@ INVEST 检查清单:
 - 操作历史面板的数据是 `history(scope).histories$`。它只含本次会话的变更（`HistoryManager` 按 `firstConnectedAt` 起算）——这是「我这次做了什么」的视图，不是待推送清单；会推什么由 US-230 阶段 C 回答。标记来自 `HistoryItem.reverted`、`redoInvalidated` 与 `changes[].rejectedAt`。字段级改前改后与 US-230 阶段 C 共用同一个纯函数。
 - 订单的作用域要覆盖关联表 `DemoCategory_DemoOrderItem`：挂分类的那一步只记了它一条。它没有手写的实体类，US-316 按「多对多的两端都在作用域里，关联表就在」处理，与 US-228「关联表的同步配置跟随两端」同口径；订单页只需列出五个实体。
 - 删除带子记录的客户（dev 栈访客实测）：历史里是五个独立的 DELETE（客户、订单、订单项、关联行、证件），都没有事务号，客户排在最前；`history().undo()` 插回客户时它还引用着没恢复的证件，`COMMIT` 报 `FOREIGN KEY constraint failed`，撤销栈卡在这一步；`history().undo(5)` 一次撤五步则整组恢复。AC#14 因此以 US-318 为前置。
-- 不可撤销原因里「访客只读」来自商品页自己的写入口（`CatalogLocalWrites.$canWrite`）；Todo 对访客是只存本地、照样能写能撤，不显示这条原因。
+- 不可撤销原因里「访客只读」来自商品页自己的写入口（`CatalogLocalWrites.$blockedReason`）；Todo 对访客是只存本地、照样能写能撤，不显示这条原因。
+- 订单页登记的作用域是 `history([DemoCustomer, DemoIdCard, DemoOrder, DemoOrderItem, DemoCategory])`（`orders.page.ts` 的 `ORDER_HISTORY_SCOPE`），关联表随两端进作用域；写入失败按卡片记（`errorOf(card)`），不再与推拉共用一个错误位。
 
 ## 实现文件
 
@@ -122,6 +128,7 @@ INVEST 检查清单:
 - `apps/dev-rxdb-supabase/src/app/operation-history-panel.ts`（新）— 操作历史视图
 - `apps/dev-rxdb-supabase/src/app/side-panel.ts`（新，或随 US-232 / US-230 先建）— 右侧面板壳
 - `apps/dev-rxdb-supabase/src/app/todo/todo.page.ts`、`todo.page.html`、`catalog/catalog-synced-panel.ts`、`catalog/catalog-local-writes.ts`、`orders/orders.page.ts` — 移除页面内的撤销、重做与历史侧栏，改为登记；统一页面骨架与写入反馈
+- `apps/dev-rxdb-supabase/src/app/history-actions.ts`（新）— 作用域的撤销、重做命令与不可用原因
 - `apps/dev-rxdb-supabase-e2e/src/*.spec.ts` — 撤销、重做改走顶栏；订单撤销用例
 
 ## References

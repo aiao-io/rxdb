@@ -1,11 +1,11 @@
 ---
 id: US-318
 title: 本地外键级联删除与源删除记进同一个事务：一次撤销整组恢复，互相引用的也撤得回来
-status: In Progress
+status: In Review
 priority: High
 epic: epic-016-local-change-workbench
 created: 2026-11-26
-updated: 2026-11-26
+updated: 2026-11-27
 tags: [collaboration, history, undo-redo, sqlite, bug]
 ---
 
@@ -27,7 +27,7 @@ INVEST 检查清单:
 **我想要** 删除父记录时，本地外键级联删掉（或置空）的子记录与它记在同一个事务里
 **以便** 点一次撤销就把整组按删除前的样子恢复，不会撤到一半报错、也不用连点好几次
 
-## 现状
+## 背景（改动之前）
 
 1. 变更由 SQLite 触发器记录，事务号在生成触发器时写进去（[`generate_table_trigger_sql`](../../../packages/rxdb-adapter-sqlite-core/src/table/trigger_sql.ts) 的 `transactionId` 选项）。单条删除不在事务里，外键级联在子表上触发的删除也就各记各的，没有事务号。
 2. 删除客户之后的历史（dev 栈访客的订单页：客户带证件、一张订单、一条订单项、订单项挂一个分类），`history().histories$` 最新在前：
@@ -71,19 +71,20 @@ INVEST 检查清单:
 
 | #   | 前置条件                                             | 操作                     | 预期结果                                                           | 状态 |
 | --- | ---------------------------------------------------- | ------------------------ | ------------------------------------------------------------------ | ---- |
-| 1   | 客户有证件、一张订单、一条订单项、订单项挂了一个分类 | 删除客户                 | 历史里是一个事务项，含客户、订单、订单项、关联行与证件的删除       | ⬜   |
-| 2   | 同上                                                 | `undo()` 一次            | 五行全部按删除前的样子回来，没有外键错误                           | ⬜   |
-| 3   | 撤销之后                                             | `redo()` 一次            | 五行再一起删掉                                                     | ⬜   |
-| 4   | 客户有证件                                           | 只删证件，再撤销         | 证件删除与客户证件引用的置空在同一个事务里；撤销后两边都恢复       | ⬜   |
-| 5   | 登录身份删客户后推送                                 | 另一个浏览器拉取         | 远端与对端的结果与现在相同：客户、订单、订单项、证件、关联行都不在 | ⬜   |
-| 6   | —                                                    | 各本地适配器的一致性套件 | 通过                                                               | ⬜   |
+| 1   | 客户有证件、一张订单、一条订单项、订单项挂了一个分类 | 删除客户                 | 历史里是一个事务项，含客户、订单、订单项、关联行与证件的删除       | ✅   |
+| 2   | 同上                                                 | `undo()` 一次            | 五行全部按删除前的样子回来，没有外键错误                           | ✅   |
+| 3   | 撤销之后                                             | `redo()` 一次            | 五行再一起删掉                                                     | ✅   |
+| 4   | 客户有证件                                           | 只删证件，再撤销         | 证件删除与客户证件引用的置空在同一个事务里；撤销后两边都恢复       | ✅   |
+| 5   | 登录身份删客户后推送                                 | 另一个浏览器拉取         | 远端与对端的结果与现在相同：客户、订单、订单项、证件、关联行都不在 | ✅   |
+| 6   | —                                                    | 各本地适配器的一致性套件 | 通过                                                               | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-验收证据（实现时补齐，验证层级与 AC 一致）：
+验收证据：
 
-- AC#1～#4、#6：`packages/rxdb-adapter-sqlite-core/src/__tests__/` 的级联套件（`shared-cascade-mutation.suite.ts`）加历史与撤销断言，各适配器入口照常复用；`packages/rxdb-plugin-history/src/__tests__/` 加撤销用例。
-- AC#5：`apps/dev-rxdb-supabase-e2e/src/orders-sync.spec.ts`；按 README 起栈后 `pnpm nx run dev-rxdb-supabase-e2e:e2e-remote`。
+- AC#1～#4、#6：`packages/rxdb-adapter-sqlite-core/src/__tests__/shared-cascade-mutation.suite.ts` 的「级联写入与源删除记成一个事务（US-318）」，各 SQLite 适配器入口复用（`pnpm nx run-many -t test --projects=rxdb-adapter-sqlite-core,rxdb-adapter-wa-sqlite,rxdb-adapter-sqlite-wasm,rxdb-adapter-sqlite,rxdb-adapter-sqliteai,rxdb-adapter-electron`）；PGlite 的同一组断言在 `packages/rxdb-adapter-pglite/src/__tests__/cascade-delete-transaction.spec.ts`；`packages/rxdb/src/__tests__/schema/SchemaManager.spec.ts` 守 `isReferenced`。
+- AC#1、#2：真栈上 `apps/dev-rxdb-supabase-e2e/src/orders-sync.spec.ts` 的「US-231 AC#12～#14」用例——删掉有证件、订单、订单项与分类关联的客户，点一次撤销全部回来。
+- AC#5：同一用例再删一次并推送，Bob 拉取后客户、订单、订单项与关联都不在了、分类还在；按 README 起栈后 `pnpm nx run dev-rxdb-supabase-e2e:e2e-remote`。
 
 ## 技术笔记
 

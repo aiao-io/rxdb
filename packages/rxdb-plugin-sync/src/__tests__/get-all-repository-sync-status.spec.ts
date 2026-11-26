@@ -130,7 +130,10 @@ function createAllStatusHarness() {
     return typeof entity === 'string' ? (pushableCounts.get(entity) ?? 0) : 0;
   });
   const syncRepository = { find: syncFind } as unknown as IRepository<typeof RxDBSync>;
-  const changeRepository = { count: changeCount } as unknown as IRepository<typeof RxDBChange>;
+  // `find` 答待拉数里「本库推上去的远端 id」（US-233）：这些用例没有推过
+  const changeRepository = { count: changeCount, find: vi.fn(async () => []) } as unknown as IRepository<
+    typeof RxDBChange
+  >;
   const localAdapter = {
     getRepository: vi.fn((EntityClass: unknown) => {
       if (EntityClass === RxDBSync) return syncRepository;

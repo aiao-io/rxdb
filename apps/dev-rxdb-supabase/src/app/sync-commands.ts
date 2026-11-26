@@ -1,10 +1,12 @@
 import { RxDB, RxDBIdentityMismatchError } from '@aiao/rxdb';
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
+import { DemoSession } from './demo-session';
 import { getErrorMessage } from './error-message';
 import type { PageWorkbenchRegistration, WorkbenchAction } from './page-workbench';
 import { RemoteSyncState } from './remote-sync-state';
 import { describePullOutcome, describePushOutcome, type SyncOutcome } from './sync-outcome';
+import { type ToastInput, Toasts } from './toasts';
 
 /** 推或拉 */
 export type SyncDirection = 'pull' | 'push';
@@ -31,6 +33,7 @@ export interface SyncRoundResult {
  *
  * @remarks
  * 推送、拉取作用于当前身份的整个本地库，不分页面：三页登记的是这同一组命令，顶栏与同步中心读同一份状态。
+ * 每轮结束弹一条消息（`source` 是 `sync-round-<轮次>`）；同步中心的「最近一次」留着最近一轮的结果。
  * 不做成按页：推上去至少一条时，历史插件清的是整条分支的撤销栈，只推本页会让别的页没推的修改也失去撤销。
  * 拉取带 `fetchAll`：一次拉到底，与原商品页「同步」等价。
  */
@@ -38,6 +41,8 @@ export interface SyncRoundResult {
 export class SyncCommands {
   readonly #rxdb = inject(RxDB);
   readonly #remote = inject(RemoteSyncState);
+  readonly #session = inject(DemoSession);
+  readonly #toasts = inject(Toasts);
   readonly #running = signal<SyncDirection | null>(null);
   readonly #round = signal(0);
   readonly #result = signal<SyncRoundResult | null>(null);
@@ -82,17 +87,35 @@ export class SyncCommands {
 
   async #sync(direction: SyncDirection, operation: () => Promise<SyncOutcome>): Promise<void> {
     this.#running.set(direction);
+    let toast: Omit<ToastInput, 'source'>;
     try {
       const outcome = await operation();
-      this.#result.set({ direction, ...outcome, identityMismatch: false, at: new Date() });
+      this.#result.set({
+        direction,
+        notice: outcome.notice,
+        error: outcome.error,
+        identityMismatch: false,
+        at: new Date()
+      });
+      toast =
+        outcome.error === null ?
+          { kind: outcome.needsAttention ? 'warning' : 'success', message: outcome.notice }
+        : { kind: 'error', message: outcome.error };
     } catch (error) {
       const label = direction === 'pull' ? '拉取' : '推送';
       const identityMismatch = error instanceof RxDBIdentityMismatchError;
       const reason = identityMismatch ? IDENTITY_MISMATCH_REASON : getErrorMessage(error, '未知错误');
-      this.#result.set({ direction, notice: null, error: `${label}失败：${reason}`, identityMismatch, at: new Date() });
+      const message = `${label}失败：${reason}`;
+      this.#result.set({ direction, notice: null, error: message, identityMismatch, at: new Date() });
+      toast = {
+        kind: 'error',
+        message,
+        ...(identityMismatch ? { action: { label: '重新加载', run: () => this.#session.reload() } } : {})
+      };
     } finally {
       this.#running.set(null);
       this.#round.update(round => round + 1);
     }
+    this.#toasts.show({ ...toast, source: `sync-round-${this.#round()}` });
   }
 }

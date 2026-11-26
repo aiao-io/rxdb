@@ -67,18 +67,27 @@ if (isRemoteE2E) {
       return panel.locator(`[data-testid="sync-center-repository"][data-entity="${entity}"]`);
     }
 
-    test('US-230 AC#1、#6 / US-231 AC#1：三页的顶栏一样，首页什么都不登记，页面里没有自己的推拉', async ({ page }) => {
+    test('US-230 AC#1、#6 / US-231 AC#1、#10：三页的顶栏一样、内容同宽，首页什么都不登记，页面里没有自己的推拉', async ({
+      page
+    }) => {
       await page.goto('/todo', { timeout: 60_000, waitUntil: 'domcontentloaded' });
       await expect(page.getByTestId('workbench-sync-group')).toBeVisible({ timeout: 60_000 });
       const content = page.locator('#layout-content');
 
-      for (const [link, title, scope] of [
-        ['Todo', 'Todo', '本页：Todo'],
-        [CATALOG_LINK, '商品目录', '本页：商品'],
-        [ORDERS_LINK, '订单', '本页：订单']
+      for (const [link, title, scope, heading] of [
+        ['Todo', 'Todo', '本页：Todo', 'todo-title'],
+        [CATALOG_LINK, '商品目录', '本页：商品', 'catalog-title'],
+        [ORDERS_LINK, '订单', '本页：订单', 'orders-title']
       ] as const) {
         await navigate(page, link, title);
         await expect(page.getByTestId('workbench-scope')).toHaveText(scope);
+        // US-231 AC#10：三页的内容列同一个最大宽度
+        const maxWidth = await page.getByTestId(heading).evaluate(element => {
+          const column = element.closest('.max-w-5xl');
+          if (!column) throw new Error('页面标题不在 max-w-5xl 的内容列里');
+          return getComputedStyle(column).maxWidth;
+        });
+        expect(maxWidth, `${title} 页的内容列`).toBe('1024px');
         for (const id of [
           'workbench-undo',
           'workbench-redo',

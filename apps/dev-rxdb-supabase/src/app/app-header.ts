@@ -4,8 +4,8 @@ import {
   LucideArrowDown as ArrowDown,
   LucideArrowUp as ArrowUp,
   LucideArrowUpDown as ArrowUpDown,
-  LucideDynamicIcon,
   LucideHistory as History,
+  LucideDynamicIcon,
   LucideMenu as Menu,
   LucideRedo2 as Redo2,
   LucideUndo2 as Undo2
@@ -179,10 +179,7 @@ import { SyncCommands } from './sync-commands';
             >
               <svg [lucideIcon]="ArrowUpDown" size="16"></svg>
               @if (syncState.lastRejections().length > 0) {
-                <span
-                  class="badge badge-error badge-xs absolute -top-1 -right-1"
-                  data-testid="sync-center-rejections"
-                >
+                <span class="badge badge-error badge-xs absolute -top-1 -right-1" data-testid="sync-center-rejections">
                   {{ syncState.lastRejections().length }}
                 </span>
               }
@@ -192,26 +189,26 @@ import { SyncCommands } from './sync-commands';
       }
       <app-remote-security-notice />
       @if (session.description; as description) {
-        <div class="identity flex items-center gap-2 px-1">
-          <div class="flex flex-col text-right leading-tight max-md:hidden">
-            <span class="text-sm font-semibold" data-testid="identity-title">{{ description.title }}</span>
-            <span class="text-base-content/60 text-xs">{{ description.detail }}</span>
-          </div>
-          <!-- 选中项绑在每个 option 上：select 的 [value] 先于 @for 渲染出选项，会落回第一项 -->
-          <select
-            class="select select-sm w-36 max-sm:w-28"
-            [disabled]="session.$switching()"
-            (change)="switchTo($event)"
-            aria-label="切换身份"
-          >
-            @if (session.currentChoice === null) {
-              <option disabled selected value="">其他账号</option>
-            }
-            @for (choice of choices; track choice.key) {
-              <option [selected]="choice.key === session.currentChoice" [value]="choice.key">{{ choice.label }}</option>
-            }
-          </select>
-        </div>
+        <!-- 身份名与说明不在顶栏上占地方：下拉框里就是当前身份，说明在悬停提示与读屏描述里，同步中心也写着 -->
+        <span class="sr-only" id="identity-description">
+          当前身份：<span data-testid="identity-title">{{ description.title }}</span> · {{ description.detail }}
+        </span>
+        <!-- 选中项绑在每个 option 上：select 的 [value] 先于 @for 渲染出选项，会落回第一项 -->
+        <select
+          class="select select-sm w-36 max-sm:w-28"
+          [disabled]="session.$switching()"
+          [title]="description.title + ' · ' + description.detail"
+          (change)="switchTo($event)"
+          aria-describedby="identity-description"
+          aria-label="切换身份"
+        >
+          @if (session.currentChoice === null) {
+            <option disabled selected value="">其他账号</option>
+          }
+          @for (choice of choices; track choice.key) {
+            <option [selected]="choice.key === session.currentChoice" [value]="choice.key">{{ choice.label }}</option>
+          }
+        </select>
       }
     </div>
   </div>`,

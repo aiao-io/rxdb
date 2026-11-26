@@ -42,6 +42,9 @@ import {
 import { syncRepository, type SyncRepositoryOptions, type SyncRepositoryResult } from './sync-repository.js';
 import { topologicalSort, type SortDirection } from './topological-sort.js';
 
+/** 待拉数重算被拉取抢先时最多数几遍（见 {@link SyncManager.refreshPullableCount}） */
+const PULLABLE_REFRESH_ATTEMPTS = 3;
+
 /**
  * 同步管理器
  *
@@ -615,17 +618,24 @@ export class SyncManager {
   /**
    * 按各仓库持久化的远端水位线重新计算待拉变更数
    *
-   * @returns 当前远端待拉变更总数
+   * @returns 最后一次数出的远端待拉变更总数
    *
    * @remarks
    * 远程适配器在实时订阅恢复后调用。若刷新期间又收到实时事件，保留两者中的较大值，
    * 避免把查询快照之后到达的通知覆盖掉。
+   *
+   * 刷新期间有一次拉取结算过（比如登录后立刻点了拉取），先数的那几个仓库用的还是拉取之前的游标，
+   * 这次结果作废、再数一遍（US-233）。连着 {@link PULLABLE_REFRESH_ATTEMPTS} 次都被拉取抢先就不再数：
+   * 那几次拉取已经把计数结算到位。
    */
   async refreshPullableCount(): Promise<number> {
-    const token = this.history.beginPullableSettlement();
-    const statuses = await getAllRepositorySyncStatus(this.rxdb);
-    const count = statuses.reduce((total, status) => total + (status.enabled ? status.pullableCount : 0), 0);
-    this.history.reconcilePullableCount(token, count);
+    let count = 0;
+    for (let attempt = 0; attempt < PULLABLE_REFRESH_ATTEMPTS; attempt++) {
+      const token = this.history.beginPullableSettlement();
+      const statuses = await getAllRepositorySyncStatus(this.rxdb);
+      count = statuses.reduce((total, status) => total + (status.enabled ? status.pullableCount : 0), 0);
+      if (this.history.reconcilePullableCount(token, count)) return count;
+    }
     return count;
   }
 

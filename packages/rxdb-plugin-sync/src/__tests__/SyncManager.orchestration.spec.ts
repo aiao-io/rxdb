@@ -99,7 +99,7 @@ const createBridge = () => {
     beginPullableSettlement: vi.fn<() => number>(() => 7),
     settlePull: vi.fn<(token: number, options: unknown, result: unknown) => void>(),
     settleAbortedPull: vi.fn<(token: number, pulled: number) => void>(),
-    reconcilePullableCount: vi.fn<(token: number, count: number) => void>(),
+    reconcilePullableCount: vi.fn<(token: number, count: number) => boolean>(() => true),
     incrementPullableCount: vi.fn<(count: number) => void>()
   };
 };
@@ -273,6 +273,33 @@ describe('SyncManager 对协作模块的编排契约', () => {
     expect(harness.history.beginPullableSettlement).toHaveBeenCalledOnce();
     expect(doubles.delegates.getAllRepositorySyncStatus).toHaveBeenCalledWith(harness.rxdb);
     expect(harness.history.reconcilePullableCount).toHaveBeenCalledWith(7, 7);
+  });
+
+  // US-233：重算期间有一次拉取结算过，按旧游标数出的结果作废，重算一次
+  it('recounts when a pull settled while the refresh was counting', async () => {
+    const harness = createHarness();
+    harness.history.reconcilePullableCount.mockReturnValueOnce(false);
+    doubles.delegates.getAllRepositorySyncStatus
+      .mockResolvedValueOnce([{ enabled: true, pullableCount: 1 }])
+      .mockResolvedValueOnce([{ enabled: true, pullableCount: 0 }]);
+
+    await expect(harness.manager.refreshPullableCount()).resolves.toBe(0);
+
+    expect(harness.history.beginPullableSettlement).toHaveBeenCalledTimes(2);
+    expect(harness.history.reconcilePullableCount.mock.calls).toEqual([
+      [7, 1],
+      [7, 0]
+    ]);
+  });
+
+  it('stops after three superseded refreshes: the pulls that kept settling have set the count', async () => {
+    const harness = createHarness();
+    harness.history.reconcilePullableCount.mockReturnValue(false);
+    doubles.delegates.getAllRepositorySyncStatus.mockResolvedValue([{ enabled: true, pullableCount: 2 }]);
+
+    await expect(harness.manager.refreshPullableCount()).resolves.toBe(2);
+
+    expect(doubles.delegates.getAllRepositorySyncStatus).toHaveBeenCalledTimes(3);
   });
 
   it('wraps pull in the syncing guard and settles pull state', async () => {

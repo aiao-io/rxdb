@@ -1,11 +1,11 @@
 ---
 id: US-232
 title: dev-rxdb-supabase 商品「模拟服务端变更」收进右侧抽屉：主界面先看本机数据，需要时再打开
-status: Backlog
+status: In Review
 priority: Medium
 epic: epic-016-local-change-workbench
 created: 2026-11-26
-updated: 2026-11-26
+updated: 2026-11-27
 tags: [adapter, supabase, demo, ux, e2e]
 ---
 
@@ -27,21 +27,13 @@ INVEST 检查清单:
 **我想要** 页面先只呈现身份、本机同步的商品与在线浏览，「模拟服务端变更」放进一个按需从右侧打开的抽屉，开着的时候仍能拉取、看到本机怎么变
 **以便** 第一眼看到的是演示的主角——按身份同步到本机的数据，服务端模拟器这个辅助工具不和它抢位置
 
-## 现状
+## 背景
 
-1. [`CatalogPage`](../../../apps/dev-rxdb-supabase/src/app/catalog/catalog.page.ts) 在宽屏把页面切成两栏，右栏常驻 [`CatalogServerPanel`](../../../apps/dev-rxdb-supabase/src/app/catalog/catalog-server-panel.ts)：
-
-   ```html
-   <div class="grid items-start gap-4 @4xl:grid-cols-2">
-     <aside class="min-w-0" aria-label="模拟服务端变更" data-testid="catalog-operations"></aside>
-   </div>
-   ```
-
-   组件注释给的理由是「改完服务端点「同步」不用上下翻找」。这个理由成立，代价是服务端模拟器和本机数据各占半个页面；窄屏上它排在本机商品与在线浏览之后，要滚到最下面。
-
-2. 访客打开时，右栏只有一段「访客只能读公开数据」的说明（`server-panel-visitor`），照样占满半个页面。
-3. 写远端成功后的提示固定写着「去点「同步」看本机数据怎么变」，[US-230](US-230-supabase-header-sync.md) 把「同步」换成顶栏「拉取」之后这句要跟着改。
-4. 页面已经用原生 `<dialog>` 做模态：编辑框 [`CatalogItemEditor`](../../../apps/dev-rxdb-supabase/src/app/catalog/catalog-item-editor.ts) 与远端历史 [`CatalogItemHistory`](../../../apps/dev-rxdb-supabase/src/app/catalog/catalog-item-history.ts)。服务端模拟器不适合照这个做法改成模态弹框，理由见技术笔记。
+[`CatalogPage`](../../../apps/dev-rxdb-supabase/src/app/catalog/catalog.page.ts) 原先在宽屏把页面切成两栏，右栏常驻
+[`CatalogServerPanel`](../../../apps/dev-rxdb-supabase/src/app/catalog/catalog-server-panel.ts)。理由是「改完服务端点「同步」不用上下翻找」，
+代价是服务端模拟器和本机数据各占半个页面；窄屏上它排在本机商品与在线浏览之后，要滚到最下面；访客打开时右栏只有一段说明，照样占满半个页面。
+页面已经用原生 `<dialog>` 做模态（编辑框 [`CatalogItemEditor`](../../../apps/dev-rxdb-supabase/src/app/catalog/catalog-item-editor.ts)、
+远端历史 [`CatalogItemHistory`](../../../apps/dev-rxdb-supabase/src/app/catalog/catalog-item-history.ts)），服务端模拟器不适合照这个做法改成模态弹框，理由见技术笔记。
 
 ## 范围边界
 
@@ -65,27 +57,29 @@ INVEST 检查清单:
 
 | #   | 前置条件               | 操作                                                                  | 预期结果                                                                                               | 状态 |
 | --- | ---------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ---- |
-| 1   | Alice 在宽屏打开商品页 | 看页面                                                                | 单栏：身份与权限、本机同步的商品、在线浏览；看不到成员关系与租户商品列表；页头有「模拟服务端变更」开关 | ⬜   |
-| 2   | 同上                   | 点开关                                                                | 右侧打开抽屉，内容与原来的右栏相同；开关 `aria-expanded` 为真；焦点在抽屉标题上                        | ⬜   |
-| 3   | 抽屉开着               | 在抽屉里把一件公开商品收回为内部，再拉取（US-230 前是页面的「同步」） | 不用关抽屉：本机商品列表随拉取更新，抽屉仍开着                                                         | ⬜   |
-| 4   | 抽屉开着               | 点一件商品的「编辑」，按 Esc，再按 Esc                                | 第一次 Esc 关编辑框、抽屉仍开；第二次关抽屉，焦点回到开关                                              | ⬜   |
-| 5   | 访客                   | 打开抽屉                                                              | 显示原有的访客说明（`server-panel-visitor`），没有可操作的按钮                                         | ⬜   |
-| 6   | 375px 宽的窄屏         | 打开抽屉，点遮罩                                                      | 打开时是带遮罩的整屏抽屉，页面不出现横向滚动；点遮罩收起                                               | ⬜   |
-| 7   | 按 README 起好本地栈   | 跑 catalog-sync、catalog-local-writes 远端 e2e                        | 场景一条不少；用到服务端模拟器的步骤先经开关打开抽屉                                                   | ⬜   |
+| 1   | Alice 在宽屏打开商品页 | 看页面                                                                | 单栏：身份与权限、本机同步的商品、在线浏览；看不到成员关系与租户商品列表；页头有「模拟服务端变更」开关 | ✅   |
+| 2   | 同上                   | 点开关                                                                | 右侧打开抽屉，内容与原来的右栏相同；开关 `aria-expanded` 为真；焦点在抽屉标题上                        | ✅   |
+| 3   | 抽屉开着               | 在抽屉里把一件公开商品收回为内部，再拉取（US-230 前是页面的「同步」） | 不用关抽屉：本机商品列表随拉取更新，抽屉仍开着                                                         | ✅   |
+| 4   | 抽屉开着               | 点一件商品的「编辑」，按 Esc，再按 Esc                                | 第一次 Esc 关编辑框、抽屉仍开；第二次关抽屉，焦点回到开关                                              | ✅   |
+| 5   | 访客                   | 打开抽屉                                                              | 显示原有的访客说明（`server-panel-visitor`），没有可操作的按钮                                         | ✅   |
+| 6   | 375px 宽的窄屏         | 打开抽屉，点遮罩                                                      | 打开时是盖住页面的抽屉，左边留一条遮罩，页面不出现横向滚动；点遮罩收起                                 | ✅   |
+| 7   | 按 README 起好本地栈   | 跑 catalog-sync、catalog-local-writes 远端 e2e                        | 场景一条不少；用到服务端模拟器的步骤先经开关打开抽屉                                                   | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-验收证据（实现时补齐，验证层级与 AC 一致）：
+验收证据（单测：`pnpm nx test dev-rxdb-supabase`；远端 e2e：按 README 起栈后 `pnpm nx run dev-rxdb-supabase-e2e:e2e-remote`）：
 
-- AC#1、#2、#4、#5：`apps/dev-rxdb-supabase/src/app/catalog/catalog.page.spec.ts`（单栏与开关）、`apps/dev-rxdb-supabase/src/app/side-panel.spec.ts`（新：焦点、Esc 次序）；`pnpm nx test dev-rxdb-supabase`。
-- AC#3、#6、#7：`apps/dev-rxdb-supabase-e2e/src/catalog-sync.spec.ts`、`catalog-local-writes.spec.ts`（AC#6 用 375px 视口）；按 README 起栈后 `pnpm nx run dev-rxdb-supabase-e2e:e2e-remote`。
+- AC#1、#2、#6：`apps/dev-rxdb-supabase-e2e/src/catalog-sync.spec.ts` 的「US-232 模拟服务端变更不在主界面」（宽屏 1440、窄屏 375）；`catalog/catalog.page.spec.ts`。
+- AC#3、#5：`catalog-sync.spec.ts` 的分区同步用例（成员开着面板拉取，面板仍开着；访客打开面板只有说明）。
+- AC#4：`side-panel.spec.ts`「Esc 关面板，焦点回到开关；面板里的对话框先处理自己的 Esc」。
+- AC#7：`catalog-sync.spec.ts`、`catalog-local-writes.spec.ts` 用到服务端模拟器的步骤先经 `openSidePanel(page, 'server')` 打开面板。
 
 ## 技术笔记
 
-- 为什么不用模态弹框：服务端模拟器的用法是「改远端 → 拉取 → 看本机怎么变」。模态会盖住本机列表，还得先关掉才能点拉取，正好丢掉原两栏布局想保住的那一步（改完不用翻找）。宽屏非模态抽屉保住这一步，同时把主界面让给本机数据；窄屏放不下两栏，才退成带遮罩的模态。
-- 宽屏不能用 `<dialog>.showModal()`：它让抽屉以外的页面变成惰性，点不了拉取。宽屏用 `show()` 或普通的侧栏元素（`role="complementary"` 加标题），窄屏遮罩态再用 `showModal()` 拿到浏览器的焦点约束与 Esc。
-- 抽屉内容的注入：`CatalogRemoteState`、`CatalogLocalWrites` 是 `CatalogPage` 的页面级 providers。抽屉由商品页自己渲染时天然拿得到；改由应用壳的右侧面板槽渲染时用 `TemplatePortal`，它的注入器跟着模板的声明处走，同样拿得到。先落地时选前者即可，面板壳组件两种用法都要支持。
-- e2e 加一个 `openServerDrawer(page)` 辅助，在原有用到服务端模拟器的步骤之前调用；`server-item`、「加入星河零售」「退出星河零售」这些锚点不变。
+- 为什么不用模态弹框：服务端模拟器的用法是「改远端 → 拉取 → 看本机怎么变」。模态会盖住本机列表，还得先关掉才能点拉取，正好丢掉原两栏布局想保住的那一步（改完不用翻找）。宽屏非模态抽屉保住这一步，同时把主界面让给本机数据；窄屏放不下两栏，才退成带遮罩的抽屉。
+- 宽屏是普通的侧栏元素（`role="complementary"` 加标题），不用 `<dialog>.showModal()`：它让抽屉以外的页面变成惰性，点不了拉取。窄屏是 `role="dialog"`、`aria-modal="true"` 的抽屉，宽度留出左边一条遮罩（`w-[calc(100%-3rem)]`）：占满整屏宽会把遮罩全盖住，没处可点。Esc 由面板槽处理，面板里的 `<dialog>` 先处理自己的 Esc。
+- 抽屉内容的注入：`CatalogRemoteState`、`CatalogLocalWrites` 是 `CatalogPage` 的页面级 providers。面板由应用壳的右侧面板槽渲染，商品页把内容写在 `<ng-template cdkPortal>` 里、经 `RightPanel.provide('server', …)` 交过去，`TemplatePortal` 的注入器跟着模板的声明处走，页面级服务照样拿得到；离开商品页时撤回，开着就一并关上。
+- e2e 的辅助是 `support/workbench.ts` 的 `openSidePanel(page, 'server')`，在原有用到服务端模拟器的步骤之前调用；`server-item`、「加入星河零售」「退出星河零售」这些锚点不变。
 
 ## 实现文件
 

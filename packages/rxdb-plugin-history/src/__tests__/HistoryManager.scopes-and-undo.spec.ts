@@ -920,9 +920,51 @@ describe('历史流、作用域与撤销重做执行', () => {
       harness.historyManager.incrementPullableCount(2);
       const token = harness.historyManager.beginPullableSettlement();
 
-      harness.historyManager.reconcilePullableCount(token, 5);
+      expect(harness.historyManager.reconcilePullableCount(token, 5)).toBe(true);
 
       await expect(firstValueFrom(harness.historyManager.pullableCount$)).resolves.toBe(5);
+    });
+
+    // US-233：登录后立刻拉取，启动时的重算还在逐个仓库数，拉取先结算成 0；重算按拉取之前的游标数出的数不能再盖上去
+    it('a pull that settles while the watermark refresh is still counting supersedes it', async () => {
+      const harness = createHarness();
+      harness.historyManager.incrementPullableCount(5);
+      const refresh = harness.historyManager.beginPullableSettlement();
+      const pull = harness.historyManager.beginPullableSettlement();
+      harness.historyManager.settlePullableCount(pull, { complete: true, pulled: 5 });
+
+      expect(harness.historyManager.reconcilePullableCount(refresh, 1)).toBe(false);
+      await expect(firstValueFrom(harness.historyManager.pullableCount$)).resolves.toBe(0);
+    });
+
+    it('a session reset supersedes a watermark refresh that started before it', async () => {
+      const harness = createHarness();
+      const refresh = harness.historyManager.beginPullableSettlement();
+      harness.historyManager.resetPullableCount();
+
+      expect(harness.historyManager.reconcilePullableCount(refresh, 3)).toBe(false);
+      await expect(firstValueFrom(harness.historyManager.pullableCount$)).resolves.toBe(0);
+    });
+
+    it('a refresh that starts after the pull settled is applied as usual', async () => {
+      const harness = createHarness();
+      const pull = harness.historyManager.beginPullableSettlement();
+      harness.historyManager.settlePullableCount(pull, { complete: true, pulled: 0 });
+      const refresh = harness.historyManager.beginPullableSettlement();
+
+      expect(harness.historyManager.reconcilePullableCount(refresh, 2)).toBe(true);
+      await expect(firstValueFrom(harness.historyManager.pullableCount$)).resolves.toBe(2);
+    });
+
+    it('two overlapping complete pulls still settle to zero', async () => {
+      const harness = createHarness();
+      harness.historyManager.incrementPullableCount(4);
+      const first = harness.historyManager.beginPullableSettlement();
+      const second = harness.historyManager.beginPullableSettlement();
+      harness.historyManager.settlePullableCount(first, { complete: true, pulled: 4 });
+      harness.historyManager.settlePullableCount(second, { complete: true, pulled: 4 });
+
+      await expect(firstValueFrom(harness.historyManager.pullableCount$)).resolves.toBe(0);
     });
 
     it('does not overwrite realtime events that arrive during watermark refresh', async () => {
@@ -931,7 +973,7 @@ describe('历史流、作用域与撤销重做执行', () => {
       const token = harness.historyManager.beginPullableSettlement();
       harness.historyManager.incrementPullableCount(4);
 
-      harness.historyManager.reconcilePullableCount(token, 5);
+      expect(harness.historyManager.reconcilePullableCount(token, 5)).toBe(true);
 
       await expect(firstValueFrom(harness.historyManager.pullableCount$)).resolves.toBe(6);
     });

@@ -6,7 +6,18 @@
  * User Story 2: 按需同步
  */
 
-import { getEntityMetadata, getSyncType, needsPull, type RepositoryIdentifier, type RxDB, RxDBSync } from '@aiao/rxdb';
+import {
+  type EntityMetadata,
+  getEntityMetadata,
+  getSyncType,
+  type IRepository,
+  needsPull,
+  needsPush,
+  type RepositoryIdentifier,
+  type RxDB,
+  RxDBChange,
+  RxDBSync
+} from '@aiao/rxdb';
 import { getAncestorBranchIds } from './branch-utils.js';
 import { resolveConfiguredFilter } from './pull-repository.js';
 import { assertRemoteBackend } from './remote-backend.js';
@@ -149,6 +160,24 @@ export async function checkRepositoryUpdates(
     const buckets = [...new Set(await getCallerBuckets())];
     // 水位与拉取同口径：拉取只拉当前分支及其祖先，别的分支写进同一个 bucket 不算待拉
     const ancestorBranchIds = await getAncestorBranchIds(sm, branchId);
+    // 本库推上去的远端 id 在问远端之前读：之后才落库的那几条只会让这一次多数，不会数成负的
+    const cursors = progresses.map(item => item.cursor);
+    const ownIds = await ownRemoteIdsAfter(
+      rxdb,
+      metadata,
+      localAdapter.getRepository(RxDBChange),
+      repository,
+      ancestorBranchIds,
+      cursors.length > 0 ? Math.min(...cursors) : 0
+    );
+    const countOthers = async (bucket: string, cursor: number): Promise<number> => {
+      const total = await getBucketChangeCount(namespace, entity, bucket, cursor, ancestorBranchIds);
+      let own = 0;
+      for (const batch of batchesOf(ownIds.filter(id => id > cursor))) {
+        own += await getBucketChangeCount(namespace, entity, bucket, cursor, ancestorBranchIds, batch);
+      }
+      return total - own;
+    };
     // 进度按同步规则指纹分开记：规则改过、旧指纹的进度还没清（某个区拉失败时会留下）时，只看 pull() 会用的那一份
     const fingerprint = filterFingerprint(
       resolveConfiguredFilter(rxdb, metadata, getSyncType(metadata, rxdb.entitySync))
@@ -168,11 +197,7 @@ export async function checkRepositoryUpdates(
       latestChangeId = Math.max(latestChangeId, remotePoint);
       if (progress) localCursor = Math.max(localCursor ?? 0, progress.cursor);
       const pending = await bucketPendingCount(progress, remotePoint, cursor =>
-        unlessBucketRevoked(
-          () => getBucketChangeCount(namespace, entity, bucket, cursor, ancestorBranchIds),
-          getCallerBuckets,
-          bucket
-        )
+        unlessBucketRevoked(() => countOthers(bucket, cursor), getCallerBuckets, bucket)
       );
       pendingCount += pending ?? 0;
     }
@@ -192,13 +217,24 @@ export async function checkRepositoryUpdates(
   // 于是 `hasUpdates` 报 false、界面显示「已全部同步」，而 pull 其实还有东西要拉。
   // 此前只传裸实体名，同名实体跨 namespace 存在时会解析歧义
   const branchIds = await getAncestorBranchIds(sm, branchId);
+  // 本库推上去的远端 id 在问远端之前读：之后才落库的那几条只会让这一次多数，不会数成负的
+  const ownIds = await ownRemoteIdsAfter(
+    rxdb,
+    metadata,
+    localAdapter.getRepository(RxDBChange),
+    repository,
+    branchIds,
+    sinceId
+  );
   const perBranch = await Promise.all(
     branchIds.map(ancestorBranchId =>
       remoteAdapter.getChangeCount(sinceId, [`${namespace}:${metadata.name}`], ancestorBranchId)
     )
   );
-  // 条数跨分支相加；`latestChangeId` 是同一个远端序列上的最大值，取 max 而非相加
-  const count = perBranch.reduce((sum, item) => sum + item.count, 0);
+  // 条数跨分支相加；`latestChangeId` 是同一个远端序列上的最大值，取 max 而非相加。
+  // 本库推上去的每个远端 id 都在游标之后的日志里，减掉它们就是别人的修改；
+  // 只有远端日志删掉了本库推上去的行才会减成负数，那几条也不再待拉，按 0 算
+  const count = Math.max(0, perBranch.reduce((sum, item) => sum + item.count, 0) - ownIds.length);
   const latestChangeId = perBranch.reduce((max, item) => (item.latestChangeId > max ? item.latestChangeId : max), 0);
   // 4. 构造返回结果
   return {
@@ -210,12 +246,64 @@ export async function checkRepositoryUpdates(
   };
 }
 
+/** 按 id 问远端时每批最多带多少个：id 列表写在请求地址里，太长会被网关拒掉 */
+const OWN_ID_BATCH_SIZE = 100;
+
+/**
+ * 本库推上去、远端日志里游标之后的那些变更的远端 id（US-233）
+ *
+ * @param rxdb - RxDB 实例
+ * @param metadata - 实体元数据：不往远端推的仓库（只拉的远端实体）本地没有推上去的变更，不去扫变更表
+ * @param changeRepository - 本地变更表
+ * @param repository - 哪个实体
+ * @param branchIds - 计数覆盖的分支（当前分支及其祖先）
+ * @param afterId - 游标：只要比它大的
+ * @returns 去重、升序的远端 id
+ *
+ * @remarks
+ * 认「自己推的」不能靠 `clientId`：它是每个 RxDB 实例启动时新生成的，刷新页面之后上一次会话推上去的修改
+ * 就带着另一个 `clientId`，会被数成别人的。推送回执给每条本地变更写下的 `remoteId` 跟着库走，刷新也还在。
+ * 压缩推送会把几条本地变更记成同一个远端 id，所以去重。
+ */
+async function ownRemoteIdsAfter(
+  rxdb: RxDB,
+  metadata: EntityMetadata,
+  changeRepository: IRepository<typeof RxDBChange>,
+  repository: RepositoryIdentifier,
+  branchIds: readonly string[],
+  afterId: number
+): Promise<number[]> {
+  if (!needsPush(metadata, rxdb.entitySync)) return [];
+  const changes = await changeRepository.find({
+    where: {
+      combinator: 'and',
+      rules: [
+        { field: 'namespace', operator: '=', value: repository.namespace },
+        { field: 'entity', operator: '=', value: repository.entity },
+        { field: 'branchId', operator: 'in', value: [...branchIds] },
+        { field: 'remoteId', operator: '>', value: afterId }
+      ]
+    }
+  });
+  const ids = new Set(changes.flatMap(change => (typeof change.remoteId === 'number' ? [change.remoteId] : [])));
+  return [...ids].sort((a, b) => a - b);
+}
+
+/** 把 id 切成每批不超过 {@link OWN_ID_BATCH_SIZE} 个 */
+function batchesOf(ids: readonly number[]): number[][] {
+  const batches: number[][] = [];
+  for (let start = 0; start < ids.length; start += OWN_ID_BATCH_SIZE) {
+    batches.push(ids.slice(start, start + OWN_ID_BATCH_SIZE));
+  }
+  return batches;
+}
+
 /**
  * 一个区的待拉条数（US-233）
  *
  * @param progress - 这个区按当前规则的拉取进度；没有则为 `undefined`
  * @param remotePoint - 这个区此刻的快照点
- * @param countAfterCursor - 数游标之后、不是本客户端推的变更；分区已被撤销时为 `undefined`
+ * @param countAfterCursor - 数游标之后、不是本库推的变更；分区已被撤销时为 `undefined`
  * @returns 快照没拉完算 1（下一次拉取要补快照）；游标追上快照点为 0；否则是游标之后的真实条数
  *
  * @remarks

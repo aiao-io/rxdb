@@ -328,6 +328,17 @@ if (isRemoteE2E) {
       await expect(orderRow(alice, undoOrder).getByTestId('order-item')).toHaveCount(1);
       await expect(itemCategories(alice, undoItem)).toContainText(undoCategory);
       await expect(workbenchError).toHaveCount(0);
+
+      // US-318 AC#5：再删一次并推送，Bob 拉取：客户、订单、订单项与分类关联都不在了（证件随客户级联），分类还在
+      await customerRow(alice, undoCustomer).getByRole('button', { name: '删除客户' }).click();
+      await expect(orderRow(alice, undoOrder)).toHaveCount(0);
+      await push(alice);
+      await expectNoRejections(alice);
+      await pull(bob);
+      await expect(customerRow(bob, undoCustomer)).toHaveCount(0);
+      await expect(orderRow(bob, undoOrder)).toHaveCount(0);
+      await expect(bob.getByTestId('order-item').filter({ hasText: undoItem })).toHaveCount(0);
+      await expect(categoryRow(bob, undoCategory)).toBeVisible();
     });
 
     test('AC#5 访客：客户、订单与订单项只存本机，不算待推送；整机拉取不动它们，不发推送请求', async ({ browser }) => {

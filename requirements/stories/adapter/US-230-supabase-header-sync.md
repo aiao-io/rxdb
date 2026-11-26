@@ -1,11 +1,11 @@
 ---
 id: US-230
 title: dev-rxdb-supabase 顶栏统一推送与拉取：页面登记要哪些按钮，待拉数准确，推之前看得见会推什么
-status: Backlog
+status: In Review
 priority: Medium
 epic: epic-016-local-change-workbench
 created: 2026-11-26
-updated: 2026-11-26
+updated: 2026-11-27
 tags: [adapter, supabase, sync, demo, ux, e2e]
 ---
 
@@ -27,31 +27,16 @@ INVEST 检查清单:
 **我想要** 推送、拉取只在顶栏出现一次，数字准确，并能打开一个同步中心看清待推待拉的都是哪些实体、这次会推哪些修改、每条改了什么
 **以便** 换一页不用重新找同步按钮，也不会以为某一页的「推送」只推这一页、某一页的「拉取」只拉这一页
 
-## 现状
+## 背景
 
-1. 三页各放一组同步控件，形状各不相同：
-   - [`TodoPage`](../../../apps/dev-rxdb-supabase/src/app/todo/todo.page.ts) 的拉取、推送直接调不带过滤的 `syncManager.pull()` / `push()`；按钮只有图标，读屏名是英文（`aria-label="Pull"`、`aria-label="Push"`），数字大于 0 时才贴在按钮上。
-   - 商品的「同步」[`CatalogSyncedPanel.sync()`](../../../apps/dev-rxdb-supabase/src/app/catalog/catalog-synced-panel.ts) 只拉商品一个仓库：
+三页原先各放一组同步控件，形状各不相同：Todo 页的拉取、推送是整机的；商品页的「同步」只拉商品一个仓库，「推送」却是整机的；
+订单页单独一张同步卡片，「待拉 N」「待推 N」常显在按钮外面。推送与拉取都作用于整个本地库，范围只靠文案解释——dev 栈上在订单页、
+商品页各新建一条，到 Todo 页点「推送」，两条一起推上去。被拒清单三页各挂一份，结果反馈三种写法，待推数只有数字、没有清单。
 
-     ```ts
-     const result = await this.#rxdb.syncManager.pullRepository('public', 'CatalogItem', { fetchAll: true });
-     ```
-
-     推送 [`CatalogLocalWrites.push()`](../../../apps/dev-rxdb-supabase/src/app/catalog/catalog-local-writes.ts) 却是整机的 `syncManager.push()`。
-
-   - [`OrdersPage`](../../../apps/dev-rxdb-supabase/src/app/orders/orders.page.ts) 单独一张「同步」卡片，「待拉 N」「待推 N」常显在按钮外面。
-2. 推送与拉取都是整机的，范围只靠文案解释。订单页的同步卡片里写着：
-
-   ```html
-   推送、拉取的是本机全部的修改（包括 Todo 页的），数字与它的范围一致。
-   ```
-
-   dev 栈实测（Alice）：订单页新建一位客户、商品页新建一件商品，都不推送；Todo 页「推送」上显示 2，点它，两条一起推上去，远端 `rxdb_change` 记下 `CatalogItem` 与 `DemoCustomer` 各一条 INSERT。商品页「推送」上的数字同样是整机的。
-
-3. 数字不准：接着刷新页面，Todo 页拉取徽标从 0 变成 75，点了拉取 Todo 一条没变、徽标归 0。75 里 74 是商品按变更号之差算出来的（实际只有 1 条，就是自己刚推的那件），1 是自己刚推的客户。根因与复验见 [US-233](US-233-supabase-pullable-count-accuracy.md)。
-4. 被拒清单 [`SyncRejectionsPanel`](../../../apps/dev-rxdb-supabase/src/app/sync-rejections-panel.ts) 三页各挂一份（Todo 只在能同步时挂），自带 Todo 页的边距 `class="mx-auto mb-3 max-w-4xl px-4"`，嵌进商品卡片里也是这套边距。
-5. 结果反馈三种写法：Todo 只在失败时显示 `$syncError`，成功什么也不说；商品写「第 N 次同步完成：拉取 X 条变更，落库 Y 条。」；订单写「推送完成：推上去 N 条」。
-6. 待推数只有数字。口径的唯一实现是 [`updatePushableCount`](../../../packages/rxdb-plugin-history/src/undo-redo-apply.ts)（当前分支上没撤销、没推上去的变更，再按仓库的推送资格与水位线裁剪，一个事务算一条），没有对应的清单；应用自己拼查询会与待推数对不上，清单由 [US-317](../collaboration/US-317-pushable-histories.md) 补。
+推上去至少一条时，[`HistoryManager`](../../../packages/rxdb-plugin-history/src/HistoryManager.ts) 的 `captureUndoHistory(branchId)`
+把**整条分支**的撤销会话置为 `cleared`，不是只清推了的实体，所以推拉不按页拆，统一放进顶栏。待拉数不准（推完一刷新，徽标冒出一个
+拉了也没变化的大数）的根因与修法见 [US-233](US-233-supabase-pullable-count-accuracy.md)；待推送清单的口径见
+[US-317](../collaboration/US-317-pushable-histories.md)。
 
 ## 入口设计：页面登记，顶栏渲染
 
@@ -64,9 +49,9 @@ INVEST 检查清单:
 
 | 阶段 | 内容                                                                                                                         | 前置                                                                                                                             | 状态 |
 | ---- | ---------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| A    | 页面登记服务与顶栏同步组；同步中心的状态、最近一次结果、被拒清单与按实体分列的待推待拉；三页移除各自的推拉控件；e2e 改走顶栏 | 无                                                                                                                               | ⬜   |
-| B    | 待拉数准确：推送后刷新不把自己推的算进去，按区同步的实体按真实条数                                                           | [US-233](US-233-supabase-pullable-count-accuracy.md)                                                                             | ⬜   |
-| C    | 同步中心的「待推送」清单与字段级改前改后；操作历史里还在待推送集合中的条目带 ↑ 标记                                          | [US-317](../collaboration/US-317-pushable-histories.md)；[US-231](US-231-supabase-unified-undo-history.md) 阶段 A 的操作历史面板 | ⬜   |
+| A    | 页面登记服务与顶栏同步组；同步中心的状态、最近一次结果、被拒清单与按实体分列的待推待拉；三页移除各自的推拉控件；e2e 改走顶栏 | 无                                                                                                                               | ✅   |
+| B    | 待拉数准确：推送后刷新不把自己推的算进去，按区同步的实体按真实条数                                                           | [US-233](US-233-supabase-pullable-count-accuracy.md)                                                                             | ✅   |
+| C    | 同步中心的「待推送」清单与字段级改前改后；操作历史里还在待推送集合中的条目带 ↑ 标记                                          | [US-317](../collaboration/US-317-pushable-histories.md)；[US-231](US-231-supabase-unified-undo-history.md) 阶段 A 的操作历史面板 | ✅   |
 
 三个阶段都是当前承诺；前置落地之前，本故事不关闭。
 
@@ -102,46 +87,56 @@ INVEST 检查清单:
 
 | #   | 前置条件                                                 | 操作                            | 预期结果                                                                                                                         | 状态 |
 | --- | -------------------------------------------------------- | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 远端模式，Alice                                          | 依次打开 Todo、商品、订单、首页 | Todo、商品、订单三页顶栏有「拉取」「推送」与同步中心开关，完全相同；首页没有；页面内容区没有拉取、推送、同步按钮与「被拒的推送」 | ⬜   |
-| 2   | Alice 在 Todo 页新建一条 Todo，在订单页新建一位客户      | 在商品页点顶栏「推送」          | 推送前 ↑ 是 2，推送后数字消失；另一个浏览器的 Bob 拉取后，Todo 页与订单页都能看到这两条                                          | ⬜   |
-| 3   | 访客，同步规则只关注数码                                 | 点顶栏「拉取」                  | 与原「同步」同效：关注分类的公开商品落进本机，未关注的不进；没有权限错误                                                         | ⬜   |
-| 4   | 访客关注了「家居」；Alice 在模拟服务端把一件公开商品收回 | 访客点「拉取」                  | 新匹配的行补快照，收回的那件从本机消失（US-033 原有的分区同步 e2e 改走顶栏后照样通过）                                           | ⬜   |
-| 5   | 本地模式（没有 Supabase 配置）                           | 打开 Todo 页                    | 顶栏没有同步组，页面里也没有残留的推拉按钮                                                                                       | ⬜   |
-| 6   | Alice 本机没有待推送的修改                               | 看「推送」                      | 不可点，悬停与读屏都能读到「没有待推送的修改」                                                                                   | ⬜   |
-| 7   | 任一已连接的身份                                         | 点「拉取」或「推送」            | 进行中两颗按钮都不可点并显示进度；结束后 `data-sync-round` 加 1，结果行写明条数；失败时写出失败的仓库与原因                      | ⬜   |
-| 8   | Bob 已在远端删了一条 Todo，Alice 本机改了它              | Alice 推送                      | 结果行写「被拒 1 条」，同步中心开关上出现标记；打开同步中心看到这条被拒：实体、操作、原因「已被删除」与代码                      | ⬜   |
-| 9   | Bob 删了一位客户并推送；Alice 没拉取就给他新建订单并推送 | 看订单页                        | 订单页仍指出「它的客户「X」已不在远端」（`orders-dependency-notices`），被拒的订单列在同步中心                                   | ⬜   |
-| 10  | 另一个标签页换了身份                                     | 本页点「拉取」                  | 被身份守卫拦下，结果行写明身份不匹配并给「重新加载」，本地数据不动                                                               | ⬜   |
-| 11  | Alice 在订单页新建一位客户、在商品页改了一件商品，未推送 | 在 Todo 页打开同步中心          | 按实体列出待推：客户与商品各一条，Todo 没有；读的人一眼看出推送会带上别的页的修改                                                | ⬜   |
-| 12  | 375px 宽的窄屏                                           | 打开三页，再打开同步中心        | 顶栏同步组只剩图标与数字，页面不出现横向滚动；同步中心是带遮罩的整屏抽屉，Esc 与点遮罩都能关，关掉后焦点回到开关                 | ⬜   |
-| 13  | 按 README 起好本地栈                                     | 跑远端 e2e                      | remote-sync、catalog-sync、catalog-local-writes、orders-sync 的场景一条不少，推拉全部经顶栏的锚点                                | ⬜   |
+| 1   | 远端模式，Alice                                          | 依次打开 Todo、商品、订单、首页 | Todo、商品、订单三页顶栏有「拉取」「推送」与同步中心开关，完全相同；首页没有；页面内容区没有拉取、推送、同步按钮与「被拒的推送」 | ✅   |
+| 2   | Alice 在 Todo 页新建一条 Todo，在订单页新建一位客户      | 在商品页点顶栏「推送」          | 推送前 ↑ 是 2，推送后数字消失；另一个浏览器的 Bob 拉取后，Todo 页与订单页都能看到这两条                                          | ✅   |
+| 3   | 访客，同步规则只关注数码                                 | 点顶栏「拉取」                  | 与原「同步」同效：关注分类的公开商品落进本机，未关注的不进；没有权限错误                                                         | ✅   |
+| 4   | 访客关注了「家居」；Alice 在模拟服务端把一件公开商品收回 | 访客点「拉取」                  | 新匹配的行补快照，收回的那件从本机消失（US-033 原有的分区同步 e2e 改走顶栏后照样通过）                                           | ✅   |
+| 5   | 本地模式（没有 Supabase 配置）                           | 打开 Todo 页                    | 顶栏没有同步组，页面里也没有残留的推拉按钮                                                                                       | ✅   |
+| 6   | Alice 本机没有待推送的修改                               | 看「推送」                      | 不可点，悬停与读屏都能读到「没有待推送的修改」                                                                                   | ✅   |
+| 7   | 任一已连接的身份                                         | 点「拉取」或「推送」            | 进行中两颗按钮都不可点并显示进度；结束后 `data-sync-round` 加 1，结果行写明条数；失败时写出失败的仓库与原因                      | ✅   |
+| 8   | Bob 已在远端删了一条 Todo，Alice 本机改了它              | Alice 推送                      | 结果行写「被拒 1 条」，同步中心开关上出现标记；打开同步中心看到这条被拒：实体、操作、原因「已被删除」与代码                      | ✅   |
+| 9   | Bob 删了一位客户并推送；Alice 没拉取就给他新建订单并推送 | 看订单页                        | 订单页仍指出「它的客户「X」已不在远端」（`orders-dependency-notices`），被拒的订单列在同步中心                                   | ✅   |
+| 10  | 另一个标签页换了身份                                     | 本页点「拉取」                  | 被身份守卫拦下，结果行写明身份不匹配并给「重新加载」，本地数据不动                                                               | ✅   |
+| 11  | Alice 在订单页新建一位客户、在商品页改了一件商品，未推送 | 在 Todo 页打开同步中心          | 按实体列出待推：客户与商品各一条，Todo 没有；读的人一眼看出推送会带上别的页的修改                                                | ✅   |
+| 12  | 375px 宽的窄屏                                           | 打开三页，再打开同步中心        | 顶栏同步组只剩图标与数字，页面不出现横向滚动；同步中心是盖住页面的抽屉，左边留一条遮罩；Esc 与点遮罩都能关，关掉后焦点回到开关   | ✅   |
+| 13  | 按 README 起好本地栈                                     | 跑远端 e2e                      | remote-sync、catalog-sync、catalog-local-writes、orders-sync 的场景一条不少，推拉全部经顶栏的锚点                                | ✅   |
 
 ### 阶段 B
 
 | #   | 前置条件                                             | 操作                       | 预期结果                                                  | 状态 |
 | --- | ---------------------------------------------------- | -------------------------- | --------------------------------------------------------- | ---- |
-| 14  | Alice 在订单页、商品页各新建一条并推送；没有别人在写 | 刷新页面                   | 顶栏 ↓ 为 0，同步中心没有待拉的实体                       | ⬜   |
-| 15  | Bob 在 Alice 所在的租户区里改了一件商品              | Alice 刷新页面，再拉取     | 刷新后 ↓ 为 1、同步中心写商品 1；拉取后归 0，改动落进本机 | ⬜   |
-| 16  | Bob 推送了一条 Todo                                  | Alice 不刷新与刷新各看一次 | 两次都是 ↓1                                               | ⬜   |
+| 14  | Alice 在订单页、商品页各新建一条并推送；没有别人在写 | 刷新页面                   | 顶栏 ↓ 为 0，同步中心没有待拉的实体                       | ✅   |
+| 15  | Bob 在 Alice 所在的租户区里改了一件商品              | Alice 刷新页面，再拉取     | 刷新后 ↓ 为 1、同步中心写商品 1；拉取后归 0，改动落进本机 | ✅   |
+| 16  | Bob 推送了一条 Todo                                  | Alice 不刷新与刷新各看一次 | 两次都是 ↓1                                               | ✅   |
 
 ### 阶段 C
 
 | #   | 前置条件                                | 操作                   | 预期结果                                                     | 状态 |
 | --- | --------------------------------------- | ---------------------- | ------------------------------------------------------------ | ---- |
-| 17  | Alice 在 Todo、商品、订单三页各改了一些 | 打开同步中心「待推送」 | 按页面分组、一个事务一行；同一时刻的行数之和等于顶栏 ↑N      | ⬜   |
-| 18  | 清单里有一条修改、一条新建、一条删除    | 逐条展开               | 修改逐字段显示改之前与改之后；新建只有改之后；删除只有改之前 | ⬜   |
-| 19  | 访客在本机建了几条 Todo（只存本机）     | 打开「待推送」         | 一条都不出现，与访客的 ↑N 为 0 一致                          | ⬜   |
-| 20  | Alice 有三条待推送                      | 撤销一条，再推送       | 撤销掉的那条先离开清单；推送成功后清单清空，与 ↑N 同时归零   | ⬜   |
-| 21  | 操作历史面板开着（US-231 阶段 A）       | 写入一条，再推送       | 写入后这条带 ↑ 标记；推送成功后标记消失                      | ⬜   |
+| 17  | Alice 在 Todo、商品、订单三页各改了一些 | 打开同步中心「待推送」 | 按页面分组、一个事务一行；同一时刻的行数之和等于顶栏 ↑N      | ✅   |
+| 18  | 清单里有一条修改、一条新建、一条删除    | 逐条展开               | 修改逐字段显示改之前与改之后；新建只有改之后；删除只有改之前 | ✅   |
+| 19  | 访客在本机建了几条 Todo（只存本机）     | 打开「待推送」         | 一条都不出现，与访客的 ↑N 为 0 一致                          | ✅   |
+| 20  | Alice 有三条待推送                      | 撤销一条，再推送       | 撤销掉的那条先离开清单；推送成功后清单清空，与 ↑N 同时归零   | ✅   |
+| 21  | 操作历史面板开着（US-231 阶段 A）       | 写入一条，再推送       | 写入后这条带 ↑ 标记；推送成功后标记消失                      | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-验收证据（实现时补齐，验证层级与 AC 一致）：
+验收证据（单测：`pnpm nx test dev-rxdb-supabase`；远端 e2e：按 README 起栈后 `pnpm nx run dev-rxdb-supabase-e2e:e2e-remote`，两轮见 e2e 的 README）：
 
-- AC#1、#5～#7、#11、#12：`apps/dev-rxdb-supabase/src/app/page-workbench.spec.ts`（新：登记、注销、按登记渲染）、`app-header.spec.ts`（同步组）、`sync-center.spec.ts`（新）；`pnpm nx test dev-rxdb-supabase`。AC#12 的窄屏另在远端 e2e 里以 375px 视口断言没有横向滚动。
-- AC#2～#4、#8～#10、#13：`apps/dev-rxdb-supabase-e2e/src/` 下 `remote-sync.spec.ts`、`catalog-sync.spec.ts`、`catalog-local-writes.spec.ts`、`orders-sync.spec.ts`；按 README 起栈后 `pnpm nx run dev-rxdb-supabase-e2e:e2e-remote`。
-- AC#14～#16：`remote-sync.spec.ts`、`catalog-sync.spec.ts` 新增的两个浏览器上下文用例，同上起栈复验。
-- AC#17～#21：`sync-center.spec.ts` 的清单用例（替身 `pushableHistories$`）+ `remote-sync.spec.ts` 新增「清单行数等于 ↑N」的真栈用例。
+- AC#1、#6：`apps/dev-rxdb-supabase-e2e/src/workbench.spec.ts` 的「三页的顶栏一样」；`apps/dev-rxdb-supabase/src/app/app-header.spec.ts`、`page-workbench.spec.ts`。
+- AC#2、#17、#20、#21：`workbench.spec.ts` 的「在商品页推送，Todo 与订单页没推的修改一起推上去」；清单分组与改前改后另由 `sync-center.spec.ts`、`operation-history-panel.spec.ts` 覆盖。
+- AC#3、#4：`apps/dev-rxdb-supabase-e2e/src/catalog-sync.spec.ts` 的分区同步用例（拉取经顶栏）。
+- AC#5：`apps/dev-rxdb-supabase-e2e/src/home.spec.ts` 的本地模式用例（`pnpm nx run dev-rxdb-supabase-e2e:e2e`）；`app-header.spec.ts`。
+- AC#7：`sync-commands.spec.ts`（进行中两颗都不可点、轮次与结果）、`sync-outcome.spec.ts`（条数与失败仓库）；e2e 全部经 `support/workbench.ts` 按 `data-sync-round` 等一轮结束。
+- AC#8：`apps/dev-rxdb-supabase-e2e/src/remote-sync.spec.ts` 的 gone 被拒用例。
+- AC#9：`apps/dev-rxdb-supabase-e2e/src/orders-sync.spec.ts` 的「AC#1～#4」用例。
+- AC#10：`remote-sync.spec.ts` 的「another tab switched identity」用例；`sync-commands.spec.ts`、`workbench-status.spec.ts`。
+- AC#11：`workbench.spec.ts` 的「撤销只撤本页……同步中心按实体列出待推」。
+- AC#12：`workbench.spec.ts` 的 375px 用例；`side-panel.spec.ts`。
+- AC#13：`e2e-remote` 全部通过。
+- AC#14～#16：`apps/dev-rxdb-supabase-e2e/src/sync-counts.spec.ts`（第二轮单独串行跑）；计数口径的单测见 US-233。
+- AC#18：`field-diff.spec.ts`（新建只有改之后、删除只有改之前、修改取并集）、`sync-center.spec.ts`。
+- AC#19：`orders-sync.spec.ts` 的访客用例（访客的 Todo 与订单同为只存本机的实体，见 `demo-sync-overrides.ts` 的 `VISITOR_LOCAL_ONLY_ENTITIES`）。
 
 ## 技术笔记
 
@@ -154,7 +149,11 @@ INVEST 检查清单:
 - 按实体分列用 `syncManager.getAllRepositorySyncStatus({ hasPendingChanges: true })`，在 ↑ / ↓ 变化与每轮推拉结束时重算。它按仓库各数各的：跨实体的事务（如带证件新建客户）在每个实体下各算一条，合计可能大于 ↑N——同步中心写明这一点，阶段 C 的清单才是按事务的准数。
 - 页面写入不再因推送而禁用：`CatalogLocalWrites.$busy` 原先把推送也算进去；推送在飞时的撤销由在飞认领（`buildLastPushedMap`）兜住，不需要锁写入口。
 - 阶段 C 的清单只消费 US-317 的流。字段级改前改后的取值规则与 working-tree 页的 [`buildFieldDiff`](../../../apps/dev-rxdb-angular/src/app/pages/working-tree/working-tree.diff-format.ts) 同口径：新建只有新值、删除只有旧值、修改取两侧字段的并集。应用之间不能互相 import，在 supabase 应用里按同一规则写一份纯函数并单测，US-231 的操作历史面板共用它。
-- e2e 锚点：`sync-pull`、`sync-push`、`sync-pullable-count`、`sync-pushable-count`、`sync-result`、`sync-center-toggle`、`sync-center`；被拒清单沿用 `sync-rejections-panel`，挪进同步中心。读屏名改成中文「拉取」「推送」，`remote-sync.spec.ts` 里按 `Pull` / `Push` 找按钮的写法随之改。
+- e2e 锚点：`sync-pull`、`sync-push`、`sync-pullable-count`、`sync-pushable-count`、`sync-result`、`sync-center-toggle`、`sync-center`、`workbench-sync-group`（`data-sync-round`）、`side-panel`（`data-view`）；被拒清单沿用 `sync-rejections-panel`，挪进同步中心。读屏名是中文「拉取」「推送」。
+- 不能点的按钮用 `aria-disabled` 而不是 `disabled`，原因写在 `title` 里：悬停与读屏都读得到，Playwright 的 `toBeDisabled()` 也认 `aria-disabled`。
+- 身份守卫拦下时，结果行不转述守卫的英文报错，写「身份不匹配……重新加载打开新身份的库」（`sync-commands.ts` 的 `IDENTITY_MISMATCH_REASON`）。
+- 同步中心按实体分列的数字还在查时写「正在查」、查失败时写原因，不先说「没有待推、待拉的实体」。
+- 待拉数的绝对值断言（AC#14～#16）放在 `sync-counts.spec.ts`，`e2e-remote` 的第二轮单独串行跑：↓N 是整机对所有仓库的计数，Todo 与订单又是登录身份共享的，与其它用例并行时数字会被别的写入打乱。
 - 顶栏原先在本地模式下悬浮（`header-floating`，没有身份信息时不占一行）；有了登记的按钮之后，「顶栏有内容就占一行」，只剩菜单按钮时才悬浮。
 
 ## 实现文件
@@ -163,10 +162,15 @@ INVEST 检查清单:
 - `apps/dev-rxdb-supabase/src/app/app-header.ts` — 按登记渲染同步组与同步中心开关
 - `apps/dev-rxdb-supabase/src/app/sync-commands.ts`（新）— 根级推拉命令、进行中、最近一次结果与轮次
 - `apps/dev-rxdb-supabase/src/app/sync-center.ts`（新）— 同步中心视图；阶段 C 加待推送清单
+- `apps/dev-rxdb-supabase/src/app/sync-outcome.ts`（新）— 一轮推拉的说法（条数、被拒、失败仓库）
+- `apps/dev-rxdb-supabase/src/app/workbench-status.ts`（新）— 顶栏下面的结果行与撤销、重做的失败原因
+- `apps/dev-rxdb-supabase/src/app/side-panel.ts`（新）— 右侧面板壳（与 US-231、US-232 共用）
+- `apps/dev-rxdb-supabase/src/app/field-diff.ts`、`change-diff.ts`、`history-describe.ts`、`entity-labels.ts`（新）— 改前改后、历史项的说法与实体的中文叫法（与 US-231 共用）
 - `apps/dev-rxdb-supabase/src/app/sync-rejections-panel.ts` — 挪进同步中心，去掉 Todo 页的边距
 - `apps/dev-rxdb-supabase/src/app/todo/todo.page.ts`、`todo.page.html`、`catalog/catalog-synced-panel.ts`、`catalog/catalog-local-writes.ts`、`orders/orders.page.ts` — 移除页面内的推拉与被拒清单，改为登记
-- `apps/dev-rxdb-supabase-e2e/src/*.spec.ts` — 推拉改走顶栏
-- `apps/dev-rxdb-supabase/README.md` — 演示步骤
+- `apps/dev-rxdb-supabase-e2e/src/support/workbench.ts`（新）、`workbench.spec.ts`（新）、`sync-counts.spec.ts`（新）、其余 `*.spec.ts` — 推拉改走顶栏
+- `apps/dev-rxdb-supabase-e2e/project.json` — `e2e-remote` 分两轮：并行的场景用例，再单独串行跑计数用例
+- `apps/dev-rxdb-supabase/README.md`、`apps/dev-rxdb-supabase-e2e/README.md` — 演示步骤与 e2e 的跑法
 
 ## References
 

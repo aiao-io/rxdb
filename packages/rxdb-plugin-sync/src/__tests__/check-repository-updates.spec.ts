@@ -6,6 +6,7 @@ import {
   type RuleGroup,
   type RxDB,
   RxDBBranch,
+  RxDBChange,
   RxDBSync,
   type SyncOptions,
   SyncType
@@ -80,6 +81,7 @@ const PullEntity = createEntityType('CheckPull', REMOTE_SYNC);
 const LocalEntity = createEntityType('CheckLocal', LOCAL_SYNC);
 const NoneEntity = createEntityType('CheckNone', NONE_SYNC);
 const InheritedEntity = createEntityType('CheckInherited');
+const FullEntity = createEntityType('CheckFull', FULL_SYNC);
 
 function createSyncRecord(entity: string, lastPullRemoteChangeId: number | null): RxDBSync {
   const record = Object.create(RxDBSync.prototype) as RxDBSync;
@@ -120,6 +122,9 @@ interface CheckHarnessOptions {
 
   /** 分支 id → 该分支上的计数结果；给定时按 `branchId` 逐分支应答，未列出的分支直接报错 */
   remoteResultByBranch?: Readonly<Record<string, RemoteCount>>;
+
+  /** 本库推上去、本地记着的远端 id（`RxDBChange.remoteId`），按游标查到的那些 */
+  ownRemoteIds?: readonly number[];
 }
 
 function createCheckHarness(options: CheckHarnessOptions) {
@@ -134,10 +139,12 @@ function createCheckHarness(options: CheckHarnessOptions) {
     return [{ id, parentId: branchParents[id] ?? null } as RxDBBranch];
   });
   const branchRepository = { find: branchFind } as unknown as IRepository<typeof RxDBBranch>;
+  const changeFind = vi.fn(async () => (options.ownRemoteIds ?? []).map(remoteId => ({ remoteId })));
   const localAdapter = {
     getRepository: vi.fn((EntityClass: unknown) => {
       if (EntityClass === RxDBSync) return syncRepository;
       if (EntityClass === RxDBBranch) return branchRepository;
+      if (EntityClass === RxDBChange) return { find: changeFind };
       throw new Error('Unexpected repository request');
     })
   };
@@ -178,6 +185,7 @@ function createCheckHarness(options: CheckHarnessOptions) {
     syncFind,
     syncUpdate,
     reportError,
+    changeFind,
     getChangeCount,
     getCurrentBranch,
     getLocalRepositories,
@@ -335,6 +343,76 @@ describe('checkRepositoryUpdates', () => {
     });
   });
 
+  describe('本库自己推上去的变更（US-233）', () => {
+    it('只拉的远端实体没有推上去的变更，不去扫本地变更表', async () => {
+      const harness = createCheckHarness({
+        entities: [PullEntity],
+        syncRecords: [createSyncRecord('CheckPull', 40)],
+        remoteResult: { count: 3, latestChangeId: 43 },
+        ownRemoteIds: [41]
+      });
+
+      await expect(checkRepositoryUpdates(harness.rxdb, 'public', 'CheckPull')).resolves.toMatchObject({
+        pendingCount: 3
+      });
+      expect(harness.changeFind).not.toHaveBeenCalled();
+    });
+
+    it('刷新之后也不算待拉：游标之后的远端变更减去本地记着 remoteId 的那几条', async () => {
+      // 远端游标 40 之后有 3 条，其中 41、42 是本库上一次会话推上去的：刷新后 clientId 换了，靠 clientId 认不出来
+      const harness = createCheckHarness({
+        entities: [FullEntity],
+        syncRecords: [createSyncRecord('CheckFull', 40)],
+        remoteResult: { count: 3, latestChangeId: 43 },
+        ownRemoteIds: [41, 42]
+      });
+
+      await expect(checkRepositoryUpdates(harness.rxdb, 'public', 'CheckFull')).resolves.toMatchObject({
+        pendingCount: 1,
+        hasUpdates: true
+      });
+      expect(harness.changeFind).toHaveBeenCalledWith({
+        where: {
+          combinator: 'and',
+          rules: [
+            { field: 'namespace', operator: '=', value: 'public' },
+            { field: 'entity', operator: '=', value: 'CheckFull' },
+            { field: 'branchId', operator: 'in', value: ['main'] },
+            { field: 'remoteId', operator: '>', value: 40 }
+          ]
+        }
+      });
+    });
+
+    it('压缩推送把几条本地变更记成同一个远端 id：按远端 id 去重再减', async () => {
+      const harness = createCheckHarness({
+        entities: [FullEntity],
+        syncRecords: [createSyncRecord('CheckFull', 40)],
+        remoteResult: { count: 2, latestChangeId: 42 },
+        ownRemoteIds: [41, 41]
+      });
+
+      await expect(checkRepositoryUpdates(harness.rxdb, 'public', 'CheckFull')).resolves.toMatchObject({
+        pendingCount: 1,
+        hasUpdates: true
+      });
+    });
+
+    it('游标之后全是本库推上去的：没有待拉', async () => {
+      const harness = createCheckHarness({
+        entities: [FullEntity],
+        syncRecords: [createSyncRecord('CheckFull', 40)],
+        remoteResult: { count: 2, latestChangeId: 42 },
+        ownRemoteIds: [41, 42]
+      });
+
+      await expect(checkRepositoryUpdates(harness.rxdb, 'public', 'CheckFull')).resolves.toMatchObject({
+        pendingCount: 0,
+        hasUpdates: false
+      });
+    });
+  });
+
   describe('远端身份', () => {
     const boundTo = (remoteBackendId: string | null): RxDBSync =>
       Object.assign(createSyncRecord('CheckPull', 500), { remoteBackendId });
@@ -404,11 +482,13 @@ describe('checkRepositoryUpdates：按区同步的实体', () => {
     progresses: RxDBSyncBucketProgress[],
     snapshotPoint: number,
     pointsByBucket: Readonly<Record<string, number>> = { public: snapshotPoint },
-    countsByBucket: Readonly<Record<string, number>> = {}
+    countsByBucket: Readonly<Record<string, number>> = {},
+    own: { ids: readonly number[]; inBucket: Readonly<Record<string, number>> } = { ids: [], inBucket: {} }
   ) => {
     const repositories = new Map<unknown, unknown>([
       [RxDBSync, { find: vi.fn(async () => []) }],
-      [RxDBSyncBucketProgress, { find: vi.fn(async () => progresses) }]
+      [RxDBSyncBucketProgress, { find: vi.fn(async () => progresses) }],
+      [RxDBChange, { find: vi.fn(async () => own.ids.map(remoteId => ({ remoteId }))) }]
     ]);
     const localAdapter = { getRepository: vi.fn((EntityClass: unknown) => repositories.get(EntityClass)) };
     const remoteAdapter = {
@@ -419,8 +499,17 @@ describe('checkRepositoryUpdates：按区同步的实体', () => {
       getBucketSnapshotPoint: vi.fn(
         async (_namespace: string, _entity: string, bucket: string) => pointsByBucket[bucket]
       ),
-      // 游标之后、不是本客户端推的变更条数（US-233）
-      getBucketChangeCount: vi.fn(async (_namespace: string, _entity: string, bucket: string) => countsByBucket[bucket])
+      // 游标之后的变更条数；给了 id 时只数这些 id 里落在这个区的（US-233）
+      getBucketChangeCount: vi.fn(
+        async (
+          _namespace: string,
+          _entity: string,
+          bucket: string,
+          _afterId: number,
+          _branchIds: readonly string[],
+          ids?: readonly number[]
+        ) => (ids === undefined ? countsByBucket[bucket] : Math.min(own.inBucket[bucket] ?? 0, ids.length))
+      )
     };
     const syncManager = {
       getCurrentBranch: vi.fn(async () => ({ id: 'main' })),
@@ -479,9 +568,18 @@ describe('checkRepositoryUpdates：按区同步的实体', () => {
     ]);
   });
 
-  it('游标之后只有本客户端推上去的变更：不算待拉（US-233）', async () => {
+  it('游标之后只有本库推上去的变更（刷新之后也一样）：不算待拉（US-233）', async () => {
     const current = filterFingerprint(ACTIVE);
-    const harness = createBucketedHarness([progress(current, 68)], 142, { public: 142 }, { public: 0 });
+    const harness = createBucketedHarness(
+      [progress(current, 68)],
+      142,
+      { public: 142 },
+      { public: 2 },
+      {
+        ids: [70, 71],
+        inBucket: { public: 2 }
+      }
+    );
 
     await expect(checkRepositoryUpdates(harness.rxdb, 'public', 'CheckBucketed')).resolves.toEqual({
       repository: { namespace: 'public', entity: 'CheckBucketed' },
@@ -490,6 +588,57 @@ describe('checkRepositoryUpdates：按区同步的实体', () => {
       pendingCount: 0,
       hasUpdates: false
     });
+    expect(harness.remoteAdapter.getBucketChangeCount).toHaveBeenLastCalledWith(
+      'public',
+      'CheckBucketed',
+      'public',
+      68,
+      ['main'],
+      [70, 71]
+    );
+  });
+
+  it('本库推上去的变更分在几个区：每个区只减落在自己区里的那几条（US-233）', async () => {
+    const current = filterFingerprint(ACTIVE);
+    // 公开区游标 68 之后远端有 3 条；本库推上去的 70、71、72 里只有两条落在公开区
+    const harness = createBucketedHarness(
+      [progress(current, 68)],
+      142,
+      { public: 142 },
+      { public: 3 },
+      {
+        ids: [70, 71, 72],
+        inBucket: { public: 2 }
+      }
+    );
+
+    await expect(checkRepositoryUpdates(harness.rxdb, 'public', 'CheckBucketed')).resolves.toMatchObject({
+      pendingCount: 1,
+      hasUpdates: true
+    });
+  });
+
+  it('本库推上去的远端 id 很多：分批问，每批不超过 100 个，免得请求地址过长', async () => {
+    const current = filterFingerprint(ACTIVE);
+    const ids = Array.from({ length: 150 }, (_, index) => 1000 + index);
+    const harness = createBucketedHarness(
+      [progress(current, 999)],
+      2000,
+      { public: 2000 },
+      { public: 150 },
+      {
+        ids,
+        inBucket: { public: 150 }
+      }
+    );
+
+    await expect(checkRepositoryUpdates(harness.rxdb, 'public', 'CheckBucketed')).resolves.toMatchObject({
+      pendingCount: 0
+    });
+    const batches = harness.remoteAdapter.getBucketChangeCount.mock.calls
+      .map(call => call[5])
+      .filter(batch => batch !== undefined);
+    expect(batches.map(batch => batch.length)).toEqual([100, 50]);
   });
 
   it('当前规则还没有进度：下一次拉取要先补快照，算有更新', async () => {

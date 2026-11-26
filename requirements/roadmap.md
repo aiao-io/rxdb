@@ -8,13 +8,13 @@
 | 状态           | 数量   |
 | :------------- | :----- |
 | ✅ Done        | 100    |
-| 🚧 In Progress | 17     |
-| 👀 In Review   | 9      |
-| 📝 Backlog     | 32     |
+| 🚧 In Progress | 13     |
+| 👀 In Review   | 16     |
+| 📝 Backlog     | 29     |
 | 🚫 Blocked     | 0      |
 | **未完成合计** | **58** |
 
-仓库还剩 **58 条**未关闭故事（17 In Progress + 9 In Review + 32 Backlog + 0 Blocked）。
+仓库还剩 **58 条**未关闭故事（13 In Progress + 16 In Review + 29 Backlog + 0 Blocked）。
 数字由 story YAML 推导；Backlog 包括已授权任务与价值待证候选，不能把全部未关闭故事当成可开工项。
 
 ## 未完成需求全景
@@ -44,8 +44,8 @@
 | [US-707](stories/future/US-707-p2p-cross-runtime-e2e.md)                                                                                                                                                                                                                                                                                                                | 🚧 In Progress | 认证宿主已选定（Supabase + Cloudflare）；本轮做独立 demo 与浏览器半边，Electron 下一轮，Tauri 归阶段 B                                | 批次 7   |
 | [US-713](stories/future/US-713-p2p-admin-console.md)                                                                                                                                                                                                                                                                                                                    | 👀 In Review   | 管理接口、信令踢下线与管理页已在真栈上验收 AC#1～#10；AC#11 待首次 CI 运行确认                                                        | 批次 7   |
 | [epic-012 P2P 会话与局域网协作](epics/epic-012-p2p-lan-collaboration.md)（US-709 / US-710 / US-711 / US-712）                                                                                                                                                                                                                                                           | 📝 Backlog     | 价值待证；以 US-708 为前置，owner 已定先做 US-709 整库克隆                                                                            | 立项池   |
-| [epic-016 本机修改工作台](epics/epic-016-local-change-workbench.md) 核心四条：[US-318](stories/collaboration/US-318-cascade-delete-one-transaction.md) / [US-316](stories/collaboration/US-316-multi-repository-history-scope.md) / [US-317](stories/collaboration/US-317-pushable-histories.md) / [US-233](stories/adapter/US-233-supabase-pullable-count-accuracy.md) | 🚧 In Progress | 代码与用例已在分支上；故事 AC 随 epic-016 收尾一起回填，US-233 的真栈 e2e 待补                                                        | 批次 10  |
-| [epic-016 本机修改工作台](epics/epic-016-local-change-workbench.md) 应用层：[US-232](stories/adapter/US-232-supabase-catalog-server-drawer.md) / [US-230](stories/adapter/US-230-supabase-header-sync.md) / [US-231](stories/adapter/US-231-supabase-unified-undo-history.md)                                                                                           | 📝 Backlog     | 页面登记、顶栏编辑组与同步组、同步中心、操作历史面板、商品页服务端抽屉；排在核心四条之后                                              | 批次 10  |
+| [epic-016 本机修改工作台](epics/epic-016-local-change-workbench.md) 核心四条：[US-318](stories/collaboration/US-318-cascade-delete-one-transaction.md) / [US-316](stories/collaboration/US-316-multi-repository-history-scope.md) / [US-317](stories/collaboration/US-317-pushable-histories.md) / [US-233](stories/adapter/US-233-supabase-pullable-count-accuracy.md) | 👀 In Review   | AC 全部通过（单测、PGlite、SQLite 各适配器、Supabase 真栈），待 owner 评审后合入                                                      | 批次 10  |
+| [epic-016 本机修改工作台](epics/epic-016-local-change-workbench.md) 应用层：[US-232](stories/adapter/US-232-supabase-catalog-server-drawer.md) / [US-230](stories/adapter/US-230-supabase-header-sync.md) / [US-231](stories/adapter/US-231-supabase-unified-undo-history.md)                                                                                           | 👀 In Review   | AC 全部通过（单测、PGlite、SQLite 各适配器、Supabase 真栈），待 owner 评审后合入                                                      | 批次 10  |
 | [US-603](stories/tooling/US-603-manual-release-preflight.md)                                                                                                                                                                                                                                                                                                            | 🚧 In Progress | 两个手工发布入口已接入共享 preflight；待受控 registry 替身验收                                                                        | 本轮执行 |
 
 ## 即办清单
@@ -53,7 +53,7 @@
 当前分支 `supabase-log-access-baseline` 上的计划，按先后：
 
 1. 批次 8、9 的 6 条故事（US-034、US-229、US-037、US-038、US-228、US-227）AC 全部通过，待 owner 评审合入。
-2. 批次 10（epic-016 本机修改工作台）进行中：核心四条（US-318、US-316、US-317、US-233）的代码与用例已在分支上，正在做 `dev-rxdb-supabase` 的应用层（应用地基已在分支上，接着是顶栏、面板与三页接入）。
+2. 批次 10（epic-016 本机修改工作台）的 7 条故事（US-318、US-316、US-317、US-233、US-230、US-231、US-232）AC 全部通过，待 owner 评审合入。
 3. 批次 11（租户内成员权限）排在批次 10 之后；US-029 阶段 A、B 只动核心包，可以与批次 10 的应用层并行。
 
 US-603 的共享 preflight 仍待受控 registry 替身验收。
@@ -146,16 +146,16 @@ US-038 改 `rxdb_mutations` 的签名，随 PR 附迁移文档与 `production/rx
 2026-11-26 owner 授权实现全部 7 条故事，在 `supabase-log-access-baseline` 上推进：先修核心缺口，再统一 `dev-rxdb-supabase` 三页的界面。
 故事间的依赖见 [epic-016 交付顺序](epics/epic-016-local-change-workbench.md#交付顺序)，执行顺序如下：
 
-| 顺序 | 范围                                                                 | 现状                                                           | 关闭条件                                                                                                                            |
-| ---- | -------------------------------------------------------------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| 1    | US-318 级联删除记进同一个事务                                        | 代码与 SQLite、PGlite 用例在分支上，AC 待回填                  | 删带证件的客户后一次撤销整组恢复，互相引用的也撤得回来                                                                              |
-| 2    | US-316 多仓库撤销作用域                                              | 代码与单测在分支上，AC 待回填                                  | 几个实体合起来撤，跨它们的事务整条撤，不撤到别的页面                                                                                |
-| 3    | US-317 待推送清单                                                    | 代码与 PGlite 用例在分支上，AC 待回填                          | 清单与待推数同一口径                                                                                                                |
-| 4    | US-233 待拉数准确                                                    | 代码与单测在分支上，真栈 e2e 待补                              | 推完一刷新不再虚高；分区按真实条数计                                                                                                |
-| 5    | 应用地基                                                             | 进行中：页面登记服务、整机推拉命令、右侧面板壳的代码已在分支上 | 三者单测通过，顶栏与面板能按页面登记渲染                                                                                            |
-| 6    | 顶栏、同步中心、操作历史面板（US-230 阶段 A → B → C、US-231 阶段 A） | 未开始                                                         | 顶栏编辑组与同步组、面板开关与快捷键；待拉数接 US-233；同步中心列出待推送清单与字段级改前改后，接 US-317                            |
-| 7    | 三页接入（US-232、US-231 阶段 B）                                    | 未开始                                                         | Todo、商品、订单登记按钮，移除页面内的推拉与撤销；商品「模拟服务端变更」收进右侧抽屉；订单页整条撤销跨实体的事务，接 US-316、US-318 |
-| 8    | 收尾                                                                 | 未开始                                                         | 远端 e2e 改锚点并补新用例、本地 e2e；README、各故事 AC 与状态；`pnpm audit:requirements` 与 lint / typecheck / test / build         |
+| 顺序 | 范围                                                                 | 现状         | 关闭条件                                                                                                                            |
+| ---- | -------------------------------------------------------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | US-318 级联删除记进同一个事务                                        | 完成，待评审 | 删带证件的客户后一次撤销整组恢复，互相引用的也撤得回来                                                                              |
+| 2    | US-316 多仓库撤销作用域                                              | 完成，待评审 | 几个实体合起来撤，跨它们的事务整条撤，不撤到别的页面                                                                                |
+| 3    | US-317 待推送清单                                                    | 完成，待评审 | 清单与待推数同一口径                                                                                                                |
+| 4    | US-233 待拉数准确                                                    | 完成，待评审 | 推完一刷新不再虚高；分区按真实条数计                                                                                                |
+| 5    | 应用地基                                                             | 完成，待评审 | 三者单测通过，顶栏与面板能按页面登记渲染                                                                                            |
+| 6    | 顶栏、同步中心、操作历史面板（US-230 阶段 A → B → C、US-231 阶段 A） | 完成，待评审 | 顶栏编辑组与同步组、面板开关与快捷键；待拉数接 US-233；同步中心列出待推送清单与字段级改前改后，接 US-317                            |
+| 7    | 三页接入（US-232、US-231 阶段 B）                                    | 完成，待评审 | Todo、商品、订单登记按钮，移除页面内的推拉与撤销；商品「模拟服务端变更」收进右侧抽屉；订单页整条撤销跨实体的事务，接 US-316、US-318 |
+| 8    | 收尾                                                                 | 完成，待评审 | 远端 e2e 改锚点并补新用例、本地 e2e；README、各故事 AC 与状态；`pnpm audit:requirements` 与 lint / typecheck / test / build         |
 
 e2e 锚点与界面改动在同一步迁移，场景一条不删。
 

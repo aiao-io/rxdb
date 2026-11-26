@@ -1,19 +1,19 @@
 import {
   declareTrustedWrite,
-  type EntityMetadata,
   EntityType,
   getEntityMetadata,
   HistoryItem,
   HistoryScope,
   HistoryScopeAPI,
   isAdapterShutdownError,
-  type RepositoryIdentifier,
   REPOSITORY_SYNC_COMPLETE_EVENT,
   RxDB,
   RxDBBranch,
   RxDBChange,
   SKIP_BRANCH_SWITCH_PREPARE,
-  TrustedWriteIntent
+  TrustedWriteIntent,
+  type EntityMetadata,
+  type RepositoryIdentifier
 } from '@aiao/rxdb';
 import {
   BehaviorSubject,
@@ -114,8 +114,13 @@ export class HistoryManager {
   /** 远程待 pull 计数，pull 结束后按 {@link settlePullableCount} 结算 */
   #pullableCount$ = new BehaviorSubject<number>(0);
 
-  /** pullable 计数代次：结算令牌，用于判断 pull 期间是否有新事件 */
+  /** pullable 计数代次：远端事件、会话重置与 pull 结算都换代；令牌据此判断签发之后有没有别的动静 */
   #pullableGeneration = 0;
+  /** 最近一次 pull 结算或重置之后的代次：比它早签发的重算令牌，数的是拉取之前的游标 */
+  #pullableSettledGeneration = 0;
+
+  /** 待推数每重算一次就发一次：清单跟着同一个时机重查 */
+  readonly #pushableRefresh$ = new Subject<void>();
 
   /** 可 push 计数（repository 级 lastPushedChangeId 过滤） */
   #pushableCount$ = new BehaviorSubject<number>(0);
@@ -204,9 +209,6 @@ export class HistoryManager {
    * 只在有人订阅时查询。
    */
   pushableHistories$: Observable<HistoryItem[]>;
-
-  /** 待推数每重算一次就发一次：清单跟着同一个时机重查 */
-  readonly #pushableRefresh$ = new Subject<void>();
 
   count$: Observable<number>;
 
@@ -479,6 +481,7 @@ export class HistoryManager {
   /** session 重置时清零 pullable；pull 结束结算走 {@link settlePullableCount} */
   resetPullableCount(): void {
     this.#pullableGeneration++;
+    this.#pullableSettledGeneration = this.#pullableGeneration;
     this.#pullableCount$.next(0);
   }
 
@@ -487,21 +490,33 @@ export class HistoryManager {
     return this.#pullableGeneration;
   }
 
-  /** 用远端水位线校准待拉计数 */
-  reconcilePullableCount(token: number, count: number): void {
+  /**
+   * 用远端水位线校准待拉计数
+   *
+   * @returns 用上了为 `true`；令牌签发之后有 pull 结算过（或会话重置）时为 `false`，计数不动，调用方该重算
+   *
+   * @remarks
+   * 重算逐个仓库数，拉取在中间结算时，先数的那几个仓库用的还是拉取之前的游标：把它们盖上去，
+   * 刚结算成 0 的计数又冒出几条（US-233）。期间只到了实时事件则取两者较大值，不吞掉事件。
+   */
+  reconcilePullableCount(token: number, count: number): boolean {
+    if (this.#pullableSettledGeneration > token) return false;
     const nextCount = token === this.#pullableGeneration ? count : Math.max(this.#pullableCount$.value, count);
     this.#pullableCount$.next(nextCount);
+    return true;
   }
 
   /** 按一次 pull 的实际覆盖范围结算待拉计数 */
   settlePullableCount(token: number, settlement: { complete: boolean; pulled: number }): void {
-    this.#pullableCount$.next(
-      settledPullableCount(this.#pullableCount$.value, {
-        complete: settlement.complete,
-        concurrent: token !== this.#pullableGeneration,
-        pulled: settlement.pulled
-      })
-    );
+    const nextCount = settledPullableCount(this.#pullableCount$.value, {
+      complete: settlement.complete,
+      concurrent: token !== this.#pullableGeneration,
+      pulled: settlement.pulled
+    });
+    // 结算也换代：在它之前签发的重算令牌作废（见 reconcilePullableCount）
+    this.#pullableGeneration++;
+    this.#pullableSettledGeneration = this.#pullableGeneration;
+    this.#pullableCount$.next(nextCount);
   }
 
   /**
@@ -740,9 +755,14 @@ export class HistoryManager {
     const schema = this.rxdb.schemaManager;
     const junctions = schema.generatedEntities.flatMap(Junction => {
       const endpoints = schema.junctionEndpointsOf(Junction);
-      return endpoints ? [{ junction: repositoryOf(getEntityMetadata(Junction)), endpoints: endpoints.map(repositoryOf) }] : [];
+      return endpoints ?
+          [{ junction: repositoryOf(getEntityMetadata(Junction)), endpoints: endpoints.map(repositoryOf) }]
+        : [];
     });
-    return repositoriesScopeOf(EntityTypes.map(EntityType => repositoryOf(getEntityMetadata(EntityType))), junctions);
+    return repositoriesScopeOf(
+      EntityTypes.map(EntityType => repositoryOf(getEntityMetadata(EntityType))),
+      junctions
+    );
   }
 
   /** 选出完整事务；跨作用域则抛 {@link RxDBCrossScopeTransactionError} */

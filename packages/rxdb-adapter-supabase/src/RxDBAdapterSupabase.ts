@@ -592,26 +592,30 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
   }
 
   /**
-   * 分区在游标之后、不是本客户端推上去的日志条数（US-233）
+   * 分区在游标之后的日志条数（US-233）
    *
    * @param namespace - 实体命名空间
    * @param entity - 实体名
    * @param bucket - 调用者可读的分区
    * @param afterId - 游标：只数 id 大于它的日志
    * @param branchIds - 只算这些分支，与拉取同口径
+   * @param ids - 给了就只数这些 id（同步插件按批传，每批不超过 100 个）
    * @returns 条数
-   * @throws {@link SupabaseDataError} 查询失败时
+   * @throws {@link SupabaseDataError} 查询失败，或应答里没有条数时
    *
    * @remarks
    * 直接数 `rxdb_change`：表上的 `rxdb_change_read_by_bucket` 策略只放行调用者可读分区的行，
    * 分区此刻已被撤销时数出来是 0，不需要另开 RPC。不求值实体同步规则，与快照点同口径。
+   * 不按 `clientId` 排除自己推的：它每次启动都换，刷新之后认不出上一次会话推的；
+   * 同步插件拿本地记下的远端 id 按 `ids` 再数一次，两次相减。
    */
   async getBucketChangeCount(
     namespace: string,
     entity: string,
     bucket: string,
     afterId: number,
-    branchIds: readonly string[]
+    branchIds: readonly string[],
+    ids?: readonly number[]
   ): Promise<number> {
     const query = this.#client
       .from('rxdb_change')
@@ -621,21 +625,10 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       .eq('bucket', bucket)
       .gt('id', afterId)
       .in('branchId', [...branchIds]);
-    const { count, error, status } = await this.#othersOnly(query);
+    const { count, error, status } = await (ids === undefined ? query : query.in('id', [...ids]));
     assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to count bucket changes');
-    return count ?? 0;
-  }
-
-  /**
-   * 只留别人的变更（US-233）
-   *
-   * @remarks
-   * 本客户端推上去的变更拉下来只回填 `remoteId`、不落库，不算待拉，与实时通知跳过自己的口径一致
-   * （`handle_supabase_change`）。远端直写没有客户端标识，照样计入：单写 `clientId.neq.x` 会把空值一并滤掉。
-   */
-  #othersOnly<Q extends { or(filters: string): Q }>(query: Q): Q {
-    const clientId = this.rxdb.context.clientId;
-    return clientId ? query.or(`clientId.is.null,clientId.neq.${clientId}`) : query;
+    if (typeof count !== 'number') throw new SupabaseDataError('Failed to count bucket changes: invalid response data');
+    return count;
   }
 
   /**
@@ -774,7 +767,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       query = query.eq('branchId', branchId);
     }
 
-    const { data, count, error, status } = await this.#othersOnly(query).order('id', { ascending: false }).limit(1);
+    const { data, count, error, status } = await query.order('id', { ascending: false }).limit(1);
     assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to get change count');
 
     return {

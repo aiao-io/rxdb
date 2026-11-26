@@ -684,9 +684,21 @@ describe('topological-sort', () => {
     it('断不开的环同样连续排列，成员按仓库键排序', () => {
       const graph = buildDependencyGraph(
         graphInputs([
-          { name: 'Y', namespace: 'public', relations: [{ name: 'x', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'X' }] },
-          { name: 'X', namespace: 'public', relations: [{ name: 'y', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'Y' }] },
-          { name: 'Z', namespace: 'public', relations: [{ name: 'x', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'X' }] }
+          {
+            name: 'Y',
+            namespace: 'public',
+            relations: [{ name: 'x', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'X' }]
+          },
+          {
+            name: 'X',
+            namespace: 'public',
+            relations: [{ name: 'y', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'Y' }]
+          },
+          {
+            name: 'Z',
+            namespace: 'public',
+            relations: [{ name: 'x', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'X' }]
+          }
         ])
       );
 

@@ -85,6 +85,27 @@ describe('AppHeader', () => {
     expect(switchTo).toHaveBeenCalledWith('bob');
   });
 
+  it('顶栏只留切换下拉框：身份名与说明不占地方，收在悬停提示与读屏描述里', () => {
+    const { fixture, select } = renderHeader({
+      description: { title: 'Alice', detail: '星河零售 · alice@example.com' },
+      currentChoice: 'alice'
+    });
+    const element = fixture.nativeElement as HTMLElement;
+    const description = element.querySelector(`#${select!.getAttribute('aria-describedby')}`);
+
+    expect(select!.title).toBe('Alice · 星河零售 · alice@example.com');
+    expect(description?.classList.contains('sr-only')).toBe(true);
+    expect(description?.textContent?.replace(/\s+/g, '')).toBe('当前身份：Alice·星河零售·alice@example.com');
+    // 页面上看得见的只有下拉框：写着说明的文字节点只在读屏描述里
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    const holders: Element[] = [];
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      if (node.textContent?.includes('alice@example.com') && node.parentElement) holders.push(node.parentElement);
+    }
+    expect(holders.length).toBeGreaterThan(0);
+    expect(holders.every(holder => holder.closest('.sr-only') !== null)).toBe(true);
+  });
+
   it('本地模式没有身份：不显示切换菜单', () => {
     const { select } = renderHeader({ description: undefined, currentChoice: null });
 

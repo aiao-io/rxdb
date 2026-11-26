@@ -1,6 +1,7 @@
 import type { HistoryScopeAPI } from '@aiao/rxdb';
 import { DestroyRef, DOCUMENT, inject, Injectable, signal, type Signal } from '@angular/core';
 import { getErrorMessage } from './error-message';
+import { Toasts } from './toasts';
 
 /** 顶栏上一颗按钮背后的命令，由页面登记 */
 export interface WorkbenchAction {
@@ -43,12 +44,10 @@ export interface PageWorkbenchRegistration {
 @Injectable({ providedIn: 'root' })
 export class PageWorkbench {
   readonly #current = signal<PageWorkbenchRegistration | null>(null);
-  readonly #error = signal<string | null>(null);
+  readonly #toasts = inject(Toasts);
 
   /** 当前页面的登记；首页等不登记的页面为 `null` */
   readonly current = this.#current.asReadonly();
-  /** 上一次经顶栏执行的命令失败的原因 */
-  readonly error = this.#error.asReadonly();
 
   constructor() {
     const document = inject(DOCUMENT);
@@ -59,7 +58,6 @@ export class PageWorkbench {
 
   register(registration: PageWorkbenchRegistration): void {
     this.#current.set(registration);
-    this.#error.set(null);
   }
 
   unregister(registration: PageWorkbenchRegistration): void {
@@ -70,15 +68,14 @@ export class PageWorkbench {
    * 执行一条命令
    *
    * @param action - 页面登记的命令
-   * @remarks 不可用或正在执行时什么也不做；失败的原因记在 {@link PageWorkbench.error}，下一次执行前清掉
+   * @remarks 不可用或正在执行时什么也不做；失败的原因弹成一条错误消息（`source` 是 `workbench`），留到用户关掉
    */
   async run(action: WorkbenchAction | null): Promise<void> {
     if (!action || action.disabledReason() !== null || action.pending()) return;
-    this.#error.set(null);
     try {
       await action.run();
     } catch (error) {
-      this.#error.set(getErrorMessage(error, '操作失败'));
+      this.#toasts.show({ kind: 'error', message: getErrorMessage(error, '操作失败'), source: 'workbench' });
     }
   }
 

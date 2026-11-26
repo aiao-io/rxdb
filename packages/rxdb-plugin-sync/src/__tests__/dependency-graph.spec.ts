@@ -425,7 +425,11 @@ describe('dependency-graph', () => {
             namespace: 'public',
             relations: [{ name: 'b', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'B', nullable: true }]
           },
-          { name: 'B', namespace: 'public', relations: [{ name: 'a', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'A' }] }
+          {
+            name: 'B',
+            namespace: 'public',
+            relations: [{ name: 'a', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'A' }]
+          }
         ])
       );
 
@@ -1005,7 +1009,13 @@ describe('双向一对一成环（US-038）', () => {
     namespace: 'cycle',
     properties: [{ name: 'code', type: PropertyType.string }],
     relations: [
-      { name: 'owner', kind: RelationKind.ONE_TO_ONE, mappedEntity: 'CycleUser', mappedProperty: 'idCard', nullable: false }
+      {
+        name: 'owner',
+        kind: RelationKind.ONE_TO_ONE,
+        mappedEntity: 'CycleUser',
+        mappedProperty: 'idCard',
+        nullable: false
+      }
     ]
   })
   class CycleIdCard extends EntityBase {}

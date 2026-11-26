@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, effect, inject, signal, untracked, 
 import { FormsModule } from '@angular/forms';
 import { DemoSession } from '../demo-session';
 import { getErrorMessage } from '../error-message';
+import { Toasts } from '../toasts';
 import { CatalogItemEditor, type CatalogItemEdit } from './catalog-item-editor';
 import {
   createItem,
@@ -63,9 +64,6 @@ import { CATALOG_CATEGORIES } from './catalog-sync-rule';
 
           @if ($error(); as error) {
             <div class="alert alert-error" role="alert">{{ error }}</div>
-          }
-          @if ($notice(); as notice) {
-            <p class="text-sm" role="status">{{ notice }}</p>
           }
 
           @if (remote.$myTenantIds().length === 0) {
@@ -163,8 +161,8 @@ import { CATALOG_CATEGORIES } from './catalog-sync-rule';
 export class CatalogServerPanel {
   readonly #items = signal<readonly CatalogRemoteItem[]>([]);
   readonly #busy = signal(false);
+  readonly #toasts = inject(Toasts);
   readonly #error = signal<string | null>(null);
-  readonly #notice = signal<string | null>(null);
   readonly editorRef = viewChild.required(CatalogItemEditor);
   readonly session = inject(DemoSession);
   readonly remote = inject(CatalogRemoteState);
@@ -173,7 +171,6 @@ export class CatalogServerPanel {
   readonly $items = this.#items.asReadonly();
   readonly $busy = this.#busy.asReadonly();
   readonly $error = this.#error.asReadonly();
-  readonly $notice = this.#notice.asReadonly();
 
   // 新增表单的草稿：zoneless + OnPush 下用 signal，异步回调里清空也会重新渲染
   readonly draftName = signal('');
@@ -269,10 +266,10 @@ export class CatalogServerPanel {
     if (!client) return;
     this.#busy.set(true);
     this.#error.set(null);
-    this.#notice.set(null);
     try {
       await action(client);
-      this.#notice.set(`${notice}。点顶栏的「拉取」看本机数据怎么变。`);
+      // 成功弹一条消息；失败原因留在面板与编辑框里（模态的编辑框盖在消息之上）
+      this.#toasts.show({ kind: 'success', message: `${notice}。点顶栏的「拉取」看本机数据怎么变。` });
     } catch (error) {
       this.#error.set(getErrorMessage(error, '操作失败'));
     } finally {

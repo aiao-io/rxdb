@@ -42,8 +42,8 @@ import { pullBucketedRepositoryIfSupported } from './bucketed-pull.js';
 import { findBlockingDependency } from './cascade-blocking.js';
 import { buildDependencyGraph, type DependencyCycle, type DependencyGraph } from './dependency-graph.js';
 import { RxDBForeignKeyCycleError } from './foreign-key-cycle-error.js';
-import { pullBatch } from './pull-batch.js';
 import { pullAncestorBranchChanges } from './pull-ancestor-changes.js';
+import { pullBatch } from './pull-batch.js';
 import {
   countActions,
   createConflictActionEntries,
@@ -287,7 +287,7 @@ async function pullWithCascade(
   const failures: SyncFailure[] = [];
   const failedRepos = new Map<string, Error>();
 
-  for (let index = 0; index < orderedRepos.length; ) {
+  for (let index = 0; index < orderedRepos.length;) {
     // 外键成环的仓库在排序里连续排列（US-038）：整个环放进同一个本地事务拉，提交时环内的引用都在
     const cycle = graph.get(repositoryKey(orderedRepos[index]))?.cycle;
     let end = index + 1;
@@ -394,7 +394,13 @@ async function pullCycleUnit(
         'pull-unsupported-member',
         `${repositoryKey(unsupported)} is synced by filter or by bucket`
       );
-      return { ...emptyRepositoryProgress(), repository: repo, success: false, error, failures: [{ repository: repo, error }] };
+      return {
+        ...emptyRepositoryProgress(),
+        repository: repo,
+        success: false,
+        error,
+        failures: [{ repository: repo, error }]
+      };
     });
   }
 

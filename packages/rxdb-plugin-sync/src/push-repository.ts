@@ -434,7 +434,7 @@ async function runCascade(
 
   for (const phase of PUSH_PHASES) {
     const ordered = orderRepos(phase.action);
-    for (let index = 0; index < ordered.length; ) {
+    for (let index = 0; index < ordered.length;) {
       // 外键成环的仓库在排序里连续排列，整个环一起走这个相位（US-038）
       const cycle = graph.get(repositoryKey(ordered[index]))?.cycle;
       if (!cycle) {
@@ -507,7 +507,12 @@ async function runCascadePhase(
 
   // 阻断边随相位翻转：DELETE 相位子先父后（被 requiredBy 阻断），
   // INSERT 相位父先子后（被 dependsOn 阻断）。理由见 findBlockingDependency 的 @remarks。
-  const blocked = findBlockingDependency(graph, repositoryKey(repo), failedRepos, dependencyEdgeForAction(phase.action));
+  const blocked = findBlockingDependency(
+    graph,
+    repositoryKey(repo),
+    failedRepos,
+    dependencyEdgeForAction(phase.action)
+  );
   if (blocked) {
     settleBlocked(node, blocked.dependency, blocked.cause, failedRepos);
     return;
@@ -668,7 +673,13 @@ function failCycleNode(node: CascadeNode, error: RxDBForeignKeyCycleError, faile
   node.result =
     node.plan ?
       pushRepositoryResult(node.plan, node.plan.pushed, 0, error)
-    : { ...emptyPushProgress(), repository: node.repo, success: false, error, failures: [{ repository: node.repo, error }] };
+    : {
+        ...emptyPushProgress(),
+        repository: node.repo,
+        success: false,
+        error,
+        failures: [{ repository: node.repo, error }]
+      };
   failedRepos.set(repositoryKey(node.repo), error);
 }
 
@@ -744,7 +755,8 @@ function distributeCycleReceipts(
   const planOfChange = new Map<RxDBChange, RepositoryPushPlan>();
   for (const entry of entries) for (const change of entry.sourceChanges) planOfChange.set(change, owners.get(entry)!);
   const rejectedEntries = new Set(classified.rejected.map(rejected => rejected.entry));
-  for (const { change, remoteId } of classified.applied) planOfChange.get(change)!.remoteIdsByChange.set(change, remoteId);
+  for (const { change, remoteId } of classified.applied)
+    planOfChange.get(change)!.remoteIdsByChange.set(change, remoteId);
   for (const rejected of classified.rejected) owners.get(rejected.entry)!.rejectedEntries.push(rejected);
   const touched = new Set<RepositoryPushPlan>();
   for (const entry of entries) {

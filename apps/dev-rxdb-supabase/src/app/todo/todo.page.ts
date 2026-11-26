@@ -32,6 +32,7 @@ import { historyActions } from '../history-actions';
 import { registerPageWorkbench } from '../page-workbench';
 import { RemoteSyncState } from '../remote-sync-state';
 import { SyncCommands } from '../sync-commands';
+import { Toasts } from '../toasts';
 import { createTodoBatchTitles, persistCompleted, persistCompletedBatch } from '../todo-interactions';
 
 /** 列表筛选：全部、进行中、已完成 */
@@ -48,6 +49,7 @@ export default class TodoPage implements AfterViewInit {
   readonly #rxdb = inject(RxDB);
   readonly #scrollDispatcher = inject(ScrollDispatcher);
   readonly #destroyRef = inject(DestroyRef);
+  readonly #toasts = inject(Toasts);
   readonly #editingTodoId = signal<Todo['id'] | null>(null);
 
   /** 远端是否真的连上：访客提示只在远端模式下给 */
@@ -75,7 +77,6 @@ export default class TodoPage implements AfterViewInit {
   readonly $current_tab = signal<TodoTab>('all');
   readonly $completed_sort = signal<'asc' | 'desc'>('asc');
   readonly $show_sticky_header = signal(false);
-  readonly $crudError = signal<string | null>(null);
 
   // 查询条件
   readonly $todo_query_options = computed<TodoStaticTypes['findAllOptions']>(() => {
@@ -174,7 +175,6 @@ export default class TodoPage implements AfterViewInit {
     event.preventDefault();
     event.stopImmediatePropagation();
     this.#editingTodoId.set(todo.id);
-    this.$crudError.set(null);
     nextMacroTask(() => liEle.querySelector<HTMLInputElement>('input.todo-input')?.focus());
   }
 
@@ -182,20 +182,18 @@ export default class TodoPage implements AfterViewInit {
     event.preventDefault();
     event.stopImmediatePropagation();
     if (!this.is_todo_editing(todo)) return;
-    this.$crudError.set(null);
     try {
       await todo.save();
       this.#editingTodoId.set(null);
       input.blur();
     } catch (error) {
-      this.$crudError.set(`保存任务失败：${getErrorMessage(error, '未知错误')}`);
+      this.#fail(`保存任务失败：${getErrorMessage(error, '未知错误')}`);
     }
   }
 
   todo_cancel_edit(todo: Todo) {
     if (!this.is_todo_editing(todo)) return;
     this.#editingTodoId.set(null);
-    this.$crudError.set(null);
     todo.reset();
   }
 
@@ -206,35 +204,32 @@ export default class TodoPage implements AfterViewInit {
   async todo_remove(event: Event, todo: Todo) {
     event.preventDefault();
     event.stopImmediatePropagation();
-    this.$crudError.set(null);
     try {
       await todo.remove();
       if (this.is_todo_editing(todo)) this.#editingTodoId.set(null);
     } catch (error) {
       todo.reset();
-      this.$crudError.set(`删除任务失败：${getErrorMessage(error, '未知错误')}`);
+      this.#fail(`删除任务失败：${getErrorMessage(error, '未知错误')}`);
     }
   }
 
   async clear_completed() {
     const completedTodos = this.$completed_todos();
-    this.$crudError.set(null);
     try {
       await this.#rxdb.entityManager.removeMany(completedTodos);
     } catch (error) {
       completedTodos.forEach(todo => todo.reset());
-      this.$crudError.set(`清理已完成任务失败：${getErrorMessage(error, '未知错误')}`);
+      this.#fail(`清理已完成任务失败：${getErrorMessage(error, '未知错误')}`);
     }
   }
 
   async toggle_all() {
     const completed = !this.$is_all_completed();
     const todos = this.todo_resource.value().filter(todo => todo.completed !== completed);
-    this.$crudError.set(null);
     try {
       await persistCompletedBatch(todos, completed, entities => this.#rxdb.entityManager.saveMany(entities));
     } catch (error) {
-      this.$crudError.set(`批量更新任务失败：${getErrorMessage(error, '未知错误')}`);
+      this.#fail(`批量更新任务失败：${getErrorMessage(error, '未知错误')}`);
     }
   }
 
@@ -301,33 +296,35 @@ export default class TodoPage implements AfterViewInit {
     event.preventDefault();
     const titleValue = this.title();
     if (!titleValue) return;
-    this.$crudError.set(null);
     try {
       await new Todo({ title: titleValue }).save();
       this.title.set('');
     } catch (error) {
-      this.$crudError.set(`新增任务失败：${getErrorMessage(error, '未知错误')}`);
+      this.#fail(`新增任务失败：${getErrorMessage(error, '未知错误')}`);
     }
   }
 
   async toggle_todo_completed(event: Event, todo: Todo) {
     if (this.is_todo_editing(todo)) return;
-    this.$crudError.set(null);
     try {
       await persistCompleted(todo, (event.target as HTMLInputElement).checked);
     } catch (error) {
-      this.$crudError.set(`更新任务失败：${getErrorMessage(error, '未知错误')}`);
+      this.#fail(`更新任务失败：${getErrorMessage(error, '未知错误')}`);
     }
   }
 
   async add_many_todo(total: number) {
     const titles = createTodoBatchTitles(total, crypto.randomUUID());
     const todos = titles.map(title => new Todo({ title }));
-    this.$crudError.set(null);
     try {
       await this.#rxdb.entityManager.saveMany(todos);
     } catch (error) {
-      this.$crudError.set(`批量新增任务失败：${getErrorMessage(error, '未知错误')}`);
+      this.#fail(`批量新增任务失败：${getErrorMessage(error, '未知错误')}`);
     }
+  }
+
+  /** 写入失败弹一条错误消息，留到用户关掉 */
+  #fail(message: string): void {
+    this.#toasts.show({ kind: 'error', message });
   }
 }

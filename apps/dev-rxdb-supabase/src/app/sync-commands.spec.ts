@@ -2,10 +2,13 @@ import { RxDB, RxDBIdentityMismatchError } from '@aiao/rxdb';
 import { TestBed } from '@angular/core/testing';
 import { BehaviorSubject } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
+import { DemoSession } from './demo-session';
 import { RemoteSyncState } from './remote-sync-state';
 import { SyncCommands } from './sync-commands';
+import { Toasts } from './toasts';
 
 function setup(options: { pull?: () => Promise<unknown>; push?: () => Promise<unknown>; connected?: boolean } = {}) {
+  const reload = vi.fn();
   const pushable$ = new BehaviorSubject(2);
   const pullable$ = new BehaviorSubject(1);
   const syncManager = {
@@ -21,11 +24,12 @@ function setup(options: { pull?: () => Promise<unknown>; push?: () => Promise<un
       {
         provide: RxDB,
         useValue: { syncManager, versionManager: { pushableCount$: pushable$, pullableCount$: pullable$ } }
-      }
+      },
+      { provide: DemoSession, useValue: { reload } }
     ]
   });
   TestBed.inject(RemoteSyncState).markConnected(options.connected ?? true);
-  return { commands: TestBed.inject(SyncCommands), syncManager, pushable$ };
+  return { commands: TestBed.inject(SyncCommands), syncManager, pushable$, reload, toasts: TestBed.inject(Toasts) };
 }
 
 describe('SyncCommands', () => {
@@ -60,6 +64,41 @@ describe('SyncCommands', () => {
       error: '推送失败：网络断了',
       identityMismatch: false
     });
+  });
+
+  it('每轮结束弹一条消息，带上轮次；失败的消息留到用户关掉（epic-016）', async () => {
+    const { commands, toasts } = setup({ push: () => Promise.reject(new Error('网络断了')) });
+
+    await commands.pull.run();
+    await commands.push.run();
+
+    expect(toasts.list()).toEqual([
+      expect.objectContaining({ kind: 'success', message: '拉取完成：拉到 3 条，落库 2 条', source: 'sync-round-1' }),
+      expect.objectContaining({ kind: 'error', message: '推送失败：网络断了', source: 'sync-round-2' })
+    ]);
+  });
+
+  it('推送有被拒的：消息是警告，留到用户关掉', async () => {
+    const { commands, toasts } = setup({
+      push: () => Promise.resolve({ pushed: 1, rejected: 1, failures: [] } as unknown as never)
+    });
+
+    await commands.push.run();
+
+    expect(toasts.list()).toEqual([expect.objectContaining({ kind: 'warning', source: 'sync-round-1' })]);
+  });
+
+  it('身份不匹配的消息带「重新加载」', async () => {
+    const { commands, toasts, reload } = setup({
+      pull: () => Promise.reject(new RxDBIdentityMismatchError('remote', 'client-key', ['other-key']))
+    });
+
+    await commands.pull.run();
+    const [toast] = toasts.list();
+    toast.action?.run();
+
+    expect(toast).toMatchObject({ kind: 'error', action: { label: '重新加载' } });
+    expect(reload).toHaveBeenCalledOnce();
   });
 
   it('会话已在别处换了身份：结果标出身份不匹配，好给出「重新加载」', async () => {

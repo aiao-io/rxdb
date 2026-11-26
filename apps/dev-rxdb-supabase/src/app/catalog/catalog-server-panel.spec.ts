@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DemoSession } from '../demo-session';
+import { Toasts } from '../toasts';
 import type { CatalogRemoteItem } from './catalog-remote';
 import { CatalogRemoteState } from './catalog-remote-state';
 import { CatalogServerPanel } from './catalog-server-panel';
@@ -98,7 +99,7 @@ describe('CatalogServerPanel：编辑商品', () => {
 
   it('保存：按 id 写回服务端，关上编辑框，重新列出商品，提示去顶栏拉取', async () => {
     remote.updateItem.mockResolvedValue(undefined);
-    const { fixture, root, row, dialog, button, priceInput, click } = await renderPanel();
+    const { fixture, row, dialog, button, priceInput, click } = await renderPanel();
 
     await click(button(row(), '编辑'));
     priceInput()!.value = '279';
@@ -114,9 +115,9 @@ describe('CatalogServerPanel：编辑商品', () => {
     });
     expect(dialog().open).toBe(false);
     expect(remote.fetchTenantItems).toHaveBeenCalledTimes(2);
-    expect(root.querySelector('[role="status"]')?.textContent).toContain(
-      '「星河 X1 蓝牙耳机」已修改。点顶栏的「拉取」看本机数据怎么变。'
-    );
+    expect(TestBed.inject(Toasts).list()).toEqual([
+      expect.objectContaining({ kind: 'success', message: '「星河 X1 蓝牙耳机」已修改。点顶栏的「拉取」看本机数据怎么变。' })
+    ]);
   });
 
   // 比如在别的标签页退出了这个租户：RLS 拦下，一行都没改到

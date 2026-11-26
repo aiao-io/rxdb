@@ -28,9 +28,6 @@ import { groupByBucket } from './catalog-view';
         <h2 class="card-title" id="synced-title">本机同步的商品（离线可用）</h2>
 
         <p class="text-base-content/60 text-sm" data-testid="catalog-write-hint">{{ $writeHint() }}</p>
-        @if (writes.$notice(); as notice) {
-          <p class="text-sm" data-testid="catalog-write-notice" role="status">{{ notice }}</p>
-        }
         @if (writes.$error(); as error) {
           <div class="alert alert-error" data-testid="catalog-write-error" role="alert">{{ error }}</div>
         }

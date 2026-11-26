@@ -64,7 +64,10 @@ const rowKey = (repository: RepositoryIdentifier, entityId: string): string =>
   `${repositoryKey(repository)}:${entityId}`;
 
 /** 互相引用的条目并成组，组按最早的条目排序，组内保持原顺序 */
-function groupReferencing<T extends CycleBatchEntry>(entries: readonly T[], edges: readonly DependencyForeignKey[]): T[][] {
+function groupReferencing<T extends CycleBatchEntry>(
+  entries: readonly T[],
+  edges: readonly DependencyForeignKey[]
+): T[][] {
   const parent = entries.map((_, index) => index);
   const find = (index: number): number => {
     while (parent[index] !== index) index = parent[index] = parent[parent[index]];
