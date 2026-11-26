@@ -4,10 +4,10 @@ import { registerTreeMenuTests } from './shared-page-tests.js';
 
 test.describe('Virtual Tree Menu', () => {
   test.beforeEach(async ({ page }) => {
-    await openPage(page, '/menu-virtual', 'Tree Menu - Virtual');
+    await openPage(page, '/menu-virtual', /Tree Menu - Virtual|树菜单 - 虚拟滚动/);
   });
 
-  registerTreeMenuTests({ title: 'Tree Menu - Virtual', entityName: 'E2E 虚拟' });
+  registerTreeMenuTests({ title: /Tree Menu - Virtual|树菜单 - 虚拟滚动/, entityName: 'E2E 虚拟' });
 
   test('should have batch add control', async ({ page }) => {
     await expect(page.getByTestId('menu-batch-add')).toBeVisible();

@@ -239,7 +239,7 @@ describe('AdminLayout', () => {
     });
 
     it('品牌按宿主目录翻译时，没有菜单匹配的页面一级标题随语言切换', async () => {
-      const i18n = createAdminI18n();
+      const i18n = createAdminI18n('zh-Hans');
       i18n.registerCatalog({ locale: 'zh-Hans', namespace: 'app', messages: { brand: '数据工作台' } });
       i18n.registerCatalog({ locale: 'en', namespace: 'app', messages: { brand: 'Data workbench' } });
       await mount({ i18n, brand: { title: '工作台', titleKey: 'brand' } }, { url: '/not-in-menu' });

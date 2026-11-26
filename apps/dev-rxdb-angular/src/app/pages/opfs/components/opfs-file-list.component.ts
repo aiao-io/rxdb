@@ -1,3 +1,5 @@
+import { formatFileDate, formatFileSize } from '@modules/demo-i18n/files';
+import { I18nPipe } from '../../../pipes/i18n.pipe';
 /**
  * OPFS 文件列表组件
  *
@@ -8,6 +10,7 @@
  * - 支持单击选择、双击打开、右键菜单
  */
 
+import { useI18nOptional } from '@aiao/rxdb-i18n-angular';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, input, output } from '@angular/core';
 import {
@@ -25,21 +28,21 @@ import {
   LucidePen as Pen,
   LucideTrash2 as Trash2
 } from '@lucide/angular';
-import { OPFSFileEntry, canPreviewFile, formatFileSize, getFileIcon, getFileIconColor } from '../utils/opfs-utils';
+import { OPFSFileEntry, canPreviewFile, getFileIcon, getFileIconColor } from '../utils/opfs-utils';
 
 @Component({
   selector: 'app-opfs-file-list',
   standalone: true,
-  imports: [CommonModule, LucideDynamicIcon],
+  imports: [I18nPipe, CommonModule, LucideDynamicIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <table class="table-zebra table select-none">
       <thead>
         <tr>
-          <th>名称</th>
-          <th class="w-32">大小</th>
-          <th class="hidden w-40 md:table-cell">修改时间</th>
-          <th class="w-24">操作</th>
+          <th>{{ 'file.name' | i18n }}</th>
+          <th class="w-32">{{ 'file.size' | i18n }}</th>
+          <th class="hidden w-40 md:table-cell">{{ 'file.modified' | i18n }}</th>
+          <th class="w-24">{{ 'file.actions' | i18n }}</th>
         </tr>
       </thead>
       <tbody>
@@ -81,32 +84,32 @@ import { OPFSFileEntry, canPreviewFile, formatFileSize, getFileIcon, getFileIcon
                   @if (canPreviewFile(entry)) {
                     <button
                       class="btn btn-ghost btn-xs"
+                      [attr.title]="'file.preview' | i18n"
                       (click)="preview.emit(entry); $event.stopPropagation()"
-                      title="预览"
                     >
                       <svg [lucideIcon]="Eye" size="14"></svg>
                     </button>
                   }
                   <button
                     class="btn btn-ghost btn-xs"
+                    [attr.title]="'file.download' | i18n"
                     (click)="download.emit(entry); $event.stopPropagation()"
-                    title="下载"
                   >
                     <svg [lucideIcon]="Download" size="14"></svg>
                   </button>
                 }
                 <button
                   class="btn btn-ghost btn-xs"
+                  [attr.title]="'file.rename' | i18n"
                   (click)="rename.emit(entry); $event.stopPropagation()"
                   data-testid="opfs-rename-btn"
-                  title="重命名"
                 >
                   <svg [lucideIcon]="Pen" size="14"></svg>
                 </button>
                 <button
                   class="btn btn-ghost btn-xs text-error"
+                  [attr.title]="'file.delete' | i18n"
                   (click)="delete.emit(entry); $event.stopPropagation()"
-                  title="删除"
                 >
                   <svg [lucideIcon]="Trash2" size="14"></svg>
                 </button>
@@ -120,6 +123,7 @@ import { OPFSFileEntry, canPreviewFile, formatFileSize, getFileIcon, getFileIcon
   styles: []
 })
 export class OpfsFileListComponent {
+  readonly #i18n = useI18nOptional();
   private destroyRef = inject(DestroyRef);
   private clickTimeout: number | null = null;
 
@@ -155,7 +159,6 @@ export class OpfsFileListComponent {
   // Helper functions
   getFileIcon = getFileIcon;
   getFileIconColor = getFileIconColor;
-  formatFileSize = formatFileSize;
   canPreviewFile = canPreviewFile;
 
   constructor() {
@@ -165,17 +168,6 @@ export class OpfsFileListComponent {
         clearTimeout(this.clickTimeout);
         this.clickTimeout = null;
       }
-    });
-  }
-
-  formatDate(timestamp?: number): string {
-    if (!timestamp) return '-';
-    return new Date(timestamp).toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit'
     });
   }
 
@@ -211,5 +203,13 @@ export class OpfsFileListComponent {
   handleContextMenu(event: MouseEvent, entry: OPFSFileEntry): void {
     event.preventDefault();
     this.contextMenu.emit({ event, entry });
+  }
+
+  formatFileSize(bytes: number): string {
+    return formatFileSize(bytes, this.#i18n?.locale() ?? 'zh-Hans');
+  }
+
+  formatDate(timestamp?: number): string {
+    return formatFileDate(timestamp, this.#i18n?.locale() ?? 'zh-Hans');
   }
 }

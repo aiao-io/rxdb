@@ -18,6 +18,7 @@ import {
 } from '@aiao/rxdb-plugin-board';
 import { useMemo, useState, type KeyboardEvent } from 'react';
 
+import { boardT } from '../board-i18n.js';
 import type { ColumnTaskIds } from './types.js';
 import { useStateRef } from './use-state-ref.js';
 import type { ViewCore } from './use-view-core.js';
@@ -184,7 +185,9 @@ export const useBoardData = (core: ViewCore): BoardData => {
     visibleTasksOf,
     countLabel: column => {
       const visible = visibleTasksOf(column).length;
-      return filterActive ? `筛选后 ${visible} / 共 ${tasksOf(column).length} 个任务` : `${visible} 个任务`;
+      return filterActive ?
+          boardT('view.column.countFiltered', { visible, total: tasksOf(column).length })
+        : boardT('view.column.count', { count: visible });
     },
     overdueCount: column =>
       visibleTasksOf(column).filter(task => dueStatus(task.dueDate ?? null, today) === 'overdue').length,

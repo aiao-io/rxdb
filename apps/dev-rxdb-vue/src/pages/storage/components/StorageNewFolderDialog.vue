@@ -1,6 +1,9 @@
 <script lang="ts" setup>
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import { STORAGE_TESTID } from '@aiao/utils';
 import { ref, watch } from 'vue';
+
+const { t } = useI18n();
 
 const props = defineProps<{ show: boolean }>();
 const emit = defineEmits<{
@@ -35,13 +38,13 @@ function submit(): void {
       class="modal-box"
       @click.stop
     >
-      <h3 class="mb-4 text-base font-bold">New Folder</h3>
+      <h3 class="mb-4 text-base font-bold">{{ t('file.newFolder') }}</h3>
       <input
         class="input input-bordered w-full"
         v-model="name"
         :data-testid="T.NEW_FOLDER_INPUT"
         @keydown.enter="submit"
-        placeholder="Folder name"
+        :placeholder="t('file.folderName')"
         type="text"
       />
       <div class="modal-action">
@@ -49,14 +52,14 @@ function submit(): void {
           class="btn btn-sm"
           @click="emit('cancel')"
         >
-          Cancel
+          {{ t('file.cancel') }}
         </button>
         <button
           class="btn btn-sm btn-primary"
           :data-testid="T.NEW_FOLDER_CONFIRM"
           @click="submit"
         >
-          Create
+          {{ t('file.create') }}
         </button>
       </div>
     </div>

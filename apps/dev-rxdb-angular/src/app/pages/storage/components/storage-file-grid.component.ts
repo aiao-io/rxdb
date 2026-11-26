@@ -1,5 +1,6 @@
 import { RxDB } from '@aiao/rxdb';
-import { formatFileSize, STORAGE_TESTID } from '@aiao/utils';
+import { useI18nOptional } from '@aiao/rxdb-i18n-angular';
+import { STORAGE_TESTID } from '@aiao/utils';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, effect, inject, input, output, signal } from '@angular/core';
 import {
@@ -10,6 +11,7 @@ import {
   LucidePen as Pen,
   LucideTrash2 as Trash2
 } from '@lucide/angular';
+import { formatFileSize } from '@modules/demo-i18n/files';
 import { I18nPipe } from '../../../pipes/i18n.pipe';
 import { canPreviewFile, getFileIcon, getFileIconColor, isImageFile, StorageBrowserItem } from '../utils/storage-utils';
 
@@ -69,14 +71,14 @@ import { canPreviewFile, getFileIcon, getFileIconColor, isImageFile, StorageBrow
             @if (entry.kind === 'directory') {
               <button
                 class="btn btn-circle btn-ghost btn-xs bg-base-100/80 backdrop-blur"
-                [attr.title]="'common.open' | i18n"
+                [attr.title]="'file.open' | i18n"
                 (click)="navigate.emit(entry); $event.stopPropagation()"
               >
                 <svg [lucideIcon]="FolderOpen" size="12"></svg>
               </button>
               <button
                 class="btn btn-circle btn-ghost btn-xs bg-base-100/80 backdrop-blur"
-                [attr.title]="'common.downloadZip' | i18n"
+                [attr.title]="'file.downloadZip' | i18n"
                 (click)="download.emit(entry); $event.stopPropagation()"
               >
                 <svg [lucideIcon]="Download" size="12"></svg>
@@ -86,7 +88,7 @@ import { canPreviewFile, getFileIcon, getFileIconColor, isImageFile, StorageBrow
                 <button
                   class="btn btn-circle btn-ghost btn-xs bg-base-100/80 backdrop-blur"
                   [attr.data-testid]="TESTID.PREVIEW_BTN"
-                  [attr.title]="'common.view' | i18n"
+                  [attr.title]="'file.view' | i18n"
                   (click)="preview.emit(entry); $event.stopPropagation()"
                 >
                   <svg [lucideIcon]="Eye" size="12"></svg>
@@ -95,7 +97,7 @@ import { canPreviewFile, getFileIcon, getFileIconColor, isImageFile, StorageBrow
               <button
                 class="btn btn-circle btn-ghost btn-xs bg-base-100/80 backdrop-blur"
                 [attr.data-testid]="TESTID.DOWNLOAD_BTN"
-                [attr.title]="'common.download' | i18n"
+                [attr.title]="'file.download' | i18n"
                 (click)="download.emit(entry); $event.stopPropagation()"
               >
                 <svg [lucideIcon]="Download" size="12"></svg>
@@ -103,7 +105,7 @@ import { canPreviewFile, getFileIcon, getFileIconColor, isImageFile, StorageBrow
             }
             <button
               class="btn btn-circle btn-ghost btn-xs bg-base-100/80 backdrop-blur"
-              [attr.title]="'common.rename' | i18n"
+              [attr.title]="'file.rename' | i18n"
               (click)="rename.emit(entry); $event.stopPropagation()"
               data-testid="storage-rename-btn"
             >
@@ -112,7 +114,7 @@ import { canPreviewFile, getFileIcon, getFileIconColor, isImageFile, StorageBrow
             <button
               class="btn btn-circle btn-ghost btn-xs bg-base-100/80 text-error backdrop-blur"
               [attr.data-testid]="entry.kind === 'file' ? TESTID.DELETE_BTN : null"
-              [attr.title]="'common.delete' | i18n"
+              [attr.title]="'file.delete' | i18n"
               (click)="delete.emit(entry); $event.stopPropagation()"
             >
               <svg [lucideIcon]="Trash2" size="12"></svg>
@@ -124,6 +126,7 @@ import { canPreviewFile, getFileIcon, getFileIconColor, isImageFile, StorageBrow
   `
 })
 export class StorageFileGridComponent {
+  readonly #i18n = useI18nOptional();
   private rxdb = inject(RxDB);
   private destroyRef = inject(DestroyRef);
   private loadingThumbnails = false;
@@ -156,7 +159,6 @@ export class StorageFileGridComponent {
   getFileIcon = getFileIcon;
   getFileIconColor = getFileIconColor;
   isImageFile = isImageFile;
-  formatFileSize = formatFileSize;
   canPreviewFile = canPreviewFile;
 
   constructor() {
@@ -269,6 +271,10 @@ export class StorageFileGridComponent {
     }
 
     this.preview.emit(entry);
+  }
+
+  formatFileSize(bytes: number): string {
+    return formatFileSize(bytes, this.#i18n?.locale() ?? 'zh-Hans');
   }
 
   private clearThumbnailUrls(): void {

@@ -13,6 +13,28 @@ import type { RxDB } from '@aiao/rxdb';
 import { SortableMenuLarge } from '@aiao/rxdb-test/entities';
 import { BehaviorSubject, of, type Observable } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
+
+const zhT = vi.hoisted(() => {
+  const names: Record<string, string> = {
+    'page.tree.writeOp.create': '新建',
+    'page.tree.writeOp.rename': '重命名',
+    'page.tree.writeOp.batchAdd': '批量添加',
+    'page.tree.writeOp.delete': '删除',
+    'page.tree.writeOp.deleteAll': '删除全部',
+    'page.tree.writeOp.cascadeDelete': '级联删除',
+    'page.tree.writeOp.deletePromote': '删除并提升子节点',
+    'page.tree.writeOp.drag': '拖放'
+  };
+  return (key: string, params?: Record<string, unknown>): string => {
+    if (key === 'page.tree.writeFailed') return `${params?.operation ?? ''}失败：${params?.message ?? ''}`;
+    return names[key] ?? key;
+  };
+});
+vi.mock('@aiao/rxdb-i18n-vue', () => ({
+  useI18n: () => ({ t: zhT, locale: { value: 'zh-Hans' } }),
+  useI18nOptional: () => ({ t: zhT, locale: { value: 'zh-Hans' } })
+}));
+
 import { createApp, ref, toRaw } from 'vue';
 import { useToast } from './useToast';
 import { useTreeMenuLazyStore } from './useTreeMenuLazyStore';

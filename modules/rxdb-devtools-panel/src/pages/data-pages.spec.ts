@@ -201,7 +201,7 @@ describe('StoragePage', () => {
     });
 
     expect(page.rows()).toEqual([]);
-    expect(page.error()).toBe('StorageFileMeta 返回了无效或重复的实体数据');
+    expect(page.error()).toBe('StorageFileMeta returned invalid or duplicate entity data');
   });
 
   // 「对端没装 @aiao/rxdb-plugin-storage」是可解释的正常状态，不是查询失败：

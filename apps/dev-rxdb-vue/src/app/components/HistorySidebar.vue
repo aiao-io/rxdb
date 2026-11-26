@@ -1,5 +1,7 @@
 <script lang="ts" setup>
 import { HistoryItem, HistoryScopeType } from '@aiao/rxdb';
+import { useI18n } from '@aiao/rxdb-i18n-vue';
+import { describeHistory, historyTimeOptions } from '@modules/demo-i18n/history';
 import { useVirtualizer } from '@tanstack/vue-virtual';
 import { X } from '@lucide/vue';
 import { computed, ref } from 'vue';
@@ -21,6 +23,7 @@ const emit = defineEmits<{
 }>();
 
 const parentRef = ref<HTMLDivElement | null>(null);
+const { t, formatDate } = useI18n();
 
 const rowVirtualizerOptions = computed(() => ({
   count: props.histories.length,
@@ -50,11 +53,11 @@ const getScopeLabel = () => {
 const getScopeLabelText = () => {
   switch (props.scopeType) {
     case 'database':
-      return '数据库';
+      return t('history.database');
     case 'repository':
-      return '仓库';
+      return t('history.repository');
     case 'entity':
-      return '实体';
+      return t('history.entity');
     default:
       return '';
   }
@@ -73,22 +76,6 @@ const getTypeColor = (type: HistoryItem['type']) => {
     default:
       return 'bg-base-300';
   }
-};
-
-const formatTime = (timestamp: number | Date) => {
-  const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
-  return (
-    date.toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    }) +
-    '.' +
-    String(date.getMilliseconds()).padStart(3, '0')
-  );
 };
 </script>
 
@@ -113,7 +100,7 @@ const formatTime = (timestamp: number | Date) => {
       <div class="border-base-300 border-b px-4 py-2">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <h2 class="text-sm font-semibold">操作历史</h2>
+            <h2 class="text-sm font-semibold">{{ t('history.title') }}</h2>
             <span
               v-if="getScopeLabel()"
               :class="['badge badge-xs', getScopeLabel()]"
@@ -123,7 +110,7 @@ const formatTime = (timestamp: number | Date) => {
           <button
             class="btn btn-circle btn-ghost btn-xs"
             @click="emit('close')"
-            aria-label="关闭历史"
+            :aria-label="t('history.close')"
           >
             <X :size="14" />
           </button>
@@ -144,7 +131,7 @@ const formatTime = (timestamp: number | Date) => {
               class="text-base-content/40 flex min-h-40 items-center justify-center text-xs"
               v-if="histories.length === 0"
             >
-              暂无操作历史
+              {{ t('history.empty') }}
             </li>
             <li
               class="relative mb-4 pb-2 pl-4 last:mb-0"
@@ -169,13 +156,16 @@ const formatTime = (timestamp: number | Date) => {
               <!-- 内容 -->
               <div :class="{ 'opacity-50': historyItem.reverted }">
                 <!-- 时间 -->
-                <time class="text-base-content/50 mb-1 block text-[10px]">
-                  {{ formatTime(historyItem.createdAt) }}
+                <time
+                  :datetime="historyItem.createdAt.toISOString()"
+                  class="text-base-content/50 mb-1 block text-[10px]"
+                >
+                  {{ formatDate(historyItem.createdAt, historyTimeOptions) }}
                 </time>
                 <!-- 简介 -->
                 <p :class="['text-base-content mb-1.5 text-xs', historyItem.redoInvalidated ? 'line-through' : '']">
                   <span>#{{ historyItem.changeId }}</span>
-                  {{ historyItem.description }}
+                  {{ describeHistory(historyItem, t) }}
                 </p>
 
                 <!-- 徽章 -->
@@ -187,12 +177,12 @@ const formatTime = (timestamp: number | Date) => {
                   <span
                     class="badge badge-xs badge-soft badge-warning"
                     v-if="historyItem.reverted && !historyItem.redoInvalidated"
-                    >已撤销</span
+                    >{{ t('history.undone') }}</span
                   >
                   <span
                     class="badge badge-xs badge-soft badge-error"
                     v-if="historyItem.redoInvalidated"
-                    >已失效</span
+                    >{{ t('history.invalidated') }}</span
                   >
                 </div>
               </div>

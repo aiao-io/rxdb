@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import { SortableMenuLarge } from '@aiao/rxdb-test/entities';
 import { useFindAll, useRxDB } from '@aiao/rxdb-vue';
 import { useVirtualizer } from '@tanstack/vue-virtual';
@@ -28,6 +29,7 @@ import { pairVirtualRows } from '../../app/utils/virtual-rows';
 import { useShowHistory } from '../../app/composables/useShowHistory';
 
 const rxdb = useRxDB();
+const { t } = useI18n();
 const { showHistory } = useShowHistory();
 const newTitle = ref('');
 const loadingActions = ref<Set<string>>(new Set());
@@ -193,30 +195,25 @@ const handlePointerCancel = (e: PointerEvent) => {
           <!-- Title Bar -->
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
-              <h1 class="text-2xl font-bold">Tree Menu - Virtual Scroll</h1>
+              <h1 class="text-2xl font-bold">{{ t('page.tree.virtual') }}</h1>
               <div
                 class="badge badge-primary"
                 data-testid="menu-count"
-                >{{ menus.length }} 项</div
+                >{{ t('page.tree.itemCount', { count: menus.length }) }}</div
               >
 
               <!-- 批量添加 -->
               <details class="dropdown dropdown-end">
                 <summary
                   class="btn btn-circle btn-sm"
-                  aria-label="批量添加"
+                  :aria-label="t('common.batchAdd')"
                   data-testid="menu-batch-add"
                 >
                   <Plus :size="16" />
                 </summary>
                 <ul class="dropdown-content menu rounded-box bg-base-100 z-10 w-52 p-2 shadow">
                   <li
-                    v-for="{ count, label } in [
-                      { count: 100, label: '添加 100 条' },
-                      { count: 1000, label: '添加 1000 条' },
-                      { count: 5000, label: '添加 5000 条' },
-                      { count: 10000, label: '添加 10000 条' }
-                    ]"
+                    v-for="{ count } in [{ count: 100 }, { count: 1000 }, { count: 5000 }, { count: 10000 }]"
                     :key="count"
                   >
                     <button
@@ -231,7 +228,7 @@ const handlePointerCancel = (e: PointerEvent) => {
                         class="loading loading-spinner loading-xs"
                         v-if="loadingActions.has(`add-${count}`)"
                       />
-                      {{ label }}
+                      {{ t('page.tree.batchAddCount', { count }) }}
                     </button>
                   </li>
                 </ul>
@@ -245,7 +242,7 @@ const handlePointerCancel = (e: PointerEvent) => {
                   class="btn btn-sm join-item"
                   :disabled="undoCount === 0"
                   @click="history.undo()"
-                  aria-label="撤销"
+                  :aria-label="t('common.undo')"
                   data-testid="menu-undo"
                 >
                   <Undo2 :size="16" />
@@ -261,7 +258,7 @@ const handlePointerCancel = (e: PointerEvent) => {
                   class="btn btn-sm join-item"
                   :disabled="redoCount === 0"
                   @click="history.redo()"
-                  aria-label="重做"
+                  :aria-label="t('common.redo')"
                 >
                   <Redo2 :size="16" />
                   <span
@@ -278,7 +275,7 @@ const handlePointerCancel = (e: PointerEvent) => {
                 class="btn btn-sm"
                 :class="{ 'btn-primary': showHistory }"
                 @click="showHistory = !showHistory"
-                aria-label="历史记录"
+                :aria-label="t('history.open')"
               >
                 <History :size="16" />
               </button>
@@ -289,12 +286,12 @@ const handlePointerCancel = (e: PointerEvent) => {
           <div class="flex flex-wrap items-center justify-between gap-2">
             <div class="flex items-center gap-2">
               <div class="bg-base-100 border-base-200 flex items-center gap-2 rounded-lg border px-3 py-1 shadow-sm">
-                <span class="text-xs opacity-70">已展开</span>
+                <span class="text-xs opacity-70">{{ t('page.tree.expanded') }}</span>
                 <span class="font-mono text-lg font-bold">{{ store.expandedCount.value }}</span>
               </div>
               <button
                 class="btn btn-sm btn-ghost btn-square"
-                :title="store.isAllExpanded.value ? '折叠全部' : '展开全部'"
+                :title="store.isAllExpanded.value ? t('common.collapseAll') : t('common.expandAll')"
                 @click="store.isAllExpanded.value ? store.collapseAll() : store.expandAll()"
               >
                 <ChevronsUp
@@ -321,7 +318,7 @@ const handlePointerCancel = (e: PointerEvent) => {
                 v-else
                 :size="16"
               />
-              删除所有数据
+              {{ t('common.deleteAll') }}
             </button>
           </div>
 
@@ -335,7 +332,7 @@ const handlePointerCancel = (e: PointerEvent) => {
                 class="join-item bg-base-200 border-base-300 flex items-center border border-r-0 px-3 text-sm"
                 v-if="store.selectedParentId.value"
               >
-                <span class="mr-1 opacity-70">父节点:</span>
+                <span class="mr-1 opacity-70">{{ t('page.tree.parent') }}</span>
                 <span class="max-w-[8rem] truncate font-medium">
                   {{ menus.find(m => m.id === store.selectedParentId.value)?.title }}
                 </span>
@@ -345,7 +342,7 @@ const handlePointerCancel = (e: PointerEvent) => {
                     store.setSelectedParentId(null);
                     newTitle = '';
                   "
-                  title="取消选择父节点"
+                  :title="t('page.tree.cancelSelectParent')"
                   type="button"
                 >
                   <X :size="14" />
@@ -355,7 +352,11 @@ const handlePointerCancel = (e: PointerEvent) => {
                 class="input input-bordered input-sm join-item min-w-0 flex-1"
                 id="menu-title-input"
                 v-model="newTitle"
-                :placeholder="store.selectedParentId.value ? '输入子菜单标题...' : '输入根菜单标题...'"
+                :placeholder="
+                  store.selectedParentId.value ?
+                    t('page.tree.childTitlePlaceholder')
+                  : t('page.tree.rootTitlePlaceholder')
+                "
                 data-testid="menu-title-input"
                 type="text"
               />
@@ -367,7 +368,7 @@ const handlePointerCancel = (e: PointerEvent) => {
               type="submit"
             >
               <Plus :size="16" />
-              {{ store.selectedParentId.value ? '添加子菜单' : '添加根菜单' }}
+              {{ store.selectedParentId.value ? t('page.tree.addChild') : t('page.tree.addRoot') }}
             </button>
           </form>
 
@@ -382,7 +383,7 @@ const handlePointerCancel = (e: PointerEvent) => {
                 class="input input-bordered input-sm w-full pl-10"
                 v-model="store.searchKeyword.value"
                 data-testid="menu-search-input"
-                placeholder="搜索菜单..."
+                :placeholder="t('page.tree.searchPlaceholder')"
                 type="text"
               />
             </div>
@@ -393,7 +394,7 @@ const handlePointerCancel = (e: PointerEvent) => {
               type="button"
             >
               <X :size="16" />
-              清除
+              {{ t('common.clear') }}
             </button>
           </div>
         </div>
@@ -416,7 +417,7 @@ const handlePointerCancel = (e: PointerEvent) => {
             v-if="store.treeNodes.value.length === 0"
           >
             <div class="hero-content text-center">
-              <h1 class="text-sm font-bold">暂无菜单数据</h1>
+              <h1 class="text-sm font-bold">{{ t('page.tree.emptyMenu') }}</h1>
             </div>
           </div>
           <template v-else>
@@ -474,7 +475,7 @@ const handlePointerCancel = (e: PointerEvent) => {
                 @mousedown.stop
                 @click.stop
                 data-testid="menu-drag-handle"
-                title="拖拽排序"
+                :title="t('common.dragSort')"
                 @pointerdown="handlePointerDragStart($event, node.menu.id)"
                 @pointermove="handlePointerMove"
                 @pointerup="handlePointerUp"
@@ -543,7 +544,7 @@ const handlePointerCancel = (e: PointerEvent) => {
                     store.setSelectedParentId(node.menu.id);
                     $nextTick(focusMenuTitleInput);
                   "
-                  aria-label="添加子菜单"
+                  :aria-label="t('common.addChild')"
                   data-testid="menu-add-child"
                 >
                   <Plus :size="14" />
@@ -551,7 +552,7 @@ const handlePointerCancel = (e: PointerEvent) => {
                 <button
                   class="btn btn-ghost btn-xs text-primary"
                   @click="store.startEdit(node.menu.id)"
-                  aria-label="编辑"
+                  :aria-label="t('common.edit')"
                   data-testid="menu-edit"
                 >
                   <Pen :size="14" />
@@ -559,7 +560,7 @@ const handlePointerCancel = (e: PointerEvent) => {
                 <button
                   class="btn btn-ghost btn-xs text-error"
                   @click="store.deleteMenu(node.menu)"
-                  aria-label="删除"
+                  :aria-label="t('common.delete')"
                   data-testid="menu-delete"
                 >
                   <Trash2 :size="14" />
@@ -577,13 +578,13 @@ const handlePointerCancel = (e: PointerEvent) => {
       v-if="store.menuToDelete.value"
     >
       <div class="modal-box">
-        <h3 class="text-lg font-bold">确认删除</h3>
+        <h3 class="text-lg font-bold">{{ t('page.tree.confirmDelete') }}</h3>
 
         <div class="py-4">
           <p class="mb-3">
-            确定要删除菜单
+            {{ t('page.tree.deleteConfirmPrefix') }}
             <span class="text-primary font-semibold">"{{ store.menuToDelete.value.title }}"</span>
-            吗？
+            {{ t('page.tree.deleteConfirmSuffix') }}
           </p>
 
           <div
@@ -592,11 +593,11 @@ const handlePointerCancel = (e: PointerEvent) => {
           >
             <TriangleAlert :size="20" />
             <div class="flex flex-col gap-1 text-sm">
-              <p class="font-medium">此操作将级联删除：</p>
+              <p class="font-medium">{{ t('page.tree.cascadeDelete') }}</p>
               <ul class="ml-4 list-disc">
-                <li>{{ store.deleteImpact.value.childrenCount }} 个直接子节点</li>
+                <li>{{ t('page.tree.directChildrenCount', { count: store.deleteImpact.value.childrenCount }) }}</li>
                 <li v-if="store.deleteImpact.value.descendantsCount > store.deleteImpact.value.childrenCount">
-                  共 {{ store.deleteImpact.value.descendantsCount }} 个所有后代节点
+                  {{ t('page.tree.descendantsCount', { count: store.deleteImpact.value.descendantsCount }) }}
                 </li>
               </ul>
             </div>
@@ -609,7 +610,7 @@ const handlePointerCancel = (e: PointerEvent) => {
             @click="store.cancelDelete"
             type="button"
           >
-            取消
+            {{ t('common.cancel') }}
           </button>
 
           <template v-if="store.deleteImpact.value && store.deleteImpact.value.childrenCount > 0">
@@ -619,7 +620,7 @@ const handlePointerCancel = (e: PointerEvent) => {
               type="button"
             >
               <Trash2 :size="16" />
-              删除父节点 (子节点提升)
+              {{ t('page.tree.promoteDelete') }}
             </button>
             <button
               class="btn btn-error"
@@ -627,7 +628,7 @@ const handlePointerCancel = (e: PointerEvent) => {
               type="button"
             >
               <Trash2 :size="16" />
-              级联删除 (删除所有)
+              {{ t('page.tree.cascadeDeleteAll') }}
             </button>
           </template>
           <button
@@ -637,7 +638,7 @@ const handlePointerCancel = (e: PointerEvent) => {
             type="button"
           >
             <Trash2 :size="16" />
-            确认删除
+            {{ t('page.tree.confirmDelete') }}
           </button>
         </div>
       </div>
@@ -647,10 +648,10 @@ const handlePointerCancel = (e: PointerEvent) => {
         method="dialog"
       >
         <button
-          aria-label="关闭对话框"
+          :aria-label="t('common.close')"
           type="button"
         >
-          close
+          {{ t('common.close') }}
         </button>
       </form>
     </dialog>

@@ -514,25 +514,26 @@ export function checkGeneratedViews({ overview, readme }, stories, epics) {
   return offenders;
 }
 
-const README_DELIVERED = /\[(\d+)\/(\d+) 已交付\]/;
+const README_DELIVERED = /\[(\d+)\/(\d+) (已交付|delivered)\]/;
 
 /**
- * @param {string} text README.md 全文
+ * @param {string} text README 全文
  * @param {Record<string, number>} counts
+ * @param {string} filename 报错时显示的 README 文件名
  * @returns {string[]}
  */
-export function checkReadme(text, counts) {
+export function checkReadme(text, counts, filename = 'README.md') {
   const m = README_DELIVERED.exec(text);
-  if (!m) return ['README.md: 找不到「[N/M 已交付]」'];
+  if (!m) return [`${filename}: 找不到交付计数`];
   if (Number(m[1]) !== counts.Done || Number(m[2]) !== counts.total) {
-    return [`README.md: 写 ${m[1]}/${m[2]} 已交付，YAML 推导为 ${counts.Done}/${counts.total}`];
+    return [`${filename}: 写 ${m[1]}/${m[2]} ${m[3]}，YAML 推导为 ${counts.Done}/${counts.total}`];
   }
   return [];
 }
 
 /** @param {string} text @param {Record<string, number>} counts */
 export function updateReadme(text, counts) {
-  return text.replace(README_DELIVERED, `[${counts.Done}/${counts.total} 已交付]`);
+  return text.replace(README_DELIVERED, `[${counts.Done}/${counts.total} $3]`);
 }
 
 const ROADMAP_OPEN_COUNT = /仓库还剩 \*\*(\d+) 条\*\*未关闭故事（(\d+) In Progress \+ (\d+) In Review \+ (\d+) Backlog/;
@@ -1516,7 +1517,14 @@ export async function run({ root, update = false, rebaselineEvidence = false }) 
   const epics = await collectEpics(root);
   const counts = countStatuses(stories);
   const overviewPath = path.join(root, 'requirements', 'status-overview.md');
-  const readmePath = path.join(root, 'README.md');
+  const readmeOffenders = [];
+  for (const filename of ['README.md', 'README.zh-CN.md']) {
+    const readmePath = path.join(root, filename);
+    const original = await readFile(readmePath, 'utf8');
+    const content = update ? updateReadme(original, counts) : original;
+    if (content !== original) await writeFile(readmePath, content);
+    readmeOffenders.push(...checkReadme(content, counts, filename));
+  }
   const requirementsReadmePath = path.join(root, 'requirements', 'README.md');
   const roadmapPath = path.join(root, 'requirements', 'roadmap.md');
   const baselinePath = path.join(root, EVIDENCE_BASELINE);
@@ -1526,7 +1534,6 @@ export async function run({ root, update = false, rebaselineEvidence = false }) 
 
   if (update) {
     await writeFile(overviewPath, renderStatusOverview(await readFile(overviewPath, 'utf8'), stories, epics));
-    await writeFile(readmePath, updateReadme(await readFile(readmePath, 'utf8'), counts));
     await writeFile(roadmapPath, updateRoadmap(await readFile(roadmapPath, 'utf8'), counts));
     await writeFile(requirementsReadmePath, renderEpicList(await readFile(requirementsReadmePath, 'utf8'), epics));
   }
@@ -1554,7 +1561,7 @@ export async function run({ root, update = false, rebaselineEvidence = false }) 
       stories,
       epics
     ),
-    ...checkReadme(await readFile(readmePath, 'utf8'), counts),
+    ...readmeOffenders,
     ...checkRoadmap(await readFile(roadmapPath, 'utf8'), stories),
     ...checkEpics(epics, stories),
     ...checkAcStatusCells(stories),

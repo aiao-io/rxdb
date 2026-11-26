@@ -4,7 +4,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolvePreviewPath } from './preview-paths.mjs';
+import { matchRedirect, resolvePreviewPath } from './preview-paths.mjs';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const buildDir = join(__dirname, '../build');
@@ -38,12 +38,7 @@ function parseRedirects() {
       const parts = line.split(/\s+/);
       if (parts.length >= 2) {
         const [from, to, status = '301'] = parts;
-        rules.push({
-          from,
-          to,
-          status: parseInt(status),
-          pattern: from.endsWith('/*') ? from.slice(0, -2) : from
-        });
+        rules.push({ from, to, status: Number(status) });
       }
     });
 
@@ -52,20 +47,6 @@ function parseRedirects() {
     console.warn('⚠️  No _redirects file found');
     return [];
   }
-}
-
-// 匹配重定向规则
-function matchRedirect(path, rules) {
-  for (const rule of rules) {
-    if (rule.from.endsWith('/*')) {
-      if (path.startsWith(rule.pattern)) {
-        return rule;
-      }
-    } else if (rule.from === path) {
-      return rule;
-    }
-  }
-  return null;
 }
 
 const redirectRules = parseRedirects();
@@ -113,7 +94,12 @@ const server = createServer(async (req, res) => {
     res.end(content);
   } catch {
     // 检查重定向规则
-    const redirect = matchRedirect(requestPath, redirectRules);
+    const redirect = matchRedirect(url.pathname, redirectRules);
+    if (redirect && redirect.status !== 200) {
+      res.writeHead(redirect.status, { Location: redirect.to + url.search });
+      res.end();
+      return;
+    }
 
     if (redirect && redirect.status === 200) {
       const targetPath = resolvePreviewPath(buildDir, redirect.to);

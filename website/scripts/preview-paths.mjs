@@ -16,3 +16,13 @@ export function resolvePreviewPath(root, requestPath) {
   if (!htmlPath) return null;
   return existsSync(htmlPath) ? htmlPath : resolveWithin(root, requestPath);
 }
+
+export function matchRedirect(pathname, rules) {
+  for (const { from, to, status } of rules) {
+    if (from === pathname) return { to, status };
+    if (!from.endsWith('/*')) continue;
+    const prefix = from.slice(0, -1);
+    if (pathname.startsWith(prefix)) return { to: to.replace(':splat', () => pathname.slice(prefix.length)), status };
+  }
+  return null;
+}

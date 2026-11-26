@@ -1,5 +1,7 @@
 import type { HistoryScopeAPI } from '@aiao/rxdb';
 import { RxDB } from '@aiao/rxdb';
+import { resolveUiLocale } from '@aiao/rxdb-i18n';
+import { useI18nOptional } from '@aiao/rxdb-i18n-angular';
 import { computed, inject, Injectable, InjectionToken, OnDestroy, signal } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { FileTreeEntityConstructor, FileTreeInstance, TreeNode } from '../models/file-node.interface';
@@ -59,7 +61,7 @@ export class TreeFileLazyStore<C extends FileTreeEntityConstructor>
     // 用 `matchedIds.size > 0` 会让"搜不到"退化成"显示全部"。
     const hasSearch = this.searchKeyword().trim().length > 0;
     const nodes: TreeNode<FileTreeInstance<C>>[] = [];
-    const sortComparator = getSortComparator(this.sortMode());
+    const sortComparator = getSortComparator(this.sortMode(), this.uiLocale());
 
     const allLoaded: FileTreeInstance<C>[] = [...roots];
     for (const children of childMap.values()) allLoaded.push(...children);
@@ -123,9 +125,11 @@ export class TreeFileLazyStore<C extends FileTreeEntityConstructor>
     const dragDropService = inject(FileDragDropService);
     const entityClass = resolveEntityClass<C>(inject(FILE_ENTITY_CLASS));
     const history = inject(FILE_HISTORY);
+    const i18n = useI18nOptional();
+    const uiLocale = () => i18n?.locale() ?? resolveUiLocale(globalThis.navigator?.language);
 
     const dummyResource = { value: computed(() => this.visibleNodes()) };
-    super(rxdb, pathValidator, dragDropService, dummyResource, entityClass, history);
+    super(rxdb, pathValidator, dragDropService, dummyResource, entityClass, history, uiLocale);
     this.searchService = searchService;
     this.initRootSubscription();
   }

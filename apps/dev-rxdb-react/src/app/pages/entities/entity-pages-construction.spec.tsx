@@ -26,6 +26,9 @@ vi.mock('@aiao/rxdb-react', () => ({
   useCount: () => ({ value: 0, error: undefined, isLoading: false, isEmpty: undefined, hasValue: false })
 }));
 
+// 本 spec 只关心壳页的目录分组与重定向契约，不关心文案；恒等 t 避免挂载需要 I18n provider。
+vi.mock('@aiao/rxdb-i18n-react', () => ({ useI18n: () => ({ t: (key: string) => key }) }));
+
 vi.mock('@aiao/rxdb-model-react', async () => {
   const React = await import('react');
   stubs.EntityListStub = (props: Record<string, unknown>) => {
@@ -64,10 +67,10 @@ describe('entity demo page construction contracts', () => {
       </MemoryRouter>
     );
 
-    expect(screen.getByText('实体类型')).toBeTruthy();
+    expect(screen.getByText('page.entity.types')).toBeTruthy();
     expect(screen.getByText('ShellOther')).toBeTruthy();
     expect(screen.getByText('other')).toBeTruthy();
-    expect(screen.getByText('共 2 个实体')).toBeTruthy();
+    expect(screen.getByText('page.entity.total')).toBeTruthy();
     // 空子路由 → 相对导航到首个实体，列表桩按路由参数定位
     await waitFor(() => {
       expect(stubs.listProps.props).toMatchObject({ namespace: 'other', name: 'ShellOther' });

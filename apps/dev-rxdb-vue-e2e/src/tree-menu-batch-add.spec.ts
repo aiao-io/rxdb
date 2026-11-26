@@ -15,7 +15,7 @@ async function addBatch(page: Page, count: 100 | 1000 | 5000 | 10000): Promise<v
 
 test.describe('Tree Menu - Batch Add Functionality', () => {
   test.beforeEach(async ({ page }) => {
-    await openPage(page, '/menu-simple', 'Tree Menu - Simple');
+    await openPage(page, '/menu-simple', /Tree Menu - Simple|树菜单 - 简单模式/);
   });
 
   test('exposes every batch size through stable controls', async ({ page }) => {

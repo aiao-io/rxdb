@@ -1,7 +1,10 @@
 import { getEntityMutations, SortOrderError, type HistoryScopeAPI, type RxDB } from '@aiao/rxdb';
+import { I18n } from '@aiao/rxdb-i18n';
+import { provideI18n } from '@aiao/rxdb-i18n-angular';
 import { SortableMenuSimple } from '@aiao/rxdb-test/entities';
 import { PLATFORM_ID, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { treeMenuCatalogs } from '@modules/demo-i18n/tree-menu';
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MenuDragDropService } from '../services/menu-drag-drop.service';
@@ -645,7 +648,12 @@ describe('TreeMenuDragDropStore 拖放交给引擎', () => {
     });
 
     const makeHost = (menus: SortableMenuSimple[]) => {
-      TestBed.configureTestingModule({ providers: [{ provide: PLATFORM_ID, useValue: 'browser' }] });
+      TestBed.configureTestingModule({
+        providers: [
+          { provide: PLATFORM_ID, useValue: 'browser' },
+          provideI18n(() => new I18n({ defaultLocale: 'zh-Hans', deviceLocale: 'zh-Hans', catalogs: treeMenuCatalogs }))
+        ]
+      });
       const parts = makeDragStore(menus);
       class Host extends TreeMenuDragDropBase<typeof SortableMenuSimple> {
         constructor() {

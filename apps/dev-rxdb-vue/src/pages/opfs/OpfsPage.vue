@@ -1,4 +1,13 @@
 <script lang="ts" setup>
+import {
+  orderFileEntries,
+  formatFileSize,
+  type FileDeleteTarget,
+  type FileMessage,
+  fileMessage,
+  renderFileMessage
+} from '@modules/demo-i18n/files';
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 /**
  * OPFS 文件管理页面 - Vue
  */
@@ -26,11 +35,14 @@ import OpfsFileGrid from './components/OpfsFileGrid.vue';
 import OpfsFileList from './components/OpfsFileList.vue';
 import OpfsFilePreview from './components/OpfsFilePreview.vue';
 import { useOpfsService } from './composables/useOpfsService';
-import { formatFileSize, type OPFSFileEntry } from './utils/opfs-utils';
+import { type OPFSFileEntry } from './utils/opfs-utils';
+
+const { t, locale } = useI18n();
 
 type ViewMode = 'list' | 'grid';
 
 const opfs = useOpfsService();
+const orderedEntries = computed(() => orderFileEntries(opfs.entries.value, locale.value));
 const router = useRouter();
 const route = useRoute();
 
@@ -43,9 +55,13 @@ const isDragging = ref(false);
 const selectedPaths = ref<Set<string>>(new Set());
 const lastSelectedPath = ref<string | null>(null);
 
-const deleteConfirm = ref<{ show: boolean; entry: OPFSFileEntry | null; resolve?: (v: boolean) => void }>({
+const deleteConfirm = ref<{
+  show: boolean;
+  target: FileDeleteTarget<OPFSFileEntry> | null;
+  resolve?: (v: boolean) => void;
+}>({
   show: false,
-  entry: null
+  target: null
 });
 const renameDialog = ref<{ show: boolean; entry: OPFSFileEntry | null; newName: string }>({
   show: false,
@@ -64,7 +80,7 @@ const contextMenu = ref<{ show: boolean; x: number; y: number; entry: OPFSFileEn
   y: 0,
   entry: null
 });
-const toast = ref<{ show: boolean; message: string; type: 'error' | 'success' | 'info' }>({
+const toast = ref<{ show: boolean; message: string | FileMessage; type: 'error' | 'success' | 'info' }>({
   show: false,
   message: '',
   type: 'info'
@@ -87,8 +103,8 @@ let mouseMoveListener: ((e: MouseEvent) => void) | null = null;
 let mouseUpListener: (() => void) | null = null;
 
 // Computed
-const dirCount = computed(() => opfs.entries.value.filter(e => e.kind === 'directory').length);
-const fileCount = computed(() => opfs.entries.value.filter(e => e.kind === 'file').length);
+const dirCount = computed(() => orderedEntries.value.filter(e => e.kind === 'directory').length);
+const fileCount = computed(() => orderedEntries.value.filter(e => e.kind === 'file').length);
 /**
  * RV-037：URL 对应的目标目录，与 `opfs.currentPath` 分开算。
  *
@@ -168,7 +184,7 @@ function buildUrlFromPath(path: string): string {
   return `/opfs/${pathStr}`;
 }
 
-function showToastMsg(message: string, type: 'error' | 'success' | 'info' = 'info') {
+function showToastMsg(message: string | FileMessage, type: 'error' | 'success' | 'info' = 'info') {
   toast.value = { show: true, message, type };
   setTimeout(() => {
     toast.value = { show: false, message: '', type: 'info' };
@@ -186,17 +202,17 @@ async function handleDownload(entry: OPFSFileEntry) {
 
 async function handleDelete(entry: OPFSFileEntry) {
   const shouldDelete = await new Promise<boolean>(resolve => {
-    deleteConfirm.value = { show: true, entry, resolve };
+    deleteConfirm.value = { show: true, target: { type: 'single', entry }, resolve };
   });
   if (shouldDelete) {
     const result = await opfs.deleteEntry(entry);
-    if (!result) showToastMsg(`删除失败: ${entry.name}`, 'error');
+    if (!result) showToastMsg(fileMessage('file.deleteFailed', { detail: entry.name }), 'error');
   }
 }
 
 function handleDeleteResponse(confirm: boolean) {
   if (deleteConfirm.value.resolve) deleteConfirm.value.resolve(confirm);
-  deleteConfirm.value = { show: false, entry: null };
+  deleteConfirm.value = { show: false, target: null };
 }
 
 async function handleUpload(files?: File[]) {
@@ -220,7 +236,7 @@ async function handleUpload(files?: File[]) {
 
 async function handleUploadFolder(files: File[]) {
   if (files.length === 0) return;
-  showToastMsg(`正在上传文件夹，共 ${files.length} 个文件...`, 'info');
+  showToastMsg(fileMessage('file.uploadingFolder', { count: files.length }), 'info');
 
   let successCount = 0;
   let failedCount = 0;
@@ -232,8 +248,9 @@ async function handleUploadFolder(files: File[]) {
     else failedCount++;
   }
   await opfs.refresh();
-  if (failedCount > 0) showToastMsg(`上传完成：${successCount} 成功，${failedCount} 失败`, 'error');
-  else showToastMsg(`成功上传 ${successCount} 个文件`, 'success');
+  if (failedCount > 0)
+    showToastMsg(fileMessage('file.uploadFinished', { succeeded: successCount, failed: failedCount }), 'error');
+  else showToastMsg(fileMessage('file.uploaded', { count: successCount }), 'success');
 }
 
 function handleOverwriteResponse(confirm: boolean) {
@@ -262,13 +279,7 @@ async function handleBatchDelete() {
   if (selectedPaths.value.size === 0) return;
   const entriesToDelete = opfs.entries.value.filter(e => selectedPaths.value.has(e.path));
   const shouldDelete = await new Promise<boolean>(resolve => {
-    const virtualEntry: OPFSFileEntry = {
-      name: `${selectedPaths.value.size} 个项目`,
-      kind: 'file',
-      handle: {} as FileSystemFileHandle,
-      path: ''
-    };
-    deleteConfirm.value = { show: true, entry: virtualEntry, resolve };
+    deleteConfirm.value = { show: true, target: { type: 'batch', count: entriesToDelete.length }, resolve };
   });
 
   if (shouldDelete) {
@@ -277,8 +288,8 @@ async function handleBatchDelete() {
       const result = await opfs.deleteEntry(entry);
       if (!result) failedCount++;
     }
-    if (failedCount > 0) showToastMsg(`${failedCount} 个项目删除失败`, 'error');
-    else showToastMsg(`成功删除 ${entriesToDelete.length} 个项目`, 'success');
+    if (failedCount > 0) showToastMsg(fileMessage('file.deleteFailures', { count: failedCount }), 'error');
+    else showToastMsg(fileMessage('file.deleted', { count: entriesToDelete.length }), 'success');
     selectedPaths.value = new Set();
     lastSelectedPath.value = null;
   }
@@ -293,7 +304,7 @@ function handleEntryClick(payload: { entry: OPFSFileEntry; event: MouseEvent }) 
     selectedPaths.value = next;
     lastSelectedPath.value = entry.path;
   } else if (event.shiftKey && lastSelectedPath.value) {
-    const entries = opfs.entries.value;
+    const entries = orderedEntries.value;
     const startIndex = entries.findIndex(e => e.path === lastSelectedPath.value);
     const endIndex = entries.findIndex(e => e.path === entry.path);
     if (startIndex !== -1 && endIndex !== -1) {
@@ -453,20 +464,22 @@ async function traverseFileTree(item: FileSystemEntry, path: string, files: File
     <!-- Header -->
     <div class="border-base-300 flex items-center justify-between border-b px-3 py-2">
       <div class="flex items-center gap-3">
-        <span class="text-sm font-bold">OPFS 文件管理</span>
+        <span class="text-sm font-bold">{{ t('file.opfsTitle') }}</span>
         <div class="flex items-center gap-1.5">
           <div
             class="h-2 w-2 rounded-full"
             :class="opfsAvailable ? 'bg-success' : 'bg-error'"
           />
-          <span class="text-base-content/60 text-xs">{{ opfsAvailable ? '已连接' : '未连接' }}</span>
+          <span class="text-base-content/60 text-xs">{{
+            opfsAvailable ? t('file.connected') : t('file.disconnected')
+          }}</span>
         </div>
         <span
           class="text-error text-xs"
           v-if="opfs.error.value"
           data-testid="opfs-error"
         >
-          {{ opfs.error.value }}
+          {{ renderFileMessage(t, opfs.error.value) }}
         </span>
       </div>
       <div
@@ -479,7 +492,7 @@ async function traverseFileTree(item: FileSystemEntry, path: string, files: File
           @click="viewMode = 'list'"
           role="tab"
         >
-          <List :size="12" /> List
+          <List :size="12" /> {{ t('file.list') }}
         </button>
         <button
           class="tab gap-1"
@@ -487,7 +500,7 @@ async function traverseFileTree(item: FileSystemEntry, path: string, files: File
           @click="viewMode = 'grid'"
           role="tab"
         >
-          <Grid3X3 :size="12" /> Grid
+          <Grid3X3 :size="12" /> {{ t('file.grid') }}
         </button>
       </div>
     </div>
@@ -497,14 +510,14 @@ async function traverseFileTree(item: FileSystemEntry, path: string, files: File
       <button
         class="btn btn-xs btn-ghost"
         @click="opfs.navigateTo('/')"
-        title="根目录"
+        :title="t('file.root')"
       >
         <Home :size="16" />
       </button>
       <button
         class="btn btn-xs btn-ghost"
         @click="opfs.refresh()"
-        title="刷新"
+        :title="t('file.refresh')"
       >
         <RefreshCw
           :class="{ 'animate-spin': opfs.loading.value }"
@@ -516,39 +529,39 @@ async function traverseFileTree(item: FileSystemEntry, path: string, files: File
         class="btn btn-xs btn-primary"
         @click="fileInputRef?.click()"
       >
-        <Upload :size="16" /> 上传文件
+        <Upload :size="16" /> {{ t('file.upload') }}
       </button>
       <button
         class="btn btn-xs btn-primary"
         @click="folderInputRef?.click()"
       >
-        <Folder :size="16" /> 上传文件夹
+        <Folder :size="16" /> {{ t('file.uploadFolder') }}
       </button>
       <button
         class="btn btn-xs btn-secondary"
         @click="showNewFolder = true"
       >
-        <FolderPlus :size="16" /> 新建文件夹
+        <FolderPlus :size="16" /> {{ t('file.newFolder') }}
       </button>
       <template v-if="selectedPaths.size > 0">
         <div class="divider divider-horizontal m-0" />
-        <span class="text-base-content/60 text-xs">已选择 {{ selectedPaths.size }} 项</span>
+        <span class="text-base-content/60 text-xs">{{ t('file.selected', { count: selectedPaths.size }) }}</span>
         <button
           class="btn btn-xs btn-ghost"
           @click="
             selectedPaths = new Set();
             lastSelectedPath = null;
           "
-          title="取消选择"
+          :title="t('file.clearSelection')"
         >
           <X :size="14" />
         </button>
         <button
           class="btn btn-xs btn-error"
           @click="handleBatchDelete"
-          title="批量删除"
+          :title="t('file.batchDelete')"
         >
-          <Trash2 :size="16" /> 删除
+          <Trash2 :size="16" /> {{ t('file.delete') }}
         </button>
       </template>
     </div>
@@ -559,7 +572,7 @@ async function traverseFileTree(item: FileSystemEntry, path: string, files: File
         class="hover:underline"
         @click="opfs.navigateTo('/')"
       >
-        根目录
+        {{ t('file.root') }}
       </button>
       <div
         class="flex items-center gap-1"
@@ -592,7 +605,7 @@ async function traverseFileTree(item: FileSystemEntry, path: string, files: File
       <OpfsFileList
         v-if="viewMode === 'list'"
         :current-path="opfs.currentPath.value"
-        :entries="opfs.entries.value"
+        :entries="orderedEntries"
         :selected-paths="selectedPaths"
         @context-menu="handleContextMenu"
         @delete="handleDelete"
@@ -605,7 +618,7 @@ async function traverseFileTree(item: FileSystemEntry, path: string, files: File
       <OpfsFileGrid
         v-else
         :current-path="opfs.currentPath.value"
-        :entries="opfs.entries.value"
+        :entries="orderedEntries"
         :selected-paths="selectedPaths"
         @context-menu="handleContextMenu"
         @delete="handleDelete"
@@ -638,14 +651,14 @@ async function traverseFileTree(item: FileSystemEntry, path: string, files: File
             class="text-primary mx-auto mb-2"
             :size="48"
           />
-          <p class="text-primary text-lg font-semibold">拖放文件到这里上传</p>
+          <p class="text-primary text-lg font-semibold">{{ t('file.drop') }}</p>
         </div>
       </div>
     </div>
 
     <!-- Status bar -->
     <div class="border-base-300 text-base-content/60 flex items-center gap-4 border-t px-3 py-1 text-xs">
-      <span>{{ opfs.entries.value.length }} 项 ({{ dirCount }} 个文件夹, {{ fileCount }} 个文件)</span>
+      <span>{{ t('file.stats', { count: dirCount + fileCount, folders: dirCount, files: fileCount }) }}</span>
     </div>
 
     <!-- Preview -->
@@ -664,12 +677,12 @@ async function traverseFileTree(item: FileSystemEntry, path: string, files: File
         class="modal-box"
         @click.stop
       >
-        <h3 class="mb-4 text-base font-bold">新建文件夹</h3>
+        <h3 class="mb-4 text-base font-bold">{{ t('file.newFolder') }}</h3>
         <input
           class="input input-bordered w-full"
           v-model="newFolderName"
           @keydown.enter="handleCreateFolder"
-          placeholder="文件夹名称"
+          :placeholder="t('file.folderName')"
           type="text"
         />
         <div class="modal-action">
@@ -677,13 +690,13 @@ async function traverseFileTree(item: FileSystemEntry, path: string, files: File
             class="btn btn-sm"
             @click="showNewFolder = false"
           >
-            取消
+            {{ t('file.cancel') }}
           </button>
           <button
             class="btn btn-sm btn-primary"
             @click="handleCreateFolder"
           >
-            创建
+            {{ t('file.create') }}
           </button>
         </div>
       </div>
@@ -704,19 +717,19 @@ async function traverseFileTree(item: FileSystemEntry, path: string, files: File
             class="text-warning"
             :size="18"
           />
-          文件已存在
+          {{ t('file.fileExists') }}
         </h3>
         <p class="mb-4">
-          文件 <span class="font-semibold">{{ overwriteConfirm.file.name }}</span> 已存在，是否覆盖？
+          {{ t('file.overwriteQuestion', { name: overwriteConfirm.file.name }) }}
         </p>
         <div class="bg-base-200 mb-4 space-y-2 rounded-lg p-3">
           <div class="flex justify-between text-sm">
-            <span class="text-base-content/60">现有文件:</span>
-            <span class="font-mono">{{ formatFileSize(overwriteConfirm.existingEntry.size || 0) }}</span>
+            <span class="text-base-content/60">{{ t('file.existingFile') }}</span>
+            <span class="font-mono">{{ formatFileSize(overwriteConfirm.existingEntry.size || 0, locale) }}</span>
           </div>
           <div class="flex justify-between text-sm">
-            <span class="text-base-content/60">新文件:</span>
-            <span class="font-mono">{{ formatFileSize(overwriteConfirm.file.size) }}</span>
+            <span class="text-base-content/60">{{ t('file.newFile') }}</span>
+            <span class="font-mono">{{ formatFileSize(overwriteConfirm.file.size, locale) }}</span>
           </div>
         </div>
         <div class="modal-action">
@@ -724,13 +737,13 @@ async function traverseFileTree(item: FileSystemEntry, path: string, files: File
             class="btn btn-sm"
             @click="handleOverwriteResponse(false)"
           >
-            取消
+            {{ t('file.cancel') }}
           </button>
           <button
             class="btn btn-sm btn-warning"
             @click="handleOverwriteResponse(true)"
           >
-            覆盖
+            {{ t('file.overwrite') }}
           </button>
         </div>
       </div>
@@ -761,7 +774,7 @@ async function traverseFileTree(item: FileSystemEntry, path: string, files: File
             v-else
             :size="14"
           />
-          <span>{{ contextMenu.entry.kind === 'file' ? '查看' : '打开' }}</span>
+          <span>{{ contextMenu.entry.kind === 'file' ? t('file.view') : t('file.open') }}</span>
         </a>
       </li>
       <li>
@@ -770,7 +783,7 @@ async function traverseFileTree(item: FileSystemEntry, path: string, files: File
           @click="handleContextMenuAction('rename')"
         >
           <Edit3 :size="14" />
-          <span>重命名</span>
+          <span>{{ t('file.rename') }}</span>
         </a>
       </li>
       <li>
@@ -779,7 +792,7 @@ async function traverseFileTree(item: FileSystemEntry, path: string, files: File
           @click="handleContextMenuAction('delete')"
         >
           <Trash2 :size="14" />
-          <span>删除</span>
+          <span>{{ t('file.delete') }}</span>
         </a>
       </li>
     </div>
@@ -787,7 +800,7 @@ async function traverseFileTree(item: FileSystemEntry, path: string, files: File
     <!-- Delete confirm -->
     <div
       class="modal modal-open"
-      v-if="deleteConfirm.show && deleteConfirm.entry"
+      v-if="deleteConfirm.show && deleteConfirm.target"
       @click="handleDeleteResponse(false)"
     >
       <div
@@ -799,32 +812,33 @@ async function traverseFileTree(item: FileSystemEntry, path: string, files: File
             class="text-error"
             :size="18"
           />
-          确认删除
+          {{ t('file.confirmDelete') }}
         </h3>
         <p class="mb-4">
-          确定要删除
-          <span class="font-semibold">{{ deleteConfirm.entry.kind === 'file' ? '文件' : '文件夹' }}</span>
-          <span class="text-error font-semibold">{{ deleteConfirm.entry.name }}</span>
-          吗？
+          {{
+            deleteConfirm.target.type === 'batch' ?
+              t('file.deleteMany', { count: deleteConfirm.target.count })
+            : t('file.deleteOne', { kind: deleteConfirm.target.entry.kind, name: deleteConfirm.target.entry.name })
+          }}
         </p>
         <p
           class="text-warning mb-4 flex items-center gap-1 text-sm"
-          v-if="deleteConfirm.entry.kind === 'directory'"
+          v-if="deleteConfirm.target.type === 'single' && deleteConfirm.target.entry.kind === 'directory'"
         >
-          <AlertTriangle :size="16" /> 此操作将删除文件夹及其所有内容
+          <AlertTriangle :size="16" /> {{ t('file.deleteContents') }}
         </p>
         <div class="modal-action">
           <button
             class="btn btn-sm"
             @click="handleDeleteResponse(false)"
           >
-            取消
+            {{ t('file.cancel') }}
           </button>
           <button
             class="btn btn-sm btn-error"
             @click="handleDeleteResponse(true)"
           >
-            删除
+            {{ t('file.delete') }}
           </button>
         </div>
       </div>
@@ -840,11 +854,11 @@ async function traverseFileTree(item: FileSystemEntry, path: string, files: File
         class="modal-box"
         @click.stop
       >
-        <h3 class="mb-4 text-base font-bold">重命名{{ renameDialog.entry.kind === 'file' ? '文件' : '文件夹' }}</h3>
+        <h3 class="mb-4 text-base font-bold">{{ t('file.renameEntry', { kind: renameDialog.entry.kind }) }}</h3>
         <input
           class="input input-bordered w-full"
           v-model="renameDialog.newName"
-          :placeholder="renameDialog.entry.kind === 'file' ? '文件名' : '文件夹名'"
+          :placeholder="t(renameDialog.entry.kind === 'file' ? 'file.fileName' : 'file.folderName')"
           @keydown.enter="handleRename"
           type="text"
         />
@@ -853,13 +867,13 @@ async function traverseFileTree(item: FileSystemEntry, path: string, files: File
             class="btn btn-sm"
             @click="renameDialog = { show: false, entry: null, newName: '' }"
           >
-            取消
+            {{ t('file.cancel') }}
           </button>
           <button
             class="btn btn-sm btn-primary"
             @click="handleRename"
           >
-            确定
+            {{ t('file.confirm') }}
           </button>
         </div>
       </div>
@@ -878,7 +892,7 @@ async function traverseFileTree(item: FileSystemEntry, path: string, files: File
           'alert-info': toast.type === 'info'
         }"
       >
-        <span>{{ toast.message }}</span>
+        <span>{{ renderFileMessage(t, toast.message) }}</span>
         <button
           class="btn btn-sm btn-ghost"
           @click="toast = { show: false, message: '', type: 'info' }"

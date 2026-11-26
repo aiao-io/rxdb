@@ -15,6 +15,8 @@ vi.mock('@aiao/rxdb-vue', () => ({
 // 页面只把两个适配器包当类型用；桩掉免得测试加载 sqlite 适配器源码
 vi.mock('@aiao/rxdb-adapter-sqlite-core', () => ({ AdapterEncryptionFacade: class {} }));
 vi.mock('@aiao/rxdb-adapter-sqlite-wasm', () => ({ RxDBAdapterSqlite: class {} }));
+// 本 spec 只关心初始化生命周期，不关心文案；提供一个恒等 t 避免挂载需要 I18n provider。
+vi.mock('@aiao/rxdb-i18n-vue', () => ({ useI18n: () => ({ t: (key: string) => key }) }));
 
 import EncryptedPage from './EncryptedPage.vue';
 

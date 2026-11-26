@@ -84,6 +84,14 @@
       {
         "name": "resolveMessage",
         "kind": "value"
+      },
+      {
+        "name": "resolveUiLocale",
+        "kind": "value"
+      },
+      {
+        "name": "UiLocale",
+        "kind": "type"
       }
     ],
     "./testing": [

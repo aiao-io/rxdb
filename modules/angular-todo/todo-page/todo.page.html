@@ -167,9 +167,10 @@
             <!-- History Toggle -->
             <button
               class="btn btn-sm"
+              [attr.aria-label]="historyPresentation.label('history.open')"
               [class.btn-primary]="$show_history()"
               (click)="toggle_history()"
-              aria-label="历史记录"
+              data-testid="todo-history"
             >
               <svg [lucideIcon]="History" size="16"></svg>
             </button>

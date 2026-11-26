@@ -20,7 +20,7 @@ function fixture() {
     adapterConnected$: vi.fn().mockReturnValue(of(false)),
     connect: vi.fn().mockResolvedValue(undefined)
   };
-  const i18n = createWorkbenchI18n();
+  const i18n = createWorkbenchI18n(undefined, 'zh-CN');
   const controller = new BackupController(database, i18n);
   const file = new File(['archive'], 'test.rxdb-backup');
   Object.defineProperty(file, 'stream', { value: () => new ReadableStream<Uint8Array>() });

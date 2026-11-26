@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { getEntityStatus } from '@aiao/rxdb';
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { injectRxDB } from '@aiao/rxdb-vue';
 import { formatErrorMessage, useToast } from '../app/composables/useToast';
@@ -25,7 +26,7 @@ import {
   ValidationModule
 } from 'ag-grid-enterprise';
 import { AgGridVue } from 'ag-grid-vue3';
-import { onUnmounted, ref, shallowRef, watch } from 'vue';
+import { computed, onUnmounted, ref, shallowRef, watch } from 'vue';
 import { useAgGridTheme } from '../app/composables/useAgGridTheme';
 import { useTheme } from '../app/composables/useTheme';
 import { applyIncrementalGridUpdate, buildColDefs } from '../utils/ag-grid';
@@ -47,6 +48,7 @@ ModuleRegistry.registerModules([
 ]);
 
 const rxdb = injectRxDB();
+const { locale, t } = useI18n();
 const { currentThemeIsDark } = useTheme();
 
 const gridApi = shallowRef<GridApi | null>(null);
@@ -54,8 +56,8 @@ const fingerprintMap = new Map<string, string>();
 const todosData = ref<Todo[]>([]);
 const theme = useAgGridTheme(currentThemeIsDark, gridApi);
 
-const columnDefs = ref<ColDef<Todo>[]>(
-  buildColDefs(Todo, { locale: 'zh-CN' }).map(col => {
+const columnDefs = computed<ColDef<Todo>[]>(() =>
+  buildColDefs(Todo, { locale: locale.value, t }).map(col => {
     const field = col.field as string;
     return {
       ...col,

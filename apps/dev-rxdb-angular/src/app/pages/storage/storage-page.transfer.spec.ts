@@ -1,4 +1,3 @@
-import { STORAGE_LABELS } from '@aiao/utils';
 import { describe, expect, it, vi } from 'vitest';
 import { StoragePageTransfer } from './storage-page.transfer';
 import type { StorageBrowserItem } from './utils/storage-utils';
@@ -32,7 +31,7 @@ describe('StoragePageTransfer', () => {
 
     expect(storage.upload).toHaveBeenCalledOnce();
     expect(refresh).toHaveBeenCalledOnce();
-    expect(showToast).toHaveBeenCalledWith(STORAGE_LABELS.UPLOAD_SUCCESS, 'success');
+    expect(showToast).toHaveBeenCalledWith({ key: 'file.uploadSuccess' }, 'success');
   });
 
   it('does not refresh when no file is uploaded', async () => {
@@ -71,7 +70,10 @@ describe('StoragePageTransfer', () => {
     await transfer.handleUploadFolder([fileWithName('a.txt', 'folder/a.txt'), fileWithName('b.txt', 'folder/b.txt')]);
 
     expect(refresh).toHaveBeenCalledOnce();
-    expect(showToast).toHaveBeenCalledWith('Upload finished: 1 succeeded, 1 failed', 'error');
+    expect(showToast).toHaveBeenCalledWith(
+      { key: 'file.uploadFinished', params: { succeeded: 1, failed: 1 } },
+      'error'
+    );
   });
 
   it('asks the resolver before overwriting an existing file', async () => {

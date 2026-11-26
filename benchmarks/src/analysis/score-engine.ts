@@ -1,9 +1,10 @@
 import type { BenchmarkSection } from '../hooks/useBenchmark';
+import type { BenchmarksMessageKey } from '../i18n/messages';
 import { BENCHMARK_EXPECTATIONS } from './benchmark-rating';
 
 export interface CategoryScore {
   key: string;
-  title: string;
+  titleKey: BenchmarksMessageKey;
   score: number; // 0–100
   weight: number; // 分类权重（百分比，如 35）
   itemCount: number; // 参与计分的测试项数量
@@ -58,12 +59,12 @@ const TEST_CONFIG: Record<string, TestConfig> = {
   'mixed-load-70-30': { category: 'concurrency', weight: 0.65, higherIsBetter: false }
 };
 
-/** 分类定义（顺序即显示顺序） */
+/** 分类定义（顺序即显示顺序）；标题经 i18n 目录翻译。 */
 const CATEGORIES = [
-  { key: 'latency', title: '延迟分布', weight: 35 },
-  { key: 'throughput', title: '吞吐量', weight: 30 },
-  { key: 'scalability', title: '扩展性', weight: 20 },
-  { key: 'concurrency', title: '并发', weight: 15 }
+  { key: 'latency', titleKey: 'score.categoryLatency', weight: 35 },
+  { key: 'throughput', titleKey: 'score.categoryThroughput', weight: 30 },
+  { key: 'scalability', titleKey: 'score.categoryScalability', weight: 20 },
+  { key: 'concurrency', titleKey: 'score.categoryConcurrency', weight: 15 }
 ] as const;
 
 /**
@@ -134,7 +135,7 @@ export function computeScoreReport(sections: BenchmarkSection[]): ScoreReport | 
   let totalWeighted = 0;
   let totalCatWeight = 0;
 
-  for (const { key, title, weight } of CATEGORIES) {
+  for (const { key, titleKey, weight } of CATEGORIES) {
     const items = grouped.get(key);
     if (!items?.length) continue;
 
@@ -146,7 +147,7 @@ export function computeScoreReport(sections: BenchmarkSection[]): ScoreReport | 
     }
 
     const catScore = itemWeightSum > 0 ? weightedScore / itemWeightSum : 0;
-    categoryScores.push({ key, title, score: catScore, weight, itemCount: items.length });
+    categoryScores.push({ key, titleKey, score: catScore, weight, itemCount: items.length });
     totalWeighted += catScore * weight;
     totalCatWeight += weight;
   }

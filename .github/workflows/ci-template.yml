@@ -242,6 +242,9 @@ jobs:
       - name: E2E spec copies gate
         run: pnpm audit:e2e-spec-copies
 
+      - name: Check English and Chinese message catalog keys
+        run: pnpm nx run @aiao/source:audit-i18n
+
       # requirements/ 的派生视图（status-overview 计数与索引、epic status、README 的 N/M、
       # 相对链接与 #L 行号锚点）必须等于 story YAML 推导值。此前全靠手改，README 写 50/61 时
       # YAML 已是 54/63；数字类漂移本地跑 `pnpm audit:requirements:update` 即可回写。

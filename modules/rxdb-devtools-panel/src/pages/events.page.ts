@@ -3,6 +3,7 @@ import { ConnectionGuardComponent } from '../components/connection-guard.compone
 import { EventDetailComponent } from '../components/event-detail.component';
 import { EventListComponent } from '../components/event-list.component';
 import { DevToolsStateService } from '../services/devtools-state.service';
+import { PanelI18nService } from '../services/panel-i18n.service';
 
 /**
  * Events 页面
@@ -17,12 +18,12 @@ import { DevToolsStateService } from '../services/devtools-state.service';
       <div class="flex h-full flex-col overflow-hidden">
         <!-- Toolbar -->
         <div class="border-base-300 flex items-center justify-between border-b px-3 py-1.5">
-          <div class="text-base-content/60 text-xs">{{ eventIndexes().length }} 事件</div>
+          <div class="text-base-content/60 text-xs">{{ t('events.count', { count: eventIndexes().length }) }}</div>
           <button
             class="btn btn-ghost btn-xs gap-1"
             [disabled]="eventIndexes().length === 0"
+            [title]="t('events.clearTitle')"
             (click)="clearEvents()"
-            title="清空事件列表"
           >
             <svg
               fill="none"
@@ -39,7 +40,7 @@ import { DevToolsStateService } from '../services/devtools-state.service';
               <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
               <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
             </svg>
-            清空
+            {{ t('events.clear') }}
           </button>
         </div>
 
@@ -66,6 +67,7 @@ import { DevToolsStateService } from '../services/devtools-state.service';
 })
 export class EventsPage {
   private readonly devToolsState = inject(DevToolsStateService);
+  protected readonly t = inject(PanelI18nService).t;
   readonly eventIndexes = this.devToolsState.eventIndexes;
 
   clearEvents(): void {

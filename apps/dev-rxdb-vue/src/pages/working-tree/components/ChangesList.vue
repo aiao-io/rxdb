@@ -1,10 +1,13 @@
 <script lang="ts" setup>
 import type { WorkingTreeDiff, WorkingTreeDiffEntry, WorkingTreeQueryState } from '@aiao/rxdb-plugin-working-tree';
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import { Check, ChevronDown, FileDiff, ListFilter, MoreVertical, Search } from '@lucide/vue';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { diffEntryKey, formatPatchSummary } from '../utils/diff-format';
 import type { WorkingTreeContextMenuRequest } from '../utils/context-menu';
 import { gdEntryPath, gdOpColor, gdOpIcon, gdPathColor, gdTableName } from '../utils/gd';
+
+const { t } = useI18n();
 
 /** 变更类型筛选的四个档位。 */
 const KINDS = [
@@ -253,9 +256,9 @@ onBeforeUnmount(() => {
             <button
               class="gd-btn-ghost hidden max-md:inline-flex pointer-coarse:inline-flex"
               @click="onTouchMenu($event, entry)"
-              aria-label="更多操作"
+              :aria-label="t('common.moreActions')"
               data-testid="wt-diff-more"
-              title="更多操作（触屏）"
+              :title="t('page.workingTree.moreActionsTouch')"
               type="button"
             >
               <MoreVertical :size="14" />

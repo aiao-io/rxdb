@@ -1,7 +1,16 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { I18n } from '@aiao/rxdb-i18n';
+import { I18nProvider } from '@aiao/rxdb-i18n-react';
+import { fileCatalogs } from '@modules/demo-i18n/files';
+import { fireEvent, render as renderComponent, screen } from '@testing-library/react';
+import type { ReactElement } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import type { OPFSFileEntry } from '../utils/opfs-utils';
 import { OpfsContextMenu } from './OpfsContextMenu';
+
+function render(element: ReactElement) {
+  const i18n = new I18n({ deviceLocale: 'zh-Hans', catalogs: fileCatalogs });
+  return renderComponent(element, { wrapper: ({ children }) => <I18nProvider value={i18n}>{children}</I18nProvider> });
+}
 
 const makeEntry = (kind: OPFSFileEntry['kind']): OPFSFileEntry => ({
   name: kind === 'file' ? 'note.txt' : 'docs',

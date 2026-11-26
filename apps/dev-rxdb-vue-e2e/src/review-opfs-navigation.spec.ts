@@ -143,7 +143,7 @@ test('评审对照：等待后退导航的目录加载完成后，上传写入�
   const folder = `review-control-${Date.now()}`;
   await prepareBackNavigationRace(page, folder);
   await releaseNavigation(page);
-  await expect(page.getByText('0 项 (0 个文件夹, 0 个文件)')).toBeVisible();
+  await expect(page.getByText('0 项（0 个文件夹，0 个文件）')).toBeVisible();
   await upload(page);
   await expect(page.locator(`[data-entry-path="/${folder}/${FILE_NAME}"]`)).toBeVisible();
   expect(await readDisk(page, folder)).toEqual({ root: null, target: CONTENT });

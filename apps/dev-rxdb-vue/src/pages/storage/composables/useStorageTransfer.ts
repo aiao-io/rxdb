@@ -1,8 +1,8 @@
 import type { RxDB } from '@aiao/rxdb';
 import { normalizeDirectoryPath, type StorageFileMeta } from '@aiao/rxdb-plugin-storage';
-import { STORAGE_LABELS } from '@aiao/utils';
+import { fileError, fileMessage } from '@modules/demo-i18n/files';
 import { zipSync, type Zippable } from 'fflate';
-import { formatErrorMessage, useToast } from '../../../app/composables/useToast';
+import { useToast } from '../../../app/composables/useToast';
 import { readDirectoryEntries } from '../../../app/utils/read-directory-entries';
 import type { StorageBrowserItem } from '../utils/storage-utils';
 import { mapEntry } from './useStorageBrowser';
@@ -107,7 +107,6 @@ async function downloadEntriesAsZip(rxdb: RxDB, items: StorageBrowserItem[], sug
 
 export function useStorageTransfer(deps: UploadDeps) {
   const toast = useToast();
-  const L = STORAGE_LABELS;
 
   async function upload(filesToUpload: File[]): Promise<void> {
     if (filesToUpload.length === 0) return;
@@ -130,13 +129,17 @@ export function useStorageTransfer(deps: UploadDeps) {
         successCount++;
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        toast.error(message.includes('already exists') ? L.FILE_EXISTS : message);
+        toast.error(
+          message.includes('already exists') ? fileMessage('file.fileExists') : fileError('file.uploadFailed', err)
+        );
         return;
       }
     }
 
     if (successCount > 0) {
-      toast.success(successCount === 1 ? L.UPLOAD_SUCCESS : `Uploaded ${successCount} files`);
+      toast.success(
+        successCount === 1 ? fileMessage('file.uploadSuccess') : fileMessage('file.uploaded', { count: successCount })
+      );
       await deps.refresh();
     }
   }
@@ -144,7 +147,7 @@ export function useStorageTransfer(deps: UploadDeps) {
   async function uploadFolder(files: File[]): Promise<void> {
     if (files.length === 0) return;
 
-    toast.info(`Uploading folder with ${files.length} files...`);
+    toast.info(fileMessage('file.uploadingFolder', { count: files.length }));
     const root = deps.currentPath();
 
     let successCount = 0;
@@ -173,22 +176,24 @@ export function useStorageTransfer(deps: UploadDeps) {
     await deps.refresh();
 
     if (failedCount > 0) {
-      toast.error(`Upload finished: ${successCount} succeeded, ${failedCount} failed`);
+      toast.error(fileMessage('file.uploadFinished', { succeeded: successCount, failed: failedCount }));
     } else {
-      toast.success(`Uploaded ${successCount} files`);
+      toast.success(fileMessage('file.uploaded', { count: successCount }));
     }
   }
 
   async function downloadEntry(entry: StorageBrowserItem): Promise<void> {
     if (entry.kind === 'directory') {
-      toast.info(`Preparing ${entry.name}...`);
+      toast.info(fileMessage('file.preparingFile', { name: entry.name }));
       try {
         const fileCount = await downloadEntriesAsZip(deps.rxdb, [entry], `${entry.name}.zip`);
         toast.success(
-          fileCount === 0 ? `Downloaded empty folder ${entry.name}` : `Downloaded ${fileCount} files from ${entry.name}`
+          fileCount === 0 ?
+            fileMessage('file.downloadedEmptyFolder', { name: entry.name })
+          : fileMessage('file.downloadedFromFolder', { count: fileCount, name: entry.name })
         );
       } catch (err) {
-        toast.error(formatErrorMessage('下载失败', err));
+        toast.error(fileError('file.downloadFailed', err));
       }
       return;
     }
@@ -198,13 +203,13 @@ export function useStorageTransfer(deps: UploadDeps) {
     try {
       await deps.rxdb.storage.download(entry.meta.id);
     } catch (err) {
-      toast.error(formatErrorMessage('下载失败', err));
+      toast.error(fileError('file.downloadFailed', err));
     }
   }
 
   async function downloadBatch(items: StorageBrowserItem[]): Promise<void> {
     if (items.length === 0) {
-      toast.error('No files selected');
+      toast.error(fileMessage('file.noSelection'));
       return;
     }
 
@@ -214,17 +219,17 @@ export function useStorageTransfer(deps: UploadDeps) {
     }
 
     const folderName = deps.currentPath().split('/').filter(Boolean).pop() || 'storage';
-    toast.info(`Preparing ${items.length} items...`);
+    toast.info(fileMessage('file.preparingItems', { count: items.length }));
 
     try {
       const fileCount = await downloadEntriesAsZip(deps.rxdb, items, `${folderName}.zip`);
       toast.success(
         fileCount === 0 ?
-          `Downloaded ${items.length} empty folders`
-        : `Downloaded ${items.length} items (${fileCount} files)`
+          fileMessage('file.downloadedEmptyFolders', { count: items.length })
+        : fileMessage('file.downloadedItems', { count: items.length, files: fileCount })
       );
     } catch (err) {
-      toast.error(formatErrorMessage('下载失败', err));
+      toast.error(fileError('file.downloadFailed', err));
     }
   }
 

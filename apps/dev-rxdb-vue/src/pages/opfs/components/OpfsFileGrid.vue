@@ -1,18 +1,15 @@
 <script lang="ts" setup>
+import { formatFileSize } from '@modules/demo-i18n/files';
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 /**
  * OPFS 文件网格组件
  */
 import { Download, Eye, Pen, Trash2 } from '@lucide/vue';
 import { onUnmounted, ref, watch } from 'vue';
 import { useOpfsService } from '../composables/useOpfsService';
-import {
-  canPreviewFile,
-  formatFileSize,
-  getFileIcon,
-  getFileIconColor,
-  isImageFile,
-  type OPFSFileEntry
-} from '../utils/opfs-utils';
+import { canPreviewFile, getFileIcon, getFileIconColor, isImageFile, type OPFSFileEntry } from '../utils/opfs-utils';
+
+const { t, locale } = useI18n();
 
 const props = defineProps<{
   entries: OPFSFileEntry[];
@@ -157,7 +154,7 @@ function handleContextMenu(event: MouseEvent, entry: OPFSFileEntry) {
           class="text-base-content/60 text-[10px]"
           v-if="entry.kind === 'file'"
         >
-          {{ formatFileSize(entry.size || 0) }}
+          {{ formatFileSize(entry.size || 0, locale) }}
         </p>
       </div>
 
@@ -168,7 +165,7 @@ function handleContextMenu(event: MouseEvent, entry: OPFSFileEntry) {
           class="btn btn-circle btn-ghost btn-xs bg-base-100/80 backdrop-blur"
           v-if="entry.kind === 'file' && canPreviewFile(entry)"
           @click.stop="emit('preview', entry)"
-          title="预览"
+          :title="t('file.preview')"
         >
           <Eye :size="12" />
         </button>
@@ -176,7 +173,7 @@ function handleContextMenu(event: MouseEvent, entry: OPFSFileEntry) {
           class="btn btn-circle btn-ghost btn-xs bg-base-100/80 backdrop-blur"
           v-if="entry.kind === 'file'"
           @click.stop="emit('download', entry)"
-          title="下载"
+          :title="t('file.download')"
         >
           <Download :size="12" />
         </button>
@@ -184,14 +181,14 @@ function handleContextMenu(event: MouseEvent, entry: OPFSFileEntry) {
           class="btn btn-circle btn-ghost btn-xs bg-base-100/80 backdrop-blur"
           data-testid="opfs-rename-btn"
           @click.stop="emit('rename', entry)"
-          title="重命名"
+          :title="t('file.rename')"
         >
           <Pen :size="12" />
         </button>
         <button
           class="btn btn-circle btn-ghost btn-xs bg-base-100/80 text-error backdrop-blur"
           @click.stop="emit('delete', entry)"
-          title="删除"
+          :title="t('file.delete')"
         >
           <Trash2 :size="12" />
         </button>

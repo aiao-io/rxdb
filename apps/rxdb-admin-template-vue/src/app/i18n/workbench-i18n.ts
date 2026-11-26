@@ -1,5 +1,5 @@
 import { adminMessages } from '@aiao/rxdb-admin';
-import { I18n, type MessageCatalog } from '@aiao/rxdb-i18n';
+import { I18n, resolveUiLocale, type MessageCatalog } from '@aiao/rxdb-i18n';
 import { modelEnMessages, modelMessages } from '@aiao/rxdb-model';
 import { appConfig, type AppConfig } from '../app-config';
 import { domainEnMessages, domainModelEnMessages, domainModelZhMessages, domainZhMessages } from './domain-messages';
@@ -50,7 +50,10 @@ const extensionMessages: MessageCatalog[] = [
 ];
 
 /** 创建共享的静态运行时；语言由外壳偏好持久化，保持业务库可在连接前恢复。 */
-export function createWorkbenchI18n(config: AppConfig = appConfig): I18n {
+export function createWorkbenchI18n(
+  config: AppConfig = appConfig,
+  deviceLocale: string | undefined = globalThis.navigator?.language
+): I18n {
   const catalogs: MessageCatalog[] = applicationMessages.map(({ locale, messages }) => {
     const identity = config.locales?.[locale] ?? config;
     return {
@@ -67,8 +70,7 @@ export function createWorkbenchI18n(config: AppConfig = appConfig): I18n {
   return new I18n({
     namespace: 'workbench',
     defaultLocale: 'zh-Hans',
-    deviceLocale: 'zh-Hans',
-    locale: 'zh-Hans',
+    deviceLocale: resolveUiLocale(deviceLocale),
     catalogs: [
       ...adminMessages,
       ...extensionMessages,

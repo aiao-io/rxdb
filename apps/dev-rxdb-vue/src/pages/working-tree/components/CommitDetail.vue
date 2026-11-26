@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import type { CommitChangeSetPage, CommitLogEntry, WorkingTreeQueryState } from '@aiao/rxdb-plugin-working-tree';
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import { ChevronDown, ChevronUp, Copy, GitCommitHorizontal } from '@lucide/vue';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { startDragResize } from '../utils/drag';
@@ -13,6 +14,8 @@ import {
   gdTableName
 } from '../utils/gd';
 import DiffViewer from './DiffViewer.vue';
+
+const { t } = useI18n();
 
 /** 一个变更单元的选中键：同一 commit 里的单元也互不相同。 */
 const changeUnitKey = (unit: CommitChangeSetPage['entries'][number]): string =>
@@ -177,7 +180,7 @@ function startFilesResize(event: PointerEvent): void {
           >
             {{ gdAvatarInitial(commit.authorId ?? '?') }}
           </span>
-          <span>{{ commit.authorId ?? '无作者' }}</span>
+          <span>{{ commit.authorId ?? t('page.workingTree.noAuthor') }}</span>
           <span class="gd-commit-time">committed on {{ commit.createdAt.toLocaleString() }}</span>
           <span
             class="min-w-0 truncate font-mono text-[11px]"

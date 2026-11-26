@@ -53,7 +53,7 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
 
 ## 国际化检视
 
-使用[客户端国际化](../i18n/README.md)时，把同一个运行时显式传给连接器：
+使用[客户端国际化](/i18n/README.md)时，把同一个运行时显式传给连接器：
 
 ```ts
 getDevToolsConnector().init(rxdb, getEntityMetadata, { i18n: runtime });
@@ -130,6 +130,6 @@ QUERY_ENTITY、事件、历史/分支与冲突载荷统一走版本化 DevTools 
 
 ## 参考
 
-- [快速开始](../getting-started/README.md)
-- [模型定义](../model-definition/README.md)
-- [会话录制回放](../plugins/rxdb-plugin-replay/README.md)
+- [快速开始](/getting-started/README.md)
+- [模型定义](/model-definition/README.md)
+- [会话录制回放](/plugins/rxdb-plugin-replay/README.md)

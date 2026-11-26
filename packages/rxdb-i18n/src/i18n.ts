@@ -22,6 +22,11 @@ export interface I18nOptions {
   readonly defaultLocale?: string;
   /** 宿主语言，缺省 navigator.language。 */
   readonly deviceLocale?: string;
+  /**
+   * 嵌入宿主下发的语言：会话期内始终优先于已持久化的用户偏好与设备语言，
+   * 仅用户显式 setLocale() 后让位；不写入偏好存储。
+   */
+  readonly hostLocale?: string;
   /** 初始显式语言；已持久化的用户偏好优先。 */
   readonly locale?: string;
   /** 随应用发布的目录。 */
@@ -69,6 +74,8 @@ export class I18n {
   #local: MessageEntry[] = [];
   #remote: RemoteMessageEntry[] = [];
   #preferences: LocalePreferences;
+  /** 会话期的宿主语言覆盖；只在显式 setLocale() 时清除，不落库、不进偏好快照。 */
+  #hostLocale: string | null;
   #subscription?: Subscription;
   #initializing?: Promise<void>;
   #initialized = false;
@@ -110,9 +117,15 @@ export class I18n {
     }
     const defaultLocale = canonicalizeLocale(options.defaultLocale ?? 'zh-Hans');
     const deviceLocale = canonicalizeLocale(options.deviceLocale ?? globalThis.navigator?.language ?? defaultLocale);
-    const locale = canonicalizeLocale(options.locale ?? deviceLocale);
+    this.#hostLocale = options.hostLocale == null ? null : canonicalizeLocale(options.hostLocale);
+    const locale = canonicalizeLocale(this.#hostLocale ?? options.locale ?? deviceLocale);
     this.#namespace = options.namespace ?? 'app';
-    this.#preferences = { locale, devicePreferredLocale: options.locale ? locale : null, deviceLocale, defaultLocale };
+    this.#preferences = {
+      locale,
+      devicePreferredLocale: options.locale == null ? null : canonicalizeLocale(options.locale),
+      deviceLocale,
+      defaultLocale
+    };
     this.locale$ = new BehaviorSubject(locale);
     for (const catalog of options.catalogs ?? []) this.registerCatalog(catalog);
   }
@@ -157,6 +170,8 @@ export class I18n {
    */
   setLocale = async (locale: string): Promise<void> => {
     this.#assertActive();
+    // 用户显式切换后，会话期的宿主语言覆盖让位；无库模式不会走 #accept 消费，这里兜底。
+    this.#hostLocale = null;
     const canonical = canonicalizeLocale(locale);
     if (!this.#db) {
       this.#applySettings({ ...this.#preferences, devicePreferredLocale: canonical });
@@ -438,6 +453,8 @@ export class I18n {
     this.#local = local;
     this.#remote = remote;
     this.#preferences = preferences;
+    // 宿主语言覆盖对会话期内的每一次设置快照（跨标签页写入、重连、迟到的持久化偏好）都保持优先，
+    // 不在此消费；只有用户显式 setLocale() 才清除，见 setLocale 与 #merge。
     this.#merge();
   }
 
@@ -451,7 +468,7 @@ export class I18n {
     for (const row of this.#remote) this.#messages.set(row.id, { ...row, source: 'remote' });
     for (const row of this.#local) this.#messages.set(row.id, { ...row, source: 'db' });
     this.#formats.clear();
-    this.locale$.next(this.#preferences.devicePreferredLocale ?? this.#preferences.deviceLocale);
+    this.locale$.next(this.#hostLocale ?? this.#preferences.devicePreferredLocale ?? this.#preferences.deviceLocale);
     this.availableLocales$.next([...new Set([...this.#messages.values()].map(row => row.locale))].sort());
     this.changes$.next(this.changes$.value + 1);
   }

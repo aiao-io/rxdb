@@ -5,8 +5,9 @@ import {
   type StorageBrowserEntry,
   type StorageFileMeta
 } from '@aiao/rxdb-plugin-storage';
+import { fileError } from '@modules/demo-i18n/files';
 import { ref } from 'vue';
-import { formatErrorMessage, useToast } from '../../../app/composables/useToast';
+import { useToast } from '../../../app/composables/useToast';
 import type { StorageBrowserItem } from '../utils/storage-utils';
 
 export type StorageBrowserService = Pick<RxDB['storage'], 'clear' | 'delete' | 'list' | 'listEntries'>;
@@ -65,9 +66,9 @@ export function useStorageBrowser(rxdb: StorageBrowserDatabase) {
       });
     } catch (err) {
       entries.value = [];
-      const message = formatErrorMessage('加载目录失败', err);
+      const message = err instanceof Error ? err.message : String(err);
       error.value = message;
-      toast.error(message);
+      toast.error(fileError('file.readFailed', err));
     } finally {
       loading.value = false;
     }

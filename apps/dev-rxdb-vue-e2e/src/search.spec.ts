@@ -9,25 +9,25 @@ test.describe('Search Page', () => {
   });
 
   test('supports a11y announcements and keyboard search flow', async ({ page }) => {
-    const input = page.getByRole('searchbox', { name: 'Global search' });
+    const input = page.getByTestId('search-input');
     const clearButton = page.getByTestId('search-clear');
     const resultsCount = page.getByTestId('search-results-count');
     const state = page.getByTestId('search-state');
 
-    await expect(resultsCount).toContainText('Enter a query');
+    await expect(resultsCount).toContainText('输入关键词开始搜索');
     await expect(input).toHaveAttribute('aria-busy', 'false');
 
     await input.focus();
     await input.fill('fts5');
     await expect(state).toHaveText('success', { timeout: 15000 });
     await expect(input).toHaveAttribute('aria-busy', 'false');
-    await expect(resultsCount).toContainText('results');
+    await expect(resultsCount).toContainText('条结果');
     await expect(page.getByTestId('search-result')).not.toHaveCount(0);
 
     await input.press('Escape');
     await expect(input).toHaveValue('');
     await expect(state).toHaveText('idle');
-    await expect(resultsCount).toContainText('Enter a query');
+    await expect(resultsCount).toContainText('输入关键词开始搜索');
 
     await input.focus();
     await input.fill('fts5');
@@ -45,12 +45,12 @@ test.describe('Search Page', () => {
     await simulateError.focus();
     await page.keyboard.press('Enter');
     await expect(state).toHaveText('error');
-    await expect(resultsCount).toContainText('Search failed');
+    await expect(resultsCount).toContainText('搜索失败');
 
     const retry = page.getByTestId('search-retry');
     await retry.focus();
     await page.keyboard.press('Enter');
     await expect(state).toHaveText('success', { timeout: 15000 });
-    await expect(resultsCount).toContainText('results');
+    await expect(resultsCount).toContainText('条结果');
   });
 });

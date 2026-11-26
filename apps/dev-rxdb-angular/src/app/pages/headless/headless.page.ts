@@ -10,6 +10,7 @@ import {
   untracked,
   ViewEncapsulation
 } from '@angular/core';
+import { I18nPipe } from '../../pipes/i18n.pipe';
 import { ArticleFormComponent } from './article-form.component';
 import { ArticleListComponent } from './article-list.component';
 import {
@@ -35,19 +36,25 @@ import { QueryPanelComponent } from './query-panel.component';
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
   styleUrl: './headless.css',
-  imports: [ArticleFormComponent, ArticleListComponent, DetailDialogComponent, QueryPanelComponent],
+  imports: [ArticleFormComponent, ArticleListComponent, DetailDialogComponent, QueryPanelComponent, I18nPipe],
   host: { class: 'hl-page', 'data-testid': 'headless-page' },
   template: `
-    <h1>Headless 实体</h1>
-    <p class="hl-lead">本页只使用 headless 入口提供的状态与动作；DOM、控件、布局和样式都是自己的。</p>
+    <h1>{{ 'page.headless.title' | i18n }}</h1>
+    <p class="hl-lead">{{ 'page.headless.subtitle' | i18n }}</p>
     <div class="hl-grid">
       <app-hl-article-form [create]="create" />
       <app-hl-query-panel (apply)="query.set($event)" />
       <div class="hl-wide">
         <div class="hl-actions">
-          <button (click)="dialog.controller.open({ mode: 'create' })" type="button">新建文章</button>
+          <button (click)="dialog.controller.open({ mode: 'create' })" type="button">
+            {{ 'page.headless.newArticle' | i18n }}
+          </button>
           <span data-testid="dialog-result" role="status">
-            {{ dialog.snapshot().result === undefined ? '' : '弹窗结果：' + dialog.snapshot().result }}
+            {{
+              dialog.snapshot().result === undefined ?
+                ''
+              : ('page.headless.dialogResult' | i18n: { result: dialog.snapshot().result })
+            }}
           </span>
         </div>
         <app-hl-article-list

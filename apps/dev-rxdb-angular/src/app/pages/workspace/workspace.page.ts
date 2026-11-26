@@ -1,10 +1,16 @@
 import { RxDB } from '@aiao/rxdb';
 import { useCount, useFind } from '@aiao/rxdb-angular';
-import { useI18nOptional } from '@aiao/rxdb-i18n-angular';
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { type WorkspaceCacheEntry } from '@aiao/rxdb-plugin-workspace';
 import { Todo, type TodoStaticTypes } from '@aiao/rxdb-test/entities';
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import {
+  formatWorkspaceDate,
+  workspaceError,
+  workspaceNoticeText,
+  type WorkspaceNotice
+} from '@modules/demo-i18n/workspace';
 import { firstValueFrom } from 'rxjs';
 import { I18nPipe } from '../../pipes/i18n.pipe';
 
@@ -19,19 +25,6 @@ const TODO_PAGE_SIZE = 20;
  * 「页面显示多少」和「一次删多少」是两回事，删除不该被前者限制。
  */
 const TODO_DELETE_BATCH_SIZE = 200;
-
-type NoticeTone = 'info' | 'success' | 'warning' | 'error';
-
-type Notice = {
-  tone: NoticeTone;
-  text: string;
-};
-
-function formatDateTime(value: Date | string | null | undefined, locale = 'zh-CN'): string {
-  if (!value) return '-';
-  const date = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(date.getTime()) ? '-' : date.toLocaleString(locale);
-}
 
 @Component({
   selector: 'app-workspace-demo-page',
@@ -68,7 +61,7 @@ function formatDateTime(value: Date | string | null | undefined, locale = 'zh-CN
       <div class="min-h-0 flex-1 overflow-auto p-4">
         @if (notice(); as currentNotice) {
           <div [class]="alertClass(currentNotice.tone) + ' mb-4'" role="alert">
-            <span class="text-sm">{{ currentNotice.text }}</span>
+            <span class="text-sm">{{ noticeText(currentNotice) }}</span>
           </div>
         }
 
@@ -76,17 +69,17 @@ function formatDateTime(value: Date | string | null | undefined, locale = 'zh-CN
         <div class="stats stats-vertical bg-base-100 border-base-300 md:stats-horizontal mb-4 w-full border shadow-sm">
           <div class="stat py-3">
             <div class="stat-title text-xs">{{ 'page.workspace.draftStat' | i18n }}</div>
-            <div class="stat-value text-primary text-2xl">{{ workspaceEntries().length }}</div>
+            <div class="stat-value text-primary text-2xl">{{ formatNumber(workspaceEntries().length) }}</div>
             <div class="stat-desc">{{ 'page.workspace.draftStatDescription' | i18n }}</div>
           </div>
           <div class="stat py-3">
             <div class="stat-title text-xs">{{ 'page.workspace.todoStat' | i18n }}</div>
-            <div class="stat-value text-2xl">{{ savedTodoTotal() }}</div>
+            <div class="stat-value text-2xl">{{ formatNumber(savedTodoTotal()) }}</div>
             <div class="stat-desc">{{ 'page.workspace.todoStatDescription' | i18n }}</div>
           </div>
           <div class="stat py-3">
             <div class="stat-title text-xs">{{ 'page.workspace.activeDraftStat' | i18n }}</div>
-            <div class="stat-value text-secondary text-2xl">{{ activeDraftEntry() ? 1 : 0 }}</div>
+            <div class="stat-value text-secondary text-2xl">{{ formatNumber(activeDraftEntry() ? 1 : 0) }}</div>
             <div class="stat-desc">{{ 'page.workspace.activeDraftStatDescription' | i18n }}</div>
           </div>
         </div>
@@ -108,9 +101,10 @@ function formatDateTime(value: Date | string | null | undefined, locale = 'zh-CN
                   <label class="floating-label">
                     <input
                       class="input input-sm w-full"
+                      #titleInput
                       [placeholder]="'page.workspace.titlePlaceholder' | i18n"
                       [value]="draftTitle()"
-                      (input)="draftTitle.set($any($event.target).value)"
+                      (input)="draftTitleInput.set(titleInput.value)"
                       type="text"
                     />
                     <span>{{ 'page.workspace.draftTitle' | i18n }}</span>
@@ -142,7 +136,7 @@ function formatDateTime(value: Date | string | null | undefined, locale = 'zh-CN
                 <div class="flex items-center justify-between">
                   <h2 class="text-base font-semibold">{{ 'page.workspace.draftList' | i18n }}</h2>
                   <span class="badge badge-ghost badge-sm">{{
-                    'page.workspace.draftsCount' | i18n: { count: workspaceEntries().length }
+                    'page.workspace.drafts' | i18n: { count: workspaceEntries().length }
                   }}</span>
                 </div>
 
@@ -229,7 +223,7 @@ function formatDateTime(value: Date | string | null | undefined, locale = 'zh-CN
                       <tr>
                         <th>{{ 'page.workspace.titleColumn' | i18n }}</th>
                         <th>{{ 'page.workspace.statusColumn' | i18n }}</th>
-                        <th>ID</th>
+                        <th>{{ 'page.workspace.idColumn' | i18n }}</th>
                         <th>{{ 'page.workspace.updatedAtColumn' | i18n }}</th>
                       </tr>
                     </thead>
@@ -264,7 +258,12 @@ function formatDateTime(value: Date | string | null | undefined, locale = 'zh-CN
                   <span class="text-base-content/55 text-xs">
                     {{
                       'page.workspace.pagination'
-                        | i18n: { count: savedTodoTotal(), current: todoPage() + 1, total: todoPageCount() }
+                        | i18n
+                          : {
+                              count: savedTodoTotal(),
+                              current: todoPage() + 1,
+                              total: todoPageCount()
+                            }
                     }}
                   </span>
                   <div class="join">
@@ -353,11 +352,14 @@ function formatDateTime(value: Date | string | null | undefined, locale = 'zh-CN
 })
 export default class WorkspaceDemoPage {
   private readonly rxdb = inject(RxDB);
-  private readonly i18n = useI18nOptional();
+  private readonly i18n = useI18n();
   private readonly destroyRef = inject(DestroyRef);
 
   /** 用户点出来的页码。记录被删后可能越界，对外一律读 {@link todoPage}。 */
   private readonly requestedTodoPage = signal(0);
+
+  protected readonly formatNumber = this.i18n.formatNumber;
+  protected readonly draftTitleInput = signal<string | null>(null);
 
   readonly todoPageSize = TODO_PAGE_SIZE;
 
@@ -385,10 +387,10 @@ export default class WorkspaceDemoPage {
   readonly workspaceEntries = signal<WorkspaceCacheEntry[]>([]);
   readonly recoveredIds = signal<Set<string>>(new Set());
   readonly activeDraftId = signal<string | null>(null);
-  readonly draftTitle = signal('整理需求清单');
+  readonly draftTitle = computed(() => this.draftTitleInput() ?? this.i18n.t('page.workspace.defaultTitle'));
   readonly draftCompleted = signal(false);
   readonly busy = signal(false);
-  readonly notice = signal<Notice | null>(null);
+  readonly notice = signal<WorkspaceNotice | null>(null);
 
   readonly activeDraftEntry = computed(() => {
     const activeId = this.activeDraftId();
@@ -408,7 +410,11 @@ export default class WorkspaceDemoPage {
   }
 
   formatDateTime(value: Date | string | null | undefined): string {
-    return formatDateTime(value, this.i18n?.locale() ?? 'zh-CN');
+    return formatWorkspaceDate(value, this.i18n.locale());
+  }
+
+  protected noticeText(notice: WorkspaceNotice): string {
+    return workspaceNoticeText(notice, this.i18n.t);
   }
 
   protected previousTodoPage() {
@@ -419,7 +425,7 @@ export default class WorkspaceDemoPage {
     this.requestedTodoPage.set(Math.min(this.todoPageCount() - 1, this.todoPage() + 1));
   }
 
-  protected alertClass(tone: NoticeTone) {
+  protected alertClass(tone: WorkspaceNotice['tone']) {
     switch (tone) {
       case 'success':
         return 'alert alert-success alert-soft';
@@ -434,15 +440,13 @@ export default class WorkspaceDemoPage {
 
   protected titleOf(entry: WorkspaceCacheEntry): string {
     const title = entry.data['title'];
-    return typeof title === 'string' && title.trim().length > 0 ?
-        title
-      : this.translate('page.workspace.untitled', 'Untitled Todo');
+    return typeof title === 'string' && title.trim().length > 0 ? title : this.i18n.t('page.workspace.untitled');
   }
 
   protected completedText(entry: WorkspaceCacheEntry): string {
     return entry.data['completed'] === true ?
-        this.translate('page.workspace.statusCompleted', 'Completed')
-      : this.translate('page.workspace.statusOpen', 'Open');
+        this.i18n.t('page.workspace.statusCompleted')
+      : this.i18n.t('page.workspace.statusOpen');
   }
 
   protected createdAtOf(entry: WorkspaceCacheEntry): Date | string | null {
@@ -462,19 +466,13 @@ export default class WorkspaceDemoPage {
       });
 
       this.activeDraftId.set(todo.id);
-      this.draftTitle.set('');
+      this.draftTitleInput.set('');
       this.draftCompleted.set(false);
 
       await this.syncWorkspace(todo.id);
-      this.setNotice(
-        this.translate('page.workspace.noticeCreated', `已创建未保存草稿：${todo.title}`, { title: todo.title }),
-        'success'
-      );
+      this.notice.set({ key: 'page.workspace.noticeCreated', params: { title: todo.title }, tone: 'success' });
     } catch (error) {
-      this.setNotice(
-        this.getErrorMessage(error, this.translate('page.workspace.errorCreate', '创建草稿失败')),
-        'error'
-      );
+      this.notice.set(workspaceError('page.workspace.errorCreate', error));
     } finally {
       this.busy.set(false);
     }
@@ -487,7 +485,7 @@ export default class WorkspaceDemoPage {
   protected async saveDraft(entry: WorkspaceCacheEntry) {
     const todo = this.resolveDraft(entry);
     if (!todo) {
-      this.setNotice(this.translate('page.workspace.errorNoDraft', '未找到可恢复的 Todo 草稿'), 'error');
+      this.notice.set({ key: 'page.workspace.errorNoDraft', tone: 'error' });
       return;
     }
 
@@ -495,12 +493,9 @@ export default class WorkspaceDemoPage {
     try {
       await todo.save();
       await this.syncWorkspace(this.activeDraftId());
-      this.setNotice(
-        this.translate('page.workspace.noticeSaved', `已保存 Todo：${todo.title}`, { title: todo.title }),
-        'success'
-      );
+      this.notice.set({ key: 'page.workspace.noticeSaved', params: { title: todo.title }, tone: 'success' });
     } catch (error) {
-      this.setNotice(this.getErrorMessage(error, this.translate('page.workspace.errorSave', '保存草稿失败')), 'error');
+      this.notice.set(workspaceError('page.workspace.errorSave', error));
     } finally {
       this.busy.set(false);
     }
@@ -511,14 +506,11 @@ export default class WorkspaceDemoPage {
     try {
       const discarded = this.rxdb.workspace.discard(entry.cacheId);
       await this.syncWorkspace(this.activeDraftId() === entry.id ? null : this.activeDraftId());
-      this.setNotice(
-        discarded ?
-          this.translate('page.workspace.noticeDiscarded', `已丢弃草稿：${this.titleOf(entry)}`, {
-            title: this.titleOf(entry)
-          })
-        : this.translate('page.workspace.errorMissingDraft', '草稿已经不存在'),
-        discarded ? 'warning' : 'info'
-      );
+      this.notice.set({
+        key: discarded ? 'page.workspace.noticeDiscarded' : 'page.workspace.errorMissingDraft',
+        params: { title: this.titleOf(entry) },
+        tone: discarded ? 'warning' : 'info'
+      });
     } finally {
       this.busy.set(false);
     }
@@ -531,12 +523,9 @@ export default class WorkspaceDemoPage {
     try {
       await this.deleteAllTodos();
       this.requestedTodoPage.set(0);
-      this.setNotice(this.translate('page.workspace.noticeCleared', '已清空 Todo 主表'), 'warning');
+      this.notice.set({ key: 'page.workspace.noticeCleared', tone: 'warning' });
     } catch (error) {
-      this.setNotice(
-        this.getErrorMessage(error, this.translate('page.workspace.errorClear', '清空 Todo 主表失败')),
-        'error'
-      );
+      this.notice.set(workspaceError('page.workspace.errorClear', error));
     } finally {
       this.busy.set(false);
     }
@@ -553,13 +542,10 @@ export default class WorkspaceDemoPage {
       await this.deleteAllTodos();
       this.requestedTodoPage.set(0);
 
-      this.setNotice(this.translate('page.workspace.noticeReset', '已重置 workspace 草稿和 Todo 主表'), 'warning');
+      this.notice.set({ key: 'page.workspace.noticeReset', tone: 'warning' });
       this.recoveredIds.set(new Set());
     } catch (error) {
-      this.setNotice(
-        this.getErrorMessage(error, this.translate('page.workspace.errorReset', '重置演示数据失败')),
-        'error'
-      );
+      this.notice.set(workspaceError('page.workspace.errorReset', error));
     } finally {
       this.busy.set(false);
     }
@@ -578,13 +564,6 @@ export default class WorkspaceDemoPage {
     this.activeDraftId.set(nextId);
   }
 
-  private translate(key: string, fallback: string, params?: Record<string, unknown>): string {
-    return (
-      this.i18n?.t(key, params) ??
-      fallback.replaceAll(/\{(\w+)\}/g, (_, name: string) => String(params?.[name] ?? `{${name}}`))
-    );
-  }
-
   /**
    * 分批取、分批删。页面只订阅一页之后 `savedTodos()` 不再是全表，
    * 拿它去 `removeMany` 只会删掉当前这一页 —— 「清空」必须自己去翻整表。
@@ -597,7 +576,7 @@ export default class WorkspaceDemoPage {
       );
       if (batch.length === 0) return;
       // 游标没推进说明这一批根本没删掉，继续循环就是死循环，宁可把失败抛给调用方。
-      if (batch[0].id === lastBatchHeadId) throw new Error('批量删除没有推进：仍有 Todo 未被删除');
+      if (batch[0].id === lastBatchHeadId) throw new Error(this.i18n.t('page.workspace.deleteStalled'));
       lastBatchHeadId = batch[0].id;
       await this.rxdb.entityManager.removeMany(batch);
     }
@@ -610,10 +589,7 @@ export default class WorkspaceDemoPage {
       this.recoveredIds.set(new Set(restoredEntries.map(entry => entry.id)));
       this.refreshWorkspace(this.activeDraftId() ?? restoredEntries[0]?.id ?? null);
     } catch (error) {
-      this.setNotice(
-        this.getErrorMessage(error, this.translate('page.workspace.errorLoad', '读取 workspace 草稿失败')),
-        'error'
-      );
+      this.notice.set(workspaceError('page.workspace.errorLoad', error));
     }
   }
 
@@ -639,13 +615,5 @@ export default class WorkspaceDemoPage {
         modified: true
       })
     );
-  }
-
-  private setNotice(text: string, tone: NoticeTone) {
-    this.notice.set({ text, tone });
-  }
-
-  private getErrorMessage(error: unknown, fallback: string) {
-    return error instanceof Error ? `${fallback}: ${error.message}` : fallback;
   }
 }

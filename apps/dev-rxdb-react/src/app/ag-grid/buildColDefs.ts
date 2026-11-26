@@ -1,13 +1,18 @@
 import { EntityType, getEntityMetadata, PropertyType } from '@aiao/rxdb';
-import type { ColDef, SetFilterValuesFuncParams, ValueFormatterParams } from 'ag-grid-enterprise';
+import type { I18n } from '@aiao/rxdb-i18n';
+import type { ColDef, ValueFormatterParams } from 'ag-grid-enterprise';
 
 interface GenerateAgGridContext {
   locale: string;
-  formatDate: (date: Date | string | number) => string;
+  t: I18n['t'];
 }
 
 export const buildColDefs = <T extends EntityType>(EntityType: T, context: GenerateAgGridContext): ColDef<T>[] => {
   const meta = getEntityMetadata(EntityType);
+  const dateFormat = new Intl.DateTimeFormat(context.locale, { dateStyle: 'medium', timeStyle: 'medium' });
+  const label = (field: string) => context.t(`common.${field}`, undefined, 'rxdb-model');
+  const yes = label('yes');
+  const no = label('no');
   const columnDefs: ColDef<T>[] = [];
   meta.propertyMap.forEach((prop, key) => {
     // 暂时隐藏
@@ -17,7 +22,7 @@ export const buildColDefs = <T extends EntityType>(EntityType: T, context: Gener
     // 字段命名对齐运行时实体属性，cast 到字面量约束类型。
     let col: ColDef<T> = {
       field: key as ColDef<T>['field'],
-      headerName: prop.displayName || key
+      headerName: key === 'createdAt' || key === 'updatedAt' ? label(key) : prop.displayName || key
     };
 
     switch (prop.type) {
@@ -39,7 +44,11 @@ export const buildColDefs = <T extends EntityType>(EntityType: T, context: Gener
         col = {
           ...col,
           filter: 'agDateColumnFilter',
-          valueFormatter: params => context.formatDate(params.value) || params.value,
+          valueFormatter: ({ value }: ValueFormatterParams<T, Date | string | number>) => {
+            if (value == null || value === '') return '';
+            const date = new Date(value);
+            return Number.isNaN(date.getTime()) ? String(value) : dateFormat.format(date);
+          },
           equals: (a: Date, b: Date) => (a && a.getTime()) === (b && b.getTime())
         };
         break;
@@ -48,13 +57,9 @@ export const buildColDefs = <T extends EntityType>(EntityType: T, context: Gener
           ...col,
           filter: 'agSetColumnFilter',
           filterParams: {
-            valueFormatter: (params: ValueFormatterParams) =>
-              params.value === true || params.value === 1 ? '是' : '否',
-            values: (params: SetFilterValuesFuncParams) => {
-              // ag-grid SetFilter 默认泛型 V=string，但 boolean 字段语义就是 boolean；
-              // 这里在调用点 cast 跳过约束 — runtime 行为不变（valueFormatter 渲染 "是"/"否"）
-              params.success([true, false] as unknown as (string | null)[]);
-            }
+            valueFormatter: ({ value }: ValueFormatterParams<T, boolean | number>) =>
+              value === true || value === 1 ? yes : no,
+            values: [true, false]
           }
         };
         break;

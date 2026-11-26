@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { AdapterEncryptionFacade } from '@aiao/rxdb-adapter-sqlite-core';
 import { RxDBAdapterSqlite } from '@aiao/rxdb-adapter-sqlite-wasm';
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import { EncryptedUser } from '@aiao/rxdb-test/encrypted';
 import { injectRxDB } from '@aiao/rxdb-vue';
 import { Lock, LockOpen, Plus, RefreshCw, Trash2 } from '@lucide/vue';
@@ -8,6 +9,7 @@ import { firstValueFrom, Subscription } from 'rxjs';
 import { computed, markRaw, onMounted, onUnmounted, ref } from 'vue';
 
 const rxdb = injectRxDB()!;
+const { t } = useI18n();
 
 let encFacade: AdapterEncryptionFacade | null = null;
 let lockSub: Subscription | null = null;
@@ -132,12 +134,12 @@ async function handleRemoveUser(user: EncryptedUser) {
         :class="['size-6', isLocked ? 'text-error' : 'text-success']"
         :is="isLocked ? Lock : LockOpen"
       />
-      <h1 class="text-2xl font-bold">本地字段加密演示</h1>
+      <h1 class="text-2xl font-bold">{{ t('page.encrypted.title') }}</h1>
       <span
         :class="['badge', isLocked ? 'badge-error' : 'badge-success']"
         data-testid="encryption-status"
       >
-        {{ isLocked ? '已锁定' : '已解锁' }}
+        {{ isLocked ? t('page.encrypted.locked') : t('page.encrypted.unlocked') }}
       </span>
     </div>
 
@@ -156,30 +158,28 @@ async function handleRemoveUser(user: EncryptedUser) {
       v-if="isLocked"
     >
       <div class="card-body space-y-4">
-        <h2 class="card-title text-lg">解锁数据库</h2>
+        <h2 class="card-title text-lg">{{ t('page.encrypted.unlockTitle') }}</h2>
         <div
           class="alert alert-info alert-soft"
           v-if="isFirstTime"
           role="alert"
         >
-          <span
-            >首次使用：请设置一个密码短语，系统将用它加密您的数据。请牢记此密码，后续解锁需要输入相同的密码短语。</span
-          >
+          <span>{{ t('page.encrypted.firstUse') }}</span>
         </div>
         <p
           class="text-base-content/70 text-sm"
           v-else
         >
-          输入密码短语以解密加密字段。密码短语不会离开您的设备。
+          {{ t('page.encrypted.unlockHint') }}
         </p>
         <fieldset class="fieldset">
-          <legend class="fieldset-legend">密码</legend>
+          <legend class="fieldset-legend">{{ t('page.encrypted.passphraseLabel') }}</legend>
           <input
             class="input input-bordered w-full"
             v-model="passphrase"
             @keydown.enter="handleUnlock"
             data-testid="encryption-passphrase"
-            placeholder="输入密码…"
+            :placeholder="t('page.encrypted.passphrasePlaceholder')"
             type="password"
           />
         </fieldset>
@@ -191,7 +191,7 @@ async function handleRemoveUser(user: EncryptedUser) {
             data-testid="encryption-unlock"
           >
             <LockOpen class="size-4" />
-            解锁
+            {{ t('page.encrypted.unlock') }}
           </button>
         </div>
       </div>
@@ -206,7 +206,7 @@ async function handleRemoveUser(user: EncryptedUser) {
           @click="loadUsers"
         >
           <RefreshCw :class="['size-4', isLoading ? 'animate-spin' : '']" />
-          刷新
+          {{ t('page.encrypted.refresh') }}
         </button>
         <button
           class="btn btn-sm btn-error btn-outline"
@@ -214,17 +214,17 @@ async function handleRemoveUser(user: EncryptedUser) {
           data-testid="encryption-lock"
         >
           <Lock class="size-4" />
-          锁定
+          {{ t('page.encrypted.lock') }}
         </button>
       </div>
 
       <!-- Create new user -->
       <div class="card card-border bg-base-100">
         <div class="card-body space-y-3">
-          <h2 class="card-title text-base">添加加密用户</h2>
+          <h2 class="card-title text-base">{{ t('page.encrypted.createTitle') }}</h2>
           <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <fieldset class="fieldset">
-              <legend class="fieldset-legend">姓名（明文）</legend>
+              <legend class="fieldset-legend">{{ t('page.encrypted.nameLabel') }}</legend>
               <input
                 class="input input-bordered w-full"
                 v-model="newName"
@@ -234,7 +234,7 @@ async function handleRemoveUser(user: EncryptedUser) {
               />
             </fieldset>
             <fieldset class="fieldset">
-              <legend class="fieldset-legend">信用卡号（加密）</legend>
+              <legend class="fieldset-legend">{{ t('page.encrypted.cardLabel') }}</legend>
               <input
                 class="input input-bordered w-full"
                 v-model="newCard"
@@ -244,7 +244,7 @@ async function handleRemoveUser(user: EncryptedUser) {
               />
             </fieldset>
             <fieldset class="fieldset">
-              <legend class="fieldset-legend">API 密钥（加密）</legend>
+              <legend class="fieldset-legend">{{ t('page.encrypted.apiKeyLabel') }}</legend>
               <input
                 class="input input-bordered w-full"
                 v-model="newSecret"
@@ -262,7 +262,7 @@ async function handleRemoveUser(user: EncryptedUser) {
               data-testid="encryption-save-user"
             >
               <Plus class="size-4" />
-              保存用户
+              {{ t('page.encrypted.saveUser') }}
             </button>
           </div>
         </div>
@@ -276,9 +276,15 @@ async function handleRemoveUser(user: EncryptedUser) {
         <table class="table-zebra table-sm table">
           <thead>
             <tr>
-              <th>姓名</th>
-              <th>信用卡号 <span class="badge badge-warning badge-xs ml-1">加密</span></th>
-              <th>API 密钥 <span class="badge badge-warning badge-xs ml-1">加密</span></th>
+              <th>{{ t('page.encrypted.name') }}</th>
+              <th
+                >{{ t('page.encrypted.card') }}
+                <span class="badge badge-warning badge-xs ml-1">{{ t('page.encrypted.encryptedBadge') }}</span></th
+              >
+              <th
+                >{{ t('page.encrypted.apiKey') }}
+                <span class="badge badge-warning badge-xs ml-1">{{ t('page.encrypted.encryptedBadge') }}</span></th
+              >
               <th></th>
             </tr>
           </thead>
@@ -308,7 +314,7 @@ async function handleRemoveUser(user: EncryptedUser) {
         class="text-base-content/50 py-10 text-center"
         v-else
       >
-        <p>暂无加密用户，请在上方添加。</p>
+        <p>{{ t('page.encrypted.empty') }}</p>
       </div>
     </template>
   </div>

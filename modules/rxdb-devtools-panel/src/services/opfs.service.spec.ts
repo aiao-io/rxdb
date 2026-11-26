@@ -77,10 +77,10 @@ describe('OpfsService', () => {
     await service.refresh();
 
     expect(service.errorKind()).toBe('content-script-unavailable');
-    expect(service.error()).toBe('请刷新被检查的页面以加载 OPFS 管理功能');
+    expect(service.error()).toBe('Reload the inspected page to load OPFS management');
     expect(service.files()).toEqual([]);
     expect(service.loading()).toBe(false);
-    expect(toast.error).toHaveBeenLastCalledWith('请刷新被检查的页面以加载 OPFS 管理功能');
+    expect(toast.error).toHaveBeenLastCalledWith('Reload the inspected page to load OPFS management');
   });
 
   it('keeps operation-scoped failures off the refresh hint', async () => {
@@ -92,7 +92,7 @@ describe('OpfsService', () => {
     await service.refresh();
 
     expect(service.errorKind()).toBe('unknown');
-    expect(service.error()).toBe('OPFS 错误: 路径非法');
+    expect(service.error()).toBe('OPFS error: Invalid path');
     expect(service.loading()).toBe(false);
   });
 
@@ -108,11 +108,11 @@ describe('OpfsService', () => {
     await service.download(file);
 
     expect(fileChannel.calls).toEqual([{ op: 'download', path: '/folder/a.txt' }]);
-    expect(toast.success).toHaveBeenCalledWith('文件下载成功');
+    expect(toast.success).toHaveBeenCalledWith('File downloaded');
 
     fileChannel.failNext('permission_denied');
     await service.download(file);
-    expect(toast.error).toHaveBeenLastCalledWith('下载失败: 没有访问该路径的权限');
+    expect(toast.error).toHaveBeenLastCalledWith('Download failed: No permission to access this path');
   });
 
   it('deletes files and directories through one verb and refreshes after success', async () => {
@@ -122,7 +122,7 @@ describe('OpfsService', () => {
       { op: 'remove', path: '/folder' },
       { op: 'list', path: '/' }
     ]);
-    expect(toast.success).toHaveBeenCalledWith('删除成功');
+    expect(toast.success).toHaveBeenCalledWith('Deleted');
   });
 
   it('does not refresh after a failed delete', async () => {
@@ -131,7 +131,7 @@ describe('OpfsService', () => {
     await service.delete({ name: 'a.txt', path: '/a.txt', type: 'file' });
 
     expect(fileChannel.calls).toEqual([{ op: 'remove', path: '/a.txt' }]);
-    expect(toast.error).toHaveBeenCalledWith('删除失败: 目标不存在');
+    expect(toast.error).toHaveBeenCalledWith('Delete failed: Target not found');
   });
 
   it('confirms an upload by observing the listing, not by trusting the ack', async () => {
@@ -144,7 +144,7 @@ describe('OpfsService', () => {
       { op: 'list', path: '/' }
     ]);
     expect(service.files().some(entry => entry.name === 'data.bin')).toBe(true);
-    expect(toast.success).toHaveBeenCalledWith('上传成功: data.bin');
+    expect(toast.success).toHaveBeenCalledWith('Uploaded: data.bin');
   });
 
   it('reports an unconfirmed upload when the file never appears', async () => {
@@ -154,7 +154,7 @@ describe('OpfsService', () => {
 
     await expect(service.upload(new File(['x'], 'data.bin'))).resolves.toBe(false);
 
-    expect(toast.error).toHaveBeenCalledWith('上传未确认: data.bin');
+    expect(toast.error).toHaveBeenCalledWith('Upload unconfirmed: data.bin');
     expect(toast.success).not.toHaveBeenCalled();
   });
 
@@ -165,7 +165,7 @@ describe('OpfsService', () => {
 
     await expect(service.upload(new File(['x'], 'huge.bin'))).resolves.toBe(false);
 
-    expect(toast.error).toHaveBeenCalledWith('上传失败: 超过协商的单次传输上限');
+    expect(toast.error).toHaveBeenCalledWith('Upload failed: Exceeds the negotiated single-transfer limit');
     expect(fileChannel.calls).toEqual([{ op: 'upload', path: '/', name: 'huge.bin' }]);
   });
 
@@ -175,11 +175,11 @@ describe('OpfsService', () => {
       { op: 'createDirectory', path: '/docs' },
       { op: 'list', path: '/' }
     ]);
-    expect(toast.success).toHaveBeenCalledWith('创建成功: docs');
+    expect(toast.success).toHaveBeenCalledWith('Created: docs');
 
     fileChannel.failNext('resource_conflict');
     await expect(service.createDirectory('docs')).resolves.toBe(false);
-    expect(toast.error).toHaveBeenLastCalledWith('创建失败: 同名条目已存在');
+    expect(toast.error).toHaveBeenLastCalledWith('Create failed: An entry with the same name already exists');
     expect(fileChannel.calls).toHaveLength(3);
   });
 
@@ -260,7 +260,7 @@ describe('OpfsService', () => {
     release();
 
     await expect(uploading).resolves.toBe(true);
-    expect(toast.success).toHaveBeenCalledWith('上传成功: data.bin');
+    expect(toast.success).toHaveBeenCalledWith('Uploaded: data.bin');
     // 确认看的是 /docs 的清单；根目录的视图不能被 /docs 的内容顶掉。
     expect(fileChannel.calls).toEqual([
       { op: 'upload', path: '/docs', name: 'data.bin' },

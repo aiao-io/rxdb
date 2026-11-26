@@ -1,10 +1,13 @@
 <script lang="ts" setup>
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import { CodeEditor } from '@aiao/code-editor-vue';
 import { injectRxDB } from '@aiao/rxdb-vue';
 import { STORAGE_TESTID } from '@aiao/utils';
 import { X } from '@lucide/vue';
 import { onUnmounted, ref, watch } from 'vue';
 import { getCodeLanguage, getFileType, isTextBlob, type StorageBrowserItem } from '../utils/storage-utils';
+
+const { t } = useI18n();
 
 const props = defineProps<{
   entry: StorageBrowserItem | null;
@@ -132,6 +135,7 @@ function resetPreviewState() {
         <h3 class="text-lg font-bold">{{ entry.name }}</h3>
         <button
           class="btn btn-sm btn-circle btn-ghost"
+          :aria-label="t('file.closePreview')"
           :data-testid="T.PREVIEW_CLOSE"
           @click="handleClose"
           type="button"
@@ -173,7 +177,7 @@ function resetPreviewState() {
               :src="content"
               controls
             >
-              Audio preview is not supported
+              {{ t('file.audioUnsupported') }}
             </audio>
           </div>
           <div
@@ -185,7 +189,7 @@ function resetPreviewState() {
               :src="content"
               controls
             >
-              Video preview is not supported
+              {{ t('file.videoUnsupported') }}
             </video>
           </div>
           <div
@@ -209,7 +213,7 @@ function resetPreviewState() {
             class="text-base-content/40 py-8 text-center"
             v-else
           >
-            Unable to preview this file
+            {{ t('file.previewUnsupported') }}
           </div>
         </template>
       </div>
@@ -220,7 +224,7 @@ function resetPreviewState() {
           @click="handleClose"
           type="button"
         >
-          Close
+          {{ t('file.close') }}
         </button>
       </div>
     </div>

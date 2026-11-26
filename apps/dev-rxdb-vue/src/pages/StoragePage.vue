@@ -1,7 +1,16 @@
 <script lang="ts" setup>
+import {
+  orderFileEntries,
+  type FileDeleteTarget,
+  type FileMessage,
+  fileMessage,
+  renderFileMessage,
+  fileError
+} from '@modules/demo-i18n/files';
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import { normalizeDirectoryPath } from '@aiao/rxdb-plugin-storage';
 import { injectRxDB } from '@aiao/rxdb-vue';
-import { checkOPFSAvailable, STORAGE_LABELS, STORAGE_TESTID } from '@aiao/utils';
+import { checkOPFSAvailable, STORAGE_TESTID } from '@aiao/utils';
 import { Database, TriangleAlert, Upload } from '@lucide/vue';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
@@ -20,7 +29,9 @@ import StorageOverwriteDialog from './storage/components/StorageOverwriteDialog.
 import StorageRenameDialog from './storage/components/StorageRenameDialog.vue';
 import StorageToolbar from './storage/components/StorageToolbar.vue';
 import type { StorageBrowserItem } from './storage/utils/storage-utils';
-import { formatErrorMessage, useToast } from '../app/composables/useToast';
+import { useToast } from '../app/composables/useToast';
+
+const { t, locale } = useI18n();
 
 type ViewMode = 'list' | 'grid';
 
@@ -29,7 +40,6 @@ const router = useRouter();
 const route = useRoute();
 const toast = useToast();
 const T = STORAGE_TESTID;
-const L = STORAGE_LABELS;
 
 const viewMode = ref<ViewMode>(getStoredViewMode());
 const previewEntry = ref<StorageBrowserItem | null>(null);
@@ -53,16 +63,17 @@ const contextMenu = ref<{ show: boolean; x: number; y: number; entry: StorageBro
 const renameDialog = ref<{ show: boolean; entry: StorageBrowserItem | null }>({ show: false, entry: null });
 const deleteConfirm = ref<{
   show: boolean;
-  entry: StorageBrowserItem | null;
+  target: FileDeleteTarget<StorageBrowserItem> | null;
   resolve?: (value: boolean) => void;
-}>({ show: false, entry: null });
-const confirmDialog = ref<{ show: boolean; message: string; resolve?: (value: boolean) => void }>({
+}>({ show: false, target: null });
+const confirmDialog = ref<{ show: boolean; message: string | FileMessage; resolve?: (value: boolean) => void }>({
   show: false,
   message: ''
 });
 const showNewFolder = ref(false);
 
 const browser = useStorageBrowser(rxdb);
+const entries = computed(() => orderFileEntries(browser.entries.value, locale.value));
 const initialization = useStorageInitialization({
   checkAvailability: checkOPFSAvailable,
   open: async path => {
@@ -70,7 +81,7 @@ const initialization = useStorageInitialization({
     await browser.refresh(path);
   }
 });
-const selection = useStorageSelection(browser.entries);
+const selection = useStorageSelection(entries);
 const transfer = useStorageTransfer({
   rxdb,
   currentPath: () => browser.currentPath.value,
@@ -85,14 +96,14 @@ const transfer = useStorageTransfer({
 });
 
 const routePath = computed(() => normalizeRoutePath(route.params.storagePath as string | string[] | undefined));
-const dirCount = computed(() => browser.entries.value.filter(entry => entry.kind === 'directory').length);
-const fileCount = computed(() => browser.entries.value.filter(entry => entry.kind === 'file').length);
+const dirCount = computed(() => entries.value.filter(entry => entry.kind === 'directory').length);
+const fileCount = computed(() => entries.value.filter(entry => entry.kind === 'file').length);
 const opfsAvailable = computed(() => initialization.isReady.value);
 const storageLoading = computed(() => initialization.status.value === 'checking' || browser.loading.value);
 const storageStatusMessage = computed(() => {
-  if (initialization.status.value === 'unavailable') return 'OPFS is not available in this browser.';
+  if (initialization.status.value === 'unavailable') return t('file.opfsUnsupported');
   if (initialization.status.value === 'error') {
-    return formatErrorMessage('Storage initialization failed', initialization.error.value);
+    return renderFileMessage(t, fileError('file.initFailed', initialization.error.value));
   }
   return null;
 });
@@ -149,7 +160,7 @@ function buildUrlFromPath(path: string): string {
   return `/storage/${segments.map(segment => encodeURIComponent(segment)).join('/')}`;
 }
 
-function confirm(message: string): Promise<boolean> {
+function confirm(message: string | FileMessage): Promise<boolean> {
   return new Promise(resolve => {
     confirmDialog.value = { show: true, message, resolve };
   });
@@ -164,23 +175,23 @@ async function navigateTo(path: string): Promise<void> {
 
 async function handleDelete(entry: StorageBrowserItem): Promise<void> {
   const shouldDelete = await new Promise<boolean>(resolve => {
-    deleteConfirm.value = { show: true, entry, resolve };
+    deleteConfirm.value = { show: true, target: { type: 'single', entry }, resolve };
   });
 
   if (!shouldDelete) return;
 
   const result = await browser.deleteEntry(entry);
-  if (!result) toast.error(`Delete failed: ${entry.name}`);
+  if (!result) toast.error(fileMessage('file.deleteFailed', { detail: entry.name }));
 }
 
 async function handleCreateFolder(name: string): Promise<void> {
   try {
     await rxdb.storage.createDirectory(name, { path: browser.currentPath.value });
     showNewFolder.value = false;
-    toast.success('Folder created successfully');
+    toast.success(fileMessage('file.folderCreated'));
     await browser.refresh(browser.currentPath.value);
   } catch (err) {
-    toast.error(formatErrorMessage('创建文件夹失败', err));
+    toast.error(fileError('file.createFailed', err));
   }
 }
 
@@ -195,10 +206,10 @@ async function handleRename(newName: string): Promise<void> {
       await rxdb.storage.renameDirectory(entry.path, newName);
     }
     renameDialog.value = { show: false, entry: null };
-    toast.success('Rename successful');
+    toast.success(fileMessage('file.renameSuccess'));
     await browser.refresh(browser.currentPath.value);
   } catch (err) {
-    toast.error(formatErrorMessage('重命名失败', err));
+    toast.error(fileError('file.renameFailed', err));
   }
 }
 
@@ -209,7 +220,7 @@ async function handleBatchDelete(): Promise<void> {
   const shouldDelete = await new Promise<boolean>(resolve => {
     deleteConfirm.value = {
       show: true,
-      entry: { name: `${selection.selectedPaths.value.size} items`, kind: 'file', path: '' },
+      target: { type: 'batch', count: selectedEntries.length },
       resolve
     };
   });
@@ -222,8 +233,8 @@ async function handleBatchDelete(): Promise<void> {
     if (!ok) failedCount++;
   }
 
-  if (failedCount > 0) toast.error(`${failedCount} items failed to delete`);
-  else toast.success(`Deleted ${selectedEntries.length} items`);
+  if (failedCount > 0) toast.error(fileMessage('file.deleteFailures', { count: failedCount }));
+  else toast.success(fileMessage('file.deleted', { count: selectedEntries.length }));
 
   selection.clearSelection();
 }
@@ -234,18 +245,18 @@ async function handleBatchDownload(): Promise<void> {
 }
 
 async function onClearAll(): Promise<void> {
-  const confirmed = await confirm(L.CONFIRM_CLEAR);
+  const confirmed = await confirm(fileMessage('file.confirmClear'));
   if (!confirmed) return;
 
   try {
     await rxdb.storage.clear('/');
     selection.clearSelection();
     previewEntry.value = null;
-    toast.success(L.CLEAR_SUCCESS);
+    toast.success(fileMessage('file.clearSuccess'));
     browser.currentPath.value = '/';
     await browser.refresh('/');
   } catch (err) {
-    toast.error(formatErrorMessage('清空失败', err));
+    toast.error(fileError('file.clearFailed', err));
   }
 }
 
@@ -342,7 +353,7 @@ function handleFolderInputUpload(): void {
 
 function resolveDeleteConfirm(confirmed: boolean): void {
   deleteConfirm.value.resolve?.(confirmed);
-  deleteConfirm.value = { show: false, entry: null };
+  deleteConfirm.value = { show: false, target: null };
 }
 
 function resolveOverwrite(confirmed: boolean): void {
@@ -409,7 +420,7 @@ function resolveConfirmDialog(confirmed: boolean): void {
       </div>
       <div
         class="flex h-full items-center justify-center"
-        v-else-if="browser.entries.value.length === 0"
+        v-else-if="entries.length === 0"
         :data-testid="T.EMPTY_STATE"
       >
         <div class="text-center">
@@ -418,14 +429,14 @@ function resolveConfirmDialog(confirmed: boolean): void {
             :size="48"
           />
           <p class="text-base-content/60 text-sm">
-            {{ browser.currentPath.value === '/' ? L.NO_FILES : 'This folder is empty' }}
+            {{ browser.currentPath.value === '/' ? t('file.emptyStorage') : t('file.emptyFolder') }}
           </p>
         </div>
       </div>
       <StorageFileList
         v-else-if="viewMode === 'list'"
         :current-path="browser.currentPath.value"
-        :entries="browser.entries.value"
+        :entries="entries"
         :selected-paths="selection.selectedPaths.value"
         @context-menu="handleContextMenu"
         @delete="handleDelete"
@@ -438,7 +449,7 @@ function resolveConfirmDialog(confirmed: boolean): void {
       <StorageFileGrid
         v-else
         :current-path="browser.currentPath.value"
-        :entries="browser.entries.value"
+        :entries="entries"
         :selected-paths="selection.selectedPaths.value"
         @context-menu="handleContextMenu"
         @delete="handleDelete"
@@ -469,13 +480,13 @@ function resolveConfirmDialog(confirmed: boolean): void {
             class="text-primary mx-auto mb-2"
             :size="48"
           />
-          <p class="text-primary text-lg font-semibold">Drop files here to upload</p>
+          <p class="text-primary text-lg font-semibold">{{ t('file.drop') }}</p>
         </div>
       </div>
     </div>
 
     <div class="border-base-300 text-base-content/60 flex items-center gap-4 border-t px-3 py-1 text-xs">
-      <span>{{ browser.entries.value.length }} items ({{ dirCount }} folders, {{ fileCount }} files)</span>
+      <span>{{ t('file.stats', { count: dirCount + fileCount, folders: dirCount, files: fileCount }) }}</span>
     </div>
 
     <StorageFilePreview
@@ -505,7 +516,7 @@ function resolveConfirmDialog(confirmed: boolean): void {
     />
 
     <StorageDeleteDialog
-      :entry="deleteConfirm.entry"
+      :target="deleteConfirm.target"
       :show="deleteConfirm.show"
       @respond="resolveDeleteConfirm"
     />
@@ -518,7 +529,7 @@ function resolveConfirmDialog(confirmed: boolean): void {
     />
 
     <StorageConfirmDialog
-      :message="confirmDialog.message"
+      :message="renderFileMessage(t, confirmDialog.message)"
       :show="confirmDialog.show"
       @respond="resolveConfirmDialog"
     />

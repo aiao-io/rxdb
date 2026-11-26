@@ -1,6 +1,7 @@
 import type { Column, Task } from '@aiao/rxdb-plugin-board';
 import type { ReactNode } from 'react';
 
+import { boardT } from '../board-i18n.js';
 import type { BoardViewModel } from './model.js';
 import { cx, type PopoverState } from './types.js';
 
@@ -21,11 +22,11 @@ function BoardMenu({ vm }: PartProps): ReactNode {
         role='menuitem'
       >
         <span className='rxb-i rxb-i-download' aria-hidden='true' />
-        导出备份
+        {boardT('view.boardMenu.exportBackup')}
       </button>
       <button className='rxb-menu-item' onClick={dialog.openShortcuts} data-testid='shortcuts-open' role='menuitem'>
         <span className='rxb-i rxb-i-keyboard' aria-hidden='true' />
-        键盘快捷键
+        {boardT('common.keyboardShortcuts')}
         <kbd className='rxb-kbd'>?</kbd>
       </button>
       <div className='rxb-menu-divider' role='separator' />
@@ -37,7 +38,7 @@ function BoardMenu({ vm }: PartProps): ReactNode {
         role='menuitem'
       >
         <span className='rxb-i rxb-i-trash' aria-hidden='true' />
-        删除看板
+        {boardT('view.boardMenu.deleteBoard')}
       </button>
     </>
   );
@@ -52,9 +53,9 @@ function ColumnMenu({ vm, column }: PartProps & { readonly column: Column }): Re
   const last = data.isLastColumn(column);
   return (
     <>
-      <div aria-label='列' role='group'>
+      <div aria-label={boardT('view.columnMenu.group')} role='group'>
         <p className='rxb-menu-heading' aria-hidden='true'>
-          列
+          {boardT('view.columnMenu.group')}
         </p>
         <button
           className='rxb-menu-item'
@@ -64,7 +65,7 @@ function ColumnMenu({ vm, column }: PartProps & { readonly column: Column }): Re
           role='menuitem'
         >
           <span className='rxb-i rxb-i-pencil' aria-hidden='true' />
-          改名
+          {boardT('view.columnMenu.rename')}
         </button>
         <button
           className='rxb-menu-item rxb-menu-item-danger'
@@ -74,13 +75,13 @@ function ColumnMenu({ vm, column }: PartProps & { readonly column: Column }): Re
           role='menuitem'
         >
           <span className='rxb-i rxb-i-trash' aria-hidden='true' />
-          删除列
+          {boardT('view.columnMenu.delete')}
         </button>
       </div>
       <div className='rxb-menu-divider' role='separator' />
-      <div aria-label='本列排序' role='group'>
+      <div aria-label={boardT('view.columnMenu.sortGroupLabel')} role='group'>
         <p className='rxb-menu-heading' aria-hidden='true'>
-          本列排序（一次性）
+          {boardT('view.columnMenu.sortGroup')}
         </p>
         <button
           className='rxb-menu-item'
@@ -90,7 +91,7 @@ function ColumnMenu({ vm, column }: PartProps & { readonly column: Column }): Re
           role='menuitem'
         >
           <span className='rxb-i rxb-i-calendar' aria-hidden='true' />
-          按截止日
+          {boardT('view.columnMenu.sortDue')}
         </button>
         <button
           className='rxb-menu-item'
@@ -100,13 +101,13 @@ function ColumnMenu({ vm, column }: PartProps & { readonly column: Column }): Re
           role='menuitem'
         >
           <span className='rxb-i rxb-i-sort' aria-hidden='true' />
-          按标题
+          {boardT('view.columnMenu.sortTitle')}
         </button>
       </div>
       <div className='rxb-menu-divider' role='separator' />
-      <div aria-label='位置' role='group'>
+      <div aria-label={boardT('view.columnMenu.position')} role='group'>
         <p className='rxb-menu-heading' aria-hidden='true'>
-          位置
+          {boardT('view.columnMenu.position')}
         </p>
         <button
           className='rxb-menu-item'
@@ -117,9 +118,9 @@ function ColumnMenu({ vm, column }: PartProps & { readonly column: Column }): Re
         >
           <span className='rxb-i rxb-i-arrow-left' aria-hidden='true' />
           <span className='rxb-menu-item-label'>
-            左移
+            {boardT('view.columnMenu.moveLeft')}
             {first ?
-              <span className='rxb-menu-item-hint'>已是最左列</span>
+              <span className='rxb-menu-item-hint'>{boardT('view.columnMenu.leftmost')}</span>
             : null}
           </span>
         </button>
@@ -132,9 +133,9 @@ function ColumnMenu({ vm, column }: PartProps & { readonly column: Column }): Re
         >
           <span className='rxb-i rxb-i-arrow-right' aria-hidden='true' />
           <span className='rxb-menu-item-label'>
-            右移
+            {boardT('view.columnMenu.moveRight')}
             {last ?
-              <span className='rxb-menu-item-hint'>已是最右列</span>
+              <span className='rxb-menu-item-hint'>{boardT('view.columnMenu.rightmost')}</span>
             : null}
           </span>
         </button>
@@ -156,7 +157,7 @@ function TaskMenu({ vm, task }: PartProps & { readonly task: Task }): ReactNode 
         role='menuitem'
       >
         <span className='rxb-i rxb-i-open' aria-hidden='true' />
-        打开详情
+        {boardT('view.taskMenu.open')}
         <kbd className='rxb-kbd'>↵</kbd>
       </button>
       <button
@@ -167,7 +168,7 @@ function TaskMenu({ vm, task }: PartProps & { readonly task: Task }): ReactNode 
         role='menuitem'
       >
         <span className='rxb-i rxb-i-pencil' aria-hidden='true' />
-        编辑标题
+        {boardT('view.taskMenu.editTitle')}
         <kbd className='rxb-kbd'>F2</kbd>
       </button>
       <div className='rxb-menu-divider' role='separator' />
@@ -180,7 +181,7 @@ function TaskMenu({ vm, task }: PartProps & { readonly task: Task }): ReactNode 
         role='menuitem'
       >
         <span className='rxb-i rxb-i-arrow-right' aria-hidden='true' />
-        移到列…
+        {boardT('view.taskMenu.moveToColumn')}
         <span className='rxb-i rxb-i-chevron-right' aria-hidden='true' />
       </button>
       <button
@@ -191,7 +192,7 @@ function TaskMenu({ vm, task }: PartProps & { readonly task: Task }): ReactNode 
         role='menuitem'
       >
         <span className='rxb-i rxb-i-arrow-up' aria-hidden='true' />
-        上移
+        {boardT('view.taskMenu.moveUp')}
         <kbd className='rxb-kbd'>⌥↑</kbd>
       </button>
       <button
@@ -202,7 +203,7 @@ function TaskMenu({ vm, task }: PartProps & { readonly task: Task }): ReactNode 
         role='menuitem'
       >
         <span className='rxb-i rxb-i-arrow-down' aria-hidden='true' />
-        下移
+        {boardT('view.taskMenu.moveDown')}
         <kbd className='rxb-kbd'>⌥↓</kbd>
       </button>
       <div className='rxb-menu-divider' role='separator' />
@@ -214,7 +215,7 @@ function TaskMenu({ vm, task }: PartProps & { readonly task: Task }): ReactNode 
         role='menuitem'
       >
         <span className='rxb-i rxb-i-trash' aria-hidden='true' />
-        删除任务
+        {boardT('common.deleteTask')}
         <kbd className='rxb-kbd'>Del</kbd>
       </button>
     </>
@@ -227,22 +228,28 @@ function Picker({ vm, pop }: PartProps & { readonly pop: PopoverState }): ReactN
   const multiple = pop.kind === 'detail-label-picker';
   return (
     <>
-      <p className='rxb-picker-title'>{multiple ? '选择标签' : '移到列'}</p>
+      <p className='rxb-picker-title'>
+        {multiple ? boardT('view.picker.chooseLabels') : boardT('view.picker.moveToColumn')}
+      </p>
       <div className='rxb-picker-filter'>
         <input
           className='rxb-input'
           value={popover.pickerQuery}
           onChange={event => popover.onPickerInput(event.target.value)}
           onKeyDown={popover.onPickerKeydown}
-          aria-label='过滤选项'
+          aria-label={boardT('view.picker.filter')}
           data-autofocus
           data-testid='picker-filter'
-          placeholder='过滤选项'
+          placeholder={boardT('view.picker.filter')}
         />
       </div>
       {/* listbox 只容 option：空态段落放在 listbox 之外 */}
       {popover.pickerOptions.length > 0 ?
-        <div aria-label={multiple ? '选择标签' : '移到列'} aria-multiselectable={multiple} role='listbox'>
+        <div
+          aria-label={multiple ? boardT('view.picker.chooseLabels') : boardT('view.picker.moveToColumn')}
+          aria-multiselectable={multiple}
+          role='listbox'
+        >
           {popover.pickerOptions.map((option, index) => (
             <button
               key={option.id}
@@ -264,7 +271,7 @@ function Picker({ vm, pop }: PartProps & { readonly pop: PopoverState }): ReactN
             </button>
           ))}
         </div>
-      : <p className='rxb-picker-empty'>没有匹配的选项</p>}
+      : <p className='rxb-picker-empty'>{boardT('view.picker.empty')}</p>}
       {popover.canCreateLabelFromPicker ?
         <>
           <div className='rxb-menu-divider' role='separator' />
@@ -274,7 +281,7 @@ function Picker({ vm, pop }: PartProps & { readonly pop: PopoverState }): ReactN
             data-testid='picker-create'
           >
             <span className='rxb-i rxb-i-plus' aria-hidden='true' />
-            创建标签「{popover.pickerQuery.trim()}」
+            {boardT('view.picker.createLabel', { name: popover.pickerQuery.trim() })}
           </button>
         </>
       : null}

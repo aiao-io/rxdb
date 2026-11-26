@@ -1,5 +1,6 @@
 import type { HistoryScopeAPI } from '@aiao/rxdb';
 import { RxDB, type RxDBEntityId } from '@aiao/rxdb';
+import { resolveUiLocale } from '@aiao/rxdb-i18n';
 import { computed, signal, Signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { reorderTreeNode, treeDropPosition } from '../../../shared/tree-drop';
@@ -24,6 +25,7 @@ const NO_DELETE_IMPACT: DeleteImpact = { childrenCount: 0, descendantsCount: 0 }
  * 负责文件/文件夹的 CRUD 操作和状态管理
  */
 export class TreeFileStore<C extends FileTreeEntityConstructor> {
+  protected readonly uiLocale: () => string;
   protected rxdb: RxDB;
   protected pathValidator: FilePathValidatorService;
   protected fileResource: { value: Signal<FileTreeInstance<C>[]> };
@@ -80,7 +82,7 @@ export class TreeFileStore<C extends FileTreeEntityConstructor> {
     const expandedIds = matchedIds ? withSearchPath(this.expandedFileIds(), files, matchedIds) : this.expandedFileIds();
     const sortMode = this.sortMode();
 
-    return buildTreeNodes(files, expandedIds, matchedIds, null, null, null, null, sortMode);
+    return buildTreeNodes(files, expandedIds, matchedIds, null, null, null, null, sortMode, this.uiLocale());
   });
 
   /** 随 `fileToDelete` 一起在 {@link deleteFile} 里按库查出；懒加载页的折叠文件夹没有已加载的子节点可数。 */
@@ -105,13 +107,15 @@ export class TreeFileStore<C extends FileTreeEntityConstructor> {
     pathValidator: FilePathValidatorService,
     fileResource: { value: Signal<FileTreeInstance<C>[]> },
     entityClass: C,
-    history?: HistoryScopeAPI
+    history?: HistoryScopeAPI,
+    uiLocale: () => string = () => resolveUiLocale(globalThis.navigator?.language)
   ) {
     this.rxdb = rxdb;
     this.pathValidator = pathValidator;
     this.fileResource = fileResource;
     this.entityClass = entityClass;
     this.history = history;
+    this.uiLocale = uiLocale;
 
     // 恢复排序模式
     const savedMode = localStorage.getItem('file-manager-sort-mode') as SortMode;
@@ -542,9 +546,10 @@ export class TreeFileDragDropStore<C extends FileTreeEntityConstructor> extends 
     dragDropService: FileDragDropService,
     fileResource: { value: Signal<FileTreeInstance<C>[]> },
     entityClass: C,
-    history: HistoryScopeAPI
+    history: HistoryScopeAPI,
+    uiLocale?: () => string
   ) {
-    super(rxdb, pathValidator, fileResource, entityClass, history);
+    super(rxdb, pathValidator, fileResource, entityClass, history, uiLocale);
     this.dragDropService = dragDropService;
   }
 

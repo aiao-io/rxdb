@@ -4,11 +4,11 @@ import { addRootMenu, expectMenuParent, getMenuRow, openPage } from './e2e-utils
 
 test.describe('Tree Menu Simple Page', () => {
   test.beforeEach(async ({ page }) => {
-    await openPage(page, '/menu-simple', 'Tree Menu - Simple');
+    await openPage(page, '/menu-simple', /Tree Menu - Simple|树菜单 - 简单模式/);
   });
 
   test('should display tree menu simple page', async ({ page }) => {
-    await expect(page.getByRole('heading', { level: 1, name: 'Tree Menu - Simple' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: /Tree Menu - Simple|树菜单 - 简单模式/ })).toBeVisible();
   });
 
   test('should have add root menu input', async ({ page }) => {

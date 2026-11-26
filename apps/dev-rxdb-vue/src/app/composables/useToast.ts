@@ -1,17 +1,18 @@
+import type { FileMessage } from '@modules/demo-i18n/files';
 import { readonly, ref } from 'vue';
 
 export type ToastType = 'error' | 'success' | 'info';
 
 export interface ToastItem {
   id: string;
-  message: string;
+  message: string | FileMessage;
   type: ToastType;
 }
 
 const DEFAULT_DURATION_MS = 4000;
 const toasts = ref<ToastItem[]>([]);
 
-function push(message: string, type: ToastType, durationMs = DEFAULT_DURATION_MS): string {
+function push(message: string | FileMessage, type: ToastType, durationMs = DEFAULT_DURATION_MS): string {
   const id = crypto.randomUUID();
   toasts.value = [...toasts.value, { id, message, type }];
   setTimeout(() => {
@@ -27,9 +28,9 @@ function dismiss(id: string): void {
 export function useToast() {
   return {
     toasts: readonly(toasts),
-    error: (message: string, durationMs?: number) => push(message, 'error', durationMs),
-    success: (message: string, durationMs?: number) => push(message, 'success', durationMs),
-    info: (message: string, durationMs?: number) => push(message, 'info', durationMs),
+    error: (message: string | FileMessage, durationMs?: number) => push(message, 'error', durationMs),
+    success: (message: string | FileMessage, durationMs?: number) => push(message, 'success', durationMs),
+    info: (message: string | FileMessage, durationMs?: number) => push(message, 'info', durationMs),
     dismiss
   };
 }

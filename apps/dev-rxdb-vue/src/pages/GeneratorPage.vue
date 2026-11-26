@@ -1,10 +1,12 @@
 <script lang="ts" setup>
 import { CodeEditor } from '@aiao/code-editor-vue';
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import { zipSync } from 'fflate';
 import { computed, ref, watch } from 'vue';
 import { useTheme } from '../app/composables/useTheme';
 import { GENERATOR_DEMOS as demos, generateSourceState } from './generator-state';
 
+const { t } = useI18n();
 const { currentThemeLightDark: editorTheme } = useTheme();
 
 const selectedDemoIndex = ref(0);
@@ -92,7 +94,7 @@ function download() {
         @click="download"
         data-testid="generator-download"
       >
-        生成并下载
+        {{ t('page.generator.download') }}
       </button>
 
       <div
