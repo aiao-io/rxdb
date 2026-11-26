@@ -19,7 +19,7 @@
 
 没变的：`discard(options)` / `restore(target, options)` 的入参与结果形状；三个捕获位的 CAS；revision 规则（丢弃与恢复各 +1，干净工作树上的丢弃仍是一条写语句都不发的 no-op）；恢复会话的生命周期；HEAD 与历史一个字节都不动。
 
-[`@aiao/rxdb-plugin-replay`](../plugins/rxdb-plugin-replay/README.md) 的 `restoreToCommit()` 是现取凭据转调 `workingTree.restore()`，同样换成了上面的语义：点一个 commit 标记，业务表就变成那次提交的数据。
+[`@aiao/rxdb-plugin-replay`](/plugins/rxdb-plugin-replay/README.md) 的 `restoreToCommit()` 是现取凭据转调 `workingTree.restore()`，同样换成了上面的语义：点一个 commit 标记，业务表就变成那次提交的数据。
 
 ## 谁要改
 
@@ -99,5 +99,5 @@ const context: Parameters<typeof discardWorkingTree>[1] = {
 
 ## 相关
 
-- [工作树插件 · 放弃与恢复回写业务表](../plugins/rxdb-plugin-working-tree/README.md#放弃与恢复回写业务表)
-- [版本与 API 稳定性策略](../versioning.md)：破坏性变更流程
+- [工作树插件 · 放弃与恢复回写业务表](/plugins/rxdb-plugin-working-tree/README.md#放弃与恢复回写业务表)
+- [版本与 API 稳定性策略](/versioning.md)：破坏性变更流程
