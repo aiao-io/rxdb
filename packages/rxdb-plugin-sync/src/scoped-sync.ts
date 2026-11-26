@@ -28,7 +28,7 @@ export interface ScopedSyncIdentitySource {
  * 按授权分区只读同步（US-033）需要远端适配器提供的协议
  *
  * @remarks
- * 适配器五个方法都实现时，同步插件对登记为分区的实体改走「分区快照 + 快照点之后的增量」，
+ * 适配器六个方法都实现时，同步插件对登记为分区的实体改走「分区快照 + 快照点之后的增量」，
  * 其余实体照旧走通用日志拉取。
  */
 export interface ScopedSyncAdapter {
@@ -66,6 +66,28 @@ export interface ScopedSyncAdapter {
     entity: string,
     bucket: string,
     branchIds?: readonly string[]
+  ): Promise<number>;
+  /**
+   * 分区在游标之后、不是本客户端推上去的日志条数（US-233）
+   *
+   * @param namespace - 实体命名空间
+   * @param entity - 实体名
+   * @param bucket - 调用者可读的分区
+   * @param afterId - 游标：只数 id 大于它的日志
+   * @param branchIds - 只算这些分支，与拉取同口径
+   * @returns 条数；不求值实体同步规则，与 {@link ScopedSyncAdapter.getBucketSnapshotPoint} 同口径
+   * @throws 分区此刻已不属于调用者时，同 {@link ScopedSyncAdapter.getBucketSnapshotPoint}
+   *
+   * @remarks
+   * 待拉数靠它：日志 id 是全库共用的序列，拿快照点减游标会把别的实体、别的区的变更都算进来。
+   * 本客户端推上去的变更拉下来只回填、不落库，不算待拉；远端直写（没有客户端标识）照样计入。
+   */
+  getBucketChangeCount(
+    namespace: string,
+    entity: string,
+    bucket: string,
+    afterId: number,
+    branchIds: readonly string[]
   ): Promise<number>;
 
   /**

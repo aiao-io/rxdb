@@ -97,6 +97,7 @@ function isBucketedRemoteAdapter(adapter: RxDBAdapterRemoteBase): adapter is Buc
     typeof candidate.getCallerBuckets === 'function' &&
     typeof candidate.getEntitySyncInfo === 'function' &&
     typeof candidate.getBucketSnapshotPoint === 'function' &&
+    typeof candidate.getBucketChangeCount === 'function' &&
     typeof candidate.pullBucketSnapshot === 'function' &&
     typeof candidate.pullBucketChanges === 'function'
   );

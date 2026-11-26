@@ -935,8 +935,9 @@ export class HistoryManager {
   async #fetchPushableHistories(): Promise<HistoryItem[]> {
     const where = await buildPendingPushWhere(this.rxdb);
     if (!where) return [];
-    const { changeRepository } = await this.rxdb.versionManager.getLocalRepositories();
-    const changes = await changeRepository.find({ where, orderBy: [{ field: 'id', sort: 'desc' }] });
+    // 与计数同一个仓库、同一个条件（见 `updatePushableCount`），只是取行而不是数
+    const changeRepository = this.rxdb.entityManager.getRepository(RxDBChange);
+    const changes = await firstValueFrom(changeRepository.find({ where, orderBy: [{ field: 'id', sort: 'desc' }] }));
     return convertChangesToHistories(changes);
   }
 

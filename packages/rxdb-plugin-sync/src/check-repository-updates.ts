@@ -129,6 +129,7 @@ export async function checkRepositoryUpdates(
     typeof scopedRemote.getCallerBuckets === 'function' &&
     typeof scopedRemote.getEntitySyncInfo === 'function' &&
     typeof scopedRemote.getBucketSnapshotPoint === 'function' &&
+    typeof scopedRemote.getBucketChangeCount === 'function' &&
     (await scopedRemote.getEntitySyncInfo(namespace, entity)).bucketed
   ) {
     const progressRepository = localAdapter.getRepository(RxDBSyncBucketProgress);
@@ -144,6 +145,7 @@ export async function checkRepositoryUpdates(
     } as never);
     const getCallerBuckets = scopedRemote.getCallerBuckets.bind(scopedRemote);
     const getBucketSnapshotPoint = scopedRemote.getBucketSnapshotPoint.bind(scopedRemote);
+    const getBucketChangeCount = scopedRemote.getBucketChangeCount.bind(scopedRemote);
     const buckets = [...new Set(await getCallerBuckets())];
     // 水位与拉取同口径：拉取只拉当前分支及其祖先，别的分支写进同一个 bucket 不算待拉
     const ancestorBranchIds = await getAncestorBranchIds(sm, branchId);
@@ -157,7 +159,7 @@ export async function checkRepositoryUpdates(
 
     for (const bucket of buckets) {
       const progress = progresses.find(item => item.bucket === bucket && item.filterFingerprint === fingerprint);
-      const remotePoint = await snapshotPointUnlessRevoked(
+      const remotePoint = await unlessBucketRevoked(
         () => getBucketSnapshotPoint(namespace, entity, bucket, ancestorBranchIds),
         getCallerBuckets,
         bucket
@@ -165,9 +167,14 @@ export async function checkRepositoryUpdates(
       if (remotePoint === undefined) continue;
       latestChangeId = Math.max(latestChangeId, remotePoint);
       if (progress) localCursor = Math.max(localCursor ?? 0, progress.cursor);
-      if (!progress || !progress.snapshotComplete || remotePoint > progress.cursor) {
-        pendingCount += progress?.snapshotComplete ? Math.max(1, remotePoint - progress.cursor) : 1;
-      }
+      const pending = await bucketPendingCount(progress, remotePoint, cursor =>
+        unlessBucketRevoked(
+          () => getBucketChangeCount(namespace, entity, bucket, cursor, ancestorBranchIds),
+          getCallerBuckets,
+          bucket
+        )
+      );
+      pendingCount += pending ?? 0;
     }
 
     return {
@@ -204,26 +211,47 @@ export async function checkRepositoryUpdates(
 }
 
 /**
- * 分区此刻的快照点；问的时候分区已被撤销则为 `undefined`
+ * 一个区的待拉条数（US-233）
  *
- * @param getSnapshotPoint - 问这个分区的快照点
- * @param getCallerBuckets - 问调用者此刻可读的分区
- * @param bucket - 要问的分区
- * @returns 快照点；重读可读分区确认它已不在时为 `undefined`
+ * @param progress - 这个区按当前规则的拉取进度；没有则为 `undefined`
+ * @param remotePoint - 这个区此刻的快照点
+ * @param countAfterCursor - 数游标之后、不是本客户端推的变更；分区已被撤销时为 `undefined`
+ * @returns 快照没拉完算 1（下一次拉取要补快照）；游标追上快照点为 0；否则是游标之后的真实条数
  *
  * @remarks
- * 先问可读分区、再逐个问快照点，两次之间分区可能被撤销，服务端对它报未授权（参考 SQL 是 `42501`）。
+ * 不拿快照点减游标：日志 id 是全库共用的序列，两者之差把别的实体、别的区的变更都算了进来。
+ */
+async function bucketPendingCount(
+  progress: RxDBSyncBucketProgress | undefined,
+  remotePoint: number,
+  countAfterCursor: (cursor: number) => Promise<number | undefined>
+): Promise<number | undefined> {
+  if (!progress?.snapshotComplete) return 1;
+  if (remotePoint <= progress.cursor) return 0;
+  return countAfterCursor(progress.cursor);
+}
+
+/**
+ * 问一个分区的数（快照点或条数）；问的时候分区已被撤销则为 `undefined`
+ *
+ * @param ask - 问这个分区
+ * @param getCallerBuckets - 问调用者此刻可读的分区
+ * @param bucket - 要问的分区
+ * @returns 问到的数；重读可读分区确认它已不在时为 `undefined`
+ *
+ * @remarks
+ * 先问可读分区、再逐个问分区，两次之间分区可能被撤销，服务端对它报未授权（参考 SQL 是 `42501`）。
  * 不按错误码猜是不是撤销：失败之后重读一次可读分区，确实不在了才跳过，下一次拉取会清掉它的本地范围，
  * 与拉取逐分区记失败的口径一致（RV-01a21194e68f7aacb5782c196d2ea870）。还在列表里，或者重读本身也失败，
  * 就原样抛出原来的错误：网络与配置错误不能被当成撤销吞掉。
  */
-async function snapshotPointUnlessRevoked(
-  getSnapshotPoint: () => Promise<number>,
+async function unlessBucketRevoked(
+  ask: () => Promise<number>,
   getCallerBuckets: () => Promise<string[]>,
   bucket: string
 ): Promise<number | undefined> {
   try {
-    return await getSnapshotPoint();
+    return await ask();
   } catch (error) {
     const stillReadable = await getCallerBuckets().then(
       buckets => buckets.includes(bucket),

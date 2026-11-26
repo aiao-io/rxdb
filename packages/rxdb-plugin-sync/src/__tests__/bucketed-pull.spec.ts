@@ -56,6 +56,7 @@ interface BucketHarness {
     getCallerBuckets: ReturnType<typeof vi.fn>;
     getEntitySyncInfo: ReturnType<typeof vi.fn>;
     getBucketSnapshotPoint: ReturnType<typeof vi.fn>;
+    getBucketChangeCount: ReturnType<typeof vi.fn>;
     pullBucketSnapshot: ReturnType<typeof vi.fn>;
     pullBucketChanges: ReturnType<typeof vi.fn>;
   };
@@ -225,6 +226,7 @@ const createHarness = (options: HarnessOptions): BucketHarness => {
       bucketed: true
     })),
     getBucketSnapshotPoint: vi.fn(async () => options.snapshotPoint ?? 1),
+    getBucketChangeCount: vi.fn(async () => 0),
     pullBucketSnapshot: vi.fn(
       async (
         _namespace: string,

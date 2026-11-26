@@ -403,7 +403,8 @@ describe('checkRepositoryUpdates：按区同步的实体', () => {
   const createBucketedHarness = (
     progresses: RxDBSyncBucketProgress[],
     snapshotPoint: number,
-    pointsByBucket: Readonly<Record<string, number>> = { public: snapshotPoint }
+    pointsByBucket: Readonly<Record<string, number>> = { public: snapshotPoint },
+    countsByBucket: Readonly<Record<string, number>> = {}
   ) => {
     const repositories = new Map<unknown, unknown>([
       [RxDBSync, { find: vi.fn(async () => []) }],
@@ -417,7 +418,9 @@ describe('checkRepositoryUpdates：按区同步的实体', () => {
       getEntitySyncInfo: vi.fn(async () => ({ bucketed: true })),
       getBucketSnapshotPoint: vi.fn(
         async (_namespace: string, _entity: string, bucket: string) => pointsByBucket[bucket]
-      )
+      ),
+      // 游标之后、不是本客户端推的变更条数（US-233）
+      getBucketChangeCount: vi.fn(async (_namespace: string, _entity: string, bucket: string) => countsByBucket[bucket])
     };
     const syncManager = {
       getCurrentBranch: vi.fn(async () => ({ id: 'main' })),
@@ -453,19 +456,39 @@ describe('checkRepositoryUpdates：按区同步的实体', () => {
     expect(harness.remoteAdapter.getChangeCount).not.toHaveBeenCalled();
   });
 
-  it('一个区拉失败、停在旧游标：别的区游标再大，也照样报有更新', async () => {
+  it('一个区拉失败、停在旧游标：别的区游标再大，也照样报有更新，条数按那个区游标之后的真实变更算（US-233）', async () => {
     const current = filterFingerprint(ACTIVE);
-    const harness = createBucketedHarness([progress(current, 10, 'public'), progress(current, 3, 'tenant:1')], 10, {
-      public: 10,
-      'tenant:1': 8
-    });
+    const harness = createBucketedHarness(
+      [progress(current, 10, 'public'), progress(current, 3, 'tenant:1')],
+      10,
+      { public: 10, 'tenant:1': 8 },
+      { 'tenant:1': 2 }
+    );
 
     await expect(checkRepositoryUpdates(harness.rxdb, 'public', 'CheckBucketed')).resolves.toEqual({
       repository: { namespace: 'public', entity: 'CheckBucketed' },
       remoteLatestChangeId: 10,
       localLastPullRemoteChangeId: 10,
-      pendingCount: 5,
+      // 不是 8 - 3：变更号是全库共用的，两者之差把别的实体、别的区的变更都算了进来
+      pendingCount: 2,
       hasUpdates: true
+    });
+    expect(harness.remoteAdapter.getBucketChangeCount).toHaveBeenCalledTimes(1);
+    expect(harness.remoteAdapter.getBucketChangeCount).toHaveBeenCalledWith('public', 'CheckBucketed', 'tenant:1', 3, [
+      'main'
+    ]);
+  });
+
+  it('游标之后只有本客户端推上去的变更：不算待拉（US-233）', async () => {
+    const current = filterFingerprint(ACTIVE);
+    const harness = createBucketedHarness([progress(current, 68)], 142, { public: 142 }, { public: 0 });
+
+    await expect(checkRepositoryUpdates(harness.rxdb, 'public', 'CheckBucketed')).resolves.toEqual({
+      repository: { namespace: 'public', entity: 'CheckBucketed' },
+      remoteLatestChangeId: 142,
+      localLastPullRemoteChangeId: 68,
+      pendingCount: 0,
+      hasUpdates: false
     });
   });
 
