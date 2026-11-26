@@ -119,8 +119,14 @@ describe('pull / push 入口的聚合与事件派发', () => {
     vi.mocked(pullBatch).mockResolvedValue(result);
 
     await expect(pull(vm, { limit: 25, fetchAll: true })).resolves.toEqual(result);
-    // 远端登记为分区的仓库每次 pull 只查一次，交给批量拉取跳过；这个宿主没有可同步的实体
-    expect(pullBatch).toHaveBeenCalledWith(vm, { limit: 25, fetchAll: true, bucketedRepositories: new Set() });
+    // 远端登记为分区的仓库每次 pull 只查一次，交给批量拉取跳过；这个宿主没有可同步的实体，
+    // 也就没有拉取补不齐的外键环要排除（US-038）
+    expect(pullBatch).toHaveBeenCalledWith(vm, {
+      limit: 25,
+      fetchAll: true,
+      bucketedRepositories: new Set(),
+      excludedRepositories: new Set()
+    });
     expect(dispatchEvent.mock.calls[0]?.[0]).toBeInstanceOf(SyncBeginEvent);
     expect(dispatchEvent.mock.calls[1]?.[0]).toBeInstanceOf(SyncCompleteEvent);
   });

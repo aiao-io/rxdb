@@ -40,7 +40,9 @@ import {
 import { getAncestorBranchIds } from './branch-utils.js';
 import { pullBucketedRepositoryIfSupported } from './bucketed-pull.js';
 import { findBlockingDependency } from './cascade-blocking.js';
-import { buildDependencyGraph, type DependencyGraph } from './dependency-graph.js';
+import { buildDependencyGraph, type DependencyCycle, type DependencyGraph } from './dependency-graph.js';
+import { RxDBForeignKeyCycleError } from './foreign-key-cycle-error.js';
+import { pullBatch } from './pull-batch.js';
 import { pullAncestorBranchChanges } from './pull-ancestor-changes.js';
 import {
   countActions,
@@ -52,6 +54,7 @@ import {
 } from './pull-conflict-utils.js';
 import { backfillOwnChangeRemoteIds, splitRemoteChangesByOrigin } from './pull-round.js';
 import { instantiateSyncRecord } from './remote-backend.js';
+import type { ScopedSyncAdapter } from './scoped-sync.js';
 import { assertPullLimit, assertSyncOnMainCheckout } from './sync-manager.utils.js';
 import type { SyncManager } from './SyncManager.js';
 import { topologicalSortForPull } from './topological-sort.js';
@@ -284,14 +287,25 @@ async function pullWithCascade(
   const failures: SyncFailure[] = [];
   const failedRepos = new Map<string, Error>();
 
-  for (const repo of orderedRepos) {
-    const result = await pullCascadeNode(sm, graph, entityMap, repo, options, failedRepos);
-    results.push(result);
+  for (let index = 0; index < orderedRepos.length; ) {
+    // 外键成环的仓库在排序里连续排列（US-038）：整个环放进同一个本地事务拉，提交时环内的引用都在
+    const cycle = graph.get(repositoryKey(orderedRepos[index]))?.cycle;
+    let end = index + 1;
+    while (cycle && end < orderedRepos.length && graph.get(repositoryKey(orderedRepos[end]))?.cycle === cycle) end += 1;
+    const unit = orderedRepos.slice(index, end);
+    const unitResults =
+      cycle && unit.length > 1 ?
+        await pullCycleUnit(sm, graph, { cycle, members: unit, targetKey }, options, failedRepos)
+      : [await pullCascadeNode(sm, graph, entityMap, orderedRepos[index], options, failedRepos)];
+    index = end;
 
-    // 按策略跳过（`skipped` 且 `success`）不算失败：既不进失败清单，也不阻断下游
-    if (result.error) {
-      failedRepos.set(repositoryKey(repo), result.error);
-      failures.push({ repository: repo, error: result.error });
+    for (const result of unitResults) {
+      results.push(result);
+      // 按策略跳过（`skipped` 且 `success`）不算失败：既不进失败清单，也不阻断下游
+      if (result.error) {
+        failedRepos.set(repositoryKey(result.repository), result.error);
+        failures.push({ repository: result.repository, error: result.error });
+      }
     }
   }
 
@@ -329,6 +343,110 @@ async function pullWithCascade(
   }
 
   return targetResult;
+}
+
+/** 级联拉取里一起拉的一个外键环 */
+interface PullCycleUnit {
+  readonly cycle: DependencyCycle;
+  /** 环上本次要拉的仓库，父先子后 */
+  readonly members: readonly RepositoryIdentifier[];
+  /** 这次级联的目标仓库：环内的进度记在它身上 */
+  readonly targetKey: string;
+}
+
+/**
+ * 级联拉取里的一个外键环：环上的仓库放进同一个本地事务（US-038）
+ *
+ * @returns 每个成员一条结果；这一轮的进度记在目标仓库上（目标不在环内时记在第一个成员上），其余成员计数为 0
+ *
+ * @remarks
+ * 逐仓各开一个事务时，先提交的那个仓库引用着另一个仓库还没落库的行，提交时撞外键（本地外键延迟到提交检查）。
+ * 这里改走批量拉取、只拉环上的仓库：一轮一个事务，页在环中间截断时续拉补齐（{@link closeCycleReferences}）。
+ * 环外的依赖失败时整个环被阻断；环上有按条件或按区同步的成员时以 `pull-unsupported-member` 失败。
+ */
+async function pullCycleUnit(
+  sm: SyncManager,
+  graph: DependencyGraph,
+  unit: PullCycleUnit,
+  options: typeof DEFAULT_PULL_REPOSITORY_OPTIONS,
+  failedRepos: ReadonlyMap<string, Error>
+): Promise<PullRepositoryResult[]> {
+  const memberKeys = new Set(unit.members.map(repositoryKey));
+  const blocked = unit.members
+    .map(repo => findBlockingDependency(graph, repositoryKey(repo), failedRepos, 'dependsOn'))
+    .find(block => block !== undefined && !memberKeys.has(repositoryKey(block.dependency)));
+  if (blocked) {
+    return unit.members.map(repo => ({
+      ...emptyRepositoryProgress(),
+      repository: repo,
+      success: false,
+      skipped: `dependency ${repositoryKey(blocked.dependency)} failed`,
+      error: new RxDBDependencyFailedError(repo, blocked.dependency, blocked.cause)
+    }));
+  }
+
+  const unsupported = await findUnsupportedCycleMember(sm, unit.members);
+  if (unsupported) {
+    return unit.members.map(repo => {
+      const error = new RxDBForeignKeyCycleError(
+        repo,
+        unit.cycle,
+        'pull-unsupported-member',
+        `${repositoryKey(unsupported)} is synced by filter or by bucket`
+      );
+      return { ...emptyRepositoryProgress(), repository: repo, success: false, error, failures: [{ repository: repo, error }] };
+    });
+  }
+
+  const owner = memberKeys.has(unit.targetKey) ? unit.targetKey : repositoryKey(unit.members[0]);
+  try {
+    const progress = await pullBatch(sm, {
+      limit: options.limit,
+      fetchAll: options.fetchAll,
+      ...(options.conflictResolver ? { conflictResolver: options.conflictResolver } : {}),
+      onlyRepositories: memberKeys
+    });
+    return unit.members.map(repo =>
+      repositoryKey(repo) === owner ?
+        { ...progress, failures: [], repository: repo, success: true }
+      : { ...emptyRepositoryProgress(), repository: repo, success: true }
+    );
+  } catch (error) {
+    const normalized = error instanceof Error ? error : new Error(String(error));
+    const cause = normalized instanceof RxDBPartialSyncError ? normalized.cause : normalized;
+    return unit.members.map(repo => ({
+      ...emptyRepositoryProgress(),
+      repository: repo,
+      success: false,
+      error: cause,
+      failures: [{ repository: repo, error: cause }]
+    }));
+  }
+}
+
+/**
+ * 环上按条件（`Filter`）或按授权分区同步的成员：拉取补不齐这样的环（US-038）
+ *
+ * @returns 第一个这样的成员；都不是时为 `undefined`
+ */
+export async function findUnsupportedCycleMember(
+  sm: SyncManager,
+  members: readonly RepositoryIdentifier[]
+): Promise<RepositoryIdentifier | undefined> {
+  for (const repo of members) {
+    const EntityType = sm.rxdb.config.entities.find(entity => {
+      const metadata = getEntityMetadata(entity);
+      return metadata.namespace === repo.namespace && metadata.name === repo.entity;
+    });
+    if (EntityType && getSyncType(getEntityMetadata(EntityType), sm.rxdb.entitySync) === 'filter') return repo;
+  }
+  const { adapter: remoteAdapter } = await sm.getRemoteRepositories();
+  const scoped = remoteAdapter as unknown as Partial<ScopedSyncAdapter>;
+  if (typeof scoped.getEntitySyncInfo !== 'function') return undefined;
+  for (const repo of members) {
+    if ((await scoped.getEntitySyncInfo(repo.namespace, repo.entity)).bucketed) return repo;
+  }
+  return undefined;
 }
 
 /**

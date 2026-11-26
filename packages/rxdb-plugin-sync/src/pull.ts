@@ -7,14 +7,21 @@ import {
   PullOptions,
   PullRepositoryResult,
   PullResult,
+  type RepositoryIdentifier,
+  repositoryKey,
+  RxDBDependencyFailedError,
   RxDBError,
   RxDBPartialSyncError,
   SyncBeginEvent,
   SyncCompleteEvent,
-  SyncErrorEvent
+  SyncErrorEvent,
+  type SyncFailure
 } from '@aiao/rxdb';
 import { BulkSyncOptions } from './bulk-sync.js';
+import { buildDependencyGraph, type DependencyGraph } from './dependency-graph.js';
+import { RxDBForeignKeyCycleError } from './foreign-key-cycle-error.js';
 import { pullBatch } from './pull-batch.js';
+import { unsupportedPullCycles } from './pull-cycle.js';
 import { pullRepository } from './pull-repository.js';
 import type { ScopedSyncAdapter } from './scoped-sync.js';
 import { assertPullLimit } from './sync-manager.utils.js';
@@ -51,18 +58,22 @@ export async function pull(sm: SyncManager, options?: PullOptions): Promise<Pull
     if (!options?.repositoryFilter?.length) {
       // 无过滤时使用批量拉取（单次 HTTP 请求）；远端登记为分区的仓库每次 pull 只问一次，批量跳过、随后逐个按区拉
       const bucketedRepositories = await findBucketedRepositories(sm);
+      // 拉取补不齐的外键环与它们的下游这一次不拉，各记一条失败；其余仓库照常（US-038）
+      const blocked = blockedPullCycles(sm, bucketedRepositories);
       pullResult = await pullBatch(sm, {
         limit: options?.limit,
         fetchAll: options?.fetchAll,
         conflictResolver: options?.conflictResolver,
-        bucketedRepositories
+        bucketedRepositories,
+        excludedRepositories: blocked.excluded
       });
-      await pullBucketedRepositories(sm, options, pullResult, bucketedRepositories);
+      pullResult.failures.push(...blocked.failures);
+      await pullBucketedRepositories(sm, options, pullResult, bucketedRepositories, blocked.excluded);
       // pullBatch 对 syncType === 'filter' 的仓库直接 continue（过滤条件是逐仓库的，
       // 拼不进一次批量请求）。不补这一趟，pull() 就会对 filter 仓库一条不拉却报告
       // `hasMore:false, failures:[]` —— isCompletePull 判真、pullableCount 归零，
       // 用户看到的是「已全部同步」。
-      await pullFilterRepositories(sm, options, pullResult);
+      await pullFilterRepositories(sm, options, pullResult, blocked.excluded);
     } else {
       // 指定仓库过滤时降级为逐仓库拉取
       pullResult = await pullWithBulkSync(sm, options);
@@ -86,6 +97,61 @@ export async function pull(sm: SyncManager, options?: PullOptions): Promise<Pull
  * 并发问一次：批量拉取的每一轮与随后的按区拉取都用这一份，不再逐轮、逐实体串行打同一个 RPC。
  * 远端适配器不支持按区同步时为空集。
  */
+/**
+ * 拉取补不齐的外键环（环上有按条件或按区同步的成员）与它们的下游（US-038）
+ *
+ * @returns 这一次不拉的仓库键，与每个仓库一条失败：环上的仓库报 `pull-unsupported-member`，下游报依赖失败
+ */
+function blockedPullCycles(
+  sm: SyncManager,
+  bucketedRepositories: ReadonlySet<string>
+): { excluded: Set<string>; failures: SyncFailure[] } {
+  const metadatas = sm.rxdb.config.entities.map(EntityType => getEntityMetadata(EntityType));
+  const graph = buildDependencyGraph(metadatas);
+  const syncTypeOf = (repo: RepositoryIdentifier) => {
+    const metadata = metadatas.find(item => item.namespace === repo.namespace && item.name === repo.entity);
+    return metadata && getSyncType(metadata, sm.rxdb.entitySync);
+  };
+  const cycles = unsupportedPullCycles(
+    graph,
+    repo => bucketedRepositories.has(repositoryKey(repo)) || syncTypeOf(repo) === 'filter'
+  );
+
+  const excluded = new Set<string>();
+  const failures: SyncFailure[] = [];
+  for (const { cycle, member } of cycles) {
+    const detail = `${repositoryKey(member)} is synced by filter or by bucket`;
+    const cause = new RxDBForeignKeyCycleError(member, cycle, 'pull-unsupported-member', detail);
+    for (const repo of cycle.members) {
+      if (excluded.has(repositoryKey(repo))) continue;
+      excluded.add(repositoryKey(repo));
+      failures.push({ repository: repo, error: new RxDBForeignKeyCycleError(repo, cycle, 'pull-unsupported-member', detail) });
+    }
+    for (const child of downstreamOf(graph, cycle.members)) {
+      if (excluded.has(repositoryKey(child))) continue;
+      excluded.add(repositoryKey(child));
+      failures.push({ repository: child, error: new RxDBDependencyFailedError(child, member, cause) });
+    }
+  }
+  return { excluded, failures };
+}
+
+/** 依赖这些仓库（直接或间接）的仓库，不含它们自己 */
+function downstreamOf(graph: DependencyGraph, seeds: readonly RepositoryIdentifier[]): RepositoryIdentifier[] {
+  const seen = new Set(seeds.map(repositoryKey));
+  const pending = [...seeds];
+  const downstream: RepositoryIdentifier[] = [];
+  for (let repo = pending.shift(); repo !== undefined; repo = pending.shift()) {
+    for (const child of graph.get(repositoryKey(repo))?.requiredBy ?? []) {
+      if (seen.has(repositoryKey(child))) continue;
+      seen.add(repositoryKey(child));
+      downstream.push(child);
+      pending.push(child);
+    }
+  }
+  return downstream;
+}
+
 async function findBucketedRepositories(sm: SyncManager): Promise<ReadonlySet<string>> {
   const candidates = sm.rxdb.config.entities
     .map(EntityType => getEntityMetadata(EntityType))
@@ -112,13 +178,15 @@ async function pullBucketedRepositories(
   sm: SyncManager,
   options: PullOptions | undefined,
   aggregated: PullResult,
-  bucketedRepositories: ReadonlySet<string>
+  bucketedRepositories: ReadonlySet<string>,
+  excluded: ReadonlySet<string>
 ) {
   const rxdb = sm.rxdb;
 
   for (const EntityType of rxdb.config.entities) {
     const metadata = getEntityMetadata(EntityType);
-    if (!bucketedRepositories.has(`${metadata.namespace}:${metadata.name}`)) continue;
+    const key = `${metadata.namespace}:${metadata.name}`;
+    if (!bucketedRepositories.has(key) || excluded.has(key)) continue;
 
     const repoSync = await findCurrentSyncRecord(rxdb, metadata.namespace, metadata.name);
     if (!isRepositorySyncEnabled(repoSync)) continue;
@@ -156,13 +224,19 @@ async function pullBucketedRepositories(
  * `includeRelated: false`：批量那一趟已经覆盖了所有非 filter 仓库，再级联一次只会重复拉取。
  * 单个仓库失败不中断其余仓库，失败结构化进 `failures` —— 与 `pullWithBulkSync` 同口径。
  */
-async function pullFilterRepositories(sm: SyncManager, options: PullOptions | undefined, aggregated: PullResult) {
+async function pullFilterRepositories(
+  sm: SyncManager,
+  options: PullOptions | undefined,
+  aggregated: PullResult,
+  excluded: ReadonlySet<string>
+) {
   const rxdb = sm.rxdb;
 
   for (const EntityClass of rxdb.config.entities) {
     const metadata = getEntityMetadata(EntityClass);
     const syncType = getSyncType(metadata, rxdb.entitySync);
     if (syncType !== 'filter' || !getSyncCapability(syncType).pull) continue;
+    if (excluded.has(`${metadata.namespace}:${metadata.name}`)) continue;
 
     const repoSync = await findCurrentSyncRecord(sm.rxdb, metadata.namespace, metadata.name);
     if (!isRepositorySyncEnabled(repoSync)) continue;
