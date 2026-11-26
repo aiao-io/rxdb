@@ -6,10 +6,13 @@ import { AppHeader } from './app-header';
 import { AppSidebar } from './app-sidebar';
 import { AppService } from './app.service';
 import { DemoSession } from './demo-session';
+import { PageWorkbench } from './page-workbench';
 import { SessionNotice } from './session-notice';
+import { SidePanelOutlet } from './side-panel';
+import { WorkbenchStatus } from './workbench-status';
 
 @Component({
-  imports: [RouterOutlet, AppSidebar, AppHeader, SessionNotice],
+  imports: [RouterOutlet, AppSidebar, AppHeader, SessionNotice, SidePanelOutlet, WorkbenchStatus],
   selector: 'app-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -19,11 +22,16 @@ import { SessionNotice } from './session-notice';
         <div class="sidebar-overlay md:hidden" (click)="app.toggleSidebar()" aria-hidden="true"></div>
       }
       <app-sidebar></app-sidebar>
-      <div class="flex h-full min-w-0 grow flex-col overflow-auto" id="layout-container">
+      <div class="flex h-full min-w-0 grow flex-col" id="layout-container">
         <app-header></app-header>
         <app-session-notice></app-session-notice>
-        <div id="layout-content">
-          <router-outlet></router-outlet>
+        <app-workbench-status></app-workbench-status>
+        <!-- 内容与右侧面板并排、各自滚动：宽屏面板占一栏不挡页面，窄屏面板是盖住页面的抽屉 -->
+        <div class="flex min-h-0 grow">
+          <div class="min-w-0 grow overflow-auto" id="layout-content">
+            <router-outlet></router-outlet>
+          </div>
+          <app-side-panel-outlet></app-side-panel-outlet>
         </div>
       </div>
     </div>
@@ -31,14 +39,15 @@ import { SessionNotice } from './session-notice';
   styles: [],
   host: {
     '[class.left-menu-pinned]': 'app.$sidebarPinned()',
-    // 远端模式的顶栏常驻同步提示图标、当前身份与切换菜单，占自己的一行，不浮在页面内容上
-    '[class.header-floating]': 'app.$headerFloating() && !session.description'
+    // 顶栏有内容（远端模式的身份、页面登记的按钮）就占自己的一行；只剩菜单按钮时悬浮，不挡页面内容
+    '[class.header-floating]': 'app.$headerFloating() && !session.description && !workbench.current()'
   }
 })
 export class App implements OnInit {
   #document = inject(DOCUMENT);
   app = inject(AppService);
   session = inject(DemoSession);
+  workbench = inject(PageWorkbench);
   isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
 
   ngOnInit(): void {

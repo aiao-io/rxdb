@@ -129,6 +129,7 @@ let nextHeadingId = 0;
       }
       <aside
         class="bg-base-100 border-base-300 flex flex-col overflow-hidden"
+        id="side-panel"
         [attr.aria-labelledby]="headingId"
         [attr.aria-modal]="panel.wide() ? null : 'true'"
         [attr.data-view]="view"

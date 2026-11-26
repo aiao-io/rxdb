@@ -3,7 +3,7 @@ import { useAction, useFindAll } from '@aiao/rxdb-angular';
 import { Todo, TodoStaticTypes } from '@aiao/rxdb-test/entities';
 import { nextMacroTask } from '@aiao/utils';
 import { ScrollDispatcher, ScrollingModule } from '@angular/cdk/scrolling';
-import { AsyncPipe, isPlatformBrowser } from '@angular/common';
+import { isPlatformBrowser } from '@angular/common';
 import {
   AfterViewInit,
   ChangeDetectionStrategy,
@@ -21,30 +21,25 @@ import { FormsModule } from '@angular/forms';
 import {
   LucideArrowDown as ArrowDown,
   LucideArrowUp as ArrowUp,
-  LucideHistory as History,
   LucideDynamicIcon,
   LucidePen as Pen,
   LucidePlus as Plus,
-  LucideRedo2 as Redo2,
-  LucideUndo2 as Undo2,
   LucideX as X
 } from '@lucide/angular';
-import { HistorySidebarComponent } from '@modules/angular';
 import { DemoSession } from '../demo-session';
 import { getErrorMessage } from '../error-message';
+import { historyActions } from '../history-actions';
+import { registerPageWorkbench } from '../page-workbench';
 import { RemoteSyncState } from '../remote-sync-state';
-import { SyncRejectionsPanel } from '../sync-rejections-panel';
+import { SyncCommands } from '../sync-commands';
 import { createTodoBatchTitles, persistCompleted, persistCompletedBatch } from '../todo-interactions';
 
 /** 列表筛选：全部、进行中、已完成 */
 type TodoTab = 'all' | 'active' | 'completed';
 
-/** 正在跑的那个同步方向；`null` 表示没在同步 */
-type SyncOperation = 'pull' | 'push';
-
 @Component({
   selector: 'app-todo-page',
-  imports: [AsyncPipe, FormsModule, LucideDynamicIcon, ScrollingModule, HistorySidebarComponent, SyncRejectionsPanel],
+  imports: [FormsModule, LucideDynamicIcon, ScrollingModule],
   templateUrl: './todo.page.html',
   styleUrls: ['./todo.page.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -54,33 +49,19 @@ export default class TodoPage implements AfterViewInit {
   readonly #scrollDispatcher = inject(ScrollDispatcher);
   readonly #destroyRef = inject(DestroyRef);
   readonly #editingTodoId = signal<Todo['id'] | null>(null);
-  /** 宽屏（≥ 768px，与 dev-rxdb-angular 同口径）：操作历史侧栏常驻；窄屏上它是盖住列表的浮层 */
-  readonly #wideViewport = window.matchMedia('(min-width: 768px)');
 
-  /** P1-2：远端是否真的连上；纯本地模式下 pull / push 必须不可点。 */
+  /** 远端是否真的连上：访客提示只在远端模式下给 */
   readonly remoteSync = inject(RemoteSyncState);
   /** 当前身份：Todo 走未分区的日志同步，只对登录身份开放（US-225），访客的 Todo 只存本地 */
   readonly session = inject(DemoSession);
-  /** Pull / Push 可用：远端连着，且当前是登录身份 */
-  readonly $todoSyncEnabled = computed(() => this.remoteSync.$connected() && this.session.canSyncTodo);
-  /** Pull / Push 不可用时的说明 */
-  readonly $todoSyncUnavailableReason = computed(() =>
-    this.remoteSync.$connected() ? '访客的 Todo 只存本地：登录后才能同步' : '未连接远端（纯本地模式）'
-  );
   readonly itemSize = 48;
-  readonly history = this.#rxdb.versionManager.history(Todo);
-  readonly pushableCount$ = this.#rxdb.versionManager.pushableCount$;
-  readonly pullableCount$ = this.#rxdb.versionManager.pullableCount$;
 
   // 图标
-  readonly Undo2 = Undo2;
-  readonly Redo2 = Redo2;
   readonly Pen = Pen;
   readonly X = X;
   readonly Plus = Plus;
   readonly ArrowUp = ArrowUp;
   readonly ArrowDown = ArrowDown;
-  readonly History = History;
 
   readonly tabs: readonly { key: TodoTab; label: string }[] = [
     { key: 'all', label: '全部' },
@@ -93,12 +74,7 @@ export default class TodoPage implements AfterViewInit {
   readonly title = signal<string>('');
   readonly $current_tab = signal<TodoTab>('all');
   readonly $completed_sort = signal<'asc' | 'desc'>('asc');
-  /** 操作历史侧栏：宽屏默认展开；窄屏上打开就挡住列表，默认收起 */
-  readonly $show_history = signal(this.#wideViewport.matches);
   readonly $show_sticky_header = signal(false);
-  readonly $syncError = signal<string | null>(null);
-  readonly $syncing = signal<SyncOperation | null>(null);
-  readonly $syncPending = computed(() => this.$syncing() !== null);
   readonly $crudError = signal<string | null>(null);
 
   // 查询条件
@@ -153,10 +129,15 @@ export default class TodoPage implements AfterViewInit {
   mainContainerRef = viewChild<ElementRef<HTMLElement>>('mainContainer');
 
   constructor() {
-    // 断点跨越（旋转 / 窗口缩放）时同步历史侧栏开合
-    const onViewportChange = (event: MediaQueryListEvent) => this.$show_history.set(event.matches);
-    this.#wideViewport.addEventListener('change', onViewportChange);
-    this.#destroyRef.onDestroy(() => this.#wideViewport.removeEventListener('change', onViewportChange));
+    // 撤销、重做与操作历史只作用于 Todo（无参 history() 是整库作用域，会撤到商品与订单）；推拉是整机的（epic-016）
+    const history = this.#rxdb.versionManager.history(Todo);
+    registerPageWorkbench({
+      title: 'Todo',
+      scopeLabel: '本页：Todo',
+      ...historyActions(history, signal(null)),
+      history,
+      ...inject(SyncCommands).forPage()
+    });
   }
 
   trackByFn = (_index: number, todo: Todo) => todo.id;
@@ -261,10 +242,6 @@ export default class TodoPage implements AfterViewInit {
     this.$completed_sort.update(sort => (sort === 'asc' ? 'desc' : 'asc'));
   }
 
-  toggle_history() {
-    this.$show_history.update(show => !show);
-  }
-
   set_current_tab(tab: TodoTab) {
     this.$current_tab.set(tab);
   }
@@ -351,35 +328,6 @@ export default class TodoPage implements AfterViewInit {
       await this.#rxdb.entityManager.saveMany(todos);
     } catch (error) {
       this.$crudError.set(`批量新增任务失败：${getErrorMessage(error, '未知错误')}`);
-    }
-  }
-
-  // 与计数、侧栏同一份 Todo 作用域：无参 history() 是整库作用域，会撤销页面外的实体（商品目录）
-  undo() {
-    void this.history.undo();
-  }
-
-  redo() {
-    void this.history.redo();
-  }
-
-  async pull(): Promise<void> {
-    await this.#sync('pull', () => this.#rxdb.syncManager.pull());
-  }
-
-  async push(): Promise<void> {
-    await this.#sync('push', () => this.#rxdb.syncManager.push());
-  }
-
-  async #sync(direction: SyncOperation, operation: () => Promise<unknown>): Promise<void> {
-    this.$syncing.set(direction);
-    this.$syncError.set(null);
-    try {
-      await operation();
-    } catch (error) {
-      this.$syncError.set(`同步失败：${getErrorMessage(error, '未知错误')}`);
-    } finally {
-      this.$syncing.set(null);
     }
   }
 }

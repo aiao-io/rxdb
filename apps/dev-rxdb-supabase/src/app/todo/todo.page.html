@@ -1,28 +1,11 @@
-@let undo_count = (history.undoCount$ | async) ?? 0;
-@let redo_count = (history.redoCount$ | async) ?? 0;
-@let pushable_count = (pushableCount$ | async) ?? 0;
-@let pullable_count = (pullableCount$ | async) ?? 0;
-@let undo_disabled = undo_count === 0;
-@let redo_disabled = redo_count === 0;
-@let push_disabled = pushable_count === 0;
 @let current_tab = $current_tab();
-@let syncing = $syncing();
-@let sync_enabled = $todoSyncEnabled();
+<!-- 撤销、重做、操作历史与推拉在顶栏（页面登记，epic-016）；页面只留 Todo 自己的操作 -->
 <div class="flex h-full">
-  <!-- History Sidebar -->
-  <ao-history-sidebar
-    [borderSide]="'left'"
-    [histories]="(history.histories$ | async) ?? []"
-    [scopeType]="history.type"
-    [show]="$show_history()"
-    (closeClick)="toggle_history()"
-  />
-
   <main class="h-full min-w-0 flex-1 overflow-auto" #mainContainer cdkVirtualScrollingElement>
     <!-- Sticky Header (简化版) -->
     @if ($show_sticky_header()) {
       <div class="border-base-300 bg-base-100 sticky top-0 z-10 border-b px-4 py-2 shadow-sm">
-        <div class="mx-auto flex max-w-4xl items-center justify-between">
+        <div class="mx-auto flex max-w-5xl items-center justify-between">
           <div class="flex items-center gap-3">
             <!-- P2-3：与 :64 的 <h1> 同名同文案，e2e 只能靠 `.first()` 区分。补 testid 让两者可辨。 -->
             <h2 class="text-lg font-semibold" data-testid="todo-sticky-title">Todos</h2>
@@ -48,7 +31,7 @@
 
     <!-- Full Header -->
     <div class="border-base-300 flex-none border-b p-4" #fullHeader>
-      <div class="mx-auto flex max-w-4xl flex-col gap-3">
+      <div class="mx-auto flex max-w-5xl flex-col gap-3">
         @if (remoteSync.$connected() && !session.canSyncTodo) {
           <div class="alert alert-info" data-testid="todo-visitor-notice" role="status">
             <span>
@@ -108,94 +91,7 @@
             </details>
           </div>
 
-          <div class="flex items-center gap-2">
-            <!-- Pull / Push / Undo / Redo -->
-            <div class="join">
-              <button
-                class="btn btn-sm join-item"
-                [disabled]="!sync_enabled || syncing !== null"
-                [title]="sync_enabled ? '从远端拉取' : $todoSyncUnavailableReason()"
-                (click)="pull()"
-                aria-label="Pull"
-                data-testid="todo-pull"
-              >
-                @if (syncing === 'pull') {
-                  <span class="loading loading-spinner loading-xs"></span>
-                } @else {
-                  <svg [lucideIcon]="ArrowDown" size="16"></svg>
-                }
-                <span class="max-sm:hidden">拉取</span>
-                @if (pullable_count) {
-                  <span class="badge badge-xs badge-primary" data-testid="todo-pullable-count">
-                    {{ pullable_count }}
-                  </span>
-                }
-              </button>
-              <button
-                class="btn btn-sm join-item"
-                [disabled]="!sync_enabled || push_disabled || syncing !== null"
-                [title]="sync_enabled ? '推送到远端（一个事务一条记录）' : $todoSyncUnavailableReason()"
-                (click)="push()"
-                aria-label="Push"
-                data-testid="todo-push"
-              >
-                @if (syncing === 'push') {
-                  <span class="loading loading-spinner loading-xs"></span>
-                } @else {
-                  <svg [lucideIcon]="ArrowUp" size="16"></svg>
-                }
-                <span class="max-sm:hidden">推送</span>
-                @if (pushable_count) {
-                  <span class="badge badge-xs badge-primary" data-testid="todo-pushable-count">
-                    {{ pushable_count }}
-                  </span>
-                }
-              </button>
-              <button
-                class="btn btn-sm join-item"
-                [disabled]="undo_disabled"
-                (click)="undo()"
-                aria-label="Undo"
-                data-testid="todo-undo"
-                title="撤销"
-              >
-                <svg [lucideIcon]="Undo2" size="16"></svg>
-                @if (undo_count) {
-                  <span class="badge badge-xs" data-testid="todo-undo-count">{{ undo_count }}</span>
-                }
-              </button>
-              <button
-                class="btn btn-sm join-item"
-                [disabled]="redo_disabled"
-                (click)="redo()"
-                aria-label="Redo"
-                data-testid="todo-redo"
-                title="重做"
-              >
-                <svg [lucideIcon]="Redo2" size="16"></svg>
-                @if (redo_count) {
-                  <span class="badge badge-xs" data-testid="todo-redo-count">{{ redo_count }}</span>
-                }
-              </button>
-            </div>
-
-            <!-- History Toggle -->
-            <button
-              class="btn btn-sm"
-              [attr.aria-pressed]="$show_history()"
-              [class.btn-primary]="$show_history()"
-              (click)="toggle_history()"
-              aria-label="历史记录"
-              title="操作历史"
-            >
-              <svg [lucideIcon]="History" size="16"></svg>
-            </button>
-          </div>
         </div>
-
-        @if ($syncError(); as syncError) {
-          <div class="alert alert-error py-2 text-sm" role="alert">{{ syncError }}</div>
-        }
 
         <!-- Tabs and Action Buttons -->
         <div class="flex flex-wrap items-center justify-between gap-2">
@@ -258,18 +154,13 @@
     </div>
 
     @if ($crudError()) {
-      <div class="alert alert-error mx-auto mb-3 max-w-4xl py-2 text-sm">{{ $crudError() }}</div>
-    }
-
-    <!-- US-218 AC#16：最近一轮被远端拒绝的推送；Todo 同步不可用（本地模式、访客）时推送都不会发生，不占位置 -->
-    @if (sync_enabled) {
-      <app-sync-rejections-panel />
+      <div class="alert alert-error mx-auto mb-3 max-w-5xl py-2 text-sm">{{ $crudError() }}</div>
     }
 
     <!-- Todo List -->
     <!-- P2-3：原先 e2e 只能写 `cdk-virtual-scroll-viewport li`（拿 CDK 的实现细节当选择器）
          和 `input.todo-input`（页面级、不限定行）。补上 viewport 与行级 testid。 -->
-    <cdk-virtual-scroll-viewport class="mx-auto min-h-60 max-w-4xl" [itemSize]="itemSize" data-testid="todo-viewport">
+    <cdk-virtual-scroll-viewport class="mx-auto min-h-60 max-w-5xl" [itemSize]="itemSize" data-testid="todo-viewport">
       @if (todo_resource.isEmpty()) {
         <div class="hero min-h-60">
           <div class="hero-content text-center">

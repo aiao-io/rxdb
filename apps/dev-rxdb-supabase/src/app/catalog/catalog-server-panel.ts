@@ -21,24 +21,24 @@ import { CATALOG_CATEGORIES } from './catalog-sync-rule';
  *
  * @remarks
  * 这里直接以当前身份写远端业务表（RLS：只能改所在租户的商品），写入经同步触发器记进对应区的日志；
- * 本机的同步数据不会因此马上变，要点「同步」，或到别的身份的窗口里同步，才看得到效果。
+ * 本机的同步数据不会因此马上变，要点顶栏的「拉取」，或到别的身份的窗口里拉取，才看得到效果。
  * 自助加入、退出租户只为演示方便，模拟的是「管理员调整了你的成员关系」。
+ *
+ * 渲染在商品页提供的右侧面板里（US-232）：面板标题就是「模拟服务端变更」，这里不再套卡片和标题。
  */
 @Component({
   selector: 'app-catalog-server-panel',
   imports: [FormsModule, CatalogItemEditor],
   template: `
-    <section class="card bg-base-100 shadow-sm" aria-labelledby="server-title">
-      <div class="card-body gap-4">
-        <h2 class="card-title" id="server-title">模拟服务端变更</h2>
+    <section class="flex flex-col gap-4" data-testid="catalog-server-panel">
         @if (!session.signedIn) {
           <p class="text-base-content/70 text-sm" data-testid="server-panel-visitor">
             访客只能读公开数据。切换到 Alice、Bob 或匿名用户，就能加入租户、改租户的商品，模拟服务端那边的变化。
           </p>
         } @else {
           <p class="text-base-content/60 text-sm">
-            以当前身份直接写远端（按 RLS 只能改所在租户的商品）。本机数据不会马上变：点「本机同步的商品」里的「同步」，
-            或到别的身份的窗口里同步，看分区同步怎么收到写入与移除。
+            以当前身份直接写远端（按 RLS 只能改所在租户的商品）。本机数据不会马上变：点顶栏的「拉取」，
+            或到别的身份的窗口里拉取，看分区同步怎么收到写入与移除。这个面板开着也能拉取。
           </p>
 
           <fieldset class="fieldset">
@@ -155,7 +155,6 @@ import { CATALOG_CATEGORIES } from './catalog-sync-rule';
             </form>
           }
         }
-      </div>
     </section>
     <app-catalog-item-editor [busy]="$busy()" [error]="$error()" (save)="saveEdit($event)" />
   `,
@@ -273,7 +272,7 @@ export class CatalogServerPanel {
     this.#notice.set(null);
     try {
       await action(client);
-      this.#notice.set(`${notice}。去点「同步」看本机数据怎么变。`);
+      this.#notice.set(`${notice}。点顶栏的「拉取」看本机数据怎么变。`);
     } catch (error) {
       this.#error.set(getErrorMessage(error, '操作失败'));
     } finally {
