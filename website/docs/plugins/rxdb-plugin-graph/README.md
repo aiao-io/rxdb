@@ -29,7 +29,7 @@ npm install @aiao/rxdb @aiao/rxdb-plugin-graph
 
 ## 推荐阅读
 
-- [GraphEntity 与图结构建模](./graph-entity.md)
-- [邻居查询](../../model-query/findNeighbors.md)
-- [路径查询](../../model-query/findPaths.md)
-- [API 文档](../../api/README.md)
+- [GraphEntity 与图结构建模](/plugins/rxdb-plugin-graph/graph-entity.md)
+- [邻居查询](/model-query/findNeighbors.md)
+- [路径查询](/model-query/findPaths.md)
+- [API 文档](/api/README.md)

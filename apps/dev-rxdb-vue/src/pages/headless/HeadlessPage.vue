@@ -6,6 +6,7 @@
  * 表单、筛选、列表、详情与弹窗的 DOM、控件和样式都是本页自己的，不渲染任何默认组件，也不使用 Tailwind / daisyUI 类名。
  */
 import type { RuleGroup } from '@aiao/rxdb';
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import { useEntityDialog, useEntityList } from '@aiao/rxdb-model-vue/headless';
 import { injectRxDB } from '@aiao/rxdb-vue';
 import { computed, reactive, watch } from 'vue';
@@ -24,6 +25,7 @@ import QueryPanel from './QueryPanel.vue';
 import './headless.css';
 
 const rxdb = injectRxDB()!;
+const { t } = useI18n();
 const source = createArticleSource(rxdb);
 
 const options = reactive({ ...source, query: undefined as RuleGroup | undefined, pageSize: PAGE_SIZE });
@@ -64,8 +66,8 @@ const close = (result: DetailResult): void => {
     class="hl-page"
     data-testid="headless-page"
   >
-    <h1>Headless 实体</h1>
-    <p class="hl-lead">本页只使用 headless 入口提供的状态与动作；DOM、控件、布局和样式都是自己的。</p>
+    <h1>{{ t('page.headless.title') }}</h1>
+    <p class="hl-lead">{{ t('page.headless.subtitle') }}</p>
     <div class="hl-grid">
       <ArticleForm :on-create="data => list.create(data)" />
       <QueryPanel @apply="apply" />
@@ -74,13 +76,15 @@ const close = (result: DetailResult): void => {
           <button
             type="button"
             @click="dialog.open({ mode: 'create' })"
-            >新建文章</button
+            >{{ t('page.headless.newArticle') }}</button
           >
           <span
             role="status"
             data-testid="dialog-result"
           >
-            {{ dialogState.result === undefined ? '' : `弹窗结果：${dialogState.result}` }}
+            {{
+              dialogState.result === undefined ? '' : t('page.headless.dialogResult', { result: dialogState.result })
+            }}
           </span>
         </div>
         <ArticleList

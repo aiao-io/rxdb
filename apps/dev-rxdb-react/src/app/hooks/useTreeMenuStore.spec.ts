@@ -3,7 +3,29 @@ import { SortableMenuSimple } from '@aiao/rxdb-test/entities';
 import { act, renderHook } from '@testing-library/react';
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { useTreeMenuStore } from './useTreeMenuStore';
+
+const zhT = vi.hoisted(() => {
+  const names: Record<string, string> = {
+    'page.tree.writeOp.create': '新建',
+    'page.tree.writeOp.rename': '重命名',
+    'page.tree.writeOp.batchAdd': '批量添加',
+    'page.tree.writeOp.delete': '删除',
+    'page.tree.writeOp.deleteAll': '删除全部',
+    'page.tree.writeOp.cascadeDelete': '级联删除',
+    'page.tree.writeOp.deletePromote': '删除并提升子节点',
+    'page.tree.writeOp.drag': '拖放'
+  };
+  return (key: string, params?: Record<string, unknown>): string => {
+    if (key === 'page.tree.writeFailed') return `${params?.operation ?? ''}失败：${params?.message ?? ''}`;
+    return names[key] ?? key;
+  };
+});
+vi.mock('@aiao/rxdb-i18n-react', () => ({
+  useI18n: () => ({ t: zhT, locale: 'zh-Hans' }),
+  useI18nOptional: () => ({ t: zhT, locale: 'zh-Hans' })
+}));
 
 const mocks = vi.hoisted(() => ({
   getEntityMutations: vi.fn((options: unknown) => ({ mutationsOf: options }))

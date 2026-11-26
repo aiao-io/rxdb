@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import { STORAGE_TESTID } from '@aiao/utils';
 import { Download, Edit3, Eye, FolderOpen, Trash2 } from 'lucide-react';
 import type { StorageBrowserItem } from '../utils/storage-utils';
@@ -13,6 +14,7 @@ interface StorageContextMenuProps {
 }
 
 export function StorageContextMenu({ entry, show, x, y, onAction }: StorageContextMenuProps): React.JSX.Element | null {
+  const { t } = useI18n();
   const T = STORAGE_TESTID;
 
   if (!show || !entry) {
@@ -44,11 +46,11 @@ export function StorageContextMenu({ entry, show, x, y, onAction }: StorageConte
           {entry.kind === 'file' ?
             <>
               <Eye size={14} />
-              <span>View</span>
+              <span>{t('file.view')}</span>
             </>
           : <>
               <FolderOpen size={14} />
-              <span>Open</span>
+              <span>{t('file.open')}</span>
             </>
           }
         </button>
@@ -61,7 +63,7 @@ export function StorageContextMenu({ entry, show, x, y, onAction }: StorageConte
           type='button'
         >
           <Download size={14} />
-          <span>{entry.kind === 'file' ? 'Download' : 'Download ZIP'}</span>
+          <span>{entry.kind === 'file' ? t('file.download') : t('file.downloadZip')}</span>
         </button>
       </li>
       <li>
@@ -72,7 +74,7 @@ export function StorageContextMenu({ entry, show, x, y, onAction }: StorageConte
           type='button'
         >
           <Edit3 size={14} />
-          <span>Rename</span>
+          <span>{t('file.rename')}</span>
         </button>
       </li>
       <li>
@@ -83,7 +85,7 @@ export function StorageContextMenu({ entry, show, x, y, onAction }: StorageConte
           type='button'
         >
           <Trash2 size={14} />
-          <span>Delete</span>
+          <span>{t('file.delete')}</span>
         </button>
       </li>
     </ul>

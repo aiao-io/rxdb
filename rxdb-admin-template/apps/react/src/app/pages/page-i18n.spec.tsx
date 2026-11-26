@@ -38,7 +38,7 @@ vi.mock('../shell/workbench-shell', () => ({
 const runtimes: I18n[] = [];
 
 function renderPage(page: ReactNode, path = '/') {
-  const runtime = createWorkbenchI18n();
+  const runtime = createWorkbenchI18n(undefined, 'zh-CN');
   runtimes.push(runtime);
   return {
     runtime,

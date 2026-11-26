@@ -182,6 +182,18 @@ export function realSandbox(): { chromiumSandbox: true } {
   return { chromiumSandbox: true };
 }
 
+/**
+ * 把面板文案语言钉成英文的启动参数。
+ *
+ * @remarks
+ * 面板随 `navigator.language` 解析文案（`PanelI18nService`），而本套件的断言写的是具体文案：
+ * CI runner 是 en-US，开发机常见 zh-CN —— 不钉死时同一份断言会在两种环境里给出相反结论，
+ * 而且失败信息只说「找不到按钮」，与真因（宿主机语言）毫无关系。面板没有语言切换器，
+ * 只能从启动参数钉。Chromium 的 `--lang` 会改写该进程所有 frame（含 DevTools 自己那个
+ * 扩展面板帧）的 `navigator.language`，Electron 44 实测有效。
+ */
+export const PANEL_LOCALE_ARGS: readonly string[] = ['--lang=en-US'];
+
 /** renderer 构建产物目录，与 `apps/dev-rxdb-electron` 的 build outputPath 一致。 */
 export const RENDERER_DIST = join(__dirname, '../../../dist/apps/dev-rxdb-electron/browser');
 

@@ -1,0 +1,40 @@
+# useGraphNeighbors()
+
+```ts
+function useGraphNeighbors<T>(EntityType, options): RxDBResource<GraphQueryResult<NeighborResult<T, EdgeInfo>>>;
+```
+
+Defined in: [rxdb-vue/src/hooks.ts:397](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-vue/src/hooks.ts#L397)
+
+Finds the neighbor entities in a graph structure
+
+## Type Parameters
+
+| Type Parameter                                                                                                           |
+| ------------------------------------------------------------------------------------------------------------------------ |
+| <a id="type-parameter-t"></a> `T` _extends_ [`GraphEntityType`](../../rxdb-plugin-graph/type-aliases/GraphEntityType.md) |
+
+## Parameters
+
+| Parameter    | Type                                                                                                                                                        | Description                                            |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `EntityType` | `T`                                                                                                                                                         | Entity class                                           |
+| `options`    | [`UseOptions`](../type-aliases/UseOptions.md)&lt;[`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"findNeighborsOptions"`&gt;&gt; | Graph query options (entityId, direction, level, etc.) |
+
+## Returns
+
+[`RxDBResource`](../interfaces/RxDBResource.md)&lt;[`GraphQueryResult`](../type-aliases/GraphQueryResult.md)&lt;[`NeighborResult`](../interfaces/NeighborResult.md)&lt;`T`, [`EdgeInfo`](../../rxdb-plugin-graph/interfaces/EdgeInfo.md)&gt;&gt;&gt;
+
+A reactive resource object containing the neighbor entities
+
+## Example
+
+```typescript
+// Hold it as a whole: the resource is a reactive object; destructuring gives a one-time snapshot (see RxDBResource)
+const friends = useGraphNeighbors(User, {
+  entityId: 'user-1',
+  direction: 'out',
+  level: 1
+});
+// In templates use friends.value / friends.isLoading
+```

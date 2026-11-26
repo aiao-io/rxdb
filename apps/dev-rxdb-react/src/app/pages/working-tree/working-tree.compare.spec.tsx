@@ -61,6 +61,7 @@ vi.mock('@aiao/rxdb-plugin-working-tree', () => ({
   CommitValidationError: class extends Error {},
   WorkingTreeDirtyError: class extends Error {}
 }));
+vi.mock('@aiao/rxdb-i18n-react', () => ({ useI18n: () => ({ t: (key: string) => key }) }));
 vi.mock('@aiao/rxdb-plugin-working-tree-react', () => ({
   useWorkingTree: () => harness.tree,
   useWorktrees: () => ({

@@ -1,4 +1,5 @@
 import type { RuleGroup } from '@aiao/rxdb';
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import { useEntityDialog, useEntityList } from '@aiao/rxdb-model-react/headless';
 import { useRxDB } from '@aiao/rxdb-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -24,6 +25,7 @@ import { QueryPanel } from './query-panel';
  */
 export default function HeadlessPage(): React.JSX.Element {
   const rxdb = useRxDB();
+  const { t } = useI18n();
   const source = useMemo(() => createArticleSource(rxdb), [rxdb]);
   const [query, setQuery] = useState<RuleGroup>();
 
@@ -49,18 +51,18 @@ export default function HeadlessPage(): React.JSX.Element {
 
   return (
     <main className='hl-page' data-testid='headless-page'>
-      <h1>Headless 实体</h1>
-      <p className='hl-lead'>本页只使用 headless 入口提供的状态与动作；DOM、控件、布局和样式都是自己的。</p>
+      <h1>{t('page.headless.title')}</h1>
+      <p className='hl-lead'>{t('page.headless.subtitle')}</p>
       <div className='hl-grid'>
         <ArticleForm onCreate={data => list.create(data)} />
         <QueryPanel onApply={setQuery} />
         <div className='hl-wide'>
           <div className='hl-actions'>
             <button type='button' onClick={() => dialog.open({ mode: 'create' })}>
-              新建文章
+              {t('page.headless.newArticle')}
             </button>
             <span role='status' data-testid='dialog-result'>
-              {dialogState.result === undefined ? '' : `弹窗结果：${dialogState.result}`}
+              {dialogState.result === undefined ? '' : t('page.headless.dialogResult', { result: dialogState.result })}
             </span>
           </div>
           <ArticleList controller={list} snapshot={snapshot} onEdit={record => dialog.open({ mode: 'edit', record })} />

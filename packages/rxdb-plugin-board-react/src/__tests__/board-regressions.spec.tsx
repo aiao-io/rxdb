@@ -23,6 +23,12 @@ import {
   within
 } from './board-test-utils.js';
 
+// 视图文案已迁入 board 目录：注入 zh-Hans 运行时，断言保持 zh 逐字文案
+vi.mock('../board-i18n.js', async () => {
+  const { boardI18nZhMock } = await import('./board-test-utils.js');
+  return boardI18nZhMock();
+});
+
 const SEED_LAYOUT = '5,4,3,0';
 const layoutOf = (board: UseBoardReturn): string =>
   board.columns.map(column => board.tasks.filter(task => task.columnId === column.id).length).join(',');

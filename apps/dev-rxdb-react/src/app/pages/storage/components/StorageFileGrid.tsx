@@ -1,5 +1,7 @@
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import { useRxDB } from '@aiao/rxdb-react';
-import { formatFileSize, STORAGE_TESTID } from '@aiao/utils';
+import { STORAGE_TESTID } from '@aiao/utils';
+import { formatFileSize } from '@modules/demo-i18n/files';
 import { Download, Eye, FolderOpen, Pen, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useObjectUrlMap } from '../../../hooks/loadObjectUrlMap';
@@ -31,6 +33,7 @@ export function StorageFileGrid({
   onContextMenu,
   onEntryClick
 }: Props) {
+  const { t, locale } = useI18n();
   const rxdb = useRxDB();
   const clickTimeoutRef = useRef<number | null>(null);
   const imageEntries = useMemo(
@@ -128,7 +131,7 @@ export function StorageFileGrid({
               </h2>
               {entry.kind === 'file' && (
                 <p className='text-base-content/60 text-[10px]' data-testid={T.FILE_SIZE}>
-                  {formatFileSize(entry.size || 0)}
+                  {formatFileSize(entry.size || 0, locale)}
                 </p>
               )}
             </div>
@@ -142,7 +145,7 @@ export function StorageFileGrid({
                       event.stopPropagation();
                       onNavigate(entry);
                     }}
-                    title='Open'
+                    title={t('file.open')}
                   >
                     <FolderOpen size={12} />
                   </button>
@@ -152,7 +155,7 @@ export function StorageFileGrid({
                       event.stopPropagation();
                       onDownload(entry);
                     }}
-                    title='Download ZIP'
+                    title={t('file.downloadZip')}
                   >
                     <Download size={12} />
                   </button>
@@ -166,7 +169,7 @@ export function StorageFileGrid({
                         event.stopPropagation();
                         onPreview(entry);
                       }}
-                      title='Preview'
+                      title={t('file.preview')}
                     >
                       <Eye size={12} />
                     </button>
@@ -178,7 +181,7 @@ export function StorageFileGrid({
                       event.stopPropagation();
                       onDownload(entry);
                     }}
-                    title='Download'
+                    title={t('file.download')}
                   >
                     <Download size={12} />
                   </button>
@@ -191,7 +194,7 @@ export function StorageFileGrid({
                   event.stopPropagation();
                   onRename(entry);
                 }}
-                title='Rename'
+                title={t('file.rename')}
               >
                 <Pen size={12} />
               </button>
@@ -202,7 +205,7 @@ export function StorageFileGrid({
                   event.stopPropagation();
                   onDelete(entry);
                 }}
-                title='Delete'
+                title={t('file.delete')}
               >
                 <Trash2 size={12} />
               </button>

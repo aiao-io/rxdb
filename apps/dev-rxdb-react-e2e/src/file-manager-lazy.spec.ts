@@ -4,11 +4,11 @@ import { addRootFolder, getFileRow, openPage, readCount, requireAttribute } from
 
 test.describe('File Manager Lazy Loading Page', () => {
   test.beforeEach(async ({ page }) => {
-    await openPage(page, '/file-manager-lazy', 'File Manager - Lazy Load');
+    await openPage(page, '/file-manager-lazy', '文件管理器 - 懒加载');
   });
 
   test('should display page title', async ({ page }) => {
-    await expect(page.getByRole('heading', { level: 1, name: 'File Manager - Lazy Load' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: '文件管理器 - 懒加载' })).toBeVisible();
   });
 
   test('should have file controls', async ({ page }) => {

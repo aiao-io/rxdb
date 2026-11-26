@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import { STORAGE_TESTID } from '@aiao/utils';
 import type { StorageBrowserItem } from '../utils/storage-utils';
 
@@ -18,6 +19,7 @@ export function StorageRenameDialog({
   onConfirm,
   onNameChange
 }: StorageRenameDialogProps): React.JSX.Element | null {
+  const { t } = useI18n();
   const T = STORAGE_TESTID;
 
   if (!show || !entry) {
@@ -27,22 +29,22 @@ export function StorageRenameDialog({
   return (
     <div className='modal modal-open' data-testid={T.RENAME_DIALOG} onClick={onCancel}>
       <div className='modal-box' onClick={event => event.stopPropagation()}>
-        <h3 className='mb-4 text-base font-bold'>Rename {entry.kind === 'file' ? 'File' : 'Folder'}</h3>
+        <h3 className='mb-4 text-base font-bold'>{t('file.renameEntry', { kind: entry.kind })}</h3>
         <input
           className='input input-bordered w-full'
           data-testid={T.RENAME_INPUT}
           onChange={event => onNameChange(event.target.value)}
           onKeyDown={event => event.key === 'Enter' && onConfirm()}
-          placeholder={entry.kind === 'file' ? 'File name' : 'Folder name'}
+          placeholder={entry.kind === 'file' ? t('file.fileName') : t('file.folderName')}
           type='text'
           value={newName}
         />
         <div className='modal-action'>
           <button className='btn btn-sm' onClick={onCancel}>
-            Cancel
+            {t('file.cancel')}
           </button>
           <button className='btn btn-sm btn-primary' data-testid={T.RENAME_CONFIRM} onClick={onConfirm}>
-            Confirm
+            {t('file.confirm')}
           </button>
         </div>
       </div>

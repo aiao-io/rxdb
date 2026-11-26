@@ -1,8 +1,11 @@
 blank_issues_enabled: false
 contact_links:
-  - name: 💬 使用问题与设计讨论
+  - name: 💬 Usage and design questions / 使用与设计问题
     url: https://github.com/aiao-io/rxdb/issues/new?template=question.yml
-    about: 当前使用 Issue 作为支持渠道；请先查阅文档，再提交最小复现信息
-  - name: 📖 文档
-    url: https://github.com/aiao-io/rxdb/blob/main/README.md
-    about: 在提交 Issue 前，先查阅文档与路线图
+    about: Ask a question in English or Chinese. 欢迎用中文或英文提问。
+  - name: 📖 English documentation
+    url: https://rxdb.aiao.io/en/
+    about: Find installation instructions, framework examples, and the plugin authoring guide.
+  - name: 📖 中文文档
+    url: https://rxdb.aiao.io/
+    about: 查阅安装步骤、框架示例和插件编写指南。

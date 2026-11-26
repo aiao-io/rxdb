@@ -128,7 +128,8 @@ async function scaffold(
     )
   );
   await writeFile(path.join(dir, 'requirements/roadmap.md'), roadmapText);
-  await writeFile(path.join(dir, 'README.md'), `# x\n\n当前交付状态 ${readme}\n`);
+  await writeFile(path.join(dir, 'README.md'), `# x\n\nStatus ${readme.replace('已交付', 'delivered')}\n`);
+  await writeFile(path.join(dir, 'README.zh-CN.md'), `# x\n\n当前交付状态 ${readme}\n`);
   await writeFile(
     path.join(dir, 'requirements/README.md'),
     '# 需求管理\n\nEpic：\n\n- [epic-001 X](epics/epic-001-x.md)\n'
@@ -186,6 +187,8 @@ test('--update 只改数字不动列宽，改完能过 check', async () => {
     await readFile(path.join(dir, 'requirements/roadmap.md'), 'utf8'),
     /仓库还剩 \*\*1 条\*\*未关闭故事（0 In Progress \+ 0 In Review \+ 1 Backlog/
   );
+  assert.match(await readFile(path.join(dir, 'README.md'), 'utf8'), /\[2\/3 delivered\]/);
+  assert.match(await readFile(path.join(dir, 'README.zh-CN.md'), 'utf8'), /\[2\/3 已交付\]/);
   assert.equal(updateReadme('x [0/0 已交付] y', countStatuses(await collectStories(dir))), 'x [2/3 已交付] y');
   assert.equal(updateStatusOverview('| **合计**       | 63   |', { total: 7 }), '| **合计**       | 7    |');
   // 行尾 `\s*$` 在 m 模式下会跨行吞掉表后的空行，表格与紧随的引用块就此粘连。
@@ -976,7 +979,7 @@ test('--update 重新生成进行中 / 待评审 / 阻塞三段与按 Epic 索�
     path.join(repo, 'requirements/roadmap.md'),
     roadmap(3, 1, 1, 0, ['US-003', 'US-004', 'US-010'], 2, 1)
   );
-  await writeFile(path.join(repo, 'README.md'), '# x\n\n当前交付状态 [2/5 已交付]\n');
+  await writeFile(path.join(repo, 'README.md'), '# x\n\nStatus [2/5 delivered]\n');
 
   const stale = await run({ root: repo });
   assert.match(

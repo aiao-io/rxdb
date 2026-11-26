@@ -1,8 +1,16 @@
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import { normalizeDirectoryPath } from '@aiao/rxdb-plugin-storage';
 import { useRxDB } from '@aiao/rxdb-react';
-import { checkOPFSAvailable, STORAGE_LABELS, STORAGE_TESTID } from '@aiao/utils';
+import { checkOPFSAvailable, STORAGE_TESTID } from '@aiao/utils';
+import {
+  fileError,
+  fileMessage,
+  orderFileEntries,
+  renderFileMessage,
+  type FileMessage
+} from '@modules/demo-i18n/files';
 import { Database, Upload } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useGlobalDismiss } from '../../hooks/useGlobalDismiss';
 import { readDroppedEntryTree } from '../../utils/read-directory-entries';
@@ -40,6 +48,7 @@ function buildUrlFromPath(path: string): string {
 }
 
 export default function StoragePage(): React.JSX.Element {
+  const { t, locale } = useI18n();
   const rxdb = useRxDB();
   const navigate = useNavigate();
   const params = useParams();
@@ -62,7 +71,7 @@ export default function StoragePage(): React.JSX.Element {
     entry: StorageBrowserItem | null;
   }>({ show: false, x: 0, y: 0, entry: null });
   const [renameDialog, setRenameDialog] = useState<RenameDialog>({ show: false, entry: null, newName: '' });
-  const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirm>({ show: false, entry: null });
+  const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirm>({ show: false, target: null });
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialog>({ show: false, message: '' });
   const [toast, setToast] = useState<ToastState>({ show: false, message: '', type: 'info' });
   const [opfsAvailable, setOpfsAvailable] = useState(false);
@@ -76,9 +85,8 @@ export default function StoragePage(): React.JSX.Element {
   const initializedRef = useRef(false);
 
   const T = STORAGE_TESTID;
-  const L = STORAGE_LABELS;
 
-  const showToast = useCallback((message: string, type: ToastState['type'] = 'info') => {
+  const showToast = useCallback((message: string | FileMessage, type: ToastState['type'] = 'info') => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
     setToast({ show: true, message, type });
     toastTimerRef.current = setTimeout(() => setToast({ show: false, message: '', type: 'info' }), 3000);
@@ -89,7 +97,7 @@ export default function StoragePage(): React.JSX.Element {
     currentPath,
     currentPathRef,
     deleteEntry,
-    entries,
+    entries: listedEntries,
     findExistingFileEntry,
     loading,
     navigateToPath,
@@ -97,6 +105,7 @@ export default function StoragePage(): React.JSX.Element {
     refreshRef,
     setCurrentPathImmediate
   } = useStorageBrowser(rxdb, showToast);
+  const entries = useMemo(() => orderFileEntries(listedEntries, locale), [listedEntries, locale]);
   const { clearSelection, handleEntryClick, selectedPaths, selectionBox, startBoxSelection } =
     useStorageSelection(entries);
   const {
@@ -213,7 +222,7 @@ export default function StoragePage(): React.JSX.Element {
   const dirCount = entries.filter(entry => entry.kind === 'directory').length;
   const fileCount = entries.filter(entry => entry.kind === 'file').length;
 
-  const confirm = (message: string): Promise<boolean> =>
+  const confirm = (message: string | FileMessage): Promise<boolean> =>
     new Promise(resolve => setConfirmDialog({ show: true, message, resolve }));
 
   const resolveConfirm = (value: boolean) => {
@@ -230,7 +239,7 @@ export default function StoragePage(): React.JSX.Element {
 
   const handleDelete = async (entry: StorageBrowserItem) => {
     const shouldDelete = await new Promise<boolean>(resolve => {
-      setDeleteConfirm({ show: true, entry, resolve });
+      setDeleteConfirm({ show: true, target: { type: 'single', entry }, resolve });
     });
 
     if (!shouldDelete) {
@@ -239,13 +248,13 @@ export default function StoragePage(): React.JSX.Element {
 
     const result = await deleteEntry(entry);
     if (!result) {
-      showToast(`Delete failed: ${entry.name}`, 'error');
+      showToast(fileMessage('file.deleteFailed', { detail: entry.name }), 'error');
     }
   };
 
   const handleDeleteResponse = (confirmed: boolean) => {
     deleteConfirm.resolve?.(confirmed);
-    setDeleteConfirm({ show: false, entry: null });
+    setDeleteConfirm({ show: false, target: null });
   };
 
   const handleOverwriteResponse = (confirmed: boolean) => {
@@ -261,10 +270,10 @@ export default function StoragePage(): React.JSX.Element {
       await rxdb.storage.createDirectory(name, { path: currentPathRef.current });
       setShowNewFolder(false);
       setNewFolderName('');
-      showToast('Folder created successfully', 'success');
+      showToast(fileMessage('file.folderCreated'), 'success');
       await refresh(currentPathRef.current);
     } catch (err) {
-      showToast(err instanceof Error ? err.message : String(err), 'error');
+      showToast(fileError('file.createFailed', err), 'error');
     }
   };
 
@@ -279,21 +288,21 @@ export default function StoragePage(): React.JSX.Element {
       }
 
       setRenameDialog({ show: false, entry: null, newName: '' });
-      showToast('Rename successful', 'success');
+      showToast(fileMessage('file.renameSuccess'), 'success');
       await refresh(currentPathRef.current);
     } catch (err) {
-      showToast(err instanceof Error ? err.message : String(err), 'error');
+      showToast(fileError('file.renameFailed', err), 'error');
     }
   };
 
   const handleBatchDelete = async () => {
     if (selectedPaths.size === 0) return;
 
-    const selectedEntries = entries.filter(entry => selectedPaths.has(entry.path));
+    const selectedEntries = listedEntries.filter(entry => selectedPaths.has(entry.path));
     const shouldDelete = await new Promise<boolean>(resolve => {
       setDeleteConfirm({
         show: true,
-        entry: { name: `${selectedPaths.size} items`, kind: 'file', path: '' },
+        target: { type: 'batch', count: selectedEntries.length },
         resolve
       });
     });
@@ -311,16 +320,16 @@ export default function StoragePage(): React.JSX.Element {
     await refresh(currentPathRef.current);
 
     if (failedCount > 0) {
-      showToast(`${failedCount} items failed to delete`, 'error');
+      showToast(fileMessage('file.deleteFailures', { count: failedCount }), 'error');
     } else {
-      showToast(`Deleted ${selectedEntries.length} items`, 'success');
+      showToast(fileMessage('file.deleted', { count: selectedEntries.length }), 'success');
     }
 
     clearSelection();
   };
 
   const handleBatchDownload = async () => {
-    const selectedEntries = entries.filter(entry => selectedPaths.has(entry.path));
+    const selectedEntries = listedEntries.filter(entry => selectedPaths.has(entry.path));
     await downloadSelected(selectedEntries);
   };
 
@@ -413,7 +422,7 @@ export default function StoragePage(): React.JSX.Element {
   };
 
   const onClearAll = async () => {
-    const confirmed = await confirm(L.CONFIRM_CLEAR);
+    const confirmed = await confirm(fileMessage('file.confirmClear'));
     if (!confirmed) {
       return;
     }
@@ -422,10 +431,10 @@ export default function StoragePage(): React.JSX.Element {
       await rxdb.storage.clear('/');
       clearSelection();
       setPreviewEntry(null);
-      showToast(L.CLEAR_SUCCESS, 'success');
+      showToast(fileMessage('file.clearSuccess'), 'success');
       await refresh('/');
     } catch (err) {
-      showToast(err instanceof Error ? err.message : String(err), 'error');
+      showToast(fileError('file.clearFailed', err), 'error');
     }
   };
 
@@ -470,7 +479,7 @@ export default function StoragePage(): React.JSX.Element {
             <div className='text-center'>
               <Database className='text-base-content/30 mx-auto mb-4' size={48} />
               <p className='text-base-content/60 text-sm'>
-                {currentPath === '/' ? L.NO_FILES : 'This folder is empty'}
+                {currentPath === '/' ? t('file.emptyStorage') : t('file.emptyFolder')}
               </p>
             </div>
           </div>
@@ -517,16 +526,14 @@ export default function StoragePage(): React.JSX.Element {
           <div className='bg-primary/10 border-primary pointer-events-none absolute inset-0 z-50 flex items-center justify-center border-2 border-dashed'>
             <div className='bg-base-100 rounded-lg p-8 shadow-lg'>
               <Upload className='text-primary mx-auto mb-2' size={48} />
-              <p className='text-primary text-lg font-semibold'>Drop files here to upload</p>
+              <p className='text-primary text-lg font-semibold'>{t('file.drop')}</p>
             </div>
           </div>
         )}
       </div>
 
       <div className='border-base-300 text-base-content/60 flex items-center gap-4 border-t px-3 py-1 text-xs'>
-        <span>
-          {entries.length} items ({dirCount} folders, {fileCount} files)
-        </span>
+        <span>{t('file.stats', { count: dirCount + fileCount, folders: dirCount, files: fileCount })}</span>
       </div>
 
       <StorageFilePreview entry={previewEntry} onClose={() => setPreviewEntry(null)} />
@@ -554,7 +561,7 @@ export default function StoragePage(): React.JSX.Element {
         onAction={action => void handleContextMenuAction(action)}
       />
 
-      <StorageDeleteDialog entry={deleteConfirm.entry} show={deleteConfirm.show} onRespond={handleDeleteResponse} />
+      <StorageDeleteDialog target={deleteConfirm.target} show={deleteConfirm.show} onRespond={handleDeleteResponse} />
 
       <StorageRenameDialog
         entry={renameDialog.entry}
@@ -565,7 +572,11 @@ export default function StoragePage(): React.JSX.Element {
         onNameChange={name => setRenameDialog(previous => ({ ...previous, newName: name }))}
       />
 
-      <StorageConfirmDialog message={confirmDialog.message} show={confirmDialog.show} onRespond={resolveConfirm} />
+      <StorageConfirmDialog
+        message={renderFileMessage(t, confirmDialog.message)}
+        show={confirmDialog.show}
+        onRespond={resolveConfirm}
+      />
 
       <StorageToast toast={toast} onClose={() => setToast({ show: false, message: '', type: 'info' })} />
 

@@ -1,3 +1,6 @@
+import { I18n } from '@aiao/rxdb-i18n';
+import { I18N } from '@aiao/rxdb-i18n-vue';
+import { fileCatalogs } from '@modules/demo-i18n/files';
 import { flushPromises, mount } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
@@ -33,7 +36,12 @@ const probe = async (overlap: boolean) => {
     data: file.path === A.path ? blob : 'new-B',
     type: 'text/plain'
   }));
-  const wrapper = mount(OpfsFilePreview, { props: { entry: A }, attachTo: document.body });
+  const i18n = new I18n({ deviceLocale: 'en', catalogs: fileCatalogs });
+  const wrapper = mount(OpfsFilePreview, {
+    props: { entry: A },
+    global: { provide: { [I18N]: i18n } },
+    attachTo: document.body
+  });
   try {
     await started.promise;
     if (!overlap) {

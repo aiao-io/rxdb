@@ -1,6 +1,7 @@
 import { CodeEditor } from '@aiao/code-editor-react';
 import { WaSqliteClient } from '@aiao/rxdb-adapter-wa-sqlite';
 import { Button } from '@site/src/components/button';
+import { useSiteCopy } from '@site/src/lib/locale-copy';
 import { Play } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -84,6 +85,7 @@ function formatCell(value: unknown): string {
 }
 
 export function HomeSqlPlayground() {
+  const copy = useSiteCopy();
   const colorMode = useDocusaurusColorMode();
   const mountedRef = useRef(false);
   const clientRef = useRef<SqliteClientLike | null>(null);
@@ -195,7 +197,7 @@ export function HomeSqlPlayground() {
             aria-busy={status === 'running'}
           >
             <Play className='size-3.5 fill-current' />
-            执行 SQL
+            {copy('执行 SQL')}
           </Button>
         </div>
       </div>
@@ -208,7 +210,7 @@ export function HomeSqlPlayground() {
 
       <div className='border-border/60 bg-muted/20 overflow-hidden rounded-xl border' aria-live='polite'>
         <div className='border-border/60 flex flex-wrap items-center justify-between gap-2 border-b px-3 py-2'>
-          <div className='text-xs font-semibold'>执行结果</div>
+          <div className='text-xs font-semibold'>{copy('执行结果')}</div>
           {result ?
             <div className='text-muted-foreground text-xs'>
               {result.rowsAffected} rows affected · {result.elapsed.toFixed(1)} ms
@@ -218,7 +220,7 @@ export function HomeSqlPlayground() {
 
         <div className='max-h-[160px] overflow-auto px-3 py-3'>
           {status === 'booting' ?
-            <div className='text-muted-foreground text-sm'>正在启动浏览器内 SQLite…</div>
+            <div className='text-muted-foreground text-sm'>{copy('正在启动浏览器内 SQLite…')}</div>
           : null}
 
           {errorMessage ?
@@ -228,7 +230,7 @@ export function HomeSqlPlayground() {
           : null}
 
           {!errorMessage && result && result.results.length === 0 ?
-            <div className='text-muted-foreground text-sm'>语句执行成功，未返回结果集。</div>
+            <div className='text-muted-foreground text-sm'>{copy('语句执行成功，未返回结果集。')}</div>
           : null}
 
           {!errorMessage && result && result.results.length > 0 ?
@@ -266,7 +268,7 @@ export function HomeSqlPlayground() {
           : null}
 
           {!errorMessage && !result && status === 'ready' ?
-            <div className='text-muted-foreground text-sm'>输入 SQL 语句，然后点击执行。</div>
+            <div className='text-muted-foreground text-sm'>{copy('输入 SQL 语句，然后点击执行。')}</div>
           : null}
         </div>
       </div>

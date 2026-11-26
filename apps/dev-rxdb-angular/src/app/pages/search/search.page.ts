@@ -1,4 +1,5 @@
 import { RxDB } from '@aiao/rxdb';
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import {
   useSearch,
   type SearchOptions,
@@ -83,6 +84,7 @@ export default class SearchPage implements OnInit, AfterViewInit {
   private readonly searchableDb = this.rxdb as RxDB & SearchSourceLike;
   private readonly records = inject(SearchRecordsService);
   private readonly seedService = inject(SearchSeedService);
+  private readonly i18n = useI18n();
 
   readonly searchInputEl = viewChild<ElementRef<HTMLInputElement>>('searchInputEl');
   readonly articleTitleInput = viewChild<ElementRef<HTMLInputElement>>('articleTitleInput');
@@ -113,14 +115,9 @@ export default class SearchPage implements OnInit, AfterViewInit {
   });
   readonly scopeSummary = computed(() => {
     const collections = this.activeCollections();
-    if (collections === undefined) return '全部可搜索集合';
-    if (collections.length === 0) return '未选择集合';
-    const labels = collections.map(c =>
-      c === 'article' ? '文章'
-      : c === 'comment' ? '评论'
-      : 'Todo'
-    );
-    return labels.join(' + ');
+    if (collections === undefined) return this.i18n.t('page.search.scopeSummaryAll');
+    if (collections.length === 0) return this.i18n.t('page.search.scopeSummaryNone');
+    return collections.map(collection => this.scopeCollectionLabel(collection)).join(' + ');
   });
 
   // ----- 搜索（由 @aiao/rxdb-plugin-search-angular 提供） -----
@@ -158,20 +155,17 @@ export default class SearchPage implements OnInit, AfterViewInit {
   readonly displayError = computed(() => this.simulatedError() ?? this.search.error()?.message ?? null);
   readonly resultAnnouncement = computed(() => {
     const state = this.displayState();
-    if (state === 'loading') return '搜索中…';
-    if (state === 'success') return `${this.search.results().length} 条结果`;
-    if (state === 'empty') return '无结果';
-    if (state === 'error') return '搜索失败';
-    return '输入关键词开始搜索';
+    if (state === 'loading') return this.i18n.t('page.search.loading');
+    if (state === 'success') return this.i18n.t('page.search.stateSuccess', { count: this.search.results().length });
+    if (state === 'empty') return this.i18n.t('page.search.stateEmpty');
+    if (state === 'error') return this.i18n.t('page.search.stateError');
+    return this.i18n.t('page.search.stateIdle');
   });
   readonly seedLabel = computed(() => {
     const c = this.seedCount();
-    if (!c) return '加载中…';
-    return `文章 ${c.article}${c.comment ? ` · 评论 ${c.comment}` : ''}`;
-  });
-  readonly mutationHint = computed(() => {
-    const query = this.search.query().trim();
-    return query ? `新建时将使用 "${query}"` : '';
+    if (!c) return this.i18n.t('common.loading');
+    const label = this.i18n.t('page.search.articleTotal', { count: c.article });
+    return c.comment ? `${label} · ${this.i18n.t('page.search.commentTotal', { count: c.comment })}` : label;
   });
 
   constructor() {
@@ -237,8 +231,8 @@ export default class SearchPage implements OnInit, AfterViewInit {
   }
 
   scopeCollectionLabel(collection: SearchDemoCollection): string {
-    if (collection === 'article') return '文章';
-    if (collection === 'comment') return '评论';
+    if (collection === 'article') return this.i18n.t('page.search.collectionArticle');
+    if (collection === 'comment') return this.i18n.t('page.search.collectionComment');
     return 'Todo';
   }
 
@@ -258,7 +252,7 @@ export default class SearchPage implements OnInit, AfterViewInit {
 
   simulateError(): void {
     if (!this.search.query().trim()) return;
-    this.simulatedError.set('模拟的搜索错误');
+    this.simulatedError.set(this.i18n.t('page.search.simulatedErrorMessage'));
   }
 
   retrySearch(): void {
@@ -358,23 +352,24 @@ export default class SearchPage implements OnInit, AfterViewInit {
   // ===== Display helpers =====
 
   localizeCollection(collection: string): string {
-    if (collection === 'article') return '文章';
-    if (collection === 'comment') return '评论';
+    if (collection === 'article') return this.i18n.t('page.search.collectionArticle');
+    if (collection === 'comment') return this.i18n.t('page.search.collectionComment');
     if (collection === 'todos') return 'Todo';
     return collection;
   }
 
   localizeField(field: string): string {
-    const map: Record<string, string> = {
-      title: '标题',
-      body: '正文',
-      content: '内容',
-      authorName: '作者',
-      authorId: '作者 ID',
-      category: '分类',
-      tags: '标签'
+    const keys: Record<string, string> = {
+      title: 'page.search.titleField',
+      body: 'page.search.bodyField',
+      content: 'page.search.contentField',
+      authorName: 'page.search.authorField',
+      authorId: 'page.search.authorIdField',
+      category: 'page.search.categoryField',
+      tags: 'page.search.tags'
     };
-    return map[field] ?? field;
+    const key = keys[field];
+    return key ? this.i18n.t(key) : field;
   }
 
   collectionBadgeClass(collection: string): string {

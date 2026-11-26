@@ -19,24 +19,28 @@ export interface CommentCreateDraft {
   authorName: string;
 }
 
-export function localizeCollection(collection: string): string {
-  if (collection === 'article') return '文章';
-  if (collection === 'comment') return '评论';
+/** 集合 ID 与匹配字段 ID 的展示文案翻译器；Todo 是实体名，两端保持一致不翻译。 */
+export type SearchLocalizer = (key: string) => string;
+
+export function localizeCollection(t: SearchLocalizer, collection: string): string {
+  if (collection === 'article') return t('page.search.collectionArticle');
+  if (collection === 'comment') return t('page.search.collectionComment');
   if (collection === 'todos') return 'Todo';
   return collection;
 }
 
-export function localizeField(field: string): string {
-  const map: Record<string, string> = {
-    title: '标题',
-    body: '正文',
-    content: '内容',
-    authorName: '作者',
-    authorId: '作者 ID',
-    category: '分类',
-    tags: '标签'
+export function localizeField(t: SearchLocalizer, field: string): string {
+  const keys: Record<string, string> = {
+    title: 'page.search.titleField',
+    body: 'page.search.bodyField',
+    content: 'page.search.contentField',
+    authorName: 'page.search.authorField',
+    authorId: 'page.search.authorIdField',
+    category: 'page.search.categoryField',
+    tags: 'page.search.tags'
   };
-  return map[field] ?? field;
+  const key = keys[field];
+  return key ? t(key) : field;
 }
 
 export function collectionBadgeClass(collection: string): string {

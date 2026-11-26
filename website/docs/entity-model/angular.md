@@ -8,7 +8,7 @@
 npm install @aiao/rxdb @aiao/rxdb-model @aiao/rxdb-model-angular
 ```
 
-组件自己经依赖注入读取 `RxDB`，应用须先用 `provideRxDB` 提供实例（见 [Angular 集成](../frameworks/angular.md)）；`provideRxDB` 在应用初始化阶段就解析好数据库，页面本身不需要再注入 `RxDB`。
+组件自己经依赖注入读取 `RxDB`，应用须先用 `provideRxDB` 提供实例（见 [Angular 集成](/frameworks/angular.md)）；`provideRxDB` 在应用初始化阶段就解析好数据库，页面本身不需要再注入 `RxDB`。
 
 ## 实体列表
 

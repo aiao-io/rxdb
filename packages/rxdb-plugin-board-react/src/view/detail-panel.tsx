@@ -1,6 +1,7 @@
 import { labelTextColor } from '@aiao/rxdb-plugin-board';
 import type { ReactNode } from 'react';
 
+import { boardT } from '../board-i18n.js';
 import type { BoardViewModel } from './model.js';
 
 interface PartProps {
@@ -21,14 +22,14 @@ function DetailHeader({ vm }: PartProps): ReactNode {
             <span className='rxb-panel-status' aria-live='polite' data-testid='detail-status'>
               {status}
             </span>
-            {status === '已保存' ?
+            {status === boardT('view.detail.statusSaved') ?
               <button
                 className='rxb-link-button'
                 disabled={core.writeLocked || core.board.undoCount === 0}
                 onClick={() => void header.undo()}
                 data-testid='detail-undo'
               >
-                撤销
+                {boardT('view.undo.label')}
               </button>
             : null}
           </>
@@ -37,7 +38,7 @@ function DetailHeader({ vm }: PartProps): ReactNode {
       <button
         className='rxb-btn rxb-btn-icon rxb-btn-invisible'
         onClick={detail.closeDetail}
-        aria-label='关闭详情'
+        aria-label={boardT('view.detail.close')}
         data-testid='detail-close'
       >
         <span className='rxb-i rxb-i-close' aria-hidden='true' />
@@ -51,9 +52,9 @@ function DetailFields({ vm }: PartProps): ReactNode {
   const { core, data, detail, popover } = vm;
   const { writeLocked, ids } = core;
   return (
-    <aside className='rxb-panel-fields' aria-label='字段'>
+    <aside className='rxb-panel-fields' aria-label={boardT('view.detail.fields')}>
       <div className='rxb-field'>
-        <span className='rxb-field-label'>所在列</span>
+        <span className='rxb-field-label'>{boardT('view.detail.column')}</span>
         <button
           className='rxb-field-value'
           aria-expanded={popover.popover?.kind === 'detail-column-picker'}
@@ -67,7 +68,7 @@ function DetailFields({ vm }: PartProps): ReactNode {
         </button>
       </div>
       <div className='rxb-field'>
-        <span className='rxb-field-label'>标签</span>
+        <span className='rxb-field-label'>{boardT('view.detail.labels')}</span>
         <button
           className='rxb-field-value'
           aria-expanded={popover.popover?.kind === 'detail-label-picker'}
@@ -87,12 +88,12 @@ function DetailFields({ vm }: PartProps): ReactNode {
                 {label.name}
               </span>
             ))
-          : <span className='rxb-placeholder'>无标签</span>}
+          : <span className='rxb-placeholder'>{boardT('view.detail.noLabels')}</span>}
         </button>
       </div>
       <div className='rxb-field'>
         <label className='rxb-field-label' htmlFor={ids.detailDue}>
-          截止日
+          {boardT('view.detail.due')}
         </label>
         <div className='rxb-field-row'>
           <input
@@ -109,7 +110,7 @@ function DetailFields({ vm }: PartProps): ReactNode {
               className='rxb-btn rxb-btn-icon rxb-btn-invisible'
               disabled={writeLocked}
               onClick={() => void detail.commitDetailDue('')}
-              aria-label='清除截止日'
+              aria-label={boardT('view.detail.clearDue')}
               data-testid='detail-due-clear'
             >
               <span className='rxb-i rxb-i-close' aria-hidden='true' />
@@ -125,7 +126,7 @@ function DetailFields({ vm }: PartProps): ReactNode {
           data-testid='detail-delete'
         >
           <span className='rxb-i rxb-i-trash' aria-hidden='true' />
-          删除任务
+          {boardT('common.deleteTask')}
         </button>
       </div>
     </aside>
@@ -138,7 +139,7 @@ export function DetailPanel({ vm }: PartProps): ReactNode {
   return (
     <section
       className='rxb-panel'
-      aria-label={`任务详情：${detail.detailTitle}`}
+      aria-label={boardT('view.detail.ariaLabel', { title: detail.detailTitle })}
       data-testid='detail-panel'
       role='dialog'
     >
@@ -151,14 +152,14 @@ export function DetailPanel({ vm }: PartProps): ReactNode {
           onBlur={() => void detail.commitDetailTitle()}
           onChange={event => detail.setDetailTitle(event.target.value)}
           onKeyDown={detail.onDetailTitleKeydown}
-          aria-label='标题'
+          aria-label={boardT('view.detail.title')}
           data-testid='detail-title'
         />
       </div>
       <div className='rxb-panel-body'>
         <section className='rxb-panel-main'>
           <label className='rxb-panel-section-title' htmlFor={core.ids.detailDescription}>
-            描述
+            {boardT('view.detail.description')}
           </label>
           <textarea
             className='rxb-textarea'
@@ -169,9 +170,9 @@ export function DetailPanel({ vm }: PartProps): ReactNode {
             onChange={event => detail.setDetailDescription(event.target.value)}
             onKeyDown={detail.onDetailDescriptionKeydown}
             data-testid='detail-description'
-            placeholder='补充背景、验收标准或链接…'
+            placeholder={boardT('view.detail.descriptionPlaceholder')}
           />
-          <p className='rxb-hint'>失焦或 ⌘Enter 保存，Esc 还原；每次保存都可撤销。</p>
+          <p className='rxb-hint'>{boardT('view.detail.saveHint')}</p>
         </section>
         <DetailFields vm={vm} />
       </div>

@@ -8,6 +8,7 @@ import { attachPanel, PANEL_BUDGET_MS, panelEvaluate, readPanel } from './devtoo
 import { awaitAnswer, installWireTap, postToConnector, requestFrame, waitForSessionId } from './devtools-wire-tap';
 import {
   launchEnv,
+  PANEL_LOCALE_ARGS,
   realSandbox,
   resolveDesktopDevExtension,
   resolveExecutable,
@@ -72,7 +73,7 @@ function launchApp(userDataDir: string, port: number, mutation?: string): Promis
     executablePath: resolveExecutable(),
     // 必须真沙箱：--no-sandbox 会让扩展 devtools_page 一行不执行，面板永不进 tab 条。
     ...realSandbox(),
-    args: [`--user-data-dir=${userDataDir}`, '--serve', `--port=${String(port)}`],
+    args: [`--user-data-dir=${userDataDir}`, '--serve', `--port=${String(port)}`, ...PANEL_LOCALE_ARGS],
     env: devToolsEnv(mutation)
   });
 }
@@ -111,12 +112,12 @@ function deterministicBytes(size: number): Buffer {
   return bytes;
 }
 
-/** 打开面板的 Files 页并等它列出目录。 */
+/** 打开面板的 Files 页并等它列出目录（文案语言见 {@link PANEL_LOCALE_ARGS}）。 */
 async function openFilesPage(app: ElectronApplication): Promise<string> {
   return readPanel(app, {
     inspected: INSPECTED,
     hash: '#/opfs',
-    awaitPattern: '项 \\(|此目录为空',
+    awaitPattern: 'items? \\(|This directory is empty',
     budgetMs: PANEL_BUDGET_MS
   });
 }
@@ -127,8 +128,8 @@ async function openFilesPage(app: ElectronApplication): Promise<string> {
  * @param scope - CSS 选择器，限定在哪一块里找；默认整个文档。
  *
  * @remarks
- * **对话框里的按钮必须传 `scope`。** 文件表每一行的删除按钮是 `title="删除"`，确认对话框里的
- * 是文本为「删除」的按钮，两者都能匹配上同一个 label；不限定范围时 `querySelectorAll` 按 DOM
+ * **对话框里的按钮必须传 `scope`。** 文件表每一行的删除按钮是 `title="Delete"`，确认对话框里的
+ * 是文本为「Delete」的按钮，两者都能匹配上同一个 label；不限定范围时 `querySelectorAll` 按 DOM
  * 顺序先撞上行内那个，于是「确认删除」变成了「再点一次删除」，表征是文件始终不消失。
  */
 async function clickPanelButton(app: ElectronApplication, label: string, scope = ''): Promise<boolean> {
@@ -151,15 +152,15 @@ async function clickPanelButton(app: ElectronApplication, label: string, scope =
 
 /** 经面板新建一个目录。 */
 async function createDirectory(app: ElectronApplication, name: string): Promise<void> {
-  expect(await clickPanelButton(app, '新建文件夹'), '找不到「新建文件夹」按钮').toBe(true);
+  expect(await clickPanelButton(app, 'New folder'), '找不到「New folder」按钮').toBe(true);
 
   // Angular 的 `(input)` 绑定读的是事件里的 target.value：只赋值不派发事件，
-  // 信号不会更新，「创建」会因为 `[disabled]="!newFolderName().trim()"` 一直是禁用的。
+  // 信号不会更新，「Create」会因为 `[disabled]="!newFolderName().trim()"` 一直是禁用的。
   const typed = await panelEvaluate<boolean>(
     app,
     INSPECTED,
     `(() => {
-      const input = document.querySelector('input[placeholder="文件夹名称"]');
+      const input = document.querySelector('input[placeholder="Folder name"]');
       if (!input) return false;
       input.value = ${JSON.stringify(name)};
       input.dispatchEvent(new Event('input', { bubbles: true }));
@@ -167,7 +168,7 @@ async function createDirectory(app: ElectronApplication, name: string): Promise<
     })()`
   );
   expect(typed, '找不到新建文件夹对话框的输入框').toBe(true);
-  expect(await clickPanelButton(app, '创建', '.modal-action'), '「创建」按钮不可点（名字没进信号？）').toBe(true);
+  expect(await clickPanelButton(app, 'Create', '.modal-action'), '「Create」按钮不可点（名字没进信号？）').toBe(true);
 }
 
 /**
@@ -246,7 +247,7 @@ async function downloadThroughPanel(
     INSPECTED,
     `(() => {
       const row = [...document.querySelectorAll('tr')].find(el => el.textContent.includes(${JSON.stringify(name)}));
-      const button = row?.querySelector('button[title="下载"]');
+      const button = row?.querySelector('button[title="Download"]');
       if (!button) return false;
       button.click();
       return true;
@@ -368,15 +369,15 @@ test.describe('面板对原生文件后端的写操作逐字节落盘（US-904 �
         INSPECTED,
         `(() => {
           const row = [...document.querySelectorAll('tr')].find(el => el.textContent.includes(${JSON.stringify(FILE_NAME)}));
-          const button = row?.querySelector('button[title="删除"]');
+          const button = row?.querySelector('button[title="Delete"]');
           if (!button) return false;
           button.click();
           return true;
         })()`
       );
       expect(deleted, `Files 页里找不到 ${FILE_NAME} 那一行的删除按钮`).toBe(true);
-      // 限定在对话框动作区里找：行内那个删除按钮 title 也是「删除」，不限范围会再点一次它。
-      expect(await clickPanelButton(app, '删除', '.modal-action'), '删除确认对话框没出现').toBe(true);
+      // 限定在对话框动作区里找：行内那个删除按钮 title 也是「Delete」，不限范围会再点一次它。
+      expect(await clickPanelButton(app, 'Delete', '.modal-action'), '删除确认对话框没出现').toBe(true);
       expect(await waitForPath(filePath, false), `面板删除后文件仍在盘上：${filePath}`).toBe(true);
     } finally {
       await app.close();

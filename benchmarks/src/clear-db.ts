@@ -1,3 +1,5 @@
+import type { BenchmarksTranslate } from './i18n/messages';
+
 const REMOVE_MAX_ATTEMPTS = 5;
 const REMOVE_BACKOFF_MS = 25;
 /**
@@ -47,11 +49,11 @@ async function removeEntryWithRetry(
   throw lastError;
 }
 
-function deleteIndexedDBDatabase(name: string): Promise<void> {
+function deleteIndexedDBDatabase(t: BenchmarksTranslate, name: string): Promise<void> {
   return new Promise<void>((resolve, reject) => {
     const request = indexedDB.deleteDatabase(name);
     const timer = setTimeout(() => {
-      reject(new Error(`删除 ${name} 超时（${DELETE_WATCHDOG_MS}ms 内没有任何事件）`));
+      reject(new Error(t('clearDb.deleteTimeout', { name, ms: DELETE_WATCHDOG_MS })));
     }, DELETE_WATCHDOG_MS);
     const settle = (next: () => void) => {
       clearTimeout(timer);
@@ -60,7 +62,7 @@ function deleteIndexedDBDatabase(name: string): Promise<void> {
 
     request.onsuccess = () => settle(resolve);
     request.onerror = () => settle(() => reject(request.error));
-    request.onblocked = () => settle(() => reject(new Error(`删除 ${name} 被阻塞`)));
+    request.onblocked = () => settle(() => reject(new Error(t('clearDb.deleteBlocked', { name }))));
   });
 }
 
@@ -70,10 +72,10 @@ function deleteIndexedDBDatabase(name: string): Promise<void> {
  * 仅删除名称匹配 {@link isBenchmarkOwned} 的顶层 OPFS 条目与 IndexedDB
  * 数据库，**不会**触碰同源下其它应用的存储。
  */
-export async function clearDB(): Promise<void> {
+export async function clearDB(t: BenchmarksTranslate): Promise<void> {
   await navigator.locks.request('rxdb-benchmarks-storage-cleanup', { ifAvailable: true }, async lock => {
     if (!lock) {
-      console.warn('清理已跳过：另一个实例持有锁');
+      console.warn(t('clearDb.skippedLocked'));
       return;
     }
 
@@ -95,18 +97,18 @@ export async function clearDB(): Promise<void> {
         const benchmarkDbs = dbList.filter((db): db is { name: string } => !!db.name && isBenchmarkOwned(db.name));
         // allSettled 而非 all：Promise.all 在第一个 reject 时就不再等其余，剩下那些库
         // 到底删没删掉既无人查看、失败也无人报告。清理要的是「能删的都删掉」。
-        const results = await Promise.allSettled(benchmarkDbs.map(({ name }) => deleteIndexedDBDatabase(name)));
+        const results = await Promise.allSettled(benchmarkDbs.map(({ name }) => deleteIndexedDBDatabase(t, name)));
         const reasons = results.filter(result => result.status === 'rejected').map(result => result.reason);
         if (reasons.length > 0) {
-          throw new AggregateError(reasons, `${reasons.length} 个 IndexedDB 数据库清理失败`);
+          throw new AggregateError(reasons, t('clearDb.failedDatabases', { count: reasons.length }));
         }
       } else {
-        console.warn('indexedDB.databases() 不可用，跳过 IndexedDB 清理');
+        console.warn(t('clearDb.databasesUnavailable'));
       }
 
-      console.log('Benchmark 存储清理完成 ✅');
+      console.log(t('clearDb.done'));
     } catch (error) {
-      console.error('数据库清理出错:', error);
+      console.error(t('clearDb.error'), error);
       throw error;
     }
   });

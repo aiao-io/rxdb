@@ -2,6 +2,7 @@ import type { CommitLogEntry, CommitLogPage, WorkingTreeQueryState } from '@aiao
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
 import { LucideHistory as History, LucideDynamicIcon, LucideMoreVertical as MoreVertical } from '@lucide/angular';
+import { I18nPipe } from '../../../pipes/i18n.pipe';
 import { gdAvatarColor, gdAvatarInitial, gdRelativeTime } from '../working-tree.gd';
 import type { WorkingTreeContextMenuRequest } from './changes-list.component';
 
@@ -20,7 +21,7 @@ import type { WorkingTreeContextMenuRequest } from './changes-list.component';
   selector: 'app-working-tree-history-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, LucideDynamicIcon],
+  imports: [CommonModule, I18nPipe, LucideDynamicIcon],
   styles: [
     `
       /* 宿主是 aside 的 flex 子项：与变更列表同一组规则（见 changes-list） */
@@ -101,10 +102,10 @@ import type { WorkingTreeContextMenuRequest } from './changes-list.component';
                   <!-- 触屏没有右键：行尾 ⋯ 打开同一菜单（桌面端隐藏） -->
                   <button
                     class="gd-btn-ghost hidden max-md:inline-flex pointer-coarse:inline-flex"
+                    [attr.aria-label]="'common.moreActions' | i18n"
+                    [title]="'page.workingTree.moreActionsTouch' | i18n"
                     (click)="openRowMenu($event, entry)"
-                    aria-label="更多操作"
                     data-testid="wt-commit-more"
-                    title="更多操作（触屏）"
                     type="button"
                   >
                     <svg [lucideIcon]="MoreVertical" size="14"></svg>

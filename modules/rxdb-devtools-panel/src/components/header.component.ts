@@ -1,6 +1,7 @@
 import { NgClass } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { DevToolsStateService } from '../services/devtools-state.service';
+import { PanelI18nService } from '../services/panel-i18n.service';
 import { BranchSelectorComponent } from './branch-selector.component';
 import { HeaderNavComponent } from './header-nav.component';
 
@@ -14,7 +15,9 @@ import { HeaderNavComponent } from './header-nav.component';
         <span class="hidden text-sm font-bold md:inline">DevTools</span>
         <div class="flex items-center gap-1.5">
           <div class="h-2 w-2 rounded-full" [ngClass]="connected() ? 'bg-success' : 'bg-error'"></div>
-          <span class="text-base-content/60 text-xs">{{ connected() ? '已连接' : '未连接' }}</span>
+          <span class="text-base-content/60 text-xs">{{
+            connected() ? t('common.connected') : t('common.disconnected')
+          }}</span>
         </div>
         @if (connected()) {
           <app-branch-selector />
@@ -26,4 +29,5 @@ import { HeaderNavComponent } from './header-nav.component';
 })
 export class HeaderComponent {
   protected readonly connected = inject(DevToolsStateService).connected;
+  protected readonly t = inject(PanelI18nService).t;
 }

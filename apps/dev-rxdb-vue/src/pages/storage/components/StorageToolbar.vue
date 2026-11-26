@@ -1,5 +1,6 @@
 <script lang="ts" setup>
-import { STORAGE_LABELS, STORAGE_TESTID } from '@aiao/utils';
+import { useI18n } from '@aiao/rxdb-i18n-vue';
+import { STORAGE_TESTID } from '@aiao/utils';
 import {
   ChevronRight,
   Download,
@@ -15,6 +16,8 @@ import {
 } from '@lucide/vue';
 import { computed } from 'vue';
 import { normalizeDirectoryPath } from '@aiao/rxdb-plugin-storage';
+
+const { t } = useI18n();
 
 type ViewMode = 'list' | 'grid';
 
@@ -41,7 +44,6 @@ const emit = defineEmits<{
 }>();
 
 const T = STORAGE_TESTID;
-const L = STORAGE_LABELS;
 
 const pathSegments = computed(() => {
   if (props.currentPath === '/') return [];
@@ -58,7 +60,7 @@ const pathSegments = computed(() => {
 <template>
   <div class="border-base-300 flex items-center justify-between border-b px-3 py-2">
     <div class="flex items-center gap-3">
-      <span class="text-sm font-bold">{{ L.PAGE_TITLE }}</span>
+      <span class="text-sm font-bold">{{ t('file.storageTitle') }}</span>
       <div class="flex items-center gap-1.5">
         <div
           class="h-2 w-2 rounded-full"
@@ -70,9 +72,11 @@ const pathSegments = computed(() => {
         />
         <span class="text-base-content/60 text-xs">
           {{
-            opfsAvailable ? 'Connected'
-            : loading ? 'Checking...'
-            : 'Unavailable'
+            t(
+              opfsAvailable ? 'file.connected'
+              : loading ? 'file.loading'
+              : 'file.disconnected'
+            )
           }}
         </span>
       </div>
@@ -87,7 +91,7 @@ const pathSegments = computed(() => {
         @click="emit('update:viewMode', 'list')"
         role="tab"
       >
-        <List :size="12" /> List
+        <List :size="12" /> {{ t('file.list') }}
       </button>
       <button
         class="tab gap-1"
@@ -95,7 +99,7 @@ const pathSegments = computed(() => {
         @click="emit('update:viewMode', 'grid')"
         role="tab"
       >
-        <Grid3X3 :size="12" /> Grid
+        <Grid3X3 :size="12" /> {{ t('file.grid') }}
       </button>
     </div>
   </div>
@@ -104,14 +108,14 @@ const pathSegments = computed(() => {
     <button
       class="btn btn-xs btn-ghost"
       @click="emit('navigate', '/')"
-      title="Root"
+      :title="t('file.root')"
     >
       <Home :size="16" />
     </button>
     <button
       class="btn btn-xs btn-ghost"
       @click="emit('refresh')"
-      title="Refresh"
+      :title="t('file.refresh')"
     >
       <RefreshCw
         :class="{ 'animate-spin': loading }"
@@ -124,30 +128,30 @@ const pathSegments = computed(() => {
       :data-testid="T.UPLOAD_BTN"
       @click="emit('upload')"
     >
-      <Upload :size="16" /> {{ L.UPLOAD }}
+      <Upload :size="16" /> {{ t('file.upload') }}
     </button>
     <button
       class="btn btn-xs btn-primary"
       :data-testid="T.UPLOAD_FOLDER_BTN"
       @click="emit('uploadFolder')"
     >
-      <Folder :size="16" /> Upload Folder
+      <Folder :size="16" /> {{ t('file.uploadFolder') }}
     </button>
     <button
       class="btn btn-xs btn-secondary"
       :data-testid="T.NEW_FOLDER_BTN"
       @click="emit('newFolder')"
     >
-      <FolderPlus :size="16" /> New Folder
+      <FolderPlus :size="16" /> {{ t('file.newFolder') }}
     </button>
     <template v-if="selectionSize > 0">
       <div class="divider divider-horizontal m-0" />
-      <span class="text-base-content/60 text-xs">Selected {{ selectionSize }} items</span>
+      <span class="text-base-content/60 text-xs">{{ t('file.selected', { count: selectionSize }) }}</span>
       <button
         class="btn btn-xs btn-ghost"
         :data-testid="T.CLEAR_SELECTION_BTN"
         @click="emit('clearSelection')"
-        title="Clear selection"
+        :title="t('file.clearSelection')"
       >
         <X :size="14" />
       </button>
@@ -155,17 +159,17 @@ const pathSegments = computed(() => {
         class="btn btn-xs btn-info"
         :data-testid="T.BATCH_DOWNLOAD_BTN"
         @click="emit('batchDownload')"
-        title="Batch download"
+        :title="t('file.batchDownload')"
       >
-        <Download :size="16" /> Download
+        <Download :size="16" /> {{ t('file.download') }}
       </button>
       <button
         class="btn btn-xs btn-error"
         :data-testid="T.BATCH_DELETE_BTN"
         @click="emit('batchDelete')"
-        title="Batch delete"
+        :title="t('file.batchDelete')"
       >
-        <Trash2 :size="16" /> Delete
+        <Trash2 :size="16" /> {{ t('file.delete') }}
       </button>
     </template>
     <template v-if="currentPath === '/' && allFilesCount > 0">
@@ -175,7 +179,7 @@ const pathSegments = computed(() => {
         :data-testid="T.CLEAR_BTN"
         @click="emit('clearAll')"
       >
-        <Trash2 :size="16" /> {{ L.CLEAR_ALL }}
+        <Trash2 :size="16" /> {{ t('file.clearAll') }}
       </button>
     </template>
   </div>
@@ -185,7 +189,7 @@ const pathSegments = computed(() => {
       class="hover:underline"
       @click="emit('navigate', '/')"
     >
-      Root
+      {{ t('file.root') }}
     </button>
     <div
       class="flex items-center gap-1"

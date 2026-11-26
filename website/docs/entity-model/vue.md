@@ -8,7 +8,7 @@
 npm install @aiao/rxdb @aiao/rxdb-model @aiao/rxdb-model-vue
 ```
 
-组件自己经 `@aiao/rxdb-vue` 读取数据库，祖先组件须先用 `provideRxDB()` 提供实例（见 [Vue 集成](../frameworks/vue.md)）。页面本身不需要再调 `injectRxDB()`：它只读取已注入的实例，不做任何初始化。
+组件自己经 `@aiao/rxdb-vue` 读取数据库，祖先组件须先用 `provideRxDB()` 提供实例（见 [Vue 集成](/frameworks/vue.md)）。页面本身不需要再调 `injectRxDB()`：它只读取已注入的实例，不做任何初始化。
 
 ## 实体列表
 

@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import './board-view.css';
 
+import { boardT } from './board-i18n.js';
 import type { useBoard } from './use-board.js';
 import { BoardColumns, EmptyBoard } from './view/board-columns.js';
 import { BoardDialog } from './view/board-dialogs.js';
@@ -27,19 +28,19 @@ function BoardBanners({ vm }: { readonly vm: BoardViewModel }): ReactNode {
     <>
       {board.loading ?
         <p className='rxb-banner' data-testid='board-loading' role='status'>
-          <span>正在读取看板数据…</span>
+          <span>{boardT('view.banner.loading')}</span>
         </p>
       : board.readError ?
         <p className='rxb-banner rxb-banner-danger' data-testid='board-read-error' role='alert'>
-          <span>读取看板数据失败：{board.readError}</span>
+          <span>{boardT('view.banner.readError', { message: board.readError })}</span>
           <button className='rxb-btn rxb-btn-sm' onClick={board.retryReads} data-testid='board-read-retry'>
-            重试
+            {boardT('view.banner.retry')}
           </button>
         </p>
       : null}
       {board.restoring ?
         <p className='rxb-banner rxb-banner-attention' data-testid='restoring-note'>
-          <span>恢复进行中：浏览可用，写入口已暂停。</span>
+          <span>{boardT('view.banner.restoring')}</span>
         </p>
       : null}
       {notice ?
@@ -50,7 +51,7 @@ function BoardBanners({ vm }: { readonly vm: BoardViewModel }): ReactNode {
             className='rxb-btn rxb-btn-sm rxb-btn-icon rxb-btn-invisible'
             onMouseDown={event => event.preventDefault()}
             onClick={() => vm.core.setNotice(null)}
-            aria-label='关闭提示'
+            aria-label={boardT('view.banner.closeNotice')}
             data-testid='board-notice-close'
           >
             <span className='rxb-i rxb-i-close' aria-hidden='true' />
@@ -76,13 +77,13 @@ function BoardToast({ vm }: { readonly vm: BoardViewModel }): ReactNode {
           onClick={() => void header.undoFromToast()}
           data-testid='board-toast-undo'
         >
-          撤销
+          {boardT('view.undo.label')}
         </button>
       : null}
       <button
         className='rxb-btn rxb-btn-sm rxb-btn-icon'
         onClick={() => core.setToast(null)}
-        aria-label='关闭提示'
+        aria-label={boardT('view.banner.closeNotice')}
         data-testid='board-toast-close'
       >
         <span className='rxb-i rxb-i-close' aria-hidden='true' />

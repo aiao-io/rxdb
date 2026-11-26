@@ -1,7 +1,10 @@
 import { RxDB, SortOrderError, type HistoryScopeAPI } from '@aiao/rxdb';
+import { I18n } from '@aiao/rxdb-i18n';
+import { provideI18n } from '@aiao/rxdb-i18n-angular';
 import { SortableFileNode } from '@aiao/rxdb-test/entities';
 import { PLATFORM_ID, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { treeMenuCatalogs } from '@modules/demo-i18n/tree-menu';
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FileDragDropService } from '../services/file-drag-drop.service';
@@ -105,6 +108,27 @@ describe('TreeFileStore.treeNodes', () => {
 
     expect(store.sortMode()).toBe(SortMode.Manual);
     expect(store.treeNodes().map(item => item.node.id)).toEqual(['rb', 'cz', 'ca', 'ra']);
+  });
+
+  it('语言变化后重新应用用户界面排序规则', () => {
+    const locale = signal('en');
+    const arabicName = makeFile('arabic', null, '阿', 'file');
+    const latinName = makeFile('latin', null, 'a', 'file');
+    const store = new TreeFileStore<typeof SortableFileNode>(
+      {} as RxDB,
+      {} as FilePathValidatorService,
+      { value: signal([arabicName, latinName]) },
+      SortableFileNode,
+      undefined,
+      () => locale()
+    );
+    store.sortMode.set(SortMode.NameAsc);
+
+    expect(store.treeNodes().map(item => item.node.id)).toEqual(['latin', 'arabic']);
+
+    locale.set('zh-Hans');
+
+    expect(store.treeNodes().map(item => item.node.id)).toEqual(['arabic', 'latin']);
   });
 });
 
@@ -655,7 +679,8 @@ describe('TreeFileDragDropStore 拖放交给引擎', () => {
       TestBed.configureTestingModule({
         providers: [
           { provide: PLATFORM_ID, useValue: 'browser' },
-          { provide: RxDB, useValue: {} }
+          { provide: RxDB, useValue: {} },
+          provideI18n(() => new I18n({ defaultLocale: 'zh-Hans', deviceLocale: 'zh-Hans', catalogs: treeMenuCatalogs }))
         ]
       });
       class Host extends TreeFileDragDropBase<typeof SortableFileNode> {

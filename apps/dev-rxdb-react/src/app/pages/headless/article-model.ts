@@ -42,10 +42,10 @@ export const queryFields: FieldMetadata[] = createSchemaFromEntity(metadata, {
  */
 export const createBlankArticle = (rxdb: RxDB): EntityFormData =>
   entityToFormData(rxdb.entityManager.instantiate(Article) as unknown as Record<string, unknown>, createFields);
-/** 详情的两个 Tab：可编辑字段与只读系统字段。 */
+/** 详情的两个 Tab：可编辑字段与只读系统字段；label 存目录键，渲染时经 t() 翻译。 */
 export const detailTabs: DetailTab[] = [
-  { key: 'basic', label: '基本信息', type: 'form' },
-  { key: 'system', label: '系统字段', type: 'form' }
+  { key: 'basic', label: 'page.headless.tabBasic', type: 'form' },
+  { key: 'system', label: 'page.headless.tabSystem', type: 'form' }
 ];
 
 /** 本页只渲染单值 / 无值操作符；区间、数组、子查询操作符交给有需要的消费方自己的控件。 */

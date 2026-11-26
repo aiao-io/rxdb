@@ -36,6 +36,10 @@ const createRuntime = () => {
 };
 
 describe('useI18n Vue', () => {
+  it('组件上下文之外调用可选读取为空', () => {
+    expect(useI18nOptional()).toBeUndefined();
+  });
+
   it('缺少 provider 时严格读取报错，可选读取为空', () => {
     const consumer = defineComponent({
       setup() {

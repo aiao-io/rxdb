@@ -1,3 +1,6 @@
+import { I18n } from '@aiao/rxdb-i18n';
+import { I18nProvider } from '@aiao/rxdb-i18n-react';
+import { fileCatalogs } from '@modules/demo-i18n/files';
 import { act, cleanup, render, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { OPFSFileEntry } from '../utils/opfs-utils';
@@ -30,7 +33,10 @@ const probe = async (overlap: boolean) => {
     type: 'text/plain'
   }));
   const onClose = vi.fn();
-  const result = render(<OpfsFilePreview entry={A} previewFile={previewFile} onClose={onClose} />);
+  const i18n = new I18n({ deviceLocale: 'en', catalogs: fileCatalogs });
+  const result = render(<OpfsFilePreview entry={A} previewFile={previewFile} onClose={onClose} />, {
+    wrapper: ({ children }) => <I18nProvider value={i18n}>{children}</I18nProvider>
+  });
   try {
     await act(async () => {
       await started.promise;

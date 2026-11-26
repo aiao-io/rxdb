@@ -22,6 +22,7 @@ export default defineConfig({
   },
   use: {
     baseURL: APP_BASE_URL,
+    locale: 'zh-CN',
     trace: { mode: 'retain-on-failure', screenshots: false },
     actionTimeout: isCI ? 20000 : 10000,
     navigationTimeout: isCI ? 30000 : 15000

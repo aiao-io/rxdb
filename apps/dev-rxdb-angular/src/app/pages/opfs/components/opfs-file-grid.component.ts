@@ -1,3 +1,5 @@
+import { useI18nOptional } from '@aiao/rxdb-i18n-angular';
+import { formatFileSize } from '@modules/demo-i18n/files';
 /**
  * OPFS 文件网格组件
  *
@@ -26,20 +28,14 @@ import {
   LucidePen as Pen,
   LucideTrash2 as Trash2
 } from '@lucide/angular';
+import { I18nPipe } from '../../../pipes/i18n.pipe';
 import { OpfsService } from '../services/opfs.service';
-import {
-  OPFSFileEntry,
-  canPreviewFile,
-  formatFileSize,
-  getFileIcon,
-  getFileIconColor,
-  isImageFile
-} from '../utils/opfs-utils';
+import { OPFSFileEntry, canPreviewFile, getFileIcon, getFileIconColor, isImageFile } from '../utils/opfs-utils';
 
 @Component({
   selector: 'app-opfs-file-grid',
   standalone: true,
-  imports: [CommonModule, LucideDynamicIcon],
+  imports: [I18nPipe, CommonModule, LucideDynamicIcon],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div
@@ -89,8 +85,8 @@ import {
             @if (entry.kind === 'file' && canPreviewFile(entry)) {
               <button
                 class="btn btn-circle btn-ghost btn-xs bg-base-100/80 backdrop-blur"
+                [attr.title]="'file.preview' | i18n"
                 (click)="preview.emit(entry); $event.stopPropagation()"
-                title="预览"
               >
                 <svg [lucideIcon]="Eye" size="12"></svg>
               </button>
@@ -98,24 +94,24 @@ import {
             @if (entry.kind === 'file') {
               <button
                 class="btn btn-circle btn-ghost btn-xs bg-base-100/80 backdrop-blur"
+                [attr.title]="'file.download' | i18n"
                 (click)="download.emit(entry); $event.stopPropagation()"
-                title="下载"
               >
                 <svg [lucideIcon]="Download" size="12"></svg>
               </button>
             }
             <button
               class="btn btn-circle btn-ghost btn-xs bg-base-100/80 backdrop-blur"
+              [attr.title]="'file.rename' | i18n"
               (click)="rename.emit(entry); $event.stopPropagation()"
               data-testid="opfs-rename-btn"
-              title="重命名"
             >
               <svg [lucideIcon]="Pen" size="12"></svg>
             </button>
             <button
               class="btn btn-circle btn-ghost btn-xs bg-base-100/80 text-error backdrop-blur"
+              [attr.title]="'file.delete' | i18n"
               (click)="delete.emit(entry); $event.stopPropagation()"
-              title="删除"
             >
               <svg [lucideIcon]="Trash2" size="12"></svg>
             </button>
@@ -127,6 +123,7 @@ import {
   styles: []
 })
 export class OpfsFileGridComponent {
+  readonly #i18n = useI18nOptional();
   private opfsService = inject(OpfsService);
   private destroyRef = inject(DestroyRef);
   private loadingThumbnails = false;
@@ -168,7 +165,6 @@ export class OpfsFileGridComponent {
   getFileIcon = getFileIcon;
   getFileIconColor = getFileIconColor;
   isImageFile = isImageFile;
-  formatFileSize = formatFileSize;
   canPreviewFile = canPreviewFile;
 
   constructor() {
@@ -298,6 +294,10 @@ export class OpfsFileGridComponent {
     } else {
       this.preview.emit(entry);
     }
+  }
+
+  formatFileSize(bytes: number): string {
+    return formatFileSize(bytes, this.#i18n?.locale() ?? 'zh-Hans');
   }
 
   private clearThumbnailUrls(): void {

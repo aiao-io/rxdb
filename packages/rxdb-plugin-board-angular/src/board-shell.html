@@ -3,31 +3,31 @@
     @switch (s.phase) {
       @case ('startup') {
         <!-- 启动选择：选择前不连接、不建表、不装种子（US-537） -->
-        <section class="rxb-shell-startup" aria-label="选择如何开始" data-testid="startup-page">
+        <section class="rxb-shell-startup" [attr.aria-label]="t('shell.startup.ariaLabel')" data-testid="startup-page">
           <div class="rxb-shell-card">
-            <p class="rxb-shell-eyebrow">RxDB 本地优先看板</p>
-            <h1 class="rxb-shell-heading">任务看板</h1>
-            <p class="rxb-shell-hint">选择如何开始；选择前不会连接或创建任何数据。</p>
+            <p class="rxb-shell-eyebrow">{{ t('shell.startup.eyebrow') }}</p>
+            <h1 class="rxb-shell-heading">{{ t('shell.startup.heading') }}</h1>
+            <p class="rxb-shell-hint">{{ t('shell.startup.hint') }}</p>
             <div class="rxb-shell-options">
               <button class="rxb-shell-option" (click)="startEmpty()" data-testid="start-empty" type="button">
-                <strong>新建空看板</strong>
-                <span>从零开始建板、建列、建任务</span>
+                <strong>{{ t('shell.startup.emptyTitle') }}</strong>
+                <span>{{ t('shell.startup.emptyDesc') }}</span>
               </button>
               @if (s.canSeed) {
                 <button class="rxb-shell-option" (click)="startSeed()" data-testid="start-seed" type="button">
-                  <strong>装载演示数据</strong>
-                  <span>在新库里装一份演示看板，体验拖拽、筛选、键盘与撤销</span>
+                  <strong>{{ t('shell.startup.seedTitle') }}</strong>
+                  <span>{{ t('shell.startup.seedDesc') }}</span>
                 </button>
               }
               <button class="rxb-shell-option" (click)="startupFile.click()" data-testid="start-restore" type="button">
-                <strong>从备份恢复</strong>
-                <span>选择 .rxdb 备份文件，恢复到新库后打开</span>
+                <strong>{{ t('shell.startup.restoreTitle') }}</strong>
+                <span>{{ t('shell.startup.restoreDesc') }}</span>
               </button>
               <input
                 #startupFile
+                [attr.aria-label]="t('shell.startup.fileLabel')"
                 (change)="onRestoreFile($event)"
                 accept=".rxdb"
-                aria-label="选择备份文件"
                 data-testid="restore-file"
                 hidden
                 type="file"
@@ -40,31 +40,31 @@
         </section>
       }
       @case ('loading') {
-        <p class="rxb-shell-status" data-testid="loading-page" role="status">正在准备看板数据…</p>
+        <p class="rxb-shell-status" data-testid="loading-page" role="status">{{ t('shell.loading') }}</p>
       }
       @case ('restoring') {
         <p class="rxb-shell-status" data-testid="restoring-page" role="status">
-          {{ s.restore.state === 'switching' ? '正在打开恢复的看板…' : '恢复中：全部写入口已暂停。' }}
+          {{ s.restore.state === 'switching' ? t('shell.restoring.switching') : t('shell.restoring.status') }}
         </p>
       }
       @case ('board') {
         <div class="rxb-shell-board">
           <header class="rxb-shell-bar" data-testid="board-tools">
-            <span class="rxb-shell-brand">任务看板</span>
+            <span class="rxb-shell-brand">{{ t('shell.bar.brand') }}</span>
             <span class="rxb-shell-spacer"></span>
             @if (s.canSeed) {
               <button class="rxb-btn rxb-btn-sm" (click)="resetDemo()" data-testid="reset-demo" type="button">
-                重置为演示数据
+                {{ t('shell.bar.resetDemo') }}
               </button>
             }
             <button class="rxb-btn rxb-btn-sm" (click)="menuFile.click()" data-testid="restore-open" type="button">
-              从备份恢复…
+              {{ t('shell.bar.restore') }}
             </button>
             <input
               #menuFile
+              [attr.aria-label]="t('shell.bar.fileLabel')"
               (change)="onRestoreFile($event)"
               accept=".rxdb"
-              aria-label="选择备份文件"
               data-testid="restore-file-menu"
               hidden
               type="file"
@@ -96,7 +96,7 @@
           </div>
           <div class="rxb-dialog-footer">
             <button class="rxb-btn" (click)="settleConfirm(false)" data-testid="host-confirm-no" type="button">
-              取消
+              {{ t('common.cancel') }}
             </button>
             <button
               class="rxb-btn rxb-btn-primary"

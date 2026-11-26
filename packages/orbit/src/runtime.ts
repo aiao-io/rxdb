@@ -36,6 +36,24 @@ const HANDSHAKE_GRACE_MS = 3000;
  */
 const INCOMPATIBLE_NOTICE_MS = 100;
 
+/** 浏览器 iframe sandbox 的合法令牌全集；`OrbitAppOptions.sandbox` 只允许从这里取。 */
+const SANDBOX_TOKENS = new Set([
+  'allow-downloads',
+  'allow-forms',
+  'allow-modals',
+  'allow-orientation-lock',
+  'allow-pointer-lock',
+  'allow-popups',
+  'allow-popups-to-escape-sandbox',
+  'allow-presentation',
+  'allow-same-origin',
+  'allow-scripts',
+  'allow-storage-access-by-user-activation',
+  'allow-top-navigation',
+  'allow-top-navigation-by-user-activation',
+  'allow-top-navigation-to-custom-protocols'
+]);
+
 class Instance implements OrbitInstance {
   private resolveReady!: () => void;
   private rejectReady!: (error: unknown) => void;
@@ -89,7 +107,7 @@ class Instance implements OrbitInstance {
     this.container = container;
     this.view = view;
     try {
-      const { host, frame } = createFrame(container.ownerDocument, this.onDisconnect);
+      const { host, frame } = createFrame(container.ownerDocument, this.onDisconnect, this.options.sandbox);
       this.host = host;
       this.frame = frame;
       this.channel = crypto.randomUUID();
@@ -350,12 +368,19 @@ function normalizeApp(options: OrbitAppOptions, origins: ReadonlySet<string>): O
   )
     throw new OrbitError('INVALID_OPTIONS', '应用入口只允许无凭据的 HTTP(S) 地址，且不得占用内部参数');
   if (!origins.has(url.origin)) throw new OrbitError('FORBIDDEN_ORIGIN', `未授权应用来源：${url.origin}`);
+  const sandbox = options.sandbox?.trim();
+  if (sandbox) {
+    for (const token of sandbox.split(/\s+/)) {
+      if (!SANDBOX_TOKENS.has(token)) throw new OrbitError('INVALID_OPTIONS', `未知沙箱令牌：${token}`);
+    }
+  }
   if (options.signal?.aborted) throw aborted();
   return {
     ...options,
     url: url.href,
     timeout: checkTimeout(options.timeout ?? 15_000),
-    props: copyProps(options.props ?? {})
+    props: copyProps(options.props ?? {}),
+    ...(sandbox && { sandbox })
   };
 }
 

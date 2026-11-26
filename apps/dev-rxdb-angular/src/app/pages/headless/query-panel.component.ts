@@ -2,6 +2,7 @@ import type { RuleGroup } from '@aiao/rxdb';
 import { useI18nRuntime } from '@aiao/rxdb-i18n-angular';
 import { injectQueryBuilder } from '@aiao/rxdb-model-angular/headless';
 import { ChangeDetectionStrategy, Component, computed, output } from '@angular/core';
+import { I18nPipe } from '../../pipes/i18n.pipe';
 import { queryFields } from './article-model';
 import { QueryGroupComponent } from './query-group.component';
 
@@ -9,10 +10,10 @@ import { QueryGroupComponent } from './query-group.component';
 @Component({
   selector: 'app-hl-query-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [QueryGroupComponent],
+  imports: [QueryGroupComponent, I18nPipe],
   template: `
     <section class="hl-section" aria-labelledby="hl-query-title" data-testid="headless-query">
-      <h2 id="hl-query-title">筛选</h2>
+      <h2 id="hl-query-title">{{ 'page.headless.queryTitle' | i18n }}</h2>
       <app-hl-query-group
         [controller]="builder.controller"
         [fields]="builder.snapshot().fields"
@@ -32,11 +33,13 @@ import { QueryGroupComponent } from './query-group.component';
           (click)="apply.emit(builder.controller.toRxDBQuery())"
           type="button"
         >
-          应用筛选
+          {{ 'page.headless.applyFilter' | i18n }}
         </button>
-        <button (click)="clear()" type="button">清空筛选</button>
+        <button (click)="clear()" type="button">{{ 'page.headless.clearFilter' | i18n }}</button>
       </div>
-      <pre class="hl-output" aria-label="查询输出" data-testid="qb-query">{{ queryText() }}</pre>
+      <pre class="hl-output" [attr.aria-label]="'page.headless.queryOutput' | i18n" data-testid="qb-query">{{
+        queryText()
+      }}</pre>
     </section>
   `
 })

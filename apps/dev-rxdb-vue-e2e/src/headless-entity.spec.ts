@@ -276,16 +276,17 @@ test.describe('Headless 实体：自有控件与样式的真实应用消费', ()
 
     // 校验文案：消费方把应用的运行时传给控制器，提交时按当前语言重新生成
     const form = page.getByTestId('headless-form');
-    await form.getByRole('button', { name: '提交' }).click();
+    await form.getByRole('button', { name: 'Submit' }).click();
     await expect(form.getByTestId('error-title')).toHaveText('title is required');
     await fillArticle(form, { viewCount: 'abc' });
     await expect(form.getByTestId('error-viewCount')).toHaveText('viewCount Must be an integer');
 
     // 操作符文案：内置操作符带目录键，页面用同一个运行时翻译
     const builder = page.getByTestId('headless-query');
-    await builder.getByRole('button', { name: '添加规则' }).click();
-    const firstOperator = builder.getByTestId('qb-rule').first().getByLabel('操作符').locator('option').first();
-    await expect(firstOperator).toHaveText('Equals');
+    await builder.getByRole('button', { name: 'Add rule' }).click();
+    const firstOperator = (label: string) =>
+      builder.getByTestId('qb-rule').first().getByLabel(label).locator('option').first();
+    await expect(firstOperator('Operator')).toHaveText('Equals');
     await expect(builder.getByTestId('qb-errors')).toContainText('requires a value');
 
     // 已显示的文案随语言切换自动刷新，不必再次操作；解析失败的文案同样刷新，输入保持不变
@@ -294,7 +295,7 @@ test.describe('Headless 实体：自有控件与样式的真实应用消费', ()
     await expect(form.getByTestId('error-viewCount')).toHaveText('viewCount 必须是整数');
     await expect(form.getByLabel('viewCount', { exact: true })).toHaveValue('abc');
     await expect(builder.getByTestId('qb-errors')).toContainText('需要提供一个值');
-    await expect(firstOperator).toHaveText('等于');
+    await expect(firstOperator('操作符')).toHaveText('等于');
   });
 
   test('生命周期：离开再回来重复挂载，不重复监听也不重复写入', async ({ page }) => {

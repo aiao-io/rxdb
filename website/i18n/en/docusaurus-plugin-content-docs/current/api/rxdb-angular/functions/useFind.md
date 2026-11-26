@@ -1,0 +1,28 @@
+# useFind()
+
+```ts
+function useFind<T>(EntityType, options): RxDBResource<InstanceType<T>[]>;
+```
+
+Defined in: [rxdb-angular/src/hooks.ts:193](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-angular/src/hooks.ts#L193)
+
+Finds multiple entities matching the condition
+
+## Type Parameters
+
+| Type Parameter                                                                                    |
+| ------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+
+## Parameters
+
+| Parameter    | Type                                                                                                                                               | Description      |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| `EntityType` | `T`                                                                                                                                                | Entity class     |
+| `options`    | [`UseOptions`](../type-aliases/UseOptions.md)&lt;[`EntityStaticType`](../../rxdb/type-aliases/EntityStaticType.md)&lt;`T`, `"findOptions"`&gt;&gt; | Query parameters |
+
+## Returns
+
+[`RxDBResource`](../interfaces/RxDBResource.md)&lt;`InstanceType`&lt;`T`&gt;[]&gt;
+
+Resource signal containing the entity array

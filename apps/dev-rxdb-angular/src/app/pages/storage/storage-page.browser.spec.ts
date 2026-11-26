@@ -31,7 +31,10 @@ describe('StoragePageBrowser', () => {
     expect(currentPath()).toBe('/docs');
     expect(browser.entries()).toEqual([]);
     expect(browser.error()).toBe('permission denied');
-    expect(showToast).toHaveBeenCalledWith('permission denied', 'error');
+    expect(showToast).toHaveBeenCalledWith(
+      { key: 'file.readFailed', params: { detail: 'permission denied' } },
+      'error'
+    );
     expect(browser.loading()).toBe(false);
   });
 

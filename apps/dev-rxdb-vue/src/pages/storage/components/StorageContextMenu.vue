@@ -1,7 +1,10 @@
 <script lang="ts" setup>
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import { STORAGE_TESTID } from '@aiao/utils';
 import { Download, Edit3, Eye, FolderOpen, Trash2 } from '@lucide/vue';
 import type { StorageBrowserItem } from '../utils/storage-utils';
+
+const { t } = useI18n();
 
 defineProps<{
   show: boolean;
@@ -45,7 +48,7 @@ const T = STORAGE_TESTID;
           v-else
           :size="14"
         />
-        <span>{{ entry.kind === 'file' ? 'View' : 'Open' }}</span>
+        <span>{{ entry.kind === 'file' ? t('file.view') : t('file.open') }}</span>
       </button>
     </li>
     <li>
@@ -56,7 +59,7 @@ const T = STORAGE_TESTID;
         type="button"
       >
         <Download :size="14" />
-        <span>{{ entry.kind === 'file' ? 'Download' : 'Download ZIP' }}</span>
+        <span>{{ entry.kind === 'file' ? t('file.download') : t('file.downloadZip') }}</span>
       </button>
     </li>
     <li>
@@ -67,7 +70,7 @@ const T = STORAGE_TESTID;
         type="button"
       >
         <Edit3 :size="14" />
-        <span>Rename</span>
+        <span>{{ t('file.rename') }}</span>
       </button>
     </li>
     <li>
@@ -78,7 +81,7 @@ const T = STORAGE_TESTID;
         type="button"
       >
         <Trash2 :size="14" />
-        <span>Delete</span>
+        <span>{{ t('file.delete') }}</span>
       </button>
     </li>
   </div>

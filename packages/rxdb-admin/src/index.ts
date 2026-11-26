@@ -1,3 +1,7 @@
+/**
+ * @packageDocumentation
+ * Aiao RxDB 管理后台的共享外壳状态。
+ */
 export * from './bootstrap.js';
 export * from './i18n/index.js';
 export * from './layout/layout-state.js';

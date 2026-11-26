@@ -3,7 +3,7 @@ import { openPage, readCount } from './e2e-utils.js';
 
 test.describe('File Manager Simple - Batch Add Single Undo', () => {
   test.beforeEach(async ({ page }) => {
-    await openPage(page, '/file-manager-simple', 'File Manager - Simple');
+    await openPage(page, '/file-manager-simple', '文件管理器 - 简单模式');
   });
 
   test('batch add 100 should produce exactly 1 undo entry', async ({ page }) => {

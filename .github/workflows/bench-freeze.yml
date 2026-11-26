@@ -11,11 +11,15 @@ name: Bench Freeze
 # （epic-006「reference 的冻结与复冻」）。四个槽位碰不碰得到那种 CPU 看运气，没碰到就换个 tag 名再推一次。
 #
 # 触发：
-#   - 推注解 tag `bench-freeze/<任意后缀>`，理由写在 tag message 里：
+#   - 推注解 tag `bench-freeze/<任意后缀>`（新画像），理由写在 tag message 里：
 #       git tag -a bench-freeze/2026-09-25 -m "<提交> 已在 M1 画像上过相对门禁，为 CI 画像冻结"
 #       git push origin bench-freeze/2026-09-25
 #     tag 触发用的是 tag 所指提交里的这份 workflow，所以不必先合进 main。
-#   - 手动触发（workflow_dispatch，需先在默认分支上）：理由填在 reason 输入里。
+#   - 推注解 tag `bench-refreeze/<任意后缀>`（复冻已有画像，`--regenerate`）：
+#       旧基线冻结在重构前（或冻结时机带负载），候选提交已在某个旧画像上通过相对门禁，
+#       理由与证据写在 tag message 里；落在已有 reference 的画像上覆盖该画像那份，
+#       落在没有 reference 的画像上原样跳过。
+#   - 手动触发（workflow_dispatch，需先在默认分支上）：mode 与 reason 填在输入里。
 #
 # 新画像冻结的前置条件由人把关：所在提交必须已在某个已冻结画像上通过相对门禁（例如本机 M1
 # 跑一遍 `pnpm nx run benchmarks:bench-working-tree` 是 PASS），并在理由里写明。
@@ -34,8 +38,15 @@ on:
   push:
     tags:
       - 'bench-freeze/**'
+      - 'bench-refreeze/**'
   workflow_dispatch:
     inputs:
+      mode:
+        description: 冻结模式：new-profile（为没有 reference 的画像）或 regenerate（覆盖本画像已有的 reference）
+        required: true
+        type: choice
+        default: new-profile
+        options: [new-profile, regenerate]
       reason:
         description: 冻结理由（写明所在提交已在哪个已冻结画像上通过相对门禁），会记进 reference 的 regeneratedBecause
         required: true
@@ -91,6 +102,22 @@ jobs:
           fi
           echo "value=${reason}" >> "$GITHUB_OUTPUT"
 
+      - name: Resolve freeze mode
+        id: mode
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_MODE: ${{ inputs.mode }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [ "$EVENT_NAME" = workflow_dispatch ]; then
+            mode="$INPUT_MODE"
+          elif [[ "$TAG" == bench-refreeze/* ]]; then
+            mode="regenerate"
+          else
+            mode="new-profile"
+          fi
+          echo "value=${mode}" >> "$GITHUB_OUTPUT"
+
       - uses: ./.github/actions/setup-workspace
       - uses: ./.github/actions/nx-cache-restore
 
@@ -100,22 +127,33 @@ jobs:
       - name: Freeze reference for this runner's profile
         env:
           REASON: ${{ steps.reason.outputs.value }}
-        run: node --experimental-strip-types benchmarks/node/working-tree/freeze-working-tree-reference.ts --new-profile "$REASON"
+          MODE: ${{ steps.mode.outputs.value }}
+        run: |
+          if [ "$MODE" = "regenerate" ]; then
+            has_reference="$(node --experimental-strip-types benchmarks/node/working-tree/has-reference.ts)"
+            if [ "$has_reference" = "no" ]; then
+              echo "本槽位落在没有 reference 的画像上，regenerate 模式原样跳过。" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            node --experimental-strip-types benchmarks/node/working-tree/freeze-working-tree-reference.ts --regenerate "$REASON"
+          else
+            node --experimental-strip-types benchmarks/node/working-tree/freeze-working-tree-reference.ts --new-profile "$REASON"
+          fi
 
-      # 冻结脚本只会新增文件（--new-profile 不覆盖已有画像），未跟踪的 reference 就是本槽位的产物
-      - name: Collect new reference
+      # new-profile 只会新增文件；regenerate 覆盖已跟踪的那份。两种形态都进 artifact。
+      - name: Collect reference
         id: collect
         run: |
-          files="$(git ls-files --others --exclude-standard -- benchmarks/reports/working-tree-reference/)"
+          files="$(git status --porcelain -- benchmarks/reports/working-tree-reference/ | awk '{print $2}' | sort -u)"
           if [ -z "$files" ]; then
-            echo "本槽位落在已冻结的画像上，没有新 reference。" >> "$GITHUB_STEP_SUMMARY"
+            echo "本槽位没有新产出的 reference。" >> "$GITHUB_STEP_SUMMARY"
             echo "found=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           mkdir -p "$RUNNER_TEMP/working-tree-reference"
           for file in $files; do
             profile="$(node -p "JSON.parse(require('node:fs').readFileSync(process.argv[1], 'utf8')).ratioProfile" "$file")"
-            echo "新画像 \`${profile}\` → \`${file}\`" >> "$GITHUB_STEP_SUMMARY"
+            echo "新参考 \`${profile}\` → \`${file}\`" >> "$GITHUB_STEP_SUMMARY"
             cp "$file" "$RUNNER_TEMP/working-tree-reference/"
           done
           echo "found=true" >> "$GITHUB_OUTPUT"

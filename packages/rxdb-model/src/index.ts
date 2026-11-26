@@ -1,6 +1,6 @@
 /**
- * RxDB Model - 核心实体和数据模型定义
- * 提供实体字段处理、实体值处理、结构相等性判断等基础功能
+ * @packageDocumentation
+ * Aiao RxDB 的实体模型工具，供各框架共用。
  * @module @aiao/rxdb-model
  */
 export * from './entity-field.utils.js';

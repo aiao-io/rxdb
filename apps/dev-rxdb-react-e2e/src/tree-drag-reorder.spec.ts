@@ -164,7 +164,7 @@ test.describe('树页面拖放（US-031 阶段 B）', () => {
   test.describe.configure({ mode: 'serial' });
 
   test('同父拖到两邻之间', async ({ page }) => {
-    await openPage(page, '/menu-simple', 'Tree Menu - Simple');
+    await openPage(page, '/menu-simple', /Tree Menu - Simple|树菜单 - 简单模式/);
     const tree = new RowTracker(page, 'menu');
     await createRootMenus(page, tree, ['节点A', '节点B', '节点C', '节点D']);
 
@@ -172,12 +172,12 @@ test.describe('树页面拖放（US-031 阶段 B）', () => {
     await dragRowTo(page, tree.row('节点D'), tree.row('节点B'), 'before');
     await expect.poll(() => tree.order()).toEqual(['节点A', '节点D', '节点B', '节点C']);
 
-    await reloadPage(page, 'Tree Menu - Simple');
+    await reloadPage(page, /Tree Menu - Simple|树菜单 - 简单模式/);
     await expect.poll(() => tree.order()).toEqual(['节点A', '节点D', '节点B', '节点C']);
   });
 
   test('拖到组首与组尾', async ({ page }) => {
-    await openPage(page, '/menu-simple', 'Tree Menu - Simple');
+    await openPage(page, '/menu-simple', /Tree Menu - Simple|树菜单 - 简单模式/);
     const tree = new RowTracker(page, 'menu');
     await createRootMenus(page, tree, ['节点A', '节点B', '节点C', '节点D']);
 
@@ -189,12 +189,12 @@ test.describe('树页面拖放（US-031 阶段 B）', () => {
     await dragRowTo(page, tree.row('节点A'), tree.row('节点D'), 'after');
     await expect.poll(() => tree.order()).toEqual(['节点C', '节点B', '节点D', '节点A']);
 
-    await reloadPage(page, 'Tree Menu - Simple');
+    await reloadPage(page, /Tree Menu - Simple|树菜单 - 简单模式/);
     await expect.poll(() => tree.order()).toEqual(['节点C', '节点B', '节点D', '节点A']);
   });
 
   test('跨父拖到两个子节点之间', async ({ page }) => {
-    await openPage(page, '/menu-simple', 'Tree Menu - Simple');
+    await openPage(page, '/menu-simple', /Tree Menu - Simple|树菜单 - 简单模式/);
     const tree = new RowTracker(page, 'menu');
     const first = await tree.track('父甲', await addRootMenu(page, '父甲'));
     const second = await tree.track('父乙', await addRootMenu(page, '父乙'));
@@ -210,13 +210,13 @@ test.describe('树页面拖放（US-031 阶段 B）', () => {
     await expect.poll(() => tree.childrenOf('父乙')).toEqual(['乙一', '甲一', '乙二']);
     expect(await tree.childrenOf('父甲')).toEqual(['甲二']);
 
-    await reloadPage(page, 'Tree Menu - Simple');
+    await reloadPage(page, /Tree Menu - Simple|树菜单 - 简单模式/);
     await expect.poll(() => tree.childrenOf('父乙')).toEqual(['乙一', '甲一', '乙二']);
     expect(await tree.childrenOf('父甲')).toEqual(['甲二']);
   });
 
   test('菜单懒加载：拖进折叠节点，展开后排在末尾', async ({ page }) => {
-    await openPage(page, '/menu-lazy', 'Tree Menu - Lazy Load');
+    await openPage(page, '/menu-lazy', /Tree Menu - Lazy Load|树菜单 - 懒加载/);
     const tree = new RowTracker(page, 'menu');
     const parent = await tree.track('懒父', await addRootMenu(page, '懒父'));
     // 根节点先建：懒加载页新建子节点后父节点保持选中，之后的新建都会落到它下面
@@ -234,7 +234,7 @@ test.describe('树页面拖放（US-031 阶段 B）', () => {
     await expect.poll(() => tree.childrenOf('懒父')).toEqual(['子一', '子二', '拖入X']);
 
     // 刷新后重新展开，顺序仍是库里提交的顺序
-    await reloadPage(page, 'Tree Menu - Lazy Load');
+    await reloadPage(page, /Tree Menu - Lazy Load|树菜单 - 懒加载/);
     const toggle = tree.row('懒父').getByTestId('menu-node-toggle');
     await expect(toggle).toBeEnabled();
     await toggle.click();
@@ -242,7 +242,7 @@ test.describe('树页面拖放（US-031 阶段 B）', () => {
   });
 
   test('拖到后代上被拒、零写', async ({ page }) => {
-    await openPage(page, '/menu-simple', 'Tree Menu - Simple');
+    await openPage(page, '/menu-simple', /Tree Menu - Simple|树菜单 - 简单模式/);
     const tree = new RowTracker(page, 'menu');
     const first = await tree.track('父甲', await addRootMenu(page, '父甲'));
     await tree.track('父乙', await addRootMenu(page, '父乙'));
@@ -277,13 +277,13 @@ test.describe('树页面拖放（US-031 阶段 B）', () => {
     expect(after.filter(row => row.label !== '父乙' && row.label !== '父甲')).toEqual(
       before.filter(row => row.label !== '父乙' && row.label !== '父甲')
     );
-    await reloadPage(page, 'Tree Menu - Simple');
+    await reloadPage(page, /Tree Menu - Simple|树菜单 - 简单模式/);
     await expect.poll(() => tree.childrenOf('甲一')).toEqual(['甲一一']);
     expect(await tree.childrenOf('父甲')).toEqual(['甲一']);
   });
 
   test('原位放下与拖进当前父节点（已是末尾）都零写', async ({ page }) => {
-    await openPage(page, '/menu-simple', 'Tree Menu - Simple');
+    await openPage(page, '/menu-simple', /Tree Menu - Simple|树菜单 - 简单模式/);
     const tree = new RowTracker(page, 'menu');
     await createRootMenus(page, tree, ['节点A', '节点B', '节点C']);
     const parent = await tree.track('父丙', await addRootMenu(page, '父丙'));
@@ -307,7 +307,7 @@ test.describe('树页面拖放（US-031 阶段 B）', () => {
   });
 
   test('拖放后撤销一次恢复', async ({ page }) => {
-    await openPage(page, '/menu-simple', 'Tree Menu - Simple');
+    await openPage(page, '/menu-simple', /Tree Menu - Simple|树菜单 - 简单模式/);
     const tree = new RowTracker(page, 'menu');
     const first = await tree.track('父甲', await addRootMenu(page, '父甲'));
     const second = await tree.track('父乙', await addRootMenu(page, '父乙'));
@@ -331,19 +331,19 @@ test.describe('树页面拖放（US-031 阶段 B）', () => {
   });
 
   test('虚拟滚动页同父重排', async ({ page }) => {
-    await openPage(page, '/menu-virtual', /Tree Menu - Virtual/u);
+    await openPage(page, '/menu-virtual', /Tree Menu - Virtual|树菜单 - 虚拟滚动/u);
     const tree = new RowTracker(page, 'menu');
     await createRootMenus(page, tree, ['节点A', '节点B', '节点C', '节点D']);
 
     await dragRowTo(page, tree.row('节点D'), tree.row('节点B'), 'before');
     await expect.poll(() => tree.order()).toEqual(['节点A', '节点D', '节点B', '节点C']);
 
-    await reloadPage(page, /Tree Menu - Virtual/u);
+    await reloadPage(page, /Tree Menu - Virtual|树菜单 - 虚拟滚动/u);
     await expect.poll(() => tree.order()).toEqual(['节点A', '节点D', '节点B', '节点C']);
   });
 
   test('文件管理器手动模式：文件夹之间重排、拖进文件夹', async ({ page }) => {
-    await openPage(page, '/file-manager-simple', 'File Manager - Simple');
+    await openPage(page, '/file-manager-simple', '文件管理器 - 简单模式');
     const files = new RowTracker(page, 'file');
     await files.track('夹甲', await addRootFolderInMode(page, '夹甲'));
     await files.track('夹乙', await addRootFolderInMode(page, '夹乙'));
@@ -370,7 +370,7 @@ test.describe('树页面拖放（US-031 阶段 B）', () => {
   });
 
   test('文件管理器懒加载：拖进折叠文件夹，展开后排在末尾', async ({ page }) => {
-    await openPage(page, '/file-manager-lazy', 'File Manager - Lazy Load');
+    await openPage(page, '/file-manager-lazy', '文件管理器 - 懒加载');
     const files = new RowTracker(page, 'file');
     const folder = await files.track('懒夹', await addRootFolderInMode(page, '懒夹'));
     await files.track('子一', await addFileChild(page, folder, '子一'));
@@ -396,7 +396,7 @@ test.describe('树页面拖放（US-031 阶段 B）', () => {
   });
 
   test('文件管理器非手动模式：子级拖到根级节点下方移到根组末尾', async ({ page }) => {
-    await openPage(page, '/file-manager-simple', 'File Manager - Simple');
+    await openPage(page, '/file-manager-simple', '文件管理器 - 简单模式');
     const files = new RowTracker(page, 'file');
     const first = await files.track('夹甲', await addRootFolderInMode(page, '夹甲'));
     await files.track('夹乙', await addRootFolderInMode(page, '夹乙'));
@@ -425,7 +425,7 @@ test.describe('树页面拖放（US-031 阶段 B）', () => {
   });
 
   test('文件管理器非手动模式：同级前后放置被拒', async ({ page }) => {
-    await openPage(page, '/file-manager-simple', 'File Manager - Simple');
+    await openPage(page, '/file-manager-simple', '文件管理器 - 简单模式');
     const files = new RowTracker(page, 'file');
     await files.track('夹甲', await addRootFolderInMode(page, '夹甲'));
     await files.track('夹乙', await addRootFolderInMode(page, '夹乙'));

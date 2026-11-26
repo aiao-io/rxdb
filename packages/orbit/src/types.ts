@@ -7,7 +7,12 @@ export interface OrbitObject {
   [key: string]: OrbitValue;
 }
 
-/** 应用启动参数。 */
+/**
+ * 应用启动参数。
+ *
+ * 文档站宿主与演示子应用约定的标准字段：`theme`、`route`、`locale`（均为字符串），
+ * 经 {@link OrbitInstance.setProps} 与 {@link OrbitClientContext.props} 原样传递。
+ */
 export type OrbitProps = Readonly<OrbitObject>;
 
 /** 运行状态；隐藏不会暂停或销毁应用。 */
@@ -59,6 +64,13 @@ export interface OrbitAppOptions {
   title?: string;
   /** 明确授予 iframe 的浏览器 Permissions Policy。 */
   allow?: string;
+  /**
+   * 在最小 sandbox 基线之上额外授予的沙箱令牌（空格分隔）。
+   *
+   * 弹窗需要同时给出 `allow-popups allow-popups-to-escape-sandbox`：
+   * Chrome 只用前者允许弹窗、只用后者让新窗口脱离沙箱，缺一不可。
+   */
+  sandbox?: string;
   /** 启动超时毫秒数，默认 15000；加载完成不等于应用就绪。 */
   timeout?: number;
   /** 启动及存活期间的取消信号。 */

@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { getEntityMetadata, type EntityType } from '@aiao/rxdb';
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import { injectRxDB, useCount } from '@aiao/rxdb-vue';
 import { computed, watch } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
@@ -21,6 +22,7 @@ interface EntityGroup {
 }
 
 const rxdb = injectRxDB()!;
+const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 
@@ -79,7 +81,7 @@ watch(
       <div
         class="border-base-300 text-base-content/70 flex h-10 min-h-10 items-center border-b px-3 text-xs font-medium"
       >
-        实体类型
+        {{ t('page.entity.types') }}
       </div>
       <div class="flex-1 overflow-y-auto max-md:max-h-40">
         <ul class="menu menu-sm w-full">
@@ -122,7 +124,7 @@ watch(
         </ul>
       </div>
       <div class="border-base-300 text-base-content/40 flex items-center border-t px-3 py-1.5 text-xs">
-        <span>共 {{ entityList.length }} 个实体</span>
+        <span>{{ t('page.entity.total', { count: entityList.length }) }}</span>
       </div>
     </div>
 

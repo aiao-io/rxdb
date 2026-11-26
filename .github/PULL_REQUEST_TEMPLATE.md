@@ -1,31 +1,31 @@
-<!-- 感谢贡献！请填写以下内容，帮助审查者快速理解你的改动。 -->
+<!-- Thanks for contributing. Fill in the sections below so reviewers can understand the change quickly. -->
 
-## 变更说明
+## Summary
 
-<!-- 这个 PR 做了什么？解决了什么问题？ -->
+<!-- What changed and which problem does it solve? -->
 
-## 关联 Issue
+## Related stories or issues
 
-<!-- 例如：Closes #123 -->
+<!-- Link related GitHub issues and repository stories when applicable. -->
 
-## 变更类型
+## Change type
 
-- [ ] 🐛 Bug 修复（不破坏现有功能）
-- [ ] ✨ 新功能（不破坏现有功能）
-- [ ] 💥 破坏性变更（会导致现有功能不兼容）
-- [ ] 📖 文档
-- [ ] 🧹 重构 / 构建 / CI
+- [ ] 🐛 Bug fix
+- [ ] ✨ New feature
+- [ ] 💥 Breaking change
+- [ ] 📖 Documentation
+- [ ] 🧹 Refactor / build / CI
 
-## 检查清单
+## Checklist
 
-- [ ] 遵循 TDD：先写红测试，再写实现
-- [ ] TypeScript strict 通过，零 ESLint 警告，嵌套 ≤ 3 层
-- [ ] 新增/变更代码已补测试，覆盖率不低于门禁（核心 90% / 其余 80%）
-- [ ] 新包/新导出已补齐 TSDoc
-- [ ] 若为框架相关功能：Angular / React / Vue **三端对称**（单端缺失视为未完成）
-- [ ] 若涉及公开 API 变更：已更新 API baseline 并说明是否为 breaking change
-- [ ] 本地 `pnpm test-all` 通过
+- [ ] I followed TDD and added a failing test before the implementation.
+- [ ] TypeScript strict checks pass and ESLint reports zero warnings.
+- [ ] New or changed behavior has tests and meets the package coverage gate.
+- [ ] New public exports have TSDoc.
+- [ ] Framework-related work is symmetric across Angular, React, and Vue.
+- [ ] Public API changes include an updated API baseline and a breaking-change note when applicable.
+- [ ] I ran the relevant Nx targets and `pnpm test-all` when the change scope required it.
 
-## 破坏性变更说明
+## Breaking change details
 
-<!-- 若勾选了破坏性变更，请描述影响面与迁移方式，并在文档 migration/ 补充迁移指引。 -->
+<!-- If this is a breaking change, describe the impact and migration path. Add a migration guide entry when needed. -->

@@ -9,6 +9,7 @@ import {
 } from '@aiao/rxdb-plugin-board';
 import type { KeyboardEvent } from 'react';
 
+import { boardT } from '../board-i18n.js';
 import type { ModelGetter, TriggerEvent } from './model.js';
 import { errorText, FOCUS_KEYS, MOVE_KEYS } from './types.js';
 import type { BoardData } from './use-board-data.js';
@@ -52,7 +53,7 @@ export const useCardModel = (core: ViewCore, data: BoardData, model: ModelGetter
       return false;
     }
     model().detail.applyMovedColumn(taskId, target.columnId);
-    core.showToast(`已移动到「${data.columnTitleOf(target.columnId)}」`, true);
+    core.showToast(boardT('view.toast.movedToColumn', { column: data.columnTitleOf(target.columnId) }), true);
     return true;
   };
 

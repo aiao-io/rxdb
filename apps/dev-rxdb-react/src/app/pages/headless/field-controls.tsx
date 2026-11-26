@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import type { EntityFormController, EntityFormFieldSnapshot } from '@aiao/rxdb-model/headless';
 import { useEffect, useState } from 'react';
 
@@ -57,6 +58,7 @@ export function FieldRow({
   inputs: FieldInputs;
 }): React.JSX.Element {
   const { config } = state;
+  const { t } = useI18n();
   const id = fieldId(idPrefix, config.field);
   const errorId = `${id}-error`;
   const showError = state.error !== undefined && (inputs.attempted || config.field in inputs.raw);
@@ -76,7 +78,7 @@ export function FieldRow({
         value={String(state.value ?? '')}
         onChange={event => inputs.input(config.field, event.target.value)}
       >
-        <option value=''>请选择</option>
+        <option value=''>{t('page.headless.pleaseSelect')}</option>
         {(config.enumValues ?? []).map(value => (
           <option key={value} value={value}>
             {config.options?.[value]?.label ?? value}

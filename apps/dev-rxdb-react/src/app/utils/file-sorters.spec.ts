@@ -1,5 +1,5 @@
 import type { SortableFileNode } from '@aiao/rxdb-test/entities';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { getSortComparator, SortMode } from './file-sorters';
 
 const makeFile = (
@@ -15,7 +15,7 @@ describe('getSortComparator', () => {
     expect(getSortComparator(SortMode.Manual)).toBeNull();
   });
 
-  it('所有页面共享同一套排序语义和中文 locale', () => {
+  it('所有页面共享同一套排序语义和默认 locale', () => {
     const files = [
       makeFile('zeta', 'file', 'a0', { extension: '.txt', size: 20 }),
       makeFile('阿尔法', 'folder', 'z1', { extension: null, size: 0 }),
@@ -44,5 +44,16 @@ describe('getSortComparator', () => {
     const nameAsc = getSortComparator(SortMode.NameAsc);
     if (nameAsc === null) throw new Error('NameAsc 应有比较器');
     expect([...files].sort(nameAsc).map(file => file.name)).toEqual(['阿尔法', 'beta', 'zeta']);
+  });
+
+  it('使用调用方传入的界面语言比较名称', () => {
+    const compare = vi.spyOn(String.prototype, 'localeCompare');
+    const comparator = getSortComparator(SortMode.NameAsc, 'en-US');
+    if (comparator === null) throw new Error('NameAsc 应有比较器');
+
+    comparator(makeFile('a', 'file', 'a0'), makeFile('b', 'file', 'a1'));
+
+    expect(compare).toHaveBeenCalledWith('b', 'en-US');
+    compare.mockRestore();
   });
 });

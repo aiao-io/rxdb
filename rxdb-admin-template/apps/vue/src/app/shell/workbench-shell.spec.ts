@@ -51,8 +51,8 @@ describe('workbench-shell', () => {
     const shell = createWorkbenchShell(undefined, { host: {} });
     try {
       shell.preferences.update({ app: { locale: 'EN-us' } });
-      expect(shell.preferences.value.app.locale).toBe('en-US');
-      expect(shell.i18n.locale).toBe('en-US');
+      expect(shell.preferences.value.app.locale).toBe('en');
+      expect(shell.i18n.locale).toBe('en');
       expect(shell.i18n.t('start.title')).toBe('Get started with your workbench');
       shell.preferences.setPath('app.locale', 'en-US-US');
       expect(shell.preferences.value.app.locale).toBe('');
@@ -63,7 +63,7 @@ describe('workbench-shell', () => {
   });
 
   it.each([
-    ['EN-us', 'en-US', 'en-US'],
+    ['EN-us', 'en', 'en'],
     ['en_US', '', 'zh-Hans'],
     ['en-US-US', '', 'zh-Hans']
   ])('已持久化语言 %s 在恢复运行时前统一清洗', (locale, preference, runtimeLocale) => {
