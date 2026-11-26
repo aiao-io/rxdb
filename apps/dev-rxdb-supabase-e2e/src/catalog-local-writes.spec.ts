@@ -1,4 +1,5 @@
 import { expect, test, type Browser, type Page } from '@playwright/test';
+import { openSidePanel, pull, push } from './support/workbench';
 
 const isRemoteE2E = process.env['REMOTE_E2E'] === 'true';
 
@@ -8,6 +9,8 @@ const isRemoteE2E = process.env['REMOTE_E2E'] === 'true';
  *
  * 成员用匿名用户：每个浏览器上下文都是一个新的匿名用户，自助加入星河零售，不动预置账号 Alice、Bob 的成员关系。
  * 本轮新建的商品名带唯一后缀，结束时经「模拟服务端变更」删掉；演示数据里的其他商品只读不改。
+ *
+ * 撤销、重做、拉取与推送都在顶栏（epic-016）：撤销、重做只作用于商品，推拉是整机的。
  */
 if (isRemoteE2E) {
   test.describe('Catalog local writes', () => {
@@ -24,15 +27,6 @@ if (isRemoteE2E) {
       return page;
     }
 
-    /** 点「同步」并等这一轮结算：按钮上的轮数加一才算这一轮结束 */
-    async function sync(page: Page): Promise<void> {
-      const button = page.getByTestId('catalog-sync');
-      const finished = Number(await button.getAttribute('data-sync-count'));
-      await button.click();
-      await expect(button).toHaveAttribute('data-sync-count', String(finished + 1), { timeout: 60_000 });
-      await expect(page.getByTestId('catalog-sync-result')).toContainText('同步完成');
-    }
-
     function serverRow(page: Page, name: string) {
       return page.getByTestId('server-item').filter({ hasText: name });
     }
@@ -41,6 +35,7 @@ if (isRemoteE2E) {
     async function deleteIfPushed(page: Page, name: string): Promise<void> {
       // 用例中途失败时对话框可能还开着：先关掉，免得挡住删除按钮、让清理的报错盖住真正的失败
       if ((await page.locator('dialog[open]').count()) > 0) await page.keyboard.press('Escape');
+      await openSidePanel(page, 'server');
       if ((await serverRow(page, name).count()) === 0) return;
       await serverRow(page, name).getByRole('button', { name: '删除' }).click();
       await expect(page.getByRole('status').filter({ hasText: `「${name}」已删除` })).toBeVisible({ timeout: 30_000 });
@@ -53,12 +48,16 @@ if (isRemoteE2E) {
       const visitor = await openCatalog(browser, mutations);
       await expect(visitor.getByTestId('identity-title')).toHaveText('访客');
 
-      await sync(visitor);
+      await pull(visitor);
 
+      // 顶栏的撤销、重做不可点，原因是访客只读（US-231 AC#6）；推送不可点，原因是没有待推送的修改（US-230 AC#6）
       await expect(visitor.getByTestId('catalog-write-hint')).toContainText('访客只读');
-      for (const id of ['catalog-undo', 'catalog-redo', 'catalog-push']) {
+      for (const id of ['workbench-undo', 'workbench-redo']) {
         await expect(visitor.getByTestId(id)).toBeDisabled();
+        await expect(visitor.getByTestId(id)).toHaveAttribute('title', /访客只读/);
       }
+      await expect(visitor.getByTestId('sync-push')).toBeDisabled();
+      await expect(visitor.getByTestId('sync-push')).toHaveAttribute('title', '没有待推送的修改');
       const form = visitor.getByTestId('catalog-create-form');
       await expect(form.getByPlaceholder('新商品名称')).toBeDisabled();
       await expect(form.getByRole('button', { name: '新建' })).toBeDisabled();
@@ -77,6 +76,7 @@ if (isRemoteE2E) {
       const member = await openCatalog(browser);
       await member.getByLabel('切换身份').selectOption('anonymous');
       await expect(member.getByTestId('identity-title')).toHaveText('匿名用户', { timeout: 60_000 });
+      await openSidePanel(member, 'server');
       await member.getByRole('button', { name: '加入星河零售' }).click();
       await expect(member.getByTestId('catalog-write-hint')).toContainText('推送之前可以撤销', { timeout: 30_000 });
 
@@ -93,7 +93,7 @@ if (isRemoteE2E) {
           .locator('[data-bucket="tenant:xinghe"] [data-testid="synced-item"]')
           .filter({ hasText: name });
         await expect(row).toBeVisible();
-        await expect(member.getByTestId('catalog-pending-count')).toHaveText('1');
+        await expect(member.getByTestId('sync-pushable-count')).toHaveText('1');
 
         // AC#2：改售价，撤销回到原值，重做回到新值
         await row.getByRole('button', { name: '编辑' }).click();
@@ -102,16 +102,26 @@ if (isRemoteE2E) {
         await editor.getByRole('button', { name: '保存' }).click();
         await expect(editor).toBeHidden({ timeout: 30_000 });
         await expect(row).toContainText('¥123');
-        await member.getByTestId('catalog-undo').click();
+        await member.getByTestId('workbench-undo').click();
         await expect(row).toContainText('¥99');
-        await member.getByTestId('catalog-redo').click();
+        await member.getByTestId('workbench-redo').click();
         await expect(row).toContainText('¥123');
 
-        // AC#4：推送之后撤销栈清空，服务端（重新打开页面后的「模拟服务端变更」）读到改后的值
-        await member.getByTestId('catalog-push').click();
-        await expect(member.getByTestId('catalog-write-notice')).toContainText('推送完成', { timeout: 60_000 });
-        await expect(member.getByTestId('catalog-undo')).toBeDisabled();
+        // US-231 AC#3：焦点不在输入框里时，⌘/Ctrl+Z 与 ⌘/Ctrl+Shift+Z 与点按钮同效
+        await member.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+        await member.keyboard.press('ControlOrMeta+z');
+        await expect(row).toContainText('¥99');
+        await member.keyboard.press('ControlOrMeta+Shift+z');
+        await expect(row).toContainText('¥123');
+
+        // AC#4：推送之后撤销栈清空，服务端（重新打开页面后的「模拟服务端变更」）读到改后的值；
+        // 撤销不可点并说明原因（US-231 AC#5）
+        const pushed = await push(member);
+        await expect(pushed).toContainText('推送前的修改不能再撤销');
+        await expect(member.getByTestId('workbench-undo')).toBeDisabled();
+        await expect(member.getByTestId('workbench-undo')).toHaveAttribute('title', /不能再撤销/);
         await member.reload({ waitUntil: 'domcontentloaded' });
+        await openSidePanel(member, 'server');
         await expect(serverRow(member, name)).toContainText('¥123', { timeout: 60_000 });
 
         // US-229 AC#14：推送之后再改一次价、再推一次；变更历史按时间列出推上去的每次修改的前后值，操作者是自己。
@@ -120,8 +130,7 @@ if (isRemoteE2E) {
         await editor.getByLabel('售价').fill('150');
         await editor.getByRole('button', { name: '保存' }).click();
         await expect(editor).toBeHidden({ timeout: 30_000 });
-        await member.getByTestId('catalog-push').click();
-        await expect(member.getByTestId('catalog-write-notice')).toContainText('推送完成', { timeout: 60_000 });
+        await push(member);
 
         await row.getByRole('button', { name: '历史' }).click();
         const history = member.getByRole('dialog', { name: `变更历史 · ${name}` });

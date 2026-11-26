@@ -70,6 +70,15 @@ const CHIP_LABELS: Readonly<Record<HistoryChip, string>> = {
 export class OperationHistoryPanel {
   readonly #rxdb = inject(RxDB);
   readonly #remoteSync = inject(RemoteSyncState);
+
+  /** 还在待推送集合里的变更 id；本地模式没有推送，不标 */
+  readonly #pendingIds = toSignal(
+    this.#rxdb.versionManager.pushableHistories$.pipe(
+      map(items => new Set(items.flatMap(item => item.changes.map(change => change.id))))
+    ),
+    { initialValue: new Set<number>() }
+  );
+
   readonly workbench = inject(PageWorkbench);
   readonly chipLabels = CHIP_LABELS;
   readonly describe = describeHistoryItem;
@@ -80,14 +89,6 @@ export class OperationHistoryPanel {
       switchMap(scope => (scope ? scope.histories$ : of<HistoryItem[]>([])))
     ),
     { initialValue: [] }
-  );
-
-  /** 还在待推送集合里的变更 id；本地模式没有推送，不标 */
-  readonly #pendingIds = toSignal(
-    this.#rxdb.versionManager.pushableHistories$.pipe(
-      map(items => new Set(items.flatMap(item => item.changes.map(change => change.id))))
-    ),
-    { initialValue: new Set<number>() }
   );
 
   chipsOf(item: HistoryItem): HistoryChip[] {

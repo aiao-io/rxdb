@@ -1,8 +1,7 @@
-import { RxDB, type PushResult } from '@aiao/rxdb';
+import { RxDB } from '@aiao/rxdb';
 import { CatalogItem } from '@aiao/rxdb-test/entities';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { BehaviorSubject } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { DemoSession } from '../demo-session';
 import { CatalogLocalWrites } from './catalog-local-writes';
@@ -18,10 +17,6 @@ const draft: CatalogItemDraft = {
   tenantId: 'xinghe'
 };
 
-function pushResult(overrides: Partial<PushResult> = {}): PushResult {
-  return { pushed: 0, rejected: 0, failed: 0, compacted: 0, originalCount: 0, failures: [], ...overrides };
-}
-
 /** 列表里的一件商品：只有服务用得到的字段与三个方法 */
 function listedItem(tenantId: string, fails?: Error) {
   const persist = fails ? vi.fn(() => Promise.reject(fails)) : vi.fn(() => Promise.resolve());
@@ -36,19 +31,9 @@ function listedItem(tenantId: string, fails?: Error) {
   } as unknown as CatalogItem & { save: ReturnType<typeof vi.fn>; reset: ReturnType<typeof vi.fn> };
 }
 
-function setup(options: { signedIn?: boolean; tenants?: string[]; push?: () => Promise<PushResult> } = {}) {
-  const history = {
-    undoCount$: new BehaviorSubject(0),
-    redoCount$: new BehaviorSubject(0),
-    undo: vi.fn(() => Promise.resolve()),
-    redo: vi.fn(() => Promise.resolve())
-  };
+function setup(options: { signedIn?: boolean; tenants?: string[] } = {}) {
   const created = { save: vi.fn(() => Promise.resolve()) };
-  const rxdb = {
-    entityManager: { instantiate: vi.fn(() => created) },
-    syncManager: { push: vi.fn(options.push ?? (() => Promise.resolve(pushResult()))) },
-    versionManager: { history: vi.fn(() => history), pushableCount$: new BehaviorSubject(0) }
-  };
+  const rxdb = { entityManager: { instantiate: vi.fn(() => created) } };
   TestBed.configureTestingModule({
     providers: [
       CatalogLocalWrites,
@@ -57,7 +42,7 @@ function setup(options: { signedIn?: boolean; tenants?: string[]; push?: () => P
       { provide: CatalogRemoteState, useValue: { $myTenantIds: signal(options.tenants ?? ['xinghe']) } }
     ]
   });
-  return { writes: TestBed.inject(CatalogLocalWrites), rxdb, history, created };
+  return { writes: TestBed.inject(CatalogLocalWrites), rxdb, created };
 }
 
 describe('CatalogLocalWrites：写入口', () => {
@@ -82,10 +67,13 @@ describe('CatalogLocalWrites：写入口', () => {
     expect(writes.canEdit({ tenantId: 'jiguang' })).toBe(false);
   });
 
-  it('撤销/重做只作用于商品：用 CatalogItem 的历史作用域', () => {
-    const { rxdb } = setup();
-
-    expect(rxdb.versionManager.history).toHaveBeenCalledWith(CatalogItem);
+  // 顶栏的撤销、重做据此给原因（epic-016）
+  it('写入口关着的原因：访客只读、不在租户里；能写时没有原因', () => {
+    expect(setup({ signedIn: false }).writes.$blockedReason()).toBe('访客只读：登录成员才能在本机改商品');
+    TestBed.resetTestingModule();
+    expect(setup({ tenants: [] }).writes.$blockedReason()).toBe('还不在任何租户里：加入租户之后才能改这个租户的商品');
+    TestBed.resetTestingModule();
+    expect(setup().writes.$blockedReason()).toBeNull();
   });
 });
 
@@ -122,51 +110,5 @@ describe('CatalogLocalWrites：本机写入', () => {
     expect(item.visibility).toBe('tenant');
     expect(item.save).toHaveBeenCalled();
     expect(writes.$notice()).toBe('「xinghe 的商品」已在本机收回为租户内部');
-  });
-
-  it('撤销、重做交给商品的历史作用域', async () => {
-    const { writes, history } = setup();
-
-    await writes.undo();
-    await writes.redo();
-
-    expect(history.undo).toHaveBeenCalledTimes(1);
-    expect(history.redo).toHaveBeenCalledTimes(1);
-  });
-
-  it('撤销/重做与待推数跟着历史与本机待推流走', () => {
-    const { writes, history, rxdb } = setup();
-
-    history.undoCount$.next(2);
-    history.redoCount$.next(1);
-    rxdb.versionManager.pushableCount$.next(3);
-
-    expect([writes.$undoCount(), writes.$redoCount(), writes.$pending()]).toEqual([2, 1, 3]);
-  });
-});
-
-describe('CatalogLocalWrites：推送', () => {
-  it('报出远端接受与被拒的条数，提示推送之后不能再撤销', async () => {
-    const { writes, rxdb } = setup({ push: () => Promise.resolve(pushResult({ pushed: 2, rejected: 1 })) });
-
-    await writes.push();
-
-    expect(rxdb.syncManager.push).toHaveBeenCalledTimes(1);
-    expect(writes.$notice()).toBe('推送完成：远端接受 2 条，1 条被拒（见「被拒的推送」）。已推送的修改不能再撤销。');
-  });
-
-  it('有仓库推送失败：报出失败原因，不报完成', async () => {
-    const failure = new Error('网络断了');
-    const { writes } = setup({
-      push: () =>
-        Promise.resolve(
-          pushResult({ failures: [{ repository: { namespace: 'public', entity: 'CatalogItem' }, error: failure }] })
-        )
-    });
-
-    await writes.push();
-
-    expect(writes.$error()).toBe('网络断了');
-    expect(writes.$notice()).toBeNull();
   });
 });

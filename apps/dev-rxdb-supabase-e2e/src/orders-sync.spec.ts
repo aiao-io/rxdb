@@ -1,5 +1,6 @@
 import { expect, test, type Browser, type Page } from '@playwright/test';
 import { switchIdentity } from './support/identity';
+import { openSidePanel, pull, push } from './support/workbench';
 
 const isRemoteE2E = process.env['REMOTE_E2E'] === 'true';
 
@@ -9,6 +10,8 @@ const isRemoteE2E = process.env['REMOTE_E2E'] === 'true';
  *
  * 已登录身份共享全部订单（`supabase/orders-demo.sql`）。本轮的客户、单号、商品名、分类名与证件号带唯一后缀，结束时删掉
  * 本轮的客户（订单、订单项、关联行与证件随之级联删除）和分类；不依赖库里已有的数据，也不动别人的行。
+ *
+ * 推拉、撤销与重做都在顶栏（epic-016），被拒的推送列在同步中心里。
  */
 if (isRemoteE2E) {
   test.describe('Orders relational sync', () => {
@@ -31,6 +34,13 @@ if (isRemoteE2E) {
     // 阶段 C（双向一对一）用自己的客户与证件
     const cardCustomer = `e2e-${runId}-证件客户`;
     const cardCode = `e2e-${runId}-ID`;
+    // 撤销（US-231 阶段 B）用自己的客户、证件、订单与分类
+    const undoneCustomer = `e2e-${runId}-撤掉的客户`;
+    const undoCustomer = `e2e-${runId}-撤销客户`;
+    const undoCode = `e2e-${runId}-撤销ID`;
+    const undoOrder = `e2e-${runId}-SO4`;
+    const undoItem = `e2e-${runId}-键盘`;
+    const undoCategory = `e2e-${runId}-外设`;
 
     /** 打开订单页；`mutations` 记下这个页面发出的每个推送请求（`rxdb_mutations`） */
     async function openOrders(browser: Browser, mutations: string[] = []): Promise<Page> {
@@ -39,27 +49,20 @@ if (isRemoteE2E) {
         if (request.url().includes('/rpc/rxdb_mutations')) mutations.push(request.url());
       });
       await page.goto('/orders', { timeout: 60_000, waitUntil: 'domcontentloaded' });
-      await expect(page.getByTestId('orders-sync')).toBeVisible({ timeout: 60_000 });
+      await expect(page.getByTestId('workbench-sync-group')).toBeVisible({ timeout: 60_000 });
       return page;
     }
 
     async function openAs(browser: Browser, choice: 'alice' | 'bob', title: string): Promise<Page> {
       const page = await openOrders(browser);
-      await switchIdentity(page, choice, title, 'orders-sync');
+      await switchIdentity(page, choice, title, 'workbench-sync-group');
       return page;
     }
 
-    /** 点「推送」或「拉取」并等这一轮结算：轮数加一才算结束，不会被上一轮留下的结果骗过 */
-    async function syncRound(page: Page, button: 'orders-push' | 'orders-pull', done: string): Promise<void> {
-      const section = page.getByTestId('orders-sync');
-      const finished = Number(await section.getAttribute('data-sync-count'));
-      await page.getByTestId(button).click();
-      await expect(section).toHaveAttribute('data-sync-count', String(finished + 1), { timeout: 60_000 });
-      await expect(page.getByTestId('orders-sync-notice')).toContainText(done);
+    /** 最近没有被远端拒绝的推送：同步中心开关上没有标记 */
+    async function expectNoRejections(page: Page): Promise<void> {
+      await expect(page.getByTestId('sync-center-rejections')).toHaveCount(0);
     }
-
-    const push = (page: Page) => syncRound(page, 'orders-push', '推送完成');
-    const pull = (page: Page) => syncRound(page, 'orders-pull', '拉取完成');
 
     function customerRow(page: Page, name: string) {
       return page.getByTestId('customer').filter({ hasText: name });
@@ -152,11 +155,11 @@ if (isRemoteE2E) {
       await pull(page);
       const removed =
         (await removeRows(
-          [customer, categoryCustomer, cardCustomer].map(name => customerRow(page, name)),
+          [customer, categoryCustomer, cardCustomer, undoCustomer].map(name => customerRow(page, name)),
           '删除客户'
         )) +
         (await removeRows(
-          [digital, gift, shared].map(name => categoryRow(page, name)),
+          [digital, gift, shared, undoCategory].map(name => categoryRow(page, name)),
           '删除分类'
         ));
       if (removed > 0) await push(page);
@@ -175,10 +178,9 @@ if (isRemoteE2E) {
       await addItem(alice, orderNumber, earphone, 2, 10);
       await addItem(alice, orderNumber, band, 1, 5);
       await expect(orderRow(alice, orderNumber).getByTestId('order-total')).toHaveText('¥25');
-      await push(alice);
-      await expect(alice.getByTestId('orders-sync-notice')).toHaveText('推送完成：推上去 4 条');
-      await expect(alice.getByTestId('sync-rejections-panel')).toContainText('最近没有被远端拒绝的推送');
-      await expect(alice.getByTestId('orders-pending-count')).toHaveText('0');
+      await expect(await push(alice)).toHaveText('推送完成：推上去 4 条。推送前的修改不能再撤销');
+      await expectNoRejections(alice);
+      await expect(alice.getByTestId('sync-pushable-count')).toHaveCount(0);
 
       // AC#2：Bob 拉到同一位客户、同一张订单与两条订单项，外键对得上（订单项挂在订单下、订单显示客户名）
       await pull(bob);
@@ -202,12 +204,12 @@ if (isRemoteE2E) {
       await expect(customerRow(bob, customer)).toHaveCount(0);
       await push(bob);
       await createOrder(alice, customer, rejectedNumber);
-      await push(alice);
-      await expect(alice.getByTestId('orders-sync-notice')).toContainText('被拒 1 条');
-      const rejections = alice.getByTestId('sync-rejections-panel');
+      await expect(await push(alice)).toContainText('被拒 1 条');
+      // US-230 AC#9：订单页仍指出是哪位客户不在远端，被拒的订单列在同步中心
+      await expect(alice.getByTestId('orders-dependency-notices')).toContainText(`它的客户「${customer}」已不在远端`);
+      const rejections = (await openSidePanel(alice, 'sync')).getByTestId('sync-rejections-panel');
       await expect(rejections).toContainText('DemoOrder');
       await expect(rejections).toContainText('依赖未满足（23503）');
-      await expect(alice.getByTestId('orders-dependency-notices')).toContainText(`它的客户「${customer}」已不在远端`);
       await expect(orderRow(alice, rejectedNumber)).toHaveCount(0);
       await pull(alice);
       await expect(customerRow(alice, customer)).toHaveCount(0);
@@ -232,7 +234,7 @@ if (isRemoteE2E) {
       await attach(alice, categorizedItem, digital);
       await attach(alice, categorizedItem, gift);
       await push(alice);
-      await expect(alice.getByTestId('sync-rejections-panel')).toContainText('最近没有被远端拒绝的推送');
+      await expectNoRejections(alice);
       await pull(bob);
       await expect(itemCategories(bob, categorizedItem)).toContainText(digital);
       await expect(itemCategories(bob, categorizedItem)).toContainText(gift);
@@ -248,9 +250,8 @@ if (isRemoteE2E) {
       await attach(alice, categorizedItem, shared);
       await attach(bob, categorizedItem, shared);
       await push(alice);
-      await push(bob);
-      await expect(bob.getByTestId('orders-sync-notice')).toHaveText('推送完成：推上去 1 条');
-      await expect(bob.getByTestId('sync-rejections-panel')).toContainText('最近没有被远端拒绝的推送');
+      await expect(await push(bob)).toHaveText('推送完成：推上去 1 条。推送前的修改不能再撤销');
+      await expectNoRejections(bob);
       await pull(alice);
       await pull(bob);
       for (const page of [alice, bob]) {
@@ -268,10 +269,9 @@ if (isRemoteE2E) {
 
       // AC#10：客户与证件互相引用、同一批新建；推送时客户的证件引用先写空，同一请求里再补写（US-038），一条都不被拒
       await createCustomerWithIdCard(alice, cardCustomer, cardCode);
-      await push(alice);
-      await expect(alice.getByTestId('orders-sync-notice')).toHaveText('推送完成：推上去 2 条');
-      await expect(alice.getByTestId('sync-rejections-panel')).toContainText('最近没有被远端拒绝的推送');
-      await expect(alice.getByTestId('orders-pending-count')).toHaveText('0');
+      await expect(await push(alice)).toHaveText('推送完成：推上去 2 条。推送前的修改不能再撤销');
+      await expectNoRejections(alice);
+      await expect(alice.getByTestId('sync-pushable-count')).toHaveCount(0);
       // 页面只在客户指向的证件也指回这位客户时显示证件号：Bob 看到它，就说明拉下来的两行一致
       await pull(bob);
       await expect(customerRow(bob, cardCustomer).getByTestId('customer-id-card')).toHaveText(`证件：${cardCode}`);
@@ -280,13 +280,57 @@ if (isRemoteE2E) {
       await customerRow(alice, cardCustomer).getByRole('button', { name: '删除证件' }).click();
       await expect(customerRow(alice, cardCustomer).getByTestId('customer-id-card')).toHaveText('无证件');
       await push(alice);
-      await expect(alice.getByTestId('sync-rejections-panel')).toContainText('最近没有被远端拒绝的推送');
+      await expectNoRejections(alice);
       await pull(bob);
       await expect(customerRow(bob, cardCustomer)).toBeVisible();
       await expect(customerRow(bob, cardCustomer).getByTestId('customer-id-card')).toHaveText('无证件');
     });
 
-    test('AC#5 访客：客户、订单与订单项只存本机，推送与拉取不可用，不发推送请求', async ({ browser }) => {
+    test('US-231 AC#12～#14 撤销作用于订单页的五个实体：客户连证件一起撤；挂分类撤销再重做，Bob 拉到重做的结果；删客户一次撤销全部回来', async ({
+      browser
+    }) => {
+      test.slow();
+      const alice = await openAs(browser, 'alice', 'Alice');
+      const undo = alice.getByTestId('workbench-undo');
+      const redo = alice.getByTestId('workbench-redo');
+      const workbenchError = alice.getByTestId('workbench-error');
+
+      // AC#12：客户与证件在同一批里新建，一次撤销连证件一起撤掉，不报跨作用域的错
+      await createCustomerWithIdCard(alice, undoneCustomer, `${undoCode}-0`);
+      await undo.click();
+      await expect(customerRow(alice, undoneCustomer)).toHaveCount(0);
+      await expect(workbenchError).toHaveCount(0);
+
+      // AC#13：给订单项挂一个分类，撤销摘掉、重做挂回；推送之后 Bob 拉到的是重做后的结果
+      await createCustomerWithIdCard(alice, undoCustomer, undoCode);
+      await createOrder(alice, undoCustomer, undoOrder);
+      await addItem(alice, undoOrder, undoItem, 1, 10);
+      await createCategory(alice, undoCategory);
+      await attach(alice, undoItem, undoCategory);
+      await undo.click();
+      await expect(itemCategories(alice, undoItem)).not.toContainText(undoCategory);
+      await redo.click();
+      await expect(itemCategories(alice, undoItem)).toContainText(undoCategory);
+      await expect(workbenchError).toHaveCount(0);
+      await push(alice);
+      await expectNoRejections(alice);
+      const bob = await openAs(browser, 'bob', 'Bob');
+      await pull(bob);
+      await expect(itemCategories(bob, undoItem)).toContainText(undoCategory);
+
+      // AC#14：删掉有证件、订单、订单项与分类关联的客户，本地级联与源删除是同一个事务；点一次撤销，全部按删除前的样子回来
+      await customerRow(alice, undoCustomer).getByRole('button', { name: '删除客户' }).click();
+      await expect(customerRow(alice, undoCustomer)).toHaveCount(0);
+      await expect(orderRow(alice, undoOrder)).toHaveCount(0);
+      await undo.click();
+      await expect(customerRow(alice, undoCustomer).getByTestId('customer-id-card')).toHaveText(`证件：${undoCode}`);
+      await expect(orderRow(alice, undoOrder).getByTestId('order-customer')).toHaveText(`客户：${undoCustomer}`);
+      await expect(orderRow(alice, undoOrder).getByTestId('order-item')).toHaveCount(1);
+      await expect(itemCategories(alice, undoItem)).toContainText(undoCategory);
+      await expect(workbenchError).toHaveCount(0);
+    });
+
+    test('AC#5 访客：客户、订单与订单项只存本机，不算待推送；整机拉取不动它们，不发推送请求', async ({ browser }) => {
       const mutations: string[] = [];
       const visitor = await openOrders(browser, mutations);
       const visitorCustomer = `e2e-${runId}-访客的客户`;
@@ -297,8 +341,14 @@ if (isRemoteE2E) {
       await createCustomer(visitor, visitorCustomer);
       await createOrder(visitor, visitorCustomer, visitorOrder);
       await addItem(visitor, visitorOrder, `e2e-${runId}-访客商品`, 1, 9);
-      await expect(visitor.getByTestId('orders-push')).toBeDisabled();
-      await expect(visitor.getByTestId('orders-pull')).toBeDisabled();
+      // 只存本机的订单不进待推送：↑ 没有数字、推送不可点，同步中心的「待推送」一条都没有（US-230 AC#19）
+      await expect(visitor.getByTestId('sync-pushable-count')).toHaveCount(0);
+      await expect(visitor.getByTestId('sync-push')).toBeDisabled();
+      await expect(visitor.getByTestId('sync-push')).toHaveAttribute('title', '没有待推送的修改');
+      await expect((await openSidePanel(visitor, 'sync')).getByTestId('sync-center-pending-empty')).toBeVisible();
+      // 拉取是整机的：访客拉到的是公开商品，本机的订单原样留着
+      await pull(visitor);
+      await expect(orderRow(visitor, visitorOrder)).toBeVisible();
 
       // 重新打开页面，订单还在本机
       await visitor.reload({ waitUntil: 'domcontentloaded' });

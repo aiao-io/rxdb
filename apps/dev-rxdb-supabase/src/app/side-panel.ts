@@ -34,7 +34,8 @@ const SHELL_HEADINGS: Readonly<Record<Exclude<RightPanelView, 'server'>, string>
  * 右侧面板：同一时刻只开一个（epic-016）
  *
  * @remarks
- * 宽屏（≥ 768px，与 Tailwind 的 md 同口径）占右侧一栏、不挡页面，能边看边操作；窄屏是带遮罩的整屏抽屉。
+ * 宽屏（≥ 768px，与 Tailwind 的 md 同口径）占右侧一栏、不挡页面，能边看边操作。
+ * 窄屏是盖住页面的抽屉，左边留一条遮罩，点它收起：抽屉占满整屏宽会把遮罩全盖住，没处可点。
  * 关掉之后焦点回到打开它的那个按钮。页面级的内容（如商品页的模拟服务端变更要用页面级服务）经 portal 交过来，
  * 注入器跟着模板的声明处，页面级服务照样拿得到。
  */
@@ -116,16 +117,19 @@ let nextHeadingId = 0;
 @Component({
   selector: 'app-side-panel-outlet',
   imports: [CdkPortalOutlet, LucideDynamicIcon, OperationHistoryPanel, SyncCenter],
-  host: { class: 'contents' },
+  host: { class: 'contents', '(keydown)': 'closeOnEscape($event)' },
   template: `
     @if (panel.active(); as view) {
       @if (!panel.wide()) {
-        <div
-          class="bg-base-content/40 fixed inset-0 z-[60]"
+        <!-- 只给指针用的关闭区：键盘走 Esc 与面板里的关闭按钮 -->
+        <button
+          class="bg-base-content/40 fixed inset-0 z-[60] cursor-default"
           (click)="panel.close()"
           aria-hidden="true"
           data-testid="side-panel-backdrop"
-        ></div>
+          tabindex="-1"
+          type="button"
+        ></button>
       }
       <aside
         class="bg-base-100 border-base-300 flex flex-col overflow-hidden"
@@ -135,9 +139,10 @@ let nextHeadingId = 0;
         [attr.data-view]="view"
         [attr.role]="panel.wide() ? 'complementary' : 'dialog'"
         [class]="
-          panel.wide() ? 'h-full w-96 shrink-0 border-l' : 'fixed inset-y-0 right-0 z-[61] w-full max-w-md shadow-2xl'
+          panel.wide() ?
+            'h-full w-96 shrink-0 border-l'
+          : 'fixed inset-y-0 right-0 z-[61] w-[calc(100%-3rem)] max-w-md shadow-2xl'
         "
-        (keydown)="closeOnEscape($event)"
         data-testid="side-panel"
       >
         <div class="border-base-300 flex items-center justify-between gap-2 border-b px-4 py-2">

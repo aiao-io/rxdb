@@ -1,11 +1,11 @@
-import { RxDB, type PullResult, type PushResult, type SyncRejection } from '@aiao/rxdb';
-import { Component, signal } from '@angular/core';
+import { RxDB, type PullResult, type SyncRejection } from '@aiao/rxdb';
+import { signal } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, of } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { DemoSession } from '../demo-session';
+import { PageWorkbench } from '../page-workbench';
 import { RemoteSyncState } from '../remote-sync-state';
-import { SyncRejectionsPanel } from '../sync-rejections-panel';
 import { DemoCategory, DemoCustomer, DemoIdCard, DemoOrder, DemoOrderItem } from './order-entities';
 import OrdersPage from './orders.page';
 
@@ -16,10 +16,6 @@ vi.mock('@aiao/rxdb-angular', async importOriginal => {
   return { ...actual, useFindAll: angularMocks.useFindAll, useSyncState: angularMocks.useSyncState };
 });
 
-// 被拒清单读同步状态，单测不验它（见 sync-rejections-panel.spec.ts）
-@Component({ selector: 'app-sync-rejections-panel', template: '' })
-class RejectionsPanelStub {}
-
 /** 订单项挂着的分类：`categories$` 是关系的可观察集合，带 add / remove */
 function categoriesOf(initial: { id: string; name: string }[]) {
   return Object.assign(new BehaviorSubject(initial), {
@@ -28,7 +24,6 @@ function categoriesOf(initial: { id: string; name: string }[]) {
   });
 }
 
-const pushed: PushResult = { pushed: 4, rejected: 0, failed: 0, compacted: 0, originalCount: 4, failures: [] };
 const pulled: PullResult = {
   pulled: 2,
   compacted: 0,
@@ -92,12 +87,24 @@ function render(options: { connected?: boolean; signedIn?: boolean; rejections?:
     savedTogether.push(entities.map(({ entity, data }) => ({ entity, data })));
     return Promise.resolve(entities);
   });
-  const push = vi.fn(() => Promise.resolve(pushed));
   const pull = vi.fn(() => Promise.resolve(pulled));
+  const history = {
+    type: 'repositories',
+    histories$: of([]),
+    undoCount$: of(0),
+    redoCount$: of(0),
+    undoBarrier$: of(null),
+    undo: vi.fn(() => Promise.resolve()),
+    redo: vi.fn(() => Promise.resolve())
+  };
   const rxdb = {
     entityManager: { instantiate, saveMany },
-    syncManager: { push, pull },
-    versionManager: { pushableCount$: new BehaviorSubject(3), pullableCount$: new BehaviorSubject(1) }
+    syncManager: { pull, push: vi.fn() },
+    versionManager: {
+      history: vi.fn(() => history),
+      pushableCount$: new BehaviorSubject(3),
+      pullableCount$: new BehaviorSubject(1)
+    }
   };
   const lists = new Map<unknown, unknown[]>([
     [DemoCustomer, [customer, noCard]],
@@ -110,10 +117,6 @@ function render(options: { connected?: boolean; signedIn?: boolean; rejections?:
   angularMocks.useSyncState.mockReturnValue({ lastRejections: signal(options.rejections ?? []) });
   const remoteSync = new RemoteSyncState();
   remoteSync.markConnected(options.connected ?? true);
-  TestBed.overrideComponent(OrdersPage, {
-    remove: { imports: [SyncRejectionsPanel] },
-    add: { imports: [RejectionsPanelStub] }
-  });
   TestBed.configureTestingModule({
     providers: [
       { provide: RxDB, useValue: rxdb },
@@ -150,8 +153,9 @@ function render(options: { connected?: boolean; signedIn?: boolean; rejections?:
     savedTogether,
     instantiate,
     saveMany,
-    push,
     pull,
+    rxdb,
+    history,
     customer,
     idCard,
     order,
@@ -230,23 +234,46 @@ describe('OrdersPage（US-227 阶段 A）', () => {
     expect(customer.remove).toHaveBeenCalledOnce();
   });
 
-  it('推送与拉取走整机的推拉，结果写在同步区；每结束一轮，轮数加一', async () => {
-    const { fixture, byTestId, push, pull } = render();
+  it('登记到顶栏：撤销、重做作用于订单的五个实体合起来，推拉是整机的（epic-016）', async () => {
+    const { fixture, rxdb, history, pull } = render();
     await settle(fixture);
-    expect(byTestId('orders-pending-count')?.textContent?.trim()).toBe('3');
-    expect(byTestId('orders-pullable-count')?.textContent?.trim()).toBe('1');
+    const page = TestBed.inject(PageWorkbench).current();
 
-    byTestId('orders-push')?.click();
-    await settle(fixture);
-    expect(push).toHaveBeenCalledOnce();
-    expect(byTestId('orders-sync-notice')?.textContent).toContain('推送完成：推上去 4 条');
-    expect(byTestId('orders-sync')?.dataset['syncCount']).toBe('1');
+    expect(page).toMatchObject({ title: '订单', scopeLabel: '本页：订单' });
+    expect(rxdb.versionManager.history).toHaveBeenCalledWith([
+      DemoCustomer,
+      DemoIdCard,
+      DemoOrder,
+      DemoOrderItem,
+      DemoCategory
+    ]);
+    expect(page?.history).toBe(history);
+    await page?.pull?.run();
+    expect(pull).toHaveBeenCalledWith({ fetchAll: true });
+  });
 
-    byTestId('orders-pull')?.click();
+  it('页面里不再有自己的同步卡片与被拒清单：它们在顶栏和同步中心', async () => {
+    const { fixture, byTestId, root } = render();
     await settle(fixture);
-    expect(pull).toHaveBeenCalledOnce();
-    expect(byTestId('orders-sync-notice')?.textContent).toContain('拉取完成：拉到 2 条');
-    expect(byTestId('orders-sync')?.dataset['syncCount']).toBe('2');
+
+    for (const id of ['orders-sync', 'orders-push', 'orders-pull', 'orders-pending-count']) {
+      expect(byTestId(id)).toBeNull();
+    }
+    expect(root.querySelector('app-sync-rejections-panel')).toBeNull();
+  });
+
+  it('写入失败的原因显示在发起写入的那张卡片里（US-231 AC#10）', async () => {
+    const { fixture, root, fill, submit } = render();
+    await settle(fixture);
+
+    fill(root, '[data-testid="orders-customer-form"] input', '   ');
+    submit('orders-customer-form');
+    await settle(fixture);
+
+    const customers = root.querySelector('[aria-labelledby="orders-customers-title"]') as HTMLElement;
+    const orders = root.querySelector('[aria-labelledby="orders-orders-title"]') as HTMLElement;
+    expect(customers.querySelector('[data-testid="orders-error"]')?.textContent).toContain('先填客户名称');
+    expect(orders.querySelector('[data-testid="orders-error"]')).toBeNull();
   });
 
   it('依赖的客户已不在远端的订单被拒时，指出是哪位客户（AC#4）', async () => {
@@ -268,20 +295,16 @@ describe('OrdersPage（US-227 阶段 A）', () => {
     expect(byTestId('orders-dependency-notices')?.textContent).toContain('它的客户「星河客户」已不在远端');
   });
 
-  it('访客（AC#5）：订单只存本机，推送与拉取不可用；仍然可以在本机新建', async () => {
-    const { fixture, root, byTestId, fill, submit, saved, push, pull } = render({ signedIn: false });
+  it('访客（AC#5）：提示订单只存本机；仍然可以在本机新建', async () => {
+    const { fixture, root, byTestId, fill, submit, saved } = render({ signedIn: false });
     await settle(fixture);
 
     expect(byTestId('orders-visitor-notice')?.textContent).toContain('访客的订单只存在本机');
-    expect((byTestId('orders-push') as HTMLButtonElement).disabled).toBe(true);
-    expect((byTestId('orders-pull') as HTMLButtonElement).disabled).toBe(true);
     fill(root, '[data-testid="orders-customer-form"] input', '访客的客户');
     submit('orders-customer-form');
     await settle(fixture);
 
     expect(saved).toEqual([{ entity: DemoCustomer, data: { name: '访客的客户' } }]);
-    expect(push).not.toHaveBeenCalled();
-    expect(pull).not.toHaveBeenCalled();
   });
 
   it('阶段 B：新建分类写本机；删除分类删的是本机的行', async () => {
@@ -320,12 +343,12 @@ describe('OrdersPage（US-227 阶段 A）', () => {
     expect(items[0].save).toHaveBeenCalledTimes(2);
   });
 
-  it('没连远端（纯本地模式）时推送与拉取不可用，并说明原因', async () => {
+  it('没连远端（纯本地模式）时说明原因，不登记推拉', async () => {
     const { fixture, byTestId } = render({ connected: false });
     await settle(fixture);
 
     expect(byTestId('orders-local-mode')?.textContent).toContain('未连接远端');
-    expect((byTestId('orders-push') as HTMLButtonElement).disabled).toBe(true);
+    expect(TestBed.inject(PageWorkbench).current()).toMatchObject({ push: null, pull: null });
   });
 
   it('阶段 C：客户一行显示他的证件，没有证件的显示「无证件」', async () => {

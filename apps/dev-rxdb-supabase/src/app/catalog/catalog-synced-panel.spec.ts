@@ -1,9 +1,8 @@
-import { RxDB, type PushResult } from '@aiao/rxdb';
+import { RxDB } from '@aiao/rxdb';
 import type { CatalogItem } from '@aiao/rxdb-test/entities';
-import { Component, signal } from '@angular/core';
+import { signal } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { FormsModule } from '@angular/forms';
-import { BehaviorSubject } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import { DemoSession } from '../demo-session';
 import { CatalogItemEditor } from './catalog-item-editor';
@@ -18,10 +17,6 @@ vi.mock('@aiao/rxdb-angular', async importOriginal => {
   const actual = await importOriginal<typeof import('@aiao/rxdb-angular')>();
   return { ...actual, useFindAll: angularMocks.useFindAll };
 });
-
-// 被拒清单读同步状态，单测不验它（见 sync-rejections-panel.spec.ts）
-@Component({ selector: 'app-sync-rejections-panel', template: '' })
-class RejectionsPanelStub {}
 
 type ListedItem = CatalogItem & { save: ReturnType<typeof vi.fn> };
 
@@ -49,21 +44,8 @@ async function settle(fixture: ComponentFixture<unknown>): Promise<void> {
   fixture.detectChanges();
 }
 
-async function renderPanel(options: { signedIn: boolean; tenants: string[]; undo?: number; pending?: number }) {
-  const history = {
-    undoCount$: new BehaviorSubject(options.undo ?? 0),
-    redoCount$: new BehaviorSubject(0),
-    undo: vi.fn(() => Promise.resolve()),
-    redo: vi.fn(() => Promise.resolve())
-  };
-  const push = vi.fn((): Promise<PushResult> =>
-    Promise.resolve({ pushed: 1, rejected: 0, failed: 0, compacted: 0, originalCount: 1, failures: [] })
-  );
-  const rxdb = {
-    entityManager: { instantiate: vi.fn() },
-    syncManager: { push, pullRepository: vi.fn() },
-    versionManager: { history: vi.fn(() => history), pushableCount$: new BehaviorSubject(options.pending ?? 0) }
-  };
+async function renderPanel(options: { signedIn: boolean; tenants: string[] }) {
+  const rxdb = { entityManager: { instantiate: vi.fn() } };
   const own = listedItem('item-own', 'xinghe', '星河 X1 蓝牙耳机');
   const other = listedItem('item-other', 'jiguang', '极光便携充电宝');
   angularMocks.useFindAll.mockReturnValue({ value: signal([own, other]) });
@@ -87,7 +69,7 @@ async function renderPanel(options: { signedIn: boolean; tenants: string[]; undo
     ]
   });
   TestBed.overrideComponent(CatalogSyncedPanel, {
-    set: { imports: [FormsModule, CatalogItemEditor, CatalogItemHistory, RejectionsPanelStub] }
+    set: { imports: [FormsModule, CatalogItemEditor, CatalogItemHistory] }
   });
   const fixture = TestBed.createComponent(CatalogSyncedPanel);
   await settle(fixture);
@@ -104,11 +86,12 @@ async function renderPanel(options: { signedIn: boolean; tenants: string[]; undo
     target!.click();
     await settle(fixture);
   };
-  return { fixture, root, row, button, byTestId, click, history, push, own };
+  return { fixture, root, row, button, byTestId, click, own };
 }
 
 describe('CatalogSyncedPanel：本机写入入口（US-034）', () => {
-  it('AC#10 访客：新建、编辑、删除、撤销、重做与推送都不可用，说明只读', async () => {
+  // 撤销、重做与推送在顶栏（epic-016），访客时的原因由页面登记给顶栏，见 catalog.page.spec.ts
+  it('AC#10 访客：新建、编辑、删除都不可用，说明只读', async () => {
     const { root, row, button, byTestId } = await renderPanel({ signedIn: false, tenants: [] });
 
     expect(byTestId('catalog-write-hint').textContent).toContain('访客只读');
@@ -120,11 +103,6 @@ describe('CatalogSyncedPanel：本机写入入口（US-034）', () => {
       [...form.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input, select')].every(f => f.disabled)
     ).toBe(true);
     expect(button(form, '新建')?.disabled).toBe(true);
-    expect(['catalog-undo', 'catalog-redo', 'catalog-push'].map(id => byTestId(id).disabled)).toEqual([
-      true,
-      true,
-      true
-    ]);
     expect(root.querySelector('app-catalog-item-editor')).not.toBeNull();
   });
 
@@ -161,31 +139,13 @@ describe('CatalogSyncedPanel：本机写入入口（US-034）', () => {
     expect(visitor.button(visitor.row('星河 X1 蓝牙耳机'), '历史')).toBeNull();
   });
 
-  it('撤销与推送按计数启用：点撤销走商品的历史，点推送走整机推送', async () => {
-    const { byTestId, click, history, push, root } = await renderPanel({
-      signedIn: true,
-      tenants: ['xinghe'],
-      undo: 2,
-      pending: 1
-    });
+  it('面板里不再有自己的推拉、撤销按钮与被拒清单：它们在顶栏和同步中心；规则提示指向顶栏的「拉取」', async () => {
+    const { root } = await renderPanel({ signedIn: true, tenants: ['xinghe'] });
 
-    expect(byTestId('catalog-undo').disabled).toBe(false);
-    expect(byTestId('catalog-undo').textContent).toContain('2');
-    expect(byTestId('catalog-redo').disabled).toBe(true);
-    expect(byTestId('catalog-pending-count').textContent?.trim()).toBe('1');
-
-    await click(byTestId('catalog-undo'));
-    await click(byTestId('catalog-push'));
-
-    expect(history.undo).toHaveBeenCalledTimes(1);
-    expect(push).toHaveBeenCalledTimes(1);
-    expect(root.querySelector('[data-testid="catalog-write-notice"]')?.textContent).toContain('远端接受 1 条');
-  });
-
-  it('没有待推的修改时推送不可用', async () => {
-    const { byTestId } = await renderPanel({ signedIn: true, tenants: ['xinghe'], pending: 0 });
-
-    expect(byTestId('catalog-push').disabled).toBe(true);
+    for (const id of ['catalog-undo', 'catalog-redo', 'catalog-push', 'catalog-sync']) {
+      expect(root.querySelector(`[data-testid="${id}"]`)).toBeNull();
+    }
+    expect(root.querySelector('app-sync-rejections-panel')).toBeNull();
   });
 
   it('编辑：打开本机的编辑框，保存后存进本机并关上', async () => {

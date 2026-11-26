@@ -96,7 +96,7 @@ describe('CatalogServerPanel：编辑商品', () => {
     expect(priceInput()?.value).toBe('299');
   });
 
-  it('保存：按 id 写回服务端，关上编辑框，重新列出商品，提示去同步', async () => {
+  it('保存：按 id 写回服务端，关上编辑框，重新列出商品，提示去顶栏拉取', async () => {
     remote.updateItem.mockResolvedValue(undefined);
     const { fixture, root, row, dialog, button, priceInput, click } = await renderPanel();
 
@@ -115,7 +115,7 @@ describe('CatalogServerPanel：编辑商品', () => {
     expect(dialog().open).toBe(false);
     expect(remote.fetchTenantItems).toHaveBeenCalledTimes(2);
     expect(root.querySelector('[role="status"]')?.textContent).toContain(
-      '「星河 X1 蓝牙耳机」已修改。去点「同步」看本机数据怎么变。'
+      '「星河 X1 蓝牙耳机」已修改。点顶栏的「拉取」看本机数据怎么变。'
     );
   });
 

@@ -9,6 +9,10 @@ import { describePullOutcome, describePushOutcome, type SyncOutcome } from './sy
 /** 推或拉 */
 export type SyncDirection = 'pull' | 'push';
 
+/** 身份守卫拦下这一轮时的说法：守卫自己的报错是写给开发者的英文，这里换成演示读者看得懂的话（US-035） */
+const IDENTITY_MISMATCH_REASON =
+  '身份不匹配。浏览器里的会话已经换成另一个身份，本页还开着上一个身份的库，本地数据没动；重新加载打开新身份的库';
+
 /** 一轮推拉的结果 */
 export interface SyncRoundResult {
   readonly direction: SyncDirection;
@@ -50,7 +54,8 @@ export class SyncCommands {
   readonly result = this.#result.asReadonly();
 
   readonly pull: WorkbenchAction = {
-    run: () => this.#sync('pull', async () => describePullOutcome(await this.#rxdb.syncManager.pull({ fetchAll: true }))),
+    run: () =>
+      this.#sync('pull', async () => describePullOutcome(await this.#rxdb.syncManager.pull({ fetchAll: true }))),
     count: this.pullableCount,
     pending: computed(() => this.#running() === 'pull'),
     disabledReason: computed(() => (this.#running() ? '正在同步' : null))
@@ -82,13 +87,9 @@ export class SyncCommands {
       this.#result.set({ direction, ...outcome, identityMismatch: false, at: new Date() });
     } catch (error) {
       const label = direction === 'pull' ? '拉取' : '推送';
-      this.#result.set({
-        direction,
-        notice: null,
-        error: `${label}失败：${getErrorMessage(error, '未知错误')}`,
-        identityMismatch: error instanceof RxDBIdentityMismatchError,
-        at: new Date()
-      });
+      const identityMismatch = error instanceof RxDBIdentityMismatchError;
+      const reason = identityMismatch ? IDENTITY_MISMATCH_REASON : getErrorMessage(error, '未知错误');
+      this.#result.set({ direction, notice: null, error: `${label}失败：${reason}`, identityMismatch, at: new Date() });
     } finally {
       this.#running.set(null);
       this.#round.update(round => round + 1);

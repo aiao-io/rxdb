@@ -6,6 +6,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ChangeDiff } from './change-diff';
 import { DemoSession } from './demo-session';
 import { entityLabelOf } from './entity-labels';
+import { getErrorMessage } from './error-message';
 import { describeHistoryItem, pageOfHistoryItem } from './history-describe';
 import { PageWorkbench } from './page-workbench';
 import { RemoteSyncState } from './remote-sync-state';
@@ -56,7 +57,9 @@ interface PendingGroup {
 
       @if (remoteSync.$connected()) {
         <section class="flex flex-col gap-2" aria-labelledby="sync-center-counts-title">
-          <h3 class="font-semibold" id="sync-center-counts-title">整机待推 ↑{{ commands.pushableCount() }} · 待拉 ↓{{ commands.pullableCount() }}</h3>
+          <h3 class="font-semibold" id="sync-center-counts-title">
+            整机待推 ↑{{ commands.pushableCount() }} · 待拉 ↓{{ commands.pullableCount() }}
+          </h3>
           <div class="flex gap-2">
             <button
               class="btn btn-sm"
@@ -82,13 +85,25 @@ interface PendingGroup {
           @if ($repositories().length > 0) {
             <ul class="divide-base-200 divide-y" data-testid="sync-center-repositories">
               @for (row of $repositories(); track row.key) {
-                <li class="flex justify-between gap-2 py-1" [attr.data-entity]="row.entity" data-testid="sync-center-repository">
-                  <span>{{ row.name }} <span class="text-base-content/60">· {{ row.page }}</span></span>
+                <li
+                  class="flex justify-between gap-2 py-1"
+                  [attr.data-entity]="row.entity"
+                  data-testid="sync-center-repository"
+                >
+                  <span
+                    >{{ row.name }} <span class="text-base-content/60">· {{ row.page }}</span></span
+                  >
                   <span class="text-base-content/70">待推 {{ row.pushable }} · 待拉 {{ row.pullable }}</span>
                 </li>
               }
             </ul>
             <p class="text-base-content/60 text-xs">各实体各数各的：跨实体的一次写入在每个实体下各算一条。</p>
+          } @else if ($statusError(); as error) {
+            <p class="text-error" data-testid="sync-center-status-error" role="alert">
+              查不到各实体的待推、待拉：{{ error }}
+            </p>
+          } @else if (repositoryStatuses.isLoading()) {
+            <p class="text-base-content/60" data-testid="sync-center-loading">正在查各实体的待推、待拉…</p>
           } @else {
             <p class="text-base-content/60" data-testid="sync-center-clean">没有待推、待拉的实体。</p>
           }
@@ -137,27 +152,37 @@ interface PendingGroup {
 })
 export class SyncCenter {
   readonly #rxdb = inject(RxDB);
+  readonly #branches = useFindAll(RxDBBranch, { where: { combinator: 'and', rules: [] } });
   readonly session = inject(DemoSession);
   readonly remoteSync = inject(RemoteSyncState);
   readonly commands = inject(SyncCommands);
   readonly workbench = inject(PageWorkbench);
   readonly syncState = useSyncState();
-  readonly #branches = useFindAll(RxDBBranch, { where: { combinator: 'and', rules: [] } });
 
   /** 当前分支（只读）；切分支在侧栏 */
   readonly $branch = computed(() => this.#branches.value().find(branch => branch.activated)?.id ?? null);
 
   /** 有待推或待拉的实体：数字一变、每轮推拉结束都重查 */
-  readonly #repositoryStatuses = resource({
+  readonly repositoryStatuses = resource({
     params: () =>
       this.remoteSync.$connected() ?
-        { pushable: this.commands.pushableCount(), pullable: this.commands.pullableCount(), round: this.commands.round() }
+        {
+          pushable: this.commands.pushableCount(),
+          pullable: this.commands.pullableCount(),
+          round: this.commands.round()
+        }
       : undefined,
     loader: () => this.#rxdb.syncManager.getAllRepositorySyncStatus({ hasPendingChanges: true })
   });
 
+  /** 按实体查数失败的原因；查到或还在查时为 `null` */
+  readonly $statusError = computed(() => {
+    const error = this.repositoryStatuses.error();
+    return error === undefined ? null : getErrorMessage(error, '未知错误');
+  });
+
   readonly $repositories = computed(() =>
-    (this.#repositoryStatuses.hasValue() ? this.#repositoryStatuses.value() : [])
+    (this.repositoryStatuses.hasValue() ? this.repositoryStatuses.value() : [])
       .filter(status => status.repository.namespace !== 'rxdb')
       .map(status => {
         const { name, page } = entityLabelOf(status.repository.entity);

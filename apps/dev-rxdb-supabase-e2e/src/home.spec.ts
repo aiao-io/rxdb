@@ -100,6 +100,25 @@ test.describe('Supabase local-first app', () => {
     await expect(page.getByText(editedTitle, { exact: true })).toHaveCount(0);
   });
 
+  // US-230 AC#5：本地模式（没有 Supabase 配置）顶栏没有同步组，页面里也没有残留的推拉按钮；撤销照样在顶栏（US-231）
+  test('local mode keeps undo in the header and shows no sync controls', async ({ page }) => {
+    const title = uniqueTitle('local-undo');
+
+    await page.goto('/todo');
+    await expect(page.getByTestId('todo-title')).toBeVisible();
+    await expect(page.getByTestId('workbench-sync-group')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: /^(拉取|推送|同步|Pull|Push)$/u })).toHaveCount(0);
+
+    await page.getByRole('textbox', { name: '添加新任务' }).fill(title);
+    await page.getByRole('button', { name: '添加', exact: true }).click();
+    const item = page.getByTestId('todo-item').filter({ hasText: title });
+    await expect(item).toBeVisible();
+    await page.getByTestId('workbench-undo').click();
+    await expect(item).toHaveCount(0);
+    await page.getByTestId('workbench-redo').click();
+    await expect(item).toBeVisible();
+  });
+
   test('runs on wa-sqlite and keeps local data across reload', async ({ page }) => {
     const title = uniqueTitle('wa-sqlite-persistence');
 

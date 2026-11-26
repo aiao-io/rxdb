@@ -1,5 +1,6 @@
 import { expect, test, type Browser, type Locator, type Page } from '@playwright/test';
 import { switchIdentity as switchTo } from './support/identity';
+import { expectNoHorizontalScroll, openSidePanel, pull } from './support/workbench';
 
 const isRemoteE2E = process.env['REMOTE_E2E'] === 'true';
 
@@ -8,6 +9,8 @@ const isRemoteE2E = process.env['REMOTE_E2E'] === 'true';
  *
  * 成员用匿名用户：每个浏览器上下文都是一个新的匿名用户，自助加入星河零售，不动预置账号 Alice、Bob 的成员关系。
  * 本轮的商品名带唯一后缀，结束时删掉；演示数据里的其他商品只读不改。
+ *
+ * 拉取经顶栏（US-230）；「模拟服务端变更」不在主界面，用到它的步骤先经页头的开关在右侧打开（US-232）。
  */
 if (isRemoteE2E) {
   test.describe('Catalog identity-scoped sync', () => {
@@ -30,18 +33,28 @@ if (isRemoteE2E) {
       return switchTo(page, choice, title, 'catalog-identity');
     }
 
-    /** 点「同步」并等这一轮结算：按钮上的轮数加一才算这一轮结束，不会被上一轮留下的结果骗过 */
-    async function sync(page: Page): Promise<void> {
-      const button = page.getByTestId('catalog-sync');
-      const finished = Number(await button.getAttribute('data-sync-count'));
-      await button.click();
-      await expect(button).toHaveAttribute('data-sync-count', String(finished + 1), { timeout: 60_000 });
-      await expect(page.getByTestId('catalog-sync-result')).toContainText('同步完成');
+    /**
+     * 匿名登录、加入星河零售，打开「模拟服务端变更」：之后的服务端操作都在这个面板里做
+     *
+     * @remarks
+     * 切换身份会重新加载页面，面板随之收起，所以登录之后才打开。宽屏上面板占右侧一栏，开着它照样能点顶栏的「拉取」。
+     */
+    async function joinAsMember(page: Page): Promise<void> {
+      await switchIdentity(page, 'anonymous', '匿名用户');
+      await openSidePanel(page, 'server');
+      await serverAction(page, () => page.getByRole('button', { name: '加入星河零售' }).click(), '已加入星河零售');
     }
 
     /** 本机某个区里的一件商品；列表随本地库响应式刷新，断言一律用会重试的定位器 */
     function syncedItem(page: Page, bucket: string, name: string) {
       return page.locator(`[data-bucket="${bucket}"] [data-testid="synced-item"]`).filter({ hasText: name });
+    }
+
+    /** 元素在视口里的位置与大小；不可见时直接报错，不拿空值往下比 */
+    async function boundsOf(page: Page, testId: string) {
+      const bounds = await page.getByTestId(testId).boundingBox();
+      if (!bounds) throw new Error(`${testId} 不可见`);
+      return bounds;
     }
 
     function allSynced(page: Page) {
@@ -100,6 +113,7 @@ if (isRemoteE2E) {
     async function deleteIfCreated(page: Page, name: string): Promise<void> {
       const editor = page.getByRole('dialog', { name: '编辑商品' });
       if (await editor.isVisible()) await editor.getByRole('button', { name: '取消' }).click();
+      await openSidePanel(page, 'server');
       if ((await serverRow(page, name).count()) === 0) return;
       await serverAction(
         page,
@@ -113,8 +127,7 @@ if (isRemoteE2E) {
     }) => {
       // 成员：匿名用户加入星河零售，新增公开的数码、家居商品各一件与一件内部的数码商品
       const member = await openCatalog(browser, undefined);
-      await switchIdentity(member, 'anonymous', '匿名用户');
-      await serverAction(member, () => member.getByRole('button', { name: '加入星河零售' }).click(), '已加入星河零售');
+      await joinAsMember(member);
       await expect(member.getByTestId('catalog-buckets')).toContainText('租户 · 星河零售');
 
       try {
@@ -130,7 +143,13 @@ if (isRemoteE2E) {
         const visitor = await openCatalog(browser, member);
         await expect(visitor.getByTestId('identity-title')).toHaveText('访客');
         await expect(visitor.getByTestId('catalog-buckets')).toHaveText('公开');
-        await sync(visitor);
+        // US-232 AC#5：访客打开「模拟服务端变更」只看到说明，没有能操作的按钮
+        const visitorDrawer = await openSidePanel(visitor, 'server');
+        await expect(visitorDrawer.getByTestId('server-panel-visitor')).toBeVisible();
+        await expect(visitorDrawer.getByRole('button', { name: '新增', exact: true })).toHaveCount(0);
+        await visitor.getByTestId('catalog-server-toggle').click();
+        await expect(visitorDrawer).toBeHidden();
+        await pull(visitor);
         // 先等规则选中的行出现，列表已经刷新过，下面「没有」的断言才有意义
         await expect(syncedItem(visitor, 'public', publicDigital)).toBeVisible();
         await expect(visitor.locator('[data-bucket^="tenant:"]')).toHaveCount(0);
@@ -149,11 +168,11 @@ if (isRemoteE2E) {
 
         // US-033 AC#7：放宽规则（关注家居），下次同步补齐新匹配的行
         await visitor.getByRole('button', { name: /关注「家居」/ }).click();
-        await sync(visitor);
+        await pull(visitor);
         await expect(syncedItem(visitor, 'public', publicHome)).toBeVisible();
 
         // US-033 AC#2：成员读得到所在租户的内部商品，成本价有列权限
-        await sync(member);
+        await pull(member);
         await expect(syncedItem(member, 'tenant:xinghe', internalDigital)).toBeVisible();
         await expect(syncedItem(member, 'tenant:xinghe', internalDigital)).not.toContainText('无权读取');
 
@@ -163,10 +182,12 @@ if (isRemoteE2E) {
           () => serverRow(member, publicHome).getByRole('button', { name: '收回为内部' }).click(),
           `「${publicHome}」已收回为租户内部`
         );
-        await sync(visitor);
+        await pull(visitor);
         await expect(allSynced(visitor).filter({ hasText: publicHome })).toHaveCount(0);
-        await sync(member);
+        // US-232 AC#3：不用关抽屉就能拉取，本机商品列表随拉取更新，抽屉仍开着
+        await pull(member);
         await expect(syncedItem(member, 'tenant:xinghe', publicHome)).toBeVisible();
+        await expect(member.getByTestId('catalog-server-panel')).toBeVisible();
 
         // US-036 AC#2：浏览缓存过的行变成私有，再查同一分类时消失
         await visitor.getByRole('button', { name: '刷新' }).click();
@@ -180,14 +201,14 @@ if (isRemoteE2E) {
           () => member.getByRole('button', { name: '退出星河零售' }).click(),
           '已退出星河零售'
         );
-        await sync(member);
+        await pull(member);
         await expect(member.locator('[data-bucket="tenant:xinghe"]')).toHaveCount(0);
         await serverAction(
           member,
           () => member.getByRole('button', { name: '加入星河零售' }).click(),
           '已加入星河零售'
         );
-        await sync(member);
+        await pull(member);
         await expect(syncedItem(member, 'tenant:xinghe', internalDigital)).toBeVisible();
       } finally {
         for (const name of [publicDigital, publicHome, internalDigital]) {
@@ -200,14 +221,13 @@ if (isRemoteE2E) {
       const before = `e2e-${runId}-编辑前`;
       const after = `e2e-${runId}-编辑后`;
       const member = await openCatalog(browser, undefined);
-      await switchIdentity(member, 'anonymous', '匿名用户');
-      await serverAction(member, () => member.getByRole('button', { name: '加入星河零售' }).click(), '已加入星河零售');
+      await joinAsMember(member);
 
       try {
         await addItem(member, before, '数码', 'public');
         // 访客默认只关注数码
         const visitor = await openCatalog(browser, member);
-        await sync(visitor);
+        await pull(visitor);
         await expect(syncedItem(visitor, 'public', before)).toBeVisible();
 
         // 改名、改价：行留在公开区，下次同步按更新收到；服务端那一行马上变，本机要等同步
@@ -217,7 +237,7 @@ if (isRemoteE2E) {
         });
         await expect(serverRow(member, after)).toContainText('¥123');
         await expect(syncedItem(visitor, 'public', before)).toBeVisible();
-        await sync(visitor);
+        await pull(visitor);
         await expect(syncedItem(visitor, 'public', after)).toContainText('¥123');
         await expect(allSynced(visitor).filter({ hasText: before })).toHaveCount(0);
 
@@ -226,7 +246,7 @@ if (isRemoteE2E) {
         await editItem(member, after, async editor => {
           await editor.getByRole('combobox', { name: '分类' }).selectOption('图书');
         });
-        await sync(visitor);
+        await pull(visitor);
         await expect(allSynced(visitor).filter({ hasText: after })).toHaveCount(0);
       } finally {
         for (const name of [before, after]) {
@@ -235,28 +255,36 @@ if (isRemoteE2E) {
       }
     });
 
-    test('宽屏上商品展示在左、模拟服务端变更在右，窄屏上下堆叠', async ({ browser }) => {
+    test('US-232 模拟服务端变更不在主界面：宽屏从页头开关在右侧一栏打开、不挡页面；窄屏是带遮罩的抽屉，点遮罩收起', async ({
+      browser
+    }) => {
       const page = await openCatalog(browser, undefined);
-      const columns = () =>
-        page.evaluate(() => {
-          const box = (testId: string) => {
-            const { left, right, top, bottom } = document
-              .querySelector(`[data-testid="${testId}"]`)!
-              .getBoundingClientRect();
-            return { left, right, top, bottom };
-          };
-          return { display: box('catalog-display'), operations: box('catalog-operations') };
-        });
+      const toggle = page.getByTestId('catalog-server-toggle');
 
+      // AC#1：单栏，主界面上没有服务端模拟器
       await page.setViewportSize({ width: 1440, height: 900 });
-      const wide = await columns();
-      expect(wide.operations.left).toBeGreaterThanOrEqual(wide.display.right);
-      expect(wide.operations.top).toBeCloseTo(wide.display.top, 0);
+      await expect(page.getByTestId('catalog-server-panel')).toHaveCount(0);
+      await expect(toggle).toHaveAttribute('aria-expanded', 'false');
 
-      await page.setViewportSize({ width: 800, height: 900 });
-      const narrow = await columns();
-      expect(narrow.operations.left).toBeCloseTo(narrow.display.left, 0);
-      expect(narrow.operations.top).toBeGreaterThanOrEqual(narrow.display.bottom);
+      // AC#2：右侧打开，开关 aria-expanded 为真，焦点在面板标题上；宽屏不加遮罩，面板在内容的右边
+      await toggle.click();
+      const drawer = page.getByTestId('side-panel');
+      await expect(page.getByTestId('catalog-server-panel')).toBeVisible();
+      await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+      await expect(drawer.getByRole('heading', { name: '模拟服务端变更' })).toBeFocused();
+      await expect(page.getByTestId('side-panel-backdrop')).toHaveCount(0);
+      expect((await boundsOf(page, 'side-panel')).x).toBeGreaterThanOrEqual(
+        (await boundsOf(page, 'catalog-display')).x + (await boundsOf(page, 'catalog-display')).width
+      );
+
+      // AC#6：窄屏换成盖住页面的抽屉，左边留一条遮罩；页面不横向滚动；点遮罩收起，焦点回到开关
+      await page.setViewportSize({ width: 375, height: 800 });
+      await expect(drawer).toHaveAttribute('aria-modal', 'true');
+      await expectNoHorizontalScroll(page);
+      await page.getByTestId('side-panel-backdrop').click({ position: { x: 10, y: 400 } });
+      await expect(drawer).toHaveCount(0);
+      await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+      await expect(toggle).toBeFocused();
     });
 
     test('每个身份一个本地库：访客与 Alice 打开不同的库，Alice 读得到星河零售的区', async ({ browser }) => {

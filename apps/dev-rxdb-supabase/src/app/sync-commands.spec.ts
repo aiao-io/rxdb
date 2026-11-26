@@ -14,13 +14,14 @@ function setup(options: { pull?: () => Promise<unknown>; push?: () => Promise<un
         (() =>
           Promise.resolve({ pulled: 3, applied: 2, failures: [], hasMore: false, compacted: 0 } as unknown as never))
     ),
-    push: vi.fn(
-      options.push ?? (() => Promise.resolve({ pushed: 2, rejected: 0, failures: [] } as unknown as never))
-    )
+    push: vi.fn(options.push ?? (() => Promise.resolve({ pushed: 2, rejected: 0, failures: [] } as unknown as never)))
   };
   TestBed.configureTestingModule({
     providers: [
-      { provide: RxDB, useValue: { syncManager, versionManager: { pushableCount$: pushable$, pullableCount$: pullable$ } } }
+      {
+        provide: RxDB,
+        useValue: { syncManager, versionManager: { pushableCount$: pushable$, pullableCount$: pullable$ } }
+      }
     ]
   });
   TestBed.inject(RemoteSyncState).markConnected(options.connected ?? true);
@@ -45,7 +46,11 @@ describe('SyncCommands', () => {
 
     await commands.pull.run();
     expect(commands.round()).toBe(1);
-    expect(commands.result()).toMatchObject({ direction: 'pull', notice: '拉取完成：拉到 3 条，落库 2 条', error: null });
+    expect(commands.result()).toMatchObject({
+      direction: 'pull',
+      notice: '拉取完成：拉到 3 条，落库 2 条',
+      error: null
+    });
 
     await commands.push.run();
     expect(commands.round()).toBe(2);
@@ -58,11 +63,17 @@ describe('SyncCommands', () => {
   });
 
   it('会话已在别处换了身份：结果标出身份不匹配，好给出「重新加载」', async () => {
-    const { commands } = setup({ pull: () => Promise.reject(new RxDBIdentityMismatchError('remote', 'client-key', ['other-key'])) });
+    const { commands } = setup({
+      pull: () => Promise.reject(new RxDBIdentityMismatchError('remote', 'client-key', ['other-key']))
+    });
 
     await commands.pull.run();
 
-    expect(commands.result()?.identityMismatch).toBe(true);
+    expect(commands.result()).toMatchObject({
+      identityMismatch: true,
+      error:
+        '拉取失败：身份不匹配。浏览器里的会话已经换成另一个身份，本页还开着上一个身份的库，本地数据没动；重新加载打开新身份的库'
+    });
   });
 
   it('进行中两颗按钮都不可点；没有待推送时推送不可点', async () => {

@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { createHash } from 'node:crypto';
+import { switchIdentity } from './support/identity';
+import { openSidePanel, pull, push, syncRound } from './support/workbench';
 
 const isRemoteE2E = process.env['REMOTE_E2E'] === 'true';
 
@@ -34,7 +36,7 @@ async function openTodoPage(target: Page, url = '/todo'): Promise<void> {
   await target.goto(url, { timeout: 60_000, waitUntil: 'domcontentloaded' });
   await target.getByTestId('todo-visitor-notice').getByRole('button', { name: '匿名登录' }).click({ timeout: 60_000 });
   await expect(target.getByTestId('identity-title')).toHaveText('匿名用户', { timeout: 60_000 });
-  await expect(target.getByRole('button', { name: 'Pull' })).toBeEnabled({ timeout: 60_000 });
+  await expect(target.getByTestId('sync-pull')).toBeEnabled({ timeout: 60_000 });
 }
 
 /**
@@ -136,9 +138,7 @@ if (isRemoteE2E) {
 
       const item = page.getByTestId('todo-item').filter({ hasText: title });
       await expect(item).toBeVisible();
-      const push = page.getByRole('button', { name: 'Push' });
-      await expect(push).toBeEnabled();
-      await push.click();
+      await push(page);
 
       await expect.poll(() => mutationRequests.length, { timeout: 30_000 }).toBeGreaterThan(0);
       await expect(page.locator('.alert-error')).toHaveCount(0);
@@ -147,9 +147,7 @@ if (isRemoteE2E) {
       try {
         const secondPage = await secondContext.newPage();
         await openTodoPage(secondPage, new URL('/todo', page.url()).href);
-        const pull = secondPage.getByRole('button', { name: 'Pull' });
-        await expect(pull).toBeEnabled({ timeout: 60_000 });
-        await pull.click();
+        await pull(secondPage);
 
         await expect(secondPage.getByTestId('todo-item').filter({ hasText: title })).toBeVisible({ timeout: 30_000 });
         await expect(secondPage.locator('.alert-error')).toHaveCount(0);
@@ -159,8 +157,7 @@ if (isRemoteE2E) {
 
       await item.getByRole('button', { name: '删除' }).click();
       await expect(item).toHaveCount(0);
-      await expect(push).toBeEnabled();
-      await push.click();
+      await push(page);
       await expect.poll(() => mutationRequests.length, { timeout: 30_000 }).toBeGreaterThan(1);
     });
 
@@ -183,9 +180,7 @@ if (isRemoteE2E) {
 
       const item = page.getByTestId('todo-item').filter({ hasText: title });
       await expect(item).toBeVisible();
-      const push = page.getByRole('button', { name: 'Push' });
-      await expect(push).toBeEnabled();
-      await push.click();
+      await push(page);
       await expect.poll(() => mutationBodies.length, { timeout: 30_000 }).toBeGreaterThan(0);
       await expect(page.locator('.alert-error')).toHaveCount(0);
 
@@ -195,8 +190,7 @@ if (isRemoteE2E) {
 
       await item.getByRole('checkbox').check();
       await expect(item.getByRole('checkbox')).toBeChecked();
-      await expect(push).toBeEnabled();
-      await push.click();
+      await push(page);
       await expect.poll(() => mutationBodies.length, { timeout: 30_000 }).toBeGreaterThan(1);
       await expect(page.locator('.alert-error')).toHaveCount(0);
 
@@ -209,9 +203,7 @@ if (isRemoteE2E) {
       try {
         const secondPage = await secondContext.newPage();
         await openTodoPage(secondPage, new URL('/todo', page.url()).href);
-        const pull = secondPage.getByRole('button', { name: 'Pull' });
-        await expect(pull).toBeEnabled({ timeout: 60_000 });
-        await pull.click();
+        await pull(secondPage);
 
         // 已完成的行按 completed 升序排在所有进行中的行之后：共用栈里进行中的行一多，它就落在
         // 虚拟列表渲染的窗口之外。切到「已完成」再找，不依赖栈里攒了多少数据
@@ -226,8 +218,7 @@ if (isRemoteE2E) {
 
       await item.getByRole('button', { name: '删除' }).click();
       await expect(item).toHaveCount(0);
-      await expect(push).toBeEnabled();
-      await push.click();
+      await push(page);
       await expect.poll(() => mutationBodies.length, { timeout: 30_000 }).toBeGreaterThan(2);
     });
 
@@ -250,36 +241,31 @@ if (isRemoteE2E) {
       await page.getByRole('button', { name: '添加', exact: true }).click();
       const item = page.getByTestId('todo-item').filter({ hasText: title });
       await expect(item).toBeVisible();
-      const push = page.getByRole('button', { name: 'Push' });
-      await expect(push).toBeEnabled();
-      await push.click();
+      await push(page);
       await expect.poll(() => mutationRequests.length, { timeout: 30_000 }).toBeGreaterThan(0);
 
       const secondContext = await browser.newContext();
       try {
         const secondPage = await secondContext.newPage();
         await openTodoPage(secondPage, new URL('/todo', page.url()).href);
-        const pull = secondPage.getByRole('button', { name: 'Pull' });
-        await expect(pull).toBeEnabled({ timeout: 60_000 });
-        await pull.click();
+        await pull(secondPage);
         const pulledItem = secondPage.getByTestId('todo-item').filter({ hasText: title });
         await expect(pulledItem).toBeVisible({ timeout: 30_000 });
 
         // A 删除并推送：远端行没了
         await item.getByRole('button', { name: '删除' }).click();
         await expect(item).toHaveCount(0);
-        await expect(push).toBeEnabled();
-        await push.click();
+        await push(page);
         await expect.poll(() => mutationRequests.length, { timeout: 30_000 }).toBeGreaterThan(1);
 
         // B 不拉取，直接勾选完成并推送：UPDATE 打到已不存在的行
         await pulledItem.getByRole('checkbox').check();
-        const secondPush = secondPage.getByRole('button', { name: 'Push' });
-        await expect(secondPush).toBeEnabled();
-        await secondPush.click();
+        const result = await push(secondPage);
 
-        // 被拒不让整轮失败：没有错误提示，面板列出一条 gone
-        const panel = secondPage.getByTestId('sync-rejections-panel');
+        // US-230 AC#8：被拒不让整轮失败——结果行写「被拒 1 条」，同步中心开关上出现标记，被拒的推送列在同步中心里
+        await expect(result).toContainText('被拒 1 条');
+        await expect(secondPage.getByTestId('sync-center-rejections')).toHaveText('1');
+        const panel = (await openSidePanel(secondPage, 'sync')).getByTestId('sync-rejections-panel');
         const rejection = panel.getByRole('listitem');
         await expect(rejection).toHaveCount(1, { timeout: 30_000 });
         await expect(rejection).toContainText('UPDATE');
@@ -289,6 +275,33 @@ if (isRemoteE2E) {
       } finally {
         await secondContext.close();
       }
+    });
+
+    // US-230 AC#10：会话在别的标签页换了身份，本页还开着上一个身份的库：拉取被身份守卫拦下，一个请求都不发，
+    // 结果行写明身份不匹配并给「重新加载」。两个标签页共用浏览器里的会话，本地库经 SharedWorker 共用
+    test('blocks a pull after another tab switched identity and offers a reload', async ({ context, page }) => {
+      await openTodoPage(page);
+      const other = await context.newPage();
+      await other.goto(new URL('/todo', page.url()).href, { timeout: 60_000, waitUntil: 'domcontentloaded' });
+      await expect(other.getByTestId('identity-title')).toHaveText('匿名用户', { timeout: 60_000 });
+      // 等页面连上远端、渲染出来再切：连接还在建立时切换身份会先断开它，那次进入页面就失败了
+      await expect(other.getByTestId('sync-pull')).toBeEnabled({ timeout: 60_000 });
+
+      // 另一个标签页退出成访客：浏览器里的会话没了，本页还开着匿名用户的库
+      await switchIdentity(other, 'visitor', '访客', 'todo-title');
+      await expect(page.getByTestId('session-moved')).toBeVisible({ timeout: 30_000 });
+
+      const mutationRequests: string[] = [];
+      page.on('request', request => {
+        if (request.url().includes('/rest/v1/rpc/rxdb_mutations')) mutationRequests.push(request.url());
+      });
+      const result = await syncRound(page, 'pull');
+      await expect(result).toHaveAttribute('role', 'alert');
+      await expect(result).toContainText('拉取失败：身份不匹配');
+      expect(mutationRequests).toEqual([]);
+
+      await result.getByTestId('sync-result-reload').click();
+      await expect(page.getByTestId('identity-title')).toHaveText('访客', { timeout: 60_000 });
     });
 
     test('does not pull a locally created Todo that was never pushed', async ({ browser, page }) => {
@@ -310,18 +323,15 @@ if (isRemoteE2E) {
       try {
         const secondPage = await secondContext.newPage();
         await openTodoPage(secondPage, new URL('/todo', page.url()).href);
-        const pull = secondPage.getByRole('button', { name: 'Pull' });
-        await expect(pull).toBeEnabled({ timeout: 60_000 });
-        // 先等这次 Pull 真的结算再断言「没拉到」：点击之前目标行与错误提示本来就都不存在，
+        // 先等这次拉取真的结算再断言「没拉到」：点击之前目标行与错误提示本来就都不存在，
         // 不等结算的话，迟到的失败、迟到带回来的行都看不见，用例靠初态就绿了。
-        // Pull 期间按钮禁用（$syncPending），读到变更日志的应答之后再等它恢复，即这次 Pull 已经走完。
+        // `pull` 等顶栏同步组的轮数加一、结果行写「拉取完成」，即这一轮已经走完
         const changeLog = secondPage.waitForResponse(
           response => /\/rest\/v1\/(rxdb_change\b|rpc\/rxdb_pull_changes)/.test(response.url()),
           { timeout: 30_000 }
         );
-        await pull.click();
+        await pull(secondPage);
         expect((await changeLog).ok(), '拉取远端变更日志的请求失败').toBe(true);
-        await expect(pull).toBeEnabled({ timeout: 30_000 });
 
         await expect(secondPage.locator('.alert-error')).toHaveCount(0);
         await expect(secondPage.getByTestId('todo-item').filter({ hasText: title })).toHaveCount(0);
