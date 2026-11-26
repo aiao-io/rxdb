@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { Component, ViewEncapsulation, computed, inject, signal } from '@angular/core';
 
 import { describeProblem } from '../data/data-problem';
@@ -24,9 +25,10 @@ export class DataProblemScreen {
   protected readonly confirming = signal(false);
   protected readonly erasing = signal(false);
   protected readonly failure = signal('');
+  protected readonly i18n = useI18n();
   protected readonly view = computed(() => {
     const problem = this.data.problem();
-    return problem ? describeProblem(problem) : null;
+    return problem ? describeProblem(problem, this.i18n.t) : null;
   });
 
   protected reload(): void {

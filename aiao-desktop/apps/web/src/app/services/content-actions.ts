@@ -39,7 +39,7 @@ export class ContentActions {
   }
 
   copy(text: string): Promise<void> {
-    return this.perform('Copy', () => this.browser.copyText(text), 'Copied to clipboard');
+    return this.perform('Copy', () => this.browser.copyText(text), 'shell.toast.copied');
   }
 
   print(content: PrintableContent): Promise<void> {

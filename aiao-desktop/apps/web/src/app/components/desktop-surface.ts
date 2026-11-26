@@ -454,7 +454,7 @@ export class DesktopSurface {
       { id: 'gi', label: 'Get Info', run: () => this.showDesktopInfo() },
       '-',
       { id: 'cw', label: 'Change Wallpaper…', run: () => this.wm.open('settings', { section: 'wallpaper' }) },
-      { id: 'ew', label: 'Edit Widgets…', run: () => this.toast.show('Widgets are already on the desktop.') },
+      { id: 'ew', label: 'Edit Widgets…', run: () => this.toast.show('shell.toast.widgetsOnDesktop') },
       '-',
       {
         id: 'st',

@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { DOCUMENT } from '@angular/common';
 import {
   Component,
@@ -117,6 +118,7 @@ const padOf = (size: number): number => (size <= MIN_DOCK_SIZE ? 2 : Math.round(
 })
 export class Dock implements DockView, DockDropTarget {
   private readonly apps = inject(ApplicationRegistry).apps;
+  protected readonly i18n = useI18n();
   private readonly system = inject(SystemState);
   private readonly wm = inject(WindowManager);
   private readonly popover = inject(PopoverService);
@@ -294,7 +296,7 @@ export class Dock implements DockView, DockDropTarget {
     this.emptyTrashPrompt.set(false);
     if (!confirmed) return;
     this.fs.emptyTrash().then(
-      () => this.toast.show('Trash emptied'),
+      () => this.toast.show('shell.dock.trashEmptied'),
       (error: unknown) => this.toast.show(describeDiskError(error))
     );
   }
@@ -382,9 +384,9 @@ export class Dock implements DockView, DockDropTarget {
   /** 图标的无障碍名称：最小化窗口 tile 报窗口标题；废纸篓里有东西时说明它是满的（图标画的是满的废纸篓）。 */
   protected labelOf(slot: DockSlot): string {
     const app = slot.app;
-    if (!app) return 'Dock';
+    if (!app) return this.i18n.t('shell.dock.name');
     if (slot.windowId !== undefined) return `${slot.title ?? app.name}, ${app.name}, minimized window`;
-    return app.id === 'trash' && this.fs.trashFull() ? 'Trash, full' : app.name;
+    return app.id === 'trash' && this.fs.trashFull() ? this.i18n.t('shell.dock.trashFull') : app.name;
   }
 
   /** Dock 空白玻璃上的右键菜单。 */
@@ -393,7 +395,10 @@ export class Dock implements DockView, DockDropTarget {
     this.popover.contextMenu(event, [
       {
         id: 'mag',
-        label: `Turn Magnification ${this.system.dockMagOn() ? 'Off' : 'On'}`,
+        label:
+          this.system.dockMagOn() ?
+            this.i18n.t('shell.dock.turnMagnificationOff')
+          : this.i18n.t('shell.dock.turnMagnificationOn'),
         run: () => {
           this.system.dockMagOn.update(on => !on);
           this.measure();
@@ -401,35 +406,40 @@ export class Dock implements DockView, DockDropTarget {
       },
       {
         id: 'hide',
-        label: `Turn Hiding ${this.system.dockAutoHide() ? 'Off' : 'On'}`,
+        label:
+          this.system.dockAutoHide() ? this.i18n.t('shell.dock.turnHidingOff') : this.i18n.t('shell.dock.turnHidingOn'),
         run: () => this.system.dockAutoHide.update(on => !on)
       },
       {
         id: 'pos',
-        label: 'Position on Screen',
+        label: this.i18n.t('shell.dock.positionOnScreen'),
         submenu: [
           {
             id: 'pos-left',
-            label: 'Left',
+            label: this.i18n.t('shell.dock.positionLeft'),
             checked: this.system.dockPosition() === 'left',
             run: () => this.system.dockPosition.set('left')
           },
           {
             id: 'pos-bottom',
-            label: 'Bottom',
+            label: this.i18n.t('shell.dock.positionBottom'),
             checked: this.system.dockPosition() === 'bottom',
             run: () => this.system.dockPosition.set('bottom')
           },
           {
             id: 'pos-right',
-            label: 'Right',
+            label: this.i18n.t('shell.dock.positionRight'),
             checked: this.system.dockPosition() === 'right',
             run: () => this.system.dockPosition.set('right')
           }
         ]
       },
       '-',
-      { id: 'pref', label: 'Dock Settings…', run: () => this.wm.open('settings', { section: 'dock' }) }
+      {
+        id: 'pref',
+        label: this.i18n.t('shell.dock.settings'),
+        run: () => this.wm.open('settings', { section: 'dock' })
+      }
     ]);
   }
 
@@ -549,10 +559,10 @@ export class Dock implements DockView, DockDropTarget {
 
   private trashMenu(): MenuEntry[] {
     return [
-      { id: 'o', label: 'Open', run: () => this.wm.open('finder', { path: ['Trash'] }) },
+      { id: 'o', label: this.i18n.t('shell.dock.open'), run: () => this.wm.open('finder', { path: ['Trash'] }) },
       {
         id: 'e',
-        label: 'Empty Trash',
+        label: this.i18n.t('shell.dock.emptyTrash'),
         disabled: !this.fs.trashFull(),
         run: () => this.requestEmptyTrash()
       },
@@ -567,13 +577,13 @@ export class Dock implements DockView, DockDropTarget {
     const dockEntry = this.layout.menuEntry(appId, keyboard ? () => this.markRefocus(appId) : undefined);
     const toggle: MenuEntry =
       open.length ?
-        { id: 'quit', label: 'Quit', run: () => this.wm.quitApp(appId) }
-      : { id: 'open', label: 'Open', run: () => this.launcher.activate(appId) };
+        { id: 'quit', label: this.i18n.t('shell.dock.quit'), run: () => this.wm.quitApp(appId) }
+      : { id: 'open', label: this.i18n.t('shell.dock.open'), run: () => this.launcher.activate(appId) };
     if (app.kind === 'system') return [dockEntry, '-', toggle];
     const windows: MenuEntry[] =
       open.length > 1 ?
         [
-          { head: 'Windows' },
+          { head: this.i18n.t('shell.dock.windows') },
           ...open.map((win, i) => ({ id: `w${i}`, label: win.title(), run: () => this.wm.focus(win.id) })),
           '-'
         ]

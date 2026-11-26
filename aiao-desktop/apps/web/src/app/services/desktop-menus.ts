@@ -1,4 +1,6 @@
+import { I18N } from '@aiao/rxdb-i18n-angular';
 import { Service, inject } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { ApplicationRegistry } from './application-registry';
 
 import { FinderClipboard } from '../apps/finder/finder-clipboard';
@@ -90,44 +92,56 @@ export class DesktopMenus {
   private readonly fs = inject(FileSystem);
   private readonly desktopItems = inject(DesktopItems);
   private readonly clipboard = inject(FinderClipboard);
+  private readonly i18nRuntime = inject(I18N);
+  private readonly locale = toSignal(this.i18nRuntime.locale$, { requireSync: true });
+  /** 菜单标签翻译：先读 locale 信号注册依赖，语言切换时外层 computed 重建菜单。 */
+  private readonly t = (key: string, params: Record<string, unknown> = {}): string => {
+    this.locale();
+    return this.i18nRuntime.t(key, params);
+  };
 
   apple(): MenuEntry[] {
     return [
-      { id: 'about', label: 'About This Mac', run: () => this.wm.open('about') },
+      { id: 'about', label: this.t('shell.menu.aboutThisMac'), run: () => this.wm.open('about') },
       '-',
-      { id: 'set', label: 'System Settings…', run: () => this.wm.open('settings') },
+      { id: 'set', label: this.t('shell.menu.systemSettings'), run: () => this.wm.open('settings') },
       {
         id: 'store',
-        label: 'App Store…',
-        key: '1 update',
-        run: () => this.toast.show('App Store is not part of this build')
+        label: this.t('shell.menu.appStore'),
+        key: this.t('shell.menu.oneUpdate'),
+        run: () => this.toast.show('shell.menu.appStoreMissing')
       },
       '-',
-      { id: 'recent', label: 'Recent Items', submenu: this.recentItems() },
+      { id: 'recent', label: this.t('shell.menu.recentItems'), submenu: this.recentItems() },
       '-',
-      { id: 'force', label: 'Force Quit…', key: '⌥⌘⎋', run: () => this.forceQuitPanel() },
+      { id: 'force', label: this.t('shell.menu.forceQuit'), key: '⌥⌘⎋', run: () => this.forceQuitPanel() },
       '-',
-      { id: 'sleep', label: 'Sleep', run: () => this.session.sleepNow() },
-      { id: 'restart', label: 'Restart…', run: () => this.session.restart() },
-      { id: 'shut', label: 'Shut Down…', run: () => this.session.shutDown() },
+      { id: 'sleep', label: this.t('shell.menu.sleep'), run: () => this.session.sleepNow() },
+      { id: 'restart', label: this.t('shell.menu.restart'), run: () => this.session.restart() },
+      { id: 'shut', label: this.t('shell.menu.shutDown'), run: () => this.session.shutDown() },
       '-',
-      { id: 'lock', label: 'Lock Screen', key: '⌃⌘Q', run: () => this.session.lock() },
-      { id: 'logout', label: `Log Out ${this.system.user}…`, key: '⇧⌘Q', run: () => this.session.lock() }
+      { id: 'lock', label: this.t('shell.menu.lockScreen'), key: '⌃⌘Q', run: () => this.session.lock() },
+      {
+        id: 'logout',
+        label: this.t('shell.menu.logOut', { name: this.system.user }),
+        key: '⇧⌘Q',
+        run: () => this.session.lock()
+      }
     ];
   }
 
   /** 菜单栏上应用名下的那份菜单。 */
   about(name: string): MenuEntry[] {
     return [
-      { id: 'a', label: `About ${name}`, run: () => this.wm.open('about') },
+      { id: 'a', label: this.t('shell.menu.about', { name }), run: () => this.wm.open('about') },
       '-',
-      { id: 'p', label: 'Settings…', key: '⌘,', run: () => this.wm.open('settings') },
+      { id: 'p', label: this.t('shell.menu.settings'), key: '⌘,', run: () => this.wm.open('settings') },
       '-',
-      { id: 'h', label: `Hide ${name}`, key: '⌘H', run: () => this.wm.hideFront() },
-      { id: 'o', label: 'Hide Others', key: '⌥⌘H', run: () => this.wm.hideOthers() },
-      { id: 's', label: 'Show All', run: () => this.wm.showAll() },
+      { id: 'h', label: this.t('shell.menu.hide', { name }), key: '⌘H', run: () => this.wm.hideFront() },
+      { id: 'o', label: this.t('shell.menu.hideOthers'), key: '⌥⌘H', run: () => this.wm.hideOthers() },
+      { id: 's', label: this.t('shell.menu.showAll'), run: () => this.wm.showAll() },
       '-',
-      { id: 'q', label: `Quit ${name}`, key: '⌘Q', run: () => this.wm.quitFront() }
+      { id: 'q', label: this.t('shell.menu.quit', { name }), key: '⌘Q', run: () => this.wm.quitFront() }
     ];
   }
 
@@ -141,8 +155,8 @@ export class DesktopMenus {
       { id: 'services', label: 'Services', key: '▸', disabled: true },
       '-',
       { id: 'h', label: 'Hide GitHub Desktop', key: '⌘H', run: () => this.wm.hideFront() },
-      { id: 'o', label: 'Hide Others', key: '⌥⌘H', run: () => this.wm.hideOthers() },
-      { id: 's', label: 'Show All', run: () => this.wm.showAll() },
+      { id: 'o', label: this.t('shell.menu.hideOthers'), key: '⌥⌘H', run: () => this.wm.hideOthers() },
+      { id: 's', label: this.t('shell.menu.showAll'), run: () => this.wm.showAll() },
       '-',
       { id: 'q', label: 'Quit GitHub Desktop', key: '⌘Q', run: () => this.wm.quitFront() }
     ];
@@ -153,16 +167,16 @@ export class DesktopMenus {
     const front = this.wm.front();
     const windows = this.wm.windowMenuEntries();
     return [
-      { id: 'min', label: 'Minimize', key: '⌘M', run: () => this.wm.minimizeFront() },
-      { id: 'zoo', label: 'Zoom', run: () => this.wm.zoomFront() },
-      { id: 'fil', label: 'Fill', key: '⌃⌥⏎', run: () => this.wm.zoomFront() },
+      { id: 'min', label: this.t('shell.menu.minimize'), key: '⌘M', run: () => this.wm.minimizeFront() },
+      { id: 'zoo', label: this.t('shell.menu.zoom'), run: () => this.wm.zoomFront() },
+      { id: 'fil', label: this.t('shell.menu.fill'), key: '⌃⌥⏎', run: () => this.wm.zoomFront() },
       '-',
       ...windows,
       ...(windows.length ? (['-'] as const) : []),
-      { id: 'cyc', label: 'Cycle Through Windows', key: '⌘`', run: () => this.wm.cycle() },
+      { id: 'cyc', label: this.t('shell.menu.cycleWindows'), key: '⌘`', run: () => this.wm.cycle() },
       {
         id: 'brf',
-        label: 'Bring All to Front',
+        label: this.t('shell.menu.bringAllToFront'),
         run: () => {
           const appId = front?.appId;
           if (appId) this.wm.showAppWindows(appId);
@@ -173,60 +187,68 @@ export class DesktopMenus {
 
   finder(target: FinderCommands): MenuSection[] {
     return [
-      section('File', [
-        { id: 'nw', label: 'New Finder Window', key: '⌘N', run: () => this.wm.open('finder') },
-        { id: 'nf', label: 'New Folder', key: '⇧⌘N', run: () => target.newFolder() },
+      section(this.t('shell.menu.sectionFile'), [
+        { id: 'nw', label: this.t('shell.menu.newFinderWindow'), key: '⌘N', run: () => this.wm.open('finder') },
+        { id: 'nf', label: this.t('shell.menu.newFolder'), key: '⇧⌘N', run: () => target.newFolder() },
         '-',
-        { id: 'op', label: 'Open', key: '⌘O', run: () => target.openSelected() },
-        { id: 'cl', label: 'Close Window', key: '⌘W', run: () => this.wm.closeFront() },
+        { id: 'op', label: this.t('shell.menu.open'), key: '⌘O', run: () => target.openSelected() },
+        { id: 'cl', label: this.t('shell.menu.closeWindow'), key: '⌘W', run: () => this.wm.closeFront() },
         '-',
-        { id: 'gi', label: 'Get Info', key: '⌘I', run: () => target.getInfo() },
+        { id: 'gi', label: this.t('shell.menu.getInfo'), key: '⌘I', run: () => target.getInfo() },
         ...(target.inTrash() ?
-          ([{ id: 'et', label: 'Empty Trash…', key: '⇧⌘⌫', run: () => target.emptyTrash() }] as const)
-        : ([{ id: 'tr', label: 'Move to Trash', key: '⌘⌫', run: () => target.trashSelected() }] as const)),
+          ([{ id: 'et', label: this.t('shell.menu.emptyTrash'), key: '⇧⌘⌫', run: () => target.emptyTrash() }] as const)
+        : ([
+            { id: 'tr', label: this.t('shell.menu.moveToTrash'), key: '⌘⌫', run: () => target.trashSelected() }
+          ] as const)),
         '-',
-        { id: 'find', label: 'Find', key: '⌘F', run: () => target.focusSearch() }
+        { id: 'find', label: this.t('shell.menu.find'), key: '⌘F', run: () => target.focusSearch() }
       ]),
-      section('Edit', [
+      section(this.t('shell.menu.sectionEdit'), [
         {
           id: 'u',
-          label: this.fs.undoLabel() ?? 'Undo',
+          label: this.fs.undoLabel() ?? this.t('shell.menu.undo'),
           key: '⌘Z',
           disabled: !this.fs.canUndo(),
           run: () => void this.fs.undo()
         },
-        { id: 'r', label: 'Redo', key: '⇧⌘Z', disabled: !this.fs.canRedo(), run: () => void this.fs.redo() },
+        {
+          id: 'r',
+          label: this.t('shell.menu.redo'),
+          key: '⇧⌘Z',
+          disabled: !this.fs.canRedo(),
+          run: () => void this.fs.redo()
+        },
         '-',
-        { id: 'x', label: 'Cut', key: '⌘X', run: () => target.cutSelected() },
-        { id: 'c', label: 'Copy', key: '⌘C', run: () => target.copySelected() },
-        { id: 'v', label: 'Paste', key: '⌘V', run: () => target.paste() },
+        { id: 'x', label: this.t('shell.menu.cut'), key: '⌘X', run: () => target.cutSelected() },
+        { id: 'c', label: this.t('shell.menu.copy'), key: '⌘C', run: () => target.copySelected() },
+        { id: 'v', label: this.t('shell.menu.paste'), key: '⌘V', run: () => target.paste() },
         {
           id: 'mv',
-          label: 'Move Item Here',
+          label: this.t('shell.menu.moveItemHere'),
           key: '⌥⌘V',
           disabled: this.clipboard.snapshot()?.mode !== 'cut',
           run: () => target.paste()
         },
         '-',
-        { id: 'a', label: 'Select All', key: '⌘A', run: () => target.selectAll() }
+        { id: 'a', label: this.t('shell.menu.selectAll'), key: '⌘A', run: () => target.selectAll() }
       ]),
-      section('View', [
-        { id: 'icons', label: 'as Icons', key: '⌘1', run: () => target.setView('icon') },
-        { id: 'listv', label: 'as List', key: '⌘2', run: () => target.setView('list') },
-        { id: 'colv', label: 'as Columns', key: '⌘3', run: () => target.setView('column') },
-        { id: 'galv', label: 'as Gallery', key: '⌘4', run: () => target.setView('gallery') },
+      section(this.t('shell.menu.sectionView'), [
+        { id: 'icons', label: this.t('shell.menu.asIcons'), key: '⌘1', run: () => target.setView('icon') },
+        { id: 'listv', label: this.t('shell.menu.asList'), key: '⌘2', run: () => target.setView('list') },
+        { id: 'colv', label: this.t('shell.menu.asColumns'), key: '⌘3', run: () => target.setView('column') },
+        { id: 'galv', label: this.t('shell.menu.asGallery'), key: '⌘4', run: () => target.setView('gallery') },
         '-',
         {
           id: 'sb',
-          label: target.sidebarVisible() ? 'Hide Sidebar' : 'Show Sidebar',
+          label: target.sidebarVisible() ? this.t('shell.menu.hideSidebar') : this.t('shell.menu.showSidebar'),
           key: '⌥⌘S',
           run: () => target.toggleSidebar()
         },
-        { id: 'pb', label: 'Hide Path Bar', key: '⌥⌘P', run: () => target.togglePathBar() },
+        { id: 'pb', label: this.t('shell.menu.hidePathBar'), key: '⌥⌘P', run: () => target.togglePathBar() },
         '-',
         {
           id: 'hidden-files',
-          label: 'Show Hidden Files',
+          label: this.t('shell.menu.showHiddenFiles'),
           key: '⌃⇧.',
           alternateKey: '⇧⌘.',
           checked: this.finderPreferences.showHiddenFiles(),
@@ -237,22 +259,27 @@ export class DesktopMenus {
           }
         },
         '-',
-        { id: 'vo', label: 'Show View Options', key: '⌘J', run: () => target.showViewOptions() }
+        { id: 'vo', label: this.t('shell.menu.showViewOptions'), key: '⌘J', run: () => target.showViewOptions() }
       ]),
-      section('Go', [
-        { id: 'g1', label: 'Recents', key: '⇧⌘F', run: () => target.goto('Recents') },
-        { id: 'g2', label: 'Documents', key: '⇧⌘O', run: () => target.goto('Documents') },
-        { id: 'g3', label: 'Desktop', key: '⇧⌘D', run: () => target.goto('Desktop') },
-        { id: 'g4', label: 'Downloads', key: '⌥⌘L', run: () => target.goto('Downloads') },
-        { id: 'g5', label: 'Applications', key: '⇧⌘A', run: () => target.goto('Applications') },
+      section(this.t('shell.menu.sectionGo'), [
+        { id: 'g1', label: this.t('shell.menu.recents'), key: '⇧⌘F', run: () => target.goto('Recents') },
+        { id: 'g2', label: this.t('shell.menu.documents'), key: '⇧⌘O', run: () => target.goto('Documents') },
+        { id: 'g3', label: this.t('shell.menu.desktop'), key: '⇧⌘D', run: () => target.goto('Desktop') },
+        { id: 'g4', label: this.t('shell.menu.downloads'), key: '⌥⌘L', run: () => target.goto('Downloads') },
+        { id: 'g5', label: this.t('shell.menu.applications'), key: '⇧⌘A', run: () => target.goto('Applications') },
         '-',
-        { id: 'gf', label: 'Go to Folder…', key: '⇧⌘G', run: () => target.gotoFolder() }
+        { id: 'gf', label: this.t('shell.menu.goToFolder'), key: '⇧⌘G', run: () => target.gotoFolder() }
       ]),
-      section('Window', this.window()),
-      section('Help', [
-        { field: 'Search' },
-        { id: 'h', label: 'macOS Help', key: '⌘?', run: () => this.toast.show('Everything here is one HTML file.') },
-        { id: 'n', label: 'New Features in macOS', run: () => this.wm.open('about') }
+      section(this.t('shell.menu.sectionWindow'), this.window()),
+      section(this.t('shell.menu.sectionHelp'), [
+        { field: this.t('shell.menu.search') },
+        {
+          id: 'h',
+          label: this.t('shell.menu.macosHelp'),
+          key: '⌘?',
+          run: () => this.toast.show('shell.menu.oneHtmlFile')
+        },
+        { id: 'n', label: this.t('shell.menu.newFeatures'), run: () => this.wm.open('about') }
       ])
     ];
   }
@@ -455,7 +482,7 @@ export class DesktopMenus {
           }
         ],
         Help: [
-          { field: 'Search' },
+          { field: this.t('shell.menu.search') },
           {
             id: 'report-issue',
             label: 'Report Issue…',
@@ -480,33 +507,37 @@ export class DesktopMenus {
    */
   standard(appId: DesktopAppId, overrides: StandardMenuOverrides = {}, order?: readonly string[]): MenuSection[] {
     const base: Record<string, readonly MenuEntry[] | undefined> = {
-      File: [
-        { id: 'n', label: 'New Window', key: '⌘N', run: () => this.wm.open(appId, { force: true }) },
-        { id: 'w', label: 'Close Window', key: '⌘W', run: () => this.wm.closeFront() }
+      [this.t('shell.menu.sectionFile')]: [
+        { id: 'n', label: this.t('shell.menu.newWindow'), key: '⌘N', run: () => this.wm.open(appId, { force: true }) },
+        { id: 'w', label: this.t('shell.menu.closeWindow'), key: '⌘W', run: () => this.wm.closeFront() }
       ],
-      Edit: [
-        { id: 'u', label: 'Undo', key: '⌘Z', run: () => exec('undo') },
-        { id: 'r', label: 'Redo', key: '⇧⌘Z', run: () => exec('redo') },
+      [this.t('shell.menu.sectionEdit')]: [
+        { id: 'u', label: this.t('shell.menu.undo'), key: '⌘Z', run: () => exec('undo') },
+        { id: 'r', label: this.t('shell.menu.redo'), key: '⇧⌘Z', run: () => exec('redo') },
         '-',
-        { id: 'x', label: 'Cut', key: '⌘X', run: () => exec('cut') },
-        { id: 'c', label: 'Copy', key: '⌘C', run: () => exec('copy') },
-        { id: 'v', label: 'Paste', key: '⌘V', run: () => exec('paste') },
+        { id: 'x', label: this.t('shell.menu.cut'), key: '⌘X', run: () => exec('cut') },
+        { id: 'c', label: this.t('shell.menu.copy'), key: '⌘C', run: () => exec('copy') },
+        { id: 'v', label: this.t('shell.menu.paste'), key: '⌘V', run: () => exec('paste') },
         '-',
-        { id: 'a', label: 'Select All', key: '⌘A', run: () => exec('selectAll') }
+        { id: 'a', label: this.t('shell.menu.selectAll'), key: '⌘A', run: () => exec('selectAll') }
       ],
-      View: [
-        { id: 'f', label: 'Enter Full Screen', key: '⌃⌘F', run: () => this.wm.zoomFront() },
-        { id: 't', label: 'Show Toolbar', key: '⌥⌘T', checked: true }
+      [this.t('shell.menu.sectionView')]: [
+        { id: 'f', label: this.t('shell.menu.enterFullScreen'), key: '⌃⌘F', run: () => this.wm.zoomFront() },
+        { id: 't', label: this.t('shell.menu.showToolbar'), key: '⌥⌘T', checked: true }
       ],
-      Window: this.window(),
+      [this.t('shell.menu.sectionWindow')]: this.window(),
       Help: [
-        { field: 'Search' },
+        { field: this.t('shell.menu.search') },
         {
           id: 'h',
-          label: `${this.apps()[appId].name} Help`,
-          run: () => this.toast.show('No help needed — click things.')
+          label: this.t('shell.menu.appHelp', { name: this.apps()[appId].name }),
+          run: () => this.toast.show('shell.menu.noHelpNeeded')
         },
-        { id: 'k', label: 'Keyboard Shortcuts', run: () => this.toast.show('⌘Space, ⌘W, ⌘Q, ⌃⌘F all work.') }
+        {
+          id: 'k',
+          label: this.t('shell.menu.keyboardShortcuts'),
+          run: () => this.toast.show('shell.menu.shortcutHints')
+        }
       ],
       ...overrides
     };
@@ -531,6 +562,6 @@ export class DesktopMenus {
           [{ id: `recent-${appId}`, label: app.name, icon: app.icon, run: () => void this.wm.open(appId) }]
         : [];
     });
-    return items.length ? items : [{ id: 'recent-none', label: 'No Recent Items', disabled: true }];
+    return items.length ? items : [{ id: 'recent-none', label: this.t('shell.menu.noRecentItems'), disabled: true }];
   }
 }

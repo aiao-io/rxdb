@@ -53,7 +53,7 @@ capabilities: [rxdb:US-911]
 
 | 阶段 | 交付                                                               | 状态 |
 | ---- | ------------------------------------------------------------------ | ---- |
-| 1    | 框架接线 + 外壳/设置面目录化 + 语言与地区分区 + e2e 钉语言与语言组 | ⚠️   |
+| 1    | 框架接线 + 外壳/设置面目录化 + 语言与地区分区 + e2e 钉语言与语言组 | ✅   |
 | 2    | 30 个内置应用与错误消息目录化、应用显示名、格式化接线              | ⬜   |
 | 3    | 旧库升级账本、构建体积自查、verify 全绿与发布                      | ⬜   |
 
@@ -70,8 +70,8 @@ capabilities: [rxdb:US-911]
 | 5   | AC3 完成                               | 同一来源新开第二个标签页并打开系统设置                                                        | 第二标签页界面为中文（RxDBTabsGateway 跟随）                                                                                                     | ✅   |
 | 6   | e2e 以 `locale:'zh-CN'` 上下文打开桌面 | 首启（全新库）后打开系统设置                                                                  | 界面为中文（deviceLocale 经 zh 目录命中，首启即中文）                                                                                            | ✅   |
 | 7   | e2e 会话统一钉 `locale:'en-US'`        | 跑既有 Chromium 冒烟                                                                          | 全部既有英文断言照常通过（语言接入不改变默认英文界面）                                                                                           | ✅   |
-| 8   | 桌面装配完成                           | 查看开机/锁屏/数据问题三屏与窗口按钮 aria                                                     | 文案走目录（zh 下为中文），data-problem 含参数消息（版本/原因插值）                                                                              | ⬜   |
-| 9   | 桌面装配完成                           | 查看菜单栏、Dock、浮层与 toast                                                                | 文案走目录（zh 下为中文），右键菜单与菜单栏同源覆盖                                                                                              | ⬜   |
+| 8   | 桌面装配完成                           | 查看开机/锁屏/数据问题三屏与窗口按钮 aria                                                     | 文案走目录（zh 下为中文），data-problem 含参数消息（版本/原因插值）                                                                              | ✅   |
+| 9   | 桌面装配完成                           | 查看菜单栏、Dock、浮层与 toast                                                                | 文案走目录（zh 下为中文），右键菜单与菜单栏同源覆盖                                                                                              | ✅   |
 
 ### 阶段 2 — 应用面
 
@@ -92,7 +92,7 @@ capabilities: [rxdb:US-911]
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-验收证据：AC1 见 `desktop-i18n.spec.ts` 与 `settings-data.spec.ts`；AC2-6 见 `apps/e2e/src/groups/language.mjs`（正式构建冒烟，2026-11-26 全绿）与 `settings-workflow.mjs`；AC7 见 verify 全量冒烟（2026-11-26 68/68 全绿，含 settings-workflow 与全部既有英文断言）；AC8-9 见对应组件与冒烟组；AC10-13 见应用冒烟组；AC14-16 见验收台账。桌面行为的证据是正式构建上的浏览器冒烟。
+验收证据：AC1 见 `desktop-i18n.spec.ts` 与 `settings-data.spec.ts`；AC2-6 见 `apps/e2e/src/groups/language.mjs`（正式构建冒烟，2026-11-26 全绿）与 `settings-workflow.mjs`；AC7 见 verify 全量冒烟（2026-11-26 68/68 全绿，含 settings-workflow 与全部既有英文断言）；AC8-9 见 shell-interaction/a11y/dock 组（en 原文案零扰动回归）与 language 组 shellLocalized（Apple 菜单与锁屏 zh，2026-11-26 全绿）；data-problem 参数消息由 data-problem.spec 经真实目录覆盖，目录 key 成对性由 desktop-i18n.spec 门禁；AC10-13 见应用冒烟组；AC14-16 见验收台账。桌面行为的证据是正式构建上的浏览器冒烟。
 
 ## 技术笔记
 

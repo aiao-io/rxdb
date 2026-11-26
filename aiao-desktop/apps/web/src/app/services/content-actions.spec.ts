@@ -37,7 +37,7 @@ describe('ContentActions', () => {
     complete();
     await pending;
     expect(actions.busy()).toBe(false);
-    expect(show).toHaveBeenCalledWith('Copied to clipboard');
+    expect(show).toHaveBeenCalledWith('shell.toast.copied');
   });
 
   it('拒绝剪贴板时保留错误且可重试，不弹假成功', async () => {
@@ -46,7 +46,7 @@ describe('ContentActions', () => {
     await actions.copy('text');
     expect(actions.error()).toContain('Copy failed');
     expect(actions.error()).toContain('Permission denied');
-    expect(show).not.toHaveBeenCalledWith('Copied to clipboard');
+    expect(show).not.toHaveBeenCalledWith('shell.toast.copied');
     expect(show).toHaveBeenLastCalledWith('Copy failed: Permission denied');
     await actions.copy('text');
     expect(actions.error()).toBe('');
@@ -58,7 +58,7 @@ describe('ContentActions', () => {
     await actions.copy('first');
     copyText.mockRejectedValueOnce(new Error('Denied'));
     await actions.copy('second');
-    expect(show.mock.calls.map(call => call[0])).toEqual(['Copied to clipboard', 'Copy failed: Denied']);
+    expect(show.mock.calls.map(call => call[0])).toEqual(['shell.toast.copied', 'Copy failed: Denied']);
   });
 
   it('打印传递当前内容与取消信号，不声称打印成功', async () => {

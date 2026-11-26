@@ -55,7 +55,7 @@ export class FileDrop {
     this.imports.dropTarget.set(null);
     if (!this.imports.accepts(dir)) return;
     if (Array.from(data.items).some(item => item.kind === 'file' && item.webkitGetAsEntry()?.isDirectory)) {
-      this.toast.show('Drop files without folders.');
+      this.toast.show('shell.toast.dropNoFolders');
       return;
     }
     void this.imports.importFiles(dir, Array.from(data.files));

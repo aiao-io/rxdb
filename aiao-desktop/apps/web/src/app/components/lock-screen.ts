@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { NgOptimizedImage } from '@angular/common';
 import {
   Component,
@@ -48,6 +49,7 @@ export class LockScreen {
   private timers: ReturnType<typeof setTimeout>[] = [];
   protected readonly session = inject(Session);
   protected readonly system = inject(SystemState);
+  protected readonly i18n = useI18n();
 
   protected readonly phase = signal<LockPhase>('hidden');
   protected readonly wall = signal('');

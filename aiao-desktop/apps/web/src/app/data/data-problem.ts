@@ -12,60 +12,59 @@ export interface DataProblemView {
   readonly canErase: boolean;
 }
 
-const RELOAD = 'Reload this page to try again.';
-const ERASE =
-  'If the problem keeps coming back, you can erase the local data and start with a fresh desktop. This permanently removes the files, settings and app data saved in this browser for this site.';
-
 /**
  * 把本地数据的问题翻成界面文字（ADESK-US-106）：说清发生了什么、数据有没有动过、下一步怎么做。
  * 只有数据确实不可用的情形才给「抹掉」；降级保护与另一个标签页升级后的拒绝写入，数据都是好的，只让刷新。
+ * 文案走目录（命名空间 `desktop`，key 前缀 shell.dataProblem），`t` 由调用方提供。
  */
-export function describeProblem(problem: DataProblem): DataProblemView {
+export function describeProblem(
+  problem: DataProblem,
+  t: (key: string, params?: Record<string, unknown>) => string
+): DataProblemView {
+  const reload = t('shell.dataProblem.adviceReload');
+  const erase = t('shell.dataProblem.adviceErase');
   switch (problem.kind) {
     case 'too-new':
       return {
-        title: 'Aiao Desktop needs to be updated',
-        message: `The data saved in this browser was created by a newer version of Aiao Desktop (data version ${problem.found}). This page is older (data version ${problem.current}), so it did not open the data and nothing was changed.`,
-        advice: [
-          'Reload this page to get the latest version.',
-          'If you rolled the site back to an older deployment, roll forward again. Your files, settings and app data are safe.'
-        ],
+        title: t('shell.dataProblem.tooNewTitle'),
+        message: t('shell.dataProblem.tooNewMessage', { found: problem.found, current: problem.current }),
+        advice: [t('shell.dataProblem.tooNewAdviceLatest'), t('shell.dataProblem.tooNewAdviceRollback')],
         details: [],
         canErase: false
       };
     case 'stale':
       return {
-        title: 'Aiao Desktop was updated in another tab',
-        message: `Another tab upgraded the data saved in this browser (data version ${problem.found}). This page is still on data version ${problem.current}, so it stopped saving to keep your data safe.`,
-        advice: ['Reload this page to continue.'],
+        title: t('shell.dataProblem.staleTitle'),
+        message: t('shell.dataProblem.staleMessage', { found: problem.found, current: problem.current }),
+        advice: [t('shell.dataProblem.staleAdvice')],
         details: [],
         canErase: false
       };
     case 'corrupt':
       return {
-        title: 'The local data is damaged',
-        message: `${problem.reason}. Aiao Desktop did not repair or erase anything.`,
-        advice: [RELOAD, ERASE],
+        title: t('shell.dataProblem.corruptTitle'),
+        message: t('shell.dataProblem.corruptMessage', { reason: problem.reason }),
+        advice: [reload, erase],
         details: problem.missing,
         canErase: true
       };
     case 'incompatible':
       return {
-        title: 'The local data can’t be upgraded',
-        message: `This browser holds data from an older data version (${problem.from}) that this version of Aiao Desktop does not know how to upgrade. Nothing was changed.`,
-        advice: [RELOAD, ERASE],
+        title: t('shell.dataProblem.incompatibleTitle'),
+        message: t('shell.dataProblem.incompatibleMessage', { from: problem.from }),
+        advice: [reload, erase],
         details: [],
         canErase: true
       };
     case 'unavailable':
       return {
-        title: 'Local storage is unavailable',
-        message: `Aiao Desktop could not open the data saved in this browser: ${problem.message}`,
+        title: t('shell.dataProblem.unavailableTitle'),
+        message: t('shell.dataProblem.unavailableMessage', { reason: problem.message }),
         advice: [
-          RELOAD,
-          'Close other tabs of this site, and make sure the browser allows this site to store data.',
-          'If this is a private or incognito window, open the site in a normal window: some browsers don’t provide local storage in private windows.',
-          ERASE
+          reload,
+          t('shell.dataProblem.unavailableAdviceTabs'),
+          t('shell.dataProblem.unavailableAdvicePrivate'),
+          erase
         ],
         details: [],
         canErase: true

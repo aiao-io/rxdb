@@ -168,6 +168,6 @@ export class DockLayoutStore {
   }
 
   private save(layout: DockLayout): void {
-    this.preferences.set(DOCK_LAYOUT_KEY, layout).catch(() => this.toast.show('Couldn’t save the Dock layout.'));
+    this.preferences.set(DOCK_LAYOUT_KEY, layout).catch(() => this.toast.show('shell.toast.dockLayoutFailed'));
   }
 }

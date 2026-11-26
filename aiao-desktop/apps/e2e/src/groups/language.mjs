@@ -29,6 +29,7 @@ export const language = {
   keys: [
     'language.englishDefault',
     'language.switchToChinese',
+    'language.shellLocalized',
     'language.zhSearchBySection',
     'language.reloadKeepsChinese',
     'language.secondTabFollows',
@@ -58,6 +59,16 @@ export const language = {
     await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe('zh-Hans');
     await expect(win.locator('[data-lang="zh-Hans"] [data-primary]')).toBeVisible();
     result.switchToChinese = true;
+
+    /* 外壳走目录（AC8/9）：Apple 菜单与锁屏在 zh 下为中文。 */
+    await page.locator('#menubar .mb-item.apple').dispatchEvent('mousedown');
+    await expect(page.locator('#layer-menu .pop .mi', { hasText: '关于本机' })).toBeVisible();
+    const lockItem = page.locator('#layer-menu .pop .mi', { hasText: '锁定屏幕' });
+    await expect(lockItem).toBeVisible();
+    await lockItem.click();
+    await expect(page.locator('#lock')).toContainText('输入密码');
+    await page.locator('#lock').click();
+    result.shellLocalized = true;
 
     /* 中文分区搜索：搜「网络」命中 Network 分区，空态文案也是中文。 */
     const search = win.getByRole('textbox', { name: '搜索设置', exact: true });

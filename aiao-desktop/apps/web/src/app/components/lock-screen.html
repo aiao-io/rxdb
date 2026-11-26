@@ -1,13 +1,13 @@
 <div
   class="nosel"
   id="lock"
+  [attr.aria-label]="i18n.t('shell.lock.login')"
   [attr.data-on]="dataOn()"
   [class.opening]="phase() === 'opening' || phase() === 'out'"
   [class.out]="phase() === 'out'"
   [hidden]="phase() === 'hidden'"
   (click)="session.unlock()"
   (keydown.enter)="session.unlock()"
-  aria-label="Login"
   aria-modal="true"
   role="dialog"
   tabindex="-1"
@@ -21,12 +21,14 @@
     <img class="lk-av" [ngSrc]="avatar" alt="" data-av height="74" loading="eager" width="74" />
     <div class="lk-name">{{ system.user }}</div>
     <div class="lk-pw" aria-hidden="true">
-      <span>Enter Password</span>
+      <span>{{ i18n.t('shell.lock.enterPassword') }}</span>
       <i></i>
     </div>
-    <div class="lk-hint" aria-hidden="true">Click to log in</div>
+    <div class="lk-hint" aria-hidden="true">{{ i18n.t('shell.lock.clickToLogIn') }}</div>
     <!-- 读屏与键盘的登录入口：屏幕上没有可见的按钮（整屏点一下就登录），这个按钮只在键盘焦点到它时才显出一圈焦点环。 -->
-    <button class="lk-login sr" #login tabindex="0" type="button">Log in as {{ system.user }}</button>
+    <button class="lk-login sr" #login tabindex="0" type="button">
+      {{ i18n.t('shell.lock.logInAs', { name: system.user }) }}
+    </button>
   </div>
   <div class="lk-foot"></div>
 </div>

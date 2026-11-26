@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { DOCUMENT } from '@angular/common';
 import {
   Component,
@@ -62,6 +63,7 @@ export class BootScreen {
   private readonly document = inject(DOCUMENT);
   private readonly off = viewChild<ElementRef<HTMLElement>>('off');
   protected readonly session = inject(Session);
+  protected readonly i18n = useI18n();
   protected readonly progress = signal<number | null>(null);
   protected readonly leaving = signal(false);
 

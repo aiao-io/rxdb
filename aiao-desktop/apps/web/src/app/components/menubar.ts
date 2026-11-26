@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { Component, ElementRef, ViewEncapsulation, computed, inject, signal, viewChildren } from '@angular/core';
 
 import { StatusKey, StatusSnapshot, statusLabel } from '../services/aria';
@@ -49,6 +50,7 @@ const PANELS: Readonly<Partial<Record<StatusKey, PopoverComponent>>> = {
   }
 })
 export class Menubar {
+  protected readonly i18n = useI18n();
   private readonly menus = inject(DesktopMenus);
   private readonly menuBarMenus = inject(MenuBarMenus);
   private readonly popover = inject(PopoverService);
@@ -96,12 +98,12 @@ export class Menubar {
       muted: this.system.muted()
     };
     return {
-      bt: statusLabel('bt', snapshot),
-      vol: statusLabel('vol', snapshot),
-      batt: statusLabel('batt', snapshot),
-      wifi: statusLabel('wifi', snapshot),
-      spot: statusLabel('spot', snapshot),
-      cc: statusLabel('cc', snapshot)
+      bt: statusLabel('bt', snapshot, this.i18n.t),
+      vol: statusLabel('vol', snapshot, this.i18n.t),
+      batt: statusLabel('batt', snapshot, this.i18n.t),
+      wifi: statusLabel('wifi', snapshot, this.i18n.t),
+      spot: statusLabel('spot', snapshot, this.i18n.t),
+      cc: statusLabel('cc', snapshot, this.i18n.t)
     };
   });
 

@@ -57,7 +57,7 @@ export class PopoverEntryView implements OnInit {
         () => {
           if (!this.active()) return;
           this.popover.close(true);
-          this.toast.show('Could not load this panel. Reload the desktop to try again.');
+          this.toast.show('shell.toast.panelLoadFailed');
         }
       );
       return;

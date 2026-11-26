@@ -1,3 +1,5 @@
+import { I18n } from '@aiao/rxdb-i18n';
+import { provideI18n } from '@aiao/rxdb-i18n-angular';
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -5,6 +7,7 @@ import { FinderClipboard } from '../apps/finder/finder-clipboard';
 import { ForceQuitPanel } from '../components/menubar/force-quit-panel';
 import { DesktopData } from '../data/desktop-data';
 import { Preferences } from '../data/preferences';
+import { DESKTOP_CATALOGS, DESKTOP_I18N_NAMESPACE } from '../i18n/desktop-i18n';
 import { configureServices } from '../testing/angular';
 import { stubViewport } from '../testing/browser';
 import { testApps } from '../testing/desktop-apps';
@@ -51,6 +54,14 @@ function setup() {
     undoLabel: vi.fn(() => 'Undo')
   };
   configureServices([
+    provideI18n(
+      new I18n({
+        catalogs: DESKTOP_CATALOGS,
+        defaultLocale: 'en',
+        deviceLocale: 'en-US',
+        namespace: DESKTOP_I18N_NAMESPACE
+      })
+    ),
     DesktopMenus,
     SystemState,
     FinderPreferences,
@@ -147,7 +158,7 @@ describe('DesktopMenus 苹果菜单', () => {
     click(apple, 'set');
     expect(wm.open.mock.calls).toEqual([['about'], ['settings']]);
     click(apple, 'store');
-    expect(toast.show).toHaveBeenCalledExactlyOnceWith('App Store is not part of this build');
+    expect(toast.show).toHaveBeenCalledExactlyOnceWith('shell.menu.appStoreMissing');
   });
 
   it('睡眠、重启、关机与锁屏交给会话；注销也是回到锁屏，标题带用户名', () => {
@@ -430,7 +441,7 @@ describe('DesktopMenus Finder 菜单', () => {
     expect(help[0]).toEqual({ field: 'Search' });
     click(help, 'h');
     click(help, 'n');
-    expect(toast.show).toHaveBeenCalledExactlyOnceWith('Everything here is one HTML file.');
+    expect(toast.show).toHaveBeenCalledExactlyOnceWith('shell.menu.oneHtmlFile');
     expect(wm.open).toHaveBeenCalledExactlyOnceWith('about');
   });
 });
@@ -573,7 +584,7 @@ describe('DesktopMenus 标准菜单', () => {
     expect(help.find(item => isMenuCommand(item) && item.id === 'h')).toMatchObject({ label: 'Notes Help' });
     click(help, 'h');
     click(help, 'k');
-    expect(toast.show.mock.calls).toEqual([['No help needed — click things.'], ['⌘Space, ⌘W, ⌘Q, ⌃⌘F all work.']]);
+    expect(toast.show.mock.calls).toEqual([['shell.menu.noHelpNeeded'], ['shell.menu.shortcutHints']]);
   });
 
   it('应用可以覆盖其中某个菜单，也可以追加自己的菜单', () => {

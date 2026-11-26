@@ -73,7 +73,7 @@ export class GeneralPane {
     {
       label: 'general.softwareUpdate',
       icon: 'g-download',
-      run: () => this.toast.show(this.i18n.t('general.upToDateToast'))
+      run: () => this.toast.show('general.upToDateToast')
     },
     { label: 'general.storage', icon: 'g-hd' },
     { label: 'general.airdrop', icon: 'g-airdrop' },

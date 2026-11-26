@@ -83,20 +83,28 @@ export interface StatusSnapshot {
  * 状态图标的可读名称：图标本身只是个字形，读屏要听到「是什么」和「现在什么状态」。
  * 可见文字（电量的 84%）包含在名称里，语音控制按看到的字说话也叫得到它。时钟的名称就是它的可见文字，不在这里。
  */
-export function statusLabel(key: Exclude<StatusKey, 'clock'>, state: StatusSnapshot): string {
+export function statusLabel(
+  key: Exclude<StatusKey, 'clock'>,
+  state: StatusSnapshot,
+  t: (key: string, params?: Record<string, unknown>) => string
+): string {
   switch (key) {
     case 'bt':
-      return `Bluetooth, ${state.bluetooth ? 'on' : 'off'}`;
+      return t(state.bluetooth ? 'shell.status.bluetoothOn' : 'shell.status.bluetoothOff');
     case 'wifi':
-      return state.wifi ? `Wi-Fi, ${state.wifiName}` : 'Wi-Fi, off';
+      return state.wifi ? t('shell.status.wifiOn', { name: state.wifiName }) : t('shell.status.wifiOff');
     case 'batt':
-      return `Battery, ${state.battery}%${state.charging ? ', charging' : ''}`;
+      return state.charging ?
+          t('shell.status.batteryCharging', { percent: state.battery })
+        : t('shell.status.battery', { percent: state.battery });
     case 'vol':
-      return state.muted || state.volume === 0 ? 'Sound, muted' : `Sound, ${Math.round(state.volume * 100)}%`;
+      return state.muted || state.volume === 0 ?
+          t('shell.status.soundMuted')
+        : t('shell.status.soundVolume', { percent: Math.round(state.volume * 100) });
     case 'spot':
-      return 'Spotlight';
+      return t('shell.status.spotlight');
     case 'cc':
-      return 'Control Centre';
+      return t('shell.status.controlCentre');
   }
 }
 

@@ -2,6 +2,8 @@ import { I18n } from '@aiao/rxdb-i18n';
 import { describe, expect, it } from 'vitest';
 
 import { DESKTOP_CATALOGS, DESKTOP_DEFAULT_LOCALE, DESKTOP_I18N_NAMESPACE } from './desktop-i18n';
+import { DESKTOP_MESSAGES_EN } from './messages-en';
+import { DESKTOP_MESSAGES_ZH } from './messages-zh';
 
 /** 静态模式：不接库，直接验证目录与回退链（ADESK-US-132 AC1）。 */
 const staticI18n = (deviceLocale: string): I18n =>
@@ -51,5 +53,11 @@ describe('desktop 目录回退链', () => {
 
   it('双注册后 availableLocales 含 zh / zh-Hans / en', () => {
     expect([...staticI18n('en-US').availableLocales].sort()).toEqual(['en', 'zh', 'zh-Hans']);
+  });
+
+  it('中英文目录的 key 集合完全一致（新增 key 必须成对）', () => {
+    const en = Object.keys(DESKTOP_MESSAGES_EN).sort();
+    const zh = Object.keys(DESKTOP_MESSAGES_ZH).sort();
+    expect(zh).toEqual(en);
   });
 });

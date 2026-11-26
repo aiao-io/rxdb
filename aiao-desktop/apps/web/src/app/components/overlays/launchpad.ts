@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { DOCUMENT } from '@angular/common';
 import {
   Component,
@@ -88,11 +89,11 @@ interface LaunchpadDrag {
       <svg appIcon="g-search"></svg>
       <input
         #query
+        [attr.aria-label]="i18n.t('shell.overlay.searchLaunchpad')"
+        [placeholder]="i18n.t('shell.overlay.search')"
         (input)="search(query.value)"
         (keydown)="key($event)"
-        aria-label="Search Launchpad"
         data-lq
-        placeholder="Search"
         spellcheck="false"
       />
     </div>
@@ -296,6 +297,7 @@ interface LaunchpadDrag {
   `
 })
 export class Launchpad {
+  protected readonly i18n = useI18n();
   private readonly launcher = inject(AppLauncher);
   private readonly popover = inject(PopoverService);
   private readonly dockLayout = inject(DockLayoutStore);
@@ -652,7 +654,7 @@ export class Launchpad {
   }
 
   private save(order: LaunchpadOrder, folders: LaunchpadFolders): void {
-    this.preferences.set(ORDER_KEY, order).catch(() => this.toast.show('Couldn’t save the Launchpad layout.'));
+    this.preferences.set(ORDER_KEY, order).catch(() => this.toast.show('shell.toast.launchpadLayoutFailed'));
     this.preferences.set(FOLDERS_KEY, folders).catch(() => undefined);
   }
 

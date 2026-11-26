@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { Component, inject } from '@angular/core';
 
 import { DesktopWindow } from '../services/desktop-window';
@@ -16,19 +17,41 @@ import { Icon } from './icon';
   imports: [Icon],
   host: { class: 'tl' },
   template: `
-    <button class="c" (click)="close($event)" aria-label="Close" data-w="close" tabindex="0" type="button">
+    <button
+      class="c"
+      [attr.aria-label]="i18n.t('shell.window.close')"
+      (click)="close($event)"
+      data-w="close"
+      tabindex="0"
+      type="button"
+    >
       <svg appIcon="g-x"></svg>
     </button>
-    <button class="m" (click)="minimize($event)" aria-label="Minimize" data-w="min" tabindex="0" type="button">
+    <button
+      class="m"
+      [attr.aria-label]="i18n.t('shell.window.minimize')"
+      (click)="minimize($event)"
+      data-w="min"
+      tabindex="0"
+      type="button"
+    >
       <svg appIcon="g-minus"></svg>
     </button>
-    <button class="f" (click)="zoom($event)" aria-label="Zoom" data-w="zoom" tabindex="0" type="button">
+    <button
+      class="f"
+      [attr.aria-label]="i18n.t('shell.window.zoom')"
+      (click)="zoom($event)"
+      data-w="zoom"
+      tabindex="0"
+      type="button"
+    >
       <svg appIcon="g-chev-ud"></svg>
     </button>
   `
 })
 export class TrafficLights {
   private readonly win = inject(DesktopWindow);
+  protected readonly i18n = useI18n();
   private readonly wm = inject(WindowManager);
 
   protected close(event: MouseEvent): void {

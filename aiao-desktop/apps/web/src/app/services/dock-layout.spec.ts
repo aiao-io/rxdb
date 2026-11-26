@@ -206,7 +206,7 @@ describe('DockLayoutStore 固定、取消固定与调整顺序', () => {
     expect(store.pin('reminders')).toBe(true);
     await settle();
     expect(store.pinned('reminders')).toBe(true);
-    expect(toast.message()).toBe('Couldn’t save the Dock layout.');
+    expect(toast.message()).toBe('shell.toast.dockLayoutFailed');
   });
 });
 

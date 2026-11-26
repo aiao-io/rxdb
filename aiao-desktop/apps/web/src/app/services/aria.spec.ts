@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
+import { I18n } from '@aiao/rxdb-i18n';
+
+import { DESKTOP_CATALOGS, DESKTOP_I18N_NAMESPACE } from '../i18n/desktop-i18n';
 import { StatusSnapshot, ariaShortcut, menuItemAria, statusLabel, windowHidden } from './aria';
 
 const SNAPSHOT: StatusSnapshot = {
@@ -84,27 +87,33 @@ describe('menuItemAria 菜单项的角色与状态', () => {
 });
 
 describe('statusLabel 菜单栏状态图标的可读名称', () => {
+  const t = new I18n({
+    catalogs: DESKTOP_CATALOGS,
+    defaultLocale: 'en',
+    deviceLocale: 'en-US',
+    namespace: DESKTOP_I18N_NAMESPACE
+  }).t;
   it('蓝牙与 Wi-Fi 报出开关状态，Wi-Fi 开着时带网络名', () => {
-    expect(statusLabel('bt', SNAPSHOT)).toBe('Bluetooth, on');
-    expect(statusLabel('bt', { ...SNAPSHOT, bluetooth: false })).toBe('Bluetooth, off');
-    expect(statusLabel('wifi', SNAPSHOT)).toBe('Wi-Fi, Home');
-    expect(statusLabel('wifi', { ...SNAPSHOT, wifi: false })).toBe('Wi-Fi, off');
+    expect(statusLabel('bt', SNAPSHOT, t)).toBe('Bluetooth, on');
+    expect(statusLabel('bt', { ...SNAPSHOT, bluetooth: false }, t)).toBe('Bluetooth, off');
+    expect(statusLabel('wifi', SNAPSHOT, t)).toBe('Wi-Fi, Home');
+    expect(statusLabel('wifi', { ...SNAPSHOT, wifi: false }, t)).toBe('Wi-Fi, off');
   });
 
   it('电量带百分比，充电时多一句 charging（可见文字里的 84% 包含在名称里）', () => {
-    expect(statusLabel('batt', SNAPSHOT)).toBe('Battery, 84%');
-    expect(statusLabel('batt', { ...SNAPSHOT, charging: true })).toBe('Battery, 84%, charging');
+    expect(statusLabel('batt', SNAPSHOT, t)).toBe('Battery, 84%');
+    expect(statusLabel('batt', { ...SNAPSHOT, charging: true }, t)).toBe('Battery, 84%, charging');
   });
 
   it('音量取整成百分比；静音或音量为 0 报 muted', () => {
-    expect(statusLabel('vol', SNAPSHOT)).toBe('Sound, 63%');
-    expect(statusLabel('vol', { ...SNAPSHOT, muted: true })).toBe('Sound, muted');
-    expect(statusLabel('vol', { ...SNAPSHOT, volume: 0 })).toBe('Sound, muted');
+    expect(statusLabel('vol', SNAPSHOT, t)).toBe('Sound, 63%');
+    expect(statusLabel('vol', { ...SNAPSHOT, muted: true }, t)).toBe('Sound, muted');
+    expect(statusLabel('vol', { ...SNAPSHOT, volume: 0 }, t)).toBe('Sound, muted');
   });
 
   it('聚焦搜索与控制中心的名称固定', () => {
-    expect(statusLabel('spot', SNAPSHOT)).toBe('Spotlight');
-    expect(statusLabel('cc', SNAPSHOT)).toBe('Control Centre');
+    expect(statusLabel('spot', SNAPSHOT, t)).toBe('Spotlight');
+    expect(statusLabel('cc', SNAPSHOT, t)).toBe('Control Centre');
   });
 });
 

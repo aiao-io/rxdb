@@ -16,29 +16,29 @@
         }
       </ul>
       @if (failure()) {
-        <p class="dp-failure" data-dp-failure role="alert">Couldn’t erase the local data: {{ failure() }}</p>
+        <p class="dp-failure" data-dp-failure role="alert">
+          {{ i18n.t('shell.dataProblem.eraseFailed', { reason: failure() }) }}
+        </p>
       }
       @if (confirming()) {
-        <p class="dp-warning" data-dp-confirm>
-          Erase all desktop data? Files, settings, app records and previous restore copies will be permanently removed.
-          Games, terminal runtime images, remote apps and downloaded backups are kept. If interrupted, erasing resumes
-          when you reload. Close other desktop tabs first.
-        </p>
+        <p class="dp-warning" data-dp-confirm>{{ i18n.t('shell.dataProblem.eraseConfirm') }}</p>
         <div class="dp-actions">
           <button class="btn" [disabled]="erasing()" (click)="cancel()" data-dp-cancel tabindex="0" type="button">
-            Cancel
+            {{ i18n.t('shell.dataProblem.cancel') }}
           </button>
           <button class="btn danger" [disabled]="erasing()" (click)="erase()" data-dp-erase tabindex="0" type="button">
-            {{ erasing() ? 'Erasing…' : 'Erase and Restart' }}
+            {{ erasing() ? i18n.t('shell.dataProblem.erasing') : i18n.t('shell.dataProblem.eraseAndRestart') }}
           </button>
         </div>
       } @else {
         <div class="dp-actions">
           @if (problem.canErase) {
-            <button class="btn" (click)="ask()" data-dp-ask-erase tabindex="0" type="button">Erase Local Data…</button>
+            <button class="btn" (click)="ask()" data-dp-ask-erase tabindex="0" type="button">
+              {{ i18n.t('shell.dataProblem.eraseLocalData') }}
+            </button>
           }
           <button class="btn pri" (click)="reload()" data-autofocus data-dp-reload tabindex="0" type="button">
-            Reload
+            {{ i18n.t('shell.dataProblem.reload') }}
           </button>
         </div>
       }

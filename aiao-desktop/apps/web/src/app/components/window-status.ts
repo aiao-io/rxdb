@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { Component, ViewEncapsulation, inject } from '@angular/core';
 
 import { DesktopWindow } from '../services/desktop-window';
@@ -23,6 +24,7 @@ import { TrafficLights } from '../shared/traffic-lights';
 export class WindowStatus {
   private readonly wm = inject(WindowManager);
   protected readonly win = inject(DesktopWindow);
+  protected readonly i18n = useI18n();
 
   protected retry(): void {
     this.wm.retry(this.win.id);

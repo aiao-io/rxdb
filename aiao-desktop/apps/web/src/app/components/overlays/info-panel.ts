@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { Component, ElementRef, computed, inject, input, linkedSignal } from '@angular/core';
 
 import { extensionOf } from '../../disk/disk-kinds';
@@ -47,7 +48,12 @@ export function showInfoPanel(
   selector: 'app-info-panel',
   imports: [Icon],
   template: `
-    <div class="ip" [attr.aria-label]="'Get Info — ' + node().name" data-info-panel role="dialog">
+    <div
+      class="ip"
+      [attr.aria-label]="i18n.t('shell.infoPanel.getInfo', { name: node().name })"
+      data-info-panel
+      role="dialog"
+    >
       <div class="head">
         <div class="pic"><svg [appIcon]="node().icon"></svg></div>
         <div class="nm">{{ node().name }}</div>
@@ -175,6 +181,7 @@ export function showInfoPanel(
   `
 })
 export class InfoPanel {
+  protected readonly i18n = useI18n();
   private readonly opener = inject(FileOpener);
   private readonly popover = inject(PopoverService);
   private readonly toast = inject(Toast);
@@ -193,9 +200,9 @@ export class InfoPanel {
   });
   protected readonly where = computed(() => {
     const path = this.node().path;
-    if (!path) return 'Not on Macintosh HD';
+    if (!path) return this.i18n.t('shell.infoPanel.notOnHd');
     const parent = parentOf(path);
-    return parent.length ? `/${parent.join('/')}` : 'Macintosh HD';
+    return parent.length ? `/${parent.join('/')}` : this.i18n.t('shell.infoPanel.macintoshHd');
   });
 
   readonly node = input.required<FsNode>();

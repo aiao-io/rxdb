@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import {
   Component,
   ElementRef,
@@ -64,7 +65,7 @@ interface SpotlightGroup {
     id: 'spot',
     class: 'nosel',
     role: 'dialog',
-    'aria-label': 'Spotlight',
+    '[attr.aria-label]': 'aria()',
     'aria-modal': 'true',
     '[class.out]': "overlays.spotlight() === 'closing'"
   },
@@ -77,19 +78,26 @@ interface SpotlightGroup {
           #query
           [attr.aria-activedescendant]="activeId()"
           [attr.aria-expanded]="hasResults()"
+          [attr.aria-label]="i18n.t('shell.overlay.spotlightSearch')"
+          [placeholder]="i18n.t('shell.overlay.spotlightSearch')"
           (input)="search(query.value)"
           (keydown)="key($event)"
           aria-autocomplete="list"
           aria-controls="spot-results"
-          aria-label="Spotlight Search"
           autocomplete="off"
           data-sq
-          placeholder="Spotlight Search"
           role="combobox"
           spellcheck="false"
         />
       </div>
-      <div class="res scroll" id="spot-results" #results aria-label="Results" data-sres role="listbox">
+      <div
+        class="res scroll"
+        id="spot-results"
+        #results
+        [attr.aria-label]="i18n.t('shell.overlay.results')"
+        data-sres
+        role="listbox"
+      >
         @for (group of groups(); track group.title) {
           <div [attr.aria-label]="group.title" role="group">
             <div class="cat" aria-hidden="true">{{ group.title }}</div>
@@ -144,6 +152,9 @@ interface SpotlightGroup {
   `
 })
 export class Spotlight {
+  protected readonly i18n = useI18n();
+  /** 宿主上的对话框名称：host 装饰器里不能引用 this，经信号绑定。 */
+  protected readonly aria = computed(() => this.i18n.t('shell.overlay.spotlight'));
   private readonly appOrder = inject(ApplicationRegistry).launchOrder;
   private readonly apps = inject(ApplicationRegistry).apps;
   private readonly launcher = inject(AppLauncher);
@@ -160,22 +171,37 @@ export class Spotlight {
   private readonly resultsBox = viewChild.required<ElementRef<HTMLElement>>('results');
   private hits: SpotlightHit[] = [];
   private readonly actions: readonly SpotlightHit[] = [
-    { name: 'Toggle Dark Mode', kind: 'Action', icon: 'g-moon', run: () => this.theme.toggle() },
-    { name: 'Open Launchpad', kind: 'Action', icon: 'app-launchpad', run: () => this.overlays.openLaunchpad() },
-    { name: 'Notification Centre', kind: 'Action', icon: 'g-cc', run: () => this.overlays.openNotifications() },
     {
-      name: 'Empty Trash',
+      name: this.i18n.t('shell.overlay.toggleDarkMode'),
+      kind: 'Action',
+      icon: 'g-moon',
+      run: () => this.theme.toggle()
+    },
+    {
+      name: this.i18n.t('shell.overlay.openLaunchpad'),
+      kind: 'Action',
+      icon: 'app-launchpad',
+      run: () => this.overlays.openLaunchpad()
+    },
+    {
+      name: this.i18n.t('shell.overlay.notificationCentre'),
+      kind: 'Action',
+      icon: 'g-cc',
+      run: () => this.overlays.openNotifications()
+    },
+    {
+      name: this.i18n.t('shell.overlay.emptyTrash'),
       kind: 'Action',
       icon: 'app-trash',
       run: () => this.launcher.activate('trash')
     },
     {
-      name: 'Change Wallpaper',
+      name: this.i18n.t('shell.overlay.changeWallpaper'),
       kind: 'Action',
       icon: 'g-globe',
       run: () => this.wm.open('settings', { section: 'wallpaper' })
     },
-    { name: 'Sleep', kind: 'Action', icon: 'g-power', run: () => this.session.sleepNow() }
+    { name: this.i18n.t('shell.overlay.sleep'), kind: 'Action', icon: 'g-power', run: () => this.session.sleepNow() }
   ];
 
   protected readonly overlays = inject(Overlays);
@@ -294,18 +320,24 @@ export class Spotlight {
     /* 同名时优先真正的应用，而不是磁盘上的 .app 文件。 */
     const seen = new Set(apps.map(app => `${app.name.toLowerCase()}.app`));
     const sections: [string, readonly SpotlightHit[]][] = [
-      ['Calculator', calculation ? [calculation] : []],
-      ['Conversion', conversionHit ? [conversionHit] : []],
-      ['Top Hit', [apps[0] ?? actions[0] ?? found[0]].filter((hit): hit is SpotlightHit => hit !== undefined)],
+      [this.i18n.t('shell.overlay.calculator'), calculation ? [calculation] : []],
+      [this.i18n.t('shell.overlay.conversion'), conversionHit ? [conversionHit] : []],
       [
-        'Applications',
+        this.i18n.t('shell.overlay.topHit'),
+        [apps[0] ?? actions[0] ?? found[0]].filter((hit): hit is SpotlightHit => hit !== undefined)
+      ],
+      [
+        this.i18n.t('shell.overlay.applications'),
         [...apps, ...found.filter(hit => hit.kind === 'Application' && !seen.has(hit.name.toLowerCase()))]
       ],
-      ['Actions', [...actions, ...(showAll ? [showAll] : [])]],
-      ['Documents', found.filter(hit => hit.kind !== 'Folder' && hit.kind !== 'Application')],
-      ['Folders', found.filter(hit => hit.kind === 'Folder')],
-      ['Notes', notes],
-      ['Suggested Websites', [web]]
+      [this.i18n.t('shell.overlay.actions'), [...actions, ...(showAll ? [showAll] : [])]],
+      [
+        this.i18n.t('shell.overlay.documents'),
+        found.filter(hit => hit.kind !== 'Folder' && hit.kind !== 'Application')
+      ],
+      [this.i18n.t('shell.overlay.folders'), found.filter(hit => hit.kind === 'Folder')],
+      [this.i18n.t('shell.overlay.notes'), notes],
+      [this.i18n.t('shell.overlay.suggestedWebsites'), [web]]
     ];
     return sections.flatMap(([title, items]) => this.group(title, items));
   }
@@ -321,7 +353,7 @@ export class Spotlight {
   private fileHit(node: FsNode): SpotlightHit {
     const path = this.fs.findPath(node);
     const kind =
-      node.kind === 'folder' ? 'Folder'
+      node.kind === 'folder' ? this.i18n.t('shell.overlay.folder')
       : node.name.endsWith('.app') ? 'Application'
       : node.k || 'Document';
     const run =
