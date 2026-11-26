@@ -1,16 +1,16 @@
 {
-  "commit": "c7d79611a69772c675fc2ba45e3191da683f1cc4",
-  "frozenAbsolute": {
-    "commit": 455.0622204999818
-  },
+  "commit": "a6968468cf6df72ece3a101a7771b1f9c6682958",
+  "runs": 10,
   "medianRatios": {
-    "status": 2.045034336533724,
-    "diff": 2.251099541496975,
-    "restore": 13.133795671732754,
-    "commit": 15.205826253663748
+    "status": 1.8015710112646057,
+    "diff": 2.0155755916647284,
+    "restore": 14.281345839688992,
+    "commit": 16.865321335951393
   },
+  "frozenAbsolute": {
+    "commit": 567.1800054999912
+  },
+  "runnerProfileHash": "0f4e8d2c7e3432cfe4f0a59cb7c1df3b9aa91fb2ee6b129c28cb29fbacc96194",
   "ratioProfile": "Linux linux x64 / AMD EPYC 9V45 96-Core Processor / node 26",
-  "regeneratedBecause": "c7d79611 已在 Darwin arm64 / Apple M1 Max / node 26 画像上过相对门禁（本机 bench-working-tree PASS），INTEL(R) XEON(R) PLATINUM 8573C 在 PR CI 反复出现（runs 36251125711、36310421691），为其冻结 reference",
-  "runnerProfileHash": "1b534407e04d7c75c3dea37e8f0bc544a9bc97930e09259af6585d9f7aaef94f",
-  "runs": 10
+  "regeneratedBecause": "9V74/8573C 等 CI 画像的旧 reference 冻结于 worktree 重构前 b1337e76，重构 #122 与 sqlite-wasm 1.3.1 后写项 ratio 系统性上移：本 PR 基准路径（与 main 一致）在 7763 旧画像上通过相对门禁（restore 12.16 / commit 14.24），9V74 上 restore 13.0-14.1 vs 预算 13.23、commit 15.75-16.28 vs 15.54，8573C 上 commit 17.24 vs 17.10。原冻结未记录负载，复冻起跑时无已知负载；复冻只为对齐重构后的真实画像水平，候选提交已在 7763 旧基线上过门禁。"
 }
