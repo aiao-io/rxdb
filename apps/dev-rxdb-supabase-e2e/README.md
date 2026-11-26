@@ -17,8 +17,10 @@
 `e2e-remote` 受影响时启动 Supabase 栈；本地-only 用例仍不连远端。
 
 推拉、撤销与重做都在顶栏（epic-016），用例一律经顶栏的锚点：`sync-pull` / `sync-push`，
-`workbench-sync-group` 上的 `data-sync-round` 每结束一轮加一（`src/support/workbench.ts` 的 `pull` / `push` 等它），
-被拒的推送在同步中心里（`openSidePanel(page, 'sync')`），商品页的「模拟服务端变更」要先经页头开关打开（`openSidePanel(page, 'server')`）。
+`workbench-sync-group` 上的 `data-sync-round` 每结束一轮加一（`src/support/workbench.ts` 的 `pull` / `push` 等它，
+再按 `data-source="sync-round-<轮次>"` 找这一轮的消息）。操作结果都是右下角的消息（`toast`），成功的几秒后自己消失，拿到就断言；
+被拒的推送在同步中心里（`openSidePanel(page, 'sync')`），商品页的「模拟服务端变更」要先经页头开关打开（`openSidePanel(page, 'server')`），
+操作历史在左侧一栏（`openHistory(page)`，宽屏默认开着）。
 
 `e2e-remote` 分两轮跑：
 

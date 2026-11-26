@@ -60,8 +60,8 @@ INVEST 检查清单:
 - 各页登记的作用域：Todo → `Todo`；商品 → `CatalogItem`；订单（阶段 B）→ 订单的实体组。
 - 快捷键：⌘/Ctrl+Z 撤销，⌘/Ctrl+Shift+Z 与 Ctrl+Y 重做；焦点在输入框、文本域、下拉框、可编辑区域里，或输入法正在组字时不拦截，交给浏览器原生的撤销。
 - 不可撤销时给原因，悬停与读屏都读得到：推送或拉到改写之后撤销栈已清空（US-034）、下一步已被子分支继承（`undoBarrier$`）、访客没有商品写入口。
-- 操作历史面板（右侧面板的一个视图，同一时刻只开一个）：本页作用域、本次会话的历史，最新在前；每条写操作类型、描述、相对时间，以及「已撤销」「已失效」「被拒」标记；展开看逐字段的改之前与改之后；面板头写作用域与可撤销、可重做次数。
-- 页面骨架：三页同一最大宽度；页头是标题、一句说明与页面动作位；提示区（本地模式、访客、本页语境的说明）用同一个组件；写入成功的提示与失败原因显示在发起写入的那张卡片里，订单页拆开写入与同步共用的 `#error`。
+- 操作历史在左侧一栏，三页统一：宽屏（≥ 1024px）默认开着，开关在顶栏最左边，可以收起；窄屏默认收起，打开是从左边盖住页面的抽屉。内容是本页作用域、本次会话的历史，最新在前；每条写操作类型、描述、相对时间，以及「已撤销」「已失效」「被拒」标记；展开看逐字段的改之前与改之后；栏头写作用域与可撤销、可重做次数。右侧面板（同步中心、模拟服务端变更）同一时刻只开一个，与左侧的操作历史互不影响。
+- 页面骨架：三页同一最大宽度；页头是标题、一句说明与页面动作位；提示区（本地模式、访客、本页语境的说明）用同一个组件；写入成功的提示弹成消息（toast），失败原因显示在发起写入的那张卡片或编辑框里，订单页拆开写入与同步共用的 `#error`。
 - e2e：Todo 与商品的撤销、重做改走顶栏锚点；阶段 B 新增订单撤销跨实体事务的用例。
 
 ### Out of Scope
@@ -86,9 +86,9 @@ INVEST 检查清单:
 | 6   | 访客打开商品页                                 | 看编辑组                                     | 撤销、重做不可点，原因是「访客只读」                                                                             | ✅   |
 | 7   | Todo 页有三条可撤销的操作                      | 打开操作历史，撤销一条                       | 面板列出三条、最新在前，面板头写作用域 Todo 与「可撤销 3」；撤销后那条标「已撤销」，面板头变为可撤销 2、可重做 1 | ✅   |
 | 8   | 操作历史里有一条修改                           | 展开                                         | 逐字段显示改之前与改之后                                                                                         | ✅   |
-| 9   | 操作历史开着                                   | 打开同步中心，或商品的「模拟服务端变更」     | 右侧同一时刻只开一个面板；关掉之后焦点回到打开它的那个按钮                                                       | ✅   |
+| 9   | 宽屏，操作历史在左侧开着                       | 打开同步中心，再打开商品的「模拟服务端变更」 | 操作历史仍开着；右侧同一时刻只开一个面板；关掉之后焦点回到打开它的那个按钮                                       | ✅   |
 | 10  | 三页                                           | 对照页面骨架；在订单页提交只含空格的客户名称 | 三页同一最大宽度、同一页头结构与提示组件；订单页的「先填客户名称」显示在客户卡片里，不在别的卡片                 | ✅   |
-| 11  | 375px 宽的窄屏                                 | 打开三页，再打开操作历史                     | 编辑组只剩图标，页面不出现横向滚动；操作历史是盖住页面、带遮罩的抽屉                                             | ✅   |
+| 11  | 375px 宽的窄屏                                 | 打开三页，再打开操作历史                     | 编辑组只剩图标，页面不出现横向滚动；操作历史默认收起，打开是从左边盖住页面、带遮罩的抽屉                         | ✅   |
 
 ### 阶段 B
 
@@ -103,11 +103,11 @@ INVEST 检查清单:
 
 验收证据（单测：`pnpm nx test dev-rxdb-supabase`；远端 e2e：按 README 起栈后 `pnpm nx run dev-rxdb-supabase-e2e:e2e-remote`）：
 
-- AC#1、#10：`apps/dev-rxdb-supabase-e2e/src/workbench.spec.ts` 的「三页的顶栏一样、内容同宽」；`app-header.spec.ts`；订单页的写入失败位置见 `orders/orders.page.spec.ts`「写入失败的原因显示在发起写入的那张卡片里」。
+- AC#1、#10：`apps/dev-rxdb-supabase-e2e/src/workbench.spec.ts` 的「三页的顶栏一样、内容同宽、操作历史在左侧默认开着」；`app-header.spec.ts`；订单页的写入失败位置见 `orders/orders.page.spec.ts`「写入失败的原因显示在发起写入的那张卡片里」。
 - AC#2、#4：`workbench.spec.ts` 的「撤销只撤本页；输入框里的 ⌘/Ctrl+Z 只撤文字」；`page-workbench.spec.ts`（快捷键与可编辑目标）。
 - AC#3、#5、#6：`apps/dev-rxdb-supabase-e2e/src/catalog-local-writes.spec.ts`（快捷键、推送后与访客的不可用原因）；`history-actions.spec.ts`、`catalog/catalog.page.spec.ts`。
 - AC#7、#8：`operation-history-panel.spec.ts`、`field-diff.spec.ts`、`history-describe.spec.ts`。
-- AC#9：`side-panel.spec.ts`（同一时刻只开一个、关掉后焦点回到开关）。
+- AC#9：`side-panel.spec.ts`（右侧同一时刻只开一个、关掉后焦点回到开关）、`history-column.spec.ts`（左侧一栏的开合与焦点）。
 - AC#11：`workbench.spec.ts` 的 375px 用例。
 - AC#12～#15：`apps/dev-rxdb-supabase-e2e/src/orders-sync.spec.ts` 的「US-231 AC#12～#14」用例；作用域与级联撤销的语义另由 US-316、US-318 的单测与 PGlite 用例守。
 
@@ -127,6 +127,7 @@ INVEST 检查清单:
 - `apps/dev-rxdb-supabase/src/app/app-header.ts` — 按登记渲染编辑组
 - `apps/dev-rxdb-supabase/src/app/operation-history-panel.ts`（新）— 操作历史视图
 - `apps/dev-rxdb-supabase/src/app/side-panel.ts`（新，或随 US-232 / US-230 先建）— 右侧面板壳
+- `apps/dev-rxdb-supabase/src/app/history-column.ts`、`panel-frame.ts`（新）— 左侧的操作历史一栏；两侧面板共用的框（标题、关闭、Esc 与窄屏遮罩）
 - `apps/dev-rxdb-supabase/src/app/todo/todo.page.ts`、`todo.page.html`、`catalog/catalog-synced-panel.ts`、`catalog/catalog-local-writes.ts`、`orders/orders.page.ts` — 移除页面内的撤销、重做与历史侧栏，改为登记；统一页面骨架与写入反馈
 - `apps/dev-rxdb-supabase/src/app/history-actions.ts`（新）— 作用域的撤销、重做命令与不可用原因
 - `apps/dev-rxdb-supabase-e2e/src/*.spec.ts` — 撤销、重做改走顶栏；订单撤销用例

@@ -77,7 +77,7 @@ INVEST 检查清单:
 ## 技术笔记
 
 - 为什么不用模态弹框：服务端模拟器的用法是「改远端 → 拉取 → 看本机怎么变」。模态会盖住本机列表，还得先关掉才能点拉取，正好丢掉原两栏布局想保住的那一步（改完不用翻找）。宽屏非模态抽屉保住这一步，同时把主界面让给本机数据；窄屏放不下两栏，才退成带遮罩的抽屉。
-- 宽屏是普通的侧栏元素（`role="complementary"` 加标题），不用 `<dialog>.showModal()`：它让抽屉以外的页面变成惰性，点不了拉取。窄屏是 `role="dialog"`、`aria-modal="true"` 的抽屉，宽度留出左边一条遮罩（`w-[calc(100%-3rem)]`）：占满整屏宽会把遮罩全盖住，没处可点。Esc 由面板槽处理，面板里的 `<dialog>` 先处理自己的 Esc。
+- 宽屏是普通的侧栏元素（`role="complementary"` 加标题），不用 `<dialog>.showModal()`：它让抽屉以外的页面变成惰性，点不了拉取。窄屏是 `role="dialog"`、`aria-modal="true"` 的抽屉，宽度留出左边一条遮罩（`w-[calc(100%-3rem)]`）：占满整屏宽会把遮罩全盖住，没处可点。Esc 与遮罩由两侧面板共用的框（`panel-frame.ts`）处理，面板里的 `<dialog>` 先处理自己的 Esc。服务端操作成功的提示弹成消息（toast），失败原因留在面板与编辑框里。
 - 抽屉内容的注入：`CatalogRemoteState`、`CatalogLocalWrites` 是 `CatalogPage` 的页面级 providers。面板由应用壳的右侧面板槽渲染，商品页把内容写在 `<ng-template cdkPortal>` 里、经 `RightPanel.provide('server', …)` 交过去，`TemplatePortal` 的注入器跟着模板的声明处走，页面级服务照样拿得到；离开商品页时撤回，开着就一并关上。
 - e2e 的辅助是 `support/workbench.ts` 的 `openSidePanel(page, 'server')`，在原有用到服务端模拟器的步骤之前调用；`server-item`、「加入星河零售」「退出星河零售」这些锚点不变。
 

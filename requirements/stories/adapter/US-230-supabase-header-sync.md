@@ -62,9 +62,9 @@ INVEST 检查清单:
 - 页面登记服务：登记、注销、顶栏按登记渲染；同一时刻只有当前页面的登记生效。
 - 顶栏同步组：「拉取」调 `syncManager.pull({ fetchAll: true })`，「推送」调 `syncManager.push()`；按钮上是待拉 ↓M、待推 ↑N（`pullableCount$` / `pushableCount$`），并标明「整机」；进行中显示进度、两个按钮都不可点；不可用时悬停与读屏都能读到原因。
 - 轮次计数：顶栏同步组带 `data-sync-round`，每轮推拉结束（成功或失败）加 1，取代 `catalog-sync`、`orders-sync` 上的 `data-sync-count`，e2e 的等待写法不变。
-- 一行结果：拉到多少、落库多少、推上去多少、被拒多少；有失败仓库时写出仓库与原因；推上去至少一条时写明「推送前的修改不能再撤销」（与 US-034 一致）。
+- 每轮结果弹一条消息（toast，右下角，盖在页面与两侧面板之上）：拉到多少、落库多少、推上去多少、被拒多少；有失败仓库时写出仓库与原因；推上去至少一条时写明「推送前的修改不能再撤销」（与 US-034 一致）。成功的几秒后自己消失，有被拒的（警告）与失败的（错误）留到用户关掉；最近一轮的结果另在同步中心的「最近一次」里。
 - 同步中心（右侧面板的一个视图，与 US-231、US-232 共用面板壳，同一时刻只开一个）：当前身份与本地库、当前分支（只读）、在线状态、待推待拉数、按实体分列的待推待拉、最近一次结果、被拒清单；有被拒时顶栏开关上带标记。
-- 会话已在别的标签页换成另一个身份（`RxDBIdentityMismatchError`）时，结果行给「重新加载」，替代商品面板里原有的那颗按钮。
+- 会话已在别的标签页换成另一个身份（`RxDBIdentityMismatchError`）时，错误消息上给「重新加载」，替代商品面板里原有的那颗按钮。
 - 三页移除推拉控件与各自的被拒清单；页面只留本页语境的说明：商品同步规则下那句「改了规则之后点「同步」」改为指向顶栏「拉取」，订单页保留 [`describeDependencyRejections`](../../../apps/dev-rxdb-supabase/src/app/orders/orders-interactions.ts) 给出的「它的客户已不在远端」说明。
 - 本地模式（没有 Supabase 配置）顶栏不出现同步组。
 - e2e：remote-sync、catalog-sync、catalog-local-writes、orders-sync 的推拉一律经顶栏，场景一条不删。
@@ -93,10 +93,10 @@ INVEST 检查清单:
 | 4   | 访客关注了「家居」；Alice 在模拟服务端把一件公开商品收回 | 访客点「拉取」                  | 新匹配的行补快照，收回的那件从本机消失（US-033 原有的分区同步 e2e 改走顶栏后照样通过）                                           | ✅   |
 | 5   | 本地模式（没有 Supabase 配置）                           | 打开 Todo 页                    | 顶栏没有同步组，页面里也没有残留的推拉按钮                                                                                       | ✅   |
 | 6   | Alice 本机没有待推送的修改                               | 看「推送」                      | 不可点，悬停与读屏都能读到「没有待推送的修改」                                                                                   | ✅   |
-| 7   | 任一已连接的身份                                         | 点「拉取」或「推送」            | 进行中两颗按钮都不可点并显示进度；结束后 `data-sync-round` 加 1，结果行写明条数；失败时写出失败的仓库与原因                      | ✅   |
-| 8   | Bob 已在远端删了一条 Todo，Alice 本机改了它              | Alice 推送                      | 结果行写「被拒 1 条」，同步中心开关上出现标记；打开同步中心看到这条被拒：实体、操作、原因「已被删除」与代码                      | ✅   |
+| 7   | 任一已连接的身份                                         | 点「拉取」或「推送」            | 进行中两颗按钮都不可点并显示进度；结束后 `data-sync-round` 加 1，弹出的消息写明条数；失败时写出失败的仓库与原因                  | ✅   |
+| 8   | Bob 已在远端删了一条 Todo，Alice 本机改了它              | Alice 推送                      | 消息写「被拒 1 条」并留到关掉，同步中心开关上出现标记；打开同步中心看到这条被拒：实体、操作、原因「已被删除」与代码              | ✅   |
 | 9   | Bob 删了一位客户并推送；Alice 没拉取就给他新建订单并推送 | 看订单页                        | 订单页仍指出「它的客户「X」已不在远端」（`orders-dependency-notices`），被拒的订单列在同步中心                                   | ✅   |
-| 10  | 另一个标签页换了身份                                     | 本页点「拉取」                  | 被身份守卫拦下，结果行写明身份不匹配并给「重新加载」，本地数据不动                                                               | ✅   |
+| 10  | 另一个标签页换了身份                                     | 本页点「拉取」                  | 被身份守卫拦下，错误消息写明身份不匹配并给「重新加载」，本地数据不动                                                             | ✅   |
 | 11  | Alice 在订单页新建一位客户、在商品页改了一件商品，未推送 | 在 Todo 页打开同步中心          | 按实体列出待推：客户与商品各一条，Todo 没有；读的人一眼看出推送会带上别的页的修改                                                | ✅   |
 | 12  | 375px 宽的窄屏                                           | 打开三页，再打开同步中心        | 顶栏同步组只剩图标与数字，页面不出现横向滚动；同步中心是盖住页面的抽屉，左边留一条遮罩；Esc 与点遮罩都能关，关掉后焦点回到开关   | ✅   |
 | 13  | 按 README 起好本地栈                                     | 跑远端 e2e                      | remote-sync、catalog-sync、catalog-local-writes、orders-sync 的场景一条不少，推拉全部经顶栏的锚点                                | ✅   |
@@ -127,10 +127,10 @@ INVEST 检查清单:
 - AC#2、#17、#20、#21：`workbench.spec.ts` 的「在商品页推送，Todo 与订单页没推的修改一起推上去」；清单分组与改前改后另由 `sync-center.spec.ts`、`operation-history-panel.spec.ts` 覆盖。
 - AC#3、#4：`apps/dev-rxdb-supabase-e2e/src/catalog-sync.spec.ts` 的分区同步用例（拉取经顶栏）。
 - AC#5：`apps/dev-rxdb-supabase-e2e/src/home.spec.ts` 的本地模式用例（`pnpm nx run dev-rxdb-supabase-e2e:e2e`）；`app-header.spec.ts`。
-- AC#7：`sync-commands.spec.ts`（进行中两颗都不可点、轮次与结果）、`sync-outcome.spec.ts`（条数与失败仓库）；e2e 全部经 `support/workbench.ts` 按 `data-sync-round` 等一轮结束。
+- AC#7：`sync-commands.spec.ts`（进行中两颗都不可点、轮次、结果与消息）、`sync-outcome.spec.ts`（条数与失败仓库）、`toasts.spec.ts`；e2e 全部经 `support/workbench.ts` 按 `data-sync-round` 等一轮结束、按 `data-source` 找这一轮的消息。
 - AC#8：`apps/dev-rxdb-supabase-e2e/src/remote-sync.spec.ts` 的 gone 被拒用例。
 - AC#9：`apps/dev-rxdb-supabase-e2e/src/orders-sync.spec.ts` 的「AC#1～#4」用例。
-- AC#10：`remote-sync.spec.ts` 的「another tab switched identity」用例；`sync-commands.spec.ts`、`workbench-status.spec.ts`。
+- AC#10：`remote-sync.spec.ts` 的「another tab switched identity」用例；`sync-commands.spec.ts`、`toast-outlet.spec.ts`。
 - AC#11：`workbench.spec.ts` 的「撤销只撤本页……同步中心按实体列出待推」。
 - AC#12：`workbench.spec.ts` 的 375px 用例；`side-panel.spec.ts`。
 - AC#13：`e2e-remote` 全部通过。
@@ -145,13 +145,15 @@ INVEST 检查清单:
 - 拉取带 `fetchAll: true`：全局 [`pull()`](../../../packages/rxdb-plugin-sync/src/pull.ts) 本来就覆盖按条件与按区同步的仓库（`pullFilterRepositories`、`pullBucketedRepositories`），带上 `fetchAll` 才与原商品「同步」的一次拉到底等价。Todo 与订单原先不带，改了之后一次拉完所有页，用户不用连点。
 - 访客的全局拉取（dev 栈实测）：访客的 Todo 与订单解析为 `local`，不推不拉；批量日志拉取对 anon 发出的 `rxdb_change` 查询只涉及在线浏览实体与系统实体，返回 200；随后按区拉商品。取消关注「家居」后整块移除，重新关注后拉到它的公开商品、成本显示「无权读取」，没有失败仓库，待拉归 0。复验：以访客打开商品页，经 Angular 调试接口（`ng.ɵgetInjectorProviders`）取到 `RxDB` 实例，调 `syncManager.pull({ fetchAll: true })`，对照网络请求与本机商品；AC#3、#4 的真栈用例是正式入口。
 - 「推送」对访客天然不可点：访客的 Todo 与订单只存本地、商品写入口关闭，`pushableCount$` 为 0，不需要单独的身份判断。
-- 推上去至少一条时 [`SyncManager.push()`](../../../packages/rxdb-plugin-sync/src/SyncManager.ts) 调 `clearSyncedHistory()`，清的是整条分支的撤销栈，结果行据此写「推送前的修改不能再撤销」。
+- 推上去至少一条时 [`SyncManager.push()`](../../../packages/rxdb-plugin-sync/src/SyncManager.ts) 调 `clearSyncedHistory()`，清的是整条分支的撤销栈，消息据此写「推送前的修改不能再撤销」。
 - 按实体分列用 `syncManager.getAllRepositorySyncStatus({ hasPendingChanges: true })`，在 ↑ / ↓ 变化与每轮推拉结束时重算。它按仓库各数各的：跨实体的事务（如带证件新建客户）在每个实体下各算一条，合计可能大于 ↑N——同步中心写明这一点，阶段 C 的清单才是按事务的准数。
 - 页面写入不再因推送而禁用：`CatalogLocalWrites.$busy` 原先把推送也算进去；推送在飞时的撤销由在飞认领（`buildLastPushedMap`）兜住，不需要锁写入口。
 - 阶段 C 的清单只消费 US-317 的流。字段级改前改后的取值规则与 working-tree 页的 [`buildFieldDiff`](../../../apps/dev-rxdb-angular/src/app/pages/working-tree/working-tree.diff-format.ts) 同口径：新建只有新值、删除只有旧值、修改取两侧字段的并集。应用之间不能互相 import，在 supabase 应用里按同一规则写一份纯函数并单测，US-231 的操作历史面板共用它。
-- e2e 锚点：`sync-pull`、`sync-push`、`sync-pullable-count`、`sync-pushable-count`、`sync-result`、`sync-center-toggle`、`sync-center`、`workbench-sync-group`（`data-sync-round`）、`side-panel`（`data-view`）；被拒清单沿用 `sync-rejections-panel`，挪进同步中心。读屏名是中文「拉取」「推送」。
+- e2e 锚点：`sync-pull`、`sync-push`、`sync-pullable-count`、`sync-pushable-count`、`sync-center-toggle`、`sync-center`、`workbench-sync-group`（`data-sync-round`）、`side-panel`（`data-view`）；每轮的消息是 `toast`，`data-source` 为 `sync-round-<轮次>`、`data-kind` 为轻重；被拒清单沿用 `sync-rejections-panel`，挪进同步中心。读屏名是中文「拉取」「推送」。
+- 消息（`toasts.ts` 的 `Toasts`、`toast-outlet.ts`）只放刚做完的事：推拉结果、撤销重做失败、写入成功、切换身份失败。播报区域一直挂着，错误另带 `role="alert"`。会一直成立的状态（本地模式、访客、会话在别处换了身份、订单的依赖说明）留在页面里；表单与编辑框里的失败原因也留在原处，原生 `<dialog>` 的模态在浏览器顶层之上，消息盖不过它。
 - 不能点的按钮用 `aria-disabled` 而不是 `disabled`，原因写在 `title` 里：悬停与读屏都读得到，Playwright 的 `toBeDisabled()` 也认 `aria-disabled`。
-- 身份守卫拦下时，结果行不转述守卫的英文报错，写「身份不匹配……重新加载打开新身份的库」（`sync-commands.ts` 的 `IDENTITY_MISMATCH_REASON`）。
+- 身份守卫拦下时，消息不转述守卫的英文报错，写「身份不匹配……重新加载打开新身份的库」（`sync-commands.ts` 的 `IDENTITY_MISMATCH_REASON`）。
+- 顶栏右侧只留切换身份的下拉框：身份名与说明不另占一行，放在下拉框的悬停提示与读屏描述（`aria-describedby`）里，同步中心也写着。
 - 同步中心按实体分列的数字还在查时写「正在查」、查失败时写原因，不先说「没有待推、待拉的实体」。
 - 待拉数的绝对值断言（AC#14～#16）放在 `sync-counts.spec.ts`，`e2e-remote` 的第二轮单独串行跑：↓N 是整机对所有仓库的计数，Todo 与订单又是登录身份共享的，与其它用例并行时数字会被别的写入打乱。
 - 顶栏原先在本地模式下悬浮（`header-floating`，没有身份信息时不占一行）；有了登记的按钮之后，「顶栏有内容就占一行」，只剩菜单按钮时才悬浮。
@@ -163,7 +165,7 @@ INVEST 检查清单:
 - `apps/dev-rxdb-supabase/src/app/sync-commands.ts`（新）— 根级推拉命令、进行中、最近一次结果与轮次
 - `apps/dev-rxdb-supabase/src/app/sync-center.ts`（新）— 同步中心视图；阶段 C 加待推送清单
 - `apps/dev-rxdb-supabase/src/app/sync-outcome.ts`（新）— 一轮推拉的说法（条数、被拒、失败仓库）
-- `apps/dev-rxdb-supabase/src/app/workbench-status.ts`（新）— 顶栏下面的结果行与撤销、重做的失败原因
+- `apps/dev-rxdb-supabase/src/app/toasts.ts`、`toast-outlet.ts`（新）— 操作结果的消息与它的槽位
 - `apps/dev-rxdb-supabase/src/app/side-panel.ts`（新）— 右侧面板壳（与 US-231、US-232 共用）
 - `apps/dev-rxdb-supabase/src/app/field-diff.ts`、`change-diff.ts`、`history-describe.ts`、`entity-labels.ts`（新）— 改前改后、历史项的说法与实体的中文叫法（与 US-231 共用）
 - `apps/dev-rxdb-supabase/src/app/sync-rejections-panel.ts` — 挪进同步中心，去掉 Todo 页的边距
