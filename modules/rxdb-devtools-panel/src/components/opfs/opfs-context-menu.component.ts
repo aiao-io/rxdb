@@ -1,10 +1,11 @@
-import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, input, output } from '@angular/core';
 import {
   LucideDownload as Download,
   LucideFolderOpen as FolderOpen,
   LucideDynamicIcon,
   LucideTrash2 as Trash2
 } from '@lucide/angular';
+import { PanelI18nService } from '../../services/panel-i18n.service';
 import type { OPFSFile } from '../../types/devtools.types';
 
 /** OPFS 上下文菜单的位置、可见性和目标文件。 */
@@ -32,21 +33,21 @@ export interface OpfsContextMenuState {
           <li>
             <button class="gap-2 px-2 py-1.5" (click)="openRequested.emit()" type="button">
               <svg [lucideIcon]="FolderOpen" aria-hidden="true" size="14"></svg>
-              打开
+              {{ t('common.open') }}
             </button>
           </li>
         } @else {
           <li>
             <button class="gap-2 px-2 py-1.5" (click)="downloadRequested.emit()" type="button">
               <svg [lucideIcon]="Download" aria-hidden="true" size="14"></svg>
-              下载
+              {{ t('common.download') }}
             </button>
           </li>
         }
         <li>
           <button class="text-error gap-2 px-2 py-1.5" (click)="deleteRequested.emit()" type="button">
             <svg [lucideIcon]="Trash2" aria-hidden="true" size="14"></svg>
-            删除
+            {{ t('common.delete') }}
           </button>
         </li>
       </ul>
@@ -57,6 +58,7 @@ export interface OpfsContextMenuState {
   }
 })
 export class OpfsContextMenuComponent {
+  protected readonly t = inject(PanelI18nService).t;
   readonly state = input.required<OpfsContextMenuState>();
   readonly openRequested = output<void>();
   readonly downloadRequested = output<void>();

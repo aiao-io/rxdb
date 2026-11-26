@@ -34,7 +34,7 @@ test.describe('OPFS Page', () => {
     await page.goto('/opfs');
     await expect(page.getByRole('button', { name: '上传文件', exact: true })).toBeVisible({ timeout: 20000 });
     await expect(page.getByText('已连接')).toBeVisible({ timeout: 20000 });
-    await page.getByRole('tab', { name: 'List' }).click();
+    await page.getByRole('tab', { name: '列表', exact: true }).click();
     await openIsolatedFolder(page);
   });
 

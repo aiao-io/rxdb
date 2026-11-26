@@ -1,0 +1,247 @@
+# SearchUnsupportedAdapterError
+
+Defined in: [packages/rxdb-plugin-search/src/types.ts:198](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-search/src/types.ts#L198)
+
+The current database's adapter cannot map to any search backend; fails fast at
+the `createRxDatabase` stage, the plugin does not mount `.search`, and no
+degraded Handle is returned.
+
+This is **the first of the two guard layers** (static: adapter name → backend
+family). The second layer is [SearchBackendCapabilityError](SearchBackendCapabilityError.md),
+tested against the live connection.
+
+## Extends
+
+- [`SearchError`](SearchError.md)
+
+## Constructors
+
+### Constructor
+
+```ts
+new SearchUnsupportedAdapterError(adapter, reason?): SearchUnsupportedAdapterError;
+```
+
+Defined in: [packages/rxdb-plugin-search/src/types.ts:199](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-search/src/types.ts#L199)
+
+#### Parameters
+
+| Parameter | Type     | Default value                                        | Description                                                                                                                                                                                                                                                                                  |
+| --------- | -------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `adapter` | `string` | `undefined`                                          | The actually detected adapter name                                                                                                                                                                                                                                                           |
+| `reason?` | `string` | `'no search backend is registered for this adapter'` | The discriminable rejection reason. Does not write the tautology "the name is not in the whitelist": callers need it to distinguish "this adapter's storage engine has no full-text capability at all" from "it has the capability but has not been verified and cleared yet" (US-703 AC#8). |
+
+#### Returns
+
+`SearchUnsupportedAdapterError`
+
+#### Overrides
+
+[`SearchError`](SearchError.md).[`constructor`](SearchError.md#constructor)
+
+## Properties
+
+### adapter \{#adapter\}
+
+```ts
+readonly adapter: string;
+```
+
+Defined in: [packages/rxdb-plugin-search/src/types.ts:201](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-search/src/types.ts#L201)
+
+The actually detected adapter name
+
+---
+
+### cause? \{#cause\}
+
+```ts
+cause?: unknown;
+```
+
+Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node\_modules/typescript/lib/lib.es2022.error.d.ts:24
+
+#### Inherited from
+
+[`SearchError`](SearchError.md).[`cause`](SearchError.md#cause)
+
+---
+
+### message \{#message\}
+
+```ts
+message: string;
+```
+
+Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node\_modules/typescript/lib/lib.es5.d.ts:1075
+
+#### Inherited from
+
+[`SearchError`](SearchError.md).[`message`](SearchError.md#message)
+
+---
+
+### name \{#name\}
+
+```ts
+name: string;
+```
+
+Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node\_modules/typescript/lib/lib.es5.d.ts:1074
+
+#### Inherited from
+
+[`SearchError`](SearchError.md).[`name`](SearchError.md#name)
+
+---
+
+### reason \{#reason\}
+
+```ts
+readonly reason: string = 'no search backend is registered for this adapter';
+```
+
+Defined in: [packages/rxdb-plugin-search/src/types.ts:209](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-plugin-search/src/types.ts#L209)
+
+The discriminable rejection reason.
+
+Does not write the tautology "the name is not in the whitelist": callers need
+it to distinguish "this adapter's storage engine has no full-text capability at
+all" from "it has the capability but has not been verified and cleared yet"
+(US-703 AC#8).
+
+---
+
+### stack? \{#stack\}
+
+```ts
+stack?: string;
+```
+
+Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node\_modules/typescript/lib/lib.es5.d.ts:1076
+
+#### Inherited from
+
+[`SearchError`](SearchError.md).[`stack`](SearchError.md#stack)
+
+---
+
+### stackTraceLimit \{#stacktracelimit\}
+
+```ts
+static stackTraceLimit: number;
+```
+
+Defined in: node\_modules/.pnpm/@types+node@26.6.6/node\_modules/@types/node/globals.d.ts:67
+
+The `Error.stackTraceLimit` property specifies the number of stack frames
+collected by a stack trace (whether generated by `new Error().stack` or
+`Error.captureStackTrace(obj)`).
+
+The default value is `10` but may be set to any valid JavaScript number. Changes
+will affect any stack trace captured _after_ the value has been changed.
+
+If set to a non-number value, or set to a negative number, stack traces will
+not capture any frames.
+
+#### Inherited from
+
+[`SearchError`](SearchError.md).[`stackTraceLimit`](SearchError.md#stacktracelimit)
+
+## Methods
+
+### captureStackTrace() \{#capturestacktrace\}
+
+```ts
+static captureStackTrace(targetObject, constructorOpt?): void;
+```
+
+Defined in: node\_modules/.pnpm/@types+node@26.6.6/node\_modules/@types/node/globals.d.ts:51
+
+Creates a `.stack` property on `targetObject`, which when accessed returns
+a string representing the location in the code at which
+`Error.captureStackTrace()` was called.
+
+```js
+const myObject = {};
+Error.captureStackTrace(myObject);
+myObject.stack; // Similar to `new Error().stack`
+```
+
+The first line of the trace will be prefixed with
+`${myObject.name}: ${myObject.message}`.
+
+The optional `constructorOpt` argument accepts a function. If given, all frames
+above `constructorOpt`, including `constructorOpt`, will be omitted from the
+generated stack trace.
+
+The `constructorOpt` argument is useful for hiding implementation
+details of error generation from the user. For instance:
+
+```js
+function a() {
+  b();
+}
+
+function b() {
+  c();
+}
+
+function c() {
+  // Create an error without stack trace to avoid calculating the stack trace twice.
+  const { stackTraceLimit } = Error;
+  Error.stackTraceLimit = 0;
+  const error = new Error();
+  Error.stackTraceLimit = stackTraceLimit;
+
+  // Capture the stack trace above function b
+  Error.captureStackTrace(error, b); // Neither function c, nor b is included in the stack trace
+  throw error;
+}
+
+a();
+```
+
+#### Parameters
+
+| Parameter         | Type       |
+| ----------------- | ---------- |
+| `targetObject`    | `object`   |
+| `constructorOpt?` | `Function` |
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+[`SearchError`](SearchError.md).[`captureStackTrace`](SearchError.md#capturestacktrace)
+
+---
+
+### prepareStackTrace() \{#preparestacktrace\}
+
+```ts
+static prepareStackTrace(err, stackTraces): any;
+```
+
+Defined in: node\_modules/.pnpm/@types+node@26.6.6/node\_modules/@types/node/globals.d.ts:55
+
+#### Parameters
+
+| Parameter     | Type         |
+| ------------- | ------------ |
+| `err`         | `Error`      |
+| `stackTraces` | `CallSite`[] |
+
+#### Returns
+
+`any`
+
+#### See
+
+https://v8.dev/docs/stack-trace-api#customizing-stack-traces
+
+#### Inherited from
+
+[`SearchError`](SearchError.md).[`prepareStackTrace`](SearchError.md#preparestacktrace)

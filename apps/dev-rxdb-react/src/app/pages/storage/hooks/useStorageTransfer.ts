@@ -1,6 +1,6 @@
 import type { RxDB } from '@aiao/rxdb';
 import { normalizeDirectoryPath } from '@aiao/rxdb-plugin-storage';
-import { STORAGE_LABELS } from '@aiao/utils';
+import { fileError, fileMessage, type FileMessage } from '@modules/demo-i18n/files';
 import { zipSync, type Zippable } from 'fflate';
 import { useCallback, useLayoutEffect, useRef } from 'react';
 import type { ToastState } from '../types';
@@ -125,71 +125,73 @@ interface StorageTransferDeps {
   currentPath: () => string;
   findExistingFileEntry: (fileName: string, directoryPath: string) => StorageBrowserItem | null;
   refresh: (path?: string) => Promise<void>;
-  showToast: (message: string, type?: ToastState['type']) => void;
+  showToast: (message: string | FileMessage, type?: ToastState['type']) => void;
   uploadResolver: UploadResolver;
   fileInput: () => HTMLInputElement | null;
   folderInput: () => HTMLInputElement | null;
 }
 
 export function useStorageTransfer(deps: StorageTransferDeps) {
-  const L = STORAGE_LABELS;
   const depsRef = useRef(deps);
   useLayoutEffect(() => {
     depsRef.current = deps;
   }, [deps]);
 
-  const handleUpload = useCallback(
-    async (files?: File[]) => {
-      const current = depsRef.current;
-      const filesToUpload = files || (current.fileInput()?.files ? Array.from(current.fileInput()!.files!) : null);
-      if (!filesToUpload || filesToUpload.length === 0) return;
+  const handleUpload = useCallback(async (files?: File[]) => {
+    const current = depsRef.current;
+    const filesToUpload = files || (current.fileInput()?.files ? Array.from(current.fileInput()!.files!) : null);
+    if (!filesToUpload || filesToUpload.length === 0) return;
 
-      let successCount = 0;
-      const path = current.currentPath();
+    let successCount = 0;
+    const path = current.currentPath();
 
-      for (const file of filesToUpload) {
-        const existingFile = current.findExistingFileEntry(file.name, path);
-        let overwrite = false;
+    for (const file of filesToUpload) {
+      const existingFile = current.findExistingFileEntry(file.name, path);
+      let overwrite = false;
 
-        if (existingFile) {
-          const shouldOverwrite = await current.uploadResolver.resolve(file, existingFile);
-          if (!shouldOverwrite) {
-            continue;
-          }
-
-          overwrite = true;
+      if (existingFile) {
+        const shouldOverwrite = await current.uploadResolver.resolve(file, existingFile);
+        if (!shouldOverwrite) {
+          continue;
         }
 
-        try {
-          await current.rxdb.storage.upload(file, { path, overwrite });
-          successCount++;
-        } catch (err) {
-          const message = err instanceof Error ? err.message : String(err);
-          current.showToast(message.includes('already exists') ? L.FILE_EXISTS : message, 'error');
-          return;
-        }
+        overwrite = true;
       }
 
-      const fileInput = current.fileInput();
-      if (fileInput) {
-        fileInput.value = '';
+      try {
+        await current.rxdb.storage.upload(file, { path, overwrite });
+        successCount++;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        current.showToast(
+          message.includes('already exists') ? fileMessage('file.fileExists') : fileError('file.uploadFailed', err),
+          'error'
+        );
+        return;
       }
+    }
 
-      if (successCount > 0) {
-        current.showToast(successCount === 1 ? L.UPLOAD_SUCCESS : `Uploaded ${successCount} files`, 'success');
-        await current.refresh(path);
-        await waitFor(100);
-        await current.refresh(path);
-      }
-    },
-    [L.FILE_EXISTS, L.UPLOAD_SUCCESS]
-  );
+    const fileInput = current.fileInput();
+    if (fileInput) {
+      fileInput.value = '';
+    }
+
+    if (successCount > 0) {
+      current.showToast(
+        successCount === 1 ? fileMessage('file.uploadSuccess') : fileMessage('file.uploaded', { count: successCount }),
+        'success'
+      );
+      await current.refresh(path);
+      await waitFor(100);
+      await current.refresh(path);
+    }
+  }, []);
 
   const handleUploadFolder = useCallback(async (files: File[]) => {
     if (files.length === 0) return;
 
     const current = depsRef.current;
-    current.showToast(`Uploading folder with ${files.length} files...`, 'info');
+    current.showToast(fileMessage('file.uploadingFolder', { count: files.length }), 'info');
     const root = current.currentPath();
 
     let successCount = 0;
@@ -228,27 +230,27 @@ export function useStorageTransfer(deps: StorageTransferDeps) {
     await current.refresh(root);
 
     if (failedCount > 0) {
-      current.showToast(`Upload finished: ${successCount} succeeded, ${failedCount} failed`, 'error');
+      current.showToast(fileMessage('file.uploadFinished', { succeeded: successCount, failed: failedCount }), 'error');
     } else {
-      current.showToast(`Uploaded ${successCount} files`, 'success');
+      current.showToast(fileMessage('file.uploaded', { count: successCount }), 'success');
     }
   }, []);
 
   const handleDownload = useCallback(async (entry: StorageBrowserItem) => {
     const current = depsRef.current;
     if (entry.kind === 'directory') {
-      current.showToast(`Preparing ${entry.name}...`, 'info');
+      current.showToast(fileMessage('file.preparingFile', { name: entry.name }), 'info');
 
       try {
         const fileCount = await downloadEntriesAsZip(current.rxdb, [entry], `${entry.name}.zip`);
         current.showToast(
           fileCount === 0 ?
-            `Downloaded empty folder ${entry.name}`
-          : `Downloaded ${fileCount} files from ${entry.name}`,
+            fileMessage('file.downloadedEmptyFolder', { name: entry.name })
+          : fileMessage('file.downloadedFromFolder', { count: fileCount, name: entry.name }),
           'success'
         );
       } catch (err) {
-        current.showToast(err instanceof Error ? err.message : String(err), 'error');
+        current.showToast(fileError('file.downloadFailed', err), 'error');
       }
 
       return;
@@ -261,7 +263,7 @@ export function useStorageTransfer(deps: StorageTransferDeps) {
     try {
       await current.rxdb.storage.download(entry.meta.id);
     } catch (err) {
-      current.showToast(err instanceof Error ? err.message : String(err), 'error');
+      current.showToast(fileError('file.downloadFailed', err), 'error');
     }
   }, []);
 
@@ -269,7 +271,7 @@ export function useStorageTransfer(deps: StorageTransferDeps) {
     async (selectedEntries: StorageBrowserItem[]) => {
       const current = depsRef.current;
       if (selectedEntries.length === 0) {
-        current.showToast('No files selected', 'error');
+        current.showToast(fileMessage('file.noSelection'), 'error');
         return;
       }
 
@@ -279,18 +281,18 @@ export function useStorageTransfer(deps: StorageTransferDeps) {
       }
 
       const folderName = current.currentPath().split('/').filter(Boolean).pop() || 'storage';
-      current.showToast(`Preparing ${selectedEntries.length} items...`, 'info');
+      current.showToast(fileMessage('file.preparingItems', { count: selectedEntries.length }), 'info');
 
       try {
         const fileCount = await downloadEntriesAsZip(current.rxdb, selectedEntries, `${folderName}.zip`);
         current.showToast(
           fileCount === 0 ?
-            `Downloaded ${selectedEntries.length} empty folders`
-          : `Downloaded ${selectedEntries.length} items (${fileCount} files)`,
+            fileMessage('file.downloadedEmptyFolders', { count: selectedEntries.length })
+          : fileMessage('file.downloadedItems', { count: selectedEntries.length, files: fileCount }),
           'success'
         );
       } catch (err) {
-        current.showToast(err instanceof Error ? err.message : String(err), 'error');
+        current.showToast(fileError('file.downloadFailed', err), 'error');
       }
     },
     [handleDownload]

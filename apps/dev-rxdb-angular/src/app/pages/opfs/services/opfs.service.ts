@@ -1,3 +1,4 @@
+import { fileError, fileMessage, type FileMessage } from '@modules/demo-i18n/files';
 /**
  * OPFS 文件管理服务
  * 直接访问浏览器的 OPFS，无需 content script
@@ -24,7 +25,7 @@ export class OpfsService {
   readonly currentPath = signal<string>('/');
   readonly entries = signal<OPFSFileEntry[]>([]);
   readonly loading = signal<boolean>(false);
-  readonly error = signal<string | null>(null);
+  readonly error = signal<FileMessage | null>(null);
 
   /**
    * 获取根目录
@@ -32,7 +33,7 @@ export class OpfsService {
   async getRootDirectory(): Promise<FileSystemDirectoryHandle | null> {
     try {
       if (!('storage' in navigator) || !('getDirectory' in navigator.storage)) {
-        this.error.set('浏览器不支持 OPFS');
+        this.error.set(fileMessage('file.opfsUnsupported'));
         return null;
       }
 
@@ -42,8 +43,7 @@ export class OpfsService {
       this.currentPath.set('/');
       return root;
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      this.error.set(`获取根目录失败: ${errorMsg}`);
+      this.error.set(fileError('file.rootFailed', err));
       return null;
     }
   }
@@ -62,7 +62,7 @@ export class OpfsService {
         this.entries.set([]);
         this.currentHandle.set(null);
         const error = new OpfsDirectoryNotFoundError(path);
-        this.error.set(error.message);
+        this.error.set(fileMessage('file.directoryMissing', { path }));
         throw error;
       }
       for await (const [name, handle] of dirHandle.entries()) {
@@ -99,8 +99,7 @@ export class OpfsService {
       this.currentHandle.set(dirHandle);
     } catch (err) {
       if (err instanceof OpfsDirectoryNotFoundError) throw err;
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      this.error.set(`读取目录失败: ${errorMsg}`);
+      this.error.set(fileError('file.readFailed', err));
       console.error('OPFS read error:', err);
     } finally {
       this.loading.set(false);
@@ -134,8 +133,7 @@ export class OpfsService {
       await this.readDirectory(path);
       return true;
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      this.error.set(`上传失败: ${errorMsg}`);
+      this.error.set(fileError('file.uploadFailed', err));
       console.error('上传错误:', err);
       return false;
     }
@@ -235,8 +233,7 @@ export class OpfsService {
         return true;
       }
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      this.error.set(`下载失败: ${errorMsg}`);
+      this.error.set(fileError('file.downloadFailed', err));
       console.error('下载文件失败:', err);
       return false;
     }
@@ -281,8 +278,7 @@ export class OpfsService {
       await this.readDirectory(this.currentPath());
       return true;
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      this.error.set(`删除失败: ${errorMsg}`);
+      this.error.set(fileError('file.deleteFailed', err));
       console.error('删除错误:', err);
       return false;
     }
@@ -305,8 +301,7 @@ export class OpfsService {
       await this.readDirectory(path);
       return true;
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      this.error.set(`创建目录失败: ${errorMsg}`);
+      this.error.set(fileError('file.createFailed', err));
       return false;
     }
   }
@@ -333,8 +328,7 @@ export class OpfsService {
       await this.readDirectory(this.currentPath());
       return true;
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      this.error.set(`重命名失败: ${errorMsg}`);
+      this.error.set(fileError('file.renameFailed', err));
       console.error('重命名错误:', err);
       return false;
     }
@@ -397,8 +391,7 @@ export class OpfsService {
       const text = await file.text();
       return { data: text, type: 'text/plain' };
     } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      this.error.set(`预览失败: ${errorMsg}`);
+      this.error.set(fileError('file.previewFailed', err));
       return null;
     }
   }

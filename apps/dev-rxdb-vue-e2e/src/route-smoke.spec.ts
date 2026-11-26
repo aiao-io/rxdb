@@ -48,7 +48,7 @@ test.describe('功能路由初始化冒烟', () => {
   test('/remote-cache 能打开并渲染缓存面板', async ({ page }) => {
     await page.goto('/remote-cache');
 
-    await expect(page.getByRole('heading', { name: 'Remote Cache' })).toBeVisible({ timeout: 20000 });
+    await expect(page.getByRole('heading', { name: '远程缓存' })).toBeVisible({ timeout: 20000 });
     await assertNoAppCrash(page);
   });
 });

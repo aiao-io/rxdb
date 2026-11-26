@@ -20,6 +20,7 @@ import {
   LucideMoreVertical as MoreVertical,
   LucideSearch as Search
 } from '@lucide/angular';
+import { I18nPipe } from '../../../pipes/i18n.pipe';
 import { diffEntryKey, formatPatchSummary } from '../working-tree.diff-format';
 import { gdEntryPath, gdOpColor, gdOpIcon, gdPathColor, gdTableName } from '../working-tree.gd';
 
@@ -59,7 +60,7 @@ const KINDS = [
   selector: 'app-working-tree-changes-list',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule, LucideDynamicIcon],
+  imports: [CommonModule, I18nPipe, LucideDynamicIcon],
   styles: [
     `
       /* 宿主是 aside 的 flex 子项：默认 display:inline 会让根 div 的 flex-1/min-h-0
@@ -180,10 +181,10 @@ const KINDS = [
                   <!-- 触屏没有右键：行尾 ⋯ 打开同一菜单（桌面端隐藏） -->
                   <button
                     class="gd-btn-ghost hidden max-md:inline-flex pointer-coarse:inline-flex"
+                    [attr.aria-label]="'common.moreActions' | i18n"
+                    [title]="'page.workingTree.moreActionsTouch' | i18n"
                     (click)="openRowMenu($event, entry)"
-                    aria-label="更多操作"
                     data-testid="wt-diff-more"
-                    title="更多操作（触屏）"
                     type="button"
                   >
                     <svg [lucideIcon]="MoreVertical" size="14"></svg>

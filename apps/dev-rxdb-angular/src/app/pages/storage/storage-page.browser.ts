@@ -1,6 +1,7 @@
 import type { RxDB } from '@aiao/rxdb';
 import { joinDirectoryAndFileName, type StorageFileMeta } from '@aiao/rxdb-plugin-storage';
 import { signal, type WritableSignal } from '@angular/core';
+import { fileError, type FileMessage } from '@modules/demo-i18n/files';
 import { mapStorageEntry, pruneSelectedPaths, sortAllFiles, sortMappedEntries } from './storage-page.helpers';
 import type { StorageBrowserItem } from './utils/storage-utils';
 
@@ -10,7 +11,7 @@ export interface StoragePageBrowserHost {
   currentPath: WritableSignal<string>;
   lastSelectedPath?: WritableSignal<string | null>;
   selectedPaths?: WritableSignal<Set<string>>;
-  showToast: (message: string, type?: 'error' | 'success' | 'info') => void;
+  showToast: (message: FileMessage, type?: 'error' | 'success' | 'info') => void;
 }
 
 export class StoragePageBrowser {
@@ -38,7 +39,7 @@ export class StoragePageBrowser {
     } catch (err) {
       this.entries.set([]);
       this.error.set(err instanceof Error ? err.message : String(err));
-      this.host.showToast(this.error() || 'Unknown error', 'error');
+      this.host.showToast(fileError('file.readFailed', err), 'error');
     } finally {
       this.loading.set(false);
     }

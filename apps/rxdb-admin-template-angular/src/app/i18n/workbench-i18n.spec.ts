@@ -17,7 +17,7 @@ describe('工作台共享国际化运行时', () => {
   });
 
   it('HTML 说明随语言变化，解绑时恢复宿主原文并停止更新', async () => {
-    const runtime = createWorkbenchI18n();
+    const runtime = createWorkbenchI18n(appConfig, 'zh-CN');
     const document = new DOMParser().parseFromString('<meta name="description" content="原始说明">', 'text/html');
     const stop = bindWorkbenchDescription(runtime, document);
     try {
@@ -30,6 +30,16 @@ describe('工作台共享国际化运行时', () => {
       expect(document.querySelector('meta')?.content).toBe('原始说明');
     } finally {
       stop();
+      runtime.destroy();
+    }
+  });
+
+  it('英文宿主语言首次创建时使用英文目录', () => {
+    const runtime = createWorkbenchI18n(appConfig, 'en-US');
+    try {
+      expect(runtime.locale).toBe('en');
+      expect(runtime.t('backup.title')).toBe('Backup');
+    } finally {
       runtime.destroy();
     }
   });

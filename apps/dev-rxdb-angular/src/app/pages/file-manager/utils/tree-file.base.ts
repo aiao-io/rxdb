@@ -2,6 +2,7 @@
 import type { HistoryScopeAPI } from '@aiao/rxdb';
 import { RxDB } from '@aiao/rxdb';
 import { useAction } from '@aiao/rxdb-angular';
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { isPlatformBrowser } from '@angular/common';
 import {
   AfterViewInit,
@@ -28,6 +29,7 @@ import { TreeFileStore } from './tree-file.store';
 @Directive()
 export abstract class TreeFileBase<C extends FileTreeEntityConstructor> implements OnInit, AfterViewInit {
   private readonly destroyRef = inject(DestroyRef);
+  private readonly i18n = useI18n();
   protected readonly rxdb: RxDB = inject(RxDB);
   readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID));
   readonly store: TreeFileStore<C>;
@@ -59,10 +61,10 @@ export abstract class TreeFileBase<C extends FileTreeEntityConstructor> implemen
   });
 
   readonly batchAddOptions = [
-    { count: 100, label: '100 条' },
-    { count: 1000, label: '1000 条' },
-    { count: 5000, label: '5000 条' },
-    { count: 10000, label: '10000 条' }
+    { count: 100, labelKey: 'page.file.batchAddCount' },
+    { count: 1000, labelKey: 'page.file.batchAddCount' },
+    { count: 5000, labelKey: 'page.file.batchAddCount' },
+    { count: 10000, labelKey: 'page.file.batchAddCount' }
   ];
 
   // Computed Properties
@@ -372,7 +374,7 @@ export abstract class TreeFileBase<C extends FileTreeEntityConstructor> implemen
       await write();
       return true;
     } catch (error) {
-      this.writeError.set(formatTreeWriteError(operation, error));
+      this.writeError.set(formatTreeWriteError(operation, error, this.i18n.t));
       return false;
     }
   }

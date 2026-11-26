@@ -4,7 +4,7 @@
 
 ## 接入职责
 
-当前包族尚未进入 npm 发布集合，先从仓库工作区验证。包名与代码示例描述当前 main 的接入方式，不能把工作区的 `0.0.28` 当作这些包已经发布的证明。本地运行入口见[能力与示例](../../getting-started/capabilities.md)。
+当前包族尚未进入 npm 发布集合，先从仓库工作区验证。包名与代码示例描述当前 main 的接入方式，不能把工作区的 `0.0.28` 当作这些包已经发布的证明。本地运行入口见[能力与示例](/getting-started/capabilities.md)。
 
 应用负责设备发现、信令、认证与字节存储，并把通道接到 `P2PByteTransport`。插件不提供托管信令服务，也不会在 `use()` 或 `connect()` 时自动联网。
 
@@ -65,4 +65,4 @@ await downloadP2PFile({ manifest, sources: [createP2PFilesSource(session, holder
 pnpm nx serve dev-rxdb-p2p
 ```
 
-该应用验证会话与文件传输。生产接入仍需配置实际的发现、信令和认证宿主。数据库的分支与 push / pull 接入见[数据协作](../../collaboration/README.md)。
+该应用验证会话与文件传输。生产接入仍需配置实际的发现、信令和认证宿主。数据库的分支与 push / pull 接入见[数据协作](/collaboration/README.md)。

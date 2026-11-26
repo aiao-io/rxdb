@@ -26,7 +26,7 @@
       (click)="download()"
       data-testid="generator-download"
     >
-      生成并下载
+      {{ 'page.generator.download' | i18n }}
     </button>
     <div class="tabs tabs-lift h-full overflow-hidden p-2" data-testid="generator-output-editor">
       @if ($generation_error(); as error) {

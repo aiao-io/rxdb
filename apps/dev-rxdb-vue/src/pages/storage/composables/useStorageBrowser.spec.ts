@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { useToast } from '../../../app/composables/useToast';
 import { useStorageBrowser, type StorageBrowserService } from './useStorageBrowser';
 
 describe('useStorageBrowser', () => {
@@ -17,6 +18,10 @@ describe('useStorageBrowser', () => {
     expect(storage.listEntries).toHaveBeenCalledTimes(1);
     expect(storage.listEntries).toHaveBeenCalledWith({ path: '/private' });
     expect(browser.currentPath.value).toBe('/private');
-    expect(browser.error.value).toBe('加载目录失败: permission denied');
+    expect(browser.error.value).toBe('permission denied');
+    expect(useToast().toasts.value.at(-1)).toMatchObject({
+      type: 'error',
+      message: { key: 'file.readFailed', params: { detail: 'permission denied' } }
+    });
   });
 });

@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { useI18nRuntime } from '@aiao/rxdb-i18n-vue';
+import { useI18n, useI18nRuntime } from '@aiao/rxdb-i18n-vue';
 import { useEntityDetail } from '@aiao/rxdb-model-vue/headless';
 import { injectRxDB } from '@aiao/rxdb-vue';
 import { computed, onBeforeUnmount, onMounted, useTemplateRef } from 'vue';
@@ -27,6 +27,7 @@ const emit = defineEmits<{ close: [result: DetailResult] }>();
  * 焦点约束交给原生 `<dialog>.showModal()`，关闭后的焦点恢复由本组件自己接线。
  */
 const creating = props.data.mode === 'create';
+const { t } = useI18n();
 // 弹窗每次打开都是新实例：系统字段名按打开时的应用语言翻译，新建的基线来自实例化的草稿
 const i18n = useI18nRuntime();
 const { controller, snapshot } = useEntityDetail(
@@ -86,10 +87,10 @@ const cancel = (): void => {
       novalidate
       @submit.prevent="save"
     >
-      <h2 id="hl-dialog-title">{{ creating ? '新建文章' : '编辑文章' }}</h2>
+      <h2 id="hl-dialog-title">{{ creating ? t('page.headless.newArticle') : t('page.headless.editArticle') }}</h2>
       <div
         role="tablist"
-        aria-label="详情分区"
+        :aria-label="t('page.headless.detailTabs')"
         class="hl-tabs"
       >
         <button
@@ -102,7 +103,7 @@ const cancel = (): void => {
           :aria-controls="`hl-panel-${tab.key}`"
           @click="controller.selectTab(tab.key)"
         >
-          {{ tab.label }}
+          {{ t(tab.label) }}
         </button>
       </div>
       <div
@@ -143,12 +144,12 @@ const cancel = (): void => {
         <button
           type="submit"
           :disabled="snapshot.saving"
-          >保存</button
+          >{{ t('page.headless.save') }}</button
         >
         <button
           type="button"
           @click="cancel"
-          >取消</button
+          >{{ t('common.cancel') }}</button
         >
       </div>
     </form>

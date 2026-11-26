@@ -19,18 +19,18 @@ import {
  * 这里只断言刷新后读回的顺序；键本身由 core 契约套件在真实后端上验。
  */
 
-const MENU_SIMPLE = { path: '/menu-simple', title: 'Tree Menu - Simple' };
-const MENU_LAZY = { path: '/menu-lazy', title: 'Tree Menu - Lazy Load' };
-const FILE_SIMPLE = { path: '/file-manager-simple', title: 'File Manager - Simple' };
-const FILE_LAZY = { path: '/file-manager-lazy', title: 'File Manager - Lazy' };
+const MENU_SIMPLE = { path: '/menu-simple', title: /Tree Menu - Simple|树菜单 - 简单模式/ };
+const MENU_LAZY = { path: '/menu-lazy', title: /Tree Menu - Lazy Load|树菜单 - 懒加载/ };
+const FILE_SIMPLE = { path: '/file-manager-simple', title: '文件管理器 - 简单模式' };
+const FILE_LAZY = { path: '/file-manager-lazy', title: '文件管理器 - 懒加载' };
 
-async function open(page: Page, target: { path: string; title: string }): Promise<void> {
+async function open(page: Page, target: { path: string; title: string | RegExp }): Promise<void> {
   await resetE2eState(page);
   await openPage(page, target.path, target.title);
 }
 
 /** 刷新当前页；同一测试内数据库名保持不变，所以读回的是已落库的数据。 */
-async function reload(page: Page, title: string): Promise<void> {
+async function reload(page: Page, title: string | RegExp): Promise<void> {
   await page.reload();
   await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
 }

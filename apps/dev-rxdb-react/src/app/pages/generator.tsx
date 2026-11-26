@@ -1,4 +1,5 @@
 import { CodeEditor } from '@aiao/code-editor-react';
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import { zipSync } from 'fflate';
 import { Download } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -10,6 +11,7 @@ export function getActiveGeneratedFileIndex(selectedIndex: number, fileCount: nu
 }
 
 export function GeneratorPage() {
+  const { t } = useI18n();
   const { currentThemeLightDark } = useTheme();
   const [selectedDemoIndex, setSelectedDemoIndex] = useState(0);
   const [jsonValue, setJsonValue] = useState(() => JSON.stringify(DEMOS[0], null, 2));
@@ -107,7 +109,7 @@ export function GeneratorPage() {
           onClick={handleDownload}
         >
           <Download size={16} />
-          生成并下载
+          {t('page.generator.download')}
         </button>
 
         <div className='tabs tabs-lifted w-full overflow-x-auto pt-2 pr-32 pl-2'>

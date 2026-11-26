@@ -94,23 +94,24 @@ export function getFileCategory(
 }
 
 /**
- * 把时间戳格式化成 `zh-CN` 的「年-月-日 时:分」。
+ * 把时间戳格式化成用户界面日期。
  *
  * 使用运行环境的本地时区，同一时间戳在不同时区渲染结果不同。
  * 非法输入**不抛错**，一律降级成 `'-'`，方便直接渲染。
  *
  * @param timestamp - 毫秒时间戳、可被 `Date` 解析的字符串，或 `Date` 实例
+ * @param locale - 用户界面语言；省略时保持历史 `zh-CN` 输出
  * @returns 形如 `'2026/08/07 12:30'` 的字符串；`undefined` / `null` / 空串 /
  *          解析不出有效时间（`Invalid Date`）时返回 `'-'`
  */
-export function formatDate(timestamp?: number | string | Date): string {
+export function formatDate(timestamp?: number | string | Date, locale = 'zh-CN'): string {
   if (timestamp === undefined || timestamp === null || timestamp === '') return '-';
   const date =
     timestamp instanceof Date ? timestamp
     : typeof timestamp === 'string' ? new Date(timestamp)
     : new Date(timestamp);
   if (!Number.isFinite(date.getTime())) return '-';
-  return date.toLocaleString('zh-CN', {
+  return date.toLocaleString(locale, {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',

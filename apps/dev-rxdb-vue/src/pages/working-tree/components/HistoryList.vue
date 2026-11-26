@@ -1,8 +1,11 @@
 <script lang="ts" setup>
 import type { CommitLogEntry, CommitLogPage, WorkingTreeQueryState } from '@aiao/rxdb-plugin-working-tree';
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import { History, MoreVertical } from '@lucide/vue';
 import type { WorkingTreeContextMenuRequest } from '../utils/context-menu';
 import { gdAvatarColor, gdAvatarInitial, gdRelativeTime } from '../utils/gd';
+
+const { t } = useI18n();
 
 /**
  * 「历史记录」标签页的提交列表，模仿 GitHub Desktop 的 History 列表。
@@ -126,9 +129,9 @@ const emit = defineEmits<{
             <button
               class="gd-btn-ghost hidden max-md:inline-flex pointer-coarse:inline-flex"
               @click="onTouchMenu($event, entry)"
-              aria-label="更多操作"
+              :aria-label="t('common.moreActions')"
               data-testid="wt-commit-more"
-              title="更多操作（触屏）"
+              :title="t('page.workingTree.moreActionsTouch')"
               type="button"
             >
               <MoreVertical :size="14" />

@@ -1,6 +1,6 @@
 # Supabase 远端变更历史
 
-US-229 在远端加了一张只记不同步的历史表 `rxdb_change_history`：登记了同步的业务表每次生效的写入记一条完整的前后快照、操作者与写入路径。读取只经 `rxdb_entity_history`，只对当前能编辑这一行的成员开放，正文按列权限脱敏。用法见 [Supabase 适配器的远端变更历史](../adapters/supabase.md#远端变更历史)。
+US-229 在远端加了一张只记不同步的历史表 `rxdb_change_history`：登记了同步的业务表每次生效的写入记一条完整的前后快照、操作者与写入路径。读取只经 `rxdb_entity_history`，只对当前能编辑这一行的成员开放，正文按列权限脱敏。用法见 <a href="/docs/adapters/supabase#远端变更历史">Supabase 适配器的远端变更历史</a>。
 
 同步日志 `rxdb_change` 的规则不变：分区日志仍不带正文，未分区日志与原来一致。已有客户端不升级也能照常同步；要读历史，升级到带 `getEntityHistory` 的 `@aiao/rxdb-adapter-supabase`。
 
@@ -21,7 +21,7 @@ US-229 在远端加了一张只记不同步的历史表 `rxdb_change_history`：
 
 ### 1. 更新服务端 SQL
 
-与[日志同步只对已登录身份开放](./supabase-sync-access.md#2-更新服务端-sql)同一条命令：四份文件在同一个事务里按顺序执行，任一步失败整批回滚，整批可以重复执行。
+与[日志同步只对已登录身份开放](/migration/supabase-sync-access.md#2-更新服务端-sql)同一条命令：四份文件在同一个事务里按顺序执行，任一步失败整批回滚，整批可以重复执行。
 
 ```bash
 psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 --single-transaction \
@@ -36,11 +36,11 @@ psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 --single-transaction \
 - 04 让推送记历史，装上读取 RPC、判定函数，并修正 `rxdb_batch_upsert` 的生成列；
 - 生产权限脚本收回客户端对历史表与序列的权限，读取 RPC 只授给 `authenticated`，判定、脱敏与写入函数不授给任何客户端角色。它必须最后执行。
 
-同样不要为此重跑整份 `01-rxdb-system-tables.sql`：它的整库授权会放宽业务表的权限，见[日志同步只对已登录身份开放](./supabase-sync-access.md#2-更新服务端-sql)。使用 Supabase SQL Editor 时，把 `BEGIN;`、四份文件的完整内容和 `COMMIT;` 放在**同一次执行**中。
+同样不要为此重跑整份 `01-rxdb-system-tables.sql`：它的整库授权会放宽业务表的权限，见[日志同步只对已登录身份开放](/migration/supabase-sync-access.md#2-更新服务端-sql)。使用 Supabase SQL Editor 时，把 `BEGIN;`、四份文件的完整内容和 `COMMIT;` 放在**同一次执行**中。
 
 ### 2. 覆盖编辑权限的判定
 
-平台默认的判定：未分区实体看调用者角色对业务表有没有 `UPDATE` 权限；分区实体只认调用者自己的 `user:<auth.uid()>` 区，公开区与其他区默认谁都看不到历史。按租户、按团队等方式授权的部署，用 `CREATE OR REPLACE` 覆盖 `public.rxdb_caller_can_edit(p_namespace text, p_entity text, p_row jsonb)`，口径与业务表的 UPDATE 策略一致，示例见[按自己的权限模型判定](../adapters/supabase.md#按自己的权限模型判定)。
+平台默认的判定：未分区实体看调用者角色对业务表有没有 `UPDATE` 权限；分区实体只认调用者自己的 `user:<auth.uid()>` 区，公开区与其他区默认谁都看不到历史。按租户、按团队等方式授权的部署，用 `CREATE OR REPLACE` 覆盖 `public.rxdb_caller_can_edit(p_namespace text, p_entity text, p_row jsonb)`，口径与业务表的 UPDATE 策略一致，示例见<a href="/docs/adapters/supabase#按自己的权限模型判定">按自己的权限模型判定</a>。
 
 步骤 1 里的 04 每次执行都会把 `rxdb_caller_can_edit` 恢复成平台默认。所以每次执行完步骤 1，都要重新加载自己的覆盖，再执行一次生产权限脚本：
 

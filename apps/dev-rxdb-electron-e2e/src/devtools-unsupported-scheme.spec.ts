@@ -3,7 +3,13 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PANEL_BUDGET_MS, attachPanel, readPanel } from './devtools-panel-driver';
-import { launchEnv, realSandbox, resolveDesktopDevExtension, resolveExecutable } from './packaged-app';
+import {
+  PANEL_LOCALE_ARGS,
+  launchEnv,
+  realSandbox,
+  resolveDesktopDevExtension,
+  resolveExecutable
+} from './packaged-app';
 
 /**
  * US-906 AC#4：打包产物（`app://` 入口）下，面板给的是**原因**而不只是结论。
@@ -37,7 +43,7 @@ function launchApp(userDataDir: string, extensionDist: string): Promise<Electron
     executablePath: resolveExecutable(),
     // 必须真沙箱：--no-sandbox 会让扩展 devtools_page 一行不执行，面板永不进 tab 条。
     ...realSandbox(),
-    args: [`--user-data-dir=${userDataDir}`],
+    args: [`--user-data-dir=${userDataDir}`, ...PANEL_LOCALE_ARGS],
     env: {
       ...launchEnv(),
       DEV_RXDB_DEVTOOLS: '1',
@@ -66,12 +72,12 @@ test.describe('打包态 app:// 入口下面板说明不可注入的原因（US-
       const panel = await readPanel(app, {
         inspected: INSPECTED,
         hash: '#/database',
-        awaitPattern: '不支持扩展注入',
+        awaitPattern: 'does not support extension injection',
         budgetMs: PANEL_BUDGET_MS
       });
 
       // ① 结论仍在，且**没有**掉进「已授权但永远转圈」那个假象里。
-      expect(panel, `面板正文：《${panel}》`).toContain('不支持扩展注入');
+      expect(panel, `面板正文：《${panel}》`).toContain('does not support extension injection');
       expect(panel, 'app:// 下不该出现等待连接态 —— 那说明状态被伪装成了 granted').not.toContain(
         'Waiting for RxDB connection'
       );

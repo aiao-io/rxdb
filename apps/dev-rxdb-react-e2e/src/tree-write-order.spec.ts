@@ -78,7 +78,7 @@ test.describe('树页面创建类写入的顺序（US-031 阶段 A）', () => {
   test.describe.configure({ mode: 'serial' });
 
   test('根级依次新建文件夹、文件、文件夹，刷新后顺序不变', async ({ page }) => {
-    await openPage(page, '/file-manager-simple', 'File Manager - Simple');
+    await openPage(page, '/file-manager-simple', '文件管理器 - 简单模式');
 
     const folderA = await addRootFolderInMode(page, '甲夹');
     const fileX = await addRootFile(page, '乙文件');
@@ -100,7 +100,7 @@ test.describe('树页面创建类写入的顺序（US-031 阶段 A）', () => {
   });
 
   test('折叠节点下新建子节点，展开后排在末尾', async ({ page }) => {
-    await openPage(page, '/menu-lazy', 'Tree Menu - Lazy Load');
+    await openPage(page, '/menu-lazy', /Tree Menu - Lazy Load|树菜单 - 懒加载/);
 
     const parent = await addRootMenu(page, '折叠父节点');
     const parentId = await requireAttribute(parent, 'data-menu-id', '父节点行');
@@ -125,7 +125,7 @@ test.describe('树页面创建类写入的顺序（US-031 阶段 A）', () => {
   });
 
   test('删除并提升子节点，子节点排到祖父组末尾', async ({ page }) => {
-    await openPage(page, '/menu-simple', 'Tree Menu - Simple');
+    await openPage(page, '/menu-simple', /Tree Menu - Simple|树菜单 - 简单模式/);
 
     const grand = await addRootMenu(page, '祖父G');
     const grandId = await requireAttribute(grand, 'data-menu-id', '祖父行');
@@ -146,7 +146,7 @@ test.describe('树页面创建类写入的顺序（US-031 阶段 A）', () => {
   });
 
   test('删除并提升失败后，重命名子节点不夹带失败的移动', async ({ page }) => {
-    await openPage(page, '/menu-simple', 'Tree Menu - Simple');
+    await openPage(page, '/menu-simple', /Tree Menu - Simple|树菜单 - 简单模式/);
 
     const parent = await addRootMenu(page, '提升父P');
     const parentId = await requireAttribute(parent, 'data-menu-id', '父节点行');
@@ -184,7 +184,7 @@ test.describe('树页面创建类写入的顺序（US-031 阶段 A）', () => {
   });
 
   test('懒加载页新建同名根节点被拒后保留输入', async ({ page }) => {
-    await openPage(page, '/menu-lazy', 'Tree Menu - Lazy Load');
+    await openPage(page, '/menu-lazy', /Tree Menu - Lazy Load|树菜单 - 懒加载/);
     await addRootMenu(page, '重名根R');
 
     // 第二次提交同名根节点：被拒（同级唯一索引或页面重名校验），输入框不得被清空
@@ -197,7 +197,7 @@ test.describe('树页面创建类写入的顺序（US-031 阶段 A）', () => {
   });
 
   test('懒加载页删除折叠节点仍弹出选择对话框', async ({ page }) => {
-    await openPage(page, '/menu-lazy', 'Tree Menu - Lazy Load');
+    await openPage(page, '/menu-lazy', /Tree Menu - Lazy Load|树菜单 - 懒加载/);
 
     const parent = await addRootMenu(page, '折叠待删节点');
     const parentId = await requireAttribute(parent, 'data-menu-id', '待删节点行');
@@ -217,7 +217,7 @@ test.describe('树页面创建类写入的顺序（US-031 阶段 A）', () => {
   });
 
   test('文件管理器懒加载页删除折叠文件夹弹出级联删除对话框', async ({ page }) => {
-    await openPage(page, '/file-manager-lazy', 'File Manager - Lazy Load');
+    await openPage(page, '/file-manager-lazy', '文件管理器 - 懒加载');
 
     const folder = await addRootFolderInMode(page, '待删文件夹');
     await folder.hover();
@@ -229,7 +229,7 @@ test.describe('树页面创建类写入的顺序（US-031 阶段 A）', () => {
 
     // 刷新后文件夹折叠、子项未加载：旧实现按已加载节点判断，对话框显示「确认删除」且无级联警告
     await page.reload();
-    await expect(page.getByRole('heading', { level: 1, name: 'File Manager - Lazy Load' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: '文件管理器 - 懒加载' })).toBeVisible();
     const rows = page.getByTestId('file-row');
     await expect(rows).toHaveCount(1);
     await expect(rows.first()).toContainText('待删文件夹');
@@ -250,7 +250,7 @@ test.describe('树页面创建类写入的顺序（US-031 阶段 A）', () => {
   });
 
   test('批量添加后原有根节点仍在最前', async ({ page }) => {
-    await openPage(page, '/menu-simple', 'Tree Menu - Simple');
+    await openPage(page, '/menu-simple', /Tree Menu - Simple|树菜单 - 简单模式/);
 
     await addRootMenu(page, '原有根甲');
     await addRootMenu(page, '原有根乙');
@@ -266,7 +266,7 @@ test.describe('树页面创建类写入的顺序（US-031 阶段 A）', () => {
   });
 
   test('文件管理器懒加载页批量添加后根级原有节点在前', async ({ page }) => {
-    await openPage(page, '/file-manager-lazy', 'File Manager - Lazy Load');
+    await openPage(page, '/file-manager-lazy', '文件管理器 - 懒加载');
 
     await addRootFile(page, '先建文件');
     await addRootFolderInMode(page, '后建夹');

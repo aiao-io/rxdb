@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import { useFindAll, useRxDB } from '@aiao/rxdb-react';
 import { SortableFileNode } from '@aiao/rxdb-test/entities';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -47,6 +48,7 @@ const isFolderNode = (node: SortableFileNode): boolean => node.type === 'folder'
 export function FileManagerVirtualPage() {
   const rxdb = useRxDB();
   const fileRepository = useMemo(() => rxdb.entityManager.getRepository(SortableFileNode), [rxdb]);
+  const { t } = useI18n();
   const [showHistory, setShowHistory] = useShowHistory();
   const [newName, setNewName] = useState('');
   const [newExtension, setNewExtension] = useState('.txt');
@@ -173,28 +175,27 @@ export function FileManagerVirtualPage() {
             {/* Title Bar */}
             <div className='flex items-center justify-between'>
               <div className='flex items-center gap-3'>
-                <h1 className='text-2xl font-bold'>File Manager - Virtual</h1>
+                <h1 className='text-2xl font-bold'>{t('page.file.virtual')}</h1>
                 {store.searchKeyword ?
                   <div className='badge badge-warning badge-sm' data-testid='file-count'>
-                    搜索: {store.matchedFileIds.size} 项
+                    {t('page.file.searchCount', { count: store.matchedFileIds.size })}
                   </div>
                 : <div className='badge badge-primary' data-testid='file-count'>
-                    {files.length} 项
+                    {t('page.tree.itemCount', { count: files.length })}
                   </div>
                 }
 
                 {/* 批量添加 */}
                 <details className='dropdown dropdown-end'>
-                  <summary className='btn btn-circle btn-sm' aria-label='批量添加' data-testid='file-batch-add'>
+                  <summary
+                    className='btn btn-circle btn-sm'
+                    aria-label={t('common.batchAdd')}
+                    data-testid='file-batch-add'
+                  >
                     <Plus size={16} />
                   </summary>
                   <ul className='dropdown-content menu rounded-box bg-base-100 z-10 w-52 p-2 shadow'>
-                    {[
-                      { count: 100, label: '添加 100 条' },
-                      { count: 1000, label: '添加 1000 条' },
-                      { count: 5000, label: '添加 5000 条' },
-                      { count: 10000, label: '添加 10000 条' }
-                    ].map(({ count, label }) => {
+                    {[{ count: 100 }, { count: 1000 }, { count: 5000 }, { count: 10000 }].map(({ count }) => {
                       const actionKey = `add-${count}`;
                       const isLoading = loadingActions.has(actionKey);
                       return (
@@ -208,7 +209,7 @@ export function FileManagerVirtualPage() {
                             }}
                           >
                             {isLoading && <span className='loading loading-spinner loading-xs'></span>}
-                            {label}
+                            {t('page.file.batchAddCount', { count })}
                           </button>
                         </li>
                       );
@@ -224,7 +225,7 @@ export function FileManagerVirtualPage() {
                     className='btn btn-sm join-item'
                     disabled={undoCount === 0}
                     onClick={() => history.undo()}
-                    aria-label='撤销'
+                    aria-label={t('common.undo')}
                     data-testid='file-undo'
                   >
                     <Undo2 size={16} />
@@ -238,7 +239,7 @@ export function FileManagerVirtualPage() {
                     className='btn btn-sm join-item'
                     disabled={redoCount === 0}
                     onClick={() => history.redo()}
-                    aria-label='重做'
+                    aria-label={t('common.redo')}
                     data-testid='file-redo'
                   >
                     <Redo2 size={16} />
@@ -254,7 +255,7 @@ export function FileManagerVirtualPage() {
                 <button
                   className={`btn btn-sm ${showHistory ? 'btn-primary' : ''}`}
                   onClick={() => setShowHistory(!showHistory)}
-                  aria-label='历史记录'
+                  aria-label={t('history.open')}
                   data-testid='file-history'
                 >
                   <History size={16} />
@@ -266,12 +267,12 @@ export function FileManagerVirtualPage() {
             <div className='flex flex-wrap items-center justify-between gap-2'>
               <div className='flex items-center gap-2'>
                 <div className='bg-base-100 border-base-200 flex items-center gap-2 rounded-lg border px-3 py-1 shadow-sm'>
-                  <span className='text-xs opacity-70'>已展开</span>
+                  <span className='text-xs opacity-70'>{t('page.tree.expanded')}</span>
                   <span className='font-mono text-lg font-bold'>{store.expandedCount}</span>
                 </div>
                 <button
                   className='btn btn-sm btn-ghost btn-square'
-                  title={store.isAllExpanded ? '折叠全部' : '展开全部'}
+                  title={store.isAllExpanded ? t('common.collapseAll') : t('common.expandAll')}
                   onClick={() => (store.isAllExpanded ? store.collapseAll() : store.expandAll())}
                 >
                   {store.isAllExpanded ?
@@ -285,7 +286,7 @@ export function FileManagerVirtualPage() {
                   {isDeleting ?
                     <span className='loading loading-spinner loading-xs'></span>
                   : <Trash2 size={16} />}
-                  删除所有数据
+                  {t('common.deleteAll')}
                 </button>
               </div>
             </div>
@@ -299,14 +300,14 @@ export function FileManagerVirtualPage() {
                   data-testid='file-search-input'
                   value={store.searchKeyword}
                   onChange={e => store.setSearchKeyword(e.target.value)}
-                  placeholder='搜索文件...'
+                  placeholder={t('page.file.searchPlaceholder')}
                   type='text'
                 />
                 {store.searchKeyword && (
                   <button
                     className='btn btn-ghost btn-xs absolute top-1/2 right-2 -translate-y-1/2'
                     onClick={() => store.clearSearch()}
-                    aria-label='清除搜索'
+                    aria-label={t('common.clearSearch')}
                   >
                     <X size={14} />
                   </button>
@@ -320,15 +321,15 @@ export function FileManagerVirtualPage() {
                 value={store.sortMode}
                 onChange={e => store.changeSortMode(e.target.value as SortMode)}
               >
-                <option value='manual'>手动排序</option>
-                <option value='name-asc'>名称 ↑</option>
-                <option value='name-desc'>名称 ↓</option>
-                <option value='type-asc'>类型 ↑</option>
-                <option value='type-desc'>类型 ↓</option>
-                <option value='ext-asc'>扩展名 ↑</option>
-                <option value='ext-desc'>扩展名 ↓</option>
-                <option value='size-asc'>大小 ↑</option>
-                <option value='size-desc'>大小 ↓</option>
+                <option value='manual'>{t('page.tree.sortManual')}</option>
+                <option value='name-asc'>{t('page.tree.nameAsc')}</option>
+                <option value='name-desc'>{t('page.tree.nameDesc')}</option>
+                <option value='type-asc'>{t('page.tree.typeAsc')}</option>
+                <option value='type-desc'>{t('page.tree.typeDesc')}</option>
+                <option value='ext-asc'>{t('page.tree.extensionAsc')}</option>
+                <option value='ext-desc'>{t('page.tree.extensionDesc')}</option>
+                <option value='size-asc'>{t('page.tree.sizeAsc')}</option>
+                <option value='size-desc'>{t('page.tree.sizeDesc')}</option>
               </select>
             </div>
 
@@ -339,12 +340,12 @@ export function FileManagerVirtualPage() {
                 <div className='bg-info/10 flex items-center gap-2 rounded px-3 py-1 text-sm'>
                   <Folder size={14} className='text-info' />
                   <span className='flex-1'>
-                    将添加到: <span className='font-semibold'>{store.getSelectedFolderName()}</span>
+                    {t('page.file.addTo')} <span className='font-semibold'>{store.getSelectedFolderName()}</span>
                   </span>
                   <button
                     className='btn btn-ghost btn-xs'
                     onClick={() => store.cancelSelectFolder()}
-                    aria-label='取消选择'
+                    aria-label={t('page.file.cancelSelect')}
                   >
                     <X size={14} />
                   </button>
@@ -377,13 +378,13 @@ export function FileManagerVirtualPage() {
                   type='button'
                   className={`btn btn-sm ${store.isAddingFile ? 'btn-info' : 'btn-warning'}`}
                   onClick={() => store.toggleAddingMode()}
-                  aria-label='切换模式'
+                  aria-label={t('common.switchMode')}
                   data-testid='file-mode-toggle'
                 >
                   {store.isAddingFile ?
                     <File size={16} />
                   : <Folder size={16} />}
-                  {store.isAddingFile ? '文件' : '文件夹'}
+                  {store.isAddingFile ? t('page.file.file') : t('page.file.folder')}
                 </button>
 
                 {/* 扩展名选择器 (仅文件模式) */}
@@ -419,11 +420,12 @@ export function FileManagerVirtualPage() {
                   data-testid='file-name-input'
                   value={newName}
                   onChange={e => setNewName(e.target.value)}
-                  placeholder={
-                    store.isAddingFile ?
-                      `添加文件${store.selectedFolderId ? '' : ' (根目录)'}...`
-                    : `添加文件夹${store.selectedFolderId ? '' : ' (根目录)'}...`
-                  }
+                  placeholder={t(
+                    store.isAddingFile ? 'page.file.rootNamePlaceholder' : 'page.file.folderNamePlaceholder',
+                    {
+                      suffix: store.selectedFolderId ? '' : t('page.file.rootSuffix')
+                    }
+                  )}
                   type='text'
                 />
 
@@ -434,7 +436,7 @@ export function FileManagerVirtualPage() {
                   type='submit'
                 >
                   <Plus size={16} />
-                  添加
+                  {t('common.add')}
                 </button>
               </form>
             </div>
@@ -446,9 +448,9 @@ export function FileManagerVirtualPage() {
           <div className='alert alert-warning mx-auto max-w-4xl'>
             <TriangleAlert size={20} />
             <div className='flex-1'>
-              <div className='font-semibold'>路径冲突警告</div>
+              <div className='font-semibold'>{t('page.tree.pathConflict')}</div>
               <div className='text-sm'>
-                已存在同名文件：
+                {t('page.file.pathConflictBody')}
                 <strong>{store.pathConflict.conflictPath}</strong>
               </div>
             </div>
@@ -479,7 +481,7 @@ export function FileManagerVirtualPage() {
             {store.treeNodes.length === 0 ?
               <div className='hero absolute min-h-40 w-full'>
                 <div className='hero-content text-center'>
-                  <p className='text-base-content/50 text-sm font-bold'>暂无文件数据</p>
+                  <p className='text-base-content/50 text-sm font-bold'>{t('page.tree.emptyFile')}</p>
                 </div>
               </div>
             : rowVirtualizer.getVirtualItems().map(virtualRow => {
@@ -606,7 +608,7 @@ export function FileManagerVirtualPage() {
 
                       data-testid='file-drag-handle'
 
-                      title='拖拽排序'
+                      title={t('common.dragSort')}
 
                       onMouseDown={e => e.stopPropagation()}
 
@@ -766,7 +768,7 @@ export function FileManagerVirtualPage() {
                         <button
                           className='btn btn-ghost btn-xs'
                           onClick={() => store.selectFolder(file.id)}
-                          aria-label='选择为父文件夹'
+                          aria-label={t('page.file.selectParentFolder')}
                           data-testid='file-select-parent'
                         >
                           <Folder size={14} />
@@ -775,7 +777,7 @@ export function FileManagerVirtualPage() {
                       <button
                         className='btn btn-ghost btn-xs text-primary'
                         onClick={() => handleStartEdit(file)}
-                        aria-label='编辑'
+                        aria-label={t('common.edit')}
                         data-testid='file-edit'
                       >
                         <Pen size={14} />
@@ -783,7 +785,7 @@ export function FileManagerVirtualPage() {
                       <button
                         className='btn btn-ghost btn-xs text-error'
                         onClick={() => store.showDeleteDialog(file)}
-                        aria-label='删除'
+                        aria-label={t('common.delete')}
                         data-testid='file-delete'
                       >
                         <Trash2 size={14} />
@@ -803,33 +805,33 @@ export function FileManagerVirtualPage() {
           <div className='modal-box'>
             <h3 className='flex items-center gap-2 text-lg font-bold'>
               <TriangleAlert size={20} className='text-warning' />
-              确认删除
+              {t('page.tree.confirmDelete')}
             </h3>
             <div className='py-4'>
-              <p className='mb-2'>
-                确定要删除 <span className='text-error font-semibold'>{store.fileToDelete.name}</span> 吗？
-              </p>
+              <p className='mb-2'>{t('page.file.deleteOne', { name: store.fileToDelete.name })}</p>
               {store.deleteImpact && (
                 <div className='bg-warning/10 rounded p-3'>
-                  <p className='mb-1 text-sm font-semibold'>影响范围：</p>
+                  <p className='mb-1 text-sm font-semibold'>{t('page.file.impactScope')}</p>
                   <ul className='list-inside list-disc text-sm'>
-                    {store.deleteImpact.childrenCount > 0 && <li>直接子项: {store.deleteImpact.childrenCount} 个</li>}
+                    {store.deleteImpact.childrenCount > 0 && (
+                      <li>{t('page.file.directChildren', { count: store.deleteImpact.childrenCount })}</li>
+                    )}
                     {store.deleteImpact.descendantsCount > 0 && (
-                      <li>所有后代: {store.deleteImpact.descendantsCount} 个</li>
+                      <li>{t('page.file.allDescendants', { count: store.deleteImpact.descendantsCount })}</li>
                     )}
                   </ul>
                   <p className='text-warning mt-2 text-xs'>
                     <span role='img' aria-label='warning'>
                       ⚠️
                     </span>
-                    此操作不可恢复！
+                    {t('page.file.irreversible')}
                   </p>
                 </div>
               )}
             </div>
             <div className='modal-action'>
               <button className='btn btn-ghost' onClick={() => store.cancelDelete()}>
-                取消
+                {t('common.cancel')}
               </button>
               <button
                 className='btn btn-error'
@@ -838,7 +840,7 @@ export function FileManagerVirtualPage() {
                 }}
               >
                 <Trash2 size={16} />
-                确认删除
+                {t('page.tree.confirmDelete')}
               </button>
             </div>
           </div>

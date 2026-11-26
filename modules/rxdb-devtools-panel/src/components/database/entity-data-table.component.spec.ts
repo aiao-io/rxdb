@@ -37,7 +37,11 @@ describe('EntityDataTableComponent helpers', () => {
       ]
     };
 
-    const columns = buildEntityDataColumns(model, [{ id: '1', active: true, status: 'ready', legacy: 1 }]);
+    const columns = buildEntityDataColumns(model, [{ id: '1', active: true, status: 'ready', legacy: 1 }], {
+      actions: 'Actions',
+      delete: 'Delete',
+      view: 'View'
+    });
     const fields = columns.map(column => asRecord(column)['field']);
 
     expect(fields).toEqual(['id', 'active', 'status', 'legacy', 'actions']);

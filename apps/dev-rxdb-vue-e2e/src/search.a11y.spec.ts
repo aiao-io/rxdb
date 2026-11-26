@@ -13,7 +13,7 @@ test.describe('Search Page A11y', () => {
   });
 
   test('has no detectable axe violations in idle and success states', async ({ page }) => {
-    const input = page.getByRole('searchbox', { name: 'Global search' });
+    const input = page.getByTestId('search-input');
     const state = page.getByTestId('search-state');
     const resultsRegion = page.getByTestId('search-results');
     const resultsCount = page.getByTestId('search-results-count');

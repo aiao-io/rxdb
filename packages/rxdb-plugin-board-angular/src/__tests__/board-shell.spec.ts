@@ -18,6 +18,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { BoardShellComponent } from '../board-shell.js';
 
+// 文案适配器换成固定 zh-Hans 运行时：断言逐字中文（e2e 以 zh-CN 验收）
+vi.mock('../board-i18n.js', async () => {
+  const { boardI18nZhMock } = await import('./board-i18n-mock.js');
+  return boardI18nZhMock();
+});
+
 /**
  * BoardShell 组件（Angular 外壳）：真实 PGlite 上的启动选择、演示数据、重置确认与失败提示。
  * 编排分支在核心包 BoardShellController 的单测；sqlite-wasm 上的真实恢复闭环在三端宿主与 demo 的 e2e。

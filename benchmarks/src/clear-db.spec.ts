@@ -1,5 +1,10 @@
+import { I18n } from '@aiao/rxdb-i18n';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearDB } from './clear-db';
+import { benchmarkCatalogs } from './i18n/runtime';
+
+/** 诊断文案按当前语言解析：spec 固定 zh-Hans，断言中文输出。 */
+const t = new I18n({ locale: 'zh-Hans', catalogs: benchmarkCatalogs, namespace: 'benchmarks' }).t;
 
 type DeleteRequest = {
   error: DOMException | null;
@@ -125,7 +130,7 @@ describe('clearDB', () => {
       idbNames: [OWNED_IDB, ...SIMILAR_NAMES]
     });
 
-    await clearDB();
+    await clearDB(t);
 
     expect(root.removed.sort()).toEqual([OWNED_IDB, OWNED_OPFS].sort());
     expect(deletedIdb).toEqual([OWNED_IDB]);
@@ -143,7 +148,7 @@ describe('clearDB', () => {
     });
 
     // onblocked 是「别的连接还开着」的权威信号，不需要靠计时器推断
-    await expect(clearDB()).rejects.toMatchObject({
+    await expect(clearDB(t)).rejects.toMatchObject({
       errors: [expect.objectContaining({ message: `删除 ${OWNED_IDB} 被阻塞` })]
     });
 
@@ -163,7 +168,7 @@ describe('clearDB', () => {
       deleteDatabase: () => ({ mode: 'success', delayMs: 2_000 })
     });
 
-    const pending = clearDB();
+    const pending = clearDB(t);
     await vi.advanceTimersByTimeAsync(2_000);
     await pending;
 
@@ -181,7 +186,7 @@ describe('clearDB', () => {
 
     // Promise.all 会在第一个 reject 时就放弃等待，剩下那个库的结果既无人查看
     // 也无人报告；allSettled 才能保证「能删的都删掉，失败的一并抛出」
-    await expect(clearDB()).rejects.toThrow();
+    await expect(clearDB(t)).rejects.toThrow();
 
     expect(deletedIdb).toEqual([other]);
   });
@@ -195,7 +200,7 @@ describe('clearDB', () => {
       })
     });
 
-    await expect(clearDB()).rejects.toThrow();
+    await expect(clearDB(t)).rejects.toThrow();
     expect(log).not.toHaveBeenCalledWith('Benchmark 存储清理完成 ✅');
   });
 
@@ -205,7 +210,7 @@ describe('clearDB', () => {
       failOpfsName: OWNED_OPFS
     });
 
-    await expect(clearDB()).rejects.toThrow(`删除 ${OWNED_OPFS} 失败`);
+    await expect(clearDB(t)).rejects.toThrow(`删除 ${OWNED_OPFS} 失败`);
     expect(error).not.toHaveBeenCalledWith(expect.stringContaining('删除'), expect.anything());
     expect(log).not.toHaveBeenCalledWith('Benchmark 存储清理完成 ✅');
   });

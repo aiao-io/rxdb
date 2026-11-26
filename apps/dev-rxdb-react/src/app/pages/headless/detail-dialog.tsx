@@ -1,4 +1,4 @@
-import { useI18nRuntime } from '@aiao/rxdb-i18n-react';
+import { useI18n, useI18nRuntime } from '@aiao/rxdb-i18n-react';
 import { useEntityDetail } from '@aiao/rxdb-model-react/headless';
 import type { EntityDetailControllerOptions } from '@aiao/rxdb-model/headless';
 import { useRxDB } from '@aiao/rxdb-react';
@@ -32,6 +32,7 @@ export function DetailDialog({
   /** 本弹窗还挂着且没被取消：页面的弹窗控制器长期存在，旧弹窗迟到的保存不能关掉随后打开的新弹窗 */
   const activeRef = useRef(false);
   const creating = data.mode === 'create';
+  const { t } = useI18n();
   const i18n = useI18nRuntime();
   const rxdb = useRxDB();
   // 弹窗每次打开都是新实例：系统字段名按打开时的应用语言翻译，新建的基线来自实例化的草稿
@@ -90,8 +91,8 @@ export function DetailDialog({
       }}
     >
       <form noValidate onSubmit={event => void save(event)}>
-        <h2 id='hl-dialog-title'>{creating ? '新建文章' : '编辑文章'}</h2>
-        <div role='tablist' aria-label='详情分区' className='hl-tabs'>
+        <h2 id='hl-dialog-title'>{creating ? t('page.headless.newArticle') : t('page.headless.editArticle')}</h2>
+        <div role='tablist' aria-label={t('page.headless.detailTabs')} className='hl-tabs'>
           {snapshot.tabs.map(tab => (
             <button
               key={tab.key}
@@ -102,7 +103,7 @@ export function DetailDialog({
               aria-controls={`hl-panel-${tab.key}`}
               onClick={() => controller.selectTab(tab.key)}
             >
-              {tab.label}
+              {t(tab.label)}
             </button>
           ))}
         </div>
@@ -131,10 +132,10 @@ export function DetailDialog({
         )}
         <div className='hl-actions'>
           <button type='submit' disabled={snapshot.saving}>
-            保存
+            {t('page.headless.save')}
           </button>
           <button type='button' onClick={cancel}>
-            取消
+            {t('common.cancel')}
           </button>
         </div>
       </form>

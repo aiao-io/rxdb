@@ -26,6 +26,9 @@
   ],
   "references": [
     {
+      "path": "../../modules/demo-i18n/tsconfig.lib.json"
+    },
+    {
       "path": "../../modules/angular-todo/tsconfig.lib.json"
     },
     {

@@ -10,6 +10,11 @@ import { DetailDialog } from './detail-dialog';
  */
 
 vi.mock('@aiao/rxdb-react', () => ({ useRxDB: () => ({ entityManager: { instantiate: () => ({}) } }) }));
+// 本 spec 只关心保存会话的生命周期，不关心文案；恒等 t 免去挂载时的 I18n provider。
+vi.mock('@aiao/rxdb-i18n-react', () => ({
+  useI18n: () => ({ t: (key: string) => key }),
+  useI18nRuntime: () => undefined
+}));
 
 const record = {
   id: 'article-1',
@@ -35,7 +40,7 @@ async function startSaving(onClose: (result: string) => void) {
   const pending = deferred();
   const onSave = vi.fn<(result: DetailSaveResult) => Promise<void>>(() => pending.promise);
   const view = render(<DetailDialog data={{ mode: 'edit', record }} onSave={onSave} onClose={onClose} />);
-  const form = screen.getByRole('button', { name: '保存' }).closest('form');
+  const form = screen.getByRole('button', { name: 'page.headless.save' }).closest('form');
   if (form === null) throw new Error('找不到详情表单');
   fireEvent.submit(form);
   await vi.waitFor(() => expect(onSave).toHaveBeenCalledOnce());
@@ -47,7 +52,7 @@ describe('DetailDialog：迟到的保存结果', () => {
     const onClose = vi.fn();
     const { pending } = await startSaving(onClose);
 
-    fireEvent.click(screen.getByRole('button', { name: '取消' }));
+    fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }));
     expect(onClose).toHaveBeenCalledExactlyOnceWith('cancelled');
 
     await act(async () => pending.resolve());

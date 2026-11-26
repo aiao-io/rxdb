@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import type { CommitLogEntry, CommitLogPage, WorkingTreeQueryState } from '@aiao/rxdb-plugin-working-tree';
 import { History, MoreVertical } from 'lucide-react';
 import { gdAvatarColor, gdAvatarInitial, gdRelativeTime } from '../utils/gd';
@@ -46,6 +47,7 @@ export function WorkingTreeHistoryList({
   onMenuRequest,
   onSelectEntry
 }: WorkingTreeHistoryListProps): React.JSX.Element {
+  const { t } = useI18n();
   return (
     <div className='flex min-h-0 flex-1 flex-col'>
       <div className='min-h-0 flex-1 overflow-y-auto' aria-live='polite' data-testid='wt-commits-result'>
@@ -110,9 +112,9 @@ export function WorkingTreeHistoryList({
                   <button
                     className='gd-btn-ghost hidden max-md:inline-flex pointer-coarse:inline-flex'
                     onClick={event => onMenuRequest(touchMenuRequest(event, entry))}
-                    aria-label='更多操作'
+                    aria-label={t('common.moreActions')}
                     data-testid='wt-commit-more'
-                    title='更多操作（触屏）'
+                    title={t('page.workingTree.moreActionsTouch')}
                     type='button'
                   >
                     <MoreVertical size={14} />

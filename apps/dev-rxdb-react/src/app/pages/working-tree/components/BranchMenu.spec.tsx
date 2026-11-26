@@ -3,6 +3,8 @@ import { fireEvent, render } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { WorkingTreeBranchMenu } from './BranchMenu';
 
+vi.mock('@aiao/rxdb-i18n-react', () => ({ useI18n: () => ({ t: (key: string) => key }) }));
+
 /**
  * @fileoverview 分支下拉认当前分支（US-314 C2.1，Angular / Vue 端同名 spec 的移植）：挂在可写检出位上时，当前分支是那套表持有的分支，
  * 它的 `activated` 是假；主检出位停着的那条 `activated` 为真，却不是这里的当前分支。

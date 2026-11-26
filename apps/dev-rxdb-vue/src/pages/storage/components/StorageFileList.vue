@@ -1,14 +1,10 @@
 <script lang="ts" setup>
-import { formatFileSize, STORAGE_TESTID } from '@aiao/utils';
+import { formatFileSize, formatFileDate } from '@modules/demo-i18n/files';
+import { STORAGE_TESTID } from '@aiao/utils';
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import { Download, Eye, FolderOpen, Pen, Trash2 } from '@lucide/vue';
 import { ref } from 'vue';
-import {
-  canPreviewFile,
-  formatDate,
-  getFileIcon,
-  getFileIconColor,
-  type StorageBrowserItem
-} from '../utils/storage-utils';
+import { canPreviewFile, getFileIcon, getFileIconColor, type StorageBrowserItem } from '../utils/storage-utils';
 
 defineProps<{
   entries: StorageBrowserItem[];
@@ -28,6 +24,7 @@ const emit = defineEmits<{
 
 const clickTimeout = ref<number | null>(null);
 const T = STORAGE_TESTID;
+const { locale, t } = useI18n();
 
 function handleEntryClick(entry: StorageBrowserItem, event: MouseEvent) {
   if (clickTimeout.value) clearTimeout(clickTimeout.value);
@@ -64,10 +61,10 @@ function handleContextMenu(event: MouseEvent, entry: StorageBrowserItem) {
   >
     <thead>
       <tr>
-        <th>Name</th>
-        <th class="w-32">Size</th>
-        <th class="hidden w-40 md:table-cell">Modified</th>
-        <th class="w-24">Actions</th>
+        <th>{{ t('file.name') }}</th>
+        <th class="w-32">{{ t('file.size') }}</th>
+        <th class="hidden w-40 md:table-cell">{{ t('file.modified') }}</th>
+        <th class="w-24">{{ t('file.actions') }}</th>
       </tr>
     </thead>
     <tbody>
@@ -114,10 +111,10 @@ function handleContextMenu(event: MouseEvent, entry: StorageBrowserItem) {
           class="text-base-content/60 text-sm"
           :data-testid="entry.kind === 'file' ? T.FILE_SIZE : undefined"
         >
-          {{ entry.kind === 'file' ? formatFileSize(entry.size || 0) : '-' }}
+          {{ entry.kind === 'file' ? formatFileSize(entry.size || 0, locale) : '-' }}
         </td>
         <td class="text-base-content/60 hidden text-sm md:table-cell">
-          {{ formatDate(entry.lastModified) }}
+          {{ formatFileDate(entry.lastModified, locale) }}
         </td>
         <td>
           <div class="flex items-center gap-1">
@@ -125,14 +122,14 @@ function handleContextMenu(event: MouseEvent, entry: StorageBrowserItem) {
               <button
                 class="btn btn-ghost btn-xs"
                 @click.stop="emit('navigate', entry)"
-                title="Open"
+                :title="t('file.open')"
               >
                 <FolderOpen :size="14" />
               </button>
               <button
                 class="btn btn-ghost btn-xs"
                 @click.stop="emit('download', entry)"
-                title="Download ZIP"
+                :title="t('file.downloadZip')"
               >
                 <Download :size="14" />
               </button>
@@ -143,7 +140,7 @@ function handleContextMenu(event: MouseEvent, entry: StorageBrowserItem) {
                 v-if="canPreviewFile(entry)"
                 :data-testid="T.PREVIEW_BTN"
                 @click.stop="emit('preview', entry)"
-                title="Preview"
+                :title="t('file.preview')"
               >
                 <Eye :size="14" />
               </button>
@@ -151,7 +148,7 @@ function handleContextMenu(event: MouseEvent, entry: StorageBrowserItem) {
                 class="btn btn-ghost btn-xs"
                 :data-testid="T.DOWNLOAD_BTN"
                 @click.stop="emit('download', entry)"
-                title="Download"
+                :title="t('file.download')"
               >
                 <Download :size="14" />
               </button>
@@ -160,7 +157,7 @@ function handleContextMenu(event: MouseEvent, entry: StorageBrowserItem) {
               class="btn btn-ghost btn-xs"
               data-testid="storage-rename-btn"
               @click.stop="emit('rename', entry)"
-              title="Rename"
+              :title="t('file.rename')"
             >
               <Pen :size="14" />
             </button>
@@ -168,7 +165,7 @@ function handleContextMenu(event: MouseEvent, entry: StorageBrowserItem) {
               class="btn btn-ghost btn-xs text-error"
               :data-testid="entry.kind === 'file' ? T.DELETE_BTN : undefined"
               @click.stop="emit('delete', entry)"
-              title="Delete"
+              :title="t('file.delete')"
             >
               <Trash2 :size="14" />
             </button>

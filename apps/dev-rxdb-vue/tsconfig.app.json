@@ -29,6 +29,9 @@
   "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.vue"],
   "references": [
     {
+      "path": "../../modules/demo-i18n/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/rxdb-adapter-sqlite-core/tsconfig.lib.json"
     },
     {

@@ -4,10 +4,10 @@ import { registerTreeMenuTests } from './shared-page-tests.js';
 
 test.describe('Lazy Loading Tree Menu', () => {
   test.beforeEach(async ({ page }) => {
-    await openPage(page, '/menu-lazy', 'Tree Menu - Lazy Load');
+    await openPage(page, '/menu-lazy', /Tree Menu - Lazy Load|树菜单 - 懒加载/);
   });
 
-  registerTreeMenuTests({ title: 'Tree Menu - Lazy Load', entityName: 'E2E 懒加载' });
+  registerTreeMenuTests({ title: /Tree Menu - Lazy Load|树菜单 - 懒加载/, entityName: 'E2E 懒加载' });
 
   test('should add child menu', async ({ page }) => {
     const parent = await addRootMenu(page, 'E2E 懒加载父菜单');

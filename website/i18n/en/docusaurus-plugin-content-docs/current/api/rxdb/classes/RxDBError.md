@@ -1,0 +1,251 @@
+# RxDBError
+
+Defined in: [packages/rxdb/src/RxDBError.ts:1](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/RxDBError.ts#L1)
+
+## Extends
+
+- `Error`
+
+## Extended by
+
+- [`RxDBBackupError`](RxDBBackupError.md)
+- [`EntityRelationResolutionError`](EntityRelationResolutionError.md)
+- [`RxDBPartialSyncError`](RxDBPartialSyncError.md)
+- [`RxDBQueryCacheCapabilityError`](RxDBQueryCacheCapabilityError.md)
+- [`RxDBLocalAdapterCapabilityError`](RxDBLocalAdapterCapabilityError.md)
+- [`RxDBMissingPluginError`](RxDBMissingPluginError.md)
+- [`RxDBMixedVersionedCacheTransactionError`](RxDBMixedVersionedCacheTransactionError.md)
+- [`RxDBReadOnlyError`](RxDBReadOnlyError.md)
+- [`NetworkOfflineError`](NetworkOfflineError.md)
+- [`RxDBPluginDependencyCycleError`](RxDBPluginDependencyCycleError.md)
+- [`RxDBCheckViolationError`](RxDBCheckViolationError.md)
+- [`RxDBExclusionViolationError`](RxDBExclusionViolationError.md)
+- [`RxDBConstraintDriftError`](RxDBConstraintDriftError.md)
+- [`RxDBPluginAmbiguousDependencyError`](RxDBPluginAmbiguousDependencyError.md)
+- [`InvalidBranchIdError`](InvalidBranchIdError.md)
+- [`AmbiguousActiveBranchError`](AmbiguousActiveBranchError.md)
+- [`NoActiveBranchError`](NoActiveBranchError.md)
+- [`WorktreeBranchHeldError`](WorktreeBranchHeldError.md)
+- [`WorktreeTableSetMismatchError`](WorktreeTableSetMismatchError.md)
+- [`PermissionDeniedError`](PermissionDeniedError.md)
+- [`RxDBMissingPrimaryAdapterError`](RxDBMissingPrimaryAdapterError.md)
+- [`RxDBMixedPrimaryAdapterError`](RxDBMixedPrimaryAdapterError.md)
+- [`RxDBSyncOverrideError`](RxDBSyncOverrideError.md)
+- [`SortOrderError`](SortOrderError.md)
+- [`RxDBDependencyFailedError`](RxDBDependencyFailedError.md)
+- [`BranchNotMaterializedError`](../../rxdb-plugin-working-tree/classes/BranchNotMaterializedError.md)
+- [`ColdReplayMismatchError`](../../rxdb-plugin-working-tree/classes/ColdReplayMismatchError.md)
+- [`CommitEncryptedAtRestError`](../../rxdb-plugin-working-tree/classes/CommitEncryptedAtRestError.md)
+- [`CommitValidationError`](../../rxdb-plugin-working-tree/classes/CommitValidationError.md)
+- [`StaleActiveBranchError`](../../rxdb-plugin-working-tree/classes/StaleActiveBranchError.md)
+- [`WorkingTreeCapabilityDisabledError`](../../rxdb-plugin-working-tree/classes/WorkingTreeCapabilityDisabledError.md)
+- [`WorkingTreeDirtyError`](../../rxdb-plugin-working-tree/classes/WorkingTreeDirtyError.md)
+- [`WorkingTreeEntryCountMismatchError`](../../rxdb-plugin-working-tree/classes/WorkingTreeEntryCountMismatchError.md)
+- [`WorkingTreeReplayCorruptionError`](../../rxdb-plugin-working-tree/classes/WorkingTreeReplayCorruptionError.md)
+- [`WorkingTreeWriteRejectedError`](../../rxdb-plugin-working-tree/classes/WorkingTreeWriteRejectedError.md)
+- [`WorktreeUnavailableError`](../../rxdb-plugin-working-tree/classes/WorktreeUnavailableError.md)
+- [`RxDBCrossScopeTransactionError`](../../rxdb-plugin-history/classes/RxDBCrossScopeTransactionError.md)
+- [`RemoteBackendMismatchError`](../../rxdb-plugin-sync/classes/RemoteBackendMismatchError.md)
+
+## Constructors
+
+### Constructor
+
+```ts
+new RxDBError(message, options?): RxDBError;
+```
+
+Defined in: [packages/rxdb/src/RxDBError.ts:2](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb/src/RxDBError.ts#L2)
+
+#### Parameters
+
+| Parameter  | Type           |
+| ---------- | -------------- |
+| `message`  | `string`       |
+| `options?` | `ErrorOptions` |
+
+#### Returns
+
+`RxDBError`
+
+#### Overrides
+
+`Error.constructor`
+
+## Properties
+
+### cause? \{#cause\}
+
+```ts
+cause?: unknown;
+```
+
+Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node\_modules/typescript/lib/lib.es2022.error.d.ts:24
+
+#### Inherited from
+
+`Error.cause`
+
+---
+
+### message \{#message\}
+
+```ts
+message: string;
+```
+
+Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node\_modules/typescript/lib/lib.es5.d.ts:1075
+
+#### Inherited from
+
+`Error.message`
+
+---
+
+### name \{#name\}
+
+```ts
+name: string;
+```
+
+Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node\_modules/typescript/lib/lib.es5.d.ts:1074
+
+#### Inherited from
+
+`Error.name`
+
+---
+
+### stack? \{#stack\}
+
+```ts
+stack?: string;
+```
+
+Defined in: node\_modules/.pnpm/typescript@6.0.3\_patch\_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node\_modules/typescript/lib/lib.es5.d.ts:1076
+
+#### Inherited from
+
+`Error.stack`
+
+---
+
+### stackTraceLimit \{#stacktracelimit\}
+
+```ts
+static stackTraceLimit: number;
+```
+
+Defined in: node\_modules/.pnpm/@types+node@26.6.6/node\_modules/@types/node/globals.d.ts:67
+
+The `Error.stackTraceLimit` property specifies the number of stack frames
+collected by a stack trace (whether generated by `new Error().stack` or
+`Error.captureStackTrace(obj)`).
+
+The default value is `10` but may be set to any valid JavaScript number. Changes
+will affect any stack trace captured _after_ the value has been changed.
+
+If set to a non-number value, or set to a negative number, stack traces will
+not capture any frames.
+
+#### Inherited from
+
+`Error.stackTraceLimit`
+
+## Methods
+
+### captureStackTrace() \{#capturestacktrace\}
+
+```ts
+static captureStackTrace(targetObject, constructorOpt?): void;
+```
+
+Defined in: node\_modules/.pnpm/@types+node@26.6.6/node\_modules/@types/node/globals.d.ts:51
+
+Creates a `.stack` property on `targetObject`, which when accessed returns
+a string representing the location in the code at which
+`Error.captureStackTrace()` was called.
+
+```js
+const myObject = {};
+Error.captureStackTrace(myObject);
+myObject.stack; // Similar to `new Error().stack`
+```
+
+The first line of the trace will be prefixed with
+`${myObject.name}: ${myObject.message}`.
+
+The optional `constructorOpt` argument accepts a function. If given, all frames
+above `constructorOpt`, including `constructorOpt`, will be omitted from the
+generated stack trace.
+
+The `constructorOpt` argument is useful for hiding implementation
+details of error generation from the user. For instance:
+
+```js
+function a() {
+  b();
+}
+
+function b() {
+  c();
+}
+
+function c() {
+  // Create an error without stack trace to avoid calculating the stack trace twice.
+  const { stackTraceLimit } = Error;
+  Error.stackTraceLimit = 0;
+  const error = new Error();
+  Error.stackTraceLimit = stackTraceLimit;
+
+  // Capture the stack trace above function b
+  Error.captureStackTrace(error, b); // Neither function c, nor b is included in the stack trace
+  throw error;
+}
+
+a();
+```
+
+#### Parameters
+
+| Parameter         | Type       |
+| ----------------- | ---------- |
+| `targetObject`    | `object`   |
+| `constructorOpt?` | `Function` |
+
+#### Returns
+
+`void`
+
+#### Inherited from
+
+`Error.captureStackTrace`
+
+---
+
+### prepareStackTrace() \{#preparestacktrace\}
+
+```ts
+static prepareStackTrace(err, stackTraces): any;
+```
+
+Defined in: node\_modules/.pnpm/@types+node@26.6.6/node\_modules/@types/node/globals.d.ts:55
+
+#### Parameters
+
+| Parameter     | Type         |
+| ------------- | ------------ |
+| `err`         | `Error`      |
+| `stackTraces` | `CallSite`[] |
+
+#### Returns
+
+`any`
+
+#### See
+
+https://v8.dev/docs/stack-trace-api#customizing-stack-traces
+
+#### Inherited from
+
+`Error.prepareStackTrace`

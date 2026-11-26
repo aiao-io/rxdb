@@ -1,0 +1,9 @@
+# modelMessages
+
+```ts
+const modelMessages: MessageCatalog[];
+```
+
+Defined in: packages/rxdb-model/dist/messages.d.ts:479
+
+Component catalog shipped with the package; apps can override entries one by one.

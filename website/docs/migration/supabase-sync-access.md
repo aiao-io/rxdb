@@ -1,6 +1,6 @@
 # Supabase 日志同步只对已登录身份开放
 
-本文记录 US-225 的旧协议权限迁移，重点是未分区 `rxdb_change` 日志、通用拉取、推送、分支登记和实时通知。当前按授权分区同步见[Supabase 适配器文档](../adapters/supabase.md#按授权分区同步)。分区实体部署新版 SQL 后，anon 可以通过按区只读 RPC 读取授权的 `public` 区，authenticated 可以读取 `rxdb_caller_buckets()` 返回的分区。
+本文记录 US-225 的旧协议权限迁移，重点是未分区 `rxdb_change` 日志、通用拉取、推送、分支登记和实时通知。当前按授权分区同步见<a href="/docs/adapters/supabase#按授权分区同步">Supabase 适配器文档</a>。分区实体部署新版 SQL 后，anon 可以通过按区只读 RPC 读取授权的 `public` 区，authenticated 可以读取 `rxdb_caller_buckets()` 返回的分区。
 
 `@aiao/rxdb-adapter-supabase` 的参考 SQL 收紧了变更日志的访问。旧版本里：
 
@@ -20,7 +20,7 @@
 | 实时通知       | 日志表的 `postgres_changes`，带完整行        | 未分区旧日志广播到 `rxdb:changes`，分区日志广播到 `rxdb:changes:bucket:<bucket>`，只带元数据；旧日志只对 authenticated 开放，分区频道按 caller buckets 开放 |
 | Remote 事件    | `data` 是 `{ id, ...patch }`                 | `data` 只有 `{ id }`                                                                                                                                        |
 
-未分区旧日志仍对全部登录者可读，而且带完整正文；没有改成分区实体的实体，升级之后的新写入同样记成这种日志。日志同步只适用于这些数据对所有登录者可见的场景。分区实体的日志读取与实时通知范围由 `rxdb_caller_buckets()` 与业务表 RLS 决定，过滤条件只能在已授权分区内缩小范围。开放注册或开启匿名登录的部署，仍应按[适用边界](../adapters/supabase.md#适用边界)检查数据暴露范围。
+未分区旧日志仍对全部登录者可读，而且带完整正文；没有改成分区实体的实体，升级之后的新写入同样记成这种日志。日志同步只适用于这些数据对所有登录者可见的场景。分区实体的日志读取与实时通知范围由 `rxdb_caller_buckets()` 与业务表 RLS 决定，过滤条件只能在已授权分区内缩小范围。开放注册或开启匿名登录的部署，仍应按<a href="/docs/adapters/supabase#适用边界">适用边界</a>检查数据暴露范围。
 
 ## 升级
 
@@ -102,7 +102,7 @@ ON CONFLICT ("branchId") DO NOTHING;
 
 ## 把实体改成分区实体
 
-按[声明业务表分区](../adapters/supabase.md#声明业务表分区)给业务表加 `rxdb_bucket` 生成列，再调 `rxdb_enable_sync_for_table` 登记。在此之前：
+按<a href="/docs/adapters/supabase#声明业务表分区">声明业务表分区</a>给业务表加 `rxdb_bucket` 生成列，再调 `rxdb_enable_sync_for_table` 登记。在此之前：
 
 - **先把所有客户端升级到新版本。** 分区日志只带元数据，RLS 按 caller buckets 放行。旧客户端的通用拉取直接读日志表，会拉到不带正文的分区日志；检查更新数到的条数也拉不完，一直显示有更新。新客户端对分区实体改走按区快照与增量，通用拉取与计数只看未分区日志。
 - **登记会删掉这个实体全部的未分区历史日志。** 这些旧日志带完整正文，登记之前仍按旧口径对 authenticated 可读；登记之后客户端从业务表按调用者身份重建快照，正文只由业务表的 RLS 裁决。

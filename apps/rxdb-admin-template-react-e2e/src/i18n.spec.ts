@@ -44,6 +44,42 @@ async function downloadBackup(page: Page): Promise<string> {
   return archive;
 }
 
+test.describe('英文浏览器的语言偏好', () => {
+  test.use({ locale: 'en-US' });
+
+  test('首次访问跟随浏览器，保存中文后刷新，清除后恢复英文', async ({ page }) => {
+    await resetE2eState(page);
+    await page.goto('/');
+    const language = page.locator('html');
+    const description = page.locator('meta[name="description"]');
+    const englishHeading = page.getByRole('heading', { name: 'Get started with your workbench', exact: true });
+    const englishDescription =
+      'A local-first, model-driven RxDB workbench for creating, editing, filtering, backing up and restoring data.';
+    await expect(englishHeading).toBeVisible();
+    await expect(language).toHaveAttribute('lang', 'en');
+    await expect(page).toHaveTitle('Model-driven data workbench');
+    await expect(description).toHaveAttribute('content', englishDescription);
+
+    await setLocale(page, 'zh-Hans');
+    await page.reload();
+    await expect(page.getByRole('heading', { name: '开始使用工作台', exact: true })).toBeVisible();
+    await expect(language).toHaveAttribute('lang', 'zh-Hans');
+    await expect(page).toHaveTitle('模型驱动数据工作台');
+    await expect(description).toHaveAttribute('content', /模型驱动本地数据工作台/);
+
+    const drawer = await openPreferences(page);
+    await drawer.getByTestId('pref-tab-general').click();
+    await drawer.getByTestId('pref-app.locale').selectOption('');
+    await expect(language).toHaveAttribute('lang', 'en');
+    await expectStoredPreferences(page, null);
+    await page.reload();
+    await expect(englishHeading).toBeVisible();
+    await expect(language).toHaveAttribute('lang', 'en');
+    await expect(page).toHaveTitle('Model-driven data workbench');
+    await expect(description).toHaveAttribute('content', englishDescription);
+  });
+});
+
 test.describe('工作台完整国际化', () => {
   test.beforeEach(async ({ page }) => {
     await resetE2eState(page);

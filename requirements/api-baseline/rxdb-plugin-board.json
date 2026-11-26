@@ -14,6 +14,10 @@
         "kind": "both"
       },
       {
+        "name": "BOARD_I18N_NAMESPACE",
+        "kind": "value"
+      },
+      {
         "name": "BOARD_LABEL_COLORS",
         "kind": "value"
       },
@@ -24,6 +28,10 @@
       {
         "name": "BoardBackupAdapter",
         "kind": "type"
+      },
+      {
+        "name": "boardCatalogs",
+        "kind": "value"
       },
       {
         "name": "BoardColumnSortService",
@@ -48,6 +56,10 @@
       {
         "name": "BoardDomainError",
         "kind": "both"
+      },
+      {
+        "name": "boardEnMessages",
+        "kind": "value"
       },
       {
         "name": "BoardErrorCode",
@@ -104,6 +116,10 @@
       {
         "name": "BoardLabelService",
         "kind": "both"
+      },
+      {
+        "name": "BoardMessageKey",
+        "kind": "type"
       },
       {
         "name": "BoardMoveDirection",
@@ -174,6 +190,10 @@
         "kind": "both"
       },
       {
+        "name": "boardZhMessages",
+        "kind": "value"
+      },
+      {
         "name": "browserBoardShellRuntime",
         "kind": "value"
       },
@@ -212,6 +232,10 @@
       {
         "name": "ColumnSortResult",
         "kind": "type"
+      },
+      {
+        "name": "createBoardI18n",
+        "kind": "value"
       },
       {
         "name": "DEFAULT_BOARD_SEARCH_PAGE_SIZE",

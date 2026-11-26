@@ -1,0 +1,39 @@
+# transaction_sqlite_result()
+
+```ts
+function transaction_sqlite_result<T>(
+  adapter,
+  EntityType,
+  sqliteSuccessResult,
+  forcedUpdate?,
+  skipCreate?,
+  mergeExternalChanges?,
+  submissions?
+): Promise<InstanceType<T>[]>;
+```
+
+Defined in: [packages/rxdb-adapter-sqlite-core/src/transaction\_sqlite\_result.ts:94](https://github.com/aiao-io/rxdb/blob/b5232040240cf1ccfbab0ebf9ba882a4af8268a0/packages/rxdb-adapter-sqlite-core/src/transaction_sqlite_result.ts#L94)
+
+Processes a SQLite transaction result and returns an entity array
+
+## Type Parameters
+
+| Type Parameter                                                                                    |
+| ------------------------------------------------------------------------------------------------- |
+| <a id="type-parameter-t"></a> `T` _extends_ [`EntityType`](../../rxdb/type-aliases/EntityType.md) |
+
+## Parameters
+
+| Parameter               | Type                                                           | Default value | Description                                                                                                                                                                                                                            |
+| ----------------------- | -------------------------------------------------------------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `adapter`               | [`RxDBAdapterSqliteBase`](../classes/RxDBAdapterSqliteBase.md) | `undefined`   | -                                                                                                                                                                                                                                      |
+| `EntityType`            | `T`                                                            | `undefined`   | -                                                                                                                                                                                                                                      |
+| `sqliteSuccessResult`   | [`SqliteSuccessResult`](../interfaces/SqliteSuccessResult.md)  | `undefined`   | -                                                                                                                                                                                                                                      |
+| `forcedUpdate?`         | `boolean`                                                      | `false`       | -                                                                                                                                                                                                                                      |
+| `skipCreate?`           | `boolean`                                                      | `false`       | Skips creating new entities (only updates the existing cache)                                                                                                                                                                          |
+| `mergeExternalChanges?` | `boolean`                                                      | `false`       | Merges database data while keeping unsaved fields                                                                                                                                                                                      |
+| `submissions?`          | `SqliteWriteSubmissions`&lt;`T`&gt;                            | `undefined`   | Submission records of this write (indexed by the entities written): cached entities that hit are settled via `EntityStatus.applyWriteResult`, advancing the baseline with the returned row and keeping new edits made after submission |
+
+## Returns
+
+`Promise`&lt;`InstanceType`&lt;`T`&gt;[]&gt;

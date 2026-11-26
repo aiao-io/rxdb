@@ -1,6 +1,6 @@
 # Supabase 外键成环的推送
 
-US-038 让互相持有外键的实体能推拉，例如 shop 的 `User.idCard` ↔ `IdCard.owner` 这种双向一对一。客户端在环上的可空外键处断环，把互相引用的行放进同一次 `rxdb_mutations`。新参数 `p_deferred_columns` 告诉服务端哪些外键列先写空、在同一个事务里再补写。用法见[外键成环](../collaboration/sync.md#外键成环)，服务端怎么执行见 [Supabase 适配器](../adapters/supabase.md#外键成环的三遍执行)。
+US-038 让互相持有外键的实体能推拉，例如 shop 的 `User.idCard` ↔ `IdCard.owner` 这种双向一对一。客户端在环上的可空外键处断环，把互相引用的行放进同一次 `rxdb_mutations`。新参数 `p_deferred_columns` 告诉服务端哪些外键列先写空、在同一个事务里再补写。用法见<a href="/docs/collaboration/sync#外键成环">外键成环</a>，服务端怎么执行见 <a href="/docs/adapters/supabase#外键成环的三遍执行">Supabase 适配器</a>。
 
 **谁要升级**：模型里有外键成环的实体、并推到 Supabase 的部署。升级之前，这样的模型连推拉都做不了：依赖图对所有仓库报 `Circular dependency detected`。没有环的模型不必为此升级，客户端不发这个参数；升级之后也没有影响。
 
@@ -30,7 +30,7 @@ psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 --single-transaction \
   -f docker/sql/production/rxdb-change-grants.sql
 ```
 
-使用 Supabase SQL Editor 时，把 `BEGIN;`、两份文件的完整内容和 `COMMIT;` 放在**同一次执行**中。不要为此重跑整份 `01-rxdb-system-tables.sql`：它的整库授权会放宽业务表的权限，见[日志同步只对已登录身份开放](./supabase-sync-access.md#2-更新服务端-sql)。
+使用 Supabase SQL Editor 时，把 `BEGIN;`、两份文件的完整内容和 `COMMIT;` 放在**同一次执行**中。不要为此重跑整份 `01-rxdb-system-tables.sql`：它的整库授权会放宽业务表的权限，见[日志同步只对已登录身份开放](/migration/supabase-sync-access.md#2-更新服务端-sql)。
 
 执行完让 PostgREST 重新加载 schema，否则它还按旧签名找函数：
 
@@ -40,7 +40,7 @@ NOTIFY pgrst, 'reload schema';
 
 ### 2. 重新加载自己的覆盖
 
-04 每次执行都会把 `rxdb_caller_can_edit` 恢复成平台默认（见[远端变更历史](./supabase-change-history.md#2-覆盖编辑权限的判定)）。覆盖过它的部署，执行完步骤 1 要重新加载自己的覆盖，再执行一次生产权限脚本：
+04 每次执行都会把 `rxdb_caller_can_edit` 恢复成平台默认（见[远端变更历史](/migration/supabase-change-history.md#2-覆盖编辑权限的判定)）。覆盖过它的部署，执行完步骤 1 要重新加载自己的覆盖，再执行一次生产权限脚本：
 
 ```bash
 psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 --single-transaction \
@@ -50,7 +50,7 @@ psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 --single-transaction \
 
 ### 3. 给环上的表开 UPDATE 策略
 
-补写是以调用者身份执行的普通 `UPDATE`。环上带断环外键的那张表（shop 是 `"user"`），要允许行的创建者修改这一行，否则补写以 `42501` 失败，整对都被拒。只开了 INSERT 的表，补一条 UPDATE 策略，口径与[业务表 RLS 推荐策略](../adapters/supabase.md#业务表-rls-推荐策略)一致。
+补写是以调用者身份执行的普通 `UPDATE`。环上带断环外键的那张表（shop 是 `"user"`），要允许行的创建者修改这一行，否则补写以 `42501` 失败，整对都被拒。只开了 INSERT 的表，补一条 UPDATE 策略，口径与<a href="/docs/adapters/supabase#业务表-rls-推荐策略">业务表 RLS 推荐策略</a>一致。
 
 ### 4. 核对实体的 `onDelete`
 

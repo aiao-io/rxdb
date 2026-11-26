@@ -7,21 +7,23 @@ import {
   type QueryBuilderRule
 } from '@aiao/rxdb-model/headless';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { I18nPipe } from '../../pipes/i18n.pipe';
 import { defaultRuleValue, operatorLabel, operatorsFor, ruleValueFromText } from './article-model';
 
 /** 一条规则：字段 / 操作符 / 值控件都是本页自己的，更新动作交给查询构建器控制器。 */
 @Component({
   selector: 'app-hl-query-rule',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [I18nPipe],
   template: `
     <div class="hl-rule" data-testid="qb-rule">
-      <select (change)="changeField($event)" aria-label="字段">
-        <option [selected]="rule().field === ''" value="">选择字段</option>
+      <select [attr.aria-label]="'page.headless.field' | i18n" (change)="changeField($event)">
+        <option [selected]="rule().field === ''" value="">{{ 'page.headless.selectField' | i18n }}</option>
         @for (item of fields(); track item.name) {
           <option [selected]="rule().field === item.name" [value]="item.name">{{ item.displayName }}</option>
         }
       </select>
-      <select (change)="changeOperator($event)" aria-label="操作符">
+      <select [attr.aria-label]="'page.headless.operator' | i18n" (change)="changeOperator($event)">
         @for (operator of operators(); track operator.key) {
           <option [selected]="rule().operator === operator.key" [value]="operator.key">
             {{ operatorText(operator) }}
@@ -29,21 +31,27 @@ import { defaultRuleValue, operatorLabel, operatorsFor, ruleValueFromText } from
         }
       </select>
       @if (inputType() === 'enum') {
-        <select (change)="changeEnumValue($event)" aria-label="值">
-          <option [selected]="valueText() === ''" value="">请选择</option>
+        <select [attr.aria-label]="'page.headless.value' | i18n" (change)="changeEnumValue($event)">
+          <option [selected]="valueText() === ''" value="">{{ 'page.headless.pleaseSelect' | i18n }}</option>
           @for (option of field()?.enum ?? []; track option) {
             <option [selected]="valueText() === '' + option" [value]="'' + option">{{ '' + option }}</option>
           }
         </select>
       } @else if (inputType() !== 'none') {
         <input
+          [attr.aria-label]="'page.headless.value' | i18n"
           [attr.inputmode]="inputType() === 'number' ? 'numeric' : null"
           [value]="valueText()"
           (input)="changeValue($event)"
-          aria-label="值"
         />
       }
-      <button (click)="controller().remove(rule().id)" aria-label="删除规则" type="button">删除</button>
+      <button
+        [attr.aria-label]="'page.headless.deleteRule' | i18n"
+        (click)="controller().remove(rule().id)"
+        type="button"
+      >
+        {{ 'common.delete' | i18n }}
+      </button>
     </div>
   `
 })

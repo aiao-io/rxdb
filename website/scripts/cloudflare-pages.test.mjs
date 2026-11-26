@@ -83,6 +83,11 @@ async function assetFixture(t) {
   t.after(() => rm(root, { recursive: true, force: true }));
   for (const file of [
     'index.html',
+    'en/index.html',
+    'docs/getting-started/install.html',
+    'en/docs/getting-started/install.html',
+    'search-index-a1b2.json.gz',
+    'en/search-index-a1b2.json.gz',
     '404.html',
     '_headers',
     '_redirects',
@@ -100,10 +105,26 @@ async function assetFixture(t) {
   return root;
 }
 
-test('检查完整静态站及三端演示产物', async t => {
+test('检查双语静态站及三端演示产物', async t => {
   const root = await assetFixture(t);
-  assert.equal((await checkAssets(root)).files, 11);
+  assert.equal((await checkAssets(root)).files, 16);
 });
+
+for (const file of ['en/index.html', 'docs/getting-started/install.html', 'en/docs/getting-started/install.html']) {
+  test(`缺少 ${file} 时阻止上传`, async t => {
+    const root = await assetFixture(t);
+    await rm(path.join(root, file));
+    await assert.rejects(checkAssets(root), error => error.path === path.join(root, file));
+  });
+}
+
+for (const prefix of ['', 'en/']) {
+  test(`缺少 /${prefix} 的搜索索引时阻止上传`, async t => {
+    const root = await assetFixture(t);
+    await rm(path.join(root, `${prefix}search-index-a1b2.json.gz`));
+    await assert.rejects(checkAssets(root), error => error.message.includes(`/${prefix}search-index`));
+  });
+}
 
 test('缺少演示产物时阻止上传', async t => {
   const root = await assetFixture(t);
@@ -140,6 +161,19 @@ test('为 Pages 深链生成独立入口，并在 SPA 规则前保留 JS、WASM 
   }
   await prepareAssets(root);
   assert.equal(await readFile(path.join(root, '_redirects'), 'utf8'), redirects);
+});
+
+test('两种语言共用三端演示资源，英文宿主页继续保留', async t => {
+  const root = await assetFixture(t);
+  await mkdir(path.join(root, 'en/demo/react'), { recursive: true });
+  await mkdir(path.join(root, 'en/demos'), { recursive: true });
+  await writeFile(path.join(root, 'en/demo/react/index.html'), 'fixture');
+  await writeFile(path.join(root, 'en/demos/react.html'), 'English host');
+  await prepareAssets(root);
+  await assert.rejects(readdir(path.join(root, 'en/demo')), { code: 'ENOENT' });
+  assert.equal(await readFile(path.join(root, 'demo/react/index.html'), 'utf8'), 'fixture');
+  assert.equal(await readFile(path.join(root, 'en/demos/react.html'), 'utf8'), 'English host');
+  assert.match(await readFile(path.join(root, '_redirects'), 'utf8'), /^\/en\/demo\/\*\s+\/demo\/:splat\s+301$/m);
 });
 
 test('demo 资源超过 Pages 静态路由上限时阻止发布', async t => {

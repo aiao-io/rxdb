@@ -4,11 +4,11 @@ import { addRootMenu, openPage } from './e2e-utils.js';
 
 test.describe('Virtual Tree Menu', () => {
   test.beforeEach(async ({ page }) => {
-    await openPage(page, '/menu-virtual', /Tree Menu - Virtual/u);
+    await openPage(page, '/menu-virtual', /Tree Menu - Virtual|树菜单 - 虚拟滚动/u);
   });
 
   test('should display virtual menu page', async ({ page }) => {
-    await expect(page.getByRole('heading', { level: 1, name: /Tree Menu - Virtual/u })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: /Tree Menu - Virtual|树菜单 - 虚拟滚动/u })).toBeVisible();
   });
 
   test('should have add menu input and toolbar', async ({ page }) => {

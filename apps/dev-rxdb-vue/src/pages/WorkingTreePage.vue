@@ -13,6 +13,7 @@ import type {
 } from '@aiao/rxdb-plugin-working-tree';
 import { CommitValidationError, WorkingTreeDirtyError } from '@aiao/rxdb-plugin-working-tree';
 import { useWorkingTree, useWorktrees } from '@aiao/rxdb-plugin-working-tree-vue';
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import { useFindAll, useRxDB } from '@aiao/rxdb-vue';
 import { Check, ChevronDown, FolderGit2, GitBranch, RefreshCw } from '@lucide/vue';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
@@ -82,6 +83,7 @@ const COMMIT_REJECTION_TEXT: Record<CommitValidationReason, string> = {
  * `refreshStatus()` 兜这一下。
  */
 const rxdb = useRxDB();
+const { t } = useI18n();
 const tree = useWorkingTree();
 /** 检出位：挂着哪一套（`mounted`）决定当前分支，下拉与对话框经它开、挂、删（US-314 C2） */
 const worktrees = useWorktrees();
@@ -1085,7 +1087,7 @@ function clampAsideWidth(width: number): number {
     data-testid="working-tree-page"
   >
     <!-- GitHub Desktop 没有页面标题栏：标题只留给读屏，视觉上第一行就是工具栏 -->
-    <h1 class="sr-only">工作树与提交历史</h1>
+    <h1 class="sr-only">{{ t('page.workingTree.title') }}</h1>
 
     <template v-if="enabledState.phase === 'success' && enabledState.value">
       <!-- ═══════════════════ 工具栏：仓库选择器 · 分支选择器 · 获取 origin · 上次获取 ═══════════════════ -->
@@ -1207,7 +1209,7 @@ function clampAsideWidth(width: number): number {
           :style="{ width: fetchSectionWidth + 'px' }"
           @click="runFetch"
           data-testid="wt-refresh-status"
-          title="Fetch origin（重读本地状态与提交历史）"
+          :title="t('page.workingTree.fetchTitle')"
           type="button"
         >
           <RefreshCw
@@ -1408,35 +1410,37 @@ function clampAsideWidth(width: number): number {
           class="min-w-0 truncate"
           v-if="statusState.phase === 'success' || statusState.phase === 'empty'"
         >
-          · 分支
+          {{ t('page.workingTree.statusBranchLabel') }}
           <span
             class="font-medium"
             data-testid="wt-status-branch"
             >{{ statusState.value.branchId }}</span
           >
-          · 未提交
+          {{ t('page.workingTree.statusUncommittedLabel') }}
           <span data-testid="wt-status-entry-count">{{ statusState.value.entryCount }}</span>
-          条 ·
-          <span data-testid="wt-status-clean">{{ statusState.value.clean ? '干净' : '有未提交改动' }}</span>
-          · 远端同步来源
+          {{ t('page.workingTree.statusEntryCountSuffix') }}
+          <span data-testid="wt-status-clean">{{
+            statusState.value.clean ? t('page.workingTree.statusClean') : t('page.workingTree.statusDirty')
+          }}</span>
+          {{ t('page.workingTree.statusRemoteSyncLabel') }}
           <span data-testid="wt-status-remote-sync">{{ statusState.value.byOrigin.remote_sync }}</span>
-          条
+          {{ t('page.workingTree.statusCountSuffix') }}
         </span>
         <span
           class="rounded-full border border-amber-400 px-1.5 text-amber-700"
           v-if="(statusState.phase === 'success' || statusState.phase === 'empty') && statusState.value.restoring"
           data-testid="wt-status-restore"
         >
-          恢复中
+          {{ t('page.workingTree.statusRestoring') }}
         </span>
         <span
           class="rounded-full border border-red-400 px-1.5 text-red-700"
           v-if="(statusState.phase === 'success' || statusState.phase === 'empty') && statusState.value.conflicted"
           data-testid="wt-status-restore"
         >
-          会话分叉
+          {{ t('page.workingTree.statusConflicted') }}
         </span>
-        <span v-if="statusState.phase === 'error'">· 尚未初始化，先点「初始化仓库」</span>
+        <span v-if="statusState.phase === 'error'">{{ t('page.workingTree.statusNotInitialized') }}</span>
       </div>
       <div class="flex shrink-0 items-center gap-3">
         <span
@@ -1449,12 +1453,12 @@ function clampAsideWidth(width: number): number {
           role="status"
         >
           <template v-if="enabledState.phase === 'success'">
-            {{ enabledState.value ? '已启用' : '未启用' }}
+            {{ enabledState.value ? t('page.workingTree.enabled') : t('page.workingTree.notEnabled') }}
           </template>
           <template v-else>{{ enabledState.phase }}</template>
         </span>
         <span data-testid="wt-first-visible">
-          首次可见状态耗时：
+          {{ t('page.workingTree.firstVisibleLabel') }}
           <span data-testid="wt-first-visible-ms">{{ firstVisibleMs }}</span>
           ms
         </span>
@@ -1465,7 +1469,7 @@ function clampAsideWidth(width: number): number {
           data-testid="wt-refresh-status"
           type="button"
         >
-          刷新状态
+          {{ t('page.workingTree.refreshStatus') }}
         </button>
       </div>
     </div>
@@ -1533,7 +1537,7 @@ function clampAsideWidth(width: number): number {
         {{
           confirmRequest.kind === 'discard' ?
             confirmRequest.message
-          : `确定要删除分支 "${confirmRequest.branchId}" 吗？`
+          : t('page.workingTree.confirmDeleteBranch', { branchId: confirmRequest.branchId })
         }}
       </p>
       <div class="flex justify-end gap-2">

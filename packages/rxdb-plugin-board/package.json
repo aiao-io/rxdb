@@ -60,6 +60,7 @@
     ]
   },
   "dependencies": {
+    "@aiao/rxdb-i18n": "workspace:^",
     "@aiao/rxdb-plugin-search": "workspace:^",
     "@aiao/utils": "workspace:^",
     "rxjs": "^7.8.2"
