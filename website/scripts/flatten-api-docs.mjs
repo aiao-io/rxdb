@@ -127,8 +127,10 @@ export function plainTextMediaPackageLinks(content, mediaPackageNames) {
  * 非 `.md` 文件（图片、脚本等）不在 Docusaurus 的坏链检查范围内，原样保留。
  */
 const MEDIA_FILE_LINK_MAP = {
-  // 包 README 页的源文件是 docs/api/<pkg>/README.md，按源文件路径指到 docs/migration/ 需上溯两层。
-  'history-sync-plugins.md': '../../migration/history-sync-plugins.md'
+  // 用绝对路径：相对路径只在源文件所属语言树内解析。en 构建会把 zh 的 api 文档当回退内容编译，
+  // 相对链接会解析到 en 树里并不存在的路径；绝对路径按 contentPaths（en 树 → zh 树）查找，
+  // 两种语言的构建都能命中。
+  'history-sync-plugins.md': '/migration/history-sync-plugins.md'
 };
 
 export function rewriteMediaFileLinks(content) {
