@@ -152,9 +152,7 @@ interface SpotlightGroup {
   `
 })
 export class Spotlight {
-  protected readonly i18n = useI18n();
   /** 宿主上的对话框名称：host 装饰器里不能引用 this，经信号绑定。 */
-  protected readonly aria = computed(() => this.i18n.t('shell.overlay.spotlight'));
   private readonly appOrder = inject(ApplicationRegistry).launchOrder;
   private readonly apps = inject(ApplicationRegistry).apps;
   private readonly launcher = inject(AppLauncher);
@@ -170,7 +168,7 @@ export class Spotlight {
   private readonly queryInput = viewChild.required<ElementRef<HTMLInputElement>>('query');
   private readonly resultsBox = viewChild.required<ElementRef<HTMLElement>>('results');
   private hits: SpotlightHit[] = [];
-  private readonly actions: readonly SpotlightHit[] = [
+  private readonly actions = computed<readonly SpotlightHit[]>(() => [
     {
       name: this.i18n.t('shell.overlay.toggleDarkMode'),
       kind: 'Action',
@@ -202,8 +200,10 @@ export class Spotlight {
       run: () => this.wm.open('settings', { section: 'wallpaper' })
     },
     { name: this.i18n.t('shell.overlay.sleep'), kind: 'Action', icon: 'g-power', run: () => this.session.sleepNow() }
-  ];
+  ]);
 
+  protected readonly i18n = useI18n();
+  protected readonly aria = computed(() => this.i18n.t('shell.overlay.spotlight'));
   protected readonly overlays = inject(Overlays);
 
   /** 当前查询（已 trim）。 */
@@ -297,7 +297,7 @@ export class Spotlight {
         icon: this.apps()[id].icon,
         run: () => this.launcher.activate(id)
       }));
-    const actions = this.actions.filter(action => action.name.toLowerCase().includes(lq));
+    const actions = this.actions().filter(action => action.name.toLowerCase().includes(lq));
     const foundNodes = this.fs.deepSearch(this.fs.root(), lq).slice(0, 12);
     const found = foundNodes.map(node => this.fileHit(node));
     const showAll: SpotlightHit | null = foundNodes.length ? this.showAllHit(foundNodes[0]) : null;

@@ -181,11 +181,11 @@ export function showInfoPanel(
   `
 })
 export class InfoPanel {
-  protected readonly i18n = useI18n();
   private readonly opener = inject(FileOpener);
   private readonly popover = inject(PopoverService);
   private readonly toast = inject(Toast);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+  protected readonly i18n = useI18n();
 
   protected readonly finderDate = finderDate;
   protected readonly choices = computed(() => this.opener.choices(this.node()));

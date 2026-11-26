@@ -94,11 +94,6 @@ export class DesktopMenus {
   private readonly clipboard = inject(FinderClipboard);
   private readonly i18nRuntime = inject(I18N);
   private readonly locale = toSignal(this.i18nRuntime.locale$, { requireSync: true });
-  /** 菜单标签翻译：先读 locale 信号注册依赖，语言切换时外层 computed 重建菜单。 */
-  private readonly t = (key: string, params: Record<string, unknown> = {}): string => {
-    this.locale();
-    return this.i18nRuntime.t(key, params);
-  };
 
   apple(): MenuEntry[] {
     return [
@@ -545,6 +540,12 @@ export class DesktopMenus {
       const items = base[label];
       return items ? [section(label, items)] : [];
     });
+  }
+
+  /** 菜单标签翻译：先读 locale 信号注册依赖，语言切换时外层 computed 重建菜单。 */
+  private t(key: string, params: Record<string, unknown> = {}): string {
+    this.locale();
+    return this.i18nRuntime.t(key, params);
   }
 
   private forceQuitPanel(): void {

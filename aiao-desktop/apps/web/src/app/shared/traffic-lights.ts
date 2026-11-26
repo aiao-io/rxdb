@@ -51,8 +51,8 @@ import { Icon } from './icon';
 })
 export class TrafficLights {
   private readonly win = inject(DesktopWindow);
-  protected readonly i18n = useI18n();
   private readonly wm = inject(WindowManager);
+  protected readonly i18n = useI18n();
 
   protected close(event: MouseEvent): void {
     event.stopPropagation();

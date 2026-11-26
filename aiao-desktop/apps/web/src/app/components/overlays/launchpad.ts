@@ -297,7 +297,6 @@ interface LaunchpadDrag {
   `
 })
 export class Launchpad {
-  protected readonly i18n = useI18n();
   private readonly launcher = inject(AppLauncher);
   private readonly popover = inject(PopoverService);
   private readonly dockLayout = inject(DockLayoutStore);
@@ -336,6 +335,7 @@ export class Launchpad {
     return q ? source.filter(entry => this.entryName(entry).toLowerCase().includes(q)) : source;
   });
 
+  protected readonly i18n = useI18n();
   protected readonly apps = inject(ApplicationRegistry).apps;
   protected readonly overlays = inject(Overlays);
   protected readonly dockDrag = inject(DockDragController);

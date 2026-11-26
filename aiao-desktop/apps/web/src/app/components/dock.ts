@@ -118,7 +118,6 @@ const padOf = (size: number): number => (size <= MIN_DOCK_SIZE ? 2 : Math.round(
 })
 export class Dock implements DockView, DockDropTarget {
   private readonly apps = inject(ApplicationRegistry).apps;
-  protected readonly i18n = useI18n();
   private readonly system = inject(SystemState);
   private readonly wm = inject(WindowManager);
   private readonly popover = inject(PopoverService);
@@ -147,6 +146,7 @@ export class Dock implements DockView, DockDropTarget {
   private refocus: string | null = null;
   private hideTimer: ReturnType<typeof setTimeout> | null = null;
   private edgeListener: ((event: PointerEvent) => void) | null = null;
+  protected readonly i18n = useI18n();
   protected readonly launcher = inject(AppLauncher);
   protected readonly dockState = inject(DockState);
   protected readonly drag = inject(DockDragController);

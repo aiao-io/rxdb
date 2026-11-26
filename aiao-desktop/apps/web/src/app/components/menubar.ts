@@ -50,7 +50,6 @@ const PANELS: Readonly<Partial<Record<StatusKey, PopoverComponent>>> = {
   }
 })
 export class Menubar {
-  protected readonly i18n = useI18n();
   private readonly menus = inject(DesktopMenus);
   private readonly menuBarMenus = inject(MenuBarMenus);
   private readonly popover = inject(PopoverService);
@@ -74,6 +73,7 @@ export class Menubar {
   /** 最近一次鼠标按下（读屏的「按下」也会发 mousedown）：随后到达的 click 是它的尾声，不再处理一遍。 */
   private lastPress: { readonly key: string; readonly at: number } | null = null;
   private hoveredMenu: string | null = null;
+  protected readonly i18n = useI18n();
   protected readonly wm = inject(WindowManager);
   protected readonly system = inject(SystemState);
   protected readonly overlays = inject(Overlays);
