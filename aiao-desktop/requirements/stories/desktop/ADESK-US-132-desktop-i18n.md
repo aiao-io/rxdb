@@ -92,7 +92,7 @@ capabilities: [rxdb:US-911]
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-验收证据：AC1 见 `desktop-i18n.spec.ts` 与 `settings-data.spec.ts`；AC2-6 见 `apps/e2e/src/groups/language.mjs`（正式构建冒烟，2026-11-26 全绿）与 `settings-workflow.mjs`；AC7 见 verify 全量冒烟（2026-11-26 68/68 全绿，含 settings-workflow 与全部既有英文断言）；AC8-9 见 shell-interaction/a11y/dock 组（en 原文案零扰动回归）与 language 组 shellLocalized（Apple 菜单与锁屏 zh，2026-11-26 全绿）；data-problem 参数消息由 data-problem.spec 经真实目录覆盖，目录 key 成对性由 desktop-i18n.spec 门禁；AC10-13 见应用冒烟组；AC14-16 见验收台账。桌面行为的证据是正式构建上的浏览器冒烟。
+验收证据：AC1 见 `desktop-i18n.spec.ts` 与 `settings-data.spec.ts`；AC2-6 见 `apps/e2e/src/groups/language.mjs`（正式构建冒烟全绿）与 `settings-workflow.mjs`；AC7 见 verify 全量冒烟（含 settings-workflow 与全部既有英文断言）；AC8-9 见 shell-interaction/a11y/dock 组（en 原文案零扰动回归）与 language 组 shellLocalized（Apple 菜单与锁屏 zh）；data-problem 参数消息由 data-problem.spec 经真实目录覆盖，目录 key 成对性由 desktop-i18n.spec 门禁；AC10-13 见应用冒烟组；AC14-16 见验收台账。带日期的运行记录见 PR 描述与各次提交。桌面行为的证据是正式构建上的浏览器冒烟。
 
 ## 技术笔记
 
