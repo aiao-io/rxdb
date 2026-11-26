@@ -143,22 +143,22 @@ const checks = [
     {
       name: `admin-template-${framework}/application`,
       entries: [
-        [`apps/rxdb-admin-template-${framework}/src/app/i18n/page-messages.ts`, 'pageZhMessages'],
-        [`apps/rxdb-admin-template-${framework}/src/app/i18n/page-messages.ts`, 'pageEnMessages']
+        [`rxdb-admin-template/apps/${framework}/src/app/i18n/page-messages.ts`, 'pageZhMessages'],
+        [`rxdb-admin-template/apps/${framework}/src/app/i18n/page-messages.ts`, 'pageEnMessages']
       ]
     },
     {
       name: `admin-template-${framework}/domain`,
       entries: [
-        [`apps/rxdb-admin-template-${framework}/src/app/i18n/domain-messages.ts`, 'domainZhMessages'],
-        [`apps/rxdb-admin-template-${framework}/src/app/i18n/domain-messages.ts`, 'domainEnMessages']
+        [`rxdb-admin-template/apps/${framework}/src/app/i18n/domain-messages.ts`, 'domainZhMessages'],
+        [`rxdb-admin-template/apps/${framework}/src/app/i18n/domain-messages.ts`, 'domainEnMessages']
       ]
     },
     {
       name: `admin-template-${framework}/model`,
       entries: [
-        [`apps/rxdb-admin-template-${framework}/src/app/i18n/domain-messages.ts`, 'domainModelZhMessages'],
-        [`apps/rxdb-admin-template-${framework}/src/app/i18n/domain-messages.ts`, 'domainModelEnMessages']
+        [`rxdb-admin-template/apps/${framework}/src/app/i18n/domain-messages.ts`, 'domainModelZhMessages'],
+        [`rxdb-admin-template/apps/${framework}/src/app/i18n/domain-messages.ts`, 'domainModelEnMessages']
       ]
     }
   ])
