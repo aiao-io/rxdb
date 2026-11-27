@@ -179,7 +179,8 @@ function createWindow(): BrowserWindow {
 
   if (serve) {
     import('electron-debug').then(debug => {
-      debug.default({ isEnabled: true, showDevTools: true });
+      // 打包产物用 --serve 加载测试页面时，由用例决定何时打开 DevTools。
+      debug.default({ isEnabled: true, showDevTools: !app.isPackaged });
     });
 
     import('electron-reloader').then(reloader => {
