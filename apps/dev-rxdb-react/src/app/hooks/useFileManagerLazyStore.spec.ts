@@ -1,6 +1,7 @@
 import type { RxDB, UUID } from '@aiao/rxdb';
 import { SortableFileLarge } from '@aiao/rxdb-test/entities';
 import { act, renderHook } from '@testing-library/react';
+import { Storage } from 'happy-dom';
 import { BehaviorSubject, of, throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -175,7 +176,7 @@ describe('useFileManagerLazyStore', () => {
   let rxdb: RxDB;
 
   beforeEach(() => {
-    window.localStorage.clear();
+    vi.stubGlobal('localStorage', new Storage());
     table = new FakeFileTable();
     table.install();
     rxdb = table.entityManager();
@@ -183,6 +184,7 @@ describe('useFileManagerLazyStore', () => {
 
   afterEach(() => {
     table.uninstall();
+    vi.unstubAllGlobals();
   });
 
   /** APP-dev-rxdb-react P0-1，与 `useTreeMenuLazyStore` 同一条：见该文件的说明。 */
