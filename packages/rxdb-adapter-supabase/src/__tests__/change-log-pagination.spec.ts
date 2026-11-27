@@ -99,7 +99,13 @@ describe('拉变更日志超过 PostgREST max-rows', () => {
   it(
     'pullChanges：上限落在 max-rows 与总数之间时正好交回上限条',
     async () => {
-      const changes = await adapter.pullChanges(0, SERVER_MAX_ROWS + 50, ['public:ChangeLogPageA'], undefined, branchId);
+      const changes = await adapter.pullChanges(
+        0,
+        SERVER_MAX_ROWS + 50,
+        ['public:ChangeLogPageA'],
+        undefined,
+        branchId
+      );
 
       expect(changes).toHaveLength(SERVER_MAX_ROWS + 50);
       expectAscendingUnique(changes.map(change => change.id));

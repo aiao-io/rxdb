@@ -127,6 +127,11 @@ describe('scoped sync identity helpers', () => {
     expect(canonicalize({ b: 2, a: 1 })).toBe(canonicalize({ a: 1, b: 2 }));
   });
 
+  it('对象键按 UTF-16 码元排序，与运行环境的语言区域无关（指纹变了会触发整区快照重拉）', () => {
+    // 语言区域排序（localeCompare）把大小写、标点排得因地而异，丹麦语还把 `aa` 排到 `z` 后面；码元序处处一样
+    expect(canonicalize({ b: 1, B: 2, a: 3, _: 4, aa: 5, z: 6 })).toBe('{"B":2,"_":4,"a":3,"aa":5,"b":1,"z":6}');
+  });
+
   it('为 anon、用户 A 和用户 B 生成稳定且不含原文的指纹', () => {
     const anonFingerprint = identityFingerprint(anon());
     const userA = identityFingerprint(user('user-a'));

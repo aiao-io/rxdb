@@ -10,6 +10,7 @@ import {
   Entity,
   EntityBase,
   getEntityMetadata,
+  PropertyType,
   RelationKind,
   type RemoteChange,
   type RepositoryIdentifier,
@@ -17,7 +18,12 @@ import {
 } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import { buildDependencyGraph } from '../dependency-graph.js';
-import { closeCycleReferences, type CycleClosureSource, unsupportedPullCycles } from '../pull-cycle.js';
+import {
+  closeCycleReferences,
+  type CycleClosureSource,
+  MAX_CYCLE_CLOSURE_PAGES,
+  unsupportedPullCycles
+} from '../pull-cycle.js';
 
 @Entity({
   name: 'PullCycleUser',
@@ -41,6 +47,48 @@ class PullCycleUser extends EntityBase {}
 })
 class PullCycleCard extends EntityBase {}
 
+/**
+ * 只由复合外键成的环：没有关系，`(bId, tenantId)` → B`(id, tenantId)`、`(aId, tenantId)` → A`(id, tenantId)`。
+ * 被引用的行由映射到 `id` 的那一列认出来
+ */
+@Entity({
+  name: 'PullCompositeA',
+  namespace: 'pullcomposite',
+  properties: [
+    { name: 'tenantId', type: PropertyType.string },
+    { name: 'bId', type: PropertyType.uuid, nullable: true }
+  ],
+  indexes: [{ name: 'pull_composite_a_identity', properties: ['id', 'tenantId'], unique: true }],
+  foreignKeys: [
+    {
+      name: 'pull_composite_a_b',
+      properties: ['bId', 'tenantId'],
+      mappedEntity: 'PullCompositeB',
+      mappedProperties: ['id', 'tenantId']
+    }
+  ]
+})
+class PullCompositeA extends EntityBase {}
+
+@Entity({
+  name: 'PullCompositeB',
+  namespace: 'pullcomposite',
+  properties: [
+    { name: 'tenantId', type: PropertyType.string },
+    { name: 'aId', type: PropertyType.uuid }
+  ],
+  indexes: [{ name: 'pull_composite_b_identity', properties: ['id', 'tenantId'], unique: true }],
+  foreignKeys: [
+    {
+      name: 'pull_composite_b_a',
+      properties: ['aId', 'tenantId'],
+      mappedEntity: 'PullCompositeA',
+      mappedProperties: ['id', 'tenantId']
+    }
+  ]
+})
+class PullCompositeB extends EntityBase {}
+
 /** 不在环上的实体 */
 @Entity({ name: 'PullCycleNote', namespace: 'pullcycle' })
 class PullCycleNote extends EntityBase {}
@@ -48,6 +96,8 @@ class PullCycleNote extends EntityBase {}
 const USER: RepositoryIdentifier = { namespace: 'pullcycle', entity: 'PullCycleUser' };
 const CARD: RepositoryIdentifier = { namespace: 'pullcycle', entity: 'PullCycleCard' };
 const NOTE: RepositoryIdentifier = { namespace: 'pullcycle', entity: 'PullCycleNote' };
+const COMPOSITE_A: RepositoryIdentifier = { namespace: 'pullcomposite', entity: 'PullCompositeA' };
+const COMPOSITE_B: RepositoryIdentifier = { namespace: 'pullcomposite', entity: 'PullCompositeB' };
 
 const cycleGraph = () =>
   buildDependencyGraph([PullCycleCard, PullCycleUser, PullCycleNote].map(entity => getEntityMetadata(entity)));
@@ -168,6 +218,54 @@ describe('closeCycleReferences（US-038）', () => {
     // 第一次续拉到的是不相干的证件（它引用的用户也缺），第二次远端已经拉空
     expect(idsOf(closed)).toEqual([5, 7]);
     expect(fetchAfter).toHaveBeenCalledTimes(3);
+  });
+
+  it('补不齐（被引用的行远端一直不出现）：续拉到页数上限就停、原样交回，不把整段远端历史拉进内存', async () => {
+    // 远端还有远多于上限的页，每页都是不相干的证件（引用的用户就在这一轮里）；u1 引用的 c1 永远不出现，
+    // 例如它被行级安全挡住、或在别的分支上
+    const pages = Array.from({ length: MAX_CYCLE_CLOSURE_PAGES + 10 }, (_, page) => [
+      card(100 + page, `c-other-${page}`, 'u1')
+    ]);
+    const { source, fetchAfter } = sourceOf({ [repositoryKey(CARD)]: pages });
+
+    const closed = await closeCycleReferences(cycleGraph(), [user(5, 'u1', 'c1')], new Map(), source);
+
+    expect(fetchAfter).toHaveBeenCalledTimes(MAX_CYCLE_CLOSURE_PAGES);
+    expect(closed).toHaveLength(1 + MAX_CYCLE_CLOSURE_PAGES);
+    expect(fetchAfter).toHaveBeenLastCalledWith(CARD, 100 + MAX_CYCLE_CLOSURE_PAGES - 2);
+  });
+
+  it('这一轮里被引用仓库的变更极多：续拉起点照样算得出，不因展开成参数而栈溢出', async () => {
+    // 展开二十万个参数在 V8 上会 RangeError（同包 pull-batch.ts 求水位线时已规避过）
+    const cards = Array.from({ length: 200_000 }, (_, index) => card(index + 1, `c${index + 1}`, 'u1'));
+    const { source, fetchAfter } = sourceOf();
+
+    const closed = await closeCycleReferences(
+      cycleGraph(),
+      [...cards, user(300_000, 'u1', 'c-missing')],
+      new Map(),
+      source
+    );
+
+    expect(closed).toHaveLength(200_001);
+    expect(fetchAfter).toHaveBeenCalledWith(CARD, 200_000);
+  });
+
+  it('只由复合外键成的环：按映射到 id 的那一列认出被引用的行，同样续拉补齐', async () => {
+    const graph = buildDependencyGraph([PullCompositeA, PullCompositeB].map(entity => getEntityMetadata(entity)));
+    const { source, fetchAfter } = sourceOf({
+      [repositoryKey(COMPOSITE_B)]: [[insert(6, COMPOSITE_B, { id: 'b1', tenantId: 't', aId: 'a1' })]]
+    });
+
+    const closed = await closeCycleReferences(
+      graph,
+      [insert(5, COMPOSITE_A, { id: 'a1', tenantId: 't', bId: 'b1' })],
+      new Map(),
+      source
+    );
+
+    expect(idsOf(closed)).toEqual([5, 6]);
+    expect(fetchAfter).toHaveBeenCalledExactlyOnceWith(COMPOSITE_B, 0);
   });
 
   it('续拉交回这一轮已有的变更：去重，不重复并进来', async () => {

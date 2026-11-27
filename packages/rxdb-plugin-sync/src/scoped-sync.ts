@@ -215,15 +215,18 @@ export function filterFingerprint(filter: RuleGroup | undefined): string {
  * 与键序无关的 JSON 编码
  *
  * @param value - 任意可 JSON 化的值；`Date` 按 ISO 字符串编码
- * @returns 对象键按字典序排列后的 JSON 文本
+ * @returns 对象键按 UTF-16 码元排序后的 JSON 文本
+ *
+ * @remarks
+ * 不用 `localeCompare`：它按运行环境的语言区域与 ICU 版本排序，大小写、标点、`aa`（丹麦语）的先后因地而异，
+ * 同一份规则换个环境就是另一个指纹，分区进度随之作废、整区快照重拉。
  */
 export function canonicalize(value: unknown): string {
   if (value instanceof Date) return JSON.stringify(value.toISOString());
   if (Array.isArray(value)) return `[${value.map(item => canonicalize(item)).join(',')}]`;
   if (value && typeof value === 'object') {
-    const entries = Object.entries(value as Record<string, unknown>).sort(([left], [right]) =>
-      left.localeCompare(right)
-    );
+    // 同一个对象的键互不相同，两路比较就够了
+    const entries = Object.entries(value as Record<string, unknown>).sort(([left], [right]) => (left < right ? -1 : 1));
     return `{${entries.map(([key, item]) => `${JSON.stringify(key)}:${canonicalize(item)}`).join(',')}}`;
   }
   return JSON.stringify(value);

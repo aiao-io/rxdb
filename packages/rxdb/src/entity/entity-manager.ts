@@ -743,7 +743,10 @@ export class EntityManager {
    */
   async #mutations_query_cache<T extends EntityType>(options: RxDBMutationsMap<T>): Promise<InstanceType<T>[]> {
     const results: InstanceType<T>[] = [];
-    for (const entity of flattenMutationEntities(options.create)) results.push(await this.create(entity));
+    // 新建直接走仓库，不经 `create()`：中间表的 `create()` 会转进批量写，回到这里就是无限递归
+    for (const entity of flattenMutationEntities(options.create)) {
+      results.push(await this.#get_entity_repository(entity.constructor as T).create(entity));
+    }
     for (const entity of flattenMutationEntities(options.update)) results.push(await this.update(entity));
     for (const entity of flattenMutationEntities(options.remove)) results.push(await this.remove(entity));
     return results;

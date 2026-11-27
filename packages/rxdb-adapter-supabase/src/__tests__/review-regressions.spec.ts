@@ -1651,6 +1651,50 @@ describe('supabase review regressions', () => {
     expect(subscription.unsubscribe).toHaveBeenCalledOnce();
   });
 
+  it('connect() 之前的 auth 事件不起订阅：订阅只由 connect() 发起（RLS 自检在那里）', async () => {
+    const tokenA = testJwt({ role: 'authenticated', sub: 'user-a' });
+    const authCallbacks: Array<(event: string, session: { access_token: string } | null) => void> = [];
+    const auth = {
+      onAuthStateChange: vi.fn((callback: (event: string, session: { access_token: string } | null) => void) => {
+        authCallbacks.push(callback);
+        return { data: { subscription: { unsubscribe: vi.fn() } } };
+      })
+    };
+    const realtime = createRealtimeAuth(tokenA);
+    const channel = vi.fn(() => {
+      const channelInstance = {
+        on: vi.fn(() => channelInstance),
+        subscribe: vi.fn((callback: (status: string) => void) => {
+          callback('SUBSCRIBED');
+          return channelInstance;
+        })
+      };
+      return channelInstance;
+    });
+    const rpc = vi.fn(async (name: string) => ({
+      data: name === 'rxdb_caller_buckets' ? ['public'] : null,
+      error: null,
+      status: 200
+    }));
+    const removeChannel = vi.fn(async () => undefined);
+    const idle = createAdapter({ auth, realtime, channel, removeChannel, rpc }, { rlsCheck: false }, [Todo]);
+
+    // 监听在构造时就装上了：应用登录发生在 connect() 之前
+    authCallbacks[0]('SIGNED_IN', { access_token: tokenA });
+    // disconnect() 与轮换排在同一条串行队列里：它返回时，事件触发的轮换一定已经跑完
+    await idle.disconnect();
+    expect(channel).not.toHaveBeenCalled();
+
+    const connected = createAdapter({ auth, realtime, channel, removeChannel, rpc }, { rlsCheck: false }, [Todo]);
+    try {
+      authCallbacks[1]('SIGNED_IN', { access_token: tokenA });
+      await connected.connect();
+      expect(channel).toHaveBeenCalledTimes(2);
+    } finally {
+      await connected.disconnect();
+    }
+  });
+
   it('auth 事件带来读不出是谁的令牌：不在回调里抛错，退订旧身份的频道，下一次合法令牌照常重建', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const tokenA = testJwt({ role: 'authenticated', sub: 'user-a' });

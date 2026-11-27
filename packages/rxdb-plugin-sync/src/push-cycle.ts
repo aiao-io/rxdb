@@ -41,7 +41,8 @@ export interface CycleBatch<T extends CycleBatchEntry> {
  *   拆开之后，先到的那一半要么撞外键，要么得先写空、却等不到同一请求里的补写。
  * - 按 `batchSize` 贪心装批，装不下就开新批；单组超过上限就单独成一批。
  * - 延迟外键只在本批确有指向同批行的非空值时才带：指向远端早已有的行、或为空的外键照常写。
- * - 只按单属性的外键（关系外键）并组；复合外键与它共用断环的那一列，由关系外键带上。
+ * - 按认得出被引用行的外键（{@link DependencyForeignKey.referencedIdProperty}）并组：关系外键，与引用了 `id`
+ *   的复合外键（只由复合外键成的环也一样）。复合外键引用的是别的唯一列时认不出被引用的行，不参与并组。
  */
 export function planCycleBatches<T extends CycleBatchEntry>(
   entries: readonly T[],
@@ -85,20 +86,25 @@ function groupReferencing<T extends CycleBatchEntry>(
   return [...groups.values()];
 }
 
-/** 一个条目的单属性环内外键指向的、同在这些条目里的行 */
+/** 一个条目的环内外键指向的、同在这些条目里的行 */
 function referencedIndexes(
   entry: CycleBatchEntry,
   edges: readonly DependencyForeignKey[],
   indexByRow: ReadonlyMap<string, number>
 ): number[] {
-  const from = repositoryKey(entry.repository);
   return edges.flatMap(edge => {
-    if (repositoryKey(edge.from) !== from || edge.properties.length !== 1) return [];
-    const value = entry.values?.[edge.properties[0]];
-    if (value === null || value === undefined) return [];
-    const target = indexByRow.get(rowKey(edge.to, String(value)));
-    return target === undefined ? [] : [target];
+    const target = referencedRowKey(entry, edge);
+    const index = target === undefined ? undefined : indexByRow.get(target);
+    return index === undefined ? [] : [index];
   });
+}
+
+/** 这个条目经这条外键引用的行；外键不在它这一侧、认不出被引用的行或本次没写非空值时为 `undefined` */
+function referencedRowKey(entry: CycleBatchEntry, edge: DependencyForeignKey): string | undefined {
+  if (edge.referencedIdProperty === undefined) return undefined;
+  if (repositoryKey(edge.from) !== repositoryKey(entry.repository)) return undefined;
+  const value = entry.values?.[edge.referencedIdProperty];
+  return value === null || value === undefined ? undefined : rowKey(edge.to, String(value));
 }
 
 /** 贪心装批：一组不拆开，装不下就开新批 */
@@ -116,7 +122,13 @@ function packGroups<T>(groups: readonly T[][], batchSize: number): T[][] {
   return batches;
 }
 
-/** 本批要先写空、再补写的外键：断环边上指向同批行的非空可空属性，去重、按出现顺序 */
+/**
+ * 本批要先写空、再补写的外键：断环边指向同批的行时，这条外键上本次写了非空值的可空属性；去重、按出现顺序
+ *
+ * @remarks
+ * 关系外键的可空属性就是存着被引用行 id 的那一列；复合外键按 `MATCH SIMPLE` 任一列为空就不检查，
+ * 置空它写了值的可空列都成立。
+ */
 function deferredForeignKeysOf(
   batch: readonly CycleBatchEntry[],
   breakEdges: readonly DependencyForeignKey[]
@@ -125,14 +137,20 @@ function deferredForeignKeysOf(
   const deferred = new Map<string, RemoteDeferredForeignKey>();
   for (const entry of batch) {
     for (const edge of breakEdges) {
-      if (repositoryKey(edge.from) !== repositoryKey(entry.repository)) continue;
-      for (const property of edge.nullableProperties) {
-        const value = entry.values?.[property];
-        if (value === null || value === undefined || !rows.has(rowKey(edge.to, String(value)))) continue;
-        const { namespace, entity } = entry.repository;
-        deferred.set(`${namespace}:${entity}:${property}`, { namespace, entity, property });
+      const target = referencedRowKey(entry, edge);
+      if (target === undefined || !rows.has(target)) continue;
+      for (const key of writtenNullableProperties(entry, edge)) {
+        deferred.set(`${key.namespace}:${key.entity}:${key.property}`, key);
       }
     }
   }
   return [...deferred.values()];
+}
+
+/** 这条外键上本条目写了非空值的可空属性 */
+function writtenNullableProperties(entry: CycleBatchEntry, edge: DependencyForeignKey): RemoteDeferredForeignKey[] {
+  const { namespace, entity } = entry.repository;
+  return edge.nullableProperties
+    .filter(property => entry.values?.[property] !== null && entry.values?.[property] !== undefined)
+    .map(property => ({ namespace, entity, property }));
 }

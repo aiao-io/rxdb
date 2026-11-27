@@ -27,6 +27,8 @@ interface DependencyGraphForeignKey {
   name?: string;
   /** 本侧参与外键的属性 */
   properties?: readonly string[];
+  /** 被引用实体上与 `properties` 按位置一一对应的属性 */
+  mappedProperties?: readonly string[];
 }
 
 /**
@@ -54,6 +56,9 @@ export type { RepositoryIdentifier };
  * @remarks
  * 关系外键（多对一、一对一）的属性是 `<关系名>Id`；实体级复合外键是它的全部属性。复合外键按 `MATCH SIMPLE`
  * 判可空：任一属性为空就不检查，所以只要有一个属性可空，这条外键就能先写空、再补写。
+ *
+ * 成环时推送要把互相引用的行并进同一批、拉取要补齐被引用的行，都得从一行的值认出它引用的是哪一行：
+ * 靠的是 {@link DependencyForeignKey.referencedIdProperty}。
  */
 export interface DependencyForeignKey {
   /** 持有外键的仓库 */
@@ -64,6 +69,14 @@ export interface DependencyForeignKey {
   readonly name: string;
   /** 本侧参与外键的属性 */
   readonly properties: readonly string[];
+  /**
+   * 本侧存着被引用行 id 的属性：关系外键就是它那一列，复合外键是映射到被引用实体 `id` 的那一个
+   *
+   * @remarks
+   * 复合外键引用的是别的唯一列（不含 `id`）时没有：只凭本行的值认不出被引用的是哪一行，成环时这条外键不参与
+   * 推送并组与拉取补齐。手写的图省略外键时补出的边同样没有。
+   */
+  readonly referencedIdProperty?: string;
   /** 能不能先写空 */
   readonly nullable: boolean;
   /** 先写空时置空的那些属性：`properties` 里可空的那几个 */
@@ -189,12 +202,14 @@ function foreignKeyEdges(entity: DependencyGraphEntityMetadata): DependencyForei
     target: { mappedEntity: string; mappedNamespace?: string },
     name: string,
     properties: readonly string[],
+    referencedIdProperty: string | undefined,
     nullableProperties: readonly string[]
   ): DependencyForeignKey => ({
     from,
     to: { namespace: target.mappedNamespace || entity.namespace, entity: target.mappedEntity },
     name,
     properties,
+    referencedIdProperty,
     nullable: nullableProperties.length > 0,
     nullableProperties
   });
@@ -203,14 +218,21 @@ function foreignKeyEdges(entity: DependencyGraphEntityMetadata): DependencyForei
   for (const [name, relation] of entity.relationMap) {
     if (!holdsForeignKey(relation)) continue;
     const property = `${name}Id`;
-    edges.push(edge(relation, name, [property], relation.nullable === true ? [property] : []));
+    edges.push(edge(relation, name, [property], property, relation.nullable === true ? [property] : []));
   }
   for (const [index, foreignKey] of entity.foreignKeys.entries()) {
     const properties = foreignKey.properties ?? [];
     const nullableProperties = properties.filter(property => isNullableProperty(entity, property));
-    edges.push(edge(foreignKey, foreignKey.name ?? `foreignKey${index}`, properties, nullableProperties));
+    const name = foreignKey.name ?? `foreignKey${index}`;
+    edges.push(edge(foreignKey, name, properties, referencedIdPropertyOf(foreignKey), nullableProperties));
   }
   return edges;
+}
+
+/** 复合外键里映射到被引用实体 `id` 的本侧属性；不引用 `id` 时为 `undefined` */
+function referencedIdPropertyOf(foreignKey: DependencyGraphForeignKey): string | undefined {
+  const position = foreignKey.mappedProperties?.indexOf('id') ?? -1;
+  return position === -1 ? undefined : foreignKey.properties?.[position];
 }
 
 /** 本侧一个属性可不可空：主键不可空；关系外键看关系的 `nullable`；其余看属性声明 */

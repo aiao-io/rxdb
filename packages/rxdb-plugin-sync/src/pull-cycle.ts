@@ -23,15 +23,36 @@ export interface CycleClosureSource {
   existingIds(repository: RepositoryIdentifier, ids: readonly string[]): Promise<ReadonlySet<string>>;
 }
 
-/** 环上仓库之间的单属性外键（关系外键）：复合外键与它共用那一列，不另算 */
-function cycleEdges(graph: DependencyGraph): DependencyForeignKey[] {
-  const edges: DependencyForeignKey[] = [];
+/**
+ * 一次补齐最多续拉几页（每页是单仓的拉取上限，默认 1000 行）
+ *
+ * @remarks
+ * 补得齐的环几页之内就补齐了：批量拉取交回的是按 id 连续的一段，环内引用的另一半要么已经在这一段里，
+ * 要么落在同一个事务稍后的几行。补不齐的（被引用的行远端看不到，例如被行级安全挡住、在别的分支上）
+ * 续拉多少页都找不到：没有上限就会把被引用仓库此后的整段远端历史拉进内存、每拉一页都把整轮重算一遍，
+ * 最后照样撞外键。到了上限与远端拉空同样处理：原样交回，让提交如实撞外键。
+ */
+export const MAX_CYCLE_CLOSURE_PAGES = 16;
+
+/** 环内一条外键，带上本侧存着被引用行 id 的那个属性 */
+type ResolvableEdge = DependencyForeignKey & { readonly referencedIdProperty: string };
+
+const isResolvable = (edge: DependencyForeignKey): edge is ResolvableEdge => edge.referencedIdProperty !== undefined;
+
+/**
+ * 环上仓库之间认得出被引用行的外键（{@link DependencyForeignKey.referencedIdProperty}）
+ *
+ * @remarks
+ * 关系外键与引用了 `id` 的复合外键都算；两者共用一列时引用的是同一行，缺的行只记一次。
+ */
+function cycleEdges(graph: DependencyGraph): ResolvableEdge[] {
+  const edges: ResolvableEdge[] = [];
   for (const node of graph.values()) {
     const cycle = node.cycle;
     if (!cycle) continue;
     const members = new Set(cycle.members.map(repositoryKey));
     for (const edge of node.foreignKeys ?? []) {
-      if (edge.properties.length === 1 && members.has(repositoryKey(edge.to))) edges.push(edge);
+      if (isResolvable(edge) && members.has(repositoryKey(edge.to))) edges.push(edge);
     }
   }
   return edges;
@@ -65,7 +86,7 @@ function finalRows(changes: readonly RemoteChange[]): Map<string, { deleted: boo
 /** 这一轮里环内引用了、却既不在这一轮也不在（已判过的）本地的行：仓库键 → 行 id */
 function missingReferences(
   changes: readonly RemoteChange[],
-  edges: readonly DependencyForeignKey[]
+  edges: readonly ResolvableEdge[]
 ): Map<string, { repository: RepositoryIdentifier; ids: Set<string> }> {
   const rows = finalRows(changes);
   const missing = new Map<string, { repository: RepositoryIdentifier; ids: Set<string> }>();
@@ -73,7 +94,7 @@ function missingReferences(
     if (row.deleted) continue;
     for (const edge of edges) {
       if (!key.startsWith(`${repositoryKey(edge.from)}:`)) continue;
-      const value = row.values.get(edge.properties[0]);
+      const value = row.values.get(edge.referencedIdProperty);
       if (value === null || value === undefined) continue;
       const target = rows.get(rowKey(edge.to.namespace, edge.to.entity, String(value)));
       if (target && !target.deleted) continue;
@@ -92,10 +113,10 @@ function missingReferences(
  * @param changes - 这一轮拉到的变更
  * @param sinceIds - 每个仓库这一轮的起点水位线（仓库键 → id）
  * @param source - 续拉与本地查询
- * @returns 补齐之后的变更；远端已经拉空还缺的，原样交回，让提交如实撞外键
+ * @returns 补齐之后的变更；远端已经拉空、或续拉到 {@link MAX_CYCLE_CLOSURE_PAGES} 页还缺的，原样交回，让提交如实撞外键
  *
  * @remarks
- * 环上一行引用的另一行，既不在这一轮、本地也没有，就从被引用的仓库续拉下一页，直到都找得到或远端拉空为止。
+ * 环上一行引用的另一行，既不在这一轮、本地也没有，就从被引用的仓库续拉下一页，直到都找得到、远端拉空或到了页数上限为止。
  * 续拉的变更并进这一轮，水位线随之推到续拉到的最大 id。不在环上的引用不归这里管：父先子后的顺序已经保证了。
  */
 export async function closeCycleReferences(
@@ -109,19 +130,29 @@ export async function closeCycleReferences(
 
   let round = [...changes];
   const seen = new Set(round.map(change => change.id));
+  // 每个仓库从哪儿续拉：这一轮里它最大的变更 id，一条都没有就是它的起点水位线。随续拉逐页推进，
+  // 不每次从整轮里筛一遍再展开成 `Math.max` 的参数（变更多了会栈溢出）
+  const cursors = new Map(sinceIds);
+  const advance = (more: readonly RemoteChange[]) => {
+    for (const change of more) {
+      const key = `${change.namespace}:${change.entity}`;
+      if (change.id > (cursors.get(key) ?? 0)) cursors.set(key, change.id);
+    }
+  };
+  advance(round);
+  let pages = 0;
   for (;;) {
     const missing = missingReferences(round, edges);
     let fetched = false;
     for (const { repository, ids } of missing.values()) {
+      if (pages >= MAX_CYCLE_CLOSURE_PAGES) return round;
       const existing = await source.existingIds(repository, [...ids]);
       if ([...ids].every(id => existing.has(id))) continue;
-      const repoKey = repositoryKey(repository);
-      const fetchedIds = round
-        .filter(change => `${change.namespace}:${change.entity}` === repoKey)
-        .map(change => change.id);
-      const sinceId = fetchedIds.length > 0 ? Math.max(...fetchedIds) : (sinceIds.get(repoKey) ?? 0);
-      const more = (await source.fetchAfter(repository, sinceId)).filter(change => !seen.has(change.id));
+      pages += 1;
+      const page = await source.fetchAfter(repository, cursors.get(repositoryKey(repository)) ?? 0);
+      const more = page.filter(change => !seen.has(change.id));
       for (const change of more) seen.add(change.id);
+      advance(more);
       if (more.length > 0) {
         round = [...round, ...more].sort((a, b) => a.id - b.id);
         fetched = true;

@@ -43,9 +43,19 @@ describe('undoBlockedReason', () => {
 
 describe('redoBlockedReason', () => {
   it('能重做时没有原因；页面的原因优先；否则说明没有可重做的', () => {
-    expect(redoBlockedReason({ blocked: null, count: 1 })).toBeNull();
-    expect(redoBlockedReason({ blocked: '访客只读', count: 1 })).toBe('访客只读');
-    expect(redoBlockedReason({ blocked: null, count: 0 })).toBe('没有可重做的修改');
+    expect(redoBlockedReason({ blocked: null, count: 1, barrier: null })).toBeNull();
+    expect(redoBlockedReason({ blocked: '访客只读', count: 1, barrier: null })).toBe('访客只读');
+    expect(redoBlockedReason({ blocked: null, count: 0, barrier: null })).toBe('没有可重做的修改');
+  });
+
+  it('下一步已被子分支继承：与撤销同样写明是哪几条分支，不报成没有可重做的', () => {
+    expect(
+      redoBlockedReason({
+        blocked: null,
+        count: 0,
+        barrier: { reason: 'inherited_by_branch', branchIds: ['feature', 'hotfix'] }
+      })
+    ).toBe('下一步已被分支 feature、hotfix 继承，重做到这里为止');
   });
 });
 
@@ -59,6 +69,7 @@ describe('historyActions', () => {
       undoCount$,
       redoCount$: of(0),
       undoBarrier$: of(null),
+      redoBarrier$: of(null),
       undo: vi.fn(() => new Promise<void>(resolve => (finish = resolve))),
       redo: vi.fn(() => Promise.resolve())
     } as unknown as HistoryScopeAPI;
@@ -77,5 +88,21 @@ describe('historyActions', () => {
 
     undoCount$.next(0);
     expect(undo.disabledReason()).toBe('推送或拉到远端的改写之后，之前的修改不能再撤销');
+  });
+
+  it('重做栈停在分叉点：重做的原因取作用域的 redoBarrier$', () => {
+    const scope = {
+      type: 'repository',
+      histories$: of([item()]),
+      undoCount$: of(0),
+      redoCount$: of(0),
+      undoBarrier$: of(null),
+      redoBarrier$: of({ reason: 'inherited_by_branch', branchIds: ['feature'] }),
+      undo: vi.fn(() => Promise.resolve()),
+      redo: vi.fn(() => Promise.resolve())
+    } as unknown as HistoryScopeAPI;
+    const { redo } = TestBed.runInInjectionContext(() => historyActions(scope, signal(null)));
+
+    expect(redo.disabledReason()).toBe('下一步已被分支 feature 继承，重做到这里为止');
   });
 });

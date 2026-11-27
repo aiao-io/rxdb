@@ -48,6 +48,39 @@ export function chunk_values<T>(values: readonly T[], chunkSize: number = SUPABA
 }
 
 /**
+ * 按 id 游标翻页，取到调用方要的条数为止，绕过 PostgREST 的 `max-rows` 静默截断
+ *
+ * @param fetchAfter - 取 id 大于 `afterId` 的至多 `pageSize` 行，按 id 升序；查询自己上报可达性、报错
+ * @param sinceId - 起点：只要 id 大于它的行
+ * @param limit - 一共最多要几行
+ * @param pageSize - 单页行数，默认 {@link SUPABASE_PAGE_SIZE}；不得大于服务端的 `max-rows`
+ * @returns 按 id 升序的至多 `limit` 行
+ *
+ * @remarks
+ * 变更日志的 id 是自增主键，按它接着上一页读（keyset），不用 OFFSET：翻页之间新落库的行只会排在后面。
+ * 一页不满就是到头了；满了而总数还没到 `limit` 就接着读。调用方（同步插件）按「拿到的条数够不够 `limit`」
+ * 判断还有没有下一页，所以这里交回的条数必须如实：服务端截断成 1000 条交回去，插件就当成已经拉完。
+ */
+export async function select_after_id<T extends { id: number }>(
+  fetchAfter: (afterId: number, pageSize: number) => PromiseLike<T[]>,
+  sinceId: number,
+  limit: number,
+  pageSize: number = SUPABASE_PAGE_SIZE
+): Promise<T[]> {
+  const rows: T[] = [];
+  let afterId = sinceId;
+  while (rows.length < limit) {
+    const size = Math.min(pageSize, limit - rows.length);
+    const page = await fetchAfter(afterId, size);
+    rows.push(...page);
+    if (page.length < size) break;
+    afterId = page.reduce((max, row) => (row.id > max ? row.id : max), afterId);
+  }
+  // 交回去的永远是按 id 升序的至多 limit 行，不依赖每一页自己的排序与条数
+  return rows.sort((left, right) => left.id - right.id).slice(0, limit);
+}
+
+/**
  * 反复翻页直到取完，绕过 PostgREST 的 `max-rows` 静默截断
  *
  * @remarks

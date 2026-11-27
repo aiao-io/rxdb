@@ -24,6 +24,8 @@ export class DemoSession {
   readonly #toasts = inject(Toasts);
   readonly #switching = signal(false);
   readonly #sessionMoved = signal(false);
+  /** 浏览器里的会话最近一次报来的身份；还没有事件时就是本页打开的身份 */
+  #sessionSubject: string | undefined;
 
   /** 远端模式的会话；本地模式（没有 Supabase 配置）为 `undefined` */
   readonly prepared: PreparedSession | undefined = getPreparedSession();
@@ -44,9 +46,11 @@ export class DemoSession {
   constructor() {
     const prepared = this.prepared;
     if (!prepared) return;
+    this.#sessionSubject = prepared.identity.subject;
     prepared.client.auth.onAuthStateChange((_event, session) => {
-      const subject = session?.user.id ?? RXDB_ANONYMOUS_SUBJECT;
-      if (subject !== prepared.identity.subject && !this.#switching()) this.#sessionMoved.set(true);
+      this.#sessionSubject = session?.user.id ?? RXDB_ANONYMOUS_SUBJECT;
+      // 切换途中的事件由切换自己收尾：成功就重新加载，失败见 switchTo 的 catch
+      if (this.#sessionSubject !== prepared.identity.subject && !this.#switching()) this.#sessionMoved.set(true);
     });
   }
 
@@ -71,6 +75,9 @@ export class DemoSession {
       // 失败时页面不重新加载：弹一条错误消息，留在原来的身份，可以再试
       this.#toasts.show({ kind: 'error', message: `切换身份失败：${getErrorMessage(error, '未知错误')}` });
       this.#switching.set(false);
+      // 登录成功、后一步才失败（注册之后加入租户失败）：会话已经换了，本页还开着原来那个身份的库。
+      // 切换途中的会话事件不报「会话已换」，这里补上，页面才会给出重新加载的提示条
+      if (this.#sessionSubject !== prepared.identity.subject) this.#sessionMoved.set(true);
     }
   }
 

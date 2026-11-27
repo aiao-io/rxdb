@@ -442,6 +442,7 @@ describe('dependency-graph', () => {
           to: { namespace: 'public', entity: 'B' },
           name: 'b',
           properties: ['bId'],
+          referencedIdProperty: 'bId',
           nullable: true,
           nullableProperties: ['bId']
         }
@@ -1036,9 +1037,47 @@ describe('双向一对一成环（US-038）', () => {
         to: { namespace: 'cycle', entity: 'CycleUser' },
         name: 'owner',
         properties: ['ownerId'],
+        referencedIdProperty: 'ownerId',
         nullable: false,
         nullableProperties: []
       }
+    ]);
+  });
+
+  it('每条外键记下本侧存着被引用行 id 的属性：关系外键是它本身，复合外键是映射到被引用实体 id 的那一个', () => {
+    const graph = buildDependencyGraph([getEntityMetadata(CycleIdCard), getEntityMetadata(CycleUser)]);
+
+    expect(graph.get('cycle:CycleUser')?.foreignKeys?.map(edge => [edge.name, edge.referencedIdProperty])).toEqual([
+      ['idCard', 'idCardId'],
+      ['id_card_owner_consistency', 'idCardId']
+    ]);
+  });
+});
+
+describe('复合外键不含被引用实体的 id（US-038）', () => {
+  @Entity({
+    name: 'CodedOwner',
+    namespace: 'coded',
+    properties: [{ name: 'code', type: PropertyType.string }],
+    indexes: [{ name: 'coded_owner_code', properties: ['code'], unique: true }]
+  })
+  class CodedOwner extends EntityBase {}
+
+  @Entity({
+    name: 'CodedDoc',
+    namespace: 'coded',
+    properties: [{ name: 'ownerCode', type: PropertyType.string }],
+    foreignKeys: [
+      { name: 'coded_doc_owner', properties: ['ownerCode'], mappedEntity: 'CodedOwner', mappedProperties: ['code'] }
+    ]
+  })
+  class CodedDoc extends EntityBase {}
+
+  it('引用的是别的唯一列：认不出被引用的行，不记 referencedIdProperty', () => {
+    const graph = buildDependencyGraph([getEntityMetadata(CodedOwner), getEntityMetadata(CodedDoc)]);
+
+    expect(graph.get('coded:CodedDoc')?.foreignKeys?.map(edge => [edge.name, edge.referencedIdProperty])).toEqual([
+      ['coded_doc_owner', undefined]
     ]);
   });
 });

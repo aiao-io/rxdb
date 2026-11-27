@@ -44,7 +44,7 @@ import {
   RXDB_CHANGES_TOPIC,
   rxdbChangesTopicForBucket
 } from './handle_supabase_change.js';
-import { chunk_values, select_all_pages, SUPABASE_IN_CHUNK_SIZE } from './pagination.js';
+import { chunk_values, select_after_id, select_all_pages, SUPABASE_IN_CHUNK_SIZE } from './pagination.js';
 import {
   assert_postgrest_ok,
   is_transport_failure,
@@ -129,7 +129,14 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
   #channels: RealtimeChannel[] = [];
   #reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   #reconnectAttempt = 0;
-  #realtimeState: RealtimeState = 'idle';
+  /**
+   * 构造之后、`connect()` 之前与 `disconnect()` 之后都是 `closed`
+   *
+   * @remarks
+   * 订阅只由 `connect()` 发起（RLS 自检、实体校验都在那里）。auth 监听构造时就装上了，`connect()` 之前的登录事件
+   * 照样会进来；轮换见到 `closed` 就不订阅，否则从没连过的适配器会自己起订阅、派发远端事件。
+   */
+  #realtimeState: RealtimeState = 'closed';
   #realtimeQueue: Promise<void> = Promise.resolve();
   #realtimeGeneration = 0;
   #realtimeIdentityKey: string | null = null;
@@ -434,54 +441,63 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       }
       assertSnapshotFilterSupported(filter);
       const scope = scopes[0];
-      const { data, error, status } = await this.#client.rpc('rxdb_pull_changes', {
-        p_since_id: sinceId,
-        p_limit: limit,
-        p_namespace: scope.namespace,
-        p_entity: scope.entity,
-        p_branch_id: branchId ?? null,
-        p_filter: filter
-      });
-      assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to pull changes');
-      if (!Array.isArray(data)) {
-        throw new SupabaseDataError('Failed to pull changes: invalid response data');
-      }
-      return data.map(row => ({
+      // RPC 返回的是行集，同样受 max-rows 截断：按 id 游标翻页
+      const rows = await select_after_id(
+        async (afterId, pageSize) => {
+          const { data, error, status } = await this.#client.rpc('rxdb_pull_changes', {
+            p_since_id: afterId,
+            p_limit: pageSize,
+            p_namespace: scope.namespace,
+            p_entity: scope.entity,
+            p_branch_id: branchId ?? null,
+            p_filter: filter
+          });
+          assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to pull changes');
+          if (!Array.isArray(data)) {
+            throw new SupabaseDataError('Failed to pull changes: invalid response data');
+          }
+          return data;
+        },
+        sinceId,
+        limit
+      );
+      return rows.map(row => ({
         ...row,
         createdAt: new Date(row.createdAt),
         updatedAt: row.updatedAt ? new Date(row.updatedAt) : null
       })) as RemoteChange[];
     }
 
-    let query = this.#client
-      .from('rxdb_change')
-      .select('*')
-      .gt('id', sinceId)
-      .is('bucket', null)
-      .order('id', { ascending: true })
-      .limit(limit);
+    const rows = await select_after_id(
+      async (afterId, pageSize) => {
+        let query = this.#client
+          .from('rxdb_change')
+          .select('*')
+          .gt('id', afterId)
+          .is('bucket', null)
+          .order('id', { ascending: true })
+          .limit(pageSize);
+        if (scopes?.length === 1) {
+          query = query.eq('namespace', scopes[0].namespace).eq('entity', scopes[0].entity);
+        } else if (scopes && scopes.length > 1) {
+          query = query.or(scopes.map(scope => this.#buildScopeCondition(scope)).join(','));
+        }
+        if (branchId) {
+          query = query.eq('branchId', branchId);
+        }
+        const { data, error, status } = await query;
+        assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to pull changes');
+        return data ?? [];
+      },
+      sinceId,
+      limit
+    );
 
-    if (scopes?.length === 1) {
-      query = query.eq('namespace', scopes[0].namespace).eq('entity', scopes[0].entity);
-    } else if (scopes && scopes.length > 1) {
-      query = query.or(scopes.map(scope => this.#buildScopeCondition(scope)).join(','));
-    }
-
-    if (branchId) {
-      query = query.eq('branchId', branchId);
-    }
-
-    const { data, error, status } = await query;
-    assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to pull changes');
-
-    return (data ?? [])
-      .map(row => ({
-        ...row,
-        createdAt: new Date(row.createdAt),
-        updatedAt: row.updatedAt ? new Date(row.updatedAt) : null
-      }))
-      .sort((left, right) => left.id - right.id)
-      .slice(0, limit);
+    return rows.map(row => ({
+      ...row,
+      createdAt: new Date(row.createdAt),
+      updatedAt: row.updatedAt ? new Date(row.updatedAt) : null
+    }));
   }
 
   /**
@@ -716,20 +732,28 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
   ): Promise<RemoteChange[]> {
     if (limit <= 0) return [];
     if (filter) assertSnapshotFilterSupported(filter);
-    const { data, error, status } = await this.#client.rpc('rxdb_pull_bucket_changes', {
-      p_since_id: sinceId,
-      p_limit: limit,
-      p_namespace: namespace,
-      p_entity: entity,
-      p_bucket: bucket,
-      p_branch_id: branchId ?? null,
-      p_filter: filter ?? null
-    });
-    assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to pull bucket changes');
-    if (!Array.isArray(data)) {
-      throw new SupabaseDataError('Failed to pull bucket changes: invalid response data');
-    }
-    return data.map(row => ({
+    // RPC 返回的是行集，同样受 max-rows 截断：按 id 游标翻页
+    const rows = await select_after_id(
+      async (afterId, pageSize) => {
+        const { data, error, status } = await this.#client.rpc('rxdb_pull_bucket_changes', {
+          p_since_id: afterId,
+          p_limit: pageSize,
+          p_namespace: namespace,
+          p_entity: entity,
+          p_bucket: bucket,
+          p_branch_id: branchId ?? null,
+          p_filter: filter ?? null
+        });
+        assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to pull bucket changes');
+        if (!Array.isArray(data)) {
+          throw new SupabaseDataError('Failed to pull bucket changes: invalid response data');
+        }
+        return data;
+      },
+      sinceId,
+      limit
+    );
+    return rows.map(row => ({
       ...row,
       createdAt: new Date(row.createdAt),
       updatedAt: row.updatedAt ? new Date(row.updatedAt) : null
@@ -914,28 +938,30 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       })
       .join(',');
 
-    let query = this.#client
-      .from('rxdb_change')
-      .select('*')
-      .or(orConditions)
-      .is('bucket', null)
-      .order('id', { ascending: true })
-      .limit(limit);
+    // 批量拉取一次要「每个仓库的上限 × 仓库数」条，远超 max-rows：按 id 游标翻页，每个仓库的起点仍在 or 条件里
+    const rows = await select_after_id(
+      async (afterId, pageSize) => {
+        let query = this.#client
+          .from('rxdb_change')
+          .select('*')
+          .or(orConditions)
+          .is('bucket', null)
+          .gt('id', afterId)
+          .order('id', { ascending: true })
+          .limit(pageSize);
+        // 支持多分支过滤（包括祖先分支）
+        if (branchIds && branchIds.length > 0) {
+          query = branchIds.length === 1 ? query.eq('branchId', branchIds[0]) : query.in('branchId', branchIds);
+        }
+        const { data, error, status } = await query;
+        assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to batch pull changes');
+        return data ?? [];
+      },
+      0,
+      limit
+    );
 
-    // 支持多分支过滤（包括祖先分支）
-    if (branchIds && branchIds.length > 0) {
-      if (branchIds.length === 1) {
-        query = query.eq('branchId', branchIds[0]);
-      } else {
-        query = query.in('branchId', branchIds);
-      }
-    }
-
-    const { data, error, status } = await query;
-
-    assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to batch pull changes');
-
-    return (data ?? []).map(row => ({
+    return rows.map(row => ({
       ...row,
       createdAt: new Date(row.createdAt),
       updatedAt: row.updatedAt ? new Date(row.updatedAt) : null
