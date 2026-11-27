@@ -3,11 +3,12 @@ import type {
   EntityPropertyMetadata,
   EntityRelationMetadata,
   FieldFormat,
-  FieldOptions
+  FieldOptions,
+  RxDBGrantSnapshot
 } from '@aiao/rxdb';
 import { PropertyType, RelationKind } from '@aiao/rxdb';
 import type { ColumnDefine } from '@visactor/vtable/es/ts-types/index.js';
-import { deriveEntityCapabilities } from '../../entity-capabilities.js';
+import { deriveRowCapabilities } from '../../entity-capabilities.js';
 import type { RelatedEntityItem } from '../../entity-form/interfaces.js';
 import { modelText, type ModelI18n } from '../../i18n.js';
 import { localizeEntityMetadata } from '../../localized-metadata.js';
@@ -47,6 +48,13 @@ export interface BuildEditableColumnsOptions {
   updatedAtTitle?: string;
   /** 实体所在的实例是只读的（`rxdb.readOnly`）：所有列都不可编辑，操作列只剩查看 */
   readOnly?: boolean;
+  /**
+   * 授权快照（`rxdb.grants.snapshot`，US-029）：规则形式的删除按行判定，见 {@link deriveRowCapabilities}
+   *
+   * @remarks
+   * 没传时规则形式的行一律不出删除。快照变了要重新构建列，操作列才会按新快照出图标。
+   */
+  grants?: RxDBGrantSnapshot;
 }
 
 function buildKeyValueSchema(prop: EntityPropertyMetadata): Record<string, KVSchemaEntry> {
@@ -111,7 +119,8 @@ export function normalizeKVSchemaEntryType(type: EntityPropertyMetadata['type'])
  * 3. 计算属性列
  * 4. 外键关系列
  * 5. createdAt / updatedAt 系统时间列
- * 6. 操作列（查看 + 删除；删除按实体 `permissions.delete` 派生，见 {@link deriveEntityCapabilities}）
+ * 6. 操作列（查看 + 删除；删除按行派生，见 {@link deriveRowCapabilities}：简写看实体的 `permissions.delete`，
+ *    规则形式看这一行的作用域与 `grants`）
  *
  * @param source 实体元数据
  * @param options 可选构建选项
@@ -129,11 +138,14 @@ export function buildEditableColumns(
     viewLabel = modelText('common.view', undefined, i18n),
     createdAtTitle = modelText('common.createdAt', undefined, i18n),
     updatedAtTitle = modelText('common.updatedAt', undefined, i18n),
-    readOnly = false
+    readOnly = false,
+    grants
   } = options;
 
   const metadata = localizeEntityMetadata(source, i18n);
-  const { canDelete } = deriveEntityCapabilities(metadata, { readOnly });
+  // 删除按行派生：简写与行无关、结论同实体级；规则形式看这一行的作用域（US-029）
+  const canDeleteRecord = (record: Readonly<Record<string, unknown>>) =>
+    deriveRowCapabilities(source, record, { readOnly, grants }).canDelete;
   // id 与时间戳列由系统维护：不挂编辑器，并打上列级只读标记，键盘 / 剪贴板 / 清空入口同样不写
   const columns: ColumnDefine[] = [{ field: 'id', title: 'ID', width: 260, sort: true, ...SYSTEM_COLUMN_READONLY }];
 
@@ -197,7 +209,7 @@ export function buildEditableColumns(
       fieldFormat: (r: Record<string, unknown>) => formatDateValue(r['updatedAt'], i18n),
       ...SYSTEM_COLUMN_READONLY
     },
-    actionsColumn(actionsTitle, deleteLabel, () => canDelete, viewLabel)
+    actionsColumn(actionsTitle, deleteLabel, canDeleteRecord, viewLabel)
   );
 
   return columns;

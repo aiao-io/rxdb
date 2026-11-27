@@ -6,8 +6,13 @@
  */
 export {
   deriveEntityCapabilities,
+  deriveRowCapabilities,
+  deriveWriteBlockedReason,
+  type CapabilityDeniedReason,
   type EntityCapabilities,
-  type EntityCapabilityContext
+  type EntityCapabilityContext,
+  type EntityWriteBlockedReason,
+  type RowCapabilities
 } from './entity-capabilities.js';
 export * from './entity-detail/headless.js';
 export * from './entity-detail/interfaces.js';
