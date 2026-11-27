@@ -142,6 +142,36 @@ test('sub-apps push theme changes back to the host on user-driven switches only'
   }
 });
 
+test('demo host auto-recreates the instance on sub-app reload or missed handshake', () => {
+  const source = readFileSync(join(root, 'src/components/DemoMicroAppClient.tsx'), 'utf8');
+  assert.match(source, /OrbitError/, 'host should recognise typed orbit errors');
+  assert.match(source, /failure instanceof OrbitError/, 'host should only special-case orbit failures');
+  assert.match(source, /failure\.code === 'NAVIGATION'/, 'host should auto-recover on navigation failures');
+  assert.match(source, /failure\.code === 'LOAD_ERROR'/, 'host should auto-recover on missed handshakes');
+  assert.match(
+    source,
+    /setAttempt\(value => value \+ 1\)/,
+    'auto-recovery should rebuild through the same attempt channel as the manual reload button'
+  );
+  assert.match(source, /MAX_AUTO_RETRIES/, 'auto-recovery needs a consecutive-retry cap');
+  assert.match(source, /RETRY_RESET_DELAY_MS/, 'the retry budget should reset after the instance runs steadily');
+  assert.match(
+    source,
+    /autoRetries\.current = 0/,
+    'a steady instance or a manual reload should reset the retry counter'
+  );
+  assert.match(
+    source,
+    /clearTimeout\(retryResetTimer\.current\)/,
+    'a new failure should cancel the pending budget reset'
+  );
+  assert.match(
+    source,
+    /setError\(failure instanceof Error \? failure\.message : copy\('演示运行失败'\)\)/,
+    'other failures should still reach the error overlay'
+  );
+});
+
 test('sub-apps declare daisyUI root as :is(:host, :root) so standalone and Shadow DOM both get tokens', () => {
   const files = [
     '../apps/dev-rxdb-angular/src/styles.scss',
