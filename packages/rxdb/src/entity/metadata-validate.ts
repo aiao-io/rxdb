@@ -671,14 +671,20 @@ interface AccessIssue {
 /** `access.scope` 自身的形状违规；合法为 `null` */
 const scopeShapeIssue = (scope: unknown): AccessIssue | null => {
   if (!isPlainRecord(scope)) {
-    return { field: 'access.scope', message: `scope 必须是普通对象，形如 { property, prefix }，实际为 ${JSON.stringify(scope)}` };
+    return {
+      field: 'access.scope',
+      message: `scope 必须是普通对象，形如 { property, prefix }，实际为 ${JSON.stringify(scope)}`
+    };
   }
   const unknownKeys = Object.keys(scope).filter(key => key !== 'property' && key !== 'prefix');
   if (unknownKeys.length > 0) {
     return { field: 'access.scope', message: `不接受键 ${unknownKeys.join('、')}：只有 property / prefix` };
   }
   if (typeof scope.property !== 'string' || scope.property.length === 0) {
-    return { field: 'access.scope.property', message: `property 必须是非空字符串，实际为 ${JSON.stringify(scope.property)}` };
+    return {
+      field: 'access.scope.property',
+      message: `property 必须是非空字符串，实际为 ${JSON.stringify(scope.property)}`
+    };
   }
   if (scope.prefix !== undefined && typeof scope.prefix !== 'string') {
     return { field: 'access.scope.prefix', message: `prefix 必须是字符串，实际为 ${JSON.stringify(scope.prefix)}` };

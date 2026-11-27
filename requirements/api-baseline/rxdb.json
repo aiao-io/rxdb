@@ -446,6 +446,18 @@
         "kind": "value"
       },
       {
+        "name": "EntityAccessOptions",
+        "kind": "type"
+      },
+      {
+        "name": "EntityAccessScope",
+        "kind": "type"
+      },
+      {
+        "name": "EntityAccessScopeOptions",
+        "kind": "type"
+      },
+      {
         "name": "EntityBase",
         "kind": "both"
       },
@@ -579,6 +591,10 @@
       },
       {
         "name": "EntityOperationPermission",
+        "kind": "type"
+      },
+      {
+        "name": "EntityOperationRule",
         "kind": "type"
       },
       {
@@ -850,6 +866,10 @@
         "kind": "value"
       },
       {
+        "name": "getEntityAccessScope",
+        "kind": "value"
+      },
+      {
         "name": "getEntityColumnName",
         "kind": "value"
       },
@@ -867,6 +887,10 @@
       },
       {
         "name": "getEntityPermission",
+        "kind": "value"
+      },
+      {
+        "name": "getEntityPermissionRule",
         "kind": "value"
       },
       {
@@ -1086,6 +1110,10 @@
         "kind": "value"
       },
       {
+        "name": "isEntityOperationRule",
+        "kind": "value"
+      },
+      {
         "name": "isEntitySyncResolver",
         "kind": "value"
       },
@@ -1108,6 +1136,10 @@
       {
         "name": "ISortableEntity",
         "kind": "type"
+      },
+      {
+        "name": "isPermissionRuleViolation",
+        "kind": "value"
       },
       {
         "name": "isRemoteNewer",
@@ -1416,6 +1448,14 @@
       {
         "name": "PermissionDeniedError",
         "kind": "both"
+      },
+      {
+        "name": "PermissionRuleViolation",
+        "kind": "type"
+      },
+      {
+        "name": "PermissionRuleViolationReason",
+        "kind": "type"
       },
       {
         "name": "PermissionViolation",
@@ -2164,6 +2204,30 @@
       {
         "name": "RxDBExclusionViolationError",
         "kind": "both"
+      },
+      {
+        "name": "RxDBGrant",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBGrants",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBGrantSnapshot",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBGrantSource",
+        "kind": "type"
+      },
+      {
+        "name": "RxDBGrantState",
+        "kind": "both"
+      },
+      {
+        "name": "RxDBGrantStatus",
+        "kind": "type"
       },
       {
         "name": "RxDBIdentity",

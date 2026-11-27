@@ -1,11 +1,11 @@
 ---
 id: US-029
 title: 按作用域的成员写权限：实体声明作用域与所需权限，本地写入口快速拒绝，三端按行显隐入口
-status: Backlog
+status: In Progress
 priority: High
 epic: epic-015-identity-scoped-sync
 created: 2026-09-20
-updated: 2026-11-26
+updated: 2026-11-27
 tags: [core, permission, rbac, rxdb-model, identity]
 ---
 
@@ -91,7 +91,8 @@ INVEST 检查清单:
 - `access.scope.property` 指向实体（含继承）上已声明、`string` 或 `uuid` 类型、不可空的普通属性；行的作用域键 = `prefix` + 属性值。不满足就在配置期报错，引擎不自动补列。
 - `EntityOperationPermission` 扩展为 `'both' | 'system' | { requires: string }`。规则形式要求实体声明了 `access.scope`；`requires` 是非空字符串；未知键报错。权限名只校验结构，不建注册表，语义归应用（Supabase 参考实现用 epic-015 的六项）。
 - 按操作就近继承，与 US-027 一致；`access` 随继承。
-- `@GraphEntity` 上不支持规则形式：[`GraphRepository.addEdge()`](../../../packages/rxdb-plugin-graph/src/GraphRepository.ts) 不经门面写入口，metadata-validate 拒绝这个组合。
+- `@GraphEntity` 上不支持规则形式：[`GraphRepository.addEdge()`](../../../packages/rxdb-plugin-graph/src/GraphRepository.ts) 不经门面写入口，metadata-validate 拒绝这个组合。核心不认识图插件：由仓储注册时声明 `IRepositoryConfig.unsupportedPermissionRules`（理由原样进违规消息），与 `unsupportedSyncTypes` 同一种做法。
+- 规则形式只支持本地主端：生效配置是 remote-only 或 `SyncType.QueryCache` 时注册期报错（前像要在本地主适配器的事务里读，这两种主端的写不经那个事务）。
 - 没声明 `access` 与规则的实体零变化。
 
 ### 授权快照
@@ -150,19 +151,19 @@ INVEST 检查清单:
 
 | #   | 前置条件                                                                                                                                                              | 操作                                                                                                    | 预期结果                                                                                                                                  | 状态 |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 实体没声明 `access` 与规则（含带业务 `ownerId` 的 `IdCard` / `Order`）                                                                                                | connect、读写、同步；三端默认列表与详情                                                                 | 表结构、SQL、判定与默认界面的字段集合与现状一致；现有测试与 API 基线不回归；业务 `ownerId` 不参与判定                                     | ⬜   |
-| 2   | `access.scope.property` 指向不存在、非 `string` / `uuid`、可空的属性；规则形式而没有 `access.scope`；`requires` 为空串或非字符串；规则含未知键；`@GraphEntity` 带规则 | `RxDB.init()`（metadata-validate）                                                                      | 初始化报错，指出实体、键与原因；任意非空权限名不因「未注册」报错                                                                          | ⬜   |
-| 3   | 父类声明 `access.scope` 与 `update: { requires: 'edit' }`；子类只声明 `delete: { requires: 'edit' }`                                                                  | 读子类的运行期元数据                                                                                    | update、delete 都是规则形式，create 为 `'both'`；`access.scope` 随继承                                                                    | ⬜   |
-| 4   | 声明了规则的实体，快照未取到                                                                                                                                          | 经公开写入口 create / update / delete                                                                   | 都抛 `PermissionDeniedError`，原因是授权未知；没有新行，行不变、仍在，没有待推修改                                                        | ⬜   |
-| 5   | 快照：`tenant:a` 有 `read + edit`，`tenant:b` 只有 `read`                                                                                                             | 在 a、b 各 create、update、delete 一行（门面 `Repository`、`EntityManager`、实体实例方法 × 操作参数化） | a 全部放行；b 全部抛 `PermissionDeniedError`，违规项写明实体、行 id、作用域与所需权限                                                     | ⬜   |
-| 6   | 同上                                                                                                                                                                  | update 把一行的 `tenantId` 从 a 改成 b；从 b 改成 a                                                     | 都被拒，库内不变                                                                                                                          | ⬜   |
-| 7   | 持久化前像在 b，内存实例的 `tenantId` 被改成 a                                                                                                                        | `save()`                                                                                                | 按前像判定，被拒                                                                                                                          | ⬜   |
-| 8   | 同上的快照                                                                                                                                                            | `mutations()` / `saveMany()` / `removeMany()` 的一批里混进一行 b                                        | 整批拒绝，库内无部分写入；前像读取次数与行数无关，每个实体一次                                                                            | ⬜   |
-| 9   | 快照只有 `read`                                                                                                                                                       | 同步拉取合并别人改的行；撤销、重做降权之前的本机修改；外键级联删除                                      | 全部放行（系统写不判定），行原样落库                                                                                                      | ⬜   |
-| 10  | 快照已取到；实例关闭后离线重开同一身份的库                                                                                                                            | 读快照并写入                                                                                            | 沿用上次的快照判定；另一身份的库里没有这份快照                                                                                            | ⬜   |
-| 11  | 快照变化：a 的 `edit` 被收回                                                                                                                                          | 再写 a 的行                                                                                             | 立即按新快照拒绝；快照事件发出一次                                                                                                        | ⬜   |
-| 12  | 实体权限为 `'both'` / `'system'` 简写                                                                                                                                 | 2 值 × 3 操作，经公开写入口与适配器 / 执行器层各写一次                                                  | 与 US-027 一致：公开写入口按声明放行或拒绝，适配器 / 执行器层一律放行                                                                     | ⬜   |
-| 13  | 本地后端                                                                                                                                                              | 在 SQLite 系与 PGlite 上跑 AC#4～11 的判定用例                                                          | 全绿，结果一致                                                                                                                            | ⬜   |
+| 1   | 实体没声明 `access` 与规则（含带业务 `ownerId` 的 `IdCard` / `Order`）                                                                                                | connect、读写、同步；三端默认列表与详情                                                                 | 表结构、SQL、判定与默认界面的字段集合与现状一致；现有测试与 API 基线不回归；业务 `ownerId` 不参与判定                                     | ✅   |
+| 2   | `access.scope.property` 指向不存在、非 `string` / `uuid`、可空的属性；规则形式而没有 `access.scope`；`requires` 为空串或非字符串；规则含未知键；`@GraphEntity` 带规则 | `RxDB.init()`（metadata-validate）                                                                      | 初始化报错，指出实体、键与原因；任意非空权限名不因「未注册」报错                                                                          | ✅   |
+| 3   | 父类声明 `access.scope` 与 `update: { requires: 'edit' }`；子类只声明 `delete: { requires: 'edit' }`                                                                  | 读子类的运行期元数据                                                                                    | update、delete 都是规则形式，create 为 `'both'`；`access.scope` 随继承                                                                    | ✅   |
+| 4   | 声明了规则的实体，快照未取到                                                                                                                                          | 经公开写入口 create / update / delete                                                                   | 都抛 `PermissionDeniedError`，原因是授权未知；没有新行，行不变、仍在，没有待推修改                                                        | ✅   |
+| 5   | 快照：`tenant:a` 有 `read + edit`，`tenant:b` 只有 `read`                                                                                                             | 在 a、b 各 create、update、delete 一行（门面 `Repository`、`EntityManager`、实体实例方法 × 操作参数化） | a 全部放行；b 全部抛 `PermissionDeniedError`，违规项写明实体、行 id、作用域与所需权限                                                     | ✅   |
+| 6   | 同上                                                                                                                                                                  | update 把一行的 `tenantId` 从 a 改成 b；从 b 改成 a                                                     | 都被拒，库内不变                                                                                                                          | ✅   |
+| 7   | 持久化前像在 b，内存实例的 `tenantId` 被改成 a                                                                                                                        | `save()`                                                                                                | 按前像判定，被拒                                                                                                                          | ✅   |
+| 8   | 同上的快照                                                                                                                                                            | `mutations()` / `saveMany()` / `removeMany()` 的一批里混进一行 b                                        | 整批拒绝，库内无部分写入；前像读取次数与行数无关，每个实体一次                                                                            | ✅   |
+| 9   | 快照只有 `read`                                                                                                                                                       | 同步拉取合并别人改的行；撤销、重做降权之前的本机修改；外键级联删除                                      | 全部放行（系统写不判定），行原样落库                                                                                                      | ✅   |
+| 10  | 快照已取到；实例关闭后离线重开同一身份的库                                                                                                                            | 读快照并写入                                                                                            | 沿用上次的快照判定；另一身份的库里没有这份快照                                                                                            | ✅   |
+| 11  | 快照变化：a 的 `edit` 被收回                                                                                                                                          | 再写 a 的行                                                                                             | 立即按新快照拒绝；快照事件发出一次                                                                                                        | ✅   |
+| 12  | 实体权限为 `'both'` / `'system'` 简写                                                                                                                                 | 2 值 × 3 操作，经公开写入口与适配器 / 执行器层各写一次                                                  | 与 US-027 一致：公开写入口按声明放行或拒绝，适配器 / 执行器层一律放行                                                                     | ✅   |
+| 13  | 本地后端                                                                                                                                                              | 在 SQLite 系与 PGlite 上跑 AC#4～11 的判定用例                                                          | 全绿，结果一致                                                                                                                            | ✅   |
 | 14  | 真实 Supabase 栈加载 US-234 的参考 SQL；员工身份（普通 authenticated）                                                                                                | connect 后读快照；在本机改一件本租户的商品                                                              | 快照与 `rxdb_caller_grants()` 一致；本机写当场 `PermissionDeniedError`，没有待推修改                                                      | ⬜   |
 | 15  | 管理员在本机改了商品、未推送，期间被降为员工                                                                                                                          | 推送，再同步，再在本机改                                                                                | 推送被拒、本机对齐、进被拒清单（US-218）；同步后快照刷新，之后的本机写当场被拒                                                            | ⬜   |
 | 16  | 实体声明了作用域，远端没有部署 `rxdb_caller_grants()`                                                                                                                 | connect                                                                                                 | 报错并指出缺的函数与部署文档；不静默放行，也不当成空快照                                                                                  | ⬜   |
@@ -175,8 +176,9 @@ INVEST 检查清单:
 
 验收入口：
 
-- AC#1～12：`rxdb` 与 `rxdb-model` 的单测，与 US-027 的 `entity-permissions.spec.ts`、`entity-permissions-enforcement.spec.ts` 同处
-- AC#13：PGlite 与 SQLite 系的本地后端用例，与 US-027 的 pglite `entity-permissions.spec.ts` 同处
+- AC#1～3：`packages/rxdb/src/__tests__/entity/entity-access-declaration.spec.ts`；`@GraphEntity` 那一条在 `packages/rxdb-plugin-graph/src/__tests__/permission-rules-ban.spec.ts`
+- AC#4～12：`packages/rxdb/src/__tests__/entity/entity-access-enforcement.spec.ts`（判定矩阵）与 `packages/rxdb/src/__tests__/grants/grant-snapshot.spec.ts`（快照状态、设入、事件、读回）
+- AC#13：`packages/rxdb-adapter-pglite/src/__tests__/entity-access-rules.spec.ts`（含 AC#1 的真实 `IdCard` / `Order`、AC#10 同名库重开）与 SQLite 系共享套件 `entityAccessRulesSuite`（`packages/rxdb-adapter-sqlite-core/src/__tests__/shared-entity-access-rules.suite.ts`，六个 SQLite 系后端都接入）
 - AC#14～16：`packages/rxdb-adapter-supabase/src/__tests__/` 的真栈用例，以普通 authenticated 测试用户运行
 - AC#18～20：三端 `entity-list.real.spec` 与 `apps/dev-rxdb-{angular,react,vue}-e2e/src/entity-model.spec.ts`
 
@@ -184,8 +186,8 @@ INVEST 检查清单:
 
 | 阶段 | 交付                                                                                             | 关闭条件                           | 依赖                                     | AC     | 状态 |
 | ---- | ------------------------------------------------------------------------------------------------ | ---------------------------------- | ---------------------------------------- | ------ | ---- |
-| A    | 声明与校验：`access.scope`、规则形式与 TSDoc、metadata-validate、就近继承                        | 未声明零回归；配置错误可定位       | US-027 阶段 A（Done）                    | 1～3   | ⬜   |
-| B    | 授权快照与本地判定：快照状态与应用设入、按身份落库、全部公开写入口判定、前像、批量原子、违规清单 | 判定矩阵与写入口全绿；本地后端一致 | A；US-027 阶段 B（Done）；US-035（Done） | 4～13  | ⬜   |
+| A    | 声明与校验：`access.scope`、规则形式与 TSDoc、metadata-validate、就近继承                        | 未声明零回归；配置错误可定位       | US-027 阶段 A（Done）                    | 1～3   | ✅   |
+| B    | 授权快照与本地判定：快照状态与应用设入、按身份落库、全部公开写入口判定、前像、批量原子、违规清单 | 判定矩阵与写入口全绿；本地后端一致 | A；US-027 阶段 B（Done）；US-035（Done） | 4～13  | ✅   |
 | C    | Supabase 授权来源：适配器读 `rxdb_caller_grants()`、刷新、缺函数时连接报错；文档                 | 真实 Supabase + 普通身份全绿       | B；US-234 阶段 A                         | 14～17 | ⬜   |
 | D    | 三端按行派生：rxdb-model 行级能力，三端列表与详情，三端 demo 的演示实体、快照开关与 e2e          | 三端同一组用例全绿                 | B；US-027 阶段 C（Done）                 | 18～20 | ⬜   |
 
@@ -203,12 +205,14 @@ INVEST 检查清单:
 
 **未选的替代方案**：应用注入策略函数（`(operation, row, preImage, grants) => boolean`）代替声明。抽象更少，但规则不再是元数据，三端界面派生、devtools 展示都无法从声明推导，也与 US-027 的声明式不对称。规则超出「作用域 × 所需权限」时再评估追加钩子。
 
-**留给 plan 阶段的落点**（不改语义）：
+**plan 阶段的落点**（2026-11-27 定，不改语义）：
 
-- 授权快照落在哪张表或哪个键值；应用设入与远端来源同时出现时怎么报错。
-- `PermissionDeniedError` 违规项的新字段如何保持对 US-027 调用方的兼容。
-- 前像批量读在各本地后端上的事务落点，与 `saveMany` 的耗时基线。
-- `deriveEntityCapabilities` 的签名：US-027 预留了按行求值，`actionsColumn()` 的四个调用方是 `build-editable-columns.ts` 与三端 `EntityList`。
+- **快照落库**：新的核心系统表 `rxdb_grant_state`（`RxDBGrantState`，`log: false`），单行（主键 `current`）：`source`、`grants`（规范化后的 JSON）、`updatedAt`。「未取到」就是没有这一行，「已取到、一项授权都没有」是 `grants` 为空数组的一行。既有库由 `connect()` 的系统表补建建出，不升系统表结构版本；`connect()` 打开既有库时经引导期事务读回（普通查询的就绪门等的正是这一次 `connect()`）。读不懂的行按未取到处理（判定 fail-closed），下一次设入覆盖它。
+- **快照的形状与事件**：`rxdb.grants`（`RxDBGrants`）给出 `snapshot` / `snapshot$` / `set()`；`RxDBGrantSnapshot` 不可变，同一作用域合并、作用域与权限名按码元排序去重，`equals()` 不比取得时间，`snapshot$` 只在内容变化时发出。`set()` 先写库再发布，写库失败快照不变。断连不清快照；多标签页不互相同步（各自设入或刷新）。
+- **两种来源**：阶段 B 只有应用设入（来源 `'app'`）。远端来源与「一个实例只认一个来源」的报错归阶段 C：远端适配器报告授权时，`set()` 抛错。
+- **违规清单的兼容**：`'system'` 的违规仍是三个字段、消息首行不变；规则形式的违规是扩展接口 `PermissionRuleViolation`（`id` / `scope` / `requires` / `reason`），用 `isPermissionRuleViolation()` 区分。一行一个作用域一条，按 create / update / delete 排序。
+- **前像的读法与事务落点**：经事务执行器的仓储 `find({ id in [...] , limit })`，读仓储交回的实例的 `origin`（与手动排序读「落库值快照」同口径）；显式给 `limit`，批量超过 100 行也不漏。create 不读库（新行就在实例上），在碰适配器之前同步判；单条 update / delete 与批量写改走「本地主适配器事务：表集断言 → 读前像 → 判定 → 写」，与适配器自己的 `mutations()` 同一个事务体；重排在 `reorderRow()` 算出落点之后、写入之前判；批里没有规则写时写路径与现状逐字一致。读不到前像的行（库里已经没有）不判，存储层对它是空写。快照在全部前像读完之后取一次。
+- **`deriveEntityCapabilities`**：阶段 B 不动 `rxdb-model`。它按 `=== 'both'` 派生，规则形式在阶段 D 之前一律得到「入口关闭」，与「授权未知即拒绝」同口径；按行派生与四个调用方归阶段 D。
 
 **行业做法**（外部资料，**推断**）：本地优先的授权有三条路线——信任客户端（无效）、按权限组加密（密钥管理复杂、吊销弱）、部分复制加服务端策略求值（Zero / ElectricSQL / PowerSync）。本仓走第三条：读由分区裁决（US-033），写由 RLS 裁决，本故事补的是本地快速拒绝与界面。
 
@@ -217,10 +221,13 @@ INVEST 检查清单:
 | 阶段 | 文件                                                                                                                           | 改动                                          |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------- |
 | A    | `packages/rxdb/src/entity/entity-options.interface.ts`                                                                         | `access` 声明、规则形式的类型与 TSDoc         |
-| A    | `packages/rxdb/src/entity/metadata-validate.ts`                                                                                | 声明与规则的结构校验                          |
-| B    | `packages/rxdb/src/entity/entity-permissions.ts`                                                                               | 规则判定、前像、违规清单                      |
-| B    | `packages/rxdb/src/repository/Repository.ts`、`packages/rxdb/src/entity/entity-manager.ts`                                     | 公开写入口接入规则判定                        |
-| B    | `packages/rxdb/src/RxDB.ts`、`packages/rxdb/src/rxdb.interface.ts`                                                             | 授权快照的状态、来源、事件与落库              |
+| A    | `packages/rxdb/src/entity/metadata-transition.ts`、`entity-permissions.ts`                                                     | `access` 就近继承；读取作用域与规则的函数     |
+| A    | `packages/rxdb/src/entity/metadata-validate.ts`、`rxdb.types.ts`、`entity-manager.ts`                                          | `invalidAccess`、规则校验、主端限制、仓储限制 |
+| A    | `packages/rxdb-plugin-graph/src/plugin.ts`                                                                                     | `GraphRepository` 声明不支持规则形式          |
+| B    | `packages/rxdb/src/entity/permission-rules.ts`、`entity-permissions.ts`                                                        | 按行判定、前像、违规清单                      |
+| B    | `packages/rxdb/src/repository/Repository.ts`、`packages/rxdb/src/entity/entity-manager.ts`、`sortable/sortable.utils.ts`       | 公开写入口接入规则判定                        |
+| B    | `packages/rxdb/src/grants/`、`packages/rxdb/src/RxDB.ts`、`system/system-entities.ts`                                          | 授权快照的状态、设入、事件、落库与读回        |
+| B    | `packages/rxdb-adapter-pglite/src/__tests__/`、`packages/rxdb-adapter-sqlite-core/src/__tests__/`（六个后端的 setup 接入）     | 本地后端用例                                  |
 | C    | `packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts`                                                                    | 读 `rxdb_caller_grants()`、刷新、缺函数时报错 |
 | C    | `packages/rxdb-adapter-supabase/src/__tests__/`                                                                                | 真栈普通身份用例                              |
 | C    | `website/docs/`                                                                                                                | 声明方式与 Supabase 授权来源                  |

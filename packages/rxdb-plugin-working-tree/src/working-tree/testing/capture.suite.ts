@@ -48,6 +48,7 @@ import {
   isSystemEntity,
   RxDBBranch,
   RxDBChange,
+  RxDBGrantState,
   RxDBMigration,
   RxDBMixedVersionedCacheTransactionError,
   RxDBSync,
@@ -636,8 +637,19 @@ const identityOf = (EntityClass: EntityType): string => {
   return `${namespace}:${name}`;
 };
 
-/** epic-006 之前就有的 4 张系统表；只用来给 §1.5 的双向相等留出差集。 */
-const PRE_EPIC_006_SYSTEM_ENTITIES: readonly EntityType[] = [RxDBBranch, RxDBChange, RxDBMigration, RxDBSync];
+/**
+ * 核心自带的 5 张系统表：epic-006 之前的 4 张，加 US-029 的授权快照；只用来给 §1.5 的双向相等留出差集。
+ *
+ * @remarks
+ * 与下面的清单同一个理由手写：核心再加一张系统表，这里先失败，逼着加表的人确认它不该过 §1.5 的契约。
+ */
+const CORE_OWNED_SYSTEM_ENTITIES: readonly EntityType[] = [
+  RxDBBranch,
+  RxDBChange,
+  RxDBMigration,
+  RxDBSync,
+  RxDBGrantState
+];
 
 /**
  * epic-006 新增的 12 张系统表
@@ -1583,7 +1595,7 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         // 两边都按 `isSystemEntity()` 用的那把身份键（`namespace:name`）比，而不是按类引用——
         // 判定本身就不是按类引用做的，按类比会让「同名不同类」这种形态漏网。
         expect(SYSTEM_ENTITIES.map(identityOf).sort()).toEqual(
-          [...PRE_EPIC_006_SYSTEM_ENTITIES, ...expectedSystemEntities].map(identityOf).sort()
+          [...CORE_OWNED_SYSTEM_ENTITIES, ...expectedSystemEntities].map(identityOf).sort()
         );
 
         for (const EntityClass of expectedSystemEntities) {

@@ -3,6 +3,7 @@ import {
   bigintBinaryClientSuite,
   bigintBinaryEntitySuite,
   cascadeMutationSuite,
+  entityAccessRulesSuite,
   createSqliteClientSuite,
   crudIntegrationSuite,
   customPrimaryKeySuite,
@@ -45,6 +46,7 @@ customPrimaryKeySuite(sqliteOfficialFactory);
 relationIntegrationSuite(sqliteOfficialFactory);
 menuIntegrationSuite(sqliteOfficialFactory);
 cascadeMutationSuite(sqliteOfficialFactory);
+entityAccessRulesSuite(sqliteOfficialFactory);
 treeIntegrationSuite(sqliteOfficialFactory);
 
 versionBranchSuite(sqliteOfficialFactory);

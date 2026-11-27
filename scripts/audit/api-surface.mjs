@@ -594,7 +594,28 @@ const NAMING = {
     // 是其中「先写空、再补写」的外键；与同族的 `RemoteMergeResult` / `RemoteChangeResult` 一样是远端适配器契约，
     // 第三方远端适配器实现它时必须能命名。它们与工作树、提交能力都无关，叫 `Commit*` / `WorkingTree*` 只会是个谎。
     'RemoteMergeOptions',
-    'RemoteDeferredForeignKey'
+    'RemoteDeferredForeignKey',
+    // US-029 按作用域的成员写权限。`EntityMetadataOptions.access` 的声明类型与规则形式 `{ requires }` 是调用方写声明时
+    // 必须能命名的；读取作用域与规则的三个函数给界面派生与开发者工具用；规则违规的形状与判别函数让调用方按
+    // 违规清单分支（与 US-027 的 `PermissionViolation` 同族）。`rxdb.grants` 的类型、快照的值与它的两个字面量联合、
+    // 授权行的形状是应用设入与订阅时必须能命名的；`RxDBGrantState` 与核心另外四张系统表一样公开。
+    // 它们是实体声明与写入口的契约，与工作树、提交能力都无关，叫 `Commit*` / `WorkingTree*` 等于宣称成员权限是提交能力的一部分。
+    'EntityAccessOptions',
+    'EntityAccessScope',
+    'EntityAccessScopeOptions',
+    'EntityOperationRule',
+    'getEntityAccessScope',
+    'getEntityPermissionRule',
+    'isEntityOperationRule',
+    'isPermissionRuleViolation',
+    'PermissionRuleViolation',
+    'PermissionRuleViolationReason',
+    'RxDBGrant',
+    'RxDBGrants',
+    'RxDBGrantSnapshot',
+    'RxDBGrantSource',
+    'RxDBGrantState',
+    'RxDBGrantStatus'
   ],
   /** 全部包都不许有的新前缀 */
   bannedPrefixes: ['Index', 'Workspace'],

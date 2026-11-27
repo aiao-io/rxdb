@@ -64,7 +64,9 @@ const LOCAL_SYNC: SyncOptions = { type: SyncType.None, local: { adapter: 'sqlite
 @Entity({
   name: 'AccessOwner',
   properties: [{ name: 'name', type: PropertyType.string }],
-  relations: [{ name: 'tickets', kind: RelationKind.ONE_TO_MANY, mappedEntity: 'AccessTicket', mappedProperty: 'owner' }]
+  relations: [
+    { name: 'tickets', kind: RelationKind.ONE_TO_MANY, mappedEntity: 'AccessTicket', mappedProperty: 'owner' }
+  ]
 })
 class AccessOwner extends EntityBase {}
 
@@ -73,7 +75,13 @@ class AccessOwner extends EntityBase {}
   name: 'AccessTicket',
   properties: [{ name: 'title', type: PropertyType.string }],
   relations: [
-    { name: 'owner', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'AccessOwner', mappedProperty: 'tickets', nullable: false }
+    {
+      name: 'owner',
+      kind: RelationKind.MANY_TO_ONE,
+      mappedEntity: 'AccessOwner',
+      mappedProperty: 'tickets',
+      nullable: false
+    }
   ]
 })
 class AccessTicket extends EntityBase {}
@@ -199,18 +207,8 @@ describe('US-029 AC#2 作用域声明的配置错误', () => {
       [{ name: 'floor', type: PropertyType.number }],
       /number[\s\S]*string[\s\S]*uuid/
     ],
-    [
-      '属性可空',
-      { scope: { property: 'tenantId' } },
-      [{ ...TENANT, nullable: true }],
-      /可空|nullable/
-    ],
-    [
-      '属性加密',
-      { scope: { property: 'tenantId' } },
-      [{ ...TENANT, encrypted: true }],
-      /加密|encrypted/
-    ]
+    ['属性可空', { scope: { property: 'tenantId' } }, [{ ...TENANT, nullable: true }], /可空|nullable/],
+    ['属性加密', { scope: { property: 'tenantId' } }, [{ ...TENANT, encrypted: true }], /加密|encrypted/]
   ])('%s：点名属性与原因', (_label, access, properties, reason) => {
     const violations = violationsOf(
       { access, properties: properties as EntityPropertyMetadataOptions[], permissions: EDIT_RULES },
@@ -241,7 +239,13 @@ describe('US-029 AC#2 作用域声明的配置错误', () => {
       {
         access: { scope: { property: 'shopId' } },
         relations: [
-          { name: 'shop', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'Shop', mappedProperty: 'shelves', nullable: false }
+          {
+            name: 'shop',
+            kind: RelationKind.MANY_TO_ONE,
+            mappedEntity: 'Shop',
+            mappedProperty: 'shelves',
+            nullable: false
+          }
         ],
         permissions: EDIT_RULES
       },

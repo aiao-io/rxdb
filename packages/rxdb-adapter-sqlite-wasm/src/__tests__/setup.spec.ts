@@ -8,6 +8,7 @@ import {
   bigintBinaryClientSuite,
   bigintBinaryEntitySuite,
   cascadeMutationSuite,
+  entityAccessRulesSuite,
   createSqliteClientSuite,
   crudIntegrationSuite,
   customPrimaryKeySuite,
@@ -54,6 +55,7 @@ customPrimaryKeySuite(sqliteWasmFactory);
 relationIntegrationSuite(sqliteWasmFactory);
 menuIntegrationSuite(sqliteWasmFactory);
 cascadeMutationSuite(sqliteWasmFactory);
+entityAccessRulesSuite(sqliteWasmFactory);
 treeIntegrationSuite(sqliteWasmFactory);
 
 // 版本管理。

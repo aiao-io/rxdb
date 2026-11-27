@@ -8,6 +8,7 @@ import { SyncType } from './entity/metadata-options.interface.js';
 import { selectPrimaryAdapter } from './entity/primary-adapter.js';
 import { assertNoSystemEntityOverride, snapshotSyncOverrides } from './entity/sync-override.js';
 import { RxDBTabsGateway } from './gateway/RxDBTabsGateway.js';
+import { RxDBGrants } from './grants/grants.js';
 import { ReachabilityMonitor } from './network/reachability.js';
 import { assertPluginDependencyGraph, resolveUniqueProvider } from './plugin/dependency-graph.js';
 import { PluginDependencyScheduler } from './plugin/dependency-scheduler.js';
@@ -484,6 +485,16 @@ export class RxDB {
   public readonly syncState!: SyncStateHub;
 
   /**
+   * 授权快照：调用者在各作用域上有哪些成员权限（US-029）
+   *
+   * @remarks
+   * 声明了规则形式写权限（`permissions: { update: { requires: 'edit' } }`）的实体，公开写入口按它判定；
+   * 未取到时一律拒绝。快照写进本地库，`connect()` 打开既有库时读回。生命周期跟随实例，断连不清：
+   * 它属于这个库，重连读回的就是同一份。
+   */
+  public readonly grants: RxDBGrants;
+
+  /**
    * 本实例的实体同步配置解析器 —— 「某个实体在这个库里走哪种同步策略」的唯一答案。
    *
    * @remarks
@@ -600,7 +611,7 @@ export class RxDB {
   }
 
   /**
-   * **本库**的系统表：核心自带的四张 + 本实例 `use()` 过的插件贡献的那些
+   * **本库**的系统表：核心自带的五张 + 本实例 `use()` 过的插件贡献的那些
    *
    * @remarks
    * 建表这一侧的唯一真相，两个消费者共用：{@link SchemaManager.init} 把它补进
@@ -608,7 +619,7 @@ export class RxDB {
    * 两处都**不能**改读模块级的 `SYSTEM_ENTITIES`——那份是判定用的活视图，只增不减，
    * 见 {@link RxDB.#contributed_system_entities}。
    *
-   * 顺序即建表顺序，核心四张在前：贡献方的表允许引用 `RxDBBranch`（分支级行就是这么来的），
+   * 顺序即建表顺序，核心五张在前：贡献方的表允许引用 `RxDBBranch`（分支级行就是这么来的），
    * 反过来不成立。
    *
    * 每次返回新数组：`SchemaManager.init()` 会往 `config.entities` 里推东西，拿到内部数组
@@ -708,6 +719,7 @@ export class RxDB {
     // `syncState.bindPushableCount()` 接上（US-025 阶段 C）：那条流的主人随连接纪元来去，
     // 而本汇聚器跟随实例，构造期没有也不该有它。
     this.syncState = new SyncStateHub({ online$: this.reachability.online$ });
+    this.grants = new RxDBGrants(this);
     this.context = { ...this.#config.context };
     this.#pluginHost = this.#createPluginHost();
     this.#freeze_config();
@@ -1322,6 +1334,10 @@ export class RxDB {
           for (const contribution of contributions) {
             await contribution.bootstrapExisting({ adapter: localAdapter });
           }
+          // 授权快照随身份的库走（US-029）：读回上次的快照，离线重开照样按它判定。排在置位已连接之前，
+          // 与上面的贡献接线同一个理由——置位之后插件与应用就开始写了，那时判定必须已经看得见快照。
+          // 新库不读：那张表刚随建表建出来，是空的
+          await this.grants.load(localAdapter);
         }
       }
       // 引导已经跑完，只剩写回。这是纪元比对的最后一道，也是最关键的一道：整个机制要防的

@@ -9,17 +9,18 @@
 | 状态           | 数量 |
 | :------------- | :--- |
 | ✅ Done        | 100  |
-| 🚧 In Progress | 14   |
+| 🚧 In Progress | 15   |
 | 👀 In Review   | 17   |
-| 📝 Backlog     | 28   |
+| 📝 Backlog     | 27   |
 | 🚫 Blocked     | 0    |
 | **合计**       | 159  |
 
 统计只包含带 story frontmatter 的文件。辅助证据和无故事文件的候选不计数；同编号的辅助文件不算另一条故事。
 Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关闭而自动通过。当前可开工条件见 roadmap 与各故事的阶段表。
 
-## 进行中（14 条）
+## 进行中（15 条）
 
+- [US-029 按作用域的成员写权限：实体声明作用域与所需权限，本地写入口快速拒绝，三端按行显隐入口](stories/core/US-029-rbac-owner-role-permission.md)：未通过 AC#14～#20（7/20）
 - [US-211 多端小程序宿主（支付宝 / 抖音 / 百度 / QQ）](stories/adapter/US-211-multi-miniprogram-platforms.md)：未通过 AC#14、#16、#18（3/21）
 - [US-234 Supabase 租户内成员权限：管理员能改、员工只能看，dev-rxdb-supabase 完整演示](stories/adapter/US-234-supabase-tenant-member-permissions.md)：未通过 AC#17～#20（4/20）
 - [US-403 实体组件 Headless API 与可定制展示层](stories/ui/US-403-entity-components-headless.md)：未通过 AC#1～#16、#18～#21（20/21）
@@ -254,7 +255,7 @@ US-704～US-707 已获 owner 授权，US-708 会话层由 owner 决定在 PR #17
 
 ### [按身份授权的同步与本机数据隔离](epics/epic-015-identity-scoped-sync.md)
 
-- ⬜ [US-029 按作用域的成员写权限：实体声明作用域与所需权限，本地写入口快速拒绝，三端按行显隐入口](stories/core/US-029-rbac-owner-role-permission.md)
+- 🚧 [US-029 按作用域的成员写权限：实体声明作用域与所需权限，本地写入口快速拒绝，三端按行显隐入口](stories/core/US-029-rbac-owner-role-permission.md)
 - ✅ [US-033 按授权分区同步（只读）：分区决定能读什么，实体同步规则决定同步哪些](stories/core/US-033-identity-scoped-read-sync.md)
 - 👀 [US-034 分区实体的本地写入：本地增删改可撤销/重做，推送后锁定](stories/core/US-034-bucketed-entity-local-writes.md)
 - ✅ [US-035 每个身份一个本地库：打开时核对身份，换账号不混数据](stories/core/US-035-identity-bound-local-database.md)

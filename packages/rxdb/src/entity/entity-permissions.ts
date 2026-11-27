@@ -15,7 +15,7 @@ import type {
   EntityOperationRule,
   EntityPermissionOptions
 } from './entity-options.interface.js';
-import type { EntityType } from './entity.interface.js';
+import type { EntityType, RxDBEntityId } from './entity.interface.js';
 import { isPlainRecord } from './json-safe.js';
 import type { EntityMetadataOptions } from './metadata-options.interface.js';
 import type { EntityMetadata } from './metadata.interface.js';
@@ -116,6 +116,10 @@ export const mergeEntityPermissions = (chain: readonly EntityMetadataOptions[]):
 
 /**
  * 一条权限违规：哪个实体的哪个写操作被公开写入口拒绝
+ *
+ * @remarks
+ * `'system'` 的违规恰是这三个字段（US-027）。规则形式的违规（US-029）是它的扩展
+ * {@link PermissionRuleViolation}，多带行 id、作用域、所需权限与原因，用 {@link isPermissionRuleViolation} 区分。
  */
 export interface PermissionViolation {
   /** 实体所在命名空间 */
@@ -127,14 +131,69 @@ export interface PermissionViolation {
 }
 
 /**
- * 公开写入口拒绝了只许系统写的操作
+ * 规则形式违规的原因
+ *
+ * - `'missing-permission'`：快照在这一行的作用域上没有所需权限（作用域属性没有值时同样算）
+ * - `'grants-unknown'`：授权快照还没取到，声明了规则的写一律拒绝
+ */
+export type PermissionRuleViolationReason = 'missing-permission' | 'grants-unknown';
+
+/**
+ * 一条规则形式的违规：哪一行在哪个作用域上缺哪项权限（US-029）
+ *
+ * @remarks
+ * 一行一个作用域一条：update 改了作用域属性时前像与写后的作用域分开判，两边都缺就是两条。
+ */
+export interface PermissionRuleViolation extends PermissionViolation {
+  /** 被拒的行 */
+  readonly id: RxDBEntityId;
+  /** 行的作用域键；作用域属性没有值时为 `null` */
+  readonly scope: string | null;
+  /** 所需的成员权限 */
+  readonly requires: string;
+  /** 被拒的原因 */
+  readonly reason: PermissionRuleViolationReason;
+}
+
+/**
+ * 违规是不是规则形式的
+ *
+ * @param violation - {@link PermissionDeniedError.violations} 里的一项
+ */
+export const isPermissionRuleViolation = (violation: PermissionViolation): violation is PermissionRuleViolation =>
+  'requires' in violation;
+
+const RULE_REASON_TEXT: Readonly<Record<PermissionRuleViolationReason, string>> = {
+  'missing-permission': '缺权限',
+  'grants-unknown': '授权未知'
+};
+
+const SYSTEM_HEADER = '以下写操作只许系统执行，公开写入口拒绝（本次调用一条都没有写出）：';
+const RULE_HEADER = '以下写操作缺少成员权限，公开写入口拒绝（本次调用一条都没有写出）：';
+const MIXED_HEADER = '以下写操作被公开写入口拒绝（本次调用一条都没有写出）：';
+
+const headerOf = (violations: readonly PermissionViolation[]): string => {
+  const rules = violations.filter(isPermissionRuleViolation).length;
+  if (rules === 0) return SYSTEM_HEADER;
+  return rules === violations.length ? RULE_HEADER : MIXED_HEADER;
+};
+
+const lineOf = (violation: PermissionViolation): string => {
+  const { namespace, entity, operation } = violation;
+  if (!isPermissionRuleViolation(violation)) return `  ${namespace}.${entity}: ${operation}`;
+  const scope = violation.scope ?? '（作用域属性没有值）';
+  const reason = RULE_REASON_TEXT[violation.reason];
+  return `  ${namespace}.${entity}#${String(violation.id)}: ${operation} 需要 ${scope} 的 ${violation.requires}（${reason}）`;
+};
+
+/**
+ * 公开写入口拒绝了写操作：只许系统写（US-027），或缺少行所属作用域上的成员权限（US-029）
  *
  * @remarks
  * 判定是**快速失败，不是防御边界**：适配器 / 执行器层不判定，见 {@link EntityPermissionOptions}。
  *
- * `violations` 是清单而不是单项：单条入口恰一项；`EntityManager.mutations()` 的整批预检
- * 收齐整批违规后一次抛出，调用方一次就能看到要拆掉哪些写，而不是改一条撞一条。
- * 被拒时本次调用一条都没写出去。
+ * `violations` 是清单而不是单项：单条入口恰一项（规则形式改了作用域时可能两项）；批量入口收齐整批违规后一次抛出，
+ * 调用方一次就能看到要拆掉哪些写，而不是改一条撞一条。被拒时本次调用一条都没写出去。
  *
  * @example
  * ```typescript
@@ -142,7 +201,8 @@ export interface PermissionViolation {
  *   await rxdb.entityManager.saveMany(entities);
  * } catch (error) {
  *   if (error instanceof PermissionDeniedError) {
- *     console.warn(error.violations.map(v => `${v.entity}.${v.operation}`));
+ *     const denied = error.violations.filter(isPermissionRuleViolation).map(v => `${v.entity}#${v.id} ${v.scope}`);
+ *     console.warn(denied);
  *   } else {
  *     throw error;
  *   }
@@ -151,15 +211,13 @@ export interface PermissionViolation {
  */
 export class PermissionDeniedError extends RxDBError {
   constructor(
-    /** 本次调用的全部违规，按 create / update / delete 排序，同一实体同一操作只出现一次 */
+    /**
+     * 本次调用的全部违规，按 create / update / delete 排序：`'system'` 的同一实体同一操作只出现一次，
+     * 规则形式的一行一个作用域一条
+     */
     readonly violations: readonly PermissionViolation[]
   ) {
-    super(
-      [
-        `以下写操作只许系统执行，公开写入口拒绝（本次调用一条都没有写出）：`,
-        ...violations.map(({ namespace, entity, operation }) => `  ${namespace}.${entity}: ${operation}`)
-      ].join('\n')
-    );
+    super([headerOf(violations), ...violations.map(lineOf)].join('\n'));
     this.name = 'PermissionDeniedError';
     Object.setPrototypeOf(this, PermissionDeniedError.prototype);
   }
@@ -217,7 +275,7 @@ export const assertMutationsAllowed = (options: RxDBMutationsMap): void => {
 /**
  * 断言每张系统表三个写操作都声明为 `'system'`
  *
- * @param systemEntities - 本实例的系统表清单（核心四张 + 插件贡献）
+ * @param systemEntities - 本实例的系统表清单（核心五张 + 插件贡献）
  * @throws {@link RxDBError} 有表漏声明，消息点名每张表与它缺的操作
  *
  * @remarks

@@ -14,6 +14,7 @@ import {
   bigintBinaryClientSuite,
   bigintBinaryEntitySuite,
   cascadeMutationSuite,
+  entityAccessRulesSuite,
   crudIntegrationSuite,
   customPrimaryKeySuite,
   joinSqlSuite,
@@ -69,6 +70,7 @@ customPrimaryKeySuite(rustAdapterFactory);
 relationIntegrationSuite(rustAdapterFactory);
 menuIntegrationSuite(rustAdapterFactory);
 cascadeMutationSuite(rustAdapterFactory);
+entityAccessRulesSuite(rustAdapterFactory);
 treeIntegrationSuite(rustAdapterFactory);
 
 versionBranchSuite(rustAdapterFactory);

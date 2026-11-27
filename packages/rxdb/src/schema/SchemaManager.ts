@@ -97,7 +97,7 @@ export class SchemaManager {
    * 逐张判定同时保住了原来那个哨兵真正在解决的问题：`entities` 是 `config` 上那个**可变
    * 数组本身**，`init()` 在 disconnect → reconnect 时会重跑，无条件 push 会让它无限增长。
    *
-   * 清单取自 {@link RxDB.systemEntities}（核心四张 + **本实例** `use()` 过的贡献），
+   * 清单取自 {@link RxDB.systemEntities}（核心五张 + **本实例** `use()` 过的贡献），
    * 不是模块级的 `SYSTEM_ENTITIES`。后者是判定用的活视图、只增不减：拿它来注入，进程里
    * 只要有任何一个库装了某个贡献方，没装的库也会被建出那些表、吃它们的迁移。
    */
