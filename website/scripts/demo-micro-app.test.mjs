@@ -142,12 +142,9 @@ test('sub-apps push theme changes back to the host on user-driven switches only'
 
 test('demo host auto-recreates the instance on sub-app reload or missed handshake', () => {
   const source = readFileSync(join(root, 'src/components/DemoMicroAppClient.tsx'), 'utf8');
-  // 子应用内置开关（录像、数据库重连等）走 location.reload：完整文档导航按契约断开连接，宿主应自动创建新实例，
-  // 而不是把「子应用连接已关闭」当成需要手动点「重新加载演示」的失败。
   assert.match(source, /OrbitError/, 'host should recognise typed orbit errors');
   assert.match(source, /failure instanceof OrbitError/, 'host should only special-case orbit failures');
   assert.match(source, /failure\.code === 'NAVIGATION'/, 'host should auto-recover on navigation failures');
-  // 文档加载后未握手也是可恢复的启动失败（旧 Service Worker 先缓存了未接入 SDK 的版本），同样自动重建。
   assert.match(source, /failure\.code === 'LOAD_ERROR'/, 'host should auto-recover on missed handshakes');
   assert.match(
     source,
@@ -155,8 +152,17 @@ test('demo host auto-recreates the instance on sub-app reload or missed handshak
     'auto-recovery should rebuild through the same attempt channel as the manual reload button'
   );
   assert.match(source, /MAX_AUTO_RETRIES/, 'auto-recovery needs a consecutive-retry cap');
-  assert.match(source, /autoRetries\.current = 0/, 'a successful mount should reset the retry counter');
-  // 其余错误仍进遮罩，不能被自动重建吞掉
+  assert.match(source, /RETRY_RESET_DELAY_MS/, 'the retry budget should reset after the instance runs steadily');
+  assert.match(
+    source,
+    /autoRetries\.current = 0/,
+    'a steady instance or a manual reload should reset the retry counter'
+  );
+  assert.match(
+    source,
+    /clearTimeout\(retryResetTimer\.current\)/,
+    'a new failure should cancel the pending budget reset'
+  );
   assert.match(
     source,
     /setError\(failure instanceof Error \? failure\.message : copy\('演示运行失败'\)\)/,

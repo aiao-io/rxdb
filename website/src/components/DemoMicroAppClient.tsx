@@ -18,8 +18,8 @@ import { useSiteCopy } from '@site/src/lib/locale-copy';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import type { DemoMicroAppProps } from './DemoMicroApp';
 
-/** 连续自动重建实例的上限（NAVIGATION / LOAD_ERROR）：超过就按普通失败进遮罩，防重建循环拖垮页面。 */
 const MAX_AUTO_RETRIES = 2;
+const RETRY_RESET_DELAY_MS = 10_000;
 
 function readHostTheme(): ResolvedTheme {
   return parseResolvedTheme(document.documentElement.getAttribute(HOST_THEME_ATTRIBUTE));
@@ -52,12 +52,11 @@ export default function DemoMicroAppClient({
   const containerRef = useRef<HTMLDivElement>(null);
   const instance = useRef<OrbitInstance | undefined>(undefined);
   const autoRetries = useRef(0);
+  const retryResetTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const runtime = useMemo(
     () =>
       createOrbit({
         allowedOrigins: [new URL(url, location.href).origin],
-        // 完整文档导航按契约断开连接（宿主应创建新实例）；文档加载后未握手也是可恢复的启动失败
-        // （如旧 Service Worker 先缓存了未接入 SDK 的版本）。两种都自动重建实例，而不是停在死遮罩上。
         onError: failure => {
           if (
             failure instanceof OrbitError &&
@@ -65,9 +64,11 @@ export default function DemoMicroAppClient({
             autoRetries.current < MAX_AUTO_RETRIES
           ) {
             autoRetries.current += 1;
+            clearTimeout(retryResetTimer.current);
             setAttempt(value => value + 1);
             return;
           }
+          clearTimeout(retryResetTimer.current);
           setError(failure instanceof Error ? failure.message : copy('演示运行失败'));
         }
       }),
@@ -111,7 +112,10 @@ export default function DemoMicroAppClient({
       .mount(container)
       .then(() => {
         if (active) {
-          autoRetries.current = 0;
+          clearTimeout(retryResetTimer.current);
+          retryResetTimer.current = setTimeout(() => {
+            autoRetries.current = 0;
+          }, RETRY_RESET_DELAY_MS);
           armRouteSync();
         }
       })
@@ -120,6 +124,7 @@ export default function DemoMicroAppClient({
       });
     return () => {
       active = false;
+      clearTimeout(retryResetTimer.current);
       app.destroy();
       instance.current = undefined;
     };
@@ -187,7 +192,13 @@ export default function DemoMicroAppClient({
       {error && (
         <div role='alert' style={{ position: 'absolute', inset: 0, padding: 24 }}>
           <p>{error}</p>
-          <button type='button' onClick={() => setAttempt(value => value + 1)}>
+          <button
+            type='button'
+            onClick={() => {
+              autoRetries.current = 0;
+              setAttempt(value => value + 1);
+            }}
+          >
             {copy('重新加载演示')}
           </button>
         </div>
