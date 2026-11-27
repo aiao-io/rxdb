@@ -3870,7 +3870,7 @@
       }
     ]
   },
-  "digest": "3173a803be46e544f5753ace815d1a43cc4bd555539e600f29ef0124b17fc9fd",
+  "digest": "034fe2def2610b4d71ecd002f3298bbd8acf3a3bb2204a1958a475dc60b7387e",
   "sample": {
     "compilerOptions": {
       "experimentalDecorators": true,
