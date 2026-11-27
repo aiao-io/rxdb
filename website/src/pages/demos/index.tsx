@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { ArrowRight, Blocks, Database, Gauge, Layers3, Workflow, Zap } from 'lucide-react';
 
 import { Button } from '@site/src/components/button';
+import { useSiteCopy } from '@site/src/lib/locale-copy';
 
 const demos = [
   {
@@ -69,8 +70,13 @@ const whatToObserve = [
 ] as const;
 
 export default function DemosIndexPage() {
+  const copy = useSiteCopy();
+
   return (
-    <Layout title='在线演示' description='直接对比 RxDB 在 Angular、React、Vue 中的真实接入方式与页面复杂度'>
+    <Layout
+      title={copy('在线演示')}
+      description={copy('直接对比 RxDB 在 Angular、React、Vue 中的真实接入方式与页面复杂度')}
+    >
       <main className='home-shell px-4 pt-20 pb-28 sm:px-6 sm:pt-28'>
         <div className='mx-auto max-w-7xl'>
           <motion.section
@@ -81,21 +87,23 @@ export default function DemosIndexPage() {
           >
             <div>
               <h1 className='text-foreground mt-4 max-w-4xl text-4xl leading-[1.05] font-semibold tracking-tight sm:text-5xl lg:text-6xl'>
-                同一套实体模型
-                <span className='home-gradient-text mt-2 block'>三种框架绑定方式</span>
+                {copy('同一套实体模型')}
+                <span className='home-gradient-text mt-2 block'>{copy('三种框架绑定方式')}</span>
               </h1>
               <p className='text-muted-foreground mt-8 max-w-2xl text-base leading-7 sm:text-lg sm:leading-8'>
-                在可运行页面中对照 Angular、React、Vue 的查询订阅、实体状态与复杂视图实现，并可继续查看对应源码。
+                {copy(
+                  '在可运行页面中对照 Angular、React、Vue 的查询订阅、实体状态与复杂视图实现，并可继续查看对应源码。'
+                )}
               </p>
               <div className='mt-10 flex flex-wrap gap-3'>
                 <Button asChild>
                   <Link to='/docs/getting-started/'>
-                    快速开始
+                    {copy('快速开始')}
                     <ArrowRight />
                   </Link>
                 </Button>
                 <Button asChild variant='outline'>
-                  <Link to='/docs/getting-started/capabilities'>更多能力与本地示例</Link>
+                  <Link to='/docs/getting-started/capabilities'>{copy('更多能力与本地示例')}</Link>
                 </Button>
               </div>
               <div className='border-border mt-12 grid grid-cols-3 gap-0 border-t pt-8'>
@@ -123,8 +131,8 @@ export default function DemosIndexPage() {
                   } ${idx >= comparePoints.length - 2 ? 'border-b' : ''}`}
                 >
                   <point.icon className='text-primary mb-4 size-5' />
-                  <h3 className='text-foreground mb-2 text-base font-semibold tracking-tight'>{point.title}</h3>
-                  <p className='text-muted-foreground text-xs leading-5'>{point.description}</p>
+                  <h3 className='text-foreground mb-2 text-base font-semibold tracking-tight'>{copy(point.title)}</h3>
+                  <p className='text-muted-foreground text-xs leading-5'>{copy(point.description)}</p>
                 </div>
               ))}
               <div className='border-border col-span-full border-t border-r border-b border-l p-6'>
@@ -136,7 +144,7 @@ export default function DemosIndexPage() {
                   {whatToObserve.map(item => (
                     <div key={item} className='flex items-start gap-2 text-xs leading-5'>
                       <span className='text-primary mt-1 shrink-0 text-[8px]'>■</span>
-                      {item}
+                      {copy(item)}
                     </div>
                   ))}
                 </div>
@@ -176,10 +184,10 @@ export default function DemosIndexPage() {
                     </div>
                     <div className='p-6'>
                       <div className='text-muted-foreground mb-2 font-[family-name:var(--mono-font)] text-[10px] tracking-[0.2em] uppercase'>
-                        {demo.focus}
+                        {copy(demo.focus)}
                       </div>
                       <h3 className='text-foreground mb-3 text-3xl font-semibold tracking-tight'>{demo.name}</h3>
-                      <p className='text-muted-foreground mb-6 text-sm leading-6'>{demo.description}</p>
+                      <p className='text-muted-foreground mb-6 text-sm leading-6'>{copy(demo.description)}</p>
 
                       <div className='border-border -mx-6 border-y'>
                         <div className='divide-border/60 grid grid-cols-2 divide-x text-xs'>
@@ -189,7 +197,7 @@ export default function DemosIndexPage() {
                               className={`flex items-center gap-1.5 px-4 py-2.5 ${fi >= 2 ? 'border-border/60 border-t' : ''}`}
                             >
                               <span className='text-primary text-[8px]'>■</span>
-                              <span className='truncate'>{feature}</span>
+                              <span className='truncate'>{copy(feature)}</span>
                             </div>
                           ))}
                         </div>
@@ -200,7 +208,7 @@ export default function DemosIndexPage() {
                           {demo.sourceRoot}
                         </div>
                         <div className='text-primary inline-flex items-center gap-1.5 text-sm font-medium transition-transform group-hover:translate-x-1'>
-                          进入演示
+                          {copy('进入演示')}
                           <ArrowRight className='size-4' />
                         </div>
                       </div>
@@ -222,16 +230,16 @@ export default function DemosIndexPage() {
               <div className='flex flex-col gap-8 md:flex-row md:items-center md:justify-between'>
                 <div>
                   <h2 className='text-foreground mt-4 text-3xl font-semibold tracking-tight sm:text-4xl'>
-                    从演示进入对应文档
+                    {copy('从演示进入对应文档')}
                   </h2>
                   <p className='text-muted-foreground mt-4 text-base leading-7'>
-                    演示用于比较框架绑定方式；文档进一步说明模型、查询、写入与协作 API 的完整边界。
+                    {copy('演示用于比较框架绑定方式；文档进一步说明模型、查询、写入与协作 API 的完整边界。')}
                   </p>
                 </div>
               </div>
               <Button asChild size='lg'>
                 <Link to='/docs/getting-started/'>
-                  打开快速开始
+                  {copy('打开快速开始')}
                   <ArrowRight />
                 </Link>
               </Button>
@@ -241,7 +249,7 @@ export default function DemosIndexPage() {
           <div className='border-border/60 mt-20 flex flex-col items-center justify-between gap-3 border-t pt-8 font-[family-name:var(--mono-font)] text-[11px] tracking-[0.18em] uppercase sm:flex-row'>
             <span className='text-muted-foreground'>
               <Layers3 className='mr-2 inline size-3.5' />
-              界面与源码 1:1 对照
+              {copy('界面与源码 1:1 对照')}
             </span>
             <span className='text-muted-foreground'>3 frameworks · 1 model · shared semantics</span>
           </div>

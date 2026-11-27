@@ -52,6 +52,7 @@ export default defineConfig(({ command }) => ({
     watch: false,
     globals: true,
     environment: 'happy-dom',
+    setupFiles: ['src/test-setup.ts'],
     testTimeout: 15000,
     include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     reporters: ['default'],

@@ -35,6 +35,8 @@ export class RxDBError extends Error {
  * ```
  */
 export class RxDBPartialSyncError<T = unknown> extends RxDBError {
+  readonly code = 'RXDB_PARTIAL_SYNC' as const;
+
   constructor(
     /** 失败前已完成部分的统计 */
     readonly result: T,
@@ -69,6 +71,8 @@ export class RxDBPartialSyncError<T = unknown> extends RxDBError {
  * ```
  */
 export class RxDBQueryCacheCapabilityError extends RxDBError {
+  readonly code = 'RXDB_QUERY_CACHE_CAPABILITY_MISSING' as const;
+
   constructor(
     /** 实体名（元数据里的 `name`） */
     readonly entity: string,
@@ -114,6 +118,8 @@ export class RxDBQueryCacheCapabilityError extends RxDBError {
  * ```
  */
 export class RxDBLocalAdapterCapabilityError extends RxDBError {
+  readonly code = 'RXDB_LOCAL_ADAPTER_CAPABILITY_MISSING' as const;
+
   constructor(
     /** 配置里 `sync.local.adapter` 的名字 */
     readonly adapterName: string,
@@ -156,6 +162,8 @@ export class RxDBLocalAdapterCapabilityError extends RxDBError {
  * ```
  */
 export class RxDBMissingPluginError extends RxDBError {
+  readonly code = 'RXDB_PLUGIN_MISSING' as const;
+
   constructor(
     /** 触发这条错误的实体名（元数据里的 `name`） */
     readonly entity: string,
@@ -228,6 +236,8 @@ export class RxDBMixedVersionedCacheTransactionError extends RxDBError {
  * （工作树插件的只读检出位在快照库上另装只读钩子与引擎封印）。
  */
 export class RxDBReadOnlyError extends RxDBError {
+  readonly code = 'RXDB_READ_ONLY' as const;
+
   constructor(
     /** 被拒的写入口，如 `create`、`update`、`delete`、`reorder`、`mutations`、`notifyExternalUpdate` */
     readonly operation: string,
@@ -244,6 +254,8 @@ export class RxDBReadOnlyError extends RxDBError {
  * 网络离线错误 —— 启用 `offlineFallback` 但无本地缓存可用时抛出
  */
 export class NetworkOfflineError extends RxDBError {
+  readonly code = 'RXDB_NETWORK_OFFLINE' as const;
+
   readonly originalError: Error;
 
   constructor(originalError: Error) {
@@ -267,6 +279,8 @@ export class NetworkOfflineError extends RxDBError {
  * 正是这条错误要替调用方省掉的。
  */
 export class RxDBPluginDependencyCycleError extends RxDBError {
+  readonly code = 'RXDB_PLUGIN_DEPENDENCY_CYCLE' as const;
+
   constructor(
     /** 环路径上的插件名，首尾为同一个插件（如 `['a', 'b', 'a']`） */
     readonly cycle: readonly string[]
@@ -307,6 +321,8 @@ export class RxDBPluginDependencyCycleError extends RxDBError {
  * ```
  */
 export class RxDBCheckViolationError extends RxDBError {
+  readonly code = 'RXDB_CHECK_VIOLATION' as const;
+
   constructor(
     /** 违反约束的实体名（元数据里的 `name`） */
     readonly entity: string,
@@ -381,6 +397,8 @@ const formatExclusionRangeConflict = (conflict: ExclusionRangeConflict): string 
  * ```
  */
 export class RxDBExclusionViolationError extends RxDBError {
+  readonly code = 'RXDB_EXCLUSION_VIOLATION' as const;
+
   constructor(
     /** 违反约束的实体名（元数据里的 `name`） */
     readonly entity: string,
@@ -440,6 +458,8 @@ const reservedPrefixHint = (extra: readonly string[]): string => {
  * ```
  */
 export class RxDBConstraintDriftError extends RxDBError {
+  readonly code = 'RXDB_CONSTRAINT_DRIFT' as const;
+
   constructor(
     /** 发生漂移的实体名（元数据里的 `name`） */
     readonly entity: string,
@@ -483,6 +503,8 @@ export class RxDBConstraintDriftError extends RxDBError {
  * 只报名字等于什么都没说。
  */
 export class RxDBPluginAmbiguousDependencyError extends RxDBError {
+  readonly code = 'RXDB_PLUGIN_AMBIGUOUS_DEPENDENCY' as const;
+
   constructor(
     /** 触发歧义的依赖键（如 `'plugin:search'`） */
     readonly dependency: string,

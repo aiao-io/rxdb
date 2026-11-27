@@ -43,6 +43,8 @@ const workspacePackages = [
   '@aiao/rxdb-adapter-sqlite-wasm',
   '@aiao/rxdb-adapter-sqliteai',
   '@aiao/rxdb-adapter-wa-sqlite',
+  '@aiao/rxdb-i18n',
+  '@aiao/rxdb-i18n-react',
   '@aiao/rxdb-plugin-search',
   '@aiao/rxdb-test',
   '@aiao/rxdb-test/encrypted',

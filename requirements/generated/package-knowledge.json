@@ -2685,6 +2685,12 @@
           },
           {
             "kind": "dependencies",
+            "name": "@aiao/rxdb-i18n",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "dependencies",
             "name": "@aiao/rxdb-plugin-search",
             "optional": false,
             "range": "workspace:^"
@@ -3974,7 +3980,7 @@
       }
     ]
   },
-  "digest": "1bd2abfa77549d02ffd41951eef5b583807297f6a4c588211b21fc50c1dddd57",
+  "digest": "763160074a80dbe4299de90c51b6af39820f421b0ad7d48df9ba8cbb7ce9053f",
   "sample": {
     "compilerOptions": {
       "experimentalDecorators": true,

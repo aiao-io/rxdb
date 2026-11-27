@@ -72,7 +72,7 @@
             <!-- History Toggle -->
             <button
               class="btn btn-sm"
-              [attr.aria-label]="'common.history' | i18n"
+              [attr.aria-label]="'history.open' | i18n"
               [class.btn-primary]="$show_history()"
               (click)="toggle_history()"
             >
@@ -114,7 +114,7 @@
                       @if (option.action.isPending()) {
                         <span class="loading loading-spinner loading-xs"></span>
                       }
-                      {{ option.label }}
+                      {{ option.labelKey | i18n: { count: option.count } }}
                     </button>
                   </li>
                 }
@@ -150,7 +150,7 @@
             <!-- History Toggle -->
             <button
               class="btn btn-sm"
-              [attr.aria-label]="'common.history' | i18n"
+              [attr.aria-label]="'history.open' | i18n"
               [class.btn-primary]="showHistory"
               (click)="toggle_history()"
             >
@@ -168,7 +168,7 @@
             </div>
             <button
               class="btn btn-sm btn-ghost btn-square"
-              [title]="isAllExpanded() ? '折叠全部' : '展开全部'"
+              [title]="(isAllExpanded() ? 'common.collapseAll' : 'common.expandAll') | i18n"
               (click)="toggleExpandAll()"
               data-testid="menu-toggle-all"
             >
@@ -269,7 +269,7 @@
             <div class="flex-1">
               <div class="font-semibold">{{ 'page.tree.searchScope' | i18n }}</div>
               <div class="text-sm">
-                {{ warning.message }}
+                {{ warning.messageKey | i18n }}
                 <span class="ml-2 opacity-70">
                   {{ 'page.tree.loadedCount' | i18n: { count: warning.loadedCount } }}
                 </span>
@@ -288,7 +288,7 @@
             <div class="flex-1">
               <div class="font-semibold">{{ 'page.tree.pathConflict' | i18n }}</div>
               <div class="text-sm">
-                已存在同名菜单：
+                {{ 'page.tree.duplicateMenuConflict' | i18n }}
                 <strong>{{ pathConflictWarning()?.conflictPath }}</strong>
               </div>
             </div>
@@ -402,7 +402,7 @@
                             (click)="retryLoadChildren(node.menu.id)"
                           >
                             <svg [lucideIcon]="TriangleAlert" [size]="14" />
-                            重试
+                            {{ 'common.retry' | i18n }}
                           </button>
                         }
 
@@ -461,9 +461,9 @@
 
       <div class="py-4">
         <p class="mb-3">
-          确定要删除菜单
+          {{ 'page.tree.deleteConfirmPrefix' | i18n }}
           <span class="text-primary font-semibold">"{{ menu.title }}"</span>
-          吗？
+          {{ 'page.tree.deleteConfirmSuffix' | i18n }}
         </p>
 
         @let impact = deleteImpact();
@@ -493,7 +493,7 @@
           </button>
           <button class="btn btn-error" (click)="executeCascadeDelete()" type="button">
             <svg [lucideIcon]="Trash2" [size]="16" />
-            级联删除 (删除所有)
+            {{ 'page.tree.cascadeDeleteAll' | i18n }}
           </button>
         } @else {
           <button class="btn btn-error" (click)="executeCascadeDelete()" type="button">

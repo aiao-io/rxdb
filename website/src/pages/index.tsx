@@ -22,6 +22,7 @@ import type { ReactNode } from 'react';
 
 import { Button } from '@site/src/components/button';
 import { HomeSqlPlayground } from '@site/src/components/home-sql-playground';
+import { useSiteCopy } from '@site/src/lib/locale-copy';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -207,6 +208,8 @@ interface SectionProps {
 }
 
 function Section({ index, eyebrow, title, description, children }: SectionProps) {
+  const copy = useSiteCopy();
+
   return (
     <section className='relative px-4 py-20 sm:px-6 sm:py-28'>
       <div className='mx-auto max-w-7xl'>
@@ -218,13 +221,15 @@ function Section({ index, eyebrow, title, description, children }: SectionProps)
         >
           <motion.div variants={itemVariants} className='border-border/60 mb-14 flex flex-col gap-5 border-t pt-10'>
             <div className='flex items-center justify-between gap-4 text-xs'>
-              <span className='eyebrow'>{eyebrow}</span>
+              <span className='eyebrow'>{copy(eyebrow)}</span>
               <span className='section-index'>— {index}</span>
             </div>
-            <h2 className='text-foreground max-w-4xl text-3xl font-semibold tracking-tight sm:text-5xl'>{title}</h2>
+            <h2 className='text-foreground max-w-4xl text-3xl font-semibold tracking-tight sm:text-5xl'>
+              {copy(title)}
+            </h2>
             {description ?
               <p className='text-muted-foreground max-w-3xl text-base leading-7 sm:text-lg sm:leading-8'>
-                {description}
+                {copy(description)}
               </p>
             : null}
           </motion.div>
@@ -236,6 +241,8 @@ function Section({ index, eyebrow, title, description, children }: SectionProps)
 }
 
 function HeroSection(): ReactNode {
+  const copy = useSiteCopy();
+
   return (
     <header className='home-hero px-4 pt-20 pb-12 sm:px-6 sm:pt-28 sm:pb-20'>
       <div className='mx-auto max-w-7xl'>
@@ -246,28 +253,29 @@ function HeroSection(): ReactNode {
               className='text-foreground mt-4 max-w-4xl text-5xl leading-[1.02] font-semibold tracking-tight sm:text-6xl lg:text-7xl'
             >
               RxDB
-              <span className='home-gradient-text mt-3 block'>浏览器内的数据基础设施</span>
+              <span className='home-gradient-text mt-3 block'>{copy('浏览器内的数据基础设施')}</span>
             </motion.h1>
             <motion.p
               variants={itemVariants}
               className='text-muted-foreground mt-8 max-w-2xl text-base leading-7 sm:text-lg sm:leading-8'
             >
-              在浏览器内完成结构化数据的查询、写入与持久化，通过 RxJS 响应数据变化为 Angular、React、Vue
-              提供一致的模型语义。需要跨设备共享时，再按需连接远端同步。
+              {copy(
+                '在浏览器内完成结构化数据的查询、写入与持久化，通过 RxJS 响应数据变化为 Angular、React、Vue 提供一致的模型语义。需要跨设备共享时，再按需连接远端同步。'
+              )}
             </motion.p>
             <motion.div variants={itemVariants} className='mt-10 flex flex-wrap gap-3'>
               <Button size='lg' asChild>
                 <Link to='/docs/getting-started/'>
-                  快速开始
+                  {copy('快速开始')}
                   <ArrowRight />
                 </Link>
               </Button>
               <Button size='lg' variant='outline' asChild>
-                <Link to='/demos'>查看框架演示</Link>
+                <Link to='/demos'>{copy('查看框架演示')}</Link>
               </Button>
               <Button size='lg' variant='ghost' asChild>
                 <Link to='/architecture'>
-                  了解架构
+                  {copy('了解架构')}
                   <ArrowRight />
                 </Link>
               </Button>
@@ -279,7 +287,7 @@ function HeroSection(): ReactNode {
                   className='group border-border hover:border-primary flex items-center gap-3 border-l-2 py-1.5 pl-4 transition-colors'
                 >
                   <ShieldCheck className='text-primary size-4 shrink-0' />
-                  <span className='text-sm leading-6 sm:text-[0.95rem]'>{item}</span>
+                  <span className='text-sm leading-6 sm:text-[0.95rem]'>{copy(item)}</span>
                 </div>
               ))}
             </motion.div>
@@ -304,6 +312,7 @@ function HeroSection(): ReactNode {
 }
 
 function MetricsStrip(): ReactNode {
+  const copy = useSiteCopy();
   const metrics = [
     { label: 'FRAMEWORKS', value: '3', note: 'Angular · React · Vue' },
     { label: 'RUNTIME', value: 'SQLite', note: '浏览器内执行引擎' },
@@ -324,7 +333,7 @@ function MetricsStrip(): ReactNode {
                 {m.label}
               </div>
               <div className='text-foreground mt-3 text-2xl font-semibold'>{m.value}</div>
-              <div className='text-muted-foreground mt-1 text-xs'>{m.note}</div>
+              <div className='text-muted-foreground mt-1 text-xs'>{copy(m.note)}</div>
             </div>
           ))}
         </div>
@@ -334,10 +343,12 @@ function MetricsStrip(): ReactNode {
 }
 
 export default function Home(): ReactNode {
+  const copy = useSiteCopy();
+
   return (
     <Layout
-      title='浏览器内的数据基础设施'
-      description='RxDB 为 Angular、React、Vue 提供浏览器内数据库、响应式查询与类型安全的统一模型。'
+      title={copy('浏览器内的数据基础设施')}
+      description={copy('RxDB 为 Angular、React、Vue 提供浏览器内数据库、响应式查询与类型安全的统一模型。')}
     >
       <main className='home-shell'>
         <HeroSection />
@@ -361,8 +372,8 @@ export default function Home(): ReactNode {
                 <div className='text-muted-foreground mb-2 font-[family-name:var(--mono-font)] text-[10px] tracking-[0.2em] uppercase'>
                   {String(idx + 1).padStart(2, '0')} / Pillar
                 </div>
-                <h3 className='text-foreground mb-3 text-xl font-semibold tracking-tight'>{pillar.title}</h3>
-                <p className='text-muted-foreground text-sm leading-6'>{pillar.description}</p>
+                <h3 className='text-foreground mb-3 text-xl font-semibold tracking-tight'>{copy(pillar.title)}</h3>
+                <p className='text-muted-foreground text-sm leading-6'>{copy(pillar.description)}</p>
               </motion.div>
             ))}
           </div>
@@ -385,8 +396,8 @@ export default function Home(): ReactNode {
                     </span>
                     <step.icon className='text-muted-foreground size-4' />
                   </div>
-                  <h3 className='text-foreground mb-3 text-lg leading-tight font-semibold'>{step.title}</h3>
-                  <p className='text-muted-foreground text-sm leading-6'>{step.description}</p>
+                  <h3 className='text-foreground mb-3 text-lg leading-tight font-semibold'>{copy(step.title)}</h3>
+                  <p className='text-muted-foreground text-sm leading-6'>{copy(step.description)}</p>
                 </div>
               </motion.div>
             ))}
@@ -409,12 +420,12 @@ export default function Home(): ReactNode {
                       <span className='mono-chip'>{card.tag}</span>
                     </div>
                     <div className='text-muted-foreground mb-2 font-[family-name:var(--mono-font)] text-[10px] tracking-[0.2em] uppercase'>
-                      {card.focus}
+                      {copy(card.focus)}
                     </div>
                     <h3 className='text-foreground mb-3 text-3xl font-semibold'>{card.title}</h3>
-                    <p className='text-muted-foreground mb-6 text-sm leading-6'>{card.description}</p>
+                    <p className='text-muted-foreground mb-6 text-sm leading-6'>{copy(card.description)}</p>
                     <div className='text-primary inline-flex items-center gap-1.5 text-sm font-medium transition-transform group-hover:translate-x-1'>
-                      查看 {card.title} 接入
+                      {copy(`查看 ${card.title} 接入`)}
                       <ArrowRight className='size-4' />
                     </div>
                   </div>
@@ -441,10 +452,10 @@ export default function Home(): ReactNode {
                     </span>
                   </div>
                   <div className='mb-3 flex items-center justify-between gap-4'>
-                    <h3 className='text-foreground text-lg font-semibold tracking-tight'>{item.title}</h3>
+                    <h3 className='text-foreground text-lg font-semibold tracking-tight'>{copy(item.title)}</h3>
                     <ArrowRight className='text-muted-foreground size-4 transition-transform group-hover:translate-x-1' />
                   </div>
-                  <p className='text-muted-foreground text-sm leading-6'>{item.description}</p>
+                  <p className='text-muted-foreground text-sm leading-6'>{copy(item.description)}</p>
                 </div>
               );
 
@@ -475,24 +486,24 @@ export default function Home(): ReactNode {
               <motion.div variants={itemVariants}>
                 <div className='home-cta-card p-10 sm:p-16 lg:p-20'>
                   <h2 className='text-foreground mt-6 max-w-3xl text-3xl leading-tight font-semibold tracking-tight sm:text-5xl'>
-                    跑通最小链路，再评估接入
+                    {copy('跑通最小链路，再评估接入')}
                   </h2>
                   <p className='text-muted-foreground mt-6 text-base leading-7 sm:text-lg sm:leading-8'>
-                    先完成模型、数据库、查询和 UI 绑定，再通过三套框架演示与架构说明核对能力边界。
+                    {copy('先完成模型、数据库、查询和 UI 绑定，再通过三套框架演示与架构说明核对能力边界。')}
                   </p>
                   <div className='mt-10 flex flex-wrap justify-center gap-3'>
                     <Button size='lg' asChild>
                       <Link to='/docs/getting-started/'>
-                        进入快速开始
+                        {copy('进入快速开始')}
                         <ArrowRight />
                       </Link>
                     </Button>
                     <Button size='lg' variant='outline' asChild>
-                      <Link to='/demos'>打开在线演示</Link>
+                      <Link to='/demos'>{copy('打开在线演示')}</Link>
                     </Button>
                     <Button size='lg' variant='ghost' asChild>
                       <Link to='/comparison'>
-                        适用场景
+                        {copy('适用场景')}
                         <ArrowRight />
                       </Link>
                     </Button>

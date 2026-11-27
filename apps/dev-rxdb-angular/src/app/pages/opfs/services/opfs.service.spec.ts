@@ -18,7 +18,7 @@ describe('OpfsService', () => {
 
     await expect(service.readDirectory('/missing/')).rejects.toThrow('目录不存在: /missing/');
     expect(service.entries()).toEqual([]);
-    expect(service.error()).toBe('目录不存在: /missing/');
+    expect(service.error()).toEqual({ key: 'file.directoryMissing', params: { path: '/missing/' } });
     expect(service.loading()).toBe(false);
   });
 });

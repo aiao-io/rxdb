@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import { useRxDB } from '@aiao/rxdb-react';
 import { SortableMenuLarge } from '@aiao/rxdb-test/entities';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -31,6 +32,7 @@ import { mergeById } from '../../utils/tree-scope';
 export function TreeMenuLazyPage() {
   const rxdb = useRxDB();
   const menuRepository = useMemo(() => rxdb.entityManager.getRepository(SortableMenuLarge), [rxdb]);
+  const { t } = useI18n();
   const [showHistory, setShowHistory] = useShowHistory();
   const [newTitle, setNewTitle] = useState('');
   const [loadingActions, setLoadingActions] = useState<Set<string>>(new Set());
@@ -164,23 +166,22 @@ export function TreeMenuLazyPage() {
             {/* Title Bar */}
             <div className='flex items-center justify-between'>
               <div className='flex items-center gap-3'>
-                <h1 className='text-2xl font-bold'>Tree Menu - Lazy Load</h1>
+                <h1 className='text-2xl font-bold'>{t('page.tree.lazy')}</h1>
                 <div className='badge badge-primary' data-testid='menu-count'>
-                  {store.treeNodes.length} 项
+                  {t('page.tree.itemCount', { count: store.treeNodes.length })}
                 </div>
 
                 {/* 批量添加 */}
                 <details className='dropdown dropdown-end'>
-                  <summary className='btn btn-circle btn-sm' aria-label='批量添加' data-testid='menu-batch-add'>
+                  <summary
+                    className='btn btn-circle btn-sm'
+                    aria-label={t('common.batchAdd')}
+                    data-testid='menu-batch-add'
+                  >
                     <Plus size={16} />
                   </summary>
                   <ul className='dropdown-content menu rounded-box bg-base-100 z-10 w-52 p-2 shadow'>
-                    {[
-                      { count: 100, label: '添加 100 条' },
-                      { count: 1000, label: '添加 1000 条' },
-                      { count: 5000, label: '添加 5000 条' },
-                      { count: 10000, label: '添加 10000 条' }
-                    ].map(({ count, label }) => {
+                    {[{ count: 100 }, { count: 1000 }, { count: 5000 }, { count: 10000 }].map(({ count }) => {
                       const actionKey = `add-${count}`;
                       const isLoading = loadingActions.has(actionKey);
                       return (
@@ -194,7 +195,7 @@ export function TreeMenuLazyPage() {
                             }}
                           >
                             {isLoading && <span className='loading loading-spinner loading-xs'></span>}
-                            {label}
+                            {t('page.tree.batchAddCount', { count })}
                           </button>
                         </li>
                       );
@@ -210,7 +211,7 @@ export function TreeMenuLazyPage() {
                     className='btn btn-sm join-item'
                     disabled={undoCount === 0}
                     onClick={() => history.undo()}
-                    aria-label='撤销'
+                    aria-label={t('common.undo')}
                     data-testid='menu-undo'
                   >
                     <Undo2 size={16} />
@@ -224,7 +225,7 @@ export function TreeMenuLazyPage() {
                     className='btn btn-sm join-item'
                     disabled={redoCount === 0}
                     onClick={() => history.redo()}
-                    aria-label='重做'
+                    aria-label={t('common.redo')}
                     data-testid='menu-redo'
                   >
                     <Redo2 size={16} />
@@ -240,7 +241,7 @@ export function TreeMenuLazyPage() {
                 <button
                   className={`btn btn-sm ${showHistory ? 'btn-primary' : ''}`}
                   onClick={() => setShowHistory(!showHistory)}
-                  aria-label='历史记录'
+                  aria-label={t('history.open')}
                   data-testid='menu-history'
                 >
                   <History size={16} />
@@ -252,14 +253,14 @@ export function TreeMenuLazyPage() {
             <div className='flex flex-wrap items-center justify-between gap-2'>
               <div className='flex items-center gap-2'>
                 <div className='bg-base-100 border-base-200 flex items-center gap-2 rounded-lg border px-3 py-1 shadow-sm'>
-                  <span className='text-xs opacity-70'>已展开</span>
+                  <span className='text-xs opacity-70'>{t('page.tree.expanded')}</span>
                   <span className='font-mono text-lg font-bold' data-testid='menu-expanded-count'>
                     {store.expandedCount}
                   </span>
                 </div>
                 <button
                   className='btn btn-sm btn-ghost btn-square'
-                  title={store.isAllExpanded ? '折叠全部' : '展开全部'}
+                  title={store.isAllExpanded ? t('common.collapseAll') : t('common.expandAll')}
                   onClick={() => (store.isAllExpanded ? store.collapseAll() : store.expandAll())}
                   data-testid='menu-toggle-all'
                 >
@@ -278,7 +279,7 @@ export function TreeMenuLazyPage() {
                 {loadingActions.has('delete-all') ?
                   <span className='loading loading-spinner loading-xs'></span>
                 : <Trash2 size={16} />}
-                删除所有数据
+                {t('common.deleteAll')}
               </button>
             </div>
 
@@ -301,7 +302,7 @@ export function TreeMenuLazyPage() {
               <div className='join flex-1'>
                 {store.selectedParentId && (
                   <div className='join-item bg-base-200 border-base-300 flex items-center border border-r-0 px-3 text-sm'>
-                    <span className='mr-1 opacity-70'>父节点:</span>
+                    <span className='mr-1 opacity-70'>{t('page.tree.parent')}</span>
                     <span className='max-w-[8rem] truncate font-medium'>
                       {store.getNode(store.selectedParentId)?.title}
                     </span>
@@ -311,7 +312,7 @@ export function TreeMenuLazyPage() {
                         store.setSelectedParentId(null);
                         setNewTitle('');
                       }}
-                      title='取消选择父节点'
+                      title={t('page.tree.cancelSelectParent')}
                       type='button'
                     >
                       <X size={14} />
@@ -324,7 +325,9 @@ export function TreeMenuLazyPage() {
                   data-testid='menu-title-input'
                   value={newTitle}
                   onChange={e => setNewTitle(e.target.value)}
-                  placeholder={store.selectedParentId ? '输入子菜单标题...' : '输入根菜单标题...'}
+                  placeholder={
+                    store.selectedParentId ? t('page.tree.childTitlePlaceholder') : t('page.tree.rootTitlePlaceholder')
+                  }
                   type='text'
                 />
               </div>
@@ -335,7 +338,7 @@ export function TreeMenuLazyPage() {
                 type='submit'
               >
                 <Plus size={16} />
-                {store.selectedParentId ? '添加子菜单' : '添加根菜单'}
+                {store.selectedParentId ? t('page.tree.addChild') : t('page.tree.addRoot')}
               </button>
             </form>
 
@@ -348,7 +351,7 @@ export function TreeMenuLazyPage() {
                   data-testid='menu-search-input'
                   value={store.searchKeyword}
                   onChange={e => store.setSearchKeyword(e.target.value)}
-                  placeholder='高亮已加载菜单...'
+                  placeholder={t('page.tree.searchLazyPlaceholder')}
                   type='text'
                 />
               </div>
@@ -360,7 +363,7 @@ export function TreeMenuLazyPage() {
                   type='button'
                 >
                   <X size={16} />
-                  清除
+                  {t('common.clear')}
                 </button>
               )}
             </div>
@@ -388,7 +391,7 @@ export function TreeMenuLazyPage() {
             {store.treeNodes.length === 0 ?
               <div className='hero absolute min-h-40 w-full'>
                 <div className='hero-content text-center'>
-                  <h1 className='text-sm font-bold'>暂无菜单数据</h1>
+                  <h1 className='text-sm font-bold'>{t('page.tree.emptyMenu')}</h1>
                 </div>
               </div>
             : rowVirtualizer.getVirtualItems().map(virtualRow => {
@@ -509,7 +512,7 @@ export function TreeMenuLazyPage() {
                     <button
                       className='btn btn-ghost btn-xs cursor-grab touch-none p-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100'
                       data-testid='menu-drag-handle'
-                      title='拖拽排序'
+                      title={t('common.dragSort')}
                       onMouseDown={e => e.stopPropagation()}
                       onClick={e => e.stopPropagation()}
                       onPointerDown={e => {
@@ -615,7 +618,7 @@ export function TreeMenuLazyPage() {
                           store.setSelectedParentId(menu.id);
                           document.getElementById('menu-title-input')?.focus();
                         }}
-                        aria-label='添加子菜单'
+                        aria-label={t('common.addChild')}
                         data-testid='menu-add-child'
                       >
                         <Plus size={14} />
@@ -623,7 +626,7 @@ export function TreeMenuLazyPage() {
                       <button
                         className='btn btn-ghost btn-xs text-primary'
                         onClick={() => handleStartEdit(menu)}
-                        aria-label='编辑'
+                        aria-label={t('common.edit')}
                         data-testid='menu-edit'
                       >
                         <Pen size={14} />
@@ -631,7 +634,7 @@ export function TreeMenuLazyPage() {
                       <button
                         className='btn btn-ghost btn-xs text-error'
                         onClick={() => void store.deleteMenu(menu)}
-                        aria-label='删除'
+                        aria-label={t('common.delete')}
                         data-testid='menu-delete'
                       >
                         <Trash2 size={14} />
@@ -649,24 +652,24 @@ export function TreeMenuLazyPage() {
       {store.menuToDelete && (
         <dialog className='modal modal-open'>
           <div className='modal-box'>
-            <h3 className='text-lg font-bold'>确认删除</h3>
+            <h3 className='text-lg font-bold'>{t('page.tree.confirmDelete')}</h3>
 
             <div className='py-4'>
               <p className='mb-3'>
-                确定要删除菜单
+                {t('page.tree.deleteConfirmPrefix')}
                 <span className='text-primary font-semibold'> "{store.menuToDelete.title}" </span>
-                吗？
+                {t('page.tree.deleteConfirmSuffix')}
               </p>
 
               {store.deleteImpact && store.deleteImpact.childrenCount > 0 && (
                 <div className='alert alert-warning'>
                   <TriangleAlert size={20} />
                   <div className='flex flex-col gap-1 text-sm'>
-                    <p className='font-medium'>此操作将级联删除：</p>
+                    <p className='font-medium'>{t('page.tree.cascadeDelete')}</p>
                     <ul className='ml-4 list-disc'>
-                      <li>{store.deleteImpact.childrenCount} 个直接子节点</li>
+                      <li>{t('page.tree.directChildrenCount', { count: store.deleteImpact.childrenCount })}</li>
                       {store.deleteImpact.descendantsCount > store.deleteImpact.childrenCount && (
-                        <li>共 {store.deleteImpact.descendantsCount} 个所有后代节点</li>
+                        <li>{t('page.tree.descendantsCount', { count: store.deleteImpact.descendantsCount })}</li>
                       )}
                     </ul>
                   </div>
@@ -676,30 +679,30 @@ export function TreeMenuLazyPage() {
 
             <div className='modal-action flex-col gap-2 sm:flex-row'>
               <button className='btn btn-ghost' onClick={store.cancelDelete} type='button'>
-                取消
+                {t('common.cancel')}
               </button>
 
               {store.deleteImpact && store.deleteImpact.childrenCount > 0 ?
                 <>
                   <button className='btn btn-warning' onClick={store.executePromoteChildrenDelete} type='button'>
                     <Trash2 size={16} />
-                    删除父节点 (子节点提升)
+                    {t('page.tree.promoteDelete')}
                   </button>
                   <button className='btn btn-error' onClick={store.executeCascadeDelete} type='button'>
                     <Trash2 size={16} />
-                    级联删除 (删除所有)
+                    {t('page.tree.cascadeDeleteAll')}
                   </button>
                 </>
               : <button className='btn btn-error' onClick={store.executeCascadeDelete} type='button'>
                   <Trash2 size={16} />
-                  确认删除
+                  {t('page.tree.confirmDelete')}
                 </button>
               }
             </div>
           </div>
           <form className='modal-backdrop' onClick={store.cancelDelete} method='dialog'>
-            <button aria-label='关闭对话框' type='button'>
-              close
+            <button aria-label={t('common.close')} type='button'>
+              {t('common.close')}
             </button>
           </form>
         </dialog>

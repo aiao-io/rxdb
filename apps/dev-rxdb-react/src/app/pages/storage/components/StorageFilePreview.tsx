@@ -1,4 +1,5 @@
 import { CodeEditor } from '@aiao/code-editor-react';
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import { useRxDB } from '@aiao/rxdb-react';
 import { STORAGE_TESTID } from '@aiao/utils';
 import { X } from 'lucide-react';
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export function StorageFilePreview({ entry, onClose }: Props) {
+  const { t } = useI18n();
   const rxdb = useRxDB();
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState('');
@@ -144,6 +146,7 @@ export function StorageFilePreview({ entry, onClose }: Props) {
           <h3 className='text-lg font-bold'>{entry.name}</h3>
           <button
             className='btn btn-circle btn-ghost btn-sm'
+            aria-label={t('file.closePreview')}
             data-testid={T.PREVIEW_CLOSE}
             onClick={handleClose}
             type='button'
@@ -168,14 +171,14 @@ export function StorageFilePreview({ entry, onClose }: Props) {
               {fileType === 'audio' && content && (
                 <div className='flex items-center justify-center p-4'>
                   <audio className='w-full max-w-xl' controls src={content}>
-                    Audio preview is not supported
+                    {t('file.audioUnsupported')}
                   </audio>
                 </div>
               )}
               {fileType === 'video' && content && (
                 <div className='flex h-full items-center justify-center p-4'>
                   <video className='max-h-full max-w-full' controls src={content}>
-                    Video preview is not supported
+                    {t('file.videoUnsupported')}
                   </video>
                 </div>
               )}
@@ -194,7 +197,7 @@ export function StorageFilePreview({ entry, onClose }: Props) {
                 <pre className='bg-base-200 overflow-auto rounded p-4 text-xs'>{textContent}</pre>
               )}
               {fileType === 'unknown' && !content && !textContent && (
-                <div className='text-base-content/40 py-8 text-center'>Unable to preview this file</div>
+                <div className='text-base-content/40 py-8 text-center'>{t('file.previewUnsupported')}</div>
               )}
             </>
           }
@@ -202,7 +205,7 @@ export function StorageFilePreview({ entry, onClose }: Props) {
 
         <div className='modal-action'>
           <button className='btn btn-sm' onClick={handleClose} type='button'>
-            Close
+            {t('file.close')}
           </button>
         </div>
       </div>

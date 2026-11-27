@@ -4,3 +4,7 @@
 /demos/angular/* /demos/angular 200
 /demos/react/*   /demos/react   200
 /demos/vue/*     /demos/vue     200
+/en/demos/angular/* /en/demos/angular 200
+/en/demos/react/* /en/demos/react 200
+/en/demos/vue/* /en/demos/vue 200
+/en/demo/* /demo/:splat 301

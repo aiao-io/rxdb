@@ -3,6 +3,7 @@ import type { BoardSearchUnavailableReason, SearchHandle, SearchResult } from '@
 import { useEffect, useRef, useState } from 'react';
 import { Subscription } from 'rxjs';
 
+import { boardT } from '../board-i18n.js';
 import type { ModelGetter } from './model.js';
 import type { SearchState } from './types.js';
 import type { BoardData } from './use-board-data.js';
@@ -29,10 +30,10 @@ export interface SearchModel {
   readonly searchUnavailableText: (reason: BoardSearchUnavailableReason | null) => string;
 }
 
-const UNAVAILABLE_TEXT: Readonly<Record<BoardSearchUnavailableReason, string>> = {
-  plugin_not_installed: '搜索插件未安装',
-  adapter_unsupported: '当前适配器不支持搜索',
-  query_failed: '搜索查询失败'
+const unavailableText = (reason: BoardSearchUnavailableReason): string => {
+  if (reason === 'plugin_not_installed') return boardT('view.search.unavailablePlugin');
+  if (reason === 'adapter_unsupported') return boardT('view.search.unavailableAdapter');
+  return boardT('view.search.queryFailed');
 };
 
 /** 板内搜索。 */
@@ -125,6 +126,6 @@ export const useSearchModel = (core: ViewCore, data: BoardData, model: ModelGett
     },
     searchResultTitle: result => data.taskById(result.id as UUID)?.title ?? '',
     searchColumnTitle: result => data.columnTitleOf(data.taskById(result.id as UUID)?.columnId ?? null),
-    searchUnavailableText: reason => (reason === null ? '' : UNAVAILABLE_TEXT[reason])
+    searchUnavailableText: reason => (reason === null ? '' : unavailableText(reason))
   };
 };

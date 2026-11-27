@@ -1,4 +1,4 @@
-import { useI18nRuntime } from '@aiao/rxdb-i18n-react';
+import { useI18n, useI18nRuntime } from '@aiao/rxdb-i18n-react';
 import { useEntityForm } from '@aiao/rxdb-model-react/headless';
 import { useRxDB } from '@aiao/rxdb-react';
 import { useMemo, useState } from 'react';
@@ -11,6 +11,7 @@ export function ArticleForm({
 }: {
   onCreate(data: Record<string, unknown>): Promise<unknown>;
 }): React.JSX.Element {
+  const { t } = useI18n();
   const i18n = useI18nRuntime();
   const rxdb = useRxDB();
   const blank = useMemo(() => createBlankArticle(rxdb), [rxdb]);
@@ -38,19 +39,19 @@ export function ArticleForm({
 
   return (
     <section className='hl-section' aria-labelledby='hl-form-title' data-testid='headless-form'>
-      <h2 id='hl-form-title'>新建文章</h2>
+      <h2 id='hl-form-title'>{t('page.headless.newArticle')}</h2>
       <form noValidate onSubmit={event => void submit(event)} aria-labelledby='hl-form-title'>
         {snapshot.fieldStates.map(state => (
           <FieldRow key={state.config.field} idPrefix='hl-form' state={state} inputs={inputs} />
         ))}
         <div className='hl-actions'>
-          <button type='submit'>提交</button>
+          <button type='submit'>{t('page.headless.submit')}</button>
           <button type='button' onClick={() => controller.cancel()}>
-            取消
+            {t('common.cancel')}
           </button>
         </div>
         <p role='status' data-testid='form-state'>
-          {snapshot.dirty ? '有未提交的修改' : '没有修改'}
+          {snapshot.dirty ? t('page.headless.dirtyState') : t('page.headless.cleanState')}
         </p>
         {failure && (
           <p className='hl-error' role='alert' data-testid='form-failure'>

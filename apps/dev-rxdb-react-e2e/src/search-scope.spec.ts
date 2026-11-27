@@ -20,7 +20,7 @@ test.describe('Search Scope', () => {
   test('switching scope keeps the typed query and re-runs it in the new scope', async ({ page }) => {
     await gotoSearchPage(page);
 
-    const input = page.getByRole('searchbox', { name: 'Global search' });
+    const input = page.getByTestId('search-input');
     const state = page.getByTestId('search-state');
     const scopeSummary = page.getByTestId('search-scope-summary');
 

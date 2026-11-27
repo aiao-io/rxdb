@@ -1,4 +1,4 @@
-import { I18n, type MessageCatalog } from '@aiao/rxdb-i18n';
+import { I18n, resolveUiLocale, type MessageCatalog } from '@aiao/rxdb-i18n';
 import { adminEnMessages } from './en.js';
 import { adminZhHansMessages, type AdminMessageKey } from './zh-hans.js';
 
@@ -14,12 +14,18 @@ export const adminMessages: MessageCatalog[] = [
 ];
 
 /**
- * 创建只带外壳目录的静态运行时，默认中文；应用没有自己的 `I18n` 时使用。
- * @param locale - 初始语言，缺省 `zh-Hans`。
+ * 创建只带外壳目录的静态运行时，缺省跟随宿主语言；应用没有自己的 `I18n` 时使用。
+ * @param locale - 初始语言，缺省跟随宿主语言。
+ * @param deviceLocale - 宿主语言；省略时读取 `navigator.language`。
  * @returns 运行时。
  */
-export function createAdminI18n(locale = 'zh-Hans'): I18n {
-  return new I18n({ defaultLocale: 'zh-Hans', deviceLocale: 'zh-Hans', locale, catalogs: adminMessages });
+export function createAdminI18n(locale?: string, deviceLocale?: string): I18n {
+  return new I18n({
+    defaultLocale: 'zh-Hans',
+    deviceLocale: resolveUiLocale(deviceLocale ?? globalThis.navigator?.language),
+    ...(locale ? { locale: resolveUiLocale(locale) } : {}),
+    catalogs: adminMessages
+  });
 }
 
 /**

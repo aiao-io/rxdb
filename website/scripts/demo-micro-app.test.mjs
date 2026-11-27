@@ -38,6 +38,7 @@ test('demo routes are registered as non-exact so sub-app paths land on the same 
 test('static hosting falls back to the demo host page for deep links', () => {
   const source = readFileSync(join(root, 'public/_redirects'), 'utf8');
   for (const demo of DEMOS) {
+    assert.match(source, new RegExp(`/en/demos/${demo}/\\*\\s+/en/demos/${demo}\\s+200`));
     // Pages 的 rewrite 使用无扩展名目标，避免 HTML 规范化丢失深链。
     assert.match(
       source,
@@ -137,6 +138,36 @@ test('sub-apps push theme changes back to the host on user-driven switches only'
       `${file} must not echo the host theme back to the host`
     );
   }
+});
+
+test('demo host auto-recreates the instance on sub-app reload or missed handshake', () => {
+  const source = readFileSync(join(root, 'src/components/DemoMicroAppClient.tsx'), 'utf8');
+  assert.match(source, /OrbitError/, 'host should recognise typed orbit errors');
+  assert.match(source, /failure instanceof OrbitError/, 'host should only special-case orbit failures');
+  assert.match(source, /failure\.code === 'NAVIGATION'/, 'host should auto-recover on navigation failures');
+  assert.match(source, /failure\.code === 'LOAD_ERROR'/, 'host should auto-recover on missed handshakes');
+  assert.match(
+    source,
+    /setAttempt\(value => value \+ 1\)/,
+    'auto-recovery should rebuild through the same attempt channel as the manual reload button'
+  );
+  assert.match(source, /MAX_AUTO_RETRIES/, 'auto-recovery needs a consecutive-retry cap');
+  assert.match(source, /RETRY_RESET_DELAY_MS/, 'the retry budget should reset after the instance runs steadily');
+  assert.match(
+    source,
+    /autoRetries\.current = 0/,
+    'a steady instance or a manual reload should reset the retry counter'
+  );
+  assert.match(
+    source,
+    /clearTimeout\(retryResetTimer\.current\)/,
+    'a new failure should cancel the pending budget reset'
+  );
+  assert.match(
+    source,
+    /setError\(failure instanceof Error \? failure\.message : copy\('演示运行失败'\)\)/,
+    'other failures should still reach the error overlay'
+  );
 });
 
 test('sub-apps declare daisyUI root as :is(:host, :root) so standalone and Shadow DOM both get tokens', () => {

@@ -7,6 +7,7 @@ import { attachPanel, PANEL_BUDGET_MS, panelEvaluate, readPanel } from './devtoo
 import { clearWireTap, installWireTap, readWireTap } from './devtools-wire-tap';
 import {
   launchEnv,
+  PANEL_LOCALE_ARGS,
   realSandbox,
   resolveDesktopDevExtension,
   resolveExecutable,
@@ -93,7 +94,7 @@ function launchApp(userDataDir: string, port: number): Promise<ElectronApplicati
     executablePath: resolveExecutable(),
     // 必须真沙箱：--no-sandbox 会让扩展 devtools_page 一行不执行，面板永不进 tab 条。
     ...realSandbox(),
-    args: [`--user-data-dir=${userDataDir}`, '--serve', `--port=${String(port)}`],
+    args: [`--user-data-dir=${userDataDir}`, '--serve', `--port=${String(port)}`, ...PANEL_LOCALE_ARGS],
     env: {
       ...launchEnv(),
       DEV_RXDB_DEVTOOLS: '1',
@@ -130,7 +131,7 @@ function webStorageEntries(userDataDir: string): string[] {
 }
 
 /**
- * 读面板 Events 页工具栏上那个「N 事件」计数。
+ * 读面板 Events 页工具栏上那个「N events」计数。
  *
  * @returns 面板自己数出来的事件条数；读不到返回 `-1`（由调用方断言，不在这里兜底）。
  *
@@ -143,13 +144,15 @@ function webStorageEntries(userDataDir: string): string[] {
  *
  * 计数读的是 `eventIndexes().length`（`events.page.ts` 的工具栏），那是**面板状态**，
  * 不受虚拟滚动影响。
+ *
+ * 语言由 {@link PANEL_LOCALE_ARGS} 钉成英文（`1 event` / `N events`）。
  */
 async function panelEventCount(app: ElectronApplication): Promise<number> {
   return panelEvaluate<number>(
     app,
     INSPECTED,
     `(() => {
-      const matched = document.body.innerText.match(/(\\d+) 事件/);
+      const matched = document.body.innerText.match(/(\\d+) events?/i);
       return matched ? Number.parseInt(matched[1], 10) : -1;
     })()`
   );
@@ -161,7 +164,7 @@ async function clearPanelEvents(app: ElectronApplication): Promise<void> {
     app,
     INSPECTED,
     `(() => {
-      const button = [...document.querySelectorAll('button')].find(el => el.textContent.trim() === '清空');
+      const button = [...document.querySelectorAll('button')].find(el => el.textContent.trim() === 'Clear');
       if (!button || button.disabled) return false;
       button.click();
       return true;
@@ -224,7 +227,7 @@ async function createBranchInPanel(app: ElectronApplication, name: string): Prom
     app,
     INSPECTED,
     `(() => {
-      const button = [...document.querySelectorAll('button')].find(el => el.textContent.trim() === '创建');
+      const button = [...document.querySelectorAll('button')].find(el => el.textContent.trim() === 'Create');
       if (!button || button.disabled) return false;
       button.click();
       return true;
@@ -279,7 +282,12 @@ test.describe('面板的数据、事件全集与 branch 都与应用一致（US-
       // ---------- ② 全部 RXDB_EVENT_TYPES ----------
       // 先切到 Events 页并清空，让计数从 0 起算——应用启动本身会产生十几条事件，
       // 不清掉的话「面板多了几条」证明不了多的就是探针那些。
-      await readPanel(app, { inspected: INSPECTED, hash: '#/events', awaitPattern: '事件', budgetMs: PANEL_BUDGET_MS });
+      await readPanel(app, {
+        inspected: INSPECTED,
+        hash: '#/events',
+        awaitPattern: 'events?',
+        budgetMs: PANEL_BUDGET_MS
+      });
       await clearPanelEvents(app);
       expect(await panelEventCount(app), '清空之后面板的事件计数不为 0').toBe(0);
       await clearWireTap(page);

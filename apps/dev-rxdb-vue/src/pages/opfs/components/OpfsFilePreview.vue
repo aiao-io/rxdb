@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 /**
  * OPFS 文件预览组件
  */
@@ -7,6 +8,8 @@ import { X } from '@lucide/vue';
 import { onUnmounted, ref, watch } from 'vue';
 import { useOpfsService } from '../composables/useOpfsService';
 import { getCodeLanguage, getFileType, isTextFile, type OPFSFileEntry } from '../utils/opfs-utils';
+
+const { t } = useI18n();
 
 const props = defineProps<{
   entry: OPFSFileEntry | null;
@@ -158,6 +161,7 @@ async function loadFileContent(entry: OPFSFileEntry) {
         <h3 class="text-lg font-bold">{{ entry.name }}</h3>
         <button
           class="btn btn-sm btn-circle btn-ghost"
+          :aria-label="t('file.closePreview')"
           @click="handleClose"
           type="button"
         >
@@ -192,7 +196,7 @@ async function loadFileContent(entry: OPFSFileEntry) {
               :src="content"
               controls
             >
-              您的浏览器不支持音频播放
+              {{ t('file.audioUnsupported') }}
             </audio>
           </div>
           <div
@@ -204,7 +208,7 @@ async function loadFileContent(entry: OPFSFileEntry) {
               :src="content"
               controls
             >
-              您的浏览器不支持视频播放
+              {{ t('file.videoUnsupported') }}
             </video>
           </div>
           <div
@@ -228,7 +232,7 @@ async function loadFileContent(entry: OPFSFileEntry) {
             class="text-base-content/40 py-8 text-center"
             v-else
           >
-            无法预览此文件
+            {{ t('file.previewUnsupported') }}
           </div>
         </template>
       </div>
@@ -239,7 +243,7 @@ async function loadFileContent(entry: OPFSFileEntry) {
           @click="handleClose"
           type="button"
         >
-          关闭
+          {{ t('file.close') }}
         </button>
       </div>
     </div>

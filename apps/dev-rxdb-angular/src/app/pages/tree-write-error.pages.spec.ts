@@ -1,7 +1,10 @@
 import { RxDB } from '@aiao/rxdb';
+import { I18n } from '@aiao/rxdb-i18n';
+import { provideI18n } from '@aiao/rxdb-i18n-angular';
 import { SortableFileNode, SortableMenuSimple } from '@aiao/rxdb-test/entities';
 import { PLATFORM_ID } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { treeMenuCatalogs } from '@modules/demo-i18n/tree-menu';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // useAction 与真实实现同形（`execute` 原样冒泡错误），页面的批量入口走 `action.execute`
@@ -23,6 +26,7 @@ const boom = new Error('boom');
 const configure = () =>
   TestBed.configureTestingModule({
     providers: [
+      provideI18n(() => new I18n({ defaultLocale: 'zh-Hans', deviceLocale: 'zh-Hans', catalogs: treeMenuCatalogs })),
       {
         provide: RxDB,
         useValue: {

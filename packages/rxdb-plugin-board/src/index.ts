@@ -102,3 +102,13 @@ export {
 } from './search/board-search-source.js';
 export { isValidDueDate, normalizeBoardTitle } from './title.js';
 export { BoardWriteNotifier, describeBoardFailure, type BoardWriteEvent } from './write-notifier.js';
+
+// —— 随包文案目录（board 命名空间，zh-Hans / en）与静态运行时 ——
+export {
+  BOARD_I18N_NAMESPACE,
+  boardCatalogs,
+  boardEnMessages,
+  boardZhMessages,
+  type BoardMessageKey
+} from './i18n/messages.js';
+export { createBoardI18n } from './i18n/runtime.js';

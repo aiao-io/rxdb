@@ -83,9 +83,10 @@ test('移动端：storage 行内重命名按钮可达（不依赖右键）', asy
   await expect(page.getByTestId('storage-file-row')).toHaveCount(1, { timeout: 10000 });
 
   await page.getByTestId('storage-rename-btn').first().click();
-  await expect(page.getByTestId('storage-rename-dialog')).toBeVisible();
-  await page.getByRole('button', { name: 'Cancel' }).click();
-  await expect(page.getByTestId('storage-rename-dialog')).toHaveCount(0);
+  const dialog = page.getByTestId('storage-rename-dialog');
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole('button', { name: '取消', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
 });
 
 test('移动端：tree-menu 行内操作按钮常显', async ({ page }) => {

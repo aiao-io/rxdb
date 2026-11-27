@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import type { EntityFormFieldSnapshot } from '@aiao/rxdb-model/headless';
 import { computed } from 'vue';
 import { fieldId, type FieldInputs } from './field-inputs';
@@ -7,6 +8,8 @@ import { fieldId, type FieldInputs } from './field-inputs';
 const NUMERIC_TYPES = new Set(['integer', 'number']);
 
 const props = defineProps<{ idPrefix: string; state: EntityFormFieldSnapshot; inputs: FieldInputs }>();
+
+const { t } = useI18n();
 
 const config = computed(() => props.state.config);
 const id = computed(() => fieldId(props.idPrefix, config.value.field));
@@ -39,7 +42,7 @@ const onInput = (value: string): void => props.inputs.input(config.value.field, 
       :value="String(state.value ?? '')"
       @change="onInput(($event.target as HTMLSelectElement).value)"
     >
-      <option value="">请选择</option>
+      <option value="">{{ t('page.headless.pleaseSelect') }}</option>
       <option
         v-for="value in config.enumValues ?? []"
         :key="value"

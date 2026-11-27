@@ -4,11 +4,11 @@ import { addRootFolder, openPage, readCount } from './e2e-utils.js';
 
 test.describe('File Manager Virtual Page', () => {
   test.beforeEach(async ({ page }) => {
-    await openPage(page, '/file-manager-virtual', 'File Manager - Virtual');
+    await openPage(page, '/file-manager-virtual', '文件管理器 - 虚拟滚动');
   });
 
   test('should display page title and controls', async ({ page }) => {
-    await expect(page.getByRole('heading', { level: 1, name: 'File Manager - Virtual' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: '文件管理器 - 虚拟滚动' })).toBeVisible();
     await expect(page.getByTestId('file-name-input')).toBeVisible();
     await expect(page.getByTestId('file-search-input')).toBeVisible();
     await expect(page.getByTestId('file-batch-add')).toBeVisible();

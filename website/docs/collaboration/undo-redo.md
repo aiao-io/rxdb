@@ -14,7 +14,7 @@ Undo/Redo 由 [@aiao/rxdb-plugin-history](../plugins/rxdb-plugin-history/README.
 
 ## 核心原则
 
-本节描述 Undo/Redo 功能的 4 个核心设计原则，这些原则确保了功能的正确性、一致性和可预测性。
+本节描述 Undo/Redo 功能的 3 个核心设计原则，这些原则确保了功能的正确性、一致性和可预测性。
 
 ### 1. 时间边界限制
 

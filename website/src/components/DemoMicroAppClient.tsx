@@ -1,6 +1,8 @@
-import { createOrbit, type OrbitInstance } from '@aiao/orbit';
+import { createOrbit, OrbitError, type OrbitInstance } from '@aiao/orbit';
 import { useHistory, useLocation } from '@docusaurus/router';
 import { useColorMode } from '@docusaurus/theme-common';
+import useBaseUrl from '@docusaurus/useBaseUrl';
+import useDocusaurusContext from '@docusaurus/useDocusaurusContext';
 import {
   emitHostRoute,
   emitHostTheme,
@@ -12,8 +14,12 @@ import {
   subscribeThemeRequest,
   type ResolvedTheme
 } from '@modules/orbit';
+import { useSiteCopy } from '@site/src/lib/locale-copy';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import type { DemoMicroAppProps } from './DemoMicroApp';
+
+const MAX_AUTO_RETRIES = 2;
+const RETRY_RESET_DELAY_MS = 10_000;
 
 function readHostTheme(): ResolvedTheme {
   return parseResolvedTheme(document.documentElement.getAttribute(HOST_THEME_ATTRIBUTE));
@@ -29,27 +35,55 @@ function toHostPath(basePath: string, subRoute: string): string {
 }
 
 /** 仓内运行内核的文档站宿主，保留主题、深链和浏览器前进后退协议。 */
-export default function DemoMicroAppClient({ name, url, title, allow, basePath }: DemoMicroAppProps): ReactElement {
+export default function DemoMicroAppClient({
+  name,
+  url,
+  title,
+  allow,
+  sandbox,
+  basePath: hostPath
+}: DemoMicroAppProps): ReactElement {
+  const copy = useSiteCopy();
+  const localizedPath = useBaseUrl(hostPath ?? '/');
+  const basePath = hostPath && localizedPath;
   const [theme, setTheme] = useState<ResolvedTheme>(readHostTheme);
   const [error, setError] = useState<string>();
   const [attempt, setAttempt] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const instance = useRef<OrbitInstance | undefined>(undefined);
+  const autoRetries = useRef(0);
+  const retryResetTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const runtime = useMemo(
     () =>
       createOrbit({
         allowedOrigins: [new URL(url, location.href).origin],
-        onError: failure => setError(failure instanceof Error ? failure.message : '演示运行失败')
+        onError: failure => {
+          if (
+            failure instanceof OrbitError &&
+            (failure.code === 'NAVIGATION' || failure.code === 'LOAD_ERROR') &&
+            autoRetries.current < MAX_AUTO_RETRIES
+          ) {
+            autoRetries.current += 1;
+            clearTimeout(retryResetTimer.current);
+            setAttempt(value => value + 1);
+            return;
+          }
+          clearTimeout(retryResetTimer.current);
+          setError(failure instanceof Error ? failure.message : copy('演示运行失败'));
+        }
       }),
-    [url]
+    [url, copy]
   );
   const bus = runtime.bus;
   const { setColorMode } = useColorMode();
   const { pathname } = useLocation();
   const history = useHistory();
+  const {
+    i18n: { currentLocale }
+  } = useDocusaurusContext();
   const subRoute = toSubRoute(pathname, basePath);
-  const current = useRef({ theme, route: subRoute });
-  current.current = { theme, route: subRoute };
+  const current = useRef({ theme, route: subRoute, locale: currentLocale });
+  current.current = { theme, route: subRoute, locale: currentLocale };
   const routeSync = useRef(new HostRouteSync());
   const agreedRoute = useRef(subRoute);
   const emittedTheme = useRef(theme);
@@ -69,6 +103,7 @@ export default function DemoMicroAppClient({ name, url, title, allow, basePath }
       url,
       title,
       allow,
+      sandbox,
       props: current.current
     });
     instance.current = app;
@@ -76,17 +111,24 @@ export default function DemoMicroAppClient({ name, url, title, allow, basePath }
     void app
       .mount(container)
       .then(() => {
-        if (active) armRouteSync();
+        if (active) {
+          clearTimeout(retryResetTimer.current);
+          retryResetTimer.current = setTimeout(() => {
+            autoRetries.current = 0;
+          }, RETRY_RESET_DELAY_MS);
+          armRouteSync();
+        }
       })
       .catch(failure => {
-        if (active) setError(failure instanceof Error ? failure.message : '演示启动失败');
+        if (active) setError(failure instanceof Error ? failure.message : copy('演示启动失败'));
       });
     return () => {
       active = false;
+      clearTimeout(retryResetTimer.current);
       app.destroy();
       instance.current = undefined;
     };
-  }, [runtime, name, url, title, allow, attempt, armRouteSync]);
+  }, [runtime, name, url, title, allow, sandbox, attempt, armRouteSync, copy]);
 
   useEffect(() => {
     const sync = () => {
@@ -105,8 +147,8 @@ export default function DemoMicroAppClient({ name, url, title, allow, basePath }
 
   useEffect(() => {
     const app = instance.current;
-    if (app && app.snapshot.state !== 'failed') app.setProps({ theme, route: subRoute });
-  }, [theme, subRoute]);
+    if (app && app.snapshot.state !== 'failed') app.setProps({ theme, route: subRoute, locale: currentLocale });
+  }, [theme, subRoute, currentLocale]);
   useEffect(() => subscribeThemeRequest(next => setColorMode(next), bus), [bus, setColorMode]);
 
   useEffect(() => {
@@ -150,8 +192,14 @@ export default function DemoMicroAppClient({ name, url, title, allow, basePath }
       {error && (
         <div role='alert' style={{ position: 'absolute', inset: 0, padding: 24 }}>
           <p>{error}</p>
-          <button type='button' onClick={() => setAttempt(value => value + 1)}>
-            重新加载演示
+          <button
+            type='button'
+            onClick={() => {
+              autoRetries.current = 0;
+              setAttempt(value => value + 1);
+            }}
+          >
+            {copy('重新加载演示')}
           </button>
         </div>
       )}

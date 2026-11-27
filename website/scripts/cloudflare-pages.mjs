@@ -1,4 +1,4 @@
-import { appendFile, copyFile, mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { appendFile, copyFile, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -134,12 +134,22 @@ export async function prepareAssets(root) {
   if (rules.length > 2000) throw new Error(`Pages 最多 2000 条静态路由，demo 资源需要 ${rules.length} 条`);
   const redirects = await readFile(new URL('../public/_redirects', import.meta.url), 'utf8');
   await writeFile(path.join(root, '_redirects'), [...rules.sort(), redirects].join('\n'));
+  await rm(path.join(root, 'en/demo'), { recursive: true, force: true });
 }
 
-/** 校验入口、文件数量和大小，返回文件数与最大文件字节数。 */
+async function checkLocaleAssets(root, prefix) {
+  const directory = path.join(root, prefix);
+  await stat(path.join(directory, 'index.html'));
+  await stat(path.join(directory, 'docs/getting-started/install.html'));
+  const entries = await readdir(directory, { withFileTypes: true });
+  if (!entries.some(entry => entry.isFile() && /^search-index-[a-f0-9]+\.json\.gz$/.test(entry.name))) {
+    throw new Error(`缺少 /${prefix}search-index-*.json.gz`);
+  }
+}
+
+/** 校验双语入口、各自的搜索索引、文件数量和大小。 */
 export async function checkAssets(root) {
   const required = [
-    'index.html',
     '404.html',
     '_headers',
     '_redirects',
@@ -152,6 +162,7 @@ export async function checkAssets(root) {
     'benchmarks-app/index.html'
   ];
   for (const file of required) await stat(path.join(root, file));
+  for (const prefix of ['', 'en/']) await checkLocaleAssets(root, prefix);
   const entries = await readdir(root, { recursive: true, withFileTypes: true });
   const files = entries.filter(entry => entry.isFile());
   if (files.length > 20_000) throw new Error(`Pages 免费计划最多 20000 个文件，当前 ${files.length}`);

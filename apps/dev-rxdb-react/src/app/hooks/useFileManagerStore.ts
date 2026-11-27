@@ -1,3 +1,4 @@
+import { useI18nOptional } from '@aiao/rxdb-i18n-react';
 import { SortableFileNode } from '@aiao/rxdb-test/entities';
 import { useCallback, useMemo, useState } from 'react';
 import { formatFileName, normalizeFileExtension } from '../pages/file-manager/utils/file-name';
@@ -21,6 +22,7 @@ export interface DeleteImpact {
 }
 
 export function useFileManagerStore(files: SortableFileNode[]) {
+  const uiLocale = useI18nOptional()?.locale ?? 'zh-CN';
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -92,7 +94,7 @@ export function useFileManagerStore(files: SortableFileNode[]) {
     });
 
     // 应用排序：手动模式（comparator 为 null）保留查询顺序，即库里的手动顺序
-    const comparator = getSortComparator(sortMode);
+    const comparator = getSortComparator(sortMode, uiLocale);
     const sortFiles = (fileList: SortableFileNode[]): SortableFileNode[] =>
       comparator === null ? fileList : [...fileList].sort(comparator);
 
@@ -126,7 +128,7 @@ export function useFileManagerStore(files: SortableFileNode[]) {
 
     buildNodes(null, 0);
     return nodes;
-  }, [files, expandedIds, searchKeyword, matchedFileIds, sortMode]);
+  }, [files, expandedIds, searchKeyword, matchedFileIds, sortMode, uiLocale]);
 
   const toggleExpand = useCallback((fileId: string) => {
     setExpandedIds(prev => {

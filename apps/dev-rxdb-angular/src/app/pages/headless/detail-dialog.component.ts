@@ -16,6 +16,7 @@ import {
   signal,
   viewChild
 } from '@angular/core';
+import { I18nPipe } from '../../pipes/i18n.pipe';
 import {
   buildEditFields,
   createBlankArticle,
@@ -36,7 +37,7 @@ import { FieldRowComponent } from './field-row.component';
 @Component({
   selector: 'app-hl-detail-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FieldRowComponent],
+  imports: [FieldRowComponent, I18nPipe],
   template: `
     <dialog
       class="hl-dialog"
@@ -46,8 +47,10 @@ import { FieldRowComponent } from './field-row.component';
       data-testid="detail-dialog"
     >
       <form (submit)="save($event)" novalidate>
-        <h2 id="hl-dialog-title">{{ creating() ? '新建文章' : '编辑文章' }}</h2>
-        <div class="hl-tabs" aria-label="详情分区" role="tablist">
+        <h2 id="hl-dialog-title">
+          {{ creating() ? ('page.headless.newArticle' | i18n) : ('page.headless.editArticle' | i18n) }}
+        </h2>
+        <div class="hl-tabs" [attr.aria-label]="'page.headless.detailTabs' | i18n" role="tablist">
           @for (tab of tabs(); track tab.key) {
             <button
               [attr.aria-controls]="'hl-panel-' + tab.key"
@@ -57,7 +60,7 @@ import { FieldRowComponent } from './field-row.component';
               role="tab"
               type="button"
             >
-              {{ tab.label }}
+              {{ tab.label | i18n }}
             </button>
           }
         </div>
@@ -85,8 +88,8 @@ import { FieldRowComponent } from './field-row.component';
           <p class="hl-error" data-testid="detail-error" role="alert">{{ message }}</p>
         }
         <div class="hl-actions">
-          <button [disabled]="detail.snapshot().saving" type="submit">保存</button>
-          <button (click)="cancel()" type="button">取消</button>
+          <button [disabled]="detail.snapshot().saving" type="submit">{{ 'page.headless.save' | i18n }}</button>
+          <button (click)="cancel()" type="button">{{ 'common.cancel' | i18n }}</button>
         </div>
       </form>
     </dialog>

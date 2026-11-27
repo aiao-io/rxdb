@@ -111,3 +111,16 @@ test('预览 URL 包含外站或 Markdown 注入时不发送评论', async t => 
     t.mock.restoreAll();
   }
 });
+
+test('wrangler 未绑定别名时降级为只发部署快照链接', async t => {
+  const calls = apiMock(t, [
+    { endpoint: '/pulls/224', result: pull },
+    { endpoint: '/issues/224/comments?per_page=100&page=1', result: [] },
+    { endpoint: '/issues/224/comments', result: { html_url: 'https://github.com/comment' } }
+  ]);
+  await updatePreviewComment(credentials, { ...published, aliasUrl: '' });
+  assert.equal(calls[2].method, 'POST');
+  assert.ok(calls[2].body.body.includes(published.deploymentUrl));
+  assert.ok(!calls[2].body.body.includes('固定预览]('));
+  assert.ok(calls[2].body.body.includes('未绑定别名'));
+});

@@ -1,3 +1,11 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
+import {
+  fileMessage,
+  formatFileSize,
+  orderFileEntries,
+  renderFileMessage,
+  type FileMessage
+} from '@modules/demo-i18n/files';
 /**
  * OPFS 文件管理页面
  */
@@ -7,6 +15,7 @@ import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   DestroyRef,
   effect,
   ElementRef,
@@ -45,7 +54,7 @@ import { OpfsFileGridComponent } from './components/opfs-file-grid.component';
 import { OpfsFileListComponent } from './components/opfs-file-list.component';
 import { OpfsFilePreviewComponent } from './components/opfs-file-preview.component';
 import { OpfsService } from './services/opfs.service';
-import { formatFileSize, OPFSFileEntry } from './utils/opfs-utils';
+import { OPFSFileEntry } from './utils/opfs-utils';
 import { ResettableTimer } from './utils/resettable-timer';
 
 type ViewMode = 'list' | 'grid';
@@ -80,7 +89,7 @@ interface ContextMenu {
 
 interface Toast {
   show: boolean;
-  message: string;
+  message: string | FileMessage;
   type: 'error' | 'success' | 'info';
 }
 
@@ -108,6 +117,7 @@ interface SelectionBox {
   templateUrl: './opfs.page.html'
 })
 export default class OpfsPage implements OnInit, OnDestroy {
+  readonly #i18n = useI18n();
   private mouseMoveListener?: (e: MouseEvent) => void;
   private mouseUpListener?: () => void;
   private inputAbortController?: AbortController;
@@ -119,7 +129,7 @@ export default class OpfsPage implements OnInit, OnDestroy {
   readonly route = inject(ActivatedRoute);
 
   // Service signals
-  readonly entries = this.opfsService.entries;
+  readonly entries = computed(() => orderFileEntries(this.opfsService.entries(), this.#i18n.locale()));
   readonly currentPath = this.opfsService.currentPath;
   readonly loading = this.opfsService.loading;
   readonly error = this.opfsService.error;
@@ -174,7 +184,6 @@ export default class OpfsPage implements OnInit, OnDestroy {
   folderInputRef?: HTMLInputElement;
 
   // 格式化文件大小
-  formatFileSize = formatFileSize;
 
   // 统计信息
   get dirCount(): number {
@@ -340,7 +349,7 @@ export default class OpfsPage implements OnInit, OnDestroy {
     if (shouldDelete) {
       const result = await this.opfsService.deleteEntry(entry);
       if (!result) {
-        this.showToast(`删除失败: ${entry.name}`, 'error');
+        this.showToast(fileMessage('file.deleteFailed', { detail: entry.name }), 'error');
       }
     }
   }
@@ -386,7 +395,7 @@ export default class OpfsPage implements OnInit, OnDestroy {
   async handleUploadFolder(files: File[]): Promise<void> {
     if (files.length === 0) return;
 
-    this.showToast(`正在上传文件夹，共 ${files.length} 个文件...`, 'info');
+    this.showToast(fileMessage('file.uploadingFolder', { count: files.length }), 'info');
 
     let successCount = 0;
     let failedCount = 0;
@@ -408,9 +417,9 @@ export default class OpfsPage implements OnInit, OnDestroy {
     await this.opfsService.refresh();
 
     if (failedCount > 0) {
-      this.showToast(`上传完成：${successCount} 成功，${failedCount} 失败`, 'error');
+      this.showToast(fileMessage('file.uploadFinished', { succeeded: successCount, failed: failedCount }), 'error');
     } else {
-      this.showToast(`成功上传 ${successCount} 个文件`, 'success');
+      this.showToast(fileMessage('file.uploaded', { count: successCount }), 'success');
     }
   }
 
@@ -452,7 +461,7 @@ export default class OpfsPage implements OnInit, OnDestroy {
     const selected = this.selectedPaths();
     if (selected.size === 0) return;
 
-    const entries = this.entries().filter(e => selected.has(e.path));
+    const entries = this.opfsService.entries().filter(e => selected.has(e.path));
     const shouldDelete = await new Promise<boolean>(resolve => {
       this.deleteConfirm.set({
         show: true,
@@ -468,9 +477,9 @@ export default class OpfsPage implements OnInit, OnDestroy {
         if (!result) failedCount++;
       }
       if (failedCount > 0) {
-        this.showToast(`${failedCount} 个项目删除失败`, 'error');
+        this.showToast(fileMessage('file.deleteFailures', { count: failedCount }), 'error');
       } else {
-        this.showToast(`成功删除 ${entries.length} 个项目`, 'success');
+        this.showToast(fileMessage('file.deleted', { count: entries.length }), 'success');
       }
       this.clearSelection();
     }
@@ -481,13 +490,13 @@ export default class OpfsPage implements OnInit, OnDestroy {
     const selected = this.selectedPaths();
     if (selected.size === 0) return;
 
-    const entries = this.entries().filter(e => selected.has(e.path) && e.kind === 'file');
+    const entries = this.opfsService.entries().filter(e => selected.has(e.path) && e.kind === 'file');
     if (entries.length === 0) {
-      this.showToast('没有选中文件', 'error');
+      this.showToast(fileMessage('file.noSelection'), 'error');
       return;
     }
 
-    this.showToast(`正在下载 ${entries.length} 个文件...`, 'info');
+    this.showToast(fileMessage('file.downloading', { count: entries.length }), 'info');
     const result = await this.opfsService.downloadFilesAsZip(entries);
     if (!result.success) {
       if (result.error) {
@@ -496,7 +505,7 @@ export default class OpfsPage implements OnInit, OnDestroy {
       return;
     }
 
-    this.showToast(`成功下载 ${entries.length} 个文件`, 'success');
+    this.showToast(fileMessage('file.downloaded', { count: entries.length }), 'success');
     this.clearSelection();
   }
 
@@ -584,7 +593,7 @@ export default class OpfsPage implements OnInit, OnDestroy {
   }
 
   // 显示 Toast
-  showToast(message: string, type: 'error' | 'success' | 'info' = 'info'): void {
+  showToast(message: string | FileMessage, type: 'error' | 'success' | 'info' = 'info'): void {
     this.toast.set({ show: true, message, type });
     this.toastTimer.schedule(() => {
       this.toast.set({ show: false, message: '', type: 'info' });
@@ -643,6 +652,14 @@ export default class OpfsPage implements OnInit, OnDestroy {
       // 降级方案：只支持文件
       await this.handleUpload(Array.from(event.dataTransfer.files));
     }
+  }
+
+  messageText(message: FileMessage | string): string {
+    return renderFileMessage(this.#i18n.t, message);
+  }
+
+  formatFileSize(bytes: number): string {
+    return formatFileSize(bytes, this.#i18n.locale());
   }
 
   private readonly handleFileInputChange = (): void => {

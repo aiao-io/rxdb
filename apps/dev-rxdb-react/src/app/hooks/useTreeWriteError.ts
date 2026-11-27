@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import { useCallback, useState } from 'react';
 import { formatTreeWriteError, type TreeWriteOperation } from '../utils/tree-write-error';
 
@@ -25,6 +26,7 @@ export interface UseTreeWriteError {
  * 失败不再是未处理的拒绝，而是页内可见、可关闭的提示。
  */
 export function useTreeWriteError(): UseTreeWriteError {
+  const { t } = useI18n();
   const [writeError, setWriteError] = useState<string | null>(null);
 
   const clearWriteError = useCallback(() => setWriteError(null), []);
@@ -35,11 +37,11 @@ export function useTreeWriteError(): UseTreeWriteError {
       try {
         return { ok: true, value: await action() };
       } catch (error: unknown) {
-        setWriteError(formatTreeWriteError(operation, error));
+        setWriteError(formatTreeWriteError(operation, error, t));
         return { ok: false };
       }
     },
-    []
+    [t]
   );
 
   return { writeError, clearWriteError, runWrite };

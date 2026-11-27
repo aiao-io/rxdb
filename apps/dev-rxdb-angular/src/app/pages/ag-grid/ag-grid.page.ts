@@ -1,16 +1,7 @@
 import { getEntityStatus, RxDB } from '@aiao/rxdb';
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { Todo } from '@aiao/rxdb-test/entities';
-import { DatePipe } from '@angular/common';
-import {
-  ChangeDetectionStrategy,
-  Component,
-  computed,
-  DestroyRef,
-  inject,
-  LOCALE_ID,
-  signal,
-  viewChild
-} from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ThemeService } from '@modules/angular';
 import { AgGridAngular } from 'ag-grid-angular';
@@ -66,7 +57,6 @@ const ag_grid_dark = themeQuartz.withParams({
   selector: 'app-ag-grid-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AgGridAngular],
-  providers: [DatePipe],
   templateUrl: './ag-grid.page.html',
   host: { class: 'page-host bg-base-100' }
 })
@@ -74,8 +64,7 @@ export default class AgGridPage {
   readonly #destroyRef = inject(DestroyRef);
   // 缓存 fingerprint 用于对比变更
   readonly #fingerprintMap = new Map<Todo['id'], string>();
-  readonly #datePipe = inject(DatePipe);
-  readonly #locale = inject(LOCALE_ID);
+  readonly #i18n = useI18n();
   readonly #themeService = inject(ThemeService);
 
   // 需要注入 RxDB 才会初始化数据库
@@ -91,16 +80,12 @@ export default class AgGridPage {
     }
   };
 
-  columnDefs: ColDef[] = buildColDefs(Todo, {
-    locale: this.#locale,
-    datePipe: this.#datePipe
-  }).map(col => {
-    const field = col.field as string;
-    return {
-      ...col,
-      editable: field !== 'id' && field !== 'createdAt' && field !== 'updatedAt'
-    };
-  });
+  readonly columnDefs = computed<ColDef[]>(() =>
+    buildColDefs(Todo, { locale: this.#i18n.locale(), t: this.#i18n.t }).map(col => {
+      const field = col.field as string;
+      return { ...col, editable: field !== 'id' && field !== 'createdAt' && field !== 'updatedAt' };
+    })
+  );
 
   defaultColDef: ColDef = {
     flex: 1,

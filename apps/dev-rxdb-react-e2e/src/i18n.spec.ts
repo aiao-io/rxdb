@@ -1,4 +1,11 @@
 import { expect, test, type Page } from '@playwright/test';
+import {
+  checkHistoryEntrypointsLocale,
+  checkHistoryLocale,
+  checkOpfsLocale,
+  checkStorageLocale
+} from '../../../modules/e2e-parity/file-history-locale.mjs';
+import { checkWorkspaceLocale } from '../../../modules/e2e-parity/workspace-locale.mjs';
 import { resetE2eState } from './e2e-utils.js';
 
 const DB_NAME_KEY = '__aiao_e2e_db_name__';
@@ -66,6 +73,50 @@ async function expectLocale(page: Page, locale: 'zh-Hans' | 'en'): Promise<void>
   await expect(page.getByTestId('i18n-locale')).toHaveValue(locale);
   await expect(page.locator('html')).toHaveAttribute('lang', new RegExp(`^${locale === 'en' ? 'en' : 'zh'}`));
 }
+
+test.describe('英文浏览器的演示页面', () => {
+  test.use({ locale: 'en-US' });
+
+  test('文件管理和树菜单的历史入口跟随当前语言', async ({ page }) => {
+    await resetE2eState(page);
+    await checkHistoryEntrypointsLocale(page);
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  });
+
+  test('Storage 文件列表、上传反馈与预览跟随当前语言', async ({ page }) => {
+    await resetE2eState(page);
+    await checkStorageLocale(page);
+    await expect(page.locator('html')).toHaveAttribute('lang', 'zh-Hans');
+  });
+
+  test('OPFS 文件列表、预览与确认框跟随当前语言', async ({ page }) => {
+    await resetE2eState(page);
+    await checkOpfsLocale(page);
+    await expect(page.locator('html')).toHaveAttribute('lang', 'zh-Hans');
+  });
+
+  test('History 侧栏的时间与撤销状态跟随当前语言', async ({ page }) => {
+    await resetE2eState(page);
+    await checkHistoryLocale(page);
+    await expect(page.locator('html')).toHaveAttribute('lang', 'zh-Hans');
+  });
+
+  test('Workspace 草稿恢复和保存跟随当前语言', async ({ page }) => {
+    await resetE2eState(page);
+    await checkWorkspaceLocale(page);
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  });
+
+  test('首次打开实体页显示英文模型操作和本地化日期', async ({ page }) => {
+    await resetE2eState(page);
+    await page.goto('/entities/public/Todo');
+    await expect(page.getByRole('button', { name: '+ New', exact: true })).toBeVisible();
+    await expect(page.getByTestId('i18n-locale')).toHaveValue('en');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+    await expect(page.getByTestId('i18n-formatted-date')).toHaveText('October 28, 2026');
+    await expect(page.getByTestId('i18n-formatted-number')).toHaveText('12,345.67');
+  });
+});
 
 test.describe('客户端国际化', () => {
   test('切换即时更新模型文案与格式化，刷新后保持，第二标签页跟随', async ({ page, context }) => {

@@ -11,6 +11,7 @@ import { defaultRuleValue, operatorLabel, operatorsFor, ruleValueFromText } from
 
 /** 绑定的 `t` 会读取语言与目录修订，切换语言时模板里的操作符文案随之重新渲染。 */
 const i18n = useI18n();
+const { t } = i18n;
 
 const props = defineProps<{
   rule: QueryBuilderRule;
@@ -39,11 +40,11 @@ const changeOperator = (operator: string): void =>
     data-testid="qb-rule"
   >
     <select
-      aria-label="字段"
+      :aria-label="t('page.headless.field')"
       :value="rule.field"
       @change="changeField(($event.target as HTMLSelectElement).value)"
     >
-      <option value="">选择字段</option>
+      <option value="">{{ t('page.headless.selectField') }}</option>
       <option
         v-for="item in fields"
         :key="item.name"
@@ -52,7 +53,7 @@ const changeOperator = (operator: string): void =>
       >
     </select>
     <select
-      aria-label="操作符"
+      :aria-label="t('page.headless.operator')"
       :value="rule.operator"
       @change="changeOperator(($event.target as HTMLSelectElement).value)"
     >
@@ -65,11 +66,11 @@ const changeOperator = (operator: string): void =>
     </select>
     <select
       v-if="inputType === 'enum'"
-      aria-label="值"
+      :aria-label="t('page.headless.value')"
       :value="valueText"
       @change="controller.updateRule(rule.id, { value: ($event.target as HTMLSelectElement).value })"
     >
-      <option value="">请选择</option>
+      <option value="">{{ t('page.headless.pleaseSelect') }}</option>
       <option
         v-for="option in field?.enum ?? []"
         :key="String(option)"
@@ -80,7 +81,7 @@ const changeOperator = (operator: string): void =>
     </select>
     <input
       v-else-if="inputType !== 'none'"
-      aria-label="值"
+      :aria-label="t('page.headless.value')"
       :inputmode="inputType === 'number' ? 'numeric' : undefined"
       :value="valueText"
       @input="
@@ -91,9 +92,9 @@ const changeOperator = (operator: string): void =>
     />
     <button
       type="button"
-      aria-label="删除规则"
+      :aria-label="t('page.headless.deleteRule')"
       @click="controller.remove(rule.id)"
-      >删除</button
+      >{{ t('common.delete') }}</button
     >
   </div>
 </template>

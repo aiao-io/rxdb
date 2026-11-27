@@ -4,11 +4,11 @@ import { addRootFolder, openPage } from './e2e-utils.js';
 
 test.describe('File Manager Simple Page', () => {
   test.beforeEach(async ({ page }) => {
-    await openPage(page, '/file-manager-simple', 'File Manager - Simple');
+    await openPage(page, '/file-manager-simple', '文件管理器 - 简单模式');
   });
 
   test('should display page title', async ({ page }) => {
-    await expect(page.getByRole('heading', { level: 1, name: 'File Manager - Simple' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: '文件管理器 - 简单模式' })).toBeVisible();
   });
 
   test('should have file controls', async ({ page }) => {

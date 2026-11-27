@@ -2,7 +2,7 @@ import type { RxDB } from '@aiao/rxdb';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { firstValueFrom } from 'rxjs';
 import { getExpectation } from '../analysis/benchmark-rating';
-import type { BenchmarkResult } from '../constants';
+import type { BenchmarkResult, ScenarioRunOptions } from '../constants';
 import { measureWithSamples } from '../utils/performance';
 import { generateTodos } from '../utils/todo-factory';
 
@@ -33,17 +33,15 @@ function buildMixedOperation(rxdb: RxDB, batch: number, index: number, readOpCou
 /**
  * 运行并发测试
  * @param rxdb - RxDB 实例
- * @param onResult - 每条结果就绪时的回调
+ * @param options - 结果回调与翻译函数
  * @returns 基准测试结果数组
  */
-export async function runConcurrencyTests(
-  rxdb: RxDB,
-  onResult?: (result: BenchmarkResult) => void
-): Promise<BenchmarkResult[]> {
+export async function runConcurrencyTests(rxdb: RxDB, options: ScenarioRunOptions): Promise<BenchmarkResult[]> {
+  const { t } = options;
   const results: BenchmarkResult[] = [];
   const push = (result: BenchmarkResult) => {
     results.push(result);
-    onResult?.(result);
+    options.onResult?.(result);
   };
 
   // Prepare some data for read operations
@@ -54,7 +52,7 @@ export async function runConcurrencyTests(
   for (const concurrency of CONCURRENCY_LEVELS) {
     let writeBatch = 0;
     const { performance: concurrentWritePerf } = await measureWithSamples(
-      `并发写入 (${concurrency} 并发)`,
+      t('scenario.concurrency.concurrentWriteMeasure', { count: concurrency }),
       async () => {
         const batch = writeBatch++;
         const operations = Array.from({ length: concurrency }, (_, i) => {
@@ -71,11 +69,15 @@ export async function runConcurrencyTests(
     const expectation = getExpectation(`concurrent-writes-${concurrency}`);
 
     push({
-      name: `并发写入 ${concurrency} 个操作`,
+      name: t('scenario.concurrency.concurrentWrite', { count: concurrency }),
       duration: concurrentWritePerf.percentiles.p50,
       memory: concurrentWritePerf.memoryGrowth > 0 ? concurrentWritePerf.memoryGrowth : undefined,
-      extra: `${concurrency} 个写操作同时执行 | ${SAMPLE_COUNT} 次采样 P50 | avg=${concurrentWritePerf.avgDuration.toFixed(2)}ms`,
-      expectation: `≤${expectation.excellent}ms`,
+      extra: t('scenario.concurrency.concurrentWriteExtra', {
+        count: concurrency,
+        samples: SAMPLE_COUNT,
+        avg: concurrentWritePerf.avgDuration.toFixed(2)
+      }),
+      expectation: t('scenario.expectation.leMs', { value: String(expectation.excellent) }),
       testId: `concurrent-writes-${concurrency}`,
       rawValue: concurrentWritePerf.percentiles.p50
     });
@@ -85,7 +87,7 @@ export async function runConcurrencyTests(
   const readOpCount = Math.floor(MIXED_LOAD_OPERATIONS * 0.7);
   let mixedBatch = 0;
   const { performance: mixedLoadPerf } = await measureWithSamples(
-    '混合负载 (70% 读 + 30% 写)',
+    t('scenario.concurrency.mixedMeasure'),
     async () => {
       const batch = mixedBatch++;
       const operations = Array.from({ length: MIXED_LOAD_OPERATIONS }, (_, i) =>
@@ -100,11 +102,15 @@ export async function runConcurrencyTests(
   const mixedExpectation = getExpectation('mixed-load-70-30');
 
   push({
-    name: `混合负载测试 (70% 读 + 30% 写)`,
+    name: t('scenario.concurrency.mixed'),
     duration: mixedLoadPerf.percentiles.p50,
     memory: mixedLoadPerf.memoryGrowth > 0 ? mixedLoadPerf.memoryGrowth : undefined,
-    extra: `${MIXED_LOAD_OPERATIONS} 个操作 | ${SAMPLE_COUNT} 次采样 P50 | avg=${mixedLoadPerf.avgDuration.toFixed(2)}ms`,
-    expectation: `≤${mixedExpectation.excellent}ms`,
+    extra: t('scenario.concurrency.mixedExtra', {
+      count: MIXED_LOAD_OPERATIONS,
+      samples: SAMPLE_COUNT,
+      avg: mixedLoadPerf.avgDuration.toFixed(2)
+    }),
+    expectation: t('scenario.expectation.leMs', { value: String(mixedExpectation.excellent) }),
     testId: 'mixed-load-70-30',
     rawValue: mixedLoadPerf.percentiles.p50
   });
@@ -112,7 +118,7 @@ export async function runConcurrencyTests(
   // Test 3: Serial vs Concurrent comparison (sampled P50)
   let serialBatch = 0;
   const { performance: serialPerf } = await measureWithSamples(
-    `串行执行 (${SERIAL_PARALLEL_OPS} 个操作)`,
+    t('scenario.concurrency.serialMeasure', { count: SERIAL_PARALLEL_OPS }),
     async () => {
       const batch = serialBatch++;
       for (let i = 0; i < SERIAL_PARALLEL_OPS; i++) {
@@ -127,7 +133,7 @@ export async function runConcurrencyTests(
 
   let parallelBatch = 0;
   const { performance: parallelPerf } = await measureWithSamples(
-    `并发执行 (${SERIAL_PARALLEL_OPS} 个操作)`,
+    t('scenario.concurrency.parallelMeasure', { count: SERIAL_PARALLEL_OPS }),
     async () => {
       const batch = parallelBatch++;
       const operations = Array.from({ length: SERIAL_PARALLEL_OPS }, (_, i) => {
@@ -146,26 +152,30 @@ export async function runConcurrencyTests(
   const speedup = parallelP50 > 0 ? (serialP50 / parallelP50).toFixed(2) : '—';
 
   push({
-    name: `串行执行 (${SERIAL_PARALLEL_OPS} 个操作)`,
+    name: t('scenario.concurrency.serialMeasure', { count: SERIAL_PARALLEL_OPS }),
     duration: serialP50,
-    extra: `${SERIAL_PARALLEL_OPS} 个写操作逐个提交 | ${SAMPLE_COUNT} 次采样 P50`,
+    extra: t('scenario.concurrency.serialExtra', { count: SERIAL_PARALLEL_OPS, samples: SAMPLE_COUNT }),
     testId: 'serial-writes-10',
     rawValue: serialP50
   });
 
   push({
-    name: `并发执行 (${SERIAL_PARALLEL_OPS} 个操作)`,
+    name: t('scenario.concurrency.parallelMeasure', { count: SERIAL_PARALLEL_OPS }),
     duration: parallelP50,
-    extra: `${SERIAL_PARALLEL_OPS} 个写操作同时提交 | ${SAMPLE_COUNT} 次采样 P50`,
+    extra: t('scenario.concurrency.parallelExtra', { count: SERIAL_PARALLEL_OPS, samples: SAMPLE_COUNT }),
     testId: 'parallel-writes-10',
     rawValue: parallelP50
   });
 
   push({
-    name: `串行 vs 并发加速比 (${SERIAL_PARALLEL_OPS} 个操作)`,
+    name: t('scenario.concurrency.speedup', { count: SERIAL_PARALLEL_OPS }),
     duration: -1,
-    extra: `${speedup}x | 串行 ${serialP50.toFixed(2)}ms · 并发 ${parallelP50.toFixed(2)}ms (P50)`,
-    expectation: '≥1.5x 提升',
+    extra: t('scenario.concurrency.speedupExtra', {
+      speedup,
+      serial: serialP50.toFixed(2),
+      parallel: parallelP50.toFixed(2)
+    }),
+    expectation: t('scenario.concurrency.speedupExpectation'),
     rawValue: Number(speedup)
   });
 

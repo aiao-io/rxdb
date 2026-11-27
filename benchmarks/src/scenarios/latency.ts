@@ -2,7 +2,7 @@ import type { RxDB } from '@aiao/rxdb';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { firstValueFrom } from 'rxjs';
 import { getExpectation } from '../analysis/benchmark-rating';
-import type { BenchmarkResult } from '../constants';
+import type { BenchmarkResult, ScenarioRunOptions } from '../constants';
 import { measureWithSamples } from '../utils/performance';
 import { generateTodos } from '../utils/todo-factory';
 
@@ -22,17 +22,15 @@ const DATA_SIZE = 1_000; // 测试数据规模（条数）
 /**
  * 运行延迟测试
  * @param rxdb - RxDB 实例
- * @param onResult - 每条结果就绪时的回调
+ * @param options - 结果回调与翻译函数
  * @returns 基准测试结果数组
  */
-export async function runLatencyTests(
-  rxdb: RxDB,
-  onResult?: (result: BenchmarkResult) => void
-): Promise<BenchmarkResult[]> {
+export async function runLatencyTests(rxdb: RxDB, options: ScenarioRunOptions): Promise<BenchmarkResult[]> {
+  const { t } = options;
   const results: BenchmarkResult[] = [];
   const push = (result: BenchmarkResult) => {
     results.push(result);
-    onResult?.(result);
+    options.onResult?.(result);
   };
 
   // Prepare data
@@ -41,7 +39,7 @@ export async function runLatencyTests(
 
   // Test 1: Equality-filter query latency (completed field, no index)
   const { performance: eqPerf } = await measureWithSamples(
-    '等值过滤查询延迟 (completed)',
+    t('scenario.latency.eqMeasure'),
     async () => {
       return await firstValueFrom(
         Todo.findAll({
@@ -61,36 +59,40 @@ export async function runLatencyTests(
   const eqP99Expectation = getExpectation('eq-query-p99');
 
   push({
-    name: `等值过滤 P50 (completed = false, 无索引)`,
+    name: t('scenario.latency.eqP50'),
     duration: eqPerf.percentiles.p50,
     memory: eqPerf.memoryGrowth > 0 ? eqPerf.memoryGrowth : undefined,
-    extra: `${LATENCY_SAMPLE_COUNT} 次采样 | min=${eqPerf.percentiles.min.toFixed(2)}ms, max=${eqPerf.percentiles.max.toFixed(2)}ms`,
-    expectation: `≤${eqP50Expectation.excellent}ms`,
+    extra: t('scenario.latency.samplesExtra', {
+      count: LATENCY_SAMPLE_COUNT,
+      min: eqPerf.percentiles.min.toFixed(2),
+      max: eqPerf.percentiles.max.toFixed(2)
+    }),
+    expectation: t('scenario.expectation.leMs', { value: String(eqP50Expectation.excellent) }),
     testId: 'eq-query-p50',
     rawValue: eqPerf.percentiles.p50
   });
 
   push({
-    name: `等值过滤 P95 (completed = false, 无索引)`,
+    name: t('scenario.latency.eqP95'),
     duration: eqPerf.percentiles.p95,
-    extra: `avg=${eqPerf.avgDuration.toFixed(2)}ms | 95% 请求低于此值`,
-    expectation: `≤${eqP95Expectation.excellent}ms`,
+    extra: t('scenario.latency.avgP95Extra', { avg: eqPerf.avgDuration.toFixed(2) }),
+    expectation: t('scenario.expectation.leMs', { value: String(eqP95Expectation.excellent) }),
     testId: 'eq-query-p95',
     rawValue: eqPerf.percentiles.p95
   });
 
   push({
-    name: `等值过滤 P99 (completed = false, 无索引)`,
+    name: t('scenario.latency.eqP99'),
     duration: eqPerf.percentiles.p99,
-    extra: `99% 请求低于此值 | 最坏情况性能`,
-    expectation: `≤${eqP99Expectation.excellent}ms`,
+    extra: t('scenario.latency.p99Extra'),
+    expectation: t('scenario.expectation.leMs', { value: String(eqP99Expectation.excellent) }),
     testId: 'eq-query-p99',
     rawValue: eqPerf.percentiles.p99
   });
 
   // Test 2: Full table scan latency (title contains)
   const { performance: fullScanPerf } = await measureWithSamples(
-    '全表扫描延迟 (title contains)',
+    t('scenario.latency.fullScanMeasure'),
     async () => {
       return await firstValueFrom(
         Todo.findAll({
@@ -110,29 +112,33 @@ export async function runLatencyTests(
   const fullScanP99Expectation = getExpectation('full-scan-p99');
 
   push({
-    name: `全表扫描 P50 (title contains)`,
+    name: t('scenario.latency.fullScanP50'),
     duration: fullScanPerf.percentiles.p50,
     memory: fullScanPerf.memoryGrowth > 0 ? fullScanPerf.memoryGrowth : undefined,
-    extra: `${LATENCY_SAMPLE_COUNT} 次采样 | min=${fullScanPerf.percentiles.min.toFixed(2)}ms, max=${fullScanPerf.percentiles.max.toFixed(2)}ms`,
-    expectation: `≤${fullScanP50Expectation.excellent}ms`,
+    extra: t('scenario.latency.samplesExtra', {
+      count: LATENCY_SAMPLE_COUNT,
+      min: fullScanPerf.percentiles.min.toFixed(2),
+      max: fullScanPerf.percentiles.max.toFixed(2)
+    }),
+    expectation: t('scenario.expectation.leMs', { value: String(fullScanP50Expectation.excellent) }),
     testId: 'full-scan-p50',
     rawValue: fullScanPerf.percentiles.p50
   });
 
   push({
-    name: `全表扫描 P95 (title contains)`,
+    name: t('scenario.latency.fullScanP95'),
     duration: fullScanPerf.percentiles.p95,
-    extra: `avg=${fullScanPerf.avgDuration.toFixed(2)}ms | 无索引查询`,
-    expectation: `≤${fullScanP95Expectation.excellent}ms`,
+    extra: t('scenario.latency.avgNoIndexExtra', { avg: fullScanPerf.avgDuration.toFixed(2) }),
+    expectation: t('scenario.expectation.leMs', { value: String(fullScanP95Expectation.excellent) }),
     testId: 'full-scan-p95',
     rawValue: fullScanPerf.percentiles.p95
   });
 
   push({
-    name: `全表扫描 P99 (title contains)`,
+    name: t('scenario.latency.fullScanP99'),
     duration: fullScanPerf.percentiles.p99,
-    extra: `99% 请求低于此值 | 无索引最坏情况`,
-    expectation: `≤${fullScanP99Expectation.excellent}ms`,
+    extra: t('scenario.latency.p99NoIndexExtra'),
+    expectation: t('scenario.expectation.leMs', { value: String(fullScanP99Expectation.excellent) }),
     testId: 'full-scan-p99',
     rawValue: fullScanPerf.percentiles.p99
   });
@@ -142,9 +148,9 @@ export async function runLatencyTests(
   const ratio = (fullScanPerf.percentiles.p95 / eqPerf.percentiles.p95).toFixed(1);
 
   push({
-    name: `等值 (=) vs 模糊 (contains) 扫描对比`,
+    name: t('scenario.latency.eqVsContains'),
     duration: -1, // 表示不适用
-    extra: `模糊匹配比等值过滤慢 ${ratio}x (P95 对比) | 均无索引`
+    extra: t('scenario.latency.eqVsContainsExtra', { ratio })
   });
 
   return results;

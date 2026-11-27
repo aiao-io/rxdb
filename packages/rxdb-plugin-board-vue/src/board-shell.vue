@@ -7,7 +7,11 @@ import {
 } from '@aiao/rxdb-plugin-board';
 import { nextTick, onBeforeUnmount, onMounted, shallowRef, useId, useTemplateRef, watch } from 'vue';
 
+import { boardI18n } from './board-i18n.js';
 import BoardView from './board-view.vue';
+
+/** 看板文案翻译：`t(key, params)` 固定解析 board 命名空间（见 board-i18n.ts）。 */
+const t = boardI18n.t;
 
 /**
  * 看板外壳（US-537 / US-539 AC#4 / #5）：启动选择（新建空看板 / 装载演示数据 / 从备份恢复）、
@@ -95,13 +99,13 @@ onBeforeUnmount(() => {
     <section
       v-if="state.phase === 'startup'"
       class="rxb-shell-startup"
-      aria-label="选择如何开始"
+      :aria-label="t('shell.startup.ariaLabel')"
       data-testid="startup-page"
     >
       <div class="rxb-shell-card">
-        <p class="rxb-shell-eyebrow">RxDB 本地优先看板</p>
-        <h1 class="rxb-shell-heading">任务看板</h1>
-        <p class="rxb-shell-hint">选择如何开始；选择前不会连接或创建任何数据。</p>
+        <p class="rxb-shell-eyebrow">{{ t('shell.startup.eyebrow') }}</p>
+        <h1 class="rxb-shell-heading">{{ t('shell.startup.heading') }}</h1>
+        <p class="rxb-shell-hint">{{ t('shell.startup.hint') }}</p>
         <div class="rxb-shell-options">
           <button
             class="rxb-shell-option"
@@ -109,8 +113,8 @@ onBeforeUnmount(() => {
             data-testid="start-empty"
             @click="startEmpty"
           >
-            <strong>新建空看板</strong>
-            <span>从零开始建板、建列、建任务</span>
+            <strong>{{ t('shell.startup.emptyTitle') }}</strong>
+            <span>{{ t('shell.startup.emptyDesc') }}</span>
           </button>
           <button
             v-if="state.canSeed"
@@ -119,8 +123,8 @@ onBeforeUnmount(() => {
             data-testid="start-seed"
             @click="startSeed"
           >
-            <strong>装载演示数据</strong>
-            <span>在新库里装一份演示看板，体验拖拽、筛选、键盘与撤销</span>
+            <strong>{{ t('shell.startup.seedTitle') }}</strong>
+            <span>{{ t('shell.startup.seedDesc') }}</span>
           </button>
           <button
             class="rxb-shell-option"
@@ -128,15 +132,15 @@ onBeforeUnmount(() => {
             data-testid="start-restore"
             @click="startupFile?.click()"
           >
-            <strong>从备份恢复</strong>
-            <span>选择 .rxdb 备份文件，恢复到新库后打开</span>
+            <strong>{{ t('shell.startup.restoreTitle') }}</strong>
+            <span>{{ t('shell.startup.restoreDesc') }}</span>
           </button>
           <input
             ref="startup-file"
             type="file"
             accept=".rxdb"
             hidden
-            aria-label="选择备份文件"
+            :aria-label="t('shell.startup.fileLabel')"
             data-testid="restore-file"
             @change="onRestoreFile"
           />
@@ -155,14 +159,14 @@ onBeforeUnmount(() => {
       class="rxb-shell-status"
       role="status"
       data-testid="loading-page"
-      >正在准备看板数据…</p
+      >{{ t('shell.loading') }}</p
     >
     <p
       v-else-if="state.phase === 'restoring'"
       class="rxb-shell-status"
       role="status"
       data-testid="restoring-page"
-      >{{ state.restore.state === 'switching' ? '正在打开恢复的看板…' : '恢复中：全部写入口已暂停。' }}</p
+      >{{ state.restore.state === 'switching' ? t('shell.restoring.switching') : t('shell.restoring.status') }}</p
     >
     <div
       v-else
@@ -172,7 +176,7 @@ onBeforeUnmount(() => {
         class="rxb-shell-bar"
         data-testid="board-tools"
       >
-        <span class="rxb-shell-brand">任务看板</span>
+        <span class="rxb-shell-brand">{{ t('shell.bar.brand') }}</span>
         <span class="rxb-shell-spacer"></span>
         <button
           v-if="state.canSeed"
@@ -180,21 +184,21 @@ onBeforeUnmount(() => {
           type="button"
           data-testid="reset-demo"
           @click="resetDemo"
-          >重置为演示数据</button
+          >{{ t('shell.bar.resetDemo') }}</button
         >
         <button
           class="rxb-btn rxb-btn-sm"
           type="button"
           data-testid="restore-open"
           @click="menuFile?.click()"
-          >从备份恢复…</button
+          >{{ t('shell.bar.restore') }}</button
         >
         <input
           ref="menu-file"
           type="file"
           accept=".rxdb"
           hidden
-          aria-label="选择备份文件"
+          :aria-label="t('shell.bar.fileLabel')"
           data-testid="restore-file-menu"
           @change="onRestoreFile"
         />
@@ -242,7 +246,7 @@ onBeforeUnmount(() => {
             type="button"
             data-testid="host-confirm-no"
             @click="settleConfirm(false)"
-            >取消</button
+            >{{ t('common.cancel') }}</button
           >
           <button
             class="rxb-btn rxb-btn-primary"

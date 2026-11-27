@@ -11,6 +11,9 @@
   "include": ["src/**/*.spec.ts", "src/**/*.test.ts", "src/**/*.d.ts", "src/**/*.ts", "src/**/*.vue"],
   "references": [
     {
+      "path": "../../modules/demo-i18n/tsconfig.lib.json"
+    },
+    {
       "path": "../../modules/orbit/tsconfig.lib.json"
     },
     {

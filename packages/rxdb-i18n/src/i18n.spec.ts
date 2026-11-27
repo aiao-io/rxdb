@@ -161,3 +161,122 @@ describe('persisted locale', () => {
     await missing.destroy();
   });
 });
+
+describe('host locale', () => {
+  it('applies the host locale at boot in static mode and yields to explicit switches', async () => {
+    const i18n = new I18n({ catalogs, deviceLocale: 'zh-Hans', hostLocale: 'en' });
+    expect(i18n.locale).toBe('en');
+    expect(i18n.t('hello', { name: 'Ada' }, 'app')).toBe('Hello Ada');
+
+    await i18n.setLocale('zh-Hans');
+    expect(i18n.locale).toBe('zh-Hans');
+    expect(i18n.t('hello', { name: 'Ada' }, 'app')).toBe('你好 Ada');
+    i18n.destroy();
+  });
+
+  it('keeps standalone static resolution unchanged when no host locale is provided', () => {
+    expect(new I18n({ catalogs, deviceLocale: 'zh-Hans' }).locale).toBe('zh-Hans');
+    expect(new I18n({ catalogs, deviceLocale: 'zh-Hans', locale: 'en' }).locale).toBe('en');
+  });
+
+  describe('persisted mode', () => {
+    let db: RxDB;
+    const services: I18n[] = [];
+    beforeEach(async () => {
+      db = new RxDB({
+        dbName: `i18n-${crypto.randomUUID()}`,
+        entities: i18nEntities(),
+        context: { userId: 'i18n' },
+        sync: { type: SyncType.None, local: { adapter: 'pglite' } }
+      });
+      db.adapter('pglite', async rxdb => new RxDBAdapterPGlite(rxdb, { store: 'memory' }));
+      await db.connect('pglite');
+    });
+    afterEach(async () => {
+      services.splice(0).forEach(i => i.destroy());
+      await db.destroy();
+    });
+    const service = (options: { hostLocale?: string } = {}) => {
+      const i = new I18n({ rxdb: db, catalogs, deviceLocale: 'zh-Hans', ...options });
+      services.push(i);
+      return i;
+    };
+
+    it('outranks the persisted preference at boot without overwriting it', async () => {
+      const seeder = service();
+      await seeder.init();
+      await seeder.setLocale('zh-Hans');
+
+      const embedded = service({ hostLocale: 'en' });
+      await embedded.init();
+      expect(embedded.locale).toBe('en');
+
+      const [settings] = await db.localAdapterSync
+        .getRepository(I18nSettings)
+        .find({ where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: 'singleton' }] } });
+      expect(settings.devicePreferredLocale).toBe('zh-Hans');
+
+      await embedded.setLocale('zh-Hans');
+      expect(embedded.locale).toBe('zh-Hans');
+    });
+
+    it('standalone boots read the persisted preference as before', async () => {
+      const seeder = service();
+      await seeder.init();
+      await seeder.setLocale('en');
+
+      const standalone = service();
+      await standalone.init();
+      expect(standalone.locale).toBe('en');
+    });
+
+    it('keeps the host locale over later settings emissions instead of resurfacing the persisted preference', async () => {
+      const seeder = service();
+      await seeder.init();
+      await seeder.setLocale('zh-Hans');
+
+      const embedded = service({ hostLocale: 'en' });
+      await embedded.init();
+      expect(embedded.locale).toBe('en');
+
+      const before = embedded.changes$.value;
+      const refreshed = firstValueFrom(
+        embedded.changes$.pipe(
+          filter(v => v > before),
+          take(1)
+        )
+      );
+      await seeder.setLocale('fr');
+      await refreshed;
+      expect(embedded.locale).toBe('en');
+
+      const [settings] = await db.localAdapterSync
+        .getRepository(I18nSettings)
+        .find({ where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: 'singleton' }] } });
+      expect(settings.devicePreferredLocale).toBe('fr');
+    });
+
+    it('yields to an explicit setLocale and then follows later settings emissions', async () => {
+      const seeder = service();
+      await seeder.init();
+      await seeder.setLocale('zh-Hans');
+
+      const embedded = service({ hostLocale: 'en' });
+      await embedded.init();
+      expect(embedded.locale).toBe('en');
+
+      await embedded.setLocale('zh-Hans');
+      expect(embedded.locale).toBe('zh-Hans');
+
+      const changed = firstValueFrom(
+        embedded.locale$.pipe(
+          filter(l => l === 'fr'),
+          take(1)
+        )
+      );
+      await seeder.setLocale('fr');
+      await changed;
+      expect(embedded.locale).toBe('fr');
+    });
+  });
+});

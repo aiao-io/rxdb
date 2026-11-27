@@ -27,7 +27,7 @@
   @if ($isLocked()) {
     <div class="card card-border bg-base-100">
       <div class="card-body space-y-4">
-        <h2 class="card-title text-lg">{{ 'common.open' | i18n }}</h2>
+        <h2 class="card-title text-lg">{{ 'page.encrypted.unlockTitle' | i18n }}</h2>
         @if ($isFirstTime()) {
           <div class="alert alert-info alert-soft" role="alert">
             <span>{{ 'page.encrypted.firstUse' | i18n }}</span>
@@ -36,7 +36,7 @@
           <p class="text-base-content/70 text-sm">{{ 'page.encrypted.unlockHint' | i18n }}</p>
         }
         <fieldset class="fieldset">
-          <legend class="fieldset-legend">{{ 'page.i18n.name' | i18n }}</legend>
+          <legend class="fieldset-legend">{{ 'page.encrypted.passphraseLabel' | i18n }}</legend>
           <input
             class="input input-bordered w-full"
             [(ngModel)]="passphrase"
@@ -78,10 +78,10 @@
     <!-- Create new user -->
     <div class="card card-border bg-base-100">
       <div class="card-body space-y-3">
-        <h2 class="card-title text-base">{{ 'common.create' | i18n }}</h2>
+        <h2 class="card-title text-base">{{ 'page.encrypted.createTitle' | i18n }}</h2>
         <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <fieldset class="fieldset">
-            <legend class="fieldset-legend">{{ 'page.i18n.name' | i18n }}</legend>
+            <legend class="fieldset-legend">{{ 'page.encrypted.nameLabel' | i18n }}</legend>
             <input
               class="input input-bordered w-full"
               [(ngModel)]="newName"
@@ -91,7 +91,7 @@
             />
           </fieldset>
           <fieldset class="fieldset">
-            <legend class="fieldset-legend">{{ 'common.view' | i18n }}</legend>
+            <legend class="fieldset-legend">{{ 'page.encrypted.cardLabel' | i18n }}</legend>
             <input
               class="input input-bordered w-full"
               [(ngModel)]="newCard"
@@ -101,7 +101,7 @@
             />
           </fieldset>
           <fieldset class="fieldset">
-            <legend class="fieldset-legend">{{ 'common.open' | i18n }}</legend>
+            <legend class="fieldset-legend">{{ 'page.encrypted.apiKeyLabel' | i18n }}</legend>
             <input
               class="input input-bordered w-full"
               [(ngModel)]="newSecret"
@@ -131,14 +131,14 @@
         <table class="table-zebra table-sm table">
           <thead>
             <tr>
-              <th>{{ 'page.i18n.name' | i18n }}</th>
+              <th>{{ 'page.encrypted.name' | i18n }}</th>
               <th>
                 {{ 'page.encrypted.card' | i18n }}
-                <span class="badge badge-warning badge-xs ml-1">{{ 'page.encrypted.title' | i18n }}</span>
+                <span class="badge badge-warning badge-xs ml-1">{{ 'page.encrypted.encryptedBadge' | i18n }}</span>
               </th>
               <th>
                 {{ 'page.encrypted.apiKey' | i18n }}
-                <span class="badge badge-warning badge-xs ml-1">{{ 'page.encrypted.title' | i18n }}</span>
+                <span class="badge badge-warning badge-xs ml-1">{{ 'page.encrypted.encryptedBadge' | i18n }}</span>
               </th>
               <th></th>
             </tr>
@@ -165,7 +165,7 @@
       </div>
     } @else {
       <div class="text-base-content/50 py-10 text-center">
-        <p>{{ 'common.noData' | i18n }}</p>
+        <p>{{ 'page.encrypted.empty' | i18n }}</p>
       </div>
     }
   }

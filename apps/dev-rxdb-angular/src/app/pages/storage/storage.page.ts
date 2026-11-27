@@ -1,10 +1,12 @@
 import { RxDB } from '@aiao/rxdb';
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { normalizeDirectoryPath } from '@aiao/rxdb-plugin-storage';
-import { checkOPFSAvailable, formatFileSize, STORAGE_LABELS, STORAGE_TESTID } from '@aiao/utils';
+import { checkOPFSAvailable, STORAGE_TESTID } from '@aiao/utils';
 import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   DestroyRef,
   effect,
   ElementRef,
@@ -12,6 +14,7 @@ import {
   OnDestroy,
   OnInit,
   signal,
+  type Signal,
   untracked,
   viewChild
 } from '@angular/core';
@@ -36,6 +39,14 @@ import {
   LucideUpload as Upload,
   LucideX as X
 } from '@lucide/angular';
+import {
+  fileError,
+  type FileMessage,
+  fileMessage,
+  formatFileSize,
+  orderFileEntries,
+  renderFileMessage
+} from '@modules/demo-i18n/files';
 import { map } from 'rxjs';
 import { I18nPipe } from '../../pipes/i18n.pipe';
 import { traverseFileTree } from '../../shared/traverse-file-tree';
@@ -58,7 +69,7 @@ import { StorageBrowserItem } from './utils/storage-utils';
 
 interface ConfirmDialog {
   show: boolean;
-  message: string;
+  message: string | FileMessage;
   resolve?: (value: boolean) => void;
 }
 
@@ -92,7 +103,7 @@ interface ContextMenu {
 
 interface Toast {
   show: boolean;
-  message: string;
+  message: string | FileMessage;
   type: 'error' | 'success' | 'info';
 }
 
@@ -118,6 +129,7 @@ interface SelectionBox {
   templateUrl: './storage.page.html'
 })
 export default class StoragePage implements OnInit, OnDestroy {
+  readonly #i18n = useI18n();
   private initialized = false;
   private clickAbortController?: AbortController;
   private mouseMoveListener?: (event: MouseEvent) => void;
@@ -135,7 +147,7 @@ export default class StoragePage implements OnInit, OnDestroy {
   readonly selectedPaths = signal<Set<string>>(new Set());
   readonly lastSelectedPath = signal<string | null>(null);
   readonly allFiles: StoragePageBrowser['allFiles'];
-  readonly entries: StoragePageBrowser['entries'];
+  readonly entries: Signal<StorageBrowserItem[]>;
   readonly loading: StoragePageBrowser['loading'];
   readonly error: StoragePageBrowser['error'];
   readonly viewMode = signal<ViewMode>(getStoredViewMode());
@@ -161,8 +173,6 @@ export default class StoragePage implements OnInit, OnDestroy {
   readonly Math = Math;
 
   readonly TESTID = STORAGE_TESTID;
-  readonly LABELS = STORAGE_LABELS;
-  readonly formatFileSize = formatFileSize;
 
   readonly Database = Database;
   readonly RefreshCw = RefreshCw;
@@ -204,7 +214,7 @@ export default class StoragePage implements OnInit, OnDestroy {
       showToast: (message, type) => this.showToast(message, type)
     });
     this.allFiles = this.browser.allFiles;
-    this.entries = this.browser.entries;
+    this.entries = computed(() => orderFileEntries(this.browser.entries(), this.#i18n.locale()));
     this.loading = this.browser.loading;
     this.error = this.browser.error;
     this.transfer = new StoragePageTransfer(this.rxdb.storage, {
@@ -368,7 +378,7 @@ export default class StoragePage implements OnInit, OnDestroy {
 
     const result = await this.deleteEntry(entry);
     if (!result) {
-      this.showToast(`Delete failed: ${entry.name}`, 'error');
+      this.showToast(fileMessage('file.deleteFailed', { detail: entry.name }), 'error');
     }
   }
 
@@ -400,10 +410,10 @@ export default class StoragePage implements OnInit, OnDestroy {
       await this.rxdb.storage.createDirectory(name, { path: this.currentPath() });
       this.showNewFolder.set(false);
       this.newFolderName.set('');
-      this.showToast('Folder created successfully', 'success');
+      this.showToast(fileMessage('file.folderCreated'), 'success');
       await this.browser.refreshCurrentDirectory();
     } catch (err) {
-      this.showToast(err instanceof Error ? err.message : String(err), 'error');
+      this.showToast(fileError('file.createFailed', err), 'error');
     }
   }
 
@@ -419,10 +429,10 @@ export default class StoragePage implements OnInit, OnDestroy {
       }
 
       this.renameDialog.set({ show: false, entry: null, newName: '' });
-      this.showToast('Rename successful', 'success');
+      this.showToast(fileMessage('file.renameSuccess'), 'success');
       await this.browser.refreshCurrentDirectory();
     } catch (err) {
-      this.showToast(err instanceof Error ? err.message : String(err), 'error');
+      this.showToast(fileError('file.renameFailed', err), 'error');
     }
   }
 
@@ -430,7 +440,7 @@ export default class StoragePage implements OnInit, OnDestroy {
     const selected = this.selectedPaths();
     if (selected.size === 0) return;
 
-    const entries = this.entries().filter(entry => selected.has(entry.path));
+    const entries = this.browser.entries().filter(entry => selected.has(entry.path));
     const shouldDelete = await new Promise<boolean>(resolve => {
       this.deleteConfirm.set({
         show: true,
@@ -452,16 +462,16 @@ export default class StoragePage implements OnInit, OnDestroy {
     }
 
     if (failedCount > 0) {
-      this.showToast(`${failedCount} items failed to delete`, 'error');
+      this.showToast(fileMessage('file.deleteFailures', { count: failedCount }), 'error');
     } else {
-      this.showToast(`Deleted ${entries.length} items`, 'success');
+      this.showToast(fileMessage('file.deleted', { count: entries.length }), 'success');
     }
 
     this.clearSelection();
   }
 
   async handleBatchDownload(): Promise<void> {
-    const selectedEntries = this.entries().filter(entry => this.selectedPaths().has(entry.path));
+    const selectedEntries = this.browser.entries().filter(entry => this.selectedPaths().has(entry.path));
     await this.transfer.handleBatchDownload(selectedEntries, getBatchArchiveName(this.currentPath()));
   }
 
@@ -529,7 +539,7 @@ export default class StoragePage implements OnInit, OnDestroy {
     this.lastSelectedPath.set(null);
   }
 
-  showToast(message: string, type: 'error' | 'success' | 'info' = 'info'): void {
+  showToast(message: string | FileMessage, type: 'error' | 'success' | 'info' = 'info'): void {
     if (this.toastTimer) {
       clearTimeout(this.toastTimer);
     }
@@ -591,7 +601,7 @@ export default class StoragePage implements OnInit, OnDestroy {
   }
 
   async onClearAll(): Promise<void> {
-    const confirmed = await this.confirm(STORAGE_LABELS.CONFIRM_CLEAR);
+    const confirmed = await this.confirm(fileMessage('file.confirmClear'));
     if (!confirmed) {
       return;
     }
@@ -600,10 +610,10 @@ export default class StoragePage implements OnInit, OnDestroy {
       await this.rxdb.storage.clear('/');
       this.clearSelection();
       this.previewEntry.set(null);
-      this.showToast(STORAGE_LABELS.CLEAR_SUCCESS, 'success');
+      this.showToast(fileMessage('file.clearSuccess'), 'success');
       await this.browser.refreshCurrentDirectory();
     } catch (err) {
-      this.showToast(err instanceof Error ? err.message : String(err), 'error');
+      this.showToast(fileError('file.clearFailed', err), 'error');
     }
   }
 
@@ -613,7 +623,15 @@ export default class StoragePage implements OnInit, OnDestroy {
     this.confirmDialog.set({ show: false, message: '' });
   }
 
-  private confirm(message: string): Promise<boolean> {
+  messageText(message: FileMessage | string): string {
+    return renderFileMessage(this.#i18n.t, message);
+  }
+
+  formatFileSize(bytes: number): string {
+    return formatFileSize(bytes, this.#i18n.locale());
+  }
+
+  private confirm(message: string | FileMessage): Promise<boolean> {
     return new Promise(resolve => {
       this.confirmDialog.set({ show: true, message, resolve });
     });

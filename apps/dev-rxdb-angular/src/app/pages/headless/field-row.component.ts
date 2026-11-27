@@ -1,5 +1,6 @@
 import type { EntityFormFieldSnapshot } from '@aiao/rxdb-model/headless';
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+import { I18nPipe } from '../../pipes/i18n.pipe';
 import { fieldId, type FieldInputs } from './field-inputs';
 
 /** 数值字段用文本框承载，才能保留无法解析的原始输入并展示解析错误。 */
@@ -9,6 +10,7 @@ const NUMERIC_TYPES = new Set(['integer', 'number']);
 @Component({
   selector: 'app-hl-field-row',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [I18nPipe],
   template: `
     <div class="hl-field">
       <label [attr.for]="id()">{{ config().displayName }}</label>
@@ -22,7 +24,7 @@ const NUMERIC_TYPES = new Set(['integer', 'number']);
           [id]="id()"
           (change)="onSelect($event)"
         >
-          <option [selected]="selected() === ''" value="">请选择</option>
+          <option [selected]="selected() === ''" value="">{{ 'page.headless.pleaseSelect' | i18n }}</option>
           @for (value of config().enumValues ?? []; track value) {
             <option [selected]="selected() === value" [value]="value">
               {{ config().options?.[value]?.label ?? value }}

@@ -41,7 +41,7 @@ export interface AdminShellOptions<TIcon = unknown> {
     /** 应用运行时默认命名空间中的文档标题翻译键。 */
     readonly documentTitleKey?: string;
   };
-  /** 应用自己的国际化运行时；需要把 `adminMessages` 加入它的 `catalogs`。缺省使用只含外壳目录的静态运行时（中文）。 */
+  /** 应用自己的国际化运行时；需要把 `adminMessages` 加入它的 `catalogs`。缺省使用跟随宿主语言的静态运行时。 */
   readonly i18n?: I18n;
   /** 可选主题，必须与样式里启用的 daisyUI 主题一致，缺省 `light` / `dark`。 */
   readonly themes?: readonly ThemeOption[];

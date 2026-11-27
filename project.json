@@ -169,6 +169,24 @@
       "options": {
         "command": "node scripts/audit/coverage-check.mjs"
       }
+    },
+    "audit-i18n": {
+      "// cache": "检查 Admin、Model、Application 和演示应用的中英文文案键集合。inputs 必须覆盖脚本读取的每个目录文件，否则改了目录仍命中 CI 主线的旧缓存。",
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{workspaceRoot}/scripts/audit/i18n-catalogs.mjs",
+        "{workspaceRoot}/modules/demo-i18n/*.ts",
+        "{workspaceRoot}/packages/rxdb-admin/src/i18n/**/*",
+        "{workspaceRoot}/packages/rxdb-model/src/messages.ts",
+        "{workspaceRoot}/apps/rxdb-admin-template-*/src/app/i18n/**/*",
+        "{workspaceRoot}/benchmarks/src/i18n/messages.ts",
+        "{workspaceRoot}/modules/rxdb-devtools-panel/src/i18n/messages.ts",
+        "{workspaceRoot}/packages/rxdb-plugin-board/src/i18n/messages.ts"
+      ],
+      "options": {
+        "command": "node scripts/audit/i18n-catalogs.mjs"
+      }
     }
   }
 }

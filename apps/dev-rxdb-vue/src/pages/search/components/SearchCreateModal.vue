@@ -1,5 +1,8 @@
 <script lang="ts" setup>
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import type { ArticleCreateDraft, CommentCreateDraft, SearchDemoCollection } from '../types';
+
+const { t } = useI18n();
 
 defineProps<{
   open: boolean;
@@ -39,12 +42,12 @@ const emit = defineEmits<{
           class="text-lg font-semibold"
           id="search-create-title"
         >
-          新建{{ type === 'article' ? '文章' : '评论' }}
+          {{ type === 'article' ? t('page.search.createArticle') : t('page.search.createComment') }}
         </h2>
         <button
           class="btn btn-ghost btn-sm btn-circle"
           @click="emit('update:open', false)"
-          aria-label="关闭"
+          :aria-label="t('common.close')"
           type="button"
         >
           <svg
@@ -74,10 +77,10 @@ const emit = defineEmits<{
                 emit('update:articleDraft', { ...articleDraft, title: ($event.target as HTMLInputElement).value })
               "
               autofocus
-              placeholder="标题"
+              :placeholder="t('page.search.titleField')"
               type="text"
             />
-            <span>标题</span>
+            <span>{{ t('page.search.titleField') }}</span>
           </label>
           <label class="floating-label sm:col-span-2">
             <textarea
@@ -86,9 +89,9 @@ const emit = defineEmits<{
               @input="
                 emit('update:articleDraft', { ...articleDraft, body: ($event.target as HTMLTextAreaElement).value })
               "
-              placeholder="正文"
+              :placeholder="t('page.search.bodyField')"
             />
-            <span>正文</span>
+            <span>{{ t('page.search.bodyField') }}</span>
           </label>
           <label class="floating-label">
             <select
@@ -105,7 +108,7 @@ const emit = defineEmits<{
               <option value="life">life</option>
               <option value="travel">travel</option>
             </select>
-            <span>分类</span>
+            <span>{{ t('page.search.categoryField') }}</span>
           </label>
           <label class="floating-label">
             <input
@@ -117,10 +120,10 @@ const emit = defineEmits<{
                   viewCount: Number(($event.target as HTMLInputElement).value) || 0
                 })
               "
-              placeholder="浏览数"
+              :placeholder="t('page.search.viewsField')"
               type="number"
             />
-            <span>浏览数</span>
+            <span>{{ t('page.search.viewsField') }}</span>
           </label>
           <label class="floating-label">
             <input
@@ -129,10 +132,10 @@ const emit = defineEmits<{
               @input="
                 emit('update:articleDraft', { ...articleDraft, authorId: ($event.target as HTMLInputElement).value })
               "
-              placeholder="作者 ID"
+              :placeholder="t('page.search.authorIdField')"
               type="text"
             />
-            <span>作者 ID</span>
+            <span>{{ t('page.search.authorIdField') }}</span>
           </label>
           <label class="floating-label">
             <input
@@ -141,10 +144,10 @@ const emit = defineEmits<{
               @input="
                 emit('update:articleDraft', { ...articleDraft, tagsText: ($event.target as HTMLInputElement).value })
               "
-              placeholder="标签1, 标签2"
+              :placeholder="t('page.search.tagsPlaceholder')"
               type="text"
             />
-            <span>标签（逗号分隔）</span>
+            <span>{{ t('page.search.tagsField') }}</span>
           </label>
         </div>
       </template>
@@ -158,10 +161,10 @@ const emit = defineEmits<{
                 emit('update:commentDraft', { ...commentDraft, articleId: ($event.target as HTMLInputElement).value })
               "
               autofocus
-              placeholder="文章 ID"
+              :placeholder="t('page.search.articleIdField')"
               type="text"
             />
-            <span>文章 ID</span>
+            <span>{{ t('page.search.articleIdField') }}</span>
           </label>
           <label class="floating-label">
             <input
@@ -170,10 +173,10 @@ const emit = defineEmits<{
               @input="
                 emit('update:commentDraft', { ...commentDraft, authorName: ($event.target as HTMLInputElement).value })
               "
-              placeholder="作者"
+              :placeholder="t('page.search.authorField')"
               type="text"
             />
-            <span>作者</span>
+            <span>{{ t('page.search.authorField') }}</span>
           </label>
           <label class="floating-label">
             <textarea
@@ -182,9 +185,9 @@ const emit = defineEmits<{
               @input="
                 emit('update:commentDraft', { ...commentDraft, content: ($event.target as HTMLTextAreaElement).value })
               "
-              placeholder="内容"
+              :placeholder="t('page.search.contentField')"
             />
-            <span>内容</span>
+            <span>{{ t('page.search.contentField') }}</span>
           </label>
         </div>
       </template>
@@ -195,7 +198,7 @@ const emit = defineEmits<{
           @click="emit('update:open', false)"
           type="button"
         >
-          取消
+          {{ t('common.cancel') }}
         </button>
         <button
           class="btn btn-primary"
@@ -204,14 +207,14 @@ const emit = defineEmits<{
           data-testid="search-create-submit"
           type="button"
         >
-          创建
+          {{ t('common.create') }}
         </button>
       </div>
     </div>
     <button
       class="modal-backdrop"
       @click="emit('update:open', false)"
-      aria-label="关闭"
+      :aria-label="t('common.close')"
       type="button"
     />
   </div>

@@ -1,6 +1,7 @@
 import type { UUID } from '@aiao/rxdb';
 import type { ChangeEvent, KeyboardEvent } from 'react';
 
+import { boardT } from '../board-i18n.js';
 import type { ModelGetter, TriggerEvent } from './model.js';
 import { isModifier } from './types.js';
 import { useStateRef } from './use-state-ref.js';
@@ -114,12 +115,12 @@ export const useHeaderModel = (core: ViewCore, model: ModelGetter): HeaderModel 
       model().popover.closePopover();
       const callback = core.exportBackupRef.current;
       if (!callback) {
-        core.showNotice('备份导出由宿主接线（US-537）');
+        core.showNotice(boardT('view.toast.backupHosted'));
         return;
       }
       await core.guard(async () => {
         await callback();
-        core.showToast('备份已生成', false);
+        core.showToast(boardT('view.toast.backupGenerated'), false);
       });
     },
     confirmBoardDelete: async () => {

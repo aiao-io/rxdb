@@ -1,3 +1,13 @@
+import type { BenchmarksTranslate } from './i18n/messages';
+
+/** 场景运行上下文：结果回调与翻译函数。 */
+export interface ScenarioRunOptions {
+  /** 每条结果就绪时的回调；可省略。 */
+  readonly onResult?: (result: BenchmarkResult) => void;
+  /** 当前语言下的翻译函数。 */
+  readonly t: BenchmarksTranslate;
+}
+
 /**
  * 基准测试配置常量
  */
