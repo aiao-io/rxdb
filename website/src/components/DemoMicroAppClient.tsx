@@ -1,4 +1,4 @@
-import { createOrbit, type OrbitInstance } from '@aiao/orbit';
+import { createOrbit, OrbitError, type OrbitInstance } from '@aiao/orbit';
 import { useHistory, useLocation } from '@docusaurus/router';
 import { useColorMode } from '@docusaurus/theme-common';
 import useBaseUrl from '@docusaurus/useBaseUrl';
@@ -17,6 +17,9 @@ import {
 import { useSiteCopy } from '@site/src/lib/locale-copy';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import type { DemoMicroAppProps } from './DemoMicroApp';
+
+const MAX_AUTO_RETRIES = 2;
+const RETRY_RESET_DELAY_MS = 10_000;
 
 function readHostTheme(): ResolvedTheme {
   return parseResolvedTheme(document.documentElement.getAttribute(HOST_THEME_ATTRIBUTE));
@@ -48,11 +51,26 @@ export default function DemoMicroAppClient({
   const [attempt, setAttempt] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const instance = useRef<OrbitInstance | undefined>(undefined);
+  const autoRetries = useRef(0);
+  const retryResetTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const runtime = useMemo(
     () =>
       createOrbit({
         allowedOrigins: [new URL(url, location.href).origin],
-        onError: failure => setError(failure instanceof Error ? failure.message : copy('演示运行失败'))
+        onError: failure => {
+          if (
+            failure instanceof OrbitError &&
+            (failure.code === 'NAVIGATION' || failure.code === 'LOAD_ERROR') &&
+            autoRetries.current < MAX_AUTO_RETRIES
+          ) {
+            autoRetries.current += 1;
+            clearTimeout(retryResetTimer.current);
+            setAttempt(value => value + 1);
+            return;
+          }
+          clearTimeout(retryResetTimer.current);
+          setError(failure instanceof Error ? failure.message : copy('演示运行失败'));
+        }
       }),
     [url, copy]
   );
@@ -93,13 +111,20 @@ export default function DemoMicroAppClient({
     void app
       .mount(container)
       .then(() => {
-        if (active) armRouteSync();
+        if (active) {
+          clearTimeout(retryResetTimer.current);
+          retryResetTimer.current = setTimeout(() => {
+            autoRetries.current = 0;
+          }, RETRY_RESET_DELAY_MS);
+          armRouteSync();
+        }
       })
       .catch(failure => {
         if (active) setError(failure instanceof Error ? failure.message : copy('演示启动失败'));
       });
     return () => {
       active = false;
+      clearTimeout(retryResetTimer.current);
       app.destroy();
       instance.current = undefined;
     };
@@ -167,7 +192,13 @@ export default function DemoMicroAppClient({
       {error && (
         <div role='alert' style={{ position: 'absolute', inset: 0, padding: 24 }}>
           <p>{error}</p>
-          <button type='button' onClick={() => setAttempt(value => value + 1)}>
+          <button
+            type='button'
+            onClick={() => {
+              autoRetries.current = 0;
+              setAttempt(value => value + 1);
+            }}
+          >
             {copy('重新加载演示')}
           </button>
         </div>
