@@ -193,7 +193,7 @@
     "autoprefixer": "^10.7.0",
     "chalk": "^6.0.1",
     "czg": "^1.14.0",
-    "electron": "^45.5.0",
+    "electron": "44.10.2",
     "electron-builder": "^26.18.0",
     "electron-debug": "^5.0.0",
     "electron-reloader": "^2.0.0",
