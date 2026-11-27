@@ -183,7 +183,10 @@ try {
 import { getEntityMetadata } from '@aiao/rxdb';
 import { deriveEntityCapabilities } from '@aiao/rxdb-model';
 
-const { canCreate, canEdit, canDelete } = deriveEntityCapabilities(getEntityMetadata(Invoice));
+const { canCreate, canEdit, canDelete } = deriveEntityCapabilities(getEntityMetadata(Invoice), {
+  readOnly: rxdb.readOnly,
+  grants: rxdb.grants.snapshot
+});
 ```
 
 | 能力        | 取值                | false 时的界面表现                                                                                 |
@@ -192,9 +195,9 @@ const { canCreate, canEdit, canDelete } = deriveEntityCapabilities(getEntityMeta
 | `canEdit`   | `update === 'both'` | 行挂 `_readonly`：单元格、粘贴、拖拽、键盘切换都不可写；「查看」以 view 模式打开详情（无保存入口） |
 | `canDelete` | `delete === 'both'` | 操作列没有「删除」；「查看」保留                                                                   |
 
-规则形式的操作，派生结果是 `false`（入口关闭）：界面还不按行与授权快照判定，写入口只在公开写入口那一层按行判。
+只读实例（`readOnly: true`，如只读检出位）三项全关。规则形式的操作按授权快照派生：实体级看快照里有没有一个带该前缀、且有所需权限的作用域，具体哪一行能改能删见[界面按行派生](#界面按行派生)。
 
-删除能力与行只读是**解耦**的两件事：`update: 'system'` 的实体行只读但 `delete: 'both'` 时仍能删；`delete: 'system'` 的实体行可编辑却没有删除按钮。操作列 `actionsColumn()` 的第三参是逐行谓词 `(record) => boolean`，由 `buildEditableColumns()` 按 `canDelete` 派生——直接调 `actionsColumn()` 的应用需要自己传入，见[操作列删除判定迁移](../migration/actions-column-can-delete.md)。
+删除能力与行只读是**解耦**的两件事：`update: 'system'` 的实体行只读但 `delete: 'both'` 时仍能删；`delete: 'system'` 的实体行可编辑却没有删除按钮。操作列 `actionsColumn()` 的第三参是逐行谓词 `(record) => boolean`，由 `buildEditableColumns()` 按行派生（规则形式按这一行的作用域）——直接调 `actionsColumn()` 的应用需要自己传入，见[操作列删除判定迁移](../migration/actions-column-can-delete.md)。
 
 三框架的 `EntityList` 走同一条派生路径：
 
@@ -307,6 +310,34 @@ rxdb.grants.snapshot$.subscribe(render); // 订阅时先交出当前值，之后
 问远端之前先核对调用者身份（声明了 `RxDBOptions.identity` 时）：授权是要落进这个身份的库的数据。没有实体声明作用域时，远端一次都不问，没部署授权函数的旧服务端照常可用。
 
 快照写进本地库的系统表 `rxdb_grant_state`：本地库按身份分库，换身份就是换库，快照不跨库；离线关库重开，`connect()` 读回上次的快照，照样按它判定。远端在本地库之前连上时，那一次只发布、不落库，下一次刷新再落库。快照是每个实例自己的，一个标签页刷新不会推到别的标签页。
+
+### 界面按行派生
+
+三框架的 `EntityList` 订阅 `rxdb.grants.snapshot$`，规则形式的入口随快照即时重算，不用刷新页面：
+
+| 入口         | 什么时候出                                                                                                   |
+| ------------ | ------------------------------------------------------------------------------------------------------------ |
+| 「+ 新增」   | 快照里有一个**带该前缀**的作用域有 `create` 所需的权限：调用者 `user:` 区的 `edit` 不让 `tenant:` 实体开新增 |
+| 行可编辑     | 这一行的作用域上有 `update` 所需的权限；否则行挂 `_readonly`，「查看」以 view 模式打开                       |
+| 行的「删除」 | 这一行的作用域上有 `delete` 所需的权限                                                                       |
+| 拖拽排序     | 手动排序的实体只要有一行只读，整表不出拖拽                                                                   |
+
+快照还没取到时，规则形式的入口全关，列表顶部说明原因（「还没取到授权」）；只读实例同样说明原因。
+
+自己拼界面时用同一套派生：
+
+```ts
+import { deriveRowCapabilities, deriveWriteBlockedReason } from '@aiao/rxdb-model';
+
+const context = { readOnly: rxdb.readOnly, grants: rxdb.grants.snapshot };
+const { canEdit, canDelete, editReason } = deriveRowCapabilities(metadata, row, context);
+// 不能时的原因：'read-only-instance' | 'system' | 'grants-unknown' | 'missing-permission'
+const blocked = deriveWriteBlockedReason(metadata, context); // 'read-only-instance' | 'grants-unknown' | undefined
+```
+
+- 不传 `grants` 与快照未取到一样，规则形式一律关闭。直接调 `buildEditableColumns()` 的应用要传 `grants`，并在快照变化时重建列，否则规则形式的行不出「删除」。
+- 按行派生看的是这一行**此刻**的值，写入口按持久化前像判定，保存之后两者一致。界面只是快速反馈，被拒以写入口为准（`PermissionDeniedError`，见[违规清单](#违规清单)）。
+- `EntityList` 没有批量删除入口；`removeMany()` / `mutations()` 的整批拒绝见[判定](#判定)。
 
 ### 离线与降权窗口
 

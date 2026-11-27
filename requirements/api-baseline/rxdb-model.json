@@ -82,6 +82,10 @@
         "kind": "value"
       },
       {
+        "name": "CapabilityDeniedReason",
+        "kind": "type"
+      },
+      {
         "name": "CellChangeEvent",
         "kind": "type"
       },
@@ -262,6 +266,14 @@
         "kind": "value"
       },
       {
+        "name": "deriveRowCapabilities",
+        "kind": "value"
+      },
+      {
+        "name": "deriveWriteBlockedReason",
+        "kind": "value"
+      },
+      {
         "name": "describeHistoryBarrier",
         "kind": "value"
       },
@@ -416,6 +428,10 @@
       {
         "name": "entityToFormData",
         "kind": "value"
+      },
+      {
+        "name": "EntityWriteBlockedReason",
+        "kind": "type"
       },
       {
         "name": "EnumEditor",
@@ -954,6 +970,10 @@
         "kind": "value"
       },
       {
+        "name": "RowCapabilities",
+        "kind": "type"
+      },
+      {
         "name": "RowDeleteEvent",
         "kind": "type"
       },
@@ -1108,6 +1128,10 @@
         "kind": "value"
       },
       {
+        "name": "CapabilityDeniedReason",
+        "kind": "type"
+      },
+      {
         "name": "cloneStructured",
         "kind": "value"
       },
@@ -1169,6 +1193,14 @@
       },
       {
         "name": "deriveEntityCapabilities",
+        "kind": "value"
+      },
+      {
+        "name": "deriveRowCapabilities",
+        "kind": "value"
+      },
+      {
+        "name": "deriveWriteBlockedReason",
         "kind": "value"
       },
       {
@@ -1290,6 +1322,10 @@
       {
         "name": "entityToFormData",
         "kind": "value"
+      },
+      {
+        "name": "EntityWriteBlockedReason",
+        "kind": "type"
       },
       {
         "name": "FieldMetadata",
@@ -1437,6 +1473,10 @@
       },
       {
         "name": "RelatedEntityProvider",
+        "kind": "type"
+      },
+      {
+        "name": "RowCapabilities",
         "kind": "type"
       },
       {

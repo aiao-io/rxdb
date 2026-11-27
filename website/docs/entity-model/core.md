@@ -131,3 +131,5 @@ if (!result.valid) {
 ## 界面能力派生（US-027）
 
 `deriveEntityCapabilities(metadata)` 把实体的写操作权限（create / update / delete 各为 `both` 或 `system`）投影为界面能力 `{ canCreate, canEdit, canDelete }`：`EntityList` 据此隐藏「+ 新增」、把行降级为只读（详情以查看模式打开）、或隐藏操作列的删除入口。权限声明与运行时判定语义见[实体操作权限](/model-definition/permissions.md)。
+
+规则形式（`{ requires }`，US-029）的操作再看授权快照：上下文传 `grants: rxdb.grants.snapshot`，按行用 `deriveRowCapabilities(metadata, record, context)`，写入口全关的原因用 `deriveWriteBlockedReason(metadata, context)`；`buildEditableColumns` 同样接受 `grants`，快照变化时重建列。见[界面按行派生](/model-definition/permissions.md#界面按行派生)。

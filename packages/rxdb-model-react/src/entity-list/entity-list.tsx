@@ -33,6 +33,8 @@ import {
   commitRowMove,
   createListViewState,
   deriveEntityCapabilities,
+  deriveRowCapabilities,
+  deriveWriteBlockedReason,
   describeHistoryBarrier,
   extractFieldsFromMetadata,
   getListViewFields,
@@ -327,12 +329,26 @@ export function EntityList({
   // Map.has 先验证再取值：与 Angular 侧 #entityCls 同语义，且满足 CodeQL CWE-915 的白名单取值模式
   const entityCls = entityClsMap.has(entityKey) ? entityClsMap.get(entityKey) : undefined;
 
-  /** 当前实体的界面能力，由 `permissions` 派生（US-027）；未注册实体无元数据可派生，为 `undefined`。 */
+  /** 授权快照（US-029）：规则形式的新增、编辑、删除按它逐行派生，变化时不刷新页面即生效。 */
+  const [grants, setGrants] = useState(() => rxdb.grants.snapshot);
+  useEffect(() => {
+    const subscription = rxdb.grants.snapshot$.subscribe(setGrants);
+    return () => subscription.unsubscribe();
+  }, [rxdb]);
+  /** 能力派生的实例侧上下文：只读实例与授权快照。 */
+  const capabilityContext = useMemo(() => ({ readOnly: rxdb.readOnly, grants }), [rxdb, grants]);
+
+  /** 当前实体的界面能力，由 `permissions` 与授权快照派生（US-027 / US-029）；未注册实体无元数据可派生，为 `undefined`。 */
   const capabilities = useMemo(
-    () => (entityCls ? deriveEntityCapabilities(getEntityMetadata(entityCls), { readOnly: rxdb.readOnly }) : undefined),
-    [entityCls, rxdb]
+    () => (entityCls ? deriveEntityCapabilities(getEntityMetadata(entityCls), capabilityContext) : undefined),
+    [entityCls, capabilityContext]
   );
-  const isRowReadonly = capabilities?.canEdit === false;
+
+  /** 整个实体的写入口为什么都关着（US-029 AC#20）：列表顶部据此给出可读的原因。 */
+  const writeBlockedReason = useMemo(
+    () => (entityCls ? deriveWriteBlockedReason(getEntityMetadata(entityCls), capabilityContext) : undefined),
+    [entityCls, capabilityContext]
+  );
 
   // ── 历史 / 撤销重做（@aiao/rxdb-plugin-history 装配的 versionManager）──
   const vHistory = useMemo<HistoryScopeAPI>(() => {
@@ -390,6 +406,17 @@ export function EntityList({
   const currentList = listResources.get(entityKey);
   const instances = useMemo(() => (currentList?.value ?? []) as unknown as EntityInstance[], [currentList]);
 
+  /** 已落库的行里不可编辑的那些（按行派生，US-029）：行挂 `_readonly`，详情走 view 模式。 */
+  const readonlyRowIds = useMemo(() => {
+    if (!entityCls) return new Set<unknown>();
+    const metadata = getEntityMetadata(entityCls);
+    return new Set(
+      instances
+        .filter(inst => !deriveRowCapabilities(metadata, inst as Record<string, unknown>, capabilityContext).canEdit)
+        .map(inst => inst.id)
+    );
+  }, [entityCls, instances, capabilityContext]);
+
   const computedWhere = useMemo<FilterQuery>(() => {
     const fixed = fixedQuery;
     const userFilter = filterQuery;
@@ -433,7 +460,7 @@ export function EntityList({
       selectMode: isSelectMode,
       fixedQuery,
       fullyLoaded: !!currentList && !currentList.hasMore && !currentList.isLoading,
-      hasReadonlyRows: isRowReadonly,
+      hasReadonlyRows: readonlyRowIds.size > 0,
       hasDrafts: localDraftItems.length > 0,
       hasPendingEdits: pendingEditBatches > 0,
       reorderPending
@@ -461,11 +488,11 @@ export function EntityList({
   }, [entityCls, modelInfoMap, modelI18n, t]);
 
   const sourceTableRecords = useMemo<EntityTableRecord[]>(() => {
-    // `update` 只许系统写：已落库的行交给现成的 `_readonly` 行守卫挡住编辑与粘贴，详情走 view 模式；
-    // 删除另由操作列按 `delete` 权限判定。草稿尚未落库，仍可编辑
+    // 不可编辑的行（`update` 只许系统写，或规则形式而这一行的作用域上没有所需权限）交给现成的 `_readonly`
+    // 行守卫挡住编辑与粘贴，详情走 view 模式；删除另由操作列按行判定。草稿尚未落库，仍可编辑
     const dbRecords = instances.map(inst => ({
       ...(inst as Record<string, unknown>),
-      ...(isRowReadonly ? { _readonly: true } : {})
+      ...(readonlyRowIds.has(inst.id) ? { _readonly: true } : {})
     }));
     const draftRecords = localDraftItems.map(inst => ({ ...(inst as Record<string, unknown>) }));
     let records: EntityTableRecord[] = [...draftRecords, ...dbRecords];
@@ -475,7 +502,7 @@ export function EntityList({
         .map(record => ({ ...record, __selected: selectedIds.has(record['id'] as string) }));
     }
     return records;
-  }, [instances, localDraftItems, isSelectMode, alreadyLinkedIds, selectedIds, isRowReadonly]);
+  }, [instances, localDraftItems, isSelectMode, alreadyLinkedIds, selectedIds, readonlyRowIds]);
 
   const columnsCache = useMemo(() => {
     t('common.actions');
@@ -486,7 +513,9 @@ export function EntityList({
         `${meta.namespace}:${meta.name}`,
         buildEditableColumns(meta, {
           i18n: modelI18n,
-          readOnly: rxdb.readOnly,
+          readOnly: capabilityContext.readOnly,
+          // 快照变了重建列：操作列的删除按行与快照派生（US-029）
+          grants: capabilityContext.grants,
           relatedItemsProviderFactory: (fkField, relatedEntityName) => {
             const relCls = [...entityClsMap.values()].find(c => getEntityMetadata(c).name === relatedEntityName);
             if (!relCls) return undefined;
@@ -507,7 +536,7 @@ export function EntityList({
       );
     }
     return cache;
-  }, [rxdb, entityClsMap, t, modelI18n]);
+  }, [rxdb, entityClsMap, t, modelI18n, capabilityContext]);
 
   const baseTableColumns = useMemo<ColumnDefine[]>(() => {
     // 未注册实体无元数据可派生，不给删除
@@ -1106,6 +1135,13 @@ export function EntityList({
               </button>)}
         </div>
       </div>
+
+      {/* 写入口全关的原因（US-029 AC#20）：只读实例，或授权快照还没取到 */}
+      {writeBlockedReason !== undefined && (
+        <div role='status' data-testid='entity-write-blocked' className='alert alert-info rounded-none px-4 py-2 text-sm'>
+          {t(writeBlockedReason === 'read-only-instance' ? 'list.writeBlocked.readOnly' : 'list.writeBlocked.grantsUnknown')}
+        </div>
+      )}
 
       {/* 拖拽排序落库失败 */}
       {reorderError !== null && (

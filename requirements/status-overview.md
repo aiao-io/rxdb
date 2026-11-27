@@ -9,8 +9,8 @@
 | 状态           | 数量 |
 | :------------- | :--- |
 | ✅ Done        | 100  |
-| 🚧 In Progress | 15   |
-| 👀 In Review   | 17   |
+| 🚧 In Progress | 14   |
+| 👀 In Review   | 18   |
 | 📝 Backlog     | 27   |
 | 🚫 Blocked     | 0    |
 | **合计**       | 159  |
@@ -18,9 +18,8 @@
 统计只包含带 story frontmatter 的文件。辅助证据和无故事文件的候选不计数；同编号的辅助文件不算另一条故事。
 Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关闭而自动通过。当前可开工条件见 roadmap 与各故事的阶段表。
 
-## 进行中（15 条）
+## 进行中（14 条）
 
-- [US-029 按作用域的成员写权限：实体声明作用域与所需权限，本地写入口快速拒绝，三端按行显隐入口](stories/core/US-029-rbac-owner-role-permission.md)：未通过 AC#18～#20（3/20）
 - [US-211 多端小程序宿主（支付宝 / 抖音 / 百度 / QQ）](stories/adapter/US-211-multi-miniprogram-platforms.md)：未通过 AC#14、#16、#18（3/21）
 - [US-234 Supabase 租户内成员权限：管理员能改、员工只能看，dev-rxdb-supabase 完整演示](stories/adapter/US-234-supabase-tenant-member-permissions.md)：未通过 AC#17～#20（4/20）
 - [US-403 实体组件 Headless API 与可定制展示层](stories/ui/US-403-entity-components-headless.md)：未通过 AC#1～#16、#18～#21（20/21）
@@ -36,8 +35,9 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 - [US-706 服务器兜底与认证](stories/future/US-706-p2p-fallback-auth.md)：未通过 AC#3～#5（3/6）
 - [US-707 跨运行时 demo 与多实例 e2e](stories/future/US-707-p2p-cross-runtime-e2e.md)：未通过 AC#4～#8（5/8）
 
-## 待评审（17 条）
+## 待评审（18 条）
 
+- [US-029 按作用域的成员写权限：实体声明作用域与所需权限，本地写入口快速拒绝，三端按行显隐入口](stories/core/US-029-rbac-owner-role-permission.md)：AC 已全部通过
 - [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)：AC 已全部通过
 - [US-034 分区实体的本地写入：本地增删改可撤销/重做，推送后锁定](stories/core/US-034-bucketed-entity-local-writes.md)：AC 已全部通过
 - [US-037 全量推送按外键依赖排序：子实体声明在前时不再被拒并删掉本地行](stories/core/US-037-push-order-by-foreign-key.md)：AC 已全部通过
@@ -255,7 +255,7 @@ US-704～US-707 已获 owner 授权，US-708 会话层由 owner 决定在 PR #17
 
 ### [按身份授权的同步与本机数据隔离](epics/epic-015-identity-scoped-sync.md)
 
-- 🚧 [US-029 按作用域的成员写权限：实体声明作用域与所需权限，本地写入口快速拒绝，三端按行显隐入口](stories/core/US-029-rbac-owner-role-permission.md)
+- 👀 [US-029 按作用域的成员写权限：实体声明作用域与所需权限，本地写入口快速拒绝，三端按行显隐入口](stories/core/US-029-rbac-owner-role-permission.md)
 - ✅ [US-033 按授权分区同步（只读）：分区决定能读什么，实体同步规则决定同步哪些](stories/core/US-033-identity-scoped-read-sync.md)
 - 👀 [US-034 分区实体的本地写入：本地增删改可撤销/重做，推送后锁定](stories/core/US-034-bucketed-entity-local-writes.md)
 - ✅ [US-035 每个身份一个本地库：打开时核对身份，换账号不混数据](stories/core/US-035-identity-bound-local-database.md)

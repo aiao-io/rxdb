@@ -13,6 +13,7 @@ import { SortableFileNode } from './SortableFileNode.js';
 import { SortableMenuLarge } from './SortableMenuLarge.js';
 import { SortableMenuSimple } from './SortableMenuSimple.js';
 import { Task } from './Task.js';
+import { TenantNote } from './TenantNote.js';
 import { Todo } from './Todo.js';
 import { TypeDemo } from './TypeDemo.js';
 import { TypeDemoNative } from './TypeDemoNative.js';
@@ -36,6 +37,7 @@ export { SortableFileNode } from './SortableFileNode.js';
 export { SortableMenuLarge } from './SortableMenuLarge.js';
 export { SortableMenuSimple } from './SortableMenuSimple.js';
 export { Task } from './Task.js';
+export { TenantNote } from './TenantNote.js';
 export { Todo } from './Todo.js';
 export { TypeDemo } from './TypeDemo.js';
 export { TypeDemoNative } from './TypeDemoNative.js';
@@ -56,6 +58,7 @@ export const ENTITIES = [
   SortableMenuLarge,
   SortableMenuSimple,
   Task,
+  TenantNote,
   Todo,
   TypeDemo,
   TypeDemoNative

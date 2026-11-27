@@ -113,6 +113,7 @@ import {
   SortableMenuLarge,
   SortableMenuSimple,
   Task,
+  TenantNote,
   Todo,
   TypeDemo,
   TypeDemoNative,
@@ -332,6 +333,7 @@ void [
   SortableFileNode,
   SortableMenuLarge,
   SortableMenuSimple,
+  TenantNote,
   TypeDemo,
   TypeDemoNative,
   // shop

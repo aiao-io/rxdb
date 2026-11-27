@@ -8,13 +8,13 @@
 | 状态           | 数量   |
 | :------------- | :----- |
 | ✅ Done        | 100    |
-| 🚧 In Progress | 15     |
-| 👀 In Review   | 17     |
+| 🚧 In Progress | 14     |
+| 👀 In Review   | 18     |
 | 📝 Backlog     | 27     |
 | 🚫 Blocked     | 0      |
 | **未完成合计** | **59** |
 
-仓库还剩 **59 条**未关闭故事（15 In Progress + 17 In Review + 27 Backlog + 0 Blocked）。
+仓库还剩 **59 条**未关闭故事（14 In Progress + 18 In Review + 27 Backlog + 0 Blocked）。
 数字由 story YAML 推导；Backlog 包括已授权任务与价值待证候选，不能把全部未关闭故事当成可开工项。
 
 ## 未完成需求全景
@@ -37,7 +37,7 @@
 | [US-227](stories/adapter/US-227-supabase-relational-sync-demo.md)                                                                                                                                                                                                                                                                                                       | 👀 In Review   | AC 全部通过（订单页三个阶段、两身份远端 e2e、表权限真栈用例），待 owner 评审                                    | 批次 9   |
 | [US-034](stories/core/US-034-bucketed-entity-local-writes.md)                                                                                                                                                                                                                                                                                                           | 👀 In Review   | AC 全部通过（PGlite、Supabase 真栈、demo 组件单测与成员、访客两条远端 e2e），待 owner 评审                      | 批次 8   |
 | [US-229](stories/adapter/US-229-supabase-change-history.md)                                                                                                                                                                                                                                                                                                             | 👀 In Review   | AC 全部通过（SQL 回归 `change-history`、真栈读取、demo 单测与成员 e2e），待 owner 评审                          | 批次 8   |
-| [US-029](stories/core/US-029-rbac-owner-role-permission.md)                                                                                                                                                                                                                                                                                                             | 🚧 In Progress | 阶段 A、B、C 完成（声明与校验、授权快照与本地判定、Supabase 授权来源与真栈用例），待评审；下一步 D 三端按行派生 | 批次 11  |
+| [US-029](stories/core/US-029-rbac-owner-role-permission.md)                                                                                                                                                                                                                                                                                                             | 👀 In Review | 阶段 A～D 完成（声明与校验、授权快照与本地判定、Supabase 授权来源与真栈用例、三端按行派生与同一份 e2e），AC 全部通过，待评审 | 批次 11  |
 | [US-234](stories/adapter/US-234-supabase-tenant-member-permissions.md)                                                                                                                                                                                                                                                                                                  | 🚧 In Progress | 阶段 A 完成（SQL 回归、真栈、演示单测与远端 e2e），待评审；剩 B 演示接入引擎声明（前置 US-029 阶段 C）          | 批次 11  |
 | [US-910](stories/future/US-910-data-i18n.md)                                                                                                                                                                                                                                                                                                                            | 📝 Backlog     | 先证明语言启停入口、删除判据与迟到子行合入；不能只归因于缺夹具                                                  | 立项池   |
 | [US-704](stories/future/US-704-p2p-manifest-discovery.md) / [US-705](stories/future/US-705-p2p-byte-transfer.md) / [US-706](stories/future/US-706-p2p-fallback-auth.md)                                                                                                                                                                                                 | 🚧 In Progress | 协议层已实现；先选定认证宿主，再接信令、mDNS 与桌面握手，按 AC 在真实宿主上验收                                 | 批次 7   |
@@ -56,8 +56,9 @@
 2. 批次 10（epic-016 本机修改工作台）的 8 条故事（US-318、US-316、US-317、US-233、US-230、US-231、US-232、US-235）AC 全部通过，待 owner 评审合入。
 3. 批次 11（租户内成员权限）：US-234 阶段 A 完成（参考 SQL、真栈用例、文档、商品页演示与远端 e2e），待 owner 评审；
    US-029 阶段 A、B 完成（作用域声明与校验、授权快照 `rxdb.grants`、公开写入口按行判定，PGlite 与六个 SQLite 系后端一致），
-   阶段 C 完成（Supabase 适配器读 `rxdb_caller_grants()`，连接时与同步每一轮刷新，缺函数时连接报错；真栈普通身份用例与文档），待 owner 评审；
-   下一步 US-029 阶段 D（rxdb-model 行级能力，三端列表与详情、三端 demo 与 e2e）；US-234 阶段 B 的前置（阶段 C）已就绪。
+   阶段 C 完成（Supabase 适配器读 `rxdb_caller_grants()`，连接时与同步每一轮刷新，缺函数时连接报错；真栈普通身份用例与文档），
+   阶段 D 完成（rxdb-model 实体级 / 按行能力与写入口全关的原因，三端 `EntityList` 随授权快照即时重算，三端 demo 的 TenantNote 演示面板与同一份 e2e），
+   US-029 AC 全部通过，待 owner 评审；下一步 US-234 阶段 B（前置 US-029 阶段 C 已就绪）。
 
 US-603 的共享 preflight 仍待受控 registry 替身验收。
 
@@ -174,7 +175,7 @@ e2e 锚点与界面改动在同一步迁移，场景一条不删。
 | ---- | ---------------------- | ------------------------ | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1    | US-234 阶段 A          | 完成，待评审             | 服务端部分无新前置；演示部分要批次 10 的 US-230 阶段 A、US-231 阶段 A、US-232 | 参考 SQL：成员权限、`rxdb_caller_grants()`、写策略与历史可见性同口径、防自我提权、最后一个管理员；真栈普通身份用例；商品页的身份与权限、员工只读、成员与权限面板、降权后推送被拒；远端 e2e 与 README |
 | 2    | US-029 阶段 A → B      | 完成，待评审             | US-027（Done）、US-035（Done）                                                | 作用域声明与校验；授权快照与本地判定，本地后端结果一致                                                                                                                                               |
-| 3    | US-029 阶段 C ∥ 阶段 D | C 完成，待评审；D 下一步 | 阶段 B；C 还要 US-234 阶段 A                                                  | C：Supabase 授权来源与真栈用例；D：rxdb-model 行级能力，Angular / React / Vue 同一组 e2e                                                                                                             |
+| 3    | US-029 阶段 C ∥ 阶段 D | 完成，待评审             | 阶段 B；C 还要 US-234 阶段 A                                                  | C：Supabase 授权来源与真栈用例；D：rxdb-model 行级能力，Angular / React / Vue 同一组 e2e                                                                                                             |
 | 4    | US-234 阶段 B          | 未开始                   | US-029 阶段 C                                                                 | `CatalogItem` 声明作用域，商品页改读引擎能力，员工本机写当场被拒，离线沿用授权快照                                                                                                                   |
 
 本地判定只是快速失败，安全边界只在 RLS；每个阶段一个 PR，先写红测试。

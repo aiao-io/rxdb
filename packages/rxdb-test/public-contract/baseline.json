@@ -90,6 +90,7 @@
     "SortableMenuLarge": "function",
     "SortableMenuSimple": "function",
     "Task": "function",
+    "TenantNote": "function",
     "Todo": "function",
     "TypeDemo": "function",
     "TypeDemoNative": "function"

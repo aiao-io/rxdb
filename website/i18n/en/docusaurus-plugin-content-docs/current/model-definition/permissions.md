@@ -183,7 +183,10 @@ Entry point visibility in the entity management UI is uniformly derived from met
 import { getEntityMetadata } from '@aiao/rxdb';
 import { deriveEntityCapabilities } from '@aiao/rxdb-model';
 
-const { canCreate, canEdit, canDelete } = deriveEntityCapabilities(getEntityMetadata(Invoice));
+const { canCreate, canEdit, canDelete } = deriveEntityCapabilities(getEntityMetadata(Invoice), {
+  readOnly: rxdb.readOnly,
+  grants: rxdb.grants.snapshot
+});
 ```
 
 | Capability  | Value               | What the UI shows when false                                                                                                                        |
@@ -192,9 +195,9 @@ const { canCreate, canEdit, canDelete } = deriveEntityCapabilities(getEntityMeta
 | `canEdit`   | `update === 'both'` | Rows carry `_readonly`: cells, paste, drag, and keyboard switching are all non-writable; "View" opens the detail in view mode (no save entry point) |
 | `canDelete` | `delete === 'both'` | The action column has no "Delete"; "View" remains                                                                                                   |
 
-For operations declared with a rule, the derived value is `false` (the entry point is closed): the UI does not yet decide per row from the grant snapshot; per-row checks happen at the public write entry points.
+On a read-only instance (`readOnly: true`, such as a read-only checkout) all three are closed. Operations declared with a rule are derived from the grant snapshot: at the entity level, the question is whether some scope with the entity's prefix has the required permission; which rows can be edited or deleted is covered in [Per-row UI derivation](#per-row-ui-derivation).
 
-Delete capability and row read-only are **decoupled**: an entity with `update: 'system'` has read-only rows but can still be deleted when `delete: 'both'`; an entity with `delete: 'system'` has editable rows but no delete button. The action column's `actionsColumn()` takes a per-row predicate `(record) => boolean` as its third argument, which `buildEditableColumns()` derives from `canDelete` - applications that call `actionsColumn()` directly must pass it themselves; see [Action columns](/migration/actions-column-can-delete.md) (in Chinese).
+Delete capability and row read-only are **decoupled**: an entity with `update: 'system'` has read-only rows but can still be deleted when `delete: 'both'`; an entity with `delete: 'system'` has editable rows but no delete button. The action column's `actionsColumn()` takes a per-row predicate `(record) => boolean` as its third argument, which `buildEditableColumns()` derives per row (for a rule, from the row's scope) - applications that call `actionsColumn()` directly must pass it themselves; see [Action columns](/migration/actions-column-can-delete.md) (in Chinese).
 
 The `EntityList` of all three frameworks follows the same derivation path:
 
@@ -307,6 +310,34 @@ The snapshot has two possible sources, and an instance accepts only one:
 Before asking the remote, the caller identity is verified (when `RxDBOptions.identity` is declared): the grants are data that land in this identity's database. When no entity declares a scope, the remote is never asked, so older servers without the grant function keep working.
 
 The snapshot is stored in the system table `rxdb_grant_state` of the local database: local databases are split per identity, switching identity means switching databases, and snapshots never cross databases; after closing and reopening offline, `connect()` reads the last snapshot back and checks writes with it. If the remote connects before the local database, that one refresh is published without being stored; the next refresh stores it. Each instance owns its snapshot; a refresh in one tab is not pushed to other tabs.
+
+### Per-row UI derivation
+
+The `EntityList` of all three frameworks subscribes to `rxdb.grants.snapshot$`, and the entry points for rule-form operations are recomputed whenever the snapshot changes, without reloading the page:
+
+| Entry point     | When it is offered                                                                                                                                                     |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "+ New"         | Some scope **with the entity's prefix** has the permission `create` requires: an `edit` on the caller's own `user:` scope does not offer "+ New" on a `tenant:` entity |
+| Editable row    | The row's scope has the permission `update` requires; otherwise the row carries `_readonly` and "View" opens in view mode                                              |
+| Row "Delete"    | The row's scope has the permission `delete` requires                                                                                                                   |
+| Drag reordering | For a manually ordered entity, a single read-only row turns dragging off for the whole table                                                                           |
+
+While the snapshot is unknown, every rule-form entry point is closed and the list says why at the top ("Permissions not loaded yet"); a read-only instance is explained the same way.
+
+Build your own UI on the same derivation:
+
+```ts
+import { deriveRowCapabilities, deriveWriteBlockedReason } from '@aiao/rxdb-model';
+
+const context = { readOnly: rxdb.readOnly, grants: rxdb.grants.snapshot };
+const { canEdit, canDelete, editReason } = deriveRowCapabilities(metadata, row, context);
+// why not: 'read-only-instance' | 'system' | 'grants-unknown' | 'missing-permission'
+const blocked = deriveWriteBlockedReason(metadata, context); // 'read-only-instance' | 'grants-unknown' | undefined
+```
+
+- Omitting `grants` is the same as an unknown snapshot: rule-form operations are closed. Applications that call `buildEditableColumns()` directly must pass `grants` and rebuild the columns when the snapshot changes; otherwise rule-form rows never offer "Delete".
+- Per-row derivation looks at the row's **current** values, while the write entry points check the persisted pre-image; the two agree once the row is saved. The UI is only quick feedback; the write entry point has the final say (`PermissionDeniedError`, see [Violation list](#violation-list)).
+- `EntityList` has no batch delete; for the all-or-nothing rejection of `removeMany()` / `mutations()` see [How writes are checked](#how-writes-are-checked).
 
 ### Offline and the downgrade window
 

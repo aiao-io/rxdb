@@ -102,7 +102,7 @@ const operators = getDefaultOperatorRegistry().getForField(fields[0]);
 const kind = getInputType(field.type, rule.operator, field.enum); // 'string' | 'number' | 'enum' | 'none' …
 ```
 
-A rule's `value` is recorded exactly as the control passes it; for numeric fields convert the input text to a number before writing. Capability constraints also come from here via `deriveEntityCapabilities(metadata, { readOnly })`, passed to the list's `capabilities`.
+A rule's `value` is recorded exactly as the control passes it; for numeric fields convert the input text to a number before writing. Capability constraints also come from here via `deriveEntityCapabilities(metadata, { readOnly, grants })` (`grants` is `rxdb.grants.snapshot`; pass it again when the snapshot changes), passed to the list's `capabilities`; for entities declared with rules, whether a given row can be edited or deleted comes from `deriveRowCapabilities()`, see [Per-row UI derivation](../model-definition/permissions.md#per-row-ui-derivation).
 
 ### The create form's baseline
 
