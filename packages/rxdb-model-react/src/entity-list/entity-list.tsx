@@ -1138,8 +1138,16 @@ export function EntityList({
 
       {/* 写入口全关的原因（US-029 AC#20）：只读实例，或授权快照还没取到 */}
       {writeBlockedReason !== undefined && (
-        <div role='status' data-testid='entity-write-blocked' className='alert alert-info rounded-none px-4 py-2 text-sm'>
-          {t(writeBlockedReason === 'read-only-instance' ? 'list.writeBlocked.readOnly' : 'list.writeBlocked.grantsUnknown')}
+        <div
+          role='status'
+          data-testid='entity-write-blocked'
+          className='alert alert-info rounded-none px-4 py-2 text-sm'
+        >
+          {t(
+            writeBlockedReason === 'read-only-instance' ? 'list.writeBlocked.readOnly' : (
+              'list.writeBlocked.grantsUnknown'
+            )
+          )}
         </div>
       )}
 

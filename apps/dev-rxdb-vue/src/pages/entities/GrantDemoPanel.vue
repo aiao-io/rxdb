@@ -40,15 +40,31 @@ const apply = (preset: GrantPreset): Promise<void> => rxdb.grants.set(grantPrese
     data-testid="grant-demo"
   >
     <span class="font-medium">{{ t('page.entity.grantDemo.title') }}</span>
-    <span class="text-base-content/70 font-mono" data-testid="grant-demo-status">
+    <span
+      class="text-base-content/70 font-mono"
+      data-testid="grant-demo-status"
+    >
       {{ status.kind === 'message' ? t(status.key) : status.text }}
     </span>
     <span class="flex-1"></span>
-    <button class="btn btn-xs" type="button" @click="seed()">{{ t('page.entity.grantDemo.seed') }}</button>
-    <button class="btn btn-xs" type="button" @click="apply('a-editable')">
+    <button
+      class="btn btn-xs"
+      type="button"
+      @click="seed()"
+      >{{ t('page.entity.grantDemo.seed') }}</button
+    >
+    <button
+      class="btn btn-xs"
+      type="button"
+      @click="apply('a-editable')"
+    >
       {{ t('page.entity.grantDemo.grantA') }}
     </button>
-    <button class="btn btn-xs" type="button" @click="apply('a-revoked')">
+    <button
+      class="btn btn-xs"
+      type="button"
+      @click="apply('a-revoked')"
+    >
       {{ t('page.entity.grantDemo.revokeA') }}
     </button>
   </section>

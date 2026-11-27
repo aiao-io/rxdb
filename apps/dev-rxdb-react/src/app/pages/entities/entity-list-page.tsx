@@ -30,10 +30,7 @@ export default function EntityListPage(): React.JSX.Element {
     () => (rawFixedQuery === null ? undefined : (JSON.parse(rawFixedQuery) as FixedQuery)),
     [rawFixedQuery]
   );
-  const grantDemo = useMemo(
-    () => findGrantDemoTarget(rxdb.config.entities, namespace, name),
-    [rxdb, namespace, name]
-  );
+  const grantDemo = useMemo(() => findGrantDemoTarget(rxdb.config.entities, namespace, name), [rxdb, namespace, name]);
 
   return (
     <div className='page-host bg-base-100 flex h-full flex-col'>

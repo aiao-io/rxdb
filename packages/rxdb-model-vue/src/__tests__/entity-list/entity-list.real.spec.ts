@@ -1181,10 +1181,15 @@ describe('EntityList（真实组件）', () => {
         await scoped.connect(IN_MEMORY_ADAPTER_NAME);
         const { firstValueFrom } = await import('rxjs');
         const scopedAdapter = await firstValueFrom(scoped.localAdapter$);
-        rows = { a: new ScopedNote({ title: 'in-a', tenantId: 'a' }), b: new ScopedNote({ title: 'in-b', tenantId: 'b' }) };
+        rows = {
+          a: new ScopedNote({ title: 'in-a', tenantId: 'a' }),
+          b: new ScopedNote({ title: 'in-b', tenantId: 'b' })
+        };
         // 系统写：经适配器落库不判定，快照未取到也写得进去
         await scopedAdapter.mutations({
-          create: new Map<EntityType, Set<EntityBase>>([[ScopedNote as unknown as EntityType, new Set([rows.a, rows.b])]]),
+          create: new Map<EntityType, Set<EntityBase>>([
+            [ScopedNote as unknown as EntityType, new Set([rows.a, rows.b])]
+          ]),
           update: new Map(),
           remove: new Map()
         });

@@ -38,8 +38,7 @@ export type GrantPreset = 'a-editable' | 'a-revoked';
 
 /** 面板上的快照状态：未取到或为空时给文案键，有作用域时给逐个列出的权限 */
 export type GrantDemoStatus =
-  | { readonly kind: 'message'; readonly key: EntitiesMessageKey }
-  | { readonly kind: 'grants'; readonly text: string };
+  { readonly kind: 'message'; readonly key: EntitiesMessageKey } | { readonly kind: 'grants'; readonly text: string };
 
 /**
  * 列表页是不是演示实体 `TenantNote`；是的话取实例注册的那个类与它声明的作用域

@@ -35,7 +35,10 @@ const grantDemo = computed(() => findGrantDemoTarget(rxdb.config.entities, names
 
 <template>
   <div class="page-host bg-base-100 flex h-full flex-col">
-    <GrantDemoPanel v-if="grantDemo" :target="grantDemo" />
+    <GrantDemoPanel
+      v-if="grantDemo"
+      :target="grantDemo"
+    />
     <EntityList
       class="min-h-0 flex-1"
       :fixed-query="fixedQuery"
