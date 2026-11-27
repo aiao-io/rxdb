@@ -4,7 +4,9 @@ import { defineConfig, devices } from '@playwright/test';
 
 const isCI = Boolean(process.env['CI']);
 const isRemoteE2E = process.env['REMOTE_E2E'] === 'true';
-const port = isRemoteE2E ? 8314 : 8313;
+// 串行计数套件单独启动服务，上一轮的服务退出时不会占用它的端口。
+const remotePort = process.env['REMOTE_E2E_COUNTS'] === 'true' ? 8315 : 8314;
+const port = isRemoteE2E ? remotePort : 8313;
 
 // CI 环境可把 BASE_URL 指向已部署的应用。
 const deployedURL = process.env['BASE_URL'];

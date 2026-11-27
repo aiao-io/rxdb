@@ -7,11 +7,7 @@
  */
 import { RxDBGrantSnapshot, type EntityMetadata } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
-import {
-  deriveEntityCapabilities,
-  deriveRowCapabilities,
-  deriveWriteBlockedReason
-} from '../entity-capabilities.js';
+import { deriveEntityCapabilities, deriveRowCapabilities, deriveWriteBlockedReason } from '../entity-capabilities.js';
 
 type Declared = Pick<EntityMetadata, 'permissions' | 'access'>;
 

@@ -228,13 +228,13 @@ export * from './RxDBError.js';
 export type { SchemaManager } from './schema/SchemaManager.js';
 export * from './sync-state.js';
 // 授权快照（US-029）：规则形式写权限的判定依据
-export { RxDBGrantState } from './grants/grant-state.js';
 export {
   RxDBGrantSnapshot,
   type RxDBGrant,
   type RxDBGrantSource,
   type RxDBGrantStatus
 } from './grants/grant-snapshot.js';
+export { RxDBGrantState } from './grants/grant-state.js';
 export { RxDBGrants } from './grants/grants.js';
 // active 分支基数守卫（FR-048）。**归核心而不是随提交能力走**：「恰好一个 active 分支」是
 // 分支拓扑不变量，核心的 `resolve-current-branch` / `sync-branches` / `create-branch` 本就在写它，

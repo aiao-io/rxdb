@@ -38,6 +38,8 @@ INVEST 检查清单:
 
 ## 现状
 
+本节记录 US-029 立项时的实现。
+
 1. **实体权限是静态的。** [`EntityOperationPermission`](../../../packages/rxdb/src/entity/entity-options.interface.ts) 只有两种值：
 
    ```ts
@@ -46,7 +48,7 @@ INVEST 检查清单:
 
    判定原语 [`assertEntityOperationAllowed`](../../../packages/rxdb/src/entity/entity-permissions.ts) 与整批预检 [`assertMutationsAllowed`](../../../packages/rxdb/src/entity/entity-permissions.ts) 只读元数据，不看行，也不看身份。判定点是 US-027 收敛的公开写入口：门面 `Repository` 的 `create()` / `update()` / `remove()` / `reorder()`，以及 [`EntityManager.mutations()`](../../../packages/rxdb/src/entity/entity-manager.ts) 的整批预检；适配器 / 执行器层不判定。
 
-2. **界面能力按实体，不按行（阶段 D 之前）。** [`deriveEntityCapabilities`](../../../packages/rxdb-model/src/entity-capabilities.ts) 返回整个实体的 `canCreate` / `canEdit` / `canDelete`。三端列表（[Angular](../../../packages/rxdb-model-angular/src/entity-list/entity-list.component.ts)、[React](../../../packages/rxdb-model-react/src/entity-list/entity-list.tsx)、[Vue](../../../packages/rxdb-model-vue/src/entity-list/EntityList.vue) 同构）据此给所有行一并挂只读：
+2. **阶段 D 前的界面能力按实体判定。** [`deriveEntityCapabilities`](../../../packages/rxdb-model/src/entity-capabilities.ts) 返回整个实体的 `canCreate` / `canEdit` / `canDelete`。三端列表曾用同一个实体级判定给所有行挂只读。
 
    ```ts
    const isRowReadonly = capabilities?.canEdit === false;
