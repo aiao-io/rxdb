@@ -448,25 +448,48 @@ function changeSetFinds(scene: Scene): ProbeFindCall[] {
   return scene.probe.finds.filter(call => call.entity === name);
 }
 
-describe('同层的 ChangeSet 合成一次批量查（FR-051 性能）', () => {
-  it('六个节点三层，只发三次 ChangeSet 查询', async () => {
+describe('跨层批量读取 ChangeSet（FR-051 性能）', () => {
+  it('六个节点三层只查一次 ChangeSet', async () => {
     const scene = createWideScene();
 
     await assertCommitGraphIntact(scene.probe.executor, 'main');
 
-    // 逐个查是每个 commit 一次往返，逐层查是每层一次。守卫在 commit / restore /
-    // switch-to 三条写路径上都要跑一遍全图，这个差值直接乘到每一次提交上。
+    const finds = changeSetFinds(scene);
+    expect(finds).toHaveLength(1);
+    expect(finds[0].where).toEqual({
+      combinator: 'and',
+      rules: [{ field: 'commitId', operator: 'in', value: ['head', 'p0', 'p1', 'p2', 'p3', 'root'] }]
+    });
+  });
+
+  it('长直链拆成有界的批次，仍能发现最后一个批次的损坏', async () => {
+    const scene = createScene();
+    scene.addCommit('root', []);
+    let head = 'root';
+    for (let index = 1; index <= 32; index++) {
+      const id = `commit-${index}`;
+      scene.addCommit(id, [head]);
+      head = id;
+    }
+    scene.addBranch('main', head);
+    scene.commitOf('root').contentFingerprint = 'fp-tampered';
+
+    await expect(assertCommitGraphIntact(scene.probe.executor, 'main')).rejects.toMatchObject({
+      commitId: 'root',
+      reason: 'fingerprint_mismatch'
+    });
     expect(changeSetFinds(scene)).toHaveLength(3);
   });
 
-  it('批量查按整层的 id 走 `in`，不是逐个 `=`', async () => {
-    const scene = createWideScene();
+  it('先报告较近提交的内容损坏，再报告较远层的断链', async () => {
+    const scene = createScene();
+    scene.addCommit('head', ['gone']);
+    scene.addBranch('main', 'head');
+    scene.commitOf('head').contentFingerprint = 'fp-tampered';
 
-    await assertCommitGraphIntact(scene.probe.executor, 'main');
-
-    expect(changeSetFinds(scene)[1]?.where).toEqual({
-      combinator: 'and',
-      rules: [{ field: 'commitId', operator: 'in', value: ['p0', 'p1', 'p2', 'p3'] }]
+    await expect(assertCommitGraphIntact(scene.probe.executor, 'main')).rejects.toMatchObject({
+      commitId: 'head',
+      reason: 'fingerprint_mismatch'
     });
   });
 

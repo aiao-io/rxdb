@@ -15,9 +15,8 @@
  * **沿完整父链走，不只走 `firstParentId`。** 后者是带索引的冗余列，遍历它更快，
  * 代价是 merge 节点的第二父整棵子树没被看过——那恰好是最可能出问题的那部分历史。
  *
- * **逐层查，不逐个查。** 节点与它的 ChangeSet 都按 BFS 的一层合成一次 `in`：守卫要在
- * `commit()` / `restore()` / switch-to 三条写路径上各跑一遍全图，逐个查的往返数等于节点数，
- * 而那个数字随历史长度无上限地涨。
+ * **逐层读节点，跨层批查 ChangeSet。** 节点按 BFS 展开，连续几层的 ChangeSet 合成一次 `in`，
+ * 降低线性历史上每次 `commit()` / `restore()` / switch-to 的往返数。
  *
  * **校验只读；落标记是另一个符号、另一个事务。** 守卫跑在调用方的写事务里，而调用方
  * 命中损坏后一定回滚：标记写在这里会跟着一起消失，用户看到操作失败，库里却什么记录
@@ -94,58 +93,27 @@ const toUnitContent = (row: CommitChangeSet): CommitChangeUnitContent => ({
   origin: row.origin
 });
 
-/**
- * 本层 ChangeSet 的分组；键集合恒等于本层的 commit id 集合。
- */
-type LevelChangeSets = ReadonlyMap<string, CommitChangeSet[]>;
+/** 每次查回至多十六个提交的 ChangeSet。 */
+const CHANGE_SET_BATCH_SIZE = 16;
 
-/**
- * 取整层的 ChangeSet，按 `commitId` 分回各自的桶。
- *
- * @param executor - 当前事务执行器
- * @param level - 本层已取回的节点
- * @returns 本层的分组，键集合恒等于 `level` 的 id 集合
- *
- * @remarks
- * 逐个 commit 一次 `=` 查询在 100 个节点的线性历史上就是 100 次往返，而守卫在
- * `commit()` / `restore()` / switch-to 三条写路径上都要跑一遍全图——这个代价直接乘到
- * 每一次提交上。合成一次 `in` 之后，查询数从「每节点一次」降到「每层一次」。
- *
- * **空桶先铺好。** `changeSetCount` 为 0 的节点是合法的（启用提交能力时写下的基线根就是
- * 这个形状），它在批量查的结果里一行都没有。取的时候必须能拿到「空」，而不是「没有这个键」
- * ——后者只能在调用点补一个 `?? []`，那样「这个 commit 根本不在本层」这种真正的编程错误
- * 也被一并兜掉了。
- */
-const loadLevelChangeSets = async (
+/** 每个提交都有一个桶，没有 ChangeSet 的提交也参与校验。 */
+const loadBatchChangeSets = async (
   executor: TransactionExecutor,
-  level: readonly Commit[]
-): Promise<LevelChangeSets> => {
-  const grouped = new Map<string, CommitChangeSet[]>(level.map(commit => [commit.id, []]));
+  commits: readonly Commit[]
+): Promise<ReadonlyMap<string, CommitChangeSet[]>> => {
+  const commitIds = commits.map(commit => commit.id);
+  const grouped = new Map<string, CommitChangeSet[]>(commitIds.map(id => [id, []]));
   const rows = await executor.getRepository(CommitChangeSet).find({
-    where: { combinator: 'and', rules: [{ field: 'commitId', operator: 'in', value: level.map(commit => commit.id) }] }
+    where: { combinator: 'and', rules: [{ field: 'commitId', operator: 'in', value: commitIds }] }
   });
   for (const row of rows) bucketOf(grouped, row.commitId).push(row);
   return grouped;
 };
 
-/**
- * 取某个 commit 的桶；没有这个键就是分组与本层脱了节。
- *
- * @param grouped - {@link loadLevelChangeSets} 的产物
- * @param commitId - 本层的某个 commit id
- * @returns 该 commit 的 ChangeSet 行；一行都没有时是空数组
- * @throws {@link RxDBError} 分组里没有这个键时
- *
- * @remarks
- * 键集合恒等于本层的 id 集合，所以这一支正常跑不到；它挡的是 `in` 的条件被改坏之后
- * 批量查带回了本层之外的行——那时「多出来的行进了谁的桶」决定了一个健康的 commit
- * 会不会被判成损坏，安静地丢掉它等于让一条写错的 where 继续伪装成正确的。
- */
-const bucketOf = (grouped: LevelChangeSets, commitId: string): CommitChangeSet[] => {
+/** 批查回了范围外的行时直接报错。 */
+const bucketOf = (grouped: ReadonlyMap<string, CommitChangeSet[]>, commitId: string): CommitChangeSet[] => {
   const bucket = grouped.get(commitId);
-  if (!bucket) {
-    throw new RxDBError(`Level change-set grouping has no bucket for commit '${commitId}'.`);
-  }
+  if (!bucket) throw new RxDBError(`Change-set grouping has no bucket for commit '${commitId}'.`);
   return bucket;
 };
 
@@ -154,7 +122,7 @@ const bucketOf = (grouped: LevelChangeSets, commitId: string): CommitChangeSet[]
  *
  * @param branchId - 发起校验的分支，只用于组装错误
  * @param commit - 待校验的节点
- * @param changeSets - 该 commit 的 ChangeSet 行，来自 {@link loadLevelChangeSets}
+ * @param changeSets - 该 commit 的 ChangeSet 行，来自 {@link loadBatchChangeSets}
  * @throws {@link CommitGraphCorruptedError} 指纹或 ChangeSet 行数对不上时
  *
  * @remarks
@@ -167,7 +135,7 @@ const bucketOf = (grouped: LevelChangeSets, commitId: string): CommitChangeSet[]
  * 它成立时指纹必然也不成立，反之不然，于是它一成立就是确定的成因。
  *
  * `sequence` 升序排在 JS 侧做，不依赖后端返回顺序：摘要按 `sequence` 发放的顺序合成，
- * 顺序错了，一个完全健康的 commit 会被判成损坏。批量查回来的整层行更是没有任何顺序可言。
+ * 顺序错了，一个完全健康的 commit 会被判成损坏。批量查回来的行没有固定顺序。
  */
 const assertCommitIntact = (branchId: string, commit: Commit, changeSets: readonly CommitChangeSet[]): void => {
   const units = [...changeSets].sort((left, right) => left.sequence - right.sequence).map(toUnitContent);
@@ -186,30 +154,17 @@ const assertCommitIntact = (branchId: string, commit: Commit, changeSets: readon
   }
 };
 
-/**
- * 取本层节点，一个都不许少。
- *
- * @param executor - 当前事务执行器
- * @param branchId - 发起校验的分支，只用于组装错误
- * @param ids - 本层要取的 id
- * @returns 本层节点，顺序与 `ids` 一致
- * @throws {@link CommitGraphCorruptedError} 任一 id 读不回来时
- *
- * @remarks
- * 与读路径共用 {@link loadCommitsByIds}，但结论相反：那里把读不回来的 id 丢掉继续走
- * （一次历史浏览不该因为别处的损坏而失败），这里少一行就是断链——重放到这里会停，
- * 而更早的历史再也拼不出来。
- */
-const loadLevelStrict = async (
+/** 按遍历顺序校验，每次限定查询中的提交数。 */
+const assertChangeSetsIntact = async (
   executor: TransactionExecutor,
   branchId: string,
-  ids: readonly string[]
-): Promise<Commit[]> => {
-  const level = await loadCommitsByIds(executor, ids);
-  if (level.length === ids.length) return level;
-  const found = new Set(level.map(commit => commit.id));
-  const missing = ids.find(id => !found.has(id));
-  throw new CommitGraphCorruptedError(branchId, missing ?? null, 'missing_commit');
+  commits: readonly Commit[]
+): Promise<void> => {
+  for (let offset = 0; offset < commits.length; offset += CHANGE_SET_BATCH_SIZE) {
+    const batch = commits.slice(offset, offset + CHANGE_SET_BATCH_SIZE);
+    const grouped = await loadBatchChangeSets(executor, batch);
+    for (const commit of batch) assertCommitIntact(branchId, commit, bucketOf(grouped, commit.id));
+  }
 };
 
 /**
@@ -256,12 +211,23 @@ export const assertCommitGraphIntact = async (executor: TransactionExecutor, bra
 
   const seen = new Set<string>([ref.headCommitId]);
   let frontier: string[] = [ref.headCommitId];
+  let pending: Commit[] = [];
   while (frontier.length > 0) {
-    const level = await loadLevelStrict(executor, branchId, frontier);
-    const grouped = await loadLevelChangeSets(executor, level);
-    for (const commit of level) assertCommitIntact(branchId, commit, bucketOf(grouped, commit.id));
+    const level = await loadCommitsByIds(executor, frontier);
+    if (level.length !== frontier.length) {
+      await assertChangeSetsIntact(executor, branchId, pending);
+      const found = new Set(level.map(commit => commit.id));
+      const missing = frontier.find(id => !found.has(id));
+      throw new CommitGraphCorruptedError(branchId, missing ?? null, 'missing_commit');
+    }
+    pending = pending.concat(level);
+    if (pending.length >= CHANGE_SET_BATCH_SIZE) {
+      await assertChangeSetsIntact(executor, branchId, pending);
+      pending = [];
+    }
     frontier = nextFrontier(level, seen);
   }
+  await assertChangeSetsIntact(executor, branchId, pending);
 };
 
 /**
