@@ -58,7 +58,7 @@ class UnloggedNote extends EntityBase {
 
 /** Version Branch 测试：分支切换动作的生成与执行。 */
 export function versionBranchSuite(factory: AdapterFactory) {
-  describe.sequential(`Version Branch [${factory.name}]`, () => {
+  describe(`Version Branch [${factory.name}]`, { concurrent: false }, () => {
     let adapter: RxDBAdapterSqliteBase;
     let rxdb: RxDB;
 

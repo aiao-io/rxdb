@@ -6,7 +6,7 @@ license: MIT
 
 # Aiao RxDB 组合指南
 
-事实摘要：`39449362c9257eeedc38ba8aa520eefec36d538f3214872819298e34a181fccc`。由事实源、manifest、插件源码与已验证样例生成，仅列 v0.0.28 已发布包。
+事实摘要：`2c0691d52cdca07189edbb73052c434274805efecff7feb5afb52e7c37c7abaa`。由事实源、manifest、插件源码与已验证样例生成，仅列 v0.0.28 已发布包。
 
 ## 何时使用
 
@@ -141,7 +141,7 @@ license: MIT
 
 ```sh
 pnpm add @aiao/rxdb@^0.0.28 @aiao/rxdb-adapter-pglite@^0.0.28 @aiao/rxdb-plugin-history@^0.0.28
-pnpm add -D typescript@~6.0.3 @types/node@^26.6.6 @types/emscripten@^1.41.6
+pnpm add -D typescript@~6.0.3 @types/node@^26.6.11 @types/emscripten@^1.41.6
 ```
 
 ```json

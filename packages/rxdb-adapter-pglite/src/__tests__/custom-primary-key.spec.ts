@@ -130,7 +130,7 @@ const changesOf = async (
   return changes.map(change => ({ type: change.type, entityId: change.entityId }));
 };
 
-describe.sequential('自定义主键列的写入链路（PGlite）', () => {
+describe('自定义主键列的写入链路（PGlite）', { concurrent: false }, () => {
   let rxdb: RxDB;
   let adapter: RxDBAdapterPGlite;
 
@@ -284,7 +284,7 @@ describe.sequential('自定义主键列的写入链路（PGlite）', () => {
 });
 
 // 单独起一个适配器：实体声明了加密列，适配器要先解锁才能写，不该把这个前提压到上面那组用例身上
-describe.sequential('自定义主键列 + 加密列 + 记日志（PGlite）', () => {
+describe('自定义主键列 + 加密列 + 记日志（PGlite）', { concurrent: false }, () => {
   let rxdb: RxDB;
   let adapter: RxDBAdapterPGlite;
 

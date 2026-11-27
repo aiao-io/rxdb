@@ -100,12 +100,12 @@ overrides:
   tinypool@1: 2.2.0
   typescript: 6.0.3
   undici@7: ^7.29.1
-  vitest: 4.1.11
+  vitest: 5.1.2
   vue: ^3.5.43
   yaml@1: ^1.10.3
 patchedDependencies:
   '@easyops-cn/docusaurus-search-local@0.55.3': patches/@easyops-cn__docusaurus-search-local@0.55.3.patch
-  '@tarojs/vite-runner@4.3.2': patches/@tarojs__vite-runner@4.3.2.patch
+  '@tarojs/vite-runner@4.3.3': patches/@tarojs__vite-runner@4.3.3.patch
   typescript@6.0.3: patches/typescript@6.0.3.patch
 peerDependencyRules:
   allowedVersions:

@@ -366,7 +366,7 @@ class PGliteBigIntM2MRight extends EntityBase<bigint> {
   label!: string;
 }
 
-describe.sequential('PGlite bigint/binary integration', () => {
+describe('PGlite bigint/binary integration', { concurrent: false }, () => {
   let rxdb: RxDB;
   let adapter: RxDBAdapterPGlite;
 

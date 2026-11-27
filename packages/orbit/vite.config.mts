@@ -47,9 +47,9 @@ export default defineConfig({
           name: 'browser',
           globalSetup: ['./fixtures/server.ts'],
           include: ['src/**/*.browser.spec.ts'],
+          api: { host: '127.0.0.1' },
           browser: {
             enabled: true,
-            api: { host: '127.0.0.1' },
             provider: playwright(),
             headless: true,
             screenshotFailures: false,

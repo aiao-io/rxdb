@@ -69,8 +69,8 @@ export function runBigIntBinaryEncryptedSuite(options: EncryptedSuiteOptions): v
     `"${meta.namespace}$${meta.tableName}"`;
   void getEntityMetadata(EncryptedBigIntBinaryHistoryRecord);
 
-  describe.sequential(`Encrypted bigint/binary [${factory.name}]`, () => {
-    describe.sequential('CRUD codec', () => {
+  describe(`Encrypted bigint/binary [${factory.name}]`, { concurrent: false }, () => {
+    describe('CRUD codec', { concurrent: false }, () => {
       let adapter: EncryptedTestAdapter;
 
       beforeAll(async () => {
@@ -152,7 +152,7 @@ export function runBigIntBinaryEncryptedSuite(options: EncryptedSuiteOptions): v
       });
     });
 
-    describe.sequential('history codec', () => {
+    describe('history codec', { concurrent: false }, () => {
       let adapter: EncryptedTestAdapter;
 
       beforeAll(async () => {
@@ -224,7 +224,7 @@ export function runBigIntBinaryEncryptedSuite(options: EncryptedSuiteOptions): v
       });
     });
 
-    describe.sequential('branch codec', () => {
+    describe('branch codec', { concurrent: false }, () => {
       let adapter: EncryptedTestAdapter;
 
       beforeAll(async () => {

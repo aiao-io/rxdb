@@ -184,7 +184,9 @@ function createWindow(): BrowserWindow {
 
     import('electron-reloader').then(reloader => {
       if ('default' in reloader) {
-        reloader.default(module);
+        // electron-reloader 2 是 ESM-only 并要求 import.meta（只用 .url 换算 watch 目录）；
+        // 主进程保持 CJS（ELEC-15 沙箱 preload 依赖 CJS），这里传一个同形状的对象。
+        reloader.default({ url: pathToFileURL(__filename).href } as ImportMeta);
       }
     });
 

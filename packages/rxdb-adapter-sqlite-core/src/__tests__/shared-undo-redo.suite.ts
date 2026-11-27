@@ -20,7 +20,7 @@ const createHistoryReadyFactory = (baseFactory: AdapterFactory): AdapterFactory 
 /** Undo-Redo 测试：版本切换动作的撤销与重做。 */
 export function undoRedoSuite(baseFactory: AdapterFactory) {
   const factory = createHistoryReadyFactory(baseFactory);
-  describe.sequential(`Undo-Redo [${factory.name}]`, () => {
+  describe(`Undo-Redo [${factory.name}]`, { concurrent: false }, () => {
     // ================================================================
     // 1. undo-redo-single — 单个 save 操作
     // ================================================================

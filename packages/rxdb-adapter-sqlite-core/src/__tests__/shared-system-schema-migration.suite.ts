@@ -54,7 +54,7 @@ const reconnectAdapter = async (
 
 /** system schema 迁移测试：系统表结构的升级与持久化。 */
 export function systemSchemaMigrationSuite(factory: AdapterFactory): void {
-  describe.sequential(`system schema migration [${factory.name}]`, () => {
+  describe(`system schema migration [${factory.name}]`, { concurrent: false }, () => {
     let adapter: RxDBAdapterSqliteBase;
 
     beforeAll(async () => {

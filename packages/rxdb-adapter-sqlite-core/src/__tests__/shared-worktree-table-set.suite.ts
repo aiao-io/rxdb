@@ -68,7 +68,7 @@ class WorktreeSeqNote extends EntityBase<number> {
  * 「这张表的触发器此刻挂在哪条分支」。
  */
 export function worktreeTableSetSuite(factory: AdapterFactory): void {
-  describe.sequential(`Worktree table set [${factory.name}]`, () => {
+  describe(`Worktree table set [${factory.name}]`, { concurrent: false }, () => {
     const heldBranch = 'held';
     const tableSet = WorktreeTableSet.of('wt_probe', [Todo]);
     let adapter: RxDBAdapterSqliteBase;

@@ -6,7 +6,7 @@ import { RxDBAdapterPGlite } from '../../index.js';
 import { RxdbAdapterPGliteError } from '../../pglite.utils.js';
 import type { PGliteRepository } from '../../repository/PGliteRepository.js';
 
-describe.sequential('PGliteRepository', () => {
+describe('PGliteRepository', { concurrent: false }, () => {
   let rxdb: RxDB;
   let adapter: RxDBAdapterPGlite;
 

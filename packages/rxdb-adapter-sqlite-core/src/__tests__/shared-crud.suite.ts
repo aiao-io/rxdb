@@ -3198,7 +3198,7 @@ export function crudIntegrationSuite(factory: AdapterFactory) {
   // ========== 加密列：无外键实体上以 Id 结尾的物理列 ==========
   // 外键只认真实关系元数据。单条写入与批量 mutations 都要把这两列写成信封、读回解得开；
   // 锁定时写入被拒，库里的行数与原行内容都不变。
-  describe.sequential(`加密 Id 后缀列（无外键实体） [${factory.name}]`, () => {
+  describe(`加密 Id 后缀列（无外键实体） [${factory.name}]`, { concurrent: false }, () => {
     const keyBytes = new Uint8Array(32).fill(7);
     let adapter: RxDBAdapterSqliteBase;
 

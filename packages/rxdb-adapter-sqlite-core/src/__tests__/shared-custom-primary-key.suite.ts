@@ -132,7 +132,7 @@ class CpkSecret extends EntityBase {
 
 /** 自定义主键列测试：非默认主键列的建表、写入与查询。 */
 export function customPrimaryKeySuite(factory: AdapterFactory) {
-  describe.sequential(`自定义主键列 [${factory.name}]`, () => {
+  describe(`自定义主键列 [${factory.name}]`, { concurrent: false }, () => {
     let adapter: RxDBAdapterSqliteBase;
     let rxdb: RxDB;
 
@@ -288,7 +288,7 @@ export function customPrimaryKeySuite(factory: AdapterFactory) {
     });
   });
 
-  describe.sequential(`自定义主键列 + 加密列 [${factory.name}]`, () => {
+  describe(`自定义主键列 + 加密列 [${factory.name}]`, { concurrent: false }, () => {
     let adapter: RxDBAdapterSqliteBase;
     let rxdb: RxDB;
 
