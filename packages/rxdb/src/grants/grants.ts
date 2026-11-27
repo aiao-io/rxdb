@@ -149,8 +149,7 @@ export class RxDBGrants {
       executor => executor.getRepository(RxDBGrantState).find(STATE_BY_ID),
       false
     );
-    const stored = row === undefined ? RxDBGrantSnapshot.UNKNOWN : snapshotOfRow(row);
-    if (this.#isNotOlder(stored)) this.#publish(stored);
+    this.#publishIfNotOlder(row === undefined ? RxDBGrantSnapshot.UNKNOWN : snapshotOfRow(row));
   }
 
   /**
@@ -194,16 +193,18 @@ export class RxDBGrants {
   }
 
   /**
-   * 本地读回的快照不比内存里的旧：内存里还没有，或读回的取得时间不早于内存里的
+   * 不比内存里的旧才发布：内存里还没有，或这一份的取得时间不早于内存里的
    *
    * @remarks
-   * 远端可能先于本地库连上，那时拿到的远端快照只发布、还没落库；随后打开本地库读回的是更早的一份，不能拿它盖掉。
+   * 两处会送来过时的快照：远端先于本地库连上时，那一次的远端快照只发布、还没落库，随后打开本地库读回的是更早的一份；
+   * 两次刷新交错时，先开始（取得时间更早）的那次可能晚到。两处都不能拿更早的结果盖掉更新的。
    */
-  #isNotOlder(stored: RxDBGrantSnapshot): boolean {
+  #publishIfNotOlder(candidate: RxDBGrantSnapshot): void {
     const current = this.snapshot;
-    if (current.status === 'unknown') return true;
-    if (stored.status === 'unknown') return false;
-    return (stored.updatedAt as Date).getTime() >= (current.updatedAt as Date).getTime();
+    const notOlder =
+      current.status === 'unknown' ||
+      (candidate.status === 'known' && Number(candidate.updatedAt) >= Number(current.updatedAt));
+    if (notOlder) this.#publish(candidate);
   }
 
   /** 有实体声明了作用域：只有这时才需要授权快照，远端才值得问 */
@@ -226,6 +227,7 @@ export class RxDBGrants {
    *
    * @remarks
    * 不等本地库连上：远端可能先连、甚至与本地并行连接，等待本地会让远端的 `connect()` 卡在一条还没开始的连接上。
+   * 取得时间记在问远端之前，交错的两次刷新按它比先后（见 `#publishIfNotOlder`）。
    */
   async #refreshFrom(remote: CallerGrantsReporter): Promise<void> {
     await this.#rxdb.assertCallerIdentity(remote);
@@ -237,7 +239,7 @@ export class RxDBGrants {
         this.#write(executor, { source: 'remote', grants: snapshot.grants, updatedAt })
       );
     }
-    this.#publish(snapshot);
+    this.#publishIfNotOlder(snapshot);
   }
 
   /** 在调用方的事务里写那一行：有就改写，没有就新建 */

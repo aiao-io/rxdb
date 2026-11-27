@@ -74,6 +74,7 @@ export class SyncManager {
   #remote_backend_id: string | null = null;
   /** 本纪元结束的信号，见 {@link SyncManager.destroy}；重放，结束之后才开始等的调用同样立刻收到 */
   readonly #ended$ = new ReplaySubject<void>(1);
+
   /** 同步入口的队尾：后来的排在它后面，见 {@link SyncManager.#exclusive} */
   #exclusiveTail: Promise<unknown> = Promise.resolve();
 
@@ -761,19 +762,6 @@ export class SyncManager {
   }
 
   /**
-   * 与远端交换数据的公开入口进门：核对远端身份，再按远端刷新授权快照（US-029）
-   *
-   * @remarks
-   * 授权快照每一轮同步刷新一次：管理员刚调整的成员权限，在下一轮同步之后的本机写上就生效。只在入口刷新，
-   * 不随 {@link SyncManager.verifyRemoteBackend} 在一轮中途反复问。没有实体声明作用域、或远端不报告授权时，
-   * `rxdb.grants.refresh()` 什么都不做。
-   */
-  async #enter(): Promise<void> {
-    await this.verifyRemoteBackend();
-    await this.rxdb.grants.refresh();
-  }
-
-  /**
    * 远端被重建之后，把本地同步记录改绑到远端当前的身份
    *
    * 同步入口抛出 `RemoteBackendMismatchError` 之后，确认新远端就是要同步的那一个，再调它。
@@ -855,6 +843,19 @@ export class SyncManager {
   getRepositorySyncOrder(direction: SortDirection): RepositoryIdentifier[] {
     const graph = this.getRepositoryDependencyGraph();
     return topologicalSort(graph, direction);
+  }
+
+  /**
+   * 与远端交换数据的公开入口进门：核对远端身份，再按远端刷新授权快照（US-029）
+   *
+   * @remarks
+   * 授权快照每一轮同步刷新一次：管理员刚调整的成员权限，在下一轮同步之后的本机写上就生效。只在入口刷新，
+   * 不随 {@link SyncManager.verifyRemoteBackend} 在一轮中途反复问。没有实体声明作用域、或远端不报告授权时，
+   * `rxdb.grants.refresh()` 什么都不做。
+   */
+  async #enter(): Promise<void> {
+    await this.verifyRemoteBackend();
+    await this.rxdb.grants.refresh();
   }
 
   /**

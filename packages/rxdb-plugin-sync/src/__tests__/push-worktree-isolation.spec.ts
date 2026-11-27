@@ -17,6 +17,7 @@ import { of } from 'rxjs';
 import { expect, it, vi } from 'vitest';
 import { SyncManager } from '../SyncManager.js';
 import { makeBranch } from './fixtures/branch-repository-stub.js';
+import { noGrantSource } from './fixtures/no-grant-source.js';
 import { noIdentityDeclared } from './fixtures/no-identity-declared.js';
 import { User } from './fixtures/test-entities.js';
 import { createTransactionExecutorStub } from './fixtures/transaction-executor-stub.js';
@@ -122,7 +123,8 @@ const createHarness = (changeCount = 1) => {
     },
     dispatchEvent: vi.fn(),
     syncState: { reportRejections: vi.fn() },
-    ...noIdentityDeclared
+    ...noIdentityDeclared,
+    ...noGrantSource
   } as unknown as RxDB;
   const clearUndoHistory = vi.fn<(branchId?: string) => void>();
   const history = {

@@ -166,6 +166,22 @@ describe('refresh()', () => {
     expect(rxdb.grants.snapshot).toBe(RxDBGrantSnapshot.UNKNOWN);
   });
 
+  it('两次刷新交错：先开始的那次晚到，不拿更早的结果盖掉后一次', async () => {
+    const { rxdb, remote } = setup();
+    let releaseFirst!: (grants: readonly RxDBGrant[]) => void;
+    remote.callerGrants
+      ?.mockImplementationOnce(() => new Promise(resolve => (releaseFirst = resolve)))
+      .mockImplementationOnce(async () => [{ scope: 'tenant:a', permissions: ['read'] }]);
+
+    const first = rxdb.grants.refresh();
+    await vi.waitFor(() => expect(remote.callerGrants).toHaveBeenCalledTimes(1));
+    await rxdb.grants.refresh();
+    releaseFirst(REMOTE_GRANTS);
+    await first;
+
+    expect(rxdb.grants.snapshot.has('tenant:a', 'edit')).toBe(false);
+  });
+
   it('远端交回的授权形状不对：报错，不当成空快照', async () => {
     const { rxdb, remote } = setup();
     remote.callerGrants?.mockResolvedValueOnce([{ scope: '', permissions: ['edit'] }]);

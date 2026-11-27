@@ -164,10 +164,10 @@ INVEST 检查清单:
 | 11  | 快照变化：a 的 `edit` 被收回                                                                                                                                          | 再写 a 的行                                                                                             | 立即按新快照拒绝；快照事件发出一次                                                                                                        | ✅   |
 | 12  | 实体权限为 `'both'` / `'system'` 简写                                                                                                                                 | 2 值 × 3 操作，经公开写入口与适配器 / 执行器层各写一次                                                  | 与 US-027 一致：公开写入口按声明放行或拒绝，适配器 / 执行器层一律放行                                                                     | ✅   |
 | 13  | 本地后端                                                                                                                                                              | 在 SQLite 系与 PGlite 上跑 AC#4～11 的判定用例                                                          | 全绿，结果一致                                                                                                                            | ✅   |
-| 14  | 真实 Supabase 栈加载 US-234 的参考 SQL；员工身份（普通 authenticated）                                                                                                | connect 后读快照；在本机改一件本租户的商品                                                              | 快照与 `rxdb_caller_grants()` 一致；本机写当场 `PermissionDeniedError`，没有待推修改                                                      | ⬜   |
-| 15  | 管理员在本机改了商品、未推送，期间被降为员工                                                                                                                          | 推送，再同步，再在本机改                                                                                | 推送被拒、本机对齐、进被拒清单（US-218）；同步后快照刷新，之后的本机写当场被拒                                                            | ⬜   |
-| 16  | 实体声明了作用域，远端没有部署 `rxdb_caller_grants()`                                                                                                                 | connect                                                                                                 | 报错并指出缺的函数与部署文档；不静默放行，也不当成空快照                                                                                  | ⬜   |
-| 17  | `website/docs`                                                                                                                                                        | 阅读                                                                                                    | 写明声明方式、快照的来源与刷新、离线与降权窗口、快速失败不是安全边界、与 RLS 对口径的写法                                                 | ⬜   |
+| 14  | 真实 Supabase 栈加载 US-234 的参考 SQL；员工身份（普通 authenticated）                                                                                                | connect 后读快照；在本机改一件本租户的商品                                                              | 快照与 `rxdb_caller_grants()` 一致；本机写当场 `PermissionDeniedError`，没有待推修改                                                      | ✅   |
+| 15  | 管理员在本机改了商品、未推送，期间被降为员工                                                                                                                          | 推送，再同步，再在本机改                                                                                | 推送被拒、本机对齐、进被拒清单（US-218）；同步后快照刷新，之后的本机写当场被拒                                                            | ✅   |
+| 16  | 实体声明了作用域，远端没有部署 `rxdb_caller_grants()`                                                                                                                 | connect                                                                                                 | 报错并指出缺的函数与部署文档；不静默放行，也不当成空快照                                                                                  | ✅   |
+| 17  | `website/docs`                                                                                                                                                        | 阅读                                                                                                    | 写明声明方式、快照的来源与刷新、离线与降权窗口、快速失败不是安全边界、与 RLS 对口径的写法                                                 | ✅   |
 | 18  | 三端 demo：声明了作用域的演示实体，快照里 a 可编辑、b 只读                                                                                                            | 打开列表与详情；选中 a、b 的行批量删除                                                                  | a 的行可编辑、可删，b 的行只读、可查看；新增与表单只放行 a；批量删除整批拒绝并指出没有权限的行；Angular / React / Vue 同一组 e2e 结果一致 | ⬜   |
 | 19  | 同上，页面开着                                                                                                                                                        | 收回快照里 a 的 `edit`                                                                                  | 不刷新页面，a 的行变只读、删除入口消失；三端一致                                                                                          | ⬜   |
 | 20  | 快照未取到；实例只读                                                                                                                                                  | 打开列表                                                                                                | 写入口全关，行可查看，原因可读；三端一致                                                                                                  | ⬜   |
@@ -179,7 +179,8 @@ INVEST 检查清单:
 - AC#1～3：`packages/rxdb/src/__tests__/entity/entity-access-declaration.spec.ts`；`@GraphEntity` 那一条在 `packages/rxdb-plugin-graph/src/__tests__/permission-rules-ban.spec.ts`
 - AC#4～12：`packages/rxdb/src/__tests__/entity/entity-access-enforcement.spec.ts`（判定矩阵）与 `packages/rxdb/src/__tests__/grants/grant-snapshot.spec.ts`（快照状态、设入、事件、读回）
 - AC#13：`packages/rxdb-adapter-pglite/src/__tests__/entity-access-rules.spec.ts`（含 AC#1 的真实 `IdCard` / `Order`、AC#10 同名库重开）与 SQLite 系共享套件 `entityAccessRulesSuite`（`packages/rxdb-adapter-sqlite-core/src/__tests__/shared-entity-access-rules.suite.ts`，六个 SQLite 系后端都接入）
-- AC#14～16：`packages/rxdb-adapter-supabase/src/__tests__/` 的真栈用例，以普通 authenticated 测试用户运行
+- AC#14～16：真栈用例 `packages/rxdb-adapter-supabase/src/__tests__/caller-grants-source.spec.ts`，以普通 authenticated 测试用户运行；降权经 US-234 的 `demo_set_member_permissions` 由另一个管理员发起。AC#16 不改共享栈：客户端外套一层，把 `rxdb_caller_grants` 换成不存在的函数名，拿真栈对缺函数的真实应答（PGRST202），适配器的映射与核心的连接处置照常走一遍；对照用例证明没有实体声明作用域时不问这个函数。应答映射另有桩客户端用例 `caller-grants.spec.ts`，核心的来源规则、刷新时机与离线处置在 `packages/rxdb/src/__tests__/grants/grant-remote-source.spec.ts`，同步入口刷新在 `packages/rxdb-plugin-sync/src/__tests__/SyncManager.orchestration.spec.ts`
+- AC#17：`website/docs/model-definition/permissions.md`「按作用域的成员权限」（英文同名页）、`website/docs/adapters/supabase.md`「本机按成员权限判定」、`website/docs/migration/supabase-member-permissions.md` 第 3 步
 - AC#18～20：三端 `entity-list.real.spec` 与 `apps/dev-rxdb-{angular,react,vue}-e2e/src/entity-model.spec.ts`
 
 ## 交付阶段
@@ -188,7 +189,7 @@ INVEST 检查清单:
 | ---- | ------------------------------------------------------------------------------------------------ | ---------------------------------- | ---------------------------------------- | ------ | ---- |
 | A    | 声明与校验：`access.scope`、规则形式与 TSDoc、metadata-validate、就近继承                        | 未声明零回归；配置错误可定位       | US-027 阶段 A（Done）                    | 1～3   | ✅   |
 | B    | 授权快照与本地判定：快照状态与应用设入、按身份落库、全部公开写入口判定、前像、批量原子、违规清单 | 判定矩阵与写入口全绿；本地后端一致 | A；US-027 阶段 B（Done）；US-035（Done） | 4～13  | ✅   |
-| C    | Supabase 授权来源：适配器读 `rxdb_caller_grants()`、刷新、缺函数时连接报错；文档                 | 真实 Supabase + 普通身份全绿       | B；US-234 阶段 A                         | 14～17 | ⬜   |
+| C    | Supabase 授权来源：适配器读 `rxdb_caller_grants()`、刷新、缺函数时连接报错；文档                 | 真实 Supabase + 普通身份全绿       | B；US-234 阶段 A                         | 14～17 | ✅   |
 | D    | 三端按行派生：rxdb-model 行级能力，三端列表与详情，三端 demo 的演示实体、快照开关与 e2e          | 三端同一组用例全绿                 | B；US-027 阶段 C（Done）                 | 18～20 | ⬜   |
 
 一阶段一 PR，每阶段独立更新 AC 状态与 API 基线；C、D 可并行。负向用例先红后绿；核心判定代码覆盖率 ≥ 90%，其余包 ≥ 80%。阶段 C 禁止用 mock 的 `SupabaseDataError` 代替真实 RLS。
@@ -209,7 +210,10 @@ INVEST 检查清单:
 
 - **快照落库**：新的核心系统表 `rxdb_grant_state`（`RxDBGrantState`，`log: false`），单行（主键 `current`）：`source`、`grants`（规范化后的 JSON）、`updatedAt`。「未取到」就是没有这一行，「已取到、一项授权都没有」是 `grants` 为空数组的一行。既有库由 `connect()` 的系统表补建建出，不升系统表结构版本；`connect()` 打开既有库时经引导期事务读回（普通查询的就绪门等的正是这一次 `connect()`）。读不懂的行按未取到处理（判定 fail-closed），下一次设入覆盖它。
 - **快照的形状与事件**：`rxdb.grants`（`RxDBGrants`）给出 `snapshot` / `snapshot$` / `set()`；`RxDBGrantSnapshot` 不可变，同一作用域合并、作用域与权限名按码元排序去重，`equals()` 不比取得时间，`snapshot$` 只在内容变化时发出。`set()` 先写库再发布，写库失败快照不变。断连不清快照；多标签页不互相同步（各自设入或刷新）。
-- **两种来源**：阶段 B 只有应用设入（来源 `'app'`）。远端来源与「一个实例只认一个来源」的报错归阶段 C：远端适配器报告授权时，`set()` 抛错。
+- **两种来源**（阶段 C 落定）：远端适配器的可选能力 `RxDBAdapterRemoteBase.callerGrants()` 决定来源——有实体声明了 `access`、且配置的远端实现了它，快照就来自远端，`set()` 抛错并提示用 `rxdb.grants.refresh()`；否则来源是应用设入。没有实体声明作用域时远端一次都不问，没部署 `rxdb_caller_grants()` 的旧服务端照常可用。
+- **远端的刷新时机**：远端 `connect()` 时（`adapter.connect()` 之后、置位已连接之前）问一次；同步插件八个公开入口（pull / push / sync、按仓库的三个、bulkSync、syncBranches）在核对远端身份之后各问一次（入口内部逐仓库的 `bulkSyncInSession` 与一轮中途的远端身份核对都不再问，免得同一轮问两次）；应用随时可调 `rxdb.grants.refresh()`。每次问之前先核对会话身份（授权要落进这个身份的库）。
+- **离线与配置错误**：连接时连不上远端（`isNetworkError`）沿用上次的快照、连接照常完成；缺函数（Supabase 回 PGRST202，适配器报 `SupabaseConfigError`）、应答形状不对、会话身份不符都让连接失败并撤回适配器名，与打开时身份对不上同一种处置。同步入口与 `refresh()` 的错误原样抛出。
+- **本地库还没连上**：刷新只发布、不落库，不等本地连接（并行连接、先连远端都不卡住）；下一次刷新落库。相应地，本地 `connect()` 读回改成「库里的那一行不比内存里的旧才发布」，先连远端拿到的新快照不被旧行盖掉。
 - **违规清单的兼容**：`'system'` 的违规仍是三个字段、消息首行不变；规则形式的违规是扩展接口 `PermissionRuleViolation`（`id` / `scope` / `requires` / `reason`），用 `isPermissionRuleViolation()` 区分。一行一个作用域一条，按 create / update / delete 排序。
 - **前像的读法与事务落点**：经事务执行器的仓储 `find({ id in [...] , limit })`，读仓储交回的实例的 `origin`（与手动排序读「落库值快照」同口径）；显式给 `limit`，批量超过 100 行也不漏。create 不读库（新行就在实例上），在碰适配器之前同步判；单条 update / delete 与批量写改走「本地主适配器事务：表集断言 → 读前像 → 判定 → 写」，与适配器自己的 `mutations()` 同一个事务体；重排在 `reorderRow()` 算出落点之后、写入之前判；批里没有规则写时写路径与现状逐字一致。读不到前像的行（库里已经没有）不判，存储层对它是空写。快照在全部前像读完之后取一次。
 - **`deriveEntityCapabilities`**：阶段 B 不动 `rxdb-model`。它按 `=== 'both'` 派生，规则形式在阶段 D 之前一律得到「入口关闭」，与「授权未知即拒绝」同口径；按行派生与四个调用方归阶段 D。
@@ -218,21 +222,23 @@ INVEST 检查清单:
 
 ## 实现文件
 
-| 阶段 | 文件                                                                                                                           | 改动                                          |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------- |
-| A    | `packages/rxdb/src/entity/entity-options.interface.ts`                                                                         | `access` 声明、规则形式的类型与 TSDoc         |
-| A    | `packages/rxdb/src/entity/metadata-transition.ts`、`entity-permissions.ts`                                                     | `access` 就近继承；读取作用域与规则的函数     |
-| A    | `packages/rxdb/src/entity/metadata-validate.ts`、`rxdb.types.ts`、`entity-manager.ts`                                          | `invalidAccess`、规则校验、主端限制、仓储限制 |
-| A    | `packages/rxdb-plugin-graph/src/plugin.ts`                                                                                     | `GraphRepository` 声明不支持规则形式          |
-| B    | `packages/rxdb/src/entity/permission-rules.ts`、`entity-permissions.ts`                                                        | 按行判定、前像、违规清单                      |
-| B    | `packages/rxdb/src/repository/Repository.ts`、`packages/rxdb/src/entity/entity-manager.ts`、`sortable/sortable.utils.ts`       | 公开写入口接入规则判定                        |
-| B    | `packages/rxdb/src/grants/`、`packages/rxdb/src/RxDB.ts`、`system/system-entities.ts`                                          | 授权快照的状态、设入、事件、落库与读回        |
-| B    | `packages/rxdb-adapter-pglite/src/__tests__/`、`packages/rxdb-adapter-sqlite-core/src/__tests__/`（六个后端的 setup 接入）     | 本地后端用例                                  |
-| C    | `packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts`                                                                    | 读 `rxdb_caller_grants()`、刷新、缺函数时报错 |
-| C    | `packages/rxdb-adapter-supabase/src/__tests__/`                                                                                | 真栈普通身份用例                              |
-| C    | `website/docs/`                                                                                                                | 声明方式与 Supabase 授权来源                  |
-| D    | `packages/rxdb-model/src/entity-capabilities.ts`、`packages/rxdb-model-{angular,react,vue}/src/entity-list/`、`entity-detail/` | 行级能力派生（框架无关部分 + 三端）           |
-| D    | `apps/dev-rxdb-{angular,react,vue}` 与对应的 `-e2e`                                                                            | 声明了作用域的演示实体、快照开关与同一组 e2e  |
+| 阶段 | 文件                                                                                                                           | 改动                                                    |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------- |
+| A    | `packages/rxdb/src/entity/entity-options.interface.ts`                                                                         | `access` 声明、规则形式的类型与 TSDoc                   |
+| A    | `packages/rxdb/src/entity/metadata-transition.ts`、`entity-permissions.ts`                                                     | `access` 就近继承；读取作用域与规则的函数               |
+| A    | `packages/rxdb/src/entity/metadata-validate.ts`、`rxdb.types.ts`、`entity-manager.ts`                                          | `invalidAccess`、规则校验、主端限制、仓储限制           |
+| A    | `packages/rxdb-plugin-graph/src/plugin.ts`                                                                                     | `GraphRepository` 声明不支持规则形式                    |
+| B    | `packages/rxdb/src/entity/permission-rules.ts`、`entity-permissions.ts`                                                        | 按行判定、前像、违规清单                                |
+| B    | `packages/rxdb/src/repository/Repository.ts`、`packages/rxdb/src/entity/entity-manager.ts`、`sortable/sortable.utils.ts`       | 公开写入口接入规则判定                                  |
+| B    | `packages/rxdb/src/grants/`、`packages/rxdb/src/RxDB.ts`、`system/system-entities.ts`                                          | 授权快照的状态、设入、事件、落库与读回                  |
+| B    | `packages/rxdb-adapter-pglite/src/__tests__/`、`packages/rxdb-adapter-sqlite-core/src/__tests__/`（六个后端的 setup 接入）     | 本地后端用例                                            |
+| C    | `packages/rxdb/src/rxdb-adapter.ts`、`packages/rxdb/src/grants/grants.ts`、`packages/rxdb/src/RxDB.ts`                         | `callerGrants()` 契约、远端来源、刷新、连接时刷新       |
+| C    | `packages/rxdb-plugin-sync/src/SyncManager.ts`                                                                                 | 同步入口刷新授权快照                                    |
+| C    | `packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts`                                                                    | 读 `rxdb_caller_grants()`、缺函数时报错                 |
+| C    | `packages/rxdb-adapter-supabase/src/__tests__/`                                                                                | 真栈普通身份用例与应答映射用例                          |
+| C    | `website/docs/`                                                                                                                | 声明方式、快照来源与刷新、离线与降权窗口、与 RLS 对口径 |
+| D    | `packages/rxdb-model/src/entity-capabilities.ts`、`packages/rxdb-model-{angular,react,vue}/src/entity-list/`、`entity-detail/` | 行级能力派生（框架无关部分 + 三端）                     |
+| D    | `apps/dev-rxdb-{angular,react,vue}` 与对应的 `-e2e`                                                                            | 声明了作用域的演示实体、快照开关与同一组 e2e            |
 
 ## References
 

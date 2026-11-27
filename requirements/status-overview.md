@@ -20,7 +20,7 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 
 ## 进行中（15 条）
 
-- [US-029 按作用域的成员写权限：实体声明作用域与所需权限，本地写入口快速拒绝，三端按行显隐入口](stories/core/US-029-rbac-owner-role-permission.md)：未通过 AC#14～#20（7/20）
+- [US-029 按作用域的成员写权限：实体声明作用域与所需权限，本地写入口快速拒绝，三端按行显隐入口](stories/core/US-029-rbac-owner-role-permission.md)：未通过 AC#18～#20（3/20）
 - [US-211 多端小程序宿主（支付宝 / 抖音 / 百度 / QQ）](stories/adapter/US-211-multi-miniprogram-platforms.md)：未通过 AC#14、#16、#18（3/21）
 - [US-234 Supabase 租户内成员权限：管理员能改、员工只能看，dev-rxdb-supabase 完整演示](stories/adapter/US-234-supabase-tenant-member-permissions.md)：未通过 AC#17～#20（4/20）
 - [US-403 实体组件 Headless API 与可定制展示层](stories/ui/US-403-entity-components-headless.md)：未通过 AC#1～#16、#18～#21（20/21）
