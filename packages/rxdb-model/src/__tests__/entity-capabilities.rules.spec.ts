@@ -85,7 +85,10 @@ describe('deriveEntityCapabilities：规则形式（US-029）', () => {
   });
 
   it('前缀为空串：任何作用域都算', () => {
-    const declared: Declared = { access: { scope: { property: 'ownerKey' } }, permissions: { create: EDIT } };
+    const declared: Declared = {
+      access: { scope: { property: 'ownerKey' } },
+      permissions: { create: EDIT, update: 'both', delete: 'both' }
+    };
 
     expect(deriveEntityCapabilities(declared, { grants: ONLY_READ }).canCreate).toBe(true);
   });
@@ -127,7 +130,7 @@ describe('deriveRowCapabilities（US-029）', () => {
   });
 
   it('update 是规则、delete 是 system：编辑按行，删除恒关且原因是只许系统写', () => {
-    const declared = scoped({ update: EDIT, delete: 'system' });
+    const declared = scoped({ create: 'both', update: EDIT, delete: 'system' });
 
     expect(deriveRowCapabilities(declared, { id: '1', tenantId: 'a' }, { grants: GRANTS })).toEqual({
       canEdit: true,
