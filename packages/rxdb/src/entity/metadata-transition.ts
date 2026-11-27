@@ -77,7 +77,7 @@ const merge_features = (
  * 用 `!== undefined` 而不是真值判断：`log: false` 是有意义的声明（关掉变更日志），
  * 不能被更远祖先的 `true` 顶掉。
  */
-const nearest_declared = <K extends 'repository' | 'sync' | 'log' | 'manualOrder'>(
+const nearest_declared = <K extends 'repository' | 'sync' | 'log' | 'manualOrder' | 'access'>(
   metadataOptionsArray: readonly EntityMetadataOptions[],
   key: K
 ): EntityMetadataOptions[K] => {
@@ -287,6 +287,9 @@ export const transitionMetadata = (
   // 整条链都没声明时同样不写这个键；非法值原样留给注册期校验
   const permissions = mergeEntityPermissions(metadataOptionsArray);
   if (permissions !== undefined) metadata.permissions = permissions as EntityMetadataType['permissions'];
+  // 作用域声明整体就近（US-029）：一行只属于一个作用域，按键合并会拼出谁都没声明过的组合；畸形值同样留给注册期校验
+  const access = nearest_declared(metadataOptionsArray, 'access');
+  if (access !== undefined) metadata.access = access;
   // 默认仓库名的兜底必须在继承**之后**：先定死成 'Repository'，
   // 祖先声明的门面名（如树插件的 'TreeRepository'）就再也传不下来
   metadata.repository = nearest_declared(metadataOptionsArray, 'repository') || 'Repository';

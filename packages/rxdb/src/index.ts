@@ -30,7 +30,11 @@ export {
   assertEntityOperationAllowed,
   assertMutationsAllowed,
   assertSystemEntityPermissions,
+  getEntityAccessScope,
   getEntityPermission,
+  getEntityPermissionRule,
+  isEntityOperationRule,
+  type EntityAccessScope,
   type PermissionViolation
 } from './entity/entity-permissions.js';
 // 只转类型不转类：`RxDB.entityManager` 是公开成员，用户接得到就得能具名；

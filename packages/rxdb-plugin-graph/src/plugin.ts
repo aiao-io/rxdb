@@ -24,7 +24,10 @@ export class RxDBPluginGraph extends RxDBPluginBase implements IRxDBPlugin {
       'GraphRepository',
       {
         entityGenerator: graphEdgeEntityFactory,
-        class: GraphRepository
+        class: GraphRepository,
+        // 规则形式按行判定落在门面写入口上（US-029）；边是 addEdge() 直写边表的，判定管不到
+        unsupportedPermissionRules:
+          'addEdge() / removeEdge() 直写边表、不经门面写入口，规则判定管不到这些写；节点权限请用 both / system 简写。'
       },
       scope
     );

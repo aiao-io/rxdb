@@ -42,17 +42,88 @@ export interface EntityMetadataFeatures {
 export type EntityOperation = 'create' | 'update' | 'delete';
 
 /**
+ * 规则形式的写权限：调用者在**这一行所属的作用域**上要有 `requires` 这项成员权限（US-029）
+ *
+ * @remarks
+ * 作用域由实体的 {@link EntityAccessOptions.scope} 声明，调用者在各作用域上的权限来自授权快照
+ * （`rxdb.grants`）。权限名只校验结构（非空字符串），不建注册表，语义归应用：Supabase 参考实现用
+ * epic-015 的六项（`read` / `edit` / `comment` / `review` / `merge` / `manage`）。
+ *
+ * 判定点与 `'system'` 相同，是门面的公开写入口；适配器 / 执行器层的系统写（同步合并、撤销重做回放、
+ * 外键级联、迁移）不判定。它是**快速失败**，不是安全边界：越权的写在本机当场被拒，不留一条注定被
+ * 远端 RLS 拒绝的待推修改。
+ *
+ * @example
+ * ```typescript
+ * permissions: { update: { requires: 'edit' } }
+ * ```
+ */
+export interface EntityOperationRule {
+  /** 所需的成员权限名，非空字符串 */
+  readonly requires: string;
+}
+
+/**
  * 单个写操作对谁开放
  *
  * - `'both'`：用户与系统都可以（默认）
  * - `'system'`：只许系统写，用户经门面 `Repository` 写会被拦下
+ * - {@link EntityOperationRule}：用户要在行的作用域上有所需权限（US-029），要求实体声明 {@link EntityAccessOptions.scope}
  *
  * @remarks
  * 不支持 `'none'`（谁都不许写）：真正的不可变要靠 SQL 触发器兜底，门面一层挡不住同步、
  * 迁移与适配器直写，声明了也只是假象。不支持 `'user'`（只许用户、不许系统）：在分层模型里
  * 「系统」就是门面之下的适配器与执行器路径，这一层无从判断某次直写是不是「用户的意思」。
  */
-export type EntityOperationPermission = 'both' | 'system';
+export type EntityOperationPermission = 'both' | 'system' | EntityOperationRule;
+
+/**
+ * 行所属的作用域：作用域键 = `prefix` + 属性值（US-029）
+ *
+ * @remarks
+ * `property` 必须是实体（含继承）上已声明的普通属性：`string` 或 `uuid` 类型、不可空、不加密、不是计算属性，
+ * 也不是关系生成的外键列。不满足就在 `RxDB.init()` 报错，引擎不自动补列。
+ *
+ * 审计字段（`createdBy` / `updatedBy`）不能当作用域：它们可空，推送时还会被推送那一刻的身份覆盖。
+ * 「仅所有者」就是作用域的特例：作用域取所有者属性、前缀 `user:`。
+ */
+export interface EntityAccessScopeOptions {
+  /** 作用域属性名，如 `'tenantId'` */
+  readonly property: string;
+  /**
+   * 作用域键前缀，如 `'tenant:'`
+   *
+   * @default ''
+   */
+  readonly prefix?: string;
+}
+
+/**
+ * 实体的访问声明（US-029）
+ *
+ * @remarks
+ * 只声明「一行属于哪个作用域」；每个写操作要哪项权限由 {@link EntityPermissionOptions} 的规则形式声明。
+ * 沿原型链就近继承：子类不声明时沿用父类的整份声明，声明了就整体覆盖。
+ * 不影响读：读授权按分区（US-033），本地不按作用域隐藏已经同步下来的行。
+ *
+ * @example
+ * ```typescript
+ * @Entity({
+ *   name: 'CatalogItem',
+ *   access: { scope: { property: 'tenantId', prefix: 'tenant:' } },
+ *   permissions: {
+ *     create: { requires: 'edit' },
+ *     update: { requires: 'edit' },
+ *     delete: { requires: 'edit' }
+ *   }
+ * })
+ * class CatalogItem extends EntityBase {}
+ * ```
+ */
+export interface EntityAccessOptions {
+  /** 行所属的作用域 */
+  readonly scope: EntityAccessScopeOptions;
+}
 
 /**
  * 实体的写操作权限声明
@@ -65,6 +136,10 @@ export type EntityOperationPermission = 'both' | 'system';
  *   `EntityManager.mutations()` 整批预检，以及 `Repository.reorder()`（读邻居与写入走执行器，
  *   所以在开事务前自己按 `update` 判定）；
  * - 不检查：适配器与执行器层（同步拉取、迁移、历史回放、工作树物化都走这里），这是系统写入的通道。
+ *
+ * 规则形式（{@link EntityOperationRule}）按行判定：create 看新行的作用域，update 看持久化前像与写后的行
+ * （改了作用域属性就两边都要有权限），delete 看持久化前像；前像与写入在本地主适配器的同一个事务里。
+ * 授权快照还没取到时一律拒绝。只支持本地主端：remote-only 与 QueryCache 的写不经本地事务。
  *
  * 按操作就近继承：子类只写 `{ delete: 'system' }` 时，父类收紧的 `update` 照样传下来；
  * 整条原型链都没声明的操作取 `'both'`。
@@ -322,6 +397,11 @@ export interface EntityMetadataOptions {
    * @default 三操作都是 `'both'`
    */
   permissions?: EntityPermissionOptions;
+
+  /**
+   * 行所属的作用域，见 {@link EntityAccessOptions}；规则形式的写权限要求声明它
+   */
+  access?: EntityAccessOptions;
 
   /**
    * 手动排序：`true` 为整表一条序列，`{ groupBy }` 为按分组字段各自一条序列

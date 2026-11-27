@@ -133,7 +133,8 @@ export class EntityManager {
     const violations = validateEntityMetadataSet(
       this.rxdb.config.entities.map(EntityType => getEntityMetadata(EntityType)),
       this.rxdb.entitySync,
-      (repository, type) => this.rxdb.getRepositoryConfig(repository)?.unsupportedSyncTypes?.[type]
+      (repository, type) => this.rxdb.getRepositoryConfig(repository)?.unsupportedSyncTypes?.[type],
+      repository => this.rxdb.getRepositoryConfig(repository)?.unsupportedPermissionRules
     );
     if (violations.length > 0) {
       throw new RxDBError(formatMetadataViolations(violations));

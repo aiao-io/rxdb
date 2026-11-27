@@ -29,12 +29,13 @@ import {
   SyncType
 } from './metadata-options.interface.js';
 import { EntityMetadata } from './metadata.interface.js';
+import { selectPrimaryAdapterKind } from './primary-adapter.js';
 
 /**
  * 注册期元数据校验规则。
  *
  * @remarks
- * 全集 21 项，由 {@link validateEntityMetadata} 产出。
+ * 全集 22 项，由 {@link validateEntityMetadata} 产出。
  * `missingRelationPrimary` / `unsupportedRelationValueType` 属于 {@link RelationResolutionRule}，
  * 由字段描述 DTO 的生成阶段产出，不在本联合内。
  */
@@ -55,6 +56,7 @@ export type MetadataValidationRule =
   | 'unsupportedRepositorySyncType'
   | 'missingQueryCacheAdapter'
   | 'invalidPermissions'
+  | 'invalidAccess'
   | 'invalidManualOrder'
   | 'invalidCheck'
   | 'invalidIndexWhere'
@@ -561,8 +563,74 @@ const UNSUPPORTED_PERMISSION_REASONS: ReadonlyMap<unknown, string> = new Map([
   ]
 ]);
 
-/** 校验写操作权限声明：普通对象、只含三个操作键、值只能是 `'both'` / `'system'`。 */
-const validatePermissions = (collector: ViolationCollector, permissions: unknown): void => {
+/**
+ * 查询某个仓储撑不撑得住规则形式的写权限（US-029）。
+ *
+ * 返回**不支持的理由**（会原样拼进违规消息），支持时返回 `undefined`。
+ *
+ * @remarks
+ * 与 {@link SyncTypeRestrictionLookup} 同一个理由由仓储声明：「哪种仓储的写绕开了门面写入口」是仓储实现的知识，
+ * 核心不认识任何具体仓储名。实现方是 {@link IRepositoryConfig.unsupportedPermissionRules}。
+ *
+ * @param repository - 实体声明的仓储名（`EntityMetadata.repository`）
+ * @returns 不支持时返回理由文本，支持时返回 `undefined`
+ */
+export type PermissionRuleRestrictionLookup = (repository: string) => string | undefined;
+
+/** 判定规则形式能不能落在这个实体上要用到的上下文 */
+interface PermissionRuleContext {
+  readonly metadata: EntityMetadata;
+  /** 实体生效的同步配置；不知道（没传库级配置、实体也没声明）时为 `undefined` */
+  readonly sync: SyncOptions | undefined;
+  readonly isPermissionRuleUnsupported: PermissionRuleRestrictionLookup | undefined;
+}
+
+/** 规则形式 `{ requires }` 自身的形状违规；合法为 `null` */
+const ruleShapeIssue = (rule: Record<string, unknown>): string | null => {
+  const unknownKeys = Object.keys(rule).filter(key => key !== 'requires');
+  if (unknownKeys.length > 0) return `规则不接受键 ${unknownKeys.join('、')}：只有 requires`;
+  const { requires } = rule;
+  if (typeof requires === 'string' && requires.length > 0) return null;
+  return `规则的 requires 必须是非空字符串（权限名），实际为 ${String(JSON.stringify(requires))}`;
+};
+
+/**
+ * 规则形式落不到这个实体上的原因；能落为 `null`
+ *
+ * @remarks
+ * 前像要在本地主适配器的事务里读：remote-only 的写直接打远端，QueryCache 的写逐条 remote-then-local，
+ * 两者都没有那个事务。生效配置未知（只校验装饰器声明）时不判主端，留给 `RxDB.init()` 按生效配置再判。
+ */
+const ruleTargetIssue = ({ metadata, sync, isPermissionRuleUnsupported }: PermissionRuleContext): string | null => {
+  if (metadata.access === undefined) return '规则形式要求实体声明 access.scope：没有作用域就无从按行判定';
+  const reason = isPermissionRuleUnsupported?.(metadata.repository);
+  if (reason !== undefined) return `${metadata.repository} 不支持规则形式的权限：${reason}`;
+  if (sync === undefined) return null;
+  if (sync.type === SyncType.QueryCache) {
+    return '规则形式不支持 SyncType.QueryCache：QueryCache 的写逐条 remote-then-local，读不到本地事务里的持久化前像';
+  }
+  if (selectPrimaryAdapterKind(sync) === 'remote') {
+    return '规则形式只支持本地主端：remote-only 的写直接打远端，没有读持久化前像的本地事务';
+  }
+  return null;
+};
+
+/** 校验一条规则形式的权限：形状在前，落点在后，同一操作只报一条 */
+const validatePermissionRule = (
+  collector: ViolationCollector,
+  operation: string,
+  rule: Record<string, unknown>,
+  context: PermissionRuleContext
+): void => {
+  const issue = ruleShapeIssue(rule) ?? ruleTargetIssue(context);
+  if (issue) collector.add(`permissions.${operation}`, 'invalidPermissions', issue);
+};
+
+/**
+ * 校验写操作权限声明：普通对象、只含三个操作键、值是 `'both'` / `'system'` 或规则形式 `{ requires }`（US-029）。
+ */
+const validatePermissions = (collector: ViolationCollector, context: PermissionRuleContext): void => {
+  const permissions: unknown = context.metadata.permissions;
   if (permissions === undefined) return;
   if (!isPlainRecord(permissions)) {
     collector.add('permissions', 'invalidPermissions', "必须是普通对象，形如 { update: 'system' }");
@@ -580,10 +648,89 @@ const validatePermissions = (collector: ViolationCollector, permissions: unknown
   for (const operation of ENTITY_OPERATIONS) {
     const value = permissions[operation];
     if (value === 'both' || value === 'system') continue;
+    if (isPlainRecord(value)) {
+      validatePermissionRule(collector, operation, value, context);
+      continue;
+    }
     const reason =
-      UNSUPPORTED_PERMISSION_REASONS.get(value) ?? `取值 ${JSON.stringify(value)} 非法：只能是 'both' 或 'system'`;
+      UNSUPPORTED_PERMISSION_REASONS.get(value) ??
+      `取值 ${JSON.stringify(value)} 非法：只能是 'both'、'system' 或 { requires: '<权限名>' }`;
     collector.add(`permissions.${operation}`, 'invalidPermissions', reason);
   }
+};
+
+/** 作用域属性允许的类型：作用域键是字符串 */
+const SCOPE_PROPERTY_TYPES: ReadonlySet<string> = new Set([PropertyType.string, PropertyType.uuid]);
+
+/** 一条作用域声明违规：落在哪个键上、为什么 */
+interface AccessIssue {
+  readonly field: string;
+  readonly message: string;
+}
+
+/** `access.scope` 自身的形状违规；合法为 `null` */
+const scopeShapeIssue = (scope: unknown): AccessIssue | null => {
+  if (!isPlainRecord(scope)) {
+    return { field: 'access.scope', message: `scope 必须是普通对象，形如 { property, prefix }，实际为 ${JSON.stringify(scope)}` };
+  }
+  const unknownKeys = Object.keys(scope).filter(key => key !== 'property' && key !== 'prefix');
+  if (unknownKeys.length > 0) {
+    return { field: 'access.scope', message: `不接受键 ${unknownKeys.join('、')}：只有 property / prefix` };
+  }
+  if (typeof scope.property !== 'string' || scope.property.length === 0) {
+    return { field: 'access.scope.property', message: `property 必须是非空字符串，实际为 ${JSON.stringify(scope.property)}` };
+  }
+  if (scope.prefix !== undefined && typeof scope.prefix !== 'string') {
+    return { field: 'access.scope.prefix', message: `prefix 必须是字符串，实际为 ${JSON.stringify(scope.prefix)}` };
+  }
+  return null;
+};
+
+/** `access` 的形状违规；合法为 `null` */
+const accessShapeIssue = (access: unknown): AccessIssue | null => {
+  if (!isPlainRecord(access)) {
+    return { field: 'access', message: "必须是普通对象，形如 { scope: { property: 'tenantId', prefix: 'tenant:' } }" };
+  }
+  const unknownKeys = Object.keys(access).filter(key => key !== 'scope');
+  if (unknownKeys.length > 0) return { field: 'access', message: `不接受键 ${unknownKeys.join('、')}：只有 scope` };
+  if (access.scope === undefined) return { field: 'access.scope', message: "缺 scope，形如 { property: 'tenantId' }" };
+  return scopeShapeIssue(access.scope);
+};
+
+/**
+ * 作用域属性的违规；合法为 `null`
+ *
+ * @remarks
+ * 作用域键要能从落库的行里原样读回来比对：计算属性不落库，外键列由关系生成、不归作用域声明管，
+ * 可空的行没有作用域可判，密文与授权快照里的作用域键对不上。
+ */
+const scopePropertyIssue = (metadata: EntityMetadata, name: string): string | null => {
+  if (metadata.computedPropertyMap.has(name)) return `${name} 是计算属性：作用域要从落库的行里读`;
+  if (metadata.isForeignKey(name)) return `${name} 是关系生成的外键列，不是普通属性`;
+  const property = metadata.propertyMap.get(name);
+  if (!property) return `属性 ${name} 不存在（含继承）`;
+  if (!SCOPE_PROPERTY_TYPES.has(property.type)) {
+    return `属性 ${name} 是 ${String(property.type)}：作用域属性只能是 string 或 uuid`;
+  }
+  if (property.nullable) return `属性 ${name} 可空（nullable）：没有作用域的行无从判定`;
+  if ((property as { encrypted?: boolean }).encrypted === true) {
+    return `属性 ${name} 加密（encrypted）：密文对不上授权快照里的作用域键`;
+  }
+  return null;
+};
+
+/** 校验行所属作用域的声明（US-029）：形状在前，属性在后 */
+const validateAccess = (collector: ViolationCollector, metadata: EntityMetadata): void => {
+  const access: unknown = metadata.access;
+  if (access === undefined) return;
+  const issue = accessShapeIssue(access);
+  if (issue) {
+    collector.add(issue.field, 'invalidAccess', issue.message);
+    return;
+  }
+  const property = (access as { scope: { property: string } }).scope.property;
+  const propertyIssue = scopePropertyIssue(metadata, property);
+  if (propertyIssue) collector.add('access.scope.property', 'invalidAccess', propertyIssue);
 };
 
 /** 手动排序键所在的字段名；固定，不可配置 */
@@ -765,6 +912,8 @@ const validateExclusions = (collector: ViolationCollector, metadata: EntityMetad
  *   省略即只看实体自己的声明
  * @param isSyncTypeUnsupported - 仓储级同步策略限制查询，见 {@link SyncTypeRestrictionLookup}。
  *   省略即核心不认识任何仓储限制
+ * @param isPermissionRuleUnsupported - 仓储级规则形式限制查询，见 {@link PermissionRuleRestrictionLookup}。
+ *   省略即核心不认识任何仓储限制
  * @returns 排序后的违规列表；无违规时为空数组
  *
  * @example
@@ -776,14 +925,17 @@ const validateExclusions = (collector: ViolationCollector, metadata: EntityMetad
 export function validateEntityMetadata(
   metadata: EntityMetadata,
   databaseSync?: SyncOptions | EntitySyncResolver,
-  isSyncTypeUnsupported?: SyncTypeRestrictionLookup
+  isSyncTypeUnsupported?: SyncTypeRestrictionLookup,
+  isPermissionRuleUnsupported?: PermissionRuleRestrictionLookup
 ): readonly EntityMetadataValidationError[] {
   const collector = new ViolationCollector(metadata.namespace, metadata.name);
+  const resolver = toEntitySyncResolver(databaseSync);
   metadata.propertyMap.forEach(property => validateProperty(collector, property));
   metadata.computedPropertyMap.forEach(property => validateProperty(collector, property));
   metadata.relationMap.forEach(relation => validateRelation(collector, relation));
-  validateSyncStrategy(collector, metadata, toEntitySyncResolver(databaseSync), isSyncTypeUnsupported);
-  validatePermissions(collector, metadata.permissions);
+  validateSyncStrategy(collector, metadata, resolver, isSyncTypeUnsupported);
+  validateAccess(collector, metadata);
+  validatePermissions(collector, { metadata, sync: resolver.resolve(metadata), isPermissionRuleUnsupported });
   validateManualOrder(collector, metadata);
   validateChecks(collector, metadata);
   validateIndexWheres(collector, metadata);
@@ -809,13 +961,17 @@ export function formatMetadataViolations(errors: readonly EntityMetadataValidati
  * @param metadataList - 待校验的实体元数据集合
  * @param databaseSync - 数据库级 `rxdb.config.sync`，或实例解析器 `rxdb.entitySync`（含实例覆盖）
  * @param isSyncTypeUnsupported - 仓储级同步策略限制查询，见 {@link SyncTypeRestrictionLookup}
+ * @param isPermissionRuleUnsupported - 仓储级规则形式限制查询，见 {@link PermissionRuleRestrictionLookup}
  */
 export function validateEntityMetadataSet(
   metadataList: readonly EntityMetadata[],
   databaseSync?: SyncOptions | EntitySyncResolver,
-  isSyncTypeUnsupported?: SyncTypeRestrictionLookup
+  isSyncTypeUnsupported?: SyncTypeRestrictionLookup,
+  isPermissionRuleUnsupported?: PermissionRuleRestrictionLookup
 ): readonly EntityMetadataValidationError[] {
   return metadataList
-    .flatMap(metadata => validateEntityMetadata(metadata, databaseSync, isSyncTypeUnsupported))
+    .flatMap(metadata =>
+      validateEntityMetadata(metadata, databaseSync, isSyncTypeUnsupported, isPermissionRuleUnsupported)
+    )
     .sort(compareViolations);
 }

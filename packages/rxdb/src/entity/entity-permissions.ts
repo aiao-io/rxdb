@@ -9,8 +9,10 @@ import { RxDBError } from '../RxDBError.js';
 import type { RxDBMutationsMap } from '../rxdb-adapter.js';
 import { getEntityMetadata } from '../rxdb-utils.js';
 import type {
+  EntityAccessScopeOptions,
   EntityOperation,
   EntityOperationPermission,
+  EntityOperationRule,
   EntityPermissionOptions
 } from './entity-options.interface.js';
 import type { EntityType } from './entity.interface.js';
@@ -45,6 +47,47 @@ export const getEntityPermission = (
   metadata: Pick<EntityMetadata, 'permissions'>,
   operation: EntityOperation
 ): EntityOperationPermission => metadata.permissions?.[operation] ?? 'both';
+
+/**
+ * 权限值是不是规则形式（US-029）
+ *
+ * @param value - 权限声明里的一个值
+ * @returns 是带字符串 `requires` 的普通对象时为 `true`；`'both'` / `'system'` 为 `false`
+ *
+ * @remarks
+ * 只认形状，不认内容：空串、未知键由注册期校验报出来，判定期拿到的都是已经校验过的元数据。
+ */
+export const isEntityOperationRule = (value: unknown): value is EntityOperationRule =>
+  isPlainRecord(value) && typeof value.requires === 'string';
+
+/**
+ * 读取实体对某个写操作的规则（US-029）
+ *
+ * @param metadata - 实体元数据
+ * @param operation - 写操作
+ * @returns 规则形式时为该规则；`'both'` / `'system'` 两种简写时为 `undefined`
+ */
+export const getEntityPermissionRule = (
+  metadata: Pick<EntityMetadata, 'permissions'>,
+  operation: EntityOperation
+): EntityOperationRule | undefined => {
+  const permission = getEntityPermission(metadata, operation);
+  return isEntityOperationRule(permission) ? permission : undefined;
+};
+
+/** 补齐了前缀的作用域声明 */
+export type EntityAccessScope = Required<EntityAccessScopeOptions>;
+
+/**
+ * 读取实体行所属作用域的声明（US-029）
+ *
+ * @param metadata - 实体元数据
+ * @returns `prefix` 已补齐（缺省 `''`）的声明；整条原型链都没声明 `access` 时为 `undefined`
+ */
+export const getEntityAccessScope = (metadata: Pick<EntityMetadata, 'access'>): EntityAccessScope | undefined => {
+  const scope = metadata.access?.scope;
+  return scope === undefined ? undefined : { property: scope.property, prefix: scope.prefix ?? '' };
+};
 
 /**
  * 沿原型链按操作就近合并权限声明
@@ -122,10 +165,15 @@ export class PermissionDeniedError extends RxDBError {
   }
 }
 
-/** 实体在该操作上是否违规；不违规返回 `undefined` */
+/**
+ * 实体在该操作上是否只许系统写；不是返回 `undefined`
+ *
+ * @remarks
+ * 只拦 `'system'`：规则形式（US-029）要看行与授权快照，由写入口在事务里按行判定，不在这一层。
+ */
 const violationOf = (EntityType: EntityType, operation: EntityOperation): PermissionViolation | undefined => {
   const metadata = getEntityMetadata(EntityType);
-  if (getEntityPermission(metadata, operation) === 'both') return undefined;
+  if (getEntityPermission(metadata, operation) !== 'system') return undefined;
   return { namespace: metadata.namespace, entity: metadata.name, operation };
 };
 
