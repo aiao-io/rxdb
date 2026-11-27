@@ -26,14 +26,14 @@
     "@aiao/rxdb-test": "workspace:*",
     "@aiao/utils": "workspace:*",
     "@modules/orbit": "workspace:*",
-    "@tanstack/react-virtual": "^3.14.26",
+    "@tanstack/react-virtual": "^3.14.28",
     "clsx": "^2.1.1",
-    "lucide-react": "^1.77.0",
+    "lucide-react": "^1.82.0",
     "react-use": "^17.6.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.5",
-    "daisyui": "^5.8.1",
+    "daisyui": "^5.8.3",
     "tailwindcss": "^4.3.5"
   }
 }
