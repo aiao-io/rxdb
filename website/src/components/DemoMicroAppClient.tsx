@@ -1,4 +1,4 @@
-import { createOrbit, type OrbitInstance } from '@aiao/orbit';
+import { createOrbit, OrbitError, type OrbitInstance } from '@aiao/orbit';
 import { useHistory, useLocation } from '@docusaurus/router';
 import { useColorMode } from '@docusaurus/theme-common';
 import useBaseUrl from '@docusaurus/useBaseUrl';
@@ -17,6 +17,9 @@ import {
 import { useSiteCopy } from '@site/src/lib/locale-copy';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from 'react';
 import type { DemoMicroAppProps } from './DemoMicroApp';
+
+/** 连续自动重建实例的上限（NAVIGATION / LOAD_ERROR）：超过就按普通失败进遮罩，防重建循环拖垮页面。 */
+const MAX_AUTO_RETRIES = 2;
 
 function readHostTheme(): ResolvedTheme {
   return parseResolvedTheme(document.documentElement.getAttribute(HOST_THEME_ATTRIBUTE));
@@ -48,11 +51,25 @@ export default function DemoMicroAppClient({
   const [attempt, setAttempt] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const instance = useRef<OrbitInstance | undefined>(undefined);
+  const autoRetries = useRef(0);
   const runtime = useMemo(
     () =>
       createOrbit({
         allowedOrigins: [new URL(url, location.href).origin],
-        onError: failure => setError(failure instanceof Error ? failure.message : copy('演示运行失败'))
+        // 完整文档导航按契约断开连接（宿主应创建新实例）；文档加载后未握手也是可恢复的启动失败
+        // （如旧 Service Worker 先缓存了未接入 SDK 的版本）。两种都自动重建实例，而不是停在死遮罩上。
+        onError: failure => {
+          if (
+            failure instanceof OrbitError &&
+            (failure.code === 'NAVIGATION' || failure.code === 'LOAD_ERROR') &&
+            autoRetries.current < MAX_AUTO_RETRIES
+          ) {
+            autoRetries.current += 1;
+            setAttempt(value => value + 1);
+            return;
+          }
+          setError(failure instanceof Error ? failure.message : copy('演示运行失败'));
+        }
       }),
     [url, copy]
   );
@@ -93,7 +110,10 @@ export default function DemoMicroAppClient({
     void app
       .mount(container)
       .then(() => {
-        if (active) armRouteSync();
+        if (active) {
+          autoRetries.current = 0;
+          armRouteSync();
+        }
       })
       .catch(failure => {
         if (active) setError(failure instanceof Error ? failure.message : copy('演示启动失败'));
