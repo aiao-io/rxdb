@@ -29,6 +29,10 @@ export function renderDashboard(template, values) {
 
 /**
  * 起始页模板用到的值：本次运行的实际地址、公开 anon key 与连这套栈的远端 e2e 命令。
+ *
+ * 起始页只在 dev 链开着时看得到，这时 `serve-remote` 起不来（Nx 不让同一个 serve 任务跑两份），
+ * 所以远端 e2e 命令打到开着的 dev server（`BASE_URL`）、不带依赖任务，与 e2e README 同一写法。
+ * 不带 anon key：dev server 已经配好了，用例只拿 `VITE_SUPABASE_URL` 算库名。
  */
 export function dashboardValues({ project, url, anonKey, studioUrl }) {
   return {
@@ -40,7 +44,7 @@ export function dashboardValues({ project, url, anonKey, studioUrl }) {
     ANON_KEY: anonKey,
     STUDIO_URL: studioUrl,
     STUDIO_PORT: new URL(studioUrl).port,
-    E2E_REMOTE_COMMAND: `VITE_SUPABASE_URL=${url} VITE_SUPABASE_KEY=${anonKey} pnpm nx run dev-rxdb-supabase-e2e:e2e-remote`
+    E2E_REMOTE_COMMAND: `BASE_URL=${appUrl} VITE_SUPABASE_URL=${url} pnpm nx run dev-rxdb-supabase-e2e:e2e-remote --excludeTaskDependencies`
   };
 }
 

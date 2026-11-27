@@ -17,11 +17,12 @@ DOCKER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)"
 # shellcheck source=./supabase-ci-identity.sh
 source "$DOCKER_DIR/supabase-ci-identity.sh"
 
-# Studio 在浏览器里展示与直连的 API 地址取 test-env 落盘的 Kong 端口；还没起过栈就没有状态文件，不编造。
+# Studio 在浏览器里展示与直连的 API 地址取 test-env 落盘的 Kong 端口；还没起过栈就没有状态文件，不编造，
+# compose 会因 docker-compose.ci-studio.yml 缺这个变量而报错。不用 SUPABASE_PUBLIC_URL：docker/.env 里的同名变量是默认栈的。
 if [ -f "$SUPABASE_CI_STATE_FILE" ]; then
   # shellcheck disable=SC1090
   source "$SUPABASE_CI_STATE_FILE"
-  export SUPABASE_PUBLIC_URL="http://localhost:${SUPABASE_CI_KONG_PORT}"
+  export SUPABASE_CI_PUBLIC_URL="http://localhost:${SUPABASE_CI_KONG_PORT}"
 fi
 
 exec docker compose -p "$SUPABASE_CI_PROJECT_NAME" \

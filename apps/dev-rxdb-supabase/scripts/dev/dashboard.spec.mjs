@@ -64,11 +64,14 @@ test('起始页给出连本栈的测试入口与命令', async () => {
   assert.ok(html.includes('href="http://127.0.0.1:63915"'), 'Studio 入口');
   assert.ok(html.includes('href="http://localhost:55001"'), 'Supabase API 网关');
   assert.ok(html.includes(`data-copy="${stack.anonKey}"`), '可复制的 anon key');
+  // 起始页只在 dev 链开着时看得到，这时 serve-remote 起不来（Nx 不让同一个 serve 任务跑两份）：
+  // 命令要打到开着的 dev server，且不带依赖任务，否则一直挂着（与 e2e README 同一写法）
   assert.ok(
     html.includes(
-      `VITE_SUPABASE_URL=http://localhost:55001 VITE_SUPABASE_KEY=${stack.anonKey} pnpm nx run dev-rxdb-supabase-e2e:e2e-remote`
+      'BASE_URL=http://localhost:4203 VITE_SUPABASE_URL=http://localhost:55001 ' +
+        'pnpm nx run dev-rxdb-supabase-e2e:e2e-remote --excludeTaskDependencies'
     ),
-    '远端 e2e 命令指向本栈的实际端口'
+    '远端 e2e 命令打到开着的 dev server、指向本栈的实际端口'
   );
 });
 

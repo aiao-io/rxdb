@@ -5,6 +5,9 @@ import { openSidePanel, pull, push, syncRound } from './support/workbench';
 
 const isRemoteE2E = process.env['REMOTE_E2E'] === 'true';
 
+/** 一轮拉取会打的远端端点：远端身份、变更日志（直接读表或带规则的 RPC）、分区日志 */
+const PULL_REQUEST = /\/rest\/v1\/(rxdb_change\b|rpc\/rxdb_(pull_changes|pull_bucket_changes|backend_id)\b)/;
+
 function uniqueTitle(): string {
   return `remote-e2e-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
@@ -280,7 +283,16 @@ if (isRemoteE2E) {
     // US-230 AC#10：会话在别的标签页换了身份，本页还开着上一个身份的库：拉取被身份守卫拦下，一个请求都不发，
     // 结果行写明身份不匹配并给「重新加载」。两个标签页共用浏览器里的会话，本地库经 SharedWorker 共用
     test('blocks a pull after another tab switched identity and offers a reload', async ({ context, page }) => {
+      // 盯拉取真正会打的端点（远端身份、变更日志、分区日志），不是推送的 rxdb_mutations：拉取本来就不打它，
+      // 盯着它断言「一个都没发」恒为真，守卫失效也抓不住
+      const pullRequests: string[] = [];
+      page.on('request', request => {
+        if (PULL_REQUEST.test(request.url())) pullRequests.push(request.url());
+      });
       await openTodoPage(page);
+      // 对照：身份对得上时一轮拉取确实打到这些端点
+      await pull(page);
+      expect(pullRequests.length, '身份对得上的拉取没打到盯着的端点，下面的断言就是恒真').toBeGreaterThan(0);
       const other = await context.newPage();
       await other.goto(new URL('/todo', page.url()).href, { timeout: 60_000, waitUntil: 'domcontentloaded' });
       await expect(other.getByTestId('identity-title')).toHaveText('匿名用户', { timeout: 60_000 });
@@ -291,14 +303,11 @@ if (isRemoteE2E) {
       await switchIdentity(other, 'visitor', '访客', 'todo-title');
       await expect(page.getByTestId('session-moved')).toBeVisible({ timeout: 30_000 });
 
-      const mutationRequests: string[] = [];
-      page.on('request', request => {
-        if (request.url().includes('/rest/v1/rpc/rxdb_mutations')) mutationRequests.push(request.url());
-      });
+      pullRequests.length = 0;
       const result = await syncRound(page, 'pull');
       await expect(result).toHaveAttribute('role', 'alert');
       await expect(result).toContainText('拉取失败：身份不匹配');
-      expect(mutationRequests).toEqual([]);
+      expect(pullRequests).toEqual([]);
 
       await result.getByTestId('toast-action').click();
       await expect(page.getByTestId('identity-title')).toHaveText('访客', { timeout: 60_000 });

@@ -173,9 +173,10 @@ import { SyncCommands } from './sync-commands';
             <button
               class="btn btn-sm btn-ghost relative"
               #syncToggle
-              [attr.aria-pressed]="panel.active() === 'sync'"
+              [attr.aria-expanded]="panel.active() === 'sync'"
               [class.btn-active]="panel.active() === 'sync'"
               (click)="toggle('sync', syncToggle)"
+              aria-controls="side-panel"
               aria-label="同步中心"
               data-testid="sync-center-toggle"
               title="同步中心：待推待拉、会推什么、被拒的推送"

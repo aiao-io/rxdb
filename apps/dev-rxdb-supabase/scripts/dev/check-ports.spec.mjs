@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { once } from 'node:events';
-import { createServer } from 'node:net';
+import { createServer, Socket } from 'node:net';
 import { test } from 'node:test';
 import { assertPortFree, checkPorts } from './check-ports.mjs';
 
@@ -45,6 +45,32 @@ test('只监听 ::1 的服务同样按已占用报出', { skip: !ipv6Loopback &&
   } finally {
     await release(owner);
   }
+});
+
+test('连接迟迟没有回应（防火墙丢了 SYN）：到点报无法确认，不挂上一分多钟', async () => {
+  // 永远连不上也不报错的套接字：本机系统的连接超时约 75 秒
+  const silent = () => new Socket();
+  const started = Date.now();
+  await assert.rejects(assertPortFree('应用 dev server', 4203, { timeout: 50, connect: silent }), error => {
+    assert.match(error.message, /无法确认应用 dev server 的固定端口 4203 是否空闲/);
+    assert.match(error.message, /超过 50 毫秒没有回应/);
+    return true;
+  });
+  assert.ok(Date.now() - started < 2000);
+});
+
+test('白名单外的连接错误：报无法确认与错误码，不冒充成端口被占用', async () => {
+  const denied = () => {
+    const socket = new Socket();
+    setImmediate(() => socket.emit('error', Object.assign(new Error('connect EPERM'), { code: 'EPERM' })));
+    return socket;
+  };
+  await assert.rejects(assertPortFree('测试起始页', 4204, { connect: denied }), error => {
+    assert.match(error.message, /无法确认测试起始页 的固定端口 4204 是否空闲/);
+    assert.match(error.message, /EPERM/);
+    assert.doesNotMatch(error.message, /已被占用/);
+    return true;
+  });
 });
 
 test('报出占用进程的 pid 与目录', { skip: lsofMissing }, async () => {

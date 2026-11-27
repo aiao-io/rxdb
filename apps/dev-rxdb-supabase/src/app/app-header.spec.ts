@@ -190,6 +190,19 @@ describe('AppHeader：按页面登记渲染（epic-016）', () => {
     expect(byTestId('sync-center-toggle')).not.toBeNull();
   });
 
+  it('同步中心开关与页面上的面板开关同一套读屏语义：指向侧栏，展开状态跟着开合', () => {
+    const { fixture, byTestId } = renderHeader(ALICE, {
+      page: registration({ pull: action(), push: action() })
+    });
+    const toggle = byTestId('sync-center-toggle')!;
+
+    expect(toggle.getAttribute('aria-controls')).toBe('side-panel');
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    toggle.click();
+    fixture.detectChanges();
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+  });
+
   it('有被拒的推送时，同步中心开关上标出条数', () => {
     const rejection = { entity: 'Todo' } as SyncRejection;
     const { byTestId } = renderHeader(ALICE, {

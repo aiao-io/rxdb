@@ -56,8 +56,10 @@ services:
       DEFAULT_ORGANIZATION_NAME: RxDB Local
       DEFAULT_PROJECT_NAME: dev-rxdb-supabase
       SUPABASE_URL: http://kong:8000
-      # 浏览器里展示与直连的 API 地址：Kong 的宿主端口是起栈后才知道的动态值，由 supabase-ci-compose.sh 从状态文件导出
-      SUPABASE_PUBLIC_URL: ${SUPABASE_PUBLIC_URL:-http://localhost:54331}
+      # 浏览器里展示与直连的 API 地址：Kong 的宿主端口是起栈后才知道的动态值，由 supabase-ci-compose.sh 从状态文件导出。
+      # 不设回退值：经这里的栈 Kong 端口总是动态的，回退到哪个固定端口都不对，直连要么全部失败、要么打到另一套栈上。
+      # 也不读 SUPABASE_PUBLIC_URL：compose 会加载 docker/.env，那里的同名变量是默认栈的地址
+      SUPABASE_PUBLIC_URL: ${SUPABASE_CI_PUBLIC_URL:?Kong 端口未知：先运行 pnpm nx run rxdb-adapter-supabase:test-env 起栈，再经 docker/supabase-ci-compose.sh 操作}
       SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJhbm9uIiwKICAgICJpc3MiOiAic3VwYWJhc2UtZGVtbyIsCiAgICAiaWF0IjogMTY0MTc2OTIwMCwKICAgICJleHAiOiAxNzk5NTM1NjAwCn0.dc_X5iR_VP_qT0zsiyj_I_OZ2T9FtRU2BBNWN8Bu4GE
       SUPABASE_SERVICE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyAgCiAgICAicm9sZSI6ICJzZXJ2aWNlX3JvbGUiLAogICAgImlzcyI6ICJzdXBhYmFzZS1kZW1vIiwKICAgICJpYXQiOiAxNjQxNzY5MjAwLAogICAgImV4cCI6IDE3OTk1MzU2MDAKfQ.DaYlNEoUrrEn2Ig7tqibS-PHK5vgusbcbo7X36XVt4Q
       AUTH_JWT_SECRET: your-super-secret-jwt-token-with-at-least-32-characters-long

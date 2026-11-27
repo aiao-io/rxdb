@@ -163,6 +163,10 @@ export interface TrustedCallsite {
  *
  * 2026-11-27 刷新了 #1 / #3 / #7 / #8 / #12 / #13 / #14 的行号：#13 / #14 跟着分区清理的引用检查
  * （被本地行引用的行留下）下移，其余五行此前已累计漂出容差。调用点与键都没变，只核对了这七行，表头日期照旧。
+ *
+ * 2026-11-27 晚（分支深度评审之后）又刷新了 #2 / #4 / #8 / #9 / #10 / #11：都还在容差之内，但与 epic-006 那张表
+ * 一起停在了旧行号上，#4 是本分支改 `undo-redo-apply.ts` 带的，#8 是外键成环拉取的修复带的。调用点与键都没变，
+ * 只核对了这六行，表头日期照旧。
  */
 export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
   {
@@ -179,7 +183,7 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     writePrimitive: 'executor.mergeChanges',
     intent: TrustedWriteIntent.restore_entity,
     entrance: 'domain_recompute',
-    verifiedAtLine: 94
+    verifiedAtLine: 99
   },
   {
     file: 'HistoryManager.ts',
@@ -195,7 +199,7 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     writePrimitive: 'adapter.switchBranch',
     intent: TrustedWriteIntent.undo_redo,
     entrance: 'domain_recompute',
-    verifiedAtLine: 262
+    verifiedAtLine: 264
   },
   {
     file: 'merge-branch.ts',
@@ -227,7 +231,7 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     writePrimitive: 'executor.mergeChanges',
     intent: TrustedWriteIntent.remote_sync,
     entrance: 'remote_entity_apply',
-    verifiedAtLine: 808
+    verifiedAtLine: 811
   },
   {
     file: 'cleanup-expired.ts',
@@ -235,7 +239,7 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     writePrimitive: 'executor.mergeChanges',
     intent: TrustedWriteIntent.remote_sync,
     entrance: 'cleanup_expired',
-    verifiedAtLine: 208
+    verifiedAtLine: 217
   },
   {
     file: 'materialize-branch.ts',
@@ -243,7 +247,7 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     writePrimitive: 'adapter.switchBranch',
     intent: TrustedWriteIntent.branch_materialization,
     entrance: 'projection_rewrite',
-    verifiedAtLine: 313
+    verifiedAtLine: 322
   },
   {
     file: 'materialize-branch.ts',
@@ -251,7 +255,7 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     writePrimitive: 'executor.mergeChanges',
     intent: TrustedWriteIntent.branch_materialization,
     entrance: 'projection_rewrite',
-    verifiedAtLine: 360
+    verifiedAtLine: 369
   },
   {
     file: 'push-repository.ts',

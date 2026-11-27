@@ -37,6 +37,7 @@ function renderCatalog(options: { blockedReason?: string | null; signedIn?: bool
     undoCount$: of(0),
     redoCount$: of(0),
     undoBarrier$: of(null),
+    redoBarrier$: of(null),
     undo: vi.fn(() => Promise.resolve()),
     redo: vi.fn(() => Promise.resolve())
   };

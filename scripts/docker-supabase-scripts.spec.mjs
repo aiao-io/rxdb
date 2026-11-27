@@ -29,7 +29,7 @@ const DOCKER_FILES = [
 const FAKE_DOCKER = String.raw`#!/usr/bin/env node
 const { appendFileSync, readFileSync } = require('node:fs');
 const args = process.argv.slice(2);
-const publicUrl = process.env.SUPABASE_PUBLIC_URL ?? null;
+const publicUrl = process.env.SUPABASE_CI_PUBLIC_URL ?? null;
 appendFileSync(process.env.FAKE_DOCKER_LOG, JSON.stringify({ cwd: process.cwd(), args, publicUrl }) + '\n');
 const missing = (process.env.FAKE_DOCKER_MISSING || '').split(',').filter(Boolean);
 const valueAfter = flag => args[args.indexOf(flag) + 1];
@@ -231,6 +231,17 @@ test('supabase-ci-compose.sh 把 test-env 落盘的 Kong 端口交给 Studio 作
   const { calls } = await harness.run('supabase-ci-compose.sh', env, ['up', '-d', '--no-deps', 'studio']);
 
   assert.equal(calls[0].publicUrl, `http://localhost:${state.SUPABASE_CI_KONG_PORT}`);
+});
+
+test('Studio 的 API 地址在配置里也不编造：没有回退值，缺了就让 compose 当场报错', async () => {
+  // 经 supabase-ci-compose.sh 的栈 Kong 端口总是动态分配的（supabase-ci-identity.sh 置 SUPABASE_KONG_PORT=0），
+  // 回退到默认栈的 54331 永远不对：Studio 的直连请求要么全部失败，要么打到机器上另一套默认栈
+  const studio = await readFile(join(repoRoot, 'docker', 'docker-compose.ci-studio.yml'), 'utf8');
+  const entry = studio.split('\n').find(line => line.trim().startsWith('SUPABASE_PUBLIC_URL:'));
+
+  // 变量名不用 SUPABASE_PUBLIC_URL：compose 会加载 docker/.env，那里的同名变量是默认栈的地址，缺了也报不出错
+  assert.match(entry ?? '', /^\s*SUPABASE_PUBLIC_URL: \$\{SUPABASE_CI_PUBLIC_URL:\?.+\}\s*$/);
+  assert.doesNotMatch(studio, /54331/);
 });
 
 test('还没起过栈时 supabase-ci-compose.sh 不编造 Studio 的 API 地址', async t => {

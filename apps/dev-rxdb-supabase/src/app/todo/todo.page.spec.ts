@@ -48,7 +48,8 @@ function renderTodoPage(
     type: 'repository' as const,
     undo: vi.fn(() => Promise.resolve()),
     undoCount$: of(1),
-    undoBarrier$: of(null)
+    undoBarrier$: of(null),
+    redoBarrier$: of(null)
   };
   const pull = vi.fn(options.pull ?? (() => Promise.resolve()));
   const push = vi.fn(options.push ?? (() => Promise.resolve()));

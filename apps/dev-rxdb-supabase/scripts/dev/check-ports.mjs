@@ -16,15 +16,33 @@ const devPorts = [
 const loopbacks = ['127.0.0.1', '::1'];
 // 本机没有 IPv6 回环时 ::1 连不上也不算占用
 const nobodyListening = new Set(['ECONNREFUSED', 'EADDRNOTAVAIL', 'ENETUNREACH', 'EAFNOSUPPORT']);
+// 连回环地址要么立刻接通、要么立刻被拒；这么久没有回应就是 SYN 被丢了（防火墙），不等系统约 75 秒的连接超时
+const probeTimeoutMs = 5000;
 
-function accepts(port, host) {
+/**
+ * 回环地址上的这个端口有没有服务在听
+ *
+ * @returns 连得上为 `true`，没人在听为 `false`
+ * @throws {@link Error} 迟迟没有回应，或连接错误不在「没人在听」之列：此时判断不了端口空不空
+ */
+function accepts(port, host, { timeout = probeTimeoutMs, connect: open = connect } = {}) {
   return new Promise((resolveProbe, reject) => {
-    const socket = connect({ port, host });
+    const socket = open({ port, host });
+    // 自己计时而不用 socket.setTimeout：后者不占住事件循环，探测途中进程可能先退出
+    const timer = setTimeout(() => {
+      socket.destroy();
+      reject(new Error(`连接 ${host}:${port} 超过 ${timeout} 毫秒没有回应（防火墙丢弃了连接？）`));
+    }, timeout);
     socket.once('connect', () => {
+      clearTimeout(timer);
       socket.destroy();
       resolveProbe(true);
     });
-    socket.once('error', error => (nobodyListening.has(error.code) ? resolveProbe(false) : reject(error)));
+    socket.once('error', error => {
+      clearTimeout(timer);
+      if (nobodyListening.has(error.code)) resolveProbe(false);
+      else reject(new Error(`连接 ${host}:${port} 失败（${error.code ?? error.message}）`));
+    });
   });
 }
 
@@ -44,10 +62,14 @@ async function portOwner(port) {
 /**
  * 确认固定端口在本机回环地址上没有服务在监听。
  *
- * @throws {@link Error} 端口已被占用时，尽量带上占用进程的 pid、命令与目录
+ * @param probe - 探测的超时与建连函数；只有测试要换
+ * @throws {@link Error} 端口已被占用时，尽量带上占用进程的 pid、命令与目录；探测超时或连接出了别的错时，
+ *   说明判断不了，不冒充成被占用
  */
-export async function assertPortFree(name, port) {
-  const probes = await Promise.all(loopbacks.map(host => accepts(port, host)));
+export async function assertPortFree(name, port, probe = {}) {
+  const probes = await Promise.all(loopbacks.map(host => accepts(port, host, probe))).catch(error => {
+    throw new Error(`无法确认${name} 的固定端口 ${port} 是否空闲：${error.message}`);
+  });
   if (!probes.includes(true)) return;
   // 占用者信息只用于补充提示，lsof 不可用时保持原提示
   const owner = await portOwner(port).then(
