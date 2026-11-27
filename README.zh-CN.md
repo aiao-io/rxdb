@@ -134,7 +134,7 @@ await new Todo({ title: '读完 README' }).save();
 - [框架集成](https://rxdb.aiao.io/docs/frameworks/)
 - [实体模型 UI](website/docs/entity-model/README.md)与[Headless 实体能力](website/docs/entity-model/headless.md)
 - [后台外壳](website/docs/admin-shell/README.md)与[客户端国际化](website/docs/i18n/README.md)
-- [任务看板](website/docs/plugins/rxdb-plugin-board/README.md)与[P2P 会话及文件共享](website/docs/plugins/rxdb-plugin-p2p/README.md)
+- [任务看板](website/docs/plugins/rxdb-plugin-board/README.md)、[P2P 会话及文件共享](website/docs/plugins/rxdb-plugin-p2p/README.md)与 [BOM 工作台](apps/aiao-bom/README.md)
 - [数据库适配器](https://rxdb.aiao.io/docs/adapters/)
 - [code-editor](https://rxdb.aiao.io/docs/code-editor/)
 - [迁移指南](https://rxdb.aiao.io/docs/migration/)

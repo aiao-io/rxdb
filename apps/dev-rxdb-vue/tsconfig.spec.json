@@ -72,6 +72,12 @@
     },
     {
       "path": "../../packages/utils/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-bom-vue/tsconfig.lib.json"
+    },
+    {
+      "path": "../../packages/rxdb-plugin-bom/tsconfig.lib.json"
     }
   ]
 }

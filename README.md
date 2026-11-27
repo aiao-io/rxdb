@@ -121,7 +121,7 @@ pnpm nx serve dev-rxdb-react
 pnpm nx serve dev-rxdb-vue
 ```
 
-Other useful examples include the Admin templates, the Board demo, the P2P demo, the HTTP and Supabase demos, the Electron and Tauri hosts, and the DevTools extension.
+Other useful examples include the [BOM workbench](apps/aiao-bom/README.md), the Admin templates, the Board demo, the P2P demo, the HTTP and Supabase demos, the Electron and Tauri hosts, and the DevTools extension.
 
 ```sh
 pnpm nx serve rxdb-admin-template-angular

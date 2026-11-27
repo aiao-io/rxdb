@@ -129,6 +129,47 @@
         "command": "eslint scripts --max-warnings=0 --ignore-pattern \"scripts/**/__fixtures__/**\""
       }
     },
+    "audit-bom-bundle": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [
+        {
+          "target": "build",
+          "projects": ["rxdb-plugin-bom", "rxdb-plugin-bom-angular", "rxdb-plugin-bom-react", "rxdb-plugin-bom-vue"]
+        }
+      ],
+      "options": {
+        "command": "node scripts/audit/bom-bundle.mjs"
+      }
+    },
+    "audit-api-surface": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node scripts/audit/api-surface.mjs"
+      }
+    },
+    "audit-build-entries": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node scripts/audit/subpath-build-entries.mjs"
+      }
+    },
+    "audit-requirements": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node scripts/audit/requirements-consistency.mjs"
+      }
+    },
+    "audit-coverage": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node scripts/audit/coverage-check.mjs"
+      }
+    },
     "audit-i18n": {
       "// cache": "检查 Admin、Model、Application 和演示应用的中英文文案键集合。inputs 必须覆盖脚本读取的每个目录文件，否则改了目录仍命中 CI 主线的旧缓存。",
       "executor": "nx:run-commands",

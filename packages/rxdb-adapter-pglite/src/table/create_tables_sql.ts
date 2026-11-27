@@ -1,4 +1,11 @@
-import { EntityMetadata, EntityType, getEntityMetadata, MAIN_BRANCH_ID, type WorktreeTableSet } from '@aiao/rxdb';
+import {
+  EntityMetadata,
+  EntityType,
+  getEntityMetadata,
+  getEntityStorageMetadata,
+  MAIN_BRANCH_ID,
+  type WorktreeTableSet
+} from '@aiao/rxdb';
 import type { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 import inserts_sql from '../entity/inserts_sql.js';
 import { getSchemaName } from '../table-name-resolver.js';
@@ -88,7 +95,7 @@ export async function create_tables_statements<T extends EntityType>(
   const namespaces = new Set<string>();
 
   for (const EntityType of EntityTypes) {
-    const metadata = getEntityMetadata(EntityType);
+    const metadata = getEntityStorageMetadata(adapter.rxdb, EntityType);
 
     // 0. CREATE SCHEMA。适配器自己的建库路径（RxDBAdapterPGlite `CREATE SCHEMA IF NOT EXISTS`）
     // 有这一步，公开 helper 没有 —— 于是它的输出在干净库上必然报 `schema "shop" does not exist`。

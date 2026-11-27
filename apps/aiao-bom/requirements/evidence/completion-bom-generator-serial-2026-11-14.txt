@@ -1,0 +1,302 @@
+
+> nx run rxdb-client-generator:test
+
+rxdb-client-generator: (node:51676) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator:  RUN  v4.1.11 /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb-client-generator
+rxdb-client-generator:       Coverage enabled with v8
+rxdb-client-generator: (node:51689) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator: (node:51685) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator: (node:51686) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator: (node:51688) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator: (node:51684) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator: (node:51691) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator: (node:51697) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator: (node:51687) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator: (node:51695) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator: (node:51698) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator: (node:51693) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator: (node:51690) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator: (node:51696) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator: (node:51692) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator: (node:51694) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/generator_split_files.spec.ts (21 tests) 12030ms
+rxdb-client-generator:        ✓ entity without extends must still produce parseable .d.ts  2552ms
+rxdb-client-generator:      ✓ single-file mode aggregates entities in the same namespace once  2547ms
+rxdb-client-generator:      ✓ split-file mode aggregates entities in the same namespace once  2352ms
+rxdb-client-generator:      ✓ split-file mode imports sibling entity and RuleGroup types  2183ms
+rxdb-client-generator:      ✓ split-file barrel re-exports the class and StaticTypes without local import shadowing  2343ms
+rxdb-client-generator: (node:51820) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/generator_key_value_integration.spec.ts (7 tests) 14431ms
+rxdb-client-generator:      ✓ escapes entity, property, and nested keyValue JSDoc  2589ms
+rxdb-client-generator:      ✓ imports sibling keyValue interfaces of entity Post$ in split mode  2548ms
+rxdb-client-generator:      ✓ imports sibling keyValue interfaces of entity 文章 in split mode  2378ms
+rxdb-client-generator:      ✓ declares an empty keyValue schema with the imported KeyValue type (splitFiles=false)  2170ms
+rxdb-client-generator:      ✓ declares an empty keyValue schema with the imported KeyValue type (splitFiles=true)  2363ms
+rxdb-client-generator:      ✓ imports sibling keyValue interfaces referenced by relation rules in split mode  2349ms
+rxdb-client-generator: (node:51859) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/test-type-demo.spec.ts (1 test) 17469ms
+rxdb-client-generator:      ✓ TypeDemo  17465ms
+rxdb-client-generator: (node:51893) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator: stdout | src/__tests__/cli/review-new-output-alias-queue.spec.ts > 评审：首次输出目录的父软链别名必须共用构建队列 > 输出目录已存在=false 时，最后调用的构建必须最后发布
+rxdb-client-generator: REVIEW_GENERATOR_ALIAS {"existing":false,"completionOrder":["A","B"],"hasAlpha":false,"hasBeta":true}
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/generator_entity_relations.spec.ts (7 tests) 7067ms
+rxdb-client-generator:      ✓ ONE_TO_MANY uses the related entity constructor type  2088ms
+rxdb-client-generator:      ✓ MANY_TO_MANY uses the related entity constructor type  2527ms
+rxdb-client-generator:      ✓ escapes multiline relation display names in generated JSDoc  2400ms
+rxdb-client-generator: (node:51939) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/generator_field_semantics.spec.ts (11 tests) 9683ms
+rxdb-client-generator:      ✓ 生成的运行时产物在 angular 编译档位下零诊断  1870ms
+rxdb-client-generator:      ✓ 生成的运行时产物在 react 编译档位下零诊断  1811ms
+rxdb-client-generator:      ✓ 生成的运行时产物在 vue 编译档位下零诊断  1777ms
+rxdb-client-generator:      ✓ 同一份产物在三端编译档位下诊断完全一致  2346ms
+rxdb-client-generator:      ✓ 语义键一旦塌缩成字符串，编译必须失败（防止上面的编译断言变成空转）  1813ms
+rxdb-client-generator: (node:51940) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/generator_entity_static_members.spec.ts (1 test) 2389ms
+rxdb-client-generator:      ✓ compiles the concrete Repository API against EntityBase static members  2386ms
+rxdb-client-generator: (node:51969) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/generator_symbol_collisions.spec.ts (22 tests) 2357ms
+rxdb-client-generator:      ✓ allows legal method overloads emitted by a repository plugin  2285ms
+rxdb-client-generator: (node:51970) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/cli/analyze-file.getters.spec.ts (5 tests) 22135ms
+rxdb-client-generator:      ✓ 同模块 helper：生成前拒绝并点名绑定  18399ms
+rxdb-client-generator:      ✓ 对象简写里的 helper：生成前拒绝并点名绑定  968ms
+rxdb-client-generator:      ✓ import 进来的值：生成前拒绝并点名绑定  986ms
+rxdb-client-generator:      ✓ 核心包导出的值：生成前拒绝并点名绑定  914ms
+rxdb-client-generator:      ✓ this、自身局部变量、全局对象与只在类型位置出现的模块类型照常保留  865ms
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/generator_bigint_binary.spec.ts (4 tests) 7282ms
+rxdb-client-generator:      ✓ compiles get(1n), bigint rules and binary equality rules  2610ms
+rxdb-client-generator:      ✓ keeps both many-to-many junction foreign keys as bigint  2343ms
+rxdb-client-generator:      ✓ rejects string ids for bigint many-to-many junction foreign keys  2251ms
+rxdb-client-generator: (node:51972) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/cli/build-client-lib.fail-closed.spec.ts (6 tests) 25468ms
+rxdb-client-generator:      ✓ 实体全部失去装饰器时拒绝，并且不删除上次生成物  13171ms
+rxdb-client-generator:      ✓ allowEmpty 显式开启时才允许生成空客户端  12216ms
+rxdb-client-generator: (node:51982) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator: (node:51983) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/generator_entity_js_file.spec.ts (9 tests) 61ms
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/cli/analyze-file.security.spec.ts (7 tests) 23424ms
+rxdb-client-generator:      ✓ never executes decorator metadata expressions  17900ms
+rxdb-client-generator:      ✓ fails with source location when metadata references a local value  981ms
+rxdb-client-generator:      ✓ fails explicitly when metadata contains a dynamic expression  954ms
+rxdb-client-generator:      ✓ rejects a local object that shadows an approved enum instead of substituting the core value  965ms
+rxdb-client-generator:      ✓ rejects a same-named enum exported by another module  912ms
+rxdb-client-generator:      ✓ accepts approved enums imported from @aiao/rxdb under an alias  869ms
+rxdb-client-generator:      ✓ statically evaluates literal metadata and approved enum members  837ms
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/ts-morph-browser.spec.ts (80 tests) 133ms
+rxdb-client-generator: (node:51992) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator: (node:51993) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator: (node:51994) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/cli/find-files-glob-magic.spec.ts (24 tests) 114ms
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/plugins/vite.spec.ts (6 tests) 21ms
+rxdb-client-generator: (node:51995) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator: (node:51996) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/cli.spec.ts (14 tests) 489ms
+rxdb-client-generator:      ✓ loads ts config files and resolves paths relative to the config file  307ms
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/generator_m2m_validation.spec.ts (5 tests) 82ms
+rxdb-client-generator: (node:52005) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/generator_security.spec.ts (12 tests) 2437ms
+rxdb-client-generator:      ✓ quotes a safe hyphenated namespace in module augmentation  2423ms
+rxdb-client-generator: (node:52006) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/generator_entity_rules.spec.ts (5 tests) 21ms
+rxdb-client-generator: (node:52014) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/generator_declared_symbols.spec.ts (3 tests) 74ms
+rxdb-client-generator: (node:52016) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/generator_entity_instance_methods.spec.ts (3 tests) 2597ms
+rxdb-client-generator:      ✓ compiles generated declarations against the EntityBase member contract  2526ms
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/generator_entity_properties.spec.ts (9 tests) 15ms
+rxdb-client-generator: (node:52017) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator: (node:52018) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/cli/out-dir.spec.ts (3 tests) 15ms
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/generator_entity_rules_exists.spec.ts (17 tests) 33ms
+rxdb-client-generator: (node:52020) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/generator_default_serialization.spec.ts (29 tests) 35ms
+rxdb-client-generator: (node:52021) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/cli/find-files.spec.ts (3 tests) 29ms
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/RxDBClientGenerator.utils.spec.ts (29 tests) 36ms
+rxdb-client-generator: (node:52030) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator: (node:52031) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator: (node:52032) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator: (node:52033) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/plugins/cli-shebang.spec.ts (4 tests) 8ms
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/known_repository_generators.spec.ts (5 tests) 14ms
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/generator_metadata_key.spec.ts (4 tests) 9ms
+rxdb-client-generator: (node:52034) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+rxdb-client-generator: (Use `node --trace-warnings ...` to show where the warning was created)
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/generator_utils.spec.ts (5 tests) 7ms
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/cli/package-exports.spec.ts (2 tests) 5ms
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/cli.empty-export.spec.ts (1 test) 11ms
+rxdb-client-generator: stdout | src/__tests__/cli/review-new-output-alias-queue.spec.ts > 评审：首次输出目录的父软链别名必须共用构建队列 > 输出目录已存在=true 时，最后调用的构建必须最后发布
+rxdb-client-generator: REVIEW_GENERATOR_ALIAS {"existing":true,"completionOrder":["A","B"],"hasAlpha":false,"hasBeta":true}
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/cli/review-new-output-alias-queue.spec.ts (2 tests) 34885ms
+rxdb-client-generator:      ✓ 输出目录已存在=false 时，最后调用的构建必须最后发布  20346ms
+rxdb-client-generator:      ✓ 输出目录已存在=true 时，最后调用的构建必须最后发布  14536ms
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/cli/analyze-file.unresolved-import.spec.ts (11 tests) 32290ms
+rxdb-client-generator:        ✓ `@aiao/rxdb` 解析不到时点明模块说明符与出事的文件  3659ms
+rxdb-client-generator:        ✓ 别名导入同样点明  3214ms
+rxdb-client-generator:        ✓ 命名空间限定的装饰器按最左侧的命名空间 import 点明  3248ms
+rxdb-client-generator:        ✓ 经 re-export 转手的装饰器点明失败的那一环所在的文件  3089ms
+rxdb-client-generator:        ✓ 枚举所在模块解析不到时点明模块说明符  15840ms
+rxdb-client-generator:        ✓ 别名导入的枚举同样点明  580ms
+rxdb-client-generator:        ✓ 经 re-export 转手的枚举点明失败的那一环所在的文件  554ms
+rxdb-client-generator:        ✓ 模块解析得到、但没有这个导出：不报解析失败  575ms
+rxdb-client-generator:        ✓ 同名枚举来自别的模块：不报解析失败  450ms
+rxdb-client-generator:        ✓ 同名的局部对象、没有任何 import：不报解析失败  531ms
+rxdb-client-generator:        ✓ 同名的局部装饰器、没有任何 import：不报解析失败  547ms
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/plugins/vite.integration.spec.ts (3 tests) 35368ms
+rxdb-client-generator:      ✓ generates before a first build resolves generated imports  10334ms
+rxdb-client-generator:      ✓ rebuilds serially on consecutive entity changes and triggers full reload  23283ms
+rxdb-client-generator:      ✓ propagates initial generation failures from the Vite build  1747ms
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/api-docs.spec.ts (3 tests) 7ms
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/cli/build-client-lib.symlink.spec.ts (4 tests) 39258ms
+rxdb-client-generator:      ✓ 生成文件位置是软链时，不得写穿到链接目标  10561ms
+rxdb-client-generator:      ✓ manifest 是软链时，不得写穿到链接目标  9662ms
+rxdb-client-generator:      ✓ 陈旧文件清理不得穿过软链目录删掉外部文件  9194ms
+rxdb-client-generator:      ✓ 软链别名指向同一物理目录时，并发构建必须串行化  9839ms
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/cli/analyze-file.edges.spec.ts (14 tests) 36969ms
+rxdb-client-generator:      ✓ supports TreeEntity and GraphEntity repository assignment  18152ms
+rxdb-client-generator:      ✓ rejects multiple entity decorators on one class  1018ms
+rxdb-client-generator:      ✓ rejects non-call entity decorator and wrong arg count  1970ms
+rxdb-client-generator:      ✓ evaluates unary plus/minus and parenthesized/as expressions  886ms
+rxdb-client-generator:      ✓ rejects computed property names and non-object metadata  3083ms
+rxdb-client-generator:      ✓ collects parent metadata from decorated base class in same file  872ms
+rxdb-client-generator:      ✓ does not treat a local class named EntityBase as the RxDB built-in base  574ms
+rxdb-client-generator:      ✓ collects a three-level decorated inheritance chain across files regardless of input order  580ms
+rxdb-client-generator:      ✓ resolves named, namespace, and re-export aliases to the original entity decorator symbol  567ms
+rxdb-client-generator:      ✓ fails closed when an entity decorator behind a re-export cannot resolve its source package  1932ms
+rxdb-client-generator:      ✓ fails closed when a decorated class extends an unresolved base class  571ms
+rxdb-client-generator:      ✓ rejects a local decorator that only reuses the Entity name  569ms
+rxdb-client-generator:      ✓ clears cached decorator package ownership together with the global project  1904ms
+rxdb-client-generator:      ✓ clearGlobalProject allows reusing global project path  4284ms
+rxdb-client-generator: stdout | src/__tests__/cli/repository-generators.spec.ts > CLI 在配置目录之外的 cwd 装载 repositoryGenerators（跨 cwd 集成测试） > 裸包、包子路径、相对路径三种规格，在 cwd 不是配置目录时都能装载
+rxdb-client-generator: ✅ Generated 1 client(s) from /var/folders/0c/00zknwk523b_r7h7dcj34s380000gn/T/rxdb-client-generator-outside-cwd-QXkyLf/rxdb.config.ts
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/cli/repository-generators.spec.ts (15 tests) 40937ms
+rxdb-client-generator:      ✓ 声明生成器后，产物带上插件方法，基类元数据也由生成器补齐  10379ms
+rxdb-client-generator:      ✓ 不声明生成器时，插件基类的元数据无人提供，分析阶段就拒绝  8970ms
+rxdb-client-generator:      ✓ 不声明生成器时，即便实体不继承插件基类也 fail-closed，而不是产出缺方法的半成品  14202ms
+rxdb-client-generator:      ✓ 与已注册生成器重名时拒绝，而不是静默顶替  3615ms
+rxdb-client-generator:      ✓ 裸包、包子路径、相对路径三种规格，在 cwd 不是配置目录时都能装载  3674ms
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/cli/build-client-lib.atomic.spec.ts (5 tests) 49544ms
+rxdb-client-generator:      ✓ 大小写碰撞被拒绝时，输出目录必须零变化  20180ms
+rxdb-client-generator:      ✓ 首次构建碰撞被拒绝时，不得留下半套文件  9258ms
+rxdb-client-generator:      ✓ 写入中途失败时，既有产物与 manifest 都不变  9761ms
+rxdb-client-generator:      ✓ staging 建好之后的提交段失败，也不残留 staging 目录  6881ms
+rxdb-client-generator:      ✓ 成功构建后不残留 staging 目录，manifest 也不含它  3461ms
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/cli/build-client-lib.spec.ts (6 tests) 50337ms
+rxdb-client-generator:      ✓ removes only stale manifest-owned files when output shape changes  20069ms
+rxdb-client-generator:      ✓ preserves handwritten getters in runtime and declaration outputs  9298ms
+rxdb-client-generator:      ✓ rejects handwritten getters that collide with generated entity members  5684ms
+rxdb-client-generator:      ✓ rejects handwritten getters that depend on module bindings instead of emitting a getter that throws  4495ms
+rxdb-client-generator:      ✓ preserves cross-file inheritance metadata regardless of entity input order  3709ms
+rxdb-client-generator:      ✓ keeps every generated entity when only part of the source switches to an import alias  7078ms
+rxdb-client-generator:  ✓ |rxdb-client-generator| src/__tests__/cli/build-client-lib.edges.spec.ts (7 tests) 52460ms
+rxdb-client-generator:      ✓ rejects invalid JSON manifest  10462ms
+rxdb-client-generator:      ✓ rejects manifest with wrong shape or duplicates  18712ms
+rxdb-client-generator:      ✓ rejects manifest paths that escape the output directory  5326ms
+rxdb-client-generator:      ✓ rejects an entity named index that would collide with the barrel  4398ms
+rxdb-client-generator:      ✓ rejects an entity whose file name collides case-insensitively with the barrel  3541ms
+rxdb-client-generator:      ✓ rejects two entities whose output files differ only by case  3383ms
+rxdb-client-generator:      ✓ serializes concurrent builds for the same outDir  6635ms
+rxdb-client-generator:  Test Files  43 passed (43)
+rxdb-client-generator:       Tests  434 passed (434)
+rxdb-client-generator:    Start at  11:10:28
+rxdb-client-generator:    Duration  54.52s (transform 4.44s, setup 0ms, import 47.39s, tests 522.04s, environment 7ms)
+rxdb-client-generator: JUNIT report written to /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/coverage/packages/rxdb-client-generator/junit.xml
+rxdb-client-generator:  % Coverage report from v8
+rxdb-client-generator: -------------------|---------|----------|---------|---------|-------------------
+rxdb-client-generator: File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+rxdb-client-generator: -------------------|---------|----------|---------|---------|-------------------
+rxdb-client-generator: All files          |   95.15 |    86.57 |    95.5 |   95.91 |                   
+rxdb-client-generator:  src/cli           |   92.67 |    84.88 |   94.94 |   93.67 |                   
+rxdb-client-generator:   analyze-file.ts  |   89.97 |    80.27 |   92.45 |   91.17 | ...90,697,703,730 
+rxdb-client-generator:   ...client-lib.ts |   98.03 |    97.72 |     100 |   97.97 | 75,134            
+rxdb-client-generator:   cli.ts           |   92.75 |    92.59 |   93.33 |   93.54 | 123,152-154       
+rxdb-client-generator:   ...generators.ts |      95 |       88 |     100 |   97.36 | 97                
+rxdb-client-generator:  src/core          |   97.45 |     88.4 |   97.69 |   97.95 |                   
+rxdb-client-generator:   ...tGenerator.ts |   97.04 |    84.49 |   95.83 |   98.06 | ...38,150,174,283 
+rxdb-client-generator:   ...ator.utils.ts |   96.19 |    87.66 |     100 |   96.77 | ...30,263,278,456 
+rxdb-client-generator:   ...ed-symbols.ts |   97.18 |    86.11 |   93.87 |   97.01 | 79-80,133,305     
+rxdb-client-generator:   ...data.utils.ts |   66.66 |       50 |     100 |   66.66 | 15                
+rxdb-client-generator:   ...ph-browser.ts |   98.83 |     92.3 |     100 |    99.3 | 295,317           
+rxdb-client-generator:  src/generators    |   95.78 |    90.45 |   95.31 |   96.46 |                   
+rxdb-client-generator:   ...eratorBase.ts |   96.29 |     91.3 |   94.44 |   96.15 | 82-83,271         
+rxdb-client-generator:   ...definition.ts |    96.7 |    90.32 |   88.23 |   97.61 | 168-169           
+rxdb-client-generator:   ...properties.ts |   95.12 |    91.66 |     100 |   94.73 | 25,30             
+rxdb-client-generator:   ...-relations.ts |      90 |    86.66 |     100 |      90 | 61,109            
+rxdb-client-generator:   entity-rules.ts  |    95.5 |    88.88 |     100 |   97.56 | 243,264           
+rxdb-client-generator:  src/plugins       |   90.12 |    68.75 |   91.66 |   91.04 |                   
+rxdb-client-generator:   cli-shebang.ts   |   95.65 |    78.57 |     100 |   95.23 | 41                
+rxdb-client-generator:   vite.ts          |   87.93 |    61.11 |   88.88 |   89.13 | 22-23,98-100      
+rxdb-client-generator:  src/testing       |    88.4 |    60.86 |      75 |    90.9 |                   
+rxdb-client-generator:   ...d-consumer.ts |    87.5 |    57.89 |   68.75 |   90.56 | 92-99,148         
+rxdb-client-generator:   ...t-compiler.ts |    92.3 |       75 |     100 |    92.3 | 36                
+rxdb-client-generator: -------------------|---------|----------|---------|---------|-------------------
+rxdb-client-generator: =============================== Coverage summary ===============================
+rxdb-client-generator: Statements   : 95.15% ( 2003/2105 )
+rxdb-client-generator: Branches     : 86.57% ( 1103/1274 )
+rxdb-client-generator: Functions    : 95.5% ( 446/467 )
+rxdb-client-generator: Lines        : 95.91% ( 1830/1908 )
+rxdb-client-generator: ================================================================================
+
+
+
+ NX   Successfully ran target test for project rxdb-client-generator
+
+
+
+ NX   Nx detected a flaky task
+
+  rxdb-client-generator:test
+
+Flaky tasks can disrupt your CI pipeline. Automatically retry them with Nx Cloud. Learn more at https://nx.dev/ci/features/flaky-tasks
+
+  Run duration:      55.3s
+  Cache:             0/1 hit (0%)
+  Critical path:     55.3s (1 task)
+  Recoverable time:  <1ms
+
+  Recommendations:
+    - Speed up or split the longest tasks on the critical path:
+        rxdb-client-generator:test    55.3s

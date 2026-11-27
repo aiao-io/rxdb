@@ -1,0 +1,210 @@
+$ nx affected -t lint typecheck test test-memory test-browser build audit-lazy-backend e2e --output-style=static --skipRemoteCache --parallel=4 --nxBail
+
+ NX   Affected criteria defaulted to --base=main --head=HEAD
+
+ FAIL  |rxdb-client-generator| src/__tests__/plugins/vite.integration.spec.ts > rxdbClientGeneratorVitePlugin integration > rebuilds serially on consecutive entity changes and triggers full reload
+AssertionError: expected 'import type { CountOptions, ENTITY_ST…' to contain 'title: string;'
+
+- Expected
++ Received
+
+- title: string;
++ import type { CountOptions, ENTITY_STATIC_TYPES, EntityBase, EntityType, FindAllOptions, FindByCursorOptions, FindOneOptions, FindOneOrFailOptions, FindOptions, IEntity, RuleGroupBase, UUID } from '@aiao/rxdb';
++ import type { Observable } from 'rxjs';
++
++ /**
++  * rule
++  */
++ declare type WidgetRule = never;
++
++ /**
++  * RuleGroupBase
++  */
++ export declare type WidgetRuleGroup = RuleGroupBase<typeof Widget,never,
++ WidgetRule>;
++
++ /**
++  * OrderByField
++  */
++ declare type WidgetOrderByField = never;
++
++ /**
++  * rxdb
++  */
++ declare module "@aiao/rxdb" {
++   /**
++    * RxDB
++    */
++   interface RxDB {
++     /**
++      * Widget
++      */
++     Widget: typeof Widget;
++   }
++ }
++
++ /**
++  * 静态类型
++  */
++ export interface WidgetStaticTypes {
++   /**
++    * id 类型
++    */
++   idType: UUID;
++   /**
++    * 查询选项
++    */
++   getOptions: UUID;
++   /**
++    * 查询选项
++    */
++   findOneOrFailOptions: FindOneOrFailOptions<typeof Widget,WidgetRuleGroup,WidgetOrderByField>;
++   /**
++    * 查询选项
++    */
++   findOptions: FindOptions<typeof Widget,WidgetRuleGroup,WidgetOrderByField>;
++   /**
++    * 查询选项
++    */
++   findOneOptions: FindOneOptions<typeof Widget,WidgetRuleGroup,WidgetOrderByField>;
++   /**
++    * 查询选项
++    */
++   findAllOptions: FindAllOptions<typeof Widget,WidgetRuleGroup,WidgetOrderByField>;
++   /**
++    * 查询选项
++    */
++   findByCursorOptions: FindByCursorOptions<typeof Widget,WidgetRuleGroup,WidgetOrderByField>;
++   /**
++    * 查询选项
++    */
++   countOptions: CountOptions<typeof Widget,WidgetRuleGroup>;
++ }
++
++ /**
++  * 初始化数据
++  */
++ export interface WidgetInitData {
++ }
++
++ /**
++  * Widget
++  */
++ export declare class Widget {
++   static [ENTITY_STATIC_TYPES]: WidgetStaticTypes;
++   /**
++    * 删除
++    */
++   remove: () => Promise<this>;
++   /**
++    * 重置数据
++    */
++   reset: () => void;
++   /**
++    * 保存
++    */
++   save: () => Promise<this>;
++   /**
++    * 初始化数据
++    * @param initData 初始化数据
++    */
++   constructor(initData?: WidgetInitData);
++   /**
++    * 统计实体数量
++    * @param options 查询选项
++    * @example
++    * Widget.count({ where: { combinator: 'and', rules: [] } }).subscribe(total => console.log(total));
++    */
++   static count(options: CountOptions<typeof Widget,WidgetRuleGroup>): Observable<number>;
++   static count<T extends EntityBase>(this: new () => T, options: CountOptions<new () => T>): Observable<number>;
++   /**
++    * 查询多个实体
++    * @param options 查询选项
++    * @example
++    * Widget.find({ where: { combinator: 'and', rules: [] } }).subscribe(list => console.log(list));
++    */
++   static find(options: FindOptions<typeof Widget,WidgetRuleGroup,WidgetOrderByField>): Observable<Widget[]>;
++   static find<T extends EntityBase>(this: new () => T, options: FindOptions<new () => T>): Observable<T[]>;
++   /**
++    * 查询所有实体
++    * @param options 查询选项
++    * @example
++    * Widget.findAll({ where: { combinator: 'and', rules: [] } }).subscribe(list => console.log(list));
++    */
++   static findAll(options: FindAllOptions<typeof Widget,WidgetRuleGroup,WidgetOrderByField>): Observable<Widget[]>;
++   static findAll<T extends EntityBase>(this: new () => T, options: FindAllOptions<new () => T>): Observable<T[]>;
++   /**
++    * 游标分页查询
++    * @param options 查询选项
++    * @example
++    * Widget.findByCursor({ where: { combinator: 'and', rules: [] } }).subscribe(list => console.log(list));
++    */
++   static findByCursor(options: FindByCursorOptions<typeof Widget,WidgetRuleGroup,WidgetOrderByField>): Observable<Widget[]>;
++   static findByCursor<T extends EntityBase>(this: new () => T, options: FindByCursorOptions<new () => T>): Observable<T[]>;
++   /**
++    * 查询单个实体,未找到时返回 null
++    * @param options 查询选项
++    * @example
++    * Widget.findOne({ where: { combinator: 'and', rules: [] } }).subscribe(entity => console.log(entity));
++    */
++   static findOne(options: FindOneOptions<typeof Widget,WidgetRuleGroup,WidgetOrderByField>): Observable<Widget | null>;
++   static findOne<T extends EntityBase>(this: new () => T, options: FindOneOptions<new () => T>): Observable<T | null>;
++   /**
++    * 查询单个实体,未找到时抛出错误
++    * @param options 查询选项
++    * @example
++    * Widget.findOneOrFail({ where: { combinator: 'and', rules: [] } }).subscribe(entity => console.log(entity));
++    */
++   static findOneOrFail(options: FindOneOrFailOptions<typeof Widget,WidgetRuleGroup,WidgetOrderByField>): Observable<Widget>;
++   static findOneOrFail<T extends EntityBase>(this: new () => T, options: FindOneOrFailOptions<new () => T>): Observable<T>;
++   /**
++    * 根据 ID 获取单个实体
++    * @param options 查询选项
++    * @example
++    * Widget.get('123').subscribe(entity => console.log(entity));
++    */
++   static get(options: UUID): Observable<Widget>;
++   static get<T extends EntityBase>(this: new () => T, id: UUID): Observable<T>;
++ }
++
++ export declare const ENTITIES: EntityType[];
++
++
+
+ ❯ src/__tests__/plugins/vite.integration.spec.ts:128:68
+    126|     await writeFile(fixture.entityFile, entitySource('title'), 'utf8');
+    127|     await waitFor(async () => {
+    128|       expect(await readFile(fixture.generatedDeclaration, 'utf8')).toC…
+       |                                                                    ^
+    129|     });
+    130|
+ ❯ waitFor src/__tests__/plugins/vite.integration.spec.ts:25:7
+ ❯ src/__tests__/plugins/vite.integration.spec.ts:127:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 42 passed (43)
+      Tests  1 failed | 433 passed (434)
+   Start at  11:07:03
+   Duration  96.09s (transform 6.79s, setup 0ms, import 75.04s, tests 891.90s, environment 7ms)
+
+JUNIT report written to /Users/jimmy/Documents/aiao-
+Failed tasks:
+
+- rxdb-client-generator:test
+
+
+ NX   Nx detected a flaky task
+
+  rxdb-plugin-board:coverage
+
+Flaky tasks can disrupt your CI pipeline. Automatically retry them with Nx Cloud. Learn more at https://nx.dev/ci/features/flaky-tasks
+
+  Run duration:      3m 16s
+  Cache:             142/217 hit (65%)
+  Critical path:     1m 56s (2 tasks)
+  Recoverable time:  1m 20s (41% of the run)
+
+  Recommendation: Increase parallelism to recover up to 1m 20s → https://nx.dev/docs/concepts/ci-concepts/parallelization-distribution?utm_source=nx-cli&utm_medium=cli&utm_campaign=performance-report&utm_content=parallelization.
+[ELIFECYCLE] Command failed with exit code 1.

@@ -337,7 +337,7 @@ schema 指纹的规范化规则与必需元数据在 plan 阶段冻结；未知�
   | adapter           | 源 / 目标存储                | 运行环境                                   | 引擎 / 必需扩展                                          | 跨 OS                                     |
   | ----------------- | ---------------------------- | ------------------------------------------ | -------------------------------------------------------- | ----------------------------------------- |
   | `sqlite-electron` | 应用数据目录下的库文件       | Electron 44 主进程 `node:sqlite`，WAL      | SQLite ≥ 3.43（Electron 44.4.3 实测内置 3.53.4）；无     | Linux / macOS / Windows 两两互通（AC#20） |
-  | `sqlite-tauri`    | 应用数据目录下的库文件       | Tauri 2 Rust host（rusqlite bundled），WAL | SQLite ≥ 3.43（rusqlite 0.32 内置 3.46.0）；FTS5         | 同上                                      |
+  | `sqlite-tauri`    | 应用数据目录下的库文件       | Tauri 2 Rust host（rusqlite bundled），WAL | SQLite ≥ 3.43（rusqlite 0.33 内置 3.48.0）；FTS5         | 同上                                      |
   | `pglite-electron` | 应用数据目录下的 PGlite 目录 | Electron 主进程 worker 线程里的 PGlite     | PGlite ^0.5.8（PostgreSQL 18）；扩展由宿主声明，示例为空 | 同上                                      |
 
   内存目标、Electron 的虚表库、没有开 `backup` 的 PGlite host、以及协议版本不一致的 renderer / host 组合明确拒绝。

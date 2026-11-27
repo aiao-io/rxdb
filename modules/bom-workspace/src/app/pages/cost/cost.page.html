@@ -1,0 +1,41 @@
+<div class="page">
+  <section class="page-hero">
+    <div>
+      <p class="page-eyebrow">成本分析</p>
+      <h1>成本卷算</h1>
+      <p class="panel-desc">算清一批产品花多少钱，并沿材料、加工和副产抵减追溯成本来源。</p>
+    </div>
+    <label class="hero-control">
+      评估日
+      <input [(ngModel)]="asOfDate" data-testid="as-of-date" type="date" />
+    </label>
+  </section>
+
+  <bom-cost-panel [asOfDate]="asOfDate()" />
+
+  <details class="details-panel">
+    <summary>为什么单位成本会有很多小数？</summary>
+    <div class="check-grid">
+      <div class="check-card">
+        <h3>98% 良率，需要多投入一点</h3>
+        <p class="hint">
+          每件需要 1 颗芯片，良率为 98%，标准耗用是 1 ÷ 0.98 ≈ 1.020408 颗。芯片单价 1 元，加上 7
+          元电阻，控制板（PCBA）单位成本约为 8.020408 元。
+        </p>
+      </div>
+      <div class="check-card">
+        <h3>成本核算与备料数量有不同用途</h3>
+        <p class="hint">
+          单位成本按标准耗用计价；实际备料还会按物料的最小单位向上取整。金额显示两位、单位成本最多六位，完整原值保留在每行明细中。
+        </p>
+      </div>
+      <div class="check-card">
+        <h3>缺少价格，先补齐再计算</h3>
+        <p class="hint">
+          选择缺成本演示（COST-DEMO）
+          可体验缺成本提示。缺少任一材料价格时不显示总额，避免把未知成本当作免费；联产品则需要明确选择生产来源。
+        </p>
+      </div>
+    </div>
+  </details>
+</div>

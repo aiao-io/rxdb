@@ -17,11 +17,29 @@ export default defineConfig({
   cacheDir: '../../node_modules/.vite/packages/rxdb-adapter-tauri-conformance',
   resolve: { tsconfigPaths: true },
   test: {
-    name: 'rxdb-adapter-tauri-conformance',
     watch: false,
     globals: true,
     environment: 'node',
-    include: ['conformance/**/*.spec.ts'],
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: 'rxdb-adapter-tauri-conformance',
+          include: ['conformance/**/*.spec.ts'],
+          exclude: ['conformance/tauri-sqlite-backup-memory.spec.ts'],
+          sequence: { groupOrder: 0 }
+        }
+      },
+      {
+        extends: true,
+        test: {
+          name: 'rxdb-adapter-tauri-memory',
+          include: ['conformance/tauri-sqlite-backup-memory.spec.ts'],
+          maxWorkers: 1,
+          sequence: { groupOrder: 1 }
+        }
+      }
+    ],
     // 每个 spec 文件起一个独立的宿主进程与临时工作区，因此文件之间可以并行；
     // 单个文件内部必须串行，套件本身就是这么写的。
     reporters: ['default'],

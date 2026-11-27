@@ -1,4 +1,13 @@
-import { type EntityUpdateData, getEntityStatus, RxDB, SyncType } from '@aiao/rxdb';
+import {
+  Entity,
+  EntityBase,
+  type EntityType,
+  type EntityUpdateData,
+  getEntityStatus,
+  PropertyType,
+  RxDB,
+  SyncType
+} from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import { SqliteRepository } from '../../repository/SqliteRepository.js';
 import { RxDBAdapterSqliteBase, type SqliteClientLike } from '../../RxDBAdapterSqliteBase.js';
@@ -39,10 +48,19 @@ class RepositoryTestAdapter extends RxDBAdapterSqliteBase {
   }
 }
 
-const createRxdb = (dbName: string): RxDB => {
+@Entity({
+  name: 'NullableTodo',
+  tableName: 'nullable_todos',
+  properties: [{ name: 'title', type: PropertyType.string, nullable: true }]
+})
+class NullableTodo extends EntityBase {
+  title!: string | null;
+}
+
+const createRxdb = (dbName: string, entities: EntityType[] = [Todo]): RxDB => {
   const rxdb = new RxDB({
     dbName,
-    entities: [Todo],
+    entities,
     sync: { local: { adapter: 'noop' }, type: SyncType.None }
   });
   rxdb.schemaManager.init();
@@ -191,6 +209,9 @@ describe('SqliteRepository', () => {
     const updated = await repository.update(entity, { title: 'next' } as Partial<InstanceType<typeof Todo>>);
 
     expect(updated).toBe(entity);
+    expect(entity.title).toBe('next');
+    expect(getEntityStatus(entity).patch).toEqual({});
+    expect(getEntityStatus(entity).modified).toBe(false);
     const [call] = adapter.queryCalls;
     expect(call.sql).toMatch(/^UPDATE "public\$todos" SET/);
     expect(call.params).toContain('next');
@@ -199,6 +220,92 @@ describe('SqliteRepository', () => {
       param => typeof param === 'string' && param.endsWith('Z') && param !== 'next'
     );
     expect(new Date(String(updatedAtParam)).getTime()).toBeGreaterThan(new Date(ISO).getTime());
+  });
+
+  it('update 写入期间的新编辑保留为下一次保存的差异', async () => {
+    const rxdb = createRxdb('sqlite-core-repo-update-merge');
+    let entered!: () => void;
+    let resume!: () => void;
+    const reached = new Promise<void>(resolve => {
+      entered = resolve;
+    });
+    const gate = new Promise<void>(resolve => {
+      resume = resolve;
+    });
+    const adapter = new RepositoryTestAdapter(rxdb, async sql => {
+      entered();
+      await gate;
+      return todoRowsResult(sql, [[3, 'todo-update', 'saved', 0, ISO, '2026-01-03T00:00:00.000Z']]);
+    });
+    const repository = new SqliteRepository(adapter, Todo);
+    const entity = createTodoRef(rxdb, 'todo-update', 'before', true);
+    entity.title = 'saved';
+
+    const saving = repository.update(entity, getEntityStatus(entity).patch);
+    await reached;
+    entity.title = 'later';
+    entity.completed = true;
+    resume();
+    await saving;
+
+    expect(entity.title).toBe('later');
+    expect(entity.completed).toBe(true);
+    const status = getEntityStatus(entity);
+    expect(status.origin.title).toBe('saved');
+    expect(status.origin.completed).toBe(false);
+    expect(status.patch).toEqual({ title: 'later', completed: true });
+    expect(status.modified).toBe(true);
+    expect(entity.updatedAt.toISOString()).toBe('2026-01-03T00:00:00.000Z');
+  });
+
+  it.each(['before', null])('update 写入期间撤回原值%s，回填仍保留撤回意图', async original => {
+    const rxdb = createRxdb(`sqlite-core-repo-revert-${original === null ? 'null' : 'text'}`, [NullableTodo]);
+    let entered!: () => void;
+    let resume!: () => void;
+    const reached = new Promise<void>(resolve => {
+      entered = resolve;
+    });
+    const gate = new Promise<void>(resolve => {
+      resume = resolve;
+    });
+    const adapter = new RepositoryTestAdapter(rxdb, async sql => {
+      entered();
+      await gate;
+      return {
+        sql,
+        rowsAffected: 1,
+        elapsed: 0,
+        results: [
+          {
+            columns: ['__rowid', 'id', 'title', 'createdAt', 'updatedAt'],
+            rows: [[3, 'todo-revert', 'submitted', ISO, ISO]]
+          }
+        ]
+      };
+    });
+    const repository = new SqliteRepository(adapter, NullableTodo);
+    const entity = rxdb.entityManager.createEntityRef(
+      NullableTodo,
+      {
+        id: 'todo-revert',
+        title: original,
+        createdAt: new Date(ISO),
+        updatedAt: new Date(ISO)
+      } as EntityUpdateData<typeof NullableTodo>,
+      { local: true, modified: false }
+    );
+    entity.title = 'submitted';
+    const saving = repository.update(entity, getEntityStatus(entity).patch);
+    await reached;
+    entity.title = original;
+    resume();
+    await saving;
+
+    expect(entity.title).toBe(original);
+    const status = getEntityStatus(entity);
+    expect(status.origin.title).toBe('submitted');
+    expect(status.patch).toEqual({ title: original });
+    expect(status.modified).toBe(true);
   });
 
   it('remove 本地实体时执行 DELETE 并同步状态', async () => {

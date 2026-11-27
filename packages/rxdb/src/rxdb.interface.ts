@@ -1,5 +1,6 @@
 import { EntityType } from './entity/entity.interface.js';
 import { SyncOptions } from './entity/metadata-options.interface.js';
+import type { EntityStorageOverride } from './entity/storage-override.js';
 import type { EntitySyncOverride } from './entity/sync-override.js';
 import type { TransactionExecutor } from './transaction/transaction-executor.interface.js';
 
@@ -157,6 +158,9 @@ export interface RxDBOptions {
    * 必须与默认 `sync` 同侧一致；覆盖里的 QueryCache 等策略照常要求库级两侧适配器与对应插件。
    */
   syncOverrides?: readonly EntitySyncOverride[];
+
+  /** 本实例的只读生成列与非唯一加速索引；构造时校验快照，不改实体类元数据。 */
+  entityStorage?: readonly EntityStorageOverride[];
 
   /**
    * 环境上下文

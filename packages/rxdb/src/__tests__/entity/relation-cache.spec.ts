@@ -1,11 +1,12 @@
 import { of } from 'rxjs';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { RxDB } from '../../RxDB.js';
 import { EntityBase } from '../../entity/entity-base.js';
 import { Entity } from '../../entity/entity.decorator.js';
 import type { EntityData, EntityType } from '../../entity/entity.interface.js';
 import {
   type EntityRelationManyToManyMetadata,
+  type EntityRelationMetadata,
   type EntityRelationOneToManyMetadata,
   PropertyType,
   RelationKind,
@@ -170,6 +171,60 @@ describe('EntityRelationCache', () => {
   afterAll(async () => {
     await rxdb.disconnectAll();
   });
+
+  it('未访问关系时，外部回填不读取关系目标', () => {
+    const owner = new RelationCacheOwner();
+    const getTarget = vi.fn(() => getEntityStatus(owner).target);
+    const cache = new EntityRelationCache(getTarget, () => owner);
+
+    cache.syncObservableForeignKeys();
+
+    expect(getTarget).not.toHaveBeenCalled();
+  });
+
+  it('仅缓存集合关系时，外部回填保留 Observable 且不读取外键目标', () => {
+    const owner = new RelationCacheOwner();
+    const getTarget = vi.fn(() => getEntityStatus(owner).target);
+    const cache = new EntityRelationCache(getTarget, () => owner);
+    const entry = { observable: of([]) };
+    cache.setObservableEntry(ORDINARY_RELATION, entry);
+
+    cache.syncObservableForeignKeys();
+
+    expect(getTarget).not.toHaveBeenCalled();
+    expect(cache.getObservableEntry(ORDINARY_RELATION)).toBe(entry);
+  });
+
+  it.each([RelationKind.MANY_TO_ONE, RelationKind.ONE_TO_ONE] as const)(
+    '%s 外部回填向已有 Observable 同步最新外键，保留零值并归一缺失值',
+    kind => {
+      const owner = new RelationCacheOwner();
+      const target = getEntityStatus(owner).target;
+      const cache = createCache(owner);
+      const relation = {
+        ...ORDINARY_RELATION,
+        name: 'owner',
+        columnName: 'ownerId',
+        kind
+      } satisfies EntityRelationMetadata;
+      const syncForeignKeyId = vi.fn();
+      const entry = { observable: of(null), syncForeignKeyId };
+      cache.setObservableEntry(relation, entry);
+      cache.setObservableEntry(ORDINARY_RELATION, { observable: of([]) });
+
+      for (const id of ['first-owner', 'next-owner', 0, 0n, '', null, undefined]) {
+        Reflect.set(target, 'ownerId', id);
+        cache.syncObservableForeignKeys();
+        expect(syncForeignKeyId).toHaveBeenLastCalledWith(id ?? null);
+        expect(cache.getObservableEntry(relation)).toBe(entry);
+      }
+
+      cache.clear();
+      syncForeignKeyId.mockClear();
+      cache.syncObservableForeignKeys();
+      expect(syncForeignKeyId).not.toHaveBeenCalled();
+    }
+  );
 
   it('maintains ordinary relation caches through add, remove, clean, clear and iteration', () => {
     const owner = new RelationCacheOwner();

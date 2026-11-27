@@ -102,6 +102,7 @@ export default defineConfig(() => ({
     name: 'rxdb-adapter-sqlite-wasm',
     watch: false,
     globals: true,
+    fileParallelism: false,
     testTimeout: process.env.CI ? 30000 : 5000,
     hookTimeout: process.env.CI ? 30000 : 10000,
     include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],

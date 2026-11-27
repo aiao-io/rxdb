@@ -1,0 +1,28 @@
+独立预览部署，2026-11-14；target: aiao-bom-2:deploy
+
+Uploaded 32 of 97 assets
+Uploaded 64 of 97 assets
+Uploaded 97 of 97 assets
+✨ Success! Uploaded 97 files (12.94 sec)
+
+Total Upload: 0.37 KiB / gzip: 0.25 KiB
+Uploaded aiao-bom-2 (16.32 sec)
+Deployed aiao-bom-2 triggers (1.71 sec)
+  https://aiao-bom-2.aiao.workers.dev
+Current Version ID: ae3a514b-3463-400d-a731-b277e2bb5fb3
+
+
+
+ NX   Successfully ran target deploy for project aiao-bom-2 and 18 tasks it depends on
+
+Nx read the output from the cache instead of running the command for 16 out of 19 tasks.
+
+  Run duration:      38.7s
+  Cache:             16/19 hit (84%)
+  Critical path:     38.6s (11 tasks)
+  Recoverable time:  <1ms
+
+  Recommendations:
+    - Speed up or split the longest tasks on the critical path:
+        aiao-bom-2:deploy              26.4s
+        aiao-bom-2:build:production    11.6s

@@ -1,0 +1,13 @@
+{
+  "checkedAt": "2026-11-14T05:59:41.537Z",
+  "origin": "https://aiao-bom-2.aiao.workers.dev",
+  "model": "独立零件 · 1300001X9D01A",
+  "resources": [
+    {
+      "url": "https://www.windrose.ai/assets/3d-data/x9d01_CN-X9D01A-1300001-assembly.glb",
+      "status": 200
+    }
+  ],
+  "matched": "1",
+  "errors": []
+}

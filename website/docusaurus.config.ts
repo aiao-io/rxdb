@@ -100,6 +100,7 @@ const config: Config = {
   ],
   plugins: [
     ['./src/plugins/tailwind-config.js', {}],
+    ['./src/plugins/api-doc-chunks.js', {}],
     ['./src/plugins/demo-routes.js', {}],
     ['./src/plugins/llms-txt.js', {}],
     [

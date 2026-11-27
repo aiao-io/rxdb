@@ -127,3 +127,11 @@ test('已是绝对路径或外链的链接原样保留', () => {
 
   assert.equal(rewriteRelativeApiLinks(content, 'rxdb/functions/foo.md'), content);
 });
+
+test('英文站点可解析带片段的跨包 API 链接', () => {
+  const content = '继承自 [EntityBase](../../rxdb/classes/EntityBase.md#constructor)。';
+  assert.equal(
+    rewriteRelativeApiLinks(content, 'rxdb-plugin-bom/classes/BomItem.md'),
+    '继承自 [EntityBase](/api/rxdb/classes/EntityBase.md#constructor)。'
+  );
+});

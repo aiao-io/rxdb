@@ -1,0 +1,86 @@
+{
+  "head": "f3369d5ce91ec0692fb3f8e1ac5af1f49efb5efe",
+  "runId": "43585221765",
+  "jobId": "132419005206",
+  "artifactId": "14110543873",
+  "artifactSha256": "b2a8e5f853ed9085a9a8f723d7ac1c7b35bc0ca18b267337282edb922b87b351",
+  "traceSha256": "ac520e1851611c2d028cdae16481e86e270658ac1e2b170845dc48ef9bc3793b",
+  "red": {
+    "expectedColumns": 21,
+    "actualColumns": 11,
+    "menuItemsEnumerated": 0,
+    "checkboxChecksExecuted": 0,
+    "passed": 58,
+    "failed": 1
+  },
+  "calls": [
+    {
+      "type": "before",
+      "callId": "hnud@55",
+      "startTime": 7764.753,
+      "class": "Frame",
+      "method": "click",
+      "params": {
+        "selector": "internal:role=button[name=\"列配置\"s]",
+        "strict": true
+      }
+    },
+    {
+      "type": "after",
+      "callId": "hnud@55",
+      "endTime": 7795.448
+    },
+    {
+      "type": "before",
+      "callId": "hnud@57",
+      "startTime": 7799.012,
+      "class": "Frame",
+      "method": "queryCount",
+      "params": {
+        "selector": ".column-menu label:not(.catalog-toggle) input[type=checkbox]:enabled"
+      }
+    },
+    {
+      "type": "after",
+      "callId": "hnud@57",
+      "endTime": 7801.999,
+      "result": {
+        "value": 0
+      }
+    },
+    {
+      "type": "before",
+      "callId": "hnud@59",
+      "startTime": 7811.948,
+      "class": "Frame",
+      "method": "click",
+      "params": {
+        "selector": "internal:role=button[name=\"列配置\"s]",
+        "strict": true
+      }
+    },
+    {
+      "type": "after",
+      "callId": "hnud@59",
+      "endTime": 7840.882
+    },
+    {
+      "type": "before",
+      "callId": "hnud@61",
+      "startTime": 7842.986,
+      "class": "Page",
+      "method": "reload",
+      "params": {
+        "waitUntil": "load"
+      }
+    },
+    {
+      "type": "after",
+      "callId": "hnud@61",
+      "endTime": 7878.191,
+      "result": {
+        "response": "<Response>"
+      }
+    }
+  ]
+}

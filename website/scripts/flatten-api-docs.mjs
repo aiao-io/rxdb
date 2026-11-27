@@ -159,10 +159,10 @@ export function rewriteMediaFileLinks(content) {
  */
 export function rewriteRelativeApiLinks(content, relFilePath) {
   const dir = posix.dirname(relFilePath);
-  return content.replace(/\]\(([^)\s]+\.mdx?)\)/g, (match, target) => {
+  return content.replace(/\]\(([^)#\s]+\.mdx?)(#[^)\s]*)?\)/g, (match, target, fragment = '') => {
     if (target.startsWith('/') || target.startsWith('http') || target.startsWith('#')) return match;
     const resolved = posix.normalize(posix.join(dir, target));
-    return `](/${posix.join('api', resolved)})`;
+    return `](/${posix.join('api', resolved)}${fragment})`;
   });
 }
 

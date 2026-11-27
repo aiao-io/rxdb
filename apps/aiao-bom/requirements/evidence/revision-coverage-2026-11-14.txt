@@ -1,0 +1,117 @@
+
+> nx run aiao-bom-2:test --coverage
+
+aiao-bom-2: (node:81566) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2:  RUN  v4.1.11 /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2
+aiao-bom-2:       Coverage enabled with v8
+aiao-bom-2: (node:81666) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2:  ✓ |aiao-bom-2| src/app/core/snapshot.spec.ts (11 tests) 1689ms
+aiao-bom-2:      ✓ 十万节点深链校验与比较不递归、不逐行扫描全部节点  1672ms
+aiao-bom-2: (node:81715) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2:  ✓ |aiao-bom-2| src/app/app.spec.ts (3 tests) 816ms
+aiao-bom-2:      ✓ 导航、展示模式、过滤、列配置、选择和使用处共享同一工作区  630ms
+aiao-bom-2: (node:81741) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2:  ✓ |aiao-bom-2| src/app/core/query.spec.ts (10 tests) 405ms
+aiao-bom-2:      ✓ 50,000 个发生项查询与末项定位保持完整  374ms
+aiao-bom-2: (node:81758) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2:  ✓ |aiao-bom-2| src/app/components/version-panel.spec.ts (6 tests) 324ms
+aiao-bom-2: (node:81792) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2:  ✓ |aiao-bom-2| src/app/components/bom-grid.spec.ts (4 tests) 414ms
+aiao-bom-2: (node:81801) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2:  ✓ |aiao-bom-2| src/app/components/model-panel.spec.ts (4 tests) 309ms
+aiao-bom-2: (node:81811) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2:  ✓ |aiao-bom-2| src/app/core/workspace.spec.ts (9 tests) 249ms
+aiao-bom-2: (node:81830) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2:  ✓ |aiao-bom-2| src/app/core/source-data.spec.ts (4 tests) 205ms
+aiao-bom-2: (node:81839) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2:  ✓ |aiao-bom-2| src/app/core/model-viewport.spec.ts (7 tests) 134ms
+aiao-bom-2: (node:81849) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2:  ✓ |aiao-bom-2| src/app/core/analysis.spec.ts (2 tests) 23ms
+aiao-bom-2: (node:81866) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2:  ✓ |aiao-bom-2| src/app/core/scene-batches.spec.ts (2 tests) 25ms
+aiao-bom-2: (node:81867) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2:  ✓ |aiao-bom-2| src/app/core/draft.spec.ts (7 tests) 28ms
+aiao-bom-2: (node:81877) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2:  ✓ |aiao-bom-2| src/app/core/index-client.spec.ts (1 test) 23ms
+aiao-bom-2: (node:81890) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2:  ✓ |aiao-bom-2| src/app/core/selection-frame.spec.ts (2 tests) 11ms
+aiao-bom-2: (node:81891) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2:  ✓ |aiao-bom-2| src/app/core/row-window.spec.ts (1 test) 11ms
+aiao-bom-2: (node:81912) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2:  ✓ |aiao-bom-2| src/app/core/snapshot-workspace.spec.ts (6 tests) 19ms
+aiao-bom-2: (node:81929) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2:  ✓ |aiao-bom-2| src/app/core/storage.spec.ts (8 tests) 14ms
+aiao-bom-2: (node:81938) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2:  ✓ |aiao-bom-2| src/app/core/model-mapping.spec.ts (2 tests) 5ms
+aiao-bom-2:  Test Files  18 passed (18)
+aiao-bom-2:       Tests  89 passed (89)
+aiao-bom-2:    Start at  09:29:08
+aiao-bom-2:    Duration  25.18s (transform 2.24s, setup 4.63s, import 6.11s, tests 4.70s, environment 4.74s)
+aiao-bom-2:  % Coverage report from v8
+aiao-bom-2: -------------------|---------|----------|---------|---------|-------------------
+aiao-bom-2: File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+aiao-bom-2: -------------------|---------|----------|---------|---------|-------------------
+aiao-bom-2: All files          |   94.22 |    86.94 |   95.61 |   98.17 |                   
+aiao-bom-2:  app               |   75.82 |    76.47 |   80.64 |   76.78 |                   
+aiao-bom-2:   app.config.ts    |       0 |      100 |     100 |       0 | 5                 
+aiao-bom-2:   app.routes.ts    |       0 |      100 |     100 |       0 | 3                 
+aiao-bom-2:   app.ts           |   77.52 |    76.47 |   80.64 |   79.62 | 39,62-67,82-86    
+aiao-bom-2:  app/components    |   92.68 |    81.07 |   94.01 |   97.05 |                   
+aiao-bom-2:   bom-grid.ts      |   92.88 |     79.5 |   94.23 |    99.2 | 71                
+aiao-bom-2:   icon.ts          |     100 |       50 |     100 |     100 | 24                
+aiao-bom-2:   model-panel.ts   |   97.97 |    89.13 |     100 |     100 | 23,47,59-73       
+aiao-bom-2:   version-panel.ts |   99.05 |    89.09 |   95.83 |     100 | 31-40,44,75,101   
+aiao-bom-2:   ...ce-dialogs.ts |   79.38 |    71.69 |   81.25 |   83.67 | 43-44,53,64-69    
+aiao-bom-2:  app/core          |   95.92 |    89.49 |   97.89 |   99.88 |                   
+aiao-bom-2:   analysis.ts      |   93.75 |    90.32 |     100 |     100 | 5,15,22           
+aiao-bom-2:   draft.ts         |   83.97 |    82.31 |   96.87 |     100 | ...97-101,120-121 
+aiao-bom-2:   index-client.ts  |   96.42 |    77.77 |     100 |     100 | 13-15             
+aiao-bom-2:   model-mapping.ts |     100 |     87.5 |     100 |     100 | 2                 
+aiao-bom-2:   ...l-viewport.ts |   98.24 |    87.83 |   93.87 |   99.46 | 158               
+aiao-bom-2:   query.ts         |   95.18 |    93.83 |     100 |     100 | ...10,120-121,146 
+aiao-bom-2:   scene-batches.ts |     100 |       95 |     100 |     100 | 35                
+aiao-bom-2:   ...-workspace.ts |   99.05 |    92.15 |     100 |     100 | 6,37,45,77        
+aiao-bom-2:   snapshot.ts      |   97.95 |    97.22 |     100 |     100 | 43,55,68,115      
+aiao-bom-2:   storage.ts       |   98.03 |      100 |      96 |     100 |                   
+aiao-bom-2:   stress-data.ts   |    90.9 |    93.75 |     100 |     100 | 3                 
+aiao-bom-2:   workspace.ts     |   96.14 |    84.92 |   98.48 |     100 | ...15,220,234,240 
+aiao-bom-2: -------------------|---------|----------|---------|---------|-------------------
+aiao-bom-2: =============================== Coverage summary ===============================
+aiao-bom-2: Statements   : 94.22% ( 1974/2095 )
+aiao-bom-2: Branches     : 86.94% ( 1139/1310 )
+aiao-bom-2: Functions    : 95.61% ( 414/433 )
+aiao-bom-2: Lines        : 98.17% ( 1240/1263 )
+aiao-bom-2: ================================================================================
+
+
+
+ NX   Successfully ran target test for project aiao-bom-2
+
+
+  Run duration:      33.3s
+  Cache:             0/1 hit (0%)
+  Critical path:     33.3s (1 task)
+  Recoverable time:  <1ms
+
+  Recommendations:
+    - Speed up or split the longest tasks on the critical path:
+        aiao-bom-2:test    33.3s

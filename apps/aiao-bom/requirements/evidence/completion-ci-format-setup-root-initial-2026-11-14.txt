@@ -1,0 +1,889 @@
+
+ NX   Running targets audit-api-surface, audit-package-graph, audit-requirements, migration-release-gate, test-scripts for project @aiao/source:
+
+- @aiao/source
+
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run @aiao/source:audit-api-surface
+
+> node scripts/audit/api-surface.mjs
+
+✅ code-editor: 表面无变化（1 个入口 / 33 个导出）
+✅ code-editor-angular: 表面无变化（1 个入口 / 3 个导出）
+✅ code-editor-react: 表面无变化（1 个入口 / 5 个导出）
+✅ code-editor-vue: 表面无变化（1 个入口 / 6 个导出）
+✅ rxdb: 表面无变化（2 个入口 / 721 个导出）
+✅ rxdb-adapter-electron: 表面无变化（4 个入口 / 135 个导出）
+✅ rxdb-adapter-encrypted: 表面无变化（2 个入口 / 42 个导出）
+✅ rxdb-adapter-http: 表面无变化（1 个入口 / 51 个导出）
+⏭️  rxdb-adapter-miniprogram/alipay-random-worker.js: 资产入口，无导出表面（内容由供应链审计守护）
+✅ rxdb-adapter-miniprogram: 表面无变化（2 个入口 / 103 个导出）
+✅ rxdb-adapter-pglite: 表面无变化（3 个入口 / 111 个导出）
+✅ rxdb-adapter-sqlite: 表面无变化（2 个入口 / 25 个导出）
+✅ rxdb-adapter-sqlite-core: 表面无变化（3 个入口 / 356 个导出）
+✅ rxdb-adapter-sqlite-wasm: 表面无变化（2 个入口 / 17 个导出）
+✅ rxdb-adapter-sqliteai: 表面无变化（2 个入口 / 16 个导出）
+✅ rxdb-adapter-supabase: 表面无变化（1 个入口 / 14 个导出）
+✅ rxdb-adapter-tauri: 表面无变化（1 个入口 / 51 个导出）
+✅ rxdb-adapter-wa-sqlite: 表面无变化（3 个入口 / 35 个导出）
+⏭️  rxdb-admin/admin.css: 资产入口，无导出表面（内容由供应链审计守护）
+✅ rxdb-admin: 表面无变化（2 个入口 / 215 个导出）
+⏭️  rxdb-admin-angular/tailwind.css: 资产入口，无导出表面（内容由供应链审计守护）
+✅ rxdb-admin-angular: 表面无变化（1 个入口 / 24 个导出）
+⏭️  rxdb-admin-react/tailwind.css: 资产入口，无导出表面（内容由供应链审计守护）
+✅ rxdb-admin-react: 表面无变化（1 个入口 / 26 个导出）
+⏭️  rxdb-admin-vue/tailwind.css: 资产入口，无导出表面（内容由供应链审计守护）
+✅ rxdb-admin-vue: 表面无变化（1 个入口 / 26 个导出）
+✅ rxdb-angular: 表面无变化（1 个入口 / 33 个导出）
+✅ rxdb-client-generator: 表面无变化（4 个入口 / 28 个导出）
+✅ rxdb-devtools: 表面无变化（3 个入口 / 299 个导出）
+✅ rxdb-i18n: 表面无变化（2 个入口 / 23 个导出）
+✅ rxdb-i18n-angular: 表面无变化（1 个入口 / 6 个导出）
+✅ rxdb-i18n-react: 表面无变化（1 个入口 / 6 个导出）
+✅ rxdb-i18n-vue: 表面无变化（1 个入口 / 6 个导出）
+✅ rxdb-model: 表面无变化（2 个入口 / 368 个导出）
+⏭️  rxdb-model-angular/tailwind.css: 资产入口，无导出表面（内容由供应链审计守护）
+✅ rxdb-model-angular: 表面无变化（2 个入口 / 342 个导出）
+⏭️  rxdb-model-react/index.css: 资产入口，无导出表面（内容由供应链审计守护）
+⏭️  rxdb-model-react/tailwind.css: 资产入口，无导出表面（内容由供应链审计守护）
+✅ rxdb-model-react: 表面无变化（2 个入口 / 358 个导出）
+⏭️  rxdb-model-vue/index.css: 资产入口，无导出表面（内容由供应链审计守护）
+⏭️  rxdb-model-vue/tailwind.css: 资产入口，无导出表面（内容由供应链审计守护）
+✅ rxdb-model-vue: 表面无变化（2 个入口 / 340 个导出）
+⏭️  rxdb-plugin-board/board.css: 资产入口，无导出表面（内容由供应链审计守护）
+✅ rxdb-plugin-board: 表面无变化（2 个入口 / 123 个导出）
+⏭️  rxdb-plugin-board-angular/board-view.css: 资产入口，无导出表面（内容由供应链审计守护）
+✅ rxdb-plugin-board-angular: 表面无变化（1 个入口 / 26 个导出）
+⏭️  rxdb-plugin-board-react/board-view.css: 资产入口，无导出表面（内容由供应链审计守护）
+✅ rxdb-plugin-board-react: 表面无变化（1 个入口 / 28 个导出）
+⏭️  rxdb-plugin-board-vue/board-view.css: 资产入口，无导出表面（内容由供应链审计守护）
+✅ rxdb-plugin-board-vue: 表面无变化（1 个入口 / 26 个导出）
+✅ rxdb-plugin-bom: 表面无变化（2 个入口 / 260 个导出）
+✅ rxdb-plugin-bom-angular: 表面无变化（1 个入口 / 7 个导出）
+✅ rxdb-plugin-bom-react: 表面无变化（1 个入口 / 7 个导出）
+✅ rxdb-plugin-bom-vue: 表面无变化（1 个入口 / 7 个导出）
+✅ rxdb-plugin-graph: 表面无变化（3 个入口 / 42 个导出）
+✅ rxdb-plugin-history: 表面无变化（1 个入口 / 28 个导出）
+✅ rxdb-plugin-p2p: 表面无变化（1 个入口 / 81 个导出）
+✅ rxdb-plugin-querycache: 表面无变化（1 个入口 / 4 个导出）
+✅ rxdb-plugin-replay: 表面无变化（2 个入口 / 40 个导出）
+✅ rxdb-plugin-replay-angular: 表面无变化（1 个入口 / 3 个导出）
+✅ rxdb-plugin-replay-react: 表面无变化（1 个入口 / 5 个导出）
+✅ rxdb-plugin-replay-vue: 表面无变化（1 个入口 / 4 个导出）
+✅ rxdb-plugin-search: 表面无变化（1 个入口 / 61 个导出）
+✅ rxdb-plugin-search-angular: 表面无变化（1 个入口 / 8 个导出）
+✅ rxdb-plugin-search-react: 表面无变化（1 个入口 / 8 个导出）
+✅ rxdb-plugin-search-vue: 表面无变化（1 个入口 / 8 个导出）
+✅ rxdb-plugin-storage: 表面无变化（5 个入口 / 56 个导出）
+✅ rxdb-plugin-sync: 表面无变化（1 个入口 / 22 个导出）
+✅ rxdb-plugin-tree: 表面无变化（2 个入口 / 22 个导出）
+✅ rxdb-plugin-tree-angular: 表面无变化（1 个入口 / 4 个导出）
+✅ rxdb-plugin-tree-react: 表面无变化（1 个入口 / 4 个导出）
+✅ rxdb-plugin-tree-vue: 表面无变化（1 个入口 / 4 个导出）
+✅ rxdb-plugin-working-tree: 表面无变化（2 个入口 / 242 个导出）
+✅ rxdb-plugin-working-tree-angular: 表面无变化（1 个入口 / 4 个导出）
+✅ rxdb-plugin-working-tree-react: 表面无变化（1 个入口 / 4 个导出）
+✅ rxdb-plugin-working-tree-vue: 表面无变化（1 个入口 / 4 个导出）
+✅ rxdb-plugin-workspace: 表面无变化（1 个入口 / 6 个导出）
+✅ rxdb-react: 表面无变化（1 个入口 / 38 个导出）
+✅ rxdb-taro: 表面无变化（3 个入口 / 9 个导出）
+✅ rxdb-vue: 表面无变化（1 个入口 / 38 个导出）
+✅ utils: 表面无变化（1 个入口 / 182 个导出）
+
+✅ 全部 67 个公开包、106 个公开入口的 API 表面与基线一致、命名合规（另跳过 14 个无导出表面的资产入口）。
+
+> nx run @aiao/source:audit-package-graph
+
+> node scripts/audit/package-graph.mjs --check
+
+✅ 包组合门禁：登记 68 包，发布 51 包（v0.0.28），9 个情景
+
+> nx run @aiao/source:audit-requirements
+
+> node scripts/audit/requirements-consistency.mjs
+
+⚠️  1 个文件含 CONVENTIONS 不允许进正文的过程叙述（不阻塞，逐条烧掉）：
+   requirements/domain-research/board-v2-github-projects-style.md: 带日期的标题×2
+✅ Requirements consistency passed（96 Done / 13 In Progress / 22 In Review / 8 Backlog / 0 Blocked，合计 139）.
+
+> nx run @aiao/source:migration-release-gate
+
+> node scripts/check-migration-release-gate.mjs --check
+
+Migration release gate passed for normal 0.0.28.
+
+> nx run @aiao/source:test-scripts
+
+> node --test "scripts/**/*.spec.mjs"
+
+(node:4925) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:4926) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ affected-ci 的两份 skill 副本逐字一致 (9.069384ms)
+✔ full 模式直接跑仓库唯一的全量入口 pnpm test-all (1.299728ms)
+✔ 各模式的并行度不超过 pnpm test-all，也不用不存在的 configuration (0.713374ms)
+(node:4927) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ uuidv7：前 48 位是毫秒时间戳，带版本 7 与 RFC 变体位，ID 按时间排序 (2.641275ms)
+✔ projectKey：普通名原样，作用域包名去掉 @、/ 换成 __，其余字符报错 (0.948209ms)
+✔ ownerOf：按目录边界取最深的 root，根项目只收其余文件 (0.363106ms)
+✔ listProjects 读快照里的 project.json，不读工作区 (672.532035ms)
+✔ captureWorktreeTree 收进修改、未跟踪与删除，不碰真实 index (1119.280743ms)
+✔ resolveSnapshot：提交视图列出与工作区不同的文件，--worktree 只认当前 HEAD (2782.579935ms)
+✔ requiredUnits（project）：按归属取项目文件，排除评审记录、锁文件与二进制；未知项目列候选 (882.06456ms)
+✔ 覆盖按内容判定：上下文变了的单元失效，没变的继续有效 (1538.60595ms)
+✔ 上下文失效时报出原因；同一单元有更新的有效覆盖就以新的为准 (1319.46445ms)
+✔ 覆盖与提交历史无关：同一棵树换成没有祖先关系的新提交（如 rebase、force push）仍然有效 (1216.488354ms)
+✔ 发现必须先写记录再登记覆盖；记录文件丢失后对应单元失效 (1205.435806ms)
+✔ 规则摘要变化后全部失效 (764.793886ms)
+✔ 独立复审只认同一评审者，身份未知不能独立复审；全量只认 since 之后的覆盖 (985.787502ms)
+✔ skip 的单元计入完成，单独列出理由 (685.350498ms)
+✔ cover 拒绝范围外路径、重复路径、不存在的上下文、缺 reviewer 与 skip 混写 (756.18751ms)
+✔ range=branch：单元是 merge base 到 H 的改动；base 前移、rebase 后没变的改动不用重审 (2678.109634ms)
+✔ range=branch 要求唯一 merge base（交叉合并有两个） (1110.172611ms)
+✔ affectedProjects：按改动归属取项目，删掉的文件按 base 侧归属，只改评审记录不算 (775.923688ms)
+✔ findIssue：前缀与完整 ID，允许 slug 后缀，含应用目录里的旧记录 (171.485699ms)
+✖ CLI：snapshot → status → cover → status 走通，find-issue 不唯一时非零退出 (1526.932582ms)
+✔ project 与 branch 两种 range 的覆盖互不冒用 (930.556621ms)
+✔ 提交视图与工作区视图按内容分别计账：只有未提交改动的文件要补审 (735.582409ms)
+✔ 覆盖日志末尾写断的半行：status 照常；下一批 cover 另起一行封存半行，此前与此后的覆盖都算数 (1092.9448ms)
+✔ 覆盖日志中间未被封存的损坏行照旧报错，不静默跳过；报错写明成因与恢复办法 (608.217477ms)
+✔ 检查与写入之间别的进程留下半行：本批第一条粘在半行上，status 报错；按报错的办法删掉那一行，只需补登记那一条 (1014.176086ms)
+✔ 多个进程同时 cover：各批都完整落盘 (1103.648895ms)
+✔ range=branch：整个项目被删除时，删除单元按 base 侧项目归属，原项目名与 all 都选得到 (1741.007572ms)
+✔ range=branch：项目改名后，删掉的文件记在原名下，保留与改动的文件记在新名下 (702.717565ms)
+✔ since 按时刻比较：同一秒内毫秒在后的覆盖算开始之后，带时区与不带毫秒的写法等价；非法时间报错 (1238.677398ms)
+✔ Claude Code 入口与 Codex skill 的 name、description 一致 (0.692783ms)
+(node:4928) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 入口声明包含完整初始化、事务正反例与交叉提示 (28.842023ms)
+✔ 缺少三类插件说明会定位 RxDB.use (2.158598ms)
+✔ 普通插件晚装立即安装的语义不能丢失 (2.571649ms)
+✔ 缺少 connect 的 init 时序会失败 (1.459843ms)
+✔ 第二个 transaction 重载缺反例不能被第一个掩盖 (3.239953ms)
+✔ 缺失入口或 executor/save 交叉提示都明确失败 (7.877137ms)
+✔ 实际声明按文件拆分时，入口 re-export 仍能关联各声明的说明 (18.168686ms)
+✔ 两个 transaction 重载的 TSDoc 漂移时失败 (2.515733ms)
+✔ 同名声明逐个检查：带说明的影子声明不能掩盖缺说明的声明 (14.964017ms)
+✔ 适配器 transaction 覆写自带 TSDoc 会遮住基类正反例，沿继承链逐级检出 (4.616347ms)
+(node:4929) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ `export type { Klass }` 记为 type —— 运行时没有这个值 (1559.626934ms)
+✔ 逐 specifier 的 `export { type Klass }` 同样记为 type (1062.115258ms)
+✔ 值形式转出的类仍是 both —— 不能把所有类一律降级 (558.539196ms)
+✔ 纯类型与纯值不受影响 (488.686103ms)
+✔ 纯值（常量、函数）改成 type-only 转出记为 type：语句级、逐 specifier、import type 后再转出都算 (654.607909ms)
+✔ 核心新增导出不是 Commit* / WorkingTree* 前缀时拦下来 (0.370055ms)
+✔ 核心新增导出是 Commit* / WorkingTree* 前缀时放行 (0.210031ms)
+✔ 三个 RxDBBranch* 扩展点类型是**逐名登记**的例外，不是放宽前缀 (0.309214ms)
+✔ `@aiao/rxdb/testing` 的测试台符号逐名放行，主入口同名照样拦 (0.221015ms)
+✔ US-217 备份契约的核心导出全部逐名登记——基线与导出同批提交时 diff 看不见它们 (1.358469ms)
+✔ 前缀规则只管核心；插件包的新增导出不受它约束 (0.204259ms)
+✔ `Index*` / `Workspace*` 按**当前全集**判，不是按 diff —— 否则更新一次基线就再也拦不住 (0.130444ms)
+✔ workspace 插件自己那四个 Workspace* 与核心的 SwitchBranchOptions 是既有导出，不重复报 (0.141615ms)
+✔ 复活 staging 词汇的导出在任何包里都拦 (0.170684ms)
+✔ 别的包复用 SwitchBranchOptions 这个名字照样拦 (0.127352ms)
+(node:4930) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ findSpecifiers 认得 import / export / 动态 import 三种形态 (3.902707ms)
+✔ findSpecifiers 不把注释里的指路文字当依赖 (0.417097ms)
+✔ findSpecifiers 不把字符串字面量里的 import 语句当依赖 (0.470593ms)
+✔ resolveCrossing 把相对说明符归一到核心根 (0.579802ms)
+✔ resolveCrossing 放过包名与核心内部路径 (0.320541ms)
+✔ resolveCrossing 不把爬出核心根的路径算作跨界 (0.391159ms)
+✔ resolveCrossing 只看首段，不做子串匹配 (2.552812ms)
+✔ auditSource 对同一文件的重复依赖只报一次，且按字典序 (0.592995ms)
+✔ collectCoreFiles 跳过 __tests__ 与两个插件目录，只收 .ts (18.903021ms)
+✔ 任意深度的 __tests__ 都不扫 (5.11617ms)
+✔ 插件目录只按顶层排除，同名子目录照扫 (7.452282ms)
+✔ 未登记的跨界依赖会被报出来 (2.911487ms)
+✔ 登记过的跨界依赖放行 (2.884448ms)
+✔ 登记了却已不存在的条目同样被报出来 (2.610472ms)
+✔ 登记表的每条理由都是一句能读的话，不是占位符 (0.324261ms)
+✔ 登记表只登记真正跨界的键 (0.161527ms)
+✔ 真实核心包的跨界依赖全部登记在案，且没有陈旧条目 (713.557351ms)
+✔ 扫描范围没有塌 (3.989628ms)
+(node:4931) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ index.html 里的 src / href 都算首屏种子 (4.010719ms)
+✔ 首屏图只沿静态 import 走，动态 import() 的目标不算首屏 (14.003938ms)
+✔ 静态正则不吃动态 import()，动态正则两种引号都认 (0.612208ms)
+✔ 一条静态边都走不出去时报错，而不是退化成"只有入口"的假绿 (4.776801ms)
+✔ 两条分支各自成惰性 chunk 时通过 (6.36981ms)
+✔ 桌面实现被摇进首屏 chunk 时失败，并点名是哪个标记哪个 chunk (7.107778ms)
+✔ 标记在整个产物里都找不到时也失败 —— 那是标记失效，不是通过 (3.375504ms)
+✔ 首屏图里没有任何动态 import() 时失败 (3.641961ms)
+✔ 首屏另有无关的动态路由、后端标记只在没人引用的孤立 chunk 里时失败 (4.23471ms)
+✔ 惰性分支经 worker 的 new URL(...) 加载的 chunk 算可达 (4.594517ms)
+✔ 首屏图里的动态 import() 指向不存在的 chunk 时失败 (21.122983ms)
+✔ 产物不存在时报错并给出 build 命令，而不是跳过 (2.109827ms)
+✔ 不带参数是全部 demo，带名字取子集，不认识的名字报错 (1.226034ms)
+✔ 适配器名与探针键不在标记里 —— 它们本来就该待在主 chunk (0.161689ms)
+(node:4932) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 名单里的方法都在 SyncManager 上、都不在 VersionManager 上 (2.372151ms)
+✔ 方法被搬回 VersionManager —— 名单先炸，不等文档扫描 (0.537394ms)
+✔ SyncManager 上找不到名单里的方法 —— 名单已过期 (0.319705ms)
+✔ versionManager 上直接调用已搬走的同步方法被抓出来 (11.27534ms)
+✔ ```diff 块里的删除行不算 —— 迁移指南必须展示旧写法 (0.319478ms)
+✔ 普通代码块里的删除行照抓 —— 只有 diff 围栏才有豁免 (0.33526ms)
+✔ 别名调用：const vm = rxdb.versionManager 之后调 vm.syncRepository() (0.529444ms)
+✔ 别名绑的是 syncManager 就不算 —— 那正是迁移之后的写法 (0.243453ms)
+✔ 同名变量在两个独立代码块里分别绑两个槽位：每块按自己的绑定判 (3.126983ms)
+✔ 先给调用、后给完整示例：调用所在块没有绑定时按全文唯一的绑定判 (0.5493ms)
+✔ 调用所在块没有绑定、全文又把同名变量绑到两个槽位时不猜 (0.314319ms)
+✔ ```diff 删除行里的别名绑定不登记 —— 那是「旧写法长这样」 (0.302311ms)
+✔ 用到 versionManager 却不提 history 包 (0.372103ms)
+✔ 提了 history 包就放行 —— core 不再自动创建这个实例，说清来源是全部要求 (0.166035ms)
+✔ 用到 syncManager 却不提 sync 包 (0.152919ms)
+✔ QueryCache 示例只列一个包 —— 缺的 sync / history 被点名 (0.26747ms)
+✔ QueryCache 示例包名列全了、却只 use() 了一个 —— 照抄仍然 connect() 失败 (0.175917ms)
+✔ 三个包装齐、也都 use() 了才放行 (0.190866ms)
+✔ 只在正文提到工厂名、没有 use() 调用的文档不被牵连 (0.168224ms)
+(node:4933) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 仓库里登记的三端副本全部同步 (280.732245ms)
+✔ 只差导入来源与写法：Angular 从 ./fixtures.js 取 test / expect、导入合并与位置不同都放行 (1.876103ms)
+✔ 正文差一个字符即报出，并指到该副本的行号 (0.906103ms)
+✔ 多导入一个模块即报出 (0.769495ms)
+✔ React / Vue 从 ./fixtures.js 取也报出：只有 Angular 允许换源 (0.667081ms)
+✔ 登记的副本缺了一端即报出（含整组已删、登记表过期） (14.902478ms)
+(node:4934) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ renderer 依赖图：裸名与 node: 前缀的内建、静态与动态 import 都记下，外部依赖不走 (32.851407ms)
+✔ renderer 依赖图：没有内建时 builtins 为空，模块路径不会被误判成内建 (8.909628ms)
+(node:4935) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Angular model 的 APF 入口由 ng-packagr 生成，不能保留不存在的 dist/index.js 条件 (1.446687ms)
+✔ Angular model 的 headless secondary entry 使用包根 ng-package 配置 (1.210863ms)
+✔ Angular model 的 Tailwind 扫描入口保留为独立资源导出 (0.68108ms)
+✔ React / Vue model 的编译样式 bundle 都以 ./index.css 导出（Angular 组件样式随 APF 编进组件） (0.592013ms)
+✔ 框架无关的 model 公开运行时入口保持为构建产物 (0.235082ms)
+✔ Angular model 排除旧 binding 与旧 model，明确支持本次发布组合 (6.105181ms)
+✔ 新 binding 排除旧 RxDB，并与 Angular model 使用同一 Angular 版本 (0.558508ms)
+(node:4936) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ member audit accepts documented public members and ignores private or inherited external members (2532.772332ms)
+✔ member audit exits non-zero and prints complete paths for missing member documentation (1648.795629ms)
+✔ root-only mode remains compatible with existing package build callers (1056.587062ms)
+(node:4937) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 扫描不依赖 src/index.ts，tool 和双槽位组合均合法 (35.643454ms)
+✔ QueryCache 从源码 inject 闭合 history，而本地不带插件 (20.271993ms)
+✔ 漏登记 (0.648252ms)
+✔ 资源包漏登记 (0.464329ms)
+✔ 删包残留 (0.534128ms)
+✔ 重复 (0.467802ms)
+✔ 缺字段 (0.52112ms)
+✔ 缺描述 (7.497979ms)
+✔ 非法角色 (1.170651ms)
+✔ 共享实现占槽位 (1.33741ms)
+✔ 情景悬空 (0.919001ms)
+✔ 插件悬空 (0.813777ms)
+✔ 同槽双后端 (1.318036ms)
+✔ 槽位错配 (1.022953ms)
+✔ SQLite 双槽位与加密能力合法，实现依赖和 optional peer 不占第二个槽位 (5.795968ms)
+✔ shared-impl 不能放进情景的 backend 槽位 (1.64531ms)
+✔ capability 不能放进情景的 backend 槽位 (0.442086ms)
+✔ QueryCache 的 inject 指向已删除的 history 提供者时定位情景和缺少的插件 (2.159615ms)
+✔ 损坏的包字段先返回 schema 错误，不能继续情景计算并抛异常 (0.465577ms)
+✔ manifest 安装边循环与未知兄弟包均被拒绝 (0.953819ms)
+✔ @aiao/rxdb 放 dependencies / optionalDependencies 均被拒绝 (2.219292ms)
+✔ @aiao/* peer 写成 * 被拒绝 (0.650017ms)
+✔ @aiao/* peer 写成 workspace:* 被拒绝 (0.531226ms)
+✔ @aiao/* peer 写成 >=1.2.3 被拒绝 (0.622164ms)
+✔ @aiao/* peer 写成 ^1.2.3 被拒绝 (0.575213ms)
+✔ 留在 dependencies 的 @aiao/* 兄弟边不是 workspace:^ 被拒绝 (0.722788ms)
+✔ 发布标签树标过的 optional peer 被删即失败，保留则通过（AC#4 正反例） (6.523324ms)
+✔ inject 的前置提供者缺位时门禁失败 (2.513559ms)
+✔ 发布版本来自快照，未发布树插件不进入投递，生成两次字节一致 (29.367115ms)
+✔ 事实、manifest、模板、样例、编译选项与生成器源码均参与摘要 (40.921746ms)
+✔ 真实 git 发现只读登记标签的树：更新的标签与工作树改动都不进投递范围；标签不在本地明确失败 (3271.394535ms)
+✔ 提交生成物检查能检出手改，不会静默覆盖 (12.424931ms)
+✔ 损坏的顶层或数组项返回带来源的 schema 错误 (0.614079ms)
+✔ 两个目录使用同一 manifest.name 会定位重复包 (0.479209ms)
+✔ release 只接受登记的正式版标签，投递范围必须与它一致 (3.506037ms)
+✔ 已发布的包删目录后标 retired 继续投递，release 切走后要求删登记 (8.646268ms)
+✔ 退役包仍在 packages/、被情景引用或 retired 非 true 都失败 (1.581574ms)
+✔ 样例 import 的包必须都在安装清单里 (7.115797ms)
+✔ plugin.source 指向包目录本身或目录之外都明确失败 (3.627356ms)
+✔ 非 private 的 manifest 缺 name 时指明文件 (4.472742ms)
+(node:4938) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 运行时 condition 指向 .ts 时报错（装到用户项目里就是死链） (3.547444ms)
+✔ .tsx / .mts / .cts 同样不是可执行产物 (0.62764ms)
+✔ 没有 condition 的裸字符串 export 也会被检查 (0.343343ms)
+✔ types 指向 .d.ts 是正常的类型入口，不报错 (0.266879ms)
+✔ @aiao/source 是构建期条件，指向 .ts 源码不报错 (0.328042ms)
+✔ @aiao/source 在子路径入口下同样豁免 (0.335899ms)
+✔ 豁免不外溢到兄弟条件，同一个入口里的运行时条件照样被抓 (0.336976ms)
+✔ 嵌套在 @aiao/source 里的平台条件同样豁免 (0.281076ms)
+✔ types 下再分 import / require 也不报错（.d.ts 本来就以 .ts 结尾） (0.294486ms)
+✔ 嵌套在运行时条件里的 .ts 一样要被抓，且报告完整路径 (0.598472ms)
+✔ 白名单只含构建期条件（新增项必须先确认 Node 不会解析到它） (0.345851ms)
+✔ 指向构建产物 .js / .cjs 不报错 (0.2443ms)
+✔ 没有 exports 字段的包不报错 (0.454644ms)
+✔ 仓库现状：packages/ 全量通过（回归护栏） (26.617582ms)
+(node:4939) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ SKILL.md 渲染带 frontmatter name/description、版本与事实摘要 (31.326062ms)
+✔ 正文只覆盖投递范围：未发布树插件与情景不出现，发布包与样例在列 (24.32331ms)
+✔ 情景时序令牌展开为可读文本，未知令牌报错 (9.570518ms)
+✔ 同一输入渲染两次逐字节一致 (11.745524ms)
+✔ 固定 51 包压力夹具保留框架族、宿主、槽位、情景与完整样例，且不超过体积预算 (38.378472ms)
+ℹ 固定 v0.0.28 形态：51 包、9 情景、7880 字节
+✔ 省略公共前缀时保留其他 scope 与已退役标记，不改写安装命令或代码 (6.247481ms)
+✔ 模板引用未知字段报错 (5.548531ms)
+✔ 超出 8192 字节上限时报错而非截断 (3.080494ms)
+✔ 8192 字节上限包含自动追加的结尾换行 (6.456304ms)
+✔ frontmatter 缺 name 或 description 时报错 (26.829053ms)
+✔ 投递快照提取发布标签与已发布版本 (6.252105ms)
+✔ 快照构造的发布对象：manifest 版本取快照、tag 不一致或包不存在时报错 (3.595465ms)
+✔ 已发布包按退役流程删目录、事实源标 retired 后，快照渲染 Skill 照常并标出已退役 (15.825928ms)
+✔ 生成入口把 SKILL.md 写进主包 skills 目录，内容与渲染一致 (1250.318421ms)
+/var/folders/0c/00zknwk523b_r7h7dcj34s380000gn/T/skill-generate-fixture-uDDxwb/requirements/generated/package-knowledge.json 不存在，请先运行 pnpm audit:package-graph --update
+✔ 快照文件缺失时生成入口明确报错 (1101.547161ms)
+(node:4940) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ extractJob 只取该 job 的正文，到下一个 job 为止 (2.891157ms)
+✔ extractJob 找不到 job 时抛错 —— 静默返回空数组会让下游断言全部变成真空真 (0.865423ms)
+✔ extractSteps 按列表项切分，每一步带上自己的键 (0.465593ms)
+✔ extractSteps 在没有 steps: 的 job 上返回空数组 (0.315664ms)
+✔ AC#17：tauri-smoke 在三平台上跑 devtools-smoke (0.46703ms)
+✔ AC#17：devtools 那一步不会被同 job 里前一步的失败跳过 (0.416422ms)
+✔ AC#17：tauri-smoke 的 timeout 给到 90 分钟以上 (0.310975ms)
+✔ AC#17：WEBKIT_DISABLE_DMABUF_RENDERER 设在 job 级，两步都盖得到 (0.378199ms)
+✔ AC#17：高成本打包 smoke 只在 release / 手动 / 改本文件的 PR 上触发 (0.5014ms)
+(node:4961) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ frontmatter 只认扁平 key: value，行尾注释被剥掉 (21.258858ms)
+✔ 一致的仓库全绿 (45.673362ms)
+✔ 汇总表数字、标题条数、README 的 N/M 与 YAML 不符时被抓出 (5.708414ms)
+✔ --update 只改数字不动列宽，改完能过 check (14.052629ms)
+✔ roadmap 的未关闭分项、以及「每条未关闭故事都排过期」都被校验 (3.817627ms)
+✔ roadmap 现状快照表的五态与未完成合计也按 YAML 校验，--update 一并回写且不动列宽 (3.739685ms)
+✔ 索引里状态符号与 YAML 不一致、或漏了故事，都被抓出 (4.306863ms)
+✔ Done 的 epic 不得持有 Backlog 故事；Backlog 的 epic 不得持有已开工故事；In Review 不挡 Done (8.19093ms)
+✔ epic 只顺带链接、不持有的故事不受状态约束；故事声明的 epic 必须反向链接它 (4.801567ms)
+✔ epic 的故事清单漏项不能由 References 里的旁链代替 (4.266217ms)
+✔ roadmap 全景表的行内状态必须与该行故事的 YAML 一致 (4.324667ms)
+✔ roadmap 全景表成组列出故事时逐个核对状态，其他章节的状态示例不参与 (4.196678ms)
+✔ 死链与超出文件行数的 #L 锚点被抓出，合法锚点与 http 链接放行 (10.609583ms)
+✔ 代码块与行内代码里的同形文本不算链接 (7.610289ms)
+✔ maskCode 只清内容，行数与行外文本原样保留 (0.325753ms)
+✔ headingSlug 按 GitHub 规则算：标点删掉留下空位，连续空位产出连续连字符 (1.329867ms)
+✔ 标题锚点指不到目标标题时阻断，跨文件与文件内同等对待 (9.149682ms)
+✔ evidenceSymbols 只取正文里的符号名，链接文字与 URL 里的文件名不算 (0.893135ms)
+✔ 行号锚点：符号在目标文件里整体不存在则阻断，只是行号漂了则告警 (7.776194ms)
+✔ 行号锚点的伴随符号可以来自紧随其后的代码块与相邻行 (6.968753ms)
+✔ 叙述词扫描认得「（已修）」「历史快照」与带日期的标题 (6.219187ms)
+✔ 仓库现状：requirements 派生视图与 YAML 一致（回归护栏） (1735.447288ms)
+✔ run() 把叙述词与行号锚点两类告警分开返回，计数不再互相污染 (17.008702ms)
+✔ checkAnchorEvidence 阻断「符号名作链接文字」却在目标文件里查无此名的断言 (6.365787ms)
+✔ 「历史快照」只在给章节贴标签时才算叙述词，undo/redo 的领域名词不算 (7.03133ms)
+✔ code-scanning 是告警跟踪记录，与 reviews 同样不受叙述词约束 (5.863843ms)
+✔ Done 故事的 AC 表残留 ⬜ 被抓出；⚠️ 与 ✅ 放行；非 Done 不查 (4.174264ms)
+✔ acIdsOf 只数验收标准节里带编号的行，节外与 Given/When 行不算 (0.300643ms)
+✔ Done 的当前承诺通过后可保留明确登记的候选 AC 未验，但不能漏掉当前 AC (0.460934ms)
+✔ 候选 AC 登记必须是存在且不重复的整数，不能借无效登记绕过验收 (0.360779ms)
+✔ 候选 AC 不得先标通过；解锁后应移除候选登记再按正常范围验收 (0.194714ms)
+✔ CRLF 和行尾空白不改变当前 AC 未验与候选 AC 提前通过的阻断 (0.203889ms)
+✔ inherited_acs：from 指向不存在的故事、纯数字 ac 超出源 AC 行数，都被抓出 (8.010425ms)
+✔ inherited_acs：按源 AC 表的最大编号判越界，不按行数 (5.359864ms)
+✔ README 大故事清单与「正文含交付阶段」的集合不一致时被抓出 (5.85174ms)
+✔ README 大故事清单整段缺失、为空或格式损坏时同样被抓出；实际没有大故事时不要求清单 (15.057883ms)
+✔ run() 按 requirements/README.md 核对大故事清单 (62.667976ms)
+✔ capability-matrix / versioning-policy 的包计数与 packages/、api-baseline/ 实际不符时被抓出 (9.266635ms)
+(node:4962) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 构建期条件（types / @aiao/source）不算运行时目标 (12.184516ms)
+✔ 子路径 key 与 condition key 混排时归属到正确的子路径 (0.45843ms)
+✔ exports 简写成字符串时按主入口收 (0.241119ms)
+✔ fallback 数组里的每个候选都要检查——数组不是「随便哪个在就行」 (0.64413ms)
+✔ 声明了 ./testing 但产物里没有它时报违规 (0.472793ms)
+✔ 同一子路径的多个 condition 指向同一死链时只报一条 (0.272976ms)
+✔ 同一子路径指向两个不同死链时分别报 (0.19399ms)
+✔ 产物齐全时通过 (0.239715ms)
+✔ 还没构建的包记为 skipped，不冒充「已检查」 (12.62548ms)
+✔ 包没有任何 dist 目标时跳过 (1.110632ms)
+✔ 构建过的包记为 checked——扫过的包数是「门禁到底跑没跑」的唯一凭据 (8.064347ms)
+✔ 未构建的包不计入 checked，只有真正扫过的才计 (5.253556ms)
+(node:4963) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 没有 exports 字段的包只扫主入口 (3.870265ms)
+✔ 主入口固定取 src/index.ts，不读 exports 的 `.` 条件 (3.384069ms)
+✔ 声明了 `@aiao/source` 的子路径入口全部纳入扫描 (1.430734ms)
+✔ 登记在资产白名单的子路径被跳过，同包其余入口照扫 (4.052487ms)
+✔ 资产入口未登记白名单时失败——字符串目标没有 `@aiao/source` 可读 (0.947136ms)
+✔ 子路径缺少 `@aiao/source` 时失败，且不落进 entries（否则会被记成零导出） (1.307704ms)
+✔ `@aiao/source` 指向的文件不存在时硬失败，不降级为零导出 (1.395858ms)
+✔ `@aiao/source` 指向包外时硬失败，且不因为文件确实存在就放行 (0.825873ms)
+✔ 白名单登记了包里已不存在的资产入口时报错 (0.547941ms)
+✔ package.json 缺失时抛错，不静默跳过整个包 (1.982541ms)
+✔ 资产白名单里的包已不在扫描范围时报错 (0.857317ms)
+✔ 资产白名单里的包仍在扫描范围时通过 (0.300804ms)
+✔ exports 简写成字符串时没有子路径（不能把字符串下标当 key） (0.136021ms)
+✔ exports 是 fallback 数组时没有子路径 (0.119288ms)
+✔ exports 只有条件简写时没有子路径（import/require 不是子路径） (0.113039ms)
+✔ 子路径与条件混排时只取以 ./ 开头的 key (0.155079ms)
+(node:4973) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ R1 认得 get_table_name( 与 getTableName( 的直接调用 (4.365384ms)
+✔ R1 不误报解析器的其他函数、对象方法与导出别名 (0.463728ms)
+✔ R2 认得模板里「命名空间 + $」的拼法 (0.464833ms)
+✔ R2 不误报只用了命名空间的普通模板 (0.270953ms)
+✔ R3 认得目录查询的参数对与目录键 (0.450347ms)
+✔ R3 不误报走了解析器的写法 (0.260791ms)
+✔ R4 认得把命名空间直接给 schema 的字段与变量 (0.331768ms)
+✔ R4 不误报走了解析器的写法、比较与类型标注 (0.419131ms)
+✔ 注释里的旧写法不算数，字符串里的照样算（SQL 就拼在模板字面量里） (1.216913ms)
+✔ 解析器文件本身放行 (0.324579ms)
+✔ 键里的行号是命中所在的行 (0.22909ms)
+✔ 词表自检：解析器少定义一个函数、或原先的住处又定义了原始拼名函数，都报出来 (1.053093ms)
+✔ 词表自检：真实仓库对得上 (9.441933ms)
+✔ 真实仓库通过：解析器之外没有自己推物理名的地方，登记表为空 (484.061343ms)
+✔ 登记了却已经不存在的条目报为 stale (449.536111ms)
+(node:4985) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ pglite 不强制安装 tree 插件 (5.432287ms)
+✔ pglite 的生产代码只允许 tree 类型导入 (2424.730668ms)
+✔ sqlite-core 不强制安装 tree 插件 (3.142435ms)
+✔ sqlite-core 的生产代码只允许 tree 类型导入 (1062.948199ms)
+✔ supabase 不强制安装 tree 插件 (1.057031ms)
+✔ supabase 的生产代码只允许 tree 类型导入 (152.194053ms)
+✔ sqlite-wasm 不强制安装 tree 插件 (0.649056ms)
+✔ sqlite-wasm 的生产代码只允许 tree 类型导入 (52.18768ms)
+(node:4986) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Angular 模型类型检查必须等引用项目完成类型声明写入 (10079.846744ms)
+(node:5025) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 工作区当前状态过得了供应链门禁 (13.312066ms)
+✔ @subframe7536/sqlite-wasm 钉的是精确版本而不是范围 (0.634665ms)
+✔ 锁文件里的 integrity 与钉死值一致 (3.422621ms)
+✔ pnpm 12 的双文档锁文件：只在工作区文档的 packages 段取解析结果 (0.248474ms)
+✔ 源码 import 的 glue 文件名与钉死的内容哈希一致 (0.301416ms)
+✔ assertEqual 把实际值一起报出来，而不是只说不相等 (0.571687ms)
+✔ .gitattributes 把换行钉在 LF，锁文件跨平台字节一致 (0.422326ms)
+(node:5026) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 可变 tag 被抓出来 (2.932458ms)
+✔ 分支名、语义化版本、`stable` 这类可变引用一并被抓 (0.629656ms)
+✔ 40 位十六进制 SHA 通过 (0.260208ms)
+✔ 短 SHA 不算钉住 —— 它可以被后续碰撞的新对象抢走 (0.206131ms)
+✔ 本仓库的 reusable workflow（./.github/…）豁免 (0.32436ms)
+✔ docker:// 形式的 uses 不适用 commit SHA 规则 (0.264109ms)
+✔ 完全没有 ref 的 uses 也是可变引用 (0.291317ms)
+✔ 注释掉的 uses 不算 (0.206666ms)
+✔ 仓库现状：.github 下全部 workflow 与复合 action 通过（回归护栏） (18.943799ms)
+(node:5075) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ parseRegistry 从真实源码解析出 12 行登记与 7 个意图 (70.56323ms)
+✔ parseRegistry 在解析不到表或枚举时抛，而不是当成「没有违规」 (3.683129ms)
+✔ parseRegistry 拒绝「成员名与值不同」的枚举 (0.843464ms)
+✔ parseRegistry 按键名读取，不依赖字段书写顺序 (1.075573ms)
+✔ parseRegistry 容忍登记表新增与判定无关的字段 (1.010653ms)
+✔ parseRegistry 拒绝登记表引用不存在的意图 (0.813667ms)
+✔ parseRegistry 拒绝 intent 挂在 TrustedWriteIntent 以外的对象上 (1.107864ms)
+✔ parsePrimitiveVocabulary 从 TrustedWritePrimitive 解析出宿主与方法 (7.815048ms)
+✔ TrustedWritePrimitive 多出扫描器不认识的方法时抛 (4.212823ms)
+✔ TrustedWritePrimitive 多出扫描器不认识的宿主时抛 (21.418996ms)
+✔ 扫描词表里多出联合已经没有的宿主时同样抛 (3.910154ms)
+✔ 联合里删掉 adapter.transaction 时同样抛：只声明不扫调用的方法也钉在联合上 (20.370867ms)
+✔ TrustedWritePrimitive 不在了就抛，而不是退化成空词表 (5.41495ms)
+✔ parseBulkWriteMethods 从 bulk-write-gate 的 METHOD_NAMES 解析出对外方法名 (5.888316ms)
+✔ METHOD_NAMES 多出扫描器不认识的批量写方法时抛 (6.306319ms)
+✔ METHOD_NAMES 读不出来就抛 (0.457617ms)
+✔ 真实源码两边对得上：assertScannerVocabulary 在真实仓库上不抛 (20.013226ms)
+✔ 没声明的 adapter.transaction() 不算违规：它是普通 CRUD 的正常通道 (44.139492ms)
+✔ 事务体末尾自报意图的物化屏障照样逐条核对：键、符号与作用域 (9.399957ms)
+✔ 匿名回调不挡住外层具名方法 (2.54973ms)
+✔ 带返回类型标注的箭头常量能读出名字 (0.193116ms)
+✔ 单参数无括号箭头是匿名的，外层具名函数仍然可见 (0.143261ms)
+✔ 三元里的 `new X()` 不会被当成外层函数名 (1.434842ms)
+✔ 控制流的花括号不是函数体 (0.157812ms)
+✔ 顶层语句没有外层具名函数 (0.107845ms)
+✔ findDeclarations 认出真实形状，并解析出外层具名函数 (0.450198ms)
+✔ 注释与字符串里的 declareTrustedWrite 不算声明 (0.377078ms)
+✔ findPrimitiveCalls 不认注释与字符串里的调用 (4.6552ms)
+✔ 可选链 / 非空断言 / 下标调用都算调用点 (0.880591ms)
+✔ 下标调用里的方法名躺在字符串里，但接收者必须是真代码 (7.870677ms)
+✔ 接口成员与 abstract 声明没有接收者，不算调用点 (14.300862ms)
+✔ 形状完整的受信调用点通过 (15.213128ms)
+✔ 没有意图标记的批量重写按未知入口拒绝 (0.456313ms)
+✔ symbol 报成委托门面会被指出来 (134.75236ms)
+✔ 登记键不在表里就报出来 (2.054252ms)
+✔ 自报的文件名与真实文件不符会被指出来 (2.628137ms)
+✔ 声明给了 executor、写却打在 adapter 上会被指出来：声明按宿主对象登记，换个宿主就拿不到 (0.832218ms)
+✔ 同一函数里两个宿主各自声明、各自写入时通过 (0.838474ms)
+✔ 声明挂在不是写原语宿主的变量上会被指出来 (0.634214ms)
+✔ QueryCache 那两处批量写放行，换个接收者就拒绝 (0.692161ms)
+✔ 存档行号漂出文件就报出来 (0.591256ms)
+✔ 存档行号漂过容差就报出来，容差之内放行 (1.620506ms)
+✔ 业务实体上的两个批量写方法都拒绝 (0.465231ms)
+✔ 登记在案的门面与远端重载放行 (0.516149ms)
+✔ 没登记过的接收者按未知入口拒绝，而不是静默跳过 (0.311803ms)
+✔ 不在具名函数里的受信写拒绝 (0.208654ms)
+✔ isScannedSourcePath 排除 dist / out-tsc / __tests__ / suite / spec (0.240836ms)
+✔ collectSourceFiles 按同一套规则过滤真实目录树 (21.968502ms)
+✔ 真实仓库当前没有漂移，12 行登记全部找得到 (17102.460032ms)
+(node:5076) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 行注释与块注释被抹成等长空白，行号不漂 (2.836632ms)
+✔ 字符串里的 // 不是注释开头 (0.357241ms)
+✔ 注释里的撇号不会被当成字符串开头吃掉后面的代码 (0.263508ms)
+✔ 转义引号不提前结束字符串 (1.464261ms)
+✔ 模板字面量的文本段被清空 (0.501682ms)
+✔ 模板插值里的表达式按代码保留，不清空 (0.289309ms)
+✔ 正则字面量里的引号不会吃掉后面的代码 (0.24536ms)
+✔ 除法不会被当成正则开头 (0.393414ms)
+✔ 具名导入 + 顶层调用 = 合格调用点 (1.719452ms)
+✔ 导入了但从没调用 = 不合格：「导出了但没人跑」等于没覆盖 (0.742998ms)
+✔ 只写在函数体里、没人调那个函数 = 不合格 (0.482977ms)
+✔ 调用被注释掉 = 不合格 (0.334787ms)
+✔ type-only 导入不算调用点 (0.413965ms)
+✔ 内联 type 修饰符同样不算 (0.321089ms)
+✔ 别名导入按别名找调用 (0.418115ms)
+✔ 绕过 @aiao/rxdb-plugin-working-tree/testing 入口的深路径导入不算调用点 (0.342169ms)
+✔ 命名空间导入不算：调用点必须能被 grep 到 (0.200693ms)
+✔ describe.skip 包住调用 = 假绿，判不合格 (0.398059ms)
+✔ skipIf / runIf 同样不合格：条件运行会让 6×3 的矩阵在某些机器上悄悄缩水 (0.643204ms)
+✔ 文件里别处的 describe.skip 不牵连顶层调用点 (0.987877ms)
+✔ 模块顶层不带花括号的条件控制同样不合格：if / else / 循环 / 短路 / 三元 (2.39632ms)
+✔ 写在不带花括号的箭头函数体里 = 没人调用，不合格 (0.371833ms)
+✔ 条件语句结束之后的顶层调用照常合格 (0.815028ms)
+✔ 扫到合格 spec 时记下相对路径 (21.854106ms)
+✔ 只在 *.suite.ts 里调用不算：套件文件被命名门禁排除，vitest 根本不收它 (2.591398ms)
+✔ 压根没提到套件名的 spec 不进候选，不产生噪音 (2.78919ms)
+✔ 提到了套件名但形状不对的 spec 进 rejected，带上理由 (2.965877ms)
+✔ 包目录没有 src/ 时按「没有调用点」处理，不抛异常 (0.972066ms)
+✔ 三套套件都从 testing 入口导出时无缺失 (0.686485ms)
+✔ 套件改名时报的是「导出名变了」，不是一串「缺调用点」 (0.208231ms)
+✔ v1 运行矩阵冻结成 6 个后端 × 3 套套件 (0.138342ms)
+✔ 6 个包各有三套调用点时全绿 (55.155706ms)
+✔ 缺一即失败：点名是哪个包缺哪套套件 (52.505849ms)
+✔ 包目录整个不见了也是违规，而不是「少扫一个、照样绿」 (36.135408ms)
+✔ 近似调用点的理由会带进违规信息，省一次「为什么没认出来」的排查 (37.366ms)
+✔ 真实仓库的套件入口三套齐全，6 个后端都在顶层调用了三套套件 (4316.284732ms)
+(node:5172) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 解析 patchedDependencies：带引号的 scoped 键、裸键与只写包名的键 (2.804373ms)
+✔ 没有 patchedDependencies 段时为空 (0.443904ms)
+✔ YAML 注释不影响解析：段头行尾注释、段内注释行、条目行尾注释 (0.547951ms)
+✔ 解析 overrides 改写的包名：版本选择器与父包选择器都取最终被改写的那个包 (0.442879ms)
+✔ 可发布包在运行时依赖被打补丁的同版本包即报出 (0.952855ms)
+✔ 精确钉在别的版本上的依赖不受这份补丁影响 (0.25591ms)
+✔ 范围依赖与只写包名的补丁一律视为命中 (0.230777ms)
+✔ npm 别名指向被打补丁的包同样命中 (0.260349ms)
+✔ 被 overrides 改写的包，精确版本也不豁免 (0.459222ms)
+✔ devDependencies 只影响本仓库的构建与测试，不算 (0.421348ms)
+✔ 仓库现状：工作区补丁不覆盖任何可发布包的运行时依赖（回归护栏） (30.207475ms)
+(node:5192) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 合法的 bridge 清单没有错误 (4.715985ms)
+✔ 合法的 migration 清单没有错误 (0.711183ms)
+✔ 非对象清单直接拒绝 (0.378757ms)
+✔ $schemaVersion 必须是 1 (0.210418ms)
+✔ release 缺失时短路返回 (0.216482ms)
+✔ release.kind 只接受 normal / bridge / migration (0.301597ms)
+✔ 合法的 normal 清单没有错误 (0.205905ms)
+✔ normal 发布不得声明系统 schema 或 change codec 升级 (0.205326ms)
+✔ normal 发布不得进入 bridge 链 (0.38918ms)
+✔ normal 发布不校验 oldBundlePolicy 内容 (0.516926ms)
+✔ normal / bridge 候选发布的版本常量与上一个已发布 tag 相等时放行 (0.41484ms)
+✔ normal / bridge 候选发布改了版本常量即拒绝，并指向 migration (0.229548ms)
+✔ release.version 已有 tag 时不比对上一个发布 (0.129158ms)
+✔ release.version 的 tag 不是 HEAD 祖先时不算已发布 (0.134268ms)
+✔ migration 候选发布不走上一个发布的相等比对 (0.20457ms)
+✔ 候选发布找不到上一个已发布 tag 即失败 (0.125246ms)
+✔ 上一个已发布 tag 上读不出版本常量即失败 (0.110471ms)
+✔ findPreviousReleaseTag 取严格更旧的最高 semver tag (0.256726ms)
+✔ release.version 必须与 packages/rxdb/package.json 一致 (0.111517ms)
+✔ release.version 必须是严格 semver (0.241244ms)
+✔ release.version 必须与发布 tag 一致 (0.131582ms)
+✔ protocolVersion 必须是正整数 (0.132399ms)
+✔ 升级布尔位必须是布尔值 (0.093314ms)
+✔ bridge 发布不得声明系统 schema 或 change codec 升级 (0.086752ms)
+✔ migration 发布必须至少升级其一 (0.114384ms)
+✔ migration 发布必须填写 bridge tag 与 version (0.097789ms)
+✔ bridge 发布不要求 bridge tag (0.091473ms)
+✔ bridge.version 必须早于 release.version (0.253836ms)
+✔ bridge.tag 必须与 bridge.version 对应 (0.118475ms)
+✔ bridge.version 必须严格新于最后一个不合格锚点 (0.16788ms)
+✔ 0.0.26 起的锚点不受版本下限影响 (0.141897ms)
+✔ 声明了升级位就要求 bridge tag 上的版本常量严格更旧 (0.189534ms)
+✔ 没声明升级位就要求版本常量完全相等 (0.111588ms)
+✔ bridge tag 上读不出版本常量即失败 (0.134411ms)
+✔ 候选发布提交上读不出版本常量即失败 (0.149079ms)
+✔ bridge.tag 必须存在、是祖先提交且包含系统迁移面 (0.209741ms)
+✔ oldBundlePolicy.strategy 只接受白名单内的策略 (0.346902ms)
+✔ migration 发布必须启用 oldBundlePolicy 并声明最低版本 (0.472512ms)
+✔ oldBundlePolicy.minimumVersion 不得低于 bridge.version (0.138905ms)
+✔ bridge 发布不校验 oldBundlePolicy 内容 (0.124416ms)
+✔ bridge 与 oldBundlePolicy 必须是对象 (0.110978ms)
+✔ parseVersionConstants 按真实声明取值，缺任一份即 null (0.378332ms)
+✔ 仓库工作树上的版本常量可被解析 (24.792623ms)
+✔ 显式 --release-tag 优先于环境变量 (0.362297ms)
+✔ 打 tag 的 workflow 回落到 GITHUB_REF_NAME (0.175888ms)
+✔ PR 与分支 push 不把 ref 名当发布 tag (0.16216ms)
+✔ 签入的 migration-release.json 通过结构校验 (1.621336ms)
+(node:5212) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 首次构建成功时不 reset (1.95573ms)
+✔ 图读不出来（真的损坏）才 reset 后再试一次 (1.549179ms)
+✔ 图正常时不 reset，直接抛出原始构建错误 (1.398445ms)
+✔ reset 后重试仍失败则抛出第二次错误 (0.587361ms)
+✔ 空项目列表不跑 nx (0.817392ms)
+✔ docker/.env.example 随仓库提供，不被 .gitignore 忽略 (66.38393ms)
+✔ 删除指向已不存在 store 目录的 shim，保留仍有效的 (5.953693ms)
+✔ 成员没有 node_modules/.bin 时跳过 (0.683373ms)
+(!) Your Vite config uses features that are unsupported by `configLoader: 'native'`, which is planned to become the default in a future major version of Vite:
+  - ESM syntax in a file loaded as CommonJS (../../../../../../private/var/folders/0c/00zknwk523b_r7h7dcj34s380000gn/T/check-workspace-vite-pio5FS/apps/rxdb-admin-template-react/app-html-plugin.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+  - ESM syntax in a file loaded as CommonJS (../../../../../../private/var/folders/0c/00zknwk523b_r7h7dcj34s380000gn/T/check-workspace-vite-pio5FS/packages/rxdb-admin/src/bootstrap.ts:2:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+  - ESM syntax in a file loaded as CommonJS (../../../../../../private/var/folders/0c/00zknwk523b_r7h7dcj34s380000gn/T/check-workspace-vite-pio5FS/apps/rxdb-admin-template-react/src/app/app-config.ts:1:1). Use a `.mjs` extension or set `"type": "module"` in the closest package.json
+Set `VITE_CONFIG_NATIVE_IGNORE_WARNING=true` to suppress this warning.
+✔ 未构建工作区包时仍能加载应用 Vite 配置并生成首屏主题脚本 (1121.018767ms)
+(node:5258) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 性能门禁串行执行，避免同一 runner 上的其他测点污染采样 (5.595947ms)
+(node:5290) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 空输入产出空矩阵 (2.540081ms)
+✔ 每个项目恰好出现一次，不丢不重 (16.831304ms)
+✔ 需要 Supabase 的项目被钉进独立 lane 并打上标记 (0.491784ms)
+✔ 没有 Supabase 项目时不产出 Supabase lane —— 不白起 Docker (0.307183ms)
+✔ 重任务被拆散到不同 lane，而不是堆在一起 (0.403205ms)
+✔ lane 数不超过上限；项目不够时不产出空 lane (0.249151ms)
+✔ 同样的输入产出同样的结果 —— matrix 必须可复现 (0.285684ms)
+✔ 输入顺序不影响分桶结果 (0.323536ms)
+✔ lane 名唯一，可直接当 job 名用 (0.317092ms)
+✔ label 报出最重的项目 +「还有几个」—— checks 列表里要看得出这条 lane 在跑什么 (0.506381ms)
+✔ lane 只有一个项目时 label 不带 +N (0.249308ms)
+✔ Supabase lane 的 label 是 supabase —— 要能一眼看出是那条起 Docker 的 (0.194547ms)
+✔ label 唯一：每条 lane 的最重项目互不相同 (0.310653ms)
+✔ 权重表里没有的项目照常调度，但必须报出来 —— 不能让新包静默失衡 (0.197789ms)
+✔ 整条 lane 都不采集覆盖率时标 coverage: false —— 上传步骤据此跳过，而不是找不到文件就红 (0.156216ms)
+✔ lane 里只要混进一个采集覆盖率的项目就标 coverage: true —— 仍按 error 严格要求产物 (0.150814ms)
+✔ Supabase lane 照常标 coverage: true (0.144725ms)
+✔ 真实常量：不采集覆盖率的项目只有两个 node --test 项目 (0.124237ms)
+✔ 真实常量自洽：Supabase 项目非空、lane 数为正 (0.098228ms)
+✔ 每条 lane 都带 target：常规 lane 与 Supabase lane 跑 test (0.129078ms)
+✔ 内存用例单独成一条 lane：跑 test-memory、不采集覆盖率、不占常规装箱 (0.266245ms)
+✔ 内存 lane 的 label 也以最重的项目打头，projects 照旧按名字排序 (0.179984ms)
+✔ 没有内存用例项目时不产出内存 lane (0.146732ms)
+✔ 内存用例项目不在本次 test 集里时不产出内存 lane —— affected 没算到就不跑 (0.161883ms)
+✔ CLI：--memory-projects 产出内存 lane (124.330454ms)
+✔ CLI：--lanes 非正整数直接失败，不产出空 matrix (588.643939ms)
+✔ CLI：--lanes 合法时按给定数量分桶 (127.974452ms)
+✔ CLI：缺 --projects 时给出用法并失败 (103.089324ms)
+(node:5291) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 2xx 视为可用，NX_NO_CLOUD=false (3.724088ms)
+✔ 401 FREE plan 正文视为不可用 (0.730049ms)
+✔ 401 无凭据视为不可用 (0.327688ms)
+✔ 401 无效 workspace id 视为不可用 (0.330903ms)
+✔ 403 带 organization has been disabled 同样关云 (0.249011ms)
+✔ 超时 AbortError / TimeoutError 一律 fail-closed (0.539859ms)
+✔ 5xx fail-closed (0.30084ms)
+✔ 网络异常 fail-closed，不把异常抛出 CI (0.291294ms)
+✔ 缺 nxCloudId 不发请求 (0.260213ms)
+✔ 自定义 apiUrl 去掉尾斜杠再拼 ping (0.477485ms)
+✔ 意外 4xx 也 fail-closed，不当成可用 (0.335133ms)
+✔ readNxCloudId 只接受非空字符串 (0.327225ms)
+✔ printProbe：可用写 false，不可用写 true (0.406769ms)
+✔ runCli：--nx-cloud-id 覆盖 nx.json，stdout 只写 NX_NO_CLOUD (1.545786ms)
+✔ CLI：不可达 apiUrl fail-closed，stdout 为 true (164.757237ms)
+(node:5357) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 串行运行所有段，失败结果不漏掉后续 suite (6.097276ms)
+✔ 空项目列表不启动进程 (0.486549ms)
+(node:5449) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 按 target 分组，排除测试 target 本身，build 排在最前 (26.536816ms)
+✔ 带 configuration 的任务按 target 归组 —— run-many -t build 走默认配置 (0.374815ms)
+✔ 测试依赖的 test-* 任务也留给串行那一步 —— 测试环境（test-env）与真实用例（test-node）都不是构建 (0.236621ms)
+✔ 只是以 test 开头的非测试 target 不受影响 (0.383934ms)
+✔ 只有测试任务时没有前置任务 (0.326043ms)
+✔ 只预构建可缓存 build，覆盖率用例、基准和不缓存前置任务留给原阶段 (0.313267ms)
+✔ 任务图形状不对时直接失败 —— 不能静默跳过预构建、把串行构建留给测试那一步 (0.590271ms)
+✔ CLI：每行一个「target<TAB>逗号分隔的项目」 (126.631507ms)
+✔ CLI：缺任务图参数时给出用法并失败 (113.488706ms)
+✔ CLI：--cacheable-builds-only 排除缓存覆盖率任务和不缓存的 typecheck (123.956283ms)
+(node:5469) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 分支白名单按名字精确匹配：列出的分支校验，其余分支与 detached HEAD 放行 (1.410212ms)
+✔ 通配符不是语法：`*` 不匹配任何分支 (0.254055ms)
+✔ 配置里的每一项都是可匹配的真实分支名，不含通配写法 (0.220436ms)
+✔ README 不再声称本地钩子在全部分支上执行或把配置写成 ['*'] (0.688228ms)
+(node:5508) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 拒绝 coverage-summary 与 coverage-final 计数不一致 (86.33051ms)
+✔ 校验失败时保留上一份完整 coverage 报告 (18.613118ms)
+✔ 只接受可解析且自洽的 coverage 文件对 (21.080716ms)
+✔ Vitest coverage reporter 原子发布 final 与 summary (13.481421ms)
+✔ 真实 Vitest 只为成功运行发布 coverage 文件对 (3012.435635ms)
+✔ CI 同时产出 final 与 summary 供一致性门禁校验 (1.039242ms)
+(node:5751) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 报告目录在列出之后消失（ENOENT）时跳过该项，其余报告照常列出 (36.316642ms)
+✔ 报告目录被换成文件（ENOTDIR）时同样跳过 (6.232488ms)
+✔ 分组目录在检查之后被整体删掉时返回空列表，不抛错 (4.897394ms)
+✔ 读不到目录的其他错误照常抛出，不被当成「没有报告」 (4.391066ms)
+✔ 经符号链接路径启动时 CLI 照常执行：未知选项非零退出并报错 (149.225506ms)
+(node:5816) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ start.sh 起的默认栈，自动初始化发给同一个 Compose 项目 (1683.740652ms)
+✔ reset.sh 重新初始化的仍是 start.sh 起的默认栈 (2299.304681ms)
+✔ supabase-ci-up.sh 起的隔离栈，初始化仍发给这个隔离项目 (861.376039ms)
+✔ 隔离回归：机器上没有默认栈容器时通过且不误判默认容器 (1988.896959ms)
+✔ 隔离回归：只有默认栈的 db 容器时通过且不误判默认容器 (2358.590917ms)
+✔ 隔离回归：默认栈容器都在时通过且不误判默认容器 (1706.70986ms)
+✔ supabase-ci-up.sh 等 Kong 通过健康检查才结束，端口先于监听发布时不提前放行 (978.312336ms)
+✔ supabase-ci-up.sh 在 Kong 一直不健康时报错退出，不把端口当成可用 (1490.453629ms)
+(node:6077) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ parseArgs 读取 --root / --port / --host (50.1908ms)
+✔ parseArgs 拒绝缺失参数与非法端口 (1.477268ms)
+✔ parseArgs 不认没写进 usage 的首字母短写 (1.366103ms)
+✔ assertCompatibleBaseHref 拒绝网站演示用的非根 base href (9.80477ms)
+✔ assertCompatibleBaseHref 接受 / 与缺失 base 标签 (8.911587ms)
+✔ assertStaticRoot 在目录或 index.html 缺失时抛 ENOENT (1.325902ms)
+✔ CLI 在 root 不存在时立刻以非零退出 (197.204879ms)
+✔ 端口被占时立刻失败，不换端口 (8.508643ms)
+✔ 已有文件按原路径返回，缺失路径回退 index.html (46.303494ms)
+[e2e-static-server] Failed to read file: "/private/var/folders/0c/00zknwk523b_r7h7dcj34s380000gn/T/e2e-static-eactls/locked.txt" Error: EACCES: permission denied, open '/private/var/folders/0c/00zknwk523b_r7h7dcj34s380000gn/T/e2e-static-eactls/locked.txt'
+    at Object.openSync (node:fs:782:18)
+    at readFileSync (node:fs:628:35)
+    at Server.<anonymous> (file:///Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/scripts/e2e-static-server.mjs:220:14)
+    at Server.emit (node:events:514:20)
+    at parserOnIncoming (node:_http_server:1464:12)
+    at HTTPParser.parserOnHeadersComplete (node:_http_common:125:17) {
+  errno: -13,
+  code: 'EACCES',
+  syscall: 'open',
+  path: '/private/var/folders/0c/00zknwk523b_r7h7dcj34s380000gn/T/e2e-static-eactls/locked.txt'
+}
+✔ 文件读失败返回 500，不会把进程带崩 (23.346574ms)
+✔ stat 阶段发现文件已被删除时按缺失路径回退 index.html，进程不退出 (158.457324ms)
+✔ stat 阶段的其他错误返回 500，后续请求照常 (149.496495ms)
+✔ HEAD 只回响应头，写操作一律 405 (5.308432ms)
+✔ 路径穿越返回 403，不会读出根目录外的文件 (4.1014ms)
+(node:6086) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ mergeProjectStats 按作者累加四个桶，普通代码行不丢 (2.791455ms)
+✔ 经符号链接路径启动时 CLI 照常执行：不在 git 仓库里时非零退出并报错 (167.007389ms)
+(node:6223) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 合并 coverage 时按文件保留 union 并累加命中次数 (90.38903ms)
+✔ 合并 branch coverage 时逐槽累加数组，不把数组强转成字符串 (14.175719ms)
+✔ 合并 JUnit 时保留两份 testsuite 并汇总根统计 (3.979327ms)
+✔ 同一文件两份报告的计数 ID 指向不同位置时，按源位置合并、重新编号 (21.150537ms)
+✔ 一侧多出一条语句（后续 ID 整体错位）时，同位置相加，多出的语句借另一侧最近包含它的语句计数 (13.644041ms)
+✔ CLI 在带空格的路径下照常合并；输入缺失时非零退出 (269.366457ms)
+✔ CLI 经符号链接路径启动时照常合并（不依赖系统临时目录恰好带符号链接） (180.878484ms)
+✔ 借命中数只认包含关系：两个容器互不嵌套时谁也不比谁近，保留先找到的 (22.998186ms)
+✔ 借命中数借最窄的包含区间，与容器在报告里的先后无关：两端同行时比列 (43.969439ms)
+(node:6272) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ parseArgs：默认 registry 与空选项 (2.678498ms)
+✔ parseArgs：解析全部选项 (0.268104ms)
+✔ parseArgs：--help 与 -h 等价 (0.229871ms)
+✔ parseArgs：未知参数抛错 (0.656224ms)
+✔ topologicalOrder：依赖先于依赖者 (0.648002ms)
+✔ topologicalOrder：跨层依赖深度优先展开 (0.316832ms)
+✔ topologicalOrder：忽略本仓库外的 @aiao/* 依赖 (1.157078ms)
+✔ topologicalOrder：确定性（同层按包名升序） (0.333754ms)
+(node:6335) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ parseArgs 只解析前置参数并透传发布命令 (5.378848ms)
+✔ dry-run 会给发布命令补上 dry-run 参数 (0.51261ms)
+✔ 发布命令允许调用方用最后一个 registry 覆盖默认值 (0.267981ms)
+✔ 脏工作区在任何发布校验前就被拒绝 (0.526094ms)
+✔ 发布校验期间提交、清单或版本变化都会失效 (0.676168ms)
+✔ 三个门禁按顺序执行，全部通过后才返回产物快照 (0.334374ms)
+✔ 任一门禁失败都短路，后续门禁不会运行 (0.315407ms)
+✔ 门禁进程无法启动也必须失败 (0.269933ms)
+✔ 校验完成后输入变化会阻止继续发布 (0.392304ms)
+✔ 发布产物摘要会捕获被忽略的 dist 变化 (47.966667ms)
+✔ 根发布入口经过共享 preflight，publish-local 保持原入口 (1.597769ms)
+(node:6401) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6401) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+✔ 零退出码时 resolve (107.984326ms)
+/Users/jimmy/.nvm/versions/node/v26.13.0/bin/node -e "process.exit(2)"
+✔ 非零退出码时 reject Error (97.11313ms)
+(node:6526) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 按时退出时交出退出码，不算超时 (94.426662ms)
+✔ 超过时限先 SIGTERM，并标记为超时 (110.06562ms)
+✔ SIGTERM 被吞掉时，宽限期后 SIGKILL (1208.353741ms)
+✔ 起不来的命令交出 error，不算超时 (8.908454ms)
+(node:6687) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 默认 targets 与 package.json 的 test-all 逐个对齐（含顺序） (36.732036ms)
+✔ formatNxLog 清除控制字符并压缩连续空行 (2.567685ms)
+✔ parseNxLog 汇总成功、缓存、失败和跳过任务 (4.156163ms)
+✔ parseNxLog 只读取最外层 Nx 指标并提取 flaky 和 Playwright 诊断 (2.44294ms)
+✔ formatNxLog 截断无诊断价值的超长单行并保留头尾 (0.501412ms)
+✔ renderReport 把结论和失败原因放在详细输出之前 (11.677558ms)
+✔ parseArgs 支持逗号分隔 target 和原样透传 Nx 参数 (0.543339ms)
+✔ parseArgs 拒绝无效的输出模式和并行数 (0.718494ms)
+✔ resolveNxExitCode 以 Failed tasks 校正错误的成功退出码 (0.40815ms)
+✔ 默认 affected 范围与 pnpm test-all 一致：提交差异、未提交修改与新文件同时计入 (990.757265ms)
+ℹ tests 602
+ℹ suites 0
+ℹ pass 601
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 29580.170825
+
+✖ failing tests:
+
+test at scripts/ai-review/ai-review.spec.mjs:426:1
+✖ CLI：snapshot → status → cover → status 走通，find-issue 不唯一时非零退出 (1526.932582ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /^ai-review: 未知项目 nope/. Input:
+
+  "(node:18853) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n" +
+    '(Use `node --trace-warnings ...` to show where the warning was created)\n' +
+    'ai-review: 未知项目 nope；候选：无\n'
+
+      at file:///Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/scripts/ai-review/ai-review.spec.mjs:457:12
+      at TestContext.<anonymous> (file:///Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/scripts/ai-review/ai-review.spec.mjs:63:5)
+      at Test.runInAsyncScope (node:async_hooks:226:14)
+      at Test.run (node:internal/test_runner/test:1402:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:974:18)
+      at Test.postRun (node:internal/test_runner/test:1542:19)
+      at Test.run (node:internal/test_runner/test:1467:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: "(node:18853) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\nai-review: 未知项目 nope；候选：无\n",
+    expected: /^ai-review: 未知项目 nope/,
+    operator: 'match',
+    diff: 'simple'
+  }
+Warning: command "node --test "scripts/**/*.spec.mjs"" exited with non-zero status code
+
+
+ NX   Running targets audit-api-surface, audit-package-graph, audit-requirements, migration-release-gate, test-scripts for project @aiao/source failed
+
+Failed tasks:
+
+- @aiao/source:test-scripts
+
+  Run duration:      1m 50s
+  Cache:             0/4 hit (0%)
+  Critical path:     1m 17s (1 task)
+  Recoverable time:  33.5s (30% of the run)
+
+  Recommendation: Increase parallelism to recover up to 33.5s → https://nx.dev/docs/concepts/ci-concepts/parallelization-distribution?utm_source=nx-cli&utm_medium=cli&utm_campaign=performance-report&utm_content=parallelization.

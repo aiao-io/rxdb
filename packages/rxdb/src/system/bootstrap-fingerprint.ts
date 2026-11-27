@@ -6,8 +6,8 @@
  * 在未认领能力守卫的同一趟只读事务里读到它，命中时仅跳过已完成的迁移事务。
  * 系统 schema 版本检查与插件引导仍运行，每次连接仍检查物理表存在性与存储约束。
  *
- * 指纹覆盖实体结构（{@link BOOTSTRAP_FINGERPRINT_KEYS}，含 `checks` / `exclusions` / `log`）与
- * 系统/接入方两条迁移链的名字，任一变化都会失配、回落完整引导。旧版本的指纹行不清理，
+ * 指纹覆盖实体结构（{@link BOOTSTRAP_FINGERPRINT_KEYS}，含 `checks` / `exclusions` / `log`）、
+ * 实例级存储声明与系统/接入方两条迁移链的名字，任一变化都会失配、回落完整引导。旧版本的指纹行不清理，
  * 按集合比对（{@link readBootstrapFingerprints}）。
  */
 
@@ -17,6 +17,7 @@ import {
   pickSchemaFingerprintInput
 } from '../backup/schema-fingerprint-encoding.js';
 import type { EntityType } from '../entity/entity.interface.js';
+import type { EntityStorageOverride } from '../entity/storage-override.js';
 
 /**
  * 引导指纹取的实体级键：备份清单那批之外还看约束（`checks` / `exclusions`）与 `log`——
@@ -27,9 +28,10 @@ const BOOTSTRAP_FINGERPRINT_KEYS = [...FINGERPRINT_KEYS, 'checks', 'exclusions',
 /** 引导指纹行的 `name` 前缀；与迁移行同表，前缀让读侧按形状认出来。 */
 export const BOOTSTRAP_FINGERPRINT_PREFIX = '__rxdb_bootstrap__';
 
-/** 引导指纹的输入：实体结构 + 两条迁移链的名字。 */
+/** 引导指纹的输入：实体结构、实例级存储声明与两条迁移链的名字。 */
 export interface BootstrapFingerprintInput {
   readonly entities: readonly EntityType[];
+  readonly entityStorage?: readonly EntityStorageOverride[];
   readonly systemMigrations: readonly string[];
   readonly userMigrations: readonly string[];
 }
@@ -57,11 +59,17 @@ export const readBootstrapFingerprints = (migrationNames: readonly string[]): Re
  * @param input - 见 {@link BootstrapFingerprintInput}
  * @returns 64 位十六进制 SHA-256；与实体声明顺序、迁移声明顺序无关
  */
-export const computeBootstrapFingerprint = (input: BootstrapFingerprintInput): string =>
-  fingerprintSchemaInput({
-    schema: pickSchemaFingerprintInput(input.entities, BOOTSTRAP_FINGERPRINT_KEYS),
+export const computeBootstrapFingerprint = (input: BootstrapFingerprintInput): string => {
+  const declared = new Map(
+    (input.entityStorage ?? []).map(({ entity, ...declaration }) => [entity, declaration] as const)
+  );
+  return fingerprintSchemaInput({
+    schema: pickSchemaFingerprintInput(input.entities, BOOTSTRAP_FINGERPRINT_KEYS, entity => ({
+      entityStorage: declared.get(entity)
+    })),
     migrations: {
       system: [...input.systemMigrations].sort(),
       user: [...input.userMigrations].sort()
     }
   });
+};

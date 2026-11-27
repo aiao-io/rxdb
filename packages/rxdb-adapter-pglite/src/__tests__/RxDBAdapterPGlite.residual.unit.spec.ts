@@ -1,7 +1,17 @@
-import { Entity, EntityBase, getEntityMetadata, getEntityStatus, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
+import {
+  Entity,
+  EntityBase,
+  type EntityType,
+  getEntityMetadata,
+  getEntityStatus,
+  PropertyType,
+  RxDB,
+  SyncType
+} from '@aiao/rxdb';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { firstValueFrom } from 'rxjs';
 import { afterEach, describe, expect, it } from 'vitest';
+import { PGliteRepository } from '../repository/PGliteRepository.js';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 
 @Entity({
@@ -70,6 +80,36 @@ describe('RxDBAdapterPGlite residual unit edges', () => {
     expect(() => ad.encryption.lock()).toThrow(/no_encrypted_columns|encrypted/i);
     await expect(ad.encryption.unlock({ passphrase: 'x' } as never)).rejects.toThrow(/no_encrypted_columns|encrypted/i);
     expect(() => ad.encryption.lockChange$).toThrow(/no_encrypted_columns|encrypted/i);
+  });
+
+  it('options.repositories 追加的适配器仓储按名字参与解析，缓存与非缓存两条路径同口径', async () => {
+    class CustomNoteRepository<T extends EntityType> extends PGliteRepository<T> {}
+    rxdb = new RxDB({
+      dbName: `adapter-repositories-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      context: { userId: 'creator-user' },
+      entities: [Todo, Pgl015Note],
+      sync: { local: { adapter: 'pglite' }, type: SyncType.None }
+    });
+    rxdb.adapter('pglite', db => {
+      adapter = new RxDBAdapterPGlite(db, {
+        store: 'memory',
+        repositories: { CustomRepository: CustomNoteRepository }
+      });
+      return adapter;
+    });
+    await rxdb.connect('pglite');
+
+    const meta = getEntityMetadata(Pgl015Note);
+    const originalRepo = meta.repository;
+    Object.defineProperty(meta, 'repository', { value: 'CustomRepository', configurable: true });
+    try {
+      expect(adapter.getRepository(Pgl015Note)).toBeInstanceOf(CustomNoteRepository);
+      expect(adapter.createUncachedRepository(Pgl015Note, adapter)).toBeInstanceOf(CustomNoteRepository);
+    } finally {
+      Object.defineProperty(meta, 'repository', { value: originalRepo, configurable: true });
+    }
+    // 内置名不被追加项挤掉
+    expect(adapter.getRepository(Todo)).toBeInstanceOf(PGliteRepository);
   });
 
   it('getMetadataByIds and upsertMany empty early return', async () => {

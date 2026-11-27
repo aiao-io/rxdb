@@ -752,3 +752,13 @@ entities the user already changed, and an unconditional `replace` would silently
 #### Inherited from
 
 [`RepositoryBase`](RepositoryBase.md).[`updateEntity`](RepositoryBase.md#updateentity)
+
+---
+
+### writeMutations()? \{#writemutations\}
+
+Optional batch-write hook for repository implementations. The local primary adapter calls it for `saveMany`, `mutations`, and `save()` with multiple entities.
+
+Normalize the mutations before calling `next()`. After `next()` returns, the supplied transaction executor can read rows written by the batch. Throwing rolls back the batch in storage. Entity objects updated in memory by `next()` retain those updates.
+
+The hook does not run for remote-only writes, QueryCache primary writes, or writes performed directly through a transaction executor.

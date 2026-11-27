@@ -1,0 +1,74 @@
+{
+  "editor": {
+    "width": 378.65625,
+    "height": 468,
+    "fontSize": "15px",
+    "lineHeight": "22.5px",
+    "padding": "16px",
+    "radius": "8px",
+    "gap": "normal",
+    "color": "rgb(23, 35, 55)",
+    "background": "rgb(255, 255, 255)"
+  },
+  "firstDataMs": 801.8999999761581,
+  "heading": {
+    "width": 1152,
+    "height": 42,
+    "fontSize": "28px",
+    "lineHeight": "42px",
+    "padding": "0px",
+    "radius": "0px",
+    "gap": "normal",
+    "color": "rgb(23, 35, 55)",
+    "background": "rgba(0, 0, 0, 0)"
+  },
+  "page": {
+    "width": 1200,
+    "height": 849.5,
+    "fontSize": "15px",
+    "lineHeight": "22.5px",
+    "padding": "24px",
+    "radius": "0px",
+    "gap": "normal",
+    "color": "rgb(23, 35, 55)",
+    "background": "rgba(0, 0, 0, 0)"
+  },
+  "panels": {
+    "width": 1152,
+    "height": 468,
+    "fontSize": "15px",
+    "lineHeight": "22.5px",
+    "padding": "0px",
+    "radius": "0px",
+    "gap": "16px",
+    "color": "rgb(23, 35, 55)",
+    "background": "rgba(0, 0, 0, 0)"
+  },
+  "row": {
+    "width": 723.328125,
+    "height": 45.5,
+    "fontSize": "15px",
+    "lineHeight": "22.5px",
+    "padding": "4px 0px",
+    "radius": "0px",
+    "gap": "normal",
+    "color": "rgb(23, 35, 55)",
+    "background": "rgba(0, 0, 0, 0)"
+  },
+  "tree": {
+    "width": 757.328125,
+    "height": 468,
+    "fontSize": "15px",
+    "lineHeight": "22.5px",
+    "padding": "16px",
+    "radius": "8px",
+    "gap": "normal",
+    "color": "rgb(23, 35, 55)",
+    "background": "rgb(255, 255, 255)"
+  },
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.8078.4 Safari/537.36",
+  "viewport": {
+    "width": 1440,
+    "height": 1000
+  }
+}

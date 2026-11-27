@@ -19,6 +19,7 @@ import {
   expectedExclusionConstraintNames,
   inDriftScope
 } from '../../system/constraint-drift.js';
+import { storageMetadata } from '../entity/storage-test-fixtures.js';
 
 const metadataOf = (overrides: Partial<EntityMetadataOptions>) =>
   transitionMetadata({
@@ -106,6 +107,21 @@ describe('declaresStorageConstraints', () => {
   });
 });
 
+describe('declaresStorageConstraints（存储覆盖的热字段声明）', () => {
+  it('只声明生成列与高级索引（BOM 热字段形态）同样触发能力与宿主版本门槛', () => {
+    const hot = storageMetadata({
+      generatedColumns: [
+        {
+          name: 'rohs_hot',
+          expression: { kind: 'jsonScalar', property: 'ext', key: 'rohs_status', dataType: 'string', jsonText: true }
+        }
+      ],
+      indexes: [{ name: 'rohs_lookup', properties: ['rohs_hot'] }]
+    });
+    expect(declaresStorageConstraints(hot)).toBe(true);
+  });
+});
+
 describe('assertNoEntityConstraintDrift', () => {
   const report = (expected: string[], actual: string[], tableMissing = false) => ({
     entity: 'Drift',
@@ -128,6 +144,20 @@ describe('assertNoEntityConstraintDrift', () => {
       const drift = error as RxDBConstraintDriftError;
       expect(drift.missing).toEqual(['ex_b_u', 'uq_new']);
       expect(drift.extra).toEqual(['uq_old']);
+    }
+  });
+
+  it('多余对象点名托管保留前缀并给出改名 / 删除 / 补声明的处理方式；只有缺失时不加说明', () => {
+    expect(() =>
+      assertNoEntityConstraintDrift(
+        report(['sx_item_lookup_00000000'], ['gc_rohs_12345678', 'sx_item_lookup_00000000'])
+      )
+    ).toThrow(/Names prefixed gc_ are reserved for RxDB-managed storage objects: rename or drop/);
+    try {
+      assertNoEntityConstraintDrift(report(['uq_new'], []));
+      expect.unreachable('应当报漂移');
+    } catch (error) {
+      expect((error as RxDBConstraintDriftError).message).not.toContain('reserved');
     }
   });
 

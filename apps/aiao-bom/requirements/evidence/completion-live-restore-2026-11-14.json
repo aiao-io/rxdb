@@ -1,0 +1,34 @@
+{
+  "checkedAt": "2026-11-14T06:03:26.760Z",
+  "origin": "https://aiao-bom-2.aiao.workers.dev",
+  "sourceDatabase": "aiao-bom-2-domain-v1",
+  "targetDatabase": "bom-r-98b15f8c0dbc4b499dd485453536ecdc",
+  "refreshRestored": true,
+  "corruptedArchiveRejected": true,
+  "rejection": "Backup archive checksum mismatch",
+  "rollbackVerified": true,
+  "browserContext": "bom2-release-20261114",
+  "archiveComparison": {
+    "checkedAt": "2026-11-14T06:04:25.852Z",
+    "exactRowsPreserved": true,
+    "sortedSchemaEqual": true,
+    "schemaFingerprintEqual": true,
+    "constraintFingerprintEqual": true,
+    "originalUnchanged": true,
+    "entryCount": 29,
+    "archives": {
+      "before": {
+        "bytes": 666760,
+        "sha256": "2bd8323ffc0e3c58577b6e895f37e4c2d112e7d69fce06080ec7583bbf09047f"
+      },
+      "restored": {
+        "bytes": 666760,
+        "sha256": "68951ebceb3991deb9ab26f382dcc9c24c84985ff515def26b89b23924a7d59b"
+      },
+      "rollback": {
+        "bytes": 666760,
+        "sha256": "0d465d5f74d09d1ea4998d73ea3c7f7b208af826f9aada5e0708eefe04905139"
+      }
+    }
+  }
+}

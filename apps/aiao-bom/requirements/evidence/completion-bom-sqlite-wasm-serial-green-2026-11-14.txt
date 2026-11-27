@@ -1,0 +1,1285 @@
+
+ NX   Running targets test, lint, typecheck for project rxdb-adapter-sqlite-wasm and 24 tasks it depends on:
+
+- rxdb-adapter-sqlite-wasm
+
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run utils:build  [local cache]
+
+> vite build
+
+(node:57406) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 159 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1764ms.
+
+computing gzip size...
+dist/index.js  70.62 kB │ gzip: 22.97 kB
+
+✓ built in 1.84s
+
+> nx run utils:typecheck  [local cache]
+
+> tsc --build --emitDeclarationOnly
+
+
+> nx run rxdb:generate-skill
+
+> node ../../scripts/audit/generate-skill.mjs
+
+✅ SKILL.md 已生成：packages/rxdb/skills/aiao-rxdb/SKILL.md（7922 字节 ≤ 8192）
+
+> nx run rxdb:build  [local cache]
+
+> vite build
+
+(node:57444) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 344 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 3453ms.
+
+computing gzip size...
+dist/testing.js                  1.66 kB │ gzip:  0.88 kB
+dist/QueryManager-xIzA8TZN.js   61.19 kB │ gzip: 17.00 kB
+dist/index.js                  252.41 kB │ gzip: 74.71 kB
+
+✓ built in 3.62s
+
+> nx run rxdb:typecheck  [local cache]
+
+> tsc --build --emitDeclarationOnly
+
+
+> nx run rxdb-plugin-history:build  [local cache]
+
+> vite build
+
+(node:57487) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 25 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 2415ms.
+
+computing gzip size...
+dist/index.js  57.11 kB │ gzip: 15.41 kB
+
+✓ built in 2.47s
+
+> nx run rxdb-client-generator:build  [local cache]
+
+> vite build
+
+(node:57488) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 24 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 3067ms.
+
+computing gzip size...
+dist/index.js                          0.31 kB │ gzip:  0.19 kB
+dist/vite.js                           1.91 kB │ gzip:  0.93 kB
+dist/cli.js                            2.84 kB │ gzip:  1.25 kB
+dist/testing.js                        4.82 kB │ gzip:  1.83 kB
+dist/build-client-lib-D8pJzzuO.js     19.48 kB │ gzip:  6.69 kB
+dist/RxDBClientGenerator-BU4uS4-h.js  51.97 kB │ gzip: 13.83 kB
+
+✓ built in 3.13s
+
+> nx run rxdb-adapter-encrypted:build  [local cache]
+
+> vite build && node ../../scripts/audit/package-api-docs.mjs .
+
+(node:57490) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 13 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1643ms.
+
+computing gzip size...
+dist/testing.js   1.54 kB │ gzip: 0.70 kB
+dist/index.js    25.14 kB │ gzip: 7.31 kB
+
+✓ built in 1.68s
+(node:57535) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Public API documentation passed: rxdb-adapter-encrypted
+
+> nx run rxdb-plugin-history:typecheck  [local cache]
+
+> tsc --build --emitDeclarationOnly
+
+
+> nx run rxdb-plugin-tree:build  [local cache]
+
+> vite build
+
+(node:57572) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 21 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 2168ms.
+
+computing gzip size...
+dist/constants-hmRlLxvd.js   0.92 kB │ gzip: 0.48 kB
+dist/generator.js            3.73 kB │ gzip: 1.38 kB
+dist/index.js               17.69 kB │ gzip: 5.05 kB
+
+✓ built in 2.21s
+
+> nx run rxdb-plugin-sync:build  [local cache]
+
+> vite build
+
+(node:57546) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 222 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 2478ms.
+
+computing gzip size...
+dist/index.js  105.65 kB │ gzip: 27.77 kB
+
+✓ built in 2.55s
+
+> nx run rxdb-plugin-working-tree:build  [local cache]
+
+> vite build && node ../../scripts/audit/package-api-docs.mjs . --members
+
+(node:57564) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 89 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 4216ms.
+
+computing gzip size...
+dist/index.js                         2.75 kB │ gzip:  1.09 kB
+dist/working-tree/testing/index.js  116.51 kB │ gzip: 30.13 kB
+dist/src-BZpPv2tT.js                142.61 kB │ gzip: 41.33 kB
+
+✓ built in 4.33s
+(node:57650) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Public API documentation passed: rxdb-plugin-working-tree
+
+> nx run rxdb-client-generator:typecheck  [local cache]
+
+> tsc --build --emitDeclarationOnly
+
+
+> nx run rxdb-adapter-encrypted:typecheck  [local cache]
+
+> tsc --build --emitDeclarationOnly
+
+
+> nx run rxdb-test:build  [local cache]
+
+> vite build && node scripts/verify-public-contract.mjs && tsc --build tsconfig.publish.json
+
+(node:57617) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 57 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 3312ms.
+
+computing gzip size...
+dist/chunks/generate-test-db-name-C23VG_er.js   0.20 kB │ gzip: 0.18 kB │ map:   0.50 kB
+dist/chunks/decorate-DsqXQ0nF.js                0.49 kB │ gzip: 0.32 kB
+dist/tree-unique/index.js                       5.07 kB │ gzip: 1.54 kB │ map:  14.07 kB
+dist/transaction/index.js                       6.81 kB │ gzip: 2.69 kB │ map:  23.42 kB
+dist/query-cache-contract/index.js              7.94 kB │ gzip: 2.86 kB │ map:  23.91 kB
+dist/check-constraint/index.js                 19.90 kB │ gzip: 4.63 kB │ map:  52.51 kB
+dist/index.js                                  27.60 kB │ gzip: 9.47 kB │ map:  97.74 kB
+dist/sortable/index.js                         29.78 kB │ gzip: 8.23 kB │ map:  86.25 kB
+dist/encrypted/index.js                        37.58 kB │ gzip: 9.00 kB │ map: 121.55 kB
+
+✓ built in 3.38s
+(node:57671) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✅ Generated 2 client(s) from ./rxdb.config.ts
+(node:57711) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Public contract OK: 117 exports across 9 entries
+
+> nx run rxdb-plugin-tree:typecheck  [local cache]
+
+> tsc --build --emitDeclarationOnly
+
+
+> nx run rxdb-plugin-querycache:build  [local cache]
+
+> vite build
+
+(node:57608) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 199 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 2417ms.
+
+computing gzip size...
+dist/index.js  39.98 kB │ gzip: 10.78 kB
+
+✓ built in 2.48s
+
+> nx run rxdb-plugin-sync:typecheck  [local cache]
+
+> tsc --build --emitDeclarationOnly
+
+
+> nx run rxdb-plugin-working-tree:typecheck  [local cache]
+
+> tsc --build --emitDeclarationOnly
+
+
+> nx run rxdb-adapter-sqlite-core:build  [local cache]
+
+> node ../../node_modules/vite/bin/vite.js build
+
+(node:57774) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 113 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 3904ms.
+
+computing gzip size...
+dist/sqlite-backend.interface-Im_ETXg8.js    0.23 kB │ gzip:  0.18 kB
+dist/index.js                                5.35 kB │ gzip:  2.29 kB
+dist/desktop-host-protocol-CYOIEUaV.js      10.61 kB │ gzip:  3.69 kB
+dist/desktop-host.js                        14.33 kB │ gzip:  5.01 kB
+dist/src-CPxNy7md.js                       176.94 kB │ gzip: 53.02 kB
+dist/testing.js                            451.73 kB │ gzip: 84.20 kB
+
+✓ built in 4.06s
+
+> nx run rxdb-test:typecheck  [local cache]
+
+> tsc --build tsconfig.lib.json && tsc --project tsconfig.check.json
+
+
+> nx run rxdb-plugin-querycache:typecheck  [local cache]
+
+> tsc --build --emitDeclarationOnly
+
+
+> nx run rxdb-adapter-sqlite-core:typecheck
+
+> tsc --build tsconfig.lib.json --emitDeclarationOnly
+
+
+> nx run rxdb-adapter-sqlite-wasm:build
+
+> vite build
+
+(node:64244) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 57 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1390ms.
+
+computing gzip size...
+dist/vfs-storage-loaders-DFY64Xzi.js      0.55 kB │ gzip:     0.23 kB
+dist/index.js                             0.58 kB │ gzip:     0.31 kB
+dist/RxDBAdapterSqlite-Ces1mYKg.js       13.96 kB │ gzip:     5.04 kB
+dist/testing.js                       3,401.73 kB │ gzip: 1,316.15 kB
+
+✓ built in 1.55s
+
+> nx run rxdb-adapter-sqlite-wasm:test
+
+> vitest
+
+(node:64268) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb-adapter-sqlite-wasm
+      Coverage enabled with v8
+
+11:31:36 AM [vite] (client) [console.warn] [SqliteClient] regexp([) failed: SyntaxError: Invalid regular expression: /[/: Unterminated character class
+    at new RegExp (<anonymous>)
+    at Pl (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb-adapter-sqlite-core/dist/src-CPxNy7md.js:4296:7)
+    at http://localhost:63315/src/SqliteClient.ts:438:15
+    at Object.xFunc (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/@subframe7536+sqlite-wasm@1.4.0/node_modules/@subframe7536/sqlite-wasm/dist/index.js?v=9844bf00:288:150)
+    at adapters_support (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/@subframe7536+sqlite-wasm@1.4.0/node_modules/@subframe7536/sqlite-wasm/dist/wa-sqlite-bT14NS4h.js?v=9844bf00:2569:21)
+    at _vpppip (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/@subframe7536+sqlite-wasm@1.4.0/node_modules/@subframe7536/sqlite-wasm/dist/wa-sqlite-bT14NS4h.js?v=9844bf00:2668:10)
+    at data:application/wasm;base64,AGFzbQEAAAABhwVTYAJ/fwF/YAF/AX9gA39/fwBgAX8AYAN/f38Bf2ACf38AYAR/f39/AX9gBX9/f39/AX9gBH9/f38AYAR/f39+AX9gBn9/f39/fwF/YAV/f39/fwBgAn9+AX9gAABgB39/f39/f38Bf2AAAX9gBn9/f39/fwBgCH9/f39/f39/AX9gAX8BfmAHf39/f39/fwBgA39/fgF/YAJ/fgBgAn9/AX5gA39+fwF/YAR/fn9/AX9gAXwBfGACf3wAYAV/fn5+fgBgAX4Bf2ADf39+AGAJf39/f39/f39/AX9gBH9+f38AYAl/f39/f39/f38AYAV/fn9/fwF/YAV/f39/fgBgBn9/f39/fgF/YAR/fn5/AGAFf39+f38Bf2AEf39+fwBgBn9/f35/fwF/YAN/fn4Bf2ADf35/AGAAAXxgAX8BfGAEf39/fgBgCH9/f39/f39/AGABfAF/YAt/f39/f39/f39/fwBgA3x8fwF8YAJ8fAF8YAt/f39/f39/f39/fwF/YAN/f38BfmAFf39/f34Bf2AKf39/f39/f39/fwF/YAJ/fgF+YAF+AX5gAn98AX9gB39/f39+f38Bf2AFf39+f38AYAJ8fwF8YAR+fn5+AX9gCH9+fn9/f39/AX9gAn58AX9gBH9/fn8Bf2AGfn9/f39/AX5gBn9/f39+fgBgAnx/AX9gA39+fgBgBX9/f35/AGADfn5/AX5gDX9/f39/f39/f39/f38AYAN+fn4Bf2ADf35/AX5gB39/f39/fHwAYAd/f35+fn9/AX9gBH9+fn4AYAd/fn9/f39/AX9gBX9/fn5/AX9gA39/fAF/YAN/f34BfmACfn8BfGACfH4Bf2ACf38BfAKuA0UBYQFhAAgBYQFiAAQBYQFjAAYBYQFkAAYBYQFlAAYBYQFmAAYBYQFnACoBYQFoAAcBYQFpAAcBYQFqAAQBYQFrAAQBYQFsAAIBYQFtAAIBYQFuACoBYQFvAAEBYQFwAAoBYQFxAAoBYQFyABMBYQFzAAABYQF0AAABYQF1ABEBYQF2AA4BYQF3AAIBYQF4AAcBYQF5AAQBYQF6AAcBYQFBAAcBYQFCAA4BYQFDAA4BYQFEAAMBYQFFAA0BYQFGADgBYQFHAAEBYQFIAAABYQFJAAYBYQFKAAQBYQFLAAEBYQFMAAYBYQFNAAgBYQFO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…
+stderr | src/__tests__/zz-adversarial.spec.ts > adversarial verification > S4: 非法 REGEXP 模式不得毒化连接
+[SqliteClient] regexp([) failed: [SyntaxError: Invalid regular expression: /[/: Unterminated character class]
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/zz-adversarial.spec.ts (5 tests) 1428ms
+     ✓ S1: idb (asyncify wasm) with bound params, many round trips  426ms
+     ✓ S3: sustained awaited writes starve the debounce timer  622ms
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/RxDBAdapterSqlite.spec.ts (5 tests) 3ms
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/branch-materialization-sync.spec.ts (7 tests) 1544ms
+     ✓ 进程重启：换一个 RxDB 实例打开同一个持久化库，从 durable staging 续传  561ms
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/create_sqlite_client.remote.spec.ts (4 tests) 54ms
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/create_sqlite_client.spec.ts (9 tests) 36ms
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/drop-storage.spec.ts (6 tests) 368ms
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/encrypted-bigint-binary.spec.ts (8 tests) 740ms
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/execute_helper.spec.ts (15 tests) 85ms
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/existing-db-new-entity.spec.ts (3 tests) 871ms
+     ✓ 装了贡献系统迁移的插件时，connect() 补建出新表且新表可写  321ms
+     ✓ 工作树插件后加的系统表：既有库重开时补建，旧提交照常可读，旧提交建不了分支、新提交建得了  364ms
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/fresh-install-migrations.spec.ts (2 tests) 103ms
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/index.spec.ts (1 test) 1ms
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/manual-order-contract.spec.ts (40 tests) 2348ms
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/opfs-reload-race.spec.ts (2 tests) 3963ms
+     ✓ 第一次打开撞上占用之后才释放：重试交出失败那次留下的句柄，等到释放后打开成功  414ms
+     ✓ 占着的一方一直不放：在重试上限内失败，报句柄被占用  3549ms
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/querycache-identity.spec.ts (6 tests) 296ms
+11:32:10 AM [vite] (client) [console.error] [#updatePushableCount] error Error
+    at _super (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/createErrorClass.js?v=9844bf00:4:26)
+    at new EmptyErrorImpl (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/EmptyError.js?v=9844bf00:4:9)
+    at Object.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/firstValueFrom.js?v=9844bf00:17:28)
+    at ConsumerObserver.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:121:33)
+    at Subscriber._complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:75:30)
+    at Subscriber.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:52:18)
+    at http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:61
+    at Set.forEach (<anonymous>)
+    at _r.clean (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:44)
+    at e.destroy (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1673:49)
+stderr | src/__tests__/setup.spec.ts > Worktree table set [sqlite-wasm] > 切分支排队期间发生换挂时，拒绝旧计划且不修改主检出位
+[#updatePushableCount] error [EmptyError: no elements in sequence]
+11:32:10 AM [vite] (client) [console.error] [#updatePushableCount] error Error
+    at _super (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/createErrorClass.js?v=9844bf00:4:26)
+    at new EmptyErrorImpl (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/EmptyError.js?v=9844bf00:4:9)
+    at Object.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/firstValueFrom.js?v=9844bf00:17:28)
+    at ConsumerObserver.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:121:33)
+    at Subscriber._complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:75:30)
+    at Subscriber.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:52:18)
+    at http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:61
+    at Set.forEach (<anonymous>)
+    at _r.clean (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:44)
+    at e.destroy (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1673:49)
+stderr | src/__tests__/setup.spec.ts > Worktree table set [sqlite-wasm] > 切分支排队期间发生换挂时，拒绝旧计划且不修改主检出位
+[#updatePushableCount] error [EmptyError: no elements in sequence]
+11:32:10 AM [vite] (client) [console.error] [#updatePushableCount] error Error
+    at _super (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/createErrorClass.js?v=9844bf00:4:26)
+    at new EmptyErrorImpl (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/EmptyError.js?v=9844bf00:4:9)
+    at Object.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/firstValueFrom.js?v=9844bf00:17:28)
+    at ConsumerObserver.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:121:33)
+    at Subscriber._complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:75:30)
+    at Subscriber.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:52:18)
+    at http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:61
+    at Set.forEach (<anonymous>)
+    at _r.clean (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:44)
+    at e.destroy (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1673:49)
+stderr | src/__tests__/setup.spec.ts > Worktree table set [sqlite-wasm] > 换挂排队期间的 save 不得写进另一套表
+[#updatePushableCount] error [EmptyError: no elements in sequence]
+11:32:10 AM [vite] (client) [console.error] [#updatePushableCount] error Error
+    at _super (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/createErrorClass.js?v=9844bf00:4:26)
+    at new EmptyErrorImpl (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/EmptyError.js?v=9844bf00:4:9)
+    at Object.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/firstValueFrom.js?v=9844bf00:17:28)
+    at ConsumerObserver.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:121:33)
+    at Subscriber._complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:75:30)
+    at Subscriber.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:52:18)
+    at http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:61
+    at Set.forEach (<anonymous>)
+    at _r.clean (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:44)
+    at e.destroy (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1673:49)
+stderr | src/__tests__/setup.spec.ts > Worktree table set [sqlite-wasm] > 换挂排队期间的 save 不得写进另一套表
+[#updatePushableCount] error [EmptyError: no elements in sequence]
+11:32:10 AM [vite] (client) [console.error] [#updatePushableCount] error Error
+    at _super (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/createErrorClass.js?v=9844bf00:4:26)
+    at new EmptyErrorImpl (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/EmptyError.js?v=9844bf00:4:9)
+    at Object.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/firstValueFrom.js?v=9844bf00:17:28)
+    at ConsumerObserver.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:121:33)
+    at Subscriber._complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:75:30)
+    at Subscriber.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:52:18)
+    at http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:61
+    at Set.forEach (<anonymous>)
+    at _r.clean (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:44)
+    at e.destroy (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1673:49)
+stderr | src/__tests__/setup.spec.ts > Worktree table set [sqlite-wasm] > 换挂排队期间的 remove 不得写进另一套表
+[#updatePushableCount] error [EmptyError: no elements in sequence]
+11:32:10 AM [vite] (client) [console.error] [#updatePushableCount] error Error
+    at _super (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/createErrorClass.js?v=9844bf00:4:26)
+    at new EmptyErrorImpl (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/EmptyError.js?v=9844bf00:4:9)
+    at Object.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/firstValueFrom.js?v=9844bf00:17:28)
+    at ConsumerObserver.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:121:33)
+    at Subscriber._complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:75:30)
+    at Subscriber.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:52:18)
+    at http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:61
+    at Set.forEach (<anonymous>)
+    at _r.clean (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:44)
+    at e.destroy (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1673:49)
+stderr | src/__tests__/setup.spec.ts > Worktree table set [sqlite-wasm] > 换挂排队期间的 remove 不得写进另一套表
+[#updatePushableCount] error [EmptyError: no elements in sequence]
+11:32:10 AM [vite] (client) [console.error] [#updatePushableCount] error Error
+    at _super (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/createErrorClass.js?v=9844bf00:4:26)
+    at new EmptyErrorImpl (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/EmptyError.js?v=9844bf00:4:9)
+    at Object.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/firstValueFrom.js?v=9844bf00:17:28)
+    at ConsumerObserver.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:121:33)
+    at Subscriber._complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:75:30)
+    at Subscriber.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:52:18)
+    at http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:61
+    at Set.forEach (<anonymous>)
+    at _r.clean (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:44)
+    at e.destroy (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1673:49)
+stderr | src/__tests__/setup.spec.ts > Worktree table set [sqlite-wasm] > 换挂排队期间的 create 不得写进另一套表
+[#updatePushableCount] error [EmptyError: no elements in sequence]
+11:32:10 AM [vite] (client) [console.error] [#updatePushableCount] error Error
+    at _super (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/createErrorClass.js?v=9844bf00:4:26)
+    at new EmptyErrorImpl (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/EmptyError.js?v=9844bf00:4:9)
+    at Object.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/firstValueFrom.js?v=9844bf00:17:28)
+    at ConsumerObserver.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:121:33)
+    at Subscriber._complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:75:30)
+    at Subscriber.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:52:18)
+    at http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:61
+    at Set.forEach (<anonymous>)
+    at _r.clean (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:44)
+    at e.destroy (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1673:49)
+stderr | src/__tests__/setup.spec.ts > Worktree table set [sqlite-wasm] > 换挂排队期间的 create 不得写进另一套表
+[#updatePushableCount] error [EmptyError: no elements in sequence]
+11:32:10 AM [vite] (client) [console.error] [#updatePushableCount] error Error
+    at _super (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/createErrorClass.js?v=9844bf00:4:26)
+    at new EmptyErrorImpl (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/EmptyError.js?v=9844bf00:4:9)
+    at Object.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/firstValueFrom.js?v=9844bf00:17:28)
+    at ConsumerObserver.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:121:33)
+    at Subscriber._complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:75:30)
+    at Subscriber.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:52:18)
+    at http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:61
+    at Set.forEach (<anonymous>)
+    at _r.clean (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:44)
+    at e.destroy (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1673:49)
+stderr | src/__tests__/setup.spec.ts > Worktree table set [sqlite-wasm] > 换挂排队期间的 saveMany 不得写进另一套表
+[#updatePushableCount] error [EmptyError: no elements in sequence]
+11:32:10 AM [vite] (client) [console.error] [#updatePushableCount] error Error
+    at _super (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/createErrorClass.js?v=9844bf00:4:26)
+    at new EmptyErrorImpl (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/EmptyError.js?v=9844bf00:4:9)
+    at Object.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/firstValueFrom.js?v=9844bf00:17:28)
+    at ConsumerObserver.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:121:33)
+    at Subscriber._complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:75:30)
+    at Subscriber.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:52:18)
+    at http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:61
+    at Set.forEach (<anonymous>)
+    at _r.clean (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:44)
+    at e.destroy (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1673:49)
+stderr | src/__tests__/setup.spec.ts > Worktree table set [sqlite-wasm] > 换挂排队期间的 saveMany 不得写进另一套表
+[#updatePushableCount] error [EmptyError: no elements in sequence]
+11:32:10 AM [vite] (client) [console.error] [#updatePushableCount] error Error
+    at _super (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/createErrorClass.js?v=9844bf00:4:26)
+    at new EmptyErrorImpl (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/EmptyError.js?v=9844bf00:4:9)
+    at Object.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/firstValueFrom.js?v=9844bf00:17:28)
+    at ConsumerObserver.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:121:33)
+    at Subscriber._complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:75:30)
+    at Subscriber.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:52:18)
+    at http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:61
+    at Set.forEach (<anonymous>)
+    at _r.clean (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:44)
+    at e.destroy (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1673:49)
+stderr | src/__tests__/setup.spec.ts > Worktree table set [sqlite-wasm] > 换挂排队期间的 removeMany 不得写进另一套表
+[#updatePushableCount] error [EmptyError: no elements in sequence]
+11:32:10 AM [vite] (client) [console.error] [#updatePushableCount] error Error
+    at _super (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/createErrorClass.js?v=9844bf00:4:26)
+    at new EmptyErrorImpl (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/EmptyError.js?v=9844bf00:4:9)
+    at Object.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/firstValueFrom.js?v=9844bf00:17:28)
+    at ConsumerObserver.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:121:33)
+    at Subscriber._complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:75:30)
+    at Subscriber.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:52:18)
+    at http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:61
+    at Set.forEach (<anonymous>)
+    at _r.clean (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:44)
+    at e.destroy (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1673:49)
+stderr | src/__tests__/setup.spec.ts > Worktree table set [sqlite-wasm] > 换挂排队期间的 removeMany 不得写进另一套表
+[#updatePushableCount] error [EmptyError: no elements in sequence]
+11:32:10 AM [vite] (client) [console.error] [#updatePushableCount] error Error
+    at _super (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/createErrorClass.js?v=9844bf00:4:26)
+    at new EmptyErrorImpl (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/EmptyError.js?v=9844bf00:4:9)
+    at Object.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/firstValueFrom.js?v=9844bf00:17:28)
+    at ConsumerObserver.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:121:33)
+    at Subscriber._complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:75:30)
+    at Subscriber.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:52:18)
+    at http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:61
+    at Set.forEach (<anonymous>)
+    at _r.clean (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:44)
+    at e.destroy (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1673:49)
+stderr | src/__tests__/setup.spec.ts > Worktree table set [sqlite-wasm] > 换挂排队期间的 adapter 查询只回填当前表集
+[#updatePushableCount] error [EmptyError: no elements in sequence]
+11:32:10 AM [vite] (client) [console.error] [#updatePushableCount] error Error
+    at _super (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/createErrorClass.js?v=9844bf00:4:26)
+    at new EmptyErrorImpl (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/EmptyError.js?v=9844bf00:4:9)
+    at Object.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/firstValueFrom.js?v=9844bf00:17:28)
+    at ConsumerObserver.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:121:33)
+    at Subscriber._complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:75:30)
+    at Subscriber.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:52:18)
+    at http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:61
+    at Set.forEach (<anonymous>)
+    at _r.clean (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:44)
+    at e.destroy (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1673:49)
+stderr | src/__tests__/setup.spec.ts > Worktree table set [sqlite-wasm] > 换挂排队期间的 facade 查询只回填当前表集
+[#updatePushableCount] error [EmptyError: no elements in sequence]
+11:32:10 AM [vite] (client) [console.error] [#updatePushableCount] error Error
+    at _super (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/createErrorClass.js?v=9844bf00:4:26)
+    at new EmptyErrorImpl (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/EmptyError.js?v=9844bf00:4:9)
+    at Object.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/firstValueFrom.js?v=9844bf00:17:28)
+    at ConsumerObserver.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:121:33)
+    at Subscriber._complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:75:30)
+    at Subscriber.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:52:18)
+    at http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:61
+    at Set.forEach (<anonymous>)
+    at _r.clean (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:44)
+    at e.destroy (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1673:49)
+stderr | src/__tests__/setup.spec.ts > Worktree table set [sqlite-wasm] > 实例挂在可写检出位上（US-314 B1.4） > 检出位里切分支派出的事件带后缀
+[#updatePushableCount] error [EmptyError: no elements in sequence]
+11:32:10 AM [vite] (client) [console.error] [#updatePushableCount] error Error
+    at _super (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/createErrorClass.js?v=9844bf00:4:26)
+    at new EmptyErrorImpl (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/EmptyError.js?v=9844bf00:4:9)
+    at Object.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/firstValueFrom.js?v=9844bf00:17:28)
+    at ConsumerObserver.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:121:33)
+    at Subscriber._complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:75:30)
+    at Subscriber.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:52:18)
+    at http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:61
+    at Set.forEach (<anonymous>)
+    at _r.clean (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:44)
+    at e.destroy (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1673:49)
+stderr | src/__tests__/setup.spec.ts > Worktree table set [sqlite-wasm] > 实例挂在可写检出位上（US-314 B1.4） > worktreeTableSet$ 在实体缓存清空之后才发出新的一套
+[#updatePushableCount] error [EmptyError: no elements in sequence]
+11:32:10 AM [vite] (client) [console.error] [#updatePushableCount] error Error
+    at _super (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/createErrorClass.js?v=9844bf00:4:26)
+    at new EmptyErrorImpl (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/EmptyError.js?v=9844bf00:4:9)
+    at Object.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/firstValueFrom.js?v=9844bf00:17:28)
+    at ConsumerObserver.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:121:33)
+    at Subscriber._complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:75:30)
+    at Subscriber.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:52:18)
+    at http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:61
+    at Set.forEach (<anonymous>)
+    at _r.clean (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:44)
+    at e.destroy (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1673:49)
+stderr | src/__tests__/setup.spec.ts > Worktree table set [sqlite-wasm] > 实例挂在可写检出位上（US-314 B1.4） > worktreeTableSet$ 在实体缓存清空之后才发出新的一套
+[#updatePushableCount] error [EmptyError: no elements in sequence]
+11:32:10 AM [vite] (client) [console.error] [#updatePushableCount] error Error
+    at _super (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/createErrorClass.js?v=9844bf00:4:26)
+    at new EmptyErrorImpl (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/EmptyError.js?v=9844bf00:4:9)
+    at Object.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/firstValueFrom.js?v=9844bf00:17:28)
+    at ConsumerObserver.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:121:33)
+    at Subscriber._complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:75:30)
+    at Subscriber.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:52:18)
+    at http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:61
+    at Set.forEach (<anonymous>)
+    at _r.clean (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:44)
+    at e.destroy (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1673:49)
+stderr | src/__tests__/setup.spec.ts > Worktree table set [sqlite-wasm] > 实例挂在可写检出位上（US-314 B1.4） > 挂在检出位上合并：只合这套表的成员，非成员的变更不落主表、不进日志
+[#updatePushableCount] error [EmptyError: no elements in sequence]
+11:32:10 AM [vite] (client) [console.error] [#updatePushableCount] error Error
+    at _super (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/createErrorClass.js?v=9844bf00:4:26)
+    at new EmptyErrorImpl (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/EmptyError.js?v=9844bf00:4:9)
+    at Object.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/firstValueFrom.js?v=9844bf00:17:28)
+    at ConsumerObserver.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:121:33)
+    at Subscriber._complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:75:30)
+    at Subscriber.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:52:18)
+    at http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:61
+    at Set.forEach (<anonymous>)
+    at _r.clean (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:44)
+    at e.destroy (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1673:49)
+stderr | src/__tests__/setup.spec.ts > Worktree table set [sqlite-wasm] > 实例挂在可写检出位上（US-314 B1.4） > 挂在检出位上对比：只列这套表的成员，与检出位里切过去读到的一致
+[#updatePushableCount] error [EmptyError: no elements in sequence]
+11:32:10 AM [vite] (client) [console.error] [#updatePushableCount] error Error
+    at _super (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/createErrorClass.js?v=9844bf00:4:26)
+    at new EmptyErrorImpl (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/EmptyError.js?v=9844bf00:4:9)
+    at Object.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/firstValueFrom.js?v=9844bf00:17:28)
+    at ConsumerObserver.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:121:33)
+    at Subscriber._complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:75:30)
+    at Subscriber.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:52:18)
+    at http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:61
+    at Set.forEach (<anonymous>)
+    at _r.clean (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:44)
+    at e.destroy (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1673:49)
+stderr | src/__tests__/setup.spec.ts > Worktree table set [sqlite-wasm] > 实例挂在可写检出位上（US-314 B1.4） > 挂在检出位上写 QueryCache：主表的行不进变更日志，主表与影子表的触发器都照旧挂在各自的分支
+[#updatePushableCount] error [EmptyError: no elements in sequence]
+11:32:11 AM [vite] (client) [console.error] [#updatePushableCount] error Error
+    at _super (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/createErrorClass.js?v=9844bf00:4:26)
+    at new EmptyErrorImpl (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/EmptyError.js?v=9844bf00:4:9)
+    at Object.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/firstValueFrom.js?v=9844bf00:17:28)
+    at ConsumerObserver.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:121:33)
+    at Subscriber._complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:75:30)
+    at Subscriber.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:52:18)
+    at http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:61
+    at Set.forEach (<anonymous>)
+    at _r.clean (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:44)
+    at e.destroy (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1673:49)
+stderr | src/__tests__/setup.spec.ts > Worktree table set [sqlite-wasm] > 实例挂在可写检出位上（US-314 B1.4） > 撤销 / 重做撤的是影子表里的写，主表集不动
+[#updatePushableCount] error [EmptyError: no elements in sequence]
+11:32:11 AM [vite] (client) [console.error] [#updatePushableCount] error Error
+    at _super (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/createErrorClass.js?v=9844bf00:4:26)
+    at new EmptyErrorImpl (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/EmptyError.js?v=9844bf00:4:9)
+    at Object.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/firstValueFrom.js?v=9844bf00:17:28)
+    at ConsumerObserver.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:121:33)
+    at Subscriber._complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:75:30)
+    at Subscriber.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:52:18)
+    at http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:61
+    at Set.forEach (<anonymous>)
+    at _r.clean (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:44)
+    at e.destroy (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1673:49)
+stderr | src/__tests__/setup.spec.ts > Worktree table set [sqlite-wasm] > 实例挂在可写检出位上（US-314 B1.4） > 挂在检出位上切分支：只动这套表与持有键，主检出位的行不动；之后的写记在新分支，切回来改动还在
+[#updatePushableCount] error [EmptyError: no elements in sequence]
+11:32:11 AM [vite] (client) [console.error] [#updatePushableCount] error Error
+    at _super (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/createErrorClass.js?v=9844bf00:4:26)
+    at new EmptyErrorImpl (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/EmptyError.js?v=9844bf00:4:9)
+    at Object.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/firstValueFrom.js?v=9844bf00:17:28)
+    at ConsumerObserver.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:121:33)
+    at Subscriber._complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:75:30)
+    at Subscriber.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:52:18)
+    at http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:61
+    at Set.forEach (<anonymous>)
+    at _r.clean (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:44)
+    at e.destroy (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1673:49)
+stderr | src/__tests__/setup.spec.ts > Worktree table set [sqlite-wasm] > 实例挂在可写检出位上（US-314 B1.4） > 挂在检出位上切到被占的分支：主检出位的当前分支、别的检出位持有的，都一行不动地拒绝
+[#updatePushableCount] error [EmptyError: no elements in sequence]
+11:32:11 AM [vite] (client) [console.error] [#updatePushableCount] error Error
+    at _super (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/createErrorClass.js?v=9844bf00:4:26)
+    at new EmptyErrorImpl (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/util/EmptyError.js?v=9844bf00:4:9)
+    at Object.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/firstValueFrom.js?v=9844bf00:17:28)
+    at ConsumerObserver.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:121:33)
+    at Subscriber._complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:75:30)
+    at Subscriber.complete (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/dist/esm5/internal/Subscriber.js?v=9844bf00:52:18)
+    at http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:61
+    at Set.forEach (<anonymous>)
+    at _r.clean (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1335:44)
+    at e.destroy (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb/dist/QueryManager-xIzA8TZN.js:1673:49)
+stderr | src/__tests__/setup.spec.ts > Worktree table set [sqlite-wasm] > 实例挂在可写检出位上（US-314 B1.4） > 挂在可写检出位上建分支：父分支是持有分支
+[#updatePushableCount] error [EmptyError: no elements in sequence]
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/setup.spec.ts (596 tests) 18193ms
+     ✓ 持续写入下仍会在硬上限内强制 flush，不会被无限防抖饿死  604ms
+       ✓ 设置 idCardId = null 不应该影响其他关系数据  507ms
+       ✓ 设置 xxxId = null 后，通过关系字段的查询应该正确更新  807ms
+       ✓ 场景4: 创建不匹配 where 条件的实体 - 不应该出现在结果中  409ms
+       ✓ 场景6: after 游标外的新实体 - 不应该出现在结果中  410ms
+       ✓ 应该正确处理多个 todo 的 completed 状态切换  384ms
+11:32:12 AM [vite] (client) [console.warn] [rxdb-adapter-sqlite-core] sqlite-wasm: rolled back a transaction left open on the shared connection
+stderr | src/__tests__/shared-client.spec.ts > SharedWorker 上多个标签页共用一个客户端（US-314 B2.3b）：'sharedWorker: true + 实例' > 别的标签页留下没结束的事务（标签页死在事务中间）：下一个拿到锁的标签页先回滚它
+[rxdb-adapter-sqlite-core] sqlite-wasm: rolled back a transaction left open on the shared connection
+11:32:13 AM [vite] (client) [console.warn] [rxdb-adapter-sqlite-core] sqlite-wasm: rolled back a transaction left open on the shared connection
+stderr | src/__tests__/shared-client.spec.ts > SharedWorker 上多个标签页共用一个客户端（US-314 B2.3b）：'只有实例' > 别的标签页留下没结束的事务（标签页死在事务中间）：下一个拿到锁的标签页先回滚它
+[rxdb-adapter-sqlite-core] sqlite-wasm: rolled back a transaction left open on the shared connection
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/shared-client.spec.ts (10 tests) 2686ms
+     ✓ 一个标签页的事务开着时，另一个标签页的事务排在它后面，不落进这笔事务  565ms
+     ✓ 一个标签页断开，另一个照常读写、照常收到变更事件；之后新连上的标签页也能用  322ms
+     ✓ 一个标签页的事务开着时，另一个标签页的事务排在它后面，不落进这笔事务  558ms
+     ✓ 一个标签页断开，另一个照常读写、照常收到变更事件；之后新连上的标签页也能用  328ms
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/sqlite-client-events.spec.ts (5 tests) 16ms
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/sqlite-client-identity.spec.ts (5 tests) 3ms
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/sqlite-client-init.spec.ts (4 tests) 3ms
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/sqlite-client-lifecycle.spec.ts (10 tests) 4ms
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/sqlite-client-nul-text.spec.ts (2 tests) 57ms
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/sqlite-client-regexp.spec.ts (11 tests) 4ms
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/sqlite-load.utils.spec.ts (18 tests) 65ms
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/transaction-contract.spec.ts (11 tests) 773ms
+     ✓ 事务回滚不得吞掉窗口内的外部写入  436ms
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/transaction-executor.spec.ts (5 tests) 158ms
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/transaction-log-prelude.spec.ts (2 tests) 76ms
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/tree-unique-contract.spec.ts (8 tests) 295ms
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/worker-lifecycle.spec.ts (16 tests) 2770ms
+     ✓ Worker 里的 opfs 真的落盘，另一个 Worker 打开同名库能读到  348ms
+11:32:23 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.1 捕获完备性 —— transaction 挂载点 > 普通 CRUD 落 origin=local 的单元，冷重放与业务表逐字段相等
+plugin already installed
+11:32:23 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.1 捕获完备性 —— transaction 挂载点 > 显式事务里的多次写入共享同一 unitId，冷重放与业务表逐字段相等
+plugin already installed
+11:32:23 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.1 捕获完备性 —— 本地 mergeChanges 挂载点 > restore 落 origin=local 的单元，冷重放与业务表逐字段相等
+plugin already installed
+11:32:23 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.1 捕获完备性 —— 本地 mergeChanges 挂载点 > merge 落 origin=local 的单元，冷重放与业务表逐字段相等
+plugin already installed
+11:32:23 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.1 捕获完备性 —— 本地 mergeChanges 挂载点 > 同步应用落 origin=remote_sync 的单元，冷重放与业务表逐字段相等
+plugin already installed
+11:32:23 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.1 捕获完备性 —— 本地 mergeChanges 挂载点 > 未声明受信意图的 mergeChanges 被拒，业务表零变化
+plugin already installed
+11:32:23 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.1 捕获完备性 —— switchBranch 挂载点 > 分支物化不产生单元，冷重放以物化结果为 HEAD 成立
+plugin already installed
+11:32:23 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.1 捕获完备性 —— switchBranch 挂载点 > 切到 metadata-only 分支时屏障里的物化不产生单元：走真实 switchBranch，切完每条分支 entryCount 仍为 0
+plugin already installed
+11:32:23 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.1 捕获完备性 —— switchBranch 挂载点 > redo 失效不产生单元，冷重放以物化结果为 HEAD 成立
+plugin already installed
+11:32:24 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.1 捕获完备性 —— switchBranch 挂载点 > undo/redo 产生 origin=local 的单元，冷重放与业务表逐字段相等
+plugin already installed
+11:32:24 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.1 捕获完备性 —— switchBranch 挂载点 > 未声明受信意图的 switchBranch 被拒，业务表零变化
+plugin already installed
+11:32:24 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.1 捕获完备性 —— upsertMany / deleteByIds 挂载点 > 版本化实体的 upsertMany 在返回 Observable 之前同步拒绝
+plugin already installed
+11:32:24 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.1 捕获完备性 —— upsertMany / deleteByIds 挂载点 > 版本化实体的 deleteByIds 在返回 Observable 之前同步拒绝
+plugin already installed
+11:32:24 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.1 捕获完备性 —— upsertMany / deleteByIds 挂载点 > QueryCache 实体的 upsertMany / deleteByIds 照常放行，且不进工作树
+plugin already installed
+11:32:24 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.2 写入口语义矩阵 > 行 1 crud：落 origin=local 的单元，修订号前进、entryCount 跟上
+plugin already installed
+11:32:24 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.2 写入口语义矩阵 > 行 2 domain_recompute：两次独立重算各落一个 origin=local 的单元
+plugin already installed
+11:32:24 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.2 写入口语义矩阵 > 行 3 remote_entity_apply：落 origin=remote_sync 的单元，且不写变更日志
+plugin already installed
+11:32:24 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.2 写入口语义矩阵 > 行 4 只写簿记列的同步应用：不产生单元，修订号一步不动
+plugin already installed
+11:32:24 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.2 写入口语义矩阵 > 行 5 cleanup_expired：落 origin=remote_sync 的删除单元，修订号前进
+plugin already installed
+11:32:24 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.2 写入口语义矩阵 > 行 6 projection_rewrite：投影重写不产生单元，修订号一步不动
+plugin already installed
+11:32:24 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.2 写入口语义矩阵 > 行 7 metadata_only_prefetch：矩阵对版本化目标判拒绝
+plugin already installed
+11:32:24 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.2 写入口语义矩阵 > 行 8 query_cache_maintenance：缓存表照常读写，工作树一个字不动
+plugin already installed
+11:32:24 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.2 写入口语义矩阵 > 行 9 raw_write：在语句执行之前拒绝，业务表零变化
+plugin already installed
+11:32:24 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.2 写入口语义矩阵 > 行 10 bulk_write：裸批量写版本化实体被拒，带矩阵的稳定错误码
+plugin already installed
+11:32:24 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.2 写入口语义矩阵 > 行 11 notify_external_update：版本化实体无条件拒绝，QueryCache 实体照常放行
+plugin already installed
+11:32:24 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.2 写入口语义矩阵 > 未登记的入口默认拒绝：版本化目标上的放行集恰好是矩阵写明的那 5 行
+plugin already installed
+11:32:25 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.3 raw 通道 bypass 四步判定 > 第 1 步 提交能力未启用：原样放行，零行为差异
+plugin already installed
+11:32:25 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.3 raw 通道 bypass 四步判定 > 第 2 步 不是写语句：放行
+plugin already installed
+11:32:25 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.3 raw 通道 bypass 四步判定 > 第 3 步 打在 tracked 列上：语句执行之前被拒，业务表零变化
+plugin already installed
+11:32:25 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.3 raw 通道 bypass 四步判定 > 第 3 步 语句批里的第二条也要拦住整批
+plugin already installed
+11:32:25 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.3 raw 通道 bypass 四步判定 > 第 3 步 列集解析不出：fail-closed，同样在执行前拒绝
+plugin already installed
+11:32:25 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.3 raw 通道 bypass 四步判定 > 第 3 步 dollar-quote 字面量里的假 WHERE：拦在执行之前，不被当成子句
+plugin already installed
+11:32:25 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.3 raw 通道 bypass 四步判定 > 第 4 步 只改簿记字段：放行，理由是 untracked_only
+plugin already installed
+11:32:25 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.3 raw 通道 bypass 四步判定 > 第 4 步 写域外目标：放行，理由是 out_of_domain
+plugin already installed
+11:32:25 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.4 untracked 域 > 第 1 类 untracked —— QueryCache 实体：整体不进版本化域，写它不动工作树
+plugin already installed
+11:32:25 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.4 untracked 域 > 第 2 类 untracked —— 全局簿记字段：每个可寻址表名上都豁免，只动它们不产生单元
+plugin already installed
+11:32:25 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.4 untracked 域 > 第 3 类 untracked —— 逐表派生索引列：这个库一列都没登记，豁免集因此恰好等于全局簿记列
+plugin already installed
+11:32:25 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.4 untracked 域 > 清单外的实体默认 tracked —— 新增一类 untracked 必须先改 epic-006
+plugin already installed
+11:32:25 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.4 untracked 域 > QueryCache 与版本化实体混进同一事务：报 mixed_versioned_cache_transaction 且整事务回滚
+plugin already installed
+11:32:25 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.4 untracked 域 > origin='remote_sync' 不是 untracked：同步应用照常产生单元
+plugin already installed
+11:32:25 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.4 untracked 域 > untracked 判定是静态属性：同一实体不会在一条入口 tracked、另一条 untracked
+plugin already installed
+11:32:25 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.5 存储契约静态断言 > 全部 epic-006 系统表都登记在 SYSTEM_ENTITIES 里，且 isSystemEntity() 为真
+plugin already installed
+11:32:25 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.5 存储契约静态断言 > 全部 epic-006 系统表 log === false：库自己的簿记不进变更日志
+plugin already installed
+11:32:26 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-capture-conformance.spec.ts > [sqlite-wasm] 工作树捕获一致性 > §1.5 存储契约静态断言 > WorkingTreeEntry 与 CommitChangeSet 的 relations 不引用 RxDBChange（静态断言）
+plugin already installed
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/working-tree-capture-conformance.spec.ts (44 tests) 2596ms
+11:32:26 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > FR-038 at-rest 判定器槽位 > 本地适配器实现了槽位：六个后端一个都不许缺
+plugin already installed
+11:32:26 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > FR-038 at-rest 判定器槽位 > 提交上下文接到的就是那个判定器：信封串认、明文与裸密文都不认
+plugin already installed
+11:32:26 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.1 commit 图与 HEAD（US-305） > 提交只追加：既有 commit 行一个字节都不动
+plugin already installed
+11:32:26 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.1 commit 图与 HEAD（US-305） > 评审：公开 commit 原请求重试返回已提交节点，不被过期凭据挡住
+plugin already installed
+11:32:26 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.1 commit 图与 HEAD（US-305） > 评审：过期凭据先被拒绝，拿正确凭据重试能正常提交，不被误判成重放
+plugin already installed
+11:32:26 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.1 commit 图与 HEAD（US-305） > 评审：同一个 operationId 但消息或作者变了，不认作重放，仍按冲突处理
+plugin already installed
+11:32:26 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.1 commit 图与 HEAD（US-305） > 评审：重放命中后不清空重试前新产生的草稿
+plugin already installed
+11:32:26 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.1 commit 图与 HEAD（US-305） > 评审：分支删后同名重建，旧 operationId 不被当成新分支上的重放
+plugin already installed
+11:32:26 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.1 commit 图与 HEAD（US-305） > 同一个 operationId 重复提交幂等命中现有节点，不产生第二个
+plugin already installed
+11:32:27 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.1 commit 图与 HEAD（US-305） > 重启：另开一个事务冷读，HEAD 与整条父链逐字不变
+plugin already installed
+11:32:27 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.1 commit 图与 HEAD（US-305） > 崩溃：事务体抛出之后零残留，HEAD 不动
+plugin already installed
+11:32:27 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.1 commit 图与 HEAD（US-305） > 删光 rxdb_change 之后，历史仍然完整可重放
+plugin already installed
+11:32:27 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.1 commit 图与 HEAD（US-305） > CommitChangeSet 结构上不引用 rxdb_change（静态断言）
+plugin already installed
+11:32:27 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.1 commit 图与 HEAD（US-305） > firstParentId 恒等于 parentIds[0] ?? null
+plugin already installed
+11:32:27 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.2 一次性启用迁移（US-305） > 每个既存分支都有 ref / state 初始行，且 generation 互不相同
+plugin already installed
+11:32:27 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.2 一次性启用迁移（US-305） > enable() 之后每条本地分支都有一个 baseline 根节点
+plugin already installed
+11:32:27 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.2 一次性启用迁移（US-305） > 重复 enable() 幂等：不产生第二个根，HEAD 不动
+plugin already installed
+11:32:27 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.2 一次性启用迁移（US-305） > enable() 之后新建的分支自带 ref / state，且代际不与既有分支撞号
+plugin already installed
+11:32:27 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.2 一次性启用迁移（US-305） > 新建分支后再 enable() 一次，新分支拿到自己的 baseline
+plugin already installed
+11:32:27 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.2 一次性启用迁移（US-305） > 全有或全无：任一分支不可物化时整体回滚，健康分支零变化
+plugin already installed
+11:32:27 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > 来源取真实行，隔离其他分支并支持含引号的分支名
+plugin already installed
+11:32:27 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.3 两类 CAS 分开（FR-031/FR-032、SC-008） > 调用方捕获型：status() 与 commit() 之间插进一次写，提交被拒且一个字节都没落地
+plugin already installed
+11:32:27 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.3 两类 CAS 分开（FR-031/FR-032、SC-008） > 冲突不入库：重读一次 status() 再提一次就过，中间没有「清除冲突」这一步
+plugin already installed
+11:32:27 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.3 两类 CAS 分开（FR-031/FR-032、SC-008） > 事务内读改写型：并发普通写一笔都不因并发失败（FR-032 回归）
+plugin already installed
+11:32:27 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.4 commit 原子性（FR-011、SC-007） > 写完 changeSet 之后崩溃：要么全有要么全无，工作树不会被清掉一半
+plugin already installed
+11:32:27 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.4 commit 原子性（FR-011、SC-007） > entryCount 与实际行数在任何时刻一致：捕获后、被拒后、提交后各校一遍
+plugin already installed
+11:32:27 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.5 损坏守卫（三入口同一份） > 完整性校验不回填历史实体缓存
+plugin already installed
+11:32:28 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.5 损坏守卫（三入口同一份） > assertCommitGraphIntact（三条入口共用的那一份）：健康分支放行
+plugin already installed
+11:32:28 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.5 损坏守卫（三入口同一份） > assertCommitGraphIntact（三条入口共用的那一份）：HEAD 被篡改时拒绝，且不改指针、不删记录
+plugin already installed
+11:32:28 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.5 损坏守卫（三入口同一份） > assertCommitGraphIntact（三条入口共用的那一份）：已标记 corrupted_read_only 的分支继续拒绝，HEAD 仍在原处
+plugin already installed
+11:32:28 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.5 损坏守卫（三入口同一份） > assertCommitGraphIntact（三条入口共用的那一份）：孤立损坏只被隔离，不影响健康分支
+plugin already installed
+11:32:28 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.5 损坏守卫（三入口同一份） > commit()：健康分支放行
+plugin already installed
+11:32:28 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.5 损坏守卫（三入口同一份） > commit()：HEAD 被篡改时拒绝，且不改指针、不删记录
+plugin already installed
+11:32:28 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.5 损坏守卫（三入口同一份） > commit()：已标记 corrupted_read_only 的分支继续拒绝，HEAD 仍在原处
+plugin already installed
+11:32:28 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.5 损坏守卫（三入口同一份） > commit()：孤立损坏只被隔离，不影响健康分支
+plugin already installed
+11:32:28 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.5 损坏守卫（三入口同一份） > restore()：健康分支放行
+plugin already installed
+11:32:28 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.5 损坏守卫（三入口同一份） > restore()：HEAD 被篡改时拒绝，且不改指针、不删记录
+plugin already installed
+11:32:28 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.5 损坏守卫（三入口同一份） > restore()：已标记 corrupted_read_only 的分支继续拒绝，HEAD 仍在原处
+plugin already installed
+11:32:28 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.5 损坏守卫（三入口同一份） > restore()：孤立损坏只被隔离，不影响健康分支
+plugin already installed
+11:32:28 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.5 损坏守卫（三入口同一份） > switch-to：健康分支放行
+plugin already installed
+11:32:28 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.5 损坏守卫（三入口同一份） > switch-to：HEAD 被篡改时拒绝，且不改指针、不删记录
+plugin already installed
+11:32:28 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.5 损坏守卫（三入口同一份） > switch-to：已标记 corrupted_read_only 的分支继续拒绝，HEAD 仍在原处
+plugin already installed
+11:32:28 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.5 损坏守卫（三入口同一份） > switch-to：孤立损坏只被隔离，不影响健康分支
+plugin already installed
+11:32:28 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.5 损坏守卫（三入口同一份） > 不依赖重放的读取不受影响：损坏分支上 listCommits / getCommitDetail 照常返回
+plugin already installed
+11:32:28 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.6 restore（US-307） > 恢复写回的是新的未提交变更：HEAD 不动、历史一条都不改
+plugin already installed
+11:32:29 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.6 restore（US-307） > 公开面上没有 checkout()，也没有 detached HEAD 那类符号
+plugin already installed
+11:32:29 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.6 restore（US-307） > CommitConflict 不会让 status().conflicted 变真
+plugin already installed
+11:32:29 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.6 restore（US-307） > 会话捕获的 revision 分叉之后，restoring 灭、conflicted 亮
+plugin already installed
+11:32:29 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.6 restore（US-307） > 一分支至多一个未结束会话：唯一索引拒绝第二行
+plugin already installed
+11:32:29 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.6 restore（US-307） > commit() 把会话推进 committed 并让出 activeKey，新节点挂在原 HEAD 之后
+plugin already installed
+11:32:29 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.6 restore（US-307） > discard() 把会话整行删掉，工作树回到干净
+plugin already installed
+11:32:29 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.7 分支隔离与跨 realm 冲突（US-308） > 分支各自独立的工作树：切过去看不见来源分支的未提交改动，切回来它还在
+plugin already installed
+11:32:29 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.7 分支隔离与跨 realm 冲突（US-308） > switchBranch(branchId) 不带 options 时行为与今天一致：工作树非空也照切
+plugin already installed
+11:32:29 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.7 分支隔离与跨 realm 冲突（US-308） > 每一次真正发生的切换都推进激活代际：A → B → A 走完之后，走之前捕获的 token 被拒
+plugin already installed
+11:32:29 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.7 分支隔离与跨 realm 冲突（US-308） > 前置校验拒掉的切换一格都不动：代际不推进，走之前捕获的 token 仍然写得进去
+plugin already installed
+11:32:29 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.7 分支隔离与跨 realm 冲突（US-308） > 物化 staging 只写它自己那两张表：当前投影、来源分支与激活位一格不动
+plugin already installed
+11:32:29 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.7 分支隔离与跨 realm 冲突（US-308） > 屏障成功一次：目标分支拿到 baseline、激活代际前进一格，本次 staging 整体删除
+plugin already installed
+11:32:29 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.7 分支隔离与跨 realm 冲突（US-308） > 半份 payload 不得被当作完整快照：一页都不交给宿主，来源分支保持 active
+plugin already installed
+11:32:29 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.7 分支隔离与跨 realm 冲突（US-308） > 两路续同一份 staging 发出同一个页号：后到的那一页拒成 page_conflict，staging 照样可续
+plugin already installed
+11:32:29 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/working-tree-commit-conformance.spec.ts > [sqlite-wasm] 提交图与工作树提交一致性 > §2.7 分支隔离与跨 realm 冲突（US-308） > 删分支后同名重建拿到新 generation：持旧 (branchId, headRevision) 的 CAS 必须失败
+plugin already installed
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/working-tree-commit-conformance.spec.ts (60 tests) 3553ms
+11:32:30 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 分支视图（AC1） > 每张业务表与「切过去读到的数据」逐行一致；active 分支、工作树、业务表都不变
+plugin already installed
+11:32:30 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 分支视图（AC1） > 打开 active 分支自己：与主实例此刻读到的一致
+plugin already installed
+11:32:31 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 分支视图（AC1） > 登记表里有这条检出位；关闭后撤销
+plugin already installed
+11:32:31 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 分支视图（AC1） > 分支不存在：WorktreeUnavailableError(branch_not_found)，不留登记
+plugin already installed
+11:32:31 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 只读（AC2） > 公开写入口抛 RxDBReadOnlyError；快照库与主库都不变
+plugin already installed
+11:32:31 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 只读（AC2） > 适配器层的批量写、raw 写与执行器写都被拒；快照库不变
+plugin already installed
+11:32:32 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 不污染主实例（AC3） > 只读实例的实体不进主实例的实体缓存
+plugin already installed
+11:32:32 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 不污染主实例（AC3） > 检出位开着时，主实例上系统实体的静态查询照常落到主实例
+plugin already installed
+11:32:32 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 不污染主实例（AC3） > 只读实例上的查询与实例化不在主实例上派发业务实体的 NEW
+plugin already installed
+11:32:32 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 加密（AC4） > 快照里每个密文都是主库已有信封的逐字节拷贝；密钥环上锁照样建得出来
+plugin already installed
+11:32:33 AM [vite] (client) [console.error] [rxdb-adapter-sqlite-core] Error processing rxdb$rxdb_change change event: EncryptedLockedError: keyring is locked
+    at Ce.decrypt (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb-adapter-encrypted/dist/index.js:459:37)
+    at Pe (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb-adapter-encrypted/dist/index.js:784:61)
+    at s (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb-adapter-sqlite-core/dist/src-CPxNy7md.js:1302:33)
+    at Ma (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb-adapter-sqlite-core/dist/src-CPxNy7md.js:1310:36)
+    at http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb-adapter-sqlite-core/dist/src-CPxNy7md.js:1314:41
+    at Array.map (<anonymous>)
+    at Na (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb-adapter-sqlite-core/dist/src-CPxNy7md.js:1314:30)
+    at Fa (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb-adapter-sqlite-core/dist/src-CPxNy7md.js:1376:9)
+    at http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb-adapter-sqlite-core/dist/src-CPxNy7md.js:1445:20
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 加密（AC4） > 快照里每个密文都是主库已有信封的逐字节拷贝；密钥环上锁照样建得出来
+[rxdb-adapter-sqlite-core] Error processing rxdb$rxdb_change change event: [EncryptedLockedError: keyring is locked]
+11:32:33 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 提交视图（AC6、AC7） > 当前分支上一个可达提交：已跟踪实体与那次 commit() 刚完成时读到的逐行一致
+plugin already installed
+11:32:33 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 提交视图（AC6、AC7） > 不在当前分支 HEAD 可达父链上的提交：unreachable_target，与 restore 同口径
+plugin already installed
+11:32:33 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 提交视图（AC6、AC7） > 有进行中的恢复：restoring_working_tree
+plugin already installed
+11:32:34 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 对比与合并预览（US-312，真库冒烟） > compareBranches 列出的任务与切过去读到的一致；previewMerge 的条目就是随后 mergeBranch 落的
+plugin already installed
+11:32:34 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 从提交建分支（US-314 AC1） > 切到新分支逐行等于那次 commit() 刚完成时；HEAD 就是那个提交、工作树干净；原分支一格不动
+plugin already installed
+11:32:34 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 从提交建分支（US-314 AC1） > 从继承段上的提交建：在特性分支上挑主线的提交，新分支挂在主线上
+plugin already installed
+11:32:34 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 从提交建分支（US-314 AC1） > 从启用时写下的基线建：数据是启用那一刻的
+plugin already installed
+11:32:34 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 从提交建分支（US-314 AC1） > 提交之后撤销过它里面的变更：history_rewritten，不建分支；撤销提交之后的改动不受影响
+plugin already installed
+11:32:35 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 从提交建分支（US-314 AC1） > 不可达：unreachable_target；没有分叉点记录：fork_point_unknown；重名与 createBranch 同文案；都不建分支
+plugin already installed
+11:32:35 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 生命周期与回收（AC8～AC10） > close()：断开之后删快照库、撤销登记
+plugin already installed
+11:32:35 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 生命周期与回收（AC8～AC10） > 会话归属的检出位所在处已不在：prune() 回收它，还开着的不受影响
+plugin already installed
+11:32:36 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 生命周期与回收（AC8～AC10） > 持久归属的检出位：放开之后还在登记里，attach() 原样打开；prune() 不碰它
+plugin already installed
+11:32:36 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 可写检出位（US-314 AC3、AC4） > AC3：检出位里写并提交，提交进那条分支的历史；主检出位的分支、工作树与业务表一处不动
+plugin already installed
+11:32:36 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 可写检出位（US-314 AC3、AC4） > AC4：再开被占用的分支、开主检出位的当前分支、主检出位切过去，都被拒；删掉之后都放行
+plugin already installed
+11:32:37 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 可写检出位（US-314 AC3、AC4） > 被可写检出位持有的分支删不掉，挂在它上面的实例也删不掉自己的当前分支；删掉检出位之后删得掉
+plugin already installed
+11:32:37 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 可写检出位（US-314 AC3、AC4） > 检出位里合并：主线合进持有分支、落在影子表里，主检出位不动；源分支被检出位持有时 deleteSource 合并照常、删不掉
+plugin already installed
+11:32:37 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 可写检出位（US-314 AC3、AC4） > 检出位里切分支：改动留在原分支，读到的与主检出位切过去一致；登记行的分支跟着走
+plugin already installed
+11:32:37 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 可写检出位（US-314 AC3、AC4） > 主检出位上新建、还没存的实体，挂到检出位之后存被拒、一行不落；挂回主检出位照常存
+plugin already installed
+11:32:38 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 可写检出位（US-314 AC3、AC4） > 检出位里切到被占的分支：主检出位的当前分支、另一个检出位持有的，都被拒，一处不动
+plugin already installed
+11:32:38 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 可写检出位（US-314 AC3、AC4） > 检出位里切分支只推进它自己的激活版本号：主检出位之前签出的凭据照样提交得进去
+plugin already installed
+11:32:38 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 可写检出位（US-314 AC3、AC4） > 开检出位建这套表的激活态行，删检出位一起删
+plugin already installed
+11:32:38 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 可写检出位（US-314 AC3、AC4） > rename()：改名去首尾空白；空名字、与另一个可写检出位重名、不是可写检出位都被拒；缺省名被占时加序号
+plugin already installed
+11:32:39 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 可写检出位（US-314 AC3、AC4） > 播种出来的与切过去读到的逐行一致；检出位里写过之后，删掉检出位再切过去读到的也一致
+plugin already installed
+11:32:39 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 可写检出位（US-314 AC3、AC4） > 指纹变了：mount() 一笔事务里重建、重跑插件的建表集钩子；未提交改动还在、与切过去逐行一致，登记行记下新指纹
+plugin already installed
+11:32:39 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 可写检出位（US-314 AC3、AC4） > 重建失败（插件的建表集钩子抛错）：整笔回滚报 schema_rebuild_failed，检出位与登记行原样；钩子好了再挂就重建
+plugin already installed
+11:32:40 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 可写检出位（US-314 AC3、AC4） > 没有登记行的孤儿：prune() 一笔事务删表集、放持有键、删激活态行，交回它的后缀；分支随后删得掉
+plugin already installed
+11:32:40 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 可写检出位（US-314 AC3、AC4） > 开、删检出位不改主表的原值、不写变更日志；删表引起的中间表级联也不记
+plugin already installed
+11:32:40 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 可写检出位（US-314 AC3、AC4） > 密钥环上锁时也开得了；挂上之后读到的密文是主库已有信封的逐字节拷贝
+plugin already installed
+11:32:40 AM [vite] (client) [console.error] [rxdb-adapter-sqlite-core] Error processing rxdb$rxdb_change change event: EncryptedLockedError: keyring is locked
+    at Ce.decrypt (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb-adapter-encrypted/dist/index.js:459:37)
+    at Pe (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb-adapter-encrypted/dist/index.js:784:61)
+    at s (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb-adapter-sqlite-core/dist/src-CPxNy7md.js:1302:33)
+    at Ma (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb-adapter-sqlite-core/dist/src-CPxNy7md.js:1310:36)
+    at http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb-adapter-sqlite-core/dist/src-CPxNy7md.js:1314:41
+    at Array.map (<anonymous>)
+    at Na (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb-adapter-sqlite-core/dist/src-CPxNy7md.js:1314:30)
+    at Fa (http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb-adapter-sqlite-core/dist/src-CPxNy7md.js:1376:9)
+    at http://localhost:63315/@fs/Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/packages/rxdb-adapter-sqlite-core/dist/src-CPxNy7md.js:1445:20
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 可写检出位（US-314 AC3、AC4） > 密钥环上锁时也开得了；挂上之后读到的密文是主库已有信封的逐字节拷贝
+[rxdb-adapter-sqlite-core] Error processing rxdb$rxdb_change change event: [EncryptedLockedError: keyring is locked]
+11:32:40 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 可写检出位（US-314 AC3、AC4） > 会话归属：release() 之后 prune() 收走它，分支放开；持久归属的留着，任何一处都能再 mount()
+plugin already installed
+11:32:40 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 可写检出位（US-314 AC3、AC4） > 锁在别处时 mount() / remove() 报 in_use；挂在它上面时 remove() 先挂回主检出位
+plugin already installed
+11:32:40 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 可写检出位（US-314 AC3、AC4） > 表集漏登记了版本化实体：写落到主检出位的表上，整笔被拒、一行都不落
+plugin already installed
+11:32:40 AM [vite] (client) [console.warn] plugin already installed
+stderr | src/__tests__/worktree-conformance.spec.ts > [sqlite-wasm] 只读检出位一致性 > 建立时刻的数据与 refresh()（AC5） > 目标分支随后又写入：视图仍是建立时刻的数据；refresh() 后与新状态一致
+plugin already installed
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/worktree-conformance.spec.ts (42 tests) 11061ms
+       ✓ 每张业务表与「切过去读到的数据」逐行一致；active 分支、工作树、业务表都不变  447ms
+       ✓ 打开 active 分支自己：与主实例此刻读到的一致  300ms
+       ✓ 登记表里有这条检出位；关闭后撤销  304ms
+       ✓ 公开写入口抛 RxDBReadOnlyError；快照库与主库都不变  311ms
+       ✓ 快照里每个密文都是主库已有信封的逐字节拷贝；密钥环上锁照样建得出来  335ms
+       ✓ 当前分支上一个可达提交：已跟踪实体与那次 commit() 刚完成时读到的逐行一致  359ms
+       ✓ 切到新分支逐行等于那次 commit() 刚完成时；HEAD 就是那个提交、工作树干净；原分支一格不动  325ms
+       ✓ close()：断开之后删快照库、撤销登记  354ms
+       ✓ 会话归属的检出位所在处已不在：prune() 回收它，还开着的不受影响  503ms
+       ✓ 持久归属的检出位：放开之后还在登记里，attach() 原样打开；prune() 不碰它  491ms
+       ✓ AC3：检出位里写并提交，提交进那条分支的历史；主检出位的分支、工作树与业务表一处不动  302ms
+       ✓ rename()：改名去首尾空白；空名字、与另一个可写检出位重名、不是可写检出位都被拒；缺省名被占时加序号  405ms
+       ✓ 播种出来的与切过去读到的逐行一致；检出位里写过之后，删掉检出位再切过去读到的也一致  327ms
+       ✓ 目标分支随后又写入：视图仍是建立时刻的数据；refresh() 后与新状态一致  499ms
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/zz-audit-repro.spec.ts (3 tests) 2ms
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/backup/sqlite-wasm-backup-transport.spec.ts (3 tests) 4ms
+ ✓ |rxdb-adapter-sqlite-wasm (chromium)| src/__tests__/backup/sqlite-wasm-backup.spec.ts (73 tests | 13 skipped) 20404ms
+     ✓ restores a memory backup into an empty memory target  454ms
+     ✓ restores a memory backup into an empty persistent target  774ms
+     ✓ restores a persistent backup into an empty memory target  530ms
+     ✓ restores a persistent backup into an empty persistent target  756ms
+     ✓ restores the same archive into independent memory instances  486ms
+     ✓ keeps the source usable and unchanged after backing it up  412ms
+     ✓ does not depend on how the source stream is chunked  392ms
+     ✓ lets exactly one of two concurrent restores into the same target win  377ms
+     ✓ rejects a connection attempted at "marker-written" with restore_in_progress  328ms
+     ✓ rejects a connection attempted at "rows-written" with restore_in_progress  329ms
+     ✓ rejects a connection attempted at "verified" with restore_in_progress  332ms
+     ✓ rejects a connection attempted at "persisted" with restore_in_progress  326ms
+     ✓ refuses to open a target whose restore never finished, until it is cleaned up  576ms
+     ✓ restores into a new memory location locked, with the keyring metadata unchanged  643ms
+     ✓ restores into a new persistent location locked, with the keyring metadata unchanged  765ms
+     ✓ rejects a target with a different authentication domain before writing  338ms
+     ✓ rejects restoring an encrypted archive into an unencrypted persistent schema  383ms
+       ✓ refuses a target that already holds a database and leaves it intact  471ms
+       ✓ reports cleanup_pending when the partial data cannot be removed, and recovers after cleanup  876ms
+     ✓ reports restore_incomplete after a kill at "streaming", then cleans up and restores again  1136ms
+     ✓ reports restore_incomplete after a kill at "marker-written", then cleans up and restores again  1036ms
+     ✓ reports restore_incomplete after a kill at "rows-written", then cleans up and restores again  1121ms
+     ✓ reports restore_incomplete after a kill at "verified", then cleans up and restores again  1036ms
+     ✓ reports restore_incomplete after a kill at "persisted", then cleans up and restores again  1109ms
+     ✓ keeps a finished restore when the worker is killed right after it returns  724ms
+
+ Test Files  34 passed (34)
+      Tests  1028 passed | 13 skipped (1041)
+   Start at  11:31:34
+   Duration  88.76s (transform 0ms, setup 0ms, import 5.96s, tests 74.56s, environment 0ms)
+
+JUNIT report written to /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/coverage/packages/rxdb-adapter-sqlite-wasm/junit.xml
+ % Coverage report from v8
+-------------------|---------|----------|---------|---------|-------------------
+File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+-------------------|---------|----------|---------|---------|-------------------
+All files          |   95.95 |     87.3 |    98.7 |   97.34 |                   
+ ...apterSqlite.ts |     100 |    90.47 |     100 |     100 | 74,98             
+ SqliteClient.ts   |   96.24 |    85.71 |     100 |   98.39 | 117-118,197       
+ execute_helper.ts |     100 |    93.75 |     100 |     100 | 59,92             
+ ...-load.utils.ts |    91.3 |    83.33 |    92.3 |   92.98 | 107,113,171-172   
+ testing.ts        |       0 |      100 |     100 |       0 | 19-21             
+-------------------|---------|----------|---------|---------|-------------------
+
+=============================== Coverage summary ===============================
+Statements   : 95.95% ( 380/396 )
+Branches     : 87.3% ( 165/189 )
+Functions    : 98.7% ( 76/77 )
+Lines        : 97.34% ( 330/339 )
+================================================================================
+
+> nx run rxdb-adapter-sqlite-wasm:lint
+
+> eslint .
+
+(node:65038) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+> nx run rxdb-adapter-sqlite-wasm:typecheck
+
+> tsc --build --emitDeclarationOnly
+
+
+
+
+ NX   Successfully ran targets test, lint, typecheck for project rxdb-adapter-sqlite-wasm and 24 tasks it depends on
+
+Nx read the output from the cache instead of running the command for 21 out of 27 tasks.
+
+  Run duration:      1m 41s
+  Cache:             21/27 hit (78%)
+  Critical path:     1m 31s (7 tasks)
+  Recoverable time:  10.1s (10% of the run)
+
+  Recommendations:
+    - Speed up or split the longest tasks on the critical path:
+        rxdb-adapter-sqlite-wasm:test    1m 30s

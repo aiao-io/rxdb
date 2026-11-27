@@ -175,6 +175,44 @@ export const backupRoundtripSuite = (harness: SqliteBackupHarness): void => {
       });
     }
 
+    it('restores foreign keys backed by a separate composite unique index without replaying triggers', async () => {
+      const source = open('backup-key-src', scratch);
+      const adapter = await source.connect();
+      await adapter.rawQuery(`
+        CREATE TABLE restore_child (
+          id INTEGER PRIMARY KEY, scope TEXT NOT NULL, parent_code TEXT NOT NULL,
+          FOREIGN KEY (scope, parent_code) REFERENCES restore_parent (scope, code)
+        );
+        CREATE TABLE restore_parent (scope TEXT NOT NULL, code TEXT NOT NULL);
+        CREATE UNIQUE INDEX restore_parent_key ON restore_parent (scope, code);
+        CREATE TABLE restore_audit (child_id INTEGER NOT NULL);
+        CREATE TRIGGER restore_child_audit AFTER INSERT ON restore_child
+          BEGIN INSERT INTO restore_audit (child_id) VALUES (NEW.id); END;
+        INSERT INTO restore_parent (scope, code) VALUES ('org-a', 'part-a');
+        INSERT INTO restore_child (id, scope, parent_code) VALUES (1, 'org-a', 'part-a');
+      `);
+      const out = collectingSink();
+      await adapter.backup(out.sink);
+      await source.close();
+
+      const target = open('backup-key-dst', scratch);
+      await restoreInto(target, chunkedSource(out.bytes()).stream);
+      const restored = await target.connect();
+      expect(rowsOf(await restored.query('PRAGMA foreign_key_check'))).toEqual([]);
+      expect(rowsOf(await restored.query('SELECT id, scope, parent_code FROM restore_child'))).toEqual([
+        [1, 'org-a', 'part-a']
+      ]);
+      expect(rowsOf(await restored.query('SELECT child_id FROM restore_audit ORDER BY rowid'))).toEqual([[1]]);
+      await expect(
+        restored.rawQuery("INSERT INTO restore_parent (scope, code) VALUES ('org-a', 'part-a')")
+      ).rejects.toThrow();
+      await expect(
+        restored.rawQuery("INSERT INTO restore_child (id, scope, parent_code) VALUES (2, 'org-a', 'missing')")
+      ).rejects.toThrow();
+      await restored.rawQuery("INSERT INTO restore_child (id, scope, parent_code) VALUES (2, 'org-a', 'part-a')");
+      expect(rowsOf(await restored.query('SELECT child_id FROM restore_audit ORDER BY rowid'))).toEqual([[1], [2]]);
+    });
+
     it.skipIf(!hasMemoryStorage(harness))(
       memoryCaseTitle(harness, 'restores the same archive into independent memory instances'),
       async () => {

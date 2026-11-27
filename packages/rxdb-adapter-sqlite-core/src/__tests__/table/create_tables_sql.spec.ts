@@ -43,7 +43,7 @@ rxdb.entityManager.init();
 
 // context getter 依赖 rxdb 完整初始化，纯 SQL 生成场景用轻量 mock 即可
 const adapter = {
-  rxdb: { schemaManager: rxdb.schemaManager, context: {} },
+  rxdb: { schemaManager: rxdb.schemaManager, context: {}, config: rxdb.config },
   encryptionContext: { keyring: null, namespace: 'create-tables-test' }
 } as unknown as RxDBAdapterSqliteBase;
 

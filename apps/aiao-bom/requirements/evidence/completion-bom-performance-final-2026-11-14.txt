@@ -1,0 +1,69 @@
+
+> nx run aiao-bom-2-e2e:e2e --args=acceptance.spec.ts scale.spec.ts scale-model.spec.ts
+
+aiao-bom-2-e2e: (node:36275) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2-e2e: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2-e2e: [WebServer] (node:36283) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2-e2e: [WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2-e2e: [WebServer] (node:36292) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2-e2e: [WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2-e2e: Running 6 tests using 1 worker
+aiao-bom-2-e2e: (node:36294) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2-e2e: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2-e2e: [1/6] [chromium] › src/acceptance.spec.ts:11:1 › 50k 数据就绪到 20 列首屏可操作，20 次独立页面采样
+aiao-bom-2-e2e: [2/6] [chromium] › src/acceptance.spec.ts:32:1 › 真实模型反向拾取到表格绘制，20 次采样
+aiao-bom-2-e2e: [3/6] [chromium] › src/acceptance.spec.ts:59:1 › 真实模型开关 20 次释放 WebGL 上下文与驱动资源
+aiao-bom-2-e2e: [4/6] [chromium] › src/acceptance.spec.ts:100:1 › 100k 发生项与 50 层结构可进入分支、定位末项和取消迟到数据
+aiao-bom-2-e2e:   1) [chromium] › src/acceptance.spec.ts:100:1 › 100k 发生项与 50 层结构可进入分支、定位末项和取消迟到数据 ─────────────────
+aiao-bom-2-e2e:     Error: expect(locator).toHaveText(expected) failed
+aiao-bom-2-e2e:     Locator:  getByTestId('matched-count')
+aiao-bom-2-e2e:     Expected: "99,951"
+aiao-bom-2-e2e:     Received: "61,380"
+aiao-bom-2-e2e:     Timeout:  15000ms
+aiao-bom-2-e2e:     Call log:
+aiao-bom-2-e2e:       - Expect "toHaveText" getByTestId('matched-count') with timeout 15000ms
+aiao-bom-2-e2e:       - waiting for getByTestId('matched-count')
+aiao-bom-2-e2e:         33 × locator resolved to <strong data-testid="matched-count" _ngcontent-ng-c2757069592="">61,380</strong>
+aiao-bom-2-e2e:            - unexpected value "61,380"
+aiao-bom-2-e2e:       104 |   await page.goto('/?scope=depth%3A49&view=flat&occurrence=depth%3A99999');
+aiao-bom-2-e2e:       105 |   await expect(page.getByTestId('selected-summary')).toContainText('DEPTH-099999');
+aiao-bom-2-e2e:     > 106 |   await expect(page.getByTestId('matched-count')).toHaveText('99,951');
+aiao-bom-2-e2e:           |                                                   ^
+aiao-bom-2-e2e:       107 |   await page.getByRole('textbox', { name: '搜索 BOM', exact: true }).fill('DEPTH-099999');
+aiao-bom-2-e2e:       108 |   await expect(page.getByTestId('matched-count')).toHaveText('1');
+aiao-bom-2-e2e:       109 |   await page.getByRole('textbox', { name: '搜索 BOM', exact: true }).fill('');
+aiao-bom-2-e2e:         at /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/apps/aiao-bom-2-e2e/src/acceptance.spec.ts:106:51
+aiao-bom-2-e2e:     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+aiao-bom-2-e2e:     test-output/playwright/output/acceptance-100k-发生项与-50-层结构可进入分支、定位末项和取消迟到数据-chromium/test-failed-1.png
+aiao-bom-2-e2e:     ────────────────────────────────────────────────────────────────────────────────────────────────
+aiao-bom-2-e2e:     Error Context: test-output/playwright/output/acceptance-100k-发生项与-50-层结构可进入分支、定位末项和取消迟到数据-chromium/error-context.md
+aiao-bom-2-e2e:     attachment #3: trace (application/zip) ─────────────────────────────────────────────────────────
+aiao-bom-2-e2e:     test-output/playwright/output/acceptance-100k-发生项与-50-层结构可进入分支、定位末项和取消迟到数据-chromium/trace.zip
+aiao-bom-2-e2e:     Usage:
+aiao-bom-2-e2e:         pnpm exec playwright show-trace test-output/playwright/output/acceptance-100k-发生项与-50-层结构可进入分支、定位末项和取消迟到数据-chromium/trace.zip
+aiao-bom-2-e2e:     ────────────────────────────────────────────────────────────────────────────────────────────────
+aiao-bom-2-e2e: (node:37266) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-bom-2-e2e: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-bom-2-e2e: [5/6] [chromium] › src/scale-model.spec.ts:9:1 › 50k 发生项、20 列与真实整车同时工作
+aiao-bom-2-e2e: [6/6] [chromium] › src/scale.spec.ts:6:1 › 50k / 20 列与 100k 末项、宽树预算和性能证据
+aiao-bom-2-e2e:   1 failed
+aiao-bom-2-e2e:     [chromium] › src/acceptance.spec.ts:100:1 › 100k 发生项与 50 层结构可进入分支、定位末项和取消迟到数据 ──────────────────
+aiao-bom-2-e2e:   5 passed (2.4m)
+
+
+
+ NX   Running target e2e for project aiao-bom-2-e2e failed
+
+Failed tasks:
+
+- aiao-bom-2-e2e:e2e
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      2m 26s
+  Critical path:     2m 26s (1 task)
+  Recoverable time:  <1ms
+
+  Recommendations:
+    - Speed up or split the longest tasks on the critical path:
+        aiao-bom-2-e2e:e2e    2m 26s

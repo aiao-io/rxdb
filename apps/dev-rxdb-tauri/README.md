@@ -8,16 +8,16 @@ Angular 22 renderer + Tauri 2（Rust）宿主的开发应用，位于 Nx monorep
 
 ## 环境
 
-仓库固定使用 pnpm 10，请通过 Corepack 执行：
+仓库固定使用 pnpm 10，确认本机版本：
 
 ```bash
-corepack pnpm --version
+pnpm --version
 ```
 
 Tauri 侧还需要 Rust stable 工具链与各平台系统依赖，自检：
 
 ```bash
-corepack pnpm exec tauri info
+pnpm exec tauri info
 ```
 
 以下命令均从仓库根目录运行。
@@ -27,13 +27,13 @@ corepack pnpm exec tauri info
 只启动 Angular renderer（浏览器预览，走 wa-sqlite，见[本地数据库位置](#本地数据库位置)）：
 
 ```bash
-corepack pnpm nx serve dev-rxdb-tauri
+pnpm nx serve dev-rxdb-tauri
 ```
 
 启动 Tauri 窗口（`tauri dev`，`beforeDevCommand` 会自己拉起上面的 renderer）：
 
 ```bash
-corepack pnpm nx run dev-rxdb-tauri:dev
+pnpm nx run dev-rxdb-tauri:dev
 ```
 
 开发端口固定为 `1420`，与 `src-tauri/tauri.conf.json` 的 `devUrl` 对应。
@@ -50,26 +50,26 @@ corepack pnpm nx run dev-rxdb-tauri:dev
 ## 验证
 
 ```bash
-corepack pnpm nx test dev-rxdb-tauri          # Angular renderer 单元测试（Vitest + happy-dom）
-corepack pnpm nx lint dev-rxdb-tauri
-corepack pnpm nx build dev-rxdb-tauri
+pnpm nx test dev-rxdb-tauri          # Angular renderer 单元测试（Vitest + happy-dom）
+pnpm nx lint dev-rxdb-tauri
+pnpm nx build dev-rxdb-tauri
 ```
 
 Rust 侧独立门禁（`cwd` 为 `src-tauri/`）：
 
 ```bash
-corepack pnpm nx run dev-rxdb-tauri:cargo-check     # cargo check --locked --all-targets
-corepack pnpm nx run dev-rxdb-tauri:cargo-clippy    # clippy -D warnings，零警告
-corepack pnpm nx run dev-rxdb-tauri:cargo-test      # cargo test --locked
+pnpm nx run dev-rxdb-tauri:cargo-check     # cargo check --locked --all-targets
+pnpm nx run dev-rxdb-tauri:cargo-clippy    # clippy -D warnings，零警告
+pnpm nx run dev-rxdb-tauri:cargo-test      # cargo test --locked
 ```
 
 这三条只覆盖**本应用自己的 crate**（接线、自检模式、入口）。桌面宿主本体住在
 [packages/rxdb-adapter-tauri/rust/](../../packages/rxdb-adapter-tauri/rust/)，门禁与一致性套件在那个项目里：
 
 ```bash
-corepack pnpm nx run rxdb-adapter-tauri:cargo-clippy
-corepack pnpm nx run rxdb-adapter-tauri:cargo-test
-corepack pnpm nx run rxdb-adapter-tauri:test-conformance
+pnpm nx run rxdb-adapter-tauri:cargo-clippy
+pnpm nx run rxdb-adapter-tauri:cargo-test
+pnpm nx run rxdb-adapter-tauri:test-conformance
 ```
 
 `cargo` 只把 path 依赖当普通依赖编译，clippy 一条 lint 都不会落在它上面——所以两边都要各点一次名，
@@ -78,7 +78,7 @@ corepack pnpm nx run rxdb-adapter-tauri:test-conformance
 打包：
 
 ```bash
-corepack pnpm nx run dev-rxdb-tauri:tauri-build     # dependsOn: 两个项目各自的 cargo-check / cargo-clippy / cargo-test
+pnpm nx run dev-rxdb-tauri:tauri-build     # dependsOn: 两个项目各自的 cargo-check / cargo-clippy / cargo-test
 ```
 
 renderer production build 输出到 `dist/apps/dev-rxdb-tauri/browser/`（`frontendDist` 指向此处）。

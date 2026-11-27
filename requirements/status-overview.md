@@ -10,8 +10,8 @@
 | :------------- | :--- |
 | ✅ Done        | 96   |
 | 🚧 In Progress | 13   |
-| 👀 In Review   | 3    |
-| 📝 Backlog     | 27   |
+| 👀 In Review   | 22   |
+| 📝 Backlog     | 8    |
 | 🚫 Blocked     | 0    |
 | **合计**       | 139  |
 
@@ -34,10 +34,29 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 - [US-706 服务器兜底与认证](stories/future/US-706-p2p-fallback-auth.md)：未通过 AC#3～#5（3/6）
 - [US-707 跨运行时 demo 与多实例 e2e](stories/future/US-707-p2p-cross-runtime-e2e.md)：未通过 AC#4～#8（5/8）
 
-## 待评审（3 条）
+## 待评审（22 条）
 
 - [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)：AC 已全部通过
 - [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)：未通过 AC#9、#10、#17（3/17）
+- [US-507 BOM 图骨架：物料、修订与多重边 BOM 行](stories/domain/US-507-bom-graph-skeleton.md)：AC 已全部通过
+- [US-508 BOM 视图解析：类型/组织/修订/生效期过滤](stories/domain/US-508-bom-view-resolution.md)：AC 已全部通过
+- [US-509 DAG 约束与环路检测下沉存储层](stories/domain/US-509-bom-dag-cycle-detection.md)：AC 已全部通过
+- [US-510 多级展开与 where-used 反查](stories/domain/US-510-bom-multilevel-explosion.md)：AC 已全部通过
+- [US-511 展开数量正确性：用量语义、三类损耗、虚拟件穿透](stories/domain/US-511-bom-quantity-semantics.md)：AC 已全部通过
+- [US-512 替代组与替代策略](stories/domain/US-512-bom-substitute-group.md)：AC 已全部通过
+- [US-513 联产品与副产品：多输出物料流](stories/domain/US-513-bom-coproduct-byproduct.md)：AC 已全部通过
+- [US-514 成本卷算](stories/domain/US-514-bom-cost-rollup.md)：AC 已全部通过
+- [US-515 变更管理（ECN）驱动的生效期](stories/domain/US-515-bom-change-management.md)：AC 已全部通过
+- [US-516 EBOM ↔ MBOM 映射与差异对比](stories/domain/US-516-ebom-mbom-mapping.md)：AC 已全部通过
+- [US-517 可配置销售 BOM：特征、选项与选择条件](stories/domain/US-517-configurable-sales-bom.md)：AC 已全部通过
+- [US-518 序列与批次有效性](stories/domain/US-518-bom-unit-lot-effectivity.md)：AC 已全部通过
+- [US-519 扩展属性：jsonb 值 + attr_def 元数据 + 热字段提升](stories/domain/US-519-bom-extension-attributes.md)：AC 已全部通过
+- [US-520 工艺路线挂接与工序投料分摊](stories/domain/US-520-bom-routing-operation.md)：AC 已全部通过
+- [US-521 ERP/MRP 集成契约](stories/domain/US-521-bom-erp-mrp-integration.md)：AC 已全部通过
+- [US-522 三框架 BOM 编辑与展开视图](stories/domain/US-522-bom-tri-framework-ui.md)：AC 已全部通过
+- [US-523 as-built / as-maintained 实例 BOM](stories/domain/US-523-bom-as-built-instance.md)：AC 已全部通过
+- [US-524 工艺路线本体：工序、工作中心、工时与费率](stories/domain/US-524-routing-master-model.md)：AC 已全部通过
+- [US-525 BOM 端到端 demo：一份数据集走完全域](stories/domain/US-525-bom-end-to-end-demo.md)：AC 已全部通过
 - [US-713 P2P demo 管理后台：管理员总览并处置账号与服务](stories/future/US-713-p2p-admin-console.md)：未通过 AC#11（1/11）
 
 ## 阻塞（0 条）
@@ -166,25 +185,25 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 
 ### [BOM 领域模型](epics/epic-009-bom-domain-model.md)
 
-- ⬜ [US-507 BOM 图骨架：物料、修订与多重边 BOM 行](stories/domain/US-507-bom-graph-skeleton.md)
-- ⬜ [US-508 BOM 视图解析：类型/组织/修订/生效期过滤](stories/domain/US-508-bom-view-resolution.md)
-- ⬜ [US-509 DAG 约束与环路检测下沉存储层](stories/domain/US-509-bom-dag-cycle-detection.md)
-- ⬜ [US-510 多级展开与 where-used 反查](stories/domain/US-510-bom-multilevel-explosion.md)
-- ⬜ [US-511 展开数量正确性：用量语义、三类损耗、虚拟件穿透](stories/domain/US-511-bom-quantity-semantics.md)
-- ⬜ [US-512 替代组与替代策略](stories/domain/US-512-bom-substitute-group.md)
-- ⬜ [US-513 联产品与副产品：多输出物料流](stories/domain/US-513-bom-coproduct-byproduct.md)
-- ⬜ [US-514 成本卷算](stories/domain/US-514-bom-cost-rollup.md)
-- ⬜ [US-515 变更管理（ECN）驱动的生效期](stories/domain/US-515-bom-change-management.md)
-- ⬜ [US-516 EBOM ↔ MBOM 映射与差异对比](stories/domain/US-516-ebom-mbom-mapping.md)
-- ⬜ [US-517 可配置销售 BOM：特征、选项与选择条件](stories/domain/US-517-configurable-sales-bom.md)
-- ⬜ [US-518 序列与批次有效性](stories/domain/US-518-bom-unit-lot-effectivity.md)
-- ⬜ [US-519 扩展属性：jsonb 值 + attr_def 元数据 + 热字段提升](stories/domain/US-519-bom-extension-attributes.md)
-- ⬜ [US-520 工艺路线挂接与工序投料分摊](stories/domain/US-520-bom-routing-operation.md)
-- ⬜ [US-521 ERP/MRP 集成契约](stories/domain/US-521-bom-erp-mrp-integration.md)
-- ⬜ [US-522 三框架 BOM 编辑与展开视图](stories/domain/US-522-bom-tri-framework-ui.md)
-- ⬜ [US-523 as-built / as-maintained 实例 BOM](stories/domain/US-523-bom-as-built-instance.md)
-- ⬜ [US-524 工艺路线本体：工序、工作中心、工时与费率](stories/domain/US-524-routing-master-model.md)
-- ⬜ [US-525 BOM 端到端 demo：一份数据集走完全域](stories/domain/US-525-bom-end-to-end-demo.md)
+- 👀 [US-507 BOM 图骨架：物料、修订与多重边 BOM 行](stories/domain/US-507-bom-graph-skeleton.md)
+- 👀 [US-508 BOM 视图解析：类型/组织/修订/生效期过滤](stories/domain/US-508-bom-view-resolution.md)
+- 👀 [US-509 DAG 约束与环路检测下沉存储层](stories/domain/US-509-bom-dag-cycle-detection.md)
+- 👀 [US-510 多级展开与 where-used 反查](stories/domain/US-510-bom-multilevel-explosion.md)
+- 👀 [US-511 展开数量正确性：用量语义、三类损耗、虚拟件穿透](stories/domain/US-511-bom-quantity-semantics.md)
+- 👀 [US-512 替代组与替代策略](stories/domain/US-512-bom-substitute-group.md)
+- 👀 [US-513 联产品与副产品：多输出物料流](stories/domain/US-513-bom-coproduct-byproduct.md)
+- 👀 [US-514 成本卷算](stories/domain/US-514-bom-cost-rollup.md)
+- 👀 [US-515 变更管理（ECN）驱动的生效期](stories/domain/US-515-bom-change-management.md)
+- 👀 [US-516 EBOM ↔ MBOM 映射与差异对比](stories/domain/US-516-ebom-mbom-mapping.md)
+- 👀 [US-517 可配置销售 BOM：特征、选项与选择条件](stories/domain/US-517-configurable-sales-bom.md)
+- 👀 [US-518 序列与批次有效性](stories/domain/US-518-bom-unit-lot-effectivity.md)
+- 👀 [US-519 扩展属性：jsonb 值 + attr_def 元数据 + 热字段提升](stories/domain/US-519-bom-extension-attributes.md)
+- 👀 [US-520 工艺路线挂接与工序投料分摊](stories/domain/US-520-bom-routing-operation.md)
+- 👀 [US-521 ERP/MRP 集成契约](stories/domain/US-521-bom-erp-mrp-integration.md)
+- 👀 [US-522 三框架 BOM 编辑与展开视图](stories/domain/US-522-bom-tri-framework-ui.md)
+- 👀 [US-523 as-built / as-maintained 实例 BOM](stories/domain/US-523-bom-as-built-instance.md)
+- 👀 [US-524 工艺路线本体：工序、工作中心、工时与费率](stories/domain/US-524-routing-master-model.md)
+- 👀 [US-525 BOM 端到端 demo：一份数据集走完全域](stories/domain/US-525-bom-end-to-end-demo.md)
 
 ### [模型驱动后台管理框架](epics/epic-010-model-driven-admin-framework.md)
 
@@ -234,7 +253,7 @@ US-704～US-707 已获 owner 授权，US-708 会话层由 owner 决定在 PR #17
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 
-- BOM按已授权切片推进，后续故事仍受各自前置约束；联产品、热路径与可选索引保留独立准入。
+- BOM 既有完整范围及 US-518 新增 AC#12 已有实现与对应回归；19 条故事保持 In Review，仍待完整门禁、评审与合并，不能以旧阶段验收替代最终交付。
 - US-029仍价值待证；US-910留在立项池，不因Backlog状态自动获得开工授权。US-603 已获授权并进入本轮执行。
 - P2P（US-704～707）已解锁，协议层的内存测试不替代真实宿主验收；依赖身份的验收等 US-704 选定认证宿主。US-708 会话层随 PR #172 交付。
 - epic-012（US-709 / US-710 / US-711 / US-712）价值待证，留在立项池，以 US-708 会话层为共同前置。

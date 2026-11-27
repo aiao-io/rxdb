@@ -2789,6 +2789,116 @@
         "version": "0.0.28"
       },
       {
+        "description": "> Implements: [US-507 BOM 图骨架](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/domain/US-507-bom-graph-skeleton.md)（epic-009 BOM 领域模型首轮切片）",
+        "framework": null,
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
+        "hosts": [
+          "browser",
+          "node"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "dependencies",
+            "name": "@aiao/utils",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-plugin-bom",
+        "plugin": {
+          "class": "RxDBPluginBom",
+          "factory": "rxDBPluginBom",
+          "source": "src/plugin.ts"
+        },
+        "role": "plugin",
+        "slots": [],
+        "version": "0.0.26"
+      },
+      {
+        "description": "BOM 的 angular 绑定、树与行编辑器。",
+        "framework": "angular",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-plugin-bom",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-plugin-bom-angular",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.26"
+      },
+      {
+        "description": "BOM 的 react 绑定、树与行编辑器。",
+        "framework": "react",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-plugin-bom",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-plugin-bom-react",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.26"
+      },
+      {
+        "description": "BOM 的 vue 绑定、树与行编辑器。",
+        "framework": "vue",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-plugin-bom",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-plugin-bom-vue",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.26"
+      },
+      {
         "description": "> Implements: [US-503 图数据插件](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/plugin/US-503-graph-data.md)",
         "framework": null,
         "homepage": "https://rxdb.aiao.io/docs/plugins",
@@ -3870,7 +3980,7 @@
       }
     ]
   },
-  "digest": "eb2894eedf1cd6a89ffb5ee9c0d9921866603108ff41783401b2e88bbd76d429",
+  "digest": "763160074a80dbe4299de90c51b6af39820f421b0ad7d48df9ba8cbb7ce9053f",
   "sample": {
     "compilerOptions": {
       "experimentalDecorators": true,

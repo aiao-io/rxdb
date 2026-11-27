@@ -1,0 +1,21 @@
+
+> nx run aiao-bom-2:deploy-check
+
+aiao-bom-2:  ⛅️ wrangler 4.158.0 (update available 4.162.0)
+aiao-bom-2: ───────────────────────────────────────────────
+aiao-bom-2: 
+aiao-bom-2: Cloudflare collects anonymous telemetry about your usage of Wrangler. Learn more at https://github.com/cloudflare/workers-sdk/tree/main/packages/wrangler/telemetry.md
+aiao-bom-2: ✨ Read 61 files from the assets directory /Users/jimmy/Documents/aiao-io/rxdb-claude/bom-related-work-77235b/dist/apps/aiao-bom-2/browser
+aiao-bom-2: Total Upload: 0.37 KiB / gzip: 0.25 KiB
+aiao-bom-2: No bindings found.
+aiao-bom-2: --dry-run: exiting now.
+
+
+
+ NX   Successfully ran target deploy-check for project aiao-bom-2
+
+
+  Run duration:      3.0s
+  Cache:             0/1 hit (0%)
+  Critical path:     3.0s (1 task)
+  Recoverable time:  <1ms

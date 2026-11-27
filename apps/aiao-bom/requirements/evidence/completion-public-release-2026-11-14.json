@@ -1,0 +1,20 @@
+{
+  "checkedAt": "2026-11-14T06:04:56.998790+00:00",
+  "origin": "https://aiao-bom-2.aiao.workers.dev",
+  "cloudflareVersion": "ae3a514b-3463-400d-a731-b277e2bb5fb3",
+  "sourceHead": "2c9a3347722d345a95b4af37efcecf6f0e57a1f9",
+  "target": "aiao-bom-2:deploy",
+  "uploadedAssets": 97,
+  "localArtifactFiles": 98,
+  "artifactBytes": 38976642,
+  "localOnlyConfiguration": "_headers",
+  "oldApplicationReplaced": false,
+  "rawLogSha256": "f007906ea305b2e953346ca0242876d75c8561a8358d539a37c8bcd61377a149",
+  "verification": [
+    "completion-live-http-2026-11-14.json",
+    "completion-live-desktop-2026-11-14.json",
+    "completion-live-part-2026-11-14.json",
+    "completion-live-domain-2026-11-14.json",
+    "completion-live-restore-2026-11-14.json"
+  ]
+}

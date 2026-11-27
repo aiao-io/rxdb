@@ -1,7 +1,9 @@
 import {
+  compileGeneratedColumn,
   EntityData,
   EntityMetadata,
   EntityPropertyMetadata,
+  generatedColumnsOf,
   KeyValuePropertyMetadata,
   PropertyType,
   quoteSqlIdentifier,
@@ -612,6 +614,20 @@ const metadataFkCache = new WeakMap<
   }
 >();
 
+const generatedResultColumns = new WeakMap<EntityMetadata, ReadonlySet<string>>();
+
+const isGeneratedResultColumn = (metadata: EntityMetadata, columnName: string): boolean => {
+  if (!columnName.startsWith('gc_')) return false;
+  let columns = generatedResultColumns.get(metadata);
+  if (columns === undefined) {
+    columns = new Set(
+      generatedColumnsOf(metadata).map(column => compileGeneratedColumn(metadata, column, 'sqlite').columnName)
+    );
+    generatedResultColumns.set(metadata, columns);
+  }
+  return columns.has(columnName);
+};
+
 /**
  * 外键读出来按目标主键的类型还原；`null` / 缺席原样保留，解析不到目标实体时原样交回。
  *
@@ -673,6 +689,7 @@ export const getEntityObjectFromResult = async <T extends object = EntityData>(
 
   for (let index = 0; index < rows.length; index++) {
     const columnName = columns[index];
+    if (isGeneratedResultColumn(metadata, columnName)) continue;
     // 精确白名单而非 `startsWith('__')`：后者会连用户实体上合法的 `__` 前缀列一起丢掉（SQLC-031）
     if (columnName.charCodeAt(0) === 95 /* '_' */ && INTERNAL_RESULT_COLUMNS.has(columnName)) continue;
 
