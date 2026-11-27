@@ -50,7 +50,7 @@ WHERE (user_id, tenant_id) IN (SELECT user_id, tenant_id FROM app.tenant_admins)
 
 不需要升级。要按权限显隐写入口的界面，在连接时、每次拉取与改了成员关系之后调一次 `supabase.rpc('rxdb_caller_grants')`；它只决定入口给不给，能不能写以服务端的 RLS 为准。
 
-也可以把判定交给引擎：给实体声明作用域与所需权限（[按作用域的成员权限](../model-definition/permissions.md#按作用域的成员权限)），Supabase 适配器在连接时、同步每一轮进门时读 `rxdb_caller_grants()`，本机当场拒绝越权的写，界面可以订阅 `rxdb.grants.snapshot$`。这样的客户端要在第 1 步装好之后再上线：服务端没有 `rxdb_caller_grants()` 时，连接报 `SupabaseConfigError`（`The server has no public.rxdb_caller_grants() …`），按第 1 步部署之后重新连接即可。没有实体声明作用域的客户端不读这个函数，不受影响。
+也可以把判定交给引擎：给实体声明作用域与所需权限（[按作用域的成员权限](/model-definition/permissions.md#scoped-member-permissions)），Supabase 适配器在连接时、同步每一轮进门时读 `rxdb_caller_grants()`，本机当场拒绝越权的写，界面可以订阅 `rxdb.grants.snapshot$`。这样的客户端要在第 1 步装好之后再上线：服务端没有 `rxdb_caller_grants()` 时，连接报 `SupabaseConfigError`（`The server has no public.rxdb_caller_grants() …`），按第 1 步部署之后重新连接即可。没有实体声明作用域的客户端不读这个函数，不受影响。
 
 以后每次重新执行 04（例如别的升级），`rxdb_caller_grants()` 与 `rxdb_caller_can_edit` 都会回到平台默认：同第 1 步，把覆盖放进同一个事务、生产权限脚本之前。
 

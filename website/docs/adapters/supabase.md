@@ -285,7 +285,7 @@ $$;
 
 #### 本机按成员权限判定
 
-实体声明了作用域与所需权限（[按作用域的成员权限](../model-definition/permissions.md#按作用域的成员权限)）之后，适配器就是授权快照的来源：它读的正是上面的 `rxdb_caller_grants()`，本机按同一份授权当场拒绝越权的写，不留一条注定被 RLS 拒绝的待推修改。
+实体声明了作用域与所需权限（[按作用域的成员权限](/model-definition/permissions.md#scoped-member-permissions)）之后，适配器就是授权快照的来源：它读的正是上面的 `rxdb_caller_grants()`，本机按同一份授权当场拒绝越权的写，不留一条注定被 RLS 拒绝的待推修改。
 
 ```ts
 @Entity({
