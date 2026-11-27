@@ -1,0 +1,8 @@
+{
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "name": "aiao-model-design-model-ops",
+  "projectType": "library",
+  "sourceRoot": "aiao-model-design/packages/model-ops/src",
+  "tags": ["scope:model-design", "type:lib", "layer:domain"],
+  "targets": {}
+}

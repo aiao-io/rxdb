@@ -1,0 +1,115 @@
+<div
+  class="border-base-300 bg-base-100 flex h-full w-72 max-w-[calc(100vw-3rem)] flex-col border-r lg:w-56 lg:max-w-none"
+>
+  <!-- Model Switcher：切换 / 新建 / 重命名模型设计（左侧唯一头部） -->
+  <lib-model-switcher
+    [activeId]="activeModelId()"
+    [models]="models()"
+    (modelCreated)="modelCreated.emit($event)"
+    (modelRenamed)="modelRenamed.emit($event)"
+    (modelSelected)="modelSelected.emit($event)"
+  />
+
+  <!-- Entity Tree -->
+  <div class="flex-1 overflow-y-auto">
+    @if (entities().length === 0) {
+      <div class="text-base-content/40 p-4 text-center text-xs">{{ t().navigator.empty }}</div>
+    } @else {
+      <ul class="menu lg:menu-xs w-full p-1 text-sm lg:p-0">
+        @for (group of groupedEntities(); track group.namespace) {
+          <li>
+            <details open>
+              <summary
+                class="group/ns relative flex items-center gap-1 font-medium opacity-70"
+                [attr.data-namespace]="group.namespace"
+                [class.bg-primary/15]="dragOverNamespace() === group.namespace"
+                (dragleave)="onFolderDragLeave($event)"
+                (dragover)="onFolderDragOver($event, group.namespace)"
+                (drop)="onFolderDrop($event, group.namespace)"
+                data-testid="navigator-ns-summary"
+              >
+                <lucide-icon class="h-3.5 w-3.5 shrink-0" [img]="Folder" aria-hidden="true" />
+                <span class="flex-1 truncate">{{ group.namespace }}</span>
+                <button
+                  class="btn btn-ghost btn-xs btn-square min-h-11 min-w-11 shrink-0 opacity-0 transition-opacity group-hover/ns:opacity-100 focus-visible:opacity-100 lg:min-h-0 lg:min-w-0 pointer-coarse:opacity-100"
+                  [attr.aria-label]="t().navigator.addEntityToNamespace.replace('{namespace}', group.namespace)"
+                  [title]="t().navigator.addEntityToNamespace.replace('{namespace}', group.namespace)"
+                  (click)="onAddEntityToNamespace($event, group.namespace)"
+                  data-testid="navigator-ns-add"
+                  type="button"
+                >
+                  <lucide-icon class="h-3.5 w-3.5" [img]="Plus" aria-hidden="true" />
+                </button>
+              </summary>
+              <ul>
+                @for (entity of group.entities; track entity.id) {
+                  <li
+                    class="group/entity relative"
+                    [class.opacity-40]="draggedEntityId() === entity.id"
+                    (dragend)="onDragEnd()"
+                    (dragstart)="onDragStart($event, entity.id)"
+                    data-testid="navigator-entity-row"
+                    draggable="true"
+                  >
+                    @if (editingEntityId() === entity.id) {
+                      <div class="flex min-h-11 items-center gap-1.5 px-2 lg:min-h-0">
+                        <lucide-icon class="h-3.5 w-3.5 shrink-0 opacity-80" [img]="Table2" aria-hidden="true" />
+                        <input
+                          class="input input-bordered input-xs min-h-8 min-w-0 flex-1"
+                          [value]="editValue()"
+                          (blur)="commitEntityRename()"
+                          (input)="editValue.set(asInputValue($event))"
+                          (keydown.enter)="commitEntityRename()"
+                          (keydown.escape)="cancelEntityRename()"
+                          data-testid="navigator-entity-rename-input"
+                        />
+                      </div>
+                    } @else {
+                      <button
+                        class="min-h-11 pr-14 lg:min-h-0"
+                        [class.menu-active]="selectedEntityIds().has(entity.id)"
+                        (click)="onEntityClick(entity.id)"
+                      >
+                        <lucide-icon class="h-3.5 w-3.5 opacity-80" [img]="Table2" aria-hidden="true" />
+                        <span class="truncate">{{ entity.name }}</span>
+                      </button>
+                      <div
+                        class="absolute top-1/2 right-1 flex -translate-y-1/2 gap-0.5 opacity-0 transition-opacity group-hover/entity:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100"
+                      >
+                        <button
+                          class="btn btn-ghost btn-xs btn-square min-h-11 min-w-11 lg:min-h-0 lg:min-w-0"
+                          [attr.aria-label]="t().navigator.renameEntity"
+                          [title]="t().navigator.renameEntity"
+                          (click)="startEntityRename($event, entity)"
+                          data-testid="navigator-entity-rename"
+                          type="button"
+                        >
+                          <lucide-icon class="h-4 w-4 lg:h-3 lg:w-3" [img]="Pencil" aria-hidden="true" />
+                        </button>
+                        <button
+                          class="btn btn-ghost btn-xs btn-square text-error min-h-11 min-w-11 lg:min-h-0 lg:min-w-0"
+                          [attr.aria-label]="t().navigator.deleteEntity"
+                          [title]="t().navigator.deleteEntity"
+                          (click)="onDeleteEntity($event, entity.id)"
+                          data-testid="navigator-entity-delete"
+                          type="button"
+                        >
+                          <lucide-icon class="h-4 w-4 lg:h-3 lg:w-3" [img]="Trash2" aria-hidden="true" />
+                        </button>
+                      </div>
+                    }
+                  </li>
+                }
+              </ul>
+            </details>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+
+  <!-- Footer -->
+  <div class="border-base-300 text-base-content/40 flex items-center justify-between border-t px-3 py-1.5 text-xs">
+    <span>{{ t().navigator.entityCount.replace('{count}', '' + entities().length) }}</span>
+  </div>
+</div>

@@ -1,0 +1,16 @@
+{
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "name": "aiao-media-supabase-functions",
+  "projectType": "application",
+  "sourceRoot": "aiao-media/infra/supabase/functions",
+  "targets": {
+    "test": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "cwd": "aiao-media/infra/supabase/functions",
+        "command": "pnpm exec vitest run --config admin-api/vitest.config.mts"
+      }
+    }
+  }
+}

@@ -1,0 +1,143 @@
+{
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "name": "aiao-model-design-web",
+  "prefix": "aiao",
+  "projectType": "application",
+  "sourceRoot": "aiao-model-design/apps/web/src",
+  "tags": ["scope:model-design", "type:app", "layer:ui"],
+  "targets": {
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "outputPath": "dist/aiao-model-design/apps/web",
+        "browser": "aiao-model-design/apps/web/src/main.ts",
+        "tsConfig": "aiao-model-design/apps/web/tsconfig.app.json",
+        "inlineStyleLanguage": "scss",
+        "externalDependencies": ["node:http2"],
+        "allowedCommonJsDependencies": [
+          "@google-cloud/precise-date",
+          "@jsonhero/path",
+          "@vercel/oidc",
+          "cssfontparser",
+          "debug",
+          "eventemitter3",
+          "geobuf",
+          "geojson-dissolve",
+          "gifuct-js",
+          "humanize-duration",
+          "lodash/get",
+          "lottie-web",
+          "mousetrap",
+          "pbf",
+          "pdf",
+          "simplify-geojson"
+        ],
+        "assets": [
+          {
+            "glob": "**/*",
+            "input": "aiao-model-design/apps/web/public"
+          },
+          {
+            "glob": "*.wasm",
+            "input": "node_modules/@subframe7536/sqlite-wasm/dist",
+            "output": "sqlite-wasm"
+          }
+        ],
+        "styles": ["aiao-model-design/apps/web/src/styles.scss"]
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "1mb",
+              "maximumError": "2.2mb"
+            },
+            {
+              "type": "anyComponentStyle",
+              "maximumWarning": "8kb",
+              "maximumError": "32kb"
+            }
+          ],
+          "outputHashing": "all"
+        },
+        "development": {
+          "optimization": false,
+          "extractLicenses": false,
+          "sourceMap": true
+        }
+      }
+    },
+    "dev": {
+      "executor": "@angular/build:dev-server",
+      "continuous": true,
+      "cache": false,
+      "dependsOn": [{ "projects": ["aiao-model-design-api"], "target": "dev", "waitFor": "ready" }],
+      "readyWhen": { "url": "http://localhost:4400" },
+      "options": {
+        "buildTarget": "aiao-model-design-web:build:development",
+        "port": 4400,
+        "prebundle": false,
+        "proxyConfig": "aiao-model-design/apps/web/proxy.conf.cjs"
+      }
+    },
+    "serve": {
+      "continuous": true,
+      "readyWhen": {
+        "signal": true
+      },
+      "executor": "@angular/build:dev-server",
+      "defaultConfiguration": "development",
+      "configurations": {
+        "production": {
+          "buildTarget": "aiao-model-design-web:build:production"
+        },
+        "development": {
+          "buildTarget": "aiao-model-design-web:build:development"
+        },
+        "migration": {
+          "buildTarget": "aiao-model-design-web:build:development",
+          "port": 4201
+        }
+      },
+      "options": {
+        "prebundle": false,
+        "proxyConfig": "aiao-model-design/apps/web/proxy.conf.cjs"
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "vitest run --config aiao-model-design/apps/web/vite.config.mts"
+      },
+      "dependsOn": ["^build"]
+    },
+    "serve-static": {
+      "continuous": true,
+      "readyWhen": {
+        "signal": true
+      },
+      "dependsOn": ["build"],
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "aiao-model-design-web:build",
+        "staticFilePath": "dist/aiao-model-design/apps/web/browser",
+        "spa": true
+      }
+    },
+    "generate-models": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        {
+          "projects": ["rxdb-client-generator"],
+          "target": "build"
+        }
+      ],
+      "options": {
+        "command": "node packages/rxdb-client-generator/dist/cli.js aiao-model-design/apps/web/rxdb-models.config.ts"
+      }
+    }
+  }
+}

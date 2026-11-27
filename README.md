@@ -166,6 +166,10 @@ The project is working toward a stable 1.0 release. Current work focuses on publ
 - [Compatibility matrix](https://rxdb.aiao.io/en/docs/compatibility)
 - [English support plan](requirements/english-support-plan.md)
 
+## 实际应用
+
+[Aiao Media](aiao-media/apps/web/README.md) 是同仓孵化的 local-first 图片创作应用，包含独立产品需求、部署和浏览器验收。启动：`pnpm nx run aiao-media:serve`。
+
 ## Contributing
 
 Pull requests are welcome. Please read the [contribution guide](CONTRIBUTING.md) before changing code. Chinese readers can use the [简体中文贡献指南](CONTRIBUTING.zh-CN.md).

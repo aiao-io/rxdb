@@ -1,0 +1,55 @@
+<div class="flex h-full flex-col items-center justify-center gap-6 p-8">
+  <h2 class="text-xl font-bold">{{ t().modelList.title }}</h2>
+
+  @if (designs().length > 0) {
+    <div class="w-full max-w-md space-y-2">
+      @for (design of designs(); track design.id) {
+        <div
+          class="card bg-base-200 hover:bg-base-300 cursor-pointer transition-colors"
+          [attr.aria-current]="design.id === activeId() ? 'true' : null"
+          [class.ring-primary]="design.id === activeId()"
+          [class.ring]="design.id === activeId()"
+          (click)="selected.emit(design.id)"
+          (keydown.enter)="selected.emit(design.id)"
+          (keydown.space)="$event.preventDefault(); selected.emit(design.id)"
+          role="button"
+          tabindex="0"
+        >
+          <div class="card-body flex-row items-center p-3">
+            <span class="flex-1 font-medium">{{ design.name }}</span>
+            <button
+              class="btn btn-ghost btn-xs"
+              [attr.aria-label]="t().modelList.ariaCopyModel"
+              (click)="onCopy($event, design.id)"
+            >
+              {{ t().modelList.copyModel }}
+            </button>
+            <button
+              class="btn btn-ghost btn-xs text-error"
+              [attr.aria-label]="t().modelList.ariaDeleteModel"
+              (click)="onDelete($event, design.id)"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  } @else {
+    <p class="text-base-content/60">{{ t().modelList.noModels }}</p>
+  }
+
+  <div class="flex w-full max-w-md gap-2">
+    <input
+      class="input input-bordered flex-1"
+      [placeholder]="t().modelList.newModelPlaceholder"
+      [value]="newName()"
+      (input)="newName.set(asInputValue($event))"
+      (keydown.enter)="onCreate()"
+      autocomplete="off"
+    />
+    <button class="btn btn-primary" [disabled]="!newName().trim()" (click)="onCreate()">
+      {{ t().modelList.create }}
+    </button>
+  </div>
+</div>

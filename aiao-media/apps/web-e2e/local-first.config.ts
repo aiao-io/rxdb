@@ -1,0 +1,32 @@
+import { defineConfig, devices } from '@playwright/test';
+export default defineConfig({
+  testDir: './src',
+  outputDir: './test-output/playwright/output',
+  testMatch: [
+    'local-first.spec.ts',
+    'local-reliability.spec.ts',
+    'supabase-auth.spec.ts',
+    'platform-generation.spec.ts',
+    'library.spec.ts'
+  ],
+  timeout: 60000,
+  workers: 1,
+  use: {
+    ...devices['Desktop Chrome'],
+    channel: process.env['AIAO_PLAYWRIGHT_CHANNEL'] || 'chrome',
+    baseURL: 'http://127.0.0.1:4398',
+    trace: 'retain-on-failure',
+    screenshot: 'only-on-failure'
+  },
+  webServer: {
+    // The Nx test target prepares the build; keep the runtime in Playwright's process group for reliable shutdown.
+    command:
+      'pnpm --dir apps/api exec wrangler dev --config wrangler.json --env local-first --env-file ../web-e2e/fixture.env --local --port 4398 --show-interactive-dev-session false',
+    env: { CLOUDFLARE_INCLUDE_PROCESS_ENV: 'false' },
+    url: 'http://127.0.0.1:4398',
+    cwd: new URL('../../', import.meta.url).pathname,
+    reuseExistingServer: false,
+    gracefulShutdown: { signal: 'SIGTERM', timeout: 5000 },
+    timeout: 30000
+  }
+});

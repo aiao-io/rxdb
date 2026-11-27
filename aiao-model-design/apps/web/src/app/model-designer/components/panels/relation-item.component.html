@@ -1,0 +1,145 @@
+<div class="rounded px-2 py-1.5" [ngClass]="isInvalid() ? 'bg-error/10 border-error/30 border' : 'bg-base-200'">
+  <div class="flex items-center gap-1">
+    <button
+      class="btn btn-ghost btn-xs text-base-content/30 cursor-grab px-0.5 active:cursor-grabbing"
+      [attr.aria-label]="t().entityPanel.dragToReorder"
+      cdkDragHandle
+      type="button"
+    >
+      <lucide-icon class="h-3.5 w-3.5" [img]="GripVertical" />
+    </button>
+    <button
+      class="btn btn-ghost btn-xs btn-square"
+      [attr.aria-expanded]="expanded()"
+      [attr.aria-label]="expanded() ? t().entityPanel.collapseDetails : t().entityPanel.expandDetails"
+      (click)="toggleDetails()"
+      type="button"
+    >
+      <lucide-icon
+        class="h-3.5 w-3.5 transition-transform duration-150"
+        [class.rotate-90]="expanded()"
+        [img]="ChevronRight"
+      />
+    </button>
+    <input
+      class="input input-xs input-bordered min-w-0 flex-1"
+      #nameInput
+      [attr.aria-label]="t().relationPanel.ariaRelationName"
+      [formField]="relationForm.name"
+      (blur)="emitChanges()"
+      (keydown.enter)="emitChanges()"
+      autocomplete="off"
+      data-testid="relation-name-input"
+    />
+    <button
+      class="btn btn-ghost btn-xs btn-square text-error"
+      [attr.aria-label]="t().relationPanel.ariaDeleteRelation"
+      (click)="deleted.emit()"
+      type="button"
+    >
+      <lucide-icon class="h-3.5 w-3.5" [img]="Trash2" />
+    </button>
+  </div>
+  @for (msg of errorMessages(); track msg) {
+    <div class="text-error mt-0.5 text-xs">{{ msg }}</div>
+  }
+  @if (!expanded() && summaryText()) {
+    <div class="text-base-content/50 mt-1 truncate text-[11px]">{{ summaryText() }}</div>
+  }
+  @if (expanded()) {
+    <div class="mt-1">
+      <span class="text-base-content/60 text-xs">{{ t().relationPanel.displayName }}</span>
+      <input
+        class="input input-xs input-bordered w-full"
+        [formField]="relationForm.displayName"
+        [placeholder]="t().relationPanel.displayName"
+        (blur)="emitChanges()"
+        (keydown.enter)="emitChanges()"
+        autocomplete="off"
+      />
+    </div>
+    <div class="mt-1 grid grid-cols-2 gap-1">
+      <div>
+        <span class="text-base-content/60 text-xs">{{ t().relationPanel.kind }}</span>
+        <select
+          class="select select-xs select-bordered w-full"
+          [formField]="relationForm.relationKind"
+          (change)="emitChanges()"
+        >
+          @for (k of relationKinds; track k) {
+            <option [value]="k">{{ k }} ({{ kindLabel(k) }})</option>
+          }
+        </select>
+      </div>
+      <div>
+        <span class="text-base-content/60 text-xs">{{ t().relationPanel.targetEntity }}</span>
+        <select
+          class="select select-xs select-bordered w-full"
+          [formField]="relationForm.mappedEntityId"
+          (change)="emitChanges()"
+        >
+          <option value="">--</option>
+          @for (e of entities(); track e.id) {
+            <option [value]="e.id">{{ e.name }}</option>
+          }
+        </select>
+      </div>
+    </div>
+    <div class="mt-1 space-y-1">
+      <div>
+        <span class="text-base-content/60 text-xs">{{ t().relationPanel.columnName }}</span>
+        <input
+          class="input input-xs input-bordered w-full"
+          [class.input-error]="relationForm.columnName().dirty() && relationForm.columnName().invalid()"
+          [formField]="relationForm.columnName"
+          [placeholder]="t().relationPanel.columnNamePlaceholder"
+          (blur)="emitChanges()"
+          (keydown.enter)="emitChanges()"
+          autocomplete="off"
+        />
+        @if (relationForm.columnName().dirty() && relationForm.columnName().invalid()) {
+          <span class="text-error text-xs">{{ t().validation.columnNameHint }}</span>
+        }
+      </div>
+      <div>
+        <span class="text-base-content/60 text-xs">{{ t().relationPanel.mappedProperty }}</span>
+        <select
+          class="select select-xs select-bordered w-full"
+          [formField]="relationForm.mappedPropertyId"
+          (change)="emitChanges()"
+        >
+          <option value="">--</option>
+          @for (tr of targetRelations(); track tr.id) {
+            <option [value]="tr.id">{{ tr.name }}</option>
+          }
+        </select>
+      </div>
+      <div class="grid grid-cols-2 gap-1">
+        <div>
+          <span class="text-base-content/60 text-xs">{{ t().relationPanel.onDelete }}</span>
+          <select
+            class="select select-xs select-bordered w-full"
+            [formField]="relationForm.onDeleteAction"
+            (change)="emitChanges()"
+          >
+            @for (act of cascadeActions; track act) {
+              <option [value]="act">{{ act }}</option>
+            }
+          </select>
+        </div>
+        <div>
+          <span class="text-base-content/60 text-xs">{{ t().relationPanel.onUpdate }}</span>
+          <select
+            class="select select-xs select-bordered w-full"
+            [formField]="relationForm.onUpdateAction"
+            (change)="emitChanges()"
+          >
+            @for (act of cascadeActions; track act) {
+              <option [value]="act">{{ act }}</option>
+            }
+          </select>
+        </div>
+      </div>
+    </div>
+  }
+</div>

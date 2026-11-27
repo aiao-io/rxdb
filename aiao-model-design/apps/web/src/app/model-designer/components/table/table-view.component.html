@@ -1,0 +1,20 @@
+@if (activeEntity()) {
+  <rxdb-entity-table
+    [cellClearable]="cellClearableFn"
+    [cellErrorDetector]="cellErrorDetector()"
+    [columns]="tableColumns()"
+    [idField]="tableIdField()"
+    [isDarkMode]="isDarkMode()"
+    [nonClearableFields]="tableNonClearableFields()"
+    [records]="tableRecords()"
+    (batchUpdated)="onBatchUpdated($event)"
+    (cellChanged)="onCellChanged($event)"
+    (iconClicked)="onIconClicked($event)"
+    (rowDeleted)="onRowDeleted($event)"
+    (rowReordered)="onRowReordered($event)"
+  />
+} @else {
+  <div class="text-base-content/40 flex h-full w-full items-center justify-center text-sm">
+    {{ t().tableView.emptyMessage }}
+  </div>
+}

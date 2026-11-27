@@ -1,0 +1,972 @@
+vi.mock('@aiao/rxdb-plugin-tree', () => vi.importMock('@aiao/rxdb'));
+
+import { signal, WritableSignal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import { of } from 'rxjs';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('@aiao/rxdb', () => ({
+  __decorateClass: (_d: unknown[], target: unknown) => target,
+  RxDB: class {},
+  Entity: () => (target: unknown) => target,
+  TreeEntity: () => (target: unknown) => target,
+  EntityBase: class {
+    [key: string]: unknown;
+    constructor(data: Record<string, unknown> = {}) {
+      Object.assign(this, data);
+      if (!this['id']) this['id'] = crypto.randomUUID();
+    }
+    async save() {
+      //
+    }
+    async remove() {
+      //
+    }
+  },
+  TreeAdjacencyListEntityBase: class {
+    [key: string]: unknown;
+    constructor(data: Record<string, unknown> = {}) {
+      Object.assign(this, data);
+      if (!this['id']) this['id'] = crypto.randomUUID();
+    }
+    async save() {
+      //
+    }
+    async remove() {
+      //
+    }
+  },
+  PropertyType: { string: 'string', number: 'number', integer: 'integer', boolean: 'boolean' },
+  RelationKind: { ONE_TO_MANY: 'ONE_TO_MANY', MANY_TO_ONE: 'MANY_TO_ONE' },
+  OnDeleteAction: { CASCADE: 'CASCADE' },
+  ENTITY_BASE_METADATA_OPTIONS: { properties: [], computedProperties: [], relations: [] },
+  TREE_ADJACENCY_LIST_ENTITY_BASE_OPTIONS: { properties: [], computedProperties: [], relations: [] }
+}));
+
+vi.mock('@aiao/rxdb-angular', () => ({
+  useFindAll: () => ({ value: () => [] })
+}));
+
+import { RxDB } from '@aiao/rxdb';
+import { DEFAULT_TRANSLATIONS } from '../../i18n';
+import { AiOperationGuardService } from '../../services/ai-operation-guard.service';
+import { CLIENT_PACKAGE_ADAPTER } from '../../services/client-package-adapter';
+import { CodeGeneratorService } from '../../services/code-generator.service';
+import { ConfirmDialogService } from '../../services/confirm-dialog.service';
+import { DesignEntityService } from '../../services/design-entity.service';
+import { DesignIndexService } from '../../services/design-index.service';
+import { DesignPropertyService } from '../../services/design-property.service';
+import { DesignRelationService } from '../../services/design-relation.service';
+import { DesignerStateService } from '../../services/designer-state.service';
+import { ModelDesignService } from '../../services/model-design.service';
+import { ModelValidatorService } from '../../services/model-validator.service';
+
+describe('DesignerStateService — 删除二次确认 / 关系 / 类型变更', () => {
+  let service: DesignerStateService;
+  let confirmDialog: { confirm: ReturnType<typeof vi.fn> };
+  let removeManySpy: ReturnType<typeof vi.fn>;
+  let entityCreateSpy: ReturnType<typeof vi.fn>;
+  let entityUpdateSpy: ReturnType<typeof vi.fn>;
+  let relationRemoveSpy: ReturnType<typeof vi.fn>;
+  let createLinkedPairSpy: ReturnType<typeof vi.fn>;
+  let propertyUpdateSpy: ReturnType<typeof vi.fn>;
+  let propertyRemoveSpy: ReturnType<typeof vi.fn>;
+  let propertyCreateSpy: ReturnType<typeof vi.fn>;
+  let propertyUpdateBatchSpy: ReturnType<typeof vi.fn>;
+  let indexRemoveSpy: ReturnType<typeof vi.fn>;
+  let indexCreateSpy: ReturnType<typeof vi.fn>;
+  let indexUpdateSpy: ReturnType<typeof vi.fn>;
+  let indexUpdateBatchSpy: ReturnType<typeof vi.fn>;
+  let findByTargetEntitySpy: ReturnType<typeof vi.fn>;
+  let relationCreateSpy: ReturnType<typeof vi.fn>;
+  let relationUpdateSpy: ReturnType<typeof vi.fn>;
+  let relationUpdateBatchSpy: ReturnType<typeof vi.fn>;
+  let entityClearSelectionSpy: ReturnType<typeof vi.fn>;
+  let entitySelectOneSpy: ReturnType<typeof vi.fn>;
+  let entityToggleSelectSpy: ReturnType<typeof vi.fn>;
+  let entitySelectManySpy: ReturnType<typeof vi.fn>;
+  let entityUpdatePositionSpy: ReturnType<typeof vi.fn>;
+  let entityUpdatePositionsBatchSpy: ReturnType<typeof vi.fn>;
+  let entityUpdateWidthSpy: ReturnType<typeof vi.fn>;
+  let historyUndoSpy: ReturnType<typeof vi.fn>;
+  let historyRedoSpy: ReturnType<typeof vi.fn>;
+  let codeGenerateSpy: ReturnType<typeof vi.fn>;
+  let toAllMetadataOptionsSpy: ReturnType<typeof vi.fn>;
+  let downloadZipSpy: ReturnType<typeof vi.fn>;
+  let allRelationsSignal: WritableSignal<
+    Array<{ id: string; name: string; designEntityId: string; mappedEntityId?: string | null }>
+  >;
+  let entitiesSignal: WritableSignal<unknown[]>;
+  let selectedEntityIdsSignal: WritableSignal<Set<string>>;
+  let archivePackageSpy: ReturnType<typeof vi.fn>;
+  let publishPackageSpy: ReturnType<typeof vi.fn>;
+  let downloadBlobSpy: ReturnType<typeof vi.fn>;
+  let validateModelSpy: ReturnType<typeof vi.fn>;
+  let validateEntityIdentitySpy: ReturnType<typeof vi.fn>;
+  let activeDesignSignal: WritableSignal<{ name: string; description?: string | null } | null>;
+
+  beforeEach(() => {
+    confirmDialog = { confirm: vi.fn().mockResolvedValue(true) };
+    removeManySpy = vi.fn().mockResolvedValue(undefined);
+    entityCreateSpy = vi.fn().mockResolvedValue({ id: 'new-entity' });
+    entityUpdateSpy = vi.fn().mockResolvedValue(undefined);
+    entityClearSelectionSpy = vi.fn();
+    entitySelectOneSpy = vi.fn();
+    entityToggleSelectSpy = vi.fn();
+    entitySelectManySpy = vi.fn();
+    entityUpdatePositionSpy = vi.fn().mockResolvedValue(undefined);
+    entityUpdatePositionsBatchSpy = vi.fn().mockResolvedValue(undefined);
+    entityUpdateWidthSpy = vi.fn().mockResolvedValue(undefined);
+    relationRemoveSpy = vi.fn().mockResolvedValue(undefined);
+    createLinkedPairSpy = vi.fn().mockResolvedValue({ source: { id: 'r1' }, inverse: { id: 'r2' } });
+    relationCreateSpy = vi.fn().mockResolvedValue({ id: 'r-new', name: 'createdRelation' });
+    relationUpdateSpy = vi.fn().mockResolvedValue(undefined);
+    relationUpdateBatchSpy = vi.fn().mockResolvedValue(undefined);
+    propertyCreateSpy = vi.fn().mockResolvedValue(undefined);
+    propertyUpdateSpy = vi.fn().mockResolvedValue(undefined);
+    propertyUpdateBatchSpy = vi.fn().mockResolvedValue(undefined);
+    propertyRemoveSpy = vi.fn().mockResolvedValue(undefined);
+    indexRemoveSpy = vi.fn().mockResolvedValue(undefined);
+    indexCreateSpy = vi.fn().mockResolvedValue(undefined);
+    indexUpdateSpy = vi.fn().mockResolvedValue(undefined);
+    indexUpdateBatchSpy = vi.fn().mockResolvedValue(undefined);
+    findByTargetEntitySpy = vi.fn().mockReturnValue([]);
+    allRelationsSignal = signal([]);
+    entitiesSignal = signal<unknown[]>([]);
+    selectedEntityIdsSignal = signal(new Set<string>());
+    historyUndoSpy = vi.fn();
+    historyRedoSpy = vi.fn();
+    archivePackageSpy = vi.fn().mockResolvedValue({
+      blob: new Blob(['tgz'], { type: 'application/gzip' }),
+      packageName: '@acme/blog-rxdb',
+      version: '1.0.0',
+      designRevision: 'a'.repeat(64),
+      filename: 'acme-blog-rxdb-1.0.0.tgz'
+    });
+    publishPackageSpy = vi.fn().mockResolvedValue({
+      packageName: '@acme/blog-rxdb',
+      version: '1.1.0',
+      designRevision: 'b'.repeat(64),
+      status: 'published'
+    });
+    downloadBlobSpy = vi.fn();
+    downloadZipSpy = vi.fn();
+    toAllMetadataOptionsSpy = vi.fn(() => []);
+    codeGenerateSpy = vi.fn(() => ({ files: [{ path: 'index.ts', content: 'export class Blog {}' }], errors: [] }));
+    validateModelSpy = vi.fn(() => ({
+      valid: true,
+      entityErrors: new Map<string, string[]>(),
+      relationErrors: new Map<string, string[]>(),
+      propertyErrors: new Map<string, string[]>(),
+      globalErrors: []
+    }));
+
+    validateEntityIdentitySpy = vi.fn().mockReturnValue({ valid: true, errors: [] });
+    activeDesignSignal = signal<{ name: string; description?: string | null } | null>({
+      name: 'Blog',
+      description: 'Blog model'
+    });
+
+    TestBed.configureTestingModule({
+      providers: [
+        DesignerStateService,
+        { provide: ConfirmDialogService, useValue: confirmDialog },
+        {
+          provide: DesignEntityService,
+          useValue: {
+            entities: entitiesSignal,
+            selectedEntityIds: selectedEntityIdsSignal,
+            create: entityCreateSpy,
+            update: entityUpdateSpy,
+            removeMany: removeManySpy,
+            clearSelection: entityClearSelectionSpy,
+            selectOne: entitySelectOneSpy,
+            toggleSelect: entityToggleSelectSpy,
+            selectMany: entitySelectManySpy,
+            updatePosition: entityUpdatePositionSpy,
+            updatePositionsBatch: entityUpdatePositionsBatchSpy,
+            updateWidth: entityUpdateWidthSpy,
+            queryError: signal<string | null>(null)
+          }
+        },
+        {
+          provide: DesignRelationService,
+          useValue: {
+            allRelations: allRelationsSignal,
+            relationsOf: () => () => [],
+            remove: relationRemoveSpy,
+            createLinkedPair: createLinkedPairSpy,
+            findByTargetEntity: findByTargetEntitySpy,
+            create: relationCreateSpy,
+            update: relationUpdateSpy,
+            updateBatch: relationUpdateBatchSpy,
+            queryError: signal<string | null>(null)
+          }
+        },
+        {
+          provide: DesignPropertyService,
+          useValue: {
+            propertiesOf: () => () => [],
+            childPropertiesOf: () => () => [],
+            create: propertyCreateSpy,
+            update: propertyUpdateSpy,
+            updateBatch: propertyUpdateBatchSpy,
+            remove: propertyRemoveSpy,
+            queryError: signal<string | null>(null)
+          }
+        },
+        {
+          provide: DesignIndexService,
+          useValue: {
+            indexesOf: () => () => [],
+            remove: indexRemoveSpy,
+            create: indexCreateSpy,
+            update: indexUpdateSpy,
+            updateBatch: indexUpdateBatchSpy,
+            queryError: signal<string | null>(null)
+          }
+        },
+        {
+          provide: CodeGeneratorService,
+          useValue: {
+            toClientDesignContract: vi.fn(() => ({ entities: [], metadata: { designName: 'Blog' } })),
+            toAllMetadataOptions: toAllMetadataOptionsSpy,
+            generate: codeGenerateSpy,
+            downloadBlob: downloadBlobSpy,
+            downloadZip: downloadZipSpy
+          }
+        },
+        { provide: CLIENT_PACKAGE_ADAPTER, useValue: { archive: archivePackageSpy, publish: publishPackageSpy } },
+        {
+          provide: ModelValidatorService,
+          useValue: { validateModel: validateModelSpy, validateEntityIdentity: validateEntityIdentitySpy }
+        },
+        { provide: AiOperationGuardService, useValue: {} },
+        {
+          provide: ModelDesignService,
+          useValue: {
+            activeDesign: () => activeDesignSignal(),
+            activeDesignId: () => 'design-1',
+            queryError: signal<string | null>(null)
+          }
+        },
+        {
+          provide: RxDB,
+          useValue: {
+            versionManager: {
+              history: () => ({ undoCount$: of(0), redoCount$: of(0), undo: historyUndoSpy, redo: historyRedoSpy })
+            }
+          }
+        }
+      ]
+    });
+
+    service = TestBed.inject(DesignerStateService);
+  });
+
+  afterEach(() => {
+    TestBed.resetTestingModule();
+    vi.restoreAllMocks();
+  });
+
+  describe('onEntitiesDeleted', () => {
+    it('MUST ask for confirmation before removing entities', async () => {
+      await service.onEntitiesDeleted(['e1', 'e2']);
+
+      expect(confirmDialog.confirm).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: DEFAULT_TRANSLATIONS.confirmDialog.deleteEntityTitle,
+          message: DEFAULT_TRANSLATIONS.confirmDialog.deleteEntityMessage.replace('{count}', '2'),
+          danger: true
+        })
+      );
+      expect(removeManySpy).toHaveBeenCalledWith(['e1', 'e2']);
+    });
+
+    it('MUST list affected relation names in the confirm message', async () => {
+      allRelationsSignal.set([
+        { id: 'r1', name: 'posts', designEntityId: 'e1', mappedEntityId: 'e2' },
+        { id: 'r2', name: 'author', designEntityId: 'e2', mappedEntityId: 'e1' }
+      ]);
+      findByTargetEntitySpy.mockImplementation((id: string) =>
+        allRelationsSignal().filter(r => r.mappedEntityId === id)
+      );
+
+      await service.onEntitiesDeleted(['e1']);
+
+      const message = confirmDialog.confirm.mock.calls[0][0].message as string;
+      expect(message).toContain('posts');
+      expect(message).toContain('author');
+      expect(message).toContain(DEFAULT_TRANSLATIONS.confirmDialog.deleteEntityAffectedPrefix.split('{list}')[0]);
+    });
+
+    it('MUST NOT remove entities when the user cancels', async () => {
+      confirmDialog.confirm.mockResolvedValue(false);
+
+      await service.onEntitiesDeleted(['e1']);
+
+      expect(removeManySpy).not.toHaveBeenCalled();
+    });
+
+    it('MUST skip confirmation for an empty id list', async () => {
+      await service.onEntitiesDeleted([]);
+
+      expect(confirmDialog.confirm).not.toHaveBeenCalled();
+      expect(removeManySpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('onEntityDeleted', () => {
+    it('MUST delegate to onEntitiesDeleted and respect cancellation', async () => {
+      confirmDialog.confirm.mockResolvedValue(false);
+
+      const deleted = await service.onEntityDeleted('e1');
+
+      expect(confirmDialog.confirm).toHaveBeenCalled();
+      expect(removeManySpy).not.toHaveBeenCalled();
+      expect(deleted).toBe(false);
+    });
+
+    it('MUST report a confirmed deletion', async () => {
+      const deleted = await service.onEntityDeleted('e1');
+
+      expect(removeManySpy).toHaveBeenCalledWith(['e1']);
+      expect(deleted).toBe(true);
+    });
+  });
+
+  describe('onRelationDeleted', () => {
+    it('MUST ask for confirmation before removing a relation', async () => {
+      await service.onRelationDeleted('r1');
+
+      expect(confirmDialog.confirm).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: DEFAULT_TRANSLATIONS.confirmDialog.deleteRelationTitle,
+          message: DEFAULT_TRANSLATIONS.confirmDialog.deleteRelationMessage,
+          danger: true
+        })
+      );
+      expect(relationRemoveSpy).toHaveBeenCalledWith('r1');
+    });
+
+    it('MUST NOT remove the relation when the user cancels', async () => {
+      confirmDialog.confirm.mockResolvedValue(false);
+
+      await service.onRelationDeleted('r1');
+
+      expect(relationRemoveSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('onPropertyDeleted', () => {
+    it('MUST ask for confirmation before removing a property', async () => {
+      await service.onPropertyDeleted('p1');
+
+      expect(confirmDialog.confirm).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: DEFAULT_TRANSLATIONS.confirmDialog.deletePropertyTitle,
+          message: DEFAULT_TRANSLATIONS.confirmDialog.deletePropertyMessage,
+          danger: true
+        })
+      );
+      expect(propertyRemoveSpy).toHaveBeenCalledWith('p1');
+    });
+
+    it('MUST NOT remove the property when the user cancels', async () => {
+      confirmDialog.confirm.mockResolvedValue(false);
+
+      await service.onPropertyDeleted('p1');
+
+      expect(propertyRemoveSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('onChildPropertyDeleted', () => {
+    it('MUST use the same confirmation flow as a top-level property', async () => {
+      await service.onChildPropertyDeleted('child-1');
+
+      expect(confirmDialog.confirm).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: DEFAULT_TRANSLATIONS.confirmDialog.deletePropertyTitle,
+          message: DEFAULT_TRANSLATIONS.confirmDialog.deletePropertyMessage,
+          danger: true
+        })
+      );
+      expect(propertyRemoveSpy).toHaveBeenCalledWith('child-1');
+    });
+
+    it('MUST keep the child property when the user cancels', async () => {
+      confirmDialog.confirm.mockResolvedValue(false);
+
+      await service.onChildPropertyDeleted('child-1');
+
+      expect(propertyRemoveSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('onIndexDeleted', () => {
+    it('MUST ask for confirmation before removing an index', async () => {
+      await service.onIndexDeleted('i1');
+
+      expect(confirmDialog.confirm).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: DEFAULT_TRANSLATIONS.confirmDialog.deleteIndexTitle,
+          message: DEFAULT_TRANSLATIONS.confirmDialog.deleteIndexMessage,
+          danger: true
+        })
+      );
+      expect(indexRemoveSpy).toHaveBeenCalledWith('i1');
+    });
+
+    it('MUST NOT remove the index when the user cancels', async () => {
+      confirmDialog.confirm.mockResolvedValue(false);
+
+      await service.onIndexDeleted('i1');
+
+      expect(indexRemoveSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('onRelationCreated', () => {
+    it('MUST create a linked relation pair', async () => {
+      await service.onRelationCreated({ sourceEntityId: 'e1', targetEntityId: 'e2' });
+      expect(createLinkedPairSpy).toHaveBeenCalledWith('e1', 'e2', 'MANY_TO_ONE');
+    });
+  });
+
+  describe('onPropertyUpdated', () => {
+    it('MUST confirm SQL impact when propertyType changes', async () => {
+      await service.onPropertyUpdated({ id: 'p1', changes: { propertyType: 'number' } });
+
+      expect(confirmDialog.confirm).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: DEFAULT_TRANSLATIONS.confirmDialog.sqlImpactTitle,
+          message: DEFAULT_TRANSLATIONS.confirmDialog.sqlImpactMessage,
+          confirmText: DEFAULT_TRANSLATIONS.confirmDialog.sqlImpactConfirmButton,
+          danger: false
+        })
+      );
+      expect(propertyUpdateSpy).toHaveBeenCalledWith('p1', { propertyType: 'number' });
+    });
+
+    it('MUST NOT update when SQL impact confirm is cancelled', async () => {
+      confirmDialog.confirm.mockResolvedValue(false);
+
+      await service.onPropertyUpdated({ id: 'p1', changes: { propertyType: 'boolean' } });
+
+      expect(propertyUpdateSpy).not.toHaveBeenCalled();
+    });
+
+    it('MUST update non-type changes without SQL impact confirm', async () => {
+      await service.onPropertyUpdated({ id: 'p1', changes: { name: 'title' } });
+
+      expect(confirmDialog.confirm).not.toHaveBeenCalled();
+      expect(propertyUpdateSpy).toHaveBeenCalledWith('p1', { name: 'title' });
+    });
+  });
+
+  describe('SQL generation validation', () => {
+    beforeEach(() => {
+      entitiesSignal.set([{ id: 'e1', name: 'User', modelDesignId: 'design-1' }]);
+      validateEntityIdentitySpy.mockReturnValue({
+        valid: false,
+        errors: ['validation.entityNameAlreadyExists']
+      });
+    });
+
+    it('MUST block CREATE SQL generation for an invalid model', () => {
+      service.onGenerateSql();
+
+      expect(service.generatedFiles()).toEqual([]);
+      expect(service.generatedErrors()).toContain(
+        `User: ${DEFAULT_TRANSLATIONS.validation.entityNameAlreadyExists.replace('{name}', 'User')}`
+      );
+      expect(service.codePreviewOpen()).toBe(true);
+    });
+  });
+
+  describe('client package archive', () => {
+    it('MUST archive generated files through the host adapter and download the tgz', async () => {
+      service.generatedFiles.set([
+        { path: 'index.js', content: 'export class Post {}' },
+        { path: 'index.d.ts', content: 'export declare class Post {}' }
+      ]);
+      service.clientPackageName.set('@acme/blog-rxdb');
+
+      await service.onArchiveClientPackage();
+
+      expect(archivePackageSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ packageName: '@acme/blog-rxdb', generatedFiles: service.generatedFiles() })
+      );
+      expect(downloadBlobSpy).toHaveBeenCalledWith(expect.any(Blob), 'acme-blog-rxdb-1.0.0.tgz');
+      expect(service.clientPackageVersion()).toBe('1.0.0');
+    });
+
+    it('MUST publish generated files and expose only the confirmed version', async () => {
+      service.generatedFiles.set([
+        { path: 'index.js', content: 'export class Post {}' },
+        { path: 'index.d.ts', content: 'export declare class Post {}' }
+      ]);
+      service.clientPackageName.set('@acme/blog-rxdb');
+
+      await service.onPublishClientPackage();
+
+      expect(publishPackageSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ packageName: '@acme/blog-rxdb', generatedFiles: service.generatedFiles() })
+      );
+      expect(service.clientPackageVersion()).toBe('1.1.0');
+    });
+  });
+
+  describe('左侧导航实体操作', () => {
+    it('onAddEntity(namespace) 在指定命名空间创建实体', async () => {
+      await service.onAddEntity('shop');
+      expect(entityCreateSpy).toHaveBeenCalledWith(undefined, 'shop');
+    });
+
+    it('onAddEntity() 不带命名空间创建实体', async () => {
+      await service.onAddEntity();
+      expect(entityCreateSpy).toHaveBeenCalledWith(undefined, undefined);
+    });
+
+    it('onEntityRenamed 走 entityService.update', async () => {
+      await service.onEntityRenamed('e1', 'Post');
+      expect(entityUpdateSpy).toHaveBeenCalledWith('e1', { name: 'Post' });
+    });
+
+    it('onEntityMovedToNamespace 把实体更新到目标命名空间', async () => {
+      entitiesSignal.set([{ id: 'e1', name: 'Post', entityNamespace: 'public' }]);
+      await service.onEntityMovedToNamespace('e1', 'shop');
+      expect(entityUpdateSpy).toHaveBeenCalledWith('e1', { entityNamespace: 'shop' });
+    });
+
+    it('onEntityMovedToNamespace 目标与当前命名空间相同时跳过', async () => {
+      entitiesSignal.set([{ id: 'e1', name: 'Post', entityNamespace: null }]);
+      await service.onEntityMovedToNamespace('e1', 'public');
+      expect(entityUpdateSpy).not.toHaveBeenCalled();
+    });
+
+    it('onEntityMovedToNamespace 实体不存在时跳过', async () => {
+      await service.onEntityMovedToNamespace('missing', 'shop');
+      expect(entityUpdateSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('实体选择与画布事件', () => {
+    it('在实体存在时选择实体，不存在时清空选择', () => {
+      entitiesSignal.set([{ id: 'e1', name: 'Post' }]);
+
+      expect(service.onEntitySelected('e1')).toBe(true);
+      expect(entitySelectOneSpy).toHaveBeenCalledWith('e1');
+      expect(service.onEntitySelected('missing')).toBe(false);
+      expect(entityClearSelectionSpy).toHaveBeenCalled();
+    });
+
+    it('转发多选、清空、移动和尺寸更新事件', async () => {
+      service.onEntitySelectionToggled('e1');
+      service.onEntitySelectionChanged(['e1', 'e2']);
+      service.onSelectionCleared();
+      await service.onEntityMoved({ id: 'e1', x: 10, y: 20 });
+      await service.onEntitiesMovedBatch([{ id: 'e1', x: 10, y: 20 }]);
+      await service.onEntityResized({ id: 'e1', width: 320 });
+
+      expect(entityToggleSelectSpy).toHaveBeenCalledWith('e1');
+      expect(entitySelectManySpy).toHaveBeenCalledWith(['e1', 'e2']);
+      expect(entityClearSelectionSpy).toHaveBeenCalled();
+      expect(entityUpdatePositionSpy).toHaveBeenCalledWith('e1', 10, 20);
+      expect(entityUpdatePositionsBatchSpy).toHaveBeenCalledWith([{ id: 'e1', x: 10, y: 20 }]);
+      expect(entityUpdateWidthSpy).toHaveBeenCalledWith('e1', 320);
+    });
+
+    it('没有选中实体时跳过更新，选中后转发实体更新与批量删除', async () => {
+      await service.onEntityUpdated({ name: 'Post' });
+      expect(entityUpdateSpy).not.toHaveBeenCalled();
+
+      entitiesSignal.set([{ id: 'e1', name: 'Post' }]);
+      selectedEntityIdsSignal.set(new Set(['e1']));
+      await service.onEntityUpdated({ name: 'Article' });
+      await service.onDeleteSelectedEntities();
+
+      expect(entityUpdateSpy).toHaveBeenCalledWith('e1', { name: 'Article' });
+      expect(removeManySpy).toHaveBeenCalledWith(['e1']);
+    });
+  });
+
+  describe('属性、关系和索引事件', () => {
+    beforeEach(() => {
+      entitiesSignal.set([
+        { id: 'e1', name: 'Order' },
+        { id: 'e2', name: 'Customer' }
+      ]);
+      selectedEntityIdsSignal.set(new Set(['e1']));
+    });
+
+    it('使用显式或当前选中实体创建属性和 keyValue 子属性', async () => {
+      await service.onPropertyAdded({ entityId: 'e2', name: 'email', type: 'string' });
+      await service.onPropertyAdded({ name: 'status', type: 'string' });
+      await service.onChildPropertyAdded({
+        entityId: 'e2',
+        parentPropertyId: 'meta',
+        name: 'createdBy',
+        type: 'string'
+      });
+      await service.onChildPropertyAdded({ parentPropertyId: 'meta', name: 'updatedBy', type: 'string' });
+      await service.onChildPropertyUpdated({ id: 'child-1', changes: { name: 'owner' } });
+      await service.onPropertiesBatchUpdated([{ id: 'p1', changes: { name: 'title' } }]);
+
+      expect(propertyCreateSpy).toHaveBeenNthCalledWith(1, 'e2', 'email', 'string');
+      expect(propertyCreateSpy).toHaveBeenNthCalledWith(2, 'e1', 'status', 'string');
+      expect(propertyCreateSpy).toHaveBeenNthCalledWith(3, 'e2', 'createdBy', 'string', 'meta');
+      expect(propertyCreateSpy).toHaveBeenNthCalledWith(4, 'e1', 'updatedBy', 'string', 'meta');
+      expect(propertyUpdateSpy).toHaveBeenCalledWith('child-1', { name: 'owner' });
+      expect(propertyUpdateBatchSpy).toHaveBeenCalledWith([{ id: 'p1', changes: { name: 'title' } }]);
+    });
+
+    it('转发关系和索引的创建、更新、批量删除事件', async () => {
+      await service.onRelationCreated({ sourceEntityId: 'e1', targetEntityId: 'e2' });
+      await service.onRelationAdded({
+        entityId: 'e1',
+        name: 'customer',
+        kind: 'MANY_TO_ONE',
+        targetEntity: 'Customer'
+      });
+      await service.onRelationUpdated({ id: 'r1', changes: { name: 'buyer' } });
+      await service.onRelationsBatchUpdated([{ id: 'r1', changes: { name: 'buyer' } }]);
+      await service.onIndexesDeleteBatch(['i1', 'i2']);
+      await service.onIndexAdded({ entityId: 'e2', propertyIds: ['p1'], isUnique: true });
+      await service.onIndexUpdated({ id: 'i1', changes: { isUnique: false } });
+      await service.onIndexesBatchUpdated([{ id: 'i1', changes: { isUnique: true } }]);
+
+      expect(createLinkedPairSpy).toHaveBeenCalledWith('e1', 'e2', 'MANY_TO_ONE');
+      expect(relationCreateSpy).toHaveBeenCalledWith('e1', 'e2', 'MANY_TO_ONE');
+      expect(relationUpdateSpy).toHaveBeenCalledWith('r-new', { name: 'customer' });
+      expect(relationUpdateSpy).toHaveBeenCalledWith('r1', { name: 'buyer' });
+      expect(relationUpdateBatchSpy).toHaveBeenCalledWith([{ id: 'r1', changes: { name: 'buyer' } }]);
+      expect(indexRemoveSpy).toHaveBeenCalledWith('i1');
+      expect(indexRemoveSpy).toHaveBeenCalledWith('i2');
+      expect(indexCreateSpy).toHaveBeenCalledWith('e2', ['p1'], true);
+      expect(indexUpdateSpy).toHaveBeenCalledWith('i1', { isUnique: false });
+      expect(indexUpdateBatchSpy).toHaveBeenCalledWith([{ id: 'i1', changes: { isUnique: true } }]);
+    });
+  });
+
+  describe('生成、历史和视图状态', () => {
+    it('生成代码、SQL、ZIP，并转发历史和 viewport 事件', () => {
+      entitiesSignal.set([{ id: 'e1', name: 'Order', tableName: 'orders', extendsBase: 'EntityBase' }]);
+      service.onGenerate();
+      expect(toAllMetadataOptionsSpy).toHaveBeenCalled();
+      expect(codeGenerateSpy).toHaveBeenCalledWith([]);
+      expect(service.generatedFiles()).toEqual([{ path: 'index.ts', content: 'export class Blog {}' }]);
+      expect(service.codePreviewOpen()).toBe(true);
+
+      service.onGenerateSql();
+      expect(service.generatedFiles()[0]?.path).toBe('Blog.sql');
+      service.onDownloadZip();
+      expect(downloadZipSpy).toHaveBeenCalledWith(service.generatedFiles(), 'Blog');
+
+      service.onUndo();
+      service.onRedo();
+      service.onViewportChanged({ zoom: 1.25, panX: 10, panY: 20 });
+      service.toggleInteractionMode('select');
+      service.toggleInteractionMode('move');
+
+      expect(historyUndoSpy).toHaveBeenCalled();
+      expect(historyRedoSpy).toHaveBeenCalled();
+      expect(service.viewport()).toEqual({ zoom: 1.25, panX: 10, panY: 20 });
+      expect(service.interactionMode()).toBe('move');
+      expect(entityClearSelectionSpy).toHaveBeenCalled();
+    });
+
+    it('客户端包归档或发布失败时保留错误并释放 busy 状态', async () => {
+      archivePackageSpy.mockRejectedValueOnce('archive unavailable');
+      publishPackageSpy.mockRejectedValueOnce(new Error('publish unavailable'));
+
+      await service.onArchiveClientPackage();
+      expect(service.lastError()).toContain('archive unavailable');
+      expect(service.clientPackageBusy()).toBe(false);
+
+      await service.onPublishClientPackage();
+      expect(service.lastError()).toContain('publish unavailable');
+      expect(service.clientPackageBusy()).toBe(false);
+
+      archivePackageSpy.mockRejectedValueOnce(new Error('archive error object'));
+      publishPackageSpy.mockRejectedValueOnce('publish error string');
+      await service.onArchiveClientPackage();
+      await service.onPublishClientPackage();
+      expect(service.lastError()).toContain('publish error string');
+      expect(service.clientPackageBusy()).toBe(false);
+    });
+  });
+});
+
+describe('DesignerStateService — 空目标、可选数据和计算状态', () => {
+  let service: DesignerStateService;
+  let entityCreateSpy: ReturnType<typeof vi.fn>;
+  let propertyCreateSpy: ReturnType<typeof vi.fn>;
+  let relationCreateSpy: ReturnType<typeof vi.fn>;
+  let relationUpdateSpy: ReturnType<typeof vi.fn>;
+  let indexCreateSpy: ReturnType<typeof vi.fn>;
+  let entitiesSignal: WritableSignal<unknown[]>;
+  let selectedEntityIdsSignal: WritableSignal<Set<string>>;
+  let activeDesignSignal: WritableSignal<{ name: string; description?: string | null } | null>;
+  let modelQueryError: WritableSignal<string | null>;
+  let entityQueryError: WritableSignal<string | null>;
+  let propertyQueryError: WritableSignal<string | null>;
+  let relationQueryError: WritableSignal<string | null>;
+  let indexQueryError: WritableSignal<string | null>;
+
+  beforeEach(() => {
+    entityCreateSpy = vi.fn().mockResolvedValue({ id: 'new-entity' });
+    propertyCreateSpy = vi.fn().mockResolvedValue(undefined);
+    relationCreateSpy = vi.fn().mockResolvedValue({ id: 'r-new', name: 'createdRelation' });
+    relationUpdateSpy = vi.fn().mockResolvedValue(undefined);
+    indexCreateSpy = vi.fn().mockResolvedValue(undefined);
+    entitiesSignal = signal<unknown[]>([]);
+    selectedEntityIdsSignal = signal(new Set<string>());
+    activeDesignSignal = signal<{ name: string; description?: string | null } | null>({
+      name: 'Blog',
+      description: 'Blog model'
+    });
+    modelQueryError = signal<string | null>(null);
+    entityQueryError = signal<string | null>(null);
+    propertyQueryError = signal<string | null>(null);
+    relationQueryError = signal<string | null>(null);
+    indexQueryError = signal<string | null>(null);
+
+    TestBed.configureTestingModule({
+      providers: [
+        DesignerStateService,
+        {
+          provide: ConfirmDialogService,
+          useValue: { confirm: vi.fn().mockResolvedValue(true) }
+        },
+        {
+          provide: DesignEntityService,
+          useValue: {
+            entities: entitiesSignal,
+            selectedEntityIds: selectedEntityIdsSignal,
+            create: entityCreateSpy,
+            update: vi.fn().mockResolvedValue(undefined),
+            removeMany: vi.fn().mockResolvedValue(undefined),
+            clearSelection: vi.fn(),
+            selectOne: vi.fn(),
+            toggleSelect: vi.fn(),
+            selectMany: vi.fn(),
+            updatePosition: vi.fn().mockResolvedValue(undefined),
+            updatePositionsBatch: vi.fn().mockResolvedValue(undefined),
+            updateWidth: vi.fn().mockResolvedValue(undefined),
+            queryError: entityQueryError
+          }
+        },
+        {
+          provide: DesignRelationService,
+          useValue: {
+            allRelations: signal([]),
+            relationsOf: () => () => [],
+            remove: vi.fn().mockResolvedValue(undefined),
+            createLinkedPair: vi.fn().mockResolvedValue({ source: { id: 'r1' }, inverse: { id: 'r2' } }),
+            findByTargetEntity: vi.fn().mockReturnValue([]),
+            create: relationCreateSpy,
+            update: relationUpdateSpy,
+            updateBatch: vi.fn().mockResolvedValue(undefined),
+            queryError: relationQueryError
+          }
+        },
+        {
+          provide: DesignPropertyService,
+          useValue: {
+            propertiesOf: () => () => [],
+            childPropertiesOf: () => () => [],
+            create: propertyCreateSpy,
+            update: vi.fn().mockResolvedValue(undefined),
+            updateBatch: vi.fn().mockResolvedValue(undefined),
+            remove: vi.fn().mockResolvedValue(undefined),
+            queryError: propertyQueryError
+          }
+        },
+        {
+          provide: DesignIndexService,
+          useValue: {
+            indexesOf: () => () => [],
+            remove: vi.fn().mockResolvedValue(undefined),
+            create: indexCreateSpy,
+            update: vi.fn().mockResolvedValue(undefined),
+            updateBatch: vi.fn().mockResolvedValue(undefined),
+            queryError: indexQueryError
+          }
+        },
+        {
+          provide: CodeGeneratorService,
+          useValue: {
+            toClientDesignContract: vi.fn(() => ({ entities: [], metadata: { designName: 'Blog' } })),
+            toAllMetadataOptions: vi.fn(() => []),
+            generate: vi.fn(() => ({ files: [], errors: [] })),
+            downloadBlob: vi.fn(),
+            downloadZip: vi.fn()
+          }
+        },
+        {
+          provide: CLIENT_PACKAGE_ADAPTER,
+          useValue: {
+            archive: vi.fn().mockResolvedValue({
+              blob: new Blob(['tgz']),
+              version: '1.0.0',
+              filename: 'model.tgz'
+            }),
+            publish: vi.fn().mockResolvedValue({ version: '1.0.0' })
+          }
+        },
+        {
+          provide: ModelValidatorService,
+          useValue: {
+            validateModel: vi.fn(() => ({
+              valid: true,
+              entityErrors: new Map(),
+              propertyErrors: new Map(),
+              relationErrors: new Map(),
+              globalErrors: []
+            })),
+            validateEntityIdentity: vi.fn().mockReturnValue({ valid: true, errors: [] })
+          }
+        },
+        { provide: AiOperationGuardService, useValue: {} },
+        {
+          provide: ModelDesignService,
+          useValue: {
+            activeDesign: () => activeDesignSignal(),
+            activeDesignId: () => 'design-1',
+            queryError: modelQueryError
+          }
+        },
+        {
+          provide: RxDB,
+          useValue: {
+            versionManager: {
+              history: () => ({ undoCount$: of(0), redoCount$: of(0), undo: vi.fn(), redo: vi.fn() })
+            }
+          }
+        }
+      ]
+    });
+
+    service = TestBed.inject(DesignerStateService);
+  });
+
+  afterEach(() => {
+    TestBed.resetTestingModule();
+  });
+
+  it('covers empty targets and relation target/name branches', async () => {
+    await service.onPropertyAdded({ name: 'title', type: 'string' });
+    await service.onChildPropertyAdded({ parentPropertyId: 'meta', name: 'owner', type: 'string' });
+    await service.onRelationAdded({ name: 'ignored', kind: 'MANY_TO_ONE', targetEntity: '' });
+    await service.onIndexAdded({ propertyIds: ['p1'], isUnique: false });
+
+    expect(propertyCreateSpy).not.toHaveBeenCalled();
+    expect(relationCreateSpy).not.toHaveBeenCalled();
+    expect(indexCreateSpy).not.toHaveBeenCalled();
+
+    entitiesSignal.set([
+      { id: 'e1', name: 'Order' },
+      { id: 'e2', name: 'Customer' }
+    ]);
+    selectedEntityIdsSignal.set(new Set(['e1']));
+
+    await service.onRelationAdded({ name: 'createdRelation', kind: 'MANY_TO_ONE', targetEntity: '' });
+    await service.onRelationAdded({ name: 'buyer', kind: 'MANY_TO_ONE', targetEntity: 'Missing' });
+
+    expect(relationCreateSpy).toHaveBeenNthCalledWith(1, 'e1', null, 'MANY_TO_ONE');
+    expect(relationCreateSpy).toHaveBeenNthCalledWith(2, 'e1', null, 'MANY_TO_ONE');
+    expect(relationUpdateSpy).toHaveBeenCalledWith('r-new', { name: 'buyer' });
+  });
+
+  it('covers service errors and computed selection/package states', async () => {
+    entityCreateSpy.mockRejectedValueOnce(new Error('create failed'));
+    await service.onAddEntity('shop');
+    expect(service.lastError()).toBe('Create entity failed: create failed');
+
+    expect(service.selectedEntityId()).toBeNull();
+    expect(service.selectedEntityProperties()).toEqual([]);
+    expect(service.selectedEntityRelations()).toEqual([]);
+    expect(service.selectedEntityIndexes()).toEqual([]);
+
+    entitiesSignal.set([{ id: 'e1', name: 'Order' }]);
+    selectedEntityIdsSignal.set(new Set(['e1']));
+    expect(service.selectedEntityId()).toBe('e1');
+    expect(service.selectedEntityProperties()).toEqual([]);
+    expect(service.selectedEntityRelations()).toEqual([]);
+    expect(service.selectedEntityIndexes()).toEqual([]);
+  });
+
+  it('covers client package availability predicates and fallback design metadata', async () => {
+    expect(service.canArchiveClientPackage()).toBe(false);
+    service.generatedFiles.set([{ path: 'index.js', content: '' }]);
+    expect(service.canArchiveClientPackage()).toBe(false);
+    service.generatedFiles.set([
+      { path: 'index.js', content: '' },
+      { path: 'index.d.ts', content: '' }
+    ]);
+    expect(service.canArchiveClientPackage()).toBe(true);
+    service.clientPackageBusy.set(true);
+    expect(service.canPublishClientPackage()).toBe(false);
+    service.clientPackageBusy.set(false);
+
+    activeDesignSignal.set(null);
+    expect(service.activeDesignName()).toBe('');
+    expect(service.clientPackageName()).toBe('@aiao/model-rxdb');
+    await service.onArchiveClientPackage();
+    service.onGenerateSql();
+    expect(service.generatedFiles()[0]?.path).toBe('model.sql');
+    service.generatedFiles.set([]);
+    service.onDownloadZip();
+
+    activeDesignSignal.set({ name: '', description: null });
+    service.generatedFiles.set([{ path: 'index.js', content: '' }]);
+    service.onDownloadZip();
+    expect(service.generatedFiles()).toHaveLength(1);
+  });
+
+  it('covers query error precedence and dismissibility', () => {
+    expect(service.bannerError()).toBeNull();
+    expect(service.bannerDismissible()).toBe(true);
+
+    service.lastError.set('operation failed');
+    expect(service.bannerError()).toBe('operation failed');
+
+    const errors = [modelQueryError, entityQueryError, propertyQueryError, relationQueryError, indexQueryError];
+    for (const [index, error] of errors.entries()) {
+      error.set(`query-${index}`);
+      expect(service.queryError()).toBe(`query-${index}`);
+      expect(service.bannerError()).toBe(`query-${index}`);
+      expect(service.bannerDismissible()).toBe(false);
+      error.set(null);
+    }
+  });
+
+  it('covers keyValue maps and SQL index propertyId fallbacks', () => {
+    const propertyService = service.propertyService as unknown as {
+      propertiesOf: (id: string) => () => Array<{ id: string; propertyType: string }>;
+      childPropertiesOf: (id: string) => () => Array<unknown>;
+    };
+    propertyService.propertiesOf = (id: string) => () =>
+      id === 'e1' ?
+        [
+          { id: 'key-value', name: 'metadata', propertyType: 'keyValue' },
+          { id: 'title', name: 'title', propertyType: 'string' }
+        ]
+      : [];
+    propertyService.childPropertiesOf = () => () => [];
+    entitiesSignal.set([{ id: 'e1', name: 'Order' }]);
+    expect(service.childPropertiesMap().has('key-value')).toBe(true);
+
+    const indexService = service.indexService as unknown as {
+      indexesOf: (id: string) => () => Array<{ id: string; propertyIds?: string[] }>;
+    };
+    indexService.indexesOf = () => () => [
+      { id: 'i1', propertyIds: undefined },
+      { id: 'i2', propertyIds: ['title'] }
+    ];
+    service.onGenerateSql();
+    expect(service.generatedFiles()[0]?.path).toBe('Blog.sql');
+  });
+});

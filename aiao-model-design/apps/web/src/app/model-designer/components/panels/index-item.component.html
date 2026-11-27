@@ -1,0 +1,115 @@
+<div
+  class="rounded px-2 py-1.5"
+  [ngClass]="isDuplicate() || isEmpty() ? 'bg-error/10 border-error/30 border' : 'bg-base-200'"
+>
+  <div class="flex items-center gap-1">
+    <button
+      class="btn btn-ghost btn-xs text-base-content/30 cursor-grab px-0.5 active:cursor-grabbing"
+      [attr.aria-label]="t().entityPanel.dragToReorder"
+      cdkDragHandle
+      type="button"
+    >
+      <lucide-icon class="h-3.5 w-3.5" [img]="GripVertical" />
+    </button>
+    <button
+      class="btn btn-ghost btn-xs btn-square"
+      [attr.aria-expanded]="expanded()"
+      [attr.aria-label]="expanded() ? t().entityPanel.collapseDetails : t().entityPanel.expandDetails"
+      (click)="toggleDetails()"
+      type="button"
+    >
+      <lucide-icon
+        class="h-3.5 w-3.5 transition-transform duration-150"
+        [class.rotate-90]="expanded()"
+        [img]="ChevronRight"
+      />
+    </button>
+    <span class="min-w-0 flex-1 truncate text-xs">
+      @if (index().displayName) {
+        <span class="font-medium">{{ index().displayName }}</span>
+        <span class="text-base-content/40 ml-1">{{ formatPropertyNames() }}</span>
+      } @else {
+        {{ formatPropertyNames() }}
+      }
+    </span>
+    @if (index().isUnique) {
+      <span class="badge badge-xs badge-info">{{ t().indexPanel.unique }}</span>
+    }
+    <button
+      class="btn btn-ghost btn-xs btn-square text-error"
+      [attr.aria-label]="t().indexPanel.ariaDeleteIndex"
+      (click)="deleted.emit()"
+      type="button"
+    >
+      <lucide-icon class="h-3.5 w-3.5" [img]="Trash2" />
+    </button>
+  </div>
+  @if (expanded()) {
+    <div class="mt-1">
+      <span class="text-base-content/60 text-xs">{{ t().indexPanel.properties }}</span>
+      <span class="badge badge-ghost badge-xs ml-1">{{ index().propertyIds.length }}</span>
+      @if (availableProperties().length > 8) {
+        <input
+          class="input input-xs input-bordered mt-0.5 w-full"
+          [attr.aria-label]="t().indexPanel.searchProperties"
+          [placeholder]="t().indexPanel.searchProperties"
+          (input)="onSearchInput($event)"
+          (keydown.escape)="clearSearch($event)"
+          data-testid="index-property-search"
+          type="search"
+        />
+      }
+      <div class="mt-0.5 flex max-h-28 flex-wrap gap-1 overflow-y-auto" data-testid="index-property-options">
+        @for (prop of filteredProperties(); track prop.id) {
+          <label class="bg-base-100 flex cursor-pointer items-center gap-0.5 rounded px-1 py-0.5 text-xs">
+            <input
+              class="checkbox checkbox-xs"
+              [checked]="isPropertySelected(prop.id)"
+              (change)="toggleProperty(prop.id)"
+              type="checkbox"
+            />
+            {{ prop.name }}
+          </label>
+        }
+        @if (filteredProperties().length === 0) {
+          <span class="text-base-content/40 text-xs">{{ t().indexPanel.noMatch }}</span>
+        }
+      </div>
+      @if (isDuplicate()) {
+        <div class="text-error mt-0.5 text-xs">{{ t().validation.indexDuplicatePropertyCombination }}</div>
+      }
+      @if (isEmpty()) {
+        <div class="text-error mt-0.5 text-xs">{{ t().validation.indexEmptyPropertyCombination }}</div>
+      }
+    </div>
+    <div class="mt-1 flex flex-wrap gap-2 text-xs">
+      <label class="flex cursor-pointer items-center gap-0.5">
+        <input
+          class="checkbox checkbox-xs"
+          [formField]="indexForm.isUnique"
+          (change)="emitFormChanges()"
+          type="checkbox"
+        />
+        {{ t().indexPanel.uniqueCheckbox }}
+      </label>
+    </div>
+    <div class="mt-1">
+      <span class="text-base-content/60 text-xs">{{ t().indexPanel.displayName }}</span>
+      <input
+        class="input input-xs input-bordered w-full"
+        [formField]="indexForm.displayName"
+        [placeholder]="t().indexPanel.displayName"
+        (blur)="emitFormChanges()"
+        (keydown.enter)="emitFormChanges()"
+        autocomplete="off"
+      />
+    </div>
+  } @else {
+    @if (isDuplicate()) {
+      <div class="text-error mt-0.5 text-xs">{{ t().validation.indexDuplicatePropertyCombination }}</div>
+    }
+    @if (isEmpty()) {
+      <div class="text-error mt-0.5 text-xs">{{ t().validation.indexEmptyPropertyCombination }}</div>
+    }
+  }
+</div>

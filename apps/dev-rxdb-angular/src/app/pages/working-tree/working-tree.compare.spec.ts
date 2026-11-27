@@ -1,5 +1,5 @@
 import { RxDB, WorktreeTableSet } from '@aiao/rxdb';
-import type { Worktree } from '@aiao/rxdb-plugin-working-tree';
+import type { CommitLogEntry, CommitLogPage, WorkingTreeQueryState, Worktree } from '@aiao/rxdb-plugin-working-tree';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import WorkingTreePage from './working-tree.page';
@@ -31,20 +31,36 @@ const harness = vi.hoisted(() => {
     ]
   });
   const compareBranches = vi.fn<() => Promise<ReturnType<typeof comparison>>>();
+  const commitEntry: CommitLogEntry = {
+    commitId: 'commit-menu-base',
+    parentIds: [],
+    firstParentId: null,
+    kind: 'normal',
+    message: '菜单打开时的提交',
+    authorId: 'author',
+    createdAt: new Date('2026-11-14T00:00:00Z'),
+    changeSetCount: 1
+  };
+  const history: { state: WorkingTreeQueryState<CommitLogPage> } = {
+    state: { phase: 'empty', value: { branchId: 'main', headCommitId: null, entries: [] } }
+  };
   const tree = {
     isEnabledState: () => ({ phase: 'success', value: true }),
     statusState: () => ({ phase: 'success', value: status }),
     diffState: () => ({ phase: 'empty', value: { entries: [] } }),
-    listCommitsState: () => ({ phase: 'empty', value: { entries: [] } }),
+    listCommitsState: () => history.state,
     isEnabled: vi.fn(async () => true),
     status: vi.fn(async () => status),
     diff: vi.fn(async () => ({ entries: [] })),
     listCommits: vi.fn(async () => ({ entries: [] })),
+    checkBranchFromCommit: vi.fn(async () => ({ ok: true })),
     discard: vi.fn(async () => undefined),
     commit: vi.fn(async () => ({ ok: true }))
   };
   return {
     tree,
+    history,
+    commitEntry,
     comparison,
     compareBranches,
     mountWorktree: vi.fn(async () => undefined),
@@ -71,6 +87,7 @@ vi.mock('@aiao/rxdb-plugin-working-tree-angular', () => ({
 
 beforeEach(async () => {
   vi.clearAllMocks();
+  harness.history.state = { phase: 'empty', value: { branchId: 'main', headCommitId: null, entries: [] } };
   harness.tree.status.mockResolvedValue(harness.tree.statusState().value);
   harness.compareBranches.mockResolvedValue(harness.comparison('dirty'));
   await TestBed.configureTestingModule({
@@ -160,5 +177,23 @@ describe('WorkingTreePage 的分支对比刷新', () => {
 
     expect(page.$historyCompare()).toBeNull();
     expect(harness.compareBranches).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('WorkingTreePage 的历史菜单快照', () => {
+  it('菜单打开后历史进入重读，仍从原提交打开新建分支对话框', async () => {
+    const fixture = TestBed.createComponent(WorkingTreePage);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const page = fixture.componentInstance;
+    page.openCommitContextMenu({ target: harness.commitEntry, event: new MouseEvent('contextmenu') });
+    harness.history.state = { phase: 'loading' };
+    page.handleContextMenuSelect({ id: 'create-branch', label: 'Create branch from commit' });
+    await Promise.resolve();
+    expect(page.$createBranchDialog()?.base).toEqual({
+      commitId: harness.commitEntry.commitId,
+      summary: harness.commitEntry.message
+    });
+    expect(harness.tree.checkBranchFromCommit).toHaveBeenCalledExactlyOnceWith(harness.commitEntry.commitId);
   });
 });

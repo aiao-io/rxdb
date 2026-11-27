@@ -1,0 +1,34 @@
+{
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "name": "aiao-model-design-agent",
+  "projectType": "application",
+  "sourceRoot": "aiao-model-design/apps/agent/src",
+  "tags": ["scope:model-design", "type:app", "layer:server"],
+  "targets": {
+    "typecheck": {
+      "cache": true,
+      "executor": "nx:run-commands",
+      "inputs": ["default", "^default"],
+      "options": {
+        "command": "tsc --project aiao-model-design/apps/agent/tsconfig.json --noEmit"
+      },
+      "dependsOn": ["^typecheck"]
+    },
+    "dev": {
+      "continuous": true,
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "aiao-model-design/apps/agent",
+        "command": "trigger dev start --env-file .env.agent"
+      }
+    },
+    "deploy": {
+      "dependsOn": ["test", "typecheck"],
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "aiao-model-design/apps/agent",
+        "command": "trigger deploy"
+      }
+    }
+  }
+}

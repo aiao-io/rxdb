@@ -1,0 +1,45 @@
+---
+id: MEDIA-EPIC-002
+status: In Progress
+startDate: 2026-09-26
+targetDate: TBD
+owner: TBD
+---
+
+# 媒体生成
+
+## 愿景
+
+让登录用户以平台积分生成图片、语音、音乐和视频媒体资产，或将音频识别为文本（模型与凭据由平台统一托管），结果原样保存到本机 RxDB/OPFS；未登录保留本地草稿、灵感浏览与本机作品。
+
+## 目标
+
+- [ ] 平台积分生图与额度（[MEDIA-US-108](../stories/generation/MEDIA-US-108-platform-generation.md)）
+- [ ] 平台生图服务端任务与刷新续接（[MEDIA-US-109](../stories/generation/MEDIA-US-109-relay-durable-task.md)）
+- [ ] 图片生成与本机交付：提示词 → 单张 PNG/JPEG → 本地保存与下载（[MEDIA-US-102](../stories/generation/MEDIA-US-102-image-generation.md)）
+- [ ] 图片提示词灵感库与一键套用（[MEDIA-US-106](../stories/generation/MEDIA-US-106-prompt-gallery.md)）
+
+- [ ] PGMQ 生成任务队列 PoC（不改变当前 Durable Object 生产链路，[MEDIA-US-110](../stories/generation/MEDIA-US-110-pgmq-task-queue-poc.md)）
+- [ ] 移动设备验收（暂缓，不阻断当前桌面工作，[MEDIA-US-107](../stories/generation/MEDIA-US-107-mobile-verification.md)）
+- [ ] TTS、ASR、音乐与视频生成（[MEDIA-US-111](../stories/generation/MEDIA-US-111-multimodal-generation.md)）
+
+## 故事
+
+> 只列范围；状态以 story YAML 为准，汇总见 [状态概览](../status-overview.md)。
+
+- [MEDIA-US-108 平台积分生图与额度](../stories/generation/MEDIA-US-108-platform-generation.md) (High)
+- [MEDIA-US-109 平台生图服务端任务与刷新续接](../stories/generation/MEDIA-US-109-relay-durable-task.md) (High)
+- [MEDIA-US-102 图片生成与本机交付](../stories/generation/MEDIA-US-102-image-generation.md) (High)
+- [MEDIA-US-106 图片提示词灵感库与一键套用](../stories/generation/MEDIA-US-106-prompt-gallery.md) (Medium)
+- [MEDIA-US-110 PGMQ 生成任务队列 PoC](../stories/generation/MEDIA-US-110-pgmq-task-queue-poc.md) (Medium)
+- [MEDIA-US-107 移动设备能力验收](../stories/generation/MEDIA-US-107-mobile-verification.md) (Low，暂缓)
+- [MEDIA-US-111 TTS、ASR 与音乐/视频生成](../stories/generation/MEDIA-US-111-multimodal-generation.md) (High)
+
+## 非目标
+
+- 用户自配供应商、浏览器直连与用户自有 Key（[D-19](../decisions.md#d-19登录用户经平台积分生图移除用户自配供应商) 已移除；模型由平台统一托管）。
+- 图生图/参考图（本轮仍暂停）。
+
+## 进展
+
+按 [D-19](../decisions.md#d-19登录用户经平台积分生图移除用户自配供应商)，平台积分生图重新纳入当前范围：MEDIA-US-108/206 已完成海外与国内真实发放/回收、三画幅与原字节交付，全部 AC 已验并进入 In Review；109 的真实刷新、关页后完成五分钟续接及 R2 领取即删已验，2026-11-15 真实实例重置与加密 CPU、2026-11-16 真实 24 小时期满回收已验，10/12 AC 通过，继续验双标签页与桌面来源；102 收缩为本机交付、全部 AC 已验（In Review）；106 的 AC7 真实系统中文 IME 已于 2026-11-14 通过，全部 AC 已验并进入 In Review；107 移动验收继续暂缓；111 已完成 TTS、ASR、音乐和视频的本地与 fixture 链路，进入 In Review，正式 provider 验收待外部账号与 release 资料。逐条进展与关闭条件见[状态概览](../status-overview.md#未完成验收与关闭条件)。
