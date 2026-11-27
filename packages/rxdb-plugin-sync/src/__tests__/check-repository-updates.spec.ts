@@ -467,7 +467,13 @@ describe('checkRepositoryUpdates：按区同步的实体', () => {
     remote: { ...REMOTE_ADAPTER, filter: () => ACTIVE }
   } as SyncOptions);
 
-  const progress = (fingerprint: string, cursor: number, bucket = 'public'): RxDBSyncBucketProgress =>
+  /** 一行分区进度；缺省属于替身远端此刻的身份 `backend-a` */
+  const progress = (
+    fingerprint: string,
+    cursor: number,
+    bucket = 'public',
+    remoteBackendId = 'backend-a'
+  ): RxDBSyncBucketProgress =>
     Object.assign(Object.create(RxDBSyncBucketProgress.prototype) as RxDBSyncBucketProgress, {
       namespace: 'public',
       entity: 'CheckBucketed',
@@ -475,7 +481,8 @@ describe('checkRepositoryUpdates：按区同步的实体', () => {
       bucket,
       filterFingerprint: fingerprint,
       cursor,
-      snapshotComplete: true
+      snapshotComplete: true,
+      remoteBackendId
     });
 
   const createBucketedHarness = (
@@ -526,6 +533,21 @@ describe('checkRepositoryUpdates：按区同步的实体', () => {
     Object.assign(syncManager, { rxdb });
     return { rxdb, remoteAdapter };
   };
+
+  // 分支深度评审 #6：换了远端，旧远端的进度行因为清理被挡（RxDBBucketCleanupBlockedError）留着。pull() 认得出它属于
+  // 别的远端、会从头重拉；状态查询拿它的大游标去比，就会报「已全部同步」
+  it('换了远端、旧远端的进度行还留着：只按当前远端的进度算，与 pull() 同口径（没有进度就要补快照）', async () => {
+    const current = filterFingerprint(ACTIVE);
+    const harness = createBucketedHarness([progress(current, 50, 'public', 'backend-old')], 10);
+
+    await expect(checkRepositoryUpdates(harness.rxdb, 'public', 'CheckBucketed')).resolves.toEqual({
+      repository: { namespace: 'public', entity: 'CheckBucketed' },
+      remoteLatestChangeId: 10,
+      localLastPullRemoteChangeId: null,
+      pendingCount: 1,
+      hasUpdates: true
+    });
+  });
 
   it('同步规则改过、旧指纹的进度还没清：只按 pull() 会用的那份规则的进度算', async () => {
     const current = filterFingerprint(ACTIVE);

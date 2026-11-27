@@ -289,6 +289,44 @@ describe('外键成环的拉取落在 PGlite 上（US-038）', () => {
   });
 });
 
+// 分支深度评审 #3：批量拉取只写能拉且同步开着的仓库。环上有同步关着的成员时，续拉把它的行补进这一轮、判定闭合，
+// 落库却只写可拉的成员，延迟外键在提交时失败，整批回滚（连环外的仓库也一起）；下一次拉取重演同一序列
+describe('环上有同步关着的成员（评审 #3）', () => {
+  it('pull() 让这一环以 pull-unsupported-member 失败，环外的仓库照常拉，不再整批回滚', async () => {
+    const script = newScript(applied);
+    const database = await createDatabase(script, [CycleCard, CycleUser, CycleNote]);
+    await database.syncManager.pull({ fetchAll: true });
+    const adapter = await database.getAdapter('pglite');
+    const records = await adapter.getRepository(RxDBSync).find({ where: { combinator: 'and', rules: [] } });
+    const card = records.find(record => record.entity === 'CycleCard');
+    if (!card) throw new Error('CycleCard 没有同步记录');
+    await adapter.getRepository(RxDBSync).update(card, { enabled: false });
+
+    const userId = crypto.randomUUID();
+    const cardId = crypto.randomUUID();
+    const noteId = crypto.randomUUID();
+    script.log.push(
+      remoteInsert(1, 'CycleUser', { id: userId, name: 'u', cardId }),
+      remoteInsert(2, 'CycleCard', { id: cardId, code: 'c', ownerId: userId }),
+      remoteInsert(3, 'CycleNote', { id: noteId, title: 'n' })
+    );
+
+    const result = await database.syncManager.pull({ fetchAll: true });
+
+    expect(
+      result.failures.map(failure => [failure.repository?.entity, (failure.error as { reason?: string }).reason])
+    ).toEqual(
+      expect.arrayContaining([
+        ['CycleUser', 'pull-unsupported-member'],
+        ['CycleCard', 'pull-unsupported-member']
+      ])
+    );
+    const notes = await adapter.getRepository(CycleNote).find({ where: { combinator: 'and', rules: [] } });
+    expect(notes.map(note => note.id)).toEqual([noteId]);
+    expect(await localIds(database)).toEqual({ users: [], cards: [] });
+  });
+});
+
 describe('注册 shop 夹具全部实体（US-038 AC#1）', () => {
   it('AC#1：push() 与 pull() 都不抛 Circular dependency，没有变更的仓库正常返回', async () => {
     const database = await createDatabase(newScript(applied), ShopEntities);

@@ -955,9 +955,10 @@ export class HistoryManager {
   async #fetchPushableHistories(): Promise<HistoryItem[]> {
     const where = await buildPendingPushWhere(this.rxdb);
     if (!where) return [];
-    // 与计数同一个仓库、同一个条件（见 `updatePushableCount`），只是取行而不是数
+    // 与计数同一个仓库、同一个条件（见 `updatePushableCount`），只是取行而不是数。用 findAll：find 不传 limit 时
+    // 核心仓储按 100 截断，待推超过 100 项时清单就只剩最新的 100 项，与待推数对不上
     const changeRepository = this.rxdb.entityManager.getRepository(RxDBChange);
-    const changes = await firstValueFrom(changeRepository.find({ where, orderBy: [{ field: 'id', sort: 'desc' }] }));
+    const changes = await firstValueFrom(changeRepository.findAll({ where, orderBy: [{ field: 'id', sort: 'desc' }] }));
     // 计数按 transactionId 分组，这里只合并相邻的同事务行：两边一致的前提是同一事务的行 id 连号。
     // 本地写入一次一个事务、自增 id，一个事务的变更一次写完，倒序读出来同一事务的行必然挨在一起
     return convertChangesToHistories(changes);

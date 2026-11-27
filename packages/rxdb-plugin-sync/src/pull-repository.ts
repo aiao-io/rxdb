@@ -52,6 +52,7 @@ import {
   queryPendingLocalChanges,
   resolveConflictsAndBuildActions
 } from './pull-conflict-utils.js';
+import { cycleMemberPullDetail } from './pull-cycle.js';
 import { backfillOwnChangeRemoteIds, splitRemoteChangesByOrigin } from './pull-round.js';
 import { instantiateSyncRecord } from './remote-backend.js';
 import type { ScopedSyncAdapter } from './scoped-sync.js';
@@ -388,12 +389,7 @@ async function pullCycleUnit(
   const unsupported = await findUnsupportedCycleMember(sm, unit.members);
   if (unsupported) {
     return unit.members.map(repo => {
-      const error = new RxDBForeignKeyCycleError(
-        repo,
-        unit.cycle,
-        'pull-unsupported-member',
-        `${repositoryKey(unsupported)} is synced by filter or by bucket`
-      );
+      const error = new RxDBForeignKeyCycleError(repo, unit.cycle, 'pull-unsupported-member', unsupported.detail);
       return {
         ...emptyRepositoryProgress(),
         repository: repo,
@@ -418,10 +414,13 @@ async function pullCycleUnit(
       : { ...emptyRepositoryProgress(), repository: repo, success: true }
     );
   } catch (error) {
+    // fetchAll 后一轮失败时前几轮已经落库、水位线已推进（`RxDBPartialSyncError` 带着这段进度）：与成功时一样记在
+    // 目标仓库上。铺成空进度，SyncManager 就判定历史没有失效、不推进撤销边界，撤销会与已落库的远端数据分叉
     const normalized = error instanceof Error ? error : new Error(String(error));
     const cause = normalized instanceof RxDBPartialSyncError ? normalized.cause : normalized;
+    const committed = partialRepositoryProgressOf(normalized) ?? emptyRepositoryProgress();
     return unit.members.map(repo => ({
-      ...emptyRepositoryProgress(),
+      ...(repositoryKey(repo) === owner ? committed : emptyRepositoryProgress()),
       repository: repo,
       success: false,
       error: cause,
@@ -431,26 +430,30 @@ async function pullCycleUnit(
 }
 
 /**
- * 环上按条件（`Filter`）或按授权分区同步的成员：拉取补不齐这样的环（US-038）
+ * 级联拉取的外键环里第一个让环补不齐的成员与原因（US-038）
  *
- * @returns 第一个这样的成员；都不是时为 `undefined`
+ * @param sm - 同步管理器
+ * @param members - 环成员
+ * @returns 补不齐的成员与原因（见 {@link cycleMemberPullDetail}）；都补得齐时为 `undefined`
+ *
+ * @remarks
+ * 先判本地就能定的（按条件同步、不能拉取、同步关着），再问远端哪些仓库按授权分区同步。
  */
 export async function findUnsupportedCycleMember(
   sm: SyncManager,
   members: readonly RepositoryIdentifier[]
-): Promise<RepositoryIdentifier | undefined> {
-  for (const repo of members) {
-    const EntityType = sm.rxdb.config.entities.find(entity => {
-      const metadata = getEntityMetadata(entity);
-      return metadata.namespace === repo.namespace && metadata.name === repo.entity;
-    });
-    if (EntityType && getSyncType(getEntityMetadata(EntityType), sm.rxdb.entitySync) === 'filter') return repo;
+): Promise<{ member: RepositoryIdentifier; detail: string } | undefined> {
+  for (const member of members) {
+    const detail = await cycleMemberPullDetail(sm.rxdb, member, false);
+    if (detail !== undefined) return { member, detail };
   }
   const { adapter: remoteAdapter } = await sm.getRemoteRepositories();
   const scoped = remoteAdapter as unknown as Partial<ScopedSyncAdapter>;
   if (typeof scoped.getEntitySyncInfo !== 'function') return undefined;
-  for (const repo of members) {
-    if ((await scoped.getEntitySyncInfo(repo.namespace, repo.entity)).bucketed) return repo;
+  for (const member of members) {
+    if (!(await scoped.getEntitySyncInfo(member.namespace, member.entity)).bucketed) continue;
+    const detail = await cycleMemberPullDetail(sm.rxdb, member, true);
+    if (detail !== undefined) return { member, detail };
   }
   return undefined;
 }

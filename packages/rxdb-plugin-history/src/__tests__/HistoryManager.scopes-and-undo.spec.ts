@@ -266,19 +266,26 @@ describe('历史流、作用域与撤销重做执行', () => {
       const subscription = harness.historyManager.pushableHistories$.subscribe(items => emitted.push(items));
       return { emitted, subscription };
     };
+    /** 清单与操作历史的活查询共用变更表的 findAll：清单的查询带 remoteId 条件，操作历史的没有 */
+    const isPendingPushQuery = (query: unknown) => getRule(asQuery(query), 'remoteId') !== undefined;
+    const pendingPushQueries = () => findAllMock.mock.calls.filter(([query]) => isPendingPushQuery(query));
+    const listChanges = (changes: RxDBChange[]) =>
+      findAllMock.mockImplementation((query: unknown) => of(isPendingPushQuery(query) ? changes : []));
 
-    it('按待推条件查当前分支上没撤销、没推上去的变更，一个事务一项、最新在前', async () => {
+    it('按待推条件查当前分支上没撤销、没推上去的变更，一个事务一项、最新在前；查全部行，不受默认 100 行截断', async () => {
       const harness = createHarness({ connected: true });
       const transactionId = 'tx-pushable' as UUID;
-      harness.changeFind.mockReturnValue(
-        of([createChange(4, { transactionId }), createChange(3, { transactionId, entity: 'Post' }), createChange(2)])
-      );
+      listChanges([
+        createChange(4, { transactionId }),
+        createChange(3, { transactionId, entity: 'Post' }),
+        createChange(2)
+      ]);
 
       const { emitted, subscription } = collect(harness);
       await vi.waitFor(() => expect(emitted.at(-1)).toHaveLength(2));
 
       expect(emitted.at(-1)!.map(item => item.changes.map(change => change.id))).toEqual([[4, 3], [2]]);
-      const query = asQuery(harness.changeFind.mock.calls[0][0]);
+      const query = asQuery(pendingPushQueries()[0][0]);
       expect(getRule(query, 'branchId')?.value).toBe('main');
       expect(getRule(query, 'revertChangeId')).toMatchObject({ operator: '=', value: null });
       expect(getRule(query, 'remoteId')).toMatchObject({ operator: '=', value: null });
@@ -288,11 +295,11 @@ describe('历史流、作用域与撤销重做执行', () => {
 
     it('同步结算之后重查一遍清单：推上去的那几项随之消失', async () => {
       const harness = createHarness({ connected: true });
-      harness.changeFind.mockReturnValue(of([createChange(2), createChange(1)]));
+      listChanges([createChange(2), createChange(1)]);
       const { emitted, subscription } = collect(harness);
       await vi.waitFor(() => expect(emitted.at(-1)).toHaveLength(2));
 
-      harness.changeFind.mockReturnValue(of([createChange(2)]));
+      listChanges([createChange(2)]);
       harness.repositorySyncComplete();
 
       await vi.waitFor(() => expect(emitted.at(-1)).toHaveLength(1));
@@ -305,7 +312,7 @@ describe('历史流、作用域与撤销重做执行', () => {
       const { emitted, subscription } = collect(harness);
 
       await vi.waitFor(() => expect(emitted).toEqual([[]]));
-      expect(harness.changeFind).not.toHaveBeenCalled();
+      expect(pendingPushQueries()).toEqual([]);
       subscription.unsubscribe();
     });
   });

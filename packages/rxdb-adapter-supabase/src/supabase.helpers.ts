@@ -215,6 +215,11 @@ export interface SupabaseRlsCheckResult {
   exists: boolean;
   rlsEnabled: boolean;
   relationKind?: 'table' | 'partitioned_table' | 'view' | string;
+  /**
+   * 视图是否 `security_invoker`：只有这种视图沿用调用者的 RLS，普通视图以属主权限执行、绕过底层表的 RLS。
+   * 旧版服务端不返回这个字段，视图一律按普通视图报出
+   */
+  securityInvoker?: boolean;
 }
 
 export type RetryableWriteResponse = {

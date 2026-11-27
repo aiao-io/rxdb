@@ -106,6 +106,16 @@ describe('待推送清单（US-317）', () => {
     expect(transaction?.changes).toHaveLength(2);
   });
 
+  // 分支深度评审 #5：清单查询没传 limit 时核心仓储按 100 截断，待推超过 100 项时清单只剩最新的 100 项，与待推数对不上
+  it('待推超过 100 项：清单一项不少，与待推数相等', async () => {
+    const database = await createDatabase(newScript(), freshName(), 'memory');
+
+    for (let index = 0; index < 101; index++) await note(`n${index}`).save();
+
+    const list = await expectInStep(database, 101);
+    expect(new Set(list.map(item => item.changes[0]?.entityId)).size).toBe(101);
+  });
+
   it('AC#2 / AC#6：撤销离开清单、重做回来，推送成功后清空，数字一路跟清单相等', async () => {
     const database = await createDatabase(newScript(applied), freshName(), 'memory');
     await note('a').save();

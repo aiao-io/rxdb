@@ -4,7 +4,15 @@
  * 环上的行互相引用：一轮拉取在一个本地事务里落库，提交时才检查外键（本地外键都是延迟检查的）。
  * 一页如果在环中间截断，引用的另一半要么在本页、要么在本地，否则提交撞外键——这里续拉补齐。
  */
-import { type RemoteChange, type RepositoryIdentifier, repositoryKey } from '@aiao/rxdb';
+import {
+  getEntityMetadata,
+  getSyncType,
+  type RemoteChange,
+  type RepositoryIdentifier,
+  repositoryKey,
+  resolvePullIneligibility,
+  type RxDB
+} from '@aiao/rxdb';
 import type { DependencyCycle, DependencyForeignKey, DependencyGraph } from './dependency-graph.js';
 
 /** {@link closeCycleReferences} 需要的远端与本地读 */
@@ -124,24 +132,66 @@ export async function closeCycleReferences(
 }
 
 /**
- * 拉取补不齐的环：环上有按条件（`Filter`）或按授权分区同步的成员
+ * 环上的这个成员为什么让环补不齐（US-038）
  *
- * @param graph - 依赖图
- * @param unsupported - 判定一个仓库是不是这两种同步之一
- * @returns 每个这样的环与它的一个不支持的成员
+ * @param rxdb - RxDB 实例
+ * @param repository - 环成员
+ * @param bucketed - 远端把它登记为按授权分区同步
+ * @returns 补不齐的原因；补得齐时为 `undefined`
  *
  * @remarks
- * 这两种仓库各自逐仓、逐区拉取，凑不进同一个本地事务，也补不齐环内的引用；整个环以 `pull-unsupported-member`
- * 失败，下游被依赖闸门挡下，环外照常拉取。
+ * - 按条件（`Filter`）或按授权分区同步的仓库逐仓、逐区拉取，凑不进同一个本地事务；
+ * - 不能拉取（只存本地）或同步关着（`RxDBSync.enabled = false`）的仓库不在批量拉取的事务里：续拉把它的行补进这一轮、
+ *   判定闭合，落库却只写可拉的成员，延迟外键在提交时失败、整批回滚，下一次拉取重演同一序列，永远拉不下来。
  */
-export function unsupportedPullCycles(
+export async function cycleMemberPullDetail(
+  rxdb: RxDB,
+  repository: RepositoryIdentifier,
+  bucketed: boolean
+): Promise<string | undefined> {
+  const key = repositoryKey(repository);
+  const metadata = rxdb.config.entities
+    .map(EntityType => getEntityMetadata(EntityType))
+    .find(item => item.namespace === repository.namespace && item.name === repository.entity);
+  if (!metadata) return undefined;
+  const syncType = getSyncType(metadata, rxdb.entitySync);
+  if (bucketed || syncType === 'filter') return `${key} is synced by filter or by bucket`;
+  const ineligible = await resolvePullIneligibility(rxdb, repository.namespace, repository.entity, syncType);
+  return ineligible === undefined ? undefined : `${key} is not pulled into the local database: ${ineligible}`;
+}
+
+/**
+ * 拉取补不齐的环
+ *
+ * @param graph - 依赖图
+ * @param detailOf - 一个环成员为什么让环补不齐（见 {@link cycleMemberPullDetail}）；补得齐时为 `undefined`
+ * @returns 每个补不齐的环、它的第一个这样的成员与原因
+ *
+ * @remarks
+ * 这样的环整个以 `pull-unsupported-member` 失败，下游被依赖闸门挡下，环外照常拉取。
+ */
+export async function unsupportedPullCycles(
   graph: DependencyGraph,
-  unsupported: (repository: RepositoryIdentifier) => boolean
-): { cycle: DependencyCycle; member: RepositoryIdentifier }[] {
+  detailOf: (repository: RepositoryIdentifier) => Promise<string | undefined>
+): Promise<{ cycle: DependencyCycle; member: RepositoryIdentifier; detail: string }[]> {
   const cycles = new Set<DependencyCycle>();
   for (const node of graph.values()) if (node.cycle) cycles.add(node.cycle);
-  return [...cycles].flatMap(cycle => {
-    const member = cycle.members.find(unsupported);
-    return member ? [{ cycle, member }] : [];
-  });
+  const found: { cycle: DependencyCycle; member: RepositoryIdentifier; detail: string }[] = [];
+  for (const cycle of cycles) {
+    const unsupported = await firstUnsupportedMember(cycle.members, detailOf);
+    if (unsupported) found.push({ cycle, ...unsupported });
+  }
+  return found;
+}
+
+/** 依次判环成员，交出第一个补不齐的成员与原因 */
+async function firstUnsupportedMember(
+  members: readonly RepositoryIdentifier[],
+  detailOf: (repository: RepositoryIdentifier) => Promise<string | undefined>
+): Promise<{ member: RepositoryIdentifier; detail: string } | undefined> {
+  for (const member of members) {
+    const detail = await detailOf(member);
+    if (detail !== undefined) return { member, detail };
+  }
+  return undefined;
 }

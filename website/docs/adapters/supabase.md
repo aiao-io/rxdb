@@ -482,7 +482,9 @@ interface SupabaseAdapterOptions extends IRxDBAdapterOptions {
 
 `connect()` 默认会尝试调用 `rxdb_check_rls` RPC，检查当前 RxDB 业务表是否启用了 Row Level Security。
 
-默认检查日志表 `rxdb_change`、分支表 `rxdb_branch`，以及经远端同步的业务实体映射的表或视图。同步插件等贡献的系统表（`rxdb_migration`、`rxdb_sync`、`rxdb_sync_bucket_progress` 等）只存本地，只存本地的业务实体也没有远端表，都不检查。映射到视图的实体（例如[公开数据的浏览实体](#规则之外的公开数据在线浏览)）不会被报成缺表或未开 RLS；`rlsCheck.tables` 给出的表原样检查。
+默认检查日志表 `rxdb_change`、分支表 `rxdb_branch`，以及经远端同步的业务实体映射的表或视图。同步插件等贡献的系统表（`rxdb_migration`、`rxdb_sync`、`rxdb_sync_bucket_progress` 等）只存本地，只存本地的业务实体也没有远端表，都不检查。`rlsCheck.tables` 给出的表原样检查。
+
+视图没有自己的 RLS。普通视图以属主权限执行，有它 `SELECT` 权的人都能绕过底层表的 RLS，所以与未开 RLS 的表一样报出；只有 `security_invoker` 视图沿用调用者的权限与 RLS，不报（例如[公开数据的浏览实体](#规则之外的公开数据在线浏览)映射的 `catalog_items_public`）。`rxdb_check_rls` 为此多返回一个 `securityInvoker`；没有升级参考 SQL 的服务端不返回它，映射到视图的实体一律被报出。普通视图改成 `CREATE OR REPLACE VIEW … WITH (security_invoker = true)` 重建。
 
 - 如果 RPC 已安装且发现某张表未启用 RLS，会输出告警。
 - 如果你希望在开发或 CI 中直接阻断错误配置，可以设置 `rlsCheck: { failureMode: 'throw' }`。

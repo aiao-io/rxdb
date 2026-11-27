@@ -7,7 +7,8 @@ import type { DependencyCycle } from './dependency-graph.js';
  * - `unbreakable`：环上全是非空外键，排不出写入顺序。把其中一侧的外键改成可空，就能先写空、再补写
  * - `remote-unsupported`：同一批里有互相引用的行，要先写空、再补写，远端适配器不支持
  *   （`supportsDeferredForeignKeys` 为 `false`，例如服务端还没升级）
- * - `pull-unsupported-member`：环上有按条件（`Filter`）或按授权分区同步的成员，拉取补不齐环内的引用
+ * - `pull-unsupported-member`：环上有按条件（`Filter`）或按授权分区同步的成员，或不能拉取（只存本地）、同步关着的成员，
+ *   拉取补不齐环内的引用
  */
 export type RxDBForeignKeyCycleReason = 'unbreakable' | 'remote-unsupported' | 'pull-unsupported-member';
 
@@ -63,5 +64,5 @@ function describeCycleFailure(
   if (reason === 'remote-unsupported') {
     return `${head}; rows in one batch reference each other and the remote adapter cannot defer foreign keys${suffix}`;
   }
-  return `${head}; a cycle member is synced by filter or by bucket, so a pull cannot close the cycle${suffix}`;
+  return `${head}; a cycle member cannot be pulled in the same local transaction, so a pull cannot close the cycle${suffix}`;
 }

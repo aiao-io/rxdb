@@ -2,6 +2,7 @@
 
 ### ⚠️ Breaking Changes
 
+- **rxdb-adapter-supabase:** RLS 自检不再一律放行视图：普通视图以属主权限执行，有它 SELECT 权的人都能绕过底层表的 RLS，现在与未开 RLS 的表一样告警（`failureMode: 'throw'` 时连接失败），只放行 `security_invoker` 视图。`rxdb_check_rls` 多报一个 `securityInvoker`；没升级参考 SQL 的服务端不报这个字段，映射到视图的实体一律被报出，先执行新版 `docker/sql/04-rxdb-utils-functions.sql` 与生产权限脚本（04 会把 `rxdb_caller_grants` / `rxdb_caller_can_edit` 恢复成平台默认，覆盖要在权限脚本之前重新加载），再升级客户端。普通视图改成 `WITH (security_invoker = true)` 重建。→ [Supabase 适配器的 RLS 自检](https://rxdb.aiao.io/docs/adapters/supabase#rls-自检)
 - **rxdb / rxdb-adapter-supabase:** Remote 事件（`ENTITY_REMOTE_CREATE` / `ENTITY_REMOTE_UPDATE` / `ENTITY_REMOTE_REMOVE`）的 `data` 不再保证是整行。Supabase 的变更通知不带行内容（US-225），`data` 只有 `{ id }`（此前是 `{ id, ...patch }`）；核心的三个载荷类型随之把 `data` 改为 `Readonly<Partial<InstanceType<T>>>`。读过 `data` 里其他字段的代码改成按 `id` 自己拉取，拉取以订阅者自己的身份读。→ [supabase-sync-access](https://rxdb.aiao.io/docs/migration/supabase-sync-access)
 - **rxdb-plugin-sync:** `pushRepository()` 的 `includeRelated`（默认 `true`）改为推目标所在的整个连通分量：它引用的父仓、引用它的子仓，以及沿外键连得到的其余仓库，此前只带目标与引用它的子仓。只推子仓时父仓的新行会先推上去，外键不再在远端报错。`push({ repositoryFilter })` 与 `bulkSync({ operation: 'push', repositories })` 点名仓库时同样带上连通分量，带进来的仓库在 `bulkSync` 的 `results` 里各占一条、排在点名的仓库之后。只想推目标本身的传 `includeRelated: false`。
 
@@ -33,6 +34,7 @@
 
 ### 🚀 Features
 
+- **rxdb-adapter-supabase:** 参考 SQL 新增成员权限：`rxdb_caller_grants()` 说明调用者在各作用域上的权限，`rxdb_caller_scopes(permission)` 让写策略与历史判定按语句读同一份授权；平台默认只给登录用户自己的 `user:` 区 `read + edit`，不改变任何人的权限。dev-rxdb-supabase 的商品按成员权限分管理员（能改、能调整成员权限）与员工（只读、看不到远端变更历史）。→ [supabase-member-permissions](https://rxdb.aiao.io/docs/migration/supabase-member-permissions)（US-234）
 - **rxdb-plugin-sync:** 远端重置不再静默拉空：与远端交换数据的入口（`pull` / `push` / `sync`、按仓库的三个入口、`bulkSync`、`syncBranches`、分支物化）与待拉计数先比对远端身份，对不上时抛 `RemoteBackendMismatchError`（带 `backendId` 与 `boundBackendIds`），同一个错误写进 `SyncState.lastError`，本地数据不动。同步途中被重建同样停下：拉回的每一轮与推送回执在落库之前再比对一次，游标与推送水位都不推进（已落库的轮次照常计入，抛 `RxDBPartialSyncError`，`cause` 为 `RemoteBackendMismatchError`）；分支物化把远端身份与截止 id 一起冻结，首次物化（本地还没有同步记录）也认得出冻结之后的重建。新增 `syncManager.rebindRemoteBackend()`：确认新远端之后显式改绑，在一个事务里清空不属于它的拉取游标，下一次拉取从头全量拉；推送水位不动，已推到旧远端的变更不重推。不会自动改绑。新增导出 `RemoteBackendMismatchError`、`RebindRemoteBackendResult`。→ [supabase-remote-backend](https://rxdb.aiao.io/docs/migration/supabase-remote-backend)（RV-01a1c69f412774fdb9f96a5ea8b44419）
 
 - **rxdb:** `QueryTaskOptions` 新增可选 `onError(cacheKey, task)`，`onClean` 多了第二参数 `task`（按任务身份摘除缓存项；只收一个参数的旧回调仍可赋值）。
@@ -77,6 +79,8 @@
 
 ### 🩹 Fixes
 
+- **rxdb:** 多对多先在一端解绑、保存之前又从另一端重新关联同一对（`owner.tags$.remove(tag)` 后 `tag.owners$.add(owner)`）时，复用的中间表还挂在解绑那一端的待删集合里，保存把关联行删掉、又因为没有改动不再写回，关联静默丢失。现在重新关联的那一对不再在任何一端待删（US-228 引入）。
+- **rxdb-plugin-sync:** 外键环上有只存本地或同步关着（`RxDBSync.enabled = false`）的成员时，`pull()` / `pullRepository()` 此前把它的行续拉进这一轮、判定环已闭合，落库却只写能拉的成员：延迟外键在提交时失败、整批回滚（环外的仓库也一起），每次拉取都重演，报的还是裸外键错误。现在这样的环与它的下游直接以 `pull-unsupported-member` 失败，消息写明是哪个成员、为什么，环外照常拉取。
 - **rxdb-plugin-sync:** 按区同步清理本地行时（分区被撤销、换了同步规则或换了远端，以及拉取途中行离开分区），本地别的行还经 `RESTRICT` / `NO ACTION` 外键引用着要删的行，此前整个事务回滚：撤销的分区每轮都清不掉，已撤销授权的数据一直留在本机，同一实体仍有授权的分区这一轮也全都拉不了。现在只删没被引用的行，被引用的行留在本机，原因记为新导出的 `RxDBBucketCleanupBlockedError` 进拉取结果的 `failures`，别的行与别的分区照常同步；撤销或换了规则的作用域连同进度行留着，之后每次拉取再清，引用它们的行没了就删掉。
 - **rxdb-plugin-sync:** `SyncManager` 的同步入口一次只跑一个，后来的排队等前一个结束（成功或失败）：`pull` / `push` / `sync`、`pullRepository` / `pushRepository` / `syncRepository`、`bulkSync`、`syncBranches`、`cleanupExpired`、`rebindRemoteBackend`。此前两次拉取交错时，先发出、后落库的那一批会把行写回旧的样子，游标却已被另一次推到前面，中间那几条变更再也不会重拉。只读的状态查询、检查更新与待拉数重算不排队。
 - **rxdb-plugin-sync:** 实时订阅成串恢复时（Supabase 是统一频道加每个分区一个），重算待拉数合成「正在数的这一遍」加「收尾一遍」，不再每个频道整库重数一次。

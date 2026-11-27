@@ -1219,6 +1219,28 @@ describe('pullRepository 的级联把外键环当一个单元拉（US-038）', (
     expect(pullBatch).not.toHaveBeenCalled();
   });
 
+  // 分支深度评审 #3：同步关着的成员不在批量拉取的事务里，续拉补进来的引用照样撞外键、整批回滚、下次重演
+  it('环上有同步关着的成员：同样以 pull-unsupported-member 失败，说明这个成员同步关着', async () => {
+    const card = createSyncRecord('CascadeCycleCard');
+    card.enabled = false;
+    const { vm } = createHarness({
+      entities: CYCLE_ENTITIES,
+      syncRecords: [createSyncRecord('CascadeCycleOwner'), card, createSyncRecord('CascadeCycleIssuer')]
+    });
+
+    const error = await pullRepository(vm, 'public', 'CascadeCycleOwner').catch((caught: unknown) => caught);
+
+    const partial = error as RxDBPartialSyncError<PullRepositoryResult>;
+    expect(reasonsOf(partial.result)).toEqual([
+      ['CascadeCycleOwner', 'pull-unsupported-member'],
+      ['CascadeCycleCard', 'pull-unsupported-member']
+    ]);
+    expect(String(partial.cause)).toContain(
+      'public:CascadeCycleCard is not pulled into the local database: sync is disabled (RxDBSync.enabled = false)'
+    );
+    expect(pullBatch).not.toHaveBeenCalled();
+  });
+
   it('环外的父仓拉取失败：整个环被依赖阻断，不发批量拉取', async () => {
     const boom = new Error('issuer unavailable');
     const { vm } = createHarness({
@@ -1242,6 +1264,29 @@ describe('pullRepository 的级联把外键环当一个单元拉（US-038）', (
     const blocked = partial.result.failures[1].error as RxDBDependencyFailedError;
     expect(blocked.dependency).toEqual({ namespace: 'public', entity: 'CascadeCycleIssuer' });
     expect(pullBatch).not.toHaveBeenCalled();
+  });
+
+  // 分支深度评审 #2：fetchAll 多轮拉取后一轮失败时，前几轮已经落库、水位线已推进。进度铺成空的，SyncManager 就判定历史
+  // 没有失效、不推进撤销边界，用户还能撤销到「合并前」的内容，与已落库的远端数据分叉（参照 pullCascadeNode 的写法）
+  it('批量拉取中途失败：已提交的进度照样记在目标仓库上，历史按它判定失效', async () => {
+    vi.mocked(pullBatch).mockRejectedValue(new RxDBPartialSyncError(batchProgress(), new Error('round 2 failed')));
+    const { vm } = createHarness({ entities: CYCLE_ENTITIES });
+
+    const error = await pullRepository(vm, 'public', 'CascadeCycleOwner', { fetchAll: true }).catch(
+      (caught: unknown) => caught
+    );
+
+    const partial = error as RxDBPartialSyncError<PullRepositoryResult>;
+    expect(partial.result).toMatchObject({
+      pulled: 2,
+      applied: 2,
+      persistedProgress: true,
+      historyInvalidated: true,
+      success: false
+    });
+    expect(
+      partial.result.relatedResults?.find(related => related.repository.entity === 'CascadeCycleCard')
+    ).toMatchObject({ pulled: 0, persistedProgress: false, success: false });
   });
 
   it('批量拉取抛错：环上每个成员都记这个错误（部分提交的进度取它的根因）', async () => {

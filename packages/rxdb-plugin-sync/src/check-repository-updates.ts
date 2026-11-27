@@ -133,7 +133,7 @@ export async function checkRepositoryUpdates(
     throw new Error('Remote adapter not configured');
   }
   // 游标属于另一个远端时，拿它去数只会数出一个看似可信的 0。状态查询只读，只比对、不绑定。
-  await assertRemoteBackend(sm);
+  const { backendId } = await assertRemoteBackend(sm);
 
   const scopedRemote = remoteAdapter as typeof remoteAdapter & Partial<ScopedSyncAdapter>;
   if (
@@ -144,16 +144,20 @@ export async function checkRepositoryUpdates(
     (await scopedRemote.getEntitySyncInfo(namespace, entity)).bucketed
   ) {
     const progressRepository = localAdapter.getRepository(RxDBSyncBucketProgress);
-    const progresses = await progressRepository.find({
-      where: {
-        combinator: 'and',
-        rules: [
-          { field: 'namespace', operator: '=', value: namespace },
-          { field: 'entity', operator: '=', value: entity },
-          { field: 'branchId', operator: '=', value: branchId }
-        ]
-      }
-    });
+    // 只认当前远端的进度：换了远端、旧远端的进度行因为清理被挡（RxDBBucketCleanupBlockedError）还留着时，
+    // pull() 认得出它属于别的远端、会从头重拉，这里拿它的游标去比就会报成「已全部同步」或幻影待拉
+    const progresses = (
+      await progressRepository.find({
+        where: {
+          combinator: 'and',
+          rules: [
+            { field: 'namespace', operator: '=', value: namespace },
+            { field: 'entity', operator: '=', value: entity },
+            { field: 'branchId', operator: '=', value: branchId }
+          ]
+        }
+      })
+    ).filter(item => item.remoteBackendId === backendId);
     const getCallerBuckets = scopedRemote.getCallerBuckets.bind(scopedRemote);
     const getBucketSnapshotPoint = scopedRemote.getBucketSnapshotPoint.bind(scopedRemote);
     const getBucketChangeCount = scopedRemote.getBucketChangeCount.bind(scopedRemote);

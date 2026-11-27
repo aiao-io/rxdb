@@ -174,8 +174,10 @@ CREATE TABLE rxdb_sql_regression.legacy_bucket_rows (
 SELECT public.rxdb_enable_sync_for_table('legacy_bucket_rows', 'rxdb_sql_regression', 'LegacyBucketRow');
 INSERT INTO rxdb_sql_regression.legacy_bucket_rows (id, value) VALUES ('legacy-1', 'legacy history');
 
--- RLS 自检认得出视图
+-- RLS 自检认得出视图，并分得清普通视图（以属主权限执行、绕过底层表的 RLS）与 security_invoker 视图（评审 #4）
 CREATE VIEW rxdb_sql_regression.bucket_rows_view AS
+  SELECT id, value FROM rxdb_sql_regression.identity_scoped_rows;
+CREATE VIEW rxdb_sql_regression.bucket_rows_invoker_view WITH (security_invoker = on) AS
   SELECT id, value FROM rxdb_sql_regression.identity_scoped_rows;
 
 CREATE TABLE rxdb_sql_regression.text_ids (
@@ -4730,11 +4732,18 @@ BEGIN
     'bucketed-guards: a comparison against a null rule value must not match'
   );
 
-  -- RLS 自检认得出视图：存在、标明是视图（视图背后的表由视图定义裁决）
-  SELECT public.rxdb_check_rls('[{"schema":"rxdb_sql_regression","table":"bucket_rows_view"}]'::jsonb) INTO v_rls;
+  -- RLS 自检认得出视图：存在、标明是视图；只有 security_invoker 视图沿用调用者的 RLS（选项值按布尔解析，on 也算）
+  SELECT public.rxdb_check_rls(
+    '[{"schema":"rxdb_sql_regression","table":"bucket_rows_view"},
+      {"schema":"rxdb_sql_regression","table":"bucket_rows_invoker_view"},
+      {"schema":"rxdb_sql_regression","table":"identity_scoped_rows"}]'::jsonb
+  ) INTO v_rls;
   PERFORM rxdb_sql_regression.assert_true(
-    (v_rls->0->>'exists')::boolean AND v_rls->0->>'relationKind' = 'view',
-    pg_catalog.format('bucketed-guards: the RLS self-check must recognise a view, got %s', v_rls)
+    (v_rls->0->>'exists')::boolean AND v_rls->0->>'relationKind' = 'view'
+      AND v_rls->0->'securityInvoker' = 'false'::jsonb
+      AND v_rls->1->>'relationKind' = 'view' AND v_rls->1->'securityInvoker' = 'true'::jsonb
+      AND v_rls->2->>'relationKind' = 'table' AND v_rls->2->'securityInvoker' = 'false'::jsonb,
+    pg_catalog.format('bucketed-guards: the RLS self-check must tell plain views from security_invoker views, got %s', v_rls)
   );
 END;
 $$;

@@ -181,13 +181,22 @@ describe('closeCycleReferences（US-038）', () => {
 });
 
 describe('unsupportedPullCycles（US-038 AC#17）', () => {
-  it('环上有不支持的成员：交出这个环与那个成员；没有的环与不在环上的仓库不算', () => {
+  const detailOf = (target: { namespace: string; entity: string }) => async (repository: typeof CARD) =>
+    repositoryKey(repository) === repositoryKey(target) ?
+      `${repositoryKey(repository)} is synced by filter`
+    : undefined;
+
+  it('环上有补不齐的成员：交出这个环、那个成员与原因；没有的环与不在环上的仓库不算', async () => {
     const graph = cycleGraph();
 
-    expect(unsupportedPullCycles(graph, repository => repositoryKey(repository) === repositoryKey(CARD))).toEqual([
-      { cycle: graph.get(repositoryKey(USER))?.cycle, member: CARD }
+    expect(await unsupportedPullCycles(graph, detailOf(CARD))).toEqual([
+      {
+        cycle: graph.get(repositoryKey(USER))?.cycle,
+        member: CARD,
+        detail: `${repositoryKey(CARD)} is synced by filter`
+      }
     ]);
-    expect(unsupportedPullCycles(graph, repository => repositoryKey(repository) === repositoryKey(NOTE))).toEqual([]);
-    expect(unsupportedPullCycles(graph, () => false)).toEqual([]);
+    expect(await unsupportedPullCycles(graph, detailOf(NOTE))).toEqual([]);
+    expect(await unsupportedPullCycles(graph, async () => undefined)).toEqual([]);
   });
 });

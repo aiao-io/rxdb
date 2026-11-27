@@ -21,7 +21,7 @@ import { BulkSyncOptions } from './bulk-sync.js';
 import { buildDependencyGraph, type DependencyGraph } from './dependency-graph.js';
 import { RxDBForeignKeyCycleError } from './foreign-key-cycle-error.js';
 import { pullBatch } from './pull-batch.js';
-import { unsupportedPullCycles } from './pull-cycle.js';
+import { cycleMemberPullDetail, unsupportedPullCycles } from './pull-cycle.js';
 import { pullRepository } from './pull-repository.js';
 import type { ScopedSyncAdapter } from './scoped-sync.js';
 import { assertPullLimit } from './sync-manager.utils.js';
@@ -59,7 +59,7 @@ export async function pull(sm: SyncManager, options?: PullOptions): Promise<Pull
       // 无过滤时使用批量拉取（单次 HTTP 请求）；远端登记为分区的仓库每次 pull 只问一次，批量跳过、随后逐个按区拉
       const bucketedRepositories = await findBucketedRepositories(sm);
       // 拉取补不齐的外键环与它们的下游这一次不拉，各记一条失败；其余仓库照常（US-038）
-      const blocked = blockedPullCycles(sm, bucketedRepositories);
+      const blocked = await blockedPullCycles(sm, bucketedRepositories);
       pullResult = await pullBatch(sm, {
         limit: options?.limit,
         fetchAll: options?.fetchAll,
@@ -91,29 +91,25 @@ export async function pull(sm: SyncManager, options?: PullOptions): Promise<Pull
 }
 
 /**
- * 拉取补不齐的外键环（环上有按条件或按区同步的成员）与它们的下游（US-038）
+ * 拉取补不齐的外键环与它们的下游（US-038）
  *
  * @returns 这一次不拉的仓库键，与每个仓库一条失败：环上的仓库报 `pull-unsupported-member`，下游报依赖失败
+ *
+ * @remarks
+ * 环上有按条件或按区同步、不能拉取或同步关着的成员时补不齐，原因见 {@link cycleMemberPullDetail}。
  */
-function blockedPullCycles(
+async function blockedPullCycles(
   sm: SyncManager,
   bucketedRepositories: ReadonlySet<string>
-): { excluded: Set<string>; failures: SyncFailure[] } {
-  const metadatas = sm.rxdb.config.entities.map(EntityType => getEntityMetadata(EntityType));
-  const graph = buildDependencyGraph(metadatas);
-  const syncTypeOf = (repo: RepositoryIdentifier) => {
-    const metadata = metadatas.find(item => item.namespace === repo.namespace && item.name === repo.entity);
-    return metadata && getSyncType(metadata, sm.rxdb.entitySync);
-  };
-  const cycles = unsupportedPullCycles(
-    graph,
-    repo => bucketedRepositories.has(repositoryKey(repo)) || syncTypeOf(repo) === 'filter'
+): Promise<{ excluded: Set<string>; failures: SyncFailure[] }> {
+  const graph = buildDependencyGraph(sm.rxdb.config.entities.map(EntityType => getEntityMetadata(EntityType)));
+  const cycles = await unsupportedPullCycles(graph, repo =>
+    cycleMemberPullDetail(sm.rxdb, repo, bucketedRepositories.has(repositoryKey(repo)))
   );
 
   const excluded = new Set<string>();
   const failures: SyncFailure[] = [];
-  for (const { cycle, member } of cycles) {
-    const detail = `${repositoryKey(member)} is synced by filter or by bucket`;
+  for (const { cycle, member, detail } of cycles) {
     const cause = new RxDBForeignKeyCycleError(member, cycle, 'pull-unsupported-member', detail);
     for (const repo of cycle.members) {
       if (excluded.has(repositoryKey(repo))) continue;

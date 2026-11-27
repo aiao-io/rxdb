@@ -30,6 +30,18 @@ import type { SyncManager } from '../SyncManager.js';
 vi.mock('../pull-batch.js', () => ({ pullBatch: vi.fn() }));
 vi.mock('../pull-repository.js', () => ({ pullRepository: vi.fn() }));
 
+/** 同步关着的仓库键：同步记录在本地库里，替身按这个集合回答，原因与核心的 `pullIneligibility` 同口径 */
+const disabledRepositories = vi.hoisted(() => new Set<string>());
+vi.mock('@aiao/rxdb', async importOriginal => ({
+  ...(await importOriginal<typeof import('@aiao/rxdb')>()),
+  resolvePullIneligibility: vi.fn(async (_rxdb: unknown, namespace: string, entity: string, syncType: string) => {
+    if (syncType === 'none' || syncType === 'local') return `syncType ${syncType} does not pull`;
+    return disabledRepositories.has(`${namespace}:${entity}`) ?
+        'sync is disabled (RxDBSync.enabled = false)'
+      : undefined;
+  })
+}));
+
 // 双向一对一：GateUser.card 可空 ↔ GateCard.owner 非空（与 shop 的 User.idCard ↔ IdCard.owner 同形）
 @Entity({
   name: 'GateUser',
@@ -60,6 +72,7 @@ class GateStamp extends EntityBase {}
 class GateNote extends EntityBase {}
 
 const FULL: SyncOptions = { type: SyncType.Full, local: { adapter: 'local' }, remote: { adapter: 'remote' } };
+const NONE: SyncOptions = { type: SyncType.None, local: { adapter: 'local' } };
 const FILTER: SyncOptions = {
   type: SyncType.Filter,
   local: { adapter: 'local' },
@@ -121,6 +134,7 @@ describe('pull() 挡下拉取补不齐的外键环（US-038）', () => {
       .mockReset()
       .mockImplementation(async () => emptyPull());
     vi.mocked(pullRepository).mockReset();
+    disabledRepositories.clear();
   });
 
   it('AC#17：环上有按条件同步的成员：整个环与下游这一轮不拉，各记一条失败；环外的仓库照常进批量拉取', async () => {
@@ -151,6 +165,40 @@ describe('pull() 挡下拉取补不齐的外键环（US-038）', () => {
     expect(String(result.failures[0].error)).toContain('gate:GateCard is synced by filter or by bucket');
     expect(excludedOf()).toEqual(new Set(['gate:GateUser', 'gate:GateCard', 'gate:GateStamp']));
     expect(pullRepository).not.toHaveBeenCalled();
+  });
+
+  // 分支深度评审 #3：批量拉取只写能拉且同步开着的仓库。环上有别的成员时，续拉补进来的引用在提交时撞外键、整批回滚，
+  // 下一次拉取重演同一序列，永远拉不下来，报的还是裸外键错误
+  it('环上有只存本地（不能拉取）的成员：整个环与下游这一轮不拉，失败说明这个成员不拉进本地', async () => {
+    const sm = syncManagerOf(new Map([[getEntityMetadata(GateUser), NONE]]));
+
+    const result = await pull(sm);
+
+    expect(describeFailures(result.failures)).toEqual([
+      ['GateUser', 'pull-unsupported-member'],
+      ['GateCard', 'pull-unsupported-member'],
+      ['GateStamp', 'depends on GateUser']
+    ]);
+    expect(String(result.failures[0].error)).toContain(
+      'gate:GateUser is not pulled into the local database: syncType local does not pull'
+    );
+    expect(excludedOf()).toEqual(new Set(['gate:GateUser', 'gate:GateCard', 'gate:GateStamp']));
+  });
+
+  it('环上有同步关着的成员：同样整个环与下游不拉，失败说明同步关着', async () => {
+    disabledRepositories.add('gate:GateCard');
+
+    const result = await pull(syncManagerOf());
+
+    expect(describeFailures(result.failures)).toEqual([
+      ['GateUser', 'pull-unsupported-member'],
+      ['GateCard', 'pull-unsupported-member'],
+      ['GateStamp', 'depends on GateCard']
+    ]);
+    expect(String(result.failures[0].error)).toContain(
+      'gate:GateCard is not pulled into the local database: sync is disabled (RxDBSync.enabled = false)'
+    );
+    expect(excludedOf()).toEqual(new Set(['gate:GateUser', 'gate:GateCard', 'gate:GateStamp']));
   });
 
   it('环上的成员都是整仓同步：什么都不挡，环在批量拉取里一起拉', async () => {

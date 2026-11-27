@@ -349,8 +349,11 @@ $$;
 /**
  * rxdb_check_rls - 检查指定业务表是否启用了 Row Level Security
  *
+ * 视图没有自己的 RLS：普通视图以属主权限执行，有它 SELECT 权的人都能绕过底层表的 RLS；只有
+ * security_invoker 视图沿用调用者的权限与 RLS。securityInvoker 按选项值解析（true / on / 1 都算），表恒为 false
+ *
  * @param p_tables JSONB 数组，每个元素: {schema?, table}
- * @returns 每张表的存在性与 RLS 状态
+ * @returns 每张表的存在性、RLS 状态与视图是否 security_invoker
  */
 CREATE OR REPLACE FUNCTION public.rxdb_check_rls(
   p_tables jsonb DEFAULT '[]'::jsonb
@@ -368,6 +371,7 @@ DECLARE
   v_rls_enabled boolean;
   v_rls_forced boolean;
   v_relation_kind text;
+  v_security_invoker boolean;
   result jsonb := '[]'::jsonb;
 BEGIN
   FOR item IN SELECT * FROM pg_catalog.jsonb_array_elements(p_tables)
@@ -392,8 +396,14 @@ BEGIN
         WHEN 'p' THEN 'partitioned_table'
         WHEN 'v' THEN 'view'
         ELSE c.relkind::text
-      END
-    INTO v_exists, v_rls_enabled, v_rls_forced, v_relation_kind
+      END,
+      c.relkind = 'v' AND COALESCE(
+        (SELECT option.option_value::boolean
+         FROM pg_catalog.pg_options_to_table(c.reloptions) AS option
+         WHERE option.option_name = 'security_invoker'),
+        false
+      )
+    INTO v_exists, v_rls_enabled, v_rls_forced, v_relation_kind, v_security_invoker
     FROM pg_catalog.pg_class AS c
     JOIN pg_catalog.pg_namespace AS n ON n.oid = c.relnamespace
     WHERE n.nspname = v_schema
@@ -406,13 +416,15 @@ BEGIN
       'exists', COALESCE(v_exists, false),
       'rlsEnabled', COALESCE(v_rls_enabled, false),
       'rlsForced', COALESCE(v_rls_forced, false),
-      'relationKind', v_relation_kind
+      'relationKind', v_relation_kind,
+      'securityInvoker', COALESCE(v_security_invoker, false)
     );
 
     v_exists := NULL;
     v_rls_enabled := NULL;
     v_rls_forced := NULL;
     v_relation_kind := NULL;
+    v_security_invoker := NULL;
   END LOOP;
 
   RETURN result;

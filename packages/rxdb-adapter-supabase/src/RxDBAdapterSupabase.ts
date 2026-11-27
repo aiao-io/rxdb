@@ -1296,9 +1296,23 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       const result = resultOf(table);
       return result?.exists !== true || (result.rlsEnabled !== true && result.relationKind !== 'view');
     });
-    if (missingOrDisabled.length > 0) {
+    // 视图没有自己的 RLS：普通视图以属主权限执行，有它 SELECT 权的人都能绕过底层表的 RLS
+    const ownerRightsViews = tables.filter(table => {
+      const result = resultOf(table);
+      return result?.exists === true && result.relationKind === 'view' && result.securityInvoker !== true;
+    });
+    const problems = [
+      ...(missingOrDisabled.length > 0 ? [`RLS is disabled for tables: ${label(missingOrDisabled)}`] : []),
+      ...(ownerRightsViews.length > 0 ?
+        [
+          `views without security_invoker run with their owner's rights and bypass the RLS of their tables: ` +
+            `${label(ownerRightsViews)} (recreate them WITH (security_invoker = true))`
+        ]
+      : [])
+    ];
+    if (problems.length > 0) {
       handleRlsCheckFailure(
-        `[RxDB Supabase] RLS is disabled for tables: ${label(missingOrDisabled)}. Fix the policies before exposing this adapter to untrusted clients.`,
+        `[RxDB Supabase] ${problems.join('; ')}. Fix the policies before exposing this adapter to untrusted clients.`,
         options.failureMode
       );
     }

@@ -1246,6 +1246,39 @@ describe('supabase review regressions', () => {
     warn.mockRestore();
   });
 
+  // 分支深度评审 #4：普通视图以属主权限执行，有 SELECT 权的人都能绕过底层表的 RLS；只有 security_invoker 视图沿用调用者的 RLS
+  it('connect warns about views without security_invoker, and accepts security_invoker views', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const rpc = vi.fn(async () => ({
+      data: [
+        { schema: 'public', table: 'owner_view', exists: true, rlsEnabled: false, relationKind: 'view' },
+        {
+          schema: 'public',
+          table: 'invoker_view',
+          exists: true,
+          rlsEnabled: false,
+          relationKind: 'view',
+          securityInvoker: true
+        }
+      ],
+      error: null
+    }));
+    const adapter = createAdapter(
+      { rpc, channel: vi.fn(() => ({ on: vi.fn(() => ({ subscribe: vi.fn() })) })) },
+      { rlsCheck: { tables: [{ table: 'owner_view' }, { table: 'invoker_view' }] } }
+    );
+
+    await adapter.connect();
+
+    const rlsWarnings = warn.mock.calls.map(([message]) => String(message)).filter(message => message.includes('RLS'));
+    expect(rlsWarnings).toHaveLength(1);
+    expect(rlsWarnings[0]).toContain('views without security_invoker');
+    expect(rlsWarnings[0]).toContain('public.owner_view');
+    expect(rlsWarnings[0]).not.toContain('public.invoker_view');
+    expect(rlsWarnings[0]).not.toContain('RLS is disabled for tables');
+    warn.mockRestore();
+  });
+
   it('connect rejects disabled RLS in strict mode without starting realtime', async () => {
     const channel = vi.fn();
     const rpc = vi.fn(async () => ({
