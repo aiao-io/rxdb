@@ -204,7 +204,7 @@ export class SyncManager {
   async syncBranches(): Promise<SyncBranchesResult> {
     return this.#exclusive(async () => {
       assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'syncBranches');
-      await this.verifyRemoteBackend();
+      await this.#enter();
       return syncBranches(this);
     });
   }
@@ -231,7 +231,7 @@ export class SyncManager {
   async pull(options?: PullOptions): Promise<PullResult> {
     return this.#exclusive(async () => {
       assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'pull');
-      await this.verifyRemoteBackend();
+      await this.#enter();
       const clearSyncedHistory = await this.#captureSyncedHistory('pull');
       let result: PullResult;
       try {
@@ -285,7 +285,7 @@ export class SyncManager {
   async push(options?: PushOptions): Promise<PushResult> {
     return this.#exclusive(async () => {
       assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'push');
-      await this.verifyRemoteBackend();
+      await this.#enter();
       const clearSyncedHistory = await this.#captureSyncedHistory('push');
       let result: PushResult;
       try {
@@ -326,7 +326,7 @@ export class SyncManager {
   async sync(options?: { pull?: PullOptions; push?: PushOptions }): Promise<SyncResult> {
     return this.#exclusive(async () => {
       assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'sync');
-      await this.verifyRemoteBackend();
+      await this.#enter();
       const clearSyncedHistory = await this.#captureSyncedHistory('sync');
       // pull 成功、push 才抛错时，这段进度不随返回值出来 —— 提到闭包外，catch 里才看得见
       // 「已经合并进来的那部分」。否则远端变更已落库，undo 边界却原地不动。
@@ -391,7 +391,7 @@ export class SyncManager {
   ): Promise<PullRepositoryResult> {
     return this.#exclusive(async () => {
       assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'pullRepository');
-      await this.verifyRemoteBackend();
+      await this.#enter();
       const clearSyncedHistory = await this.#captureSyncedHistory('pullRepository');
       let result: PullRepositoryResult;
       try {
@@ -447,7 +447,7 @@ export class SyncManager {
   ): Promise<PushRepositoryResult> {
     return this.#exclusive(async () => {
       assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'pushRepository');
-      await this.verifyRemoteBackend();
+      await this.#enter();
       const clearSyncedHistory = await this.#captureSyncedHistory('pushRepository');
       let result: PushRepositoryResult;
       try {
@@ -498,7 +498,7 @@ export class SyncManager {
   ): Promise<SyncRepositoryResult> {
     return this.#exclusive(async () => {
       assertSyncOnMainCheckout(this.rxdb.worktreeTableSet, 'syncRepository');
-      await this.verifyRemoteBackend();
+      await this.#enter();
       const clearSyncedHistory = await this.#captureSyncedHistory('syncRepository');
       let result: SyncRepositoryResult;
       try {
@@ -698,7 +698,11 @@ export class SyncManager {
    * ```
    */
   async bulkSync(options?: BulkSyncOptions): Promise<BulkSyncResult> {
-    return this.#exclusive(() => this.bulkSyncInSession(options));
+    return this.#exclusive(async () => {
+      // 远端身份在本体进门核对；授权快照只在公开入口刷新：入口内部逐仓库走本体，再刷新就是同一轮问两次
+      await this.rxdb.grants.refresh();
+      return this.bulkSyncInSession(options);
+    });
   }
 
   /**
@@ -754,6 +758,19 @@ export class SyncManager {
     if (!this.rxdb.config.sync?.remote?.adapter) return;
     await bindScopedIdentity(this);
     this.#remote_backend_id = await bindRemoteBackend(this);
+  }
+
+  /**
+   * 与远端交换数据的公开入口进门：核对远端身份，再按远端刷新授权快照（US-029）
+   *
+   * @remarks
+   * 授权快照每一轮同步刷新一次：管理员刚调整的成员权限，在下一轮同步之后的本机写上就生效。只在入口刷新，
+   * 不随 {@link SyncManager.verifyRemoteBackend} 在一轮中途反复问。没有实体声明作用域、或远端不报告授权时，
+   * `rxdb.grants.refresh()` 什么都不做。
+   */
+  async #enter(): Promise<void> {
+    await this.verifyRemoteBackend();
+    await this.rxdb.grants.refresh();
   }
 
   /**

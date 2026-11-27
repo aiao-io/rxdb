@@ -155,6 +155,8 @@ function createHarness(entities: unknown[] = []): Harness {
     worktreeTableSet: WorktreeTableSet.MAIN,
     remoteAdapter$: of(remoteAdapter),
     connected$: of(false),
+    // 授权快照（US-029）：入口进门按远端刷新一次
+    grants: { refresh: vi.fn<() => Promise<void>>() },
     addEventListener: vi.fn(),
     removeEventListener: vi.fn()
   } as unknown as RxDB;
@@ -931,6 +933,40 @@ describe('远端身份', () => {
     expect(harness.history.syncing).not.toHaveBeenCalled();
     expect(harness.history.clearUndoHistory).not.toHaveBeenCalled();
     expect(harness.manager.remoteBackendId).toBeNull();
+  });
+
+  it.each(EXCHANGES)('$operation 进门按远端刷新一次授权快照，排在下游之前（US-029）', async ({ delegate, call }) => {
+    const harness = createHarness();
+    doubles.remoteBackend.bind.mockResolvedValue('backend-a');
+    doubles.delegates[delegate].mockRejectedValue(new Error('stop after delegate'));
+
+    await call(harness.manager).catch(() => undefined);
+
+    const refresh = vi.mocked(harness.rxdb.grants.refresh);
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(refresh.mock.invocationCallOrder[0]).toBeLessThan(doubles.delegates[delegate].mock.invocationCallOrder[0]);
+  });
+
+  it.each(EXCHANGES)('$operation 刷新授权失败时停在门口，下游一步都不跑', async ({ delegate, call }) => {
+    const harness = createHarness();
+    doubles.remoteBackend.bind.mockResolvedValue('backend-a');
+    const failure = new RxDBError('rxdb_caller_grants() is missing');
+    vi.mocked(harness.rxdb.grants.refresh).mockRejectedValue(failure);
+
+    await expect(call(harness.manager)).rejects.toBe(failure);
+
+    expect(doubles.delegates[delegate]).not.toHaveBeenCalled();
+  });
+
+  it('状态查询不刷新授权快照', async () => {
+    const harness = createHarness();
+    doubles.delegates.checkRepositoryUpdates.mockResolvedValue({});
+    doubles.delegates.getAllRepositorySyncStatus.mockResolvedValue([]);
+
+    await harness.manager.checkRepositoryUpdates('public', 'Todo');
+    await harness.manager.getAllRepositorySyncStatus();
+
+    expect(harness.rxdb.grants.refresh).not.toHaveBeenCalled();
   });
 
   it('没配远端时不核对', async () => {

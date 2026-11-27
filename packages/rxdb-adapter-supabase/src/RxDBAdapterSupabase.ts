@@ -23,6 +23,7 @@ import type {
   RepositoryInstance,
   RuleGroup,
   RxDB,
+  RxDBGrant,
   RxDBIdentity,
   RxDBMutationsMap,
   SwitchVersionActions
@@ -105,6 +106,13 @@ export { ADAPTER_NAME, SUPABASE_SDK_VERSION };
 
 type AuthStateChangeListener = (callback: (event: AuthChangeEvent, session: Session | null) => void) => {
   data: { subscription: { unsubscribe: () => void } };
+};
+
+/** `rxdb_caller_grants()` 的一行：非空的作用域键，与非空字符串的权限名数组 */
+const isGrantRow = (row: unknown): row is RxDBGrant => {
+  const { scope, permissions } = (row ?? {}) as Partial<Record<'scope' | 'permissions', unknown>>;
+  const isText = (value: unknown): value is string => typeof value === 'string' && value.length > 0;
+  return isText(scope) && Array.isArray(permissions) && permissions.every(isText);
 };
 
 /**
@@ -523,6 +531,36 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     }
     this.#followRealtimeBuckets(data);
     return data;
+  }
+
+  /**
+   * 当前调用者在各作用域上的成员权限（US-029）
+   *
+   * @returns `rxdb_caller_grants()` 的结果，每行映射成 `{ scope, permissions }`；平台默认是登录用户自己的
+   *   `user:<id>` 区 `read + edit`，anon 一行都没有，应用经覆盖加上租户成员权限
+   * @throws {SupabaseConfigError} 服务端没有部署 `rxdb_caller_grants()`（PostgREST 回 `PGRST202`）
+   * @throws {SupabaseDataError} 远端拒绝，或返回的不是 `{ scope, permissions }` 数组
+   * @throws `NetworkOfflineError` 连不上远端
+   *
+   * @remarks
+   * 授权由服务端按当前会话裁决，成员表改了下一次请求就生效，不取自令牌里的声明。核心只在有实体声明了作用域时问它：
+   * 远端连接时、同步每一轮进门时与 `rxdb.grants.refresh()`。写策略与这里读的是同一份授权（`rxdb_caller_scopes`），
+   * 本机按它判定的结果与 RLS 对得上。
+   */
+  override async callerGrants(): Promise<readonly RxDBGrant[]> {
+    const { data, error, status } = await this.#client.rpc('rxdb_caller_grants');
+    if (error?.code === 'PGRST202') {
+      throw new SupabaseConfigError(
+        'The server has no public.rxdb_caller_grants(), so the grant snapshot for entities that declare ' +
+          'access.scope cannot be read. Deploy the reference SQL first: ' +
+          'website/docs/migration/supabase-member-permissions.md'
+      );
+    }
+    assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to resolve caller grants');
+    if (!Array.isArray(data) || !data.every(isGrantRow)) {
+      throw new SupabaseDataError('Failed to resolve caller grants: invalid response data');
+    }
+    return data.map(({ scope, permissions }) => ({ scope, permissions }));
   }
 
   /**

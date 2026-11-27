@@ -4,6 +4,7 @@
 
 - `'both'`：用户与系统都能写（默认，与现状一致）
 - `'system'`：只留给系统写，用户经公开写入口写会被当场拒绝并指名实体与操作
+- `{ requires: '<权限名>' }`：按这一行所属的作用域判定，调用者在那个作用域上要有这项成员权限，见[按作用域的成员权限](#按作用域的成员权限)
 
 同一份声明同时驱动两件事：写入口的快速失败（抛 `PermissionDeniedError`），以及实体管理界面（Angular / React / Vue 的 `EntityList`）的新增、编辑、删除入口显隐。权限声明在 `@aiao/rxdb` 核心包里，不需要额外安装。
 
@@ -15,7 +16,7 @@
 
 在权限模型之前，系统表只能靠逐字段 `readonly` 和 `isSystemEntity()` 特判来维持只读：逐字段标记拦不住新建与删除，漏标一个新字段就裸奔。权限模型把「能不能动这个实体」收敛成实体上的一条声明：
 
-- 14 张系统表（核心 4 张 + working-tree 插件贡献 10 张）显式声明三操作都为 `'system'`，整表对用户只读
+- 15 张系统表（核心 5 张 + working-tree 插件贡献 10 张）显式声明三操作都为 `'system'`，整表对用户只读
 - 业务里只由同步 / 迁移写入的实体（如汇率表）可以只收紧 `create`，UI 随之隐藏「+ 新增」
 - 三框架 UI 按同一份声明派生入口，而不是各自维护一套特判
 
@@ -27,7 +28,11 @@
 
 ```ts
 type EntityOperation = 'create' | 'update' | 'delete';
-type EntityOperationPermission = 'both' | 'system';
+type EntityOperationPermission = 'both' | 'system' | EntityOperationRule;
+
+interface EntityOperationRule {
+  requires: string; // 所需的成员权限名，见「按作用域的成员权限」
+}
 
 interface EntityPermissionOptions {
   create?: EntityOperationPermission;
@@ -78,16 +83,17 @@ export class ExchangeRate extends EntityBase {}
 
 ## 系统表
 
-系统表是「14 张表各自显式声明」：核心 4 张 + working-tree 插件贡献 10 张，每张都在自己的 `@Entity` 上写着 `permissions: SYSTEM_ENTITY_PERMISSIONS`（即三操作都为 `'system'`）。
+系统表是「15 张表各自显式声明」：核心 5 张 + working-tree 插件贡献 10 张，每张都在自己的 `@Entity` 上写着 `permissions: SYSTEM_ENTITY_PERMISSIONS`（即三操作都为 `'system'`）。
 
-核心 4 张（`packages/rxdb/src/system/`）：
+核心 5 张（`packages/rxdb/src/system/`、`packages/rxdb/src/grants/`）：
 
-| 实体            | 说明       |
-| --------------- | ---------- |
-| `RxDBBranch`    | 分支表     |
-| `RxDBChange`    | 变更日志表 |
-| `RxDBMigration` | 迁移登记表 |
-| `RxDBSync`      | 同步水位表 |
+| 实体             | 说明                                           |
+| ---------------- | ---------------------------------------------- |
+| `RxDBBranch`     | 分支表                                         |
+| `RxDBChange`     | 变更日志表                                     |
+| `RxDBMigration`  | 迁移登记表                                     |
+| `RxDBSync`       | 同步水位表                                     |
+| `RxDBGrantState` | 授权快照（单行，见下文「按作用域的成员权限」） |
 
 working-tree 贡献 10 张（`@aiao/rxdb-plugin-working-tree`）：
 
@@ -154,6 +160,8 @@ try {
 
 单条入口被拒时清单恰一项。被拒时数据不变：被拒的 create 不留新行、update 后行原样、remove 后行仍在。
 
+规则形式被拒时，清单项是扩展接口 `PermissionRuleViolation`，多带行 id、作用域、所需权限与原因，用 `isPermissionRuleViolation()` 区分；`'system'` 的清单项仍是上面三个字段，见[违规清单](#违规清单)。
+
 ### 不判定的路径
 
 以下写入属于适配器 / 执行器层（系统写通道），不经过权限判定：
@@ -184,6 +192,8 @@ const { canCreate, canEdit, canDelete } = deriveEntityCapabilities(getEntityMeta
 | `canEdit`   | `update === 'both'` | 行挂 `_readonly`：单元格、粘贴、拖拽、键盘切换都不可写；「查看」以 view 模式打开详情（无保存入口） |
 | `canDelete` | `delete === 'both'` | 操作列没有「删除」；「查看」保留                                                                   |
 
+规则形式的操作，派生结果是 `false`（入口关闭）：界面还不按行与授权快照判定，写入口只在公开写入口那一层按行判。
+
 删除能力与行只读是**解耦**的两件事：`update: 'system'` 的实体行只读但 `delete: 'both'` 时仍能删；`delete: 'system'` 的实体行可编辑却没有删除按钮。操作列 `actionsColumn()` 的第三参是逐行谓词 `(record) => boolean`，由 `buildEditableColumns()` 按 `canDelete` 派生——直接调 `actionsColumn()` 的应用需要自己传入，见[操作列删除判定迁移](../migration/actions-column-can-delete.md)。
 
 三框架的 `EntityList` 走同一条派生路径：
@@ -199,6 +209,125 @@ const { canCreate, canEdit, canDelete } = deriveEntityCapabilities(getEntityMeta
 - **系统写不判定，同步不受影响。** 同步推送与拉取、迁移登记、undo/redo、工作树提交都走适配器 / 执行器层。`create: 'system'` 的实体（如汇率表）仍能被同步拉取写入；把系统表声明成用户不可写，不会碰到同步、撤销与删分支。
 - **QueryCache 批次在写发出之前就被整批预检。** `mutations()` 的预检在任何写发出之前完成，QueryCache 批次随后经门面逐条再判一次，结果一致——不会出现「前 N−1 条已写出、第 N 条才被拒」的半批状态。
 - **多对多 Junction 默认 `'both'`**，关联到只读实体只写中间表行，放行。
+
+## 按作用域的成员权限
+
+`'both'` / `'system'` 分不出人。多租户、多成员的应用里，同一个人可以在一个租户是管理员、在另一个租户是员工：员工能看本租户的数据，但不能增删改。规则形式把这件事写成实体上的声明——一行属于哪个作用域、每个写操作要哪项成员权限——由公开写入口按行判定，而不是每个应用各写一遍「写前检查」再去和服务端的 RLS 对口径。
+
+### 声明作用域与所需权限
+
+```ts
+import { Entity, EntityBase, PropertyType } from '@aiao/rxdb';
+
+@Entity({
+  name: 'CatalogItem',
+  properties: [
+    { name: 'name', type: PropertyType.string },
+    { name: 'tenantId', type: PropertyType.string }
+  ],
+  access: { scope: { property: 'tenantId', prefix: 'tenant:' } },
+  permissions: {
+    create: { requires: 'edit' },
+    update: { requires: 'edit' },
+    delete: { requires: 'edit' }
+  }
+})
+export class CatalogItem extends EntityBase {}
+```
+
+- **作用域键 = `prefix` + 属性值**：上例里租户 `xinghe` 的行属于 `tenant:xinghe`。`prefix` 缺省为空串。
+- **作用域属性**必须是实体（含继承）上已声明的普通属性：`string` 或 `uuid`、不可空、不加密，不是计算属性，也不是关系生成的外键列。审计字段 `createdBy` / `updatedBy` 不能当作用域：它们可空，推送时还会被推送那一刻的身份覆盖。
+- **权限名**只校验是非空字符串，不建注册表，语义归应用。Supabase 参考实现用 `read`（查看）、`edit`（增删改）、`comment`、`review`、`merge`、`manage`（调整成员权限）六项。
+- **「仅所有者」是作用域的特例**：作用域取所有者属性、前缀 `user:`；把行转给别人就是换作用域，照规则被拒。
+- 规则形式要求声明了 `access.scope`；`access` 与规则都按就近继承，`access` 整份就近（子类声明了就整体覆盖）。
+- 只支持本地主端：实体生效的同步配置是 remote-only 或 `SyncType.QueryCache` 时初始化报错——判定要读本地事务里的持久化前像。图插件的 `@GraphEntity` 也不支持（`addEdge()` 不经门面写入口）。
+
+声明写错（属性不存在、可空、类型不对，规则缺 `access`、`requires` 为空串、有未知键……）都在 `RxDB.init()` 报错，消息指出实体、键与原因。
+
+### 判定
+
+判定点与 `'system'` 相同，仍是公开写入口；同步合并、撤销 / 重做、外键级联、迁移这些系统写不判定。
+
+| 操作   | 按哪一行的作用域                                   | 放行条件                                      |
+| ------ | -------------------------------------------------- | --------------------------------------------- |
+| create | 新行                                               | 快照在该作用域上有 `requires`                 |
+| update | 持久化前像；改了作用域属性时，前像与写后的行都要判 | 两个作用域都有 `requires`：换租户两边都要能改 |
+| delete | 持久化前像                                         | 快照在该作用域上有 `requires`                 |
+
+- **按持久化前像**：update / delete 读的是库里这一行现在的值，不是内存里被改过的实例。前像与写入在本地主适配器的同一个事务里读，每个实体只读一次（`WHERE id IN (…)`），批量超过 100 行也一行不漏。
+- **批量原子**：`saveMany()` / `removeMany()` / `mutations()` 里任一行被拒，整次调用拒绝，库里一条都没写。
+- **授权未知一律拒绝**：快照还没取到时，声明了规则的写全部被拒，原因写「授权未知」。
+
+#### 违规清单
+
+规则形式的违规项是 `PermissionRuleViolation`：
+
+```ts
+interface PermissionRuleViolation extends PermissionViolation {
+  id: string | number | bigint; // 被拒的行
+  scope: string | null; // 行的作用域键；作用域属性没有值时为 null
+  requires: string; // 所需的成员权限
+  reason: 'missing-permission' | 'grants-unknown'; // 缺权限 / 快照还没取到
+}
+```
+
+```ts
+import { isPermissionRuleViolation, PermissionDeniedError } from '@aiao/rxdb';
+
+try {
+  await item.save();
+} catch (error) {
+  if (!(error instanceof PermissionDeniedError)) throw error;
+  for (const violation of error.violations.filter(isPermissionRuleViolation)) {
+    console.warn(`${violation.entity}#${violation.id}：${violation.scope} 上没有 ${violation.requires}`);
+  }
+}
+```
+
+一行一个作用域一条：update 换了作用域、两边都没有权限时是两条。
+
+### 授权快照
+
+调用者在各作用域上有哪些权限，由实例的授权快照 `rxdb.grants` 说明：
+
+```ts
+const snapshot = rxdb.grants.snapshot; // RxDBGrantSnapshot
+snapshot.status; // 'unknown'（还没取到）| 'known'
+snapshot.has('tenant:xinghe', 'edit'); // 未取到时恒为 false
+rxdb.grants.snapshot$.subscribe(render); // 订阅时先交出当前值，之后只在内容变化时发出
+```
+
+快照有两种来源，一个实例只认一个：
+
+| 来源     | 什么时候                                                                       | 怎么更新                                                                                     |
+| -------- | ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| 远端     | 有实体声明了作用域，且远端适配器报告授权（Supabase 读 `rxdb_caller_grants()`） | 远端连接时、同步每一轮进门时、调 `rxdb.grants.refresh()` 时各问一次远端；应用调 `set()` 被拒 |
+| 应用设入 | 其余情况：没有远端、远端不报告授权                                             | `await rxdb.grants.set([{ scope: 'tenant:a', permissions: ['read', 'edit'] }])`              |
+
+问远端之前先核对调用者身份（声明了 `RxDBOptions.identity` 时）：授权是要落进这个身份的库的数据。没有实体声明作用域时，远端一次都不问，没部署授权函数的旧服务端照常可用。
+
+快照写进本地库的系统表 `rxdb_grant_state`：本地库按身份分库，换身份就是换库，快照不跨库；离线关库重开，`connect()` 读回上次的快照，照样按它判定。远端在本地库之前连上时，那一次只发布、不落库，下一次刷新再落库。快照是每个实例自己的，一个标签页刷新不会推到别的标签页。
+
+### 离线与降权窗口
+
+本机判定用的是**上一次取到的快照**：
+
+- **离线**：远端连接时连不上远端，沿用上次的快照，连接照常完成；远端没部署授权函数这类配置错误则让连接失败（Supabase 报 `SupabaseConfigError`，点名函数与部署文档）。
+- **降权窗口**：远端刚把某人从管理员降为员工，本机在下一次刷新（下一轮同步、或应用调 `refresh()`）之前还按旧快照放行。这期间写下的修改推送时由服务端拒绝，按逐实体回执对齐本机（见[被拒的推送](../plugins/rxdb-plugin-sync/README.md#被拒的推送)）；同步刷新快照之后，本机写当场被拒。
+
+:::warning 快速失败，不是安全边界
+本机判定只是让越权的写当场失败、不留一条注定被拒的待推修改。它挡不住直接改本地库、走适配器 / 执行器层的写；真正的边界只在服务端的 RLS。
+:::
+
+### 与 RLS 对口径
+
+本机判定与服务端裁决要说同一件事，三处要对齐：
+
+1. **作用域键一致**：实体的 `access.scope`（`property: 'tenantId', prefix: 'tenant:'`）拼出的键，与写策略里的 `'tenant:' || tenant_id`、`rxdb_caller_grants()` 返回的 `scope` 是同一个字符串。
+2. **所需权限一致**：规则的 `requires: 'edit'` 与写策略判的权限相同（Supabase 参考实现：`= ANY((SELECT public.rxdb_caller_scopes('edit'))::text[])`）。
+3. **同一份授权**：快照来自 `rxdb_caller_grants()`，写策略经 `rxdb_caller_scopes()` 读的也是它，成员表改了，下一次请求两边一起变。
+
+Supabase 的参考 SQL、写策略与升级步骤见[配置成员权限](../adapters/supabase.md#配置成员权限)与[迁移说明](../migration/supabase-member-permissions.md)。
 
 ## 继续阅读
 

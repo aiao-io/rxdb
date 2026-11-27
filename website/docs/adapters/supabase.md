@@ -283,6 +283,27 @@ $$;
 - **降权后推送被拒**：降权之前在本机改下、还没推送的修改，推送时 UPDATE 改到零行而行还在，报 `42501`，回执为被拒，本机按远端对齐，见[被拒的推送](../plugins/rxdb-plugin-sync/README.md#被拒的推送)。客户端在连接时、每次拉取与改了成员关系之后读一次 `rpc('rxdb_caller_grants')`，两次读之间界面上可能还是旧权限，以推送时服务端的裁决为准。撤销、重做不按权限禁用：员工本来写不出修改，撤掉降权之前的修改正好让本机回到远端的样子。
 - **升级之后重新加载覆盖**：重新执行 `04-rxdb-utils-functions.sql` 会把 `rxdb_caller_grants()` 与 `rxdb_caller_can_edit` 都恢复成平台默认。覆盖装回之前，按 `rxdb_caller_scopes('edit')` 写的策略只认调用者自己的 user 区，租户里的写入全部被拒（不会放宽）。把覆盖放进升级的同一个事务、生产权限脚本之前，见[装上成员权限](#装上成员权限)。
 
+#### 本机按成员权限判定
+
+实体声明了作用域与所需权限（[按作用域的成员权限](../model-definition/permissions.md#按作用域的成员权限)）之后，适配器就是授权快照的来源：它读的正是上面的 `rxdb_caller_grants()`，本机按同一份授权当场拒绝越权的写，不留一条注定被 RLS 拒绝的待推修改。
+
+```ts
+@Entity({
+  name: 'Document',
+  tableName: 'documents',
+  properties: [{ name: 'tenantId', type: PropertyType.string, columnName: 'tenant_id' }],
+  // 与写策略里的 'tenant:' || tenant_id 拼出同一个键；requires 与策略判的权限相同
+  access: { scope: { property: 'tenantId', prefix: 'tenant:' } },
+  permissions: { create: { requires: 'edit' }, update: { requires: 'edit' }, delete: { requires: 'edit' } }
+})
+class Document extends EntityBase {}
+```
+
+- **什么时候读**：远端连接时、同步每一轮进门时（`pull` / `push` / `sync` 与按仓库的入口、`bulkSync`、`syncBranches`）、应用调 `rxdb.grants.refresh()` 时，各读一次；读之前先核对会话身份。应用不能再自己 `rxdb.grants.set()`。
+- **没有实体声明作用域时一次都不读**：没装成员权限的部署照常可用，客户端升级不要求服务端同时升级。
+- **服务端没装 `rxdb_caller_grants()`**：声明了作用域的客户端连接时报 `SupabaseConfigError`，点名缺的函数与部署文档；不会静默放行，也不当成空授权。先按[装上成员权限](#装上成员权限)部署。
+- **离线**：连接时连不上远端，沿用本地库里上一次的快照；降权在下一轮同步之后才在本机生效，那之前写下的修改推送时被拒、按回执对齐（见上一条「降权后推送被拒」）。
+
 ### 规则之外的公开数据：在线浏览
 
 同步规则只把选中的公开行落到本机。没登录的访客还要能看到其余的公开数据时，另声明一个**只读浏览实体**：它映射服务端的公开视图，走 `SyncType.QueryCache`，以调用者身份在线查询，anon 不需要登录，也不需要匿名账号。
@@ -888,7 +909,7 @@ REVOKE ALL ON FUNCTION public.rxdb_caller_can_edit(text, text, jsonb) FROM PUBLI
 
 ### 装上成员权限
 
-已有部署在同一个事务里执行新版 `docker/sql/04-rxdb-utils-functions.sql`、自己的覆盖与生产权限脚本：04 装上 `rxdb_caller_grants()` 与 `rxdb_caller_scopes()`，同时把 `rxdb_caller_can_edit` 恢复成平台默认，覆盖要在生产权限脚本之前重新加载。只装平台默认、不覆盖时，每个登录用户只在自己的 user 区上有 `read + edit`，现有的写策略与同步都不受影响。要按成员权限分管理员与员工，先覆盖 `rxdb_caller_grants()`，再把写策略与历史判定改判 `edit`（[配置成员权限](#配置成员权限)），三者放进同一个事务。客户端无需升级。完整步骤见[迁移说明](../migration/supabase-member-permissions.md)。
+已有部署在同一个事务里执行新版 `docker/sql/04-rxdb-utils-functions.sql`、自己的覆盖与生产权限脚本：04 装上 `rxdb_caller_grants()` 与 `rxdb_caller_scopes()`，同时把 `rxdb_caller_can_edit` 恢复成平台默认，覆盖要在生产权限脚本之前重新加载。只装平台默认、不覆盖时，每个登录用户只在自己的 user 区上有 `read + edit`，现有的写策略与同步都不受影响。要按成员权限分管理员与员工，先覆盖 `rxdb_caller_grants()`，再把写策略与历史判定改判 `edit`（[配置成员权限](#配置成员权限)），三者放进同一个事务。客户端无需升级；给实体声明作用域、让本机也按成员权限判定的客户端（[本机按成员权限判定](#本机按成员权限判定)），要等服务端装好之后再上线，否则连接报错。完整步骤见[迁移说明](../migration/supabase-member-permissions.md)。
 
 ### 日志同步只对已登录身份开放
 

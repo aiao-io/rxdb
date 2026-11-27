@@ -1339,6 +1339,11 @@ export class RxDB {
           // 新库不读：那张表刚随建表建出来，是空的
           await this.grants.load(localAdapter);
         }
+      } else if (this.#config.sync.remote?.adapter === adapterName) {
+        // 远端连上时刷新一次授权快照（US-029）：只在有实体声明了作用域、远端又报告授权时问。排在置位已连接之前：
+        // 远端没部署授权函数是配置错误，连接就此失败、撤回适配器名，与身份对不上同一种处置（刷新先核对身份）；
+        // 连不上远端（离线）沿用上次的快照，连接照常完成
+        await this.#refuseOnIdentityFailure(adapterName, () => this.grants.refreshOnConnect(adapter));
       }
       // 引导已经跑完，只剩写回。这是纪元比对的最后一道，也是最关键的一道：整个机制要防的
       // 就是拆卸之后才落下的这一笔（见 #connect_epochs）。

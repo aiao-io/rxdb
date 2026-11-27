@@ -5,6 +5,7 @@ import type { RawWriteContext } from './capture/raw-write-gate.js';
 import { EntityType } from './entity/entity.interface.js';
 import type { QueryCacheEntityMetadata } from './entity/metadata-options.interface.js';
 import type { EntityMetadata } from './entity/metadata.interface.js';
+import type { RxDBGrant } from './grants/grant-snapshot.js';
 import type { RuleGroup } from './repository/query.interface.js';
 import { IRepository } from './repository/repository.interface.js';
 import type { Repository } from './repository/Repository.js';
@@ -1016,6 +1017,22 @@ export abstract class RxDBAdapterRemoteBase extends RxDBAdapterBase {
         'so RxDBOptions.identity cannot be verified against this remote adapter.'
     );
   }
+
+  /**
+   * 当前调用者在各作用域上的成员权限（US-029），可选能力
+   *
+   * @returns 调用者在每个作用域上的权限；没有任何权限时为空数组
+   *
+   * @remarks
+   * 实现了它，这个远端就是授权快照（`rxdb.grants`）的来源：有实体声明了作用域（`access`）时，远端连接时、
+   * 同步每一轮进门时与 `rxdb.grants.refresh()` 都问它一次（之前先核对调用者身份），应用不能再自己设入。
+   * 没有实体声明作用域时一次都不问，没部署对应服务端函数的旧服务端照常可用。
+   *
+   * 授权必须来自服务端按当前会话的裁决（Supabase 读 `rxdb_caller_grants()`），不能取自令牌里的声明：
+   * 成员关系改了，下一次请求就该生效。读不到时抛错：服务端没部署对应函数这类配置错误让连接失败，
+   * 连不上远端（离线）时核心沿用上次的快照。
+   */
+  callerGrants?(): Promise<readonly RxDBGrant[]>;
 
   /**
    * 从远程拉取变更记录
