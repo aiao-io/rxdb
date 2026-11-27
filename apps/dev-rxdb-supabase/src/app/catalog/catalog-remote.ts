@@ -64,25 +64,6 @@ export async function fetchCallerBuckets(client: CatalogRemoteClient): Promise<s
   return unwrap<string[]>(await client.rpc('rxdb_caller_buckets'));
 }
 
-/** 当前身份在一个作用域上的成员权限：服务端 `rxdb_caller_grants()` 的一行（US-234）。 */
-export interface CallerGrant {
-  /** 作用域键：`user:<用户 id>` 或 `tenant:<租户 id>` */
-  readonly scope: string;
-  /** 在这个作用域上的权限，如 `['read', 'edit', 'manage']` */
-  readonly permissions: readonly string[];
-}
-
-/**
- * 当前身份在各作用域上的成员权限。
- *
- * @remarks
- * 商品的写策略与远端变更历史按同一份成员权限裁决（`catalog-demo.sql`）；界面用它决定写入口给不给，
- * 能不能写以推送时服务端的裁决为准。访客得到空数组。
- */
-export async function fetchCallerGrants(client: CatalogRemoteClient): Promise<CallerGrant[]> {
-  return unwrap<CallerGrant[]>(await client.rpc('rxdb_caller_grants'));
-}
-
 /** 租户里的一个成员：只有这个租户的管理员列得出来（`demo_tenant_member_list`）。 */
 export interface TenantMember {
   readonly userId: string;

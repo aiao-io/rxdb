@@ -138,6 +138,10 @@
         "kind": "value"
       },
       {
+        "name": "CreateCapability",
+        "kind": "type"
+      },
+      {
         "name": "createDefaultFormData",
         "kind": "value"
       },
@@ -267,6 +271,10 @@
       },
       {
         "name": "DELETE_COLOR",
+        "kind": "value"
+      },
+      {
+        "name": "deriveCreateCapability",
         "kind": "value"
       },
       {

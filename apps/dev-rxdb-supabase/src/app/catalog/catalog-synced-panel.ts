@@ -25,7 +25,8 @@ import { groupByBucket } from './catalog-view';
  * @remarks
  * 能读哪些区由服务端裁决（`rxdb_caller_buckets()` 与 RLS），同步规则只在能读的区里挑行。
  * 同步下来的数据离线可用；成员关系、可见范围或规则变了，下一次拉取按区补快照或整块清理。
- * 有 edit 的租户的商品可以在本机改（US-234：员工所在租户的商品只读，标着「员工只读」，也没有「历史」）；
+ * 写入口按 `CatalogItem` 的声明与引擎的授权快照逐行派生（US-234 阶段 B）：有 edit 的租户的商品可以在本机改，
+ * 员工所在租户的商品只读，标着「员工只读」，也没有「历史」；新建表单只列能建的租户。
  * 撤销、重做与整机的拉取、推送在顶栏（页面登记，epic-016），推送之前能撤销、重做，推送之后就成了大家看到的结果。
  */
 @Component({
@@ -104,7 +105,7 @@ import { groupByBucket } from './catalog-view';
                     </button>
                     <button
                       class="btn btn-xs btn-error btn-outline"
-                      [disabled]="!writes.canEdit(item) || writes.$busy()"
+                      [disabled]="!writes.canDelete(item) || writes.$busy()"
                       [title]="writes.readonlyReason(item) ?? ''"
                       (click)="writes.remove(item)"
                       type="button"
@@ -156,7 +157,7 @@ import { groupByBucket } from './catalog-view';
             aria-label="新商品所属租户"
             name="tenant"
           >
-            @for (tenantId of remote.$editableTenantIds(); track tenantId) {
+            @for (tenantId of writes.$creatableTenantIds(); track tenantId) {
               <option [value]="tenantId">{{ remote.tenantName(tenantId) }}</option>
             }
           </select>
@@ -227,9 +228,9 @@ export class CatalogSyncedPanel {
   readonly $groups = computed(() => groupByBucket(this.items.value(), this.remote.$tenants()));
 
   constructor() {
-    // 能改的租户变了：新建表单默认落在第一个能改的租户
+    // 能建的租户变了（快照刷新、升降权）：新建表单默认落在第一个能建的租户
     effect(() => {
-      const tenantIds = this.remote.$editableTenantIds();
+      const tenantIds = this.writes.$creatableTenantIds();
       const current = untracked(this.draftTenantId);
       this.draftTenantId.set(tenantIds.includes(current) ? current : (tenantIds[0] ?? ''));
     });

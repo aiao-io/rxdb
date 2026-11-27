@@ -107,7 +107,7 @@ export class CatalogMembersPanel {
   });
 
   constructor() {
-    // 能管理的租户变了（包括每次重读授权）：重新列出这些租户的成员
+    // 能管理的租户变了（授权快照的内容变了，比如加入、退出租户或被升降权）：重新列出这些租户的成员
     effect(() => {
       const tenantIds = this.remote.$managedTenantIds();
       untracked(() => void this.#load(tenantIds));
@@ -135,7 +135,8 @@ export class CatalogMembersPanel {
     this.#error.set(null);
     try {
       await setMemberPermissions(client, tenantId, member.userId, preset.permissions);
-      await this.remote.refresh();
+      // 改的是别人的角色：自己的授权快照多半不变，能管理的租户也就不变，成员列表要自己重读
+      await Promise.all([this.remote.refresh(), this.reload()]);
       this.#toasts.show({
         kind: 'success',
         message: `${this.memberName(member)} 在${this.remote.tenantName(tenantId)}改为${preset.label}。对方推送或拉取之后看到变化。`

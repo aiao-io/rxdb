@@ -1,4 +1,4 @@
-import type { CallerGrant } from './catalog-remote';
+import type { RxDBGrant } from '@aiao/rxdb';
 
 /** 管理员：能改本租户的商品，也能调整成员的权限（epic-015 六项权限里的 read + edit + manage） */
 export const ADMIN_PERMISSIONS: readonly string[] = ['read', 'edit', 'manage'];
@@ -15,20 +15,20 @@ export interface TenantGrant {
 }
 
 /**
- * `rxdb_caller_grants()` 里的租户作用域。
+ * 授权快照里的租户作用域。
  *
  * @remarks
- * 演示的覆盖给每个成员关系一行 `tenant:<租户 id>`，所以这也是当前身份所在的租户；顺序沿用服务端的（按作用域键排序）。
- * 自己的 `user:<id>` 区不是租户，不在这里。
+ * 快照来自服务端 `rxdb_caller_grants()`（Supabase 适配器读回、引擎按作用域键排好）；演示的覆盖给每个成员关系一行
+ * `tenant:<租户 id>`，所以这也是当前身份所在的租户。自己的 `user:<id>` 区不是租户，不在这里。
  */
-export function tenantGrants(grants: readonly CallerGrant[]): TenantGrant[] {
+export function tenantGrants(grants: readonly RxDBGrant[]): TenantGrant[] {
   return grants
     .filter(grant => grant.scope.startsWith(TENANT_SCOPE))
     .map(grant => ({ tenantId: grant.scope.slice(TENANT_SCOPE.length), permissions: grant.permissions }));
 }
 
 /** 当前身份带有某项权限的租户。 */
-export function tenantsWith(grants: readonly CallerGrant[], permission: string): string[] {
+export function tenantsWith(grants: readonly RxDBGrant[], permission: string): string[] {
   return tenantGrants(grants)
     .filter(grant => grant.permissions.includes(permission))
     .map(grant => grant.tenantId);

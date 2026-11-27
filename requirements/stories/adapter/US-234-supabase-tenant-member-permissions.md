@@ -1,11 +1,11 @@
 ---
 id: US-234
 title: Supabase 租户内成员权限：管理员能改、员工只能看，dev-rxdb-supabase 完整演示
-status: In Progress
+status: In Review
 priority: High
 epic: epic-015-identity-scoped-sync
 created: 2026-11-26
-updated: 2026-11-27
+updated: 2026-11-28
 tags: [adapter, supabase, permission, rls, demo]
 ---
 
@@ -129,10 +129,10 @@ INVEST 检查清单:
 | 14  | X 自助加入极光百货；Bob 在抽屉的「成员与权限」里看到 X                | Bob 把 X 升为管理员，X 拉取；Bob 再把 X 降为员工，X 拉取                               | 第一次拉取后 X 的写入口与「历史」出现；第二次拉取后又变回只读；X 的「成员与权限」里没有改权限的按钮                                                                                              | ✅   |
 | 15  | X 是管理员时在本机改了一件极光百货的商品，未推送；Bob 把 X 降为员工   | X 推送                                                                                 | 「被拒的推送」列出这件商品，本机对齐远端；之后极光百货商品的写入口变灰                                                                                                                           | ✅   |
 | 16  | 按 README 起好本地栈                                                  | 跑商品相关的远端 e2e（catalog-sync、catalog-local-writes 与新的成员权限用例）          | 场景一条不少，访客、Alice、Bob 原有场景照常通过；README 写明管理员与员工的试法                                                                                                                   | ✅   |
-| 17  | `CatalogItem` 声明作用域与所需权限                                    | 跑 Supabase 适配器的真栈用例与演示的单测、远端 e2e                                     | 不回归                                                                                                                                                                                           | ⬜   |
-| 18  | X 是员工                                                              | 经公开写入口（实体 `save()` / `remove()`）在本机写极光百货的商品                       | 当场 `PermissionDeniedError`，待推数不变；商品页的可写判断出自引擎的按行能力，演示里不再有自己的判定                                                                                             | ⬜   |
-| 19  | X 是管理员，同步过一次后断网重开商品页                                | 在本机改极光百货的商品；断网期间 Bob 把 X 降为员工，X 重新联网后推送、拉取，再在本机改 | 断网时沿用上次的授权快照放行；推送被拒、本机对齐；拉取后授权快照刷新，之后的本机写当场被拒                                                                                                       | ⬜   |
-| 20  | README                                                                | 阅读                                                                                   | 写明本机判定来自实体声明与授权快照、它是快速失败，安全边界在 RLS                                                                                                                                 | ⬜   |
+| 17  | `CatalogItem` 声明作用域与所需权限                                    | 跑 Supabase 适配器的真栈用例与演示的单测、远端 e2e                                     | 不回归                                                                                                                                                                                           | ✅   |
+| 18  | X 是员工                                                              | 经公开写入口（实体 `save()` / `remove()`）在本机写极光百货的商品                       | 当场 `PermissionDeniedError`，待推数不变；商品页的可写判断出自引擎的按行能力，演示里不再有自己的判定                                                                                             | ✅   |
+| 19  | X 是管理员，同步过一次后断网重开商品页                                | 在本机改极光百货的商品；断网期间 Bob 把 X 降为员工，X 重新联网后推送、拉取，再在本机改 | 断网时沿用上次的授权快照放行；推送被拒、本机对齐；拉取后授权快照刷新，之后的本机写当场被拒                                                                                                       | ✅   |
+| 20  | README                                                                | 阅读                                                                                   | 写明本机判定来自实体声明与授权快照、它是快速失败，安全边界在 RLS                                                                                                                                 | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -140,14 +140,17 @@ INVEST 检查清单:
 
 - AC#1～9：`packages/rxdb-adapter-supabase/src/__tests__/` 下的真栈用例，以普通 authenticated 测试用户运行，单独跑这个 spec（不跑整个 `rxdb-adapter-supabase:test`）
 - AC#11～16：`apps/dev-rxdb-supabase-e2e/src/catalog-member-permissions.spec.ts` 与改过锚点的 `catalog-sync.spec.ts`、`catalog-local-writes.spec.ts`；商品页组件单测
-- AC#17～19：同上，外加 US-029 阶段 C 的真栈用例
+- AC#17：Supabase 适配器真栈 `tenant-member-permissions`、`caller-grants-source`、`catalog-local-writes`、`change-history`、`public-catalog-browse`、`change-log-pagination` 各自单独跑，外加只用 mock 的一组；PGlite 的 `catalog-local-writes.spec.ts`；演示单测；`e2e-remote` 两轮
+- AC#18：`packages/rxdb-adapter-supabase/src/__tests__/tenant-member-permissions.spec.ts` 的 AC#18（员工经公开写入口新建、修改、删除当场被拒，变更日志不多一条）；商品页的写入口出自引擎由演示的 `catalog-local-writes.spec.ts`、`catalog-remote-state.spec.ts` 验收
+- AC#19：同一个真栈 spec 的 AC#19（断网沿用快照放行、断网期间降权、联网推送被拒、拉取后本机写被拒）与 `catalog-member-permissions.spec.ts` 的 AC#19（浏览器里只断 Supabase、刷新页面重开）
+- AC#20：`apps/dev-rxdb-supabase/README.md`「本机判定」两段与「管理员与员工」第 6 步
 
 ## 交付阶段
 
 | 阶段 | 交付                                                                                                                             | 直接前置                                                                                          | AC     | 状态 |
 | ---- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ------ | ---- |
 | A    | 服务端成员权限与演示：参考 SQL、真栈用例、文档；商品页的身份与权限、员工只读、成员与权限面板、降权后推送被拒；远端 e2e 与 README | US-033（Done）、US-034、US-229、US-218（Done）；演示部分还要 US-230 阶段 A、US-231 阶段 A、US-232 | 1～16  | ✅   |
-| B    | 演示接入引擎声明：`CatalogItem` 声明作用域，商品页改读引擎的按行能力与授权快照，员工本机写当场被拒，离线沿用授权快照             | A；US-029 阶段 C                                                                                  | 17～20 | ⬜   |
+| B    | 演示接入引擎声明：`CatalogItem` 声明作用域，商品页改读引擎的按行能力与授权快照，员工本机写当场被拒，离线沿用授权快照             | A；US-029 阶段 C                                                                                  | 17～20 | ✅   |
 
 一阶段一 PR，先写红测试；服务端用例不用 mock 的 `SupabaseDataError` 代替真实 RLS。
 
@@ -160,22 +163,27 @@ INVEST 检查清单:
 - **两个阶段的分工**：阶段 A 在演示里直接调 `rpc('rxdb_caller_grants')`，与现在 `fetchCallerBuckets()` 调 `rxdb_caller_buckets()` 是同一种做法；阶段 B 改由 Supabase 适配器读同一个函数、交给引擎（US-029 阶段 C），SQL 契约不变。
 - **`CatalogItem` 是共享夹具**：它在 `packages/rxdb-test/entities/`，Supabase 适配器的真栈用例也用它；阶段 B 给它加声明时，这些用例的测试用户要有对应租户的 `edit`。
 - **重跑 04 会把覆盖冲掉**：与 `rxdb_caller_can_edit` 一样，升级之后先重新加载演示 SQL，再执行生产权限脚本。
+- **阶段 B 的落点**（2026-11-28）：授权只认引擎的快照，演示删掉了 `fetchCallerGrants()`；快照在远端连接时与每轮同步进门时由引擎刷新，商品页只在打开时与本页改了成员关系之后再调 `rxdb.grants.refresh()`，每轮推拉之后只重读租户与能读的区。快照只在内容变了才发布，所以改了别人的角色之后成员列表要自己重读（自己的授权多半不变）。新建表单的租户下拉用 `@aiao/rxdb-model` 新增的 `deriveCreateCapability()`，与写入口判 create 同口径。
+- **AC#4 改成绕过本机判定**：阶段 B 起员工经公开写入口在本机就写不进去（AC#18），「推送被拒」改用本地适配器的 `mutations()`（系统写，不判定）留下修改，代表没装声明的旧客户端或直接改了本地库，服务端照样拒绝。`change-log-pagination.spec.ts` 只按名字经适配器拉商品的分区日志、没有本地主端，不再注册 `CatalogItem`（规则形式只支持本地主端）。
 
 ## 实现文件
 
-| 阶段 | 文件                                                                                         | 改动                                                                                                                                   |
-| ---- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| A    | `docker/sql/04-rxdb-utils-functions.sql`                                                     | `rxdb_caller_grants()` 平台默认；`rxdb_caller_scopes(p_permission)` 列出带某项权限的作用域，写策略与历史判定经它读同一份授权           |
-| A    | `docker/sql/production/rxdb-change-grants.sql`                                               | 两个函数的执行权（`anon`、`authenticated`）                                                                                            |
-| A    | `apps/dev-rxdb-supabase/supabase/catalog-demo.sql`                                           | 成员权限列与 CHECK、初始管理员登记与触发器、`rxdb_caller_grants()` 覆盖、写策略与历史可见性判 `edit`、列权限、成员列表与改权限两个 RPC |
-| A    | `packages/rxdb-adapter-supabase/src/__tests__/tenant-member-permissions.spec.ts`             | 真栈用例（AC#2～9）；`catalog-local-writes.spec.ts`、`change-history.spec.ts` 的成员补上 `edit`                                        |
-| A    | `packages/rxdb-adapter-supabase/src/__tests__/supabase-sql-security-regressions.sql`         | SQL 回归 `caller-grants`（AC#1：保存点里重新执行 04 与生产权限脚本，验平台默认与执行权）                                               |
-| A    | `website/docs/adapters/supabase.md`、`website/docs/migration/supabase-member-permissions.md` | 「配置成员权限」「装上成员权限」两节与升级说明                                                                                         |
-| A    | `apps/dev-rxdb-supabase/src/app/catalog/`                                                    | `catalog-permissions.ts` 预设与换算、读授权（每轮推拉后重读）、按行可写判定、身份与权限、`catalog-members-panel.ts` 成员与权限         |
-| A    | `apps/dev-rxdb-supabase-e2e/src/catalog-member-permissions.spec.ts`、`support/members.ts`    | 成员权限远端 e2e（AC#11～15）；原有商品用例的成员加入后由管理员设为管理员                                                              |
-| A    | `apps/dev-rxdb-supabase/README.md`、`apps/dev-rxdb-supabase-e2e/README.md`                   | 管理员与员工的试法；e2e 里怎么给成员授权                                                                                               |
-| B    | `packages/rxdb-test/entities/CatalogItem.ts`                                                 | 作用域与所需权限声明                                                                                                                   |
-| B    | `apps/dev-rxdb-supabase/src/app/catalog/`                                                    | 改读引擎能力，删掉应用层判定                                                                                                           |
+| 阶段 | 文件                                                                                                                                                                                                                         | 改动                                                                                                                                   |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| A    | `docker/sql/04-rxdb-utils-functions.sql`                                                                                                                                                                                     | `rxdb_caller_grants()` 平台默认；`rxdb_caller_scopes(p_permission)` 列出带某项权限的作用域，写策略与历史判定经它读同一份授权           |
+| A    | `docker/sql/production/rxdb-change-grants.sql`                                                                                                                                                                               | 两个函数的执行权（`anon`、`authenticated`）                                                                                            |
+| A    | `apps/dev-rxdb-supabase/supabase/catalog-demo.sql`                                                                                                                                                                           | 成员权限列与 CHECK、初始管理员登记与触发器、`rxdb_caller_grants()` 覆盖、写策略与历史可见性判 `edit`、列权限、成员列表与改权限两个 RPC |
+| A    | `packages/rxdb-adapter-supabase/src/__tests__/tenant-member-permissions.spec.ts`                                                                                                                                             | 真栈用例（AC#2～9）；`catalog-local-writes.spec.ts`、`change-history.spec.ts` 的成员补上 `edit`                                        |
+| A    | `packages/rxdb-adapter-supabase/src/__tests__/supabase-sql-security-regressions.sql`                                                                                                                                         | SQL 回归 `caller-grants`（AC#1：保存点里重新执行 04 与生产权限脚本，验平台默认与执行权）                                               |
+| A    | `website/docs/adapters/supabase.md`、`website/docs/migration/supabase-member-permissions.md`                                                                                                                                 | 「配置成员权限」「装上成员权限」两节与升级说明                                                                                         |
+| A    | `apps/dev-rxdb-supabase/src/app/catalog/`                                                                                                                                                                                    | `catalog-permissions.ts` 预设与换算、读授权（每轮推拉后重读）、按行可写判定、身份与权限、`catalog-members-panel.ts` 成员与权限         |
+| A    | `apps/dev-rxdb-supabase-e2e/src/catalog-member-permissions.spec.ts`、`support/members.ts`                                                                                                                                    | 成员权限远端 e2e（AC#11～15）；原有商品用例的成员加入后由管理员设为管理员                                                              |
+| A    | `apps/dev-rxdb-supabase/README.md`、`apps/dev-rxdb-supabase-e2e/README.md`                                                                                                                                                   | 管理员与员工的试法；e2e 里怎么给成员授权                                                                                               |
+| B    | `packages/rxdb-test/entities/CatalogItem.ts`、`packages/rxdb-test/src/__tests__/entity-model-contract.spec.ts`                                                                                                               | 作用域与所需权限声明及其契约用例                                                                                                       |
+| B    | `packages/rxdb-model/src/entity-capabilities.ts`                                                                                                                                                                             | `deriveCreateCapability()`：待建的行能不能新建                                                                                         |
+| B    | `apps/dev-rxdb-supabase/src/app/catalog/`（`catalog-remote-state.ts`、`catalog-local-writes.ts`、`catalog-synced-panel.ts`、`catalog-members-panel.ts`、`catalog.page.ts`）                                                  | 授权改读 `rxdb.grants`、写入口改读引擎的按行能力，删掉应用层判定                                                                       |
+| B    | `packages/rxdb-adapter-supabase/src/__tests__/tenant-member-permissions.spec.ts`、`caller-grants-source.spec.ts`、`change-log-pagination.spec.ts`；`packages/rxdb-adapter-pglite/src/__tests__/catalog-local-writes.spec.ts` | AC#18、#19 真栈用例，AC#4 绕过本机判定，夹具声明之后的配套改动                                                                         |
+| B    | `apps/dev-rxdb-supabase-e2e/src/catalog-member-permissions.spec.ts`、`apps/dev-rxdb-supabase/README.md`                                                                                                                      | 断网重开的远端 e2e，本机判定的说明                                                                                                     |
 
 ## References
 

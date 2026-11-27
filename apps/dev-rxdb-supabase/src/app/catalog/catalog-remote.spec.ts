@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  fetchCallerGrants,
   fetchTenantItems,
   fetchTenantMembers,
   setMemberPermissions,
@@ -34,14 +33,6 @@ function fakeClient(result: { data: unknown; error: { message: string } | null }
 }
 
 describe('成员权限（US-234）', () => {
-  it('当前身份的授权来自 rxdb_caller_grants()，一个作用域一行', async () => {
-    const grants = [{ scope: 'tenant:xinghe', permissions: ['read'] }];
-    const { client, calls } = fakeClient({ data: grants, error: null });
-
-    expect(await fetchCallerGrants(client)).toEqual(grants);
-    expect(calls).toEqual([['rpc', ['rxdb_caller_grants']]]);
-  });
-
   it('成员列表经 demo_tenant_member_list 读，匿名用户没有邮箱', async () => {
     const { client, calls } = fakeClient({
       data: [

@@ -1,11 +1,12 @@
-import { RxDB } from '@aiao/rxdb';
+import { RxDB, RxDBGrantSnapshot } from '@aiao/rxdb';
 import { CatalogItem } from '@aiao/rxdb-test/entities';
-import { signal } from '@angular/core';
+import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it, vi } from 'vitest';
 import { DemoSession } from '../demo-session';
 import { Toasts } from '../toasts';
 import { CatalogLocalWrites } from './catalog-local-writes';
+import { tenantGrants } from './catalog-permissions';
 import type { CatalogItemDraft } from './catalog-remote';
 import { CatalogRemoteState } from './catalog-remote-state';
 
@@ -32,14 +33,30 @@ function listedItem(tenantId: string, fails?: Error) {
   } as unknown as CatalogItem & { save: ReturnType<typeof vi.fn>; reset: ReturnType<typeof vi.fn> };
 }
 
+/** 引擎的授权快照：所在的租户都有 read，`editable` 里的再有 edit */
+function grantsOf(tenants: readonly string[], editable: readonly string[]): RxDBGrantSnapshot {
+  return RxDBGrantSnapshot.known(
+    tenants.map(tenantId => ({
+      scope: `tenant:${tenantId}`,
+      permissions: editable.includes(tenantId) ? ['read', 'edit'] : ['read']
+    })),
+    'remote',
+    new Date(0)
+  );
+}
+
 /**
  * @param options.tenants - 所在的租户（每个成员关系都有 read）
  * @param options.editable - 其中有 edit 的租户；缺省与所在的租户相同（都是管理员）
+ * @param options.snapshot - 直接给出授权快照（如还没取到），优先于前两项
  */
-function setup(options: { signedIn?: boolean; tenants?: string[]; editable?: string[] } = {}) {
+function setup(
+  options: { signedIn?: boolean; tenants?: string[]; editable?: string[]; snapshot?: RxDBGrantSnapshot } = {}
+) {
   const created = { save: vi.fn(() => Promise.resolve()) };
-  const rxdb = { entityManager: { instantiate: vi.fn(() => created) } };
+  const rxdb = { readOnly: false, entityManager: { instantiate: vi.fn(() => created) } };
   const tenants = options.tenants ?? ['xinghe'];
+  const snapshot = signal(options.snapshot ?? grantsOf(tenants, options.editable ?? tenants));
   TestBed.configureTestingModule({
     providers: [
       CatalogLocalWrites,
@@ -47,19 +64,24 @@ function setup(options: { signedIn?: boolean; tenants?: string[]; editable?: str
       { provide: DemoSession, useValue: { signedIn: options.signedIn ?? true } },
       {
         provide: CatalogRemoteState,
-        useValue: { $myTenantIds: signal(tenants), $editableTenantIds: signal(options.editable ?? tenants) }
+        useValue: {
+          $grantSnapshot: snapshot,
+          $myTenantIds: computed(() => tenantGrants(snapshot().grants).map(grant => grant.tenantId))
+        }
       }
     ]
   });
-  return { writes: TestBed.inject(CatalogLocalWrites), rxdb, created, toasts: TestBed.inject(Toasts) };
+  return { writes: TestBed.inject(CatalogLocalWrites), rxdb, created, snapshot, toasts: TestBed.inject(Toasts) };
 }
 
-describe('CatalogLocalWrites：写入口', () => {
-  it('访客不能写，任何商品都不能改', () => {
+describe('CatalogLocalWrites：写入口出自引擎的按行能力（US-234 阶段 B）', () => {
+  it('访客：快照里没有租户作用域，任何商品都不能新建、改、删，也不报「员工只读」', () => {
     const { writes } = setup({ signedIn: false, tenants: [] });
 
     expect(writes.$canCreate()).toBe(false);
     expect(writes.canEdit({ tenantId: 'xinghe' })).toBe(false);
+    expect(writes.canDelete({ tenantId: 'xinghe' })).toBe(false);
+    expect(writes.readonlyReason({ tenantId: 'xinghe' })).toBeNull();
   });
 
   it('登录了但不在任何租户里：没有能改的商品', () => {
@@ -73,7 +95,9 @@ describe('CatalogLocalWrites：写入口', () => {
 
     expect(writes.$canCreate()).toBe(true);
     expect(writes.canEdit({ tenantId: 'xinghe' })).toBe(true);
+    expect(writes.canDelete({ tenantId: 'xinghe' })).toBe(true);
     expect(writes.canEdit({ tenantId: 'jiguang' })).toBe(false);
+    expect(writes.canDelete({ tenantId: 'jiguang' })).toBe(false);
     expect(writes.readonlyReason({ tenantId: 'xinghe' })).toBeNull();
     expect(writes.readonlyReason({ tenantId: 'jiguang' })).toBeNull();
   });
@@ -93,6 +117,34 @@ describe('CatalogLocalWrites：写入口', () => {
 
     expect(writes.$canCreate()).toBe(false);
     expect(writes.readonlyReason({ tenantId: 'jiguang' })).toBe('员工只读');
+  });
+
+  // AC#12「新建表单只列星河零售」：与写入口判 create 同一条声明（CatalogItem 的 create 规则）、同一份快照
+  it('新建表单只列能建的租户：员工所在的租户不在里面', () => {
+    const { writes } = setup({ tenants: ['jiguang', 'xinghe'], editable: ['xinghe'] });
+
+    expect(writes.$creatableTenantIds()).toEqual(['xinghe']);
+  });
+
+  it('授权快照还没取到：一件都改不了，原因是还没取到授权', () => {
+    const { writes } = setup({ snapshot: RxDBGrantSnapshot.UNKNOWN });
+
+    expect(writes.$canCreate()).toBe(false);
+    expect(writes.$creatableTenantIds()).toEqual([]);
+    expect(writes.canEdit({ tenantId: 'xinghe' })).toBe(false);
+    expect(writes.readonlyReason({ tenantId: 'xinghe' })).toBe('还没取到授权：连上远端之后才能改');
+  });
+
+  // AC#14、#15：被升降权之后，下一次同步进门时引擎刷新快照，写入口跟着变
+  it('快照变了，写入口跟着变：收回 edit 之后变成「员工只读」', () => {
+    const { writes, snapshot } = setup({ tenants: ['xinghe'] });
+    expect(writes.canEdit({ tenantId: 'xinghe' })).toBe(true);
+
+    snapshot.set(grantsOf(['xinghe'], []));
+
+    expect(writes.canEdit({ tenantId: 'xinghe' })).toBe(false);
+    expect(writes.readonlyReason({ tenantId: 'xinghe' })).toBe('员工只读');
+    expect(writes.$canCreate()).toBe(false);
   });
 
   // 顶栏的撤销、重做据此给原因（epic-016）

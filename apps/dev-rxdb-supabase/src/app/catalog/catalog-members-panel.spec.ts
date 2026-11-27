@@ -1,10 +1,11 @@
+import type { RxDBGrant } from '@aiao/rxdb';
 import { signal } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DemoSession } from '../demo-session';
 import { Toasts } from '../toasts';
 import { CatalogMembersPanel } from './catalog-members-panel';
-import type { CallerGrant, TenantMember } from './catalog-remote';
+import type { TenantMember } from './catalog-remote';
 import { CatalogRemoteState } from './catalog-remote-state';
 
 const remote = vi.hoisted(() => ({
@@ -21,7 +22,7 @@ const TENANTS = [
 ];
 
 /** Bob：极光百货的管理员，在星河零售当员工 */
-const BOB_GRANTS: CallerGrant[] = [
+const BOB_GRANTS: RxDBGrant[] = [
   { scope: 'tenant:jiguang', permissions: ['read', 'edit', 'manage'] },
   { scope: 'tenant:xinghe', permissions: ['read'] },
   { scope: 'user:u-bob', permissions: ['read', 'edit'] }
@@ -41,9 +42,10 @@ async function settle(fixture: ComponentFixture<unknown>): Promise<void> {
   fixture.detectChanges();
 }
 
-async function renderPanel(grants: CallerGrant[] = BOB_GRANTS) {
+async function renderPanel(grants: RxDBGrant[] = BOB_GRANTS) {
   const managed = signal(['jiguang']);
-  const refresh = vi.fn(async () => managed.set([...managed()]));
+  // 引擎的授权快照只在内容变了才发布：改的是别人的角色，自己的授权不变，能管理的租户也不变
+  const refresh = vi.fn(async () => undefined);
   TestBed.configureTestingModule({
     imports: [CatalogMembersPanel],
     providers: [

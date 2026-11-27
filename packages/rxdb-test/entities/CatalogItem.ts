@@ -9,12 +9,22 @@ import { Entity, EntityBase, PropertyType } from '@aiao/rxdb';
  *
  * 不在装饰器里声明 `sync`：同步规则（`remote.filter`）随使用方而变，由 `syncOverrides` 给出。
  * 本地可以增删改（US-034）：写入留下可撤销的变更，推送经 `rxdb_mutations`，服务端按写后的行算区、
- * 按 RLS 裁决能不能写。实体权限是静态的、分不出身份，访客的写入口由应用禁用，即使在本地写了也推不上去。
+ * 按 RLS 裁决能不能写。
+ *
+ * 按作用域的成员写权限（US-029 / US-234 阶段 B）：一行属于 `tenant:<tenantId>`，增删改都要该租户的 `edit`，
+ * 与 `catalog-demo.sql` 的三条商品写策略同口径。公开写入口按授权快照（Supabase 适配器读 `rxdb_caller_grants()`）
+ * 逐行判定：访客、员工在本机写当场 `PermissionDeniedError`，不留待推修改。这只是快速失败，安全边界仍是 RLS。
  */
 @Entity({
   name: 'CatalogItem',
   tableName: 'catalog_items',
   displayName: '商品',
+  access: { scope: { property: 'tenantId', prefix: 'tenant:' } },
+  permissions: {
+    create: { requires: 'edit' },
+    update: { requires: 'edit' },
+    delete: { requires: 'edit' }
+  },
   properties: [
     { name: 'name', type: PropertyType.string, displayName: '名称' },
     { name: 'category', type: PropertyType.string, displayName: '分类' },

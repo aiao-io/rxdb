@@ -5,10 +5,12 @@
  * @module @aiao/rxdb-model/headless
  */
 export {
+  deriveCreateCapability,
   deriveEntityCapabilities,
   deriveRowCapabilities,
   deriveWriteBlockedReason,
   type CapabilityDeniedReason,
+  type CreateCapability,
   type EntityCapabilities,
   type EntityCapabilityContext,
   type EntityWriteBlockedReason,

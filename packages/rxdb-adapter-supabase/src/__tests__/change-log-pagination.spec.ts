@@ -11,7 +11,6 @@
  * 日志经 service_role 直插在本轮专用的分支上，结束时按分支删掉，不碰演示数据与别的用例。
  */
 import { Entity, EntityBase, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
-import { CatalogItem } from '@aiao/rxdb-test/entities';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
 import { createAuthenticatedTestClient, getSupabaseServiceRoleClient } from './test-utils.js';
@@ -63,7 +62,8 @@ describe('拉变更日志超过 PostgREST max-rows', () => {
     rxdb = new RxDB({
       dbName: `change-log-pagination-${Date.now()}`,
       context: { userId: 'test-user' },
-      entities: [ChangeLogPageA, ChangeLogPageB, CatalogItem],
+      // 商品的分区日志只按名字经适配器拉，不注册实体：它声明了按租户的写权限（US-234），规则形式只支持本地主端
+      entities: [ChangeLogPageA, ChangeLogPageB],
       sync: { remote: { adapter: 'supabase' }, type: SyncType.None }
     });
     rxdb.adapter(

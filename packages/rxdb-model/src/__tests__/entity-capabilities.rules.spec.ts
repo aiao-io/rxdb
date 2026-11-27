@@ -3,11 +3,17 @@
  *
  * 1. 实体级：规则形式的操作看授权快照里**带该前缀**的作用域有没有所需权限，快照未取到或没传时关闭；
  * 2. 按行：作用域取这一行的作用域属性值，不能时给出原因；简写（'both' / 'system'）与实体级一致；
- * 3. 写入口全关的原因：只读实例，或有规则形式的操作而快照还没取到。
+ * 3. 写入口全关的原因：只读实例，或有规则形式的操作而快照还没取到；
+ * 4. 待建的行：作用域取草稿上的作用域属性值，与写入口判 create（看新行）同口径，给新建表单选作用域用。
  */
 import { RxDBGrantSnapshot, type EntityMetadata } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
-import { deriveEntityCapabilities, deriveRowCapabilities, deriveWriteBlockedReason } from '../entity-capabilities.js';
+import {
+  deriveCreateCapability,
+  deriveEntityCapabilities,
+  deriveRowCapabilities,
+  deriveWriteBlockedReason
+} from '../entity-capabilities.js';
 
 type Declared = Pick<EntityMetadata, 'permissions' | 'access'>;
 
@@ -166,5 +172,34 @@ describe('deriveWriteBlockedReason（US-029 AC#20）', () => {
   it('快照已取到、或实体没有规则：没有全关的原因', () => {
     expect(deriveWriteBlockedReason(ALL_EDIT, { grants: ONLY_READ })).toBeUndefined();
     expect(deriveWriteBlockedReason({ permissions: undefined }, { grants: RxDBGrantSnapshot.UNKNOWN })).toBeUndefined();
+  });
+});
+
+describe('deriveCreateCapability（US-029 / US-234 阶段 B）', () => {
+  it.each([
+    ['a 可编辑：能建', { tenantId: 'a' }, { canCreate: true }],
+    ['b 只读：不能建', { tenantId: 'b' }, { canCreate: false, createReason: 'missing-permission' }],
+    ['作用域属性没有值', {}, { canCreate: false, createReason: 'missing-permission' }],
+    ['只有 user: 区的 edit', { tenantId: 'u1' }, { canCreate: false, createReason: 'missing-permission' }]
+  ])('%s', (_label, draft, expected) => {
+    expect(deriveCreateCapability(ALL_EDIT, draft, { grants: GRANTS })).toEqual(expected);
+  });
+
+  it('快照未取到、只读实例：不能建，原因与按行一致', () => {
+    expect(deriveCreateCapability(ALL_EDIT, { tenantId: 'a' }, { grants: RxDBGrantSnapshot.UNKNOWN })).toEqual({
+      canCreate: false,
+      createReason: 'grants-unknown'
+    });
+    expect(deriveCreateCapability(ALL_EDIT, { tenantId: 'a' }, { grants: GRANTS, readOnly: true })).toEqual({
+      canCreate: false,
+      createReason: 'read-only-instance'
+    });
+  });
+
+  it('简写与未声明：与实体级的 canCreate 一致，与草稿无关', () => {
+    expect(
+      deriveCreateCapability({ permissions: { create: 'system', update: 'both', delete: 'both' } }, {}, {})
+    ).toEqual({ canCreate: false, createReason: 'system' });
+    expect(deriveCreateCapability({ permissions: undefined }, {}, {})).toEqual({ canCreate: true });
   });
 });

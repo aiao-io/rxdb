@@ -4,9 +4,12 @@ import { memberRow, roleBadge, setRole, userIdOf, withTenantAdmin } from './supp
 import { openSidePanel, pull, push, toast } from './support/workbench';
 
 const isRemoteE2E = process.env['REMOTE_E2E'] === 'true';
+/** 页面连的 Supabase：AC#19 只断它，页面本身照常从 web server 加载 */
+const SUPABASE_URL = process.env['VITE_SUPABASE_URL'] ?? '';
 
 /**
- * 租户内成员权限（US-234 AC#11～#15）：管理员能改、员工只能看，能不能写只由服务端裁决。
+ * 租户内成员权限（US-234 AC#11～#15、#19）：管理员能改、员工只能看，能不能写只由服务端裁决。
+ * 写入口出自引擎（阶段 B）：`CatalogItem` 的作用域声明与 Supabase 适配器读回的授权快照，快照存进本地库，离线重开照样用。
  *
  * Alice（星河零售的管理员）、Bob（极光百货的管理员）自己的权限一律不改：员工、升降权、降权后推送的场景用每次新建的
  * 匿名用户 X；Alice 加入极光百货的场景结束时退出，回到初始状态（加入之前就在的不动）。
@@ -67,6 +70,26 @@ if (isRemoteE2E) {
       await expect(toast(page, '已加入极光百货')).toBeVisible({ timeout: 30_000 });
       await expect(roleBadge(page, 'jiguang', '员工')).toBeVisible({ timeout: 30_000 });
       await pull(page);
+    }
+
+    /**
+     * 让这个页面能断网：断网时发往 Supabase 的请求一律失败、实时通道连不上；联网时原样放行
+     *
+     * @remarks 只断 Supabase：`setOffline` 会连页面资源一起断，断网重开页面就加载不出来了。
+     */
+    async function supabaseNetwork(page: Page): Promise<{ cut(): void; restore(): void }> {
+      if (!SUPABASE_URL) throw new Error('VITE_SUPABASE_URL is required to cut the Supabase network');
+      const { host } = new URL(SUPABASE_URL);
+      const state = { offline: false };
+      await page.route(
+        url => url.host === host,
+        route => (state.offline ? route.abort('internetdisconnected') : route.continue())
+      );
+      await page.routeWebSocket(
+        url => url.host === host,
+        ws => (state.offline ? ws.close() : ws.connectToServer())
+      );
+      return { cut: () => (state.offline = true), restore: () => (state.offline = false) };
     }
 
     /** 退出极光百货，不留下本轮的成员关系；用例中途失败时对话框可能还开着，先关掉 */
@@ -205,6 +228,49 @@ if (isRemoteE2E) {
         await expect(rejections).toContainText('CatalogItem');
         await expect(rejections).toContainText('42501');
       } finally {
+        await leaveJiguang(x);
+      }
+    });
+
+    test('AC#19 X 当管理员时同步过一次，断网重开商品页：沿用上次的授权快照在本机改；断网期间 Bob 把他降为员工，联网后推送被拒、本机对齐，之后写入口变灰', async ({
+      browser
+    }) => {
+      // 另开一个浏览器上下文登录管理员给成员授权（US-234），断网重开要等本地库读回，放宽超时
+      test.slow();
+      const x = await openCatalog(browser);
+      const network = await supabaseNetwork(x);
+      await joinJiguangAsStaff(x);
+      try {
+        const userId = await userIdOf(x);
+        const row = tenantItem(x, 'jiguang');
+        await withTenantAdmin(browser, x, 'jiguang', async drawer => {
+          await setRole(drawer, 'jiguang', userId, '管理员');
+          await pull(x);
+          await expectWritable(row);
+          const remotePrice = await priceOf(row);
+
+          // 断网重开：连不上远端，授权快照从本地库读回，写入口照样按管理员给，改动落在本机
+          network.cut();
+          await x.reload({ timeout: 60_000, waitUntil: 'domcontentloaded' });
+          await expect(x.getByTestId('catalog-identity')).toBeVisible({ timeout: 60_000 });
+          await expectWritable(row);
+          await row.getByRole('button', { name: '编辑', exact: true }).click();
+          const editor = x.getByRole('dialog', { name: '编辑本机商品' });
+          await editor.getByLabel('售价').fill('1');
+          await editor.getByRole('button', { name: '保存' }).click();
+          await expect(editor).toBeHidden({ timeout: 30_000 });
+          await expect(row).toContainText('¥1 · 成本');
+
+          // 断网期间被降为员工；联网后推送进门时快照先刷新，服务端拒收这条修改，本机对齐远端
+          await setRole(drawer, 'jiguang', userId, '员工');
+          network.restore();
+          await expect(await push(x)).toContainText('被拒 1 条');
+          await expect(row).toContainText(`¥${remotePrice} · 成本`);
+        });
+        await pull(x);
+        await expectStaffReadonly(row);
+      } finally {
+        network.restore();
         await leaveJiguang(x);
       }
     });

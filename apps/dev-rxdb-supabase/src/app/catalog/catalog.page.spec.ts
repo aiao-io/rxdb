@@ -1,4 +1,4 @@
-import { RxDB } from '@aiao/rxdb';
+import { RxDB, type RxDBGrant } from '@aiao/rxdb';
 import { CatalogItem } from '@aiao/rxdb-test/entities';
 import { CdkPortal } from '@angular/cdk/portal';
 import { Component, signal } from '@angular/core';
@@ -11,7 +11,6 @@ import { PageWorkbench } from '../page-workbench';
 import { RemoteSyncState } from '../remote-sync-state';
 import { RightPanel } from '../side-panel';
 import { CatalogLocalWrites } from './catalog-local-writes';
-import type { CallerGrant } from './catalog-remote';
 import { CatalogRemoteState } from './catalog-remote-state';
 import CatalogPage from './catalog.page';
 
@@ -30,7 +29,7 @@ const TENANTS = [
   { id: 'xinghe', name: '星河零售' }
 ];
 
-function renderCatalog(options: { blockedReason?: string | null; signedIn?: boolean; grants?: CallerGrant[] } = {}) {
+function renderCatalog(options: { blockedReason?: string | null; signedIn?: boolean; grants?: RxDBGrant[] } = {}) {
   const history = {
     type: 'repository',
     histories$: of([]),

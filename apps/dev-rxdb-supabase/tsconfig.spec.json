@@ -14,6 +14,9 @@
       "path": "../../packages/rxdb-test/tsconfig.lib.json"
     },
     {
+      "path": "../../packages/rxdb-model/tsconfig.lib.json"
+    },
+    {
       "path": "../../packages/rxdb-plugin-graph/tsconfig.lib.json"
     },
     {

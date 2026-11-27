@@ -1,3 +1,4 @@
+import type { RxDBGrant } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import {
   ADMIN_PERMISSIONS,
@@ -7,10 +8,9 @@ import {
   tenantGrants,
   tenantsWith
 } from './catalog-permissions';
-import type { CallerGrant } from './catalog-remote';
 
 /** Alice：星河零售的管理员，加入了极光百货当员工；另有自己的 user 区 */
-const alice: CallerGrant[] = [
+const alice: RxDBGrant[] = [
   { scope: 'tenant:jiguang', permissions: ['read'] },
   { scope: 'tenant:xinghe', permissions: ['read', 'edit', 'manage'] },
   { scope: 'user:00c00da3', permissions: ['read', 'edit'] }
@@ -39,7 +39,7 @@ describe('成员权限的预设与名字（US-234）', () => {
   });
 });
 
-describe('从 rxdb_caller_grants() 读出租户上的权限', () => {
+describe('从授权快照（rxdb.grants，来自 rxdb_caller_grants()）读出租户上的权限', () => {
   it('只取租户作用域，保持服务端的顺序；user 区不算租户', () => {
     expect(tenantGrants(alice)).toEqual([
       { tenantId: 'jiguang', permissions: ['read'] },

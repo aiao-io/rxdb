@@ -25,7 +25,8 @@ import { bucketLabel } from './catalog-view';
  * - US-035：每个身份一个本地库，切换身份就是打开另一个库
  * - US-036：规则之外的公开数据在线浏览，不落进同步子集
  * - US-034：所在租户的商品在本机增删改，推送之前可以撤销、重做
- * - US-234：同一个租户分管理员（能改）与员工（只读），角色按租户列在「身份与权限」里
+ * - US-234：同一个租户分管理员（能改）与员工（只读），角色按租户列在「身份与权限」里；
+ *   写入口按 `CatalogItem` 的作用域声明与引擎的授权快照逐行派生（US-029），员工在本机写当场被拒
  *
  * 主界面单栏，先看本机同步的数据（US-232）：「模拟服务端变更」是辅助工具，从页头的开关在右侧面板打开。
  * 宽屏上面板不挡页面，开着它也能点顶栏的「拉取」、看本机商品怎么变；窄屏是盖住页面、带遮罩的抽屉。
@@ -110,10 +111,15 @@ import { bucketLabel } from './catalog-view';
                 能读的区由服务端 <code>rxdb_caller_buckets()</code> 与 RLS
                 裁决，客户端改不了；同步规则只在这些区里挑行。
               </p>
+              <p class="text-base-content/60 text-xs" data-testid="catalog-grants-note">
+                角色来自引擎的授权快照 <code>rxdb.grants</code>：Supabase 适配器读服务端
+                <code>rxdb_caller_grants()</code>，连接时与每轮同步时刷新，存进本地库，离线沿用上次的快照。
+                管理员能改本租户的商品、调整成员权限，员工只能同步与浏览。
+              </p>
               <p class="text-base-content/60 text-xs">
-                角色来自服务端
-                <code>rxdb_caller_grants()</code>：管理员能改本租户的商品、调整成员权限，员工只能同步与浏览。
-                商品的写策略与远端变更历史按同一份成员权限裁决，这里只决定写入口给不给，能不能写以推送时服务端的裁决为准。
+                写入口由 <code>CatalogItem</code> 的声明（一行属于 <code>tenant:&lt;tenantId&gt;</code>，增删改都要
+                <code>edit</code>）与授权快照逐行判定，越权的写在本机当场被拒、不留待推修改。这只是快速失败：
+                商品的写策略与远端变更历史按同一份成员权限由服务端裁决，能不能写以推送时服务端的裁决为准。
               </p>
               @if (remote.$error(); as error) {
                 <div class="alert alert-error" role="alert">{{ error }}</div>

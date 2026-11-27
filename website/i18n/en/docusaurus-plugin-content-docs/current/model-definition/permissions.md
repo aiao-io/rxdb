@@ -327,12 +327,14 @@ While the snapshot is unknown, every rule-form entry point is closed and the lis
 Build your own UI on the same derivation:
 
 ```ts
-import { deriveRowCapabilities, deriveWriteBlockedReason } from '@aiao/rxdb-model';
+import { deriveCreateCapability, deriveRowCapabilities, deriveWriteBlockedReason } from '@aiao/rxdb-model';
 
 const context = { readOnly: rxdb.readOnly, grants: rxdb.grants.snapshot };
 const { canEdit, canDelete, editReason } = deriveRowCapabilities(metadata, row, context);
 // why not: 'read-only-instance' | 'system' | 'grants-unknown' | 'missing-permission'
 const blocked = deriveWriteBlockedReason(metadata, context); // 'read-only-instance' | 'grants-unknown' | undefined
+// scope picker in a create form: list only the tenants a new row can be created in, as the create check does
+const tenants = allTenants.filter(t => deriveCreateCapability(metadata, { tenantId: t.id }, context).canCreate);
 ```
 
 - Omitting `grants` is the same as an unknown snapshot: rule-form operations are closed. Applications that call `buildEditableColumns()` directly must pass `grants` and rebuild the columns when the snapshot changes; otherwise rule-form rows never offer "Delete".

@@ -9,8 +9,8 @@
 | 状态           | 数量 |
 | :------------- | :--- |
 | ✅ Done        | 100  |
-| 🚧 In Progress | 14   |
-| 👀 In Review   | 18   |
+| 🚧 In Progress | 13   |
+| 👀 In Review   | 19   |
 | 📝 Backlog     | 27   |
 | 🚫 Blocked     | 0    |
 | **合计**       | 159  |
@@ -18,10 +18,9 @@
 统计只包含带 story frontmatter 的文件。辅助证据和无故事文件的候选不计数；同编号的辅助文件不算另一条故事。
 Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关闭而自动通过。当前可开工条件见 roadmap 与各故事的阶段表。
 
-## 进行中（14 条）
+## 进行中（13 条）
 
 - [US-211 多端小程序宿主（支付宝 / 抖音 / 百度 / QQ）](stories/adapter/US-211-multi-miniprogram-platforms.md)：未通过 AC#14、#16、#18（3/21）
-- [US-234 Supabase 租户内成员权限：管理员能改、员工只能看，dev-rxdb-supabase 完整演示](stories/adapter/US-234-supabase-tenant-member-permissions.md)：未通过 AC#17～#20（4/20）
 - [US-403 实体组件 Headless API 与可定制展示层](stories/ui/US-403-entity-components-headless.md)：未通过 AC#1～#16、#18～#21（20/21）
 - [US-530 后台外壳偏好中心：声明式 schema 驱动的偏好抽屉与外观设置](stories/domain/US-530-admin-shell-preferences-appearance.md)：未通过 AC#1～#7（7/7）
 - [US-531 后台外壳布局：四种布局模式、侧栏图标轨、移动端抽屉与页签栏](stories/domain/US-531-admin-shell-layout-tabbar.md)：未通过 AC#1～#7（7/7）
@@ -35,7 +34,7 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 - [US-706 服务器兜底与认证](stories/future/US-706-p2p-fallback-auth.md)：未通过 AC#3～#5（3/6）
 - [US-707 跨运行时 demo 与多实例 e2e](stories/future/US-707-p2p-cross-runtime-e2e.md)：未通过 AC#4～#8（5/8）
 
-## 待评审（18 条）
+## 待评审（19 条）
 
 - [US-029 按作用域的成员写权限：实体声明作用域与所需权限，本地写入口快速拒绝，三端按行显隐入口](stories/core/US-029-rbac-owner-role-permission.md)：AC 已全部通过
 - [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)：AC 已全部通过
@@ -50,6 +49,7 @@ Backlog 包含已授权和价值待证范围；候选阶段不因当前范围关
 - [US-231 dev-rxdb-supabase 三页交互统一：撤销、重做与操作历史同一位置、作用域写在控件上](stories/adapter/US-231-supabase-unified-undo-history.md)：AC 已全部通过
 - [US-232 dev-rxdb-supabase 商品「模拟服务端变更」收进右侧抽屉：主界面先看本机数据，需要时再打开](stories/adapter/US-232-supabase-catalog-server-drawer.md)：AC 已全部通过
 - [US-233 Supabase 待拉数与能拉的对不上：刷新后把自己推的算进去，分区按变更号差计](stories/adapter/US-233-supabase-pullable-count-accuracy.md)：AC 已全部通过
+- [US-234 Supabase 租户内成员权限：管理员能改、员工只能看，dev-rxdb-supabase 完整演示](stories/adapter/US-234-supabase-tenant-member-permissions.md)：AC 已全部通过
 - [US-235 dev-rxdb-supabase 订单页一个窗口就能测：页面上写明怎么测，远端数据看得见，没推的行标出来](stories/adapter/US-235-supabase-orders-testability.md)：AC 已全部通过
 - [US-316 撤销/重做的多仓库作用域：几个实体合起来撤，跨它们的事务整条撤](stories/collaboration/US-316-multi-repository-history-scope.md)：AC 已全部通过
 - [US-317 待推送清单：与待推数同一口径的历史项流](stories/collaboration/US-317-pushable-histories.md)：AC 已全部通过
@@ -261,7 +261,7 @@ US-704～US-707 已获 owner 授权，US-708 会话层由 owner 决定在 PR #17
 - ✅ [US-035 每个身份一个本地库：打开时核对身份，换账号不混数据](stories/core/US-035-identity-bound-local-database.md)
 - ✅ [US-036 规则之外的公开数据：在线浏览走只读浏览实体，不进同步子集](stories/core/US-036-browse-public-data-outside-sync-rule.md)
 - 👀 [US-229 Supabase 远端变更历史：每次业务写入记完整前后快照，只对能编辑的成员开放](stories/adapter/US-229-supabase-change-history.md)
-- 🚧 [US-234 Supabase 租户内成员权限：管理员能改、员工只能看，dev-rxdb-supabase 完整演示](stories/adapter/US-234-supabase-tenant-member-permissions.md)
+- 👀 [US-234 Supabase 租户内成员权限：管理员能改、员工只能看，dev-rxdb-supabase 完整演示](stories/adapter/US-234-supabase-tenant-member-permissions.md)
 
 ### [本机修改工作台：推送、拉取、撤销与历史的统一交互](epics/epic-016-local-change-workbench.md)
 

@@ -2,7 +2,7 @@
  * @fileoverview 授权快照的 Supabase 来源（US-029 AC#14～#16）—— 真实 Supabase 栈
  *
  * @remarks
- * 声明了作用域的商品实体（与 `catalog_items` 同表同名，多了 `access` 与规则）连上 Supabase 之后，快照来自
+ * 共享夹具 `CatalogItem`（US-234 阶段 B 起声明了 `tenant:` 作用域与增删改所需的 `edit`）连上 Supabase 之后，快照来自
  * `rxdb_caller_grants()`：连接时、同步每一轮进门时各读一次。用例以普通 authenticated 身份运行，权限只经成员表与
  * US-234 的 RPC 改，不用 mock。AC#16 不改共享栈：客户端外面套一层，把 `rxdb_caller_grants` 换成一个不存在的函数名，
  * 拿到的是真栈对「没有这个函数」的真实应答（PGRST202），适配器自己的映射与核心的连接处置照常走一遍。
@@ -10,11 +10,8 @@
  * 每轮用带 runId 的租户与用户，结束时按 id 清理，不碰演示租户。
  */
 import {
-  Entity,
-  EntityBase,
   getEntityStatus,
   PermissionDeniedError,
-  PropertyType,
   RxDB,
   RxDBChange,
   RxDBGrantSnapshot,
@@ -25,7 +22,7 @@ import {
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
-import { Todo } from '@aiao/rxdb-test/entities';
+import { CatalogItem, Todo } from '@aiao/rxdb-test/entities';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { firstValueFrom } from 'rxjs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -39,34 +36,6 @@ const SUPABASE_KEY = import.meta.env['VITE_SUPABASE_KEY'] || '';
 
 const ADMIN = ['read', 'edit', 'manage'];
 const STAFF = ['read'];
-
-/** 与 `CatalogItem` 同表同名，多了作用域与所需权限（US-234 阶段 B 才给共享夹具加声明） */
-@Entity({
-  name: 'CatalogItem',
-  tableName: 'catalog_items',
-  properties: [
-    { name: 'name', type: PropertyType.string },
-    { name: 'category', type: PropertyType.string },
-    { name: 'price', type: PropertyType.number, default: 0 },
-    { name: 'cost', type: PropertyType.number, nullable: true },
-    { name: 'visibility', type: PropertyType.enum, enum: ['public', 'tenant'], default: 'public' },
-    { name: 'tenantId', type: PropertyType.string }
-  ],
-  access: { scope: { property: 'tenantId', prefix: 'tenant:' } },
-  permissions: {
-    create: { requires: 'edit' },
-    update: { requires: 'edit' },
-    delete: { requires: 'edit' }
-  }
-})
-class ScopedCatalogItem extends EntityBase {
-  declare name: string;
-  declare category: string;
-  declare price: number;
-  declare cost: number | null;
-  declare visibility: 'public' | 'tenant';
-  declare tenantId: string;
-}
 
 interface Grant {
   scope: string;
@@ -143,17 +112,17 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('授权快照的 Supabase 来源
     ]
   });
 
-  function create(remote: SupabaseClient, entities: EntityType[] = [ScopedCatalogItem]): RxDB {
+  function create(remote: SupabaseClient, entities: EntityType[] = [CatalogItem]): RxDB {
     const rxdb = new RxDB({
       dbName: `us029-${runId}-${databases.length}`,
       context: { userId: crypto.randomUUID() },
       entities,
       sync: { type: SyncType.None, local: { adapter: 'wa-sqlite' }, remote: { adapter: 'supabase' } },
       syncOverrides:
-        entities.includes(ScopedCatalogItem) ?
+        entities.includes(CatalogItem) ?
           [
             {
-              entity: ScopedCatalogItem,
+              entity: CatalogItem,
               sync: {
                 type: SyncType.Filter,
                 local: { adapter: 'wa-sqlite' },
@@ -184,10 +153,10 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('授权快照的 Supabase 来源
   const pull = (rxdb: RxDB) => rxdb.syncManager.pullRepository('public', 'CatalogItem', { fetchAll: true });
   const push = (rxdb: RxDB) => rxdb.syncManager.pushRepository('public', 'CatalogItem');
   const item = (rxdb: RxDB, id: string) =>
-    firstValueFrom(rxdb.entityManager.getRepository(ScopedCatalogItem).get(id as never));
+    firstValueFrom(rxdb.entityManager.getRepository(CatalogItem).get(id as never));
 
-  async function localRow(local: RxDBAdapterWaSqlite, id: string): Promise<ScopedCatalogItem | undefined> {
-    const rows = await local.getRepository(ScopedCatalogItem).find({ where: { combinator: 'and', rules: [] } });
+  async function localRow(local: RxDBAdapterWaSqlite, id: string): Promise<CatalogItem | undefined> {
+    const rows = await local.getRepository(CatalogItem).find({ where: { combinator: 'and', rules: [] } });
     return rows.find(row => row.id === id);
   }
 

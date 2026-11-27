@@ -327,12 +327,14 @@ rxdb.grants.snapshot$.subscribe(render); // 订阅时先交出当前值，之后
 自己拼界面时用同一套派生：
 
 ```ts
-import { deriveRowCapabilities, deriveWriteBlockedReason } from '@aiao/rxdb-model';
+import { deriveCreateCapability, deriveRowCapabilities, deriveWriteBlockedReason } from '@aiao/rxdb-model';
 
 const context = { readOnly: rxdb.readOnly, grants: rxdb.grants.snapshot };
 const { canEdit, canDelete, editReason } = deriveRowCapabilities(metadata, row, context);
 // 不能时的原因：'read-only-instance' | 'system' | 'grants-unknown' | 'missing-permission'
 const blocked = deriveWriteBlockedReason(metadata, context); // 'read-only-instance' | 'grants-unknown' | undefined
+// 新建表单选作用域：只列出能建的租户，与写入口判 create（看新行）同口径
+const tenants = allTenants.filter(t => deriveCreateCapability(metadata, { tenantId: t.id }, context).canCreate);
 ```
 
 - 不传 `grants` 与快照未取到一样，规则形式一律关闭。直接调 `buildEditableColumns()` 的应用要传 `grants`，并在快照变化时重建列，否则规则形式的行不出「删除」。

@@ -1,22 +1,34 @@
 /**
- * @fileoverview 租户内成员权限（US-234 AC#2～#9）—— 真实 Supabase 栈
+ * @fileoverview 租户内成员权限（US-234 AC#2～#9、#18、#19）—— 真实 Supabase 栈
  *
  * @remarks
  * 成员权限存在 `demo_tenant_members.permissions`：管理员 `read + edit + manage`，员工 `read`。商品的三条写策略、
  * 远端变更历史的可见性与 `rxdb_caller_grants()` 都经 `rxdb_caller_scopes` 读同一份授权（`catalog-demo.sql`），
  * 用例以普通 authenticated 身份经 REST、RPC 与推送验收，不用 mock。
  *
+ * 商品声明了同口径的作用域与所需权限（阶段 B）：公开写入口按 Supabase 适配器读回的授权快照在本机先判一次，
+ * 员工在本机写当场被拒（AC#18）；服务端的裁决另用绕过本机判定的写来验（AC#4）。
+ *
  * 每轮用带 runId 的租户与用户：租户、管理员的成员关系与种子行经 service_role 直写，员工 X 自己经 REST 加入
  * （成员表只按列放行 `tenant_id`，自助加入拿到的只有 read）；结束时按 id 清理，不碰演示租户（星河零售、极光百货）。
  */
-import { RxDB, SyncType, type RuleGroup } from '@aiao/rxdb';
+import {
+  getEntityStatus,
+  PermissionDeniedError,
+  RxDB,
+  RxDBChange,
+  SyncType,
+  type EntityBase,
+  type EntityType,
+  type RuleGroup
+} from '@aiao/rxdb';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 import { CatalogItem } from '@aiao/rxdb-test/entities';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { firstValueFrom } from 'rxjs';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, onTestFinished } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
 import { getSupabaseServiceRoleClient, signTestAccessToken } from './test-utils.js';
 import { asyncWasmPath } from './wa-sqlite-wasm.js';
@@ -53,6 +65,8 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('租户内成员权限（US-234�
   const staff = crypto.randomUUID();
   /** 不在任何租户里的登录用户 */
   const outsider = crypto.randomUUID();
+  /** 先被管理员升为管理员、断网期间又被降为员工（AC#19 的 X） */
+  const promoted = crypto.randomUUID();
   const service = getSupabaseServiceRoleClient();
   const databases: RxDB[] = [];
   const entityIds: string[] = [];
@@ -64,6 +78,23 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('租户内成员权限（US-234�
       auth: { persistSession: false, autoRefreshToken: false },
       ...(user ? { accessToken: () => signTestAccessToken(user) } : {})
     });
+  }
+
+  /** 能断网的登录用户：断网时每个请求都像浏览器离线那样失败，`requests` 记下断网期间想发的请求 */
+  function switchableClient(user: string) {
+    const network = { online: true, requests: [] as string[] };
+    const remote = createClient(SUPABASE_URL, SUPABASE_KEY, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      accessToken: () => signTestAccessToken(user),
+      global: {
+        fetch: (input: RequestInfo | URL, init?: RequestInit) => {
+          if (network.online) return fetch(input, init);
+          network.requests.push(String(input instanceof Request ? input.url : input));
+          return Promise.reject(new TypeError('Failed to fetch'));
+        }
+      }
+    });
+    return { remote, network };
   }
 
   function row(name: string, visibility: SeedRow['visibility']): SeedRow {
@@ -154,6 +185,13 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('租户内成员权限（US-234�
     const rows = await local.getRepository(CatalogItem).find({ where: { combinator: 'and', rules: [] } });
     return rows.find(item => item.id === id);
   }
+
+  /** 本机变更日志的条数：被拒的写一条都不该留下 */
+  const localChanges = (local: RxDBAdapterWaSqlite) =>
+    local.getRepository(RxDBChange).count({ where: { combinator: 'and', rules: [] } });
+
+  const getItem = (rxdb: RxDB, id: SeedRow['id']) =>
+    firstValueFrom(rxdb.entityManager.getRepository(CatalogItem).get(id));
 
   beforeAll(async () => {
     const { error: tenantError } = await service.from('demo_tenants').insert([
@@ -272,14 +310,20 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('租户内成员权限（US-234�
     }
   });
 
-  it('AC#4：员工在本机改了本租户的商品，推送被拒（denied），本机对齐远端；远端行、同步日志与变更历史都不变', async () => {
+  it('AC#4：员工绕过本机判定在本机改了本租户的商品，推送被拒（denied），本机对齐远端；远端行、同步日志与变更历史都不变', async () => {
     const [kept] = await seed(row('staff-local', 'tenant'));
     const { rxdb, local } = await open(client(staff));
     await sync(rxdb);
     const before = await remoteTrail(kept.id);
-    const item = await firstValueFrom(rxdb.entityManager.getRepository(CatalogItem).get(kept.id));
+    const item = await getItem(rxdb, kept.id);
     item.price = 1;
-    await item.save();
+    // 公开写入口在本机就拒绝员工（AC#18）；经本地适配器写是系统写、不判定，代表本机判定没拦住的修改
+    //（没装声明的旧客户端、直接改了本地库）：服务端照样拒绝
+    await local.mutations({
+      create: new Map(),
+      update: new Map<EntityType, Set<EntityBase>>([[CatalogItem as unknown as EntityType, new Set([item])]]),
+      remove: new Map()
+    });
 
     const result = await push(rxdb);
 
@@ -309,6 +353,81 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('租户内成员权限（US-234�
     expect(await localRow(visitor.local, shown.id)).toMatchObject({ cost: null });
     expect(await localRow(visitor.local, internal.id)).toBeUndefined();
     expect((await client(null).from('catalog_items').select('id, cost').eq('id', shown.id)).error?.code).toBe('42501');
+  });
+
+  it('AC#18：员工经公开写入口在本机新建、修改、删除本租户的商品，当场 PermissionDeniedError；行不变，变更日志不多一条', async () => {
+    const [kept] = await seed(row('staff-entry', 'tenant'));
+    const { rxdb, local } = await open(client(staff));
+    await sync(rxdb);
+    expect(rxdb.grants.snapshot.has(`tenant:${tenant}`, 'read')).toBe(true);
+    expect(rxdb.grants.snapshot.has(`tenant:${tenant}`, 'edit')).toBe(false);
+    const before = await localChanges(local);
+
+    const item = await getItem(rxdb, kept.id);
+    item.price = 1;
+    await expect(item.save()).rejects.toBeInstanceOf(PermissionDeniedError);
+    item.reset();
+    await expect(item.remove()).rejects.toBeInstanceOf(PermissionDeniedError);
+    const created = rxdb.entityManager.instantiate(CatalogItem, {
+      name: `${runId}/staff-new`,
+      category,
+      price: 1,
+      cost: 1,
+      visibility: 'tenant',
+      tenantId: tenant
+    });
+    const error = await created.save().catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(PermissionDeniedError);
+    expect((error as PermissionDeniedError).violations).toEqual([
+      expect.objectContaining({ entity: 'CatalogItem', scope: `tenant:${tenant}`, requires: 'edit' })
+    ]);
+    expect(await localChanges(local)).toBe(before);
+    expect(getEntityStatus(item).origin).toMatchObject({ price: 100 });
+    expect(await localRow(local, kept.id)).toMatchObject({ price: 100 });
+    expect(await localRow(local, created.id)).toBeUndefined();
+  });
+
+  it('AC#19：管理员同步过一次后断网，沿用上次的快照在本机改；断网期间被降为员工，联网推送被拒、本机对齐，拉取后本机写当场被拒', async () => {
+    const { error: joinError } = await client(promoted).from('demo_tenant_members').insert({ tenant_id: tenant });
+    expect(joinError).toBeNull();
+    // 用完退出：后面的用例按「本租户只有管理员与员工 X」断言成员列表
+    onTestFinished(async () => {
+      const { error } = await client(promoted).from('demo_tenant_members').delete().eq('tenant_id', tenant);
+      expect(error).toBeNull();
+    });
+    expect((await setPermissions(admin, promoted, ADMIN)).error).toBeNull();
+    const [kept] = await seed(row('offline-demoted', 'tenant'));
+    const { remote, network } = switchableClient(promoted);
+    const { rxdb, local } = await open(remote);
+    await sync(rxdb);
+    expect(rxdb.grants.snapshot.has(`tenant:${tenant}`, 'edit')).toBe(true);
+
+    // 断网：本机写只看内存里的快照与本地库里的前像，一个请求都不发
+    network.online = false;
+    const offlineEdit = await getItem(rxdb, kept.id);
+    offlineEdit.price = 1;
+    await offlineEdit.save();
+    expect(network.requests).toEqual([]);
+    expect((await setPermissions(admin, promoted, STAFF)).error).toBeNull();
+
+    // 联网：推送进门时先刷新快照（已是员工），服务端拒收这条修改，本机对齐远端
+    network.online = true;
+    const result = await push(rxdb);
+
+    expect(result).toMatchObject({ pushed: 0, rejected: 1 });
+    expect(rxdb.syncState.snapshot.lastRejections).toEqual([
+      expect.objectContaining({ entity: 'CatalogItem', entityId: kept.id, reason: 'denied' })
+    ]);
+    expect(await localRow(local, kept.id)).toMatchObject({ price: 100 });
+
+    await sync(rxdb);
+    expect(rxdb.grants.snapshot.has(`tenant:${tenant}`, 'edit')).toBe(false);
+    const before = await localChanges(local);
+    const again = await getItem(rxdb, kept.id);
+    again.price = 2;
+    await expect(again.save()).rejects.toBeInstanceOf(PermissionDeniedError);
+    expect(await localChanges(local)).toBe(before);
   });
 
   it('AC#6：员工与非成员读本租户商品的远端变更历史得零条、不报错，管理员读得到；anon 没有执行权', async () => {

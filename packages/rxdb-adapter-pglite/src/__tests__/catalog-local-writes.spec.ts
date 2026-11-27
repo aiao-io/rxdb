@@ -5,6 +5,8 @@
  * 商品（`CatalogItem`）按授权分区同步。这里只验本地一侧：本地增删改留下带 `patch` / `inversePatch` 的变更，
  * 能按商品作用域撤销、重做；推送之后撤销栈清空；拉取到远端变更之后撤销历史失效，但没推的修改照样待推。
  * 远端按写后的行算区、日志不带正文、换区与 RLS 被拒由 Supabase 真栈用例（`rxdb-adapter-supabase`）覆盖。
+ *
+ * 商品声明了按租户的成员写权限（US-234 阶段 B）：脚本化远端不报告授权，快照由应用设入本租户的 `edit`。
  */
 import { type RemoteChange, RxDB, RxDBChange, SyncType } from '@aiao/rxdb';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
@@ -53,6 +55,7 @@ const createDatabase = async (script: RemoteScript): Promise<RxDB> => {
   opened.push(database);
   await database.connect('pglite');
   await database.connect(SCRIPTED_REMOTE_ADAPTER);
+  await database.grants.set([{ scope: `tenant:${TENANT}`, permissions: ['read', 'edit'] }]);
   await database.versionManager.getCurrentBranch();
   return database;
 };

@@ -24,8 +24,11 @@
 
 商品的写入按成员权限裁决（US-234）：自助加入的匿名用户只是员工。要写商品的用例先调 `src/support/members.ts` 的
 `promoteToAdmin(browser, page)`：另开一个浏览器上下文登录这个租户的管理员（星河零售是 Alice，极光百货是 Bob），
-在「成员与权限」里按用户 id（`catalog-user-id`）把他设为管理员，成员再拉取一次，授权随之重读。
+在「成员与权限」里按用户 id（`catalog-user-id`）把他设为管理员，成员再拉取一次：拉取进门时引擎刷新授权快照
+（`rxdb.grants`，US-234 阶段 B），写入口随之出现。
 Alice、Bob 自己的权限一律不改；`catalog-member-permissions.spec.ts` 里 Alice 加入极光百货的用例结束时退出，回到初始状态。
+断网重开的用例（AC#19）只断 Supabase：按 `VITE_SUPABASE_URL` 的 host 用 `page.route` 与 `page.routeWebSocket` 拦截，
+页面资源照常从 web server 加载（`setOffline` 会连页面一起断，刷新就加载不出来）。
 
 `e2e-remote` 分两轮跑：
 

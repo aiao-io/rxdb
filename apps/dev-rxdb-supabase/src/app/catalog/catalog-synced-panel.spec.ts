@@ -1,4 +1,4 @@
-import { RxDB } from '@aiao/rxdb';
+import { RxDB, RxDBGrantSnapshot } from '@aiao/rxdb';
 import type { CatalogItem } from '@aiao/rxdb-test/entities';
 import { signal } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
@@ -47,9 +47,20 @@ async function settle(fixture: ComponentFixture<unknown>): Promise<void> {
 /**
  * @param options.tenants - 所在的租户
  * @param options.editable - 其中有 edit 的租户；缺省与所在的租户相同（都是管理员）
+ *
+ * @remarks 写入口出自引擎（US-234 阶段 B）：这里只给授权快照，能不能改由真的 `CatalogLocalWrites` 按 `CatalogItem` 的声明派生。
  */
 async function renderPanel(options: { signedIn: boolean; tenants: string[]; editable?: string[] }) {
-  const rxdb = { entityManager: { instantiate: vi.fn() } };
+  const rxdb = { readOnly: false, entityManager: { instantiate: vi.fn() } };
+  const editable = options.editable ?? options.tenants;
+  const snapshot = RxDBGrantSnapshot.known(
+    options.tenants.map(tenantId => ({
+      scope: `tenant:${tenantId}`,
+      permissions: editable.includes(tenantId) ? ['read', 'edit'] : ['read']
+    })),
+    'remote',
+    new Date(0)
+  );
   const own = listedItem('item-own', 'xinghe', '星河 X1 蓝牙耳机');
   const other = listedItem('item-other', 'jiguang', '极光便携充电宝');
   const items = signal([own, other]);
@@ -67,8 +78,8 @@ async function renderPanel(options: { signedIn: boolean; tenants: string[]; edit
             { id: 'xinghe', name: '星河零售' },
             { id: 'jiguang', name: '极光百货' }
           ]),
+          $grantSnapshot: signal(snapshot),
           $myTenantIds: signal(options.tenants),
-          $editableTenantIds: signal(options.editable ?? options.tenants),
           tenantName: (tenantId: string) => tenantId
         }
       }

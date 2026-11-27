@@ -5,7 +5,8 @@
  * 是不是系统表、在哪个命名空间都不参与——系统表已经显式声明三项都为 `'system'`。
  *
  * 规则形式（`{ requires }`，US-029）的操作看授权快照：实体级看「有没有一个带该前缀的作用域有所需权限」，
- * 按行看「这一行所属的作用域有没有」。快照没传或还没取到时，规则形式一律关闭，与写入口的 fail-closed 同口径。
+ * 按行看「这一行所属的作用域有没有」，待建的行看「草稿所属的作用域有没有 create 所需的权限」。
+ * 快照没传或还没取到时，规则形式一律关闭，与写入口的 fail-closed 同口径。
  */
 
 import {
@@ -69,6 +70,14 @@ export interface RowCapabilities {
   readonly editReason?: CapabilityDeniedReason;
   /** 不可删除的原因；可删除时没有 */
   readonly deleteReason?: CapabilityDeniedReason;
+}
+
+/** 一条待建的行能不能新建，不能时的原因 */
+export interface CreateCapability {
+  /** 这一行可新建 */
+  readonly canCreate: boolean;
+  /** 不可新建的原因；可新建时没有 */
+  readonly createReason?: CapabilityDeniedReason;
 }
 
 /**
@@ -160,6 +169,33 @@ export const deriveRowCapabilities = (
     ...(editReason === undefined ? {} : { editReason }),
     ...(deleteReason === undefined ? {} : { deleteReason })
   };
+};
+
+/**
+ * 一条待建的行能不能新建（US-029）
+ *
+ * @param metadata - 实体元数据（只读其中的 `permissions` 与 `access`）
+ * @param draft - 待建行的字段值；规则形式按其中的作用域属性取作用域
+ * @param context - 实例侧上下文，见 {@link EntityCapabilityContext}
+ * @returns 能不能建，不能时的原因；没有规则形式的实体与实体级的 `canCreate` 一致、与草稿无关
+ *
+ * @remarks
+ * 给新建表单选作用域用：只列出能建的作用域（例如有 `edit` 的租户）。写入口判 create 看的也是新行的作用域，
+ * 保存时以写入口为准。
+ *
+ * @example
+ * ```typescript
+ * const context = { readOnly: rxdb.readOnly, grants: rxdb.grants.snapshot };
+ * const tenants = allTenants.filter(t => deriveCreateCapability(metadata, { tenantId: t.id }, context).canCreate);
+ * ```
+ */
+export const deriveCreateCapability = (
+  metadata: Declared,
+  draft: Readonly<Record<string, unknown>>,
+  context: EntityCapabilityContext = {}
+): CreateCapability => {
+  const createReason = reasonOf(metadata, 'create', context, rowScopeAllows(draft));
+  return createReason === undefined ? { canCreate: true } : { canCreate: false, createReason };
 };
 
 /**
