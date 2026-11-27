@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import {
   Component,
   DestroyRef,
@@ -118,13 +119,13 @@ export class MapsApp {
   private readonly data = inject(DesktopData);
   private readonly popover = inject(PopoverService);
   private readonly preferences = inject(Preferences);
+  private readonly mapBox = viewChild.required<ElementRef<HTMLElement>>('mapBox');
   /** 收藏的地点，按收藏先后。 */
   private readonly places = liveQuery(
     () => MapPlace.findAll({ where: ALL_ROWS, orderBy: [{ field: 'createdAt', sort: 'asc' }] }),
     [],
     MapPlace
   );
-  private readonly mapBox = viewChild.required<ElementRef<HTMLElement>>('mapBox');
   private readonly pane = viewChild.required<ElementRef<HTMLElement>>('pane');
   private readonly pin = viewChild.required<ElementRef<SVGElement>>('pin');
   private readonly tiles = new Map<string, TileEntry>();
@@ -145,6 +146,7 @@ export class MapsApp {
   /** 最近使用的地点，存偏好，启动时恢复。 */
   private readonly recentState = signal<readonly PlaceSpot[]>([]);
   private readonly restoredRecent = signal(false);
+  protected readonly i18n = useI18n();
 
   protected readonly card = signal<MapCard>({ title: CUPERTINO.title, sub: CUPERTINO.sub });
   protected readonly results = signal<MapResults | null>(null);
@@ -156,24 +158,31 @@ export class MapsApp {
   constructor() {
     const menus = inject(DesktopMenus);
     const destroyRef = inject(DestroyRef);
+    /* 菜单名就是 standard() 的合并键：基础菜单的键是翻译后的分区名，覆盖与顺序都要用同一份翻译。 */
+    const file = this.i18n.t('shell.menu.sectionFile');
+    const edit = this.i18n.t('shell.menu.sectionEdit');
+    const view = this.i18n.t('shell.menu.sectionView');
+    const favourites = this.i18n.t('apps.maps.sectionFavourites');
+    const windowSection = this.i18n.t('shell.menu.sectionWindow');
+    const help = this.i18n.t('shell.menu.sectionHelp');
     this.win.setMenus(
       computed(() =>
         menus.standard(
           'maps',
           {
-            View: [
-              { id: 'zi', label: 'Zoom In', key: '⌘+', run: () => this.zoom(1) },
-              { id: 'zo', label: 'Zoom Out', key: '⌘-', run: () => this.zoom(-1) },
+            [view]: [
+              { id: 'zi', label: this.i18n.t('apps.maps.zoomIn'), key: '⌘+', run: () => this.zoom(1) },
+              { id: 'zo', label: this.i18n.t('apps.maps.zoomOut'), key: '⌘-', run: () => this.zoom(-1) },
               '-',
               {
                 id: 'home',
-                label: 'Go to Cupertino',
+                label: this.i18n.t('apps.maps.goToCupertino'),
                 run: () => this.goto(CUPERTINO.lat, CUPERTINO.lon, CUPERTINO.zoom, CUPERTINO.title, CUPERTINO.sub)
               }
             ],
-            Favourites: this.favouriteEntries()
+            [favourites]: this.favouriteEntries()
           },
-          ['File', 'Edit', 'View', 'Favourites', 'Window', 'Help']
+          [file, edit, view, favourites, windowSection, help]
         )
       )
     );
@@ -236,7 +245,11 @@ export class MapsApp {
     const stopUp = this.renderer.listen(box, 'pointerup', () => {
       stopMove();
       stopUp();
-      if (drag.moved) this.card.set({ title: 'Dropped Pin', sub: `${this.lat.toFixed(4)}, ${this.lon.toFixed(4)}` });
+      if (drag.moved)
+        this.card.set({
+          title: this.i18n.t('apps.maps.droppedPin'),
+          sub: `${this.lat.toFixed(4)}, ${this.lon.toFixed(4)}`
+        });
     });
   }
 
@@ -252,7 +265,7 @@ export class MapsApp {
   }
 
   protected directions(): void {
-    this.toast.show(`Routing to ${this.card().title} isn't in this build`);
+    this.toast.show(this.i18n.t('apps.maps.noRouting', { name: this.card().title }));
   }
 
   protected save(): void {
@@ -260,7 +273,7 @@ export class MapsApp {
     const spot: PlaceSpot = { title, subtitle: sub, latitude: this.lat, longitude: this.lon, zoom: this.z };
     void this.keep(spot);
     this.recordSpot(spot);
-    this.toast.show(`${title} added to Favourites`);
+    this.toast.show(this.i18n.t('apps.maps.addedToFavourites', { name: title }));
   }
 
   /** 方向键平移：一次一块瓦片的距离；焦点在输入框或按钮上时不动。 */
@@ -288,19 +301,22 @@ export class MapsApp {
       [
         {
           id: 'pin',
-          label: 'Drop Pin',
+          label: this.i18n.t('apps.maps.dropPin'),
           run: () => {
             this.lat = point.lat;
             this.lon = point.lon;
-            this.card.set({ title: 'Dropped Pin', sub: `${point.lat.toFixed(4)}, ${point.lon.toFixed(4)}` });
+            this.card.set({
+              title: this.i18n.t('apps.maps.droppedPin'),
+              sub: `${point.lat.toFixed(4)}, ${point.lon.toFixed(4)}`
+            });
             this.layout();
           }
         },
-        { id: 'copy', label: 'Copy Coordinates', run: () => void this.copyCoordinates(point) },
+        { id: 'copy', label: this.i18n.t('apps.maps.copyCoordinates'), run: () => void this.copyCoordinates(point) },
         '-',
         {
           id: 'save',
-          label: 'Save to Favourites',
+          label: this.i18n.t('apps.maps.saveToFavourites'),
           run: () => {
             this.lat = point.lat;
             this.lon = point.lon;
@@ -309,11 +325,11 @@ export class MapsApp {
         },
         {
           id: 'home',
-          label: 'Go to Cupertino',
+          label: this.i18n.t('apps.maps.goToCupertino'),
           run: () => this.goto(CUPERTINO.lat, CUPERTINO.lon, CUPERTINO.zoom, CUPERTINO.title, CUPERTINO.sub)
         }
       ],
-      'Map actions'
+      this.i18n.t('apps.maps.actions')
     );
   }
 
@@ -379,7 +395,7 @@ export class MapsApp {
   /** 菜单栏 Favourites 菜单：每处收藏一项，点了回到那里。 */
   private favouriteEntries(): MenuEntry[] {
     const places = this.places();
-    if (!places.length) return [{ id: 'none', label: 'No favourites yet', disabled: true }];
+    if (!places.length) return [{ id: 'none', label: this.i18n.t('apps.maps.noFavourites'), disabled: true }];
     return places.map(place => ({
       id: place.id,
       label: place.title,
@@ -557,9 +573,9 @@ export class MapsApp {
     const text = `${point.lat.toFixed(4)}, ${point.lon.toFixed(4)}`;
     try {
       await navigator.clipboard.writeText(text);
-      this.toast.show('Coordinates copied');
+      this.toast.show(this.i18n.t('apps.maps.coordinatesCopied'));
     } catch {
-      this.toast.show(`Copy failed: ${text}`);
+      this.toast.show(this.i18n.t('error.maps.copyFailed', { coords: text }));
     }
   }
 

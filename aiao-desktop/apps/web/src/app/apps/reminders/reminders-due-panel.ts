@@ -1,5 +1,7 @@
 import { Component, inject, input } from '@angular/core';
 
+import { useI18n } from '@aiao/rxdb-i18n-angular';
+
 import { PopoverService } from '../../services/popover';
 import { FocusTrap } from '../../shared/focus-trap';
 import { dueLabel, dueOptions } from './reminders-model';
@@ -14,25 +16,25 @@ import { dueLabel, dueOptions } from './reminders-model';
   host: { class: 'pop', style: 'width: 250px; padding: 12px' },
   template: `
     <div
+      [attr.aria-label]="i18n.t('apps.reminders.setDueDate')"
       (keydown.escape)="popover.close()"
       appFocusTrap
-      aria-label="Set due date"
       aria-modal="true"
       role="dialog"
       style="display: flex; flex-direction: column; gap: 10px"
     >
-      <h2 style="font-size: 13px; margin: 0">Due date</h2>
+      <h2 style="font-size: 13px; margin: 0">{{ i18n.t('apps.reminders.dueDate') }}</h2>
       <div style="display: flex; flex-direction: column; gap: 2px">
         @for (option of options; track option.id) {
           <button class="btn" (click)="choose(option.due)" style="text-align: left" tabindex="0" type="button">
-            {{ option.label }}
+            {{ i18n.t(option.label) }}
           </button>
         }
       </div>
       <div style="display: flex; align-items: center; gap: 8px">
         <input
           #day
-          aria-label="Pick a date"
+          [attr.aria-label]="i18n.t('apps.reminders.pickDate')"
           data-rdue-date
           style="
             flex: 1;
@@ -48,7 +50,7 @@ import { dueLabel, dueOptions } from './reminders-model';
           type="date"
         />
         <button class="btn" [disabled]="!day.value" (click)="chooseDate(day.value)" tabindex="0" type="button">
-          Set
+          {{ i18n.t('apps.reminders.set') }}
         </button>
       </div>
     </div>
@@ -56,6 +58,7 @@ import { dueLabel, dueOptions } from './reminders-model';
 })
 export class ReminderDuePanel {
   private readonly popover = inject(PopoverService);
+  protected readonly i18n = useI18n();
   protected readonly options = dueOptions();
 
   /** 选定后回调，参数是显示用时间说明。 */

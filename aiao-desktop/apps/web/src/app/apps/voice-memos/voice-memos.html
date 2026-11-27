@@ -4,7 +4,7 @@
     <div style="padding: 0 10px 8px">
       <div class="sfield" data-nodrag>
         <span><svg appIcon="g-search"></svg></span>
-        <input placeholder="Search" />
+        <input [placeholder]="i18n.t('apps.voice.search')" />
       </div>
     </div>
     <div style="overflow: auto; padding: 0 8px">
@@ -76,7 +76,9 @@
         <span>{{ clock(duration()) }}</span>
       </div>
       <div style="display: flex; align-items: center; gap: 26px; margin-top: 4px">
-        <button class="tbtn" (click)="skip(-5)" data-vskip="-5" title="Back 5s"><svg appIcon="g-bwd"></svg></button>
+        <button class="tbtn" [title]="i18n.t('apps.voice.back5s')" (click)="skip(-5)" data-vskip="-5">
+          <svg appIcon="g-bwd"></svg>
+        </button>
         <button
           class="btn pri"
           (click)="togglePlay()"
@@ -85,7 +87,9 @@
         >
           <svg [appIcon]="playing() ? 'g-pause' : 'g-play'" style="width: 17px; height: 17px"></svg>
         </button>
-        <button class="tbtn" (click)="skip(5)" data-vskip="5" title="Forward 5s"><svg appIcon="g-fwd"></svg></button>
+        <button class="tbtn" [title]="i18n.t('apps.voice.forward5s')" (click)="skip(5)" data-vskip="5">
+          <svg appIcon="g-fwd"></svg>
+        </button>
       </div>
     </div>
   </div>

@@ -1,5 +1,7 @@
 import { Service, computed, inject } from '@angular/core';
 
+import { I18N } from '@aiao/rxdb-i18n-angular';
+
 import { DesktopData } from '../../data/desktop-data';
 import { ALL_ROWS, liveQuery } from '../../data/live-query';
 import { time12Plain } from '../../shared/format';
@@ -20,6 +22,7 @@ const inThread = (threadId: string) => ({
 @Service({ autoProvided: false })
 export class MessagesStore {
   private readonly data = inject(DesktopData);
+  private readonly i18n = inject(I18N);
   private readonly threads = liveQuery(
     () => ChatThread.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
     [],
@@ -42,7 +45,7 @@ export class MessagesStore {
         where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: message.threadId }] },
         limit: 1
       });
-      if (!thread) throw new MessageSaveError('missing');
+      if (!thread) throw new MessageSaveError('missing', key => this.i18n.t(key));
       const messages = executor.getRepository(ChatMessage);
       const [existing] = await messages.find({
         where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: message.id }] },
@@ -50,7 +53,7 @@ export class MessagesStore {
       });
       if (existing) {
         if (existing.threadId !== message.threadId || existing.text !== message.text || existing.sender !== 'me')
-          throw new MessageSaveError('conflict');
+          throw new MessageSaveError('conflict', key => this.i18n.t(key));
         return;
       }
       const [last] = await messages.find({

@@ -1,4 +1,5 @@
 import { DiskPath, HOME, VOLUME_NAME, fromVmPath } from '../../disk/disk-path';
+import type { FinderTranslate } from './finder-menus';
 
 /** 图标在屏幕上的盒子（图标视图按几何找方向键的邻居）。 */
 export interface ItemRect {
@@ -115,5 +116,11 @@ export function parseGoToFolder(raw: string): DiskPath | null {
 }
 
 /** 条目的无障碍名称：名称加种类，读屏在按 Enter 之前就知道它是文件夹还是文件。 */
-export const itemLabel = (node: { readonly name: string; readonly kind: string; readonly k?: string }): string =>
-  `${node.name}, ${node.k || (node.kind === 'folder' ? 'Folder' : 'Document')}`;
+export const itemLabel = (
+  node: { readonly name: string; readonly kind: string; readonly k?: string },
+  t: FinderTranslate
+): string =>
+  t('apps.finder.itemLabel', {
+    name: node.name,
+    kind: node.k || t(node.kind === 'folder' ? 'apps.finder.kindFolder' : 'apps.finder.kindDocument')
+  });

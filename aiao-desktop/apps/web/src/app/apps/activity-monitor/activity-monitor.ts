@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { Component, computed, inject, input, signal } from '@angular/core';
 
 import { DesktopMenus } from '../../services/desktop-menus';
@@ -15,6 +16,16 @@ const TABS = ['Windows', ...METRIC_TABS] as const;
 
 type ActivityTab = (typeof TABS)[number];
 
+/** 各标签的显示文案 key（标签值本身是内部标识，界面按语言解析显示）。 */
+const TAB_LABEL_KEYS: Readonly<Record<ActivityTab, string>> = {
+  Windows: 'apps.activity.tab.windows',
+  CPU: 'apps.activity.tab.cpu',
+  Memory: 'apps.activity.tab.memory',
+  Energy: 'apps.activity.tab.energy',
+  Disk: 'apps.activity.tab.disk',
+  Network: 'apps.activity.tab.network'
+};
+
 /** 结束进程的确认弹层：Cancel 或 Esc 关闭，Close 才执行关闭窗口。 */
 @Component({
   selector: 'app-activity-close-panel',
@@ -22,26 +33,31 @@ type ActivityTab = (typeof TABS)[number];
   host: { class: 'pop', style: 'width: 320px; padding: 14px' },
   template: `
     <div
+      [attr.aria-label]="i18n.t('apps.activity.closeWindow')"
       (keydown.escape)="popover.close()"
       appFocusTrap
-      aria-label="Close window"
       aria-modal="true"
       role="dialog"
       style="display: flex; flex-direction: column; gap: 12px"
     >
-      <h2 style="font-size: 14px; margin: 0">Close “{{ title() }}”?</h2>
+      <h2 style="font-size: 14px; margin: 0">{{ i18n.t('apps.activity.closeWindowTitle', { name: title() }) }}</h2>
       <p style="font-size: 12px; color: var(--txt-2); margin: 0">
-        The window keeps its own save or discard confirmation if it has unsaved work.
+        {{ i18n.t('apps.activity.closeWindowMessage') }}
       </p>
       <div style="display: flex; justify-content: flex-end; gap: 8px">
-        <button class="btn" (click)="popover.close()" data-aclose-cancel tabindex="0" type="button">Cancel</button>
-        <button class="btn" (click)="confirmClose()" data-aclose-confirm tabindex="0" type="button">Close</button>
+        <button class="btn" (click)="popover.close()" data-aclose-cancel tabindex="0" type="button">
+          {{ i18n.t('apps.activity.cancel') }}
+        </button>
+        <button class="btn" (click)="confirmClose()" data-aclose-confirm tabindex="0" type="button">
+          {{ i18n.t('apps.activity.close') }}
+        </button>
       </div>
     </div>
   `
 })
 export class ActivityClosePanel {
   protected readonly popover = inject(PopoverService);
+  protected readonly i18n = useI18n();
   /** 窗口标题，确认文案里原样展示。 */
   readonly title = input.required<string>();
   /** 确认后执行关闭的回调。 */
@@ -64,6 +80,7 @@ export class ActivityMonitorApp {
   private readonly popover = inject(PopoverService);
   protected readonly wm = inject(WindowManager);
   protected readonly activity = inject(RuntimeActivity);
+  protected readonly i18n = useI18n();
 
   protected readonly tabs = TABS;
   protected readonly tab = signal<ActivityTab>('Windows');
@@ -78,12 +95,17 @@ export class ActivityMonitorApp {
   });
   protected readonly metricNote = computed(() => {
     const tab = this.tab();
-    return tab === 'Windows' ? '' : METRIC_NOTES[tab];
+    return tab === 'Windows' ? '' : this.i18n.t(METRIC_NOTES[tab]);
   });
 
   constructor() {
     const menus = inject(DesktopMenus);
     inject(DesktopWindow).setMenus(computed(() => menus.standard('activity')));
+  }
+
+  /** 标签的显示名（内部标识是英文，界面按当前语言解析）。 */
+  protected tabLabel(tab: ActivityTab): string {
+    return this.i18n.t(TAB_LABEL_KEYS[tab]);
   }
 
   protected show(id: string): void {

@@ -70,17 +70,19 @@ export class SafariBrowsers {
 
   toggleFavouritesBar(): void {
     this.system.safariFavs.update(on => !on);
-    this.toast.show(this.system.safariFavs() ? 'Favourites bar shown' : 'Favourites bar hidden');
+    this.toast.show(
+      this.system.safariFavs() ? 'apps.safari.toast.favouritesBarShown' : 'apps.safari.toast.favouritesBarHidden'
+    );
   }
 
   /** ⌘D：把当前地址加进收藏夹；起始页与空地址不收藏，已在收藏夹里就只提示。 */
   addBookmark(url: string): void {
     if (!url.trim() || kindOf(url) === 'start') {
-      this.toast.show('Nothing to bookmark');
+      this.toast.show('apps.safari.toast.nothingToBookmark');
       return;
     }
     if (this.favourites().some(fav => fav.url === url)) {
-      this.toast.show('Already in Favourites');
+      this.toast.show('apps.safari.toast.alreadyInFavourites');
       return;
     }
     void this.createBookmark(url);
@@ -91,6 +93,7 @@ export class SafariBrowsers {
       const bookmarks = executor.getRepository(SafariBookmark);
       await bookmarks.create(
         this.data.instantiate(SafariBookmark, {
+          /* 书签名是数据：存进库里的名字保持英文标题，不随界面语言变化。 */
           name: titleFor(url),
           color: favColor(url) ?? '#8e8e93',
           url,
@@ -98,7 +101,7 @@ export class SafariBrowsers {
         })
       );
     });
-    this.toast.show('Added to Favourites');
+    this.toast.show('apps.safari.toast.addedToFavourites');
   }
 
   private async remember(url: string): Promise<void> {

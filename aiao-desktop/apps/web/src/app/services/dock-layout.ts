@@ -1,5 +1,6 @@
+import { I18N } from '@aiao/rxdb-i18n-angular';
 import { Service, computed, effect, inject, signal, untracked } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { filter } from 'rxjs';
 import { ApplicationRegistry } from './application-registry';
 import { InstalledApplications } from './installed-applications';
@@ -44,6 +45,8 @@ export class DockLayoutStore {
   private readonly manifests = inject(ApplicationRegistry).apps;
   private readonly preferences = inject(Preferences);
   private readonly toast = inject(Toast);
+  private readonly i18nRuntime = inject(I18N, { optional: true }) ?? undefined;
+  private readonly locale = this.i18nRuntime ? toSignal(this.i18nRuntime.locale$, { requireSync: true }) : undefined;
   private readonly layoutState = signal<DockLayout>(defaultLayout(this.manifests()));
   /** 库读完之前用户做的改动；读完后在已存的布局上依次重放。读完（`null`）之后直接落库。 */
   private pending: LayoutChange[] | null = [];
@@ -115,7 +118,7 @@ export class DockLayoutStore {
     if (this.pinned(appId)) {
       return {
         id: 'remove-from-dock',
-        label: 'Remove from Dock',
+        label: this.t('shell.dock.removeFromDock', 'Remove from Dock'),
         disabled: !this.canUnpin(appId),
         run: () => {
           before?.();
@@ -125,13 +128,19 @@ export class DockLayoutStore {
     }
     return {
       id: 'add-to-dock',
-      label: 'Add to Dock',
+      label: this.t('shell.dock.addToDock', 'Add to Dock'),
       disabled: !this.pinnable(appId),
       run: () => {
         before?.();
         this.pin(appId);
       }
     };
+  }
+
+  /** 菜单标签翻译：读 locale 信号注册依赖；未注入 i18n 运行时（单测）时回退英文原文。 */
+  private t(key: string, english: string): string {
+    this.locale?.();
+    return this.i18nRuntime ? this.i18nRuntime.t(key) : english;
   }
 
   private change(update: LayoutChange): boolean {

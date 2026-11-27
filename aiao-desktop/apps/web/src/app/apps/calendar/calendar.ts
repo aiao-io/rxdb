@@ -11,6 +11,8 @@ import {
   viewChild
 } from '@angular/core';
 
+import { useI18n } from '@aiao/rxdb-i18n-angular';
+
 import { CalendarEvent, CalendarEventDraft, CalendarStore, clockLabel, eventTime } from '../../services/calendar-store';
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
@@ -106,10 +108,10 @@ interface PointerTimeDrag {
 }
 
 const VIEWS = [
-  { view: 'day', label: 'Day', width: 38 },
-  { view: 'week', label: 'Week', width: 42 },
-  { view: 'month', label: 'Month', width: 46 },
-  { view: 'year', label: 'Year', width: 38 }
+  { view: 'day', label: 'apps.calendar.day', width: 38 },
+  { view: 'week', label: 'apps.calendar.week', width: 42 },
+  { view: 'month', label: 'apps.calendar.month', width: 46 },
+  { view: 'year', label: 'apps.calendar.year', width: 38 }
 ] as const;
 
 const LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'] as const;
@@ -143,6 +145,7 @@ export class CalendarApp {
   private readonly editor: CalendarDraftEditor;
 
   protected readonly store = inject(CalendarStore);
+  protected readonly i18n = useI18n();
   protected readonly views = VIEWS;
   protected readonly letters = LETTERS;
   protected readonly days3 = DAYS3;
@@ -238,23 +241,49 @@ export class CalendarApp {
   constructor() {
     this.editor = new CalendarDraftEditor(
       change => this.store.saveEditor(change.id, change.fields, change.base),
-      event => this.store.removeEditor(event)
+      event => this.store.removeEditor(event),
+      undefined,
+      key => this.i18n.t(key)
     );
     const menus = inject(DesktopMenus);
     this.win.setMenus(
       computed(() =>
         menus.standard('calendar', {
-          File: [
-            { id: 'n', label: 'New Event', key: '⌘N', run: () => this.newEvent() },
-            { id: 'w', label: 'Close Window', key: '⌘W', run: () => this.wm.closeFront() }
+          [this.i18n.t('shell.menu.sectionFile')]: [
+            { id: 'n', label: this.i18n.t('apps.calendar.newEvent'), key: '⌘N', run: () => this.newEvent() },
+            { id: 'w', label: this.i18n.t('shell.menu.closeWindow'), key: '⌘W', run: () => this.wm.closeFront() }
           ],
-          View: [
-            { id: 'd', label: 'Day', key: '⌘1', checked: this.view() === 'day', run: () => this.setView('day') },
-            { id: 'w', label: 'Week', key: '⌘2', checked: this.view() === 'week', run: () => this.setView('week') },
-            { id: 'm', label: 'Month', key: '⌘3', checked: this.view() === 'month', run: () => this.setView('month') },
-            { id: 'y', label: 'Year', key: '⌘4', checked: this.view() === 'year', run: () => this.setView('year') },
+          [this.i18n.t('shell.menu.sectionView')]: [
+            {
+              id: 'd',
+              label: this.i18n.t('apps.calendar.day'),
+              key: '⌘1',
+              checked: this.view() === 'day',
+              run: () => this.setView('day')
+            },
+            {
+              id: 'w',
+              label: this.i18n.t('apps.calendar.week'),
+              key: '⌘2',
+              checked: this.view() === 'week',
+              run: () => this.setView('week')
+            },
+            {
+              id: 'm',
+              label: this.i18n.t('apps.calendar.month'),
+              key: '⌘3',
+              checked: this.view() === 'month',
+              run: () => this.setView('month')
+            },
+            {
+              id: 'y',
+              label: this.i18n.t('apps.calendar.year'),
+              key: '⌘4',
+              checked: this.view() === 'year',
+              run: () => this.setView('year')
+            },
             '-',
-            { id: 't', label: 'Go to Today', key: '⌘T', run: () => this.goToday() }
+            { id: 't', label: this.i18n.t('apps.calendar.goToToday'), key: '⌘T', run: () => this.goToday() }
           ]
         })
       )
@@ -263,7 +292,7 @@ export class CalendarApp {
       await this.editor.settle();
       if (!this.editor.dirty()) return true;
       this.showEditor();
-      this.toast.show('Calendar has unsaved changes. Save or cancel the event before closing.');
+      this.toast.show('apps.calendar.unsavedChanges');
       return false;
     };
     effect(() => this.win.hasUnsavedChanges.set(this.editor.dirty() || this.editor.saving()));
@@ -410,7 +439,7 @@ export class CalendarApp {
         label: `${eventTime(event)} · ${event.t}`,
         run: () => this.edit(event.id)
       })),
-      { keyboard, label: `Events on ${MONS3[cell.m]} ${cell.d}` }
+      { keyboard, label: this.i18n.t('apps.calendar.eventsOn', { date: `${MONS3[cell.m]} ${cell.d}` }) }
     );
   }
 
@@ -430,7 +459,7 @@ export class CalendarApp {
     if (!event) return;
     await this.store.remove(event.id);
     this.pickedEvent.set(null);
-    this.toast.show(`Deleted “${event.t}”`);
+    this.toast.show('apps.calendar.deletedEvent', { name: event.t });
     this.render();
   }
 
@@ -615,7 +644,7 @@ export class CalendarApp {
     if (!target || !moved || target.join() === moved.d.join()) return;
     await this.store.update(drag.id, { d: target });
     this.render();
-    this.toast.show(`Moved to ${MONS3[target[1]]} ${target[2]}`);
+    this.toast.show('apps.calendar.movedTo', { where: `${MONS3[target[1]]} ${target[2]}` });
   }
 
   private stopDrag(): void {
@@ -649,7 +678,7 @@ export class CalendarApp {
     const start = clamp(drag.s + delta, 0, 1425);
     await this.store.update(drag.id, { s: start });
     this.render();
-    this.toast.show(`Moved to ${clockLabel(start)}`);
+    this.toast.show('apps.calendar.movedTo', { where: clockLabel(start) });
   }
 
   private stopTimeDrag(): void {

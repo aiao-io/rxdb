@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { Component, computed, inject } from '@angular/core';
 import { dueToday } from '../../apps/reminders/reminders-model';
 import { Reminder } from '../../apps/reminders/reminders.entities';
@@ -22,7 +23,7 @@ function opensOn(event: KeyboardEvent): boolean {
     style: 'cursor: pointer',
     role: 'button',
     tabindex: '0',
-    'aria-label': 'Open Clock',
+    '[attr.aria-label]': "i18n.t('apps.clock.open')",
     '(click)': 'open()',
     '(keydown)': 'onKey($event)'
   },
@@ -31,6 +32,7 @@ function opensOn(event: KeyboardEvent): boolean {
 export class ClockSquareWidget {
   private readonly launcher = inject(AppLauncher);
   protected readonly clock = inject(Clock);
+  protected readonly i18n = useI18n();
 
   protected open(): void {
     this.launcher.activate('clock');
@@ -52,12 +54,14 @@ export class ClockSquareWidget {
     style: 'cursor: pointer',
     role: 'button',
     tabindex: '0',
-    'aria-label': 'Open Battery settings',
+    '[attr.aria-label]': "i18n.t('apps.settings.openBattery')",
     '(click)': 'open()',
     '(keydown)': 'onKey($event)'
   },
   template: `
-    <div class="wh"><span class="t">Battery</span></div>
+    <div class="wh">
+      <span class="t">{{ i18n.t('settings.section.battery') }}</span>
+    </div>
     <div class="rw">
       <svg viewBox="0 0 96 96">
         <circle cx="48" cy="48" fill="none" r="40" stroke="var(--fill-2)" stroke-width="8" />
@@ -82,14 +86,18 @@ export class ClockSquareWidget {
 export class BatterySquareWidget {
   private readonly launcher = inject(AppLauncher);
   protected readonly system = inject(SystemState);
+  protected readonly i18n = useI18n();
   protected readonly circumference = 2 * Math.PI * 40;
   protected readonly color = computed(() =>
     !this.system.charging() && this.system.battery() <= 20 ? '#ff9f0a' : '#30d158'
   );
   protected readonly remaining = computed(() => {
-    if (this.system.charging()) return 'Charging';
+    if (this.system.charging()) return this.i18n.t('shell.menuBar.charging');
     const mins = Math.round((this.system.battery() / 100) * 11.4 * 60);
-    return `${Math.floor(mins / 60)}h ${mins % 60}m left`;
+    return this.i18n.t('apps.settings.batteryRemaining', {
+      hours: Math.floor(mins / 60),
+      minutes: mins % 60
+    });
   });
 
   protected open(): void {
@@ -110,7 +118,9 @@ export class BatterySquareWidget {
   host: { class: 'wgt', '(dblclick)': "wm.open('reminders')" },
   template: `
     <div class="wh">
-      <span class="t">Today</span><span class="s">{{ remaining().length }} remaining</span>
+      <span class="t">{{ i18n.t('apps.reminders.today') }}</span><span class="s">{{
+        i18n.t('apps.reminders.remainingCount', { count: remaining().length })
+      }}</span>
     </div>
     @for (item of shown(); track item.id) {
       <div style="display: flex; gap: 9px; align-items: center; padding: 5px 0; border-top: 0.5px solid var(--line)">
@@ -133,6 +143,7 @@ export class RemindersWidget {
   );
 
   protected readonly wm = inject(WindowManager);
+  protected readonly i18n = useI18n();
   protected readonly remaining = computed(() => this.reminders().filter(dueToday));
   protected readonly shown = computed(() => this.remaining().slice(0, 3));
 }

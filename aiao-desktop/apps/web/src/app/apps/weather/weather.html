@@ -1,12 +1,12 @@
 <div class="tb plain" data-drag>
-  <div class="title">Weather</div>
+  <div class="title">{{ i18n.t('apps.weather.name') }}</div>
   <div class="tbz"><app-traffic-lights /></div>
   <div class="grow"></div>
   <div class="tbz"></div>
 </div>
 <div class="wx-app" data-wx>
   <div
-    aria-label="Cities"
+    [attr.aria-label]="i18n.t('apps.weather.cities')"
     role="navigation"
     style="
       width: 210px;
@@ -24,17 +24,17 @@
   >
     <div style="display: flex; align-items: center; justify-content: space-between; padding: 0 6px 6px">
       <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; opacity: 0.85">
-        Cities
+        {{ i18n.t('apps.weather.cities') }}
       </span>
       <button
         class="tbtn"
+        [attr.aria-label]="i18n.t('apps.weather.addCity')"
+        [title]="i18n.t('apps.weather.addCity')"
         (click)="openAdd($event)"
-        aria-label="Add city"
         data-nodrag
         data-wx-add
         style="background: rgba(255, 255, 255, 0.16); border: 0; border-radius: 50%; width: 22px; height: 22px"
         tabindex="0"
-        title="Add city"
         type="button"
       >
         <svg appIcon="g-plus" style="width: 12px; height: 12px; margin: auto"></svg>
@@ -47,8 +47,8 @@
         style="display: flex; align-items: center; border-radius: 8px; padding: 4px 4px 4px 6px"
       >
         <button
+          [attr.aria-label]="i18n.t('apps.weather.showWeatherFor', { name: city.name })"
           (click)="makePrimary(city)"
-          aria-label="Show weather for {{ city.name }}"
           style="
             flex: 1;
             min-width: 0;
@@ -71,8 +71,9 @@
         </button>
         <button
           class="tbtn"
-          [attr.aria-label]="'Remove ' + city.name"
+          [attr.aria-label]="i18n.t('apps.weather.removeName', { name: city.name })"
           [disabled]="cityRows().length <= 1"
+          [title]="i18n.t('apps.weather.removeCity')"
           (click)="removeCity(city)"
           data-nodrag
           data-wx-remove
@@ -85,7 +86,6 @@
             color: rgba(255, 255, 255, 0.8);
           "
           tabindex="0"
-          title="Remove city"
           type="button"
         >
           <svg appIcon="g-x" style="width: 10px; height: 10px; margin: auto"></svg>
@@ -103,12 +103,12 @@
     >
       @for (option of temperatureUnits; track option) {
         <button
+          [attr.aria-label]="option === 'celsius' ? i18n.t('apps.weather.celsius') : i18n.t('apps.weather.fahrenheit')"
           [attr.aria-pressed]="unit() === option"
           [attr.data-wx-unit]="option"
           [class.on]="unit() === option"
           [style.background]="unit() === option ? 'rgba(255,255,255,0.34)' : null"
           (click)="setUnit(option)"
-          aria-label="{{ option === 'celsius' ? '°C Celsius' : '°F Fahrenheit' }}"
           style="
             flex: 1;
             font-size: 11.5px;
@@ -129,8 +129,8 @@
     </div>
   </div>
   <div
+    [attr.aria-label]="i18n.t('apps.weather.forecast')"
     [style.background]="sky()"
-    aria-label="Weather forecast"
     role="region"
     style="flex: 1; min-height: 0; overflow: auto; color: #fff; padding: 22px 20px 26px"
     tabindex="0"
@@ -146,8 +146,8 @@
       </div>
     } @else {
       <div style="text-align: center; padding: 24px 0">
-        <h2>{{ place() || 'Weather' }}</h2>
-        <p>No weather data</p>
+        <h2>{{ place() || i18n.t('apps.weather.name') }}</h2>
+        <p>{{ i18n.t('apps.weather.noData') }}</p>
       </div>
     }
     <app-weather-status [showRefresh]="true" />
@@ -172,7 +172,7 @@
             border-bottom: 0.5px solid rgba(255, 255, 255, 0.18);
           "
         >
-          Hourly forecast
+          {{ i18n.t('apps.weather.hourly') }}
         </div>
         <div style="display: flex; justify-content: space-between; padding-top: 11px">
           @for (hour of hours(); track $index) {

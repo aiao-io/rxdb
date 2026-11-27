@@ -3,9 +3,9 @@
     <div class="mu-top">
       <div class="sbar" data-drag style="width: 206px">
         <div class="sb-top"><app-traffic-lights /></div>
-        @for (group of sidebar(); track group.head) {
+        @for (group of sidebar(); track group.key) {
           <div class="grp">
-            <div class="gh">{{ group.head }}</div>
+            <div class="gh">{{ i18n.t(group.key) }}</div>
             @for (item of group.items; track item[0]) {
               <div
                 class="si"
@@ -16,7 +16,7 @@
                 tabindex="-1"
               >
                 <svg class="ico" [appIcon]="item[1]"></svg>
-                <span class="nm">{{ item[0] }}</span>
+                <span class="nm">{{ item[2] ? i18n.t(item[2]) : item[0] }}</span>
               </div>
             }
           </div>
@@ -27,27 +27,27 @@
           <button
             class="tbtn"
             [class.dis]="!canGoBack()"
+            [title]="i18n.t('apps.music.back')"
             (click)="navigate(-1)"
             data-mnav="-1"
             data-nodrag
-            title="Back"
           >
             <svg appIcon="g-chev-l"></svg>
           </button>
           <button
             class="tbtn"
             [class.dis]="!canGoForward()"
+            [title]="i18n.t('apps.music.forward')"
             (click)="navigate(1)"
             data-mnav="1"
             data-nodrag
-            title="Forward"
           >
             <svg appIcon="g-chev-r"></svg>
           </button>
           <div class="grow" style="flex: 1"></div>
           <div class="sfield" data-nodrag style="width: 180px">
             <span><svg appIcon="g-search"></svg></span>
-            <input #search (input)="find(search.value)" data-msearch placeholder="Search" />
+            <input #search [placeholder]="i18n.t('apps.music.search')" (input)="find(search.value)" data-msearch />
           </div>
         </div>
         <div class="mu-hd">
@@ -57,7 +57,7 @@
         <div data-mbody style="flex: 1; display: flex; flex-direction: column; min-height: 0">
           @if (body() === 'search' && !rows().length) {
             <div style="flex: 1; display: grid; place-items: center; color: var(--txt-3); font-size: 13px">
-              No results for “{{ query() }}”
+              {{ i18n.t('apps.music.noResults', { query: query() }) }}
             </div>
           } @else if (body() === 'search' || body() === 'songs') {
             <div class="mu-songs scroll">
@@ -98,7 +98,7 @@
                     <span class="pl"><svg appIcon="g-play"></svg></span>
                   </div>
                   <b>{{ artist.name }}</b>
-                  <span>Artist</span>
+                  <span>{{ i18n.t('apps.music.artist') }}</span>
                 </div>
               }
             </div>
@@ -145,21 +145,21 @@
         <span class="t" data-cur>{{ elapsed() }}</span>
         <app-slider
           class="plain"
+          [label]="i18n.t('apps.music.playbackPosition')"
           [value]="seekValue()"
           (release)="seekTo($event)"
           (valueChange)="scrub($event)"
           data-slider="seek"
-          label="Playback position"
         />
         <span class="t r" data-dur>{{ remaining() }}</span>
       </div>
       <div class="vol">
         <svg appIcon="g-vol-lo"></svg>
         <app-slider
+          [label]="i18n.t('apps.music.volume')"
           [value]="system.volume()"
           (valueChange)="system.setVolume($event)"
           data-slider="mvol"
-          label="Volume"
         />
       </div>
       <button class="tbtn" [class.on]="shuffle()" (click)="shuffle.set(!shuffle())" data-c="shuffle">

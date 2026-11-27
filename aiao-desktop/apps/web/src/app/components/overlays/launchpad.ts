@@ -19,6 +19,7 @@ import { Preferences } from '../../data/preferences';
 import { AppInstallationFlow } from '../../services/app-installation-flow';
 import { AppLauncher } from '../../services/app-launcher';
 import { ApplicationRegistry } from '../../services/application-registry';
+import { appDisplayName } from '../../services/desktop-app-name';
 import { CatalogAppId, DesktopAppId } from '../../services/desktop-apps';
 import { DockDragController } from '../../services/dock-drag';
 import { DockLayoutStore } from '../../services/dock-layout';
@@ -78,7 +79,7 @@ interface LaunchpadDrag {
     id: 'lpad',
     class: 'nosel',
     role: 'dialog',
-    'aria-label': 'Launchpad',
+    '[attr.aria-label]': 'aria()',
     'aria-modal': 'true',
     '[class.out]': "overlays.launchpad() === 'closing'",
     '(pointerdown)': 'backdrop($event)',
@@ -101,10 +102,10 @@ interface LaunchpadDrag {
       <div class="fbar" data-lfolder>
         <button
           class="back"
+          [attr.aria-label]="i18n.t('shell.overlay.backToAllApplications')"
           (click)="openFolder(null)"
           (keydown.enter)="openFolder(null)"
           (keydown.space)="backByKey($event)"
-          aria-label="Back to All Applications"
           data-lback
           tabindex="0"
           type="button"
@@ -114,7 +115,7 @@ interface LaunchpadDrag {
         </button>
       </div>
     }
-    <div class="grid" #grid aria-label="Applications" data-lgrid role="group">
+    <div class="grid" #grid [attr.aria-label]="i18n.t('shell.overlay.applications')" data-lgrid role="group">
       @for (entry of visible(); track entry) {
         @if (isAppEntry(entry)) {
           <div
@@ -130,7 +131,7 @@ interface LaunchpadDrag {
             tabindex="0"
           >
             <div class="art"><svg [appIcon]="apps()[entry].icon"></svg></div>
-            <div class="nm">{{ apps()[entry].name }}</div>
+            <div class="nm">{{ appName(apps()[entry]) }}</div>
           </div>
         } @else {
           <div
@@ -151,7 +152,7 @@ interface LaunchpadDrag {
           role="status"
           style="grid-column: 1/-1; text-align: center; color: rgba(255, 255, 255, 0.75); font-size: 14px; padding-top: 40px; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4)"
         >
-          No results
+          {{ i18n.t('shell.overlay.launchpadNoResults') }}
         </div>
       }
     </div>
@@ -160,7 +161,7 @@ interface LaunchpadDrag {
         @for (dot of dots(); track dot) {
           <i
             [attr.aria-current]="dot === page() ? 'true' : null"
-            [attr.aria-label]="'Page ' + (dot + 1) + ' of ' + pages()"
+            [attr.aria-label]="i18n.t('shell.overlay.pageOf', { page: dot + 1, pages: pages() })"
             [class.on]="dot === page()"
             (click)="goPage($event, dot)"
             (keydown.enter)="goPage($event, dot)"
@@ -181,11 +182,15 @@ interface LaunchpadDrag {
         role="alertdialog"
       >
         <div class="card">
-          <h2 [attr.id]="'lpad-del-' + id">Delete “{{ apps()[id].name }}”?</h2>
-          <p>The application will be uninstalled. Your files are kept.</p>
+          <h2 [attr.id]="'lpad-del-' + id">{{ i18n.t('shell.overlay.deleteApp', { name: appName(apps()[id]) }) }}</h2>
+          <p>{{ i18n.t('shell.overlay.uninstallBody') }}</p>
           <div class="acts">
-            <button #delCancel (click)="cancelDelete()" tabindex="0" type="button">Cancel</button>
-            <button class="danger" #delOk (click)="confirmDelete()" tabindex="0" type="button">Delete</button>
+            <button #delCancel (click)="cancelDelete()" tabindex="0" type="button">
+              {{ i18n.t('shell.dataProblem.cancel') }}
+            </button>
+            <button class="danger" #delOk (click)="confirmDelete()" tabindex="0" type="button">
+              {{ i18n.t('shell.overlay.delete') }}
+            </button>
           </div>
         </div>
       </div>
@@ -332,10 +337,18 @@ export class Launchpad {
   private readonly matches = computed(() => {
     const q = this.query().toLowerCase();
     const source = this.sourceEntries();
-    return q ? source.filter(entry => this.entryName(entry).toLowerCase().includes(q)) : source;
+    return q ?
+        source.filter(entry =>
+          this.isAppEntry(entry) ?
+            this.entryName(entry).toLowerCase().includes(q) || this.apps()[entry].name.toLowerCase().includes(q)
+          : entry.slice(FOLDER_PREFIX.length).toLowerCase().includes(q)
+        )
+      : source;
   });
 
   protected readonly i18n = useI18n();
+  protected readonly appName = appDisplayName.bind(null, this.i18n);
+  protected readonly aria = computed(() => this.i18n.t('shell.overlay.launchpad'));
   protected readonly apps = inject(ApplicationRegistry).apps;
   protected readonly overlays = inject(Overlays);
   protected readonly dockDrag = inject(DockDragController);
@@ -445,7 +458,7 @@ export class Launchpad {
   }
 
   protected menu(event: MouseEvent, id: DesktopAppId): void {
-    this.popover.contextMenu(event, this.menuItems(id), this.apps()[id].name);
+    this.popover.contextMenu(event, this.menuItems(id), this.appName(this.apps()[id]));
   }
 
   /** 聚焦在图标上按 Menu 键或 Shift+F10：弹出同一份菜单，焦点交给第一项，关闭后回到图标。 */
@@ -459,7 +472,7 @@ export class Launchpad {
       y: rect.top + rect.height / 2,
       origin: 'top left',
       focus: true,
-      label: this.apps()[id].name,
+      label: this.appName(this.apps()[id]),
       onClose: () => anchor.focus()
     });
   }
@@ -585,7 +598,7 @@ export class Launchpad {
   }
 
   private entryName(entry: LaunchpadEntry): string {
-    return this.isAppEntry(entry) ? this.apps()[entry].name : entry.slice(FOLDER_PREFIX.length);
+    return this.isAppEntry(entry) ? this.appName(this.apps()[entry]) : entry.slice(FOLDER_PREFIX.length);
   }
 
   /**
@@ -595,11 +608,13 @@ export class Launchpad {
   private menuItems(id: DesktopAppId): MenuEntry[] {
     const folder = this.folderId();
     const folderItems: MenuEntry[] =
-      folder ? [{ id: 'rf', label: 'Remove from Folder', run: () => this.removeFromFolder(id) }] : [];
+      folder ?
+        [{ id: 'rf', label: this.i18n.t('shell.overlay.removeFromFolder'), run: () => this.removeFromFolder(id) }]
+      : [];
     return [
       {
         id: 'o',
-        label: 'Open',
+        label: this.i18n.t('shell.dock.open'),
         run: () => {
           this.overlays.closeLaunchpad();
           this.launcher.activate(id);
@@ -607,7 +622,12 @@ export class Launchpad {
       },
       ...folderItems,
       this.dockLayout.menuEntry(id),
-      { id: 'x', label: 'Delete', disabled: !this.canDelete(id), run: () => this.askDelete(id) }
+      {
+        id: 'x',
+        label: this.i18n.t('shell.overlay.delete'),
+        disabled: !this.canDelete(id),
+        run: () => this.askDelete(id)
+      }
     ];
   }
 

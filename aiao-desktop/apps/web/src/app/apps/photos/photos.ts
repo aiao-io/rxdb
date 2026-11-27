@@ -11,6 +11,8 @@ import {
   viewChild
 } from '@angular/core';
 
+import { useI18n } from '@aiao/rxdb-i18n-angular';
+
 import { ContentActions } from '../../services/content-actions';
 import { DesktopAppServices } from '../../services/desktop-app-services';
 import { DesktopMenus } from '../../services/desktop-menus';
@@ -51,19 +53,22 @@ interface Bucket {
 }
 
 const LIBRARY_VIEWS = [
-  ['Library', 'g-gallery'],
-  ['Recents', 'g-clock-a'],
-  ['Favourites', 'g-star'],
-  ['Memories', 'g-star'],
-  [RECENTLY_DELETED, 'g-tag']
+  ['Library', 'g-gallery', 'apps.photos.library'],
+  ['Recents', 'g-clock-a', 'apps.photos.recents'],
+  ['Favourites', 'g-star', 'apps.photos.favourites'],
+  ['Memories', 'g-star', 'apps.photos.memories'],
+  [RECENTLY_DELETED, 'g-tag', 'apps.photos.recentlyDeleted']
 ] as const;
 
 const GROUPS = [
-  { name: 'Years', width: 38 },
-  { name: 'Months', width: 44 },
-  { name: 'Days', width: 36 },
-  { name: 'All', width: 32 }
+  { name: 'Years', width: 38, key: 'apps.photos.years' },
+  { name: 'Months', width: 44, key: 'apps.photos.months' },
+  { name: 'Days', width: 36, key: 'apps.photos.days' },
+  { name: 'All', width: 32, key: 'apps.photos.all' }
 ] as const;
+
+/** 侧栏视图名的目录键；名字不在清单里时原样返回。 */
+const viewKey = (name: string): string => LIBRARY_VIEWS.find(([viewName]) => viewName === name)?.[2] ?? name;
 
 /** 「回忆」只挑这几个相簿。 */
 const MEMORY_ALBUMS = ['Skies', 'Travel', 'Coast'];
@@ -113,6 +118,7 @@ export class PhotosApp {
   private readonly strip = viewChild<ElementRef<HTMLElement>>('strip');
   private destroyed = false;
 
+  protected readonly i18n = useI18n();
   protected readonly actions = inject(ContentActions);
   protected readonly libraryViews = LIBRARY_VIEWS;
   protected readonly groups = GROUPS;
@@ -180,8 +186,10 @@ export class PhotosApp {
   });
   protected readonly title = computed(() => {
     const photo = this.current();
-    if (this.detail()) return photo ? photo.title : this.view();
-    return this.query() ? `Search: ${this.query()}` : this.view();
+    if (this.detail()) return photo ? photo.title : this.i18n.t(viewKey(this.view()));
+    return this.query() ?
+        this.i18n.t('apps.photos.searchTitle', { query: this.query() })
+      : this.i18n.t(viewKey(this.view()));
   });
   protected readonly status = computed(() => {
     const photo = this.current();
@@ -190,16 +198,25 @@ export class PhotosApp {
     const count = this.list().length;
     const favourites = this.library.photos().filter(item => item.favourite).length;
     const web = this.web();
-    const found = web ? `${web.items.length} from Wikimedia Commons` : '';
-    const tail = this.query() ? found : `${favourites} Favourite${favourites === 1 ? '' : 's'}`;
-    return [`${count} ${count === 1 ? 'Photo' : 'Photos'}`, tail].filter(Boolean).join(' · ');
+    const found = web ? this.i18n.t('apps.photos.fromCommons', { count: web.items.length }) : '';
+    const tail =
+      this.query() ? found : (
+        this.i18n.t(favourites === 1 ? 'apps.photos.favouritesCountOne' : 'apps.photos.favouritesCountMany', {
+          count: favourites
+        })
+      );
+    return [this.i18n.t(count === 1 ? 'apps.photos.photoCountOne' : 'apps.photos.photoCountMany', { count }), tail]
+      .filter(Boolean)
+      .join(' · ');
   });
   protected readonly webHeading = computed(() => {
     const web = this.web();
     if (!web) return '';
-    if (web.loading) return `Searching “${web.q}”…`;
+    if (web.loading) return this.i18n.t('apps.photos.searching', { query: web.q });
     if (web.error) return web.error;
-    return web.items.length ? `${web.items.length} results · click to add` : `Nothing found for “${web.q}”`;
+    return web.items.length ?
+        this.i18n.t('apps.photos.webResults', { count: web.items.length })
+      : this.i18n.t('apps.photos.nothingFound', { query: web.q });
   });
 
   constructor() {
@@ -207,14 +224,46 @@ export class PhotosApp {
     this.win.setMenus(
       computed(() =>
         menus.standard('photos', {
-          View: [
-            { id: 'y', label: 'Years', run: () => this.setGroup('Years'), checked: this.group() === 'Years' },
-            { id: 'm', label: 'Months', run: () => this.setGroup('Months'), checked: this.group() === 'Months' },
-            { id: 'd', label: 'Days', run: () => this.setGroup('Days'), checked: this.group() === 'Days' },
-            { id: 'a', label: 'All Photos', checked: this.group() === 'All', run: () => this.setGroup('All') },
+          [this.i18n.t('shell.menu.sectionView')]: [
+            {
+              id: 'y',
+              label: this.i18n.t('apps.photos.years'),
+              run: () => this.setGroup('Years'),
+              checked: this.group() === 'Years'
+            },
+            {
+              id: 'm',
+              label: this.i18n.t('apps.photos.months'),
+              run: () => this.setGroup('Months'),
+              checked: this.group() === 'Months'
+            },
+            {
+              id: 'd',
+              label: this.i18n.t('apps.photos.days'),
+              run: () => this.setGroup('Days'),
+              checked: this.group() === 'Days'
+            },
+            {
+              id: 'a',
+              label: this.i18n.t('apps.photos.allPhotos'),
+              checked: this.group() === 'All',
+              run: () => this.setGroup('All')
+            },
             '-',
-            { id: 'zi', label: 'Zoom In', key: '⌘+', disabled: !this.detail(), run: () => this.zoomIn() },
-            { id: 'zo', label: 'Zoom Out', key: '⌘-', disabled: !this.detail(), run: () => this.zoomOut() }
+            {
+              id: 'zi',
+              label: this.i18n.t('apps.photos.zoomIn'),
+              key: '⌘+',
+              disabled: !this.detail(),
+              run: () => this.zoomIn()
+            },
+            {
+              id: 'zo',
+              label: this.i18n.t('apps.photos.zoomOut'),
+              key: '⌘-',
+              disabled: !this.detail(),
+              run: () => this.zoomOut()
+            }
           ]
         })
       )
@@ -300,18 +349,18 @@ export class PhotosApp {
   protected async toggleFavourite(): Promise<void> {
     const photo = this.current();
     if (!photo) {
-      this.toast.show('Select a photo first');
+      this.toast.show('apps.photos.selectPhotoFirst');
       return;
     }
     const favourite = await this.library.toggleFavourite(photo);
-    this.toast.show(favourite ? 'Added to Favourites' : 'Removed from Favourites');
+    this.toast.show(favourite ? 'apps.photos.addedToFavourites' : 'apps.photos.removedFromFavourites');
   }
 
   /** 删除入口：先弹确认，确认后软删（废纸篓视图里是永久删除）。 */
   protected remove(): void {
     const photo = this.current();
     if (!photo) {
-      this.toast.show('Select a photo first');
+      this.toast.show('apps.photos.selectPhotoFirst');
       return;
     }
     this.confirmDelete.set(photo);
@@ -331,12 +380,12 @@ export class PhotosApp {
       await this.library.remove(photo);
       this.opened.set(null);
       this.picked.set(null);
-      this.toast.show(`Deleted “${title}” permanently`);
+      this.toast.show('apps.photos.deletedPermanently', { name: title });
     } else {
       await this.library.trashPhoto(photo);
       this.opened.set(null);
       this.picked.set(null);
-      this.toast.show(`Moved “${photo.title}” to Recently Deleted`);
+      this.toast.show('apps.photos.movedToRecentlyDeleted', { name: photo.title });
     }
   }
 
@@ -345,7 +394,7 @@ export class PhotosApp {
     await this.library.restorePhoto(photo);
     this.opened.set(null);
     this.picked.set(null);
-    this.toast.show(`Recovered “${photo.title}”`);
+    this.toast.show('apps.photos.recovered', { name: photo.title });
   }
 
   /** 网格与详情图的右键菜单：收藏、复制地址与删除。 */
@@ -356,19 +405,19 @@ export class PhotosApp {
       [
         {
           id: 'f',
-          label: photo.favourite ? 'Remove from Favourites' : 'Add to Favourites',
+          label: this.i18n.t(photo.favourite ? 'apps.photos.removeFromFavourites' : 'apps.photos.addToFavourites'),
           run: () => void this.toggleFavourite()
         },
         {
           id: 'c',
-          label: 'Copy Image Address',
+          label: this.i18n.t('apps.photos.copyImageAddress'),
           disabled: this.actions.busy(),
           run: () => this.actions.copy(photo.thumb)
         },
         '-',
-        { id: 'd', label: 'Delete', run: () => this.confirmDelete.set(photo) }
+        { id: 'd', label: this.i18n.t('apps.photos.delete'), run: () => this.confirmDelete.set(photo) }
       ],
-      'photo'
+      this.i18n.t('apps.photos.photoAria')
     );
   }
 
@@ -431,7 +480,7 @@ export class PhotosApp {
     if (!item) return;
     const photo = await this.library.add(item);
     this.picked.set(photo.id);
-    this.toast.show(`Added “${photo.title}” to your library`);
+    this.toast.show('apps.photos.addedToLibrary', { name: photo.title });
   }
 
   protected share(anchor: Element, event: MouseEvent): void {
@@ -441,29 +490,34 @@ export class PhotosApp {
       [
         {
           id: 'm',
-          label: 'Mail Draft',
+          label: this.i18n.t('apps.photos.mailDraft'),
           icon: 'g-compose',
           disabled: !photo,
           run: () => photo && this.mail.compose(photo.title, '', photo.thumb)
         },
-        { id: 'g', label: 'Open Messages', icon: 'g-facetime', run: () => this.wm.open('messages') },
+        {
+          id: 'g',
+          label: this.i18n.t('apps.photos.openMessages'),
+          icon: 'g-facetime',
+          run: () => this.wm.open('messages')
+        },
         '-',
         {
           id: 'c',
-          label: 'Copy Image Address',
+          label: this.i18n.t('apps.photos.copyImageAddress'),
           disabled: !photo || this.actions.busy(),
           run: () => photo && this.actions.copy(photo.thumb)
         },
         {
           id: 'w',
-          label: 'Open on Wikimedia Commons',
+          label: this.i18n.t('apps.photos.openOnCommons'),
           run: () => {
             if (photo) this.wm.open('safari', { url: photo.thumb });
-            else this.toast.show('Select a photo first');
+            else this.toast.show('apps.photos.selectPhotoFirst');
           }
         }
       ],
-      { keyboard: event.detail === 0, label: 'photos sharing' }
+      { keyboard: event.detail === 0, label: this.i18n.t('apps.photos.sharingAria') }
     );
   }
 
@@ -479,7 +533,11 @@ export class PhotosApp {
     try {
       result = { q: query, items: await searchCommons(query) };
     } catch {
-      result = { q: query, items: [], error: navigator.onLine ? 'Commons did not answer' : 'You are offline' };
+      result = {
+        q: query,
+        items: [],
+        error: this.i18n.t(navigator.onLine ? 'error.photos.commonsNoAnswer' : 'error.photos.offline')
+      };
     }
     if (this.destroyed || this.web()?.q !== query) return;
     this.web.set(result);

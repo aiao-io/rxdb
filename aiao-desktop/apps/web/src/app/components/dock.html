@@ -10,6 +10,7 @@
     class="nosel"
     id="dock"
     #dock
+    [attr.aria-label]="i18n.t('shell.dock.name')"
     [attr.data-drop-slot]="drag.dropSlot()"
     [class.autohidden]="autoHidden()"
     [class.dock-vertical]="system.dockPosition() !== 'bottom'"
@@ -20,7 +21,6 @@
     (pointerenter)="hover($event)"
     (pointerleave)="leave()"
     (pointermove)="hover($event)"
-    aria-label="Dock"
     role="toolbar"
   >
     @for (slot of slots(); track slot.key) {
@@ -75,7 +75,7 @@
     }
     <div id="docktip" #tip aria-hidden="true"></div>
   </div>
-  <span id="dock-running" hidden>Running</span>
+  <span id="dock-running" hidden>{{ i18n.t('shell.dock.running') }}</span>
   @if (drag.state(); as dragging) {
     <div
       class="dock-ghost"
@@ -86,7 +86,7 @@
     >
       <svg [appIcon]="iconOf(dragging.appId)"></svg>
       @if (dragging.removing) {
-        <span class="ghost-tag">Remove</span>
+        <span class="ghost-tag">{{ i18n.t('shell.dock.remove') }}</span>
       }
     </div>
   }

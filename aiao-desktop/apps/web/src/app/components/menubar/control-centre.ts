@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { Component, ErrorHandler, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { filter } from 'rxjs';
@@ -30,7 +31,7 @@ const isAirDropMode = (value: unknown): value is AirDropMode =>
   host: {
     class: 'panel cc',
     role: 'dialog',
-    'aria-label': 'Control Centre',
+    '[attr.aria-label]': "i18n.t('shell.controlCentre.name')",
     style: 'min-width: 0; width: 302px; padding: 12px'
   },
   template: `
@@ -39,9 +40,9 @@ const isAirDropMode = (value: unknown): value is AirDropMode =>
         <button
           class="cc-row"
           [attr.aria-checked]="system.wifi()"
+          [attr.aria-label]="i18n.t('shell.controlCentre.wifi')"
           (click)="system.wifi.set(!system.wifi())"
           aria-describedby="cc-wifi-sub"
-          aria-label="Wi-Fi"
           data-t="wifi"
           role="switch"
           tabindex="0"
@@ -49,15 +50,17 @@ const isAirDropMode = (value: unknown): value is AirDropMode =>
         >
           <i class="cc-b" [class.on]="system.wifi()"><svg appIcon="g-wifi" style="width: 15px; height: 15px"></svg></i>
           <div>
-            <b aria-hidden="true">Wi‑Fi</b><span id="cc-wifi-sub">{{ system.wifi() ? system.wifiName() : 'Off' }}</span>
+            <b aria-hidden="true">{{ i18n.t('shell.controlCentre.wifiLabel') }}</b><span id="cc-wifi-sub">{{
+              system.wifi() ? system.wifiName() : i18n.t('shell.controlCentre.off')
+            }}</span>
           </div>
         </button>
         <button
           class="cc-row"
           [attr.aria-checked]="system.bluetooth()"
+          [attr.aria-label]="i18n.t('shell.controlCentre.bluetooth')"
           (click)="system.bluetooth.set(!system.bluetooth())"
           aria-describedby="cc-bt-sub"
-          aria-label="Bluetooth"
           data-t="bt"
           role="switch"
           tabindex="0"
@@ -67,15 +70,17 @@ const isAirDropMode = (value: unknown): value is AirDropMode =>
             ><svg appIcon="g-bt" style="width: 15px; height: 15px"></svg
           ></i>
           <div>
-            <b aria-hidden="true">Bluetooth</b><span id="cc-bt-sub">{{ system.bluetooth() ? 'On' : 'Off' }}</span>
+            <b aria-hidden="true">{{ i18n.t('shell.controlCentre.bluetooth') }}</b><span id="cc-bt-sub">{{
+              system.bluetooth() ? i18n.t('shell.controlCentre.on') : i18n.t('shell.controlCentre.off')
+            }}</span>
           </div>
         </button>
         <button
           class="cc-row"
           [attr.aria-checked]="airdrop() !== 'off'"
+          [attr.aria-label]="i18n.t('shell.controlCentre.airdrop')"
           (click)="cycleAirdrop()"
           aria-describedby="cc-ad-sub"
-          aria-label="AirDrop"
           data-t="ad"
           role="switch"
           tabindex="0"
@@ -85,11 +90,10 @@ const isAirDropMode = (value: unknown): value is AirDropMode =>
             ><svg appIcon="g-airdrop" style="width: 15px; height: 15px"></svg
           ></i>
           <div>
-            <b aria-hidden="true">AirDrop</b
-            ><span id="cc-ad-sub">{{
-              airdrop() === 'contacts' ? 'Contacts Only'
-              : airdrop() === 'on' ? 'On'
-              : 'Off'
+            <b aria-hidden="true">{{ i18n.t('shell.controlCentre.airdrop') }}</b><span id="cc-ad-sub">{{
+              airdrop() === 'contacts' ? i18n.t('shell.controlCentre.contactsOnly')
+              : airdrop() === 'on' ? i18n.t('shell.controlCentre.on')
+              : i18n.t('shell.controlCentre.off')
             }}</span>
           </div>
         </button>
@@ -98,9 +102,9 @@ const isAirDropMode = (value: unknown): value is AirDropMode =>
         <button
           class="cc-row"
           [attr.aria-checked]="focus()"
+          [attr.aria-label]="i18n.t('shell.controlCentre.focus')"
           (click)="appNotes.setFocusMode(!focus())"
           aria-describedby="cc-focus-sub"
-          aria-label="Focus"
           data-t="focus"
           role="switch"
           tabindex="0"
@@ -108,7 +112,9 @@ const isAirDropMode = (value: unknown): value is AirDropMode =>
         >
           <i class="cc-b" [class.on]="focus()"><svg appIcon="g-moon" style="width: 15px; height: 15px"></svg></i>
           <div>
-            <b aria-hidden="true">Focus</b><span id="cc-focus-sub">{{ focus() ? 'On' : 'Off' }}</span>
+            <b aria-hidden="true">{{ i18n.t('shell.controlCentre.focus') }}</b><span id="cc-focus-sub">{{
+              focus() ? i18n.t('shell.controlCentre.on') : i18n.t('shell.controlCentre.off')
+            }}</span>
           </div>
         </button>
       </div>
@@ -116,9 +122,9 @@ const isAirDropMode = (value: unknown): value is AirDropMode =>
         <button
           class="cc-row"
           [attr.aria-checked]="system.theme() === 'dark'"
+          [attr.aria-label]="i18n.t('shell.controlCentre.darkMode')"
           (click)="theme.toggle()"
           aria-describedby="cc-dark-sub"
-          aria-label="Dark Mode"
           data-t="dark"
           role="switch"
           tabindex="0"
@@ -128,8 +134,9 @@ const isAirDropMode = (value: unknown): value is AirDropMode =>
             ><svg appIcon="g-moon" style="width: 15px; height: 15px"></svg
           ></i>
           <div>
-            <b aria-hidden="true">Dark Mode</b
-            ><span id="cc-dark-sub">{{ system.theme() === 'dark' ? 'On' : 'Off' }}</span>
+            <b aria-hidden="true">{{ i18n.t('shell.controlCentre.darkMode') }}</b><span id="cc-dark-sub">{{
+              system.theme() === 'dark' ? i18n.t('shell.controlCentre.on') : i18n.t('shell.controlCentre.off')
+            }}</span>
           </div>
         </button>
       </div>
@@ -137,9 +144,9 @@ const isAirDropMode = (value: unknown): value is AirDropMode =>
         <button
           class="cc-row"
           [attr.aria-checked]="stage()"
+          [attr.aria-label]="i18n.t('shell.controlCentre.stageManager')"
           (click)="stage.set(!stage())"
           aria-describedby="cc-stage-sub"
-          aria-label="Stage Manager"
           data-t="stage"
           role="switch"
           tabindex="0"
@@ -147,29 +154,29 @@ const isAirDropMode = (value: unknown): value is AirDropMode =>
         >
           <i class="cc-b" [class.on]="stage()"><svg appIcon="g-grid" style="width: 15px; height: 15px"></svg></i>
           <div>
-            <b aria-hidden="true">Stage Mgr</b><span id="cc-stage-sub">{{ stage() ? 'On' : 'Off' }} · 演示</span>
+            <b aria-hidden="true">{{ i18n.t('shell.controlCentre.stageMgr') }}</b><span id="cc-stage-sub">{{
+              (stage() ? i18n.t('shell.controlCentre.on') : i18n.t('shell.controlCentre.off')) + ' · 演示'
+            }}</span>
           </div>
         </button>
       </div>
       <div class="cc-tile" style="grid-column: span 2">
         <div class="cc-slab">
-          <b aria-hidden="true">Display</b
-          ><app-slider
+          <b aria-hidden="true">{{ i18n.t('shell.controlCentre.display') }}</b><app-slider
+            [label]="i18n.t('shell.controlCentre.display')"
             [value]="system.brightness()"
             (valueChange)="system.setBrightness($event)"
             data-slider="bri"
-            label="Display"
           />
         </div>
       </div>
       <div class="cc-tile" style="grid-column: span 2">
         <div class="cc-slab">
-          <b aria-hidden="true">Sound</b
-          ><app-slider
+          <b aria-hidden="true">{{ i18n.t('shell.controlCentre.sound') }}</b><app-slider
+            [label]="i18n.t('shell.controlCentre.sound')"
             [value]="system.volume()"
             (valueChange)="system.setVolume($event)"
             data-slider="snd"
-            label="Sound"
           />
         </div>
       </div>
@@ -182,6 +189,7 @@ export class ControlCentre {
   protected readonly system = inject(SystemState);
   protected readonly theme = inject(ThemeService);
   protected readonly appNotes = inject(AppNotifications);
+  protected readonly i18n = useI18n();
   /** 隔空投送初始显示「仅限联系人」，点一次关，再点显示「On」；状态持久化，重开面板不重置。 */
   protected readonly airdrop = signal<AirDropMode>(this.preferences.get(AIRDROP_KEY, isAirDropMode) ?? 'contacts');
   /** 专注模式（勿扰）与通知中心共享同一状态（偏好键 `focus:dnd`）。 */

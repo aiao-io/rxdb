@@ -3,7 +3,7 @@
     <div class="sbar" data-drag style="width: 206px">
       <div class="sb-top"><app-traffic-lights /></div>
       <div class="grp">
-        <div class="gh">Photos</div>
+        <div class="gh">{{ i18n.t('apps.photos.photos') }}</div>
         @for (item of libraryViews; track item[0]) {
           <div
             class="si"
@@ -14,12 +14,12 @@
             tabindex="-1"
           >
             <svg class="ico" [appIcon]="item[1]"></svg>
-            <span class="nm">{{ item[0] }}</span>
+            <span class="nm">{{ i18n.t(item[2]) }}</span>
           </div>
         }
       </div>
       <div class="grp">
-        <div class="gh">Albums</div>
+        <div class="gh">{{ i18n.t('apps.photos.albums') }}</div>
         @for (album of albums(); track album) {
           <div
             class="si"
@@ -40,10 +40,10 @@
         <button
           class="tbtn"
           [style.display]="detail() ? null : 'none'"
+          [title]="i18n.t('apps.photos.back')"
           (click)="back()"
           data-nodrag
           data-pback
-          title="Back"
         >
           <svg appIcon="g-chev-l"></svg>
         </button>
@@ -58,17 +58,17 @@
               (click)="setGroup(item.name)"
               style="font-size: 11px"
             >
-              {{ item.name }}
+              {{ i18n.t(item.key) }}
             </button>
           }
         </div>
         <button
           class="tbtn"
           [class.on]="!!current()?.favourite"
+          [title]="i18n.t('apps.photos.favourite')"
           (click)="toggleFavourite()"
           data-nodrag
           data-pfav
-          title="Favourite"
         >
           <svg appIcon="g-star"></svg>
         </button>
@@ -76,22 +76,22 @@
           class="tbtn"
           [class.on]="detail() && info()"
           [style.display]="detail() ? null : 'none'"
+          [title]="i18n.t('apps.photos.info')"
           (click)="toggleInfo()"
           data-nodrag
           data-pinfo
-          title="Info"
         >
           <svg appIcon="g-info"></svg>
         </button>
         <button
           class="tbtn"
           #shareButton
+          [attr.aria-label]="i18n.t('apps.photos.share')"
+          [title]="i18n.t('apps.photos.share')"
           (click)="share(shareButton, $event)"
-          aria-label="Share"
           data-nodrag
           data-pshare
           tabindex="0"
-          title="Share"
         >
           <svg appIcon="g-share"></svg>
         </button>
@@ -99,10 +99,10 @@
           <span><svg appIcon="g-search"></svg></span>
           <input
             #search
+            [placeholder]="i18n.t('apps.photos.search')"
             (input)="find(search.value)"
             (keydown.enter)="searchWeb()"
             data-psearch
-            placeholder="Search"
             spellcheck="false"
           />
         </div>
@@ -121,7 +121,7 @@
           @if (selected(); as photo) {
             <div class="ph-det">
               <div class="stage" [class.zoom]="zoom() > 1" (dblclick)="toggleZoom($event)" (wheel)="wheelZoom($event)">
-                <button class="nav l" (click)="step(-1)" data-pnudge="-1" title="Previous">
+                <button class="nav l" [title]="i18n.t('apps.photos.previous')" (click)="step(-1)" data-pnudge="-1">
                   <svg appIcon="g-chev-l"></svg>
                 </button>
                 <!-- 每换一张照片重建一次 img，新图才会从透明淡入。 -->
@@ -135,7 +135,7 @@
                     decoding="async"
                   />
                 }
-                <button class="nav r" (click)="step(1)" data-pnudge="1" title="Next">
+                <button class="nav r" [title]="i18n.t('apps.photos.next')" (click)="step(1)" data-pnudge="1">
                   <svg appIcon="g-chev-r"></svg>
                 </button>
               </div>
@@ -159,14 +159,16 @@
                   </div>
                   <div class="acts">
                     <button class="btn" [class.pri]="photo.favourite" (click)="toggleFavourite()" data-pfav>
-                      {{ photo.favourite ? 'Favourited' : 'Favourite' }}
+                      {{ photo.favourite ? i18n.t('apps.photos.favourited') : i18n.t('apps.photos.favourite') }}
                     </button>
                     @if (view() === recentlyDeleted) {
-                      <button class="btn pri" (click)="recover(photo)" data-prestore>Recover</button>
+                      <button class="btn pri" (click)="recover(photo)" data-prestore>
+                        {{ i18n.t('apps.photos.recover') }}
+                      </button>
                     }
-                    <button class="btn" (click)="remove()" data-pdel>Delete</button>
+                    <button class="btn" (click)="remove()" data-pdel>{{ i18n.t('apps.photos.delete') }}</button>
                   </div>
-                  <p class="lic">A featured picture from Wikimedia Commons, shown with the credit it carries.</p>
+                  <p class="lic">{{ i18n.t('apps.photos.wikimediaCredit') }}</p>
                 </aside>
               }
               <div class="ph-strip" #strip data-pstripbox>
@@ -182,18 +184,22 @@
                   />
                 }
               </div>
-              <div class="ph-count">{{ position() }} of {{ list().length }}</div>
+              <div class="ph-count">
+                {{ i18n.t('apps.photos.positionOf', { position: position(), total: list().length }) }}
+              </div>
             </div>
           }
         } @else if (loaded() && !list().length && !web()) {
           <div class="ph-empty">
             <div class="ico"><svg appIcon="g-gallery"></svg></div>
-            <b>{{ query() ? 'No photos match “' + query() + '”' : 'Nothing here yet' }}</b>
             @if (query()) {
-              <p>Look on Wikimedia Commons instead — whatever you pick joins your library.</p>
+              <b>{{ i18n.t('apps.photos.noMatches', { query: query() }) }}</b>
+              <p>{{ i18n.t('apps.photos.commonsHint') }}</p>
               <button class="btn pri" [attr.data-pweb]="query()" (click)="searchWeb()">
-                Search the web for “{{ query() }}”
+                {{ i18n.t('apps.photos.searchWeb', { query: query() }) }}
               </button>
+            } @else {
+              <b>{{ i18n.t('apps.photos.nothingHere') }}</b>
             }
           </div>
         } @else {
@@ -231,7 +237,7 @@
             }
             @if (web(); as results) {
               <div class="ph-head">
-                <b>Wikimedia Commons</b>
+                <b>{{ i18n.t('apps.photos.wikimediaCommons') }}</b>
                 <span>{{ webHeading() }}</span>
               </div>
               @if (results.loading) {
@@ -260,7 +266,7 @@
             } @else if (query()) {
               <div class="ph-more">
                 <button class="btn" [attr.data-pweb]="query()" (click)="searchWeb()">
-                  Search the web for “{{ query() }}”
+                  {{ i18n.t('apps.photos.searchWeb', { query: query() }) }}
                 </button>
               </div>
             }
@@ -284,7 +290,9 @@
     "
   >
     <div
-      [attr.aria-label]="view() === recentlyDeleted ? 'Delete photo permanently' : 'Delete photo'"
+      [attr.aria-label]="
+        view() === recentlyDeleted ? i18n.t('apps.photos.deletePermanently') : i18n.t('apps.photos.deletePhoto')
+      "
       (keydown.escape)="cancelDelete()"
       appFocusTrap
       aria-modal="true"
@@ -300,19 +308,23 @@
       "
     >
       <h2 style="margin: 0 0 8px; font-size: 16px; font-weight: 600">
-        {{ view() === recentlyDeleted ? 'Delete' : 'Remove' }} “{{ photo.title }}”?
+        {{
+          view() === recentlyDeleted ?
+            i18n.t('apps.photos.deleteTitle', { name: photo.title })
+          : i18n.t('apps.photos.removeTitle', { name: photo.title })
+        }}
       </h2>
       <p style="margin: 0; font-size: 12.5px; color: var(--txt-2)">
         {{
-          view() === recentlyDeleted ?
-            'This photo will be deleted from this browser and cannot be recovered.'
-          : 'This photo will be moved to Recently Deleted. You can recover it from there.'
+          view() === recentlyDeleted ? i18n.t('apps.photos.deleteMessage') : i18n.t('apps.photos.moveToRecentlyMessage')
         }}
       </p>
       <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px">
-        <button class="btn" (click)="cancelDelete()" data-autofocus tabindex="0" type="button">Cancel</button>
+        <button class="btn" (click)="cancelDelete()" data-autofocus tabindex="0" type="button">
+          {{ i18n.t('apps.photos.cancel') }}
+        </button>
         <button class="btn pri" (click)="deletePhoto()" tabindex="0" type="button">
-          {{ view() === recentlyDeleted ? 'Delete' : 'Remove' }}
+          {{ view() === recentlyDeleted ? i18n.t('apps.photos.delete') : i18n.t('apps.photos.remove') }}
         </button>
       </div>
     </div>

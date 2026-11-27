@@ -5,6 +5,7 @@ import { clamp } from '../shared/format';
 import { AccentKey, Appearance, HighlightKey, SystemState, ThemeMode } from './system-state';
 
 export interface AccentColor {
+  /** 显示名：i18n 目录 key（`shell.appearance.*`），界面层用 `t()` 翻译。 */
   readonly name: string;
   readonly hex: string | null;
   readonly dark?: string;
@@ -12,15 +13,15 @@ export interface AccentColor {
 
 /** 强调色表，顺序即系统设置里的排列顺序。 */
 export const ACCENTS: Readonly<Record<AccentKey, AccentColor>> = {
-  multi: { name: 'Multicolour', hex: null },
-  blue: { name: 'Blue', hex: '#0a7cff', dark: '#0a84ff' },
-  purple: { name: 'Purple', hex: '#8944ab', dark: '#bf5af2' },
-  pink: { name: 'Pink', hex: '#f74f9e', dark: '#ff2d55' },
-  red: { name: 'Red', hex: '#e0383e', dark: '#ff453a' },
-  orange: { name: 'Orange', hex: '#f7821b', dark: '#ff9f0a' },
-  yellow: { name: 'Yellow', hex: '#f7ce46', dark: '#ffd60a' },
-  green: { name: 'Green', hex: '#62ba46', dark: '#30d158' },
-  graphite: { name: 'Graphite', hex: '#8c8c91', dark: '#98989d' }
+  multi: { name: 'shell.appearance.multi', hex: null },
+  blue: { name: 'shell.appearance.blue', hex: '#0a7cff', dark: '#0a84ff' },
+  purple: { name: 'shell.appearance.purple', hex: '#8944ab', dark: '#bf5af2' },
+  pink: { name: 'shell.appearance.pink', hex: '#f74f9e', dark: '#ff2d55' },
+  red: { name: 'shell.appearance.red', hex: '#e0383e', dark: '#ff453a' },
+  orange: { name: 'shell.appearance.orange', hex: '#f7821b', dark: '#ff9f0a' },
+  yellow: { name: 'shell.appearance.yellow', hex: '#f7ce46', dark: '#ffd60a' },
+  green: { name: 'shell.appearance.green', hex: '#62ba46', dark: '#30d158' },
+  graphite: { name: 'shell.appearance.graphite', hex: '#8c8c91', dark: '#98989d' }
 };
 
 export const ACCENT_KEYS = Object.keys(ACCENTS) as AccentKey[];

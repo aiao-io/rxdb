@@ -1,5 +1,7 @@
+import { I18N } from '@aiao/rxdb-i18n-angular';
 import { DOCUMENT } from '@angular/common';
 import { Service, computed, effect, inject, signal, untracked } from '@angular/core';
+
 import { ApplicationRegistry } from './application-registry';
 
 import { clamp } from '../shared/format';
@@ -51,6 +53,7 @@ export class WindowManager {
   private readonly toast = inject(Toast);
   private readonly runtime = inject(ApplicationRuntime);
   private readonly document = inject(DOCUMENT);
+  private readonly i18nRuntime = inject(I18N, { optional: true }) ?? undefined;
   private readonly root = this.document.documentElement;
 
   private readonly windowsState = signal<readonly DesktopWindow[]>([]);
@@ -155,7 +158,7 @@ export class WindowManager {
   open(appId: DesktopAppId, options: DesktopOpenOptions = {}): DesktopWindow | null {
     const app = this.apps()[appId];
     if (!app?.load) {
-      this.toast.show(`Unknown app: ${appId}`);
+      this.toast.show(this.t('shell.toast.unknownApp', `Unknown app: ${appId}`, { app: appId }));
       return null;
     }
     /* 打开请求本身算一次「最近使用」，即使应用已经在运行、只是被调到前台。 */
@@ -550,7 +553,8 @@ export class WindowManager {
       windows.forEach(win => this.closeApproved(win));
       return true;
     } catch (error) {
-      this.toast.show(`Unable to close: ${error instanceof Error ? error.message : String(error)}`);
+      const reason = error instanceof Error ? error.message : String(error);
+      this.toast.show(this.t('shell.toast.unableToClose', `Unable to close: ${reason}`, { reason }));
       return false;
     }
   }
@@ -564,5 +568,10 @@ export class WindowManager {
   private withFront(action: (win: DesktopWindow) => void): void {
     const front = this.front();
     if (front) action(front);
+  }
+
+  /** 短提示翻译：未注入 i18n 运行时（单测）时回退英文原文。 */
+  private t(key: string, english: string, params: Record<string, unknown> = {}): string {
+    return this.i18nRuntime ? this.i18nRuntime.t(key, params) : english;
   }
 }

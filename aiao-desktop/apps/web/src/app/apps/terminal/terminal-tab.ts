@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import {
   Component,
   ElementRef,
@@ -27,6 +28,7 @@ const describe = (error: unknown): string => (error instanceof Error ? error.mes
 export class TerminalTab implements OnDestroy {
   private readonly vm = inject(DesktopAppServices).get(VirtualMachine);
   private readonly panel = viewChild.required<ElementRef<HTMLElement>>('panel');
+  private readonly fitAddon = new FitAddon();
 
   private readonly terminal = new Terminal({
     convertEol: true,
@@ -41,13 +43,13 @@ export class TerminalTab implements OnDestroy {
       selectionBackground: 'rgba(120, 170, 255, 0.35)'
     }
   });
-  private readonly fitAddon = new FitAddon();
   private process: VivariProcess | null = null;
   private writer: WritableStreamDefaultWriter<string> | null = null;
   private pendingInput = '';
   private inputQueue = Promise.resolve();
   private disposed = false;
   private acquired = false;
+  protected readonly i18n = useI18n();
 
   readonly active = input(false);
   readonly cwd = input.required<string>();
@@ -121,7 +123,7 @@ export class TerminalTab implements OnDestroy {
   }
 
   private async start(): Promise<void> {
-    this.terminal.writeln('\x1b[2mStarting local shell…\x1b[0m');
+    this.terminal.writeln(`\x1b[2m${this.i18n.t('apps.terminal.startingShell')}\x1b[0m`);
     this.acquired = true;
     try {
       const runtime = await this.vm.acquire();
@@ -139,7 +141,9 @@ export class TerminalTab implements OnDestroy {
       this.attach(process);
     } catch (error) {
       if (!this.disposed)
-        this.terminal.writeln(`\r\n\x1b[31mFailed to start the local shell: ${describe(error)}\x1b[0m`);
+        this.terminal.writeln(
+          `\r\n\x1b[31m${this.i18n.t('error.terminal.startFailed', { reason: describe(error) })}\x1b[0m`
+        );
     }
   }
 
@@ -155,7 +159,7 @@ export class TerminalTab implements OnDestroy {
       this.writer?.releaseLock();
       this.writer = null;
       this.process = null;
-      this.terminal.writeln(`\r\n\x1b[2m[process exited with code ${code}]\x1b[0m`);
+      this.terminal.writeln(`\r\n\x1b[2m${this.i18n.t('apps.terminal.processExited', { code: String(code) })}\x1b[0m`);
     });
   }
 
@@ -167,7 +171,10 @@ export class TerminalTab implements OnDestroy {
         this.vm.noteActivity();
       }
     } catch (error) {
-      if (!this.disposed) this.terminal.writeln(`\r\n\x1b[31mterminal output failed: ${describe(error)}\x1b[0m`);
+      if (!this.disposed)
+        this.terminal.writeln(
+          `\r\n\x1b[31m${this.i18n.t('error.terminal.outputFailed', { reason: describe(error) })}\x1b[0m`
+        );
     }
   }
 

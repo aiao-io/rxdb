@@ -1,3 +1,4 @@
+import { I18N } from '@aiao/rxdb-i18n-angular';
 import { DOCUMENT } from '@angular/common';
 import { Service, WritableSignal, inject, signal } from '@angular/core';
 
@@ -5,6 +6,7 @@ import { SystemState, WallpaperKey } from './system-state';
 import { Toast } from './toast';
 
 export interface WallpaperInfo {
+  /** 显示名：i18n 目录 key（`shell.wallpaper.*`），界面层用 `t()` 翻译。 */
   readonly name: string;
   /** 取样前的菜单栏墨色；取样结果通常就是它，所以加载时菜单栏不会闪。 */
   readonly ink: 'dark' | 'light';
@@ -14,37 +16,37 @@ export interface WallpaperInfo {
 
 export const WALLPAPERS: Readonly<Record<WallpaperKey, WallpaperInfo>> = {
   tahoe: {
-    name: 'Alpine Lake',
+    name: 'shell.wallpaper.alpineLake',
     ink: 'dark',
     url: 'wallpapers/tahoe.jpg',
     thumbnail: 'wallpapers/tahoe-thumb.jpg'
   },
   ridges: {
-    name: 'Blue Ridges',
+    name: 'shell.wallpaper.blueRidges',
     ink: 'dark',
     url: 'wallpapers/ridges.jpg',
     thumbnail: 'wallpapers/ridges-thumb.jpg'
   },
   summit: {
-    name: 'Above Clouds',
+    name: 'shell.wallpaper.aboveClouds',
     ink: 'dark',
     url: 'wallpapers/summit.jpg',
     thumbnail: 'wallpapers/summit-thumb.jpg'
   },
   valley: {
-    name: 'Glacier Bay',
+    name: 'shell.wallpaper.glacierBay',
     ink: 'dark',
     url: 'wallpapers/valley.jpg',
     thumbnail: 'wallpapers/valley-thumb.jpg'
   },
   forest: {
-    name: 'Redwoods',
+    name: 'shell.wallpaper.redwoods',
     ink: 'light',
     url: 'wallpapers/forest.jpg',
     thumbnail: 'wallpapers/forest-thumb.jpg'
   },
   night: {
-    name: 'Night Sky',
+    name: 'shell.wallpaper.nightSky',
     ink: 'light',
     url: 'wallpapers/night.jpg',
     thumbnail: 'wallpapers/night-thumb.jpg'
@@ -70,6 +72,8 @@ export class WallpaperService {
   private readonly system = inject(SystemState);
   private readonly toast = inject(Toast);
   private readonly root = inject(DOCUMENT).documentElement;
+  /* 有 i18n 运行时就用它翻译墙纸显示名；没有 provider 时按目录 key 原样显示。 */
+  private readonly i18n = inject(I18N, { optional: true }) ?? undefined;
 
   private readonly layersState = signal<readonly WallpaperLayer[]>([]);
   private gen = 0;
@@ -98,7 +102,7 @@ export class WallpaperService {
       () => {
         done = true;
         if (ticket === this.gen && !this.layersState().some(layer => layer.on()))
-          this.toast.show(`Could not load ${info.name}`);
+          this.toast.show('error.wallpaper.loadFailed', { name: this.i18n ? this.i18n.t(info.name) : info.name });
       }
     );
     /* 原图先跑 140ms；慢网下先用缓存里的小图顶上，模糊总比空白强。 */

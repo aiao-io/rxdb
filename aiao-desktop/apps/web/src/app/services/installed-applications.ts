@@ -1,3 +1,4 @@
+import { I18N } from '@aiao/rxdb-i18n-angular';
 import { Service, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { filter } from 'rxjs';
@@ -24,9 +25,16 @@ const INSTALL_LOCK = 'aiao-desktop-app-install';
 
 export type ProjectInstallations = (releases: readonly ApprovedRelease[], commit: () => Promise<void>) => Promise<void>;
 
-async function catalogBytes(response: Response): Promise<Uint8Array<ArrayBuffer>> {
+async function catalogBytes(
+  response: Response,
+  t: (key: string, english: string, params?: Record<string, unknown>) => string
+): Promise<Uint8Array<ArrayBuffer>> {
   if (!response.ok || response.redirected || !response.body)
-    throw new Error(`Could not load the approved catalog (${response.status}).`);
+    throw new Error(
+      t('error.install.catalogLoadFailed', `Could not load the approved catalog (${response.status}).`, {
+        status: response.status
+      })
+    );
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
   let size = 0;
@@ -34,7 +42,8 @@ async function catalogBytes(response: Response): Promise<Uint8Array<ArrayBuffer>
     let next = await reader.read();
     while (!next.done) {
       size += next.value.byteLength;
-      if (size > 1024 * 1024) throw new Error('The approved catalog is limited to 1 MiB.');
+      if (size > 1024 * 1024)
+        throw new Error(t('error.install.catalogTooLarge', 'The approved catalog is limited to 1 MiB.'));
       chunks.push(next.value);
       next = await reader.read();
     }
@@ -67,6 +76,8 @@ export class InstalledApplications {
   private readonly data = inject(DesktopData);
   private readonly registry = inject(ApplicationRegistry);
   private readonly config = inject(APPROVED_CATALOG_CONFIG);
+  private readonly i18nRuntime = inject(I18N, { optional: true }) ?? undefined;
+  /** 用户可见错误消息的翻译：未注入 i18n 运行时（单测）时回退英文原文。 */
   private readonly catalogValue = signal<ApprovedCatalog>({ releases: [], problems: [] });
   private readonly stateValue = signal<Installations>({ version: 1, apps: [] });
   private readonly failureValue = signal('');
@@ -90,7 +101,9 @@ export class InstalledApplications {
     await this.ready;
     const url = new URL(this.config.file, document.baseURI);
     if (url.origin !== new URL(document.baseURI).origin)
-      throw new Error('The approved catalog must use the desktop origin.');
+      throw new Error(
+        this.t('error.install.catalogOriginMismatch', 'The approved catalog must use the desktop origin.')
+      );
     const response = await fetch(url, {
       mode: 'same-origin',
       credentials: 'same-origin',
@@ -98,7 +111,7 @@ export class InstalledApplications {
       cache: 'no-cache',
       signal: AbortSignal.timeout(15000)
     });
-    const bytes = await catalogBytes(response);
+    const bytes = await catalogBytes(response, this.t);
     const catalog = await approveCatalog(bytes, this.config.sha256);
     await this.data.tabs.exclusive(async () => {
       const rows = await this.records();
@@ -124,7 +137,12 @@ export class InstalledApplications {
       const snapshot = await this.snapshot();
       const current = snapshot.state.apps.find(app => app.id === id)?.version ?? null;
       if (expected !== undefined && expected !== current)
-        throw new Error('This application changed in another tab. Review the current version and confirm again.');
+        throw new Error(
+          this.t(
+            'error.install.changedInAnotherTab',
+            'This application changed in another tab. Review the current version and confirm again.'
+          )
+        );
       const state = changeInstallation(snapshot.state, snapshot.catalog.releases, id, version);
       const releases = resolveInstallations(state, snapshot.catalog.releases);
       this.registry.definitionsFor(releases);
@@ -200,7 +218,16 @@ export class InstalledApplications {
       saved.contents.length > 1024 * 1024 ||
       !this.config.trustedDigests.includes(saved.digest)
     )
-      throw new Error('The saved application catalog is not approved by this desktop build.');
+      throw new Error(
+        this.t(
+          'error.install.catalogNotApproved',
+          'The saved application catalog is not approved by this desktop build.'
+        )
+      );
     return approveCatalog(new TextEncoder().encode(saved.contents), saved.digest);
   }
+
+  /** 面向用户的文案：注入 i18n 时按当前语言显示，否则回退英文原文。bind 成字段，作为回调传出时 `this` 不丢。 */
+  private readonly t = ((key: string, english: string, params?: Record<string, unknown>): string =>
+    this.i18nRuntime?.t(key, params) ?? english).bind(this);
 }

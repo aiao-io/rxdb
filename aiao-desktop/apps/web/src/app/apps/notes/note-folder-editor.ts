@@ -1,5 +1,7 @@
 import { Component, afterNextRender, inject, input, signal } from '@angular/core';
 
+import { useI18n } from '@aiao/rxdb-i18n-angular';
+
 import { PopoverService } from '../../services/popover';
 
 /** 新建文件夹时回传名称；返回空串表示成功，否则把错误留在面板里。 */
@@ -12,22 +14,24 @@ export type NoteFolderSubmit = (name: string) => Promise<string>;
     class: 'pop nf',
     '[attr.data-note-folder]': 'true',
     role: 'dialog',
-    'aria-label': 'New Folder',
+    '[attr.aria-label]': "i18n.t('apps.notes.newFolder')",
     style: 'width: 320px',
     '(keydown)': 'key($event)'
   },
   template: `
-    <div style="padding: 14px 16px 10px; font-weight: 600">New Folder</div>
-    <div style="padding: 0 16px 12px; color: var(--txt-2); font-size: 12px">Create a folder for your notes.</div>
+    <div style="padding: 14px 16px 10px; font-weight: 600">{{ i18n.t('apps.notes.newFolder') }}</div>
+    <div style="padding: 0 16px 12px; color: var(--txt-2); font-size: 12px">
+      {{ i18n.t('apps.notes.createFolderHint') }}
+    </div>
     <input
       #name
+      [attr.aria-label]="i18n.t('apps.notes.folderName')"
       [disabled]="saving()"
+      [placeholder]="i18n.t('apps.notes.folderName')"
       [value]="value()"
       (input)="value.set(name.value); error.set('')"
-      aria-label="Folder name"
       autocomplete="off"
       data-folder-name
-      placeholder="Folder name"
       spellcheck="false"
       style="display: block; width: calc(100% - 32px); margin: 0 16px; box-sizing: border-box"
       tabindex="0"
@@ -37,16 +41,17 @@ export type NoteFolderSubmit = (name: string) => Promise<string>;
     }
     <div style="display: flex; justify-content: flex-end; gap: 7px; padding: 14px 16px 16px">
       <button class="btn" [disabled]="saving()" (click)="cancel()" data-folder-cancel tabindex="0" type="button">
-        Cancel
+        {{ i18n.t('apps.notes.cancel') }}
       </button>
       <button class="btn pri" [disabled]="saving()" (click)="save()" data-folder-create tabindex="0" type="button">
-        Create
+        {{ i18n.t('apps.notes.create') }}
       </button>
     </div>
   `
 })
 export class NoteFolderEditor {
   private readonly popover = inject(PopoverService);
+  protected readonly i18n = useI18n();
   protected readonly value = signal('');
   protected readonly error = signal('');
   protected readonly saving = signal(false);
@@ -75,7 +80,7 @@ export class NoteFolderEditor {
       if (problem) this.error.set(problem);
       else this.popover.close(false, 'command');
     } catch {
-      this.error.set('The folder could not be created. Your notes are still safe.');
+      this.error.set(this.i18n.t('error.notes.folderNotCreatedSafe'));
     } finally {
       this.saving.set(false);
     }

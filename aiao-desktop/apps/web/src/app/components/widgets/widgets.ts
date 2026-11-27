@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { Component, computed, inject } from '@angular/core';
 
 import { toTicker } from '../../apps/stocks/stocks-data';
@@ -26,13 +27,14 @@ import { WeatherStatus } from '../weather-status';
         </div>
       </div>
     } @empty {
-      <div class="none">No more events today.</div>
+      <div class="none">{{ i18n.t('apps.calendar.noMoreEvents') }}</div>
     }
   `
 })
 export class CalendarWidget {
   protected readonly wm = inject(WindowManager);
   protected readonly store = inject(CalendarStore);
+  protected readonly i18n = useI18n();
   protected readonly today = new Date();
   protected readonly weekday = DAYS[this.today.getDay()];
   protected readonly events = computed(() =>
@@ -64,7 +66,7 @@ export class CalendarWidget {
           }
         </div>
       } @else {
-        <p>No weather data</p>
+        <p>{{ i18n.t('apps.weather.noData') }}</p>
       }
       <app-weather-status [showRefresh]="true" />
     </div>
@@ -73,9 +75,10 @@ export class CalendarWidget {
 export class WeatherWidget {
   protected readonly wm = inject(WindowManager);
   protected readonly weather = inject(WeatherStore);
+  protected readonly i18n = useI18n();
   protected readonly condition = computed(() => {
     const now = this.weather.now();
-    return now ? weatherCode(now.code, now.day) : ['Weather unavailable', 'g-cloud'];
+    return now ? weatherCode(now.code, now.day) : [this.i18n.t('apps.weather.unavailable'), 'g-cloud'];
   });
 
   constructor() {
@@ -90,7 +93,7 @@ export class WeatherWidget {
   host: { class: 'wgt', '(dblclick)': "wm.open('stocks')" },
   template: `
     <div class="wh">
-      <span class="t">Stocks</span><span class="s">{{ stamp }}</span>
+      <span class="t">{{ i18n.t('apps.stocks.title') }}</span><span class="s">{{ stamp }}</span>
     </div>
     <div class="stk">
       @for (ticker of tickers(); track ticker.s; let i = $index) {
@@ -116,6 +119,7 @@ export class StocksWidget {
   );
 
   protected readonly wm = inject(WindowManager);
+  protected readonly i18n = useI18n();
   protected readonly tickers = computed(() => this.watchlist().map(toTicker));
   protected readonly stamp = time12(new Date());
 }

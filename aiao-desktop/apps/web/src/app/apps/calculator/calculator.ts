@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { Component, computed, inject, signal } from '@angular/core';
 
 import { DesktopMenus } from '../../services/desktop-menus';
@@ -63,7 +64,7 @@ const KEYBOARD: Readonly<Record<string, CalcKey>> = {
   },
   template: `
     <div class="tb dark" data-drag>
-      <div class="title">Calculator</div>
+      <div class="title">{{ i18n.t('apps.calculator.name') }}</div>
       <div class="tbz"><app-traffic-lights /></div>
       <div class="grow"></div>
       <div class="tbz"></div>
@@ -94,12 +95,17 @@ export class CalculatorApp {
   private readonly win = inject(DesktopWindow);
   private readonly wm = inject(WindowManager);
   private readonly toast = inject(Toast);
-
   private readonly state = signal(CALC_RESET);
+
+  protected readonly i18n = useI18n();
   protected readonly buttons = BUTTONS;
   protected readonly pressed = signal<CalcKey | null>(null);
 
-  protected readonly display = computed(() => formatCalc(this.state().cur));
+  /** 屏幕显示：除零等错误由引擎记成「Error」状态字，这里换成当前语言的显示。 */
+  protected readonly display = computed(() => {
+    const text = formatCalc(this.state().cur);
+    return text === 'Error' ? this.i18n.t('apps.calculator.error') : text;
+  });
   /** 刚按下的运算符保持高亮，直到输入下一个数。 */
   protected readonly armed = computed(() => {
     const { op, fresh } = this.state();
@@ -109,21 +115,24 @@ export class CalculatorApp {
 
   constructor() {
     const menus = inject(DesktopMenus);
+    /* 菜单名就是 standard() 的合并键：覆盖要用翻译后的分区名。 */
+    const edit = this.i18n.t('shell.menu.sectionEdit');
+    const view = this.i18n.t('shell.menu.sectionView');
     this.win.setMenus(
       computed(() =>
         menus.standard('calculator', {
-          Edit: [
-            { id: 'c', label: 'Copy Result', key: '⌘C', run: () => void this.copyResult() },
-            { id: 'v', label: 'Paste', key: '⌘V', run: () => void this.pasteValue() }
+          [edit]: [
+            { id: 'c', label: this.i18n.t('apps.calculator.copyResult'), key: '⌘C', run: () => void this.copyResult() },
+            { id: 'v', label: this.i18n.t('shell.menu.paste'), key: '⌘V', run: () => void this.pasteValue() }
           ],
-          View: [
-            { id: 'b', label: 'Basic', key: '⌘1', checked: true },
+          [view]: [
+            { id: 'b', label: this.i18n.t('apps.calculator.basic'), key: '⌘1', checked: true },
             {
               id: 's',
-              label: 'Scientific',
+              label: this.i18n.t('apps.calculator.scientific'),
               key: '⌘2',
               checked: false,
-              run: () => this.toast.show('Scientific mode is not in this build')
+              run: () => this.toast.show(this.i18n.t('apps.calculator.noScientific'))
             }
           ]
         })
@@ -152,9 +161,9 @@ export class CalculatorApp {
     try {
       if (!navigator.clipboard) throw new DOMException('Clipboard unavailable', 'NotAllowedError');
       await navigator.clipboard.writeText(this.state().cur);
-      this.toast.show('Copied to clipboard');
+      this.toast.show(this.i18n.t('shell.toast.copied'));
     } catch {
-      this.toast.show('Clipboard unavailable');
+      this.toast.show(this.i18n.t('apps.calculator.clipboardUnavailable'));
     }
   }
 
@@ -164,12 +173,12 @@ export class CalculatorApp {
       const text = navigator.clipboard ? await navigator.clipboard.readText() : '';
       const keys = calcKeysOfText(text);
       if (!keys.length) {
-        this.toast.show('Clipboard has no number');
+        this.toast.show(this.i18n.t('apps.calculator.clipboardNoNumber'));
         return;
       }
       this.state.update(state => keys.reduce((current, key) => pressCalc(current, key), state));
     } catch {
-      this.toast.show('Clipboard unavailable');
+      this.toast.show(this.i18n.t('apps.calculator.clipboardUnavailable'));
     }
   }
 }

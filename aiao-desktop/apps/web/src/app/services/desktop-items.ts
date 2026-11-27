@@ -1,3 +1,4 @@
+import { I18N } from '@aiao/rxdb-i18n-angular';
 import { ErrorHandler, Service, computed, inject, linkedSignal, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
@@ -268,6 +269,7 @@ export class DesktopItems {
   private readonly preferences = inject(Preferences);
   private readonly clipboard = inject(FinderClipboard);
   private readonly errors = inject(ErrorHandler);
+  private readonly i18nRuntime = inject(I18N, { optional: true }) ?? undefined;
   private readonly entries = computed(() => visibleChildren(this.fs.nodeAt(DESKTOP)));
   private readonly trashIds = computed(() => new Set(this.fs.nodeAt(TRASH)?.children?.map(entry => entry.id)));
   private readonly cells = linkedSignal<readonly FsNode[], ReadonlyMap<string, DesktopCell>>({
@@ -382,7 +384,8 @@ export class DesktopItems {
 
   /** 桌面图标改名：成功返回新路径，并把旧 id 的格子迁给新名字（图标留在原位）。 */
   async rename(item: DesktopItem, name: string): Promise<DiskPath> {
-    if (!item.node?.path) throw new Error(`“${item.name}” can’t be renamed.`);
+    if (!item.node?.path)
+      throw new Error(this.t('error.desktop.cantRename', `“${item.name}” can’t be renamed.`, { name: item.name }));
     const path = await this.fs.rename(item.node.path, name);
     const nextId = itemId(path.at(-1) ?? name);
     if (nextId !== item.id) {
@@ -404,7 +407,7 @@ export class DesktopItems {
   paste(): void {
     const snapshot = this.clipboard.snapshot();
     if (!snapshot) {
-      this.toast.show('Nothing to paste.');
+      this.toast.show(this.t('shell.toast.nothingToPaste', 'Nothing to paste.'));
       return;
     }
     void this.transferPaths(
@@ -426,7 +429,7 @@ export class DesktopItems {
       selected.has(item.id) && item.node?.path?.length ? [item.node.path] : []
     );
     if (!paths.length) {
-      this.toast.show('“Macintosh HD” can’t be moved to the Trash.');
+      this.toast.show(this.t('shell.toast.hdCantMoveToTrash', '“Macintosh HD” can’t be moved to the Trash.'));
       return false;
     }
     try {
@@ -509,5 +512,10 @@ export class DesktopItems {
     const targets: DiskPath[] = [];
     for (const path of paths) targets.push(await (copy ? this.fs.copyTo(path, dir) : this.fs.moveTo(path, dir)));
     return targets;
+  }
+
+  /** 桌面提示与错误消息的翻译：未注入 i18n 运行时（单测）时回退英文原文。 */
+  private t(key: string, english: string, params: Record<string, unknown> = {}): string {
+    return this.i18nRuntime ? this.i18nRuntime.t(key, params) : english;
   }
 }

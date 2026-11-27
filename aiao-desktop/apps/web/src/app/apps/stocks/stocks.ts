@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
 
 import { DesktopData } from '../../data/desktop-data';
@@ -51,12 +52,13 @@ export class StocksApp {
   private readonly toast = inject(Toast);
   private readonly searchField = viewChild<ElementRef<HTMLInputElement>>('search');
   private readonly listBox = viewChild<ElementRef<HTMLElement>>('listBox');
+  private dragAbort: AbortController | null = null;
   private readonly watchlist = liveQuery(
     () => WatchlistSymbol.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
     [],
     WatchlistSymbol
   );
-  private dragAbort: AbortController | null = null;
+  protected readonly i18n = useI18n();
 
   protected readonly ranges = RANGES;
   protected readonly selected = signal<string | null>(null);
@@ -85,14 +87,14 @@ export class StocksApp {
     const { p, d } = quote;
     /* 「Open」沿用旧实现：现价减去涨跌幅百分比，并不是真正的开盘价。 */
     const stats = [
-      ['Open (demo)', (p - d).toFixed(2)],
-      ['High (demo)', (p * 1.014).toFixed(2)],
-      ['Low (demo)', (p * 0.986).toFixed(2)],
-      ['Vol', '58.2M'],
-      ['P/E', '34.2'],
-      ['Mkt Cap', '3.48T'],
-      ['52W H', (p * 1.22).toFixed(2)],
-      ['52W L', (p * 0.72).toFixed(2)]
+      [this.i18n.t('apps.stocks.openDemo'), (p - d).toFixed(2)],
+      [this.i18n.t('apps.stocks.highDemo'), (p * 1.014).toFixed(2)],
+      [this.i18n.t('apps.stocks.lowDemo'), (p * 0.986).toFixed(2)],
+      [this.i18n.t('apps.stocks.vol'), '58.2M'],
+      [this.i18n.t('apps.stocks.pe'), '34.2'],
+      [this.i18n.t('apps.stocks.mktCap'), '3.48T'],
+      [this.i18n.t('apps.stocks.fiftyTwoWeekHigh'), (p * 1.22).toFixed(2)],
+      [this.i18n.t('apps.stocks.fiftyTwoWeekLow'), (p * 0.72).toFixed(2)]
     ] as const;
     return { quote, change: Math.abs(d).toFixed(2), stats };
   });
@@ -100,14 +102,21 @@ export class StocksApp {
   constructor() {
     const menus = inject(DesktopMenus);
     const wm = inject(WindowManager);
+    /* 菜单名就是 standard() 的合并键：覆盖与顺序都要用翻译后的分区名。 */
+    const file = this.i18n.t('shell.menu.sectionFile');
     inject(DesktopWindow).setMenus(
       computed(() =>
         menus.standard('stocks', {
-          File: [
-            { id: 'n', label: 'New Window', key: '⌘N', run: () => wm.open('stocks', { force: true }) },
-            { id: 'w', label: 'Close Window', key: '⌘W', run: () => wm.closeFront() },
+          [file]: [
+            {
+              id: 'n',
+              label: this.i18n.t('shell.menu.newWindow'),
+              key: '⌘N',
+              run: () => wm.open('stocks', { force: true })
+            },
+            { id: 'w', label: this.i18n.t('shell.menu.closeWindow'), key: '⌘W', run: () => wm.closeFront() },
             '-',
-            { id: 'f', label: 'Find', key: '⌘F', run: () => this.focusSearch() }
+            { id: 'f', label: this.i18n.t('shell.menu.find'), key: '⌘F', run: () => this.focusSearch() }
           ]
         })
       )
@@ -130,7 +139,7 @@ export class StocksApp {
     }
     const ticker = tickerOf(symbol);
     if (!ticker) {
-      this.toast.show(`“${symbol}” is not in the demo catalog.`);
+      this.toast.show(this.i18n.t('error.stocks.notInCatalog', { symbol }));
       return;
     }
     await this.data.transaction(async executor => {
@@ -154,11 +163,15 @@ export class StocksApp {
     this.popover.contextMenu(
       event,
       [
-        { id: 'sel', label: 'Show ' + ticker.s, run: () => this.selected.set(ticker.s) },
+        {
+          id: 'sel',
+          label: this.i18n.t('apps.stocks.show', { symbol: ticker.s }),
+          run: () => this.selected.set(ticker.s)
+        },
         '-',
-        { id: 'rm', label: 'Remove from Watchlist', run: () => void this.removeSymbol(ticker.s) }
+        { id: 'rm', label: this.i18n.t('apps.stocks.removeFromWatchlist'), run: () => void this.removeSymbol(ticker.s) }
       ],
-      'Stock actions'
+      this.i18n.t('apps.stocks.actions')
     );
   }
 

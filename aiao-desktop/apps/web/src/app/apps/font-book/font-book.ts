@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 
 import { ALL_ROWS, liveQuery } from '../../data/live-query';
@@ -40,15 +41,16 @@ const DISABLED_KEY = 'fontbook:disabled';
 })
 export class FontBookApp {
   private readonly preferences = inject(Preferences);
+  private readonly favouritesState = signal<readonly string[]>([]);
   private readonly families = liveQuery(
     () => FontFamily.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
     [],
     FontFamily
   );
-  private readonly favouritesState = signal<readonly string[]>([]);
   private readonly recentState = signal<readonly string[]>([]);
   private readonly disabledState = signal<readonly string[]>([]);
   private readonly restored = signal(false);
+  protected readonly i18n = useI18n();
 
   protected readonly collections = FONT_COLLECTIONS;
   protected readonly sizes = SIZES;
@@ -126,7 +128,9 @@ export class FontBookApp {
   }
 
   protected disabledLabel(name: string): string {
-    return this.isDisabled(name) ? 'Enable “' + name + '”' : 'Disable “' + name + '”';
+    return this.isDisabled(name) ?
+        this.i18n.t('apps.fontbook.enableFont', { name })
+      : this.i18n.t('apps.fontbook.disableFont', { name });
   }
 
   protected toggleFont(name: string): void {

@@ -114,7 +114,7 @@ describe('FinderSidebarOrder', () => {
     expect(order.removeFavourite('AirDrop')).toBe(true);
     expect(favourites()).not.toContain('AirDrop');
     await vi.waitFor(() => expect(favourites()).toEqual(initial.filter(name => name !== 'Desktop')));
-    expect(show).toHaveBeenCalledWith('Couldn’t remove the Finder favourite.');
+    expect(show).toHaveBeenCalledWith('error.finder.favouriteRemove');
   });
 
   it('写入失败时恢复已保存的顺序并提示用户', async () => {
@@ -124,6 +124,6 @@ describe('FinderSidebarOrder', () => {
     vi.spyOn(preferences, 'set').mockRejectedValueOnce(new Error('disk full'));
     expect(order.move('Favourites', 'AirDrop', 1)).toBe(true);
     await vi.waitFor(() => expect(favourites()).toEqual(initial));
-    expect(show).toHaveBeenCalledWith('Couldn’t save the Finder sidebar order.');
+    expect(show).toHaveBeenCalledWith('error.finder.sidebarOrderSave');
   });
 });

@@ -30,9 +30,9 @@ export function counterpartOf(mail: PartyFields): string {
   return mail.mailbox === SENT_MAILBOX || mail.mailbox === DRAFTS_MAILBOX ? mail.recipient : mail.sender;
 }
 
-/** 列表与阅读区里显示的对方；发出的邮件没填收件人时写明。 */
-export function partyOf(mail: PartyFields): string {
-  return counterpartOf(mail) || 'No Recipient';
+/** 列表与阅读区里显示的对方；发出的邮件没填收件人时写明。`translate` 可选，未注入时保持英文（与 print-document 风格一致）。 */
+export function partyOf(mail: PartyFields, translate?: (key: string) => string): string {
+  return counterpartOf(mail) || (translate?.('apps.mail.noRecipient') ?? 'No Recipient');
 }
 
 /** 邮箱内的关键词搜索覆盖往来人、主题和完整正文。 */
@@ -44,4 +44,6 @@ export function mailMatches(
   return !needle || `${mail.sender} ${mail.recipient} ${mail.subject} ${mail.body}`.toLowerCase().includes(needle);
 }
 
-export const mailboxLabel = (name: string): string => (name === SENT_MAILBOX ? 'Local Sent Archive' : name);
+/** 侧栏邮箱的显示名：`Sent` 用本地归档名；`translate` 可选，未注入时保持英文（与 print-document 风格一致）。 */
+export const mailboxLabel = (name: string, translate?: (key: string) => string): string =>
+  name === SENT_MAILBOX ? (translate?.('apps.mail.localSentArchive') ?? 'Local Sent Archive') : name;

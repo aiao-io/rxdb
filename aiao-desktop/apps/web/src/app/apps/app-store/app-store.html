@@ -1,36 +1,32 @@
-<section [inert]="flow.pending() !== null" aria-label="Approved applications">
+<section [attr.aria-label]="i18n.t('apps.appstore.approvedApplications')" [inert]="flow.pending() !== null">
   <header>
     <div>
-      <h1>App Store</h1>
-      <p>Applications approved for this desktop.</p>
+      <h1>{{ i18n.t('apps.appstore.name') }}</h1>
+      <p>{{ i18n.t('apps.appstore.approvedApplicationsNote') }}</p>
     </div>
     <div class="sfield" data-nodrag style="width: 190px">
       <span><svg appIcon="g-search"></svg></span>
       <input
         #search
+        [attr.aria-label]="i18n.t('apps.appstore.searchCatalog')"
+        [placeholder]="i18n.t('apps.appstore.search')"
         [value]="query()"
         (input)="query.set(search.value)"
-        aria-label="Search the catalog"
         data-asearch
-        placeholder="Search"
       />
     </div>
-    <button [disabled]="flow.busy()" (click)="flow.refresh()" tabindex="0" type="button">Refresh Catalog</button>
+    <button [disabled]="flow.busy()" (click)="flow.refresh()" tabindex="0" type="button">
+      {{ i18n.t('apps.appstore.refreshCatalog') }}
+    </button>
   </header>
-  <p class="scope">
-    Installed entries are saved in this browser. Remote apps need a connection to their publisher; installing an entry
-    does not download an offline copy.
-  </p>
+  <p class="scope">{{ i18n.t('apps.appstore.scopeNote') }}</p>
   @if (applications.failure()) {
     <div class="problem" role="alert">
-      <h2>Optional applications need attention</h2>
+      <h2>{{ i18n.t('apps.appstore.attentionTitle') }}</h2>
       <p>{{ applications.failure() }}</p>
-      <p>
-        Preinstalled apps and your files remain available. Refresh the approved catalog, or reset optional application
-        records to install again.
-      </p>
+      <p>{{ i18n.t('apps.appstore.attentionMessage') }}</p>
       <button [disabled]="flow.busy()" (click)="flow.requestReset()" tabindex="0" type="button">
-        Reset Optional Apps…
+        {{ i18n.t('apps.appstore.resetOptionalApps') }}
       </button>
     </div>
   }
@@ -39,11 +35,8 @@
   }
   @if (!flow.items().length && !applications.failure()) {
     <div class="empty">
-      <h2>No approved apps available</h2>
-      <p>
-        Your preinstalled apps are ready to use. New applications appear here when their publisher provides an approved
-        release.
-      </p>
+      <h2>{{ i18n.t('apps.appstore.noAppsTitle') }}</h2>
+      <p>{{ i18n.t('apps.appstore.noAppsMessage') }}</p>
     </div>
   }
   @for (item of visibleItems(); track item.id) {
@@ -54,8 +47,12 @@
         <p class="origin">{{ item.origin }}</p>
       </div>
       <p>
-        Latest approved version: {{ item.latest.version }} ·
-        {{ item.installed ? 'Installed: ' + item.installed.version : 'Not installed' }}
+        {{ i18n.t('apps.appstore.latestApprovedVersion', { version: item.latest.version }) }} ·
+        {{
+          item.installed ?
+            i18n.t('apps.appstore.installedVersion', { version: item.installed.version })
+          : i18n.t('apps.appstore.notInstalled')
+        }}
       </p>
       <div class="actions">
         @if (!item.installed) {
@@ -66,11 +63,11 @@
             tabindex="0"
             type="button"
           >
-            Install…
+            {{ i18n.t('apps.appstore.install') }}
           </button>
         } @else {
           <button class="primary" [disabled]="flow.busy()" (click)="flow.open(item.id)" tabindex="0" type="button">
-            Open
+            {{ i18n.t('apps.appstore.open') }}
           </button>
           @if (item.canUpdate) {
             <button
@@ -79,7 +76,7 @@
               tabindex="0"
               type="button"
             >
-              Update to {{ item.latest.version }}…
+              {{ i18n.t('apps.appstore.updateTo', { version: item.latest.version }) }}
             </button>
           }
           @if (item.rollback; as previous) {
@@ -89,11 +86,11 @@
               tabindex="0"
               type="button"
             >
-              Roll Back to {{ previous.version }}…
+              {{ i18n.t('apps.appstore.rollBackTo', { version: previous.version }) }}
             </button>
           }
           <button [disabled]="flow.busy()" (click)="flow.request(item.id, null)" tabindex="0" type="button">
-            Uninstall…
+            {{ i18n.t('apps.appstore.uninstall') }}
           </button>
         }
       </div>
@@ -102,14 +99,14 @@
   @if (flow.busy()) {
     <div
       class="store-progress"
-      aria-label="Installation progress"
+      [attr.aria-label]="i18n.t('apps.appstore.installationProgress')"
       aria-valuetext="{{ flow.status() }}"
       role="progressbar"
       style="margin: 8px 0"
     >
       <div class="store-progress-fill"></div>
     </div>
-    <button class="btn" (click)="flow.cancel()" tabindex="0" type="button">Cancel</button>
+    <button class="btn" (click)="flow.cancel()" tabindex="0" type="button">{{ i18n.t('apps.appstore.cancel') }}</button>
   }
   <p aria-live="polite" role="status">{{ flow.status() }}</p>
   @if (flow.error()) {
@@ -120,29 +117,33 @@
   <div class="scrim">
     <div
       class="confirmation"
-      [attr.aria-label]="request.kind === 'reset' ? 'Reset Optional Apps' : request.action + ' ' + request.name"
+      [attr.aria-label]="
+        request.kind === 'reset' ?
+          i18n.t('apps.appstore.resetOptionalAppsAction')
+        : i18n.t('apps.appstore.actionLabel', { action: i18n.t(request.action), name: request.name })
+      "
       (keydown.escape)="cancel($event)"
       appFocusTrap
       aria-modal="true"
       role="dialog"
     >
       @if (request.kind === 'reset') {
-        <h2>Reset Optional Apps?</h2>
-        <p>
-          Remove optional application entries from this desktop and close their windows. Your files, preinstalled apps,
-          and data stored on remote app sites are kept.
-        </p>
-        <p>Save your work before continuing. Other open desktop tabs will also lose these entries.</p>
+        <h2>{{ i18n.t('apps.appstore.resetDialogTitle') }}</h2>
+        <p>{{ i18n.t('apps.appstore.resetDialogMessage') }}</p>
+        <p>{{ i18n.t('apps.appstore.resetDialogWarning') }}</p>
       } @else {
-        <h2>{{ request.action }} {{ request.name }}?</h2>
-        <p>{{ request.previous ? 'Currently installed: ' + request.previous : 'Not installed' }}</p>
+        <h2>{{ i18n.t('apps.appstore.confirmTitle', { action: i18n.t(request.action), name: request.name }) }}</h2>
+        <p>
+          {{
+            request.previous ?
+              i18n.t('apps.appstore.currentlyInstalled', { version: request.previous })
+            : i18n.t('apps.appstore.notInstalled')
+          }}
+        </p>
         @if (request.release; as release) {
-          <p>
-            Approved version:
-            <strong>{{ release.version }}</strong>
-          </p>
+          <p>{{ i18n.t('apps.appstore.approvedVersion', { version: release.version }) }}</p>
           <p class="origin">{{ release.url }}</p>
-          <h3>Desktop access</h3>
+          <h3>{{ i18n.t('apps.appstore.desktopAccess') }}</h3>
           @if (release.capabilities.length) {
             <ul>
               @for (permission of release.capabilities; track permission) {
@@ -150,33 +151,29 @@
               }
             </ul>
           } @else {
-            <p>No desktop capabilities.</p>
+            <p>{{ i18n.t('apps.appstore.noCapabilities') }}</p>
           }
-          <h3>Browser permissions</h3>
-          <p>{{ release.allow.length ? release.allow.join(', ') : 'No extra browser permissions.' }}</p>
-        } @else {
+          <h3>{{ i18n.t('apps.appstore.browserPermissions') }}</h3>
           <p>
-            Removes the installed entry and its desktop access. Your files and data stored on the remote app’s own site
-            are kept.
+            {{ release.allow.length ? release.allow.join(', ') : i18n.t('apps.appstore.noBrowserPermissions') }}
           </p>
+        } @else {
+          <p>{{ i18n.t('apps.appstore.uninstallMessage') }}</p>
         }
-        <p>
-          Save work in this application before continuing. Its existing windows will close when the installed version
-          changes, including in other desktop tabs.
-        </p>
+        <p>{{ i18n.t('apps.appstore.saveWorkWarning') }}</p>
       }
       @if (flow.error()) {
         <p class="problem" role="alert">{{ flow.error() }}</p>
       }
       <div class="actions">
         <button [disabled]="flow.busy()" (click)="flow.cancel()" data-autofocus tabindex="0" type="button">
-          Cancel
+          {{ i18n.t('apps.appstore.cancel') }}
         </button>
         <button class="primary" [disabled]="flow.busy()" (click)="flow.confirm()" tabindex="0" type="button">
           {{
-            flow.busy() ? 'Working…'
-            : request.kind === 'reset' ? 'Reset Optional Apps'
-            : request.action
+            flow.busy() ? i18n.t('apps.appstore.working')
+            : request.kind === 'reset' ? i18n.t('apps.appstore.resetOptionalAppsAction')
+            : i18n.t(request.action)
           }}
         </button>
       </div>

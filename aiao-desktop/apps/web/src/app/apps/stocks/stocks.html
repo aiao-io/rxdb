@@ -6,29 +6,29 @@
         <span><svg appIcon="g-search"></svg></span>
         <input
           #search
+          [attr.aria-label]="i18n.t('apps.stocks.searchStocks')"
+          [placeholder]="i18n.t('apps.stocks.search')"
           [value]="query()"
           (input)="query.set(search.value)"
-          aria-label="Search stocks"
-          placeholder="Search"
         />
       </div>
       <div class="sfield" data-nodrag style="margin-top: 6px">
         <input
           #add
+          [attr.aria-label]="i18n.t('apps.stocks.addSymbol')"
+          [placeholder]="i18n.t('apps.stocks.addSymbolHint')"
           (keydown.enter)="addSymbol(add)"
-          aria-label="Add symbol"
           data-sadd
-          placeholder="Add symbol, e.g. AAPL"
           spellcheck="false"
         />
         <button
           class="tbtn"
+          [attr.aria-label]="i18n.t('apps.stocks.addToWatchlist')"
+          [title]="i18n.t('apps.stocks.addSymbol')"
           (click)="addSymbol(add)"
-          aria-label="Add symbol to watchlist"
           data-nodrag
           style="padding: 0 6px"
           tabindex="0"
-          title="Add symbol"
           type="button"
         >
           <svg appIcon="g-plus" style="width: 14px; height: 14px"></svg>
@@ -78,7 +78,9 @@
         </div>
       }
       @if (!visibleTickers().length) {
-        <div data-stock-empty style="padding: 20px 10px; color: var(--txt-2); font-size: 12px">No matching stocks</div>
+        <div data-stock-empty style="padding: 20px 10px; color: var(--txt-2); font-size: 12px">
+          {{ i18n.t('apps.stocks.noMatches') }}
+        </div>
       }
     </div>
   </div>
@@ -86,7 +88,7 @@
     <div class="tbar" data-drag style="height: 52px">
       <div class="fx-title" data-stt>{{ current()?.s }}</div>
       <div data-demo style="margin-left: 10px; color: var(--txt-2); font-size: 11px">
-        Demo data · No live market feed
+        {{ i18n.t('apps.stocks.demoData') }}
       </div>
     </div>
     <div class="scroll" data-stbody style="flex: 1; padding: 18px 22px">

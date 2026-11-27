@@ -1,3 +1,4 @@
+import { I18N } from '@aiao/rxdb-i18n-angular';
 import { Service, computed, inject } from '@angular/core';
 import { Preferences } from '../data/preferences';
 
@@ -25,10 +26,11 @@ const isAssociations = (value: unknown): value is Record<string, string> =>
 /** 没有关联键时的固定空对象：别在 computed 里现造（每次重算换新引用会拖累下游重算）。 */
 const NO_ASSOCIATIONS: Readonly<Record<string, string>> = Object.freeze({});
 
-/** 「打开方式」候选：能真正接收这类文件的应用，id 加显示名。 */
+/** 「打开方式」候选：能真正接收这类文件的应用，id 加显示名；`nameKey` 让渲染端按当前语言取显示名（AC12）。 */
 export interface OpenWithChoice {
   readonly id: DesktopAppId;
   readonly name: string;
+  readonly nameKey?: string;
 }
 
 /**
@@ -49,6 +51,7 @@ export class FileOpener {
   private readonly catalog = inject(ApplicationCatalog);
   private readonly launcher = inject(AppLauncher);
   private readonly preferences = inject(Preferences);
+  private readonly i18nRuntime = inject(I18N);
   private readonly associations = computed(
     () => this.preferences.get(OPEN_WITH_KEY, isAssociations) ?? NO_ASSOCIATIONS
   );
@@ -62,7 +65,7 @@ export class FileOpener {
       associated && candidates.includes(associated as DesktopAppId) ?
         [associated as DesktopAppId, ...candidates.filter(id => id !== associated)]
       : candidates;
-    return order.map(id => ({ id, name: this.apps()[id].name }));
+    return order.map(id => ({ id, name: this.apps()[id].name, nameKey: this.apps()[id].nameKey }));
   }
 
   open(node: FsNode): void {
@@ -85,7 +88,7 @@ export class FileOpener {
     }
     /* 打不开的文件不进「最近使用」：像 macOS 一样，只有真正交给应用打开的才记。 */
     if (MUSIC.has(extensionOf(node.name))) this.wm.open('music');
-    else this.toast.show(`No application can open “${node.name}”`);
+    else this.toast.show('error.finder.noAppCanOpen', { name: node.name });
   }
 
   /**
@@ -94,7 +97,7 @@ export class FileOpener {
    */
   openApp(id: string, node: FsNode | null): boolean {
     if (!(id in this.apps()) || this.apps()[id as DesktopAppId].kind === 'system') {
-      this.toast.show(`Unable to find application “${id}”`);
+      this.toast.show('error.finder.appNotFound', { name: id });
       return false;
     }
     const appId = id as DesktopAppId;
@@ -109,7 +112,9 @@ export class FileOpener {
   setDefaultApp(node: FsNode, appId: string): Promise<void> {
     if (!this.candidatesOf(node).includes(appId as DesktopAppId)) {
       const name = this.apps()[appId as DesktopAppId]?.name ?? appId;
-      return Promise.reject(new Error(`“${name}” can’t open ${node.name} files.`));
+      return Promise.reject(
+        new Error(this.i18nRuntime.t('error.finder.appCantOpenFiles', { app: name, file: node.name }))
+      );
     }
     const extension = extensionOf(node.name);
     return this.preferences.update(OPEN_WITH_KEY, isAssociations, current => ({ ...current, [extension]: appId }));
@@ -128,7 +133,7 @@ export class FileOpener {
     const resolution = await this.catalog.resolve(node, path => this.fs.readText(path));
     if (resolution.kind === 'app') this.launcher.activate(resolution.id);
     else if (resolution.kind === 'offline')
-      this.toast.show(`The application “${resolution.name}” is no longer available.`);
-    else this.toast.show(`${node.name} cannot open on this Mac.`);
+      this.toast.show('error.finder.appNoLongerAvailable', { name: resolution.name });
+    else this.toast.show('error.finder.cannotOpenOnMac', { name: node.name });
   }
 }

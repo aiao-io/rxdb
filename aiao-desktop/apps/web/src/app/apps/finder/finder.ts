@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { LiveAnnouncer } from '@angular/cdk/a11y';
 import {
   CdkDrag,
@@ -195,6 +196,30 @@ interface RenameConflict {
   templateUrl: './finder.html'
 })
 export class FinderApp implements FinderCommands {
+  /** 内置位置、侧栏分组头与标签：名字是标识，显示按当前语言解析；用户自己的文件夹不在表里，原样显示。 */
+  private static readonly SIDEBAR_NAMES: Readonly<Record<string, string>> = {
+    AirDrop: 'apps.finder.airdrop',
+    Recents: 'shell.menu.recents',
+    Desktop: 'shell.menu.desktop',
+    Documents: 'shell.menu.documents',
+    Downloads: 'shell.menu.downloads',
+    Applications: 'shell.menu.applications',
+    'iCloud Drive': 'apps.finder.icloudDrive',
+    'Macintosh HD': 'apps.finder.macintoshHd',
+    Network: 'apps.finder.network',
+    Favourites: 'apps.finder.favourites',
+    iCloud: 'apps.finder.icloud',
+    Locations: 'apps.finder.locations',
+    Tags: 'apps.finder.tags',
+    Red: 'apps.finder.tagRed',
+    Orange: 'apps.finder.tagOrange',
+    Yellow: 'apps.finder.tagYellow',
+    Green: 'apps.finder.tagGreen',
+    Blue: 'apps.finder.tagBlue',
+    Purple: 'apps.finder.tagPurple',
+    Gray: 'apps.finder.tagGray'
+  };
+
   private readonly win = inject(DesktopWindow);
   private readonly fs = inject(FileSystem);
   private readonly showHidden = inject(FinderPreferences).showHiddenFiles;
@@ -222,34 +247,35 @@ export class FinderApp implements FinderCommands {
   private readonly queryInput = viewChild.required<ElementRef<HTMLInputElement>>('queryInput');
   private readonly listViewport = viewChild<CdkVirtualScrollViewport>('listViewport');
   private readonly columnViewports = viewChildren<CdkVirtualScrollViewport>('columnViewport');
+  private readonly bodyWidth = signal(0);
   private readonly history = signal<{ readonly entries: readonly (readonly string[])[]; readonly index: number }>({
     entries: [],
     index: 0
   });
-  private readonly bodyWidth = signal(0);
   private readonly layoutWidth = signal(this.win.initialBox.width);
   private readonly sidebarSize = signal(SIDEBAR_INITIAL_WIDTH);
   private readonly sidebarPreview = signal<number | null>(null);
   private sidebarRestoreWidth = SIDEBAR_INITIAL_WIDTH;
+  private springFolderTimer: ReturnType<typeof setTimeout> | null = null;
   private sidebarDrag: { pointerId: number; x: number; width: number } | null = null;
   private columnDrag: { pointerId: number; x: number; width: number } | null = null;
   private headerDrag: { pointerId: number; x: number; width: number; column: ListColumn } | null = null;
-  private springFolderTimer: ReturnType<typeof setTimeout> | null = null;
   private dropHandled = false;
   /** 视图设置写偏好库的去抖计时器。 */
   private settingsSaveTimer: ReturnType<typeof setTimeout> | null = null;
   /** 新建的条目要等磁盘树刷出来才在列表里；记住它，下一帧把它滚进视野。 */
   private pendingReveal: DiskPath | null = null;
   private renameFocusToken = 0;
+  private menuKeyboard = false;
   /** 最近一次右键/键盘菜单的位置与触发方式，简介面板贴着它开、按触发方式决定焦点去向。 */
   private menuPoint: { x: number; y: number } | null = null;
-  private menuKeyboard = false;
+  /** 导航之前键盘焦点在内容区里：导航之后条目重新渲染，焦点要交还给新的 Tab 停靠点。 */
+  private refocus = false;
   private readonly displayPath = computed(() => {
     const path = this.path();
     return path[0] === VOLUME_NAME ? [VOLUME_NAME, ...displayDiskPath(path.slice(1))] : path;
   });
-  /** 导航之前键盘焦点在内容区里：导航之后条目重新渲染，焦点要交还给新的 Tab 停靠点。 */
-  private refocus = false;
+  protected readonly i18n = useI18n();
 
   protected readonly fileOperation = signal<FileOperationRequest | null>(null);
   protected readonly renaming = signal<RenameState | null>(null);
@@ -320,16 +346,20 @@ export class FinderApp implements FinderCommands {
     const path = this.path();
     return path.length === 2 && path[1] === 'Applications' && !this.query() ? this.catalog.conflictNote() : null;
   });
-  protected readonly title = computed(() => (this.query() ? `Searching “${this.query()}”` : this.displayPath().at(-1)));
+  protected readonly title = computed(() =>
+    this.query() ? this.i18n.t('apps.finder.searchTitle', { query: this.query() }) : this.displayPath().at(-1)
+  );
   protected readonly canGoBack = computed(() => this.history().index > 0);
   protected readonly canGoForward = computed(() => this.history().index < this.history().entries.length - 1);
   protected readonly emptyText = computed(() => {
     const disk = this.fs.state();
-    if (disk === 'mounting') return 'Mounting Macintosh HD…';
-    if (disk === 'failed') return `Macintosh HD is unavailable: ${this.fs.error()}`;
-    if (this.query()) return 'No results';
-    if (this.isTrash()) return 'Trash is empty';
-    return this.path()[0] === 'AirDrop' ? 'No one nearby' : 'Empty folder';
+    if (disk === 'mounting') return this.i18n.t('apps.finder.mounting');
+    if (disk === 'failed') return this.i18n.t('error.fileSystem.hdUnavailable', { reason: this.fs.error() ?? '' });
+    if (this.query()) return this.i18n.t('apps.finder.noResults');
+    if (this.isTrash()) return this.i18n.t('apps.finder.trashEmpty');
+    return this.path()[0] === 'AirDrop' ?
+        this.i18n.t('apps.finder.noOneNearby')
+      : this.i18n.t('apps.finder.emptyFolder');
   });
   protected readonly gallerySelection = computed(() => {
     const items = this.items();
@@ -463,7 +493,7 @@ export class FinderApp implements FinderCommands {
       return;
     }
     if (TAG_PLACES.some(tag => place.startsWith(tag))) {
-      this.toast.show(`No files tagged ${place}`);
+      this.toast.show('apps.finder.noFilesTagged', { tag: this.sidebarName(place) });
       return;
     }
     this.nav(PLACES[place] ?? HOME_PATH);
@@ -503,7 +533,7 @@ export class FinderApp implements FinderCommands {
   newFolder(): void {
     const dir = diskPathOf(this.path());
     if (!dir || this.query()) {
-      this.toast.show('New folders can only be made on Macintosh HD');
+      this.toast.show('apps.finder.newFolderOnlyOnHd');
       return;
     }
     this.fs.newFolder(dir).then(
@@ -526,7 +556,7 @@ export class FinderApp implements FinderCommands {
   getInfo(): void {
     const node = this.selectedNode() ?? this.fs.get(this.path());
     if (!node) {
-      this.toast.show('Select an item to see its information.');
+      this.toast.show('apps.finder.selectForInfo');
       return;
     }
     const { menuPoint } = this;
@@ -554,11 +584,11 @@ export class FinderApp implements FinderCommands {
     const snapshot = this.clipboard.snapshot();
     const dir = this.importDirectory();
     if (!snapshot) {
-      this.toast.show('Nothing to paste.');
+      this.toast.show('apps.finder.nothingToPaste');
       return;
     }
     if (!dir) {
-      this.toast.show('Paste is only available in a local folder.');
+      this.toast.show('apps.finder.pasteOnlyLocal');
       return;
     }
     void snapshot.entries
@@ -644,13 +674,19 @@ export class FinderApp implements FinderCommands {
       .catch((error: unknown) => this.errors.handleError(error));
   }
 
+  /** 侧栏条目与分组头的显示名：内置位置与标签按当前语言解析，其余（用户文件夹、用户名）原样显示。 */
+  protected sidebarName(name: string): string {
+    const key = FinderApp.SIDEBAR_NAMES[name];
+    return key ? this.i18n.t(key) : name;
+  }
+
   protected finishEmptyTrash(confirmed: boolean): void {
     this.emptyTrashPrompt.set(false);
     if (!confirmed) return;
     this.fs.emptyTrash().then(
       () => {
         this.setSelection([]);
-        this.toast.show('Trash emptied');
+        this.toast.show('shell.dock.trashEmptied');
       },
       (error: unknown) => this.toast.show(describeDiskError(error))
     );
@@ -748,7 +784,14 @@ export class FinderApp implements FinderCommands {
     if (!this.sidebarOrder.move(group.head, name, index)) return;
     const button = event.currentTarget as HTMLButtonElement;
     afterNextRender({ write: () => button.focus({ preventScroll: true }) }, { injector: this.injector });
-    void this.announcer.announce(`${name}, position ${index + 1} of ${group.items.length} in ${group.head}.`);
+    void this.announcer.announce(
+      this.i18n.t('apps.finder.sidebarMoved', {
+        name,
+        position: index + 1,
+        count: group.items.length,
+        group: this.sidebarName(group.head)
+      })
+    );
   }
 
   protected startSidebarDrag(event: PointerEvent): void {
@@ -1065,8 +1108,11 @@ export class FinderApp implements FinderCommands {
   protected sortMenu(anchor: HTMLElement, event: MouseEvent): void {
     this.popover.menuUnder(
       anchor,
-      [{ head: 'Sort By' }, ...finderSortCommands(this.sort(), next => this.setSort(next))],
-      { keyboard: isKeyboardClick(event), label: 'Sort By' }
+      [
+        { head: this.i18n.t('apps.finder.sortBy') },
+        ...finderSortCommands(this.sort(), next => this.setSort(next), this.i18n.t)
+      ],
+      { keyboard: isKeyboardClick(event), label: this.i18n.t('apps.finder.sortBy') }
     );
   }
 
@@ -1077,21 +1123,21 @@ export class FinderApp implements FinderCommands {
       [
         {
           id: 'sb',
-          label: this.sidebarVisible() ? 'Hide Sidebar' : 'Show Sidebar',
+          label: this.sidebarVisible() ? this.i18n.t('shell.menu.hideSidebar') : this.i18n.t('shell.menu.showSidebar'),
           key: '⌥⌘S',
           run: () => this.toggleSidebar()
         },
         {
           id: 'pb',
-          label: this.pathbar() ? 'Hide Path Bar' : 'Show Path Bar',
+          label: this.pathbar() ? this.i18n.t('shell.menu.hidePathBar') : this.i18n.t('shell.menu.showPathBar'),
           key: '⌥⌘P',
           run: () => this.togglePathBar()
         },
         '-',
-        { id: 'nf', label: 'New Folder', key: '⇧⌘N', run: () => this.newFolder() },
+        { id: 'nf', label: this.i18n.t('shell.menu.newFolder'), key: '⇧⌘N', run: () => this.newFolder() },
         {
           id: 'import',
-          label: 'Import Files…',
+          label: this.i18n.t('apps.finder.importFiles'),
           disabled: !this.fileImport.accepts(this.importDirectory()),
           run: () => this.importInput().nativeElement.click()
         }
@@ -1101,7 +1147,7 @@ export class FinderApp implements FinderCommands {
         y: rect.bottom + 4,
         right: true,
         origin: 'top right',
-        label: 'More',
+        label: this.i18n.t('apps.finder.more'),
         ...(keyboard ?
           {
             focus: true,
@@ -1117,13 +1163,15 @@ export class FinderApp implements FinderCommands {
   protected share(): void {
     const node = this.selectedNode();
     if (!node?.path) {
-      this.toast.show('Select a local file or folder to share.');
+      this.toast.show('apps.finder.selectToShare');
       return;
     }
+    const name = this.displayName(node);
+    const kind = node.k || this.i18n.t(node.kind === 'folder' ? 'apps.finder.kindFolder' : 'apps.finder.kindDocument');
     this.mail.compose(
-      `Share ${this.displayName(node)}`,
+      this.i18n.t('apps.finder.shareSubject', { name }),
       '',
-      `File: ${this.displayName(node)}\nKind: ${node.k || (node.kind === 'folder' ? 'Folder' : 'Document')}\nPath: /${node.path.join('/')}`
+      this.i18n.t('apps.finder.shareBody', { name, kind, path: node.path.join('/') })
     );
   }
 
@@ -1162,19 +1210,32 @@ export class FinderApp implements FinderCommands {
     this.menuKeyboard = false;
     if (this.isTrash()) {
       this.popover.contextMenu(event, [
-        { id: 'empty', label: 'Empty Trash', disabled: !this.fs.trashFull(), run: () => this.emptyTrash() },
+        {
+          id: 'empty',
+          label: this.i18n.t('shell.dock.emptyTrash'),
+          disabled: !this.fs.trashFull(),
+          run: () => this.emptyTrash()
+        },
         '-',
-        { id: 'nf', label: 'New Folder', disabled: true },
-        { id: 'gi', label: 'Get Info', run: () => this.showFolderInfo() }
+        { id: 'nf', label: this.i18n.t('shell.menu.newFolder'), disabled: true },
+        { id: 'gi', label: this.i18n.t('shell.menu.getInfo'), run: () => this.showFolderInfo() }
       ]);
       return;
     }
     this.popover.contextMenu(event, [
-      { id: 'nf', label: 'New Folder', run: () => this.newFolder() },
-      { id: 'gi', label: 'Get Info', run: () => this.showFolderInfo() },
+      { id: 'nf', label: this.i18n.t('shell.menu.newFolder'), run: () => this.newFolder() },
+      { id: 'gi', label: this.i18n.t('shell.menu.getInfo'), run: () => this.showFolderInfo() },
       '-',
-      { id: 'v', label: 'View', submenu: finderViewItems(this.view(), next => this.setView(next)) },
-      { id: 's', label: 'Sort By', submenu: finderSortCommands(this.sort(), next => this.setSort(next)) }
+      {
+        id: 'v',
+        label: this.i18n.t('shell.menu.sectionView'),
+        submenu: finderViewItems(this.view(), next => this.setView(next), this.i18n.t)
+      },
+      {
+        id: 's',
+        label: this.i18n.t('apps.finder.sortBy'),
+        submenu: finderSortCommands(this.sort(), next => this.setSort(next), this.i18n.t)
+      }
     ]);
   }
 
@@ -1207,7 +1268,7 @@ export class FinderApp implements FinderCommands {
   protected label(item: FsNode): string {
     /* 无障碍名用真名（应用用清单名）：扩展名隐藏时读屏仍能区分重名的 .md 与 .txt。 */
     const name = this.catalog.manifestAt(item.path)?.name ?? item.name;
-    return itemLabel({ ...item, name });
+    return itemLabel({ ...item, name }, this.i18n.t);
   }
 
   protected displayName(item: FsNode): string {
@@ -1583,7 +1644,7 @@ export class FinderApp implements FinderCommands {
 
   private removeSidebarFavourite(name: string): boolean {
     if (!this.sidebarOrder.removeFavourite(name)) return false;
-    void this.announcer.announce(`${name} removed from Favourites.`);
+    void this.announcer.announce(this.i18n.t('apps.finder.favouriteRemoved', { name }));
     return true;
   }
 
@@ -1602,24 +1663,25 @@ export class FinderApp implements FinderCommands {
     const restorable = Boolean(node?.path && samePath(parentOf(node.path), TRASH));
     const tags = node.path ? this.fs.tagsOf(node) : [];
     return [
-      { id: 'o', label: 'Open', run: () => this.openNode(node) },
+      { id: 'o', label: this.i18n.t('shell.menu.open'), run: () => this.openNode(node) },
       {
         id: 'w',
-        label: 'Open With',
+        label: this.i18n.t('apps.finder.openWith'),
         disabled: node?.kind !== 'file' || isPackageName(name),
         submenu:
           node.kind === 'file' && !isPackageName(name) ?
             openWithCommands(
               this.opener.choices(node),
               appId => this.opener.openApp(appId, node),
-              () => this.requestFileOperation('open-with', node)
+              () => this.requestFileOperation('open-with', node),
+              this.i18n.t
             )
           : undefined
       },
       '-',
       {
         id: 'i',
-        label: 'Get Info',
+        label: this.i18n.t('shell.menu.getInfo'),
         key: '⌘I',
         run: () => {
           const { menuPoint, menuKeyboard } = this;
@@ -1628,48 +1690,67 @@ export class FinderApp implements FinderCommands {
           showInfoPanel(this.popover, node, menuPoint ?? undefined, menuKeyboard);
         }
       },
-      { id: 'r', label: 'Rename', disabled: !node?.path, run: () => this.startRename(node) },
+      { id: 'r', label: this.i18n.t('apps.finder.rename'), disabled: !node?.path, run: () => this.startRename(node) },
       {
         id: 'compress',
-        label: compressLabel(this.compressNames(node)),
+        label: compressLabel(this.compressNames(node), this.i18n.t),
         disabled: inTrash || !node.path,
         run: () => this.compress(node)
       },
-      { id: 'd', label: 'Duplicate', key: '⌘D', disabled: inTrash, run: () => this.duplicate(node) },
-      { id: 'alias', label: 'Make Alias', disabled: inTrash || !node.path, run: () => this.makeAlias(node) },
+      {
+        id: 'd',
+        label: this.i18n.t('apps.finder.duplicate'),
+        key: '⌘D',
+        disabled: inTrash,
+        run: () => this.duplicate(node)
+      },
+      {
+        id: 'alias',
+        label: this.i18n.t('apps.finder.makeAlias'),
+        disabled: inTrash || !node.path,
+        run: () => this.makeAlias(node)
+      },
       {
         id: 'download',
-        label: 'Download File',
+        label: this.i18n.t('apps.finder.downloadFile'),
         disabled: node?.kind !== 'file' || isPackageName(name),
         run: () => void this.download(node)
       },
       '-',
       ...(inTrash ?
         [
-          { id: 'back', label: 'Put Back', disabled: !restorable, run: () => this.restore(node) },
+          {
+            id: 'back',
+            label: this.i18n.t('apps.finder.putBack'),
+            disabled: !restorable,
+            run: () => this.restore(node)
+          },
           {
             id: 'restore',
-            label: 'Restore to Folder…',
+            label: this.i18n.t('apps.finder.restoreToFolder'),
             disabled: !restorable,
             run: () => this.requestFileOperation('restore', node)
           },
           {
             id: 'delete',
-            label: 'Delete Immediately',
+            label: this.i18n.t('apps.finder.deleteImmediately'),
             key: '⌥⌘⌫',
             disabled: !node.path,
             run: () => this.deletePrompt.set(node)
           }
         ]
-      : [{ id: 't', label: 'Move to Trash', key: '⌘⌫', run: () => this.trashItem(node) }]),
+      : [{ id: 't', label: this.i18n.t('shell.menu.moveToTrash'), key: '⌘⌫', run: () => this.trashItem(node) }]),
       '-',
       {
         id: 'tags',
-        label: 'Tags',
+        label: this.i18n.t('apps.finder.tags'),
         disabled: !node.path,
-        submenu: node.path ? tagCommands(FINDER_TAG_COLORS, tags, next => this.setNodeTags(node, next)) : undefined
+        submenu:
+          node.path ?
+            tagCommands(FINDER_TAG_COLORS, tags, next => this.setNodeTags(node, next), this.i18n.t)
+          : undefined
       },
-      { id: 'q', label: 'Quick Look', key: '␣', run: () => this.quickLook(node) }
+      { id: 'q', label: this.i18n.t('apps.finder.quickLook'), key: '␣', run: () => this.quickLook(node) }
     ];
   }
 
@@ -1889,7 +1970,7 @@ export class FinderApp implements FinderCommands {
   private restore(node: FsNode): void {
     if (node?.path)
       this.fs.restore(node.path).then(
-        path => this.toast.show(`Restored to ${path.join('/')}`),
+        path => this.toast.show('apps.finder.restoredTo', { path: path.join('/') }),
         (error: unknown) => this.toast.show(describeDiskError(error))
       );
   }
@@ -1945,9 +2026,9 @@ export class FinderApp implements FinderCommands {
       void this.fs.aliasTarget(node).then(
         target => {
           if (target) this.openNode(target);
-          else this.toast.show('The original item can’t be found.');
+          else this.toast.show('error.finder.aliasTargetMissing');
         },
-        () => this.toast.show('The original item can’t be found.')
+        () => this.toast.show('error.finder.aliasTargetMissing')
       );
       return;
     }
@@ -2119,7 +2200,7 @@ export class FinderApp implements FinderCommands {
   private goToFolderPath(path: DiskPath): void {
     this.popover.close();
     if (!this.fs.nodeAt(path)) {
-      this.toast.show(`The folder can’t be found.`);
+      this.toast.show('error.finder.folderNotFound');
       this.gotoFolder();
       return;
     }
@@ -2169,13 +2250,18 @@ export class FinderApp implements FinderCommands {
  */
 @Component({
   selector: 'app-finder-goto',
-  host: { class: 'pop', role: 'dialog', 'aria-label': 'Go to Folder', style: 'width: 340px; padding: 12px' },
+  host: { class: 'pop', style: 'width: 340px; padding: 12px' },
   template: `
-    <form (submit)="submit($event)" style="display: grid; gap: 10px">
+    <form
+      [attr.aria-label]="i18n.t('apps.finder.goToFolder')"
+      (submit)="submit($event)"
+      role="dialog"
+      style="display: grid; gap: 10px"
+    >
       <input
         #path
+        [attr.aria-label]="i18n.t('apps.finder.goToFolderInput')"
         (input)="error.set('')"
-        aria-label="Go to folder"
         placeholder="/Users/you/Documents"
         spellcheck="false"
       />
@@ -2183,8 +2269,8 @@ export class FinderApp implements FinderCommands {
         <div role="alert" style="font-size: 12px; color: var(--red)">{{ error() }}</div>
       }
       <div style="display: flex; justify-content: flex-end; gap: 6px">
-        <button class="mi" (click)="cancel()" tabindex="0" type="button">Cancel</button>
-        <button class="mi" tabindex="0" type="submit">Go</button>
+        <button class="mi" (click)="cancel()" tabindex="0" type="button">{{ i18n.t('apps.finder.cancel') }}</button>
+        <button class="mi" tabindex="0" type="submit">{{ i18n.t('apps.finder.go') }}</button>
       </div>
     </form>
   `,
@@ -2204,6 +2290,7 @@ export class FinderApp implements FinderCommands {
 })
 class GoToFolderDialog implements AfterViewInit {
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+  protected readonly i18n = useI18n();
   protected readonly error = signal('');
   readonly onSubmit = input.required<(path: DiskPath) => void>();
   readonly onCancel = input.required<() => void>();
@@ -2217,7 +2304,7 @@ class GoToFolderDialog implements AfterViewInit {
     const value = this.host.querySelector<HTMLInputElement>('input')?.value ?? '';
     const path = parseGoToFolder(value);
     if (!path) {
-      this.error.set('Enter an absolute path, like /Users/you/Documents.');
+      this.error.set(this.i18n.t('apps.finder.goToFolderHint'));
       return;
     }
     this.onSubmit()(path);
@@ -2234,16 +2321,16 @@ class GoToFolderDialog implements AfterViewInit {
  */
 @Component({
   selector: 'app-finder-view-options',
-  host: { class: 'pop wide', role: 'dialog', 'aria-label': 'View Options', style: 'width: 264px; padding: 12px 14px' },
+  host: { class: 'pop wide', style: 'width: 264px; padding: 12px 14px' },
   template: `
-    <div style="display: grid; gap: 12px">
+    <div [attr.aria-label]="i18n.t('apps.finder.viewOptions')" role="dialog" style="display: grid; gap: 12px">
       <label class="fvopt">
-        <span>Icon size</span>
+        <span>{{ i18n.t('apps.finder.iconSize') }}</span>
         <input
           #icon
+          [attr.aria-label]="i18n.t('apps.finder.iconSize')"
           [value]="iconSize()()"
           (input)="setSize(iconSize(), icon.value)"
-          aria-label="Icon size"
           max="128"
           min="16"
           step="1"
@@ -2251,12 +2338,12 @@ class GoToFolderDialog implements AfterViewInit {
         />
       </label>
       <label class="fvopt">
-        <span>Grid spacing</span>
+        <span>{{ i18n.t('apps.finder.gridSpacing') }}</span>
         <input
           #spacing
+          [attr.aria-label]="i18n.t('apps.finder.gridSpacing')"
           [value]="gridSpacing()()"
           (input)="setSize(gridSpacing(), spacing.value)"
-          aria-label="Grid spacing"
           max="100"
           min="0"
           step="1"
@@ -2264,12 +2351,12 @@ class GoToFolderDialog implements AfterViewInit {
         />
       </label>
       <label class="fvopt">
-        <span>Text size</span>
+        <span>{{ i18n.t('apps.finder.textSize') }}</span>
         <input
           #text
+          [attr.aria-label]="i18n.t('apps.finder.textSize')"
           [value]="textSize()()"
           (input)="setSize(textSize(), text.value)"
-          aria-label="Text size"
           max="16"
           min="10"
           step="1"
@@ -2278,7 +2365,7 @@ class GoToFolderDialog implements AfterViewInit {
       </label>
       <label class="fvopt chk">
         <input #ext [checked]="showExtensions()()" (change)="onToggleExtensions()()" type="checkbox" />
-        <span>Show all filename extensions</span>
+        <span>{{ i18n.t('apps.finder.showAllExtensions') }}</span>
       </label>
     </div>
   `,
@@ -2304,6 +2391,7 @@ class GoToFolderDialog implements AfterViewInit {
   `
 })
 class FinderViewOptions {
+  protected readonly i18n = useI18n();
   readonly iconSize = input.required<WritableSignal<number>>();
   readonly gridSpacing = input.required<WritableSignal<number>>();
   readonly textSize = input.required<WritableSignal<number>>();

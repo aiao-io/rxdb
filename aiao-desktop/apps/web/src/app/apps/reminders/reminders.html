@@ -2,7 +2,7 @@
   <div class="sbar" data-drag style="width: 206px">
     <div class="sb-top"><app-traffic-lights /></div>
     <div class="grp">
-      <div class="gh">My Lists</div>
+      <div class="gh">{{ i18n.t('apps.reminders.myLists') }}</div>
       @for (list of lists(); track list.id) {
         <button
           class="si"
@@ -29,7 +29,7 @@
           >
             ●
           </span>
-          <span class="nm">{{ list.name }}</span>
+          <span class="nm">{{ i18n.t(list.name) }}</span>
           <span class="tail" data-rcount>{{ list.count }}</span>
         </button>
       }
@@ -43,32 +43,32 @@
         <span><svg appIcon="g-search"></svg></span>
         <input
           #rsearch
+          [attr.aria-label]="i18n.t('apps.reminders.searchReminders')"
+          [placeholder]="i18n.t('apps.reminders.search')"
           [value]="query()"
           (input)="query.set(rsearch.value)"
           (keydown.escape)="rsearch.blur()"
-          aria-label="Search reminders"
           data-rsearch
-          placeholder="Search"
         />
       </div>
       <button
         class="tbtn"
+        [attr.aria-label]="i18n.t('apps.reminders.newReminder')"
         [disabled]="win.closePending()"
+        [title]="i18n.t('apps.reminders.newReminder')"
         (click)="add()"
-        aria-label="New Reminder"
         data-nodrag
         data-radd
         tabindex="0"
-        title="New Reminder"
       >
         <svg appIcon="g-plus"></svg>
       </button>
     </div>
     <div aria-live="polite" role="status" style="padding: 4px 18px; font-size: 12px; color: var(--txt)">
       {{
-        drafts.pending() || toggling().size ? 'Saving…'
-        : drafts.dirty() ? 'Unsaved reminders'
-        : 'Saved'
+        drafts.pending() || toggling().size ? i18n.t('apps.reminders.saving')
+        : drafts.dirty() ? i18n.t('apps.reminders.unsavedReminders')
+        : i18n.t('apps.reminders.saved')
       }}
     </div>
     @if (error()) {
@@ -96,7 +96,11 @@
           <button
             class="rc"
             [attr.aria-checked]="item.done"
-            [attr.aria-label]="item.title ? 'Complete ' + item.title : 'Complete draft reminder'"
+            [attr.aria-label]="
+              item.title ?
+                i18n.t('apps.reminders.completeItem', { name: item.title })
+              : i18n.t('apps.reminders.completeDraft')
+            "
             [disabled]="win.closePending() || (item.fresh ? !item.editing : toggling().has(item.id))"
             [style.background]="item.done ? item.tint : 'transparent'"
             [style.border]="'1.6px solid ' + (item.done ? item.tint : 'var(--txt-3)')"
@@ -123,11 +127,11 @@
             <div style="min-width: 0; flex: 1">
               <input
                 #draft
+                [attr.aria-label]="i18n.t('apps.reminders.reminderText')"
                 [disabled]="!item.editing || win.closePending()"
                 [value]="item.title"
                 (input)="drafts.edit(item.id, draft.value)"
                 (keydown.enter)="finish($event, item.id)"
-                aria-label="Reminder text"
                 data-rnew
                 style="
                   display: block;
@@ -143,7 +147,7 @@
               />
               <button
                 class="due-btn"
-                [attr.aria-label]="'Set due date, now ' + item.due"
+                [attr.aria-label]="i18n.t('apps.reminders.setDueDateNow', { due: item.due })"
                 (click)="openDue($event, item)"
                 data-rdue
                 style="
@@ -161,7 +165,9 @@
                 {{ item.due }}
               </button>
               @if (drafts.errorFor(item.id); as problem) {
-                <p role="alert" style="margin: 6px 0; color: var(--txt)">Reminder was not saved: {{ problem }}</p>
+                <p role="alert" style="margin: 6px 0; color: var(--txt)">
+                  {{ i18n.t('apps.reminders.notSaved', { problem }) }}
+                </p>
               }
               <div style="display: flex; gap: 8px; margin-top: 6px">
                 <button
@@ -170,7 +176,11 @@
                   (click)="drafts.save(item.id)"
                   tabindex="0"
                 >
-                  {{ drafts.errorFor(item.id) ? 'Retry Save' : 'Save Reminder' }}
+                  {{
+                    drafts.errorFor(item.id) ?
+                      i18n.t('apps.reminders.retrySave')
+                    : i18n.t('apps.reminders.saveReminder')
+                  }}
                 </button>
                 <button
                   class="btn"
@@ -178,7 +188,7 @@
                   (click)="drafts.discard(item.id)"
                   tabindex="0"
                 >
-                  Discard Draft
+                  {{ i18n.t('apps.reminders.discardDraft') }}
                 </button>
               </div>
             </div>
@@ -215,21 +225,27 @@
             </div>
             <button
               class="tbtn"
-              [attr.aria-label]="item.flagged ? 'Unflag ' + item.title : 'Flag ' + item.title"
+              [attr.aria-label]="
+                item.flagged ?
+                  i18n.t('apps.reminders.unflagItem', { name: item.title })
+                : i18n.t('apps.reminders.flagItem', { name: item.title })
+              "
               [attr.aria-pressed]="item.flagged"
               [disabled]="win.closePending() || toggling().has(item.id)"
-              [title]="item.flagged ? 'Unflag' : 'Flag'"
+              [title]="item.flagged ? i18n.t('apps.reminders.unflag') : i18n.t('apps.reminders.flag')"
               (click)="toggleFlag(item)"
               data-nodrag
               data-rflag
               type="button"
             >
-              {{ item.flagged ? '🚩' : 'Flag' }}
+              {{ item.flagged ? '🚩' : i18n.t('apps.reminders.flag') }}
             </button>
           }
         </div>
       } @empty {
-        <div style="padding: 22px; text-align: center; color: var(--txt-3); font-size: 12.5px">No reminders</div>
+        <div style="padding: 22px; text-align: center; color: var(--txt-3); font-size: 12.5px">
+          {{ i18n.t('apps.reminders.noReminders') }}
+        </div>
       }
     </div>
   </div>

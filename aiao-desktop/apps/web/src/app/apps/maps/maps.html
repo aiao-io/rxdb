@@ -1,5 +1,5 @@
 <div class="tb" data-drag>
-  <div class="title">Maps</div>
+  <div class="title">{{ i18n.t('apps.maps.name') }}</div>
   <div class="tbz"><app-traffic-lights /></div>
   <div class="grow"></div>
   <div class="tbz">
@@ -7,12 +7,12 @@
       <span><svg appIcon="g-search"></svg></span>
       <input
         #search
+        [attr.aria-label]="i18n.t('apps.maps.search')"
+        [placeholder]="i18n.t('apps.maps.search')"
         (input)="input($event, search)"
         (keydown.enter)="find($event, search)"
         (keydown.escape)="dismiss(search)"
-        aria-label="Search Maps"
         data-msearch
-        placeholder="Search Maps"
         spellcheck="false"
       />
     </div>
@@ -21,12 +21,12 @@
 <div
   class="maps"
   #mapBox
+  [attr.aria-label]="i18n.t('apps.maps.map')"
   (contextmenu)="menu($event)"
   (dblclick)="doubleClick($event)"
   (keydown)="key($event)"
   (pointerdown)="down($event)"
   (wheel)="wheel($event)"
-  aria-label="Map"
   data-map
   role="region"
   tabindex="0"
@@ -40,29 +40,41 @@
     <h3>{{ card().title }}</h3>
     <p>{{ card().sub }}</p>
     <div class="row">
-      <button class="btn pri" (click)="directions()" data-dir style="flex: 1" tabindex="0">Directions</button>
-      <button class="btn" (click)="save()" data-save style="flex: 1" tabindex="0">Save</button>
+      <button class="btn pri" (click)="directions()" data-dir style="flex: 1" tabindex="0">
+        {{ i18n.t('apps.maps.directions') }}
+      </button>
+      <button class="btn" (click)="save()" data-save style="flex: 1" tabindex="0">
+        {{ i18n.t('apps.maps.save') }}
+      </button>
     </div>
   </div>
   <div class="zoom">
-    <button (click)="zoom(1)" data-z="1" tabindex="0" title="Zoom In"><svg appIcon="g-plus"></svg></button>
-    <button (click)="zoom(-1)" data-z="-1" tabindex="0" title="Zoom Out"><svg appIcon="g-minus"></svg></button>
+    <button [title]="i18n.t('apps.maps.zoomIn')" (click)="zoom(1)" data-z="1" tabindex="0">
+      <svg appIcon="g-plus"></svg>
+    </button>
+    <button [title]="i18n.t('apps.maps.zoomOut')" (click)="zoom(-1)" data-z="-1" tabindex="0">
+      <svg appIcon="g-minus"></svg>
+    </button>
   </div>
   <div class="attr">© OpenStreetMap · CARTO</div>
   @if (results(); as panel) {
     <div class="results">
       @switch (panel.status) {
         @case ('searching') {
-          <div style="padding: 9px 10px; font-size: 12px; color: var(--txt-2)">Searching…</div>
+          <div style="padding: 9px 10px; font-size: 12px; color: var(--txt-2)">
+            {{ i18n.t('apps.maps.searching') }}
+          </div>
         }
         @case ('empty') {
-          <div style="padding: 9px 10px; font-size: 12px; color: var(--txt-2)">No results for “{{ panel.query }}”</div>
+          <div style="padding: 9px 10px; font-size: 12px; color: var(--txt-2)">
+            {{ i18n.t('apps.maps.noResults', { query: panel.query }) }}
+          </div>
         }
         @case ('failed') {
           <div role="alert" style="padding: 9px 10px; font-size: 12px; color: var(--txt-2)">
-            Search is unavailable. Try again.
+            {{ i18n.t('apps.maps.searchUnavailable') }}
           </div>
-          <button class="btn" (click)="retrySearch()" tabindex="0">Retry search</button>
+          <button class="btn" (click)="retrySearch()" tabindex="0">{{ i18n.t('apps.maps.retrySearch') }}</button>
         }
         @case ('hits') {
           @for (hit of panel.hits; track $index) {
@@ -78,7 +90,9 @@
   @if (suggest(); as panel) {
     <div class="results" data-msuggest>
       @if (panel.recent.length) {
-        <div style="padding: 7px 10px 3px; font-size: 11px; color: var(--txt-2); text-transform: uppercase">Recent</div>
+        <div style="padding: 7px 10px 3px; font-size: 11px; color: var(--txt-2); text-transform: uppercase">
+          {{ i18n.t('apps.maps.recent') }}
+        </div>
         @for (spot of panel.recent; track $index) {
           <button [attr.data-recent]="$index" (click)="pickRecent(spot)" tabindex="0">
             <b>{{ spot.title }}</b>
@@ -93,20 +107,26 @@
         </button>
       }
       @if (panel.loading) {
-        <div style="padding: 9px 10px; font-size: 12px; color: var(--txt-2)">Searching…</div>
+        <div style="padding: 9px 10px; font-size: 12px; color: var(--txt-2)">
+          {{ i18n.t('apps.maps.searching') }}
+        </div>
       } @else if (!panel.recent.length && !panel.hits.length) {
-        <div style="padding: 9px 10px; font-size: 12px; color: var(--txt-2)">No suggestions</div>
+        <div style="padding: 9px 10px; font-size: 12px; color: var(--txt-2)">
+          {{ i18n.t('apps.maps.noSuggestions') }}
+        </div>
       }
     </div>
   }
   @if (loadingTiles()) {
-    <div class="offline" role="status">Loading map tiles…</div>
+    <div class="offline" role="status">{{ i18n.t('apps.maps.loadingTiles') }}</div>
   }
   @if (offline()) {
     <div class="offline" role="alert">
-      <b style="display: block; font-size: 13px; color: var(--txt); margin-bottom: 2px">Map unavailable</b>
-      Some map tiles could not be loaded. Maps requires a network connection and an available map service.
-      <button class="btn" (click)="retryTiles()" tabindex="0">Retry map</button>
+      <b style="display: block; font-size: 13px; color: var(--txt); margin-bottom: 2px">
+        {{ i18n.t('apps.maps.mapUnavailable') }}
+      </b>
+      {{ i18n.t('apps.maps.tilesFailed') }}
+      <button class="btn" (click)="retryTiles()" tabindex="0">{{ i18n.t('apps.maps.retryMap') }}</button>
     </div>
   }
 </div>

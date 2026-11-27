@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { NgComponentOutlet } from '@angular/common';
 import {
   Component,
@@ -14,6 +15,7 @@ import {
 
 import { Preferences } from '../data/preferences';
 import { windowHidden } from '../services/aria';
+import { appDisplayName } from '../services/desktop-app-name';
 import { DesktopWindow, WindowBox, WindowFrameHandle } from '../services/desktop-window';
 import { DockState } from '../services/dock-state';
 import { SystemState } from '../services/system-state';
@@ -76,7 +78,7 @@ const NO_DRAG = 'button,input,.tl,.seg,.sfield,[data-nodrag]';
     role: 'dialog',
     tabindex: '-1',
     '[attr.aria-hidden]': 'hidden() ? "true" : null',
-    '[attr.aria-label]': 'win().title()',
+    '[attr.aria-label]': 'win().title() === win().app.name ? appName(win().app) : win().title()',
     '[attr.id]': 'win().id',
     '[attr.data-app]': 'win().appId',
     '[class.opening]': 'win().opening()',
@@ -118,6 +120,8 @@ export class WindowFrame implements OnDestroy, OnInit, WindowFrameHandle {
   private lastFocus: HTMLElement | null = null;
   protected readonly edges = EDGES;
   protected readonly status = WindowStatus;
+  protected readonly i18n = useI18n();
+  protected readonly appName = appDisplayName.bind(null, this.i18n);
   protected readonly focused = computed(() => this.wm.focused() === this.win());
   protected readonly hidden = computed(() =>
     windowHidden({ focused: this.focused(), minimized: this.win().minimized(), closing: this.win().closing() })

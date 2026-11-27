@@ -16,12 +16,14 @@ export interface SuggestSource {
 /**
  * 地址栏建议：查询为空时给出最近访问的地址；有查询时从历史（在前）与收藏夹里
  * 找地址或收藏名包含查询的候选，按此顺序去重，最多 `limit` 条。空地址与起始页不参与。
+ * `t` 提供时建议标题随语言显示，缺省保持英文。
  */
 export function suggestAddresses(
   query: string,
   history: readonly string[],
   favourites: readonly SuggestSource[],
-  limit = 6
+  limit = 6,
+  t?: (key: string) => string
 ): readonly AddressSuggestion[] {
   const q = query.trim().toLowerCase();
   const seen = new Set<string>();
@@ -29,7 +31,7 @@ export function suggestAddresses(
   const push = (url: string): void => {
     if (!url || kindOf(url) === 'start' || seen.has(url) || out.length >= limit) return;
     seen.add(url);
-    out.push({ url, label: titleFor(url) });
+    out.push({ url, label: titleFor(url, t) });
   };
   if (!q) {
     for (const url of history) push(url);

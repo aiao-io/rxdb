@@ -1,4 +1,6 @@
+import { I18N } from '@aiao/rxdb-i18n-angular';
 import { DestroyRef, InjectionToken, Service, effect, inject, signal, untracked } from '@angular/core';
+
 import { ApplicationRegistry } from './application-registry';
 
 import { DesktopData } from '../data/desktop-data';
@@ -96,6 +98,7 @@ export class WindowLayoutStore {
   private readonly browserSession = inject(BrowserSessionRestore);
   private readonly apps = inject(ApplicationRegistry).apps;
   private readonly pause = inject(RESTORE_YIELD);
+  private readonly i18nRuntime = inject(I18N, { optional: true }) ?? undefined;
   /** 等桌面看得见了再弹的提示（开机画面和登录界面盖着时弹了也看不到）。 */
   private readonly notice = signal<string | null>(null);
   private started: Promise<number> | null = null;
@@ -160,8 +163,10 @@ export class WindowLayoutStore {
     const resumeExists = fromResume && sessionPlan.resume !== undefined;
     this.notice.set(
       parsed.unreadable ?
-        fromResume ? RESUME_UNREADABLE_NOTICE
-        : UNREADABLE_NOTICE
+        this.t(
+          fromResume ? 'shell.toast.sessionUnreadable' : 'shell.toast.layoutUnreadable',
+          fromResume ? RESUME_UNREADABLE_NOTICE : UNREADABLE_NOTICE
+        )
       : describeSkipped(skipped)
     );
     this.latest =
@@ -228,7 +233,7 @@ export class WindowLayoutStore {
         /* 会话存储读写出错（站点数据被禁用、配额）：不退回共享的键，同样停用，下面提示。 */
       }
     }
-    if (key === null) this.notice.set(UNAVAILABLE_NOTICE);
+    if (key === null) this.notice.set(this.t('shell.toast.positionsNotSaved', UNAVAILABLE_NOTICE));
     return key;
   }
 
@@ -288,7 +293,7 @@ export class WindowLayoutStore {
   private reportSaveFailure(): void {
     if (this.failing) return;
     this.failing = true;
-    this.toast.show(SAVE_FAILED_NOTICE);
+    this.toast.show(this.t('shell.toast.layoutSaveFailed', SAVE_FAILED_NOTICE));
   }
 
   /** 开机画面和登录界面退场之后才弹提示。 */
@@ -309,5 +314,10 @@ export class WindowLayoutStore {
       where: { combinator: 'and', rules: [{ field: 'key', operator: 'startsWith', value: WINDOW_LAYOUT_PREFIX }] }
     });
     for (const row of staleLayoutRows(rows, ownKey, Date.now(), STALE_LAYOUT_AFTER)) await repository.remove(row);
+  }
+
+  /** 布局提示的翻译：未注入 i18n 运行时（单测）时回退英文原文。 */
+  private t(key: string, english: string): string {
+    return this.i18nRuntime ? this.i18nRuntime.t(key) : english;
   }
 }

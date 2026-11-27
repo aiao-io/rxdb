@@ -16,12 +16,15 @@ export interface MailDraftWrite {
   readonly value: MailDraftSnapshot;
 }
 
+/** 草稿写入失败：`translate` 可选，未注入时保持英文（与 print-document 风格一致）。 */
 export class MailDraftError extends Error {
-  constructor(kind: 'conflict' | 'missing') {
+  constructor(kind: 'conflict' | 'missing', translate?: (key: string) => string) {
     super(
       kind === 'conflict' ?
-        'This draft changed in another window. Save a copy or discard your changes before reopening it.'
-      : 'This draft is no longer available. Save a copy to keep your changes.'
+        (translate?.('error.mail.draftChanged') ??
+          'This draft changed in another window. Save a copy or discard your changes before reopening it.')
+      : (translate?.('error.mail.draftUnavailable') ??
+          'This draft is no longer available. Save a copy to keep your changes.')
     );
   }
 }

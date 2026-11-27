@@ -1,3 +1,4 @@
+import { I18N } from '@aiao/rxdb-i18n-angular';
 import { Service, computed, inject, signal } from '@angular/core';
 
 import { ApprovedRelease, catalogManifest } from '../data/approved-catalog';
@@ -7,6 +8,7 @@ import { DESKTOP_APPS, DesktopAppRegistry, LAUNCH_ORDER, assertManifests } from 
 @Service({ autoProvided: false })
 export class ApplicationRegistry {
   private readonly base = inject(DESKTOP_APPS);
+  private readonly i18nRuntime = inject(I18N, { optional: true }) ?? undefined;
   private readonly state = signal(this.base);
   readonly apps = this.state.asReadonly();
   readonly launchOrder = computed(() => [
@@ -19,7 +21,11 @@ export class ApplicationRegistry {
   definitionsFor(releases: readonly ApprovedRelease[]): DesktopAppRegistry {
     const names = new Set(Object.values(this.base).map(app => app.name));
     if (releases.some(release => names.has(release.name)))
-      throw new Error('Installed application names conflict with preinstalled applications.');
+      throw new Error(
+        this.i18nRuntime ?
+          this.i18nRuntime.t('error.install.nameConflictWithPreinstalled')
+        : 'Installed application names conflict with preinstalled applications.'
+      );
     const installed = releases.map(release => [
       release.id,
       {

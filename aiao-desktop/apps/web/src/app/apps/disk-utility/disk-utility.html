@@ -2,7 +2,7 @@
   <div class="sbar" data-drag style="width: 180px">
     <div style="display: flex; align-items: center; height: 38px; padding: 0 12px"><app-traffic-lights /></div>
     <div class="grp">
-      <div class="gh">Browser Storage</div>
+      <div class="gh">{{ i18n.t('apps.diskutil.browserStorage') }}</div>
       <div class="si on">
         <svg class="ico" appIcon="g-hd"></svg>
         <span class="nm">Macintosh HD</span>
@@ -13,15 +13,19 @@
     <div class="tbar" data-drag style="height: 52px">
       <div class="fx-title">Macintosh HD</div>
       <div style="flex: 1"></div>
-      <button class="btn" (click)="firstAid($event)" data-dufa data-nodrag tabindex="0" type="button">First Aid</button>
-      <button class="btn" (click)="erase($event)" data-duerase data-nodrag tabindex="0" type="button">Erase</button>
+      <button class="btn" (click)="firstAid($event)" data-dufa data-nodrag tabindex="0" type="button">
+        {{ i18n.t('apps.diskutil.firstAid') }}
+      </button>
+      <button class="btn" (click)="erase($event)" data-duerase data-nodrag tabindex="0" type="button">
+        {{ i18n.t('apps.diskutil.erase') }}
+      </button>
     </div>
     <div class="scroll" style="flex: 1; padding: 24px 28px">
       <div style="display: flex; gap: 18px; align-items: center">
         <div style="width: 60px; height: 60px"><svg appIcon="f-hd"></svg></div>
         <div>
           <h1 style="font-size: 20px; margin: 0 0 6px">Macintosh HD</h1>
-          <span style="font-size: 12px; color: var(--txt-2)">Desktop files and app data stored in this browser</span>
+          <span style="font-size: 12px; color: var(--txt-2)">{{ i18n.t('apps.diskutil.subtitle') }}</span>
         </div>
       </div>
       <dl
@@ -34,17 +38,18 @@
         }
       </dl>
       <p style="font-size: 12px; color: var(--txt-2)">
-        Usage and quota cover this entire origin, including caches and retained desktop copies. They are browser
-        estimates. Clearing site data removes local data; keep an external backup.
+        {{ i18n.t('apps.diskutil.usageNote') }}
       </p>
       @if (health()?.error; as error) {
-        <p role="alert">Storage check failed: {{ error }}</p>
+        <p role="alert">{{ i18n.t('error.diskutil.storageCheckFailed', { reason: error }) }}</p>
       }
       <div style="display: flex; gap: 8px">
         <button class="btn" [disabled]="checking()" (click)="refresh()" tabindex="0" type="button">
-          Refresh Storage Status
+          {{ i18n.t('apps.diskutil.refreshStatus') }}
         </button>
-        <button class="btn" (click)="persist()" tabindex="0" type="button">Request Persistent Storage</button>
+        <button class="btn" (click)="persist()" tabindex="0" type="button">
+          {{ i18n.t('apps.diskutil.requestPersistent') }}
+        </button>
       </div>
       <app-backup-panel />
     </div>

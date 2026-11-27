@@ -12,6 +12,8 @@ import {
   viewChild
 } from '@angular/core';
 
+import { useI18n } from '@aiao/rxdb-i18n-angular';
+
 import { appFilesOver } from '../../services/app-files';
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
@@ -80,12 +82,12 @@ type DocumentChoice = 'save' | 'discard' | 'cancel';
         <button
           class="tbtn"
           #format
+          [attr.aria-label]="i18n.t('apps.textedit.format')"
+          [title]="i18n.t('apps.textedit.format')"
           (click)="openFormat(format)"
-          aria-label="Format"
           data-nodrag
           data-tefmt
           tabindex="0"
-          title="Format"
         >
           <svg appIcon="g-title"></svg>
         </button>
@@ -93,14 +95,16 @@ type DocumentChoice = 'save' | 'discard' | 'cancel';
     </div>
     <div class="document-status" aria-live="polite" role="status">
       <span>{{ statusLabel() }}</span>
-      <button [disabled]="busy()" (click)="save()" tabindex="0">Save</button>
-      <button [disabled]="busy()" (click)="save(true)" tabindex="0">Save As…</button>
+      <button [disabled]="busy()" (click)="save()" tabindex="0">{{ i18n.t('apps.textedit.save') }}</button>
+      <button [disabled]="busy()" (click)="save(true)" tabindex="0">{{ i18n.t('apps.textedit.saveAs') }}</button>
     </div>
     @if (document.error(); as error) {
       <div class="document-error" role="alert">
         {{ error }}
         @if (document.path()) {
-          <button [disabled]="busy()" (click)="reload()" tabindex="0">Reload from Disk</button>
+          <button [disabled]="busy()" (click)="reload()" tabindex="0">
+            {{ i18n.t('apps.textedit.reloadFromDisk') }}
+          </button>
         }
       </div>
     }
@@ -108,11 +112,11 @@ type DocumentChoice = 'save' | 'discard' | 'cancel';
       <div
         class="te-doc selectable"
         #doc
+        [attr.aria-label]="i18n.t('apps.textedit.documentText')"
         [attr.contenteditable]="!blocked()"
         [style.font]="rich() ? richFont : null"
         (input)="edit()"
         (keydown)="key($event)"
-        aria-label="Document text"
         aria-multiline="true"
         data-te-doc
         role="textbox"
@@ -130,14 +134,18 @@ type DocumentChoice = 'save' | 'discard' | 'cancel';
       >
         <div class="document-card" [attr.aria-labelledby]="dialogId" aria-modal="true" role="alertdialog">
           <h3 [id]="dialogId">
-            {{ action === 'close' ? 'Save changes before closing?' : 'Discard changes and reload?' }}
+            {{
+              action === 'close' ? i18n.t('apps.textedit.saveBeforeClose') : i18n.t('apps.textedit.discardAndReload')
+            }}
           </h3>
-          <p>“{{ document.name() }}” has unsaved changes.</p>
+          <p>{{ i18n.t('apps.textedit.unsavedChangesBody', { name: document.name() }) }}</p>
           <div class="document-buttons">
-            <button (click)="choose('cancel')" data-autofocus tabindex="0">Cancel</button>
-            <button (click)="choose('discard')" tabindex="0">{{ action === 'close' ? 'Don’t Save' : 'Reload' }}</button>
+            <button (click)="choose('cancel')" data-autofocus tabindex="0">{{ i18n.t('apps.textedit.cancel') }}</button>
+            <button (click)="choose('discard')" tabindex="0">
+              {{ action === 'close' ? i18n.t('apps.textedit.dontSave') : i18n.t('apps.textedit.reload') }}
+            </button>
             @if (action === 'close') {
-              <button (click)="choose('save')" tabindex="0">Save Changes</button>
+              <button (click)="choose('save')" tabindex="0">{{ i18n.t('apps.textedit.saveChanges') }}</button>
             }
           </div>
         </div>
@@ -156,26 +164,31 @@ export class TextEditApp {
   private readonly doc = viewChild.required<ElementRef<HTMLElement>>('doc');
   private panel: FilePanelTicket | null = null;
   private resolveChoice: ((choice: DocumentChoice) => void) | null = null;
+  protected readonly i18n = useI18n();
   protected readonly document = new TextDocument(
     appFilesOver(this.fs),
     name => this.chooseSave(name),
-    this.win.options.node?.path ?? null
+    this.win.options.node?.path ?? null,
+    key => this.i18n.t(key)
   );
   protected readonly dialogId = `document-confirm-${this.win.id}`;
   protected readonly prompt = signal<'close' | 'reload' | null>(null);
   protected readonly richFont = RICH_FONT;
   protected readonly rich = signal(false);
-  protected readonly title = computed(() => `${this.document.name()}${this.document.dirty() ? ' — Edited' : ''}`);
+  protected readonly title = computed(() => {
+    const name = this.document.path() ? this.document.name() : this.i18n.t('apps.textedit.untitled');
+    return `${name}${this.document.dirty() ? this.i18n.t('apps.textedit.editedSuffix') : ''}`;
+  });
   protected readonly busy = computed(() => ['loading', 'saving'].includes(this.document.status()));
   protected readonly blocked = computed(
     () => this.document.status() === 'loading' || this.win.closePending() || this.prompt() !== null
   );
   protected readonly statusLabel = computed(() => {
-    if (this.document.status() === 'saving') return 'Saving…';
-    if (this.document.status() === 'loading') return 'Loading…';
-    if (this.document.error()) return 'Not saved';
-    if (this.document.dirty() || !this.document.stamp()) return 'Unsaved';
-    return 'Saved';
+    if (this.document.status() === 'saving') return this.i18n.t('apps.textedit.saving');
+    if (this.document.status() === 'loading') return this.i18n.t('apps.textedit.loading');
+    if (this.document.error()) return this.i18n.t('apps.textedit.notSaved');
+    if (this.document.dirty() || !this.document.stamp()) return this.i18n.t('apps.textedit.unsaved');
+    return this.i18n.t('apps.textedit.saved');
   });
 
   constructor() {
@@ -183,15 +196,32 @@ export class TextEditApp {
     this.win.setMenus(
       computed(() =>
         menus.standard('textedit', {
-          File: [
-            { id: 'n', label: 'New Window', key: '⌘N', run: () => this.wm.open('textedit', { force: true }) },
-            { id: 'w', label: 'Close Window', key: '⌘W', run: () => this.wm.closeFront() },
+          [this.i18n.t('shell.menu.sectionFile')]: [
+            {
+              id: 'n',
+              label: this.i18n.t('shell.menu.newWindow'),
+              key: '⌘N',
+              run: () => this.wm.open('textedit', { force: true })
+            },
+            { id: 'w', label: this.i18n.t('shell.menu.closeWindow'), key: '⌘W', run: () => this.wm.closeFront() },
             '-',
-            { id: 's', label: 'Save', key: '⌘S', disabled: this.busy(), run: () => void this.save() },
-            { id: 'sa', label: 'Save As…', key: '⇧⌘S', disabled: this.busy(), run: () => void this.save(true) },
+            {
+              id: 's',
+              label: this.i18n.t('apps.textedit.save'),
+              key: '⌘S',
+              disabled: this.busy(),
+              run: () => void this.save()
+            },
+            {
+              id: 'sa',
+              label: this.i18n.t('apps.textedit.saveAs'),
+              key: '⇧⌘S',
+              disabled: this.busy(),
+              run: () => void this.save(true)
+            },
             {
               id: 'reload',
-              label: 'Reload from Disk',
+              label: this.i18n.t('apps.textedit.reloadFromDisk'),
               disabled: this.busy() || !this.document.path(),
               run: () => void this.reload()
             }
@@ -269,13 +299,17 @@ export class TextEditApp {
   protected openFormat(anchor: HTMLElement): void {
     const rich = this.rich();
     this.popover.menuUnder(anchor, [
-      { id: 'p', label: 'Plain Text', checked: !rich, run: () => this.rich.set(false) },
-      { id: 'r', label: 'Rich Text', checked: rich, run: () => this.rich.set(true) },
+      { id: 'p', label: this.i18n.t('apps.textedit.plainText'), checked: !rich, run: () => this.rich.set(false) },
+      { id: 'r', label: this.i18n.t('apps.textedit.richText'), checked: rich, run: () => this.rich.set(true) },
       '-',
-      { id: 'b', label: 'Bold', key: '⌘B', run: () => this.apply('bold') },
-      { id: 'i', label: 'Italic', key: '⌘I', run: () => this.apply('italic') },
+      { id: 'b', label: this.i18n.t('apps.textedit.bold'), key: '⌘B', run: () => this.apply('bold') },
+      { id: 'i', label: this.i18n.t('apps.textedit.italic'), key: '⌘I', run: () => this.apply('italic') },
       '-',
-      { id: 'w', label: 'Word Count', run: () => this.toast.show(`${this.wordCount()} words`) }
+      {
+        id: 'w',
+        label: this.i18n.t('apps.textedit.wordCount'),
+        run: () => this.toast.show('apps.textedit.wordCountToast', { count: this.wordCount() })
+      }
     ]);
   }
 
@@ -332,7 +366,7 @@ export class TextEditApp {
     const result = await ticket.result;
     this.panel = null;
     if (!result) return null;
-    if (result.kind !== 'save') throw new Error('The save panel returned an unexpected result.');
+    if (result.kind !== 'save') throw new Error(this.i18n.t('error.textedit.savePanelUnexpected'));
     return { path: [...result.dir, result.name], replace: result.replace };
   }
 

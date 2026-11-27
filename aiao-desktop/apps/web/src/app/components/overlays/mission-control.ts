@@ -1,5 +1,8 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
+
 import { DOCUMENT } from '@angular/common';
 import { Component, ElementRef, afterNextRender, computed, inject, viewChild, viewChildren } from '@angular/core';
+import { appDisplayName } from '../../services/desktop-app-name';
 
 import { ApplicationRegistry } from '../../services/application-registry';
 import { DesktopWindow } from '../../services/desktop-window';
@@ -44,7 +47,7 @@ export function missionMoveIndex(current: number, columns: number, count: number
     id: 'mission',
     class: 'nosel',
     role: 'dialog',
-    'aria-label': 'Mission Control',
+    '[attr.aria-label]': 'aria()',
     'aria-modal': 'true',
     '[class.out]': "overlays.mission() === 'closing'",
     '(pointerdown)': 'backdrop($event)',
@@ -149,12 +152,12 @@ export function missionMoveIndex(current: number, columns: number, count: number
     }
   `,
   template: `
-    <div class="cards" #grid aria-label="Windows" role="group">
+    <div class="cards" #grid [attr.aria-label]="i18n.t('shell.dock.windows')" role="group">
       @for (win of windows(); track win.id) {
         <div
           class="card"
           #card
-          [attr.aria-label]="win.title()"
+          [attr.aria-label]="win.title() === win.app.name ? appName(win.app) : win.title()"
           [class.mini]="win.minimized()"
           (click)="activate(win)"
           (keydown.enter)="activate(win)"
@@ -167,11 +170,11 @@ export function missionMoveIndex(current: number, columns: number, count: number
           </div>
           <div class="row">
             <svg [appIcon]="apps()[win.appId].icon"></svg>
-            <span>{{ win.title() }}</span>
+            <span>{{ win.title() === win.app.name ? appName(win.app) : win.title() }}</span>
           </div>
         </div>
       } @empty {
-        <div class="empty" role="status">No windows</div>
+        <div class="empty" role="status">{{ i18n.t('shell.missionControl.noWindows') }}</div>
       }
     </div>
   `
@@ -184,6 +187,9 @@ export class MissionControl {
   private readonly cards = viewChildren<ElementRef<HTMLElement>>('card');
   private readonly gridEl = viewChild<ElementRef<HTMLElement>>('grid');
   protected readonly overlays = inject(Overlays);
+  protected readonly i18n = useI18n();
+  protected readonly appName = appDisplayName.bind(null, this.i18n);
+  protected readonly aria = computed(() => this.i18n.t('shell.missionControl.name'));
   protected readonly apps = this.registry.apps;
   /** 全部窗口（含最小化），前台窗口的卡片在最前。 */
   protected readonly windows = computed(() =>

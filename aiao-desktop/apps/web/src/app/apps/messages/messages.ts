@@ -10,6 +10,8 @@ import {
   viewChild
 } from '@angular/core';
 
+import { useI18n } from '@aiao/rxdb-i18n-angular';
+
 import { localWriteFailureMessage } from '../../data/local-write-error';
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
@@ -44,7 +46,12 @@ export class MessagesApp {
   private creation: Promise<void> | null = null;
 
   protected readonly win = inject(DesktopWindow);
-  protected readonly drafts = new MessageDrafts(message => this.store.append(message));
+  protected readonly i18n = useI18n();
+  protected readonly drafts = new MessageDrafts(
+    message => this.store.append(message),
+    undefined,
+    key => this.i18n.t(key)
+  );
   protected readonly query = signal('');
   protected readonly creating = signal(false);
   protected readonly error = signal('');
@@ -63,7 +70,7 @@ export class MessagesApp {
       ...chats,
       ...missing.map(draft => ({
         id: draft.threadId,
-        name: 'Unavailable conversation',
+        name: this.i18n.t('apps.messages.unavailableConversation'),
         color: '#626267',
         time: '',
         group: false,
@@ -107,10 +114,10 @@ export class MessagesApp {
     this.win.setMenus(
       computed(() =>
         menus.standard('messages', {
-          File: [
-            { id: 'n', label: 'New Message', key: '⌘N', run: () => void this.create() },
-            { id: 'f', label: 'Find', key: '⌘F', run: () => this.focusSearch() },
-            { id: 'w', label: 'Close Window', key: '⌘W', run: () => this.wm.closeFront() }
+          [this.i18n.t('shell.menu.sectionFile')]: [
+            { id: 'n', label: this.i18n.t('apps.messages.newMessage'), key: '⌘N', run: () => void this.create() },
+            { id: 'f', label: this.i18n.t('shell.menu.find'), key: '⌘F', run: () => this.focusSearch() },
+            { id: 'w', label: this.i18n.t('shell.menu.closeWindow'), key: '⌘W', run: () => this.wm.closeFront() }
           ]
         })
       )
@@ -187,14 +194,18 @@ export class MessagesApp {
       [
         {
           id: 'r',
-          label: 'Mark as Read',
+          label: this.i18n.t('apps.messages.markAsRead'),
           disabled: !this.unreadIds().has(id),
           run: () => this.markRead(id)
         },
         '-',
-        { id: 'd', label: 'Delete Conversation…', run: () => this.confirmDelete.set(conversation) }
+        {
+          id: 'd',
+          label: this.i18n.t('apps.messages.deleteConversation'),
+          run: () => this.confirmDelete.set(conversation)
+        }
       ],
-      'conversation'
+      this.i18n.t('apps.messages.contextMenu')
     );
   }
 
@@ -212,7 +223,7 @@ export class MessagesApp {
       if (this.selectedId() === chat.id) this.selectedId.set(null);
       this.markRead(chat.id);
     } catch (error) {
-      this.error.set(localWriteFailureMessage(error));
+      this.error.set(localWriteFailureMessage(error, (key: string) => this.i18n.t(key)));
     }
   }
 
@@ -255,7 +266,7 @@ export class MessagesApp {
           this.selectedId.set(id);
           this.field().nativeElement.focus();
         },
-        error => this.error.set(localWriteFailureMessage(error))
+        error => this.error.set(localWriteFailureMessage(error, (key: string) => this.i18n.t(key)))
       )
       .finally(() => {
         this.creating.set(false);
@@ -287,13 +298,28 @@ export class MessagesApp {
     this.popover.menuUnder(
       anchor,
       [
-        { id: 'p', label: 'Open Photos', icon: 'g-gallery', run: () => this.wm.open('photos') },
-        { id: 's', label: 'Insert 👍', icon: 'g-star', run: () => this.insert('👍') },
-        { id: 'a', label: 'Open Voice Memos', icon: 'g-vol-hi', run: () => this.wm.open('voice') },
+        {
+          id: 'p',
+          label: this.i18n.t('apps.messages.openPhotos'),
+          icon: 'g-gallery',
+          run: () => this.wm.open('photos')
+        },
+        {
+          id: 's',
+          label: this.i18n.t('apps.messages.insertThumbsUp'),
+          icon: 'g-star',
+          run: () => this.insert('👍')
+        },
+        {
+          id: 'a',
+          label: this.i18n.t('apps.messages.openVoiceMemos'),
+          icon: 'g-vol-hi',
+          run: () => this.wm.open('voice')
+        },
         '-',
-        { id: 'f', label: 'File sending unavailable', disabled: true }
+        { id: 'f', label: this.i18n.t('apps.messages.fileSendingUnavailable'), disabled: true }
       ],
-      { keyboard: true, label: 'Local conversation actions' }
+      { keyboard: true, label: this.i18n.t('apps.messages.localConversationActions') }
     );
   }
 
@@ -304,7 +330,7 @@ export class MessagesApp {
     if (!unsaved) return true;
     this.query.set('');
     this.selectedId.set(unsaved.threadId);
-    this.error.set('There are unsaved drafts. Save locally or discard each draft before closing.');
+    this.error.set(this.i18n.t('error.messages.unsavedDraftsBeforeClose'));
     return false;
   }
 

@@ -28,17 +28,21 @@
       <div class="webapp-status" role="status">
         <svg class="webapp-icon" [appIcon]="app.icon"></svg>
         <div class="webapp-spinner"></div>
-        <p>Opening {{ app.name }}…</p>
+        <p>{{ i18n.t('apps.webApp.opening', { name: app.name }) }}</p>
       </div>
     }
     @case ('failed') {
       <div class="webapp-status" role="alert">
         <svg class="webapp-icon" [appIcon]="app.icon"></svg>
-        <h2>“{{ app.name }}” can’t be opened.</h2>
+        <h2>{{ i18n.t('shell.window.cannotOpen', { name: app.name }) }}</h2>
         <p data-webapp-reason>{{ reason() }}</p>
         <div class="webapp-actions">
-          <button class="btn pri" (click)="retry()" data-webapp-retry type="button">Try Again</button>
-          <a class="btn" [href]="app.web.url" data-webapp-open rel="noopener" target="_blank">Open in New Tab</a>
+          <button class="btn pri" (click)="retry()" data-webapp-retry type="button">
+            {{ i18n.t('shell.window.tryAgain') }}
+          </button>
+          <a class="btn" [href]="app.web.url" data-webapp-open rel="noopener" target="_blank">
+            {{ i18n.t('apps.webApp.openInNewTab') }}
+          </a>
         </div>
       </div>
     }
@@ -78,19 +82,23 @@
   <div class="webapp-close-scrim">
     <div
       class="webapp-close-confirm"
-      [attr.aria-label]="'Close ' + app.name"
+      [attr.aria-label]="i18n.t('apps.webApp.closeAria', { name: app.name })"
       (keydown.escape)="keepEditing($event)"
       appFocusTrap
       aria-modal="true"
       data-catalog-close-confirm
       role="dialog"
     >
-      <h2>Close {{ app.name }}?</h2>
-      <p>Save your work inside this app before closing. The desktop cannot check this app’s unsaved documents.</p>
-      <p>If a desktop tab is updating or removing this app, keeping this window open cancels that change.</p>
+      <h2>{{ i18n.t('apps.webApp.closePrompt', { name: app.name }) }}</h2>
+      <p>{{ i18n.t('apps.webApp.closeBody') }}</p>
+      <p>{{ i18n.t('apps.webApp.closeNotice') }}</p>
       <div class="webapp-close-actions">
-        <button (click)="keepEditing($event)" data-autofocus tabindex="0" type="button">Keep Editing</button>
-        <button (click)="lease.answer(true)" tabindex="0" type="button">Close Window</button>
+        <button (click)="keepEditing($event)" data-autofocus tabindex="0" type="button">
+          {{ i18n.t('apps.webApp.keepEditing') }}
+        </button>
+        <button (click)="lease.answer(true)" tabindex="0" type="button">
+          {{ i18n.t('shell.menu.closeWindow') }}
+        </button>
       </div>
     </div>
   </div>

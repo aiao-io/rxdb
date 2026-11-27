@@ -91,13 +91,40 @@ export const listOf = (row: ListRecord): CalendarList => ({
   on: row.visible
 });
 
+/**
+ * 日历文案的翻译入口：{@link CalendarStore} 构造时绑定当前 i18n 运行时（读 locale 信号，语言切换时
+ * 界面里的 computed 随模板重算；错误消息在抛出时定格）；未绑定时（单测没有 i18n provider）回退英文原文，
+ * 行为与改动前一致。
+ */
+let calendarTranslate: ((key: string, english: string) => string) | undefined;
+
+/** 绑定翻译入口；返回解除绑定的函数（只在绑定仍是自己时解除）。 */
+export function bindCalendarMessages(t: (key: string, english: string) => string): () => void {
+  calendarTranslate = t;
+  return () => {
+    if (calendarTranslate === t) calendarTranslate = undefined;
+  };
+}
+
+/** 按当前绑定解析日历文案；未绑定时回退英文原文。 */
+export const calendarMessage = (key: string, english: string): string => calendarTranslate?.(key, english) ?? english;
+
 /** 并发或删除造成的编辑冲突，只显示用户可理解的原因。 */
 export class CalendarChangeError extends Error {
   constructor(kind: 'conflict' | 'missing' | 'calendar') {
     const messages = {
-      conflict: 'This event changed in another window. Save a copy or discard your changes before reopening it.',
-      missing: 'This event is no longer available. Save a copy to keep your changes.',
-      calendar: 'This calendar is no longer available. Choose another calendar before saving.'
+      conflict: calendarMessage(
+        'error.calendar.conflict',
+        'This event changed in another window. Save a copy or discard your changes before reopening it.'
+      ),
+      missing: calendarMessage(
+        'error.calendar.missing',
+        'This event is no longer available. Save a copy to keep your changes.'
+      ),
+      calendar: calendarMessage(
+        'error.calendar.calendar',
+        'This calendar is no longer available. Choose another calendar before saving.'
+      )
     };
     super(messages[kind]);
   }

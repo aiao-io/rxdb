@@ -1,7 +1,13 @@
 import { DAYS, MONS3, mmss, time12Plain } from '../../shared/format';
 
-/** 通话方向：打出、接入、未接。 */
+/** 通话方向：打出、接入、未接（数据值）；界面显示名走 `callKindKey`。 */
 export const CALL_KINDS = ['Outgoing', 'Incoming', 'Missed'] as const;
+
+/** 通话方向的目录 key（AC12：界面显示名本地化，数据值保持英文）。 */
+export const callKindKey = (kind: CallKind): string =>
+  kind === 'Outgoing' ? 'apps.facetime.outgoing'
+  : kind === 'Incoming' ? 'apps.facetime.incoming'
+  : 'apps.facetime.missed';
 
 export type CallKind = (typeof CALL_KINDS)[number];
 
@@ -26,12 +32,18 @@ export const lengthLabel = (kind: CallKind, seconds: number): string => (kind ==
  * 通话记录上的时间文字：一分钟内是 `Just now`，当天是 `Today 3:40 PM`，前一天是 `Yesterday`，
  * 一周内是星期几，更早的是日期（跨年带年份）。
  */
-export function whenLabel(startedAt: Date, now: Date): string {
+export function whenLabel(
+  startedAt: Date,
+  now: Date,
+  translate?: (key: string, params?: Record<string, unknown>) => string
+): string {
+  const t = (key: string, english: string, params?: Record<string, unknown>): string =>
+    translate?.(key, params) ?? english;
   const elapsed = now.getTime() - startedAt.getTime();
-  if (elapsed >= 0 && elapsed < MINUTE) return 'Just now';
+  if (elapsed >= 0 && elapsed < MINUTE) return t('apps.facetime.justNow', 'Just now');
   const days = Math.round((startOfDay(now) - startOfDay(startedAt)) / DAY);
-  if (days <= 0) return `Today ${time12Plain(startedAt)}`;
-  if (days === 1) return 'Yesterday';
+  if (days <= 0) return t('apps.facetime.todayAt', `Today ${time12Plain(startedAt)}`, { time: time12Plain(startedAt) });
+  if (days === 1) return t('apps.facetime.yesterday', 'Yesterday');
   if (days < 7) return DAYS[startedAt.getDay()];
   const date = `${MONS3[startedAt.getMonth()]} ${startedAt.getDate()}`;
   return startedAt.getFullYear() === now.getFullYear() ? date : `${date}, ${startedAt.getFullYear()}`;

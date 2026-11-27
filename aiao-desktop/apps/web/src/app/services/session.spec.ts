@@ -6,7 +6,7 @@ import { createWindowManagerStub } from '../testing/stubs';
 import { HOME_PATH } from './file-system';
 import { Overlays } from './overlays';
 import { PopoverService } from './popover';
-import { Session, confirmPrompt } from './session';
+import { Session } from './session';
 import { WindowManager } from './window-manager';
 
 /** 给假的 DOCUMENT 补上事件监听面：睡眠唤醒要挂 / 摘 document 级监听。 */
@@ -253,15 +253,6 @@ describe('Session 登出', () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(session.locked()).toBe(true);
     expect(overlays.notifications()).toBe('closing');
-  });
-});
-
-describe('confirmPrompt 纯函数', () => {
-  it('重启与关机各有标题与动作，正文相同', () => {
-    expect(confirmPrompt('restart').action).toBe('Restart');
-    expect(confirmPrompt('off').action).toBe('Shut Down');
-    expect(confirmPrompt('restart').title).not.toBe(confirmPrompt('off').title);
-    expect(confirmPrompt('restart').message).toBe(confirmPrompt('off').message);
   });
 });
 

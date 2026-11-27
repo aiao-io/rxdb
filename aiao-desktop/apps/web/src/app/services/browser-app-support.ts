@@ -26,12 +26,25 @@ const WEBKIT_CLIPBOARD_READ: AppCapabilityRestriction = {
 /**
  * WebKit 的 MessagePort 剪贴板读取会被浏览器拒绝，即使宿主有焦点且用户激活有效；本机 Safari 对照也已复现。
  * 不能通过读取用户剪贴板来探测支持，因此按引擎识别这一个已知限制；浏览器自己的直接读取不受影响。
+ * `translate` 可选：调用方注入 i18n 翻译函数时限制原因按当前语言显示（见 print-document 的同一约定）。
  */
-export function appCapabilitySupport(app: DesktopAppManifest, userAgent = navigator.userAgent): AppCapabilitySupport {
+export function appCapabilitySupport(
+  app: DesktopAppManifest,
+  userAgent = navigator.userAgent,
+  translate?: (key: string) => string
+): AppCapabilitySupport {
+  const t = (key: string, english: string): string => translate?.(key) ?? english;
   const capabilities = grantedCapabilities(app);
   const webkit = /AppleWebKit\//.test(userAgent) && !/(?:Chrome|Chromium|Edg|OPR)\//.test(userAgent);
   const restrictions =
-    app.kind === 'web' && webkit && capabilities.includes('clipboard:read') ? [WEBKIT_CLIPBOARD_READ] : [];
+    app.kind === 'web' && webkit && capabilities.includes('clipboard:read') ?
+      [
+        {
+          ...WEBKIT_CLIPBOARD_READ,
+          reason: t('error.webapp.clipboardReadBlocked', WEBKIT_CLIPBOARD_READ.reason)
+        }
+      ]
+    : [];
   const disabled = new Set(restrictions.map(item => item.capability));
   return { capabilities: capabilities.filter(capability => !disabled.has(capability)), restrictions };
 }

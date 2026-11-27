@@ -1,5 +1,7 @@
 import { DestroyRef, Service, effect, inject, signal } from '@angular/core';
 
+import { I18N } from '@aiao/rxdb-i18n-angular';
+
 import { DesktopData } from '../../data/desktop-data';
 import { ALL_ROWS } from '../../data/live-query';
 import { DesktopWindow } from '../../services/desktop-window';
@@ -19,6 +21,7 @@ const composePanel = { load: () => import('./mail-compose').then(module => modul
 export class MailComposer {
   private readonly popover = inject(PopoverService);
   private readonly data = inject(DesktopData);
+  private readonly i18n = inject(I18N);
   private readonly system = inject(SystemState);
   private readonly wm = inject(WindowManager);
   private readonly toast = inject(Toast);
@@ -47,7 +50,7 @@ export class MailComposer {
     win.confirmClose = async () => {
       await this.editor.settle();
       if (!this.editor.dirty()) return true;
-      this.notice.set('There is an unsaved mail draft. Save it locally or discard your changes before closing Mail.');
+      this.notice.set(this.i18n.t('error.mail.unsavedDraftBeforeClose'));
       this.show();
       return false;
     };
@@ -61,8 +64,7 @@ export class MailComposer {
 
   compose(subject = '', to = '', body = ''): void {
     this.notice.set('');
-    if (!this.editor.start({ subject, to, body }))
-      this.notice.set('Finish the current draft before starting another one. Your original content is still here.');
+    if (!this.editor.start({ subject, to, body })) this.notice.set(this.i18n.t('error.mail.finishCurrentDraft'));
     this.resume();
   }
 
@@ -70,7 +72,7 @@ export class MailComposer {
     if (mail.mailbox !== DRAFTS_MAILBOX) return;
     this.notice.set('');
     if (!this.editor.open({ id: mail.id, to: mail.recipient, subject: mail.subject, body: mail.body }))
-      this.notice.set('Finish the current draft before opening another one. Your original content is still here.');
+      this.notice.set(this.i18n.t('error.mail.finishDraftBeforeOpen'));
     this.resume();
   }
 
@@ -95,7 +97,7 @@ export class MailComposer {
     this.notice.set('');
     if (!(await this.editor.save())) return;
     if (active?.id === this.popover.active()?.id) this.hide();
-    this.toast.show('Draft saved locally. No email was sent.');
+    this.toast.show('apps.mail.draftSavedLocally');
   }
 
   async saveCopy(): Promise<void> {
@@ -125,9 +127,9 @@ export class MailComposer {
       });
       const saved = existing ? { to: existing.recipient, subject: existing.subject, body: existing.body } : null;
       if (existing && saved && existing.mailbox === DRAFTS_MAILBOX && sameMailDraft(saved, value)) return;
-      if (base && !existing) throw new MailDraftError('missing');
+      if (base && !existing) throw new MailDraftError('missing', key => this.i18n.t(key));
       if (existing && (!base || !saved || existing.mailbox !== DRAFTS_MAILBOX || !sameMailDraft(saved, base)))
-        throw new MailDraftError('conflict');
+        throw new MailDraftError('conflict', key => this.i18n.t(key));
       const fields = {
         recipient: value.to,
         subject: value.subject,

@@ -40,9 +40,9 @@
         box-shadow: 0 4px 24px #0004;
       "
     >
-      <b>Desktop data was restored in another tab.</b>
-      <p>Open documents remain here. Copy any unsaved text before reloading; this tab can no longer save changes.</p>
-      <button class="btn" (click)="reloadRestored()">Reload restored desktop</button>
+      <b>{{ i18n.t('shell.desktop.dataRestored') }}</b>
+      <p>{{ i18n.t('shell.desktop.dataRestoredBody') }}</p>
+      <button class="btn" (click)="reloadRestored()">{{ i18n.t('shell.desktop.reloadRestored') }}</button>
     </aside>
   }
   <div id="toast" [class.on]="toast.visible()" aria-atomic="true" aria-live="polite" role="status">
@@ -86,7 +86,9 @@
       <h2 style="margin: 0 0 6px; font-size: 15px; font-weight: 700">{{ prompt(request).title }}</h2>
       <p style="margin: 0 0 18px; font-size: 13px; opacity: 0.72">{{ prompt(request).message }}</p>
       <div style="display: flex; gap: 10px; justify-content: flex-end">
-        <button class="btn" (click)="session.resolveConfirm(false)" data-autofocus type="button">Cancel</button>
+        <button class="btn" (click)="session.resolveConfirm(false)" data-autofocus type="button">
+          {{ i18n.t('shell.dataProblem.cancel') }}
+        </button>
         <button
           class="btn"
           (click)="session.resolveConfirm(true)"

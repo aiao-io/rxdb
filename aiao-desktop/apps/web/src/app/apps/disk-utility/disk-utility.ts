@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { Component, computed, inject, signal } from '@angular/core';
 
 import { DesktopBackup, DesktopStorageHealth } from '../../services/desktop-backup';
@@ -10,8 +11,8 @@ import { TrafficLights } from '../../shared/traffic-lights';
 import { BackupPanel } from './backup-panel';
 import { ErasePanel, FirstAidPanel } from './disk-panels';
 
-const bytes = (value: number | null): string =>
-  value === null ? 'Not reported' : `${(value / 1024 / 1024).toFixed(1)} MiB`;
+const bytes = (value: number | null, notReported: string): string =>
+  value === null ? notReported : `${(value / 1024 / 1024).toFixed(1)} MiB`;
 
 @Component({
   selector: 'app-disk-utility',
@@ -24,17 +25,25 @@ export class DiskUtilityApp {
   private readonly toast = inject(Toast);
   private readonly backup = inject(DesktopBackup);
   private readonly win = inject(DesktopWindow);
+  protected readonly i18n = useI18n();
   protected readonly health = signal<DesktopStorageHealth | null>(null);
   protected readonly checking = signal(false);
   protected readonly facts = computed(() => {
     const value = this.health();
-    if (!value) return [['Storage', 'Checking…']];
+    if (!value) return [[this.i18n.t('apps.diskutil.storage'), this.i18n.t('apps.diskutil.checking')]];
+    const notReported = this.i18n.t('apps.diskutil.notReported');
     return [
-      ['Origin', location.origin],
-      ['Origin usage estimate', bytes(value.usage)],
-      ['Origin quota estimate', bytes(value.quota)],
-      ['Persistent storage', value.persisted ? 'Granted' : 'Not granted'],
-      ['File storage (OPFS)', value.opfs ? 'Available' : 'Unavailable']
+      [this.i18n.t('apps.diskutil.origin'), location.origin],
+      [this.i18n.t('apps.diskutil.usageEstimate'), bytes(value.usage, notReported)],
+      [this.i18n.t('apps.diskutil.quotaEstimate'), bytes(value.quota, notReported)],
+      [
+        this.i18n.t('apps.diskutil.persistentStorage'),
+        value.persisted ? this.i18n.t('apps.diskutil.granted') : this.i18n.t('apps.diskutil.notGranted')
+      ],
+      [
+        this.i18n.t('apps.diskutil.opfs'),
+        value.opfs ? this.i18n.t('apps.diskutil.available') : this.i18n.t('apps.diskutil.unavailable')
+      ]
     ];
   });
 
@@ -57,8 +66,8 @@ export class DiskUtilityApp {
     try {
       this.toast.show(
         (await this.backup.persist()) ?
-          'Persistent storage granted.'
-        : 'The browser did not grant persistent storage. Keep an external backup.'
+          this.i18n.t('apps.diskutil.grantedToast')
+        : this.i18n.t('apps.diskutil.notGrantedToast')
       );
       await this.refresh();
     } catch (error) {

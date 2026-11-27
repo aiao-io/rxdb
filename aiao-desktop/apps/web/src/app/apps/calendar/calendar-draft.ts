@@ -24,18 +24,26 @@ export interface CalendarDraftWrite {
 
 class CalendarInputError extends Error {}
 
-export function parseCalendarInput(value: CalendarInput): CalendarEventDraft {
+/**
+ * 解析编辑器表单；校验失败抛出的消息面向用户。
+ * `translate` 可选：调用方注入 i18n 翻译函数时文案按当前语言显示（与 print-document 的服务注入风格一致）。
+ */
+export function parseCalendarInput(value: CalendarInput, translate?: (key: string) => string): CalendarEventDraft {
+  // 函数声明 + 显式 never 返回：调用后控制流窄化（箭头函数没有这个语义）。
+  function fail(key: string, english: string): never {
+    throw new CalendarInputError(translate?.(key) ?? english);
+  }
   const t = value.title.trim();
-  if (!t) throw new CalendarInputError('Enter an event title.');
+  if (!t) fail('error.calendar.enterEventTitle', 'Enter an event title.');
   const d = parseDate(value.date);
-  if (!d) throw new CalendarInputError('Enter a valid date, such as 2026-11-17 or Nov 17, 2026.');
-  if (!value.calendar) throw new CalendarInputError('Choose a calendar.');
+  if (!d) fail('error.calendar.validDate', 'Enter a valid date, such as 2026-11-17 or Nov 17, 2026.');
+  if (!value.calendar) fail('error.calendar.chooseCalendar', 'Choose a calendar.');
   const s = value.allDay ? null : parseClock(value.from);
   const end = value.allDay ? null : parseClock(value.to);
-  if (!value.allDay && s === null) throw new CalendarInputError('Enter a valid start time, such as 9:30 AM.');
-  if (!value.allDay && end === null) throw new CalendarInputError('Enter a valid end time, such as 10:30 AM.');
+  if (!value.allDay && s === null) fail('error.calendar.validStartTime', 'Enter a valid start time, such as 9:30 AM.');
+  if (!value.allDay && end === null) fail('error.calendar.validEndTime', 'Enter a valid end time, such as 10:30 AM.');
   if (s !== null && end !== null && end <= s)
-    throw new CalendarInputError('The end time must be after the start on the same day.');
+    fail('error.calendar.endAfterStart', 'The end time must be after the start on the same day.');
   return {
     d,
     t,
@@ -81,7 +89,8 @@ export class CalendarDraftEditor {
   constructor(
     private readonly write: (change: CalendarDraftWrite) => Promise<void>,
     private readonly deleteEvent: (event: CalendarEvent) => Promise<void>,
-    private readonly createId: () => CalendarEventRow['id'] = () => crypto.randomUUID()
+    private readonly createId: () => CalendarEventRow['id'] = () => crypto.randomUUID(),
+    private readonly translate?: (key: string) => string
   ) {}
 
   open(draft: CalendarEventDraft, base: CalendarEvent | null): boolean {
@@ -105,7 +114,7 @@ export class CalendarDraftEditor {
       return;
     }
     try {
-      parseCalendarInput(value);
+      parseCalendarInput(value, this.translate);
       this.failure.set('');
     } catch (error) {
       this.failure.set(error instanceof CalendarInputError ? error.message : '');
@@ -134,7 +143,7 @@ export class CalendarDraftEditor {
     const id = this.id();
     if (!value || !id) return Promise.resolve(false);
     return this.run(async () => {
-      const fields = parseCalendarInput(value);
+      const fields = parseCalendarInput(value, this.translate);
       await this.write({ id, fields, base: this.base() });
       if (this.disposed) return;
       this.original.set({ ...fields, id });
@@ -172,7 +181,7 @@ export class CalendarDraftEditor {
             this.failure.set(
               error instanceof CalendarInputError || error instanceof CalendarChangeError ?
                 error.message
-              : localWriteFailureMessage(error)
+              : localWriteFailureMessage(error, this.translate)
             );
           return false;
         }

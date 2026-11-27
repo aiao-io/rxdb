@@ -1,4 +1,5 @@
 import { useI18n } from '@aiao/rxdb-i18n-angular';
+
 import {
   Component,
   ElementRef,
@@ -15,6 +16,7 @@ import {
   viewChild
 } from '@angular/core';
 import { ApplicationRegistry } from '../../services/application-registry';
+import { appDisplayName } from '../../services/desktop-app-name';
 
 import { Note } from '../../apps/notes/notes.entities';
 import { SafariBrowsers } from '../../apps/safari/safari-browsers';
@@ -37,6 +39,7 @@ import { ThemeService } from '../../services/theme';
 import { WindowManager } from '../../services/window-manager';
 import { clamp } from '../../shared/format';
 import { Icon } from '../../shared/icon';
+import { diskKindLabel } from './quick-look';
 
 interface SpotlightHit {
   readonly name: string;
@@ -129,7 +132,7 @@ interface SpotlightGroup {
           </div>
         } @empty {
           @if (term()) {
-            <div class="empty" role="status">No Results</div>
+            <div class="empty" role="status">{{ i18n.t('shell.overlay.noResults') }}</div>
           }
         }
       </div>
@@ -171,38 +174,44 @@ export class Spotlight {
   private readonly actions = computed<readonly SpotlightHit[]>(() => [
     {
       name: this.i18n.t('shell.overlay.toggleDarkMode'),
-      kind: 'Action',
+      kind: this.i18n.t('shell.overlay.kindAction'),
       icon: 'g-moon',
       run: () => this.theme.toggle()
     },
     {
       name: this.i18n.t('shell.overlay.openLaunchpad'),
-      kind: 'Action',
+      kind: this.i18n.t('shell.overlay.kindAction'),
       icon: 'app-launchpad',
       run: () => this.overlays.openLaunchpad()
     },
     {
       name: this.i18n.t('shell.overlay.notificationCentre'),
-      kind: 'Action',
+      kind: this.i18n.t('shell.overlay.kindAction'),
       icon: 'g-cc',
       run: () => this.overlays.openNotifications()
     },
     {
       name: this.i18n.t('shell.overlay.emptyTrash'),
-      kind: 'Action',
+      kind: this.i18n.t('shell.overlay.kindAction'),
       icon: 'app-trash',
       run: () => this.launcher.activate('trash')
     },
     {
       name: this.i18n.t('shell.overlay.changeWallpaper'),
-      kind: 'Action',
+      kind: this.i18n.t('shell.overlay.kindAction'),
       icon: 'g-globe',
       run: () => this.wm.open('settings', { section: 'wallpaper' })
     },
-    { name: this.i18n.t('shell.overlay.sleep'), kind: 'Action', icon: 'g-power', run: () => this.session.sleepNow() }
+    {
+      name: this.i18n.t('shell.overlay.sleep'),
+      kind: this.i18n.t('shell.overlay.kindAction'),
+      icon: 'g-power',
+      run: () => this.session.sleepNow()
+    }
   ]);
 
   protected readonly i18n = useI18n();
+  protected readonly appName = appDisplayName.bind(null, this.i18n);
   protected readonly aria = computed(() => this.i18n.t('shell.overlay.spotlight'));
   protected readonly overlays = inject(Overlays);
 
@@ -290,10 +299,13 @@ export class Spotlight {
     const calculation: SpotlightHit | null = result === null ? null : this.calculationHit(result);
     const conversionHit: SpotlightHit | null = conversion === null ? null : this.conversionHit(conversion);
     const apps = this.appOrder()
-      .filter(id => this.apps()[id].name.toLowerCase().includes(lq))
+      .filter(id => {
+        const app = this.apps()[id];
+        return this.appName(app).toLowerCase().includes(lq) || app.name.toLowerCase().includes(lq);
+      })
       .map((id): SpotlightHit => ({
-        name: this.apps()[id].name,
-        kind: 'Application',
+        name: this.appName(this.apps()[id]),
+        kind: this.i18n.t('disk.kind.application'),
         icon: this.apps()[id].icon,
         run: () => this.launcher.activate(id)
       }));
@@ -306,19 +318,27 @@ export class Spotlight {
       .slice(0, 3)
       .map((note): SpotlightHit => ({
         name: note.title,
-        kind: 'Note',
+        kind: this.i18n.t('shell.overlay.kindNote'),
         icon: 'app-notes',
         run: () => this.wm.open('notes')
       }));
     const web: SpotlightHit = {
-      name: `Search the web for “${q}”`,
-      kind: 'Safari',
+      name: this.i18n.t('shell.overlay.searchWeb', { q }),
+      kind: this.i18n.t('shell.overlay.kindSafari'),
       icon: 'app-safari',
       /* Safari 的数据服务在真正搜索网页时才创建（打开聚焦搜索不触发它的数据域种子，D-18）。 */
       run: () => this.injector.get(SafariBrowsers).goLatest(`search:${q}`)
     };
     /* 同名时优先真正的应用，而不是磁盘上的 .app 文件。 */
     const seen = new Set(apps.map(app => `${app.name.toLowerCase()}.app`));
+    /* 分组按节点判定（种类标签随语言变化，不能拿它当代码比较）。 */
+    const appFiles = found.filter(
+      (hit, index) => foundNodes[index].name.endsWith('.app') && !seen.has(hit.name.toLowerCase())
+    );
+    const fileFolders = found.filter((hit, index) => foundNodes[index].kind === 'folder');
+    const documents = found.filter(
+      (hit, index) => foundNodes[index].kind !== 'folder' && !foundNodes[index].name.endsWith('.app')
+    );
     const sections: [string, readonly SpotlightHit[]][] = [
       [this.i18n.t('shell.overlay.calculator'), calculation ? [calculation] : []],
       [this.i18n.t('shell.overlay.conversion'), conversionHit ? [conversionHit] : []],
@@ -326,16 +346,10 @@ export class Spotlight {
         this.i18n.t('shell.overlay.topHit'),
         [apps[0] ?? actions[0] ?? found[0]].filter((hit): hit is SpotlightHit => hit !== undefined)
       ],
-      [
-        this.i18n.t('shell.overlay.applications'),
-        [...apps, ...found.filter(hit => hit.kind === 'Application' && !seen.has(hit.name.toLowerCase()))]
-      ],
+      [this.i18n.t('shell.overlay.applications'), [...apps, ...appFiles]],
       [this.i18n.t('shell.overlay.actions'), [...actions, ...(showAll ? [showAll] : [])]],
-      [
-        this.i18n.t('shell.overlay.documents'),
-        found.filter(hit => hit.kind !== 'Folder' && hit.kind !== 'Application')
-      ],
-      [this.i18n.t('shell.overlay.folders'), found.filter(hit => hit.kind === 'Folder')],
+      [this.i18n.t('shell.overlay.documents'), documents],
+      [this.i18n.t('shell.overlay.folders'), fileFolders],
       [this.i18n.t('shell.overlay.notes'), notes],
       [this.i18n.t('shell.overlay.suggestedWebsites'), [web]]
     ];
@@ -354,8 +368,8 @@ export class Spotlight {
     const path = this.fs.findPath(node);
     const kind =
       node.kind === 'folder' ? this.i18n.t('shell.overlay.folder')
-      : node.name.endsWith('.app') ? 'Application'
-      : node.k || 'Document';
+      : node.name.endsWith('.app') ? this.i18n.t('disk.kind.application')
+      : diskKindLabel(this.i18n.t, node.k || 'Document');
     const run =
       node.kind === 'folder' ? () => this.wm.open('finder', { path: path ?? HOME_PATH }) : () => this.opener.open(node);
     return { name: node.name, kind, icon: node.icon, subtitle: path ? folderTail(path) : undefined, run };
@@ -364,12 +378,22 @@ export class Spotlight {
   /** 算式命中：名字是结果，回车复制。 */
   private calculationHit(result: number): SpotlightHit {
     const text = formatNumber(result);
-    return { name: text, kind: 'Calculation', icon: 'app-calculator', run: () => this.copy(text) };
+    return {
+      name: text,
+      kind: this.i18n.t('shell.overlay.kindCalculation'),
+      icon: 'app-calculator',
+      run: () => this.copy(text)
+    };
   }
 
   /** 换算命中：名字是完整的一句话，回车复制。 */
   private conversionHit(conversion: UnitConversion): SpotlightHit {
-    return { name: conversion.text, kind: 'Conversion', icon: 'app-calculator', run: () => this.copy(conversion.text) };
+    return {
+      name: conversion.text,
+      kind: this.i18n.t('shell.overlay.kindConversion'),
+      icon: 'app-calculator',
+      run: () => this.copy(conversion.text)
+    };
   }
 
   private copy(text: string): void {
@@ -381,8 +405,8 @@ export class Spotlight {
   /** Show All in Finder：打开 Finder 到第一个命中所在目录。 */
   private showAllHit(first: FsNode): SpotlightHit {
     return {
-      name: 'Show All in Finder',
-      kind: 'Action',
+      name: this.i18n.t('shell.overlay.showAllInFinder'),
+      kind: this.i18n.t('shell.overlay.kindAction'),
       icon: 'app-finder',
       run: () => this.wm.open('finder', { path: this.dirOf(first) })
     };

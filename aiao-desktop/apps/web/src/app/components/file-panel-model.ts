@@ -1,12 +1,22 @@
 import { extensionOf, formatSize, isPackageName, mimeTypeOf } from '../disk/disk-kinds';
 import { DiskPath, HOME, VOLUME_NAME, displayDiskPath, sameName } from '../disk/disk-path';
 import { FsNode, visibleChildren } from '../disk/disk-tree';
+import { DESKTOP_MESSAGES_EN } from '../i18n/messages-en';
 import type { FilePanelMode } from '../services/file-panels';
 
 /*
  * 打开 / 保存面板的纯逻辑（ADESK-US-206 阶段 D）：哪些条目显示、哪些禁用并说明原因、方向键怎么移动、
  * 保存时文件名与目标的冲突怎么判。组件只管把它们接到界面与键盘上。
  */
+
+/** 目录 key 的翻译器：组件传 `i18n.t`；spec 在无 i18n 的 Node 环境里跑，缺省用随包英文目录（应用的基线语言）。 */
+export type PanelText = (key: string, params?: Record<string, unknown>) => string;
+
+/** v1 只支持 `{name}` 形式的简单插值，与随包目录的 ICU 子集一致。 */
+const enText: PanelText = (key, params = {}) =>
+  DESKTOP_MESSAGES_EN[key].replace(/\{(\w+)\}/g, (placeholder, name: string) =>
+    params[name] === undefined ? placeholder : String(params[name])
+  );
 
 /** 面板里的一行。 */
 export interface PanelEntry {
@@ -40,22 +50,24 @@ export function acceptsName(accept: readonly string[], name: string): boolean {
 }
 
 /** 打开面板里不能选的原因：太大，或者是程序包（磁盘上是目录，没有可读的文件内容）。 */
-function unselectable(node: FsNode, mode: FilePanelMode, maxBytes: number): string | null {
+function unselectable(node: FsNode, mode: FilePanelMode, maxBytes: number, t: PanelText): string | null {
   if (isPackageName(node.name))
-    return mode === 'open' ? 'Application — can’t be opened here' : 'Application — can’t be replaced';
-  if (mode === 'open' && (node.bytes ?? 0) > maxBytes) return `Too large — the limit is ${formatSize(maxBytes)}`;
+    return t(mode === 'open' ? 'shell.filePanel.appCannotOpenHere' : 'shell.filePanel.appCannotReplaceHere');
+  if (mode === 'open' && (node.bytes ?? 0) > maxBytes)
+    return t('shell.filePanel.tooLarge', { size: formatSize(maxBytes) });
   return null;
 }
 
 /** 面板在一个文件夹里要显示的条目：隐藏文件不显示，不匹配 `accept` 的文件不显示，文件夹在前。 */
 export function panelEntries(
   folder: FsNode | null,
-  options: { readonly mode: FilePanelMode; readonly accept: readonly string[]; readonly maxBytes: number }
+  options: { readonly mode: FilePanelMode; readonly accept: readonly string[]; readonly maxBytes: number },
+  t: PanelText = enText
 ): PanelEntry[] {
   const entries = visibleChildren(folder).flatMap((node): PanelEntry[] => {
     const isFolder = node.kind === 'folder';
     if (!isFolder && !acceptsName(options.accept, node.name)) return [];
-    const reason = isFolder ? null : unselectable(node, options.mode, options.maxBytes);
+    const reason = isFolder ? null : unselectable(node, options.mode, options.maxBytes, t);
     return [{ node, name: node.name, folder: isFolder, disabled: reason !== null, reason }];
   });
   return [...entries.filter(entry => entry.folder), ...entries.filter(entry => !entry.folder)];
@@ -71,12 +83,12 @@ export function moveActive(count: number, active: number, key: NavigationKey): n
 }
 
 /** 保存时文件名的问题（给用户看的一句话）；没有问题为 `null`。 */
-export function fileNameProblem(name: string, limit: number): string | null {
-  if (!name.trim()) return 'Enter a name for the file.';
-  if (name === '.' || name === '..') return `“${name}” isn’t a valid file name.`;
-  if (/[/\\]/.test(name)) return 'A file name can’t contain “/” or “\\”.';
-  if (/\p{Cc}/u.test(name)) return 'A file name can’t contain control characters.';
-  if (name.length > limit) return `A file name can have at most ${limit} characters.`;
+export function fileNameProblem(name: string, limit: number, t: PanelText = enText): string | null {
+  if (!name.trim()) return t('shell.filePanel.enterName');
+  if (name === '.' || name === '..') return t('shell.filePanel.invalidName', { name });
+  if (/[/\\]/.test(name)) return t('shell.filePanel.slashInName');
+  if (/\p{Cc}/u.test(name)) return t('shell.filePanel.controlChars');
+  if (name.length > limit) return t('shell.filePanel.nameTooLong', { limit });
   return null;
 }
 

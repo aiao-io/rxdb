@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { NgTemplateOutlet } from '@angular/common';
 import {
   Component,
@@ -54,8 +55,6 @@ interface SafariView {
   readonly id: number;
   readonly page: SafariPage;
 }
-
-const MENU_ORDER = ['File', 'Edit', 'View', 'History', 'Bookmarks', 'Window', 'Help'];
 
 /** 最近关闭的标签与它当时的位置；⇧⌘T 按顺序重开。 */
 interface ClosedTab {
@@ -134,11 +133,11 @@ export class SafariApp {
   private findHint = false;
   /** 正在拖动的标签下标；没有拖动时为 null。 */
   private dragFrom: number | null = null;
+  protected readonly i18n = useI18n();
 
   protected readonly system = inject(SystemState);
   protected readonly favourites = this.browsers.favourites;
   protected readonly reading = this.browsers.readingList;
-  protected readonly titleFor = titleFor;
   protected readonly favColor = favColor;
   protected readonly faviconOf = faviconOf;
   protected readonly hostOf = hostOf;
@@ -156,7 +155,9 @@ export class SafariApp {
   /** 高亮的建议下标；-1 表示没有高亮（回车使用地址栏原文）。 */
   protected readonly suggestAt = signal(-1);
   protected readonly findCount = computed(() =>
-    this.findTotal() ? `${this.findAt() + 1} of ${this.findTotal()}` : ''
+    this.findTotal() ?
+      this.i18n.t('apps.safari.find.count', { current: this.findAt() + 1, total: this.findTotal() })
+    : ''
   );
 
   /** 起始页的收藏夹格子；只有内置站点用色块，其余取站点图标。 */
@@ -173,7 +174,7 @@ export class SafariApp {
       .history()
       .filter(url => kindOf(url) !== 'start')
       .slice(0, 8)
-      .map(url => ({ url, label: titleFor(url).split(' — ')[0], dot: favColor(url) }))
+      .map(url => ({ url, label: this.titleOf(url).split(' — ')[0], dot: favColor(url) }))
   );
   protected readonly trackers = computed(() => 9 + (this.browsers.history().length % 7));
   protected readonly tab = computed(() => this.tabs()[this.current()]);
@@ -219,6 +220,11 @@ export class SafariApp {
     this.render();
   }
 
+  /** 标签/书签的页面标题：按当前语言取标题后缀（`titleFor` 缺省英文）。 */
+  protected titleOf(url: string): string {
+    return titleFor(url, key => this.i18n.t(key));
+  }
+
   protected go(url: string): void {
     const tab = this.tab();
     const history = [...tab.history.slice(0, tab.index + 1), url];
@@ -249,7 +255,7 @@ export class SafariApp {
     /* 本地文件的地址本身就是 file:// 链接，照原样复制，不补 https 前缀。 */
     const target = kindOf(url) === 'file' ? url : externalUrl(url);
     if (navigator.clipboard && url) void navigator.clipboard.writeText(target).catch(() => undefined);
-    this.toast.show(url ? 'Copied link to clipboard' : 'Nothing to share');
+    this.toast.show(url ? 'apps.safari.toast.copiedLink' : 'apps.safari.toast.nothingToShare');
   }
 
   protected newTab(): void {
@@ -302,12 +308,16 @@ export class SafariApp {
     this.popover.contextMenu(
       event,
       [
-        { id: 'nt', label: 'New Tab', run: () => this.newTab() },
+        { id: 'nt', label: this.i18n.t('apps.safari.newTab'), run: () => this.newTab() },
         '-',
-        { id: 'pin', label: tab.pinned ? 'Unpin Tab' : 'Pin Tab', run: () => this.togglePin(index) },
-        { id: 'cl', label: 'Close Tab', disabled: tab.pinned, run: () => this.closeTab(index) }
+        {
+          id: 'pin',
+          label: this.i18n.t(tab.pinned ? 'apps.safari.menu.unpinTab' : 'apps.safari.menu.pinTab'),
+          run: () => this.togglePin(index)
+        },
+        { id: 'cl', label: this.i18n.t('apps.safari.closeTab'), disabled: tab.pinned, run: () => this.closeTab(index) }
       ],
-      'tab menu'
+      this.i18n.t('apps.safari.menu.tabList')
     );
   }
 
@@ -373,7 +383,7 @@ export class SafariApp {
         width: Math.round(rect.width - 40),
         current: this.current(),
         tabs: this.tabs().map(tab => ({
-          title: titleFor(tab.url),
+          title: this.titleOf(tab.url),
           color: favColor(tab.url),
           icon: faviconOf(hostOf(tab.url))
         })),
@@ -420,7 +430,9 @@ export class SafariApp {
   }
 
   protected suggest(value: string): void {
-    this.suggestions.set(suggestAddresses(value, this.browsers.history(), this.favourites()));
+    this.suggestions.set(
+      suggestAddresses(value, this.browsers.history(), this.favourites(), 6, key => this.i18n.t(key))
+    );
     this.suggestAt.set(-1);
     this.suggestOpen.set(true);
   }
@@ -482,7 +494,7 @@ export class SafariApp {
   protected findOnPage(value: string): void {
     const kind = this.kind();
     if (kind !== 'start' && kind !== 'local') {
-      if (!this.findHint) this.toast.show('Find works on the Start Page and local pages only.');
+      if (!this.findHint) this.toast.show('apps.safari.toast.findScope');
       this.findHint = true;
       this.findTotal.set(0);
       this.findAt.set(0);
@@ -570,56 +582,71 @@ export class SafariApp {
   }
 
   private menuSections(): MenuSection[] {
+    /* 菜单名就是 standard() 的合并键：基础菜单的键是翻译后的分区名，覆盖与顺序都要用同一份翻译。 */
+    const file = this.i18n.t('shell.menu.sectionFile');
+    const edit = this.i18n.t('shell.menu.sectionEdit');
+    const view = this.i18n.t('shell.menu.sectionView');
+    const history = this.i18n.t('apps.safari.menu.sectionHistory');
+    const bookmarks = this.i18n.t('apps.safari.menu.sectionBookmarks');
+    const windowSection = this.i18n.t('shell.menu.sectionWindow');
+    const help = this.i18n.t('shell.menu.sectionHelp');
     return this.menus.standard(
       'safari',
       {
-        File: [
-          { id: 't', label: 'New Tab', key: '⌘T', run: () => this.newTab() },
-          { id: 'w', label: 'New Window', key: '⌘N', run: () => this.wm.open('safari', { force: true }) },
-          { id: 'l', label: 'Open Location…', key: '⌘L', run: () => this.focusAddress() },
+        [file]: [
+          { id: 't', label: this.i18n.t('apps.safari.newTab'), key: '⌘T', run: () => this.newTab() },
+          {
+            id: 'w',
+            label: this.i18n.t('shell.menu.newWindow'),
+            key: '⌘N',
+            run: () => this.wm.open('safari', { force: true })
+          },
+          { id: 'l', label: this.i18n.t('apps.safari.menu.openLocation'), key: '⌘L', run: () => this.focusAddress() },
           '-',
-          { id: 'c', label: 'Close Tab', key: '⌘W', run: () => this.closeTab() }
+          { id: 'c', label: this.i18n.t('apps.safari.closeTab'), key: '⌘W', run: () => this.closeTab() }
         ],
-        Edit: [
-          { id: 'u', label: 'Undo', key: '⌘Z', run: () => exec('undo') },
-          { id: 'r', label: 'Redo', key: '⇧⌘Z', run: () => exec('redo') },
+        [edit]: [
+          { id: 'u', label: this.i18n.t('shell.menu.undo'), key: '⌘Z', run: () => exec('undo') },
+          { id: 'r', label: this.i18n.t('shell.menu.redo'), key: '⇧⌘Z', run: () => exec('redo') },
           '-',
-          { id: 'x', label: 'Cut', key: '⌘X', run: () => exec('cut') },
-          { id: 'c2', label: 'Copy', key: '⌘C', run: () => exec('copy') },
-          { id: 'v', label: 'Paste', key: '⌘V', run: () => exec('paste') },
+          { id: 'x', label: this.i18n.t('shell.menu.cut'), key: '⌘X', run: () => exec('cut') },
+          { id: 'c2', label: this.i18n.t('shell.menu.copy'), key: '⌘C', run: () => exec('copy') },
+          { id: 'v', label: this.i18n.t('shell.menu.paste'), key: '⌘V', run: () => exec('paste') },
           '-',
-          { id: 'a', label: 'Select All', key: '⌘A', run: () => exec('selectAll') },
+          { id: 'a', label: this.i18n.t('shell.menu.selectAll'), key: '⌘A', run: () => exec('selectAll') },
           '-',
-          { id: 'fd', label: 'Find…', key: '⌘F', run: () => this.focusFind() },
-          { id: 'fn', label: 'Find Next', key: '⌘G', run: () => this.findNextMatch() }
+          { id: 'fd', label: this.i18n.t('apps.safari.menu.find'), key: '⌘F', run: () => this.focusFind() },
+          { id: 'fn', label: this.i18n.t('apps.safari.menu.findNext'), key: '⌘G', run: () => this.findNextMatch() }
         ],
-        View: [
+        [view]: [
           {
             id: 'sb',
-            label: `${this.sidebar() ? 'Hide' : 'Show'} Sidebar`,
+            label: this.i18n.t(this.sidebar() ? 'shell.menu.hideSidebar' : 'shell.menu.showSidebar'),
             key: '⌃⌘S',
             run: () => this.toggleSidebar()
           },
           {
             id: 'fb',
-            label: `${this.system.safariFavs() ? 'Hide' : 'Show'} Favourites Bar`,
+            label: this.i18n.t(
+              this.system.safariFavs() ? 'apps.safari.menu.hideFavouritesBar' : 'apps.safari.menu.showFavouritesBar'
+            ),
             key: '⇧⌘B',
             run: () => this.browsers.toggleFavouritesBar()
           },
           '-',
-          { id: 'r', label: 'Reload Page', key: '⌘R', run: () => this.reload() },
+          { id: 'r', label: this.i18n.t('apps.safari.menu.reloadPage'), key: '⌘R', run: () => this.reload() },
           '-',
-          { id: 'zi', label: 'Zoom In', key: '⌘+', run: () => this.zoomIn() },
-          { id: 'zo', label: 'Zoom Out', key: '⌘-', run: () => this.zoomOut() },
-          { id: 'as', label: 'Actual Size', key: '⌘0', run: () => this.actualSize() }
+          { id: 'zi', label: this.i18n.t('apps.safari.menu.zoomIn'), key: '⌘+', run: () => this.zoomIn() },
+          { id: 'zo', label: this.i18n.t('apps.safari.menu.zoomOut'), key: '⌘-', run: () => this.zoomOut() },
+          { id: 'as', label: this.i18n.t('apps.safari.menu.actualSize'), key: '⌘0', run: () => this.actualSize() }
         ],
-        History: [
-          { id: 'b', label: 'Back', key: '⌘[', run: () => this.back() },
-          { id: 'f', label: 'Forward', key: '⌘]', run: () => this.forward() },
+        [history]: [
+          { id: 'b', label: this.i18n.t('apps.safari.back'), key: '⌘[', run: () => this.back() },
+          { id: 'f', label: this.i18n.t('apps.safari.forward'), key: '⌘]', run: () => this.forward() },
           '-',
           {
             id: 'rt',
-            label: 'Reopen Last Closed Tab',
+            label: this.i18n.t('apps.safari.menu.reopenLastClosedTab'),
             key: '⇧⌘T',
             disabled: !this.closedTabs().length,
             run: () => this.reopenTab()
@@ -627,10 +654,10 @@ export class SafariApp {
           '-',
           ...this.historyItems()
         ],
-        Bookmarks: [
+        [bookmarks]: [
           {
             id: 'ab',
-            label: 'Add Bookmark',
+            label: this.i18n.t('apps.safari.menu.addBookmark'),
             key: '⌘D',
             disabled: this.kind() === 'start',
             run: () => this.browsers.addBookmark(this.tab().url)
@@ -639,14 +666,14 @@ export class SafariApp {
           ...this.favourites().map(fav => ({ id: fav.name, label: fav.name, run: () => this.go(fav.url) }))
         ]
       },
-      MENU_ORDER
+      [file, edit, view, history, bookmarks, windowSection, help]
     );
   }
 
   private historyItems(): MenuEntry[] {
     const history = this.browsers.history();
-    if (!history.length) return [{ id: 'h', label: 'No history yet', disabled: true }];
-    return history.slice(0, 8).map((url, i) => ({ id: `h${i}`, label: titleFor(url), run: () => this.go(url) }));
+    if (!history.length) return [{ id: 'h', label: this.i18n.t('apps.safari.menu.noHistory'), disabled: true }];
+    return history.slice(0, 8).map((url, i) => ({ id: `h${i}`, label: this.titleOf(url), run: () => this.go(url) }));
   }
 
   /** 页面里 `data-goto` 在本窗口导航、`data-openext` 交给真正的浏览器、`data-tryframe` 强行内嵌；⌘-点击在新标签打开。 */
@@ -689,7 +716,7 @@ export class SafariApp {
 
   private render(): void {
     const url = this.tab().url;
-    this.win.title.set(titleFor(url));
+    this.win.title.set(this.titleOf(url));
     this.revision.update(n => n + 1);
     const token = ++this.navigation;
     this.setPage({ type: 'blank' });
@@ -731,10 +758,10 @@ export class SafariApp {
   private async paintFile(url: string, token: number): Promise<void> {
     const path = filePathOf(url);
     if (!path) {
-      this.show(token, { type: 'file-error', reason: 'That address is not a file on Macintosh HD.' });
+      this.show(token, { type: 'file-error', reason: this.i18n.t('error.safari.addressNotAFile') });
       return;
     }
-    const name = path.at(-1) ?? 'Untitled';
+    const name = path.at(-1) ?? this.i18n.t('apps.safari.untitled');
     try {
       const html = decodeHtmlFile(await this.fs.read(path));
       /* 相对地址钉到 about:blank：文件里的相对资源没有磁盘来源可解析，不能落到桌面自己的 origin 上。 */
@@ -774,7 +801,7 @@ export class SafariApp {
     this.show(token, { type: 'loading' });
     const hits = await fetchWikiSearch(query).catch((): readonly WikiHit[] => []);
     if (!hits.length) {
-      this.show(token, { type: 'search', query, note: 'Offline — showing local results', hits: OFFLINE_HITS });
+      this.show(token, { type: 'search', query, note: this.i18n.t('apps.safari.search.offline'), hits: OFFLINE_HITS });
       return;
     }
     const results = hits.map((hit): SafariHit => {
@@ -787,7 +814,12 @@ export class SafariApp {
         html: hit.snippet
       };
     });
-    this.show(token, { type: 'search', query, note: `${hits.length} results`, hits: results });
+    this.show(token, {
+      type: 'search',
+      query,
+      note: this.i18n.t('apps.safari.search.results', { count: hits.length }),
+      hits: results
+    });
   }
 
   private async paintWiki(title: string, token: number): Promise<void> {

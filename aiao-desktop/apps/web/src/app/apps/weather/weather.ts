@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { Component, computed, inject } from '@angular/core';
 
 import { WeatherStatus } from '../../components/weather-status';
@@ -50,6 +51,8 @@ export class WeatherApp {
     WeatherCity
   );
 
+  protected readonly i18n = useI18n();
+
   protected readonly place = this.weather.place;
   protected readonly unit = this.weather.unit;
   /** 单位切换按钮的两个选项（模板 @for 用，保持字面量联合类型）。 */
@@ -65,7 +68,7 @@ export class WeatherApp {
   protected readonly now = computed(() => this.weather.now());
   protected readonly label = computed(() => {
     const now = this.now();
-    return now ? weatherCode(now.code, now.day)[0] : 'Weather unavailable';
+    return now ? weatherCode(now.code, now.day)[0] : this.i18n.t('apps.weather.unavailable');
   });
   protected readonly sky = computed(() => (this.now()?.day === 0 ? NIGHT_SKY : DAY_SKY));
   protected readonly hours = computed(() => this.weather.hours(6));
@@ -129,8 +132,8 @@ export class WeatherApp {
           label: city.name,
           run: () => void this.addCity(city)
         }))
-      : [{ id: 'none', label: 'All cities added', disabled: true }],
-      { label: 'Add city', keyboard: true }
+      : [{ id: 'none', label: this.i18n.t('apps.weather.allCitiesAdded'), disabled: true }],
+      { label: this.i18n.t('apps.weather.addCity'), keyboard: true }
     );
   }
 

@@ -1,3 +1,4 @@
+import { I18N } from '@aiao/rxdb-i18n-angular';
 import {
   DestroyRef,
   EnvironmentInjector,
@@ -9,7 +10,7 @@ import {
   signal,
   untracked
 } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { Subject, auditTime } from 'rxjs';
 
 import { ApprovedRelease } from '../data/approved-catalog';
@@ -160,6 +161,8 @@ export class FileSystem {
   private readonly thumbnails = inject(ImageThumbnailCache);
   private readonly destroyRef = inject(DestroyRef);
   private readonly errors = inject(ErrorHandler);
+  private readonly i18nRuntime = inject(I18N);
+  private readonly locale = toSignal(this.i18nRuntime.locale$, { requireSync: true });
   private readonly rootState = signal<FsNode>(emptyVolume());
   private readonly stateValue = signal<DiskState>('mounting');
   private readonly errorValue = signal<string | null>(null);
@@ -195,7 +198,8 @@ export class FileSystem {
   /** 最近一条可撤销命令的动作名（Rename、Move to Trash…）；没有时为 `null`。 */
   readonly undoLabel = computed(() => {
     this.historyVersion();
-    return this.history.label();
+    const label = this.history.label();
+    return label ? this.t(label) : null;
   });
   /** 废纸篓口径（旧入口的别名）：废纸篓命令还在、或正在移入废纸篓。 */
   readonly canUndoTrash = computed(() => {
@@ -231,6 +235,8 @@ export class FileSystem {
     return this.mounted;
   }
 
+  /** 给界面的文案按当前语言解析：先读 locale 信号注册依赖，撤销标签等 computed 随语言切换重建。 */
+
   nodeAt(path: DiskPath): FsNode | null {
     return findNode(this.rootState(), path);
   }
@@ -264,16 +270,11 @@ export class FileSystem {
 
   /** 在目录里新建「untitled folder」，重名时追加序号；返回新名字。 */
   async newFolder(dir: DiskPath): Promise<string> {
-    if (isLocked(dir))
-      throw new DiskError(
-        'EACCES',
-        dir,
-        'The folder “untitled folder” can’t be created because you don’t have permission.'
-      );
+    if (isLocked(dir)) throw new DiskError('EACCES', dir, this.t('error.fileSystem.folderCreateDenied'));
     const name = await this.exclusive(async store => {
       const folder = uniqueName(
         (await store.list(dir)).map(entry => entry.name),
-        'untitled folder'
+        this.t('apps.finder.untitledFolder')
       );
       await store.mkdir([...dir, folder]);
       return folder;
@@ -281,7 +282,7 @@ export class FileSystem {
     const path = [...dir, name];
     this.pushCommand({
       kind: 'newFolder',
-      label: 'New Folder',
+      label: 'shell.menu.newFolder',
       paths: [path],
       undo: async store => {
         if ((await store.kindOf(path)) !== 'directory') return [];
@@ -369,8 +370,7 @@ export class FileSystem {
    * 改名与撤销都会把 `finder:tags` 的标签键迁到新路径。
    */
   async renameWith(path: DiskPath, name: string, mode: RenameConflictMode): Promise<DiskPath> {
-    if (isRequiredDiskPath(path))
-      throw new DiskError('EACCES', path, 'This item is required by the system and cannot be renamed.');
+    if (isRequiredDiskPath(path)) throw new DiskError('EACCES', path, this.t('error.fileSystem.itemRequiredRename'));
     const target = await this.exclusive(store => renameWithConflict(store, path, name, mode));
     if (mode !== 'replace' && !samePath(path, target)) this.pushRenameCommand(path, target);
     this.migrateTagsFor(path, target);
@@ -381,7 +381,7 @@ export class FileSystem {
   async duplicate(path: DiskPath): Promise<DiskPath> {
     this.requireWritable(parentOf(path));
     const target = await this.exclusive(store => duplicateEntry(store, path, this.batchJournal()));
-    this.pushCommand(this.copyCommand('duplicate', 'Duplicate', path, target));
+    this.pushCommand(this.copyCommand('duplicate', 'apps.finder.duplicate', path, target));
     this.notifyChanges([target]);
     return target;
   }
@@ -389,14 +389,13 @@ export class FileSystem {
   async copyTo(path: DiskPath, dir: DiskPath): Promise<DiskPath> {
     this.requireWritable(dir);
     const target = await this.exclusive(store => copyEntryTo(store, path, dir, this.batchJournal()));
-    this.pushCommand(this.copyCommand('copy', 'Copy', path, target));
+    this.pushCommand(this.copyCommand('copy', 'shell.menu.copy', path, target));
     this.notifyChanges([target]);
     return target;
   }
 
   async moveTo(path: DiskPath, dir: DiskPath): Promise<DiskPath> {
-    if (isRequiredDiskPath(path))
-      throw new DiskError('EACCES', path, 'This item is required by the system and cannot be moved.');
+    if (isRequiredDiskPath(path)) throw new DiskError('EACCES', path, this.t('error.fileSystem.itemRequiredMove'));
     this.requireWritable(parentOf(path));
     this.requireWritable(dir);
     const target = await this.exclusive(store => moveEntryTo(store, path, dir));
@@ -490,17 +489,9 @@ export class FileSystem {
       await this.exclusive(store => store.replace(path, encoder.encode(text)));
     } catch (error) {
       if (error instanceof DiskError && error.code === 'ENOENT')
-        throw new DiskError(
-          'ENOENT',
-          path,
-          `“${name}” can’t be saved because it was moved, renamed or deleted. Your changes are still in this window.`
-        );
+        throw new DiskError('ENOENT', path, this.t('error.fileSystem.saveLost', { name }));
       if (error instanceof DiskError && error.code === 'EISDIR')
-        throw new DiskError(
-          'EISDIR',
-          path,
-          `“${name}” can’t be saved because a folder with that name is there now. Your changes are still in this window.`
-        );
+        throw new DiskError('EISDIR', path, this.t('error.fileSystem.saveFolderConflict', { name }));
       throw error;
     }
     this.notifyChanges([path]);
@@ -522,11 +513,7 @@ export class FileSystem {
         try {
           await this.reconcileCurrent(store);
         } catch (cleanup) {
-          throw new AggregateError(
-            [error, cleanup],
-            'Application files need recovery. Reload the desktop before retrying.',
-            { cause: cleanup }
-          );
+          throw new AggregateError([error, cleanup], this.t('error.fileSystem.appsNeedRecovery'), { cause: cleanup });
         }
         throw error;
       }
@@ -558,22 +545,13 @@ export class FileSystem {
   private async trashEntry(store: DiskStore, path: DiskPath): Promise<TrashMove> {
     const name = path.at(-1) ?? VOLUME_NAME;
     if (isRequiredDiskPath(path))
-      throw new DiskError(
-        'EACCES',
-        path,
-        `The item “${name}” can’t be moved to the Trash because it’s required by macOS.`
-      );
-    if (isWithin(path, TRASH)) throw new DiskError('EEXIST', path, `“${name}” is already in the Trash.`);
+      throw new DiskError('EACCES', path, this.t('error.fileSystem.trashDeniedRequired', { name }));
+    if (isWithin(path, TRASH)) throw new DiskError('EEXIST', path, this.t('error.fileSystem.alreadyInTrash', { name }));
     const violation = this.catalog.violation({ kind: 'move', from: path, to: [...TRASH, name] });
     if (violation)
       throw new DiskError('EACCES', path, violation.replace('can’t be moved', 'can’t be moved to the Trash'));
     const id = await this.mountedRawStore().idAt(path);
-    if (!id)
-      throw new DiskError(
-        'ENOENT',
-        path,
-        `The item “${name}” can’t be moved to the Trash because it no longer exists.`
-      );
+    if (!id) throw new DiskError('ENOENT', path, this.t('error.fileSystem.trashGone', { name }));
     await store.mkdir(TRASH);
     const names = (await store.list(TRASH)).map(entry => entry.name);
     const target = [...TRASH, uniqueName(names, name)];
@@ -582,7 +560,7 @@ export class FileSystem {
   }
 
   private requireWritable(dir: DiskPath): void {
-    if (isLocked(dir)) throw new DiskError('EACCES', dir, 'You do not have permission to change this folder.');
+    if (isLocked(dir)) throw new DiskError('EACCES', dir, this.t('error.fileSystem.folderDenied'));
   }
 
   /** 压一条命令进撤销栈并叫醒 canUndo/canRedo/undoLabel 等信号。 */
@@ -594,7 +572,7 @@ export class FileSystem {
   private pushRenameCommand(from: DiskPath, to: DiskPath): void {
     this.pushCommand({
       kind: 'rename',
-      label: 'Rename',
+      label: 'apps.finder.rename',
       paths: [from, to],
       undo: async store => {
         if (!(await store.kindOf(to))) throw new DiskError('ENOENT', to);
@@ -614,7 +592,7 @@ export class FileSystem {
   private pushMoveCommand(from: DiskPath, to: DiskPath): void {
     this.pushCommand({
       kind: 'move',
-      label: 'Move',
+      label: 'apps.finder.move',
       paths: [from, to],
       undo: async store => {
         await store.move(to, from);
@@ -652,7 +630,7 @@ export class FileSystem {
     const lastRedone: TrashMove[] = [];
     return {
       kind: 'trash',
-      label: 'Move to Trash',
+      label: 'shell.menu.moveToTrash',
       paths: moves.flatMap(({ original, target }) => [original, target]),
       pending: () => remaining.length,
       undo: async store => {
@@ -843,7 +821,7 @@ export class FileSystem {
     return {
       read: async () => (await row())?.value ?? null,
       write: async (value: T) => {
-        if (await row()) throw new Error('A previous file operation still needs recovery.');
+        if (await row()) throw new Error(this.t('error.fileSystem.previousOperationRecovery'));
         await (
           await this.data.repository(SystemPreference)
         ).create(this.data.instantiate(SystemPreference, { key, value }));
@@ -873,19 +851,25 @@ export class FileSystem {
   }
 
   private mountedVolume(): DiskVolume {
-    if (!this.volume) throw new Error(`Macintosh HD is unavailable: ${this.errorValue() ?? 'not mounted'}`);
+    if (!this.volume) throw new Error(this.hdUnavailableMessage());
     return this.volume;
   }
 
   private mountedRawStore(): RxdbDiskStore {
-    if (!this.store) throw new Error(`Macintosh HD is unavailable: ${this.errorValue() ?? 'not mounted'}`);
+    if (!this.store) throw new Error(this.hdUnavailableMessage());
     return this.store;
   }
 
   /** 交给外部任务的存储：经过预装应用的保护判断，Finder、TextEdit、终端回写走同一条规则。 */
   private mountedStore(): DiskStore {
-    if (!this.guardedStore) throw new Error(`Macintosh HD is unavailable: ${this.errorValue() ?? 'not mounted'}`);
+    if (!this.guardedStore) throw new Error(this.hdUnavailableMessage());
     return this.guardedStore;
+  }
+
+  private hdUnavailableMessage(): string {
+    return this.t('error.fileSystem.hdUnavailable', {
+      reason: this.errorValue() ?? this.t('error.fileSystem.notMounted')
+    });
   }
 
   /**
@@ -911,5 +895,9 @@ export class FileSystem {
     });
     this.queue = run.catch(() => undefined);
     return run;
+  }
+  private t(key: string, params: Record<string, unknown> = {}): string {
+    this.locale();
+    return this.i18nRuntime.t(key, params);
   }
 }

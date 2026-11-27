@@ -45,11 +45,11 @@ export const metricValue = (tab: MetricTab, seed: string): string => {
   }
 };
 
-/** 各标签的读数说明。 */
+/** 各标签的读数说明（消息 key，由组件按当前语言解析）。 */
 export const METRIC_NOTES: Readonly<Record<MetricTab, string>> = {
-  CPU: 'Percent of one desktop core.',
-  Memory: 'Resident memory estimate.',
-  Energy: 'Energy impact score.',
-  Disk: 'Bytes read from storage.',
-  Network: 'Bytes received per second.'
+  CPU: 'apps.activity.note.cpu',
+  Memory: 'apps.activity.note.memory',
+  Energy: 'apps.activity.note.energy',
+  Disk: 'apps.activity.note.disk',
+  Network: 'apps.activity.note.network'
 };

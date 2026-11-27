@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { desktopTestTranslate } from '../../testing/fake-i18n';
+
 import {
   ItemRect,
   gridTarget,
@@ -183,12 +185,14 @@ describe('parseGoToFolder 「前往文件夹」输入框的路径解析', () => 
 
 describe('itemLabel 条目的无障碍名称', () => {
   it('名称加种类：读屏在按 Enter 之前就知道它是文件夹还是文件', () => {
-    expect(itemLabel({ name: 'Documents', kind: 'folder', k: 'Folder' })).toBe('Documents, Folder');
-    expect(itemLabel({ name: 'todo.md', kind: 'file', k: 'Markdown' })).toBe('todo.md, Markdown');
+    expect(itemLabel({ name: 'Documents', kind: 'folder', k: 'Folder' }, desktopTestTranslate)).toBe(
+      'Documents, Folder'
+    );
+    expect(itemLabel({ name: 'todo.md', kind: 'file', k: 'Markdown' }, desktopTestTranslate)).toBe('todo.md, Markdown');
   });
 
   it('没有种类说明时，文件夹说 Folder、文件说 Document', () => {
-    expect(itemLabel({ name: 'a', kind: 'folder', k: '' })).toBe('a, Folder');
-    expect(itemLabel({ name: 'b', kind: 'file', k: '' })).toBe('b, Document');
+    expect(itemLabel({ name: 'a', kind: 'folder', k: '' }, desktopTestTranslate)).toBe('a, Folder');
+    expect(itemLabel({ name: 'b', kind: 'file', k: '' }, desktopTestTranslate)).toBe('b, Document');
   });
 });

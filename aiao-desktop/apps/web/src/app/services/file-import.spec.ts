@@ -37,7 +37,7 @@ describe('FileImport', () => {
       { name: 'empty.txt', data: new Uint8Array() }
     ]);
     expect(importer.accepts(DESKTOP)).toBe(true);
-    expect(show).toHaveBeenCalledWith('Imported 2 files');
+    expect(show).toHaveBeenCalledWith('apps.finder.importedFiles', { count: 2 });
   });
 
   it('虚拟位置、只读目录和空文件列表不会读取或写入', async () => {
@@ -78,6 +78,6 @@ describe('FileImport', () => {
     await expect(importer.importFiles(DESKTOP, [readable])).resolves.toEqual([]);
     expect(show).toHaveBeenLastCalledWith('Disk full');
     await expect(importer.importFiles(DESKTOP, [readable])).resolves.toEqual([path]);
-    expect(show).toHaveBeenLastCalledWith('Imported 1 file');
+    expect(show).toHaveBeenLastCalledWith('apps.finder.importedFile', { count: 1 });
   });
 });

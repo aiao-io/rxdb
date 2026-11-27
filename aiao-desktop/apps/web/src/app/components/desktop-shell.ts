@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { DOCUMENT } from '@angular/common';
 import { Component, ViewEncapsulation, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -5,7 +6,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { DesktopData } from '../data/desktop-data';
 import { DATA_LOCATION_KEY } from '../data/desktop-data-location';
 import { FileImport } from '../services/file-import';
-import { Session, SessionConfirm, confirmPrompt } from '../services/session';
+import { Session, SessionConfirm } from '../services/session';
 import { Toast } from '../services/toast';
 import { WindowManager } from '../services/window-manager';
 import { fileTransfer } from '../shared/file-drop';
@@ -61,6 +62,7 @@ export class DesktopShell {
   protected readonly problem = this.data.problem;
   protected readonly toast = inject(Toast);
   protected readonly session = inject(Session);
+  protected readonly i18n = useI18n();
   /** 锁屏、开机画面、睡眠、重启/关机确认或本地数据问题的阻断界面盖住了桌面。 */
   protected readonly behind = computed(
     () =>
@@ -73,9 +75,14 @@ export class DesktopShell {
   /** 有窗口进入全屏空间时菜单栏与 Dock 让位（[FULLSCREEN]，`hasFullscreen` 由 impl:shell1 提供）。 */
   protected readonly fullscreen = computed(() => this.windows.hasFullscreen());
 
-  /** 重启 / 关机确认面板的文案（纯函数见 {@link confirmPrompt}）。 */
-  protected prompt(request: SessionConfirm): ReturnType<typeof confirmPrompt> {
-    return confirmPrompt(request.mode);
+  /** 重启 / 关机确认面板的文案（两种模式共用正文）。 */
+  protected prompt(request: SessionConfirm): { title: string; message: string; action: string } {
+    const restart = request.mode === 'restart';
+    return {
+      title: this.i18n.t(restart ? 'shell.desktop.restartConfirmTitle' : 'shell.desktop.shutDownConfirmTitle'),
+      message: this.i18n.t('shell.desktop.confirmMessage'),
+      action: this.i18n.t(restart ? 'shell.desktop.restart' : 'shell.desktop.shutDown')
+    };
   }
 
   /** Esc 取消重启 / 关机确认；确认与取消按钮在模板里直接给结论。 */

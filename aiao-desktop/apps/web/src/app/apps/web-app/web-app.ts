@@ -1,4 +1,5 @@
 import type { OrbitDragRegion } from '@aiao/orbit/window';
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import {
   afterNextRender,
   Component,
@@ -58,6 +59,7 @@ function webManifest(win: DesktopWindow): WebAppManifest {
 export class WebAppWindow {
   private readonly wm = inject(WindowManager);
   private readonly stage = viewChild.required<ElementRef<HTMLElement>>('stage');
+  protected readonly i18n = useI18n();
   protected readonly session: RemoteAppSession;
   protected readonly lease: AppWindowLease | null;
   protected readonly win = inject(DesktopWindow);

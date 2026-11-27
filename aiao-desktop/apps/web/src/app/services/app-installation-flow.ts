@@ -1,3 +1,4 @@
+import { I18N } from '@aiao/rxdb-i18n-angular';
 import { Service, computed, inject, signal } from '@angular/core';
 
 import { ApprovedRelease } from '../data/approved-catalog';
@@ -7,12 +8,39 @@ import { FileSystem } from './file-system';
 import { InstalledApplications } from './installed-applications';
 import { WindowManager } from './window-manager';
 
+/** 批准目录校验抛出的英文错误消息 → 目录 key（显示边界统一翻译，未知消息原样透传）。 */
+const CATALOG_ERROR_KEYS: Readonly<Record<string, string>> = {
+  'Invalid catalog or installation record.': 'error.catalog.invalidRecord',
+  'Invalid release identity or description.': 'error.catalog.invalidRelease',
+  'Invalid application name.': 'error.catalog.invalidName',
+  'Invalid release capabilities.': 'error.catalog.invalidCapabilities',
+  'An immutable versioned release URL is required.': 'error.catalog.releaseUrlRequired',
+  'The approved catalog is limited to 1 MiB.': 'error.catalog.tooLarge',
+  'The application catalog does not match operator approval.': 'error.catalog.hashMismatch',
+  'Unsupported application catalog format.': 'error.catalog.unsupportedFormat',
+  'Invalid application installation state.': 'error.catalog.invalidState',
+  'Invalid application installation record.': 'error.catalog.invalidInstallationRecord',
+  'Duplicate application installation records.': 'error.catalog.duplicateRecords',
+  'The requested release is not approved.': 'error.catalog.releaseNotApproved',
+  'The initiating desktop tab was closed.': 'error.transition.tabClosed',
+  'The application window was closed.': 'error.transition.windowClosed',
+  'Another application change is already in progress. Try again when it finishes.': 'error.transition.inProgress',
+  'Return to the other desktop tabs and close this application, then try again.': 'error.transition.returnToTabs'
+};
+
+/** 确认面板里展示的动作文案 key（Install/Update/Roll Back/Uninstall）。 */
+export type InstallationActionKey =
+  | 'apps.appstore.installAction'
+  | 'apps.appstore.updateAction'
+  | 'apps.appstore.rollBackAction'
+  | 'apps.appstore.uninstallAction';
+
 export type InstallationRequest =
   | {
       readonly kind: 'release';
       readonly id: CatalogAppId;
       readonly name: string;
-      readonly action: 'Install' | 'Update' | 'Roll Back' | 'Uninstall';
+      readonly action: InstallationActionKey;
       readonly previous: string | null;
       readonly release: ApprovedRelease | null;
     }
@@ -31,6 +59,7 @@ export class AppInstallationFlow {
   private readonly applications = inject(InstalledApplications);
   private readonly files = inject(FileSystem);
   private readonly windows = inject(WindowManager);
+  private readonly i18n = inject(I18N);
   /** 安装/卸载进行中用户点了取消：在下个检查点停下，不写盘（提交一旦开始就原子完成）。 */
   private abortRequested = false;
   readonly busy = signal(false);
@@ -67,14 +96,14 @@ export class AppInstallationFlow {
       .releases.find(release => release.id === id && release.version === version);
     this.error.set('');
     if (!item || (version !== null && !release) || (version === null && !item.installed)) {
-      this.error.set('The requested application version is not approved or installed. Refresh the catalog.');
+      this.error.set(this.i18n.t('error.install.versionNotApproved'));
       return;
     }
-    const action =
-      version === null ? 'Uninstall'
-      : !item.installed ? 'Install'
-      : version === item.installed.previous ? 'Roll Back'
-      : 'Update';
+    const action: InstallationActionKey =
+      version === null ? 'apps.appstore.uninstallAction'
+      : !item.installed ? 'apps.appstore.installAction'
+      : version === item.installed.previous ? 'apps.appstore.rollBackAction'
+      : 'apps.appstore.updateAction';
     this.pending.set({
       kind: 'release',
       id,
@@ -95,7 +124,7 @@ export class AppInstallationFlow {
     /* 进行中：请求中止，在下个检查点停下（macOS App Store 的 Cancel）；请求保留在确认面板供重试。 */
     if (this.busy()) {
       this.abortRequested = true;
-      this.status.set('Cancelling…');
+      this.status.set(this.i18n.t('apps.appstore.cancelling'));
       return;
     }
     this.pending.set(null);
@@ -109,7 +138,7 @@ export class AppInstallationFlow {
   async refresh(): Promise<void> {
     await this.perform(async () => {
       await this.applications.refresh();
-      this.status.set('Approved catalog refreshed.');
+      this.status.set(this.i18n.t('apps.appstore.catalogRefreshed'));
     });
   }
 
@@ -118,12 +147,12 @@ export class AppInstallationFlow {
     if (!request) return;
     await this.perform(async () => {
       if (this.abortRequested) {
-        this.status.set('Operation cancelled. The installed version is unchanged.');
+        this.status.set(this.i18n.t('apps.appstore.operationCancelled'));
         this.pending.set(null);
         return;
       }
       const ids = request.kind === 'reset' ? this.applications.state().apps.map(app => app.id) : [request.id];
-      this.status.set('Waiting for open application windows in all desktop tabs…');
+      this.status.set(this.i18n.t('apps.appstore.waitingForWindows'));
       let cancelled = false;
       const completed = await this.transitions.change(ids, async () => {
         /* 关窗协商期间用户取消：提交前停下，不写盘；提交本身是原子的，一旦开始就完成。 */
@@ -133,7 +162,7 @@ export class AppInstallationFlow {
         }
         await this.commit(request);
       });
-      if (cancelled || !completed) this.status.set('Operation cancelled. The installed version is unchanged.');
+      if (cancelled || !completed) this.status.set(this.i18n.t('apps.appstore.operationCancelled'));
       /* 取消与失败都关闭确认面板：重试从商店重新请求（与取消关窗协商的既有语义一致）。 */
       this.pending.set(null);
     });
@@ -144,14 +173,14 @@ export class AppInstallationFlow {
       this.files.projectApplications(releases, commit);
     if (request.kind === 'reset') {
       await this.applications.reset(project);
-      this.status.set('Optional application records reset. Your files are kept. Refresh the catalog to install again.');
+      this.status.set(this.i18n.t('apps.appstore.resetComplete'));
       return;
     }
     await this.applications.apply(request.id, request.release?.version ?? null, project, request.previous);
     this.status.set(
       request.release ?
-        `${request.name} ${request.release.version} is installed.`
-      : `${request.name} was uninstalled. Your files are kept.`
+        this.i18n.t('apps.appstore.installedToast', { name: request.name, version: request.release.version })
+      : this.i18n.t('apps.appstore.uninstalledToast', { name: request.name })
     );
   }
 
@@ -160,12 +189,13 @@ export class AppInstallationFlow {
     this.busy.set(true);
     this.error.set('');
     this.abortRequested = false;
-    this.status.set('Working…');
+    this.status.set(this.i18n.t('apps.appstore.working'));
     try {
       await action();
     } catch (error) {
       this.status.set('');
-      this.error.set(error instanceof Error ? error.message : String(error));
+      const message = error instanceof Error ? error.message : String(error);
+      this.error.set(CATALOG_ERROR_KEYS[message] ? this.i18n.t(CATALOG_ERROR_KEYS[message]) : message);
     } finally {
       this.busy.set(false);
     }

@@ -4,7 +4,7 @@
 
 ## 应用数量与入口
 
-- **34 条固定登记**。31 个内置应用、1 个远程集成应用 Aiao Code、2 个系统入口 Launchpad 和 Trash。32 个应用可从启动台和聚焦搜索启动，其中 30 个是 Angular 组件应用、1 个是同源 HTML 游戏、1 个是远程 Web 应用。[应用清单](apps/web/src/app/apps/app-manifests.ts) · [运行来源与启动顺序](apps/web/src/app/services/desktop-apps.ts)
+- **34 条固定登记**。31 个内置应用、1 个远程集成应用 Aiao Code、2 个系统入口 Launchpad 和 Trash。32 个应用可从启动台和聚焦搜索启动，其中 30 个是 Angular 组件应用、1 个是同源 HTML 游戏、1 个是远程 Web 应用。清单 `name` 是英文基线名，`nameKey`（`apps.<id>.name`）经 `services/desktop-app-name.ts` 在界面显示点取本地化显示名（ADESK-US-132 AC12：访达/系统设置/废纸篓…，品牌名不译回退 `name`）。[应用清单](apps/web/src/app/apps/app-manifests.ts) · [运行来源与启动顺序](apps/web/src/app/services/desktop-apps.ts)
 - **30 个 `/Applications` 应用包**。Finder 和 About This Mac 与两个系统入口均在该目录之外。`about` 的清单显示名也是 `Finder`，因此在启动台看到两个同名条目时可用 ID 区分。首次使用时 Dock 固定 15 项，其中 Trash 单独位于分隔线之后。[应用清单](apps/web/src/app/apps/app-manifests.ts) · [Applications 验收](apps/e2e/src/groups/applications.mjs)
 - **23 个已实现当前产品范围的实际功能应用**。这些应用的核心工作流已在本地或桌面范围落地，外部账号、同步和设备能力仍按各自说明标注边界。
 - **8 个演示、模拟或样例驱动应用，等待真实实现**。Podcasts、TV、Books 目前展示预置内容；FaceTime 和 Voice Memos 是交互模拟；Music、Stocks、Font Book 已实现局部交互，但仍依赖样例曲库、演示行情或预置字体。另有 1 个随产品发布的已实现可玩游戏。[组件绑定](apps/web/src/app/apps/registry.ts) · [内置应用验收台账](requirements/plans/2026-11-17-builtin-workflows.md)

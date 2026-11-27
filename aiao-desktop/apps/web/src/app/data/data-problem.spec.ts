@@ -1,7 +1,8 @@
 import { I18n } from '@aiao/rxdb-i18n';
 
 import { describe, expect, it } from 'vitest';
-import { DESKTOP_CATALOGS, DESKTOP_I18N_NAMESPACE } from '../i18n/desktop-i18n';
+import { DESKTOP_CATALOGS_EN, DESKTOP_I18N_NAMESPACE } from '../i18n/desktop-i18n';
+import { DESKTOP_MESSAGES_ZH } from '../i18n/messages-zh';
 
 import { describeProblem } from './data-problem';
 import type { DataProblem } from './desktop-data';
@@ -15,7 +16,11 @@ const problems: readonly DataProblem[] = [
 ];
 
 const t = new I18n({
-  catalogs: DESKTOP_CATALOGS,
+  catalogs: [
+    ...DESKTOP_CATALOGS_EN,
+    { locale: 'zh', namespace: DESKTOP_I18N_NAMESPACE, messages: DESKTOP_MESSAGES_ZH },
+    { locale: 'zh-Hans', namespace: DESKTOP_I18N_NAMESPACE, messages: DESKTOP_MESSAGES_ZH }
+  ],
   defaultLocale: 'en',
   deviceLocale: 'en-US',
   namespace: DESKTOP_I18N_NAMESPACE

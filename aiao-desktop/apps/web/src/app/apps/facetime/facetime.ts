@@ -1,5 +1,7 @@
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 
+import { useI18n } from '@aiao/rxdb-i18n-angular';
+
 import { DesktopData } from '../../data/desktop-data';
 import { ALL_ROWS, liveQuery } from '../../data/live-query';
 import { Clock } from '../../services/clock';
@@ -10,7 +12,7 @@ import { Toast } from '../../services/toast';
 import { mmss } from '../../shared/format';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
-import { lengthLabel, whenLabel } from './facetime-log';
+import { callKindKey, lengthLabel, whenLabel } from './facetime-log';
 import { FaceTimeCall } from './facetime.entities';
 import { NewFaceTime } from './new-facetime';
 
@@ -19,6 +21,7 @@ interface Call {
   readonly id: string;
   readonly name: string;
   readonly kind: string;
+  readonly kindLabel: string;
   readonly length: string;
   readonly when: string;
 }
@@ -46,17 +49,18 @@ export class FaceTimeApp {
   private readonly toast = inject(Toast);
   private readonly clock = inject(Clock);
   private readonly data = inject(DesktopData);
+  /** 每次拨出加一，让通话中再拨号也能重置计时器。 */
+  private readonly session = signal(0);
   private readonly rows = liveQuery(
     () => FaceTimeCall.findAll({ where: ALL_ROWS, orderBy: [{ field: 'startedAt', sort: 'desc' }] }),
     [],
     FaceTimeCall
   );
-  /** 每次拨出加一，让通话中再拨号也能重置计时器。 */
-  private readonly session = signal(0);
   /** 点选的那条记录的 id；还没点过时显示列表里的第一条。 */
   private readonly pickedId = signal<string | null>(null);
   /** 刚拨出、已经落库但还没出现在通话记录里的那条的 id：出现之后才选中它并开始通话，界面不会空一下。 */
   private readonly dialing = signal<string | null>(null);
+  protected readonly i18n = useI18n();
 
   /** 新的在前；时间文字随桌面时钟更新（`Just now` 过一分钟就变成钟点）。 */
   protected readonly calls = computed((): readonly Call[] => {
@@ -65,8 +69,9 @@ export class FaceTimeApp {
       id: row.id,
       name: row.name,
       kind: row.kind,
+      kindLabel: this.i18n.t(callKindKey(row.kind)),
       length: lengthLabel(row.kind, row.duration),
-      when: whenLabel(row.startedAt, now)
+      when: whenLabel(row.startedAt, now, (key, params) => this.i18n.t(key, params))
     }));
   });
   protected readonly selected = computed(() => {
@@ -122,12 +127,12 @@ export class FaceTimeApp {
     this.live.set(false);
     const seconds = this.seconds();
     void this.record(seconds);
-    this.toast.show(`Call ended · ${mmss(seconds)}`);
+    this.toast.show('apps.facetime.callEnded', { time: mmss(seconds) });
   }
 
   protected toggleMute(): void {
     this.muted.update(muted => !muted);
-    this.toast.show(this.muted() ? 'Microphone off' : 'Microphone on');
+    this.toast.show(this.muted() ? 'apps.facetime.microphoneOff' : 'apps.facetime.microphoneOn');
   }
 
   protected toggleCamera(): void {
@@ -154,7 +159,7 @@ export class FaceTimeApp {
 
   private async dial(name: string): Promise<void> {
     if (!name) {
-      this.toast.show('Enter a name to call');
+      this.toast.show('error.facetime.enterNameToCall');
       return;
     }
     this.popover.close();

@@ -2,8 +2,15 @@ import { describe, expect, it } from 'vitest';
 
 import { I18n } from '@aiao/rxdb-i18n';
 
-import { DESKTOP_CATALOGS, DESKTOP_I18N_NAMESPACE } from '../i18n/desktop-i18n';
+import { DESKTOP_CATALOGS_EN, DESKTOP_I18N_NAMESPACE } from '../i18n/desktop-i18n';
+import { DESKTOP_MESSAGES_ZH } from '../i18n/messages-zh';
 import { StatusSnapshot, ariaShortcut, menuItemAria, statusLabel, windowHidden } from './aria';
+
+const SPEC_CATALOGS = [
+  ...DESKTOP_CATALOGS_EN,
+  { locale: 'zh', namespace: DESKTOP_I18N_NAMESPACE, messages: DESKTOP_MESSAGES_ZH },
+  { locale: 'zh-Hans', namespace: DESKTOP_I18N_NAMESPACE, messages: DESKTOP_MESSAGES_ZH }
+];
 
 const SNAPSHOT: StatusSnapshot = {
   bluetooth: true,
@@ -88,7 +95,7 @@ describe('menuItemAria 菜单项的角色与状态', () => {
 
 describe('statusLabel 菜单栏状态图标的可读名称', () => {
   const t = new I18n({
-    catalogs: DESKTOP_CATALOGS,
+    catalogs: SPEC_CATALOGS,
     defaultLocale: 'en',
     deviceLocale: 'en-US',
     namespace: DESKTOP_I18N_NAMESPACE

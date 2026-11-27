@@ -7,30 +7,30 @@
       <div style="flex: 1"></div>
       <button
         class="tbtn"
+        [attr.aria-label]="i18n.t('apps.notes.newFolder')"
         [disabled]="busy() || win.closePending()"
+        [title]="i18n.t('apps.notes.newFolder')"
         (click)="newFolder()"
-        aria-label="New Folder"
         data-new-folder
         data-nodrag
         tabindex="0"
-        title="New Folder"
       >
         <svg appIcon="g-plus"></svg>
       </button>
       <button
         class="tbtn"
+        [attr.aria-label]="i18n.t('apps.notes.toggleFolders')"
+        [title]="i18n.t('apps.notes.hideFolders')"
         (click)="toggleSidebar()"
-        aria-label="Toggle folders"
         data-nodrag
         data-sbtoggle
         tabindex="0"
-        title="Hide Folders"
       >
         <svg appIcon="g-sidebar"></svg>
       </button>
     </div>
     <div class="grp">
-      <div class="gh">On This Browser</div>
+      <div class="gh">{{ i18n.t('apps.notes.onThisBrowser') }}</div>
       @for (item of folders(); track item.name) {
         <button
           class="si"
@@ -59,23 +59,23 @@
         <div class="sfield" data-nodrag style="flex: 1">
           <span><svg appIcon="g-search"></svg></span>
           <input
+            [attr.aria-label]="i18n.t('apps.notes.searchNotes')"
             [disabled]="busy() || win.closePending()"
+            [placeholder]="i18n.t('apps.notes.search')"
             [value]="query()"
             (input)="search($event)"
-            aria-label="Search notes"
             data-q
-            placeholder="Search"
           />
         </div>
         <button
           class="tbtn"
+          [attr.aria-label]="i18n.t('apps.notes.newNote')"
           [disabled]="busy() || win.closePending()"
+          [title]="i18n.t('apps.notes.newNote')"
           (click)="create()"
-          aria-label="New Note"
           data-new2
           data-nodrag
           tabindex="0"
-          title="New Note"
         >
           <svg appIcon="g-compose"></svg>
         </button>
@@ -102,7 +102,9 @@
             </div>
           </button>
         } @empty {
-          <div style="padding: 22px; text-align: center; color: var(--txt-3); font-size: 12.5px">No notes</div>
+          <div style="padding: 22px; text-align: center; color: var(--txt-3); font-size: 12.5px">
+            {{ i18n.t('apps.notes.noNotes') }}
+          </div>
         }
       </div>
     </div>
@@ -111,25 +113,25 @@
         <div style="flex: 1"></div>
         <button
           class="tbtn"
-          [attr.aria-label]="current()?.pinned ? 'Unpin Note' : 'Pin Note'"
+          [attr.aria-label]="current()?.pinned ? i18n.t('apps.notes.unpinNote') : i18n.t('apps.notes.pinNote')"
           [attr.aria-pressed]="current()?.pinned ?? false"
           [disabled]="busy() || win.closePending() || !editor.value()"
-          [title]="current()?.pinned ? 'Unpin Note' : 'Pin Note'"
+          [title]="current()?.pinned ? i18n.t('apps.notes.unpinNote') : i18n.t('apps.notes.pinNote')"
           (click)="togglePin()"
           data-nodrag
           data-pin
         >
-          {{ current()?.pinned ? '📌' : 'Pin' }}
+          {{ current()?.pinned ? '📌' : i18n.t('apps.notes.pin') }}
         </button>
         @for (item of textFormats; track item.command) {
           <button
             class="tbtn"
-            [attr.aria-label]="item.title"
+            [attr.aria-label]="i18n.t(item.title)"
             [attr.aria-pressed]="active().includes(item.command)"
             [attr.data-f]="item.command"
             [class.on]="active().includes(item.command)"
             [disabled]="busy() || win.closePending() || !editor.value()"
-            [title]="item.title"
+            [title]="i18n.t(item.title)"
             (click)="format(item.command)"
             data-nodrag
             tabindex="0"
@@ -140,52 +142,52 @@
         <div class="sep"></div>
         <button
           class="tbtn"
+          [attr.aria-label]="i18n.t('apps.notes.bulletedList')"
           [attr.aria-pressed]="active().includes('insertUnorderedList')"
           [class.on]="active().includes('insertUnorderedList')"
           [disabled]="busy() || win.closePending() || !editor.value()"
+          [title]="i18n.t('apps.notes.bulletedList')"
           (click)="format('insertUnorderedList')"
-          aria-label="Bulleted list"
           data-f="insertUnorderedList"
           data-nodrag
           tabindex="0"
-          title="Bulleted list"
         >
           <svg appIcon="g-bullets"></svg>
         </button>
         <button
           class="tbtn"
+          [attr.aria-label]="i18n.t('apps.notes.checklist')"
           [disabled]="busy() || win.closePending() || !editor.value()"
+          [title]="i18n.t('apps.notes.checklist')"
           (click)="checklist()"
-          aria-label="Checklist"
           data-check
           data-nodrag
           tabindex="0"
-          title="Checklist"
         >
           <svg appIcon="g-checklist"></svg>
         </button>
         <button
           class="tbtn"
+          [attr.aria-label]="i18n.t('apps.notes.table')"
           [disabled]="busy() || win.closePending() || !editor.value()"
+          [title]="i18n.t('apps.notes.table')"
           (click)="table()"
-          aria-label="Table"
           data-nodrag
           data-table
           tabindex="0"
-          title="Table"
         >
           <svg appIcon="g-table"></svg>
         </button>
         <div class="sep"></div>
         <button
           class="tbtn"
+          [attr.aria-label]="i18n.t('apps.notes.newNote')"
           [disabled]="busy() || win.closePending()"
+          [title]="i18n.t('apps.notes.newNoteTooltip')"
           (click)="create()"
-          aria-label="New Note"
           data-new
           data-nodrag
           tabindex="0"
-          title="New note"
         >
           <svg appIcon="g-plus"></svg>
         </button>
@@ -194,15 +196,15 @@
       <div style="padding: 6px 14px; background: var(--card); color: var(--txt)">
         <div aria-live="polite" role="status" style="font-size: 12px">
           {{
-            busy() || editor.saving() ? 'Saving…'
-            : editor.dirty() ? 'Unsaved changes'
-            : 'Saved'
+            busy() || editor.saving() ? i18n.t('apps.notes.saving')
+            : editor.dirty() ? i18n.t('apps.notes.unsavedChanges')
+            : i18n.t('apps.notes.saved')
           }}
         </div>
         @if (folder() === trashFolder && current()) {
           <div style="margin-top: 6px">
             <button class="btn" [disabled]="busy() || win.closePending()" (click)="recover()" tabindex="0">
-              Recover Note
+              {{ i18n.t('apps.notes.recoverNote') }}
             </button>
           </div>
         }
@@ -217,7 +219,7 @@
               (click)="retry()"
               tabindex="0"
             >
-              Retry Save
+              {{ i18n.t('apps.notes.retrySave') }}
             </button>
             <button
               class="btn"
@@ -225,7 +227,7 @@
               (click)="saveCopy()"
               tabindex="0"
             >
-              Save a Copy
+              {{ i18n.t('apps.notes.saveACopy') }}
             </button>
             <button
               class="btn"
@@ -233,7 +235,7 @@
               (click)="discardChanges()"
               tabindex="0"
             >
-              Discard Changes
+              {{ i18n.t('apps.notes.discardChanges') }}
             </button>
           </div>
         }
@@ -241,6 +243,7 @@
       <div
         class="nt-doc selectable"
         #doc
+        [attr.aria-label]="i18n.t('apps.notes.noteContent')"
         [attr.aria-readonly]="busy() || win.closePending() || !editor.value()"
         [attr.contenteditable]="!busy() && !win.closePending() && editor.value() ? 'true' : 'false'"
         (click)="docClick($event)"
@@ -249,7 +252,6 @@
         (keydown)="docKey($event)"
         (keyup)="syncFormats()"
         (mouseup)="syncFormats()"
-        aria-label="Note content"
         aria-multiline="true"
         data-doc
         role="textbox"

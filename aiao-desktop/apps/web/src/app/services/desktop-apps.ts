@@ -99,6 +99,8 @@ export type DockZone = 'apps' | 'trailing';
 interface DesktopAppBase {
   readonly id: DesktopAppId;
   readonly name: string;
+  /** 显示名目录 key（`apps.<id>.name`）；缺省时界面直接用 `name`（如品牌名不译的应用）。 */
+  readonly nameKey?: string;
   readonly icon: string;
   readonly w?: number;
   readonly h?: number;

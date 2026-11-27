@@ -1,4 +1,5 @@
-import { Component, inject } from '@angular/core';
+import { useI18n } from '@aiao/rxdb-i18n-angular';
+import { Component, computed, inject } from '@angular/core';
 
 import { SystemState } from '../../../services/system-state';
 import { WALLPAPERS, WALLPAPER_KEYS, WallpaperService, wallpaperThumb } from '../../../services/wallpaper';
@@ -8,10 +9,10 @@ import { WALLPAPERS, WALLPAPER_KEYS, WallpaperService, wallpaperThumb } from '..
   selector: 'app-wallpaper-pane',
   host: { style: 'display: contents' },
   template: `
-    <div class="st-label">Desktop picture</div>
+    <div class="st-label">{{ i18n.t('shell.wallpaper.desktopPicture') }}</div>
     <div class="st-group">
       <div class="wp-grid">
-        @for (paper of papers; track paper.key) {
+        @for (paper of papers(); track paper.key) {
           <button
             class="wp"
             [attr.aria-pressed]="system.wallpaper() === paper.key"
@@ -32,9 +33,12 @@ import { WALLPAPERS, WALLPAPER_KEYS, WallpaperService, wallpaperThumb } from '..
 export class WallpaperPane {
   protected readonly system = inject(SystemState);
   protected readonly wallpaper = inject(WallpaperService);
-  protected readonly papers = WALLPAPER_KEYS.map(key => ({
-    key,
-    name: WALLPAPERS[key].name,
-    image: `url('${wallpaperThumb(WALLPAPERS[key])}')`
-  }));
+  protected readonly i18n = useI18n();
+  protected readonly papers = computed(() =>
+    WALLPAPER_KEYS.map(key => ({
+      key,
+      name: this.i18n.t(WALLPAPERS[key].name),
+      image: `url('${wallpaperThumb(WALLPAPERS[key])}')`
+    }))
+  );
 }

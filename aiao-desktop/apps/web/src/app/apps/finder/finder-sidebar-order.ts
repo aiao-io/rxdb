@@ -43,7 +43,7 @@ export class FinderSidebarOrder {
     if (from < 0 || from === index || index < 0 || index >= order.length) return false;
 
     moveItemInArray(order, from, index);
-    this.persist(orderKey(head), order, 'Couldn’t save the Finder sidebar order.');
+    this.persist(orderKey(head), order, 'error.finder.sidebarOrderSave');
     return true;
   }
 
@@ -52,7 +52,7 @@ export class FinderSidebarOrder {
     const group = this.groups().find(group => group.head === FAVOURITES_GROUP);
     if (!group?.items.some(([place]) => place === name)) return false;
 
-    this.persist(removedKey(name), true, 'Couldn’t remove the Finder favourite.');
+    this.persist(removedKey(name), true, 'error.finder.favouriteRemove');
     return true;
   }
 
@@ -61,13 +61,13 @@ export class FinderSidebarOrder {
     return guard(pending) ? pending : this.preferences.get(key, guard);
   }
 
-  private persist(key: string, value: SidebarPreference, failure: string): void {
+  private persist(key: string, value: SidebarPreference, failureKey: string): void {
     this.pending.update(pending => new Map(pending).set(key, value));
     void this.preferences.set(key, value).then(
       () => this.clearPending(key, value),
       () => {
         this.clearPending(key, value);
-        this.toast.show(failure);
+        this.toast.show(failureKey);
       }
     );
   }

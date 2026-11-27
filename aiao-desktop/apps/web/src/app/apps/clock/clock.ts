@@ -1,5 +1,7 @@
 import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 
+import { useI18n } from '@aiao/rxdb-i18n-angular';
+
 import { DesktopData } from '../../data/desktop-data';
 import { ALL_ROWS, liveQuery } from '../../data/live-query';
 import { Preferences } from '../../data/preferences';
@@ -40,10 +42,10 @@ const ALARMS_KEY = 'clock:alarms';
 type ClockTab = 'world' | 'alarm' | 'stopwatch' | 'timer';
 
 const TABS: readonly { id: ClockTab; label: string; key: string }[] = [
-  { id: 'world', label: 'World Clock', key: '⌘1' },
-  { id: 'alarm', label: 'Alarm', key: '⌘2' },
-  { id: 'stopwatch', label: 'Stopwatch', key: '⌘3' },
-  { id: 'timer', label: 'Timer', key: '⌘4' }
+  { id: 'world', label: 'apps.clock.worldClock', key: '⌘1' },
+  { id: 'alarm', label: 'apps.clock.alarm', key: '⌘2' },
+  { id: 'stopwatch', label: 'apps.clock.stopwatch', key: '⌘3' },
+  { id: 'timer', label: 'apps.clock.timer', key: '⌘4' }
 ];
 
 /**
@@ -56,7 +58,7 @@ const TABS: readonly { id: ClockTab; label: string; key: string }[] = [
   host: { style: 'display: contents' },
   template: `
     <div class="tb plain" data-drag>
-      <div class="title">Clock</div>
+      <div class="title">{{ i18n.t('apps.clock.clock') }}</div>
       <div class="tbz"><app-traffic-lights /></div>
       <div class="grow"></div>
       <div class="tbz">
@@ -68,7 +70,7 @@ const TABS: readonly { id: ClockTab; label: string; key: string }[] = [
               (click)="tab.set(entry.id)"
               tabindex="0"
             >
-              {{ entry.label }}
+              {{ i18n.t(entry.label) }}
             </button>
           }
         </div>
@@ -90,14 +92,14 @@ const TABS: readonly { id: ClockTab; label: string; key: string }[] = [
           <div style="display: flex; justify-content: flex-end">
             <button
               class="btn"
+              [attr.aria-label]="i18n.t('apps.clock.addCityAria')"
               (click)="openAddCity($event)"
-              aria-label="Add city"
               data-cadd
               data-nodrag
               tabindex="0"
               type="button"
             >
-              Add City
+              {{ i18n.t('apps.clock.addCity') }}
             </button>
           </div>
           <div
@@ -126,12 +128,12 @@ const TABS: readonly { id: ClockTab; label: string; key: string }[] = [
               >
                 <button
                   class="tbtn"
-                  [attr.aria-label]="'Remove ' + zone.city"
+                  [attr.aria-label]="i18n.t('apps.clock.removeCityAria', { city: zone.city })"
+                  [title]="i18n.t('apps.clock.removeCity')"
                   (click)="removeCity(zone.id)"
                   data-ccity-remove
                   style="position: absolute; top: 8px; right: 8px; width: 20px; height: 20px"
                   tabindex="0"
-                  title="Remove city"
                   type="button"
                 >
                   <svg appIcon="g-x" style="width: 10px; height: 10px; margin: auto"></svg>
@@ -153,7 +155,7 @@ const TABS: readonly { id: ClockTab; label: string; key: string }[] = [
           <div style="display: flex; gap: 8px; align-items: center">
             <input
               #alarmTime
-              aria-label="Alarm time"
+              [attr.aria-label]="i18n.t('apps.clock.alarmTime')"
               data-calarm-time
               style="
                 box-sizing: border-box;
@@ -167,7 +169,7 @@ const TABS: readonly { id: ClockTab; label: string; key: string }[] = [
               type="time"
             />
             <button class="btn pri" (click)="addAlarm(alarmTime.value)" data-calarm-add tabindex="0" type="button">
-              Add Alarm
+              {{ i18n.t('apps.clock.addAlarm') }}
             </button>
           </div>
           <div style="display: flex; flex-direction: column; gap: 8px">
@@ -186,7 +188,7 @@ const TABS: readonly { id: ClockTab; label: string; key: string }[] = [
               >
                 <button
                   [attr.aria-checked]="alarm.enabled"
-                  [attr.aria-label]="'Enable ' + alarmLabel(alarm)"
+                  [attr.aria-label]="i18n.t('apps.clock.enableAlarmAria', { time: alarmLabel(alarm) })"
                   [style.background]="alarm.enabled ? '#30d158' : 'var(--txt-3)'"
                   (click)="toggleAlarm(alarm.id)"
                   role="switch"
@@ -223,7 +225,7 @@ const TABS: readonly { id: ClockTab; label: string; key: string }[] = [
                 <div style="flex: 1"></div>
                 <button
                   class="tbtn"
-                  [attr.aria-label]="'Delete alarm at ' + alarmLabel(alarm)"
+                  [attr.aria-label]="i18n.t('apps.clock.deleteAlarmAria', { time: alarmLabel(alarm) })"
                   (click)="removeAlarm(alarm.id)"
                   tabindex="0"
                   type="button"
@@ -232,7 +234,9 @@ const TABS: readonly { id: ClockTab; label: string; key: string }[] = [
                 </button>
               </div>
             } @empty {
-              <div style="padding: 24px; text-align: center; color: var(--txt-3); font-size: 12.5px">No alarms</div>
+              <div style="padding: 24px; text-align: center; color: var(--txt-3); font-size: 12.5px">
+                {{ i18n.t('apps.clock.noAlarms') }}
+              </div>
             }
           </div>
         </div>
@@ -242,7 +246,7 @@ const TABS: readonly { id: ClockTab; label: string; key: string }[] = [
           style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 26px; background: var(--win)"
         >
           <div
-            aria-label="Stopwatch"
+            [attr.aria-label]="i18n.t('apps.clock.stopwatch')"
             aria-live="off"
             role="timer"
             style="font-size: 62px; font-weight: 200; font-variant-numeric: tabular-nums; letter-spacing: -0.02em"
@@ -251,9 +255,11 @@ const TABS: readonly { id: ClockTab; label: string; key: string }[] = [
           </div>
           <div style="display: flex; gap: 10px">
             <button class="btn pri" (click)="stopwatchToggle()" data-stop-toggle tabindex="0" type="button">
-              {{ stopwatchRunning() ? 'Stop' : 'Start' }}
+              {{ stopwatchRunning() ? i18n.t('apps.clock.stop') : i18n.t('apps.clock.start') }}
             </button>
-            <button class="btn" (click)="stopwatchReset()" data-stop-reset tabindex="0" type="button">Reset</button>
+            <button class="btn" (click)="stopwatchReset()" data-stop-reset tabindex="0" type="button">
+              {{ i18n.t('apps.clock.reset') }}
+            </button>
           </div>
         </div>
       }
@@ -263,21 +269,23 @@ const TABS: readonly { id: ClockTab; label: string; key: string }[] = [
         >
           @if (timerRunning()) {
             <div
-              aria-label="Timer"
+              [attr.aria-label]="i18n.t('apps.clock.timer')"
               aria-live="off"
               role="timer"
               style="font-size: 62px; font-weight: 200; font-variant-numeric: tabular-nums; letter-spacing: -0.02em"
             >
               {{ timerText() }}
             </div>
-            <button class="btn" (click)="timerCancel()" data-timer-cancel tabindex="0" type="button">Cancel</button>
+            <button class="btn" (click)="timerCancel()" data-timer-cancel tabindex="0" type="button">
+              {{ i18n.t('apps.clock.cancel') }}
+            </button>
           } @else {
             <div style="display: flex; gap: 8px; align-items: center">
               <input
                 #timerInput
+                [attr.aria-label]="i18n.t('apps.clock.timerDuration')"
                 [value]="timerInputValue()"
                 (input)="timerInputValue.set(timerInput.value)"
-                aria-label="Timer duration"
                 data-timer-input
                 placeholder="5:00"
                 style="
@@ -299,10 +307,10 @@ const TABS: readonly { id: ClockTab; label: string; key: string }[] = [
                 tabindex="0"
                 type="button"
               >
-                Start
+                {{ i18n.t('apps.clock.start') }}
               </button>
             </div>
-            <div style="font-size: 12px; color: var(--txt-2)">Minutes or minutes:seconds, e.g. 5 or 1:30</div>
+            <div style="font-size: 12px; color: var(--txt-2)">{{ i18n.t('apps.clock.timerHint') }}</div>
           }
         </div>
       }
@@ -327,6 +335,7 @@ export class ClockApp {
   private readonly timerEnds = signal<number | null>(null);
 
   protected readonly tabs = TABS;
+  protected readonly i18n = useI18n();
   protected readonly tab = signal<ClockTab>('world');
   protected readonly alarms = this.alarmsState.asReadonly();
   protected readonly timerInputValue = signal('5:00');
@@ -353,17 +362,17 @@ export class ClockApp {
     inject(DesktopWindow).setMenus(
       computed(() =>
         menus.standard('clock', {
-          View: [
+          [this.i18n.t('shell.menu.sectionView')]: [
             ...TABS.map(entry => ({
               id: entry.id,
-              label: entry.label,
+              label: this.i18n.t(entry.label),
               key: entry.key,
               checked: this.tab() === entry.id,
               run: () => this.tab.set(entry.id)
             })),
             '-',
-            { id: 'f', label: 'Enter Full Screen', key: '⌃⌘F', run: () => wm.zoomFront() },
-            { id: 't', label: 'Show Toolbar', key: '⌥⌘T', checked: true }
+            { id: 'f', label: this.i18n.t('shell.menu.enterFullScreen'), key: '⌃⌘F', run: () => wm.zoomFront() },
+            { id: 't', label: this.i18n.t('shell.menu.showToolbar'), key: '⌥⌘T', checked: true }
           ]
         })
       )
@@ -410,8 +419,8 @@ export class ClockApp {
           label: city.city,
           run: () => void this.addCity(city.city, city.offsetHours)
         }))
-      : [{ id: 'none', label: 'All cities added', disabled: true }],
-      { label: 'Add city', keyboard: true }
+      : [{ id: 'none', label: this.i18n.t('apps.clock.allCitiesAdded'), disabled: true }],
+      { label: this.i18n.t('apps.clock.addCityAria'), keyboard: true }
     );
   }
 

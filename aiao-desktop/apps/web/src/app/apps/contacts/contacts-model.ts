@@ -61,13 +61,18 @@ export const normalizeDraft = (draft: ContactDraft): ContactDraft => ({
   address: draft.address.trim()
 });
 
-/** 保存前的表单校验。返回 null 表示可以写入。 */
-export const contactValidationMessage = (draft: ContactDraft): string | null => {
-  if (!draft.name) return 'Name is required.';
-  if (!draft.role) return 'Role is required.';
-  if (!draft.email) return 'Email is required.';
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.email)) return 'Enter a valid email address.';
-  if (!draft.address) return 'Home is required.';
+/**
+ * 保存前的表单校验。返回 null 表示可以写入。
+ * `translate` 可选：调用方注入 i18n 翻译函数时文案按当前语言显示（与 print-document 的服务注入风格一致）。
+ */
+export const contactValidationMessage = (draft: ContactDraft, translate?: (key: string) => string): string | null => {
+  const t = (key: string, english: string): string => translate?.(key) ?? english;
+  if (!draft.name) return t('error.contacts.nameRequired', 'Name is required.');
+  if (!draft.role) return t('error.contacts.roleRequired', 'Role is required.');
+  if (!draft.email) return t('error.contacts.emailRequired', 'Email is required.');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.email))
+    return t('error.contacts.validEmail', 'Enter a valid email address.');
+  if (!draft.address) return t('error.contacts.homeRequired', 'Home is required.');
   return null;
 };
 

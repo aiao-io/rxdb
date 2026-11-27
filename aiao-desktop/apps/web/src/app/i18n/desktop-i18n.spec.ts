@@ -1,9 +1,16 @@
 import { I18n } from '@aiao/rxdb-i18n';
 import { describe, expect, it } from 'vitest';
 
-import { DESKTOP_CATALOGS, DESKTOP_DEFAULT_LOCALE, DESKTOP_I18N_NAMESPACE } from './desktop-i18n';
+import { DESKTOP_CATALOGS_EN, DESKTOP_DEFAULT_LOCALE, DESKTOP_I18N_NAMESPACE } from './desktop-i18n';
 import { DESKTOP_MESSAGES_EN } from './messages-en';
 import { DESKTOP_MESSAGES_ZH } from './messages-zh';
+
+/** spec 用全量目录（zh 生产上懒加载，这里直接静态注册以覆盖 AC1 的回退链）。 */
+const DESKTOP_CATALOGS = [
+  ...DESKTOP_CATALOGS_EN,
+  { locale: 'zh', namespace: DESKTOP_I18N_NAMESPACE, messages: DESKTOP_MESSAGES_ZH },
+  { locale: 'zh-Hans', namespace: DESKTOP_I18N_NAMESPACE, messages: DESKTOP_MESSAGES_ZH }
+];
 
 /** 静态模式：不接库，直接验证目录与回退链（ADESK-US-132 AC1）。 */
 const staticI18n = (deviceLocale: string): I18n =>

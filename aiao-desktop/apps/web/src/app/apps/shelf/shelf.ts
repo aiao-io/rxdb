@@ -1,6 +1,8 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { Component, computed, inject } from '@angular/core';
 
 import { liveQuery } from '../../data/live-query';
+import { appDisplayName } from '../../services/desktop-app-name';
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
 import { Icon } from '../../shared/icon';
@@ -31,13 +33,13 @@ const appIs = (app: ShelfAppId) => ({
   host: { style: 'display: contents' },
   template: `
     <div class="tb" data-drag>
-      <div class="title">{{ name }}</div>
+      <div class="title">{{ name() }}</div>
       <div class="tbz"><app-traffic-lights /></div>
       <div class="grow"></div>
       <div class="tbz">
         <div class="sfield" data-nodrag style="width: 160px">
           <span><svg appIcon="g-search"></svg></span>
-          <input placeholder="Search" />
+          <input [placeholder]="i18n.t('apps.shelf.search')" />
         </div>
       </div>
     </div>
@@ -48,7 +50,7 @@ const appIs = (app: ShelfAppId) => ({
         <div style="margin-bottom: 26px">
           <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 11px">
             <h3 style="margin: 0; font-size: 16px; font-weight: 650; letter-spacing: -0.015em">{{ row.head }}</h3>
-            <span style="font-size: 11.5px; color: var(--blue)">See All</span>
+            <span style="font-size: 11.5px; color: var(--blue)">{{ i18n.t('apps.shelf.seeAll') }}</span>
           </div>
           <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 16px 14px">
             @for (item of row.items; track item.id) {
@@ -80,8 +82,10 @@ export class ShelfApp {
     [],
     ShelfItem
   );
+  protected readonly i18n = useI18n();
 
-  protected readonly name = this.win.app.name;
+  /** 标题栏的应用显示名：清单有 nameKey 的应用按当前语言显示（ADESK-US-132 AC12）。 */
+  protected readonly name = computed(() => appDisplayName(this.i18n, this.win.app));
   protected readonly title = SHELF_TITLES[this.shelf];
   /** 页面顶部的副标题：第一行的副标题。 */
   protected readonly subtitle = computed(() => this.sections().at(0)?.note ?? '');

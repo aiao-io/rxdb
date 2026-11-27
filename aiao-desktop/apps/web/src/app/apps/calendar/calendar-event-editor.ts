@@ -1,5 +1,7 @@
 import { Component, afterNextRender, inject, input } from '@angular/core';
 
+import { useI18n } from '@aiao/rxdb-i18n-angular';
+
 import { PopoverService } from '../../services/popover';
 import { Toast } from '../../services/toast';
 import { MONS3 } from '../../shared/format';
@@ -17,22 +19,24 @@ export type EditorResult = (saved: EventDate | null) => void;
   host: {
     class: 'pop ce',
     role: 'dialog',
-    'aria-label': 'Calendar event editor',
+    '[attr.aria-label]': "i18n.t('apps.calendar.eventEditor')",
     style: 'width: 340px',
     '(keydown)': 'key($event)'
   },
   template: `
     <div class="ce-top">
-      <div class="ce-title">{{ editor().base() ? 'Event' : 'New Event' }}</div>
+      <div class="ce-title">
+        {{ editor().base() ? i18n.t('apps.calendar.event') : i18n.t('apps.calendar.newEvent') }}
+      </div>
       @if (editor().base(); as event) {
         <button
           class="tbtn"
+          [attr.aria-label]="i18n.t('apps.calendar.deleteEvent')"
           [disabled]="editor().saving()"
+          [title]="i18n.t('apps.calendar.delete')"
           (click)="remove()"
-          aria-label="Delete event"
           data-del
           tabindex="0"
-          title="Delete"
         >
           <svg appIcon="g-trash"></svg>
         </button>
@@ -42,37 +46,37 @@ export type EditorResult = (saved: EventDate | null) => void;
       <input
         class="ce-name"
         #name
+        [attr.aria-label]="i18n.t('apps.calendar.eventTitle')"
         [disabled]="editor().saving()"
+        [placeholder]="i18n.t('apps.calendar.newEvent')"
         [value]="value.title"
         (input)="editor().edit({ title: name.value })"
-        aria-label="Event title"
         data-f="t"
-        placeholder="New Event"
         spellcheck="false"
         tabindex="0"
       />
       <input
         class="ce-loc"
         #location
+        [attr.aria-label]="i18n.t('apps.calendar.location')"
         [disabled]="editor().saving()"
+        [placeholder]="i18n.t('apps.calendar.addLocation')"
         [value]="value.location"
         (input)="editor().edit({ location: location.value })"
-        aria-label="Location"
         data-f="loc"
-        placeholder="Add Location"
         spellcheck="false"
         tabindex="0"
       />
       <div class="ce-body">
         <div class="ce-row">
-          <span>all-day</span>
+          <span>{{ i18n.t('apps.calendar.allDay') }}</span>
           <button
             class="sw"
             [attr.aria-checked]="value.allDay"
+            [attr.aria-label]="i18n.t('apps.calendar.allDayEvent')"
             [class.on]="value.allDay"
             [disabled]="editor().saving()"
             (click)="toggleAllDay(value.allDay)"
-            aria-label="All-day event"
             data-allday
             role="switch"
             style="margin-left: auto; transform: scale(0.82); transform-origin: left center"
@@ -83,13 +87,13 @@ export type EditorResult = (saved: EventDate | null) => void;
           </button>
         </div>
         <div class="ce-row">
-          <span>date</span>
+          <span>{{ i18n.t('apps.calendar.dateRow') }}</span>
           <input
             #date
+            [attr.aria-label]="i18n.t('apps.calendar.date')"
             [disabled]="editor().saving()"
             [value]="value.date"
             (input)="editor().edit({ date: date.value })"
-            aria-label="Date"
             data-f="date"
             spellcheck="false"
             tabindex="0"
@@ -98,26 +102,26 @@ export type EditorResult = (saved: EventDate | null) => void;
         @if (!value.allDay) {
           <div data-times>
             <div class="ce-row">
-              <span>from</span>
+              <span>{{ i18n.t('apps.calendar.fromRow') }}</span>
               <input
                 #from
+                [attr.aria-label]="i18n.t('apps.calendar.startTime')"
                 [disabled]="editor().saving()"
                 [value]="value.from"
                 (input)="editor().edit({ from: from.value })"
-                aria-label="Start time"
                 data-f="from"
                 spellcheck="false"
                 tabindex="0"
               />
             </div>
             <div class="ce-row">
-              <span>to</span>
+              <span>{{ i18n.t('apps.calendar.toRow') }}</span>
               <input
                 #to
+                [attr.aria-label]="i18n.t('apps.calendar.endTime')"
                 [disabled]="editor().saving()"
                 [value]="value.to"
                 (input)="editor().edit({ to: to.value })"
-                aria-label="End time"
                 data-f="to"
                 spellcheck="false"
                 tabindex="0"
@@ -126,7 +130,7 @@ export type EditorResult = (saved: EventDate | null) => void;
           </div>
         }
         <div class="ce-row">
-          <span>calendar</span>
+          <span>{{ i18n.t('apps.calendar.calendar') }}</span>
           <div class="ce-cals" style="margin-left: auto">
             @for (cal of calendars(); track cal.id) {
               <button
@@ -150,35 +154,39 @@ export type EditorResult = (saved: EventDate | null) => void;
       <textarea
         class="ce-notes"
         #notes
+        [attr.aria-label]="i18n.t('apps.calendar.notes')"
         [disabled]="editor().saving()"
+        [placeholder]="i18n.t('apps.calendar.addNotes')"
         [value]="value.notes"
         (input)="editor().edit({ notes: notes.value })"
-        aria-label="Notes"
         data-f="notes"
-        placeholder="Add Notes"
         spellcheck="false"
         tabindex="0"
       ></textarea>
       <div aria-live="polite" role="status" style="padding: 6px 14px; font-size: 12px">
         {{
-          editor().saving() ? 'Saving…'
-          : editor().dirty() ? 'Unsaved changes'
-          : 'Saved'
+          editor().saving() ? i18n.t('apps.calendar.saving')
+          : editor().dirty() ? i18n.t('apps.calendar.unsaved')
+          : i18n.t('apps.calendar.saved')
         }}
       </div>
       @if (editor().error(); as problem) {
         <p role="alert" style="margin: 6px 14px; overflow-wrap: anywhere">{{ problem }}</p>
       }
       <div class="ce-foot">
-        <button class="btn" (click)="cancel()" data-cancel tabindex="0">Close</button>
+        <button class="btn" (click)="cancel()" data-cancel tabindex="0">{{ i18n.t('apps.calendar.close') }}</button>
         @if (editor().dirty()) {
-          <button class="btn" [disabled]="editor().saving()" (click)="discard()" tabindex="0">Discard Changes</button>
+          <button class="btn" [disabled]="editor().saving()" (click)="discard()" tabindex="0">
+            {{ i18n.t('apps.calendar.discardChanges') }}
+          </button>
         }
         @if (editor().error()) {
-          <button class="btn" [disabled]="editor().saving()" (click)="saveCopy()" tabindex="0">Save a Copy</button>
+          <button class="btn" [disabled]="editor().saving()" (click)="saveCopy()" tabindex="0">
+            {{ i18n.t('apps.calendar.saveCopy') }}
+          </button>
         }
         <button class="btn pri" [disabled]="editor().saving()" (click)="save()" data-save tabindex="0">
-          {{ editor().base() ? 'Done' : 'Add' }}
+          {{ editor().base() ? i18n.t('apps.calendar.done') : i18n.t('apps.calendar.add') }}
         </button>
       </div>
     }
@@ -187,6 +195,7 @@ export type EditorResult = (saved: EventDate | null) => void;
 export class CalendarEventEditor {
   private readonly popover = inject(PopoverService);
   private readonly toast = inject(Toast);
+  protected readonly i18n = useI18n();
   readonly editor = input.required<CalendarDraftEditor>();
   readonly calendars = input.required<readonly { readonly id: string; readonly name: string; readonly c: string }[]>();
   readonly done = input.required<EditorResult>();
@@ -215,7 +224,7 @@ export class CalendarEventEditor {
     if (!event || !(await this.editor().remove())) return;
     this.popover.close(false, 'command');
     this.done()(null);
-    this.toast.show('Event deleted');
+    this.toast.show('apps.calendar.eventDeleted');
   }
 
   protected async saveCopy(): Promise<void> {
@@ -227,11 +236,14 @@ export class CalendarEventEditor {
     if (!(await this.editor().save())) return;
     const value = this.editor().value();
     if (!value) return;
-    const date = parseCalendarInput(value).d;
+    const date = parseCalendarInput(value, key => this.i18n.t(key)).d;
     const title = value.title.trim();
     this.popover.close(false, 'command');
     this.done()(date);
-    this.toast.show(this.editor().base() ? `Saved “${title}”` : `Added “${title}” on ${MONS3[date[1]]} ${date[2]}`);
+    this.toast.show(
+      this.editor().base() ? 'apps.calendar.savedEvent' : 'apps.calendar.addedEvent',
+      this.editor().base() ? { name: title } : { name: title, date: `${MONS3[date[1]]} ${date[2]}` }
+    );
   }
 
   protected key(event: KeyboardEvent): void {

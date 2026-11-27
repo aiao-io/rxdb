@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { Component, ElementRef, computed, inject, input, linkedSignal, output, signal } from '@angular/core';
 
 import { DESKTOP, DiskPath, HOME, TRASH, isWithin } from '../../disk/disk-path';
@@ -16,14 +17,12 @@ import type { FileOperationRequest } from './finder-model';
         <h2>{{ title() }}</h2>
         @switch (request().kind) {
           @case ('restore') {
-            <p>Restore “{{ request().node.name }}” to a folder in your home directory. Existing files will be kept.</p>
+            <p>
+              {{ i18n.t('apps.finder.restoreDialogMessage', { name: request().node.name }) }}
+            </p>
             <label
-              >Destination folder<select
-                #folder
-                [disabled]="busy()"
-                [value]="destination()"
-                (change)="destination.set(folder.value)"
-              >
+              >{{ i18n.t('apps.finder.destinationFolder')
+              }}<select #folder [disabled]="busy()" [value]="destination()" (change)="destination.set(folder.value)">
                 @for (choice of folders(); track choice.value) {
                   <option [value]="choice.value">{{ choice.label }}</option>
                 }
@@ -33,18 +32,19 @@ import type { FileOperationRequest } from './finder-model';
           @case ('open-with') {
             @if (applications().length) {
               <label
-                >Application<select #app [value]="application()" (change)="application.set(app.value)">
+                >{{ i18n.t('apps.finder.application')
+                }}<select #app [value]="application()" (change)="application.set(app.value)">
                   @for (choice of applications(); track choice.id) {
-                    <option [value]="choice.id">{{ choice.name }}</option>
+                    <option [value]="choice.id">{{ choice.nameKey ? i18n.t(choice.nameKey) : choice.name }}</option>
                   }
                 </select></label
               >
               <label class="chk">
                 <input #always [checked]="alwaysOpen()" (change)="alwaysOpen.set(always.checked)" type="checkbox" />
-                Always Open With
+                {{ i18n.t('apps.finder.alwaysOpenWith') }}
               </label>
             } @else {
-              <p>No installed application supports this file.</p>
+              <p>{{ i18n.t('apps.finder.noAppSupportsFile') }}</p>
             }
           }
         }
@@ -52,13 +52,15 @@ import type { FileOperationRequest } from './finder-model';
           <p role="alert">{{ error() }}</p>
         }
         <div class="actions">
-          <button [disabled]="busy()" (click)="cancel()" tabindex="0" type="button">Cancel</button>
+          <button [disabled]="busy()" (click)="cancel()" tabindex="0" type="button">
+            {{ i18n.t('apps.finder.cancel') }}
+          </button>
           <button
             [disabled]="busy() || (request().kind === 'open-with' && !applications().length)"
             tabindex="0"
             type="submit"
           >
-            {{ busy() ? 'Working…' : action() }}
+            {{ busy() ? i18n.t('apps.finder.working') : i18n.t(action()) }}
           </button>
         </div>
       </form>
@@ -137,6 +139,7 @@ export class FileOperationDialog {
   private readonly fs = inject(FileSystem);
   private readonly opener = inject(FileOpener);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+  protected readonly i18n = useI18n();
   protected readonly busy = signal(false);
   protected readonly error = signal('');
   protected readonly destination = signal(JSON.stringify(DESKTOP));
@@ -148,9 +151,13 @@ export class FileOperationDialog {
     computation: (applications, previous) =>
       previous && applications.some(app => app.id === previous.value) ? previous.value : (applications[0]?.id ?? '')
   });
-  protected readonly action = computed(() => ({ restore: 'Restore', 'open-with': 'Open' })[this.request().kind]);
-  protected readonly title = computed(
-    () => `${this.request().kind === 'open-with' ? 'Open With' : this.action()} “${this.request().node.name}”`
+  protected readonly action = computed(
+    () => ({ restore: 'apps.finder.restoreAction', 'open-with': 'shell.menu.open' })[this.request().kind]
+  );
+  protected readonly title = computed(() =>
+    this.i18n.t(this.request().kind === 'open-with' ? 'apps.finder.openWith' : 'apps.finder.restoreTitle', {
+      name: this.request().node.name
+    })
   );
   protected readonly folders = computed(() => {
     const pending = [this.fs.nodeAt(HOME)];
@@ -192,15 +199,15 @@ export class FileOperationDialog {
   private async execute(request: FileOperationRequest, path: DiskPath): Promise<DiskPath> {
     if (request.kind === 'restore') {
       const destination = this.folders().find(folder => folder.value === this.destination());
-      if (!destination) throw new Error('Choose an existing destination folder.');
+      if (!destination) throw new Error(this.i18n.t('error.finder.chooseDestination'));
       return this.fs.restore(path, destination.path);
     }
     /* 下拉当前值取提交时刻的 DOM，不依赖信号的更新时序。 */
     const value = this.host.querySelector<HTMLSelectElement>('select')?.value;
     const app = this.applications().find(app => app.id === value);
-    if (!app) throw new Error('Choose an available application.');
+    if (!app) throw new Error(this.i18n.t('error.finder.chooseApplication'));
     if (this.alwaysOpen()) await this.opener.setDefaultApp(request.node, app.id);
-    if (!this.opener.openApp(app.id, request.node)) throw new Error('Choose an available application.');
+    if (!this.opener.openApp(app.id, request.node)) throw new Error(this.i18n.t('error.finder.chooseApplication'));
     return path;
   }
 }

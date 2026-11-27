@@ -11,7 +11,7 @@ export interface NoteWrite {
 }
 
 export class NoteSaveError extends Error {
-  constructor(kind: 'conflict' | 'missing') {
+  constructor(readonly kind: 'conflict' | 'missing') {
     super(
       kind === 'conflict' ?
         'This note changed in another window. Save a copy or discard your changes to load the saved note.'
@@ -20,9 +20,19 @@ export class NoteSaveError extends Error {
   }
 }
 
-/** 用户反馈保留可操作原因，不直接展示数据库异常。 */
-export function noteFailureMessage(error: unknown): string {
-  if (error instanceof NoteSaveError) return error.message;
+/**
+ * 用户反馈保留可操作原因，不直接展示数据库异常。
+ * `translate` 可选：调用方注入 i18n 翻译函数时文案按当前语言显示。
+ */
+export function noteFailureMessage(
+  error: unknown,
+  translate?: (key: string, params?: Record<string, unknown>) => string
+): string {
+  if (error instanceof NoteSaveError)
+    return (
+      translate?.(error.kind === 'conflict' ? 'error.notes.changedInAnotherWindow' : 'error.notes.noLongerAvailable') ??
+      error.message
+    );
   return localWriteFailureMessage(error);
 }
 
@@ -47,7 +57,10 @@ export class NoteDocument {
     return value !== null && base !== null && !sameNoteContent(value, base);
   });
 
-  constructor(private readonly write: (change: NoteWrite) => Promise<void>) {}
+  constructor(
+    private readonly write: (change: NoteWrite) => Promise<void>,
+    private readonly translate?: (key: string, params?: Record<string, unknown>) => string
+  ) {}
 
   open(note: NoteSnapshot | null): boolean {
     return !this.dirty() && this.discard(note);
@@ -99,7 +112,7 @@ export class NoteDocument {
       }
       return !this.disposed;
     } catch (error) {
-      if (!this.disposed) this.failure.set(noteFailureMessage(error));
+      if (!this.disposed) this.failure.set(noteFailureMessage(error, this.translate));
       return false;
     }
   }

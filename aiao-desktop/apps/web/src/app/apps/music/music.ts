@@ -1,5 +1,8 @@
 import { Component, DestroyRef, computed, effect, inject, signal, untracked } from '@angular/core';
 import { combineLatest, map } from 'rxjs';
+
+import { useI18n } from '@aiao/rxdb-i18n-angular';
+
 import { DesktopAppServices } from '../../services/desktop-app-services';
 
 import { ALL_ROWS, liveQuery } from '../../data/live-query';
@@ -19,33 +22,42 @@ import { NowPlaying } from './now-playing';
 import { Synth } from './synth';
 
 interface SidebarGroup {
-  readonly head: string;
-  readonly items: readonly (readonly [name: string, icon: string])[];
+  /** 组标题的目录键。 */
+  readonly key: string;
+  /** 每一项：内部名（用于视图切换与测试钩子）、图标与可选的目录键；没有键的项目（歌单）按名字原样显示。 */
+  readonly items: readonly (readonly [name: string, icon: string, label?: string])[];
 }
 
 /** 侧栏里固定的两组；第三组 Playlists 来自库里的歌单。 */
 const SIDEBAR_FIXED: readonly SidebarGroup[] = [
   {
-    head: 'Apple Music',
+    key: 'apps.music.appleMusic',
     items: [
-      ['Home', 'g-globe'],
-      ['New', 'g-star'],
-      ['Radio', 'g-airplay']
+      ['Home', 'g-globe', 'apps.music.home'],
+      ['New', 'g-star', 'apps.music.new'],
+      ['Radio', 'g-airplay', 'apps.music.radio']
     ]
   },
   {
-    head: 'Library',
+    key: 'apps.music.library',
     items: [
-      ['Recently Added', 'g-clock-a'],
-      ['Artists', 'g-hand'],
-      ['Albums', 'g-grid'],
-      ['Songs', 'g-list'],
-      ['Made for You', 'g-star']
+      ['Recently Added', 'g-clock-a', 'apps.music.recentlyAdded'],
+      ['Artists', 'g-hand', 'apps.music.artists'],
+      ['Albums', 'g-grid', 'apps.music.albums'],
+      ['Songs', 'g-list', 'apps.music.songs'],
+      ['Made for You', 'g-star', 'apps.music.madeForYou']
     ]
   }
 ];
 
-const MENU_ORDER = ['File', 'Edit', 'View', 'Controls', 'Window', 'Help'];
+/** 侧栏视图名的目录键；歌单名等不在清单里的原样返回。 */
+const viewKey = (name: string): string => {
+  for (const group of SIDEBAR_FIXED) {
+    const item = group.items.find(([viewName]) => viewName === name);
+    if (item?.[2]) return item[2];
+  }
+  return name;
+};
 
 type MusicBody = 'search' | 'songs' | 'artists' | 'albums';
 
@@ -85,13 +97,14 @@ export class MusicApp {
   /** 拖动进度条时只动标签，松手再重新起音，免得合成器每次指针移动都拆了重建。 */
   private scrubbing = false;
 
+  protected readonly i18n = useI18n();
   protected readonly system = inject(SystemState);
   protected readonly albums = computed(() => this.library().albums);
   protected readonly artists = computed(() => this.library().artists);
   protected readonly songs = computed(() => this.library().songs);
   protected readonly sidebar = computed<readonly SidebarGroup[]>(() => [
     ...SIDEBAR_FIXED,
-    { head: 'Playlists', items: this.playlists().map(playlist => [playlist.name, 'g-list'] as const) }
+    { key: 'apps.music.playlists', items: this.playlists().map(playlist => [playlist.name, 'g-list'] as const) }
   ]);
   protected readonly cursor = signal(0);
   protected readonly query = signal('');
@@ -124,15 +137,22 @@ export class MusicApp {
     const songs = this.songs();
     return query ? songs.filter(row => row.haystack.includes(query)) : songs;
   });
-  protected readonly title = computed(() => (this.query() ? `Search: ${this.query()}` : this.view()));
+  protected readonly title = computed(() =>
+    this.query() ? this.i18n.t('apps.music.searchTitle', { query: this.query() }) : this.i18n.t(viewKey(this.view()))
+  );
   protected readonly count = computed(() => {
     const body = this.body();
-    if (body === 'search') return `${this.rows().length} result${this.rows().length === 1 ? '' : 's'}`;
+    if (body === 'search') {
+      const count = this.rows().length;
+      return this.i18n.t(count === 1 ? 'apps.music.resultCountOne' : 'apps.music.resultCountMany', { count });
+    }
     if (body === 'songs') {
       const total = this.songs().reduce((sum, song) => sum + song.duration, 0);
-      return `${this.songs().length} songs · ${mmss(total)}`;
+      return this.i18n.t('apps.music.songCount', { count: this.songs().length, time: mmss(total) });
     }
-    return body === 'artists' ? `${this.artists().length} artists` : `${this.albums().length} albums`;
+    return body === 'artists' ?
+        this.i18n.t('apps.music.artistsCount', { count: this.artists().length })
+      : this.i18n.t('apps.music.albumsCount', { count: this.albums().length });
   });
 
   constructor() {
@@ -142,22 +162,35 @@ export class MusicApp {
         menus.standard(
           'music',
           {
-            Controls: [
-              { id: 'p', label: 'Play', key: '␣', run: () => this.toggle() },
-              { id: 'n', label: 'Next', key: '⌘→', run: () => this.skip(1) },
-              { id: 'b', label: 'Previous', key: '⌘←', run: () => this.skip(-1) },
+            [this.i18n.t('apps.music.controls')]: [
+              { id: 'p', label: this.i18n.t('apps.music.play'), key: '␣', run: () => this.toggle() },
+              { id: 'n', label: this.i18n.t('apps.music.next'), key: '⌘→', run: () => this.skip(1) },
+              { id: 'b', label: this.i18n.t('apps.music.previous'), key: '⌘←', run: () => this.skip(-1) },
               '-',
               {
                 id: 's',
-                label: 'Shuffle',
+                label: this.i18n.t('apps.music.shuffle'),
                 key: '⌘S',
                 checked: this.shuffle(),
                 run: () => this.shuffle.update(on => !on)
               },
-              { id: 'r', label: 'Repeat', key: '⌘R', checked: this.repeat(), run: () => this.repeat.update(on => !on) }
+              {
+                id: 'r',
+                label: this.i18n.t('apps.music.repeat'),
+                key: '⌘R',
+                checked: this.repeat(),
+                run: () => this.repeat.update(on => !on)
+              }
             ]
           },
-          MENU_ORDER
+          [
+            this.i18n.t('shell.menu.sectionFile'),
+            this.i18n.t('shell.menu.sectionEdit'),
+            this.i18n.t('shell.menu.sectionView'),
+            this.i18n.t('apps.music.controls'),
+            this.i18n.t('shell.menu.sectionWindow'),
+            this.i18n.t('shell.menu.sectionHelp')
+          ]
         )
       )
     );
@@ -246,26 +279,26 @@ export class MusicApp {
     this.popover.contextMenu(
       event,
       [
-        { id: 'p', label: 'Play', run: () => this.play(row.index) },
+        { id: 'p', label: this.i18n.t('apps.music.play'), run: () => this.play(row.index) },
         {
           id: 'n',
-          label: 'Play Next',
-          run: () => this.toast.show('Play Next is not available in this local library yet')
+          label: this.i18n.t('apps.music.playNext'),
+          run: () => this.toast.show('apps.music.playNextUnavailable')
         },
         {
           id: 'a',
-          label: 'Add to Playlist',
+          label: this.i18n.t('apps.music.addToPlaylist'),
           submenu:
             this.playlists().length ?
               this.playlists().map(playlist => ({
                 id: `pl-${playlist.name}`,
                 label: playlist.name,
-                run: () => this.toast.show('Playlist editing is not available in this local library yet')
+                run: () => this.toast.show('apps.music.playlistEditingUnavailable')
               }))
-            : [{ id: 'none', label: 'No Playlists', disabled: true }]
+            : [{ id: 'none', label: this.i18n.t('apps.music.noPlaylists'), disabled: true }]
         }
       ],
-      'song'
+      this.i18n.t('apps.music.songAria')
     );
   }
 

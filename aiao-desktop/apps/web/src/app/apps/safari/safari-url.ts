@@ -105,15 +105,19 @@ export function videoId(url: string): string | undefined {
   return (text.match(/[?&]v=([\w-]{6,})/) ?? text.match(/youtu\.be\/([\w-]{6,})/))?.[1];
 }
 
-/** 标题要在内容到达之前就定下来，否则标签条会闪。 */
-export function titleFor(url: string): string {
+/**
+ * 标题要在内容到达之前就定下来，否则标签条会闪。
+ * `t` 提供时界面回退词与后缀随语言显示；缺省保持英文——存进库里的书签名走数据路径，不随界面语言变化。
+ */
+export function titleFor(url: string, t?: (key: string) => string): string {
   const site = LOCAL_SITES.get(bare(url));
   if (site) return site.title;
   const kind = kindOf(url);
-  if (kind === 'start') return 'Start Page';
-  if (kind === 'file') return filePathOf(url)?.at(-1) ?? 'File';
-  if (kind === 'wiki') return `${wikiTitle(url).replace(/_/g, ' ')} — Wikipedia`;
-  if (kind === 'search') return `${url} — Search`;
+  if (kind === 'start') return t ? t('apps.safari.startPage') : 'Start Page';
+  if (kind === 'file') return filePathOf(url)?.at(-1) ?? (t ? t('apps.safari.file') : 'File');
+  if (kind === 'wiki')
+    return `${wikiTitle(url).replace(/_/g, ' ')}${t ? t('apps.safari.title.wikipediaSuffix') : ' — Wikipedia'}`;
+  if (kind === 'search') return `${url}${t ? t('apps.safari.title.searchSuffix') : ' — Search'}`;
   return hostOf(url);
 }
 

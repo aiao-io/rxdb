@@ -1,5 +1,7 @@
 import { Component, ElementRef, afterNextRender, input, viewChild } from '@angular/core';
 
+import { useI18n } from '@aiao/rxdb-i18n-angular';
+
 import { Icon } from '../../shared/icon';
 
 const SUGGESTIONS = ['Anna Haro', 'David Taylor', 'Kate Bell', 'Mom'] as const;
@@ -10,10 +12,15 @@ const SUGGESTIONS = ['Anna Haro', 'David Taylor', 'Kate Bell', 'Mom'] as const;
   imports: [Icon],
   host: { class: 'pop', style: 'width: 290px; padding: 12px' },
   template: `
-    <div style="font-size: 12.5px; font-weight: 600; margin-bottom: 8px">New FaceTime</div>
+    <div style="font-size: 12.5px; font-weight: 600; margin-bottom: 8px">{{ i18n.t('apps.facetime.newFaceTime') }}</div>
     <div class="sfield" style="width: 100%">
       <span><svg appIcon="g-search"></svg></span>
-      <input #field (keydown.enter)="go(field.value)" placeholder="Name or email" spellcheck="false" />
+      <input
+        #field
+        [placeholder]="i18n.t('apps.facetime.nameOrEmail')"
+        (keydown.enter)="go(field.value)"
+        spellcheck="false"
+      />
     </div>
     <div
       style="
@@ -40,13 +47,14 @@ const SUGGESTIONS = ['Anna Haro', 'David Taylor', 'Kate Bell', 'Mom'] as const;
       }
     </div>
     <button class="btn pri" (click)="go(field.value)" data-go style="width: 100%; height: 26px; margin-top: 10px">
-      FaceTime
+      {{ i18n.t('apps.facetime.faceTime') }}
     </button>
   `
 })
 export class NewFaceTime {
   private readonly field = viewChild.required<ElementRef<HTMLInputElement>>('field');
 
+  protected readonly i18n = useI18n();
   protected readonly suggestions = SUGGESTIONS;
   /** 拨号回调：由 FaceTime 窗口传入，空名字由它负责提示。 */
   readonly dial = input.required<(name: string) => void>();

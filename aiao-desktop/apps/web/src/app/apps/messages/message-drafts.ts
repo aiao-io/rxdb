@@ -14,12 +14,15 @@ export interface MessageDraft extends LocalMessage {
   readonly error: string;
 }
 
+/** 信息保存失败：`translate` 可选，未注入时保持英文（与 print-document 风格一致）。 */
 export class MessageSaveError extends Error {
-  constructor(kind: 'missing' | 'conflict') {
+  constructor(kind: 'missing' | 'conflict', translate?: (key: string) => string) {
     super(
       kind === 'missing' ?
-        'This conversation is no longer available. Your draft is still here.'
-      : 'A saved message has different content. Your draft is still here.'
+        (translate?.('error.messages.conversationUnavailable') ??
+          'This conversation is no longer available. Your draft is still here.')
+      : (translate?.('error.messages.savedMessageConflict') ??
+          'A saved message has different content. Your draft is still here.')
     );
   }
 }
@@ -36,7 +39,8 @@ export class MessageDrafts {
 
   constructor(
     private readonly write: (message: LocalMessage) => Promise<void>,
-    private readonly createId: () => ChatMessage['id'] = () => crypto.randomUUID()
+    private readonly createId: () => ChatMessage['id'] = () => crypto.randomUUID(),
+    private readonly translate?: (key: string) => string
   ) {}
 
   get(threadId: string): MessageDraft | undefined {
@@ -75,7 +79,7 @@ export class MessageDrafts {
             this.put({
               ...draft,
               saving: false,
-              error: error instanceof MessageSaveError ? error.message : localWriteFailureMessage(error)
+              error: error instanceof MessageSaveError ? error.message : localWriteFailureMessage(error, this.translate)
             });
           return false;
         }

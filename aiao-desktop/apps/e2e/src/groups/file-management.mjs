@@ -685,7 +685,7 @@ export const fileManagement = {
     await openItem('Interface Guidelines.pdf');
     const preview = helpers.win('preview');
     await expect(preview.locator('[data-pv-canvas]')).toBeVisible();
-    await expect(preview.locator('[data-pv-nav]')).toContainText(/1 of \d+/);
+    await expect(preview.locator('[data-pv-nav]')).toContainText(/1\s+of\s+\d+/);
     const guidelinesWidth = await preview.locator('[data-pv-canvas]').evaluate(canvas => canvas.width);
     await closeWin('preview');
     await importFiles([payload('real.pdf', realPdf())]);

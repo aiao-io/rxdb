@@ -85,7 +85,7 @@ export const contentActions = {
     preview = helpers.win('preview');
     /* PDF 按页渲染：画布与页码导航可见（早期 [data-pv-sheet] 文本视图已随按页渲染移除）。 */
     await expect(preview.locator('[data-pv-canvas]')).toBeVisible();
-    await expect(preview.locator('[data-pv-nav]')).toContainText(/1 of \d+/);
+    await expect(preview.locator('[data-pv-nav]')).toContainText(/1\s+of\s+\d+/);
     const stop = await pressUntil(page, focus => focus.app === 'preview' && focus.name === 'Share');
     expect(stop.found).toBe(true);
     await page.keyboard.press('Enter');

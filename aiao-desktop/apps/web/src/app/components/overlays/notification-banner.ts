@@ -1,6 +1,8 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { Component, DestroyRef, effect, inject } from '@angular/core';
 
 import { AppNotifications } from '../../services/app-notifications';
+import { appDisplayName } from '../../services/desktop-app-name';
 import { Icon } from '../../shared/icon';
 
 /** 横幅自动消失的时长（毫秒）：5 秒，指针悬停期间暂停计时。 */
@@ -29,7 +31,7 @@ export const BANNER_AUTO_DISMISS_MS = 5_000;
       >
         <button
           class="nb-x"
-          [attr.aria-label]="'Dismiss notification from ' + banner.app.name"
+          [attr.aria-label]="i18n.t('shell.notificationCentre.dismissBanner', { app: appName(banner.app) })"
           (click)="notes.dismissBanner(banner.id)"
           tabindex="0"
           type="button"
@@ -38,14 +40,16 @@ export const BANNER_AUTO_DISMISS_MS = 5_000;
         </button>
         <button
           class="nb-main"
-          [attr.aria-label]="'Open ' + banner.app.name + ': ' + banner.title"
+          [attr.aria-label]="
+            i18n.t('shell.notificationCentre.openNote', { app: appName(banner.app), title: banner.title })
+          "
           (click)="notes.bannerOpen(banner.id)"
           tabindex="0"
           type="button"
         >
           <svg class="nb-icon" [appIcon]="banner.app.icon"></svg>
           <span class="nb-txt">
-            <span class="nb-app" data-nb-app>{{ banner.app.name }}</span>
+            <span class="nb-app" data-nb-app>{{ appName(banner.app) }}</span>
             <b data-nb-title>{{ banner.title }}</b>
             <span class="nb-body" data-nb-body>{{ banner.body }}</span>
           </span>
@@ -149,6 +153,8 @@ export class NotificationBanner {
   private readonly timers = new Map<string, ReturnType<typeof setTimeout>>();
   private readonly paused = new Set<string>();
   protected readonly notes = inject(AppNotifications);
+  protected readonly i18n = useI18n();
+  protected readonly appName = appDisplayName.bind(null, this.i18n);
 
   constructor() {
     effect(() => {

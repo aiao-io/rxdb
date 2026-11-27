@@ -54,8 +54,8 @@ capabilities: [rxdb:US-911]
 | 阶段 | 交付                                                               | 状态 |
 | ---- | ------------------------------------------------------------------ | ---- |
 | 1    | 框架接线 + 外壳/设置面目录化 + 语言与地区分区 + e2e 钉语言与语言组 | ✅   |
-| 2    | 30 个内置应用与错误消息目录化、应用显示名、格式化接线              | ⬜   |
-| 3    | 旧库升级账本、构建体积自查、verify 全绿与发布                      | ⬜   |
+| 2    | 30 个内置应用与错误消息目录化、应用显示名、格式化接线              | ⚠️   |
+| 3    | 旧库升级账本、构建体积自查、verify 全绿与发布                      | ⚠️   |
 
 ## 验收标准
 
@@ -77,9 +77,9 @@ capabilities: [rxdb:US-911]
 
 | #   | 前置条件        | 操作                                                                | 预期结果                                                                                        | 状态 |
 | --- | --------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ---- |
-| 10  | 阶段 1 完成     | 逐个打开 30 个内置应用                                              | 用户可见文案走目录（zh 下为中文，en 下与原文逐字一致）                                          | ⬜   |
-| 11  | 阶段 1 完成     | 触发各服务的错误消息（github、桌面数据、存储等）                    | 面向用户的错误消息走 error.* 目录，开发向字符串保持原样                                         | ⬜   |
-| 12  | 阶段 2 文案完成 | 切到中文                                                            | 启动台/聚焦搜索/Dock 的应用显示名显示中文（访达/系统设置…），按 appId 传播；Finder 双名场景正常 | ⬜   |
+| 10  | 阶段 1 完成     | 逐个打开 30 个内置应用                                              | 用户可见文案走目录（zh 下为中文，en 下与原文逐字一致）                                          | ✅   |
+| 11  | 阶段 1 完成     | 触发各服务的错误消息（github、桌面数据、存储等）                    | 面向用户的错误消息走 error.* 目录，开发向字符串保持原样                                         | ✅   |
+| 12  | 阶段 2 文案完成 | 切到中文                                                            | 启动台/聚焦搜索/Dock 的应用显示名显示中文（访达/系统设置…），按 appId 传播；Finder 双名场景正常 | ✅   |
 | 13  | 阶段 1 完成     | 在 zh 界面看菜单栏时钟、桌面日历小组件、锁屏日期、Facetime 通话记录 | 数字/日期/相对时间按 zh 区域格式显示；日历快速添加支持中文月份输入                              | ⬜   |
 
 ### 阶段 3 — 收口
@@ -87,26 +87,33 @@ capabilities: [rxdb:US-911]
 | #   | 前置条件           | 操作                                         | 预期结果                                                           | 状态 |
 | --- | ------------------ | -------------------------------------------- | ------------------------------------------------------------------ | ---- |
 | 14  | 阶段 1 完成        | 用旧构建建库、带数据升级到含 i18n 实体的构建 | i18n 四表由连接补建，旧数据保留，schema 指纹快照更新，回滚目标不变 | ⬜   |
-| 15  | 阶段 2 完成        | 正式构建后测量 initial 体积                  | initial ≤ 1.3mb 警告线                                             | ⬜   |
-| 16  | 全部 AC 有同层证据 | `pnpm nx run aiao-desktop:verify`            | 全绿（含 requirements-check 认可本故事）                           | ⬜   |
+| 15  | 阶段 2 完成        | 正式构建后测量 initial 体积                  | initial ≤ 1.3mb 警告线                                             | ⚠️   |
+| 16  | 全部 AC 有同层证据 | `pnpm nx run aiao-desktop:verify`            | 全绿（含 requirements-check 认可本故事）                           | ⚠️   |
+
+AC13 待接：`shared/format.ts` 的 DAYS/MONS3 英文星期/月份与日期拼接（菜单栏时钟、日历小组件、锁屏日期、FaceTime 通话记录、照片分组标题等显示点）；zh 下星期与日期仍为英文格式。AC15 实测：initial 原始字节 1.43 MB / gzip 465 KB——高于 1.3 MB 警告线（改动前已越线，存量问题）；zh 目录已拆为懒加载 chunk（否则会到 1.59 MB 超 1.5 MB 硬限），进一步压体积与发布由阶段 3 收口。AC16 见 verify 运行记录。
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-验收证据：AC1 见 `desktop-i18n.spec.ts` 与 `settings-data.spec.ts`；AC2-6 见 `apps/e2e/src/groups/language.mjs`（正式构建冒烟全绿）与 `settings-workflow.mjs`；AC7 见 verify 全量冒烟（含 settings-workflow 与全部既有英文断言）；AC8-9 见 shell-interaction/a11y/dock 组（en 原文案零扰动回归）与 language 组 shellLocalized（Apple 菜单与锁屏 zh）；data-problem 参数消息由 data-problem.spec 经真实目录覆盖，目录 key 成对性由 desktop-i18n.spec 门禁；AC10-13 见应用冒烟组；AC14-16 见验收台账。带日期的运行记录见 PR 描述与各次提交。桌面行为的证据是正式构建上的浏览器冒烟。
+验收证据：AC1 见 `desktop-i18n.spec.ts` 与 `settings-data.spec.ts`；AC2-6 见 `apps/e2e/src/groups/language.mjs`（正式构建冒烟全绿）与 `settings-workflow.mjs`；AC7 见 verify 全量冒烟（含 settings-workflow 与全部既有英文断言）；AC8-9 见 shell-interaction/a11y/dock 组（en 原文案零扰动回归）与 language 组 shellLocalized（Apple 菜单与锁屏 zh）；data-problem 参数消息由 data-problem.spec 经真实目录覆盖，目录 key 成对性由 desktop-i18n.spec 门禁；AC10-12 见 `desktop-i18n-coverage.spec.ts`（源码每个 t() 用到的 key 必须同时存在中英目录）、各应用 spec 经英文目录零扰动回归（`testing/fake-i18n.ts` 委托随包 en 目录）、AC12 另由 `services/desktop-app-name.spec.ts`（appDisplayName 按 nameKey 取显示名、无 nameKey 品牌名回退）覆盖，应用冒烟组与 language 组的 en/zh 运行见各次提交的冒烟记录；AC13-16 见验收台账。带日期的运行记录见 PR 描述与各次提交。桌面行为的证据是正式构建上的浏览器冒烟。
 
 ## 技术笔记
 
 - **接线落点**：`entities.ts` 的 DESKTOP_ENTITIES 追加 `...i18nEntities()`；`desktop-database.ts` 抽 `getDesktopDatabase()` 单例；`app.config.ts` 加 `provideI18n`；`desktop-page.ts` 在 `DesktopData.ready` 之后 `i18n.init()` 并订阅 `<html lang>`；`main.ts` 退出时 `destroyDesktopI18n()`。
-- **目录**：`src/app/i18n/`（messages-en.ts / messages-zh.ts / desktop-i18n.ts），命名空间 `'desktop'`，zh 与 zh-Hans 双注册同一份中文消息；v1 只用简单插值，不用 plural/select；英文目录 = 现有硬编码原文案逐字。
+- **目录**：`src/app/i18n/`（messages-en.ts / messages-zh.ts / desktop-i18n.ts），命名空间 `'desktop'`，zh 与 zh-Hans 双注册同一份中文消息；v1 只用简单插值，不用 plural/select；英文目录 = 现有硬编码原文案逐字。含直撇号的 en 值按 ICU 写成 `''`（渲染输出与原文字符一致，如 `isn''t`）；目录键按字母序生成，`desktop-i18n-coverage.spec.ts` 静态扫源码断言每个 t() 键都成对存在。
+- **应用显示名（AC12）**：清单 `nameKey`（`apps.<id>.name`）经 `services/desktop-app-name.ts` 的 `appDisplayName` 在显示点（窗口标题/窗口状态、Dock、启动台、聚焦搜索、菜单栏、强制退出、调度中心、通知横幅、打开方式下拉、菜单 {name} 插值）取当前语言名；品牌名（Aiao Code、GitHub Desktop、App Store 等）不译回退清单 `name`；`DesktopAppDefinition` 沿用清单字段，nameKey 随它传播。种子与磁盘样例数据（联系人、专辑、照片标题、城市名等）按范围边界保持英文。
+- **错误消息（AC11）**：面向用户的错误走 `error.*` 目录，显示边界翻译（`app-installation-flow` 的消息→key 映射、`local-write-error`/`print-document`/各纯函数的可选 translate 参数）；开发向 throw 消息与内部字符串保持原样。
 - **语言与地区分区**：`SETTINGS_GROUPS` 新增 `language-region` 分区（general 之后），面板 `panes/language-region-pane.ts`；`effectiveLanguageOf(locale)` 把 zh* 归一为 zh-Hans、其余归 en；语言列表固定 English / 简体中文，点击 `setLocale`。
 - **zh 术语规范**：以 Apple 官方简体中文界面译名为准——访达 Finder、系统设置 System Settings、聚焦 Spotlight、启动台 Launchpad、废纸篓 Trash、程序坞 Dock、墙纸 Wallpaper、通用 General、外观 Appearance、显示器 Displays、声音 Sound、电池 Battery、通知 Notifications、隐私与安全性 Privacy & Security、语言与地区 Language & Region、关于本机 About This Mac、储存空间 Storage、隔空投送与接力 AirDrop & Handoff、登录项与扩展 Login Items & Extensions、日期与时间 Date & Time、共享 Sharing、时间机器 Time Machine、首选语言 Preferred Languages、首选 Primary。
 - **已知例外**：I18nSettings 首建写发生在桌面写前守卫启用之前，是启动期写守卫的一处已知例外（守卫只拦业务写）。
 
 ## 实现文件
 
-- `aiao-desktop/apps/web/src/app/i18n/` — 目录与运行时工厂（desktop-i18n.ts / messages-en.ts / messages-zh.ts）
+- `aiao-desktop/apps/web/src/app/i18n/` — 目录与运行时工厂（desktop-i18n.ts / messages-en.ts / messages-zh.ts / desktop-i18n-coverage.spec.ts）
 - `aiao-desktop/apps/web/src/app/data/entities.ts`、`desktop-database.ts`、`app.config.ts`、`pages/desktop-page.ts`、`main.ts` — 装配接线
 - `aiao-desktop/apps/web/src/app/apps/settings/` — 分区名目录化、搜索本地化、语言与地区分区（panes/language-region-pane.ts）
+- `aiao-desktop/apps/web/src/app/services/desktop-app-name.ts`、`apps/app-manifests.ts`（nameKey）、`shared/disk-kind-label.ts` — 应用显示名与磁盘种类标签（AC12）
+- `aiao-desktop/apps/web/src/app/testing/fake-i18n.ts` — 单测英文目录运行时（en 逐字基线，既有断言零扰动）
+- `aiao-desktop/apps/web/src/app/apps/*`、`components/*`、`services/*` — 各应用文案与面向用户错误消息目录化（AC10-11）
 - `aiao-desktop/apps/e2e/src/harness/session.mjs`、`src/groups/language.mjs` — e2e 钉语言与语言组
 
 ## References

@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import {
   afterRenderEffect,
   ApplicationRef,
@@ -95,26 +96,25 @@ import { GithubSettings } from './github-settings';
 import { historyDiffRows } from './history-diff';
 import { syncActionOf, type GithubSyncAction } from './sync-action';
 
-const relativeTime = new Intl.RelativeTimeFormat('en', { numeric: 'auto' });
 const syncTimeFormat = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
 
 type GithubSyncOperation = Exclude<GithubSyncAction, 'detached'>;
 
 const syncLabels = {
-  refresh: 'Refresh status',
-  fetch: 'Fetch origin',
-  pull: 'Pull origin',
-  push: 'Push origin',
-  publish: 'Publish branch',
-  detached: 'Detached HEAD'
+  refresh: 'apps.github.syncRefresh',
+  fetch: 'apps.github.syncFetch',
+  pull: 'apps.github.syncPull',
+  push: 'apps.github.syncPush',
+  publish: 'apps.github.syncPublish',
+  detached: 'apps.github.syncDetached'
 } as const;
 
 const syncProgress = {
-  refresh: 'Refreshing status…',
-  fetch: 'Fetching origin…',
-  pull: 'Pulling origin…',
-  push: 'Pushing origin…',
-  publish: 'Publishing branch…'
+  refresh: 'apps.github.syncRefreshing',
+  fetch: 'apps.github.syncFetching',
+  pull: 'apps.github.syncPulling',
+  push: 'apps.github.syncPushing',
+  publish: 'apps.github.syncPublishing'
 } as const;
 
 const syncIcons = {
@@ -220,23 +220,23 @@ export class GithubApp {
   private readonly wm = inject(WindowManager);
   private readonly menus = inject(DesktopMenus);
   private readonly preferences = inject(Preferences);
+  private readonly system = inject(SystemState);
   private readonly savedAppearance = computed(
     () => this.preferences.get(APPEARANCE_KEY, isGithubAppearance) ?? DEFAULT_APPEARANCE
   );
-  private readonly system = inject(SystemState);
   private readonly applicationRef = inject(ApplicationRef);
   private readonly changeDetectorRef = inject(ChangeDetectorRef);
   private readonly zone = inject(NgZone);
-
   private readonly destroyRef = inject(DestroyRef);
+
   private readonly backend = inject(DesktopAppServices).get(GithubWorkspace);
   private readonly store = this.backend.records;
   private readonly connection = this.backend.connection;
   private readonly auth = this.connection.auth;
   private readonly api = this.connection.api;
   private readonly remote = this.connection.remote;
-  private readonly unsubscribeAuth: () => void;
   private currentRevision = 0;
+  private readonly unsubscribeAuth: () => void;
   private operation = 0;
   private externalRefreshPending = false;
   private externalRefreshing = false;
@@ -245,8 +245,8 @@ export class GithubApp {
   private comparisonKey: string | null = null;
   private historyProjectId: string | null = null;
   private restorePromise: Promise<void> | null = null;
-  private readonly storageListener: (event: StorageEvent) => void;
   private readonly popover = inject(PopoverService);
+  private readonly storageListener: (event: StorageEvent) => void;
   private readonly commitMessageInput = viewChild<ElementRef<HTMLInputElement>>('commitMessageInput');
   private readonly repositoryInput = viewChild<ElementRef<HTMLElement>>('repositoryInput');
   private readonly repositoryFilterInput = viewChild<ElementRef<HTMLElement>>('repositoryFilterInput');
@@ -258,13 +258,14 @@ export class GithubApp {
   private readonly repositoryMenuFocus = signal<GithubRepositoryMenu | null>(null);
   private readonly branchMenuFocus = signal(false);
   private readonly changesFilterFocus = signal(false);
+  private readonly changeFilterInput = viewChild<ElementRef<HTMLInputElement>>('changeFilterInput');
   private readonly lastLocalRefresh = signal<{ readonly projectId: string; readonly at: number } | null>(null);
 
-  private readonly changeFilterInput = viewChild<ElementRef<HTMLInputElement>>('changeFilterInput');
   private readonly historyLineHunks = computed(() =>
     diffHunksOf(diffLinesOf(this.historyDiff(), this.ignoreHistoryWhitespace()))
   );
 
+  protected readonly i18n = useI18n();
   protected readonly records = this.store.records;
   protected readonly session = signal<GitHubSession | null>(null);
   protected readonly activeRecord = signal<GithubRepositoryRecord | null>(null);
@@ -358,8 +359,14 @@ export class GithubApp {
   protected readonly repositoryGroups = computed(() => {
     const records = this.filteredRepositories();
     return [
-      { label: 'GitHub', records: records.filter(record => record.owner !== null) },
-      { label: 'Other', records: records.filter(record => record.owner === null) }
+      {
+        label: this.i18n.t('apps.github.repositoryGroupGithub'),
+        records: records.filter(record => record.owner !== null)
+      },
+      {
+        label: this.i18n.t('apps.github.repositoryGroupOther'),
+        records: records.filter(record => record.owner === null)
+      }
     ].filter(group => group.records.length);
   });
   protected readonly worktreeMenuOpen = signal(false);
@@ -389,29 +396,33 @@ export class GithubApp {
   protected readonly hasChanges = computed(() => (this.status()?.entries.length ?? 0) > 0 || this.editorDirty());
   protected readonly changedEntries = computed(() => this.status()?.entries ?? []);
   protected readonly currentBranch = computed(() => this.status()?.branch ?? this.activeRecord()?.branch ?? 'main');
-  protected readonly currentWorktree = computed(() => this.activeRecord()?.name ?? 'No repository');
+  protected readonly currentWorktree = computed(
+    () => this.activeRecord()?.name ?? this.i18n.t('apps.github.syncNoRepository')
+  );
   protected readonly cleanRepository = computed(() => !this.hasChanges() && !this.showCleanFiles());
   protected readonly canDiscardBranch = computed(() => this.errorCode() === 'dirty_workspace');
   protected readonly syncAction = computed(() => syncActionOf(this.activeRecord(), this.status()));
   protected readonly syncHasOptions = computed(() => ['pull', 'push', 'publish'].includes(this.syncAction()));
   protected readonly syncTitle = computed(() => {
     const operation = this.syncing();
-    return operation ? syncProgress[operation] : syncLabels[this.syncAction()];
+    return operation ? this.i18n.t(syncProgress[operation]) : this.i18n.t(syncLabels[this.syncAction()]);
   });
   protected readonly syncIcon = computed(() => (this.syncing() ? RefreshCw : syncIcons[this.syncAction()]));
   protected readonly syncSubtitle = computed(() => {
-    if (this.syncing()) return 'Hang on…';
-    if (this.syncAction() === 'detached') return 'Switch to a branch to sync';
+    if (this.syncing()) return this.i18n.t('apps.github.syncHangOn');
+    if (this.syncAction() === 'detached') return this.i18n.t('apps.github.syncSwitchToBranch');
     const record = this.activeRecord();
-    if (!record) return 'No repository';
+    if (!record) return this.i18n.t('apps.github.syncNoRepository');
     if (record.owner && record.repo) {
       const time = record.lastFetchedAt;
-      return time === undefined ? 'Never fetched' : `Last fetched ${syncTimeFormat.format(time)}`;
+      return time === undefined ?
+          this.i18n.t('apps.github.syncNeverFetched')
+        : this.i18n.t('apps.github.syncLastFetched', { time: syncTimeFormat.format(time) });
     }
     const local = this.lastLocalRefresh();
     return local?.projectId === record.projectId ?
-        `Last refreshed ${syncTimeFormat.format(local.at)}`
-      : 'Local repository';
+        this.i18n.t('apps.github.syncLastRefreshed', { time: syncTimeFormat.format(local.at) })
+      : this.i18n.t('apps.github.syncLocalRepository');
   });
   protected readonly selectedCommit = computed<GitCommit | null>(() => {
     const selected = this.selectedCommitOid();
@@ -731,12 +742,12 @@ export class GithubApp {
           added.push(await this.importSystemFolder(systemFolderOf(droppedDirectory(result))));
         } catch (error) {
           const name = result.status === 'fulfilled' ? result.value?.name : null;
-          errors.push(`${name ?? 'Folder'} · ${messageOf(error)}`);
+          errors.push(`${name ?? this.i18n.t('apps.github.folder')} · ${messageOf(error)}`);
         }
       }
       if (added.length) {
         this.closeRepositoryMenu();
-        this.notice.set(`Added ${added.join(', ')}`);
+        this.notice.set(this.i18n.t('apps.github.noticeAdded', { names: added.join(', ') }));
       }
       if (errors.length) throw new Error(errors.join(' · '));
     });
@@ -843,14 +854,14 @@ export class GithubApp {
     this.changeKindOpen.set(false);
   }
 
-  protected changeKindLabel(): string {
+  protected changeKindLabel(kind: GithubChangeKind): string {
     const labels: Record<GithubChangeKind, string> = {
-      all: 'All',
-      added: 'Added',
-      modified: 'Modified',
-      deleted: 'Deleted'
+      all: 'apps.github.changeKindAll',
+      added: 'apps.github.changeKindAdded',
+      modified: 'apps.github.changeKindModified',
+      deleted: 'apps.github.changeKindDeleted'
     };
-    return labels[this.changeKind()];
+    return this.i18n.t(labels[kind]);
   }
 
   protected openContextMenu(event: Event, menu: GithubContextMenuTarget): void {
@@ -880,13 +891,18 @@ export class GithubApp {
     const rect = anchor.getBoundingClientRect();
     this.popover.openMenu(
       [
-        { id: 'copy-sha', label: 'Copy SHA', run: () => this.copyValue(oid) },
-        { id: 'restore-commit', label: 'Restore this commit', disabled: this.busy(), run: () => this.restore(oid) }
+        { id: 'copy-sha', label: this.i18n.t('apps.github.copySha'), run: () => this.copyValue(oid) },
+        {
+          id: 'restore-commit',
+          label: this.i18n.t('apps.github.restoreThisCommit'),
+          disabled: this.busy(),
+          run: () => this.restore(oid)
+        }
       ],
       {
         x: event instanceof MouseEvent ? event.clientX : rect.left + rect.width / 2,
         y: event instanceof MouseEvent ? event.clientY : rect.bottom,
-        label: 'Commit actions',
+        label: this.i18n.t('apps.github.commitActions'),
         focus: true,
         onClose: reason => {
           if (RETURNS_FOCUS.has(reason) && anchor.isConnected) anchor.focus();
@@ -899,7 +915,7 @@ export class GithubApp {
     this.closeContextMenu();
     try {
       await navigator.clipboard.writeText(value);
-      this.notice.set(`Copied ${value}`);
+      this.notice.set(this.i18n.t('apps.github.noticeCopied', { value }));
     } catch (error) {
       this.fail(error);
     }
@@ -911,7 +927,7 @@ export class GithubApp {
     this.closeContextMenu();
     await this.run(async () => {
       this.branches.set(await this.backend.deleteBranch(record.projectId, branch));
-      this.notice.set(`Deleted branch ${branch}`);
+      this.notice.set(this.i18n.t('apps.github.noticeDeletedBranch', { branch }));
     });
   }
 
@@ -958,17 +974,20 @@ export class GithubApp {
       return;
     }
     const rect = anchor.getBoundingClientRect();
-    this.popover.openMenu([{ id: 'fetch-origin', label: 'Fetch origin', run: () => void this.fetchOrigin() }], {
-      x: rect.right,
-      y: rect.bottom,
-      right: true,
-      focus: true,
-      label: 'Sync options',
-      onClose: reason => {
-        this.syncMenuOpen.set(false);
-        if (RETURNS_FOCUS.has(reason) && anchor.isConnected) anchor.focus();
+    this.popover.openMenu(
+      [{ id: 'fetch-origin', label: this.i18n.t('apps.github.syncFetch'), run: () => void this.fetchOrigin() }],
+      {
+        x: rect.right,
+        y: rect.bottom,
+        right: true,
+        focus: true,
+        label: this.i18n.t('apps.github.syncOptions'),
+        onClose: reason => {
+          this.syncMenuOpen.set(false);
+          if (RETURNS_FOCUS.has(reason) && anchor.isConnected) anchor.focus();
+        }
       }
-    });
+    );
     this.syncMenuOpen.set(true);
   }
 
@@ -981,15 +1000,15 @@ export class GithubApp {
         if (!isRemote) {
           await this.refresh();
           this.lastLocalRefresh.set({ projectId: record.projectId, at: Date.now() });
-          this.notice.set('Refreshed local status');
+          this.notice.set(this.i18n.t('apps.github.noticeRefreshedLocal'));
           return;
         }
         const { branch, head, changed } = await this.backend.fetch(record.projectId);
         this.activeRecord.set(this.store.find(record.projectId) ?? record);
         this.notice.set(
-          head === null ? `No remote branch ${branch}`
-          : changed ? 'Fetched origin'
-          : 'Already up to date'
+          head === null ? this.i18n.t('apps.github.noticeNoRemoteBranch', { branch })
+          : changed ? this.i18n.t('apps.github.noticeFetched')
+          : this.i18n.t('apps.github.noticeUpToDate')
         );
       },
       isRemote ? 'fetch' : 'refresh'
@@ -1062,7 +1081,11 @@ export class GithubApp {
       const results = await this.api.searchRepositories(query, 20);
       this.searchResults.set(results);
       this.repositoryMenuOpen.set(true);
-      this.notice.set(results.length ? `Found ${results.length} repositories` : 'No repositories found');
+      this.notice.set(
+        results.length ?
+          this.i18n.t('apps.github.noticeFoundRepositories', { count: results.length })
+        : this.i18n.t('apps.github.noticeNoRepositoriesFound')
+      );
     });
   }
 
@@ -1093,7 +1116,7 @@ export class GithubApp {
       this.remoteBranches.set(branches);
       const preferred = this.branchValue().trim() || address.branch || repository.defaultBranch;
       this.branchValue.set(branches.some(branch => branch.name === preferred) ? preferred : repository.defaultBranch);
-      this.notice.set(`Loaded ${branches.length} branches`);
+      this.notice.set(this.i18n.t('apps.github.noticeLoadedBranches', { count: branches.length }));
     });
   }
 
@@ -1181,7 +1204,7 @@ export class GithubApp {
         ) {
           await this.backend.pull(existing.projectId, remote);
           if (branchBaseOf(existing, currentStatus.branch)?.head !== remote.record.remoteHead)
-            this.notice.set(`Pulled ${existing.name}`);
+            this.notice.set(this.i18n.t('apps.github.noticePulled', { name: existing.name }));
         }
         await this.loadStoredRepository(this.store.find(existing.projectId) ?? existing);
         return;
@@ -1243,7 +1266,7 @@ export class GithubApp {
       anchor.download = `${record.name.replace(/[^a-zA-Z0-9._-]+/g, '-')}.zip`;
       anchor.click();
       setTimeout(() => URL.revokeObjectURL(url), 0);
-      this.notice.set(`Exported ${record.name}`);
+      this.notice.set(this.i18n.t('apps.github.noticeExported', { name: record.name }));
     });
   }
 
@@ -1257,7 +1280,7 @@ export class GithubApp {
       await this.refresh();
       this.editorDirty.set(false);
       this.win.hasUnsavedChanges.set(false);
-      this.notice.set('Saved to OPFS');
+      this.notice.set(this.i18n.t('apps.github.noticeSavedToOpfs'));
     });
   }
 
@@ -1274,7 +1297,7 @@ export class GithubApp {
       );
       this.applySnapshot(snapshot.files);
       await this.refresh();
-      this.notice.set(`Deleted ${path}`);
+      this.notice.set(this.i18n.t('apps.github.noticeDeletedFile', { path }));
     });
   }
 
@@ -1322,7 +1345,7 @@ export class GithubApp {
       this.applySnapshot(snapshot.files);
       this.showCleanFiles.set(false);
       await this.refresh();
-      this.notice.set(`Discarded ${path}`);
+      this.notice.set(this.i18n.t('apps.github.noticeDiscarded', { path }));
     });
   }
 
@@ -1344,7 +1367,7 @@ export class GithubApp {
       this.diff.set(null);
       this.showCleanFiles.set(false);
       await this.refresh();
-      this.notice.set('Discarded all changes');
+      this.notice.set(this.i18n.t('apps.github.noticeDiscardedAll'));
     });
   }
 
@@ -1374,7 +1397,7 @@ export class GithubApp {
       if (input) input.value = '';
       this.showCleanFiles.set(false);
       await this.refresh();
-      this.notice.set(`Committed ${oid.slice(0, 8)}`);
+      this.notice.set(this.i18n.t('apps.github.noticeCommitted', { oid: oid.slice(0, 8) }));
     });
   }
 
@@ -1391,7 +1414,7 @@ export class GithubApp {
       this.newBranchValue.set('');
       this.branchFilter.set('');
       this.branchMenuOpen.set(false);
-      this.notice.set(`Created branch ${branch}`);
+      this.notice.set(this.i18n.t('apps.github.noticeCreatedBranch', { branch }));
     });
   }
 
@@ -1418,7 +1441,7 @@ export class GithubApp {
       this.applySnapshot(snapshot.files);
       await this.refresh();
       this.pendingBranch.set(null);
-      this.notice.set(`Switched to ${branch}`);
+      this.notice.set(this.i18n.t('apps.github.noticeSwitchedTo', { branch }));
     });
   }
 
@@ -1433,7 +1456,7 @@ export class GithubApp {
       const snapshot = await this.backend.restore(record.projectId, oid);
       this.applySnapshot(snapshot.files);
       await this.refresh();
-      this.notice.set(`Restored ${oid.slice(0, 8)}`);
+      this.notice.set(this.i18n.t('apps.github.noticeRestored', { oid: oid.slice(0, 8) }));
     });
   }
 
@@ -1446,7 +1469,7 @@ export class GithubApp {
       this.activeRecord.set(this.store.find(record.projectId)!);
       this.applySnapshot(snapshot.files);
       await this.refresh();
-      this.notice.set(`Pulled ${record.name}`);
+      this.notice.set(this.i18n.t('apps.github.noticePulled', { name: record.name }));
     }, 'pull');
   }
 
@@ -1459,7 +1482,11 @@ export class GithubApp {
           throw new Error('请先保存并提交本地改动，再推送到 GitHub');
         const next = await this.backend.push(record.projectId, this.commitValue() || 'Update from Aiao Desktop');
         this.activeRecord.set(next);
-        this.notice.set(publish ? `Published branch ${next.branch}` : `Pushed ${next.remoteHead.slice(0, 8)}`);
+        this.notice.set(
+          publish ?
+            this.i18n.t('apps.github.noticePublishedBranch', { branch: next.branch })
+          : this.i18n.t('apps.github.noticePushed', { oid: next.remoteHead.slice(0, 8) })
+        );
       },
       publish ? 'publish' : 'push'
     );
@@ -1471,7 +1498,7 @@ export class GithubApp {
     this.patValue.set('');
     void this.changeAccount(async () => {
       await this.auth.loginWithPat(token);
-    }, 'Signed in to GitHub');
+    }, this.i18n.t('apps.github.noticeSignedIn'));
   }
 
   protected loginWithOAuth(): void {
@@ -1498,7 +1525,7 @@ export class GithubApp {
         if (popup && !popup.closed) popup.close();
         this.oauthAttempt.set(null);
       }
-    }, 'Signed in to GitHub');
+    }, this.i18n.t('apps.github.noticeSignedIn'));
   }
 
   protected cancelOAuth(): void {
@@ -1506,7 +1533,7 @@ export class GithubApp {
   }
 
   protected logout(): void {
-    if (!this.authBusy()) void this.changeAccount(() => this.auth.logout(), 'Signed out of GitHub');
+    if (!this.authBusy()) void this.changeAccount(() => this.auth.logout(), this.i18n.t('apps.github.noticeSignedOut'));
   }
 
   protected fileText(file: GitFile): string | null {
@@ -1523,9 +1550,9 @@ export class GithubApp {
   }
 
   protected statusLabel(entry: GitStatusEntry): string {
-    if (entry.index === '?' && entry.worktree === '?') return 'Untracked';
-    if (entry.index !== ' ') return 'Staged';
-    return 'Changed';
+    if (entry.index === '?' && entry.worktree === '?') return this.i18n.t('apps.github.statusUntracked');
+    if (entry.index !== ' ') return this.i18n.t('apps.github.statusStaged');
+    return this.i18n.t('apps.github.statusChanged');
   }
 
   protected changeKindFor(entry: GitStatusEntry): Exclude<GithubChangeKind, 'all'> {
@@ -1536,9 +1563,9 @@ export class GithubApp {
 
   protected commitChangeDescription(change: GitCommitFileChange): string {
     return (
-      change.status === 'added' ? 'Added'
-      : change.status === 'deleted' ? 'Deleted'
-      : 'Modified'
+      change.status === 'added' ? this.i18n.t('apps.github.changeKindAdded')
+      : change.status === 'deleted' ? this.i18n.t('apps.github.changeKindDeleted')
+      : this.i18n.t('apps.github.changeKindModified')
     );
   }
 
@@ -1550,10 +1577,12 @@ export class GithubApp {
     if (timestamp === null) return '';
     if (this.savedAppearance().absoluteDates) return this.absoluteCommitTime(timestamp);
     const minutes = Math.trunc((timestamp - Date.now()) / 60_000);
-    if (minutes === 0) return 'just now';
-    if (Math.abs(minutes) < 60) return relativeTime.format(minutes, 'minute');
-    if (Math.abs(minutes) < 1440) return relativeTime.format(Math.trunc(minutes / 60), 'hour');
-    if (Math.abs(minutes) < 43200) return relativeTime.format(Math.trunc(minutes / 1440), 'day');
+    if (minutes === 0) return this.i18n.t('apps.github.justNow');
+    if (Math.abs(minutes) < 60) return this.i18n.formatRelativeTime(minutes, 'minute', { numeric: 'auto' });
+    if (Math.abs(minutes) < 1440)
+      return this.i18n.formatRelativeTime(Math.trunc(minutes / 60), 'hour', { numeric: 'auto' });
+    if (Math.abs(minutes) < 43200)
+      return this.i18n.formatRelativeTime(Math.trunc(minutes / 1440), 'day', { numeric: 'auto' });
     return this.absoluteCommitTime(timestamp);
   }
 
@@ -1817,7 +1846,11 @@ export class GithubApp {
     this.applySnapshot(snapshot.files);
     await this.refresh();
     const path = toVmPath(record.rootPath);
-    this.notice.set(`${noticeVerb} ${name} · ${path}`);
+    this.notice.set(
+      noticeVerb === 'Added' ?
+        this.i18n.t('apps.github.noticeAddedWithPath', { name, path })
+      : this.i18n.t('apps.github.noticeImportedWithPath', { name, path })
+    );
     return path;
   }
 
@@ -1948,7 +1981,7 @@ export class GithubApp {
     this.updateComparison();
     this.synchronizeHistorySelection();
     this.win.restoreOptions.set({ projectId: record.projectId });
-    this.win.title.set(`GitHub Desktop · ${record.name}`);
+    this.win.title.set(this.i18n.t('apps.github.windowTitle', { name: record.name }));
   }
 
   private applySnapshot(files: readonly GitFile[]): void {

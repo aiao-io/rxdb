@@ -1,3 +1,4 @@
+import { I18N } from '@aiao/rxdb-i18n-angular';
 import { DestroyRef, Service, Signal, inject, signal } from '@angular/core';
 
 import { DesktopAppId } from './desktop-apps';
@@ -41,6 +42,7 @@ function closeMessage(raw: unknown): CloseMessage | null {
 @Service({ autoProvided: false })
 export class ApplicationTransitions {
   private readonly windows = inject(WindowManager);
+  private readonly i18nRuntime = inject(I18N, { optional: true }) ?? undefined;
   private readonly channel = new BroadcastChannel(CHANNEL);
   private readonly leases = new Map<DesktopWindow, AppWindowLease>();
   private readonly outgoing = new Map<string, { controller: AbortController; id: DesktopAppId }>();
@@ -120,7 +122,13 @@ export class ApplicationTransitions {
 
   async change(ids: readonly DesktopAppId[], action: () => Promise<void>): Promise<boolean> {
     return navigator.locks.request(OPERATION_LOCK, { mode: 'exclusive', ifAvailable: true }, async lock => {
-      if (!lock) throw new Error('Another application change is already in progress. Try again when it finishes.');
+      if (!lock)
+        throw new Error(
+          this.t(
+            'error.install.anotherChangeInProgress',
+            'Another application change is already in progress. Try again when it finishes.'
+          )
+        );
       return this.releaseApps([...new Set(ids)].sort(), action);
     });
   }
@@ -135,7 +143,15 @@ export class ApplicationTransitions {
     const token = crypto.randomUUID();
     this.outgoing.set(token, { controller, id });
     const timer = setTimeout(
-      () => controller.abort(new Error('Return to the other desktop tabs and close this application, then try again.')),
+      () =>
+        controller.abort(
+          new Error(
+            this.t(
+              'error.install.closeWindowsInOtherTabs',
+              'Return to the other desktop tabs and close this application, then try again.'
+            )
+          )
+        ),
       60000
     );
     const granted = navigator.locks.request(
@@ -193,5 +209,10 @@ export class ApplicationTransitions {
     const id = this.incoming.get(token);
     this.incoming.delete(token);
     for (const [win, lease] of this.leases) if (win.appId === id) lease.answer(false);
+  }
+
+  /** 用户可见错误消息的翻译：未注入 i18n 运行时（单测）时回退英文原文。 */
+  private t(key: string, english: string): string {
+    return this.i18nRuntime ? this.i18nRuntime.t(key) : english;
   }
 }

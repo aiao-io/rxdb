@@ -1,8 +1,19 @@
-import { Service, computed, inject } from '@angular/core';
+import { I18N } from '@aiao/rxdb-i18n-angular';
+import { DestroyRef, Service, computed, inject } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 
 import { DesktopData } from '../data/desktop-data';
 import { ALL_ROWS, liveQuery } from '../data/live-query';
-import { CalendarChangeError, eventOf, fieldsOf, listOf, patchOf, sameCalendarEvent } from './calendar-records';
+import {
+  CalendarChangeError,
+  bindCalendarMessages,
+  calendarMessage,
+  eventOf,
+  fieldsOf,
+  listOf,
+  patchOf,
+  sameCalendarEvent
+} from './calendar-records';
 import { CalendarEventRow, CalendarListRow } from './calendar.entities';
 
 /** 日历既是筛选器也是颜色来源：事件自身没有颜色，继承所属日历。`id` 是库里日历行的稳定 `key`。 */
@@ -34,7 +45,8 @@ export function clockLabel(minutes: number): string {
 }
 
 /** 事件在列表里显示的时间：全天或开始时刻。 */
-export const eventTime = (event: CalendarEvent): string => (event.s === null ? 'all-day' : clockLabel(event.s));
+export const eventTime = (event: CalendarEvent): string =>
+  event.s === null ? calendarMessage('apps.calendar.allDay', 'all-day') : clockLabel(event.s);
 
 const dayIndex = (d: readonly [number, number, number]): number => new Date(d[0], d[1], d[2]).getTime();
 
@@ -45,6 +57,9 @@ const dayIndex = (d: readonly [number, number, number]): number => new Date(d[0]
 @Service({ autoProvided: false })
 export class CalendarStore {
   private readonly data = inject(DesktopData);
+  /** 可选注入：没有 i18n 运行时（如纯单元测试）时日历文案回退英文原文。 */
+  private readonly i18nRuntime = inject(I18N, { optional: true }) ?? undefined;
+  private readonly locale = this.i18nRuntime ? toSignal(this.i18nRuntime.locale$, { requireSync: true }) : undefined;
   private readonly listRows = liveQuery(
     () => CalendarListRow.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
     [],
@@ -78,6 +93,18 @@ export class CalendarStore {
     );
     return this.events().filter(event => visible.has(event.cal));
   });
+
+  constructor() {
+    const runtime = this.i18nRuntime;
+    const locale = this.locale;
+    if (runtime && locale) {
+      const unbind = bindCalendarMessages((key: string, english: string): string => {
+        locale();
+        return runtime.t(key) ?? english;
+      });
+      inject(DestroyRef).onDestroy(unbind);
+    }
+  }
 
   /** 按 `key` 取日历；不认识的 `key` 抛错，不悄悄换成别的日历。 */
   calendarOf(id: string): CalendarList {

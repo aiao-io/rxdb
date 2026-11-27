@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { DatePipe } from '@angular/common';
 import { Component, inject, input } from '@angular/core';
 
@@ -10,22 +11,22 @@ import { WeatherStore } from '../services/weather-store';
   template: `
     <div class="weather-status" aria-live="polite">
       @if (weather.loading()) {
-        <p role="status">Updating weather…</p>
+        <p role="status">{{ i18n.t('apps.weather.updating') }}</p>
       }
       @if (weather.error(); as error) {
         <p role="alert">{{ error }}</p>
       }
       @if (weather.stale()) {
-        <p>Showing an earlier forecast.</p>
+        <p>{{ i18n.t('apps.weather.stale') }}</p>
       }
       @if (weather.sourceTime(); as time) {
-        <p>Open-Meteo · {{ time.replace('T', ' ') }} (city time)</p>
-        <p>Retrieved {{ weather.receivedAt() | date: 'medium' }}</p>
+        <p>{{ i18n.t('apps.weather.sourceTime', { time: time.replace('T', ' ') }) }}</p>
+        <p>{{ i18n.t('apps.weather.retrieved', { time: weather.receivedAt() | date: 'medium' }) }}</p>
       }
     </div>
     @if (showRefresh()) {
       <button class="btn" [disabled]="weather.loading()" (click)="weather.refresh()" tabindex="0">
-        {{ weather.error() ? 'Retry weather' : 'Refresh weather' }}
+        {{ weather.error() ? i18n.t('apps.weather.retry') : i18n.t('apps.weather.refresh') }}
       </button>
     }
   `,
@@ -47,6 +48,7 @@ import { WeatherStore } from '../services/weather-store';
 })
 export class WeatherStatus {
   protected readonly weather = inject(WeatherStore);
+  protected readonly i18n = useI18n();
   /** 是否显示刷新/重试按钮；桌面小组件与天气应用都开（键盘用户需要可到达的重试入口）。 */
   readonly showRefresh = input(false);
 }

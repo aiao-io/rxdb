@@ -6,13 +6,13 @@
         <div style="flex: 1"></div>
         <button
           class="tbtn"
+          [attr.aria-label]="i18n.t('apps.messages.newConversation')"
           [disabled]="creating() || win.closePending()"
+          [title]="i18n.t('apps.messages.newConversation')"
           (click)="create()"
-          aria-label="New Conversation"
           data-cnew
           data-nodrag
           tabindex="0"
-          title="New Conversation"
         >
           <svg appIcon="g-compose"></svg>
         </button>
@@ -22,12 +22,12 @@
           <span><svg appIcon="g-search"></svg></span>
           <input
             #search
+            [attr.aria-label]="i18n.t('apps.messages.searchConversations')"
             [disabled]="win.closePending()"
+            [placeholder]="i18n.t('shell.menu.search')"
             [value]="query()"
             (input)="query.set(search.value)"
-            aria-label="Search conversations"
             data-csearch
-            placeholder="Search"
           />
         </div>
       </div>
@@ -55,13 +55,17 @@
                 }
                 {{ row.chat.name }}
               </b>
-              <p>{{ row.draft.trim() ? 'Draft: ' + row.draft : row.last }}</p>
+              <p>
+                {{ row.draft.trim() ? i18n.t('apps.messages.draftPrefix', { text: row.draft }) : row.last }}
+              </p>
             </span>
             <span class="tm">{{ row.chat.time }}</span>
           </button>
         } @empty {
           @if (query()) {
-            <div style="padding: 22px 10px; text-align: center; font-size: 12px; color: var(--txt-3)">No Results</div>
+            <div style="padding: 22px 10px; text-align: center; font-size: 12px; color: var(--txt-3)">
+              {{ i18n.t('apps.messages.noResults') }}
+            </div>
           }
         }
       </div>
@@ -71,11 +75,11 @@
         <button
           class="who"
           #who
+          [title]="i18n.t('apps.messages.conversationDetails')"
           (click)="details(who)"
           data-cdetails
           style="border: 0; background: transparent; text-align: left"
           tabindex="0"
-          title="Conversation details"
           type="button"
         >
           <span class="av sm" [style.background]="chat()?.color" aria-hidden="true" data-cav>{{ initial() }}</span>
@@ -85,33 +89,32 @@
         <div style="flex: 1"></div>
         <button
           class="tbtn"
-          aria-label="Calls unavailable"
+          [attr.aria-label]="i18n.t('apps.messages.callsUnavailable')"
+          [title]="i18n.t('apps.messages.noCallingService')"
           data-cft
           data-nodrag
           disabled
-          title="No calling service connected"
         >
           <svg appIcon="g-facetime"></svg>
         </button>
         <button
           class="tbtn"
           #info
+          [attr.aria-label]="i18n.t('apps.messages.localConversationDetails')"
+          [title]="i18n.t('apps.messages.details')"
           (click)="details(info)"
-          aria-label="Local conversation details"
           data-cinfo
           data-nodrag
           tabindex="0"
-          title="Details"
         >
           <svg appIcon="g-info"></svg>
         </button>
       </div>
       <div style="padding: 8px 14px; font-size: 12px; background: var(--win); color: var(--txt)">
-        Local conversations, including sample data. Nothing is sent to other people. Calls and file sending are
-        unavailable.
+        {{ i18n.t('apps.messages.localBanner') }}
       </div>
       <div class="msg-body scroll" #body data-cbody>
-        <div class="msg-day">Local conversation</div>
+        <div class="msg-day">{{ i18n.t('apps.messages.localConversation') }}</div>
         @for (bubble of thread(); track $index) {
           <div class="bub" [class.me]="bubble.me" [class.tail]="bubble.tail">{{ bubble.text }}</div>
         }
@@ -119,9 +122,9 @@
       <div style="padding: 6px 14px; background: var(--win); color: var(--txt)">
         <div aria-live="polite" role="status" style="font-size: 12px">
           {{
-            currentDraft()?.saving ? 'Saving locally…'
-            : currentDraft()?.text?.trim() ? 'Unsaved draft'
-            : 'Saved locally'
+            currentDraft()?.saving ? i18n.t('apps.messages.savingLocally')
+            : currentDraft()?.text?.trim() ? i18n.t('apps.messages.unsavedDraft')
+            : i18n.t('apps.messages.savedLocally')
           }}
         </div>
         @if (error()) {
@@ -138,7 +141,7 @@
               (click)="saveLocal()"
               tabindex="0"
             >
-              {{ currentDraft()?.error ? 'Retry Local Save' : 'Save Locally' }}
+              {{ currentDraft()?.error ? i18n.t('apps.messages.retryLocalSave') : i18n.t('apps.messages.saveLocally') }}
             </button>
             <button
               class="btn"
@@ -146,7 +149,7 @@
               (click)="discard()"
               tabindex="0"
             >
-              Discard Draft
+              {{ i18n.t('apps.messages.discardDraft') }}
             </button>
           </div>
         }
@@ -155,33 +158,33 @@
         <button
           class="tbtn"
           #attachButton
+          [attr.aria-label]="i18n.t('apps.messages.localConversationActions')"
           [disabled]="currentDraft()?.saving || win.closePending()"
+          [title]="i18n.t('apps.messages.apps')"
           (click)="attach(attachButton)"
-          aria-label="Local conversation actions"
           data-cattach
           tabindex="0"
-          title="Apps"
         >
           <svg appIcon="g-plus"></svg>
         </button>
         <div class="fld">
           <input
             #field
+            [attr.aria-label]="i18n.t('apps.messages.localMessageDraft')"
             [attr.data-message-draft-id]="currentDraft()?.id ?? null"
             [disabled]="currentDraft()?.saving || win.closePending() || !chat()"
+            [placeholder]="i18n.t('apps.messages.writeLocalMessage')"
             [value]="currentDraft()?.text ?? ''"
             (input)="edit(field.value)"
             (keydown.enter)="enter($event)"
-            aria-label="Local message draft"
             data-cinput
-            placeholder="Write a local message"
           />
         </div>
         <button
           class="tbtn"
+          [attr.aria-label]="i18n.t('apps.messages.saveMessageLocally')"
           [disabled]="currentDraft()?.saving || win.closePending() || !currentDraft()?.text?.trim()"
           (click)="saveLocal()"
-          aria-label="Save message locally"
           data-send
           tabindex="0"
         >
@@ -204,7 +207,7 @@
     "
   >
     <div
-      [attr.aria-label]="'Delete conversation'"
+      [attr.aria-label]="i18n.t('apps.messages.deleteConversationAria')"
       (keydown.escape)="cancelDelete()"
       appFocusTrap
       aria-modal="true"
@@ -219,13 +222,19 @@
         box-shadow: 0 14px 50px #0006;
       "
     >
-      <h2 style="margin: 0 0 8px; font-size: 16px; font-weight: 600">Delete conversation with {{ target.name }}?</h2>
+      <h2 style="margin: 0 0 8px; font-size: 16px; font-weight: 600">
+        {{ i18n.t('apps.messages.deleteConversationTitle', { name: target.name }) }}
+      </h2>
       <p style="margin: 0; font-size: 12.5px; color: var(--txt-2)">
-        The conversation and all of its local messages will be removed from this browser. This cannot be undone.
+        {{ i18n.t('apps.messages.deleteConversationMessage') }}
       </p>
       <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px">
-        <button class="btn" (click)="cancelDelete()" data-autofocus tabindex="0" type="button">Cancel</button>
-        <button class="btn pri" (click)="deleteChat()" tabindex="0" type="button">Delete</button>
+        <button class="btn" (click)="cancelDelete()" data-autofocus tabindex="0" type="button">
+          {{ i18n.t('apps.messages.cancel') }}
+        </button>
+        <button class="btn pri" (click)="deleteChat()" tabindex="0" type="button">
+          {{ i18n.t('apps.messages.delete') }}
+        </button>
       </div>
     </div>
   </div>

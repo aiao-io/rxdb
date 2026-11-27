@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { DOCUMENT } from '@angular/common';
 import {
   Component,
@@ -70,13 +71,20 @@ export class FilePanel {
   /** 用户选的文件夹；还没选过就是起始文件夹。 */
   private readonly chosen = signal<DiskPath | null>(null);
 
+  protected readonly i18n = useI18n();
   protected readonly uid = `fp${++serial}`;
   protected readonly request = computed(() => this.panel().request);
   protected readonly isSave = computed(() => this.request().mode === 'save');
-  protected readonly heading = computed(() => (this.isSave() ? 'Save' : 'Open'));
-  protected readonly label = computed(() => `${this.heading()} — ${this.request().app.name}`);
-  protected readonly subtitle = computed(
-    () => `“${this.request().app.name}” wants to ${this.isSave() ? 'save' : 'open'} a file.`
+  protected readonly heading = computed(() =>
+    this.isSave() ? this.i18n.t('shell.filePanel.save') : this.i18n.t('shell.dock.open')
+  );
+  protected readonly label = computed(() =>
+    this.i18n.t('shell.filePanel.title', { action: this.heading(), name: this.request().app.name })
+  );
+  protected readonly subtitle = computed(() =>
+    this.i18n.t(this.isSave() ? 'shell.filePanel.wantsSave' : 'shell.filePanel.wantsOpen', {
+      name: this.request().app.name
+    })
   );
   /** 面板此刻所在的文件夹；它被别处删除、改名时退到最近的还在的上级。 */
   protected readonly dir = computed(() => {
@@ -87,7 +95,7 @@ export class FilePanel {
   protected readonly folder = computed(() => this.disk.nodeAt(this.dir()));
   protected readonly entries = computed(() => {
     const { mode, accept, maxBytes } = this.request();
-    return panelEntries(this.folder(), { mode, accept, maxBytes });
+    return panelEntries(this.folder(), { mode, accept, maxBytes }, this.i18n.t);
   });
   protected readonly activeName = signal<string | null>(null);
   protected readonly activeIndex = computed(() => this.entries().findIndex(entry => entry.name === this.activeName()));
@@ -106,8 +114,8 @@ export class FilePanel {
     return entry !== null && (entry.folder || !entry.disabled);
   });
   protected readonly confirmLabel = computed(() => {
-    if (!this.isSave()) return 'Open';
-    return this.phase() === 'replace' ? 'Replace' : 'Save';
+    if (!this.isSave()) return this.i18n.t('shell.dock.open');
+    return this.phase() === 'replace' ? this.i18n.t('shell.filePanel.replace') : this.i18n.t('shell.filePanel.save');
   });
 
   /** 屏幕上的这个面板。 */
@@ -256,12 +264,12 @@ export class FilePanel {
 
   private saveProblem(): string | null {
     const name = this.name();
-    if (isLocked(this.dir())) return 'You don’t have permission to save in this location.';
-    const invalid = fileNameProblem(name, this.request().nameLength);
+    if (isLocked(this.dir())) return this.i18n.t('shell.filePanel.permissionDenied');
+    const invalid = fileNameProblem(name, this.request().nameLength, this.i18n.t);
     if (invalid) return invalid;
     const conflict = this.conflict();
-    if (conflict.kind === 'folder') return `A folder named “${conflict.name}” already exists in this location.`;
-    if (conflict.kind === 'package') return `“${conflict.name}” is an application and can’t be replaced.`;
+    if (conflict.kind === 'folder') return this.i18n.t('shell.filePanel.folderExists', { name: conflict.name });
+    if (conflict.kind === 'package') return this.i18n.t('shell.filePanel.appCannotReplace', { name: conflict.name });
     return null;
   }
 

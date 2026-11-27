@@ -217,7 +217,7 @@ describe('WallpaperService 切换壁纸', () => {
     const { wallpaper, toast } = setup();
     wallpaper.set('ridges');
     imageFor(WALLPAPERS.ridges.url).onerror?.();
-    expect(toast.show).toHaveBeenCalledExactlyOnceWith('Could not load Blue Ridges');
+    expect(toast.show).toHaveBeenCalledExactlyOnceWith('error.wallpaper.loadFailed', { name: 'Blue Ridges' });
 
     wallpaper.set('tahoe');
     await finishLoading(WALLPAPERS.tahoe.url);

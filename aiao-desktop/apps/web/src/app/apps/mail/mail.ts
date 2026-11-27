@@ -1,5 +1,7 @@
 import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
 
+import { useI18n } from '@aiao/rxdb-i18n-angular';
+
 import { DesktopData } from '../../data/desktop-data';
 import { ALL_ROWS, liveQuery } from '../../data/live-query';
 import { localWriteFailureMessage } from '../../data/local-write-error';
@@ -14,10 +16,16 @@ import { clamp } from '../../shared/format';
 import { Icon } from '../../shared/icon';
 import { TrafficLights } from '../../shared/traffic-lights';
 import { MailComposer } from './mail-composer';
-import { DRAFTS_MAILBOX, counterpartOf, mailMatches, mailboxLabel, mailsIn, partyOf } from './mail-model';
+import type { PartyFields } from './mail-model';
+import {
+  DRAFTS_MAILBOX,
+  counterpartOf,
+  mailboxLabel as labelForMailbox,
+  mailMatches,
+  mailsIn,
+  partyOf
+} from './mail-model';
 import { MailMailbox, MailMessage } from './mail.entities';
-
-const MAIL_MENU_ORDER = ['File', 'Edit', 'View', 'Message', 'Window', 'Help'] as const;
 
 /** 邮件：邮箱侧栏、邮件列表与阅读区，可标旗、回复、转发；邮件和已读、旗标都存在本地库里。 */
 @Component({
@@ -35,13 +43,12 @@ export class MailApp {
   private readonly searchField = viewChild.required<ElementRef<HTMLInputElement>>('search');
 
   protected readonly composer = inject(MailComposer);
+  protected readonly i18n = useI18n();
   protected readonly query = signal('');
   protected readonly error = signal('');
   protected readonly savingFlag = signal(false);
-  protected readonly mailboxLabel = mailboxLabel;
   protected readonly draftsMailbox = DRAFTS_MAILBOX;
   protected readonly actions = inject(ContentActions);
-  protected readonly party = partyOf;
   protected readonly boxes = liveQuery(
     () => MailMailbox.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
     [],
@@ -71,29 +78,36 @@ export class MailApp {
         menus.standard(
           'mail',
           {
-            File: [
-              { id: 'n', label: 'New Message', key: '⌘N', run: () => this.compose() },
-              { id: 'f', label: 'Find', key: '⌘F', run: () => this.focusSearch() },
-              { id: 'w', label: 'Close Window', key: '⌘W', run: () => this.wm.closeFront() }
+            [this.i18n.t('shell.menu.sectionFile')]: [
+              { id: 'n', label: this.i18n.t('apps.mail.newMessage'), key: '⌘N', run: () => this.compose() },
+              { id: 'f', label: this.i18n.t('shell.menu.find'), key: '⌘F', run: () => this.focusSearch() },
+              { id: 'w', label: this.i18n.t('shell.menu.closeWindow'), key: '⌘W', run: () => this.wm.closeFront() }
             ],
-            Message: [
+            [this.i18n.t('apps.mail.sectionMessage')]: [
               {
                 id: 'u',
-                label: 'Mark as Unread',
+                label: this.i18n.t('apps.mail.markAsUnread'),
                 key: '⇧⌘U',
                 disabled: !this.current(),
                 run: () => void this.markUnread()
               },
               {
                 id: 't',
-                label: 'Move to Trash',
+                label: this.i18n.t('shell.menu.moveToTrash'),
                 key: '⌘⌫',
                 disabled: !this.current(),
                 run: () => void this.moveToTrash()
               }
             ]
           },
-          MAIL_MENU_ORDER
+          [
+            this.i18n.t('shell.menu.sectionFile'),
+            this.i18n.t('shell.menu.sectionEdit'),
+            this.i18n.t('shell.menu.sectionView'),
+            this.i18n.t('apps.mail.sectionMessage'),
+            this.i18n.t('shell.menu.sectionWindow'),
+            this.i18n.t('shell.menu.sectionHelp')
+          ]
         )
       )
     );
@@ -140,37 +154,50 @@ export class MailApp {
       [
         {
           id: 'r',
-          label: 'Reply',
+          label: this.i18n.t('apps.mail.reply'),
           run: () =>
-            this.composer.compose(`Re: ${mail.subject}`, counterpartOf(mail), `\n\n${mail.sender}:\n${mail.body}`)
+            this.composer.compose(
+              this.i18n.t('apps.mail.reSubject', { subject: mail.subject }),
+              counterpartOf(mail),
+              `\n\n${mail.sender}:\n${mail.body}`
+            )
         },
         {
           id: 'f',
-          label: 'Forward',
+          label: this.i18n.t('apps.mail.forward'),
           run: () =>
             this.composer.compose(
-              `Fwd: ${mail.subject}`,
+              this.i18n.t('apps.mail.fwdSubject', { subject: mail.subject }),
               '',
               printableText({
                 title: mail.subject,
-                paragraphs: [`From: ${mail.sender}`, `To: ${mail.recipient}`, mail.timeLabel, mail.body]
+                paragraphs: [
+                  this.i18n.t('apps.mail.fromLine', { name: mail.sender }),
+                  this.i18n.t('apps.mail.toLabel', { name: mail.recipient }),
+                  mail.timeLabel,
+                  mail.body
+                ]
               })
             )
         },
         '-',
-        { id: 'g', label: mail.flagged ? 'Remove Flag' : 'Flag', run: () => void this.setFlag(mail) },
-        { id: 'u', label: 'Mark as Unread', run: () => void this.update(mail, { unread: true }) },
+        {
+          id: 'g',
+          label: mail.flagged ? this.i18n.t('apps.mail.removeFlag') : this.i18n.t('apps.mail.flag'),
+          run: () => void this.setFlag(mail)
+        },
+        { id: 'u', label: this.i18n.t('apps.mail.markAsUnread'), run: () => void this.update(mail, { unread: true }) },
         '-',
-        { id: 't', label: 'Move to Trash', run: () => void this.trash(mail) }
+        { id: 't', label: this.i18n.t('shell.menu.moveToTrash'), run: () => void this.trash(mail) }
       ],
-      'mail'
+      this.i18n.t('apps.mail.contextMenu')
     );
   }
 
   /** 标旗开关；右键菜单与工具栏按钮共用。 */
   protected async setFlag(mail: MailMessage): Promise<void> {
     const flagged = !mail.flagged;
-    if (await this.update(mail, { flagged })) this.toast.show(flagged ? 'Flagged' : 'Flag removed');
+    if (await this.update(mail, { flagged })) this.toast.show(flagged ? 'apps.mail.flagged' : 'apps.mail.flagRemoved');
   }
 
   /** 标记未读：⇧⌘U 与右键菜单共用。 */
@@ -194,13 +221,24 @@ export class MailApp {
     if (!target || this.savingFlag()) return;
     const flagged = !target.flagged;
     this.savingFlag.set(true);
-    if (await this.update(target, { flagged })) this.toast.show(flagged ? 'Flagged' : 'Flag removed');
+    if (await this.update(target, { flagged }))
+      this.toast.show(flagged ? 'apps.mail.flagged' : 'apps.mail.flagRemoved');
     this.savingFlag.set(false);
   }
 
   protected count(name: string): number {
     const matches = mailsIn(this.mails(), name);
     return name === 'Inbox' ? matches.filter(mail => mail.unread).length : matches.length;
+  }
+
+  /** 侧栏邮箱的显示名；`Sent` 显示本地归档名（mail-model 的 mailboxLabel）。 */
+  protected mailboxLabel(name: string): string {
+    return labelForMailbox(name, key => this.i18n.t(key));
+  }
+
+  /** 列表与阅读区里显示的对方；发出的邮件没填收件人时写明。 */
+  protected party(mail: PartyFields): string {
+    return partyOf(mail, key => this.i18n.t(key));
   }
 
   /** 阅读区与复制内容共用的正文格式，去掉不可见的边界空白。 */
@@ -214,7 +252,12 @@ export class MailApp {
       mail ?
         {
           title: mail.subject,
-          paragraphs: [`From: ${mail.sender}`, `To: ${mail.recipient}`, mail.timeLabel, this.displayBody(mail.body)]
+          paragraphs: [
+            this.i18n.t('apps.mail.fromLine', { name: mail.sender }),
+            this.i18n.t('apps.mail.toLabel', { name: mail.recipient }),
+            mail.timeLabel,
+            this.displayBody(mail.body)
+          ]
         }
       : null;
     const disabled = !content || this.actions.busy();
@@ -223,28 +266,49 @@ export class MailApp {
       [
         {
           id: 'r',
-          label: 'Reply',
+          label: this.i18n.t('apps.mail.reply'),
           disabled: !mail,
           run: () =>
             mail &&
-            this.composer.compose(`Re: ${mail.subject}`, counterpartOf(mail), `\n\n${mail.sender}:\n${mail.body}`)
+            this.composer.compose(
+              this.i18n.t('apps.mail.reSubject', { subject: mail.subject }),
+              counterpartOf(mail),
+              `\n\n${mail.sender}:\n${mail.body}`
+            )
         },
         {
           id: 'f',
-          label: 'Forward',
+          label: this.i18n.t('apps.mail.forward'),
           disabled: !mail,
-          run: () => mail && content && this.composer.compose(`Fwd: ${mail.subject}`, '', printableText(content))
+          run: () =>
+            mail &&
+            content &&
+            this.composer.compose(
+              this.i18n.t('apps.mail.fwdSubject', { subject: mail.subject }),
+              '',
+              printableText(content)
+            )
         },
         '-',
-        { id: 'c', label: 'Copy Message', disabled, run: () => content && this.actions.copy(printableText(content)) },
-        { id: 'p', label: 'Print…', disabled, run: () => content && this.actions.print(content) }
+        {
+          id: 'c',
+          label: this.i18n.t('apps.mail.copyMessage'),
+          disabled,
+          run: () => content && this.actions.copy(printableText(content))
+        },
+        {
+          id: 'p',
+          label: this.i18n.t('apps.mail.print'),
+          disabled,
+          run: () => content && this.actions.print(content)
+        }
       ],
-      { keyboard: event.detail === 0, label: 'mail sharing' }
+      { keyboard: event.detail === 0, label: this.i18n.t('apps.mail.sharingMenu') }
     );
   }
 
   private async trash(mail: MailMessage): Promise<void> {
-    if (await this.update(mail, { mailbox: 'Trash' })) this.toast.show('Moved to Trash');
+    if (await this.update(mail, { mailbox: 'Trash' })) this.toast.show('apps.mail.movedToTrash');
   }
 
   private async update(mail: MailMessage, patch: Partial<MailMessage>): Promise<boolean> {

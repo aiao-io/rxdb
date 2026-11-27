@@ -28,6 +28,7 @@ export const DESKTOP_APP_MANIFESTS = {
   finder: {
     id: 'finder',
     name: 'Finder',
+    nameKey: 'apps.finder.name',
     icon: 'app-finder',
     kind: 'builtin',
     bundleId: 'io.aiao.desktop.finder',
@@ -43,6 +44,7 @@ export const DESKTOP_APP_MANIFESTS = {
   terminal: {
     id: 'terminal',
     name: 'Terminal',
+    nameKey: 'apps.terminal.name',
     icon: 'app-terminal',
     kind: 'builtin',
     bundleId: 'io.aiao.desktop.terminal',
@@ -58,6 +60,7 @@ export const DESKTOP_APP_MANIFESTS = {
   vscode: {
     id: 'vscode',
     name: 'Aiao Code',
+    nameKey: 'apps.vscode.name',
     icon: 'app-aiao-code',
     kind: 'web',
     bundleId: 'io.aiao.desktop.aiao-code',
@@ -80,6 +83,7 @@ export const DESKTOP_APP_MANIFESTS = {
   github: {
     id: 'github',
     name: 'GitHub Desktop',
+    nameKey: 'apps.github.name',
     icon: 'app-github',
     kind: 'builtin',
     bundleId: 'io.aiao.desktop.github',
@@ -94,6 +98,7 @@ export const DESKTOP_APP_MANIFESTS = {
   calculator: {
     id: 'calculator',
     name: 'Calculator',
+    nameKey: 'apps.calculator.name',
     icon: 'app-calculator',
     kind: 'builtin',
     bundleId: 'io.aiao.desktop.calculator',
@@ -107,6 +112,7 @@ export const DESKTOP_APP_MANIFESTS = {
   about: {
     id: 'about',
     name: 'Finder',
+    nameKey: 'apps.about.name',
     icon: 'app-finder',
     kind: 'builtin',
     bundleId: 'io.aiao.desktop.about',
@@ -120,6 +126,7 @@ export const DESKTOP_APP_MANIFESTS = {
   textedit: {
     id: 'textedit',
     name: 'TextEdit',
+    nameKey: 'apps.textedit.name',
     icon: 'app-textedit',
     kind: 'builtin',
     bundleId: 'io.aiao.desktop.textedit',
@@ -133,6 +140,7 @@ export const DESKTOP_APP_MANIFESTS = {
   preview: {
     id: 'preview',
     name: 'Preview',
+    nameKey: 'apps.preview.name',
     icon: 'app-preview',
     kind: 'builtin',
     bundleId: 'io.aiao.desktop.preview',
@@ -146,6 +154,7 @@ export const DESKTOP_APP_MANIFESTS = {
   notes: {
     id: 'notes',
     name: 'Notes',
+    nameKey: 'apps.notes.name',
     icon: 'app-notes',
     kind: 'builtin',
     bundleId: 'io.aiao.desktop.notes',
@@ -159,6 +168,7 @@ export const DESKTOP_APP_MANIFESTS = {
   calendar: {
     id: 'calendar',
     name: 'Calendar',
+    nameKey: 'apps.calendar.name',
     icon: 'app-calendar',
     kind: 'builtin',
     bundleId: 'io.aiao.desktop.calendar',
@@ -172,6 +182,7 @@ export const DESKTOP_APP_MANIFESTS = {
   safari: {
     id: 'safari',
     name: 'Safari',
+    nameKey: 'apps.safari.name',
     icon: 'app-safari',
     kind: 'builtin',
     bundleId: 'io.aiao.desktop.safari',
@@ -186,6 +197,7 @@ export const DESKTOP_APP_MANIFESTS = {
   music: {
     id: 'music',
     name: 'Music',
+    nameKey: 'apps.music.name',
     icon: 'app-music',
     kind: 'builtin',
     bundleId: 'io.aiao.desktop.music',
@@ -199,6 +211,7 @@ export const DESKTOP_APP_MANIFESTS = {
   settings: {
     id: 'settings',
     name: 'System Settings',
+    nameKey: 'apps.settings.name',
     icon: 'app-settings',
     kind: 'builtin',
     bundleId: 'io.aiao.desktop.system-settings',
@@ -212,6 +225,7 @@ export const DESKTOP_APP_MANIFESTS = {
   mail: {
     id: 'mail',
     name: 'Mail',
+    nameKey: 'apps.mail.name',
     icon: 'app-mail',
     kind: 'builtin',
     bundleId: 'io.aiao.desktop.mail',
@@ -225,6 +239,7 @@ export const DESKTOP_APP_MANIFESTS = {
   messages: {
     id: 'messages',
     name: 'Messages',
+    nameKey: 'apps.messages.name',
     icon: 'app-messages',
     kind: 'builtin',
     bundleId: 'io.aiao.desktop.messages',
@@ -238,6 +253,7 @@ export const DESKTOP_APP_MANIFESTS = {
   maps: {
     id: 'maps',
     name: 'Maps',
+    nameKey: 'apps.maps.name',
     icon: 'app-maps',
     kind: 'builtin',
     bundleId: 'io.aiao.desktop.maps',
@@ -251,6 +267,7 @@ export const DESKTOP_APP_MANIFESTS = {
   photos: {
     id: 'photos',
     name: 'Photos',
+    nameKey: 'apps.photos.name',
     icon: 'app-photos',
     kind: 'builtin',
     bundleId: 'io.aiao.desktop.photos',
@@ -264,6 +281,7 @@ export const DESKTOP_APP_MANIFESTS = {
   reminders: {
     id: 'reminders',
     name: 'Reminders',
+    nameKey: 'apps.reminders.name',
     icon: 'app-reminders',
     kind: 'builtin',
     bundleId: 'io.aiao.desktop.reminders',
@@ -276,6 +294,7 @@ export const DESKTOP_APP_MANIFESTS = {
   weather: {
     id: 'weather',
     name: 'Weather',
+    nameKey: 'apps.weather.name',
     icon: 'app-weather',
     kind: 'builtin',
     bundleId: 'io.aiao.desktop.weather',
@@ -288,6 +307,7 @@ export const DESKTOP_APP_MANIFESTS = {
   stocks: {
     id: 'stocks',
     name: 'Stocks',
+    nameKey: 'apps.stocks.name',
     icon: 'app-stocks',
     kind: 'builtin',
     bundleId: 'io.aiao.desktop.stocks',
@@ -300,6 +320,7 @@ export const DESKTOP_APP_MANIFESTS = {
   clock: {
     id: 'clock',
     name: 'Clock',
+    nameKey: 'apps.clock.name',
     icon: 'app-clock',
     kind: 'builtin',
     bundleId: 'io.aiao.desktop.clock',
@@ -312,6 +333,7 @@ export const DESKTOP_APP_MANIFESTS = {
   contacts: {
     id: 'contacts',
     name: 'Contacts',
+    nameKey: 'apps.contacts.name',
     icon: 'app-contacts',
     kind: 'builtin',
     bundleId: 'io.aiao.desktop.contacts',
@@ -324,6 +346,7 @@ export const DESKTOP_APP_MANIFESTS = {
   freeform: {
     id: 'freeform',
     name: 'Freeform',
+    nameKey: 'apps.freeform.name',
     icon: 'app-freeform',
     kind: 'builtin',
     bundleId: 'io.aiao.desktop.freeform',
@@ -336,15 +359,24 @@ export const DESKTOP_APP_MANIFESTS = {
   podcasts: {
     id: 'podcasts',
     name: 'Podcasts',
+    nameKey: 'apps.podcasts.name',
     icon: 'app-podcasts',
     bundleId: 'io.aiao.desktop.podcasts',
     ...shelf
   },
-  tv: { id: 'tv', name: 'TV', icon: 'app-tv', bundleId: 'io.aiao.desktop.tv', ...shelf },
-  books: { id: 'books', name: 'Books', icon: 'app-books', bundleId: 'io.aiao.desktop.books', ...shelf },
+  tv: { id: 'tv', name: 'TV', nameKey: 'apps.tv.name', icon: 'app-tv', bundleId: 'io.aiao.desktop.tv', ...shelf },
+  books: {
+    id: 'books',
+    name: 'Books',
+    nameKey: 'apps.books.name',
+    icon: 'app-books',
+    bundleId: 'io.aiao.desktop.books',
+    ...shelf
+  },
   appstore: {
     id: 'appstore',
     name: 'App Store',
+    nameKey: 'apps.appstore.name',
     icon: 'app-appstore',
     bundleId: 'io.aiao.desktop.app-store',
     ...shelf
@@ -352,6 +384,7 @@ export const DESKTOP_APP_MANIFESTS = {
   facetime: {
     id: 'facetime',
     name: 'FaceTime',
+    nameKey: 'apps.facetime.name',
     icon: 'app-facetime',
     kind: 'builtin',
     bundleId: 'io.aiao.desktop.facetime',
@@ -364,6 +397,7 @@ export const DESKTOP_APP_MANIFESTS = {
   activity: {
     id: 'activity',
     name: 'Activity Monitor',
+    nameKey: 'apps.activity.name',
     icon: 'app-activity',
     kind: 'builtin',
     bundleId: 'io.aiao.desktop.activity-monitor',
@@ -376,6 +410,7 @@ export const DESKTOP_APP_MANIFESTS = {
   diskutil: {
     id: 'diskutil',
     name: 'Disk Utility',
+    nameKey: 'apps.diskutil.name',
     icon: 'app-diskutil',
     kind: 'builtin',
     bundleId: 'io.aiao.desktop.disk-utility',
@@ -388,6 +423,7 @@ export const DESKTOP_APP_MANIFESTS = {
   fontbook: {
     id: 'fontbook',
     name: 'Font Book',
+    nameKey: 'apps.fontbook.name',
     icon: 'app-fontbook',
     kind: 'builtin',
     bundleId: 'io.aiao.desktop.font-book',
@@ -400,6 +436,7 @@ export const DESKTOP_APP_MANIFESTS = {
   voice: {
     id: 'voice',
     name: 'Voice Memos',
+    nameKey: 'apps.voice.name',
     icon: 'app-voice',
     kind: 'builtin',
     bundleId: 'io.aiao.desktop.voice-memos',
@@ -412,6 +449,7 @@ export const DESKTOP_APP_MANIFESTS = {
   saltline: {
     id: 'saltline',
     name: '几猫3A大作',
+    nameKey: 'apps.saltline.name',
     icon: 'app-saltline',
     kind: 'builtin',
     runtime: 'bundled-html',
@@ -427,6 +465,7 @@ export const DESKTOP_APP_MANIFESTS = {
   launchpad: {
     id: 'launchpad',
     name: 'Launchpad',
+    nameKey: 'apps.launchpad.name',
     icon: 'app-launchpad',
     kind: 'system',
     showInApplications: false,
@@ -435,6 +474,7 @@ export const DESKTOP_APP_MANIFESTS = {
   trash: {
     id: 'trash',
     name: 'Trash',
+    nameKey: 'apps.trash.name',
     icon: 'app-trash',
     kind: 'system',
     showInApplications: false,

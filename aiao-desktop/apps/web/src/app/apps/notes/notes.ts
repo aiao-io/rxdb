@@ -11,6 +11,8 @@ import {
   viewChild
 } from '@angular/core';
 
+import { useI18n } from '@aiao/rxdb-i18n-angular';
+
 import { DesktopData } from '../../data/desktop-data';
 import { ALL_ROWS, liveQuery } from '../../data/live-query';
 import { DesktopMenus } from '../../services/desktop-menus';
@@ -57,10 +59,10 @@ const FOLDERS = [
 ] as const;
 
 const TEXT_FORMATS = [
-  { command: 'bold', title: 'Bold', icon: 'g-bold' },
-  { command: 'italic', title: 'Italic', icon: 'g-italic' },
-  { command: 'underline', title: 'Underline', icon: 'g-underline' },
-  { command: 'strikeThrough', title: 'Strikethrough', icon: 'g-strike' }
+  { command: 'bold', title: 'apps.notes.bold', icon: 'g-bold' },
+  { command: 'italic', title: 'apps.notes.italic', icon: 'g-italic' },
+  { command: 'underline', title: 'apps.notes.underline', icon: 'g-underline' },
+  { command: 'strikeThrough', title: 'apps.notes.strikethrough', icon: 'g-strike' }
 ] as const;
 
 /** 光标所在位置会让工具栏按钮亮起的命令。 */
@@ -118,7 +120,11 @@ export class NotesApp {
 
   protected readonly current = computed(() => this.notes().find(note => note.id === this.selected()));
   protected readonly win = inject(DesktopWindow);
-  protected readonly editor = new NoteDocument(change => this.persist(change));
+  protected readonly i18n = useI18n();
+  protected readonly editor = new NoteDocument(
+    change => this.persist(change),
+    key => this.i18n.t(key)
+  );
   protected readonly busy = signal(false);
   protected readonly actionError = signal('');
   protected readonly failure = computed(() => this.actionError() || this.editor.error());
@@ -145,67 +151,88 @@ export class NotesApp {
       id: note.id,
       title: `${note.pinned ? '📌 ' : ''}${note.title || 'New Note'}`,
       when: noteWhen(note.date, now),
-      snippet: noteSnippet(note.body)
+      snippet: noteSnippet(note.body, this.i18n.t('apps.notes.noAdditionalText'))
     }));
   });
 
   constructor() {
     const menus = inject(DesktopMenus);
     this.win.setMenus(
-      computed(() =>
-        menus.standard(
+      computed(() => {
+        const file = this.i18n.t('shell.menu.sectionFile');
+        const edit = this.i18n.t('shell.menu.sectionEdit');
+        const format = this.i18n.t('apps.notes.sectionFormat');
+        const view = this.i18n.t('shell.menu.sectionView');
+        const windowSection = this.i18n.t('shell.menu.sectionWindow');
+        const help = this.i18n.t('shell.menu.sectionHelp');
+        return menus.standard(
           'notes',
           {
-            File: [
-              { id: 'n', label: 'New Note', key: '⌘N', run: () => this.create() },
-              { id: 's', label: 'Save Note', key: '⌘S', run: () => this.retry() },
-              { id: 'copy', label: 'Save a Copy', run: () => this.saveCopy() },
+            [file]: [
+              { id: 'n', label: this.i18n.t('apps.notes.newNote'), key: '⌘N', run: () => this.create() },
+              { id: 's', label: this.i18n.t('apps.notes.saveNote'), key: '⌘S', run: () => this.retry() },
+              { id: 'copy', label: this.i18n.t('apps.notes.saveACopy'), run: () => this.saveCopy() },
               {
                 id: 'p',
-                label: this.current()?.pinned ? 'Unpin Note' : 'Pin Note',
+                label: this.i18n.t(this.current()?.pinned ? 'apps.notes.unpinNote' : 'apps.notes.pinNote'),
                 run: () => this.togglePin(),
                 disabled: !this.current()
               },
-              { id: 'f', label: 'New Folder', key: '⇧⌘N', run: () => this.newFolder() },
+              { id: 'f', label: this.i18n.t('apps.notes.newFolder'), key: '⇧⌘N', run: () => this.newFolder() },
               '-',
-              { id: 'd', label: 'Delete Note', run: () => this.remove() }
+              { id: 'd', label: this.i18n.t('apps.notes.deleteNote'), run: () => this.remove() }
             ],
-            Format: [
-              { id: 'b', label: 'Bold', key: '⌘B', run: () => this.format('bold') },
-              { id: 'i', label: 'Italic', key: '⌘I', run: () => this.format('italic') },
-              { id: 'u', label: 'Underline', key: '⌘U', run: () => this.format('underline') },
+            [format]: [
+              { id: 'b', label: this.i18n.t('apps.notes.bold'), key: '⌘B', run: () => this.format('bold') },
+              { id: 'i', label: this.i18n.t('apps.notes.italic'), key: '⌘I', run: () => this.format('italic') },
+              {
+                id: 'u',
+                label: this.i18n.t('apps.notes.underline'),
+                key: '⌘U',
+                run: () => this.format('underline')
+              },
               '-',
-              { id: 'c', label: 'Checklist', key: '⇧⌘L', run: () => this.checklist() },
-              { id: 't', label: 'Table', run: () => this.table() }
+              { id: 'c', label: this.i18n.t('apps.notes.checklist'), key: '⇧⌘L', run: () => this.checklist() },
+              { id: 't', label: this.i18n.t('apps.notes.table'), run: () => this.table() }
             ],
-            View: [
+            [view]: [
               {
                 id: 'sort',
-                label: 'Sort By',
+                label: this.i18n.t('apps.notes.sortBy'),
                 submenu: [
                   {
                     id: 'se',
-                    label: 'Date Edited',
+                    label: this.i18n.t('apps.notes.dateEdited'),
                     checked: this.sort() === 'edited',
                     run: () => this.setSort('edited')
                   },
                   {
                     id: 'sc',
-                    label: 'Date Created',
+                    label: this.i18n.t('apps.notes.dateCreated'),
                     checked: this.sort() === 'created',
                     run: () => this.setSort('created')
                   },
-                  { id: 'st', label: 'Title', checked: this.sort() === 'title', run: () => this.setSort('title') }
+                  {
+                    id: 'st',
+                    label: this.i18n.t('apps.notes.title'),
+                    checked: this.sort() === 'title',
+                    run: () => this.setSort('title')
+                  }
                 ]
               },
               '-',
-              { id: 'f', label: 'Enter Full Screen', key: '⌃⌘F', run: () => this.wm.zoomFront() },
-              { id: 't', label: 'Show Toolbar', key: '⌥⌘T', checked: true }
+              {
+                id: 'f',
+                label: this.i18n.t('shell.menu.enterFullScreen'),
+                key: '⌃⌘F',
+                run: () => this.wm.zoomFront()
+              },
+              { id: 't', label: this.i18n.t('shell.menu.showToolbar'), key: '⌥⌘T', checked: true }
             ]
           },
-          ['File', 'Edit', 'Format', 'View', 'Window', 'Help']
-        )
-      )
+          [file, edit, format, view, windowSection, help]
+        );
+      })
     );
     /* 库里的笔记到达（首次加载、别的窗口增删、自己写入后回读）时，把编辑区对齐到选中项。 */
     afterRenderEffect(() => {
@@ -254,11 +281,15 @@ export class NotesApp {
     const note = this.current();
     if (!note) return;
     this.popover.contextMenu(event, [
-      { id: 'p', label: note.pinned ? 'Unpin Note' : 'Pin Note', run: () => this.togglePin() },
-      { id: 'd', label: 'Duplicate', run: () => this.saveCopy() },
+      {
+        id: 'p',
+        label: this.i18n.t(note.pinned ? 'apps.notes.unpinNote' : 'apps.notes.pinNote'),
+        run: () => this.togglePin()
+      },
+      { id: 'd', label: this.i18n.t('apps.notes.duplicate'), run: () => this.saveCopy() },
       {
         id: 'm',
-        label: 'Move to Folder',
+        label: this.i18n.t('apps.notes.moveToFolder'),
         submenu: [
           {
             id: 'mn',
@@ -276,9 +307,9 @@ export class NotesApp {
       },
       '-',
       ...(this.folder() === TRASH_FOLDER ?
-        ([{ id: 'r', label: 'Recover Note', run: () => this.recover() }] as const)
+        ([{ id: 'r', label: this.i18n.t('apps.notes.recoverNote'), run: () => this.recover() }] as const)
       : []),
-      { id: 'x', label: 'Delete', run: () => this.remove() }
+      { id: 'x', label: this.i18n.t('apps.notes.delete'), run: () => this.remove() }
     ]);
   }
 
@@ -362,7 +393,8 @@ export class NotesApp {
     const trimmed = name.trim();
     const problem = noteFolderNameError(
       trimmed,
-      this.noteFolders().map(folder => folder.name)
+      this.noteFolders().map(folder => folder.name),
+      key => this.i18n.t(key)
     );
     if (problem) return Promise.resolve(problem);
     return this.operate(async () => {
@@ -376,7 +408,7 @@ export class NotesApp {
       });
       this.folder.set(trimmed);
       this.query.set('');
-    }).then(ok => (ok ? '' : this.actionError() || 'The folder could not be created.'));
+    }).then(ok => (ok ? '' : this.actionError() || this.i18n.t('error.notes.folderNotCreated')));
   }
 
   protected create(): Promise<boolean> {
@@ -609,7 +641,7 @@ export class NotesApp {
       await action();
       return true;
     } catch (error) {
-      this.actionError.set(noteFailureMessage(error));
+      this.actionError.set(noteFailureMessage(error, key => this.i18n.t(key)));
       return false;
     }
   }

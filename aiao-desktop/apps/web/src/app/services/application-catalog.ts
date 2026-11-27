@@ -1,4 +1,7 @@
+import { I18N } from '@aiao/rxdb-i18n-angular';
 import { Service, computed, inject, signal } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+
 import { ApplicationRegistry } from './application-registry';
 import { DesktopAppManifests } from './desktop-apps';
 
@@ -33,6 +36,8 @@ export type BundleResolution =
 @Service({ autoProvided: false })
 export class ApplicationCatalog {
   private readonly manifests = inject(ApplicationRegistry).apps;
+  private readonly i18nRuntime = inject(I18N, { optional: true }) ?? undefined;
+  private readonly locale = this.i18nRuntime ? toSignal(this.i18nRuntime.locale$, { requireSync: true }) : undefined;
   private readonly ownedState = signal<ReadonlyMap<string, string>>(new Map());
   private readonly conflictState = signal<readonly ProjectionConflict[]>([]);
 
@@ -42,10 +47,13 @@ export class ApplicationCatalog {
   readonly conflicts = this.conflictState.asReadonly();
   /** Finder 在 Applications 里显示的说明；没有冲突时为 `null`。 */
   readonly conflictNote = computed(() => {
+    this.locale?.();
     const conflicts = this.conflictState();
     if (!conflicts.length) return null;
     const names = conflicts.map(conflict => conflict.dir).join('、');
-    return `${names} can’t be shown here because an item with the same name already exists. The application can still be opened from Launchpad, Spotlight and the Dock.`;
+    return this.i18nRuntime ?
+        this.i18nRuntime.t('apps.finder.conflictNote', { names })
+      : `${names} can’t be shown here because an item with the same name already exists. The application can still be opened from Launchpad, Spotlight and the Dock.`;
   });
 
   /**

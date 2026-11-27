@@ -4,13 +4,16 @@ export const DONE_TINT = '#0a84ff';
 /** 「+」新建的提醒默认的时间说明。 */
 export const NEW_REMINDER_DUE = 'Today';
 
-/** 侧栏支持的提醒列表。 */
+/**
+ * 侧栏支持的提醒列表。`name` 是 i18n 目录 key（显示时按当前语言解析），`id` 才是列表的语义标识；
+ * 存进库里的 `due` 时间说明（`Today`、`Tomorrow 9:00 AM` 等）仍是写死的显示串，不随界面语言变化。
+ */
 export const REMINDER_LISTS = [
-  { id: 'today', name: 'Today', color: '#0a84ff' },
-  { id: 'scheduled', name: 'Scheduled', color: '#ff375f' },
-  { id: 'all', name: 'All', color: '#1d1d1f' },
-  { id: 'flagged', name: 'Flagged', color: '#ff9f0a' },
-  { id: 'completed', name: 'Completed', color: '#8e8e93' }
+  { id: 'today', name: 'apps.reminders.listToday', color: '#0a84ff' },
+  { id: 'scheduled', name: 'apps.reminders.listScheduled', color: '#ff375f' },
+  { id: 'all', name: 'apps.reminders.listAll', color: '#1d1d1f' },
+  { id: 'flagged', name: 'apps.reminders.listFlagged', color: '#ff9f0a' },
+  { id: 'completed', name: 'apps.reminders.listCompleted', color: '#8e8e93' }
 ] as const;
 
 export type ReminderList = (typeof REMINDER_LISTS)[number]['id'];
@@ -154,7 +157,7 @@ export const applyList = (
   }
 };
 
-/** 到期日选择面板里的一个快捷项。 */
+/** 到期日选择面板里的一个快捷项；`label` 是 i18n 目录 key，`due` 是写进库的时间说明。 */
 export interface DueOption {
   readonly id: string;
   readonly label: string;
@@ -177,8 +180,8 @@ export const dueOptions = (today: Date = new Date()): readonly DueOption[] => {
   const nextWeek = new Date(today);
   nextWeek.setDate(today.getDate() + 7);
   return [
-    { id: 'today', label: 'Today', due: NEW_REMINDER_DUE },
-    { id: 'tomorrow', label: 'Tomorrow', due: 'Tomorrow' },
-    { id: 'week', label: 'Next Week', due: dueLabel(nextWeek, today) }
+    { id: 'today', label: 'apps.reminders.dueToday', due: NEW_REMINDER_DUE },
+    { id: 'tomorrow', label: 'apps.reminders.dueTomorrow', due: 'Tomorrow' },
+    { id: 'week', label: 'apps.reminders.dueNextWeek', due: dueLabel(nextWeek, today) }
   ];
 };

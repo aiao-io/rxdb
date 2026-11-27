@@ -12,11 +12,15 @@ import {
 import type { RenderTask } from 'pdfjs-dist';
 import { GlobalWorkerOptions, RenderingCancelledException } from 'pdfjs-dist';
 
+import { useI18n } from '@aiao/rxdb-i18n-angular';
+
+import { diskKindLabel } from '../../shared/disk-kind-label';
+
 import { extensionOf, fileKind } from '../../disk/disk-kinds';
 import { ContentActions } from '../../services/content-actions';
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
-import { FileSystem, FsNode, describeDiskError } from '../../services/file-system';
+import { FileSystem, describeDiskError } from '../../services/file-system';
 import { PopoverService } from '../../services/popover';
 import { PrintableContent, printableText } from '../../services/print-document';
 import { Toast } from '../../services/toast';
@@ -39,9 +43,6 @@ type PreviewView =
   | { readonly kind: 'image'; readonly url: string }
   | { readonly kind: 'video' }
   | { readonly kind: 'failed'; readonly reason: string };
-
-const fileName = (file: string | FsNode | undefined): string =>
-  (typeof file === 'string' ? file : file?.name) || 'Untitled';
 
 const IMAGE_TYPES: Readonly<Record<string, string>> = {
   png: 'image/png',
@@ -94,6 +95,7 @@ export class PreviewApp {
   /** 命中页列表里的当前位置。 */
   private searchAt = 0;
 
+  protected readonly i18n = useI18n();
   protected readonly actions = inject(ContentActions);
   protected readonly content = computed<PrintableContent | null>(() => {
     const view = this.view();
@@ -102,7 +104,10 @@ export class PreviewApp {
     return null;
   });
 
-  protected readonly name = fileName(this.win.options.file);
+  protected readonly name = ((): string => {
+    const file = this.win.options.file;
+    return (typeof file === 'string' ? file : file?.name) || this.i18n.t('apps.preview.untitled');
+  })();
   protected readonly view = signal<PreviewView>({ kind: 'loading' });
   protected readonly finding = signal(false);
   protected readonly page = signal(1);
@@ -124,13 +129,18 @@ export class PreviewApp {
     this.win.setMenus(
       computed(() =>
         menus.standard('preview', {
-          File: [
-            { id: 'n', label: 'New Window', key: '⌘N', run: () => this.wm.open('preview', { force: true }) },
-            { id: 'w', label: 'Close Window', key: '⌘W', run: () => this.wm.closeFront() },
+          [this.i18n.t('shell.menu.sectionFile')]: [
+            {
+              id: 'n',
+              label: this.i18n.t('shell.menu.newWindow'),
+              key: '⌘N',
+              run: () => this.wm.open('preview', { force: true })
+            },
+            { id: 'w', label: this.i18n.t('shell.menu.closeWindow'), key: '⌘W', run: () => this.wm.closeFront() },
             '-',
             {
               id: 'p',
-              label: 'Print…',
+              label: this.i18n.t('apps.preview.print'),
               key: '⌘P',
               disabled: !this.content(),
               run: () => {
@@ -139,16 +149,16 @@ export class PreviewApp {
               }
             }
           ],
-          View: [
-            { id: 'f', label: 'Enter Full Screen', key: '⌃⌘F', run: () => this.wm.zoomFront() },
-            { id: 't', label: 'Show Toolbar', key: '⌥⌘T', checked: true },
+          [this.i18n.t('shell.menu.sectionView')]: [
+            { id: 'f', label: this.i18n.t('shell.menu.enterFullScreen'), key: '⌃⌘F', run: () => this.wm.zoomFront() },
+            { id: 't', label: this.i18n.t('shell.menu.showToolbar'), key: '⌥⌘T', checked: true },
             '-',
-            { id: 'zi', label: 'Zoom In', key: '⌘+', run: () => this.zoomIn() },
-            { id: 'zo', label: 'Zoom Out', key: '⌘-', run: () => this.zoomOut() },
-            { id: 'as', label: 'Actual Size', key: '⌘0', run: () => this.zoom.set(1) },
+            { id: 'zi', label: this.i18n.t('apps.preview.zoomIn'), key: '⌘+', run: () => this.zoomIn() },
+            { id: 'zo', label: this.i18n.t('apps.preview.zoomOut'), key: '⌘-', run: () => this.zoomOut() },
+            { id: 'as', label: this.i18n.t('apps.preview.actualSize'), key: '⌘0', run: () => this.zoom.set(1) },
             '-',
-            { id: 'rl', label: 'Rotate Left', key: '⌘L', run: () => this.rotateBy(-90) },
-            { id: 'rr', label: 'Rotate Right', key: '⌘R', run: () => this.rotateBy(90) }
+            { id: 'rl', label: this.i18n.t('apps.preview.rotateLeft'), key: '⌘L', run: () => this.rotateBy(-90) },
+            { id: 'rr', label: this.i18n.t('apps.preview.rotateRight'), key: '⌘R', run: () => this.rotateBy(90) }
           ]
         })
       )
@@ -186,22 +196,32 @@ export class PreviewApp {
       [
         {
           id: 'm',
-          label: 'Mail Draft',
+          label: this.i18n.t('apps.preview.mailDraft'),
           icon: 'g-compose',
           disabled: !content,
           run: () => content && this.mail.compose(this.name, '', printableText(content))
         },
-        { id: 'g', label: 'Open Messages', icon: 'g-facetime', run: () => this.wm.open('messages') },
+        {
+          id: 'g',
+          label: this.i18n.t('apps.preview.openMessages'),
+          icon: 'g-facetime',
+          run: () => this.wm.open('messages')
+        },
         '-',
         {
           id: 'c',
-          label: this.view().kind === 'pdf' ? 'Copy Text' : 'Copy File Name',
+          label: this.i18n.t(this.view().kind === 'pdf' ? 'apps.preview.copyText' : 'apps.preview.copyFileName'),
           disabled,
           run: () => content && this.actions.copy(this.view().kind === 'pdf' ? printableText(content) : this.name)
         },
-        { id: 'p', label: 'Print…', disabled, run: () => content && this.actions.print(content) }
+        {
+          id: 'p',
+          label: this.i18n.t('apps.preview.print'),
+          disabled,
+          run: () => content && this.actions.print(content)
+        }
       ],
-      { keyboard: event.detail === 0, label: 'preview sharing' }
+      { keyboard: event.detail === 0, label: this.i18n.t('apps.preview.sharingAria') }
     );
   }
 
@@ -234,7 +254,7 @@ export class PreviewApp {
     }
     if (this.view().kind !== 'pdf') {
       const count = markMatches(this.body().nativeElement, text);
-      this.toast.show(count ? `${count} ${count === 1 ? 'match' : 'matches'}` : 'Not found');
+      this.toast.show(count === 1 ? 'apps.preview.matchCountOne' : 'apps.preview.matchCountMany', { count });
       return;
     }
     this.query = text;
@@ -242,17 +262,18 @@ export class PreviewApp {
     if (!result.total) {
       this.search.set(null);
       this.spans.set([]);
-      this.toast.show('Not found');
+      this.toast.show('apps.preview.notFound');
       return;
     }
     this.search.set(result);
     this.searchAt = 0;
     this.page.set(result.pages[0]);
-    this.toast.show(
-      `${result.total} ${result.total === 1 ? 'match' : 'matches'} on ${result.pages.length} ${
-        result.pages.length === 1 ? 'page' : 'pages'
-      }`
-    );
+    this.toast.show('apps.preview.matchesOnPages', {
+      total: result.total,
+      matches: this.i18n.t(result.total === 1 ? 'apps.preview.matchWordOne' : 'apps.preview.matchWordMany'),
+      pages: result.pages.length,
+      pageWord: this.i18n.t(result.pages.length === 1 ? 'apps.preview.pageWordOne' : 'apps.preview.pageWordMany')
+    });
   }
 
   /** 查找框里回车跳到下一处命中的页；Shift+回车回到上一处。 */
@@ -288,7 +309,7 @@ export class PreviewApp {
 
   /** 解码不了的图片（例如占位的 HEIC）改为说明打不开。 */
   protected imageFailed(): void {
-    this.view.set({ kind: 'failed', reason: 'The image data could not be decoded.' });
+    this.view.set({ kind: 'failed', reason: this.i18n.t('error.preview.imageDecode') });
   }
 
   protected prevPage(): void {
@@ -338,7 +359,7 @@ export class PreviewApp {
     }
     const path = this.win.options.node?.path;
     if (!path) {
-      this.view.set({ kind: 'failed', reason: 'The file is not on Macintosh HD.' });
+      this.view.set({ kind: 'failed', reason: this.i18n.t('error.preview.notOnHd') });
       return;
     }
     try {
@@ -365,7 +386,7 @@ export class PreviewApp {
       this.view.set({ kind: 'pdf' });
       void this.collectItems(doc);
     } catch {
-      if (!this.closed) this.view.set({ kind: 'failed', reason: 'The PDF data could not be read.' });
+      if (!this.closed) this.view.set({ kind: 'failed', reason: this.i18n.t('error.preview.pdfRead') });
     }
   }
 
@@ -418,7 +439,7 @@ export class PreviewApp {
       void this.renderLayer(pageNumber, scale);
     } catch (error) {
       if (token === this.renderToken && !this.closed && !(error instanceof RenderingCancelledException))
-        this.view.set({ kind: 'failed', reason: 'The PDF page could not be rendered.' });
+        this.view.set({ kind: 'failed', reason: this.i18n.t('error.preview.pdfRender') });
     }
   }
 
@@ -472,6 +493,11 @@ export class PreviewApp {
   private describe(extension: string, bytes: Uint8Array): PreviewView {
     const type = IMAGE_TYPES[extension];
     if (type) return { kind: 'image', url: imageDataUrl(bytes, type) };
-    return { kind: 'failed', reason: `Preview can’t open ${fileKind(this.name).kind} files.` };
+    return {
+      kind: 'failed',
+      reason: this.i18n.t('error.preview.cannotOpenKind', {
+        kind: diskKindLabel(this.i18n.t, fileKind(this.name).kind)
+      })
+    };
   }
 }

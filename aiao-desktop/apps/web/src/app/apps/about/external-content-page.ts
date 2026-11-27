@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { Component } from '@angular/core';
 
 import {
@@ -21,7 +22,7 @@ import {
   host: { style: 'display: contents' },
   template: `
     <div class="ec selectable" [attr.data-external-count]="entries.length" data-external-content>
-      <h2>Where this desktop gets its content</h2>
+      <h2>{{ i18n.t('apps.about.externalContentTitle') }}</h2>
       @for (note of notice; track note) {
         <p data-external-notice>{{ note }}</p>
       }
@@ -42,27 +43,24 @@ import {
             </div>
             <p data-external-purpose>{{ entry.purpose }}</p>
             <p class="ec-line">
-              <span class="ec-k">Sends</span>
+              <span class="ec-k">{{ i18n.t('apps.about.sends') }}</span>
               <span data-external-sends>{{ entry.sends }}</span>
             </p>
             <p class="ec-line">
-              <span class="ec-k">When</span>
+              <span class="ec-k">{{ i18n.t('apps.about.when') }}</span>
               <span>{{ entry.when }}</span>
             </p>
             <p class="ec-line">
-              <span class="ec-k">Used by</span>
+              <span class="ec-k">{{ i18n.t('apps.about.usedBy') }}</span>
               <span data-external-apps>{{ entry.apps.join(', ') }}</span>
             </p>
           </li>
         }
       </ul>
-      <h3>Sites you open in Safari</h3>
+      <h3>{{ i18n.t('apps.about.sitesOpenInSafari') }}</h3>
       <p data-external-safari-sites>{{ safariSites }}</p>
-      <h3>Links only</h3>
-      <p>
-        These addresses appear as links or plain text. Nothing is requested unless you click, and then your browser
-        opens them in a new tab.
-      </p>
+      <h3>{{ i18n.t('apps.about.linksOnly') }}</h3>
+      <p>{{ i18n.t('apps.about.linksOnlyNote') }}</p>
       <ul class="ec-links">
         @for (link of linkOnly; track link.host) {
           <li [attr.data-link-host]="link.host">
@@ -75,6 +73,7 @@ import {
   `
 })
 export class ExternalContentPage {
+  protected readonly i18n = useI18n();
   protected readonly entries = EXTERNAL_CONTENT;
   protected readonly notice = EXTERNAL_CONTENT_NOTICE;
   protected readonly triggerInfo = EXTERNAL_TRIGGERS;

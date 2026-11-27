@@ -1,5 +1,7 @@
 import { Component, DestroyRef, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 
+import { useI18n } from '@aiao/rxdb-i18n-angular';
+
 import { DesktopData } from '../../data/desktop-data';
 import { ALL_ROWS, liveQuery } from '../../data/live-query';
 import { DesktopMenus } from '../../services/desktop-menus';
@@ -39,10 +41,10 @@ type ContactField = readonly [label: string, value: string];
             <span><svg appIcon="g-search"></svg></span>
             <input
               #search
+              [attr.aria-label]="i18n.t('apps.contacts.searchContacts')"
+              [placeholder]="i18n.t('apps.contacts.search')"
               [value]="query()"
               (input)="searchContacts(search.value)"
-              aria-label="Search contacts"
-              placeholder="Search"
             />
           </div>
         </div>
@@ -64,7 +66,9 @@ type ContactField = readonly [label: string, value: string];
             </div>
           }
           @if (filteredContacts().length === 0) {
-            <div style="padding: 14px 10px; color: var(--txt-2); font-size: 12px">No contacts found</div>
+            <div style="padding: 14px 10px; color: var(--txt-2); font-size: 12px">
+              {{ i18n.t('apps.contacts.noContactsFound') }}
+            </div>
           }
         </div>
       </div>
@@ -74,11 +78,11 @@ type ContactField = readonly [label: string, value: string];
           <div class="tbz" data-nodrag>
             <button
               class="tbtn"
+              [attr.aria-label]="i18n.t('apps.contacts.newContact')"
               [disabled]="busy() || win.closePending()"
+              [title]="i18n.t('apps.contacts.newContact')"
               (click)="create()"
-              aria-label="New Contact"
               data-new-contact
-              title="New Contact"
             >
               <svg appIcon="g-plus"></svg>
             </button>
@@ -105,49 +109,51 @@ type ContactField = readonly [label: string, value: string];
                 </div>
                 <div>
                   <div style="font-size: 25px; font-weight: 600; letter-spacing: -0.02em">
-                    {{ editing.draft.name || 'New Contact' }}
+                    {{ editing.draft.name || i18n.t('apps.contacts.newContact') }}
                   </div>
-                  <div style="font-size: 13px; color: var(--txt-2)">Edit contact details</div>
+                  <div style="font-size: 13px; color: var(--txt-2)">
+                    {{ i18n.t('apps.contacts.editContactDetails') }}
+                  </div>
                 </div>
               </div>
               <div style="display: grid; gap: 10px; margin-top: 24px">
                 <label style="display: grid; gap: 4px; font-size: 11.5px; color: var(--txt-2)">
-                  Name
+                  {{ i18n.t('apps.contacts.columnName') }}
                   <input
+                    [attr.aria-label]="i18n.t('apps.contacts.contactName')"
                     [disabled]="busy() || win.closePending()"
                     [value]="editing.draft.name"
                     (input)="updateDraft('name', $event)"
-                    aria-label="Contact name"
                     data-contact-name
                   />
                 </label>
                 <label style="display: grid; gap: 4px; font-size: 11.5px; color: var(--txt-2)">
-                  Role
+                  {{ i18n.t('apps.contacts.role') }}
                   <input
+                    [attr.aria-label]="i18n.t('apps.contacts.contactRole')"
                     [disabled]="busy() || win.closePending()"
                     [value]="editing.draft.role"
                     (input)="updateDraft('role', $event)"
-                    aria-label="Contact role"
                     data-contact-role
                   />
                 </label>
                 <label style="display: grid; gap: 4px; font-size: 11.5px; color: var(--txt-2)">
-                  Email
+                  {{ i18n.t('apps.contacts.email') }}
                   <input
+                    [attr.aria-label]="i18n.t('apps.contacts.contactEmail')"
                     [disabled]="busy() || win.closePending()"
                     [value]="editing.draft.email"
                     (input)="updateDraft('email', $event)"
-                    aria-label="Contact email"
                     data-contact-email
                   />
                 </label>
                 <label style="display: grid; gap: 4px; font-size: 11.5px; color: var(--txt-2)">
-                  Home
+                  {{ i18n.t('apps.contacts.home') }}
                   <input
+                    [attr.aria-label]="i18n.t('apps.contacts.contactHome')"
                     [disabled]="busy() || win.closePending()"
                     [value]="editing.draft.address"
                     (input)="updateDraft('address', $event)"
-                    aria-label="Contact home"
                     data-contact-address
                   />
                 </label>
@@ -159,7 +165,7 @@ type ContactField = readonly [label: string, value: string];
               }
               <div style="display: flex; gap: 8px; margin-top: 18px">
                 <button class="btn pri" [disabled]="busy() || win.closePending()" data-contact-save type="submit">
-                  {{ busy() ? 'Saving…' : 'Save' }}
+                  {{ busy() ? i18n.t('apps.contacts.saving') : i18n.t('apps.contacts.save') }}
                 </button>
                 <button
                   class="btn"
@@ -168,7 +174,7 @@ type ContactField = readonly [label: string, value: string];
                   data-contact-cancel
                   type="button"
                 >
-                  Cancel
+                  {{ i18n.t('apps.contacts.cancel') }}
                 </button>
               </div>
             </form>
@@ -198,7 +204,7 @@ type ContactField = readonly [label: string, value: string];
               @for (field of fields(); track field[0]) {
                 <div style="display: flex; gap: 16px; padding: 8px 0; border-top: 0.5px solid var(--line)">
                   <span style="width: 60px; text-align: right; font-size: 11.5px; color: var(--txt-2)">{{
-                    field[0]
+                    i18n.t(field[0])
                   }}</span>
                   <span style="font-size: 13px; color: var(--blue)">{{ field[1] }}</span>
                 </div>
@@ -211,14 +217,16 @@ type ContactField = readonly [label: string, value: string];
             }
             <div style="display: flex; gap: 8px; margin-top: 18px">
               <button class="btn pri" [disabled]="busy() || win.closePending()" (click)="edit()" data-contact-edit>
-                Edit
+                {{ i18n.t('apps.contacts.edit') }}
               </button>
               <button class="btn" [disabled]="busy() || win.closePending()" (click)="remove()" data-contact-delete>
-                Delete
+                {{ i18n.t('apps.contacts.delete') }}
               </button>
             </div>
           } @else {
-            <div style="padding: 32px; color: var(--txt-2); font-size: 13px">No contact selected</div>
+            <div style="padding: 32px; color: var(--txt-2); font-size: 13px">
+              {{ i18n.t('apps.contacts.noContactSelected') }}
+            </div>
           }
         </div>
       </div>
@@ -239,6 +247,7 @@ export class ContactsApp {
   );
 
   protected readonly win = inject(DesktopWindow);
+  protected readonly i18n = useI18n();
   protected readonly query = signal('');
   protected readonly selected = signal<string | null>(null);
   protected readonly editor = signal<ContactEditor | null>(null);
@@ -254,8 +263,8 @@ export class ContactsApp {
     const person = this.current();
     return person ?
         [
-          ['email', person.email],
-          ['home', person.address]
+          ['apps.contacts.fieldEmail', person.email],
+          ['apps.contacts.fieldHome', person.address]
         ]
       : [];
   });
@@ -265,19 +274,31 @@ export class ContactsApp {
     this.win.setMenus(
       computed(() =>
         menus.standard('contacts', {
-          File: [
-            { id: 'n', label: 'New Contact', key: '⌘N', run: () => this.create() },
-            { id: 's', label: 'Save Contact', key: '⌘S', disabled: !this.editor(), run: () => this.save() },
+          [this.i18n.t('shell.menu.sectionFile')]: [
+            { id: 'n', label: this.i18n.t('apps.contacts.newContact'), key: '⌘N', run: () => this.create() },
+            {
+              id: 's',
+              label: this.i18n.t('apps.contacts.saveContact'),
+              key: '⌘S',
+              disabled: !this.editor(),
+              run: () => this.save()
+            },
             {
               id: 'd',
-              label: 'Delete Contact',
+              label: this.i18n.t('apps.contacts.deleteContact'),
               key: '⌘⌫',
               disabled: !this.current() || !!this.editor(),
               run: () => this.remove()
             },
-            { id: 'f', label: 'Find', key: '⌘F', disabled: !!this.editor(), run: () => this.focusSearch() },
+            {
+              id: 'f',
+              label: this.i18n.t('apps.contacts.find'),
+              key: '⌘F',
+              disabled: !!this.editor(),
+              run: () => this.focusSearch()
+            },
             '-',
-            { id: 'w', label: 'Close Window', key: '⌘W', run: () => this.wm.closeFront() }
+            { id: 'w', label: this.i18n.t('shell.menu.closeWindow'), key: '⌘W', run: () => this.wm.closeFront() }
           ]
         })
       )
@@ -285,7 +306,7 @@ export class ContactsApp {
     this.win.confirmClose = async () => {
       if (this.busy()) return false;
       if (!this.editor()) return true;
-      this.toast.show('Contacts has unsaved changes. Save or cancel the contact before closing.');
+      this.toast.show('apps.contacts.unsavedChanges');
       return false;
     };
     effect(() => this.win.hasUnsavedChanges.set(this.editor() !== null || this.busy()));
@@ -311,7 +332,7 @@ export class ContactsApp {
 
   protected select(id: string): void {
     if (this.editor()) {
-      this.toast.show('Save or cancel the contact before selecting another one.');
+      this.toast.show('apps.contacts.saveBeforeSelect');
       return;
     }
     if (!this.win.closePending()) {
@@ -358,7 +379,12 @@ export class ContactsApp {
   protected duplicate(person: Contact): void {
     if (this.busy() || this.win.closePending()) return;
     const position = this.contacts().reduce((highest, contact) => Math.max(highest, contact.position), -1) + 1;
-    const draft = { ...draftOf(person), id: null, name: `${person.name} Copy`, position };
+    const draft = {
+      ...draftOf(person),
+      id: null,
+      name: this.i18n.t('apps.contacts.copyName', { name: person.name }),
+      position
+    };
     this.error.set(null);
     this.editor.set({ draft, base: null });
   }
@@ -401,7 +427,7 @@ export class ContactsApp {
     const editor = this.editor();
     if (!editor || this.busy() || this.win.closePending()) return;
     const draft = normalizeDraft(editor.draft);
-    const validation = contactValidationMessage(draft);
+    const validation = contactValidationMessage(draft, key => this.i18n.t(key));
     if (validation) {
       this.error.set(validation);
       return;
@@ -435,9 +461,9 @@ export class ContactsApp {
           where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: draft.id }] },
           limit: 1
         });
-        if (!existing) throw new Error('This contact no longer exists. The form is still available.');
+        if (!existing) throw new Error(this.i18n.t('error.contacts.goneKeepForm'));
         if (editor.base && !sameContact(draftOf(existing), editor.base))
-          throw new Error('This contact changed in another window. Cancel and reopen it before saving.');
+          throw new Error(this.i18n.t('error.contacts.changedElsewhere'));
         await repository.update(existing, {
           name: draft.name,
           role: draft.role,
@@ -448,7 +474,7 @@ export class ContactsApp {
       });
       this.selected.set(id);
       this.editor.set(null);
-      this.toast.show(draft.id === null ? 'Contact added' : 'Contact saved');
+      this.toast.show(draft.id === null ? 'apps.contacts.contactAdded' : 'apps.contacts.contactSaved');
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : String(error));
     } finally {
@@ -469,11 +495,11 @@ export class ContactsApp {
           where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: person.id }] },
           limit: 1
         });
-        if (!existing) throw new Error('This contact no longer exists. Refresh the list and try again.');
+        if (!existing) throw new Error(this.i18n.t('error.contacts.goneRefresh'));
         await repository.remove(existing);
       });
       this.selected.set(null);
-      this.toast.show(`Deleted “${person.name}”`);
+      this.toast.show('apps.contacts.deletedContact', { name: person.name });
     } catch (error) {
       this.error.set(error instanceof Error ? error.message : String(error));
     } finally {
@@ -487,10 +513,10 @@ export class ContactsApp {
     this.popover.contextMenu(
       event,
       [
-        { id: 'e', label: 'Edit', run: () => this.edit() },
-        { id: 'd', label: 'Duplicate', run: () => this.duplicate(person) },
+        { id: 'e', label: this.i18n.t('apps.contacts.edit'), run: () => this.edit() },
+        { id: 'd', label: this.i18n.t('apps.contacts.duplicate'), run: () => this.duplicate(person) },
         '-',
-        { id: 'x', label: 'Delete', disabled: !!this.editor(), run: () => this.remove() }
+        { id: 'x', label: this.i18n.t('apps.contacts.delete'), disabled: !!this.editor(), run: () => this.remove() }
       ],
       'contact'
     );

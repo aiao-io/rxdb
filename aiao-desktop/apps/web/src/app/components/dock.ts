@@ -20,6 +20,7 @@ import { finderDragPaths } from '../apps/finder/finder-drag-registry';
 import { DiskPath, HOME } from '../disk/disk-path';
 import { AppLauncher } from '../services/app-launcher';
 import { Clock } from '../services/clock';
+import { appDisplayName } from '../services/desktop-app-name';
 import { DesktopAppDefinition, DesktopAppId } from '../services/desktop-apps';
 import { DockDragController, DockDropTarget } from '../services/dock-drag';
 import { DockLayoutStore } from '../services/dock-layout';
@@ -147,6 +148,7 @@ export class Dock implements DockView, DockDropTarget {
   private hideTimer: ReturnType<typeof setTimeout> | null = null;
   private edgeListener: ((event: PointerEvent) => void) | null = null;
   protected readonly i18n = useI18n();
+  protected readonly appName = appDisplayName.bind(null, this.i18n);
   protected readonly launcher = inject(AppLauncher);
   protected readonly dockState = inject(DockState);
   protected readonly drag = inject(DockDragController);
@@ -354,7 +356,7 @@ export class Dock implements DockView, DockDropTarget {
   }
 
   protected iconMenu(event: MouseEvent, appId: DesktopAppId): void {
-    this.popover.contextMenu(event, this.menuFor(appId, false), this.apps()[appId].name);
+    this.popover.contextMenu(event, this.menuFor(appId, false), this.appName(this.apps()[appId]));
   }
 
   /**
@@ -376,7 +378,7 @@ export class Dock implements DockView, DockDropTarget {
       y: rect.top,
       origin: 'bottom left',
       focus: true,
-      label: this.apps()[appId].name,
+      label: this.appName(this.apps()[appId]),
       onClose: () => anchor.focus()
     });
   }
@@ -385,8 +387,12 @@ export class Dock implements DockView, DockDropTarget {
   protected labelOf(slot: DockSlot): string {
     const app = slot.app;
     if (!app) return this.i18n.t('shell.dock.name');
-    if (slot.windowId !== undefined) return `${slot.title ?? app.name}, ${app.name}, minimized window`;
-    return app.id === 'trash' && this.fs.trashFull() ? this.i18n.t('shell.dock.trashFull') : app.name;
+    if (slot.windowId !== undefined)
+      return this.i18n.t('shell.dock.minimizedWindow', {
+        title: slot.title && slot.title !== app.name ? slot.title : this.appName(app),
+        app: this.appName(app)
+      });
+    return app.id === 'trash' && this.fs.trashFull() ? this.i18n.t('shell.dock.trashFull') : this.appName(app);
   }
 
   /** Dock 空白玻璃上的右键菜单。 */
@@ -591,20 +597,21 @@ export class Dock implements DockView, DockDropTarget {
     /* macOS 把「保留在 Dock / 在访达中显示」收在 Options 子菜单里；运行中的应用另有 Hide。 */
     const options: MenuEntry = {
       id: 'options',
-      label: 'Options',
+      label: this.i18n.t('shell.dock.options'),
       submenu: [
         dockEntry,
         {
           id: 'show',
-          label: 'Show in Finder',
+          label: this.i18n.t('shell.dock.showInFinder'),
           run: () => this.wm.open('finder', { path: ['Macintosh HD', 'Applications'], select: `${app.name}.app` })
         }
       ]
     };
-    const hide: MenuEntry[] = open.length ? [{ id: 'hide', label: 'Hide', run: () => this.wm.hideApp(appId) }] : [];
+    const hide: MenuEntry[] =
+      open.length ? [{ id: 'hide', label: this.i18n.t('shell.dock.hide'), run: () => this.wm.hideApp(appId) }] : [];
     return [
       ...windows,
-      { id: 'new', label: 'New Window', run: () => this.wm.open(appId, { force: true }) },
+      { id: 'new', label: this.i18n.t('shell.menu.newWindow'), run: () => this.wm.open(appId, { force: true }) },
       '-',
       options,
       ...hide,
@@ -795,7 +802,7 @@ export class Dock implements DockView, DockDropTarget {
   private showTip(slot: DockSlot): void {
     if (!slot.app) return;
     const tip = this.tip().nativeElement;
-    tip.textContent = slot.title ?? slot.app.name;
+    tip.textContent = slot.title && slot.title !== slot.app.name ? slot.title : this.appName(slot.app);
     tip.style.left = `${this.geo(slot.key).laidCenter}px`;
     tip.classList.add('on');
   }
@@ -896,7 +903,7 @@ export class Dock implements DockView, DockDropTarget {
     for (const path of paths) {
       const node = this.fs.nodeAt(path);
       if (!node) {
-        this.toast.show(`Couldn’t find “${path.at(-1) ?? ''}”`);
+        this.toast.show('error.dock.fileNotFound', { name: path.at(-1) ?? '' });
         continue;
       }
       this.opener.openApp(appId, node);

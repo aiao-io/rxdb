@@ -15,11 +15,11 @@ export function filterFontFamilies(
   return families.filter(family => family.name.toLocaleLowerCase().includes(normalized));
 }
 
-/** 侧栏的集合：全部、收藏、最近使用。 */
+/** 侧栏的集合：全部、收藏、最近使用；显示名走 i18n 的 nameKey。 */
 export const FONT_COLLECTIONS = [
-  { id: 'all', name: 'All Fonts' },
-  { id: 'favourites', name: 'Favourites' },
-  { id: 'recent', name: 'Recently Used' }
+  { id: 'all', nameKey: 'apps.fontbook.allFonts' },
+  { id: 'favourites', nameKey: 'apps.fontbook.favourites' },
+  { id: 'recent', nameKey: 'apps.fontbook.recentlyUsed' }
 ] as const;
 
 export type FontCollection = (typeof FONT_COLLECTIONS)[number]['id'];

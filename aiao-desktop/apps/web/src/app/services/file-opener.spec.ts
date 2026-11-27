@@ -80,7 +80,7 @@ describe('FileOpener 按扩展名打开文件', () => {
   it('没有应用能打开的文件：提示原因，不开窗口，也不进「最近使用」', () => {
     const { opener, wm, toast, fs } = setup();
     opener.open(fileNode('archive.zip'));
-    expect(toast.show).toHaveBeenCalledExactlyOnceWith('No application can open “archive.zip”');
+    expect(toast.show).toHaveBeenCalledExactlyOnceWith('error.finder.noAppCanOpen', { name: 'archive.zip' });
     expect(wm.open).not.toHaveBeenCalled();
     expect(fs.noteOpened).not.toHaveBeenCalled();
   });
@@ -159,7 +159,7 @@ describe('FileOpener 打开 .app 程序包', () => {
     opener.open(fileNode('Retired.app'));
     await settled();
 
-    expect(toast.show).toHaveBeenCalledExactlyOnceWith('The application “Retired App” is no longer available.');
+    expect(toast.show).toHaveBeenCalledExactlyOnceWith('error.finder.appNoLongerAvailable', { name: 'Retired App' });
     expect(launcher.activate).not.toHaveBeenCalled();
   });
 
@@ -168,7 +168,7 @@ describe('FileOpener 打开 .app 程序包', () => {
     opener.open(fileNode('Ghost.app'));
     await settled();
 
-    expect(toast.show).toHaveBeenCalledExactlyOnceWith('Ghost.app cannot open on this Mac.');
+    expect(toast.show).toHaveBeenCalledExactlyOnceWith('error.finder.cannotOpenOnMac', { name: 'Ghost.app' });
     expect(launcher.activate).not.toHaveBeenCalled();
   });
 });
@@ -206,8 +206,8 @@ describe('FileOpener.openApp 按应用 id 打开（终端的 open -a / -b）', (
     expect(opener.openApp('nope', null)).toBe(false);
     expect(opener.openApp('launchpad', null)).toBe(false);
     expect(toast.show.mock.calls).toEqual([
-      ['Unable to find application “nope”'],
-      ['Unable to find application “launchpad”']
+      ['error.finder.appNotFound', { name: 'nope' }],
+      ['error.finder.appNotFound', { name: 'launchpad' }]
     ]);
     expect(launcher.activate).not.toHaveBeenCalled();
     expect(wm.open).not.toHaveBeenCalled();

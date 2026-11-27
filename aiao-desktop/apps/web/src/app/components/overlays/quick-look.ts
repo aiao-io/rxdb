@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import {
   Component,
   DestroyRef,
@@ -16,9 +17,12 @@ import type { OpenedPdf } from '../../apps/preview/pdf-viewer';
 import { extensionOf, isTextName } from '../../disk/disk-kinds';
 import { FileSystem, FsNode, describeDiskError } from '../../services/file-system';
 import { PopoverCloseReason, PopoverService, RETURNS_FOCUS } from '../../services/popover';
+import { diskKindLabel } from '../../shared/disk-kind-label';
 import { finderDate } from '../../shared/format';
 import { Icon } from '../../shared/icon';
 import { imageDataUrl } from '../../shared/image-url';
+
+export { diskKindLabel };
 
 /** Quick Look 面板的固定宽度（CSS 像素），`showQuickLook` 据此在视口里居中。 */
 export const QUICK_LOOK_WIDTH = 720;
@@ -135,9 +139,21 @@ type QuickLookView =
   imports: [Icon],
   host: { '(keydown)': 'onKey($event)' },
   template: `
-    <div class="ql" [attr.aria-label]="'Quick Look — ' + active().name" data-quick-look role="dialog">
+    <div
+      class="ql"
+      [attr.aria-label]="i18n.t('shell.quickLook.title', { name: active().name })"
+      data-quick-look
+      role="dialog"
+    >
       <div class="bar">
-        <button class="b" (click)="close()" aria-label="Close Quick Look" tabindex="0" title="Close" type="button">
+        <button
+          class="b"
+          [attr.aria-label]="i18n.t('shell.quickLook.close')"
+          [title]="i18n.t('shell.window.close')"
+          (click)="close()"
+          tabindex="0"
+          type="button"
+        >
           <svg appIcon="g-x"></svg>
         </button>
         <div class="title">
@@ -147,24 +163,24 @@ type QuickLookView =
         <div class="nav">
           <button
             class="b"
+            [attr.aria-label]="i18n.t('shell.quickLook.previousItem')"
             [disabled]="siblings().length < 2"
+            [title]="i18n.t('shell.quickLook.previousItem')"
             (click)="step(-1)"
             aria-keyshortcuts="ArrowLeft"
-            aria-label="Previous item"
             tabindex="0"
-            title="Previous item"
             type="button"
           >
             <svg appIcon="g-chev-l"></svg>
           </button>
           <button
             class="b"
+            [attr.aria-label]="i18n.t('shell.quickLook.nextItem')"
             [disabled]="siblings().length < 2"
+            [title]="i18n.t('shell.quickLook.nextItem')"
             (click)="step(1)"
             aria-keyshortcuts="ArrowRight"
-            aria-label="Next item"
             tabindex="0"
-            title="Next item"
             type="button"
           >
             <svg appIcon="g-chev-r"></svg>
@@ -173,12 +189,12 @@ type QuickLookView =
         <div class="zbox">
           <button
             class="b"
+            [attr.aria-label]="i18n.t('shell.quickLook.zoomOut')"
             [disabled]="!zoomable()"
+            [title]="i18n.t('shell.quickLook.zoomOut')"
             (click)="setZoom(-1)"
             aria-keyshortcuts="Meta+-"
-            aria-label="Zoom out"
             tabindex="0"
-            title="Zoom out"
             type="button"
           >
             <svg appIcon="g-minus"></svg>
@@ -186,12 +202,12 @@ type QuickLookView =
           <span class="zp" aria-hidden="true">{{ zoomPercent() }}</span>
           <button
             class="b"
+            [attr.aria-label]="i18n.t('shell.quickLook.zoomIn')"
             [disabled]="!zoomable()"
+            [title]="i18n.t('shell.quickLook.zoomIn')"
             (click)="setZoom(1)"
             aria-keyshortcuts="Meta+="
-            aria-label="Zoom in"
             tabindex="0"
-            title="Zoom in"
             type="button"
           >
             <svg appIcon="g-plus"></svg>
@@ -202,7 +218,7 @@ type QuickLookView =
         @let qlView = view();
         @switch (qlView.kind) {
           @case ('loading') {
-            <div class="msg">Loading…</div>
+            <div class="msg">{{ i18n.t('shell.quickLook.loading') }}</div>
           }
           @case ('image') {
             @if (qlView.kind === 'image') {
@@ -229,13 +245,13 @@ type QuickLookView =
           @case ('video') {
             <div class="msg">
               <svg class="art" appIcon="f-movie"></svg>
-              <div class="hint">Video preview is not available in this desktop.</div>
+              <div class="hint">{{ i18n.t('shell.quickLook.videoUnavailable') }}</div>
             </div>
           }
           @case ('other') {
             <div class="msg">
               <svg class="art" [appIcon]="active().icon"></svg>
-              <div class="hint">No preview available.</div>
+              <div class="hint">{{ i18n.t('shell.quickLook.noPreview') }}</div>
             </div>
           }
           @case ('failed') {
@@ -251,11 +267,11 @@ type QuickLookView =
           <div class="pages">
             <button
               class="b"
+              [attr.aria-label]="i18n.t('shell.quickLook.previousPage')"
               [disabled]="page() <= 1"
+              [title]="i18n.t('shell.quickLook.previousPage')"
               (click)="prevPage()"
-              aria-label="Previous page"
               tabindex="0"
-              title="Previous page"
               type="button"
             >
               <svg appIcon="g-chev-u"></svg>
@@ -263,11 +279,11 @@ type QuickLookView =
             <span class="pg" role="status">{{ page() }} / {{ pageCount() }}</span>
             <button
               class="b"
+              [attr.aria-label]="i18n.t('shell.quickLook.nextPage')"
               [disabled]="page() >= pageCount()"
+              [title]="i18n.t('shell.quickLook.nextPage')"
               (click)="nextPage()"
-              aria-label="Next page"
               tabindex="0"
-              title="Next page"
               type="button"
             >
               <svg appIcon="g-chev-d"></svg>
@@ -474,6 +490,7 @@ export class QuickLook {
 
   /** 用户切换到的条目：没切换过是 `null`（显示打开时传入的 `node`）。 */
   protected readonly current = signal<FsNode | null>(null);
+  protected readonly i18n = useI18n();
   protected readonly view = signal<QuickLookView>({ kind: 'loading' });
   protected readonly zoom = signal(1);
   protected readonly page = signal(1);
@@ -495,7 +512,7 @@ export class QuickLook {
   /** 底部一行元数据：种类 · 大小 · 修改时间。 */
   protected readonly meta = computed(() => {
     const node = this.active();
-    const parts = [node.k];
+    const parts = [diskKindLabel(this.i18n.t, node.k)];
     if (node.size) parts.push(node.size);
     if (node.date) parts.push(finderDate(node.date));
     return parts.join(' · ');
@@ -550,7 +567,8 @@ export class QuickLook {
 
   /** 解码不了的图片（例如占位的 HEIC）改为说明打不开。 */
   protected imageFailed(): void {
-    if (this.view().kind === 'image') this.view.set({ kind: 'failed', reason: 'The image data could not be decoded.' });
+    if (this.view().kind === 'image')
+      this.view.set({ kind: 'failed', reason: this.i18n.t('error.quickLook.imageDecodeFailed') });
   }
 
   /** 图片加载完成后记下原始宽度，缩放按实际尺寸计算。 */
@@ -620,7 +638,7 @@ export class QuickLook {
     }
     const path = node.path;
     if (!path) {
-      if (token === this.loadToken) this.view.set({ kind: 'failed', reason: 'The file is not on Macintosh HD.' });
+      if (token === this.loadToken) this.view.set({ kind: 'failed', reason: this.i18n.t('error.quickLook.notOnDisk') });
       return;
     }
     try {
@@ -655,7 +673,7 @@ export class QuickLook {
       this.view.set({ kind: 'pdf' });
     } catch {
       if (token === this.loadToken && !this.closed)
-        this.view.set({ kind: 'failed', reason: 'The PDF data could not be read.' });
+        this.view.set({ kind: 'failed', reason: this.i18n.t('error.quickLook.pdfReadFailed') });
     }
   }
 
@@ -687,7 +705,7 @@ export class QuickLook {
     } catch (error) {
       if (token !== this.renderToken || this.closed) return;
       if (error instanceof Error && error.name === 'RenderingCancelledException') return;
-      this.view.set({ kind: 'failed', reason: 'The PDF page could not be rendered.' });
+      this.view.set({ kind: 'failed', reason: this.i18n.t('error.quickLook.pageRenderFailed') });
     }
   }
 }

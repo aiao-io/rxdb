@@ -6,7 +6,7 @@ import { ApplicationRegistry } from './application-registry';
 import { FinderClipboard } from '../apps/finder/finder-clipboard';
 import { showInfoPanel } from '../components/overlays/info-panel';
 import { DESKTOP, finderPathOf } from '../disk/disk-path';
-import { DesktopAppId } from './desktop-apps';
+import { DesktopAppDefinition, DesktopAppId } from './desktop-apps';
 import { DesktopItems } from './desktop-items';
 import { FileSystem, HOME_PATH, PLACES } from './file-system';
 import { FinderPreferences } from './finder-preferences';
@@ -142,18 +142,19 @@ export class DesktopMenus {
 
   /** GitHub Desktop 的应用菜单，应用专属命令不混入 Apple 系统菜单。 */
   githubApplication(openSettings?: () => void): MenuEntry[] {
+    const name = this.t('apps.github.name');
     return [
-      { id: 'a', label: 'About GitHub Desktop', run: () => this.wm.open('about') },
+      { id: 'a', label: this.t('shell.menu.about', { name }), run: () => this.wm.open('about') },
       '-',
-      { id: 'p', label: 'Settings…', key: '⌘,', disabled: !openSettings, run: openSettings },
-      { id: 'cli', label: 'Install Command Line Tool', disabled: true },
-      { id: 'services', label: 'Services', key: '▸', disabled: true },
+      { id: 'p', label: this.t('shell.menu.settings'), key: '⌘,', disabled: !openSettings, run: openSettings },
+      { id: 'cli', label: this.t('apps.github.installCommandLineTool'), disabled: true },
+      { id: 'services', label: this.t('apps.github.services'), key: '▸', disabled: true },
       '-',
-      { id: 'h', label: 'Hide GitHub Desktop', key: '⌘H', run: () => this.wm.hideFront() },
+      { id: 'h', label: this.t('shell.menu.hide', { name }), key: '⌘H', run: () => this.wm.hideFront() },
       { id: 'o', label: this.t('shell.menu.hideOthers'), key: '⌥⌘H', run: () => this.wm.hideOthers() },
       { id: 's', label: this.t('shell.menu.showAll'), run: () => this.wm.showAll() },
       '-',
-      { id: 'q', label: 'Quit GitHub Desktop', key: '⌘Q', run: () => this.wm.quitFront() }
+      { id: 'q', label: this.t('shell.menu.quit', { name }), key: '⌘Q', run: () => this.wm.quitFront() }
     ];
   }
 
@@ -316,14 +317,23 @@ export class DesktopMenus {
       () =>
         target.openExternal(destination);
 
+    const appName = this.t('apps.github.name');
+    const file = this.t('shell.menu.sectionFile');
+    const edit = this.t('shell.menu.sectionEdit');
+    const view = this.t('shell.menu.sectionView');
+    const windowSection = this.t('shell.menu.sectionWindow');
+    const help = this.t('shell.menu.sectionHelp');
+    const repository = this.t('apps.github.sectionRepository');
+    const branch = this.t('apps.github.sectionBranch');
+
     return this.standard(
       'github',
       {
-        'GitHub Desktop': this.githubApplication(() => target.openSettings()),
-        File: [
+        [appName]: this.githubApplication(() => target.openSettings()),
+        [file]: [
           {
             id: 'new-repository',
-            label: 'New Repository…',
+            label: this.t('apps.github.newRepository'),
             key: '⌘N',
             disabled: target.isBusy(),
             run: () => target.openRepositoryMenu('new')
@@ -331,100 +341,128 @@ export class DesktopMenus {
           '-',
           {
             id: 'add-local-repository',
-            label: 'Add Local Repository…',
+            label: this.t('apps.github.addLocalRepository'),
             key: '⌘O',
             disabled: target.isBusy(),
             run: () => target.openLocalRepository()
           },
           {
             id: 'clone-repository',
-            label: 'Clone Repository…',
+            label: this.t('apps.github.cloneRepository'),
             key: '⇧⌘O',
             disabled: target.isBusy(),
             run: () => target.openRepositoryMenu('clone')
           },
           '-',
-          { id: 'close-window', label: 'Close Window', key: '⌘W', run: () => this.wm.closeFront() }
+          { id: 'close-window', label: this.t('shell.menu.closeWindow'), key: '⌘W', run: () => this.wm.closeFront() }
         ],
-        Edit: [
-          { id: 'undo', label: 'Undo', key: '⌘Z', run: () => exec('undo') },
-          { id: 'redo', label: 'Redo', key: '⇧⌘Z', run: () => exec('redo') },
+        [edit]: [
+          { id: 'undo', label: this.t('shell.menu.undo'), key: '⌘Z', run: () => exec('undo') },
+          { id: 'redo', label: this.t('shell.menu.redo'), key: '⇧⌘Z', run: () => exec('redo') },
           '-',
-          { id: 'cut', label: 'Cut', key: '⌘X', run: () => exec('cut') },
-          { id: 'copy', label: 'Copy', key: '⌘C', run: () => exec('copy') },
-          { id: 'paste', label: 'Paste', key: '⌘V', run: () => exec('paste') },
+          { id: 'cut', label: this.t('shell.menu.cut'), key: '⌘X', run: () => exec('cut') },
+          { id: 'copy', label: this.t('shell.menu.copy'), key: '⌘C', run: () => exec('copy') },
+          { id: 'paste', label: this.t('shell.menu.paste'), key: '⌘V', run: () => exec('paste') },
           '-',
-          { id: 'select-all', label: 'Select All', key: '⌘A', run: () => exec('selectAll') },
-          { id: 'find', label: 'Find…', key: '⌘F', disabled: disabled(), run: () => target.focusChangesFilter() }
+          { id: 'select-all', label: this.t('shell.menu.selectAll'), key: '⌘A', run: () => exec('selectAll') },
+          {
+            id: 'find',
+            label: this.t('apps.github.find'),
+            key: '⌘F',
+            disabled: disabled(),
+            run: () => target.focusChangesFilter()
+          }
         ],
-        View: [
+        [view]: [
           {
             id: 'show-changes',
-            label: 'Show Changes',
+            label: this.t('apps.github.showChanges'),
             key: '⌘1',
             checked: target.activeTab() === 'changes',
             run: () => target.setTab('changes')
           },
           {
             id: 'show-history',
-            label: 'Show History',
+            label: this.t('apps.github.showHistory'),
             key: '⌘2',
             checked: target.activeTab() === 'history',
             run: () => target.setTab('history')
           },
           {
             id: 'show-changes-filter',
-            label: 'Show Changes Filter',
+            label: this.t('apps.github.showChangesFilter'),
             disabled: disabled(),
             run: () => target.focusChangesFilter()
           },
           {
             id: 'show-repository-list',
-            label: 'Show Repository List',
+            label: this.t('apps.github.showRepositoryList'),
             key: '⌘T',
             disabled: target.isBusy(),
             run: () => target.openRepositoryMenu('list')
           },
           {
             id: 'show-branches-list',
-            label: 'Show Branches List',
+            label: this.t('apps.github.showBranchesList'),
             key: '⌘B',
             disabled: disabled(),
             run: () => target.openBranchMenu()
           },
           '-',
-          { id: 'full-screen', label: 'Enter Full Screen', key: '⌃⌘F', run: () => this.wm.zoomFront() },
-          { id: 'toolbar', label: 'Show Toolbar', key: '⌥⌘T', checked: true }
+          {
+            id: 'full-screen',
+            label: this.t('shell.menu.enterFullScreen'),
+            key: '⌃⌘F',
+            run: () => this.wm.zoomFront()
+          },
+          { id: 'toolbar', label: this.t('shell.menu.showToolbar'), key: '⌥⌘T', checked: true }
         ],
-        Repository: [
-          { id: 'open-in-editor', label: 'Open in Aiao Code', disabled: disabled(), run: () => target.openInEditor() },
+        [repository]: [
+          {
+            id: 'open-in-editor',
+            label: this.t('apps.github.openInAiaoCode'),
+            disabled: disabled(),
+            run: () => target.openInEditor()
+          },
           {
             id: 'open-in-terminal',
-            label: 'Open in Terminal',
+            label: this.t('apps.github.openInTerminal'),
             key: '⌃`',
             disabled: disabled(),
             run: () => target.openInTerminal()
           },
           {
             id: 'push',
-            label: 'Push',
+            label: this.t('apps.github.push'),
             key: '⌘P',
             disabled: remoteDisabled() || target.hasChanges(),
             run: () => target.push()
           },
-          { id: 'pull', label: 'Pull', key: '⇧⌘P', disabled: remoteDisabled(), run: () => target.pull() },
-          { id: 'fetch', label: 'Fetch', key: '⇧⌘T', disabled: disabled(), run: () => target.fetch() },
+          {
+            id: 'pull',
+            label: this.t('apps.github.pull'),
+            key: '⇧⌘P',
+            disabled: remoteDisabled(),
+            run: () => target.pull()
+          },
+          {
+            id: 'fetch',
+            label: this.t('apps.github.fetch'),
+            key: '⇧⌘T',
+            disabled: disabled(),
+            run: () => target.fetch()
+          },
           '-',
           {
             id: 'view-repository-on-github',
-            label: 'View on GitHub',
+            label: this.t('apps.github.viewOnGithub'),
             key: '⇧⌘G',
             disabled: remoteDisabled(),
             run: external('repository')
           },
           {
             id: 'create-issue-on-github',
-            label: 'Create Issue on GitHub',
+            label: this.t('apps.github.createIssueOnGithub'),
             key: '⌘I',
             disabled: remoteDisabled(),
             run: external('issue')
@@ -432,15 +470,15 @@ export class DesktopMenus {
           '-',
           {
             id: 'show-repository-settings',
-            label: 'Repository Settings…',
+            label: this.t('apps.github.repositorySettings'),
             disabled: disabled(),
             run: () => target.openRepositorySettings()
           }
         ],
-        Branch: [
+        [branch]: [
           {
             id: 'create-branch',
-            label: 'New Branch…',
+            label: this.t('apps.github.newBranch'),
             key: '⇧⌘N',
             disabled: disabled(),
             run: () => target.openBranchMenu()
@@ -448,7 +486,7 @@ export class DesktopMenus {
           '-',
           {
             id: 'discard-all-changes',
-            label: 'Discard All Changes…',
+            label: this.t('apps.github.discardAllChanges'),
             key: '⇧⌘⌫',
             disabled: !target.hasChanges() || target.isBusy(),
             run: () => target.discardAllChanges()
@@ -456,43 +494,43 @@ export class DesktopMenus {
           '-',
           {
             id: 'compare-on-github',
-            label: 'Compare on GitHub',
+            label: this.t('apps.github.compareOnGithub'),
             key: '⇧⌘C',
             disabled: remoteDisabled(),
             run: external('compare')
           },
           {
             id: 'branch-on-github',
-            label: 'View Branch on GitHub',
+            label: this.t('apps.github.viewBranchOnGithub'),
             key: '⌥⌘B',
             disabled: remoteDisabled(),
             run: external('branch')
           },
           {
             id: 'create-pull-request',
-            label: 'Create Pull Request',
+            label: this.t('apps.github.createPullRequest'),
             key: '⌘R',
             disabled: remoteDisabled(),
             run: external('pull-request')
           }
         ],
-        Help: [
+        [help]: [
           { field: this.t('shell.menu.search') },
           {
             id: 'report-issue',
-            label: 'Report Issue…',
+            label: this.t('apps.github.reportIssue'),
             run: external('report-issue')
           },
           {
             id: 'contact-support',
-            label: 'Contact GitHub Support…',
+            label: this.t('apps.github.contactSupport'),
             run: external('support')
           },
-          { id: 'user-guides', label: 'Show User Guides', run: external('guides') },
-          { id: 'keyboard-shortcuts', label: 'Show Keyboard Shortcuts', run: external('shortcuts') }
+          { id: 'user-guides', label: this.t('apps.github.userGuides'), run: external('guides') },
+          { id: 'keyboard-shortcuts', label: this.t('apps.github.keyboardShortcuts'), run: external('shortcuts') }
         ]
       },
-      ['GitHub Desktop', 'File', 'Edit', 'View', 'Repository', 'Branch', 'Window', 'Help']
+      [appName, file, edit, view, repository, branch, windowSection, help]
     );
   }
 
@@ -521,11 +559,11 @@ export class DesktopMenus {
         { id: 't', label: this.t('shell.menu.showToolbar'), key: '⌥⌘T', checked: true }
       ],
       [this.t('shell.menu.sectionWindow')]: this.window(),
-      Help: [
+      [this.t('shell.menu.sectionHelp')]: [
         { field: this.t('shell.menu.search') },
         {
           id: 'h',
-          label: this.t('shell.menu.appHelp', { name: this.apps()[appId].name }),
+          label: this.t('shell.menu.appHelp', { name: this.displayName(this.apps()[appId]) }),
           run: () => this.toast.show('shell.menu.noHelpNeeded')
         },
         {
@@ -540,6 +578,11 @@ export class DesktopMenus {
       const items = base[label];
       return items ? [section(label, items)] : [];
     });
+  }
+
+  /** 应用显示名：按清单 nameKey 走目录（AC12），品牌名回退清单 name。 */
+  private displayName(app: DesktopAppDefinition): string {
+    return app.nameKey ? this.t(app.nameKey) : app.name;
   }
 
   /** 菜单标签翻译：先读 locale 信号注册依赖，语言切换时外层 computed 重建菜单。 */
@@ -560,7 +603,7 @@ export class DesktopMenus {
     const items = this.wm.recentApps().flatMap(appId => {
       const app = this.apps()[appId];
       return app ?
-          [{ id: `recent-${appId}`, label: app.name, icon: app.icon, run: () => void this.wm.open(appId) }]
+          [{ id: `recent-${appId}`, label: this.displayName(app), icon: app.icon, run: () => void this.wm.open(appId) }]
         : [];
     });
     return items.length ? items : [{ id: 'recent-none', label: this.t('shell.menu.noRecentItems'), disabled: true }];

@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { Component, inject, input } from '@angular/core';
 
 import { PopoverService } from '../../services/popover';
@@ -17,7 +18,9 @@ export interface SafariOverviewTab {
   host: { class: 'pop', style: 'padding: 14px', '[style.width]': '"min(560px, " + width() + "px)"' },
   template: `
     <div style="font-size: 12px; font-weight: 600; color: var(--txt-2); padding: 0 2px 10px">
-      {{ tabs().length }} Tab{{ tabs().length > 1 ? 's' : '' }}
+      {{
+        i18n.t(tabs().length > 1 ? 'apps.safari.overview.tabs' : 'apps.safari.overview.tab', { count: tabs().length })
+      }}
     </div>
     <div class="sf-ov">
       @for (tab of tabs(); track $index) {
@@ -39,13 +42,15 @@ export interface SafariOverviewTab {
         </button>
       }
       <button (click)="add()" data-ovnew>
-        <span class="pv add"><svg appIcon="g-plus"></svg></span><span class="lb">New Tab</span>
+        <span class="pv add"><svg appIcon="g-plus"></svg></span
+        ><span class="lb">{{ i18n.t('apps.safari.newTab') }}</span>
       </button>
     </div>
   `
 })
 export class SafariOverview {
   private readonly popover = inject(PopoverService);
+  protected readonly i18n = useI18n();
 
   /** 浮层宽度的上限：窗口宽度减去两侧留白。 */
   readonly width = input.required<number>();

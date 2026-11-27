@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { Component, ElementRef, afterNextRender, computed, effect, inject, viewChild } from '@angular/core';
 
 import { AppLauncher } from '../../services/app-launcher';
@@ -118,20 +119,22 @@ interface Swipe {
         @if (appNotes.entries().length > 0) {
           <div class="nc-head">
             <div class="nc-ttl">
-              <div class="nc-title" id="nc-apps-title">Notifications</div>
+              <div class="nc-title" id="nc-apps-title">{{ i18n.t('shell.notificationCentre.notifications') }}</div>
               @if (appNotes.focusMode()) {
-                <span class="nc-dnd" data-nc-dnd role="status"><svg appIcon="g-moon"></svg>专注模式开启</span>
+                <span class="nc-dnd" data-nc-dnd role="status"
+                  ><svg appIcon="g-moon"></svg>{{ i18n.t('shell.notificationCentre.focusOn') }}</span
+                >
               }
             </div>
             <button class="nc-clear" (click)="appNotes.clearAll()" data-nc-clear-all tabindex="0" type="button">
-              Clear All
+              {{ i18n.t('shell.notificationCentre.clearAll') }}
             </button>
           </div>
           <div class="nc-groups" data-nc-groups>
             @for (group of groups(); track group.app.id) {
               <section
                 class="nc-group"
-                [attr.aria-label]="'Notifications from ' + group.app.name"
+                [attr.aria-label]="i18n.t('shell.notificationCentre.fromApp', { app: group.app.name })"
                 [attr.data-app]="group.app.id"
                 data-nc-group
               >
@@ -155,7 +158,9 @@ interface Swipe {
                     >
                       <button
                         class="x"
-                        [attr.aria-label]="'Clear notification from ' + note.app.name + ': ' + note.title"
+                        [attr.aria-label]="
+                          i18n.t('shell.notificationCentre.clearNote', { app: note.app.name, title: note.title })
+                        "
                         (click)="appNotes.clear(note.id)"
                         data-nc-clear
                         tabindex="0"
@@ -165,7 +170,9 @@ interface Swipe {
                       </button>
                       <button
                         class="note-main"
-                        [attr.aria-label]="'Open ' + note.app.name + ': ' + note.title"
+                        [attr.aria-label]="
+                          i18n.t('shell.notificationCentre.openNote', { app: note.app.name, title: note.title })
+                        "
                         (click)="openApp(note)"
                         tabindex="0"
                         type="button"
@@ -201,6 +208,7 @@ export class NotificationCentre {
   /** 刚结束一次越过阈值的滑动：随后同一个指针动作尾声的 click 不算点击打开。 */
   private suppressClick = false;
   protected readonly overlays = inject(Overlays);
+  protected readonly i18n = useI18n();
   protected readonly appNotes = inject(AppNotifications);
   protected readonly launcher = inject(AppLauncher);
   protected readonly groups = computed(() => groupNotifications(this.appNotes.entries()));

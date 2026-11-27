@@ -26,7 +26,9 @@ export class FileImport {
         files.map(async file => ({ name: file.name, data: new Uint8Array(await file.arrayBuffer()) }))
       );
       const paths = await this.fs.importFiles(dir, entries);
-      this.toast.show(`Imported ${paths.length} file${paths.length === 1 ? '' : 's'}`);
+      this.toast.show(paths.length === 1 ? 'apps.finder.importedFile' : 'apps.finder.importedFiles', {
+        count: paths.length
+      });
       return paths;
     } catch (error) {
       this.toast.show(describeDiskError(error));

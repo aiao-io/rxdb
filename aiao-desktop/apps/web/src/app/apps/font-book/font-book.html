@@ -2,7 +2,7 @@
   <div class="sbar" data-drag style="width: 230px">
     <div style="display: flex; align-items: center; height: 38px; padding: 0 12px"><app-traffic-lights /></div>
     <div class="grp">
-      <div class="gh">Collection</div>
+      <div class="gh">{{ i18n.t('apps.fontbook.collection') }}</div>
       @for (entry of collections; track entry.id) {
         <button
           class="si"
@@ -20,13 +20,13 @@
               : 'g-tag'
             "
           ></svg>
-          <span class="nm">{{ entry.name }}</span>
+          <span class="nm">{{ i18n.t(entry.nameKey) }}</span>
           <span class="tail">{{ collectionCounts()[entry.id] }}</span>
         </button>
       }
     </div>
     <div class="grp">
-      <div class="gh">Family</div>
+      <div class="gh">{{ i18n.t('apps.fontbook.family') }}</div>
       @for (font of visibleFonts(); track font.name; let i = $index) {
         <div
           class="si"
@@ -39,12 +39,14 @@
         >
           <span class="nm" [style.font-family]="font.stack">{{ font.name }}</span>
           @if (isDisabled(font.name)) {
-            <span class="tail" style="color: var(--txt-3)">Off</span>
+            <span class="tail" style="color: var(--txt-3)">{{ i18n.t('apps.fontbook.off') }}</span>
           }
         </div>
       }
       @if (!visibleFonts().length) {
-        <div data-font-empty style="padding: 12px 10px; color: var(--txt-2); font-size: 12px">No matching fonts</div>
+        <div data-font-empty style="padding: 12px 10px; color: var(--txt-2); font-size: 12px">
+          {{ i18n.t('apps.fontbook.noMatches') }}
+        </div>
       }
     </div>
   </div>
@@ -52,15 +54,19 @@
     <div class="tbar" data-drag style="height: 52px">
       <div class="fx-title" data-fname>{{ current()?.name }}</div>
       <div style="flex: 1"></div>
-      <app-slider [(value)]="previewFraction" label="Preview size" style="width: 110px"></app-slider>
+      <app-slider
+        [(value)]="previewFraction"
+        [label]="i18n.t('apps.fontbook.previewSize')"
+        style="width: 110px"
+      ></app-slider>
       <div class="sfield" data-nodrag style="width: 150px">
         <span><svg appIcon="g-search"></svg></span>
         <input
           #search
+          [attr.aria-label]="i18n.t('apps.fontbook.searchFonts')"
+          [placeholder]="i18n.t('apps.fontbook.search')"
           [value]="query()"
           (input)="query.set(search.value)"
-          aria-label="Search fonts"
-          placeholder="Search"
         />
       </div>
     </div>
@@ -76,7 +82,7 @@
         <div style="font-size: 12px; color: var(--txt-2); margin: 6px 0 22px">
           {{ active.styles }}
           @if (isDisabled(active.name)) {
-            <span style="color: var(--txt-3)">· Off</span>
+            <span style="color: var(--txt-3)">· {{ i18n.t('apps.fontbook.off') }}</span>
           }
         </div>
         <button
@@ -88,7 +94,7 @@
           tabindex="0"
           type="button"
         >
-          {{ isDisabled(active.name) ? 'Enable' : 'Disable' }}
+          {{ isDisabled(active.name) ? i18n.t('apps.fontbook.enable') : i18n.t('apps.fontbook.disable') }}
         </button>
         @for (size of sampleSizes(); track $index) {
           <div

@@ -30,15 +30,30 @@ export const inFolder = (note: Pick<NoteLike, 'folder'>, folder: string): boolea
 export const folderCount = (notes: readonly Pick<NoteLike, 'folder'>[], folder: string): number =>
   notes.filter(note => inFolder(note, folder)).length;
 
-/** 新建文件夹前的用户可操作校验；比较名称时忽略首尾空格与大小写。 */
-export function noteFolderNameError(name: string, existing: readonly string[]): string | null {
+/**
+ * 新建文件夹前的用户可操作校验；比较名称时忽略首尾空格与大小写。
+ * `translate` 可选：调用方注入 i18n 翻译函数时文案按当前语言显示（与 calendar-draft 的服务注入风格一致）。
+ */
+export function noteFolderNameError(
+  name: string,
+  existing: readonly string[],
+  translate?: (key: string, params?: Record<string, unknown>) => string
+): string | null {
+  const fail = (key: string, params: Record<string, unknown> | undefined, english: string): string =>
+    translate?.(key, params) ?? english;
   const value = name.trim();
-  if (!value) return 'Enter a folder name.';
+  if (!value) return fail('error.notes.enterFolderName', undefined, 'Enter a folder name.');
   if (value.length > NOTE_FOLDER_NAME_MAX_LENGTH)
-    return `Folder names can be at most ${NOTE_FOLDER_NAME_MAX_LENGTH} characters.`;
+    return fail(
+      'error.notes.folderNameTooLong',
+      { count: NOTE_FOLDER_NAME_MAX_LENGTH },
+      `Folder names can be at most ${NOTE_FOLDER_NAME_MAX_LENGTH} characters.`
+    );
   const folded = value.toLowerCase();
-  if (SYSTEM_FOLDERS.some(folder => folder.toLowerCase() === folded)) return 'That name is reserved by Notes.';
-  if (existing.some(folder => folder.trim().toLowerCase() === folded)) return 'A folder with that name already exists.';
+  if (SYSTEM_FOLDERS.some(folder => folder.toLowerCase() === folded))
+    return fail('error.notes.reservedName', undefined, 'That name is reserved by Notes.');
+  if (existing.some(folder => folder.trim().toLowerCase() === folded))
+    return fail('error.notes.folderNameExists', undefined, 'A folder with that name already exists.');
   return null;
 }
 
@@ -96,11 +111,11 @@ export function noteWhen(date: Date, now: Date): string {
  * 块级元素之间要补一个空格，否则 “Ship” 和 “Column view” 会连成一个词。
  * 用 DOMParser 解析：它产出的文档是惰性的，不会加载图片或触发事件属性。
  */
-export function noteSnippet(body: string): string {
+export function noteSnippet(body: string, emptyLabel = 'No additional text'): string {
   const root = new DOMParser().parseFromString(body, 'text/html').body;
   root.querySelectorAll('h1,.date').forEach(node => node.remove());
   root.querySelectorAll('h2,h3,p,li,tr,div,br').forEach(node => node.insertAdjacentText('afterend', ' '));
-  return (root.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 60) || 'No additional text';
+  return (root.textContent ?? '').replace(/\s+/g, ' ').trim().slice(0, 60) || emptyLabel;
 }
 
 /** 保存时取标题：优先首个 h1，没有就取第一行文字。 */

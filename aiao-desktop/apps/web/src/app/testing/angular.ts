@@ -1,5 +1,6 @@
 import '@angular/compiler';
 
+import { I18N } from '@aiao/rxdb-i18n-angular';
 import { DOCUMENT } from '@angular/common';
 import { Provider, provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
@@ -8,6 +9,7 @@ import { afterEach } from 'vitest';
 
 import { ApplicationRegistry } from '../services/application-registry';
 import { InstalledApplications } from '../services/installed-applications';
+import { createFakeI18n } from './fake-i18n';
 
 /** 假的 CSS 声明块：只实现服务读写根元素样式用到的方法，内容存在 Map 里便于断言。 */
 export class FakeStyle {
@@ -88,6 +90,9 @@ export function configureServices(providers: readonly Provider[], location: Part
   TestBed.configureTestingModule({
     providers: [
       { provide: InstalledApplications, useValue: { ready: Promise.resolve(), reload: async () => [] } },
+      // 默认英文目录的 i18n（ADESK-US-132 en 逐字基线：既有英文断言在接入目录后照常成立）；
+      // 用例自己再提供 I18N 时后写者生效。
+      { provide: I18N, useValue: createFakeI18n() },
       ApplicationRegistry,
       provideZonelessChangeDetection(),
       { provide: DOCUMENT, useValue: dom.document },

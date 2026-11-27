@@ -30,6 +30,7 @@ export const language = {
     'language.englishDefault',
     'language.switchToChinese',
     'language.shellLocalized',
+    'language.appNamesLocalized',
     'language.zhSearchBySection',
     'language.reloadKeepsChinese',
     'language.secondTabFollows',
@@ -69,6 +70,19 @@ export const language = {
     await expect(page.locator('#lock')).toContainText('输入密码');
     await page.locator('#lock').click();
     result.shellLocalized = true;
+
+    /* 应用显示名走目录（AC12）：启动台 zh 下显示中文应用名（网格分页，用搜索定位），聚焦搜索按中文名命中。 */
+    await page.locator('#dock .di[data-app="launchpad"]').click();
+    const lpad = page.locator('#lpad');
+    await expect(lpad.locator('[data-app="finder"] .nm')).toHaveText('访达');
+    await lpad.locator('[data-lq]').fill('系统设置');
+    await expect(lpad.locator('[data-app="settings"] .nm')).toHaveText('系统设置');
+    await page.keyboard.press('Escape');
+    await expect(lpad).toHaveClass(/out/);
+    await helpers.spotlight('访达');
+    await expect(page.locator('#spot')).toContainText('访达');
+    await page.keyboard.press('Escape');
+    result.appNamesLocalized = true;
 
     /* 中文分区搜索：搜「网络」命中 Network 分区，空态文案也是中文。 */
     const search = win.getByRole('textbox', { name: '搜索设置', exact: true });

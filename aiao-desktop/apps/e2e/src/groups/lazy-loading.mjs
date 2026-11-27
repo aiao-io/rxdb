@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import {
   componentScripts,
   diskImageSeedScripts,
@@ -9,6 +11,13 @@ import {
 } from '../harness/chunks.mjs';
 import { surgery, tableCounts } from '../harness/database.mjs';
 import { passes } from '../harness/helpers.mjs';
+
+/** 声明了 DESKTOP_MESSAGES_ZH 的 chunk（zh 目录懒加载块）。 */
+function zhCatalogChunks(distRoot) {
+  return readdirSync(distRoot).filter(
+    name => name.endsWith('.js') && readFileSync(join(distRoot, name), 'utf8').includes('DESKTOP_MESSAGES_ZH')
+  );
+}
 
 /** 壳层自己会读的数据域：桌面上的日历、天气、股票小组件，以及通知中心里的提醒事项小组件（D-18）。 */
 const SHELL_DOMAINS = ['calendar', 'reminders', 'stocks', 'weather'];
@@ -130,7 +139,12 @@ export const lazyLoading = {
     const chunkOf = selector => scriptsDeclaring(components, selector);
     const seedChunkOf = domain => scriptsDeclaring(seeds, domain);
     const diskImageChunks = [...diskImageSeedScripts(distRoot)].filter(name => lazy.has(name));
-    const shellSeedChunks = new Set([...SHELL_DOMAINS.flatMap(seedChunkOf), ...diskImageChunks]);
+    /* 中英目录随首屏下载（zh 目录是懒加载 chunk，注册前先预热）：目录属于壳层，不算应用按需项。 */
+    const shellSeedChunks = new Set([
+      ...SHELL_DOMAINS.flatMap(seedChunkOf),
+      ...diskImageChunks,
+      ...zhCatalogChunks(distRoot)
+    ]);
     const terminalRuntime = terminalRuntimeScripts(distRoot);
     const notificationWidgets = [
       'app-reminders-widget',

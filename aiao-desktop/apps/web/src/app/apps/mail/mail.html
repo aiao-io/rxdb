@@ -2,7 +2,7 @@
   <div class="sbar" data-drag style="width: 196px">
     <div class="sb-top"><app-traffic-lights /></div>
     <div class="grp">
-      <div class="gh">Mailboxes</div>
+      <div class="gh">{{ i18n.t('apps.mail.mailboxes') }}</div>
       @for (item of boxes(); track item.name) {
         <button
           class="si"
@@ -26,37 +26,37 @@
     <div class="fx-tb" data-drag>
       <button
         class="tbtn"
+        [attr.aria-label]="i18n.t('apps.mail.newMailDraft')"
+        [title]="i18n.t('apps.mail.newMailDraft')"
         (click)="compose()"
-        aria-label="New Mail Draft"
         data-mcompose
         data-nodrag
         tabindex="0"
-        title="New Mail Draft"
       >
         <svg appIcon="g-plus"></svg>
       </button>
       <button
         class="tbtn"
+        [attr.aria-label]="i18n.t('apps.mail.flag')"
         [attr.aria-pressed]="current()?.flagged ?? false"
         [disabled]="savingFlag() || !current()"
+        [title]="i18n.t('apps.mail.flag')"
         (click)="toggleFlag()"
-        aria-label="Flag"
         data-mflag
         data-nodrag
         tabindex="0"
-        title="Flag"
       >
         <svg appIcon="g-tag"></svg>
       </button>
       <button
         class="tbtn"
         #shareButton
+        [attr.aria-label]="i18n.t('apps.mail.share')"
+        [title]="i18n.t('apps.mail.share')"
         (click)="share(shareButton, $event)"
-        aria-label="Share"
         data-mshare
         data-nodrag
         tabindex="0"
-        title="Share"
       >
         <svg appIcon="g-share"></svg>
       </button>
@@ -66,19 +66,21 @@
         <span><svg appIcon="g-search"></svg></span>
         <input
           #search
+          [attr.aria-label]="i18n.t('apps.mail.searchMail')"
+          [placeholder]="i18n.t('shell.menu.search')"
           [value]="query()"
           (input)="query.set(search.value); selection.set(0)"
-          aria-label="Search mail"
-          placeholder="Search"
         />
       </div>
     </div>
     <div style="padding: 8px 14px; background: var(--win); color: var(--txt); font-size: 12px">
-      Local mail, including sample messages. No email service is connected; nothing is sent or received.
+      {{ i18n.t('apps.mail.localBanner') }}
       @if (composer.editor.dirty() || composer.editor.saving()) {
         <div role="status" style="margin-top: 6px">
-          {{ composer.editor.saving() ? 'Saving draft…' : 'Unsaved mail draft' }}
-          <button class="btn" (click)="composer.resume()" data-resume-mail tabindex="0">Resume Draft</button>
+          {{ composer.editor.saving() ? i18n.t('apps.mail.savingDraft') : i18n.t('apps.mail.unsavedMailDraft') }}
+          <button class="btn" (click)="composer.resume()" data-resume-mail tabindex="0">
+            {{ i18n.t('apps.mail.resumeDraft') }}
+          </button>
         </div>
       }
     </div>
@@ -149,7 +151,7 @@
               <div>
                 <div style="font-size: 14px; font-weight: 600">{{ mail.sender }}</div>
                 <div style="font-size: 11.5px; color: var(--txt-2)">
-                  To: {{ mail.recipient }} · {{ mail.timeLabel }}
+                  {{ i18n.t('apps.mail.toLine', { recipient: mail.recipient, time: mail.timeLabel }) }}
                 </div>
               </div>
             </div>
@@ -168,10 +170,12 @@
               <span>{{ displayBody(mail.body) }}</span>
             </p>
             @if (mail.mailbox === draftsMailbox) {
-              <button class="btn" (click)="composer.edit(mail)" tabindex="0">Edit Draft</button>
+              <button class="btn" (click)="composer.edit(mail)" tabindex="0">
+                {{ i18n.t('apps.mail.editDraft') }}
+              </button>
             }
             <p style="font-size: 13.5px; line-height: 1.6; color: var(--txt-2)">
-              Stored in this browser. This record does not confirm email delivery.
+              {{ i18n.t('apps.mail.storedNote') }}
             </p>
           </div>
         }

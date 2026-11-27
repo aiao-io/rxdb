@@ -7,23 +7,23 @@
     @if (view().kind === 'pdf' || view().kind === 'image') {
       <button
         class="tbtn"
+        [attr.aria-label]="i18n.t('apps.preview.rotateLeft')"
+        [title]="i18n.t('apps.preview.rotateLeft')"
         (click)="rotateBy(-90)"
-        aria-label="Rotate Left"
         data-nodrag
         data-pv-rotl
         tabindex="0"
-        title="Rotate Left"
       >
         ↺
       </button>
       <button
         class="tbtn"
+        [attr.aria-label]="i18n.t('apps.preview.rotateRight')"
+        [title]="i18n.t('apps.preview.rotateRight')"
         (click)="rotateBy(90)"
-        aria-label="Rotate Right"
         data-nodrag
         data-pv-rotr
         tabindex="0"
-        title="Rotate Right"
       >
         ↻
       </button>
@@ -31,16 +31,16 @@
     <button
       class="tbtn"
       #share
+      [attr.aria-label]="i18n.t('apps.preview.share')"
+      [title]="i18n.t('apps.preview.share')"
       (click)="openShare(share, $event)"
-      aria-label="Share"
       data-nodrag
       data-pvshare
       tabindex="0"
-      title="Share"
     >
       <svg appIcon="g-share"></svg>
     </button>
-    <button class="tbtn" (click)="toggleFind()" data-nodrag data-pvfind title="Search">
+    <button class="tbtn" [title]="i18n.t('apps.preview.search')" (click)="toggleFind()" data-nodrag data-pvfind>
       <svg appIcon="g-search"></svg>
     </button>
     <div
@@ -61,9 +61,9 @@
       <span><svg appIcon="g-search"></svg></span>
       <input
         #field
+        [placeholder]="i18n.t('apps.preview.search')"
         (input)="find(field.value)"
         (keydown.enter)="stepMatchDirection($event)"
-        placeholder="Search"
         spellcheck="false"
       />
     </div>
@@ -97,7 +97,7 @@
           >
             @for (n of pageNumbers(); track n) {
               <button
-                [attr.aria-label]="'Page ' + n"
+                [attr.aria-label]="i18n.t('apps.preview.page', { page: n })"
                 [attr.data-pv-thumb]="n"
                 [style.box-shadow]="n === page() ? '0 0 0 2px var(--blue)' : '0 0 0 0.5px rgba(0, 0, 0, 0.25)'"
                 (click)="page.set(n)"
@@ -164,16 +164,17 @@
           <button
             class="tbtn"
             [disabled]="page() <= 1"
+            [title]="i18n.t('apps.preview.previousPage')"
             (click)="prevPage()"
             data-pv-prev
             tabindex="0"
-            title="Previous Page"
           >
             <svg appIcon="g-chev-l"></svg>
           </button>
           @if (!paging()) {
             <button
-              [attr.aria-label]="'Go to page ' + page()"
+              [attr.aria-label]="i18n.t('apps.preview.goToPageNumber', { page: page() })"
+              [title]="i18n.t('apps.preview.goToPageTitle')"
               (click)="startPaging()"
               data-pv-pageno
               style="
@@ -186,20 +187,21 @@
                 cursor: var(--cur-hand);
               "
               tabindex="0"
-              title="Go to Page"
               type="button"
             >
               {{ page() }}
             </button>
-            <span style="font-size: 12px; color: var(--txt-2)">of {{ pageCount() }}</span>
+            <span style="font-size: 12px; color: var(--txt-2)">
+              {{ i18n.t('apps.preview.of', { count: pageCount() }) }}
+            </span>
           } @else {
             <input
               #pageInput
+              [attr.aria-label]="i18n.t('apps.preview.goToPageAria')"
               [value]="page()"
               (blur)="cancelPaging()"
               (keydown.enter)="jumpPage(pageInput.value)"
               (keydown.escape)="cancelPaging()"
-              aria-label="Go to page"
               data-pv-page-input
               spellcheck="false"
               style="
@@ -215,15 +217,17 @@
                 text-align: center;
               "
             />
-            <span style="font-size: 12px; color: var(--txt-2)">of {{ pageCount() }}</span>
+            <span style="font-size: 12px; color: var(--txt-2)">
+              {{ i18n.t('apps.preview.of', { count: pageCount() }) }}
+            </span>
           }
           <button
             class="tbtn"
             [disabled]="page() >= pageCount()"
+            [title]="i18n.t('apps.preview.nextPage')"
             (click)="nextPage()"
             data-pv-next
             tabindex="0"
-            title="Next Page"
           >
             <svg appIcon="g-chev-r"></svg>
           </button>
@@ -265,7 +269,9 @@
     @case ('failed') {
       @if (viewState.kind === 'failed') {
         <div data-pv-failed style="text-align: center; color: var(--txt-2); font-size: 13px">
-          <div style="font-weight: 600; color: var(--txt); margin-bottom: 6px">“{{ name }}” could not be opened.</div>
+          <div style="font-weight: 600; color: var(--txt); margin-bottom: 6px">
+            {{ i18n.t('error.preview.couldNotOpen', { name: name }) }}
+          </div>
           {{ viewState.reason }}
         </div>
       }

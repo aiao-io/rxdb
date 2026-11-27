@@ -2,7 +2,7 @@
   <div class="cal-side" data-drag>
     <div class="sb-top" style="height: 44px"><app-traffic-lights /></div>
     <div class="grp" style="padding: 0 10px">
-      <div class="gh">iCloud</div>
+      <div class="gh">{{ i18n.t('apps.calendar.iCloud') }}</div>
       <div data-cals>
         @for (cal of store.calendars(); track cal.id) {
           <div
@@ -46,7 +46,7 @@
       </div>
     </div>
     <div data-agenda style="margin-top: auto; padding: 10px 14px">
-      <div class="gh" style="padding-left: 0">Upcoming</div>
+      <div class="gh" style="padding-left: 0">{{ i18n.t('apps.calendar.upcoming') }}</div>
       @for (item of upcoming(); track item.id) {
         <div
           class="cal-up"
@@ -62,7 +62,7 @@
           </div>
         </div>
       } @empty {
-        <div style="font-size: 11.5px; color: var(--txt-3)">Nothing scheduled.</div>
+        <div style="font-size: 11.5px; color: var(--txt-3)">{{ i18n.t('apps.calendar.nothingScheduled') }}</div>
       }
     </div>
   </div>
@@ -70,11 +70,23 @@
     <div class="cal-head" data-drag>
       <h3 data-mon>{{ heading() }}</h3>
       <div class="grow" style="flex: 1"></div>
-      <button class="tbtn" (click)="shift(-1)" aria-label="Previous period" data-nodrag data-p="-1">
+      <button
+        class="tbtn"
+        [attr.aria-label]="i18n.t('apps.calendar.previousPeriod')"
+        (click)="shift(-1)"
+        data-nodrag
+        data-p="-1"
+      >
         <svg appIcon="g-chev-l"></svg>
       </button>
-      <button class="btn" (click)="goToday()" data-nodrag data-today>Today</button>
-      <button class="tbtn" (click)="shift(1)" aria-label="Next period" data-nodrag data-p="1">
+      <button class="btn" (click)="goToday()" data-nodrag data-today>{{ i18n.t('apps.calendar.today') }}</button>
+      <button
+        class="tbtn"
+        [attr.aria-label]="i18n.t('apps.calendar.nextPeriod')"
+        (click)="shift(1)"
+        data-nodrag
+        data-p="1"
+      >
         <svg appIcon="g-chev-r"></svg>
       </button>
       <div class="seg" data-nodrag style="margin-left: 6px">
@@ -83,13 +95,20 @@
             [attr.data-view]="item.view"
             [class.on]="view() === item.view"
             [style.width.px]="item.width"
-            [textContent]="item.label"
+            [textContent]="i18n.t(item.label)"
             (click)="setView(item.view)"
             style="font-size: 11.5px"
           ></button>
         }
       </div>
-      <button class="tbtn" (click)="newEvent()" aria-label="New Event" data-new data-nodrag title="New Event">
+      <button
+        class="tbtn"
+        [attr.aria-label]="i18n.t('apps.calendar.newEvent')"
+        [title]="i18n.t('apps.calendar.newEvent')"
+        (click)="newEvent()"
+        data-new
+        data-nodrag
+      >
         <svg appIcon="g-plus"></svg>
       </button>
     </div>
@@ -156,13 +175,13 @@
               <div
                 class="cal-more"
                 #moreBtn
-                [attr.aria-label]="cell.more + ' more events on this day'"
+                [attr.aria-label]="i18n.t('apps.calendar.moreEventsAria', { count: cell.more })"
                 (click)="moreMenu(moreBtn, cell, $event.detail === 0)"
                 (keydown.enter)="moreMenu(moreBtn, cell, true)"
                 role="button"
                 tabindex="-1"
               >
-                {{ cell.more }} more
+                {{ i18n.t('apps.calendar.more', { count: cell.more }) }}
               </div>
             }
           </div>
@@ -197,7 +216,7 @@
       <div class="cal-grid cal-stack" data-grid>
         @if (hasBand()) {
           <div class="cal-band">
-            <div class="gut">all-day</div>
+            <div class="gut">{{ i18n.t('apps.calendar.allDay') }}</div>
             @for (cell of band(); track $index) {
               <div class="cell">
                 @for (chip of cell; track chip.id) {
@@ -281,7 +300,7 @@
     "
   >
     <div
-      [attr.aria-label]="'Delete event'"
+      [attr.aria-label]="i18n.t('apps.calendar.deleteEvent')"
       (keydown.escape)="cancelDelete()"
       appFocusTrap
       aria-modal="true"
@@ -296,13 +315,19 @@
         box-shadow: 0 14px 50px #0006;
       "
     >
-      <h2 style="margin: 0 0 8px; font-size: 16px; font-weight: 600">Delete “{{ event.t }}”?</h2>
+      <h2 style="margin: 0 0 8px; font-size: 16px; font-weight: 600">
+        {{ i18n.t('apps.calendar.deleteEventTitle', { name: event.t }) }}
+      </h2>
       <p style="margin: 0; font-size: 12.5px; color: var(--txt-2)">
-        This event will be removed from all of your calendars. This cannot be undone.
+        {{ i18n.t('apps.calendar.deleteEventMessage') }}
       </p>
       <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px">
-        <button class="btn" (click)="cancelDelete()" data-autofocus tabindex="0" type="button">Cancel</button>
-        <button class="btn pri" (click)="deleteEvent()" tabindex="0" type="button">Delete</button>
+        <button class="btn" (click)="cancelDelete()" data-autofocus tabindex="0" type="button">
+          {{ i18n.t('apps.calendar.cancel') }}
+        </button>
+        <button class="btn pri" (click)="deleteEvent()" tabindex="0" type="button">
+          {{ i18n.t('apps.calendar.delete') }}
+        </button>
       </div>
     </div>
   </div>

@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { Component, WritableSignal, computed, inject, output } from '@angular/core';
 
 import { PopoverService } from '../../../services/popover';
@@ -17,11 +18,15 @@ const MULTICOLOUR = 'conic-gradient(from 210deg,#ff375f,#ff9f0a,#ffd60a,#30d158,
 /** 「跟随强调色」排在高亮色最前面，其余顺序与强调色一致。 */
 const HIGHLIGHT_KEYS: readonly HighlightKey[] = ['accent', ...(ACCENT_KEYS.slice(1) as Exclude<AccentKey, 'multi'>[])];
 
-const SIDEBAR_SIZES: Readonly<Record<SidebarIconSize, string>> = { small: 'Small', medium: 'Medium', large: 'Large' };
+const SIDEBAR_SIZES: Readonly<Record<SidebarIconSize, string>> = {
+  small: 'shell.appearance.sidebarSmall',
+  medium: 'shell.appearance.sidebarMedium',
+  large: 'shell.appearance.sidebarLarge'
+};
 const SCROLLBAR_POLICIES: Readonly<Record<ScrollbarPolicy, string>> = {
-  auto: 'Automatically',
-  scrolling: 'When scrolling',
-  always: 'Always'
+  auto: 'shell.appearance.scrollAutomatically',
+  scrolling: 'shell.appearance.scrollWhenScrolling',
+  always: 'shell.appearance.scrollAlways'
 };
 
 /** 浅色、深色两张缩略图；自动那张是左浅右深的对半图，直接写在模板里。 */
@@ -163,22 +168,23 @@ export class AppearancePane {
 
   protected readonly system = inject(SystemState);
   protected readonly swatches = SWATCHES;
+  protected readonly i18n = useI18n();
   protected readonly accentDots = computed(() =>
     ACCENT_KEYS.map(key => ({
       key,
-      name: ACCENTS[key].name,
+      name: this.i18n.t(ACCENTS[key].name),
       background: accentHex(ACCENTS[key], this.system.theme()) ?? MULTICOLOUR
     }))
   );
   protected readonly highlightDots = computed(() =>
     HIGHLIGHT_KEYS.map(key =>
       key === 'accent' ?
-        { key, name: 'Accent Colour', background: 'var(--blue)' }
-      : { key, name: ACCENTS[key].name, background: accentHex(ACCENTS[key], this.system.theme())! }
+        { key, name: this.i18n.t('shell.appearance.accentColour'), background: 'var(--blue)' }
+      : { key, name: this.i18n.t(ACCENTS[key].name), background: accentHex(ACCENTS[key], this.system.theme())! }
     )
   );
-  protected readonly sidebarIconLabel = computed(() => SIDEBAR_SIZES[this.system.sidebarIcons()]);
-  protected readonly scrollbarLabel = computed(() => SCROLLBAR_POLICIES[this.system.scrollbars()]);
+  protected readonly sidebarIconLabel = computed(() => this.i18n.t(SIDEBAR_SIZES[this.system.sidebarIcons()]));
+  protected readonly scrollbarLabel = computed(() => this.i18n.t(SCROLLBAR_POLICIES[this.system.scrollbars()]));
 
   /** 选了外观、颜色或菜单项后面板整块重绘（原来的行为），只改外观的开关会回到初始值。 */
   readonly rerender = output<void>();

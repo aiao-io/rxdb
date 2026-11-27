@@ -1,5 +1,7 @@
 import { useI18n } from '@aiao/rxdb-i18n-angular';
+
 import { Component, ViewEncapsulation, inject } from '@angular/core';
+import { appDisplayName } from '../services/desktop-app-name';
 
 import { DesktopWindow } from '../services/desktop-window';
 import { WindowManager } from '../services/window-manager';
@@ -25,6 +27,7 @@ export class WindowStatus {
   private readonly wm = inject(WindowManager);
   protected readonly win = inject(DesktopWindow);
   protected readonly i18n = useI18n();
+  protected readonly appName = appDisplayName.bind(null, this.i18n);
 
   protected retry(): void {
     this.wm.retry(this.win.id);

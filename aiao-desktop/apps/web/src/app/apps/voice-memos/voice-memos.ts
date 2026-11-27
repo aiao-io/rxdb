@@ -1,5 +1,7 @@
 import { Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 
+import { useI18n } from '@aiao/rxdb-i18n-angular';
+
 import { ALL_ROWS, liveQuery } from '../../data/live-query';
 import { DesktopMenus } from '../../services/desktop-menus';
 import { DesktopWindow } from '../../services/desktop-window';
@@ -25,6 +27,7 @@ const TICK_MS = 250;
 export class VoiceMemosApp {
   private scrubbing: AbortController | null = null;
 
+  protected readonly i18n = useI18n();
   protected readonly memos = liveQuery(
     () => VoiceMemo.findAll({ where: ALL_ROWS, orderBy: [{ field: 'position', sort: 'asc' }] }),
     [],

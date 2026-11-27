@@ -3,6 +3,7 @@ import { Component, ElementRef, ViewEncapsulation, computed, inject, signal, vie
 
 import { StatusKey, StatusSnapshot, statusLabel } from '../services/aria';
 import { Clock } from '../services/clock';
+import { appDisplayName } from '../services/desktop-app-name';
 import { DesktopMenus } from '../services/desktop-menus';
 import { barIndex, isKeyboardClick } from '../services/focus-order';
 import { MenuEntry, section } from '../services/menu';
@@ -56,8 +57,9 @@ export class Menubar {
   private readonly clock = inject(Clock);
   private readonly sections = computed(() => {
     const win = this.wm.menubarOwner();
-    if (!win) return [section('Finder', this.menus.about('Finder')), ...this.menus.finderFallback()];
-    const name = win.app.name;
+    const finderName = this.i18n.t('apps.finder.name');
+    if (!win) return [section(finderName, this.menus.about(finderName)), ...this.menus.finderFallback()];
+    const name = this.appDisplayName(win.app);
     const sections = win.menus()?.() ?? this.menus.standard(win.appId);
     if (sections[0]?.label === name) return sections;
     const application = win.appId === 'github' ? this.menus.githubApplication() : this.menus.about(name);
@@ -74,6 +76,7 @@ export class Menubar {
   private lastPress: { readonly key: string; readonly at: number } | null = null;
   private hoveredMenu: string | null = null;
   protected readonly i18n = useI18n();
+  protected readonly appDisplayName = appDisplayName.bind(null, this.i18n);
   protected readonly wm = inject(WindowManager);
   protected readonly system = inject(SystemState);
   protected readonly overlays = inject(Overlays);

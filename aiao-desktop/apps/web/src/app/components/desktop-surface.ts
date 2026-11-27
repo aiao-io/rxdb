@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { DOCUMENT } from '@angular/common';
 import {
   AnimationCallbackEvent,
@@ -44,7 +45,7 @@ import { FileThumbnail } from '../shared/file-thumbnail';
 import { clamp } from '../shared/format';
 import { Icon } from '../shared/icon';
 import { showInfoPanel } from './overlays/info-panel';
-import { showQuickLook } from './overlays/quick-look';
+import { diskKindLabel, showQuickLook } from './overlays/quick-look';
 import { CalendarWidget, StocksWidget, WeatherWidget } from './widgets/widgets';
 
 /** 网格到屏幕右边缘与顶缘的留白；列宽行高由「Show View Options」换算（gridMetrics）。 */
@@ -102,6 +103,7 @@ export class DesktopSurface {
   private selectionAnchor: string | null = null;
 
   protected readonly desktop = inject(DesktopItems);
+  protected readonly i18n = useI18n();
   protected readonly desktopPath = DESKTOP;
   protected readonly fileOperation = signal<FileOperationRequest | null>(null);
   protected readonly viewport = signal<readonly [number, number]>([innerWidth, innerHeight]);
@@ -357,7 +359,8 @@ export class DesktopSurface {
 
   protected stackLabel(stack: DesktopStack): string {
     const count = stack.ids.length;
-    return `${stack.kind} stack, ${count} ${count === 1 ? 'item' : 'items'}`;
+    const kind = diskKindLabel(this.i18n.t, stack.kind);
+    return this.i18n.t(count === 1 ? 'shell.desktop.stackSingular' : 'shell.desktop.stackPlural', { kind, count });
   }
 
   protected stackIcon(stack: DesktopStack): string {
@@ -443,30 +446,43 @@ export class DesktopSurface {
     this.menuPoint = { x: event.clientX, y: event.clientY };
     this.menuKeyboard = false;
     this.popover.contextMenu(event, [
-      { id: 'nf', label: 'New Folder', run: () => this.desktop.newFolder() },
+      { id: 'nf', label: this.i18n.t('shell.menu.newFolder'), run: () => this.desktop.newFolder() },
       {
         id: 'ps',
-        label: 'Paste Item',
+        label: this.i18n.t('shell.desktop.pasteItem'),
         key: '⌘V',
         disabled: !this.clipboard.snapshot(),
         run: () => this.desktop.paste()
       },
-      { id: 'gi', label: 'Get Info', run: () => this.showDesktopInfo() },
+      { id: 'gi', label: this.i18n.t('shell.menu.getInfo'), run: () => this.showDesktopInfo() },
       '-',
-      { id: 'cw', label: 'Change Wallpaper…', run: () => this.wm.open('settings', { section: 'wallpaper' }) },
-      { id: 'ew', label: 'Edit Widgets…', run: () => this.toast.show('shell.toast.widgetsOnDesktop') },
+      {
+        id: 'cw',
+        label: this.i18n.t('shell.desktop.changeWallpaper'),
+        run: () => this.wm.open('settings', { section: 'wallpaper' })
+      },
+      {
+        id: 'ew',
+        label: this.i18n.t('shell.desktop.editWidgets'),
+        run: () => this.toast.show('shell.toast.widgetsOnDesktop')
+      },
       '-',
       {
         id: 'st',
-        label: 'Use Stacks',
+        label: this.i18n.t('shell.desktop.useStacks'),
         key: '⌃⌘0',
         checked: this.desktop.stacksEnabled(),
         run: () => this.desktop.toggleStacks()
       },
-      { id: 'sb', label: 'Sort By', submenu: this.sortSubmenu() },
-      { id: 'cu', label: 'Clean Up', run: () => this.desktop.cleanUp() },
-      { id: 'cub', label: 'Clean Up By', submenu: this.cleanUpSubmenu() },
-      { id: 'vo', label: 'Show View Options', key: '⌘J', run: () => this.openViewOptions() }
+      { id: 'sb', label: this.i18n.t('shell.desktop.sortBy'), submenu: this.sortSubmenu() },
+      { id: 'cu', label: this.i18n.t('shell.desktop.cleanUp'), run: () => this.desktop.cleanUp() },
+      { id: 'cub', label: this.i18n.t('shell.desktop.cleanUpBy'), submenu: this.cleanUpSubmenu() },
+      {
+        id: 'vo',
+        label: this.i18n.t('shell.menu.showViewOptions'),
+        key: '⌘J',
+        run: () => this.openViewOptions()
+      }
     ]);
   }
 
@@ -509,10 +525,10 @@ export class DesktopSurface {
   private iconItems(item: DesktopItem): MenuEntry[] {
     const node = item.node;
     return [
-      { id: 'o', label: 'Open', run: () => item.open() },
+      { id: 'o', label: this.i18n.t('shell.dock.open'), run: () => item.open() },
       {
         id: 'w',
-        label: 'Open With',
+        label: this.i18n.t('shell.desktop.openWith'),
         disabled: !node || node.kind !== 'file' || isPackageName(node.name),
         submenu:
           node && node.kind === 'file' && !isPackageName(node.name) ?
@@ -521,14 +537,15 @@ export class DesktopSurface {
               appId => this.opener.openApp(appId, node),
               () => {
                 if (node.path) this.fileOperation.set({ kind: 'open-with', node });
-              }
+              },
+              this.i18n.t
             )
           : undefined
       },
       '-',
       {
         id: 'i',
-        label: 'Get Info',
+        label: this.i18n.t('shell.menu.getInfo'),
         key: '⌘I',
         run: () => {
           if (!node) {
@@ -543,15 +560,15 @@ export class DesktopSurface {
       },
       {
         id: 'r',
-        label: 'Rename',
+        label: this.i18n.t('shell.desktop.rename'),
         disabled: !item.id.startsWith('file:'),
         run: () => this.startRename(item)
       },
-      { id: 'd', label: 'Duplicate', key: '⌘D', run: () => this.duplicateFromItem(item) },
+      { id: 'd', label: this.i18n.t('shell.desktop.duplicate'), key: '⌘D', run: () => this.duplicateFromItem(item) },
       '-',
-      { id: 't', label: 'Move to Trash', key: '⌘⌫', run: () => this.trash(item) },
+      { id: 't', label: this.i18n.t('shell.menu.moveToTrash'), key: '⌘⌫', run: () => this.trash(item) },
       '-',
-      { id: 'q', label: 'Quick Look', key: '␣', run: () => this.quickLook(item) }
+      { id: 'q', label: this.i18n.t('shell.desktop.quickLook'), key: '␣', run: () => this.quickLook(item) }
     ];
   }
 
@@ -565,21 +582,25 @@ export class DesktopSurface {
       run: () => this.desktop.sortBy(criteria)
     });
     return [
-      entry('sb-none', 'None', null),
-      entry('sb-name', 'Name', 'name'),
-      entry('sb-kind', 'Kind', 'kind'),
-      entry('sb-date', 'Date Modified', 'date'),
-      entry('sb-size', 'Size', 'size')
+      entry('sb-none', this.i18n.t('shell.desktop.none'), null),
+      entry('sb-name', this.i18n.t('shell.desktop.name'), 'name'),
+      entry('sb-kind', this.i18n.t('shell.desktop.kind'), 'kind'),
+      entry('sb-date', this.i18n.t('shell.desktop.dateModified'), 'date'),
+      entry('sb-size', this.i18n.t('shell.desktop.size'), 'size')
     ];
   }
 
   /** Clean Up By 子菜单：先按依据排序再紧凑重排。 */
   private cleanUpSubmenu(): readonly MenuEntry[] {
     return [
-      { id: 'cu-name', label: 'Name', run: () => this.desktop.cleanUp('name') },
-      { id: 'cu-kind', label: 'Kind', run: () => this.desktop.cleanUp('kind') },
-      { id: 'cu-date', label: 'Date Modified', run: () => this.desktop.cleanUp('date') },
-      { id: 'cu-size', label: 'Size', run: () => this.desktop.cleanUp('size') }
+      { id: 'cu-name', label: this.i18n.t('shell.desktop.name'), run: () => this.desktop.cleanUp('name') },
+      { id: 'cu-kind', label: this.i18n.t('shell.desktop.kind'), run: () => this.desktop.cleanUp('kind') },
+      {
+        id: 'cu-date',
+        label: this.i18n.t('shell.desktop.dateModified'),
+        run: () => this.desktop.cleanUp('date')
+      },
+      { id: 'cu-size', label: this.i18n.t('shell.desktop.size'), run: () => this.desktop.cleanUp('size') }
     ];
   }
 
@@ -603,33 +624,33 @@ export class DesktopSurface {
       [
         {
           id: 'vo-size',
-          label: 'Icon size',
+          label: this.i18n.t('shell.desktop.iconSize'),
           submenu: [
-            pick('iconSize', 'small', 'Small'),
-            pick('iconSize', 'medium', 'Medium'),
-            pick('iconSize', 'large', 'Large')
+            pick('iconSize', 'small', this.i18n.t('shell.desktop.small')),
+            pick('iconSize', 'medium', this.i18n.t('shell.desktop.medium')),
+            pick('iconSize', 'large', this.i18n.t('shell.desktop.large'))
           ]
         },
         {
           id: 'vo-space',
-          label: 'Grid spacing',
+          label: this.i18n.t('shell.desktop.gridSpacing'),
           submenu: [
-            pick('gridSpacing', 'compact', 'Compact'),
-            pick('gridSpacing', 'default', 'Default'),
-            pick('gridSpacing', 'wide', 'Wide')
+            pick('gridSpacing', 'compact', this.i18n.t('shell.desktop.compact')),
+            pick('gridSpacing', 'default', this.i18n.t('shell.desktop.default')),
+            pick('gridSpacing', 'wide', this.i18n.t('shell.desktop.wide'))
           ]
         },
         {
           id: 'vo-text',
-          label: 'Text size',
+          label: this.i18n.t('shell.desktop.textSize'),
           submenu: [
-            pick('textSize', 'small', 'Small'),
-            pick('textSize', 'medium', 'Medium'),
-            pick('textSize', 'large', 'Large')
+            pick('textSize', 'small', this.i18n.t('shell.desktop.small')),
+            pick('textSize', 'medium', this.i18n.t('shell.desktop.medium')),
+            pick('textSize', 'large', this.i18n.t('shell.desktop.large'))
           ]
         }
       ],
-      { x: point.x, y: point.y, origin: 'top left', label: 'View Options' }
+      { x: point.x, y: point.y, origin: 'top left', label: this.i18n.t('shell.desktop.viewOptions') }
     );
   }
 
@@ -715,15 +736,27 @@ export class DesktopSurface {
       const item = this.desktop.items().find(entry => entry.id === id);
       return item ? [{ id: `open-${id}`, label: item.name, icon: item.icon, run: () => item.open() }] : [];
     });
-    if (anchor) this.popover.menuUnder(anchor, members, { keyboard: true, label: stack.kind });
+    if (anchor)
+      this.popover.menuUnder(anchor, members, { keyboard: true, label: diskKindLabel(this.i18n.t, stack.kind) });
     else if (point)
-      this.popover.openMenu(members, { x: point.left, y: point.top, origin: 'top left', label: stack.kind });
+      this.popover.openMenu(members, {
+        x: point.left,
+        y: point.top,
+        origin: 'top left',
+        label: diskKindLabel(this.i18n.t, stack.kind)
+      });
   }
 
   private info(item: DesktopItem): string {
     const node = item.node;
     if (!node) return item.name;
-    return node.kind === 'folder' ? `${node.name} — Folder` : `${node.name} — ${node.k}, ${node.size}`;
+    return node.kind === 'folder' ?
+        this.i18n.t('shell.desktop.infoFolder', { name: node.name })
+      : this.i18n.t('shell.desktop.infoFile', {
+          name: node.name,
+          kind: diskKindLabel(this.i18n.t, node.k),
+          size: node.size
+        });
   }
 
   private showDesktopInfo(): void {

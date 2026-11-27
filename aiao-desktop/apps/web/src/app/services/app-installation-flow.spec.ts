@@ -65,14 +65,19 @@ describe('应用商店交互流程', () => {
     const { flow, installed } = setup();
     expect(flow.items()[0].latest.version).toBe('10.0.0');
     flow.request(release.id, '10.0.0');
-    expect(flow.pending()).toMatchObject({ kind: 'release', action: 'Install', previous: null, release: newer });
+    expect(flow.pending()).toMatchObject({
+      kind: 'release',
+      action: 'apps.appstore.installAction',
+      previous: null,
+      release: newer
+    });
     expect(installed.apply).not.toHaveBeenCalled();
     flow.cancel();
     expect(flow.pending()).toBeNull();
     installed.state.set({ version: 1, apps: [{ id: release.id, version: '10.0.0', previous: '2.0.0' }] });
     expect(flow.items()[0].rollback?.version).toBe('2.0.0');
     flow.request(release.id, '2.0.0');
-    expect(flow.pending()).toMatchObject({ action: 'Roll Back', previous: '10.0.0' });
+    expect(flow.pending()).toMatchObject({ action: 'apps.appstore.rollBackAction', previous: '10.0.0' });
   });
 
   it('确认后关闭协商，取消保留安装；成功调用文件投影，版本确认值防止跨页覆盖', async () => {
@@ -125,7 +130,7 @@ describe('应用商店交互流程', () => {
     flow.open(release.id);
     expect(windows.open).toHaveBeenCalledWith(release.id);
     flow.request(release.id, null);
-    expect(flow.pending()).toMatchObject({ action: 'Uninstall', release: null });
+    expect(flow.pending()).toMatchObject({ action: 'apps.appstore.uninstallAction', release: null });
     await flow.confirm();
     expect(installed.apply).toHaveBeenCalledWith(release.id, null, expect.any(Function), '2.0.0');
   });

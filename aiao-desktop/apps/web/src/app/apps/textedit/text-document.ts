@@ -26,7 +26,8 @@ export class TextDocument {
   constructor(
     private readonly files: AppContextFiles,
     private readonly chooseSave: (name: string) => Promise<SaveLocation | null>,
-    initialPath: DiskPath | null = null
+    initialPath: DiskPath | null = null,
+    private readonly translate?: (key: string, params?: Record<string, unknown>) => string
   ) {
     this.path.set(initialPath);
   }
@@ -46,8 +47,14 @@ export class TextDocument {
       const result = await this.files.snapshot(path, Number.MAX_SAFE_INTEGER);
       if (this.disposed || round !== this.reading) return false;
       if (revision !== this.revision) return this.cancel();
-      if (result.kind === 'missing') throw new Error('This file has been moved, renamed or deleted.');
-      if (result.kind === 'too-large') throw new Error('This file is too large to open as text.');
+      if (result.kind === 'missing')
+        throw new Error(
+          this.message('error.textedit.fileMoved', undefined, 'This file has been moved, renamed or deleted.')
+        );
+      if (result.kind === 'too-large')
+        throw new Error(
+          this.message('error.textedit.fileTooLarge', undefined, 'This file is too large to open as text.')
+        );
       const text = new TextDecoder('utf-8', { fatal: true }).decode(result.bytes);
       this.path.set(path);
       this.stamp.set(result.stamp);
@@ -84,14 +91,38 @@ export class TextDocument {
       const bytes = new TextEncoder().encode(text);
       const result = target ? await this.files.create(target.path, bytes, target.replace) : await this.replace(bytes);
       if (result.kind === 'changed')
-        return this.fail('This file changed in another window. Reload or Save As a copy.', 'conflict');
+        return this.fail(
+          this.message(
+            'error.textedit.fileChanged',
+            undefined,
+            'This file changed in another window. Reload or Save As a copy.'
+          ),
+          'conflict'
+        );
       if (result.kind === 'missing')
         throw new Error(
-          `“${this.name()}” can’t be saved because it was moved, renamed or deleted. Your changes are still in this window.`
+          this.message(
+            'error.textedit.saveMoved',
+            { name: this.name() },
+            `“${this.name()}” can’t be saved because it was moved, renamed or deleted. Your changes are still in this window.`
+          )
         );
       if (result.kind === 'missing-folder')
-        throw new Error('The selected folder no longer exists. Choose another location.');
-      if (result.kind === 'exists') throw new Error('The selected name is already in use. Choose another name.');
+        throw new Error(
+          this.message(
+            'error.textedit.folderGone',
+            undefined,
+            'The selected folder no longer exists. Choose another location.'
+          )
+        );
+      if (result.kind === 'exists')
+        throw new Error(
+          this.message(
+            'error.textedit.nameInUse',
+            undefined,
+            'The selected name is already in use. Choose another name.'
+          )
+        );
       if (target) this.path.set(target.path);
       this.stamp.set(result.stamp);
       this.savedText.set(text);
@@ -105,7 +136,14 @@ export class TextDocument {
   private replace(bytes: Uint8Array) {
     const path = this.path();
     const stamp = this.stamp();
-    if (!path || !stamp) throw new Error('Load the original file before saving, or Save As a copy.');
+    if (!path || !stamp)
+      throw new Error(
+        this.message(
+          'error.textedit.loadOriginalFirst',
+          undefined,
+          'Load the original file before saving, or Save As a copy.'
+        )
+      );
     return this.files.replace(path, bytes, stamp);
   }
 
@@ -118,5 +156,9 @@ export class TextDocument {
     this.status.set(status);
     this.error.set(error instanceof Error ? error.message : String(error));
     return false;
+  }
+  /** 面向用户的错误文案：有翻译函数时按当前语言显示，否则保留英文原文（与 calendar-draft 的风格一致）。 */
+  private message(key: string, params: Record<string, unknown> | undefined, english: string): string {
+    return this.translate?.(key, params) ?? english;
   }
 }

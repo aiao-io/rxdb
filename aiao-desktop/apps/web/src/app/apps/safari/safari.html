@@ -4,14 +4,35 @@
       <div class="sf-l">
         <app-traffic-lights />
         <div style="width: 8px"></div>
-        <button class="tbtn" [class.on]="sidebar()" (click)="toggleSidebar()" data-nodrag data-sb title="Sidebar">
+        <button
+          class="tbtn"
+          [class.on]="sidebar()"
+          [title]="i18n.t('apps.safari.toolbar.sidebar')"
+          (click)="toggleSidebar()"
+          data-nodrag
+          data-sb
+        >
           <svg appIcon="g-sidebar"></svg>
         </button>
         <div class="sf-sep"></div>
-        <button class="tbtn" [class.dis]="!canBack()" (click)="back()" data-back data-nodrag title="Back">
+        <button
+          class="tbtn"
+          [class.dis]="!canBack()"
+          [title]="i18n.t('apps.safari.back')"
+          (click)="back()"
+          data-back
+          data-nodrag
+        >
           <svg appIcon="g-chev-l"></svg>
         </button>
-        <button class="tbtn" [class.dis]="!canForward()" (click)="forward()" data-fwd data-nodrag title="Forward">
+        <button
+          class="tbtn"
+          [class.dis]="!canForward()"
+          [title]="i18n.t('apps.safari.forward')"
+          (click)="forward()"
+          data-fwd
+          data-nodrag
+        >
           <svg appIcon="g-chev-r"></svg>
         </button>
       </div>
@@ -20,6 +41,7 @@
         <input
           #urlField
           [attr.aria-expanded]="suggestOpen() && suggestions().length ? 'true' : 'false'"
+          [placeholder]="i18n.t('apps.safari.address.placeholder')"
           (blur)="closeSuggest()"
           (focus)="focusField(urlField)"
           (input)="suggest(urlField.value)"
@@ -32,17 +54,22 @@
           aria-controls="sf-suggest"
           autocomplete="off"
           data-url
-          placeholder="Search or enter website name"
           role="combobox"
           spellcheck="false"
         />
-        <button class="tbtn" (click)="reload()" data-reload style="min-width: 20px; height: 20px" title="Reload">
+        <button
+          class="tbtn"
+          [title]="i18n.t('apps.safari.toolbar.reload')"
+          (click)="reload()"
+          data-reload
+          style="min-width: 20px; height: 20px"
+        >
           <svg appIcon="g-reload"></svg>
         </button>
         @if (suggestOpen() && suggestions().length) {
           <div
             id="sf-suggest"
-            aria-label="Suggested addresses"
+            [attr.aria-label]="i18n.t('apps.safari.suggest.listLabel')"
             data-sf-suggest
             role="listbox"
             style="
@@ -96,13 +123,19 @@
         }
       </div>
       <div class="sf-r">
-        <button class="tbtn" (click)="share()" data-nodrag data-share title="Share">
+        <button class="tbtn" [title]="i18n.t('apps.safari.toolbar.share')" (click)="share()" data-nodrag data-share>
           <svg appIcon="g-share"></svg>
         </button>
-        <button class="tbtn" (click)="overview()" data-nodrag data-overview title="Show Tab Overview">
+        <button
+          class="tbtn"
+          [title]="i18n.t('apps.safari.toolbar.showTabOverview')"
+          (click)="overview()"
+          data-nodrag
+          data-overview
+        >
           <svg appIcon="g-grid"></svg>
         </button>
-        <button class="tbtn" (click)="newTab()" data-newtab data-nodrag title="New Tab">
+        <button class="tbtn" [title]="i18n.t('apps.safari.newTab')" (click)="newTab()" data-newtab data-nodrag>
           <svg appIcon="g-plus"></svg>
         </button>
       </div>
@@ -144,7 +177,7 @@
                 [ngTemplateOutletContext]="{ $implicit: item.url, size: 14 }"
               />
               @if (!item.pinned) {
-                <span class="nm">{{ titleFor(item.url) }}</span>
+                <span class="nm">{{ titleOf(item.url) }}</span>
               }
             </span>
           </div>
@@ -177,11 +210,11 @@
     >
       <input
         #findField
+        [attr.aria-label]="i18n.t('apps.safari.find.label')"
+        [placeholder]="i18n.t('apps.safari.find.placeholder')"
         (input)="findOnPage(findField.value)"
         (keydown.enter)="findStepDirection($event)"
         (keydown.escape)="closeFind()"
-        aria-label="Find on page"
-        placeholder="Find"
         spellcheck="false"
         style="
           flex: 0 1 210px;
@@ -196,13 +229,31 @@
         "
       />
       <span data-sf-findcount style="min-width: 52px; font-size: 12px; color: var(--txt-2)">{{ findCount() }}</span>
-      <button class="tbtn" (click)="findPrevMatch()" aria-label="Previous match" tabindex="0" type="button">
+      <button
+        class="tbtn"
+        [attr.aria-label]="i18n.t('apps.safari.find.previousMatch')"
+        (click)="findPrevMatch()"
+        tabindex="0"
+        type="button"
+      >
         <svg appIcon="g-chev-u"></svg>
       </button>
-      <button class="tbtn" (click)="findNextMatch()" aria-label="Next match" tabindex="0" type="button">
+      <button
+        class="tbtn"
+        [attr.aria-label]="i18n.t('apps.safari.find.nextMatch')"
+        (click)="findNextMatch()"
+        tabindex="0"
+        type="button"
+      >
         <svg appIcon="g-chev-d"></svg>
       </button>
-      <button class="tbtn" (click)="closeFind()" aria-label="Close find bar" tabindex="0" type="button">
+      <button
+        class="tbtn"
+        [attr.aria-label]="i18n.t('apps.safari.find.close')"
+        (click)="closeFind()"
+        tabindex="0"
+        type="button"
+      >
         <svg appIcon="g-x"></svg>
       </button>
     </div>
@@ -212,7 +263,7 @@
       @if (sidebar()) {
         <div class="in">
           <div class="grp">
-            <div class="gh">Favourites</div>
+            <div class="gh">{{ i18n.t('apps.safari.favourites') }}</div>
             @for (fav of favourites(); track fav.name) {
               <div
                 class="si"
@@ -231,7 +282,7 @@
             }
           </div>
           <div class="grp">
-            <div class="gh">Reading List</div>
+            <div class="gh">{{ i18n.t('apps.safari.readingList') }}</div>
             @for (item of reading(); track item.id) {
               <div
                 class="si"
@@ -264,14 +315,14 @@
         @switch (page.type) {
           @case ('start') {
             <div class="sf-start">
-              <h2>Favourites</h2>
+              <h2>{{ i18n.t('apps.safari.favourites') }}</h2>
               <div class="sf-grid">
                 @for (tile of favouriteTiles(); track tile.url) {
                   <ng-container [ngTemplateOutlet]="tileTemplate" [ngTemplateOutletContext]="{ $implicit: tile }" />
                 }
               </div>
               @if (recentTiles().length) {
-                <h2>Frequently Visited</h2>
+                <h2>{{ i18n.t('apps.safari.frequentlyVisited') }}</h2>
                 <div class="sf-grid">
                   @for (tile of recentTiles(); track tile.url) {
                     <ng-container [ngTemplateOutlet]="tileTemplate" [ngTemplateOutletContext]="{ $implicit: tile }" />
@@ -281,8 +332,8 @@
               <div class="sf-priv">
                 <svg appIcon="g-shield"></svg>
                 <div>
-                  <b>Privacy Report</b>
-                  · {{ trackers() }} trackers prevented from profiling you
+                  <b>{{ i18n.t('apps.safari.privacyReport') }}</b>
+                  {{ i18n.t('apps.safari.trackersPrevented', { count: trackers() }) }}
                 </div>
               </div>
             </div>
@@ -293,18 +344,18 @@
               <h1 style="font-size: 34px">macOS Tahoe 26</h1>
               <p class="role">Liquid Glass. Everywhere.</p>
               <div class="links">
-                <a data-goto="en.wikipedia.org/wiki/MacOS">Learn more</a>
-                <a data-openext="https://www.apple.com/macos/">Open apple.com</a>
+                <a data-goto="en.wikipedia.org/wiki/MacOS">{{ i18n.t('apps.safari.local.learnMore') }}</a>
+                <a data-openext="https://www.apple.com/macos/">{{ i18n.t('apps.safari.local.openApple') }}</a>
               </div>
-              <div class="foot">Copyright © 2026 Apple Inc. All rights reserved.</div>
+              <div class="foot">{{ i18n.t('apps.safari.local.copyright') }}</div>
             </div>
           }
           @case ('frame') {
             <div class="sf-web">
               <div class="sf-web-actions">
-                <span>Page not loading? Open it in your browser.</span>
+                <span>{{ i18n.t('apps.safari.frame.notLoading') }}</span>
                 <a class="btn" [href]="page.url" rel="noopener noreferrer" tabindex="0" target="_blank">
-                  Open in Browser
+                  {{ i18n.t('apps.safari.frame.openInBrowser') }}
                 </a>
               </div>
               <iframe
@@ -320,14 +371,13 @@
           @case ('same-origin') {
             <div class="sf-blocked" data-same-origin>
               <div class="ico"><svg appIcon="g-globe"></svg></div>
-              <h3>Can't open {{ hostOf(page.url) }} here</h3>
-              <p>
-                That address is this desktop itself. A page from it could reach the desktop's data and lift the limits
-                Safari puts on web pages, so Safari won't load it in a tab.
-              </p>
+              <h3>{{ i18n.t('apps.safari.sameOrigin.title', { host: hostOf(page.url) }) }}</h3>
+              <p>{{ i18n.t('apps.safari.sameOrigin.body') }}</p>
               <div style="display: flex; gap: 9px; margin-top: 6px">
-                <button class="btn pri" [attr.data-openext]="page.url" tabindex="0">Open in Browser</button>
-                <button class="btn" data-goto="" tabindex="0">Start Page</button>
+                <button class="btn pri" [attr.data-openext]="page.url" tabindex="0">
+                  {{ i18n.t('apps.safari.frame.openInBrowser') }}
+                </button>
+                <button class="btn" data-goto="" tabindex="0">{{ i18n.t('apps.safari.startPage') }}</button>
               </div>
             </div>
           }
@@ -343,13 +393,15 @@
           @case ('embed-blocked') {
             <div class="sf-blocked">
               <div class="ico"><img [src]="faviconOf('youtube.com')" (error)="hideBox($event)" alt="" /></div>
-              <h3>Embeds need a real origin</h3>
-              <p>YouTube won't embed into a page opened from the filesystem. Served over http it plays here.</p>
+              <h3>{{ i18n.t('apps.safari.embed.title') }}</h3>
+              <p>{{ i18n.t('apps.safari.embed.body') }}</p>
               <div style="display: flex; gap: 9px; margin-top: 6px">
                 <button class="btn pri" [attr.data-openext]="'https://www.youtube.com/watch?v=' + page.id">
-                  Watch on YouTube
+                  {{ i18n.t('apps.safari.embed.watchOnYoutube') }}
                 </button>
-                <button class="btn" [attr.data-tryframe]="'youtube.com/embed/' + page.id">Try Anyway</button>
+                <button class="btn" [attr.data-tryframe]="'youtube.com/embed/' + page.id">
+                  {{ i18n.t('apps.safari.embed.tryAnyway') }}
+                </button>
               </div>
             </div>
           }
@@ -393,15 +445,15 @@
                   <div class="thumb"><img [src]="page.thumbnail" (error)="markFailed(page.thumbnail)" alt="" /></div>
                 }
               </div>
-              <div class="foot">Text is available under CC BY-SA 4.0.</div>
+              <div class="foot">{{ i18n.t('apps.safari.wiki.license') }}</div>
             </div>
           }
           @case ('wiki-error') {
             <div class="sf-blocked">
               <div class="ico"><svg appIcon="g-globe"></svg></div>
-              <h3>Couldn't reach Wikipedia</h3>
-              <p>No network, or that article doesn't exist.</p>
-              <button class="btn pri" data-goto="">Start Page</button>
+              <h3>{{ i18n.t('apps.safari.wikiError.title') }}</h3>
+              <p>{{ i18n.t('apps.safari.wikiError.body') }}</p>
+              <button class="btn pri" data-goto="">{{ i18n.t('apps.safari.startPage') }}</button>
             </div>
           }
           @case ('file') {
@@ -416,9 +468,9 @@
           @case ('file-error') {
             <div class="sf-blocked" data-sf-file-error>
               <div class="ico"><svg appIcon="f-txt"></svg></div>
-              <h3>Can't open this file</h3>
+              <h3>{{ i18n.t('apps.safari.fileError.title') }}</h3>
               <p>{{ page.reason }}</p>
-              <button class="btn pri" data-goto="">Start Page</button>
+              <button class="btn pri" data-goto="">{{ i18n.t('apps.safari.startPage') }}</button>
             </div>
           }
         }

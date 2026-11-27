@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import { Component, input, model, output, signal } from '@angular/core';
 import { LucideDynamicIcon, LucideHome, LucidePaintbrush, LucideUserRound } from '@lucide/angular';
 
@@ -32,12 +33,13 @@ const selectValues: { readonly [K in SelectKey]: readonly GithubAppearance[K][] 
   host: { style: 'display: contents' }
 })
 export class GithubSettings {
+  protected readonly i18n = useI18n();
   protected readonly tab = signal<SettingsTab>('accounts');
   protected readonly tokenForm = signal(false);
   protected readonly UserRound = LucideUserRound;
   protected readonly tabs = [
-    { id: 'accounts', label: 'Accounts', icon: LucideHome },
-    { id: 'appearance', label: 'Appearance', icon: LucidePaintbrush }
+    { id: 'accounts', label: 'apps.github.settingsTabAccounts', icon: LucideHome },
+    { id: 'appearance', label: 'apps.github.settingsTabAppearance', icon: LucidePaintbrush }
   ] as const;
   protected readonly themes = THEMES;
   protected readonly tabSizes = TAB_SIZES;
@@ -69,6 +71,15 @@ export class GithubSettings {
   readonly cancelSignIn = output<void>();
   readonly dismissed = output<void>();
   readonly save = output<void>();
+
+  protected themeLabel(theme: (typeof THEMES)[number]): string {
+    const labels: Record<(typeof THEMES)[number], string> = {
+      light: 'apps.github.themeLight',
+      dark: 'apps.github.themeDark',
+      system: 'apps.github.themeSystem'
+    };
+    return this.i18n.t(labels[theme]);
+  }
 
   protected navigateTabs(event: KeyboardEvent, list: HTMLElement): void {
     const key = event.key;

@@ -20,32 +20,8 @@ export interface SessionConfirm {
   readonly mode: 'restart' | 'off';
 }
 
-/** 确认面板的正文（两模式共用）。 */
-const CONFIRM_MESSAGE = 'Open windows and documents will be closed. You can cancel to keep working.';
-
 /** 睡眠唤醒动画的时长（毫秒）：waking 阶段淡出遮罩。 */
 const WAKE_MS = 900;
-
-/**
- * 重启 / 关机确认面板的文案（纯函数，供单测与桌面壳复用）。
- */
-export function confirmPrompt(mode: SessionConfirm['mode']): {
-  readonly title: string;
-  readonly message: string;
-  readonly action: string;
-} {
-  return mode === 'restart' ?
-      {
-        title: 'Are you sure you want to restart your computer?',
-        message: CONFIRM_MESSAGE,
-        action: 'Restart'
-      }
-    : {
-        title: 'Are you sure you want to shut down your computer?',
-        message: CONFIRM_MESSAGE,
-        action: 'Shut Down'
-      };
-}
 
 /** 开机、锁屏、睡眠、重启与关机的会话状态；画面细节在开机屏和锁屏组件里。 */
 @Service({ autoProvided: false })

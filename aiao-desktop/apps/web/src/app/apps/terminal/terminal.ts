@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import {
   Component,
   DestroyRef,
@@ -30,8 +31,8 @@ interface ShellTab {
   readonly title: string;
 }
 
-/** 标签的默认标题。 */
-const DEFAULT_TITLE = 'Local shell';
+/** 标签的默认标题（i18n key）。 */
+const DEFAULT_TITLE_KEY = 'apps.terminal.localShell';
 
 /** 字号范围（CSS 像素），⌘+/⌘- 每次加减 1。 */
 const FONT_MIN = 8;
@@ -46,7 +47,7 @@ const FONT_MAX = 24;
   host: { style: 'display: contents' },
   template: `
     <div class="tb dark" data-drag>
-      <div class="title">Terminal — local shell</div>
+      <div class="title">{{ i18n.t('apps.terminal.windowTitle') }}</div>
       <div class="tbz"><app-traffic-lights /></div>
       <div class="grow"></div>
       <div class="tbz"></div>
@@ -74,11 +75,11 @@ const FONT_MAX = 24;
           } @else {
             <input
               #renameField
+              [attr.aria-label]="i18n.t('apps.terminal.renameTabAria')"
               [value]="tab.title"
               (blur)="commitRename($event)"
               (keydown.enter)="commitRename($event)"
               (keydown.escape)="cancelRename()"
-              aria-label="Rename tab"
               spellcheck="false"
               style="
                 height: 23px;
@@ -95,7 +96,9 @@ const FONT_MAX = 24;
             />
           }
         }
-        <button class="tm-tab tm-new-tab" (click)="newTab()" title="New Tab" type="button">+</button>
+        <button class="tm-tab tm-new-tab" [title]="i18n.t('apps.terminal.newTab')" (click)="newTab()" type="button">
+          +
+        </button>
       </div>
       <div class="xterm-panels">
         @for (tab of tabs(); track tab.id; let i = $index) {
@@ -119,13 +122,14 @@ export class TerminalApp {
   private readonly panels = viewChildren(TerminalTab);
   private readonly destroyRef = inject(DestroyRef);
   private seq = 1;
+  protected readonly i18n = useI18n();
 
   protected readonly tabs = signal<readonly ShellTab[]>([
     {
       id: 1,
       cwd: this.win.options.cwd ? toVmPath(this.win.options.cwd) : SHELL_HOME,
       focusOnMount: !this.win.quiet,
-      title: DEFAULT_TITLE
+      title: this.i18n.t(DEFAULT_TITLE_KEY)
     }
   ]);
   protected readonly activeIndex = signal(0);
@@ -136,35 +140,72 @@ export class TerminalApp {
 
   constructor() {
     const menus = inject(DesktopMenus);
+    /* 菜单名就是 standard() 的合并键：覆盖与顺序都要用翻译后的分区名。 */
+    const shell = this.i18n.t('apps.terminal.sectionShell');
+    const edit = this.i18n.t('shell.menu.sectionEdit');
+    const view = this.i18n.t('shell.menu.sectionView');
+    const windowSection = this.i18n.t('shell.menu.sectionWindow');
+    const help = this.i18n.t('shell.menu.sectionHelp');
     this.win.setMenus(
       computed(() =>
         menus.standard(
           'terminal',
           {
-            Shell: [
-              { id: 'nt', label: 'New Tab', key: '⌘T', run: () => this.newTab() },
-              { id: 'nw', label: 'New Window', key: '⌘N', run: () => this.wm.open('terminal', { force: true }) },
+            [shell]: [
+              { id: 'nt', label: this.i18n.t('apps.terminal.newTab'), key: '⌘T', run: () => this.newTab() },
+              {
+                id: 'nw',
+                label: this.i18n.t('shell.menu.newWindow'),
+                key: '⌘N',
+                run: () => this.wm.open('terminal', { force: true })
+              },
               '-',
-              { id: 'ct', label: 'Close Tab', key: '⌘W', run: () => this.closeTabAt(this.activeIndex()) },
+              {
+                id: 'ct',
+                label: this.i18n.t('apps.terminal.closeTab'),
+                key: '⌘W',
+                run: () => this.closeTabAt(this.activeIndex())
+              },
               '-',
-              { id: 'nxt', label: 'Next Tab', key: '⇧⌘]', alternateKey: '⌃⇥', run: () => this.stepTab(1) },
-              { id: 'prv', label: 'Previous Tab', key: '⇧⌘[', alternateKey: '⌃⇧⇥', run: () => this.stepTab(-1) },
+              {
+                id: 'nxt',
+                label: this.i18n.t('apps.terminal.nextTab'),
+                key: '⇧⌘]',
+                alternateKey: '⌃⇥',
+                run: () => this.stepTab(1)
+              },
+              {
+                id: 'prv',
+                label: this.i18n.t('apps.terminal.previousTab'),
+                key: '⇧⌘[',
+                alternateKey: '⌃⇧⇥',
+                run: () => this.stepTab(-1)
+              },
               '-',
-              { id: 'big', label: 'Bigger Text', key: '⌘+', run: () => this.resizeFont(1) },
-              { id: 'sml', label: 'Smaller Text', key: '⌘-', run: () => this.resizeFont(-1) },
+              { id: 'big', label: this.i18n.t('apps.terminal.biggerText'), key: '⌘+', run: () => this.resizeFont(1) },
+              { id: 'sml', label: this.i18n.t('apps.terminal.smallerText'), key: '⌘-', run: () => this.resizeFont(-1) },
               '-',
-              { id: 'rn', label: 'Rename Tab', run: () => this.startRename(this.activeIndex()) },
+              {
+                id: 'rn',
+                label: this.i18n.t('apps.terminal.renameTab'),
+                run: () => this.startRename(this.activeIndex())
+              },
               '-',
-              { id: 'cl', label: 'Clear Scrollback', key: '⌘K', run: () => this.active()?.clearScrollback() }
+              {
+                id: 'cl',
+                label: this.i18n.t('apps.terminal.clearScrollback'),
+                key: '⌘K',
+                run: () => this.active()?.clearScrollback()
+              }
             ],
-            Edit: [
-              { id: 'c', label: 'Copy', key: '⌘C' },
-              { id: 'v', label: 'Paste', key: '⌘V' },
+            [edit]: [
+              { id: 'c', label: this.i18n.t('shell.menu.copy'), key: '⌘C' },
+              { id: 'v', label: this.i18n.t('shell.menu.paste'), key: '⌘V' },
               '-',
-              { id: 'f', label: 'Find…', key: '⌘F', disabled: true }
+              { id: 'f', label: this.i18n.t('apps.terminal.find'), key: '⌘F', disabled: true }
             ]
           },
-          ['Shell', 'Edit', 'View', 'Window', 'Help']
+          [shell, edit, view, windowSection, help]
         )
       )
     );
@@ -176,7 +217,10 @@ export class TerminalApp {
   }
 
   protected newTab(): void {
-    this.tabs.update(tabs => [...tabs, { id: ++this.seq, cwd: SHELL_HOME, focusOnMount: true, title: DEFAULT_TITLE }]);
+    this.tabs.update(tabs => [
+      ...tabs,
+      { id: ++this.seq, cwd: SHELL_HOME, focusOnMount: true, title: this.i18n.t(DEFAULT_TITLE_KEY) }
+    ]);
     this.activeIndex.set(this.tabs().length - 1);
   }
 
@@ -213,7 +257,7 @@ export class TerminalApp {
   protected commitRename(event: Event): void {
     const at = this.renaming();
     if (at === null) return;
-    const title = (event.target as HTMLInputElement).value.trim() || DEFAULT_TITLE;
+    const title = (event.target as HTMLInputElement).value.trim() || this.i18n.t(DEFAULT_TITLE_KEY);
     this.renaming.set(null);
     this.tabs.update(tabs => tabs.map((tab, index) => (index === at ? { ...tab, title } : tab)));
   }
@@ -230,40 +274,40 @@ export class TerminalApp {
     const at = tab ? Number(tab.dataset['ti']) : NaN;
     const index = Number.isInteger(at) && at >= 0 ? at : -1;
     const items: MenuEntry[] = [
-      { id: 'nt', label: 'New Tab', run: () => this.newTab() },
+      { id: 'nt', label: this.i18n.t('apps.terminal.newTab'), run: () => this.newTab() },
       '-',
-      { id: 'c', label: 'Copy', run: () => void this.copySelection() },
-      { id: 'v', label: 'Paste', run: () => void this.pasteClipboard() },
+      { id: 'c', label: this.i18n.t('shell.menu.copy'), run: () => void this.copySelection() },
+      { id: 'v', label: this.i18n.t('shell.menu.paste'), run: () => void this.pasteClipboard() },
       '-',
-      { id: 'cs', label: 'Clear Scrollback', run: () => this.active()?.clearScrollback() }
+      { id: 'cs', label: this.i18n.t('apps.terminal.clearScrollback'), run: () => this.active()?.clearScrollback() }
     ];
     if (index >= 0) {
       items.push(
         '-',
-        { id: 'rn', label: 'Rename Tab', run: () => this.startRename(index) },
-        { id: 'ct', label: 'Close Tab', run: () => this.closeTabAt(index) }
+        { id: 'rn', label: this.i18n.t('apps.terminal.renameTab'), run: () => this.startRename(index) },
+        { id: 'ct', label: this.i18n.t('apps.terminal.closeTab'), run: () => this.closeTabAt(index) }
       );
     }
-    this.popover.contextMenu(event, items, 'terminal');
+    this.popover.contextMenu(event, items, this.i18n.t('apps.terminal.actions'));
   }
 
   private resizeFont(delta: 1 | -1): void {
     this.fontSize.update(size => clamp(Math.round((size + delta) * 10) / 10, FONT_MIN, FONT_MAX));
-    this.toast.show(`Font size ${this.fontSize()}`);
+    this.toast.show(this.i18n.t('apps.terminal.fontSize', { size: String(this.fontSize()) }));
   }
 
   private async copySelection(): Promise<void> {
     const text = this.active()?.selection() ?? '';
     if (!text) {
-      this.toast.show('Nothing to copy');
+      this.toast.show(this.i18n.t('apps.terminal.nothingToCopy'));
       return;
     }
     try {
       if (!navigator.clipboard) throw new DOMException('Clipboard unavailable', 'NotAllowedError');
       await navigator.clipboard.writeText(text);
-      this.toast.show('Copied to clipboard');
+      this.toast.show(this.i18n.t('shell.toast.copied'));
     } catch {
-      this.toast.show('Clipboard unavailable');
+      this.toast.show(this.i18n.t('apps.terminal.clipboardUnavailable'));
     }
   }
 
@@ -271,9 +315,9 @@ export class TerminalApp {
     try {
       const text = navigator.clipboard ? await navigator.clipboard.readText() : '';
       if (text) this.active()?.pasteText(text);
-      else this.toast.show('Clipboard has no text');
+      else this.toast.show(this.i18n.t('apps.terminal.clipboardNoText'));
     } catch {
-      this.toast.show('Clipboard unavailable');
+      this.toast.show(this.i18n.t('apps.terminal.clipboardUnavailable'));
     }
   }
 

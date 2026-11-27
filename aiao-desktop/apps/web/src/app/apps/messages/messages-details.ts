@@ -1,5 +1,7 @@
 import { Component, inject, input } from '@angular/core';
 
+import { useI18n } from '@aiao/rxdb-i18n-angular';
+
 import { PopoverService } from '../../services/popover';
 import { Chat } from './messages-model';
 
@@ -9,22 +11,23 @@ import { Chat } from './messages-model';
   host: {
     class: 'pop',
     role: 'dialog',
-    'aria-label': 'Local conversation details',
+    '[attr.aria-label]': "i18n.t('apps.messages.localConversationDetails')",
     style: 'width: 280px; padding: 16px; text-align: left; background: var(--win); color: var(--txt)'
   },
   template: `
     <div style="font-size: 15px; font-weight: 600">{{ chat().name }}</div>
-    <p>{{ chat().messages.length }} local messages</p>
-    <p>This conversation is stored only in this browser. Sample conversations are included.</p>
+    <p>{{ i18n.t('apps.messages.localMessages', { count: chat().messages.length }) }}</p>
+    <p>{{ i18n.t('apps.messages.storedOnlyHere') }}</p>
     <p>
-      No messaging or calling service is connected. Incoming replies, read receipts and file sending are unavailable.
+      {{ i18n.t('apps.messages.noMessagingService') }}
     </p>
-    <button class="btn" (click)="close()" tabindex="0">Close Details</button>
+    <button class="btn" (click)="close()" tabindex="0">{{ i18n.t('apps.messages.closeDetails') }}</button>
   `
 })
 export class MessagesDetails {
   private readonly popover = inject(PopoverService);
 
+  protected readonly i18n = useI18n();
   readonly chat = input.required<Chat>();
 
   protected close(): void {

@@ -1,7 +1,9 @@
 import { RxDBAdapterSqlite } from '@aiao/rxdb-adapter-sqlite-wasm';
+import { I18N } from '@aiao/rxdb-i18n-angular';
 import { StorageFileMeta, createOpfsStorageFilesystem } from '@aiao/rxdb-plugin-storage';
 import { PlatformLocation } from '@angular/common';
 import { Service, inject } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 
 import {
   DesktopBackupError,
@@ -36,6 +38,10 @@ export class DesktopBackup {
   private readonly data = inject(DesktopData);
   private readonly fs = inject(FileSystem);
   private readonly baseHref = inject(PlatformLocation).getBaseHrefFromDOM();
+  private readonly i18nRuntime = inject(I18N);
+  private readonly locale = toSignal(this.i18nRuntime.locale$, { requireSync: true });
+
+  /** 抛给界面的错误文案按当前语言解析；错误在抛出时定格，无需跟随后续切换。 */
 
   inspect(archive: Blob) {
     return decodeDesktopBackup(archive, DESKTOP_SCHEMA_VERSION);
@@ -46,7 +52,7 @@ export class DesktopBackup {
     return this.fs.run(async () =>
       this.data.database.storage.runExclusive(async () => {
         const adapter = await this.data.database.getAdapter(DESKTOP_ADAPTER);
-        if (!(adapter instanceof RxDBAdapterSqlite)) throw new Error('The backup adapter is unavailable.');
+        if (!(adapter instanceof RxDBAdapterSqlite)) throw new Error(this.t('error.backup.adapterUnavailable'));
         const chunks: Uint8Array<ArrayBuffer>[] = [];
         let size = 0;
         await adapter.backup(
@@ -54,7 +60,7 @@ export class DesktopBackup {
             write: chunk => {
               size += chunk.byteLength;
               if (size > MAX_DESKTOP_BACKUP_BYTES)
-                throw new DesktopBackupError('too_large', 'Desktop backups are limited to 256 MiB.');
+                throw new DesktopBackupError('too_large', this.t('error.backup.tooLarge'));
               chunks.push(chunk.slice());
             }
           })
@@ -70,7 +76,8 @@ export class DesktopBackup {
           metas,
           files.map(file => ({ path: file.path.join('/'), size: file.blob.size }))
         );
-        if (audit.issues.length) throw new Error(`Run First Aid before exporting: ${audit.issues.join(' ')}`);
+        if (audit.issues.length)
+          throw new Error(this.t('error.backup.firstAidFirst', { issues: audit.issues.join(' ') }));
         return encodeDesktopBackup({
           schema: DESKTOP_SCHEMA_VERSION,
           createdAt: new Date().toISOString(),
@@ -147,8 +154,7 @@ export class DesktopBackup {
           const metas = await this.data.database.storage.listAllMetas();
           const audit = auditDesktopStorage(rows, metas, await storageInventory(filesystem));
           if (!repair) return audit;
-          if (audit.issues.length)
-            throw new Error('Repair stopped because file references are damaged. Restore a known-good backup first.');
+          if (audit.issues.length) throw new Error(this.t('error.backup.repairStopped'));
           const repository = await this.data.repository(StorageFileMeta);
           for (const meta of metas.filter(item => audit.orphanMetaIds.includes(item.id))) {
             await repository.remove(meta);
@@ -185,5 +191,9 @@ export class DesktopBackup {
       }),
       { generation, baseHref: this.baseHref }
     );
+  }
+  private t(key: string, params: Record<string, unknown> = {}): string {
+    this.locale();
+    return this.i18nRuntime.t(key, params);
   }
 }

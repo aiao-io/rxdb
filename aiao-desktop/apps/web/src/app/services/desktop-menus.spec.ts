@@ -7,7 +7,8 @@ import { FinderClipboard } from '../apps/finder/finder-clipboard';
 import { ForceQuitPanel } from '../components/menubar/force-quit-panel';
 import { DesktopData } from '../data/desktop-data';
 import { Preferences } from '../data/preferences';
-import { DESKTOP_CATALOGS, DESKTOP_I18N_NAMESPACE } from '../i18n/desktop-i18n';
+import { DESKTOP_CATALOGS_EN, DESKTOP_I18N_NAMESPACE } from '../i18n/desktop-i18n';
+import { DESKTOP_MESSAGES_ZH } from '../i18n/messages-zh';
 import { configureServices } from '../testing/angular';
 import { stubViewport } from '../testing/browser';
 import { testApps } from '../testing/desktop-apps';
@@ -31,6 +32,12 @@ import { Session } from './session';
 import { SystemState } from './system-state';
 import { Toast } from './toast';
 import { WindowManager } from './window-manager';
+
+const SPEC_CATALOGS = [
+  ...DESKTOP_CATALOGS_EN,
+  { locale: 'zh', namespace: DESKTOP_I18N_NAMESPACE, messages: DESKTOP_MESSAGES_ZH },
+  { locale: 'zh-Hans', namespace: DESKTOP_I18N_NAMESPACE, messages: DESKTOP_MESSAGES_ZH }
+];
 
 function setup() {
   stubViewport(1000, 600);
@@ -56,7 +63,7 @@ function setup() {
   configureServices([
     provideI18n(
       new I18n({
-        catalogs: DESKTOP_CATALOGS,
+        catalogs: SPEC_CATALOGS,
         defaultLocale: 'en',
         deviceLocale: 'en-US',
         namespace: DESKTOP_I18N_NAMESPACE

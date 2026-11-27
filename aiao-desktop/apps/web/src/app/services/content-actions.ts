@@ -1,3 +1,4 @@
+import { I18N } from '@aiao/rxdb-i18n-angular';
 import { DOCUMENT } from '@angular/common';
 import { DestroyRef, InjectionToken, Service, inject, signal } from '@angular/core';
 
@@ -15,9 +16,10 @@ export interface ContentBrowser {
 export const CONTENT_BROWSER = new InjectionToken<ContentBrowser>('CONTENT_BROWSER', {
   factory: () => {
     const document = inject(DOCUMENT);
+    const i18n = inject(I18N);
     return {
       copyText: text => browserClipboard().writeText(text),
-      print: (content, signal) => printDocument(content, signal, document)
+      print: (content, signal) => printDocument(content, signal, document, key => i18n.t(key))
     };
   }
 });
@@ -27,6 +29,7 @@ export const CONTENT_BROWSER = new InjectionToken<ContentBrowser>('CONTENT_BROWS
 export class ContentActions {
   private readonly browser = inject(CONTENT_BROWSER);
   private readonly toast = inject(Toast);
+  private readonly i18nRuntime = inject(I18N);
   private readonly controller = new AbortController();
   private readonly working = signal(false);
   private readonly problem = signal('');
@@ -39,14 +42,14 @@ export class ContentActions {
   }
 
   copy(text: string): Promise<void> {
-    return this.perform('Copy', () => this.browser.copyText(text), 'shell.toast.copied');
+    return this.perform('error.content.copyFailed', () => this.browser.copyText(text), 'shell.toast.copied');
   }
 
   print(content: PrintableContent): Promise<void> {
-    return this.perform('Print', () => this.browser.print(content, this.controller.signal));
+    return this.perform('error.content.printFailed', () => this.browser.print(content, this.controller.signal));
   }
 
-  private async perform(name: string, action: () => Promise<void>, success?: string): Promise<void> {
+  private async perform(errorKey: string, action: () => Promise<void>, success?: string): Promise<void> {
     if (this.working() || this.controller.signal.aborted) return;
     this.working.set(true);
     this.problem.set('');
@@ -55,7 +58,8 @@ export class ContentActions {
       if (success && !this.controller.signal.aborted) this.toast.show(success);
     } catch (error) {
       if (!this.controller.signal.aborted) {
-        const message = `${name} failed: ${error instanceof Error ? error.message : String(error)}`;
+        const reason = error instanceof Error ? error.message : String(error);
+        const message = this.i18nRuntime.t(errorKey, { reason });
         this.problem.set(message);
         this.toast.show(message);
       }

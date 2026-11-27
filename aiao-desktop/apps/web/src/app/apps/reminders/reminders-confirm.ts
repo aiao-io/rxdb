@@ -1,5 +1,7 @@
 import { Component, inject, input } from '@angular/core';
 
+import { useI18n } from '@aiao/rxdb-i18n-angular';
+
 import { PopoverService } from '../../services/popover';
 import { FocusTrap } from '../../shared/focus-trap';
 
@@ -13,32 +15,37 @@ import { FocusTrap } from '../../shared/focus-trap';
   host: { class: 'pop', style: 'width: 300px; padding: 14px' },
   template: `
     <div
+      [attr.aria-label]="i18n.t('apps.reminders.deleteReminder')"
       (keydown.escape)="popover.close()"
       appFocusTrap
-      aria-label="Delete reminder"
       aria-modal="true"
       role="dialog"
       style="display: flex; flex-direction: column; gap: 12px"
     >
       <h2 style="font-size: 14px; margin: 0">
-        {{ draft() ? 'Discard this reminder?' : 'Delete this reminder?' }}
+        {{ draft() ? i18n.t('apps.reminders.discardThisReminder') : i18n.t('apps.reminders.deleteThisReminder') }}
       </h2>
       <p style="font-size: 12px; color: var(--txt-2); margin: 0">
         @if (draft()) {
-          The reminder “{{ title() }}” has not been saved.
+          {{ i18n.t('apps.reminders.draftNotSaved', { name: title() }) }}
         } @else {
-          “{{ title() }}” will be deleted from {{ folder() }}.
+          {{ i18n.t('apps.reminders.willBeDeleted', { name: title(), folder: folder() }) }}
         }
       </p>
       <div style="display: flex; justify-content: flex-end; gap: 8px">
-        <button class="btn" (click)="popover.close()" data-rdel-cancel tabindex="0" type="button">Cancel</button>
-        <button class="btn" (click)="confirmDelete()" data-rdel-confirm tabindex="0" type="button">Delete</button>
+        <button class="btn" (click)="popover.close()" data-rdel-cancel tabindex="0" type="button">
+          {{ i18n.t('apps.reminders.cancel') }}
+        </button>
+        <button class="btn" (click)="confirmDelete()" data-rdel-confirm tabindex="0" type="button">
+          {{ i18n.t('apps.reminders.delete') }}
+        </button>
       </div>
     </div>
   `
 })
 export class ReminderDeletePanel {
   protected readonly popover = inject(PopoverService);
+  protected readonly i18n = useI18n();
   /** 提醒标题，确认文案里原样展示。 */
   readonly title = input.required<string>();
   /** 所属列表名（或 Today 兜底）。 */

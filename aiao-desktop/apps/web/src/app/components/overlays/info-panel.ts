@@ -9,6 +9,7 @@ import { PopoverCloseReason, PopoverService, RETURNS_FOCUS } from '../../service
 import { Toast } from '../../services/toast';
 import { finderDate } from '../../shared/format';
 import { Icon } from '../../shared/icon';
+import { diskKindLabel } from './quick-look';
 
 /**
  * 打开「显示简介」面板；没有给坐标时放在窗口中央偏上。
@@ -57,28 +58,28 @@ export function showInfoPanel(
       <div class="head">
         <div class="pic"><svg [appIcon]="node().icon"></svg></div>
         <div class="nm">{{ node().name }}</div>
-        <button class="tbtn" (click)="close()" data-ip-close tabindex="0" title="Close">
+        <button class="tbtn" [title]="i18n.t('shell.window.close')" (click)="close()" data-ip-close tabindex="0">
           <svg appIcon="g-x"></svg>
         </button>
       </div>
       <dl class="meta">
         <div>
-          <dt>Kind</dt>
-          <dd>{{ node().k }}</dd>
+          <dt>{{ i18n.t('shell.infoPanel.kind') }}</dt>
+          <dd>{{ kindOf(node()) }}</dd>
         </div>
         @if (node().kind === 'file' && node().size) {
           <div>
-            <dt>Size</dt>
+            <dt>{{ i18n.t('shell.infoPanel.size') }}</dt>
             <dd>{{ node().size }}</dd>
           </div>
         }
         <div>
-          <dt>Where</dt>
+          <dt>{{ i18n.t('shell.infoPanel.where') }}</dt>
           <dd>{{ where() }}</dd>
         </div>
         @if (node().date) {
           <div>
-            <dt>Modified</dt>
+            <dt>{{ i18n.t('shell.infoPanel.modified') }}</dt>
             <dd>{{ finderDate(node().date) }}</dd>
           </div>
         }
@@ -86,13 +87,16 @@ export function showInfoPanel(
       @if (choices().length) {
         <div class="ow" data-ip-open-with>
           <label class="ow-label"
-            >Open with:<select #app [value]="selected()" (change)="selected.set(app.value)" data-ip-app>
+            >{{ i18n.t('shell.infoPanel.openWith')
+            }}<select #app [value]="selected()" (change)="selected.set(app.value)" data-ip-app>
               @for (choice of choices(); track choice.id) {
-                <option [value]="choice.id">{{ choice.name }}</option>
+                <option [value]="choice.id">{{ choice.nameKey ? i18n.t(choice.nameKey) : choice.name }}</option>
               }
             </select></label
           >
-          <button class="btn" (click)="changeAll()" data-ip-change-all tabindex="0">Change All…</button>
+          <button class="btn" (click)="changeAll()" data-ip-change-all tabindex="0">
+            {{ i18n.t('shell.infoPanel.changeAll') }}
+          </button>
         </div>
       }
     </div>
@@ -207,6 +211,9 @@ export class InfoPanel {
 
   readonly node = input.required<FsNode>();
 
+  /** 「种类」一行的标签：随语言的磁盘种类名。 */
+  protected readonly kindOf = (node: FsNode): string => diskKindLabel(this.i18n.t, node.k);
+
   protected close(): void {
     this.popover.close(true, 'escape');
   }
@@ -218,7 +225,10 @@ export class InfoPanel {
     if (!app) return;
     this.opener.setDefaultApp(this.node(), app.id).then(
       () => {
-        this.toast.show(`All “.${extensionOf(this.node().name)}” files will now open with ${app.name}.`);
+        this.toast.show('shell.infoPanel.defaultChanged', {
+          ext: extensionOf(this.node().name),
+          app: app.nameKey ? this.i18n.t(app.nameKey) : app.name
+        });
         this.popover.close(true, 'command');
       },
       (error: unknown) => this.toast.show(error instanceof Error ? error.message : String(error))

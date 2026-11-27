@@ -13,6 +13,8 @@ import {
   viewChildren
 } from '@angular/core';
 
+import { useI18n } from '@aiao/rxdb-i18n-angular';
+
 import { DesktopData } from '../../data/desktop-data';
 import { ALL_ROWS, liveQuery } from '../../data/live-query';
 import { DesktopMenus } from '../../services/desktop-menus';
@@ -75,11 +77,12 @@ export class RemindersApp {
   private readonly hoverList = signal<ReminderList | null>(null);
 
   protected readonly win = inject(DesktopWindow);
+  protected readonly i18n = useI18n();
   protected readonly drafts = new ReminderDrafts(draft => this.writeDraft(draft));
   protected readonly selectedList = signal<ReminderList>('today');
   protected readonly query = signal('');
-  protected readonly listTitle = computed(
-    () => REMINDER_LISTS.find(list => list.id === this.selectedList())?.name ?? 'Today'
+  protected readonly listTitle = computed(() =>
+    this.i18n.t(REMINDER_LISTS.find(list => list.id === this.selectedList())?.name ?? 'apps.reminders.listToday')
   );
   protected readonly lists = computed(() =>
     REMINDER_LISTS.map(list => ({ ...list, count: reminderListCount(this.reminders(), list.id) }))
@@ -97,11 +100,11 @@ export class RemindersApp {
     this.win.setMenus(
       computed(() =>
         menus.standard('reminders', {
-          File: [
-            { id: 'n', label: 'New Reminder', key: '⌘N', run: () => this.add() },
-            { id: 'w', label: 'Close Window', key: '⌘W', run: () => this.wm.closeFront() },
+          [this.i18n.t('shell.menu.sectionFile')]: [
+            { id: 'n', label: this.i18n.t('apps.reminders.newReminder'), key: '⌘N', run: () => this.add() },
+            { id: 'w', label: this.i18n.t('shell.menu.closeWindow'), key: '⌘W', run: () => this.wm.closeFront() },
             '-',
-            { id: 'f', label: 'Find', key: '⌘F', run: () => this.focusSearch() }
+            { id: 'f', label: this.i18n.t('shell.menu.find'), key: '⌘F', run: () => this.focusSearch() }
           ]
         })
       )
@@ -188,11 +191,21 @@ export class RemindersApp {
       [
         ...(item.fresh ?
           []
-        : ([{ id: 'f', label: item.flagged ? 'Unflag' : 'Flag', run: () => void this.toggleFlag(item) }] as const)),
+        : ([
+            {
+              id: 'f',
+              label: this.i18n.t(item.flagged ? 'apps.reminders.unflag' : 'apps.reminders.flag'),
+              run: () => void this.toggleFlag(item)
+            }
+          ] as const)),
         '-',
-        { id: 'x', label: item.fresh ? 'Discard Draft' : 'Delete Reminder', run: () => this.requestDelete(item) }
+        {
+          id: 'x',
+          label: this.i18n.t(item.fresh ? 'apps.reminders.discardDraft' : 'apps.reminders.deleteReminder'),
+          run: () => this.requestDelete(item)
+        }
       ],
-      'Reminder actions'
+      this.i18n.t('apps.reminders.actions')
     );
   }
 
@@ -308,7 +321,7 @@ export class RemindersApp {
       if (!reminder) throw new Error('This reminder is no longer available.');
       await repository.update(reminder, togglePatch(reminder));
     } catch (error) {
-      this.error.set(`Reminder was not updated: ${reminderFailureMessage(error)}`);
+      this.error.set(this.i18n.t('error.reminders.updateFailed', { reason: reminderFailureMessage(error) }));
     }
   }
 
@@ -320,7 +333,7 @@ export class RemindersApp {
       if (!reminder) throw new Error('This reminder is no longer available.');
       await repository.update(reminder, { flagged: !reminder.flagged });
     } catch (error) {
-      this.error.set(`Reminder was not updated: ${reminderFailureMessage(error)}`);
+      this.error.set(this.i18n.t('error.reminders.updateFailed', { reason: reminderFailureMessage(error) }));
     }
   }
 
@@ -332,7 +345,7 @@ export class RemindersApp {
       if (!reminder) throw new Error('This reminder is no longer available.');
       await repository.update(reminder, { due });
     } catch (error) {
-      this.error.set(`Reminder was not updated: ${reminderFailureMessage(error)}`);
+      this.error.set(this.i18n.t('error.reminders.updateFailed', { reason: reminderFailureMessage(error) }));
     }
   }
 
@@ -347,7 +360,7 @@ export class RemindersApp {
       if (!reminder) throw new Error('This reminder is no longer available.');
       await repository.update(reminder, patch);
     } catch (error) {
-      this.error.set(`Reminder was not updated: ${reminderFailureMessage(error)}`);
+      this.error.set(this.i18n.t('error.reminders.updateFailed', { reason: reminderFailureMessage(error) }));
     }
   }
 
@@ -359,13 +372,15 @@ export class RemindersApp {
       if (!reminder) throw new Error('This reminder is no longer available.');
       await repository.remove(reminder);
     } catch (error) {
-      this.error.set(`Reminder was not deleted: ${reminderFailureMessage(error)}`);
+      this.error.set(this.i18n.t('error.reminders.deleteFailed', { reason: reminderFailureMessage(error) }));
     }
   }
 
   private openDeleteConfirm(item: ReminderRow): void {
     const row = this.reminders().find(reminder => reminder.id === item.id);
-    const listName = REMINDER_LISTS.find(list => list.id === this.selectedList())?.name ?? 'Today';
+    const listName = this.i18n.t(
+      REMINDER_LISTS.find(list => list.id === this.selectedList())?.name ?? 'apps.reminders.listToday'
+    );
     const rect = (document.querySelector(`[data-ri="${item.id}"]`) as HTMLElement | null)?.getBoundingClientRect();
     this.popover.openComponent(
       ReminderDeletePanel,

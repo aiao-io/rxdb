@@ -12,8 +12,8 @@
       @let removable = group.head === favouritesGroup;
       @let reorderable = group.items.length > 1;
       @let shortcuts = (reorderable ? 'Alt+ArrowUp Alt+ArrowDown' : '') + (removable ? ' Alt+Backspace' : '');
-      <div class="grp" [attr.aria-label]="group.head" role="group">
-        <div class="gh" aria-hidden="true">{{ group.head }}</div>
+      <div class="grp" [attr.aria-label]="sidebarName(group.head)" role="group">
+        <div class="gh" aria-hidden="true">{{ sidebarName(group.head) }}</div>
         <div
           class="finder-place-list"
           [cdkDropListData]="group"
@@ -52,7 +52,7 @@
                 } @else {
                   <svg class="ico" [appIcon]="entry[1]"></svg>
                 }
-                <span class="nm">{{ entry[0] }}</span>
+                <span class="nm">{{ sidebarName(entry[0]) }}</span>
               </ng-template>
               <ng-container [ngTemplateOutlet]="placeLabel" [ngTemplateOutletContext]="{ $implicit: place }" />
               <ng-template [data]="{ $implicit: place }" cdkDragPlaceholder let-entry>
@@ -82,16 +82,20 @@
     class="fx-divider"
     #sidebarSplitter
     [attr.aria-controls]="sidebarId"
+    [attr.aria-label]="i18n.t('apps.finder.sidebar')"
     [attr.aria-valuemax]="sidebarMaxWidth()"
     [attr.aria-valuenow]="sidebarWidth()"
-    [attr.aria-valuetext]="sidebarVisible() ? sidebarWidth() + ' pixels' : 'Collapsed'"
+    [attr.aria-valuetext]="
+      sidebarVisible() ?
+        i18n.t('apps.finder.sidebarWidthPixels', { width: sidebarWidth() })
+      : i18n.t('apps.finder.collapsed')
+    "
     (keydown)="sidebarKey($event)"
     (lostpointercapture)="endSidebarDrag($event)"
     (pointercancel)="endSidebarDrag($event)"
     (pointerdown)="startSidebarDrag($event)"
     (pointermove)="moveSidebarDrag($event)"
     (pointerup)="endSidebarDrag($event)"
-    aria-label="Sidebar"
     aria-orientation="vertical"
     aria-valuemin="0"
     data-nodrag
@@ -99,13 +103,13 @@
     tabindex="0"
   ></div>
   <div class="fx">
-    <div class="fx-tb" aria-label="Toolbar" data-drag role="toolbar">
+    <div class="fx-tb" [attr.aria-label]="i18n.t('apps.finder.toolbar')" data-drag role="toolbar">
       <button
         class="tbtn"
         [attr.aria-disabled]="canGoBack() ? null : 'true'"
+        [attr.aria-label]="i18n.t('apps.finder.back')"
         [class.dis]="!canGoBack()"
         (click)="back()"
-        aria-label="Back"
         data-nav="back"
         tabindex="0"
         type="button"
@@ -115,9 +119,9 @@
       <button
         class="tbtn"
         [attr.aria-disabled]="canGoForward() ? null : 'true'"
+        [attr.aria-label]="i18n.t('apps.finder.forward')"
         [class.dis]="!canGoForward()"
         (click)="forward()"
-        aria-label="Forward"
         data-nav="fwd"
         tabindex="0"
         type="button"
@@ -127,12 +131,12 @@
       <div class="fx-title" aria-hidden="true" data-title>{{ title() }}</div>
       <div class="grow" style="flex: 1"></div>
 
-      <div class="seg" aria-label="View" data-nodrag role="group">
+      <div class="seg" [attr.aria-label]="i18n.t('shell.menu.sectionView')" data-nodrag role="group">
         <button
+          [attr.aria-label]="i18n.t('apps.finder.viewIcons')"
           [attr.aria-pressed]="view() === 'icon'"
           [class.on]="view() === 'icon'"
           (click)="setView('icon')"
-          aria-label="Icons"
           data-view="icon"
           tabindex="0"
           type="button"
@@ -140,10 +144,10 @@
           <svg appIcon="g-grid"></svg>
         </button>
         <button
+          [attr.aria-label]="i18n.t('apps.finder.viewList')"
           [attr.aria-pressed]="view() === 'list'"
           [class.on]="view() === 'list'"
           (click)="setView('list')"
-          aria-label="List"
           data-view="list"
           tabindex="0"
           type="button"
@@ -151,10 +155,10 @@
           <svg appIcon="g-list"></svg>
         </button>
         <button
+          [attr.aria-label]="i18n.t('apps.finder.viewColumns')"
           [attr.aria-pressed]="view() === 'column'"
           [class.on]="view() === 'column'"
           (click)="setView('column')"
-          aria-label="Columns"
           data-view="column"
           tabindex="0"
           type="button"
@@ -162,10 +166,10 @@
           <svg appIcon="g-columns"></svg>
         </button>
         <button
+          [attr.aria-label]="i18n.t('apps.finder.viewGallery')"
           [attr.aria-pressed]="view() === 'gallery'"
           [class.on]="view() === 'gallery'"
           (click)="setView('gallery')"
-          aria-label="Gallery"
           data-view="gallery"
           tabindex="0"
           type="button"
@@ -176,24 +180,31 @@
       <button
         class="tbtn"
         #sortButton
+        [attr.aria-label]="i18n.t('apps.finder.sort')"
         (click)="sortMenu(sortButton, $event)"
         aria-haspopup="menu"
-        aria-label="Sort"
         data-sort
         tabindex="0"
         type="button"
       >
         <svg appIcon="g-sort"></svg>
       </button>
-      <button class="tbtn" (click)="share()" aria-label="Share" data-share tabindex="0" type="button">
+      <button
+        class="tbtn"
+        [attr.aria-label]="i18n.t('apps.finder.share')"
+        (click)="share()"
+        data-share
+        tabindex="0"
+        type="button"
+      >
         <svg appIcon="g-share"></svg>
       </button>
       <button
         class="tbtn"
         #moreButton
+        [attr.aria-label]="i18n.t('apps.finder.more')"
         (click)="moreMenu(moreButton, $event)"
         aria-haspopup="menu"
-        aria-label="More"
         data-more
         tabindex="0"
         type="button"
@@ -204,27 +215,27 @@
         <span aria-hidden="true"><svg appIcon="g-search"></svg></span>
         <input
           #queryInput
+          [attr.aria-label]="i18n.t('apps.finder.search')"
+          [placeholder]="i18n.t('apps.finder.search')"
           [value]="query()"
           (input)="search(queryInput.value)"
-          aria-label="Search"
           data-q
-          placeholder="Search"
         />
       </div>
     </div>
     @if (isTrash()) {
       <div class="trash-content-header" data-trash-header>
-        <strong aria-hidden="true">Trash</strong>
+        <strong aria-hidden="true">{{ i18n.t('apps.finder.trash') }}</strong>
         <button
           class="tbtn trash-empty"
+          [attr.aria-label]="i18n.t('shell.dock.emptyTrash')"
           [disabled]="!trashFull()"
           (click)="emptyTrash()"
-          aria-label="Empty Trash"
           data-trash-empty
           tabindex="0"
           type="button"
         >
-          Empty
+          {{ i18n.t('apps.finder.emptyTrashButton') }}
         </button>
       </div>
     }
@@ -252,6 +263,7 @@
       @if (renaming() && renameBox(); as box) {
         <input
           class="finder-rename finder-rename-float"
+          [attr.aria-label]="i18n.t('apps.finder.columnName')"
           [style.font-size.px]="box.fontSize"
           [style.left.px]="box.left"
           [style.text-align]="box.align"
@@ -261,7 +273,6 @@
           (blur)="blurRename()"
           (input)="updateRename($event)"
           (keydown)="renameKey($event)"
-          aria-label="Name"
           data-rename-input
           maxlength="255"
           spellcheck="false"
@@ -272,7 +283,7 @@
       }
       @switch (view()) {
         @case ('icon') {
-          <div class="fv-icon" aria-label="Items" role="listbox">
+          <div class="fv-icon" [attr.aria-label]="i18n.t('apps.finder.items')" role="listbox">
             @for (item of items(); track item.name) {
               <div
                 class="fitem"
@@ -339,16 +350,17 @@
             <div class="hd">
               <button
                 class="hdbtn c1"
+                [attr.aria-label]="i18n.t('apps.finder.sortByName')"
                 [attr.aria-sort]="ariaSort('name')"
                 (click)="headerSort('name')"
-                aria-label="Sort by Name"
                 tabindex="0"
                 type="button"
               >
-                Name
+                {{ i18n.t('apps.finder.columnName') }}
               </button>
               <div
                 class="hd-sep"
+                [attr.aria-label]="i18n.t('apps.finder.resizeDateModifiedColumn')"
                 [attr.aria-valuenow]="listWidth('date')"
                 (keydown)="headerKey($event, 'date')"
                 (lostpointercapture)="endHeaderDrag($event)"
@@ -356,7 +368,6 @@
                 (pointerdown)="startHeaderDrag($event, 'date')"
                 (pointermove)="moveHeaderDrag($event)"
                 (pointerup)="endHeaderDrag($event)"
-                aria-label="Resize Date Modified column"
                 aria-orientation="vertical"
                 aria-valuemax="480"
                 aria-valuemin="60"
@@ -365,16 +376,17 @@
               ></div>
               <button
                 class="hdbtn c2"
+                [attr.aria-label]="i18n.t('apps.finder.sortByDateModified')"
                 [attr.aria-sort]="ariaSort('date')"
                 (click)="headerSort('date')"
-                aria-label="Sort by Date Modified"
                 tabindex="0"
                 type="button"
               >
-                Date Modified
+                {{ i18n.t('apps.finder.dateModified') }}
               </button>
               <div
                 class="hd-sep"
+                [attr.aria-label]="i18n.t('apps.finder.resizeSizeColumn')"
                 [attr.aria-valuenow]="listWidth('size')"
                 (keydown)="headerKey($event, 'size')"
                 (lostpointercapture)="endHeaderDrag($event)"
@@ -382,7 +394,6 @@
                 (pointerdown)="startHeaderDrag($event, 'size')"
                 (pointermove)="moveHeaderDrag($event)"
                 (pointerup)="endHeaderDrag($event)"
-                aria-label="Resize Size column"
                 aria-orientation="vertical"
                 aria-valuemax="480"
                 aria-valuemin="60"
@@ -391,16 +402,17 @@
               ></div>
               <button
                 class="hdbtn c3"
+                [attr.aria-label]="i18n.t('apps.finder.sortBySize')"
                 [attr.aria-sort]="ariaSort('size')"
                 (click)="headerSort('size')"
-                aria-label="Sort by Size"
                 tabindex="0"
                 type="button"
               >
-                Size
+                {{ i18n.t('apps.finder.size') }}
               </button>
               <div
                 class="hd-sep"
+                [attr.aria-label]="i18n.t('apps.finder.resizeKindColumn')"
                 [attr.aria-valuenow]="listWidth('kind')"
                 (keydown)="headerKey($event, 'kind')"
                 (lostpointercapture)="endHeaderDrag($event)"
@@ -408,7 +420,6 @@
                 (pointerdown)="startHeaderDrag($event, 'kind')"
                 (pointermove)="moveHeaderDrag($event)"
                 (pointerup)="endHeaderDrag($event)"
-                aria-label="Resize Kind column"
                 aria-orientation="vertical"
                 aria-valuemax="480"
                 aria-valuemin="60"
@@ -417,16 +428,16 @@
               ></div>
               <button
                 class="hdbtn c4"
+                [attr.aria-label]="i18n.t('apps.finder.sortByKind')"
                 [attr.aria-sort]="ariaSort('kind')"
                 (click)="headerSort('kind')"
-                aria-label="Sort by Kind"
                 tabindex="0"
                 type="button"
               >
-                Kind
+                {{ i18n.t('apps.finder.kind') }}
               </button>
             </div>
-            <div class="fv-list" aria-label="Items" role="listbox">
+            <div class="fv-list" [attr.aria-label]="i18n.t('apps.finder.items')" role="listbox">
               <cdk-virtual-scroll-viewport class="fv-list-scroll" #listViewport [itemSize]="24">
                 <div
                   class="r"
@@ -478,7 +489,11 @@
                   </div>
                   <div class="c2">{{ finderDate(item.date) }}</div>
                   <div class="c3">{{ item.kind === 'folder' ? '--' : item.size || '--' }}</div>
-                  <div class="c4">{{ item.k || (item.kind === 'folder' ? 'Folder' : 'Document') }}</div>
+                  <div class="c4">
+                    {{
+                      item.k || i18n.t(item.kind === 'folder' ? 'apps.finder.kindFolder' : 'apps.finder.kindDocument')
+                    }}
+                  </div>
                   <ng-template cdkDragPreview>
                     <span class="finder-file-drag-preview">{{ displayName(item) }}</span>
                   </ng-template>
@@ -568,13 +583,14 @@
                   </div>
                   @if (!(column.items?.length ?? 0)) {
                     <div role="status" style="padding: 14px; color: var(--txt-3); font-size: 12px; text-align: center">
-                      Empty
+                      {{ i18n.t('apps.finder.emptyColumn') }}
                     </div>
                   }
                 </cdk-virtual-scroll-viewport>
                 @if (ci < last) {
                   <div
                     class="finder-column-divider"
+                    [attr.aria-label]="i18n.t('apps.finder.columnWidth')"
                     [attr.aria-valuenow]="columnWidth()"
                     (keydown)="columnKey($event)"
                     (lostpointercapture)="endColumnDrag($event)"
@@ -582,7 +598,6 @@
                     (pointerdown)="startColumnDrag($event)"
                     (pointermove)="moveColumnDrag($event)"
                     (pointerup)="endColumnDrag($event)"
-                    aria-label="Column width"
                     aria-orientation="vertical"
                     aria-valuemax="420"
                     aria-valuemin="164"
@@ -593,7 +608,11 @@
               }
             }
             @if (previewFile(); as preview) {
-              <div class="fv-prev" [attr.aria-label]="'Preview of ' + displayName(preview)" role="group">
+              <div
+                class="fv-prev"
+                [attr.aria-label]="i18n.t('apps.finder.previewOf', { name: displayName(preview) })"
+                role="group"
+              >
                 <div class="big">
                   @if (preview.icon === 'f-img') {
                     <app-file-thumbnail [contentId]="preview.contentId" />
@@ -603,13 +622,13 @@
                 </div>
                 <div class="nm">{{ displayName(preview) }}</div>
                 <dl>
-                  <dt>Kind</dt>
-                  <dd>{{ preview.k || 'Document' }}</dd>
-                  <dt>Size</dt>
+                  <dt>{{ i18n.t('apps.finder.kind') }}</dt>
+                  <dd>{{ preview.k || i18n.t('apps.finder.kindDocument') }}</dd>
+                  <dt>{{ i18n.t('apps.finder.size') }}</dt>
                   <dd>{{ preview.size || '--' }}</dd>
-                  <dt>Created</dt>
+                  <dt>{{ i18n.t('apps.finder.created') }}</dt>
                   <dd>{{ finderDate(preview.date) }}</dd>
-                  <dt>Modified</dt>
+                  <dt>{{ i18n.t('apps.finder.modified') }}</dt>
                   <dd>{{ finderDate(preview.date) }}</dd>
                 </dl>
                 <button
@@ -619,7 +638,7 @@
                   tabindex="0"
                   type="button"
                 >
-                  Open
+                  {{ i18n.t('shell.menu.open') }}
                 </button>
               </div>
             }
@@ -636,7 +655,7 @@
                   <div class="art"><svg [appIcon]="displayIcon(current)"></svg></div>
                 }
               } @else {
-                <span style="color: var(--txt-3)">Nothing to preview</span>
+                <span style="color: var(--txt-3)">{{ i18n.t('apps.finder.nothingToPreview') }}</span>
               }
             </div>
             @if (current) {
@@ -645,13 +664,20 @@
                   {{ displayName(current) }}
                 </b>
                 <span>
-                  {{ current.k || (current.kind === 'folder' ? 'Folder' : 'Document')
+                  {{
+                    current.k ||
+                      i18n.t(current.kind === 'folder' ? 'apps.finder.kindFolder' : 'apps.finder.kindDocument')
                   }}{{ current.size ? ' · ' + current.size : ''
                   }}{{ current.date ? ' · ' + finderDate(current.date) : '' }}
                 </span>
               </div>
             }
-            <div class="strip" aria-label="Items" aria-orientation="horizontal" role="listbox">
+            <div
+              class="strip"
+              [attr.aria-label]="i18n.t('apps.finder.items')"
+              aria-orientation="horizontal"
+              role="listbox"
+            >
               @for (item of items(); track item.name) {
                 <div
                   class="t"
@@ -687,17 +713,25 @@
     </div>
     @if (isTrash()) {
       <div class="fx-status" data-trash-status role="status">
-        {{ trashCount() }} {{ trashCount() === 1 ? 'item' : 'items' }}
+        {{ i18n.t(trashCount() === 1 ? 'apps.finder.itemCount' : 'apps.finder.itemsCount', { count: trashCount() }) }}
       </div>
     } @else {
       <div class="fx-status" data-status role="status">
-        {{ items().length }} {{ items().length === 1 ? 'item' : 'items' }}
+        {{
+          i18n.t(items().length === 1 ? 'apps.finder.itemCount' : 'apps.finder.itemsCount', { count: items().length })
+        }}
         @if (diskAvailable(); as available) {
-          , {{ available }} available
+          {{ i18n.t('apps.finder.availableSpace', { size: available }) }}
         }
       </div>
     }
-    <div class="fx-path" [style.display]="pathbar() ? '' : 'none'" aria-label="Path" data-path role="navigation">
+    <div
+      class="fx-path"
+      [attr.aria-label]="i18n.t('apps.finder.path')"
+      [style.display]="pathbar() ? '' : 'none'"
+      data-path
+      role="navigation"
+    >
       @for (segment of pathSegments(); track $index; let i = $index) {
         @if (i) {
           <svg appIcon="g-chev-r" style="width: 11px; height: 11px"></svg>
@@ -728,12 +762,18 @@
     role="alertdialog"
   >
     <div class="finder-confirm-card">
-      <h2 id="rename-conflict-title">Rename Conflict</h2>
-      <p>An item named “{{ conflict.name }}” already exists in this location.</p>
+      <h2 id="rename-conflict-title">{{ i18n.t('apps.finder.renameConflictTitle') }}</h2>
+      <p>{{ i18n.t('apps.finder.renameConflictMessage', { name: conflict.name }) }}</p>
       <div class="finder-confirm-actions">
-        <button (click)="finishRenameConflict(null)" data-autofocus tabindex="0" type="button">Cancel</button>
-        <button (click)="finishRenameConflict('keepBoth')" tabindex="0" type="button">Keep Both</button>
-        <button class="danger" (click)="finishRenameConflict('replace')" tabindex="0" type="button">Replace</button>
+        <button (click)="finishRenameConflict(null)" data-autofocus tabindex="0" type="button">
+          {{ i18n.t('apps.finder.cancel') }}
+        </button>
+        <button (click)="finishRenameConflict('keepBoth')" tabindex="0" type="button">
+          {{ i18n.t('apps.finder.keepBoth') }}
+        </button>
+        <button class="danger" (click)="finishRenameConflict('replace')" tabindex="0" type="button">
+          {{ i18n.t('apps.finder.replace') }}
+        </button>
       </div>
     </div>
   </div>
@@ -749,11 +789,15 @@
     role="alertdialog"
   >
     <div class="finder-confirm-card">
-      <h2 id="delete-immediately-title">Delete “{{ target.name }}”?</h2>
-      <p>This item will be deleted immediately. You can’t undo this action.</p>
+      <h2 id="delete-immediately-title">{{ i18n.t('apps.finder.deleteTitle', { name: target.name }) }}</h2>
+      <p>{{ i18n.t('apps.finder.deleteMessage') }}</p>
       <div class="finder-confirm-actions">
-        <button (click)="finishDeleteImmediately(false)" data-autofocus tabindex="0" type="button">Cancel</button>
-        <button class="danger" (click)="finishDeleteImmediately(true)" tabindex="0" type="button">Delete</button>
+        <button (click)="finishDeleteImmediately(false)" data-autofocus tabindex="0" type="button">
+          {{ i18n.t('apps.finder.cancel') }}
+        </button>
+        <button class="danger" (click)="finishDeleteImmediately(true)" tabindex="0" type="button">
+          {{ i18n.t('apps.finder.delete') }}
+        </button>
       </div>
     </div>
   </div>

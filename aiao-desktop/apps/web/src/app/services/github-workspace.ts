@@ -1,5 +1,6 @@
 import type { OrbitValue } from '@aiao/orbit';
 import { decodeBase64, encodeBase64, type DesktopWorkspaceRequest } from '@aiao/orbit/desktop';
+import { I18N } from '@aiao/rxdb-i18n-angular';
 import { DestroyRef, inject, Service } from '@angular/core';
 import { Subject } from 'rxjs';
 import { HOME, isRequiredDiskPath, isWithin, parentOf, samePath, toVmPath, type DiskPath } from '../disk/disk-path';
@@ -106,6 +107,7 @@ function sameFiles(left: readonly GitFile[], right: readonly GitFile[]): boolean
 /** 所有入口共用仓库锁和 Worker。卷内工作文件的读、Git 操作与增量发布持有同一把桌面磁盘锁。 */
 @Service({ autoProvided: false })
 export class GithubWorkspace {
+  private readonly i18nRuntime = inject(I18N);
   private readonly files = inject(FileSystem);
   private worker?: GithubGitBackend;
   private get git() {
@@ -319,9 +321,10 @@ export class GithubWorkspace {
       const record = await this.registered(id);
       const origin = await this.git.origin(id);
       if (expectedOrigin !== undefined && origin !== expectedOrigin)
-        throw new Error('The remote URL changed. Reopen Repository Settings and try again.');
-      if (expectedOrigin === undefined && url && origin) throw new Error('remote origin already exists');
-      if (url === null && !origin && !record.owner) throw new Error('No such remote: origin');
+        throw new Error(this.i18nRuntime.t('error.git.remoteUrlChanged'));
+      if (expectedOrigin === undefined && url && origin)
+        throw new Error(this.i18nRuntime.t('error.git.originAlreadyExists'));
+      if (url === null && !origin && !record.owner) throw new Error(this.i18nRuntime.t('error.git.noSuchOrigin'));
       const address = url === null ? null : parseGithubRemote(url);
       if (url !== null && (!address || address.branch)) throw new Error('请输入 GitHub HTTPS 仓库地址');
       const nextUrl = address ? `https://github.com/${address.owner}/${address.repo}.git` : null;
@@ -356,7 +359,7 @@ export class GithubWorkspace {
     return this.lock(id, async () => {
       const record = await this.registered(id);
       const { owner, repo } = record;
-      if (!owner || !repo) throw new Error('No GitHub remote is configured');
+      if (!owner || !repo) throw new Error(this.i18nRuntime.t('error.git.noRemoteConfigured'));
       const status = await this.git.status(id);
       const { branch } = status;
       const base = forBranch(record, branch);
@@ -384,7 +387,7 @@ export class GithubWorkspace {
     return this.lock(id, async () => {
       const record = await this.registered(id);
       const { owner, repo } = record;
-      if (!owner || !repo) throw new Error('No GitHub remote is configured');
+      if (!owner || !repo) throw new Error(this.i18nRuntime.t('error.git.noRemoteConfigured'));
       const status = await this.git.status(id);
       const { branch } = status;
       if (

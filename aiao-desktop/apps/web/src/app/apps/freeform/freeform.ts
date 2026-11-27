@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
 import {
   Component,
   DestroyRef,
@@ -37,25 +38,30 @@ const LINE_WIDTH = 3;
   host: { class: 'pop', style: 'width: 300px; padding: 14px' },
   template: `
     <div
+      [attr.aria-label]="i18n.t('apps.freeform.clearBoard')"
       (keydown.escape)="popover.close()"
       appFocusTrap
-      aria-label="Clear board"
       aria-modal="true"
       role="dialog"
       style="display: flex; flex-direction: column; gap: 12px"
     >
-      <h2 style="font-size: 14px; margin: 0">Clear this board?</h2>
+      <h2 style="font-size: 14px; margin: 0">{{ i18n.t('apps.freeform.clearBoardPrompt') }}</h2>
       <p style="font-size: 12px; color: var(--txt-2); margin: 0">
-        This removes all {{ strokes() }} strokes from the shared board.
+        {{ i18n.t('apps.freeform.clearBoardBody', { count: strokes() }) }}
       </p>
       <div style="display: flex; justify-content: flex-end; gap: 8px">
-        <button class="btn" (click)="popover.close()" data-clear-cancel tabindex="0" type="button">Cancel</button>
-        <button class="btn" (click)="confirmClear()" data-clear-confirm tabindex="0" type="button">Clear</button>
+        <button class="btn" (click)="popover.close()" data-clear-cancel tabindex="0" type="button">
+          {{ i18n.t('apps.freeform.cancel') }}
+        </button>
+        <button class="btn" (click)="confirmClear()" data-clear-confirm tabindex="0" type="button">
+          {{ i18n.t('apps.freeform.clear') }}
+        </button>
       </div>
     </div>
   `
 })
 export class FreeformClearPanel {
+  protected readonly i18n = useI18n();
   protected readonly popover = inject(PopoverService);
   /** 画布上的笔数，文案里展示。 */
   readonly strokes = input(0);
@@ -87,7 +93,7 @@ const exec = (command: string): void => {
   host: { style: 'display: contents', '(window:resize)': 'fit()' },
   template: `
     <div class="tb" data-drag>
-      <div class="title">Untitled Board</div>
+      <div class="title">{{ i18n.t('apps.freeform.untitledBoard') }}</div>
       <div class="tbz"><app-traffic-lights /></div>
       <div class="grow"></div>
       <div class="tbz">
@@ -103,12 +109,12 @@ const exec = (command: string): void => {
         </div>
         <button
           class="tbtn"
+          [attr.aria-label]="i18n.t('apps.freeform.clearBoard')"
           [disabled]="busy() || inking()"
+          [title]="i18n.t('apps.freeform.clear')"
           (click)="clear()"
-          aria-label="Clear board"
           data-clear
           data-nodrag
-          title="Clear"
         >
           <svg appIcon="g-x"></svg>
         </button>
@@ -134,7 +140,7 @@ const exec = (command: string): void => {
           font-size: 13px;
         "
       >
-        Drag to draw
+        {{ i18n.t('apps.freeform.dragToDraw') }}
       </div>
       @if (failure(); as problem) {
         <div
@@ -144,7 +150,7 @@ const exec = (command: string): void => {
         >
           <span>{{ problem }}</span>
           <button class="btn" [disabled]="busy()" (click)="retry()" data-retry style="margin-left: 8px" type="button">
-            Retry
+            {{ i18n.t('apps.freeform.retry') }}
           </button>
         </div>
       }
@@ -159,14 +165,14 @@ export class FreeformApp {
   private readonly undoStack = new StrokeUndo();
   private readonly undoCount = signal(0);
   private readonly redoCount = signal(0);
+  /** 已松手、库还没回报的笔迹：回报之前照样画在画布上，免得闪一下。 */
+  private readonly settling = signal<readonly Ink[]>([]);
   /** 库里的笔迹，按落笔先后；库还没读到时为 `null`。 */
   private readonly saved = liveQuery<readonly FreeformStroke[] | null>(
     () => FreeformStroke.findAll({ where: ALL_ROWS, orderBy: [{ field: 'createdAt', sort: 'asc' }] }),
     null,
     FreeformStroke
   );
-  /** 已松手、库还没回报的笔迹：回报之前照样画在画布上，免得闪一下。 */
-  private readonly settling = signal<readonly Ink[]>([]);
   /** 落库失败后留在画布上的笔迹，等用户重试。 */
   private readonly failed = signal<readonly Ink[]>([]);
   /** 清空操作失败后，Retry 应该再次执行删除。 */
@@ -177,6 +183,7 @@ export class FreeformApp {
   private readonly dpr = Math.min(2, devicePixelRatio || 1);
   private inProgress: PenStroke | null = null;
   private drawing: AbortController | null = null;
+  protected readonly i18n = useI18n();
 
   /** 指针按着、正在画。 */
   protected readonly inking = signal(false);
@@ -198,18 +205,32 @@ export class FreeformApp {
   constructor() {
     const menus = inject(DesktopMenus);
     const win = inject(DesktopWindow);
+    /* 菜单名就是 standard() 的合并键：覆盖要用翻译后的分区名。 */
+    const edit = this.i18n.t('shell.menu.sectionEdit');
     win.setMenus(
       computed(() =>
         menus.standard('freeform', {
-          Edit: [
-            { id: 'u', label: 'Undo', key: '⌘Z', disabled: !this.undoCount(), run: () => void this.undo() },
-            { id: 'r', label: 'Redo', key: '⇧⌘Z', disabled: !this.redoCount(), run: () => void this.redo() },
+          [edit]: [
+            {
+              id: 'u',
+              label: this.i18n.t('shell.menu.undo'),
+              key: '⌘Z',
+              disabled: !this.undoCount(),
+              run: () => void this.undo()
+            },
+            {
+              id: 'r',
+              label: this.i18n.t('shell.menu.redo'),
+              key: '⇧⌘Z',
+              disabled: !this.redoCount(),
+              run: () => void this.redo()
+            },
             '-',
-            { id: 'x', label: 'Cut', key: '⌘X', run: () => exec('cut') },
-            { id: 'c', label: 'Copy', key: '⌘C', run: () => exec('copy') },
-            { id: 'v', label: 'Paste', key: '⌘V', run: () => exec('paste') },
+            { id: 'x', label: this.i18n.t('shell.menu.cut'), key: '⌘X', run: () => exec('cut') },
+            { id: 'c', label: this.i18n.t('shell.menu.copy'), key: '⌘C', run: () => exec('copy') },
+            { id: 'v', label: this.i18n.t('shell.menu.paste'), key: '⌘V', run: () => exec('paste') },
             '-',
-            { id: 'a', label: 'Select All', key: '⌘A', run: () => exec('selectAll') }
+            { id: 'a', label: this.i18n.t('shell.menu.selectAll'), key: '⌘A', run: () => exec('selectAll') }
           ]
         })
       )

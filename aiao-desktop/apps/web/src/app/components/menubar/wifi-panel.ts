@@ -10,17 +10,22 @@ import { StatusPanel } from './status-panel';
 @Component({
   selector: 'app-wifi-panel',
   imports: [Icon, WifiBars],
-  host: { class: 'panel', role: 'dialog', 'aria-label': 'Wi-Fi', style: 'min-width: 290px' },
+  host: {
+    class: 'panel',
+    role: 'dialog',
+    '[attr.aria-label]': "i18n.t('shell.menuBar.wifi')",
+    style: 'min-width: 290px'
+  },
   template: `
     <div class="row" style="height: 32px">
-      <h4 style="margin: 0">Wi-Fi</h4>
+      <h4 style="margin: 0">{{ i18n.t('shell.menuBar.wifi') }}</h4>
       <div class="tail">
         <button
           class="sw"
           [attr.aria-checked]="system.wifi()"
+          [attr.aria-label]="i18n.t('shell.menuBar.wifi')"
           [class.on]="system.wifi()"
           (click)="system.wifi.set(!system.wifi())"
-          aria-label="Wi-Fi"
           data-t="wifi"
           role="switch"
           tabindex="0"
@@ -29,10 +34,10 @@ import { StatusPanel } from './status-panel';
       </div>
     </div>
     <div class="sep"></div>
-    <div class="mhead" style="padding-left: 0">Known Network</div>
+    <div class="mhead" style="padding-left: 0">{{ i18n.t('shell.menuBar.knownNetwork') }}</div>
     <button
       class="row"
-      [attr.aria-label]="system.wifiName() + ', connected'"
+      [attr.aria-label]="i18n.t('shell.menuBar.networkConnected', { name: system.wifiName() })"
       [attr.data-net]="system.wifiName()"
       (click)="join(system.wifiName())"
       tabindex="0"
@@ -45,12 +50,12 @@ import { StatusPanel } from './status-panel';
       /></span>
     </button>
     <div class="sep"></div>
-    <div class="mhead" style="padding-left: 0">Other Networks</div>
+    <div class="mhead" style="padding-left: 0">{{ i18n.t('shell.menuBar.otherNetworks') }}</div>
     <div id="netlist">
       @for (net of others(); track net.n) {
         <button
           class="row"
-          [attr.aria-label]="net.lock ? net.n + ', secured' : net.n"
+          [attr.aria-label]="net.lock ? i18n.t('shell.menuBar.networkSecured', { name: net.n }) : net.n"
           [attr.data-net]="net.n"
           (click)="join(net.n)"
           tabindex="0"
@@ -68,7 +73,7 @@ import { StatusPanel } from './status-panel';
     </div>
     <div class="sep"></div>
     <button class="row" (click)="openSettings('wifi')" data-open-net-settings tabindex="0" type="button">
-      <span class="nm">Wi-Fi Settings…</span>
+      <span class="nm">{{ i18n.t('shell.menuBar.wifiSettings') }}</span>
     </button>
   `
 })
@@ -80,6 +85,6 @@ export class WifiPanel extends StatusPanel {
     this.system.wifiName.set(name);
     this.system.wifi.set(true);
     this.popover.close();
-    this.toast.show(`Connected to ${name}`);
+    this.toast.show('shell.menuBar.connectedTo', { name });
   }
 }

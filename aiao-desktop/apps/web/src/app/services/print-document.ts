@@ -10,15 +10,17 @@ export function printableText(content: PrintableContent): string {
   return [content.title, ...content.paragraphs].join('\n\n');
 }
 
-/** 在独立文档请求浏览器打印；返回不代表纸张输出成功。 */
+/** 在独立文档请求浏览器打印；返回不代表纸张输出成功。`translate` 可选：调用方注入 i18n 翻译函数时文案按当前语言显示。 */
 export async function printDocument(
   content: PrintableContent,
   signal: AbortSignal,
-  document: Document = globalThis.document
+  document: Document = globalThis.document,
+  translate?: (key: string) => string
 ): Promise<void> {
+  const t = (key: string, english: string): string => translate?.(key) ?? english;
   signal.throwIfAborted();
   const frame = document.createElement('iframe');
-  frame.title = 'Print selected content';
+  frame.title = t('shell.print.selectedContent', 'Print selected content');
   frame.setAttribute('sandbox', 'allow-same-origin allow-modals');
   frame.setAttribute('aria-hidden', 'true');
   frame.setAttribute('data-content-print', '');
@@ -29,7 +31,7 @@ export async function printDocument(
     document.body.append(frame);
     const page = frame.contentDocument;
     const window = frame.contentWindow;
-    if (!page || !window) throw new Error('Print document is unavailable');
+    if (!page || !window) throw new Error(t('error.print.documentUnavailable', 'Print document is unavailable'));
     page.title = content.title;
     const style = page.createElement('style');
     style.textContent =

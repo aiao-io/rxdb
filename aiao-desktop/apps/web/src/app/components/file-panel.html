@@ -18,7 +18,7 @@
     </header>
     @if (isSave()) {
       <label class="fp-name">
-        <span>Save As:</span>
+        <span>{{ i18n.t('shell.filePanel.saveAs') }}</span>
         <input
           #field
           [maxLength]="request().nameLength"
@@ -35,14 +35,14 @@
     <div class="fp-where">
       <button
         class="btn"
+        [attr.aria-label]="i18n.t('shell.filePanel.enclosingFolder')"
         [disabled]="dir().length === 0"
         (click)="up()"
-        aria-label="Enclosing folder"
         data-fp-up
         tabindex="0"
         type="button"
       >
-        Up
+        {{ i18n.t('shell.filePanel.up') }}
       </button>
       <span class="fp-path" data-fp-path>{{ where() }}</span>
     </div>
@@ -50,10 +50,10 @@
       class="fp-list"
       #list
       [attr.aria-activedescendant]="activeId()"
+      [attr.aria-label]="i18n.t('shell.filePanel.files')"
       (click)="pick($event)"
       (dblclick)="pickAndOpen($event)"
       (keydown)="listKey($event)"
-      aria-label="Files"
       data-fp-list
       role="listbox"
       tabindex="0"
@@ -80,23 +80,32 @@
           }
         </div>
       } @empty {
-        <p class="fp-empty" data-fp-empty>This folder is empty.</p>
+        <p class="fp-empty" data-fp-empty>{{ i18n.t('shell.filePanel.empty') }}</p>
       }
     </div>
     @if (request().accept.length > 0) {
-      <p class="fp-note" data-fp-filter>Showing: {{ request().accept.join(', ') }}</p>
+      <p class="fp-note" data-fp-filter>
+        {{ i18n.t('shell.filePanel.showing', { types: request().accept.join(', ') }) }}
+      </p>
     }
     @if (problem(); as text) {
       <p class="fp-note bad" data-fp-problem role="alert">{{ text }}</p>
     }
     @if (phase() === 'replace') {
-      <div class="fp-replace" aria-label="Replace existing file" data-fp-replace role="alertdialog">
-        <b>A file named “{{ target() }}” already exists in this location.</b>
-        <span>Do you want to replace it? Its current contents will be overwritten.</span>
+      <div
+        class="fp-replace"
+        [attr.aria-label]="i18n.t('shell.filePanel.replaceFile')"
+        data-fp-replace
+        role="alertdialog"
+      >
+        <b>{{ i18n.t('shell.filePanel.fileExists', { name: target() }) }}</b>
+        <span>{{ i18n.t('shell.filePanel.replaceBody') }}</span>
       </div>
     }
     <footer class="fp-foot">
-      <button class="btn" #cancelButton (click)="dismiss()" data-fp-cancel tabindex="0" type="button">Cancel</button>
+      <button class="btn" #cancelButton (click)="dismiss()" data-fp-cancel tabindex="0" type="button">
+        {{ i18n.t('shell.dataProblem.cancel') }}
+      </button>
       <button class="btn pri" [disabled]="!canConfirm()" (click)="confirm()" data-fp-confirm tabindex="0" type="button">
         {{ confirmLabel() }}
       </button>
