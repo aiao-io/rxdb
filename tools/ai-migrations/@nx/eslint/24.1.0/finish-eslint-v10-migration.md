@@ -107,9 +107,9 @@ module.exports = {
     {
       files: ['*.ts'],
       parserOptions: { tsconfigRootDir },
-      rules: { '@typescript-eslint/no-floating-promises': 'error' },
-    },
-  ],
+      rules: { '@typescript-eslint/no-floating-promises': 'error' }
+    }
+  ]
 };
 ```
 
@@ -124,10 +124,10 @@ const eslintConfig = [
   {
     files: ['**/*.ts'],
     languageOptions: {
-      parserOptions: { tsconfigRootDir: import.meta.dirname },
+      parserOptions: { tsconfigRootDir: import.meta.dirname }
     },
-    rules: { '@typescript-eslint/no-floating-promises': 'error' },
-  },
+    rules: { '@typescript-eslint/no-floating-promises': 'error' }
+  }
 ];
 
 export default eslintConfig;
@@ -157,8 +157,8 @@ import importPlugin from 'eslint-plugin-import';
 export default [
   {
     plugins: { import: importPlugin },
-    rules: { 'import/no-cycle': 'error' },
-  },
+    rules: { 'import/no-cycle': 'error' }
+  }
 ];
 ```
 
@@ -170,8 +170,8 @@ import importX from 'eslint-plugin-import-x';
 export default [
   {
     plugins: { 'import-x': importX },
-    rules: { 'import-x/no-cycle': 'error' },
-  },
+    rules: { 'import-x/no-cycle': 'error' }
+  }
 ];
 ```
 
@@ -216,8 +216,8 @@ import globals from 'globals';
 export default [
   {
     files: ['**/*.js'],
-    languageOptions: { globals: { ...globals.node } },
-  },
+    languageOptions: { globals: { ...globals.node } }
+  }
 ];
 ```
 
