@@ -23,6 +23,7 @@ import type { ReactNode } from 'react';
 
 import { Badge } from '@site/src/components/badge';
 import { Button } from '@site/src/components/button';
+import { useSiteCopy } from '@site/src/lib/locale-copy';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -234,7 +235,11 @@ function Section({ index, eyebrow, title, description, children }: SectionProps)
   );
 }
 
-function ArchitectureContent(): ReactNode {
+interface ArchitectureContentProps {
+  copy: (value: string) => string;
+}
+
+function ArchitectureContent({ copy }: ArchitectureContentProps): ReactNode {
   return (
     <div className='home-shell min-h-screen'>
       <section className='relative px-4 pt-20 pb-12 sm:px-6 sm:pt-28'>
@@ -244,30 +249,30 @@ function ArchitectureContent(): ReactNode {
               variants={itemVariants}
               className='text-foreground mt-4 max-w-4xl text-4xl leading-[1.05] font-semibold tracking-tight sm:text-5xl lg:text-6xl'
             >
-              RxDB 如何组织浏览器内数据链路
+              {copy('RxDB 如何组织浏览器内数据链路')}
             </motion.h1>
             <motion.p
               variants={itemVariants}
               className='text-muted-foreground mt-8 max-w-3xl text-base leading-7 sm:text-lg sm:leading-8'
             >
-              存储、响应式查询、实体模型与 UI 绑定分别承担明确职责，远端同步作为可选协作层接入。
+              {copy('存储、响应式查询、实体模型与 UI 绑定分别承担明确职责，远端同步作为可选协作层接入。')}
             </motion.p>
             <motion.div variants={itemVariants} className='mt-10 flex flex-wrap gap-3'>
               <Button asChild>
                 <Link to='/docs/getting-started/'>
-                  快速开始
+                  {copy('快速开始')}
                   <ArrowRight />
                 </Link>
               </Button>
               <Button asChild variant='outline'>
-                <Link to='/comparison'>适用场景</Link>
+                <Link to='/comparison'>{copy('适用场景')}</Link>
               </Button>
             </motion.div>
           </motion.div>
         </div>
       </section>
 
-      <Section index='01' eyebrow='layers' title='四个层次，按执行职责划分'>
+      <Section index='01' eyebrow='layers' title={copy('四个层次，按执行职责划分')}>
         <div className='grid gap-0 sm:grid-cols-2 lg:grid-cols-4'>
           {architectureLayers.map((layer, idx) => (
             <motion.div
@@ -283,8 +288,8 @@ function ArchitectureContent(): ReactNode {
                 {layer.tag}
               </div>
               <layer.icon className='text-primary mb-5 size-6' />
-              <h3 className='text-foreground mb-3 text-xl font-semibold tracking-tight'>{layer.title}</h3>
-              <p className='text-muted-foreground text-sm leading-6'>{layer.description}</p>
+              <h3 className='text-foreground mb-3 text-xl font-semibold tracking-tight'>{copy(layer.title)}</h3>
+              <p className='text-muted-foreground text-sm leading-6'>{copy(layer.description)}</p>
             </motion.div>
           ))}
         </div>
@@ -294,8 +299,8 @@ function ArchitectureContent(): ReactNode {
       <Section
         index='02'
         eyebrow='execution plane'
-        title='浏览器就是主执行面'
-        description='UI、业务规则、查询与持久化在浏览器内执行；远端负责交换变更，不接管每一次本地读写。'
+        title={copy('浏览器就是主执行面')}
+        description={copy('UI、业务规则、查询与持久化在浏览器内执行；远端负责交换变更，不接管每一次本地读写。')}
       >
         <div className='surface-card overflow-hidden p-6 sm:p-8'>
           <div className='grid gap-8 lg:grid-cols-[minmax(0,1.55fr)_220px_minmax(0,0.95fr)] lg:items-center'>
@@ -303,9 +308,11 @@ function ArchitectureContent(): ReactNode {
               <div className='mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
                 <div>
                   <div className='eyebrow mb-3'>Browser runtime</div>
-                  <h3 className='text-foreground text-2xl font-semibold tracking-tight'>读写查询先在本地完成</h3>
+                  <h3 className='text-foreground text-2xl font-semibold tracking-tight'>
+                    {copy('读写查询先在本地完成')}
+                  </h3>
                   <p className='text-muted-foreground mt-3 max-w-2xl text-sm leading-6'>
-                    界面、领域逻辑、查询与事务在浏览器内运行。离线时继续读写，联网后再按需同步。
+                    {copy('界面、领域逻辑、查询与事务在浏览器内运行。离线时继续读写，联网后再按需同步。')}
                   </p>
                 </div>
                 <Badge>Local-first</Badge>
@@ -315,8 +322,8 @@ function ArchitectureContent(): ReactNode {
                 {browserRuntime.map(zone => (
                   <div key={zone.title} className='border-border bg-background/50 rounded-md border p-4'>
                     <zone.icon className='text-primary mb-3 size-5' />
-                    <div className='text-foreground mb-2 text-sm font-semibold'>{zone.title}</div>
-                    <p className='text-muted-foreground text-xs leading-5'>{zone.description}</p>
+                    <div className='text-foreground mb-2 text-sm font-semibold'>{copy(zone.title)}</div>
+                    <p className='text-muted-foreground text-xs leading-5'>{copy(zone.description)}</p>
                   </div>
                 ))}
               </div>
@@ -328,8 +335,8 @@ function ArchitectureContent(): ReactNode {
                   { title: '同步按需触发', note: '联网后再 pull / push，本地读写不依赖服务端往返。' }
                 ].map(item => (
                   <div key={item.title} className='border-border bg-card/40 rounded-sm border px-3 py-3'>
-                    <div className='text-foreground text-xs font-semibold'>{item.title}</div>
-                    <div className='text-muted-foreground mt-1 text-[11px] leading-5'>{item.note}</div>
+                    <div className='text-foreground text-xs font-semibold'>{copy(item.title)}</div>
+                    <div className='text-muted-foreground mt-1 text-[11px] leading-5'>{copy(item.note)}</div>
                   </div>
                 ))}
               </div>
@@ -350,7 +357,7 @@ function ArchitectureContent(): ReactNode {
                   <action.icon className='text-primary mt-0.5 size-4 shrink-0' />
                   <div>
                     <div className='text-foreground text-sm font-semibold'>{action.title}</div>
-                    <p className='text-muted-foreground mt-1 text-xs leading-5'>{action.description}</p>
+                    <p className='text-muted-foreground mt-1 text-xs leading-5'>{copy(action.description)}</p>
                   </div>
                 </div>
               ))}
@@ -365,12 +372,12 @@ function ArchitectureContent(): ReactNode {
                 <Server className='text-primary size-6' />
                 <div>
                   <div className='eyebrow'>remote role</div>
-                  <h3 className='text-foreground mt-1 text-lg font-semibold'>远端同步仓库</h3>
+                  <h3 className='text-foreground mt-1 text-lg font-semibold'>{copy('远端同步仓库')}</h3>
                 </div>
               </div>
 
               <p className='text-muted-foreground mb-5 text-sm leading-6'>
-                远端充当共享存储或同步中继点，负责交换版本与变更，不替浏览器执行业务主流程。
+                {copy('远端充当共享存储或同步中继点，负责交换版本与变更，不替浏览器执行业务主流程。')}
               </p>
 
               <div className='space-y-2'>
@@ -380,7 +387,7 @@ function ArchitectureContent(): ReactNode {
                     className='border-border bg-background/40 flex items-start gap-3 rounded-sm border px-3 py-2.5'
                   >
                     <CheckCircle className='text-primary mt-0.5 size-3.5 shrink-0' />
-                    <span className='text-xs leading-5'>{item}</span>
+                    <span className='text-xs leading-5'>{copy(item)}</span>
                   </div>
                 ))}
               </div>
@@ -392,8 +399,8 @@ function ArchitectureContent(): ReactNode {
       <Section
         index='03'
         eyebrow='tech stack'
-        title='核心技术选型'
-        description='每一层都服务于同一个目标——让数据应用真正跑在浏览器里'
+        title={copy('核心技术选型')}
+        description={copy('每一层都服务于同一个目标——让数据应用真正跑在浏览器里')}
       >
         <div className='grid gap-0 sm:grid-cols-2 lg:grid-cols-3'>
           {techStack.map((tech, idx) => (
@@ -408,10 +415,10 @@ function ArchitectureContent(): ReactNode {
             >
               <div className='mb-4 flex items-center justify-between gap-3'>
                 <tech.icon className='text-primary size-5' />
-                <Badge variant='outline'>{tech.role}</Badge>
+                <Badge variant='outline'>{copy(tech.role)}</Badge>
               </div>
               <h3 className='text-foreground mb-2 text-lg font-semibold'>{tech.name}</h3>
-              <p className='text-muted-foreground text-sm leading-6'>{tech.reason}</p>
+              <p className='text-muted-foreground text-sm leading-6'>{copy(tech.reason)}</p>
             </motion.div>
           ))}
         </div>
@@ -421,8 +428,8 @@ function ArchitectureContent(): ReactNode {
       <Section
         index='04'
         eyebrow='capabilities'
-        title='已落地的能力'
-        description='以下能力都可以在文档、demo 和源码里直接验证'
+        title={copy('已落地的能力')}
+        description={copy('以下能力都可以在文档、demo 和源码里直接验证')}
       >
         <div className='space-y-4'>
           {implementedFeatures.map(feature => (
@@ -431,13 +438,13 @@ function ArchitectureContent(): ReactNode {
                 <div className='mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
                   <div>
                     <h3 className='text-foreground mb-2 text-xl font-semibold tracking-tight sm:text-2xl'>
-                      {feature.title}
+                      {copy(feature.title)}
                     </h3>
-                    <p className='text-muted-foreground text-sm leading-6 sm:text-base'>{feature.description}</p>
+                    <p className='text-muted-foreground text-sm leading-6 sm:text-base'>{copy(feature.description)}</p>
                   </div>
                   <Badge>
                     <CheckCircle className='mr-1 size-3' />
-                    {feature.status}
+                    {copy(feature.status)}
                   </Badge>
                 </div>
                 <div className='grid gap-2 sm:grid-cols-2 lg:grid-cols-4'>
@@ -447,7 +454,7 @@ function ArchitectureContent(): ReactNode {
                       className='border-border bg-background/40 flex items-center gap-2 rounded-sm border px-3 py-2 text-xs'
                     >
                       <CheckCircle className='text-primary size-3 shrink-0' />
-                      <span>{item}</span>
+                      <span>{copy(item)}</span>
                     </div>
                   ))}
                 </div>
@@ -460,8 +467,8 @@ function ArchitectureContent(): ReactNode {
       <Section
         index='05'
         eyebrow='code path'
-        title='关键代码路径'
-        description='从模型定义到界面订阅，每一步都有明确输入与输出'
+        title={copy('关键代码路径')}
+        description={copy('从模型定义到界面订阅，每一步都有明确输入与输出')}
       >
         <div className='space-y-6'>
           {[
@@ -487,11 +494,11 @@ function ArchitectureContent(): ReactNode {
               language: 'bash',
               code: `npx @aiao/rxdb-client-generator ./rxdb.config.ts
 
-# rxdb.config.ts 声明实体文件（entities）与输出目录（outDir），见「客户端生成」文档
-# 输出内容包括：
-# - 实体类型与静态类型映射
-# - Repository 查询方法签名
-# - 关系字段的规则类型（支持点语法关系查询）`
+${copy('# rxdb.config.ts 声明实体文件（entities）与输出目录（outDir），见「客户端生成」文档')}
+${copy('# 输出内容包括：')}
+${copy('# - 实体类型与静态类型映射')}
+${copy('# - Repository 查询方法签名')}
+${copy('# - 关系字段的规则类型（支持点语法关系查询）')}`
             },
             {
               icon: Zap,
@@ -503,7 +510,7 @@ function ArchitectureContent(): ReactNode {
     rules: [{ field: 'completed', operator: '=', value: false }]
   }
 }).subscribe(todos => {
-  console.log('未完成任务：', todos);
+  console.log('${copy('未完成任务：')}', todos);
 });`
             }
           ].map(step => (
@@ -511,7 +518,7 @@ function ArchitectureContent(): ReactNode {
               <div className='border-border flex items-center justify-between gap-2 border-b px-5 py-3'>
                 <div className='flex items-center gap-2.5'>
                   <step.icon className='text-primary size-4' />
-                  <span className='text-foreground text-sm font-semibold'>{step.title}</span>
+                  <span className='text-foreground text-sm font-semibold'>{copy(step.title)}</span>
                 </div>
                 <span className='text-muted-foreground font-[family-name:var(--mono-font)] text-[10px] tracking-[0.2em] uppercase'>
                   {step.language}
@@ -527,7 +534,7 @@ function ArchitectureContent(): ReactNode {
             <div className='border-border flex items-center justify-between gap-2 border-b px-5 py-3'>
               <div className='flex items-center gap-2.5'>
                 <BarChart3 className='text-primary size-4' />
-                <span className='text-foreground text-sm font-semibold'>4. 复用同一套查询语义</span>
+                <span className='text-foreground text-sm font-semibold'>{copy('4. 复用同一套查询语义')}</span>
               </div>
               <span className='text-muted-foreground font-[family-name:var(--mono-font)] text-[10px] tracking-[0.2em] uppercase'>
                 3 frameworks
@@ -555,7 +562,7 @@ function ArchitectureContent(): ReactNode {
               ))}
             </div>
             <div className='border-border text-muted-foreground border-t px-5 py-4 text-center text-xs'>
-              三个框架共享模型与查询语义，差异集中在各自的 UI 绑定 API。
+              {copy('三个框架共享模型与查询语义，差异集中在各自的 UI 绑定 API。')}
             </div>
           </div>
         </div>
@@ -574,16 +581,16 @@ function ArchitectureContent(): ReactNode {
                 <div className='flex flex-col gap-8 md:flex-row md:items-start md:justify-between'>
                   <div>
                     <h2 className='text-foreground mt-4 text-3xl font-semibold tracking-tight sm:text-4xl'>
-                      从模型定义开始验证数据链路
+                      {copy('从模型定义开始验证数据链路')}
                     </h2>
                     <p className='text-muted-foreground mt-4 text-base leading-7'>
-                      先通过在线演示观察查询、关系与写入如何落地，再结合文档评估存储、框架绑定与同步边界。
+                      {copy('先通过在线演示观察查询、关系与写入如何落地，再结合文档评估存储、框架绑定与同步边界。')}
                     </p>
                   </div>
                 </div>
                 <Button asChild size='lg' className='shrink-0'>
                   <Link to='/demos'>
-                    查看在线演示
+                    {copy('查看在线演示')}
                     <ArrowRight />
                   </Link>
                 </Button>
@@ -597,12 +604,14 @@ function ArchitectureContent(): ReactNode {
 }
 
 export default function ArchitecturePage(): ReactNode {
+  const copy = useSiteCopy();
+
   return (
     <Layout
-      title='技术架构'
-      description='RxDB 如何把数据库、响应式查询、模型驱动开发与同步协作在浏览器内组织成清晰层次'
+      title={copy('技术架构')}
+      description={copy('RxDB 如何把数据库、响应式查询、模型驱动开发与同步协作在浏览器内组织成清晰层次')}
     >
-      <ArchitectureContent />
+      <ArchitectureContent copy={copy} />
     </Layout>
   );
 }

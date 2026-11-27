@@ -1,3 +1,4 @@
+import { resolveUiLocale } from '@aiao/rxdb-i18n';
 import type { OPFSFile } from '../types/devtools.types';
 
 type InteractionTarget = Pick<Event, 'currentTarget' | 'target'>;
@@ -40,10 +41,10 @@ export function formatFileSize(bytes?: number): string {
   return `${value.toFixed(1)} ${FILE_SIZE_UNITS[exponent]}`;
 }
 
-/** 将文件时间戳格式化为中文本地时间，缺失时返回占位符。 */
-export function formatFileDate(timestamp?: number): string {
+/** 将文件时间戳格式化为宿主本地时间，缺失时返回占位符。 */
+export function formatFileDate(timestamp?: number, locale = resolveUiLocale(globalThis.navigator?.language)): string {
   if (!timestamp) return '-';
-  return new Date(timestamp).toLocaleString('zh-CN', {
+  return new Date(timestamp).toLocaleString(locale, {
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',

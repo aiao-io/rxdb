@@ -260,6 +260,30 @@ describe('原生 iframe 运行内核', () => {
     await expect(pending).rejects.toMatchObject({ code: 'TIMEOUT' });
   });
 
+  it('sandbox 选项在最小基线之上追加令牌，缺省时保持基线', async () => {
+    const { runtime, container, options } = setup();
+    const app = runtime.createApp({ ...options, sandbox: 'allow-popups allow-popups-to-escape-sandbox' });
+    const pending = app.mount(container);
+    const frame = container.querySelector('aiao-orbit')!.shadowRoot!.querySelector('iframe')!;
+    expect(frame.getAttribute('sandbox')).toBe(
+      'allow-scripts allow-same-origin allow-forms allow-downloads allow-popups allow-popups-to-escape-sandbox'
+    );
+    await pending;
+    const baseline = setup();
+    const baselineApp = baseline.runtime.createApp(baseline.options);
+    const baselinePending = baselineApp.mount(baseline.container);
+    const baselineFrame = baseline.container.querySelector('aiao-orbit')!.shadowRoot!.querySelector('iframe')!;
+    expect(baselineFrame.getAttribute('sandbox')).toBe('allow-scripts allow-same-origin allow-forms allow-downloads');
+    await baselinePending;
+  });
+
+  it('未知沙箱令牌在创建应用时被拒绝', () => {
+    const { runtime, options } = setup();
+    expect(() => runtime.createApp({ ...options, sandbox: 'allow-everything' })).toThrowError(
+      expect.objectContaining({ code: 'INVALID_OPTIONS' })
+    );
+  });
+
   it('应用声明更高的协议版本：先通知应用，再以 INCOMPATIBLE_PROTOCOL 明确失败（含双方版本），不建立端口，不缺能力继续运行', async () => {
     const { runtime, container, options, report } = setup('future');
     const notices: unknown[] = [];

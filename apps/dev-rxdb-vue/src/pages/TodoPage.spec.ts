@@ -34,6 +34,9 @@ vi.mock('@aiao/rxdb-test/entities', async importOriginal => ({
   }
 }));
 
+// 本 spec 只关心批量添加的 pending 生命周期，不关心文案；恒等 t 免去挂载时的 I18n provider。
+vi.mock('@aiao/rxdb-i18n-vue', () => ({ useI18n: () => ({ t: (key: string) => key }) }));
+
 import TodoPage from './TodoPage.vue';
 
 type TodoPageVm = { addManyTodo(total: number): Promise<void> };

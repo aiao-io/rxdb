@@ -1,7 +1,10 @@
 <script lang="ts" setup>
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import { STORAGE_TESTID } from '@aiao/utils';
 import { ref, watch } from 'vue';
 import type { StorageBrowserItem } from '../utils/storage-utils';
+
+const { t } = useI18n();
 
 const props = defineProps<{ show: boolean; entry: StorageBrowserItem | null }>();
 const emit = defineEmits<{
@@ -37,12 +40,12 @@ function submit(): void {
       class="modal-box"
       @click.stop
     >
-      <h3 class="mb-4 text-base font-bold">Rename {{ entry.kind === 'file' ? 'File' : 'Folder' }}</h3>
+      <h3 class="mb-4 text-base font-bold">{{ t('file.renameEntry', { kind: entry.kind }) }}</h3>
       <input
         class="input input-bordered w-full"
         v-model="newName"
         :data-testid="T.RENAME_INPUT"
-        :placeholder="entry.kind === 'file' ? 'File name' : 'Folder name'"
+        :placeholder="t(entry.kind === 'file' ? 'file.fileName' : 'file.folderName')"
         @keydown.enter="submit"
         type="text"
       />
@@ -51,14 +54,14 @@ function submit(): void {
           class="btn btn-sm"
           @click="emit('cancel')"
         >
-          Cancel
+          {{ t('file.cancel') }}
         </button>
         <button
           class="btn btn-sm btn-primary"
           :data-testid="T.RENAME_CONFIRM"
           @click="submit"
         >
-          Confirm
+          {{ t('file.confirm') }}
         </button>
       </div>
     </div>

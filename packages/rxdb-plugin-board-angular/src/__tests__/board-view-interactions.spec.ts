@@ -18,6 +18,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { BoardViewComponent } from '../board-view.js';
 import type { UseBoardActions, UseBoardReturn } from '../use-board.js';
 
+// 文案适配器换成固定 zh-Hans 运行时：方法返回值断言逐字中文
+vi.mock('../board-i18n.js', async () => {
+  const { boardI18nZhMock } = await import('./board-i18n-mock.js');
+  return boardI18nZhMock();
+});
+
 let installed: UseBoardReturn;
 
 const id = (value: string) => value as UUID;

@@ -1,7 +1,10 @@
 import { RxDB } from '@aiao/rxdb';
+import { I18n } from '@aiao/rxdb-i18n';
+import { provideI18n } from '@aiao/rxdb-i18n-angular';
 import { SortableFileLarge } from '@aiao/rxdb-test/entities';
 import { PLATFORM_ID, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { treeMenuCatalogs } from '@modules/demo-i18n/tree-menu';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import FileManagerLazyPage from './file-manager-lazy/file-manager-lazy.page';
 import { FILE_HISTORY, TreeFileLazyStore } from './file-manager-lazy/file-manager-lazy.store';
@@ -23,6 +26,7 @@ describe('file manager construction contract', () => {
       providers: [
         { provide: RxDB, useValue: {} },
         { provide: PLATFORM_ID, useValue: 'browser' },
+        provideI18n(() => new I18n({ defaultLocale: 'zh-Hans', deviceLocale: 'zh-Hans', catalogs: treeMenuCatalogs })),
         { provide: TreeFileLazyStore, useFactory: storeFactory },
         { provide: FILE_HISTORY, useFactory: historyFactory }
       ]
@@ -73,6 +77,7 @@ describe('file manager construction contract', () => {
       providers: [
         { provide: RxDB, useValue: {} },
         { provide: PLATFORM_ID, useValue: 'browser' },
+        provideI18n(() => new I18n({ defaultLocale: 'zh-Hans', deviceLocale: 'zh-Hans', catalogs: treeMenuCatalogs })),
         { provide: TreeFileLazyStore, useValue: lazyStore },
         { provide: FILE_HISTORY, useValue: history }
       ]

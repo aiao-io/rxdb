@@ -299,7 +299,7 @@ db.search('rxdb', { collections: ['Article'] });
 
 未挂载 `searchable` 字段的 collection 不会暴露 `collection.search()`，调用 `(collection as any).search` 会得到 `undefined`，可用作能力探测。
 
-> 该解析逻辑由 [resolveSearchScope](../../../../packages/rxdb-plugin-search/src/core/scope-resolver.ts) 纯函数实现，可独立单测。
+> 该解析逻辑由 [resolveSearchScope](https://github.com/aiao-io/rxdb/blob/main/packages/rxdb-plugin-search/src/core/scope-resolver.ts) 纯函数实现，可独立单测。
 
 ## 响应式更新与 retry
 

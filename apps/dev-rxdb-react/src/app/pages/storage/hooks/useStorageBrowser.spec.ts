@@ -48,7 +48,7 @@ describe('useStorageBrowser', () => {
 
     expect(result.current.currentPath).toBe('/');
     expect(result.current.entries).toEqual([]);
-    expect(showToast).toHaveBeenCalledWith('disk offline', 'error');
+    expect(showToast).toHaveBeenCalledWith({ key: 'file.readFailed', params: { detail: 'disk offline' } }, 'error');
   });
 
   it('sorts directories before files after a successful refresh', async () => {

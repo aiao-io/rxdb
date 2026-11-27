@@ -82,4 +82,17 @@ describe('@modules/orbit 公开 API 的 TSDoc 与类型导出', () => {
       expect(declarations.filter(declaration => !documented(source, declaration))).toEqual([]);
     });
   });
+
+  describe('host-locale.ts', () => {
+    const source = read('host-locale.ts');
+
+    it('公开类型可具名导入', () => {
+      expect(source).toContain('export type HostLocale');
+    });
+
+    it('公开函数都有 TSDoc', () => {
+      const declarations = ['export function parseHostLocale'];
+      expect(declarations.filter(declaration => !documented(source, declaration))).toEqual([]);
+    });
+  });
 });

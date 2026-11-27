@@ -38,6 +38,7 @@ test('demo routes are registered as non-exact so sub-app paths land on the same 
 test('static hosting falls back to the demo host page for deep links', () => {
   const source = readFileSync(join(root, 'public/_redirects'), 'utf8');
   for (const demo of DEMOS) {
+    assert.match(source, new RegExp(`/en/demos/${demo}/\\*\\s+/en/demos/${demo}\\s+200`));
     // Pages 的 rewrite 使用无扩展名目标，避免 HTML 规范化丢失深链。
     assert.match(
       source,

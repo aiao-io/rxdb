@@ -36,7 +36,7 @@ import {
   LucideUndo2 as Undo2,
   LucideX as X
 } from '@lucide/angular';
-import { HistorySidebarComponent } from '@modules/angular';
+import { HISTORY_SIDEBAR_PRESENTATION, HistorySidebarComponent } from '@modules/angular';
 
 /** 行高（px）：虚拟滚动的 itemSize 与拖拽落点换算共用 */
 const ITEM_SIZE = 48;
@@ -66,6 +66,7 @@ export class TodoPage implements OnInit, AfterViewInit {
     onDrop: drop => void this.drop_todo(drop)
   });
 
+  readonly historyPresentation = inject(HISTORY_SIDEBAR_PRESENTATION);
   readonly itemSize = ITEM_SIZE;
   readonly history = this.#rxdb.versionManager.history(Task);
 

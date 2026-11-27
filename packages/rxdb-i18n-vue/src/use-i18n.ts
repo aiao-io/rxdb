@@ -2,6 +2,7 @@ import type { I18n } from '@aiao/rxdb-i18n';
 import { Subscription } from 'rxjs';
 import {
   computed,
+  hasInjectionContext,
   inject,
   onScopeDispose,
   provide,
@@ -102,6 +103,7 @@ export const useI18n = (runtime?: I18n): I18nBinding => {
  * @returns 国际化绑定；缺少 provider 时为 `undefined`。
  */
 export const useI18nOptional = (): I18nBinding | undefined => {
+  if (!hasInjectionContext()) return undefined;
   const runtime = useI18nRuntime();
   return runtime ? useI18n(runtime) : undefined;
 };

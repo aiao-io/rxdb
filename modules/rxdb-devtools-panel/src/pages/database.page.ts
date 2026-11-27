@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } 
 import { ConnectionGuardComponent } from '../components/connection-guard.component';
 import { EntityDataTableComponent } from '../components/database/entity-data-table.component';
 import { DatabaseStateService } from '../services/database-state.service';
+import { PanelI18nService } from '../services/panel-i18n.service';
 import type { EntityInfo } from '../types/devtools.types';
 
 /**
@@ -18,7 +19,7 @@ import type { EntityInfo } from '../types/devtools.types';
         <!-- 左侧：实体列表 -->
         <div class="border-base-300 bg-base-200 flex w-48 flex-col overflow-y-auto border-r">
           <div class="border-base-300 flex items-center justify-between border-b px-2 py-1.5">
-            <span class="text-xs font-semibold">实体</span>
+            <span class="text-xs font-semibold">{{ t('db.entities') }}</span>
             <button class="btn btn-ghost btn-xs" [disabled]="dbLoading()" (click)="refresh()">
               @if (dbLoading()) {
                 <svg
@@ -75,7 +76,7 @@ import type { EntityInfo } from '../types/devtools.types';
                   <path d="M3 5V19A9 3 0 0 0 21 19V5" />
                   <path d="M3 12A9 3 0 0 0 21 12" />
                 </svg>
-                点击刷新
+                {{ t('db.clickRefresh') }}
               </div>
             </div>
           }
@@ -179,7 +180,7 @@ import type { EntityInfo } from '../types/devtools.types';
                   <path d="M3 9h18" />
                   <path d="M3 15h18" />
                 </svg>
-                选择一个实体查看数据
+                {{ t('db.selectEntity') }}
               </div>
             </div>
           } @else {
@@ -204,7 +205,7 @@ import type { EntityInfo } from '../types/devtools.types';
                 </svg>
                 <span class="text-sm font-medium">{{ selectedEntityLabel() }}</span>
                 @if (entityData()?.data; as data) {
-                  <span class="badge badge-xs">{{ data.length }} 条</span>
+                  <span class="badge badge-xs">{{ t('common.records', { count: data.length }) }}</span>
                 }
               </div>
               <button class="btn btn-ghost btn-xs" [disabled]="entityLoading()" (click)="refreshEntity()">
@@ -272,6 +273,7 @@ import type { EntityInfo } from '../types/devtools.types';
 })
 export class DatabasePage implements OnInit {
   private readonly databaseState = inject(DatabaseStateService);
+  protected readonly t = inject(PanelI18nService).t;
 
   readonly dbInfo = this.databaseState.dbInfo;
   readonly dbLoading = this.databaseState.dbLoading;

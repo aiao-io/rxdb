@@ -1,3 +1,12 @@
+import { useI18n } from '@aiao/rxdb-i18n-react';
+import {
+  fileMessage,
+  formatFileSize,
+  orderFileEntries,
+  renderFileMessage,
+  type FileDeleteTarget,
+  type FileMessage
+} from '@modules/demo-i18n/files';
 /**
  * OPFS 文件管理页面 - React
  */
@@ -16,7 +25,7 @@ import {
   Upload,
   X
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useResettableTimeout } from '../../hooks/useResettableTimeout';
 import { readDroppedEntryTree } from '../../utils/read-directory-entries';
@@ -26,13 +35,13 @@ import { OpfsFileList } from './components/OpfsFileList';
 import { OpfsFilePreview } from './components/OpfsFilePreview';
 import { useOpfsRouteSync } from './hooks/useOpfsRouteSync';
 import { useOpfsService } from './hooks/useOpfsService';
-import { formatFileSize, OPFSFileEntry } from './utils/opfs-utils';
+import { OPFSFileEntry } from './utils/opfs-utils';
 
 type ViewMode = 'list' | 'grid';
 
 interface Toast {
   show: boolean;
-  message: string;
+  message: string | FileMessage;
   type: 'error' | 'success' | 'info';
 }
 
@@ -55,7 +64,9 @@ function buildUrlFromPath(path: string): string {
 }
 
 export default function OpfsPage() {
+  const { t, locale } = useI18n();
   const opfs = useOpfsService();
+  const orderedEntries = useMemo(() => orderFileEntries(opfs.entries, locale), [opfs.entries, locale]);
   const navigate = useNavigate();
   const params = useParams();
   const routePath = normalizeRoutePath(params['*']);
@@ -71,9 +82,9 @@ export default function OpfsPage() {
 
   const [deleteConfirm, setDeleteConfirm] = useState<{
     show: boolean;
-    entry: OPFSFileEntry | null;
+    target: FileDeleteTarget<OPFSFileEntry> | null;
     resolve?: (v: boolean) => void;
-  }>({ show: false, entry: null });
+  }>({ show: false, target: null });
   const [renameDialog, setRenameDialog] = useState<{ show: boolean; entry: OPFSFileEntry | null; newName: string }>({
     show: false,
     entry: null,
@@ -146,7 +157,7 @@ export default function OpfsPage() {
   }, []);
 
   const showToast = useCallback(
-    (message: string, type: Toast['type'] = 'info') => {
+    (message: string | FileMessage, type: Toast['type'] = 'info') => {
       setToast({ show: true, message, type });
       scheduleToastHide(() => setToast({ show: false, message: '', type: 'info' }), 3000);
     },
@@ -154,8 +165,8 @@ export default function OpfsPage() {
   );
 
   // Statistics
-  const dirCount = opfs.entries.filter(e => e.kind === 'directory').length;
-  const fileCount = opfs.entries.filter(e => e.kind === 'file').length;
+  const dirCount = orderedEntries.filter(e => e.kind === 'directory').length;
+  const fileCount = orderedEntries.filter(e => e.kind === 'file').length;
 
   // Path segments
   const pathSegments = (() => {
@@ -188,11 +199,11 @@ export default function OpfsPage() {
   const handleDelete = useCallback(
     async (entry: OPFSFileEntry) => {
       const shouldDelete = await new Promise<boolean>(resolve => {
-        setDeleteConfirm({ show: true, entry, resolve });
+        setDeleteConfirm({ show: true, target: { type: 'single', entry }, resolve });
       });
       if (shouldDelete) {
         const result = await opfs.deleteEntry(entry);
-        if (!result) showToast(`删除失败: ${entry.name}`, 'error');
+        if (!result) showToast(fileMessage('file.deleteFailed', { detail: entry.name }), 'error');
       }
     },
     [opfs, showToast]
@@ -201,7 +212,7 @@ export default function OpfsPage() {
   const handleDeleteResponse = useCallback(
     (confirm: boolean) => {
       if (deleteConfirm.resolve) deleteConfirm.resolve(confirm);
-      setDeleteConfirm({ show: false, entry: null });
+      setDeleteConfirm({ show: false, target: null });
     },
     [deleteConfirm]
   );
@@ -231,7 +242,7 @@ export default function OpfsPage() {
   const handleUploadFolder = useCallback(
     async (files: File[]) => {
       if (files.length === 0) return;
-      showToast(`正在上传文件夹，共 ${files.length} 个文件...`, 'info');
+      showToast(fileMessage('file.uploadingFolder', { count: files.length }), 'info');
 
       const filesWithPaths = files.map(file => ({ file, relativePath: file.webkitRelativePath || file.name }));
       const conflictPaths = await opfs.findUploadConflicts(
@@ -256,8 +267,9 @@ export default function OpfsPage() {
       }
       await opfs.refresh();
 
-      if (failedCount > 0) showToast(`上传完成：${successCount} 成功，${failedCount} 失败`, 'error');
-      else showToast(`成功上传 ${successCount} 个文件`, 'success');
+      if (failedCount > 0)
+        showToast(fileMessage('file.uploadFinished', { succeeded: successCount, failed: failedCount }), 'error');
+      else showToast(fileMessage('file.uploaded', { count: successCount }), 'success');
     },
     [opfs, routePath, showToast]
   );
@@ -298,13 +310,7 @@ export default function OpfsPage() {
     if (selectedPaths.size === 0) return;
     const entriesToDelete = opfs.entries.filter(e => selectedPaths.has(e.path));
     const shouldDelete = await new Promise<boolean>(resolve => {
-      const virtualEntry: OPFSFileEntry = {
-        name: `${selectedPaths.size} 个项目`,
-        kind: 'file',
-        handle: {} as FileSystemFileHandle,
-        path: ''
-      };
-      setDeleteConfirm({ show: true, entry: virtualEntry, resolve });
+      setDeleteConfirm({ show: true, target: { type: 'batch', count: entriesToDelete.length }, resolve });
     });
 
     if (shouldDelete) {
@@ -313,8 +319,8 @@ export default function OpfsPage() {
         const result = await opfs.deleteEntry(entry);
         if (!result) failedCount++;
       }
-      if (failedCount > 0) showToast(`${failedCount} 个项目删除失败`, 'error');
-      else showToast(`成功删除 ${entriesToDelete.length} 个项目`, 'success');
+      if (failedCount > 0) showToast(fileMessage('file.deleteFailures', { count: failedCount }), 'error');
+      else showToast(fileMessage('file.deleted', { count: entriesToDelete.length }), 'success');
       setSelectedPaths(new Set());
       setLastSelectedPath(null);
     }
@@ -331,13 +337,13 @@ export default function OpfsPage() {
         });
         setLastSelectedPath(entry.path);
       } else if (event.shiftKey && lastSelectedPath) {
-        const startIndex = opfs.entries.findIndex(e => e.path === lastSelectedPath);
-        const endIndex = opfs.entries.findIndex(e => e.path === entry.path);
+        const startIndex = orderedEntries.findIndex(e => e.path === lastSelectedPath);
+        const endIndex = orderedEntries.findIndex(e => e.path === entry.path);
         if (startIndex !== -1 && endIndex !== -1) {
           const [start, end] = startIndex < endIndex ? [startIndex, endIndex] : [endIndex, startIndex];
           setSelectedPaths(prev => {
             const next = new Set(prev);
-            for (let i = start; i <= end; i++) next.add(opfs.entries[i].path);
+            for (let i = start; i <= end; i++) next.add(orderedEntries[i].path);
             return next;
           });
         }
@@ -346,7 +352,7 @@ export default function OpfsPage() {
         setLastSelectedPath(entry.path);
       }
     },
-    [lastSelectedPath, opfs.entries]
+    [lastSelectedPath, orderedEntries]
   );
 
   const handleContextMenu = useCallback((event: React.MouseEvent, entry: OPFSFileEntry) => {
@@ -477,11 +483,18 @@ export default function OpfsPage() {
       {/* Header */}
       <div className='border-base-300 flex items-center justify-between border-b px-3 py-2'>
         <div className='flex items-center gap-3'>
-          <span className='text-sm font-bold'>OPFS 文件管理</span>
+          <span className='text-sm font-bold'>{t('file.opfsTitle')}</span>
           <div className='flex items-center gap-1.5'>
             <div className={`h-2 w-2 rounded-full ${opfsAvailable ? 'bg-success' : 'bg-error'}`} />
-            <span className='text-base-content/60 text-xs'>{opfsAvailable ? '已连接' : '未连接'}</span>
+            <span className='text-base-content/60 text-xs'>
+              {opfsAvailable ? t('file.connected') : t('file.disconnected')}
+            </span>
           </div>
+          {opfs.error && (
+            <span className='text-error text-xs' data-testid='opfs-error'>
+              {renderFileMessage(t, opfs.error)}
+            </span>
+          )}
         </div>
         <div className='tabs tabs-boxed tabs-xs' role='tablist'>
           <button
@@ -489,52 +502,52 @@ export default function OpfsPage() {
             onClick={() => setViewMode('list')}
             role='tab'
           >
-            <List size={12} /> List
+            <List size={12} /> {t('file.list')}
           </button>
           <button
             className={`tab gap-1 ${viewMode === 'grid' ? 'tab-active' : ''}`}
             onClick={() => setViewMode('grid')}
             role='tab'
           >
-            <Grid3x3 size={12} /> Grid
+            <Grid3x3 size={12} /> {t('file.grid')}
           </button>
         </div>
       </div>
 
       {/* Toolbar */}
       <div className='border-base-300 flex flex-wrap items-center gap-2 border-b p-2'>
-        <button className='btn btn-xs btn-ghost' onClick={() => navigateToPath('/')} title='根目录'>
+        <button className='btn btn-xs btn-ghost' onClick={() => navigateToPath('/')} title={t('file.root')}>
           <Home size={16} />
         </button>
-        <button className='btn btn-xs btn-ghost' onClick={() => opfs.refresh()} title='刷新'>
+        <button className='btn btn-xs btn-ghost' onClick={() => opfs.refresh()} title={t('file.refresh')}>
           <RefreshCw size={16} className={opfs.loading ? 'animate-spin' : ''} />
         </button>
         <div className='divider divider-horizontal m-0' />
         <button className='btn btn-xs btn-primary' onClick={() => fileInputRef.current?.click()}>
-          <Upload size={16} /> 上传文件
+          <Upload size={16} /> {t('file.upload')}
         </button>
         <button className='btn btn-xs btn-primary' onClick={() => folderInputRef.current?.click()}>
-          <Folder size={16} /> 上传文件夹
+          <Folder size={16} /> {t('file.uploadFolder')}
         </button>
         <button className='btn btn-xs btn-secondary' onClick={() => setShowNewFolder(true)}>
-          <FolderPlus size={16} /> 新建文件夹
+          <FolderPlus size={16} /> {t('file.newFolder')}
         </button>
         {selectedPaths.size > 0 && (
           <>
             <div className='divider divider-horizontal m-0' />
-            <span className='text-base-content/60 text-xs'>已选择 {selectedPaths.size} 项</span>
+            <span className='text-base-content/60 text-xs'>{t('file.selected', { count: selectedPaths.size })}</span>
             <button
               className='btn btn-xs btn-ghost'
               onClick={() => {
                 setSelectedPaths(new Set());
                 setLastSelectedPath(null);
               }}
-              title='取消选择'
+              title={t('file.clearSelection')}
             >
               <X size={14} />
             </button>
-            <button className='btn btn-xs btn-error' onClick={handleBatchDelete} title='批量删除'>
-              <Trash2 size={16} /> 删除
+            <button className='btn btn-xs btn-error' onClick={handleBatchDelete} title={t('file.batchDelete')}>
+              <Trash2 size={16} /> {t('file.delete')}
             </button>
           </>
         )}
@@ -543,7 +556,7 @@ export default function OpfsPage() {
       {/* Breadcrumb */}
       <div className='border-base-300 flex items-center gap-1 overflow-x-auto border-b px-3 py-2 text-sm whitespace-nowrap'>
         <button className='hover:underline' onClick={() => navigateToPath('/')}>
-          根目录
+          {t('file.root')}
         </button>
         {pathSegments.map(segment => (
           <div key={segment.path} className='flex items-center gap-1'>
@@ -573,7 +586,7 @@ export default function OpfsPage() {
       >
         {viewMode === 'list' ?
           <OpfsFileList
-            entries={opfs.entries}
+            entries={orderedEntries}
             currentPath={opfs.currentPath}
             selectedPaths={selectedPaths}
             onNavigate={handleNavigate}
@@ -585,7 +598,7 @@ export default function OpfsPage() {
             onEntryClick={handleEntryClick}
           />
         : <OpfsFileGrid
-            entries={opfs.entries}
+            entries={orderedEntries}
             currentPath={opfs.currentPath}
             selectedPaths={selectedPaths}
             previewFile={opfs.previewFile}
@@ -617,7 +630,7 @@ export default function OpfsPage() {
           <div className='bg-primary/10 border-primary pointer-events-none absolute inset-0 z-50 flex items-center justify-center border-2 border-dashed'>
             <div className='bg-base-100 rounded-lg p-8 shadow-lg'>
               <Upload size={48} className='text-primary mx-auto mb-2' />
-              <p className='text-primary text-lg font-semibold'>拖放文件到这里上传</p>
+              <p className='text-primary text-lg font-semibold'>{t('file.drop')}</p>
             </div>
           </div>
         )}
@@ -625,9 +638,7 @@ export default function OpfsPage() {
 
       {/* Status bar */}
       <div className='border-base-300 text-base-content/60 flex items-center gap-4 border-t px-3 py-1 text-xs'>
-        <span>
-          {opfs.entries.length} 项 ({dirCount} 个文件夹, {fileCount} 个文件)
-        </span>
+        <span>{t('file.stats', { count: dirCount + fileCount, folders: dirCount, files: fileCount })}</span>
       </div>
 
       {/* Preview */}
@@ -637,21 +648,21 @@ export default function OpfsPage() {
       {showNewFolder && (
         <div className='modal modal-open' onClick={() => setShowNewFolder(false)}>
           <div className='modal-box' onClick={e => e.stopPropagation()}>
-            <h3 className='mb-4 text-base font-bold'>新建文件夹</h3>
+            <h3 className='mb-4 text-base font-bold'>{t('file.newFolder')}</h3>
             <input
               className='input input-bordered w-full'
               value={newFolderName}
               onChange={e => setNewFolderName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleCreateFolder()}
-              placeholder='文件夹名称'
+              placeholder={t('file.folderName')}
               type='text'
             />
             <div className='modal-action'>
               <button className='btn btn-sm' onClick={() => setShowNewFolder(false)}>
-                取消
+                {t('file.cancel')}
               </button>
               <button className='btn btn-sm btn-primary' onClick={handleCreateFolder}>
-                创建
+                {t('file.create')}
               </button>
             </div>
           </div>
@@ -663,27 +674,25 @@ export default function OpfsPage() {
         <div className='modal modal-open' onClick={() => handleOverwriteResponse(false)}>
           <div className='modal-box' onClick={e => e.stopPropagation()}>
             <h3 className='mb-4 flex items-center gap-2 text-base font-bold'>
-              <AlertTriangle size={18} className='text-warning' /> 文件已存在
+              <AlertTriangle size={18} className='text-warning' /> {t('file.fileExists')}
             </h3>
-            <p className='mb-4'>
-              文件 <span className='font-semibold'>{overwriteConfirm.file.name}</span> 已存在，是否覆盖？
-            </p>
+            <p className='mb-4'>{t('file.overwriteQuestion', { name: overwriteConfirm.file.name })}</p>
             <div className='bg-base-200 mb-4 space-y-2 rounded-lg p-3'>
               <div className='flex justify-between text-sm'>
-                <span className='text-base-content/60'>现有文件:</span>
-                <span className='font-mono'>{formatFileSize(overwriteConfirm.existingEntry.size || 0)}</span>
+                <span className='text-base-content/60'>{t('file.existingFile')}</span>
+                <span className='font-mono'>{formatFileSize(overwriteConfirm.existingEntry.size || 0, locale)}</span>
               </div>
               <div className='flex justify-between text-sm'>
-                <span className='text-base-content/60'>新文件:</span>
-                <span className='font-mono'>{formatFileSize(overwriteConfirm.file.size)}</span>
+                <span className='text-base-content/60'>{t('file.newFile')}</span>
+                <span className='font-mono'>{formatFileSize(overwriteConfirm.file.size, locale)}</span>
               </div>
             </div>
             <div className='modal-action'>
               <button className='btn btn-sm' onClick={() => handleOverwriteResponse(false)}>
-                取消
+                {t('file.cancel')}
               </button>
               <button className='btn btn-sm btn-warning' onClick={() => handleOverwriteResponse(true)}>
-                覆盖
+                {t('file.overwrite')}
               </button>
             </div>
           </div>
@@ -694,9 +703,9 @@ export default function OpfsPage() {
         <div className='modal modal-open' onClick={() => handleFolderOverwriteResponse(false)}>
           <div className='modal-box' onClick={event => event.stopPropagation()}>
             <h3 className='mb-4 flex items-center gap-2 text-base font-bold'>
-              <AlertTriangle size={18} className='text-warning' /> 文件夹上传存在冲突
+              <AlertTriangle size={18} className='text-warning' /> {t('file.folderConflicts')}
             </h3>
-            <p className='mb-2'>检测到 {folderOverwriteConfirm.conflictPaths.length} 个同路径文件。</p>
+            <p className='mb-2'>{t('file.conflictPaths', { count: folderOverwriteConfirm.conflictPaths.length })}</p>
             <div className='bg-base-200 mb-4 max-h-40 overflow-auto rounded-lg p-3 font-mono text-xs'>
               {folderOverwriteConfirm.conflictPaths.map(path => (
                 <div key={path}>{path}</div>
@@ -704,10 +713,10 @@ export default function OpfsPage() {
             </div>
             <div className='modal-action'>
               <button className='btn btn-sm' onClick={() => handleFolderOverwriteResponse(false)}>
-                跳过冲突
+                {t('file.skipConflicts')}
               </button>
               <button className='btn btn-sm btn-warning' onClick={() => handleFolderOverwriteResponse(true)}>
-                全部覆盖
+                {t('file.overwriteAll')}
               </button>
             </div>
           </div>
@@ -726,28 +735,28 @@ export default function OpfsPage() {
       )}
 
       {/* Delete confirm */}
-      {deleteConfirm.show && deleteConfirm.entry && (
+      {deleteConfirm.show && deleteConfirm.target && (
         <div className='modal modal-open' onClick={() => handleDeleteResponse(false)}>
           <div className='modal-box' onClick={e => e.stopPropagation()}>
             <h3 className='mb-4 flex items-center gap-2 text-base font-bold'>
-              <Trash2 size={18} className='text-error' /> 确认删除
+              <Trash2 size={18} className='text-error' /> {t('file.confirmDelete')}
             </h3>
             <p className='mb-4'>
-              确定要删除
-              <span className='font-semibold'>{deleteConfirm.entry.kind === 'file' ? '文件' : '文件夹'}</span>
-              <span className='text-error font-semibold'>{deleteConfirm.entry.name}</span> 吗？
+              {deleteConfirm.target.type === 'batch' ?
+                t('file.deleteMany', { count: deleteConfirm.target.count })
+              : t('file.deleteOne', { kind: deleteConfirm.target.entry.kind, name: deleteConfirm.target.entry.name })}
             </p>
-            {deleteConfirm.entry.kind === 'directory' && (
+            {deleteConfirm.target.type === 'single' && deleteConfirm.target.entry.kind === 'directory' && (
               <p className='text-warning mb-4 flex items-center gap-1 text-sm'>
-                <AlertTriangle size={16} /> 此操作将删除文件夹及其所有内容
+                <AlertTriangle size={16} /> {t('file.deleteContents')}
               </p>
             )}
             <div className='modal-action'>
               <button className='btn btn-sm' onClick={() => handleDeleteResponse(false)}>
-                取消
+                {t('file.cancel')}
               </button>
               <button className='btn btn-sm btn-error' onClick={() => handleDeleteResponse(true)}>
-                删除
+                {t('file.delete')}
               </button>
             </div>
           </div>
@@ -758,21 +767,21 @@ export default function OpfsPage() {
       {renameDialog.show && renameDialog.entry && (
         <div className='modal modal-open' onClick={() => setRenameDialog({ show: false, entry: null, newName: '' })}>
           <div className='modal-box' onClick={e => e.stopPropagation()}>
-            <h3 className='mb-4 text-base font-bold'>重命名{renameDialog.entry.kind === 'file' ? '文件' : '文件夹'}</h3>
+            <h3 className='mb-4 text-base font-bold'>{t('file.renameEntry', { kind: renameDialog.entry.kind })}</h3>
             <input
               className='input input-bordered w-full'
               value={renameDialog.newName}
               onChange={e => setRenameDialog(prev => ({ ...prev, newName: e.target.value }))}
               onKeyDown={e => e.key === 'Enter' && handleRename()}
-              placeholder={renameDialog.entry.kind === 'file' ? '文件名' : '文件夹名'}
+              placeholder={renameDialog.entry.kind === 'file' ? t('file.fileName') : t('file.folderName')}
               type='text'
             />
             <div className='modal-action'>
               <button className='btn btn-sm' onClick={() => setRenameDialog({ show: false, entry: null, newName: '' })}>
-                取消
+                {t('file.cancel')}
               </button>
               <button className='btn btn-sm btn-primary' onClick={handleRename}>
-                确定
+                {t('file.confirm')}
               </button>
             </div>
           </div>
@@ -789,7 +798,7 @@ export default function OpfsPage() {
               : 'alert-info'
             }`}
           >
-            <span>{toast.message}</span>
+            <span>{renderFileMessage(t, toast.message)}</span>
             <button
               className='btn btn-sm btn-ghost'
               onClick={() => setToast({ show: false, message: '', type: 'info' })}

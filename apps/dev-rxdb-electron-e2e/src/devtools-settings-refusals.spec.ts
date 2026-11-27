@@ -7,6 +7,7 @@ import { attachPanel, PANEL_BUDGET_MS, panelEvaluate, readPanel } from './devtoo
 import { awaitAnswer, installWireTap, postToConnector, requestFrame, waitForSessionId } from './devtools-wire-tap';
 import {
   launchEnv,
+  PANEL_LOCALE_ARGS,
   realSandbox,
   resolveDesktopDevExtension,
   resolveExecutable,
@@ -55,7 +56,7 @@ function launchApp(userDataDir: string, port: number): Promise<ElectronApplicati
     executablePath: resolveExecutable(),
     // 必须真沙箱：--no-sandbox 会让扩展 devtools_page 一行不执行，面板永不进 tab 条。
     ...realSandbox(),
-    args: [`--user-data-dir=${userDataDir}`, '--serve', `--port=${String(port)}`],
+    args: [`--user-data-dir=${userDataDir}`, '--serve', `--port=${String(port)}`, ...PANEL_LOCALE_ARGS],
     env: {
       ...launchEnv(),
       DEV_RXDB_DEVTOOLS: '1',
@@ -109,15 +110,15 @@ test.describe('Settings 的两条拒绝在真实 wire 上成立（US-904 阶段 
       const settings = await readPanel(app, {
         inspected: INSPECTED,
         hash: '#/settings',
-        awaitPattern: '导出数据库',
+        awaitPattern: 'Export database',
         budgetMs: PANEL_BUDGET_MS
       });
-      expect(settings, `Settings 页没渲染出来：《${settings}》`).toContain('导出已停用');
+      expect(settings, `Settings 页没渲染出来：《${settings}》`).toContain('Export is disabled');
       const exportEnabled = await panelEvaluate<boolean>(
         app,
         INSPECTED,
         `(() => {
-          const button = [...document.querySelectorAll('button')].find(el => el.textContent.trim() === '导出数据库');
+          const button = [...document.querySelectorAll('button')].find(el => el.textContent.trim() === 'Export database');
           return !!button && !button.disabled;
         })()`
       );

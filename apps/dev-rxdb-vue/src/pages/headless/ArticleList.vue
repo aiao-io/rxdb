@@ -1,14 +1,15 @@
 <script lang="ts" setup>
 import type { OrderBy } from '@aiao/rxdb';
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import type { EntityListController, EntityListSnapshot } from '@aiao/rxdb-model/headless';
 import { computed } from 'vue';
 import { errorMessage, type ArticleRecord } from './article-model';
 
-/** 可排序列：表头按钮循环 无序 → 升序 → 降序。 */
+/** 可排序列：表头按钮循环 无序 → 升序 → 降序；label 存目录键，渲染时经 t() 翻译。 */
 const COLUMNS = [
-  { field: 'title', label: '标题' },
-  { field: 'category', label: '分类' },
-  { field: 'viewCount', label: '浏览量' }
+  { field: 'title', label: 'page.headless.titleColumn' },
+  { field: 'category', label: 'page.headless.categoryColumn' },
+  { field: 'viewCount', label: 'page.headless.viewCountColumn' }
 ] as const;
 
 const props = defineProps<{
@@ -16,6 +17,8 @@ const props = defineProps<{
   snapshot: EntityListSnapshot<ArticleRecord>;
 }>();
 const emit = defineEmits<{ edit: [record: ArticleRecord] }>();
+
+const { t } = useI18n();
 
 const sortOf = (field: string): 'ascending' | 'descending' | 'none' => {
   const sort = props.snapshot.sorts.find((item: OrderBy) => item.field === field)?.sort;
@@ -46,29 +49,31 @@ const swallow = (): undefined => undefined;
     aria-labelledby="hl-list-title"
     data-testid="headless-list"
   >
-    <h2 id="hl-list-title">文章列表</h2>
+    <h2 id="hl-list-title">{{ t('page.headless.listTitle') }}</h2>
     <div class="hl-actions">
       <button
         type="button"
         @click="controller.refresh().catch(swallow)"
-        >刷新</button
+        >{{ t('page.headless.refresh') }}</button
       >
       <button
         type="button"
         :disabled="snapshot.selectedIds.length === 0 || !canDelete"
         @click="controller.remove(snapshot.selectedIds).catch(swallow)"
       >
-        删除所选 ({{ snapshot.selectedIds.length }})
+        {{ t('page.headless.deleteSelected', { count: snapshot.selectedIds.length }) }}
       </button>
     </div>
     <table
       class="hl-table"
-      aria-label="文章"
+      :aria-label="t('page.headless.articleTable')"
       :aria-busy="snapshot.loading"
     >
       <thead>
         <tr>
-          <th scope="col"><span class="hl-sr">选择</span></th>
+          <th scope="col"
+            ><span class="hl-sr">{{ t('page.headless.selectColumn') }}</span></th
+          >
           <th
             v-for="column in COLUMNS"
             :key="column.field"
@@ -78,10 +83,10 @@ const swallow = (): undefined => undefined;
             <button
               type="button"
               @click="toggleSort(column.field)"
-              >{{ column.label }}</button
+              >{{ t(column.label) }}</button
             >
           </th>
-          <th scope="col">操作</th>
+          <th scope="col">{{ t('page.headless.actionsColumn') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -89,7 +94,7 @@ const swallow = (): undefined => undefined;
           <td
             :colspan="COLUMNS.length + 2"
             data-testid="list-empty"
-            >暂无数据</td
+            >{{ t('common.noData') }}</td
           >
         </tr>
         <tr
@@ -101,7 +106,7 @@ const swallow = (): undefined => undefined;
           <td>
             <input
               type="checkbox"
-              :aria-label="`选择 ${record.title}`"
+              :aria-label="t('page.headless.selectRow', { title: record.title })"
               :checked="snapshot.selectedIds.includes(record.id)"
               @change="controller.toggleSelection(record.id)"
             />
@@ -113,18 +118,18 @@ const swallow = (): undefined => undefined;
             <button
               type="button"
               :disabled="!canEdit"
-              :aria-label="`编辑 ${record.title}`"
+              :aria-label="t('page.headless.editRow', { title: record.title })"
               @click="emit('edit', record)"
             >
-              编辑
+              {{ t('common.edit') }}
             </button>
             <button
               type="button"
               :disabled="!canDelete"
-              :aria-label="`删除 ${record.title}`"
+              :aria-label="t('page.headless.deleteRow', { title: record.title })"
               @click="controller.remove([record.id]).catch(swallow)"
             >
-              删除
+              {{ t('common.delete') }}
             </button>
           </td>
         </tr>
@@ -143,22 +148,21 @@ const swallow = (): undefined => undefined;
         type="button"
         :disabled="snapshot.page === 0"
         @click="controller.setPage(snapshot.page - 1)"
-        >上一页</button
+        >{{ t('page.headless.previousPage') }}</button
       >
       <span
         role="status"
         data-testid="list-page-info"
       >
-        第 {{ snapshot.page + 1 }} / {{ pages ?? '?' }} 页，共 {{ snapshot.total ?? '?' }} 条{{
-          snapshot.loading ? '（加载中）' : ''
-        }}
+        {{ t('page.headless.pageInfo', { page: snapshot.page + 1, pages: pages ?? '?', total: snapshot.total ?? '?' })
+        }}{{ snapshot.loading ? t('page.headless.loadingSuffix') : '' }}
       </span>
       <button
         type="button"
         :disabled="snapshot.hasNext !== true"
         @click="controller.setPage(snapshot.page + 1)"
       >
-        下一页
+        {{ t('page.headless.nextPage') }}
       </button>
     </div>
   </section>

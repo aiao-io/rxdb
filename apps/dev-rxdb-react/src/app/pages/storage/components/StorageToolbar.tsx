@@ -1,4 +1,5 @@
-import { STORAGE_LABELS, STORAGE_TESTID } from '@aiao/utils';
+import { useI18n } from '@aiao/rxdb-i18n-react';
+import { STORAGE_TESTID } from '@aiao/utils';
 import {
   ChevronRight,
   Download,
@@ -51,8 +52,8 @@ export function StorageToolbar({
   onUploadFolder,
   onViewModeChange
 }: StorageToolbarProps): React.JSX.Element {
+  const { t } = useI18n();
   const T = STORAGE_TESTID;
-  const L = STORAGE_LABELS;
   const pathSegments = currentPath
     .split('/')
     .filter(Boolean)
@@ -65,10 +66,12 @@ export function StorageToolbar({
     <>
       <div className='border-base-300 flex items-center justify-between border-b px-3 py-2'>
         <div className='flex items-center gap-3'>
-          <span className='text-sm font-bold'>{L.PAGE_TITLE}</span>
+          <span className='text-sm font-bold'>{t('file.storageTitle')}</span>
           <div className='flex items-center gap-1.5'>
             <div className={`h-2 w-2 rounded-full ${opfsAvailable ? 'bg-success' : 'bg-error'}`} />
-            <span className='text-base-content/60 text-xs'>{opfsAvailable ? 'Connected' : 'Disconnected'}</span>
+            <span className='text-base-content/60 text-xs'>
+              {opfsAvailable ? t('file.connected') : t('file.disconnected')}
+            </span>
           </div>
         </div>
         <div className='tabs tabs-boxed tabs-xs' role='tablist'>
@@ -77,44 +80,44 @@ export function StorageToolbar({
             onClick={() => onViewModeChange('list')}
             role='tab'
           >
-            <List size={12} /> List
+            <List size={12} /> {t('file.list')}
           </button>
           <button
             className={`tab gap-1 ${viewMode === 'grid' ? 'tab-active' : ''}`}
             onClick={() => onViewModeChange('grid')}
             role='tab'
           >
-            <Grid3x3 size={12} /> Grid
+            <Grid3x3 size={12} /> {t('file.grid')}
           </button>
         </div>
       </div>
 
       <div className='border-base-300 flex flex-wrap items-center gap-2 border-b p-2'>
-        <button className='btn btn-xs btn-ghost' onClick={() => onNavigate('/')} title='Root'>
+        <button className='btn btn-xs btn-ghost' onClick={() => onNavigate('/')} title={t('file.root')}>
           <Home size={16} />
         </button>
-        <button className='btn btn-xs btn-ghost' onClick={onRefresh} title='Refresh'>
+        <button className='btn btn-xs btn-ghost' onClick={onRefresh} title={t('file.refresh')}>
           <RefreshCw className={loading ? 'animate-spin' : ''} size={16} />
         </button>
         <div className='divider divider-horizontal m-0' />
         <button className='btn btn-xs btn-primary' data-testid={T.UPLOAD_BTN} onClick={onUpload}>
-          <Upload size={16} /> {L.UPLOAD}
+          <Upload size={16} /> {t('file.upload')}
         </button>
         <button className='btn btn-xs btn-primary' data-testid={T.UPLOAD_FOLDER_BTN} onClick={onUploadFolder}>
-          <Folder size={16} /> Upload Folder
+          <Folder size={16} /> {t('file.uploadFolder')}
         </button>
         <button className='btn btn-xs btn-secondary' data-testid={T.NEW_FOLDER_BTN} onClick={onNewFolder}>
-          <FolderPlus size={16} /> New Folder
+          <FolderPlus size={16} /> {t('file.newFolder')}
         </button>
         {selectionSize > 0 && (
           <>
             <div className='divider divider-horizontal m-0' />
-            <span className='text-base-content/60 text-xs'>Selected {selectionSize} items</span>
+            <span className='text-base-content/60 text-xs'>{t('file.selected', { count: selectionSize })}</span>
             <button
               className='btn btn-xs btn-ghost'
               data-testid={T.CLEAR_SELECTION_BTN}
               onClick={onClearSelection}
-              title='Clear selection'
+              title={t('file.clearSelection')}
             >
               <X size={14} />
             </button>
@@ -122,17 +125,17 @@ export function StorageToolbar({
               className='btn btn-xs btn-info'
               data-testid={T.BATCH_DOWNLOAD_BTN}
               onClick={onBatchDownload}
-              title='Batch download'
+              title={t('file.batchDownload')}
             >
-              <Download size={16} /> Download
+              <Download size={16} /> {t('file.download')}
             </button>
             <button
               className='btn btn-xs btn-error'
               data-testid={T.BATCH_DELETE_BTN}
               onClick={onBatchDelete}
-              title='Batch delete'
+              title={t('file.batchDelete')}
             >
-              <Trash2 size={16} /> Delete
+              <Trash2 size={16} /> {t('file.delete')}
             </button>
           </>
         )}
@@ -140,7 +143,7 @@ export function StorageToolbar({
           <>
             <div className='divider divider-horizontal m-0' />
             <button className='btn btn-xs btn-error btn-outline' data-testid={T.CLEAR_BTN} onClick={onClearAll}>
-              <Trash2 size={16} /> {L.CLEAR_ALL}
+              <Trash2 size={16} /> {t('file.clearAll')}
             </button>
           </>
         )}
@@ -148,7 +151,7 @@ export function StorageToolbar({
 
       <div className='border-base-300 flex items-center gap-1 overflow-x-auto border-b px-3 py-2 text-sm whitespace-nowrap'>
         <button className='hover:underline' onClick={() => onNavigate('/')}>
-          Root
+          {t('file.root')}
         </button>
         {pathSegments.map(segment => (
           <div key={segment.path} className='flex items-center gap-1'>

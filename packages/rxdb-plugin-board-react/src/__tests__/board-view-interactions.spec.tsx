@@ -51,6 +51,11 @@ import {
 
 let state: UseBoardReturn;
 vi.mock('../use-board.js', () => ({ useBoard: () => state }));
+// 视图文案已迁入 board 目录：注入 zh-Hans 运行时，断言保持 zh 逐字文案
+vi.mock('../board-i18n.js', async () => {
+  const { boardI18nZhMock } = await import('./board-test-utils.js');
+  return boardI18nZhMock();
+});
 
 const id = (value: string) => value as UUID;
 const boardId = id('board');

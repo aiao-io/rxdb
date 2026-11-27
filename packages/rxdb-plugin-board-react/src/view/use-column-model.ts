@@ -2,6 +2,7 @@ import type { UUID } from '@aiao/rxdb';
 import type { Column } from '@aiao/rxdb-plugin-board';
 import { useState, type KeyboardEvent } from 'react';
 
+import { boardT } from '../board-i18n.js';
 import type { ModelGetter, TriggerEvent } from './model.js';
 import type { BoardData } from './use-board-data.js';
 import { useStateRef } from './use-state-ref.js';
@@ -132,9 +133,11 @@ export const useColumnModel = (core: ViewCore, data: BoardData, model: ModelGett
       try {
         const result = await core.guard(() => actions().sortColumn(columnId, mode));
         if (!result) return;
-        const label = mode === 'dueDate' ? '截止日' : '标题';
+        const field = mode === 'dueDate' ? boardT('view.detail.due') : boardT('view.detail.title');
         core.showToast(
-          result.written ? `已按${label}排序「${data.columnTitleOf(columnId)}」` : '已按目标顺序排列，无变化',
+          result.written ?
+            boardT('view.toast.sortedBy', { field, column: data.columnTitleOf(columnId) })
+          : boardT('view.toast.sortedNoChange'),
           result.written
         );
       } finally {

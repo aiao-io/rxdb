@@ -1,9 +1,11 @@
 import type { RxDB, UUID } from '@aiao/rxdb';
 import {
   Board,
+  BOARD_I18N_NAMESPACE,
   BOARD_LABEL_COLORS,
   BoardLabel,
   Column,
+  createBoardI18n,
   RESTORING_MARKER_KEY,
   Task,
   type BoardSearchSource,
@@ -16,8 +18,18 @@ import { BehaviorSubject, of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { isProxy, nextTick, reactive, ref } from 'vue';
 
+const { boardI18nMock } = vi.hoisted(() => ({
+  boardI18nMock: { t: (key: string): string => key }
+}));
+vi.mock('../board-i18n.js', () => ({ boardI18n: boardI18nMock }));
+
 import BoardView from '../board-view.vue';
 import type { UseBoardActions, UseBoardReturn } from '../use-board.js';
+
+/** zh-Hans 看板文案运行时：组件经 mock 后的 board-i18n 模块取这里。 */
+const zhBoard = createBoardI18n('zh-CN');
+boardI18nMock.t = (key: string, params: Record<string, unknown> = {}): string =>
+  zhBoard.t(key, params, BOARD_I18N_NAMESPACE);
 
 /** `wrapper.get()` 的返回类型（VTU 2.5 起去掉了 `exists`），辅助函数统一按它收参。 */
 type ElementWrapper = Omit<DOMWrapper<Element>, 'exists'>;

@@ -10,6 +10,7 @@ import {
 import { useEffect, useId, useRef, useState, type ChangeEvent, type KeyboardEvent, type ReactNode } from 'react';
 import './board-view.css';
 
+import { boardT } from './board-i18n.js';
 import { BoardView } from './board-view.js';
 
 /** {@link BoardShell} 的属性。 */
@@ -31,11 +32,11 @@ interface ShellPartProps {
 function ShellStartup({ state, controller, onRestoreFile }: ShellPartProps): ReactNode {
   const fileRef = useRef<HTMLInputElement>(null);
   return (
-    <section className='rxb-shell-startup' aria-label='选择如何开始' data-testid='startup-page'>
+    <section className='rxb-shell-startup' aria-label={boardT('shell.startup.ariaLabel')} data-testid='startup-page'>
       <div className='rxb-shell-card'>
-        <p className='rxb-shell-eyebrow'>RxDB 本地优先看板</p>
-        <h1 className='rxb-shell-heading'>任务看板</h1>
-        <p className='rxb-shell-hint'>选择如何开始；选择前不会连接或创建任何数据。</p>
+        <p className='rxb-shell-eyebrow'>{boardT('shell.startup.eyebrow')}</p>
+        <h1 className='rxb-shell-heading'>{boardT('shell.startup.heading')}</h1>
+        <p className='rxb-shell-hint'>{boardT('shell.startup.hint')}</p>
         <div className='rxb-shell-options'>
           <button
             className='rxb-shell-option'
@@ -43,8 +44,8 @@ function ShellStartup({ state, controller, onRestoreFile }: ShellPartProps): Rea
             onClick={() => void controller.startEmpty()}
             data-testid='start-empty'
           >
-            <strong>新建空看板</strong>
-            <span>从零开始建板、建列、建任务</span>
+            <strong>{boardT('shell.startup.emptyTitle')}</strong>
+            <span>{boardT('shell.startup.emptyDesc')}</span>
           </button>
           {state.canSeed ?
             <button
@@ -53,8 +54,8 @@ function ShellStartup({ state, controller, onRestoreFile }: ShellPartProps): Rea
               onClick={() => void controller.startSeed()}
               data-testid='start-seed'
             >
-              <strong>装载演示数据</strong>
-              <span>在新库里装一份演示看板，体验拖拽、筛选、键盘与撤销</span>
+              <strong>{boardT('shell.startup.seedTitle')}</strong>
+              <span>{boardT('shell.startup.seedDesc')}</span>
             </button>
           : null}
           <button
@@ -63,15 +64,15 @@ function ShellStartup({ state, controller, onRestoreFile }: ShellPartProps): Rea
             onClick={() => fileRef.current?.click()}
             data-testid='start-restore'
           >
-            <strong>从备份恢复</strong>
-            <span>选择 .rxdb 备份文件，恢复到新库后打开</span>
+            <strong>{boardT('shell.startup.restoreTitle')}</strong>
+            <span>{boardT('shell.startup.restoreDesc')}</span>
           </button>
           <input
             ref={fileRef}
             type='file'
             accept='.rxdb'
             hidden
-            aria-label='选择备份文件'
+            aria-label={boardT('shell.startup.fileLabel')}
             onChange={onRestoreFile}
             data-testid='restore-file'
           />
@@ -92,7 +93,7 @@ function ShellBoard({ state, controller, onRestoreFile }: ShellPartProps): React
   return (
     <div className='rxb-shell-board'>
       <header className='rxb-shell-bar' data-testid='board-tools'>
-        <span className='rxb-shell-brand'>任务看板</span>
+        <span className='rxb-shell-brand'>{boardT('shell.bar.brand')}</span>
         <span className='rxb-shell-spacer' />
         {state.canSeed ?
           <button
@@ -101,7 +102,7 @@ function ShellBoard({ state, controller, onRestoreFile }: ShellPartProps): React
             onClick={() => void controller.resetDemo()}
             data-testid='reset-demo'
           >
-            重置为演示数据
+            {boardT('shell.bar.resetDemo')}
           </button>
         : null}
         <button
@@ -110,14 +111,14 @@ function ShellBoard({ state, controller, onRestoreFile }: ShellPartProps): React
           onClick={() => fileRef.current?.click()}
           data-testid='restore-open'
         >
-          从备份恢复…
+          {boardT('shell.bar.restore')}
         </button>
         <input
           ref={fileRef}
           type='file'
           accept='.rxdb'
           hidden
-          aria-label='选择备份文件'
+          aria-label={boardT('shell.bar.fileLabel')}
           onChange={onRestoreFile}
           data-testid='restore-file-menu'
         />
@@ -167,7 +168,7 @@ function ShellConfirm({ confirm, titleId, onSettle, onKeyDown }: ShellConfirmPro
         </div>
         <div className='rxb-dialog-footer'>
           <button className='rxb-btn' type='button' onClick={() => onSettle(false)} data-testid='host-confirm-no'>
-            取消
+            {boardT('common.cancel')}
           </button>
           <button
             className='rxb-btn rxb-btn-primary'
@@ -247,12 +248,12 @@ export function BoardShell({ options }: BoardShellProps): ReactNode {
       : null}
       {state.phase === 'loading' ?
         <p className='rxb-shell-status' role='status' data-testid='loading-page'>
-          正在准备看板数据…
+          {boardT('shell.loading')}
         </p>
       : null}
       {state.phase === 'restoring' ?
         <p className='rxb-shell-status' role='status' data-testid='restoring-page'>
-          {state.restore.state === 'switching' ? '正在打开恢复的看板…' : '恢复中：全部写入口已暂停。'}
+          {state.restore.state === 'switching' ? boardT('shell.restoring.switching') : boardT('shell.restoring.status')}
         </p>
       : null}
       {state.phase === 'board' ?

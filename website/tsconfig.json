@@ -4,7 +4,7 @@
     "ignoreDeprecations": "6.0",
     "types": ["@docusaurus/module-type-aliases"]
   },
-  "exclude": [".docusaurus", "build", "public"],
+  "exclude": [".docusaurus", "build", "public", "tmp"],
   // This file is not used in compilation. It is here just for a nice editor experience.
   "extends": "@docusaurus/tsconfig",
   "references": [

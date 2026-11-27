@@ -1,4 +1,5 @@
 import { getEntityMetadata, type EntityType } from '@aiao/rxdb';
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import { useCount, useRxDB } from '@aiao/rxdb-react';
 import { useEffect, useMemo } from 'react';
 import { NavLink, Outlet, useLocation, useMatch, useNavigate } from 'react-router-dom';
@@ -44,6 +45,7 @@ function EntityCatalogLink({ entity }: { entity: EntityOption }): React.JSX.Elem
  */
 export default function EntityShell(): React.JSX.Element {
   const rxdb = useRxDB();
+  const { t } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
   const childMatch = useMatch('/entities/:namespace/:name');
@@ -92,7 +94,7 @@ export default function EntityShell(): React.JSX.Element {
         data-testid='entity-catalog'
       >
         <div className='border-base-300 text-base-content/70 flex h-10 min-h-10 items-center border-b px-3 text-xs font-medium'>
-          实体类型
+          {t('page.entity.types')}
         </div>
         <div className='flex-1 overflow-y-auto max-md:max-h-40'>
           <ul className='menu menu-sm w-full'>
@@ -120,7 +122,7 @@ export default function EntityShell(): React.JSX.Element {
           </ul>
         </div>
         <div className='border-base-300 text-base-content/40 flex items-center border-t px-3 py-1.5 text-xs'>
-          <span>共 {entityList.length} 个实体</span>
+          <span>{t('page.entity.total', { count: entityList.length })}</span>
         </div>
       </div>
 

@@ -21,6 +21,11 @@ export * from './host-route.js';
 export * from './host-theme.js';
 
 /**
+ * 宿主 ↔ 子应用的语言同步协议
+ */
+export * from './host-locale.js';
+
+/**
  * 直接渲染到 Shadow DOM 时的 daisyUI 样式改写
  */
 export * from './shadow-css.js';

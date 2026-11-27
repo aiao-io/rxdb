@@ -5,6 +5,7 @@ import {
   type StorageBrowserEntry,
   type StorageFileMeta
 } from '@aiao/rxdb-plugin-storage';
+import { fileError, type FileMessage } from '@modules/demo-i18n/files';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ToastState } from '../types';
 import type { StorageBrowserItem } from '../utils/storage-utils';
@@ -48,7 +49,7 @@ export function mapStorageEntry(entry: StorageBrowserEntry): StorageBrowserItem 
 
 export function useStorageBrowser(
   rxdb: StorageBrowserDatabase,
-  showToast: (message: string, type?: ToastState['type']) => void
+  showToast: (message: FileMessage, type?: ToastState['type']) => void
 ) {
   const [allFiles, setAllFiles] = useState<StorageFileMeta[]>([]);
   const [entries, setEntries] = useState<StorageBrowserItem[]>([]);
@@ -96,8 +97,7 @@ export function useStorageBrowser(
           }
 
           setEntries([]);
-          const message = err instanceof Error ? err.message : String(err);
-          showToast(message || 'Unknown error', 'error');
+          showToast(fileError('file.readFailed', err), 'error');
         } finally {
           setLoading(false);
         }

@@ -12,6 +12,8 @@ export interface DemoMicroAppProps {
   title: string;
   /** 传给内部 iframe 的 `allow`，基准测试需要 `cross-origin-isolated`。 */
   allow?: string;
+  /** 在最小 sandbox 基线之上额外授予的沙箱令牌（空格分隔）。 */
+  sandbox?: string;
   /**
    * 宿主页在文档站里的路径前缀，例如 `/demos/vue`。
    *

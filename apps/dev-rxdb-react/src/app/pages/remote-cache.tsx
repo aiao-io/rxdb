@@ -1,3 +1,4 @@
+import { useI18n } from '@aiao/rxdb-i18n-react';
 import {
   StorageFetchError,
   StorageFileMeta,
@@ -61,6 +62,7 @@ async function measureElapsedMs<T>(fn: () => Promise<T>): Promise<{ result: T; e
 
 export default function RemoteCachePage() {
   const rxdb = useRxDB();
+  const { t } = useI18n();
 
   const [customUrl, setCustomUrl] = useState('https://picsum.photos/id/1025/300/200');
   const [customPath, setCustomPath] = useState('remote/picsum-1025.jpg');
@@ -183,21 +185,19 @@ export default function RemoteCachePage() {
         <div className='flex items-center gap-2'>
           <Cloud size={20} />
           <div>
-            <h2 className='text-base font-bold'>Remote Cache</h2>
-            <p className='text-base-content/60 text-xs'>
-              OPFS-first 缓存示例：首次联网下载 → 落盘 OPFS + StorageFileMeta → 后续命中本地不联网
-            </p>
+            <h2 className='text-base font-bold'>{t('page.remoteCache.title')}</h2>
+            <p className='text-base-content/60 text-xs'>{t('page.remoteCache.description')}</p>
           </div>
         </div>
         <div className='flex items-center gap-1.5'>
           {online ?
             <>
               <Wifi className='text-success' size={16} />
-              <span className='text-success text-xs font-semibold'>Online</span>
+              <span className='text-success text-xs font-semibold'>{t('page.remoteCache.online')}</span>
             </>
           : <>
               <WifiOff className='text-error' size={16} />
-              <span className='text-error text-xs font-semibold'>Offline</span>
+              <span className='text-error text-xs font-semibold'>{t('page.remoteCache.offline')}</span>
             </>
           }
         </div>
@@ -207,8 +207,8 @@ export default function RemoteCachePage() {
         <div className='mx-auto flex max-w-5xl flex-col gap-6'>
           <section className='card bg-base-100 border-base-300 border'>
             <div className='card-body p-4'>
-              <h3 className='text-sm font-bold'>预设资源</h3>
-              <p className='text-base-content/60 text-xs'>点击按钮触发 {'`rxdb.storage.fetch(opfsPath, { url })`'}。</p>
+              <h3 className='text-sm font-bold'>{t('page.remoteCache.presets')}</h3>
+              <p className='text-base-content/60 text-xs'>{t('page.remoteCache.presetsDescription')}</p>
 
               <div className='mt-3 grid gap-2 sm:grid-cols-3'>
                 {PRESETS.map(preset => {
@@ -236,12 +236,12 @@ export default function RemoteCachePage() {
 
           <section className='card bg-base-100 border-base-300 border'>
             <div className='card-body p-4'>
-              <h3 className='text-sm font-bold'>自定义 URL</h3>
-              <p className='text-base-content/60 text-xs'>输入任意 CORS 友好的 URL 和 OPFS 路径。</p>
+              <h3 className='text-sm font-bold'>{t('page.remoteCache.customUrl')}</h3>
+              <p className='text-base-content/60 text-xs'>{t('page.remoteCache.customDescription')}</p>
 
               <div className='mt-3 grid gap-2 sm:grid-cols-2'>
                 <label className='form-control'>
-                  <span className='label-text text-xs'>URL</span>
+                  <span className='label-text text-xs'>{t('page.remoteCache.url')}</span>
                   <input
                     className='input input-bordered input-sm'
                     onChange={event => setCustomUrl(event.target.value)}
@@ -251,7 +251,7 @@ export default function RemoteCachePage() {
                   />
                 </label>
                 <label className='form-control'>
-                  <span className='label-text text-xs'>OPFS Path</span>
+                  <span className='label-text text-xs'>{t('page.remoteCache.opfsPath')}</span>
                   <input
                     className='input input-bordered input-sm'
                     onChange={event => setCustomPath(event.target.value)}
@@ -264,7 +264,7 @@ export default function RemoteCachePage() {
               <div className='mt-3'>
                 <button className='btn btn-sm btn-primary gap-2' onClick={() => void fetchCustom()}>
                   <CloudDownload size={14} />
-                  Fetch
+                  {t('page.remoteCache.fetch')}
                 </button>
               </div>
             </div>
@@ -274,19 +274,19 @@ export default function RemoteCachePage() {
             <div className='card-body p-4'>
               <div className='flex items-center justify-between'>
                 <h3 className='text-sm font-bold' data-testid='remote-cache-count'>
-                  已缓存（{cached.length}）
+                  {t('page.remoteCache.cached', { count: cached.length })}
                 </h3>
                 {cached.length > 0 && (
                   <button className='btn btn-xs btn-ghost gap-1' onClick={() => void clearAll()}>
                     <Trash2 size={12} />
-                    Clear all
+                    {t('page.remoteCache.clearAll')}
                   </button>
                 )}
               </div>
 
               {cached.length === 0 ?
                 <p className='text-base-content/50 mt-2 text-xs' data-testid='remote-cache-empty'>
-                  还没有缓存内容。点击上方预设或自定义按钮开始。
+                  {t('page.remoteCache.empty')}
                 </p>
               : <div className='mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3'>
                   {cached.map(item => (
@@ -314,7 +314,7 @@ export default function RemoteCachePage() {
                         </p>
                         <button className='btn btn-xs btn-error mt-1 gap-1' onClick={() => void deleteCached(item)}>
                           <Trash2 size={12} />
-                          Delete
+                          {t('common.delete')}
                         </button>
                       </div>
                     </div>
@@ -326,10 +326,10 @@ export default function RemoteCachePage() {
 
           <section className='card bg-base-100 border-base-300 border'>
             <div className='card-body p-4'>
-              <h3 className='text-sm font-bold'>事件日志</h3>
+              <h3 className='text-sm font-bold'>{t('page.remoteCache.logs')}</h3>
               {logs.length === 0 ?
                 <p className='text-base-content/50 mt-2 text-xs' data-testid='remote-cache-log-empty'>
-                  日志为空。
+                  {t('page.remoteCache.emptyLogs')}
                 </p>
               : <ul className='mt-2 space-y-1 font-mono text-[11px]'>
                   {logs.map(entry => (

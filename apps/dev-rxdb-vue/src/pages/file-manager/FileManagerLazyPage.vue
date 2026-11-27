@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import { useI18n } from '@aiao/rxdb-i18n-vue';
 import { SortableFileLarge } from '@aiao/rxdb-test/entities';
 import { useRxDB } from '@aiao/rxdb-vue';
 import { useVirtualizer } from '@tanstack/vue-virtual';
@@ -39,6 +40,7 @@ import { pairVirtualRows } from '../../app/utils/virtual-rows';
 import { useShowHistory } from '../../app/composables/useShowHistory';
 
 const rxdb = useRxDB();
+const { t } = useI18n();
 const { showHistory } = useShowHistory();
 const newName = ref('');
 const newExtension = ref('txt');
@@ -75,26 +77,21 @@ const virtualizer = useVirtualizer(virtualizerOptions);
 const virtualRows = computed(() => pairVirtualRows(store.treeNodes.value, virtualizer.value.getVirtualItems()));
 
 // 扩展名选项
-const extensionOptions = [
-  { value: 'txt', label: '.txt (文本)' },
+const extensionOptions = computed(() => [
+  { value: 'txt', label: t('page.file.ext.txt') },
   { value: 'md', label: '.md (Markdown)' },
   { value: 'json', label: '.json (JSON)' },
   { value: 'js', label: '.js (JavaScript)' },
   { value: 'ts', label: '.ts (TypeScript)' },
   { value: 'html', label: '.html (HTML)' },
   { value: 'css', label: '.css (CSS)' },
-  { value: 'jpg', label: '.jpg (图片)' },
-  { value: 'png', label: '.png (图片)' },
+  { value: 'jpg', label: t('page.file.ext.jpg') },
+  { value: 'png', label: t('page.file.ext.png') },
   { value: 'pdf', label: '.pdf (PDF)' },
-  { value: 'zip', label: '.zip (压缩包)' }
-];
+  { value: 'zip', label: t('page.file.ext.zip') }
+]);
 
-const batchAddOptions = [
-  { count: 100, label: '100 条' },
-  { count: 1000, label: '1000 条' },
-  { count: 5000, label: '5000 条' },
-  { count: 10000, label: '10000 条' }
-];
+const batchAddOptions = [{ count: 100 }, { count: 1000 }, { count: 5000 }, { count: 10000 }];
 
 // 删除所有文件
 const handleDeleteAll = async () => {
@@ -238,26 +235,26 @@ const getIconComponent = (iconName: string) => {
           <!-- Title Bar -->
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
-              <h1 class="text-2xl font-bold">File Manager - Lazy Load</h1>
+              <h1 class="text-2xl font-bold">{{ t('page.file.lazy') }}</h1>
               <div
                 class="badge badge-warning badge-sm"
                 v-if="store.searchKeyword.value"
               >
-                搜索: {{ store.matchedFileIds.value.size }} 项
+                {{ t('page.file.searchCount', { count: store.matchedFileIds.value.size }) }}
               </div>
               <div
                 class="badge badge-primary"
                 v-else
                 data-testid="file-count"
               >
-                {{ store.treeNodes.value.length }} 项 (Visible)
+                {{ t('page.tree.itemCount', { count: store.treeNodes.value.length }) }}
               </div>
 
               <!-- 批量添加 -->
               <details class="dropdown dropdown-end">
                 <summary
                   class="btn btn-sm btn-circle"
-                  aria-label="批量添加"
+                  :aria-label="t('common.batchAdd')"
                   data-testid="file-batch-add"
                   type="button"
                 >
@@ -283,7 +280,7 @@ const getIconComponent = (iconName: string) => {
                         class="loading loading-spinner loading-xs"
                         v-if="loadingActions.has('add_many')"
                       />
-                      添加 {{ option.label }}
+                      {{ t('page.file.batchAddCount', { count: option.count }) }}
                     </button>
                   </li>
                 </ul>
@@ -297,7 +294,7 @@ const getIconComponent = (iconName: string) => {
                   class="btn btn-sm join-item"
                   :disabled="undoCount === 0"
                   @click="history.undo()"
-                  aria-label="撤销"
+                  :aria-label="t('common.undo')"
                   data-testid="file-undo"
                 >
                   <Undo2 :size="16" />
@@ -313,7 +310,7 @@ const getIconComponent = (iconName: string) => {
                   class="btn btn-sm join-item"
                   :disabled="redoCount === 0"
                   @click="history.redo()"
-                  aria-label="重做"
+                  :aria-label="t('common.redo')"
                   data-testid="file-redo"
                 >
                   <Redo2 :size="16" />
@@ -332,7 +329,7 @@ const getIconComponent = (iconName: string) => {
                 class="btn btn-sm"
                 :class="{ 'btn-primary': showHistory }"
                 @click="showHistory = !showHistory"
-                aria-label="历史记录"
+                :aria-label="t('history.open')"
                 data-testid="file-history"
               >
                 <History :size="16" />
@@ -344,12 +341,12 @@ const getIconComponent = (iconName: string) => {
           <div class="flex flex-wrap items-center justify-between gap-2">
             <div class="flex items-center gap-2">
               <div class="bg-base-100 border-base-200 flex items-center gap-2 rounded-lg border px-3 py-1 shadow-sm">
-                <span class="text-xs opacity-70">已展开</span>
+                <span class="text-xs opacity-70">{{ t('page.tree.expanded') }}</span>
                 <span class="font-mono text-lg font-bold">{{ store.expandedCount.value }}</span>
               </div>
               <button
                 class="btn btn-sm btn-ghost btn-square"
-                :title="store.isAllExpanded.value ? '折叠全部' : '展开全部'"
+                :title="store.isAllExpanded.value ? t('common.collapseAll') : t('common.expandAll')"
                 @click="store.isAllExpanded.value ? store.collapseAll() : store.expandAll()"
               >
                 <ChevronsUp
@@ -377,7 +374,7 @@ const getIconComponent = (iconName: string) => {
                   v-else
                   :size="16"
                 />
-                删除所有数据
+                {{ t('common.deleteAll') }}
               </button>
             </div>
           </div>
@@ -393,14 +390,14 @@ const getIconComponent = (iconName: string) => {
                 class="input input-bordered input-sm w-full pl-10"
                 v-model="store.searchKeyword.value"
                 data-testid="file-search-input"
-                placeholder="搜索文件..."
+                :placeholder="t('page.file.searchPlaceholder')"
                 type="text"
               />
               <button
                 class="btn btn-ghost btn-xs absolute top-1/2 right-2 -translate-y-1/2"
                 v-if="store.searchKeyword.value"
                 @click="store.clearSearch"
-                aria-label="清除搜索"
+                :aria-label="t('common.clearSearch')"
               >
                 <X :size="14" />
               </button>
@@ -412,15 +409,15 @@ const getIconComponent = (iconName: string) => {
               v-model="store.sortMode.value"
               data-testid="file-sort-select"
             >
-              <option value="manual">自由排序</option>
-              <option value="name-asc">名称 A→Z</option>
-              <option value="name-desc">名称 Z→A</option>
-              <option value="type-asc">文件夹优先</option>
-              <option value="type-desc">文件优先</option>
-              <option value="ext-asc">扩展名 A→Z</option>
-              <option value="ext-desc">扩展名 Z→A</option>
-              <option value="size-asc">大小 ↑</option>
-              <option value="size-desc">大小 ↓</option>
+              <option value="manual">{{ t('page.tree.sortFree') }}</option>
+              <option value="name-asc">{{ t('page.tree.nameAsc') }}</option>
+              <option value="name-desc">{{ t('page.tree.nameDesc') }}</option>
+              <option value="type-asc">{{ t('page.tree.folderFirst') }}</option>
+              <option value="type-desc">{{ t('page.tree.fileFirst') }}</option>
+              <option value="ext-asc">{{ t('page.tree.extensionAsc') }}</option>
+              <option value="ext-desc">{{ t('page.tree.extensionDesc') }}</option>
+              <option value="size-asc">{{ t('page.tree.sizeAsc') }}</option>
+              <option value="size-desc">{{ t('page.tree.sizeDesc') }}</option>
             </select>
           </div>
 
@@ -436,13 +433,13 @@ const getIconComponent = (iconName: string) => {
                 :size="14"
               />
               <span class="flex-1">
-                将添加到:
+                {{ t('page.file.addTo') }}
                 <span class="font-semibold">{{ store.getSelectedFolderName() }}</span>
               </span>
               <button
                 class="btn btn-ghost btn-xs"
                 @click="store.cancelSelectFolder"
-                aria-label="取消选择"
+                :aria-label="t('page.file.cancelSelect')"
               >
                 <X :size="14" />
               </button>
@@ -457,7 +454,7 @@ const getIconComponent = (iconName: string) => {
                 class="btn btn-sm"
                 :class="store.isAddingFile.value ? 'btn-info' : 'btn-warning'"
                 @click="store.toggleAddingMode"
-                aria-label="切换模式"
+                :aria-label="t('common.switchMode')"
                 data-testid="file-mode-toggle"
                 type="button"
               >
@@ -469,7 +466,7 @@ const getIconComponent = (iconName: string) => {
                   v-else
                   :size="16"
                 />
-                {{ store.isAddingFile.value ? '文件' : '文件夹' }}
+                {{ store.isAddingFile.value ? t('page.file.file') : t('page.file.folder') }}
               </button>
 
               <!-- 扩展名选择器 (仅文件模式) -->
@@ -491,9 +488,9 @@ const getIconComponent = (iconName: string) => {
                 class="input input-bordered input-sm flex-1"
                 v-model="newName"
                 :placeholder="
-                  store.isAddingFile.value ?
-                    '添加文件' + (store.selectedFolderId.value ? '' : ' (根目录)') + '...'
-                  : '添加文件夹' + (store.selectedFolderId.value ? '' : ' (根目录)') + '...'
+                  t(store.isAddingFile.value ? 'page.file.rootNamePlaceholder' : 'page.file.folderNamePlaceholder', {
+                    suffix: store.selectedFolderId.value ? '' : t('page.file.rootSuffix')
+                  })
                 "
                 data-testid="file-name-input"
                 type="text"
@@ -506,7 +503,7 @@ const getIconComponent = (iconName: string) => {
                 type="submit"
               >
                 <Plus :size="16" />
-                添加
+                {{ t('common.add') }}
               </button>
             </form>
           </div>
@@ -530,7 +527,7 @@ const getIconComponent = (iconName: string) => {
             v-if="store.treeNodes.value.length === 0"
           >
             <div class="hero-content text-center">
-              <h1 class="text-sm font-bold">暂无文件数据</h1>
+              <h1 class="text-sm font-bold">{{ t('page.tree.emptyFile') }}</h1>
             </div>
           </div>
           <div
@@ -596,7 +593,7 @@ const getIconComponent = (iconName: string) => {
                   @mousedown.stop
                   @click.stop
                   data-testid="file-drag-handle"
-                  title="拖拽排序"
+                  :title="t('common.dragSort')"
                   @pointerdown="handlePointerDragStart($event, node.file.id)"
                   @pointermove="handlePointerMove"
                   @pointerup="handlePointerUp"
@@ -706,16 +703,16 @@ const getIconComponent = (iconName: string) => {
                     class="btn btn-ghost btn-xs"
                     v-if="node.file.type === 'folder'"
                     @click="store.selectFolder(node.file.id)"
-                    aria-label="添加子项"
+                    :aria-label="t('common.addChild')"
                     data-testid="file-select-parent"
-                    title="选择为父文件夹"
+                    :title="t('page.file.selectParentFolder')"
                   >
                     <Plus :size="14" />
                   </button>
                   <button
                     class="btn btn-ghost btn-xs text-primary"
                     @click="store.startEdit(node.file.id)"
-                    aria-label="编辑"
+                    :aria-label="t('common.edit')"
                     data-testid="file-edit"
                   >
                     <Pen :size="14" />
@@ -723,7 +720,7 @@ const getIconComponent = (iconName: string) => {
                   <button
                     class="btn btn-ghost btn-xs text-error"
                     @click="store.showDeleteDialog(node.file)"
-                    aria-label="删除"
+                    :aria-label="t('common.delete')"
                     data-testid="file-delete"
                   >
                     <Trash2 :size="14" />
@@ -742,16 +739,19 @@ const getIconComponent = (iconName: string) => {
       v-if="store.fileToDelete.value"
     >
       <div class="modal-box">
-        <h3 class="text-lg font-bold">确认删除</h3>
+        <h3 class="text-lg font-bold">{{ t('page.tree.confirmDelete') }}</h3>
 
         <div class="py-4">
           <p class="mb-3">
-            确定要删除
-            <span class="text-primary font-semibold">
-              "{{ store.fileToDelete.value.name
-              }}{{ store.fileToDelete.value.extension ? '.' + store.fileToDelete.value.extension : '' }}"
-            </span>
-            吗？
+            {{
+              t('page.file.deleteOne', {
+                name:
+                  '"' +
+                  store.fileToDelete.value.name +
+                  (store.fileToDelete.value.extension ? '.' + store.fileToDelete.value.extension : '') +
+                  '"'
+              })
+            }}
           </p>
 
           <div
@@ -760,11 +760,11 @@ const getIconComponent = (iconName: string) => {
           >
             <TriangleAlert :size="20" />
             <div class="flex flex-col gap-1 text-sm">
-              <p class="font-medium">此操作将级联删除：</p>
+              <p class="font-medium">{{ t('page.tree.cascadeDelete') }}</p>
               <ul class="ml-4 list-disc">
-                <li>{{ store.deleteImpact.value.childrenCount }} 个直接子项</li>
+                <li>{{ t('page.file.directChildrenCount', { count: store.deleteImpact.value.childrenCount }) }}</li>
                 <li v-if="store.deleteImpact.value.descendantsCount > store.deleteImpact.value.childrenCount">
-                  共 {{ store.deleteImpact.value.descendantsCount }} 个所有后代节点
+                  {{ t('page.file.descendantsCount', { count: store.deleteImpact.value.descendantsCount }) }}
                 </li>
               </ul>
             </div>
@@ -777,7 +777,7 @@ const getIconComponent = (iconName: string) => {
             @click="store.cancelDelete"
             type="button"
           >
-            取消
+            {{ t('common.cancel') }}
           </button>
           <button
             class="btn btn-error"
@@ -785,7 +785,9 @@ const getIconComponent = (iconName: string) => {
             type="button"
           >
             <Trash2 :size="16" />
-            {{ store.deleteImpact.value.childrenCount > 0 ? '级联删除' : '确认删除' }}
+            {{
+              store.deleteImpact.value.childrenCount > 0 ? t('page.tree.deleteCascade') : t('page.tree.confirmDelete')
+            }}
           </button>
         </div>
       </div>
@@ -795,10 +797,10 @@ const getIconComponent = (iconName: string) => {
         method="dialog"
       >
         <button
-          aria-label="关闭对话框"
+          :aria-label="t('common.close')"
           type="button"
         >
-          close
+          {{ t('common.close') }}
         </button>
       </form>
     </dialog>

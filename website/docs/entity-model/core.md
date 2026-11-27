@@ -122,7 +122,7 @@ if (!result.valid) {
 }
 ```
 
-脱离状态容器单独使用：`QueryConverter`（`toRxDBQuery(state)` / `fromRxDBQuery(query)`，`state` 为 `{ rootGroup }` 形态的 `QueryBuilderState`）、`ValidationService`（`validateRule` / `validateGroup`）、`createOperatorRegistry` / `getDefaultOperatorRegistry`、`createSchemaParser`。核心模型（`UIRule`、`QueryBuilderRuleGroup`、`FieldMetadata`、`ValidationResult`）与完整导出见 [API 文档](../api/rxdb-model)。
+脱离状态容器单独使用：`QueryConverter`（`toRxDBQuery(state)` / `fromRxDBQuery(query)`，`state` 为 `{ rootGroup }` 形态的 `QueryBuilderState`）、`ValidationService`（`validateRule` / `validateGroup`）、`createOperatorRegistry` / `getDefaultOperatorRegistry`、`createSchemaParser`。核心模型（`UIRule`、`QueryBuilderRuleGroup`、`FieldMetadata`、`ValidationResult`）与完整导出见 [API 文档](../api)。
 
 ## 手动排序实体（US-028）
 
@@ -130,4 +130,4 @@ if (!result.valid) {
 
 ## 界面能力派生（US-027）
 
-`deriveEntityCapabilities(metadata)` 把实体的写操作权限（create / update / delete 各为 `both` 或 `system`）投影为界面能力 `{ canCreate, canEdit, canDelete }`：`EntityList` 据此隐藏「+ 新增」、把行降级为只读（详情以查看模式打开）、或隐藏操作列的删除入口。权限声明与运行时判定语义见[实体操作权限](../model-definition/permissions.md)。
+`deriveEntityCapabilities(metadata)` 把实体的写操作权限（create / update / delete 各为 `both` 或 `system`）投影为界面能力 `{ canCreate, canEdit, canDelete }`：`EntityList` 据此隐藏「+ 新增」、把行降级为只读（详情以查看模式打开）、或隐藏操作列的删除入口。权限声明与运行时判定语义见[实体操作权限](/model-definition/permissions.md)。

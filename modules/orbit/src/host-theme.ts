@@ -30,6 +30,8 @@ export interface OrbitHost {
   bus?: OrbitBus;
   props?: {
     [key: string]: unknown;
+    /** 宿主下发的 UI 语言，启动期读取一次；解析见 {@link parseHostLocale}。 */
+    locale?: unknown;
     theme?: unknown;
   };
 }

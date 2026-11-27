@@ -10,10 +10,23 @@ export interface LocalePreferences {
   defaultLocale: string;
 }
 
+/** 当前 UI 支持的语言。 */
+export type UiLocale = 'en' | 'zh-Hans';
+
 /** 将非空 BCP 47 标签规范化；非法标签抛出 RangeError。 */
 export const canonicalizeLocale = (locale: string): string => {
   if (!locale.trim()) throw new RangeError('locale must be a non-empty BCP 47 tag');
   return Intl.getCanonicalLocales(locale)[0];
+};
+
+/** 将宿主语言归一到当前 UI 支持的语言集合，未知值回退简体中文。 */
+export const resolveUiLocale = (locale?: string): UiLocale => {
+  if (!locale?.trim()) return 'zh-Hans';
+  try {
+    return new Intl.Locale(canonicalizeLocale(locale)).language === 'en' ? 'en' : 'zh-Hans';
+  } catch {
+    return 'zh-Hans';
+  }
 };
 
 const parents = (locale: string): string[] => {

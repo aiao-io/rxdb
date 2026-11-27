@@ -94,7 +94,7 @@ test.describe('Storage Page', () => {
     await disableSavePicker(page);
     await page.goto('/storage');
     await expect(page.getByTestId(T.PAGE)).toBeVisible({ timeout: 15000 });
-    await page.getByRole('tab', { name: 'List' }).click();
+    await page.getByRole('tab', { name: '列表', exact: true }).click();
     await clearStorageIfNeeded(page);
   });
 

@@ -1,5 +1,5 @@
 import type { RxDB } from '@aiao/rxdb';
-import { STORAGE_LABELS } from '@aiao/utils';
+import { type FileMessage, fileError, fileMessage } from '@modules/demo-i18n/files';
 import { getUploadDirectory } from './storage-page.helpers';
 import { downloadEntriesAsZip } from './storage-page.zip';
 import type { StorageBrowserItem } from './utils/storage-utils';
@@ -12,7 +12,7 @@ export interface StoragePageTransferHost {
   findExistingFileEntry: (fileName: string, directoryPath: string) => StorageBrowserItem | null;
   refresh: () => Promise<void>;
   resolveOverwrite?: (file: File, existingEntry: StorageBrowserItem) => Promise<boolean>;
-  showToast: (message: string, type?: 'error' | 'success' | 'info') => void;
+  showToast: (message: string | FileMessage, type?: 'error' | 'success' | 'info') => void;
 }
 
 export class StoragePageTransfer {
@@ -50,14 +50,17 @@ export class StoragePageTransfer {
         successCount++;
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        this.host.showToast(message.includes('already exists') ? STORAGE_LABELS.FILE_EXISTS : message, 'error');
+        this.host.showToast(
+          message.includes('already exists') ? fileMessage('file.fileExists') : fileError('file.uploadFailed', err),
+          'error'
+        );
         return;
       }
     }
 
     if (successCount > 0) {
       this.host.showToast(
-        successCount === 1 ? STORAGE_LABELS.UPLOAD_SUCCESS : `Uploaded ${successCount} files`,
+        successCount === 1 ? fileMessage('file.uploadSuccess') : fileMessage('file.uploaded', { count: successCount }),
         'success'
       );
       await this.host.refresh();
@@ -67,7 +70,7 @@ export class StoragePageTransfer {
   async handleUploadFolder(files: File[]): Promise<void> {
     if (files.length === 0) return;
 
-    this.host.showToast(`Uploading folder with ${files.length} files...`, 'info');
+    this.host.showToast(fileMessage('file.uploadingFolder', { count: files.length }), 'info');
 
     let successCount = 0;
     let failedCount = 0;
@@ -100,26 +103,29 @@ export class StoragePageTransfer {
     await this.host.refresh();
 
     if (failedCount > 0) {
-      this.host.showToast(`Upload finished: ${successCount} succeeded, ${failedCount} failed`, 'error');
+      this.host.showToast(
+        fileMessage('file.uploadFinished', { succeeded: successCount, failed: failedCount }),
+        'error'
+      );
     } else {
-      this.host.showToast(`Uploaded ${successCount} files`, 'success');
+      this.host.showToast(fileMessage('file.uploaded', { count: successCount }), 'success');
     }
   }
 
   async handleDownload(entry: StorageBrowserItem): Promise<void> {
     if (entry.kind === 'directory') {
-      this.host.showToast(`Preparing ${entry.name}...`, 'info');
+      this.host.showToast(fileMessage('file.preparingFile', { name: entry.name }), 'info');
 
       try {
         const fileCount = await downloadEntriesAsZip(this.storage, [entry], `${entry.name}.zip`);
         this.host.showToast(
           fileCount === 0 ?
-            `Downloaded empty folder ${entry.name}`
-          : `Downloaded ${fileCount} files from ${entry.name}`,
+            fileMessage('file.downloadedEmptyFolder', { name: entry.name })
+          : fileMessage('file.downloadedFromFolder', { count: fileCount, name: entry.name }),
           'success'
         );
       } catch (err) {
-        this.host.showToast(err instanceof Error ? err.message : String(err), 'error');
+        this.host.showToast(fileError('file.downloadFailed', err), 'error');
       }
 
       return;
@@ -132,13 +138,13 @@ export class StoragePageTransfer {
     try {
       await this.storage.download(entry.meta.id);
     } catch (err) {
-      this.host.showToast(err instanceof Error ? err.message : String(err), 'error');
+      this.host.showToast(fileError('file.downloadFailed', err), 'error');
     }
   }
 
   async handleBatchDownload(selectedEntries: StorageBrowserItem[], archiveName: string): Promise<void> {
     if (selectedEntries.length === 0) {
-      this.host.showToast('No files selected', 'error');
+      this.host.showToast(fileMessage('file.noSelection'), 'error');
       return;
     }
 
@@ -147,18 +153,18 @@ export class StoragePageTransfer {
       return;
     }
 
-    this.host.showToast(`Preparing ${selectedEntries.length} items...`, 'info');
+    this.host.showToast(fileMessage('file.preparingItems', { count: selectedEntries.length }), 'info');
 
     try {
       const fileCount = await downloadEntriesAsZip(this.storage, selectedEntries, archiveName);
       this.host.showToast(
         fileCount === 0 ?
-          `Downloaded ${selectedEntries.length} empty folders`
-        : `Downloaded ${selectedEntries.length} items (${fileCount} files)`,
+          fileMessage('file.downloadedEmptyFolders', { count: selectedEntries.length })
+        : fileMessage('file.downloadedItems', { count: selectedEntries.length, files: fileCount }),
         'success'
       );
     } catch (err) {
-      this.host.showToast(err instanceof Error ? err.message : String(err), 'error');
+      this.host.showToast(fileError('file.downloadFailed', err), 'error');
     }
   }
 }

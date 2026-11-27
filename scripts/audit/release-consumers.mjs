@@ -166,6 +166,7 @@ const COMBOS = [
     directories: [
       'utils',
       'rxdb',
+      'rxdb-i18n',
       'rxdb-adapter-encrypted',
       'rxdb-adapter-sqlite-core',
       'rxdb-adapter-pglite',

@@ -1,6 +1,7 @@
 import { isHexColor, nextLabelColor, type BoardLabel, type DeletePlan } from '@aiao/rxdb-plugin-board';
 import type { MouseEvent } from 'react';
 
+import { boardT } from '../board-i18n.js';
 import type { ModelGetter, TriggerEvent } from './model.js';
 import type { DialogState, LabelEditorState } from './types.js';
 import { useStateRef, type LatestRef } from './use-state-ref.js';
@@ -33,9 +34,9 @@ export interface DialogModel {
 }
 
 const deletedMessage = (plan: DeletePlan): string => {
-  if (plan.kind === 'task') return `已删除任务「${plan.taskTitle}」`;
-  if (plan.kind === 'column') return `已删除列「${plan.columnTitle}」`;
-  return `已删除看板「${plan.boardTitle}」`;
+  if (plan.kind === 'task') return boardT('view.toast.deletedTask', { title: plan.taskTitle });
+  if (plan.kind === 'column') return boardT('view.toast.deletedColumn', { title: plan.columnTitle });
+  return boardT('view.toast.deletedBoard', { title: plan.boardTitle });
 };
 
 const sameColor = (a: string, b: string): boolean => a.toLowerCase() === b.trim().toLowerCase();
@@ -136,7 +137,7 @@ export const useDialogModel = (core: ViewCore, model: ModelGetter): DialogModel 
         await actions().executeLabelDelete(current.plan);
         return true;
       });
-      if (deleted) core.showToast(`已删除标签「${current.plan.labelName}」`, true);
+      if (deleted) core.showToast(boardT('view.toast.deletedLabel', { name: current.plan.labelName }), true);
     },
     startCreateLabel: () => {
       const colors = core.boardRef.current.labels.map(label => label.color);

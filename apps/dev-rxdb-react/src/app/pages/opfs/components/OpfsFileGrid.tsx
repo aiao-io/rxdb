@@ -1,3 +1,5 @@
+import { useI18n } from '@aiao/rxdb-i18n-react';
+import { formatFileSize } from '@modules/demo-i18n/files';
 /**
  * OPFS 文件网格组件
  */
@@ -6,14 +8,7 @@ import { Download, Eye, Pen, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useObjectUrlMap } from '../../../hooks/loadObjectUrlMap';
 import { useOpfsService } from '../hooks/useOpfsService';
-import {
-  canPreviewFile,
-  formatFileSize,
-  getFileIcon,
-  getFileIconColor,
-  isImageFile,
-  OPFSFileEntry
-} from '../utils/opfs-utils';
+import { canPreviewFile, getFileIcon, getFileIconColor, isImageFile, OPFSFileEntry } from '../utils/opfs-utils';
 
 interface Props {
   entries: OPFSFileEntry[];
@@ -44,6 +39,7 @@ export function OpfsFileGrid({
   onContextMenu,
   onEntryClick
 }: Props) {
+  const { t, locale } = useI18n();
   const clickTimeoutRef = useRef<number | null>(null);
   const imageEntries = useMemo(() => entries.filter(isImageFile), [entries]);
   const loadThumbnail = useCallback(
@@ -127,7 +123,7 @@ export function OpfsFileGrid({
                 {entry.name}
               </h2>
               {entry.kind === 'file' && (
-                <p className='text-base-content/60 text-[10px]'>{formatFileSize(entry.size || 0)}</p>
+                <p className='text-base-content/60 text-[10px]'>{formatFileSize(entry.size || 0, locale)}</p>
               )}
             </div>
 
@@ -139,7 +135,7 @@ export function OpfsFileGrid({
                     e.stopPropagation();
                     onPreview(entry);
                   }}
-                  title='预览'
+                  title={t('file.preview')}
                 >
                   <Eye size={12} />
                 </button>
@@ -151,7 +147,7 @@ export function OpfsFileGrid({
                     e.stopPropagation();
                     onDownload(entry);
                   }}
-                  title='下载'
+                  title={t('file.download')}
                 >
                   <Download size={12} />
                 </button>
@@ -163,7 +159,7 @@ export function OpfsFileGrid({
                   event.stopPropagation();
                   onRename(entry);
                 }}
-                title='重命名'
+                title={t('file.rename')}
               >
                 <Pen size={12} />
               </button>
@@ -173,7 +169,7 @@ export function OpfsFileGrid({
                   e.stopPropagation();
                   onDelete(entry);
                 }}
-                title='删除'
+                title={t('file.delete')}
               >
                 <Trash2 size={12} />
               </button>
