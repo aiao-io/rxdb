@@ -680,14 +680,14 @@ const scopeShapeIssue = (scope: unknown): AccessIssue | null => {
   if (unknownKeys.length > 0) {
     return { field: 'access.scope', message: `不接受键 ${unknownKeys.join('、')}：只有 property / prefix` };
   }
-  if (typeof scope.property !== 'string' || scope.property.length === 0) {
+  if (typeof scope['property'] !== 'string' || scope['property'].length === 0) {
     return {
       field: 'access.scope.property',
-      message: `property 必须是非空字符串，实际为 ${JSON.stringify(scope.property)}`
+      message: `property 必须是非空字符串，实际为 ${JSON.stringify(scope['property'])}`
     };
   }
-  if (scope.prefix !== undefined && typeof scope.prefix !== 'string') {
-    return { field: 'access.scope.prefix', message: `prefix 必须是字符串，实际为 ${JSON.stringify(scope.prefix)}` };
+  if (scope['prefix'] !== undefined && typeof scope['prefix'] !== 'string') {
+    return { field: 'access.scope.prefix', message: `prefix 必须是字符串，实际为 ${JSON.stringify(scope['prefix'])}` };
   }
   return null;
 };
@@ -699,8 +699,9 @@ const accessShapeIssue = (access: unknown): AccessIssue | null => {
   }
   const unknownKeys = Object.keys(access).filter(key => key !== 'scope');
   if (unknownKeys.length > 0) return { field: 'access', message: `不接受键 ${unknownKeys.join('、')}：只有 scope` };
-  if (access.scope === undefined) return { field: 'access.scope', message: "缺 scope，形如 { property: 'tenantId' }" };
-  return scopeShapeIssue(access.scope);
+  if (access['scope'] === undefined)
+    return { field: 'access.scope', message: "缺 scope，形如 { property: 'tenantId' }" };
+  return scopeShapeIssue(access['scope']);
 };
 
 /**

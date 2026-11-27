@@ -97,19 +97,28 @@ export async function pull(sm: SyncManager, options?: PullOptions): Promise<Pull
  *
  * @remarks
  * 环上有按条件或按区同步、不能拉取或同步关着的成员时补不齐，原因见 {@link cycleMemberPullDetail}。
+ * 环及其下游都未配置拉取时，直接跳过该环。
  */
 async function blockedPullCycles(
   sm: SyncManager,
   bucketedRepositories: ReadonlySet<string>
 ): Promise<{ excluded: Set<string>; failures: SyncFailure[] }> {
-  const graph = buildDependencyGraph(sm.rxdb.config.entities.map(EntityType => getEntityMetadata(EntityType)));
+  const entities = sm.rxdb.config.entities.map(EntityType => getEntityMetadata(EntityType));
+  const graph = buildDependencyGraph(entities);
   const cycles = await unsupportedPullCycles(graph, repo =>
     cycleMemberPullDetail(sm.rxdb, repo, bucketedRepositories.has(repositoryKey(repo)))
+  );
+  const pullable = new Set(
+    entities
+      .filter(metadata => getSyncCapability(getSyncType(metadata, sm.rxdb.entitySync)).pull)
+      .map(metadata => repositoryKey({ namespace: metadata.namespace, entity: metadata.name }))
   );
 
   const excluded = new Set<string>();
   const failures: SyncFailure[] = [];
   for (const { cycle, member, detail } of cycles) {
+    const downstream = downstreamOf(graph, cycle.members);
+    if (![...cycle.members, ...downstream].some(repo => pullable.has(repositoryKey(repo)))) continue;
     const cause = new RxDBForeignKeyCycleError(member, cycle, 'pull-unsupported-member', detail);
     for (const repo of cycle.members) {
       if (excluded.has(repositoryKey(repo))) continue;
@@ -119,7 +128,7 @@ async function blockedPullCycles(
         error: new RxDBForeignKeyCycleError(repo, cycle, 'pull-unsupported-member', detail)
       });
     }
-    for (const child of downstreamOf(graph, cycle.members)) {
+    for (const child of downstream) {
       if (excluded.has(repositoryKey(child))) continue;
       excluded.add(repositoryKey(child));
       failures.push({ repository: child, error: new RxDBDependencyFailedError(child, member, cause) });

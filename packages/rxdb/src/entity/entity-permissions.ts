@@ -58,7 +58,7 @@ export const getEntityPermission = (
  * 只认形状，不认内容：空串、未知键由注册期校验报出来，判定期拿到的都是已经校验过的元数据。
  */
 export const isEntityOperationRule = (value: unknown): value is EntityOperationRule =>
-  isPlainRecord(value) && typeof value.requires === 'string';
+  isPlainRecord(value) && typeof value['requires'] === 'string';
 
 /**
  * 读取实体对某个写操作的规则（US-029）

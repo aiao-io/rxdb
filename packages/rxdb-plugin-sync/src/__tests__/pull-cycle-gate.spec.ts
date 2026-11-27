@@ -185,6 +185,29 @@ describe('pull() 挡下拉取补不齐的外键环（US-038）', () => {
     expect(excludedOf()).toEqual(new Set(['gate:GateUser', 'gate:GateCard', 'gate:GateStamp']));
   });
 
+  it('外键环及其下游都只存本地时，无关仓库照常拉取且不报外键环错误', async () => {
+    const sm = syncManagerOf(new Map([GateUser, GateCard, GateStamp].map(entity => [getEntityMetadata(entity), NONE])));
+
+    const result = await pull(sm);
+
+    expect(result.failures).toEqual([]);
+    expect(pullBatch).toHaveBeenCalledTimes(1);
+    expect(excludedOf()).toEqual(new Set());
+  });
+
+  it('外键环只存本地且下游需要拉取时，仍阻止下游拉取', async () => {
+    const sm = syncManagerOf(new Map([GateUser, GateCard].map(entity => [getEntityMetadata(entity), NONE])));
+
+    const result = await pull(sm);
+
+    expect(describeFailures(result.failures)).toEqual([
+      ['GateUser', 'pull-unsupported-member'],
+      ['GateCard', 'pull-unsupported-member'],
+      ['GateStamp', 'depends on GateUser']
+    ]);
+    expect(excludedOf()).toEqual(new Set(['gate:GateUser', 'gate:GateCard', 'gate:GateStamp']));
+  });
+
   it('环上有同步关着的成员：同样整个环与下游不拉，失败说明同步关着', async () => {
     disabledRepositories.add('gate:GateCard');
 
