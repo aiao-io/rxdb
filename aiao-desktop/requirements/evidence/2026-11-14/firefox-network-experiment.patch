@@ -1,0 +1,326 @@
+diff --git a/aiao-desktop/apps/e2e/src/groups/integrated-app.mjs b/aiao-desktop/apps/e2e/src/groups/integrated-app.mjs
+index 9722dc4a..b0afb628 100644
+--- a/aiao-desktop/apps/e2e/src/groups/integrated-app.mjs
++++ b/aiao-desktop/apps/e2e/src/groups/integrated-app.mjs
+@@ -87,9 +87,30 @@ export const integratedApp = {
+     integratedApp.clickActivates =
+       (await vscodeWin.evaluate(node => node.classList.contains('front'))) &&
+       (await page.locator('#menubar .mb-item.app').textContent())?.trim() === 'Aiao Code';
++    const keyboardFrame = await standinFrame();
++    await keyboardFrame.evaluate(() => {
++      window['__focusProbeKeys'] = [];
++      addEventListener('keydown', event => window['__focusProbeKeys'].push(event.key));
++    });
+     await page.keyboard.type('xyz');
+     await page.waitForTimeout(200);
+     integratedApp.keyboardReachesApp = (await standin()).text?.endsWith('xyz') === true;
++    if (!integratedApp.keyboardReachesApp) {
++      console.error('集成应用焦点诊断', JSON.stringify({
++        frameType: keyboardFrame.constructor.name,
++        parent: await page.evaluate(() => ({
++          focused: document.hasFocus(),
++          active: document.activeElement?.outerHTML,
++          shadowActive: document.querySelector('aiao-orbit')?.shadowRoot?.activeElement?.outerHTML
++        })),
++        child: await keyboardFrame.evaluate(() => ({
++          focused: document.hasFocus(),
++          active: document.activeElement?.outerHTML,
++          keys: window['__focusProbeKeys'],
++          userActive: navigator.userActivation.isActive
++        }))
++      }));
++    }
+ 
+     /* 菜单打开时点进应用：菜单收起。 */
+     await page.locator('#menubar .mb-item.apple').dispatchEvent('mousedown');
+diff --git a/aiao-desktop/apps/e2e/src/groups/window-layout.mjs b/aiao-desktop/apps/e2e/src/groups/window-layout.mjs
+index a22a3031..eb5127ad 100644
+--- a/aiao-desktop/apps/e2e/src/groups/window-layout.mjs
++++ b/aiao-desktop/apps/e2e/src/groups/window-layout.mjs
+@@ -507,7 +507,7 @@ async function integratedApp({ session, result, requests }, mode) {
+   const ready = vscodeWin.locator('.webapp[data-webapp-state="ready"]');
+   /** 应用入口文档的请求（替身自己的脚本不算）：刷新后重新握手意味着入口被重新请求。 */
+   const entryRequestsSince = start =>
+-    requests.slice(start).filter(url => url.startsWith('https://vscode.aiao.io/') && !url.includes('/__standin/'))
++    requests.slice(start).filter(url => url.startsWith(`${session.aiaoCode.origin}/`) && !url.includes('/__standin/'))
+       .length;
+ 
+   await page.locator('#dock .di[data-app="vscode"]').click();
+diff --git a/aiao-desktop/apps/e2e/src/harness/capabilities.mjs b/aiao-desktop/apps/e2e/src/harness/capabilities.mjs
+index 0da6f8be..78227e62 100644
+--- a/aiao-desktop/apps/e2e/src/harness/capabilities.mjs
++++ b/aiao-desktop/apps/e2e/src/harness/capabilities.mjs
+@@ -66,7 +66,7 @@ export async function grantCapabilities(session, capabilities) {
+     url => url.origin === origin && url.pathname === `/${file}`,
+     async route => {
+       const response = await route.fetch();
+-      await route.fulfill({ response, body: source });
++      await route.fulfill({ response, body: session.aiaoCode.rewriteSource(source) });
+     }
+   );
+   return { file, original, granted: [...capabilities] };
+diff --git a/aiao-desktop/apps/e2e/src/harness/network-standin.mjs b/aiao-desktop/apps/e2e/src/harness/network-standin.mjs
+new file mode 100644
+index 00000000..1456348d
+--- /dev/null
++++ b/aiao-desktop/apps/e2e/src/harness/network-standin.mjs
+@@ -0,0 +1,100 @@
++import { execFile } from 'node:child_process';
++import { createReadStream, existsSync, statSync } from 'node:fs';
++import { mkdtemp, readFile, rm } from 'node:fs/promises';
++import { createServer } from 'node:https';
++import { tmpdir } from 'node:os';
++import { extname, join, normalize } from 'node:path';
++import { promisify } from 'node:util';
++
++import { contentTypes, isolationHeaders } from '../fixtures/artifact-server.mjs';
++
++/** 证书只用于本次测试上下文，不安装到系统信任库，读取后立即删除临时文件。 */
++async function testCertificate() {
++  const directory = await mkdtemp(join(tmpdir(), 'aiao-standin-tls-'));
++  const key = join(directory, 'key.pem');
++  const cert = join(directory, 'cert.pem');
++  try {
++    await promisify(execFile)('openssl', [
++      'req',
++      '-x509',
++      '-newkey',
++      'rsa:2048',
++      '-nodes',
++      '-days',
++      '1',
++      '-subj',
++      '/CN=127.0.0.1',
++      '-addext',
++      'subjectAltName=IP:127.0.0.1',
++      '-keyout',
++      key,
++      '-out',
++      cert
++    ]);
++    const [keyBytes, certBytes] = await Promise.all([readFile(key), readFile(cert)]);
++    return { key: keyBytes, cert: certBytes };
++  } finally {
++    await rm(directory, { recursive: true, force: true });
++  }
++}
++
++/** 在独立的 loopback Origin 托管替身，避免 Firefox 无法操作 route.fulfill 生成的跨源文档。 */
++export async function startStandinServer({ scriptsRoot, document, offline = () => false }) {
++  const server = createServer(await testCertificate(), (request, response) => {
++    if (offline()) {
++      request.socket.destroy();
++      return;
++    }
++    const pathname = decodeURIComponent(new URL(request.url ?? '/', 'http://localhost').pathname);
++    const headers = {
++      ...isolationHeaders,
++      'Cross-Origin-Resource-Policy': 'cross-origin',
++      'Cache-Control': 'no-store'
++    };
++    if (pathname === '/') {
++      response.writeHead(200, { ...headers, 'Content-Type': contentTypes['.html'] });
++      response.end(document());
++      return;
++    }
++    const script = pathname.startsWith('/__standin/orbit/') ? pathname.slice('/__standin/orbit/'.length) : null;
++    const file = script === null ? '' : normalize(join(scriptsRoot, script));
++    if (!file.startsWith(`${scriptsRoot}/`) || !existsSync(file) || !statSync(file).isFile()) {
++      response.writeHead(404);
++      response.end('Not found');
++      return;
++    }
++    response.writeHead(200, { ...headers, 'Content-Type': contentTypes[extname(file)] ?? 'application/octet-stream' });
++    createReadStream(file).pipe(response);
++  });
++  await new Promise((resolve, reject) => {
++    server.once('error', reject);
++    server.listen(0, '127.0.0.1', resolve);
++  });
++  const address = server.address();
++  if (!address || typeof address === 'string') throw new Error('替身服务器未取得端口');
++  return {
++    origin: `https://127.0.0.1:${address.port}`,
++    async close() {
++      server.closeAllConnections();
++      await new Promise((resolve, reject) => server.close(error => (error ? reject(error) : resolve())));
++    }
++  };
++}
++
++/** 仅替换被测上下文里的应用 Origin；真实跨源文档由 HTTPS 返回，产品产物与允许来源的推导逻辑原样使用。 */
++export async function installNetworkStandin(
++  context,
++  { desktopOrigin, originalOrigin, scriptsRoot, document, offline, allowedOrigins }
++) {
++  const server = await startStandinServer({ scriptsRoot, document, offline });
++  allowedOrigins.add(server.origin);
++  const rewriteSource = source => source.replaceAll(originalOrigin, server.origin);
++  await context.route(
++    url => url.origin === desktopOrigin && url.pathname.endsWith('.js'),
++    async route => {
++      const response = await route.fetch();
++      await route.fulfill({ response, body: rewriteSource(await response.text()) });
++    }
++  );
++  return { ...server, rewriteSource };
++}
+diff --git a/aiao-desktop/apps/e2e/src/harness/network-standin.spec.mjs b/aiao-desktop/apps/e2e/src/harness/network-standin.spec.mjs
+new file mode 100644
+index 00000000..a0a3f153
+--- /dev/null
++++ b/aiao-desktop/apps/e2e/src/harness/network-standin.spec.mjs
+@@ -0,0 +1,55 @@
++import assert from 'node:assert/strict';
++import { mkdtemp, rm, writeFile } from 'node:fs/promises';
++import { get } from 'node:https';
++import { tmpdir } from 'node:os';
++import { join } from 'node:path';
++import test from 'node:test';
++
++import { startStandinServer } from './network-standin.mjs';
++
++const read = url =>
++  new Promise((resolve, reject) => {
++    get(url, { rejectUnauthorized: false }, response => {
++      let text = '';
++      response.setEncoding('utf8');
++      response.on('data', chunk => {
++        text += chunk;
++      });
++      response.on('end', () => resolve({ status: response.statusCode, headers: response.headers, text }));
++      response.on('error', reject);
++    }).on('error', reject);
++  });
++
++test('真实跨源替身随当前模式生成文档，脚本正确托管并提供隔离头', async () => {
++  const root = await mkdtemp(join(tmpdir(), 'aiao-network-standin-'));
++  await writeFile(join(root, 'entry.js'), 'export const ready = true;');
++  let mode = 'standard';
++  let documents = 0;
++  const server = await startStandinServer({
++    scriptsRoot: root,
++    document: () => `<title>${mode}:${++documents}</title>`,
++    offline: () => mode === 'offline'
++  });
++  try {
++    assert.match(server.origin, /^https:\/\/127\.0\.0\.1:/);
++    const first = await read(server.origin);
++    assert.equal(first.text, '<title>standard:1</title>');
++    assert.equal(first.headers['cross-origin-embedder-policy'], 'require-corp');
++    assert.equal(first.headers['cross-origin-resource-policy'], 'cross-origin');
++    mode = 'transparent';
++    assert.equal((await read(`${server.origin}/?channel=two`)).text, '<title>transparent:2</title>');
++    const script = await read(`${server.origin}/__standin/orbit/entry.js`);
++    assert.match(script.headers['content-type'], /javascript/);
++    assert.equal(script.text, 'export const ready = true;');
++    assert.equal((await read(`${server.origin}/__standin/orbit/missing.js`)).status, 404);
++    assert.equal((await read(`${server.origin}/__standin/orbit/%2e%2e%2fprivate.js`)).status, 404);
++    mode = 'offline';
++    await assert.rejects(read(server.origin));
++    mode = 'standard';
++    assert.equal((await read(server.origin)).text, '<title>standard:3</title>');
++  } finally {
++    await server.close();
++    await rm(root, { recursive: true, force: true });
++  }
++  await assert.rejects(read(server.origin));
++});
+diff --git a/aiao-desktop/apps/e2e/src/harness/session.mjs b/aiao-desktop/apps/e2e/src/harness/session.mjs
+index ee95f32d..a7927299 100644
+--- a/aiao-desktop/apps/e2e/src/harness/session.mjs
++++ b/aiao-desktop/apps/e2e/src/harness/session.mjs
+@@ -50,13 +50,20 @@ export async function createSession({
+   const viewport = contextOptions.viewport ?? VIEWPORT;
+   const profile =
+     EPHEMERAL_CONTEXT_HAS_OPFS[engine] ? null : await createPersistentProfile({ engine, viewport, contextOptions });
+-  const context = profile ? await profile.open() : await browser.newContext({ viewport, ...contextOptions });
++  const context =
++    profile ?
++      await profile.open()
++    : await browser.newContext({ viewport, ...contextOptions, ignoreHTTPSErrors: engine === 'firefox' });
++  const allowedOrigins = new Set([origin]);
+   await context.route(
+-    url => !url.href.startsWith(origin),
++    url => !allowedOrigins.has(url.origin),
+     route => route.abort()
+   );
+   /* 替身的路由后注册，优先于上面的外网拦截。 */
+-  const aiaoCode = standins.includes('aiao-code') ? await installAiaoCodeStandin(context) : null;
++  const aiaoCode =
++    standins.includes('aiao-code') ?
++      await installAiaoCodeStandin(context, { network: engine === 'firefox', desktopOrigin: origin, allowedOrigins })
++    : null;
+   const game = standins.includes('game') ? await installGameStandin(context, origin) : null;
+   const errors = [];
+   /** 新开一个页面，页面错误一律记进本检查组的 errors。 */
+@@ -128,6 +135,7 @@ export async function createSession({
+     },
+     close: async () => {
+       await context.close();
++      await aiaoCode?.close();
+       await profile?.dispose();
+     }
+   };
+diff --git a/aiao-desktop/apps/e2e/src/harness/standin.mjs b/aiao-desktop/apps/e2e/src/harness/standin.mjs
+index bceea0ea..87163814 100644
+--- a/aiao-desktop/apps/e2e/src/harness/standin.mjs
++++ b/aiao-desktop/apps/e2e/src/harness/standin.mjs
+@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
+ import { join, normalize, resolve } from 'node:path';
+ 
+ import { contentTypes } from '../fixtures/artifact-server.mjs';
++import { installNetworkStandin } from './network-standin.mjs';
+ 
+ /** 替身应用用 Orbit 客户端的正式构建握手（e2e 目标先构建 orbit）。 */
+ export const orbitDist = resolve(import.meta.dirname, '../../../../../packages/orbit/dist');
+@@ -167,8 +168,14 @@ const mainScript = (mode, ordinal) => `
+  *
+  * @param {import('playwright').BrowserContext} context
+  */
+-export async function installAiaoCodeStandin(context) {
+-  const standin = { mode: 'standard', documents: 0 };
++export async function installAiaoCodeStandin(context, { network = false, desktopOrigin, allowedOrigins } = {}) {
++  const standin = {
++    mode: 'standard',
++    documents: 0,
++    origin: STANDIN_ORIGIN,
++    rewriteSource: source => source,
++    close: async () => undefined
++  };
+   /* 桌面页（只有顶层文档）收替身转告的调用结果：`window.__standinResults[编号]`。刷新后清空，由新页面的脚本重新收。 */
+   await context.addInitScript(() => {
+     if (window.top !== window) return;
+@@ -178,6 +185,19 @@ export async function installAiaoCodeStandin(context) {
+       if (result) window.__standinResults[result.id] = result.outcome;
+     });
+   });
++  if (network) {
++    return Object.assign(
++      standin,
++      await installNetworkStandin(context, {
++        desktopOrigin,
++        allowedOrigins,
++        originalOrigin: STANDIN_ORIGIN,
++        scriptsRoot: orbitDist,
++        document: () => standinPage(standin.mode, ++standin.documents),
++        offline: () => standin.mode === 'offline'
++      })
++    );
++  }
+   await context.route(`${STANDIN_ORIGIN}/**`, route => {
+     const url = new URL(route.request().url());
+     if (url.pathname.startsWith('/__standin/orbit/')) {
+diff --git a/aiao-desktop/apps/e2e/src/smoke.mjs b/aiao-desktop/apps/e2e/src/smoke.mjs
+index 95ebb0fa..3c6c0aeb 100644
+--- a/aiao-desktop/apps/e2e/src/smoke.mjs
++++ b/aiao-desktop/apps/e2e/src/smoke.mjs
+@@ -98,6 +98,8 @@ try {
+         parallel: options.parallel,
+         groups: selected.map(group => group.name),
+         isolatedOrigins: true,
++        standinTransport:
++          options.engine === 'firefox' ? 'https-loopback-cross-origin' : 'route-fulfill-production-origin',
+         interceptedExternalRequests: true
+       },
+       seconds: (performance.now() - startedAt) / 1000,

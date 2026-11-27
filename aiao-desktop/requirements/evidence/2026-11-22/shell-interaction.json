@@ -1,0 +1,163 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-22T15:50:40.927Z",
+  "source": {
+    "sha": "da37458be2d80fa9f1a85950ccd8504f7395ac7a",
+    "changes": "M src/compare-initial.mjs\n M src/groups/aiao-code-files.mjs\n M src/groups/github-app.mjs\nMM src/groups/lazy-loading.mjs\n M src/groups/shell-interaction.mjs\nMM src/harness/chunks.mjs\n M src/harness/chunks.spec.mjs\n M ../web/project.json\nM  ../web/src/app/apps/app-manifests.ts\nM  ../web/src/app/apps/app-store/app-store.ts\n M ../web/src/app/apps/finder/file-operation-dialog.ts\n M ../web/src/app/apps/finder/finder-model.ts\n M ../web/src/app/apps/finder/finder.html\n M ../web/src/app/apps/finder/finder.ts\n M ../web/src/app/apps/github/github.html\n M ../web/src/app/apps/github/github.ts\n M ../web/src/app/apps/mail/mail-composer.ts\n M ../web/src/app/apps/music/music.ts\nMM ../web/src/app/apps/music/now-playing.ts\nMM ../web/src/app/apps/photos/photo-loader.ts\n M ../web/src/app/apps/photos/photos.ts\n M ../web/src/app/apps/terminal/terminal-tab.ts\n M ../web/src/app/apps/terminal/terminal.ts\n M ../web/src/app/apps/web-app/web-app.ts\nMM ../web/src/app/components/desktop-shell.html\n M ../web/src/app/components/desktop-shell.scss\nMM ../web/src/app/components/desktop-shell.ts\n M ../web/src/app/components/desktop-surface.ts\n M ../web/src/app/components/dock.html\n M ../web/src/app/components/dock.ts\nMM ../web/src/app/components/menubar.ts\n D ../web/src/app/components/menubar/status-panels.ts\nMM ../web/src/app/components/overlay-layer.html\n M ../web/src/app/components/overlay-layer.ts\n M ../web/src/app/components/overlays/launchpad.ts\n M ../web/src/app/components/overlays/notification-centre.ts\nMM ../web/src/app/components/overlays/popover-entry.ts\n M ../web/src/app/components/overlays/spotlight.ts\n M ../web/src/app/components/widgets/widgets.ts\nMM ../web/src/app/pages/desktop-page.ts\nMM ../web/src/app/services/app-context.spec.ts\nMM ../web/src/app/services/app-context.ts\nMM ../web/src/app/services/app-notifications.ts\nMM ../web/src/app/services/desktop-apps.spec.ts\nM  ../web/src/app/services/desktop-apps.ts\nMM ../web/src/app/services/desktop-menus.spec.ts\nMM ../web/src/app/services/desktop-menus.ts\n M ../web/src/app/services/focus-order.ts\n M ../web/src/app/services/git/git-runtime.ts\n M ../web/src/app/services/github-git-backend.ts\n M ../web/src/app/services/github-git-worker.ts\nMM ../web/src/app/services/github-repository.ts\nAM ../web/src/app/services/github-workspace.ts\nM  ../web/src/app/services/popover.ts\n M ../web/src/app/services/remote-app-session.ts\nM  ../web/src/app/services/window-layout-model.ts\n M ../web/src/app/services/window-manager.ts\n M ../web/src/app/shared/menu-list.spec.ts\n M ../web/src/app/shared/menu-list.ts\n M ../web/src/app/vm/coreutils.ts\n M ../web/src/app/vm/virtual-machine.spec.ts\n M ../web/src/app/vm/virtual-machine.ts\nM  ../web/tsconfig.app.json\nMM ../../requirements/README.md\nMM ../../requirements/capability-matrix.md\nM  ../../requirements/decisions.md\n M ../../requirements/epics/ADESK-EPIC-002.md\n M ../../requirements/epics/ADESK-EPIC-004.md\nA  ../../requirements/epics/ADESK-EPIC-005.md\nA  ../../requirements/epics/ADESK-EPIC-006.md\nM  ../../requirements/future-requirements.md\nMM ../../requirements/roadmap.md\nMM ../../requirements/status-overview.md\nA  ../../requirements/stories/application/ADESK-US-210-remote-app-simulation-and-scheduling.md\nA  ../../requirements/stories/platform/ADESK-US-010-tauri-install-and-launch.md\nA  ../../requirements/stories/platform/ADESK-US-011-tauri-local-workspace-migration.md\nA  ../../requirements/stories/platform/ADESK-US-012-tauri-update-and-uninstall.md\n?? src/harness/startup-timing.mjs\n?? ../web/src/app/apps/mail/mail-compose.ts\n?? ../web/src/app/apps/terminal/terminal.scss\n?? ../web/src/app/components/menubar/battery-panel.ts\n?? ../web/src/app/components/menubar/bluetooth-panel.ts\n?? ../web/src/app/components/menubar/sound-panel.ts\n?? ../web/src/app/components/menubar/status-panel.ts\n?? ../web/src/app/components/menubar/wifi-panel.ts\n?? ../web/src/app/components/widgets/notification-widgets.ts\n?? ../web/src/app/services/desktop-app-services.spec.ts\n?? ../web/src/app/services/desktop-app-services.ts\n?? ../web/src/app/services/git/git-origin.spec.ts\n?? ../web/src/app/services/git/git-origin.ts\n?? ../web/src/app/services/github-connection.ts\n?? ../web/src/app/services/github-worktree.ts\n?? ../web/src/app/vm/git-mailbox.ts\n?? ../web/src/app/vm/workspace-git.ts\n?? ../../requirements/evidence/2026-11-22/\n?? ../../requirements/stories/application/ADESK-US-211-git-terminal-workspace.md\n?? ../../requirements/stories/desktop/ADESK-US-130-desktop-on-demand.md"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "24.6.0",
+    "arch": "x64",
+    "cpu": "Intel(R) Core(TM) i9-9900K CPU @ 3.60GHz",
+    "node": "v26.13.0",
+    "browser": "159.0.8154.6",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/tmp/adesk-us130-candidate.48QY2V/browser",
+    "indexSha256": "0a5f36f6fdddbb6df0d57f5e503cf8508f62e5f706aee9028764d21fd89bf593"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 1,
+    "groups": [
+      "shell-interaction"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 46.726121888,
+  "outcomes": [
+    {
+      "group": "shell-interaction",
+      "result": {
+        "shellInteraction": {
+          "boot": {
+            "screenAppears": true,
+            "progressAdvances": true,
+            "endsAtLoginScreen": true,
+            "accountName": true,
+            "accountAvatar": true,
+            "loginEntersDesktop": true,
+            "finderHomeName": true,
+            "queryParameterSkips": true,
+            "hashSkips": true
+          },
+          "lock": {
+            "shows": true,
+            "coversDesktop": true,
+            "unlockRestores": true
+          },
+          "sleep": {
+            "shows": true,
+            "wakes": true,
+            "desktopIntact": true
+          },
+          "statusPanels": {
+            "clockOpensNotifications": true,
+            "wifiMatchesState": true,
+            "outsideClickCloses": true,
+            "batteryMatchesState": true
+          },
+          "controlCentre": {
+            "opens": true,
+            "wifiToggleReflected": true,
+            "darkModeApplies": true,
+            "settingsSurviveReload": true,
+            "brightnessBeforeFirstPanel": true
+          },
+          "account": {
+            "settingsName": true,
+            "settingsAvatar": true
+          },
+          "dragResizeZoom": {
+            "titleBarMoves": true,
+            "cornerResizes": true,
+            "greenButtonZooms": true,
+            "greenButtonRestores": true,
+            "keepOnScreen": true
+          },
+          "focusCycle": {
+            "windowsOverlap": true,
+            "clickRaisesWindow": true,
+            "stackFollowsClicks": true,
+            "cycleRaisesBottom": true
+          }
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 46.572236319000005
+    }
+  ],
+  "checks": {
+    "shellInteraction": {
+      "boot": {
+        "screenAppears": true,
+        "progressAdvances": true,
+        "endsAtLoginScreen": true,
+        "accountName": true,
+        "accountAvatar": true,
+        "loginEntersDesktop": true,
+        "finderHomeName": true,
+        "queryParameterSkips": true,
+        "hashSkips": true
+      },
+      "lock": {
+        "shows": true,
+        "coversDesktop": true,
+        "unlockRestores": true
+      },
+      "sleep": {
+        "shows": true,
+        "wakes": true,
+        "desktopIntact": true
+      },
+      "statusPanels": {
+        "clockOpensNotifications": true,
+        "wifiMatchesState": true,
+        "outsideClickCloses": true,
+        "batteryMatchesState": true
+      },
+      "controlCentre": {
+        "opens": true,
+        "wifiToggleReflected": true,
+        "darkModeApplies": true,
+        "settingsSurviveReload": true,
+        "brightnessBeforeFirstPanel": true
+      },
+      "account": {
+        "settingsName": true,
+        "settingsAvatar": true
+      },
+      "dragResizeZoom": {
+        "titleBarMoves": true,
+        "cornerResizes": true,
+        "greenButtonZooms": true,
+        "greenButtonRestores": true,
+        "keepOnScreen": true
+      },
+      "focusCycle": {
+        "windowsOverlap": true,
+        "clickRaisesWindow": true,
+        "stackFollowsClicks": true,
+        "cycleRaisesBottom": true
+      }
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [],
+    "stale": []
+  },
+  "passed": true,
+  "clean": true
+}

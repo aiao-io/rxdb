@@ -1,0 +1,107 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-22T17:05:47.541Z",
+  "source": {
+    "sha": "c106a8c93844680f875cac6c93d59548b35e24a0",
+    "changes": "M src/groups/aiao-code-files.mjs\n M src/groups/github-app.mjs\n M ../web/src/app/services/github-repository.spec.ts\n M ../web/src/app/services/github-repository.ts\n M ../web/src/app/services/github-workspace.spec.ts\n M ../web/src/app/services/github-workspace.ts\n M ../web/src/app/services/github/github-api.spec.ts\n M ../web/src/app/services/github/github-api.ts\n M ../../requirements/README.md\n M ../../requirements/capability-matrix.md\n M ../../requirements/epics/ADESK-EPIC-004.md\n M ../../requirements/roadmap.md\n M ../../requirements/status-overview.md\n M ../../requirements/stories/application/ADESK-US-211-git-terminal-workspace.md\n M ../../requirements/verification-report.md\n?? ../../requirements/evidence/2026-11-23/"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "24.6.0",
+    "arch": "x64",
+    "cpu": "Intel(R) Core(TM) i9-9900K CPU @ 3.60GHz",
+    "node": "v26.13.0",
+    "browser": "159.0.8154.6",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/aiao-io/web-desktop/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "15748bd53946be61b643a2b3b9390a8753592a1befa402c2d0f0c584500e26cb"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 1,
+    "groups": [
+      "disk-terminal"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 36.851543807,
+  "outcomes": [
+    {
+      "group": "disk-terminal",
+      "result": {
+        "terminalState": {
+          "crossOriginIsolated": true,
+          "xterm": true,
+          "helperInput": true,
+          "vivariShell": true
+        },
+        "diskState": {
+          "sqliteInOpfs": true,
+          "fileBodiesInOpfs": true,
+          "desktopFromFolder": true,
+          "shellStartsAtHome": true,
+          "shellReadsFile": true,
+          "shellListsDesktop": true,
+          "shellWritesDisk": true,
+          "shellCommandsWork": true,
+          "gitCommandsWork": true,
+          "gitShellSemantics": true,
+          "gitTabsShareIndex": true,
+          "gitHistorySurvivesReopen": true,
+          "openCommandOpensTextEdit": true,
+          "finderFolderOnDesktop": true,
+          "shellSeesFinderChange": true,
+          "textEditShowsFile": true,
+          "previewShowsImage": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 36.731825316000005
+    }
+  ],
+  "checks": {
+    "terminalState": {
+      "crossOriginIsolated": true,
+      "xterm": true,
+      "helperInput": true,
+      "vivariShell": true
+    },
+    "diskState": {
+      "sqliteInOpfs": true,
+      "fileBodiesInOpfs": true,
+      "desktopFromFolder": true,
+      "shellStartsAtHome": true,
+      "shellReadsFile": true,
+      "shellListsDesktop": true,
+      "shellWritesDisk": true,
+      "shellCommandsWork": true,
+      "gitCommandsWork": true,
+      "gitShellSemantics": true,
+      "gitTabsShareIndex": true,
+      "gitHistorySurvivesReopen": true,
+      "openCommandOpensTextEdit": true,
+      "finderFolderOnDesktop": true,
+      "shellSeesFinderChange": true,
+      "textEditShowsFile": true,
+      "previewShowsImage": true
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [],
+    "stale": []
+  },
+  "passed": true,
+  "clean": true
+}

@@ -1,0 +1,37 @@
+
+> nx run aiao-desktop-e2e:e2e-firefox --args=--group=integrated-app --group=transparent-window --group=window-layout --group=host-filesystem --parallel=2 --report=/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/aiao-desktop/requirements/evidence/2026-11-14/firefox-site-origin-checks.json
+
+> node src/smoke.mjs --engine=firefox --group=integrated-app --group=transparent-window --group=window-layout --group=host-filesystem --parallel=2 --report=/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/aiao-desktop/requirements/evidence/2026-11-14/firefox-site-origin-checks.json
+
+(node:98760) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✓ host-filesystem  49.4s
+✓ integrated-app  17.2s
+✓ transparent-window  11.4s
+✗ window-layout  114.7s
+检查组 4 个，总耗时 114.7s（引擎 firefox，并行 2）
+{"integratedApp":{"dockPinned":true,"showsLoading":true,"becomesReady":true,"standardKeepsChrome":true,"standinRendered":true,"crossOriginIsolated":true,"iframePolicy":true,"minimizeHides":true,"restoreShows":true,"restoreKeepsDocument":true,"shieldWhenBehind":true,"clickActivates":true,"keyboardReachesApp":true,"appClickClosesMenu":true,"resizeTracksPointer":true,"closeRemovesFrame":true,"reopensFresh":true,"offlineShowsReason":true,"desktopUnaffected":true,"retryRecovers":true,"appFailureShowsReason":true,"launchpadOpens":true,"spotlightLists":true,"menubarName":true,"appMenuItems":true,"quitCloses":true},"transparentWindow":{"chromeWhileLoading":true,"chromeHiddenWhenReady":true,"appKnowsDecorations":true,"dragMovesWindow":true,"buttonsAreNotDragArea":true,"doubleClickZooms":true,"maximizeButtonToggles":true,"focusStateReachesApp":true,"minimizeButtonMinimizes":true,"closeButtonCloses":true},"hostFilesystem":{"panelSemantics":true,"panelIsModal":true,"escCancels":true,"openSelectReturnsContent":true,"openGivesNothingElse":true,"openCancelIsSilent":true,"saveChoosesLocationAndName":true,"saveCancelWritesNothing":true,"overwriteNeedsConfirmation":true,"overwriteCannotBeSkippedByApp":true,"acceptIsDisplayFilterOnly":true,"tooLargeFileIsDisabled":true,"secondRequestIsBusy":true,"panelTimeIsNotTimed":true,"handleSaveWritesBack":true,"saveWithoutHandleAsksUser":true,"changedFileIsRejected":true,"renamedFileIsRejectedAndNotRecreated":true,"deletedFileIsRejectedAndNotRecreated":true,"handleInvalidAfterWindowClosed":true,"panelClosesWithWindow":true,"requestEndsWithWindowClosed":true,"lateSaveNeverWrites":true,"keyboardOpen":true,"staleListingNeverOverwrites":true,"escInsideReplaceReturnsToBrowse":true,"keyboardSaveAndReplace":true,"tabStaysInsidePanel":true,"focusReturnsToWindow":true},"windowLayout":{"layoutRowShape":true,"restoresPositionAndSize":true,"restoresMinimizedState":true,"finderKeepsPath":true,"heavyWindowsRestoreAsFrames":true,"heavyWindowsShowIdlePlaceholder":true,"heavyFrontWindowStaysFront":true,"startupBootsNoVirtualMachine":true,"startupRequestsNoHeavyChunks":true,"startupRequestsNoSaltlineEntry":true,"firstClickStartsTerminal":true,"firstClickStartsGame":true,"idlePlaceholderIsFocusableButton":true,"idlePlaceholderStartsFromKeyboard":true,"restoresTwoFinders":true,"twoFindersKeepTheirPaths":true,"zoomedWindowRestoresZoomed":true,"zoomedWindowUnzoomsToSavedBox":true,"integratedStandardRestoresGeometry":true,"integratedStandardHandshakesAgain":true,"integratedTransparentRestoresGeometry":true,"integratedTransparentHandshakesAgain":true,"integratedTransparentHidesDesktopChrome":true,"closedWindowStaysClosed":true,"otherWindowsRestoredAfterClose":true,"noExtraDefaultFinder":true,"frontWindowStaysFront":true,"stackOrderPreserved":true,"minimizedFrameOnlyAtStartup":true,"minimizedPayloadNotRequestedAtStartup":true,"dockRestoreShowsWindow":true,"dockRestoreLoadsPayloadFirstTime":true,"retiredAppSkipped":true,"retiredAppNotice":true,"retiredAppOthersRestored":true,"retiredWindowDroppedFromLayout":true,"onlyRetiredOpensDefaultFinder":true,"restoreRunsBehindBootScreen":true,"noticeWaitsForUnlockedDesktop":true,"farWindowWasSaved":false,"restoredWindowPulledOnScreen":false,"tabAKeepsOnlyItsWindows":true,"tabBKeepsOnlyItsWindows":true,"layoutsStoredPerTab":true,"reloadDoesNotOverwriteOtherTab":true,"newTabStartsFromEmptyDesktop":true,"staleRowsPruned":true,"recentRowsKept":true,"blockedStorageStillOpensFinder":true,"blockedStorageNotice":true,"blockedStorageWritesNothing":true}}
+已知限制 1 项（firefox，见 baseline/limitations-firefox.json）：
+  [有限支持] window-layout：AC#3（集成应用窗口刷新后恢复并重新握手）要刷新一个带替身 iframe 的页面，而 Playwright 的 Firefox 无法刷新或导航带有 route.fulfill 跨源 iframe 的页面（最小复现：node src/fixtures/limitation-firefox-iframe.mjs，一个静态页面加一个 iframe 就超时），整组在这一步之前的检查也随之丢失；这一组在 Chromium 与 WebKit 上通过。
+冒烟失败：
+  限制已经过期（这一项已经通过，请从清单里删掉）：check integratedApp.keyboardReachesApp
+  限制已经过期（这一项已经通过，请从清单里删掉）：group transparent-window
+  限制已经过期（这一项已经通过，请从清单里删掉）：check hostFilesystem.focusReturnsToWindow
+Warning: command "node src/smoke.mjs --engine=firefox --group=integrated-app --group=transparent-window --group=window-layout --group=host-filesystem --parallel=2 --report=/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/aiao-desktop/requirements/evidence/2026-11-14/firefox-site-origin-checks.json" exited with non-zero status code
+
+
+ NX   Running target e2e-firefox for project aiao-desktop-e2e failed
+
+Failed tasks:
+
+- aiao-desktop-e2e:e2e-firefox
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      1m 56s
+  Critical path:     1m 56s (1 task)
+  Recoverable time:  <1ms
+
+  Recommendations:
+    - Speed up or split the longest tasks on the critical path:
+        aiao-desktop-e2e:e2e-firefox    1m 56s

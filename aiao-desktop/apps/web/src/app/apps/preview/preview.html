@@ -1,0 +1,280 @@
+@let viewState = view();
+<div class="tb plain" data-drag>
+  <div class="title">{{ name }}</div>
+  <div class="tbz"><app-traffic-lights /></div>
+  <div class="grow"></div>
+  <div class="tbz">
+    @if (view().kind === 'pdf' || view().kind === 'image') {
+      <button
+        class="tbtn"
+        [attr.aria-label]="i18n.t('apps.preview.rotateLeft')"
+        [title]="i18n.t('apps.preview.rotateLeft')"
+        (click)="rotateBy(-90)"
+        data-nodrag
+        data-pv-rotl
+        tabindex="0"
+      >
+        ↺
+      </button>
+      <button
+        class="tbtn"
+        [attr.aria-label]="i18n.t('apps.preview.rotateRight')"
+        [title]="i18n.t('apps.preview.rotateRight')"
+        (click)="rotateBy(90)"
+        data-nodrag
+        data-pv-rotr
+        tabindex="0"
+      >
+        ↻
+      </button>
+    }
+    <button
+      class="tbtn"
+      #share
+      [attr.aria-label]="i18n.t('apps.preview.share')"
+      [title]="i18n.t('apps.preview.share')"
+      (click)="openShare(share, $event)"
+      data-nodrag
+      data-pvshare
+      tabindex="0"
+    >
+      <svg appIcon="g-share"></svg>
+    </button>
+    <button class="tbtn" [title]="i18n.t('apps.preview.search')" (click)="toggleFind()" data-nodrag data-pvfind>
+      <svg appIcon="g-search"></svg>
+    </button>
+    <div
+      class="sfield"
+      [style.opacity]="finding() ? '1' : '0'"
+      [style.padding]="finding() ? null : '0'"
+      [style.width]="finding() ? '150px' : '0px'"
+      data-nodrag
+      data-pvfield
+      style="
+        overflow: hidden;
+        transition:
+          width 0.22s var(--e-out),
+          opacity 0.16s,
+          padding 0.22s;
+      "
+    >
+      <span><svg appIcon="g-search"></svg></span>
+      <input
+        #field
+        [placeholder]="i18n.t('apps.preview.search')"
+        (input)="find(field.value)"
+        (keydown.enter)="stepMatchDirection($event)"
+        spellcheck="false"
+      />
+    </div>
+  </div>
+</div>
+@if (actions.error()) {
+  <p
+    data-content-error
+    role="alert"
+    style="margin: 0; padding: 8px 14px; color: var(--txt); background: var(--win); flex-shrink: 0"
+  >
+    {{ actions.error() }}
+  </p>
+}
+<div class="pv" #body style="flex-direction: column">
+  @switch (viewState.kind) {
+    @case ('pdf') {
+      @if (viewState.kind === 'pdf') {
+        <div style="display: flex; flex: 1; min-height: 0">
+          <div
+            data-pv-thumbs
+            style="
+              flex: none;
+              width: 96px;
+              overflow-y: auto;
+              display: flex;
+              flex-direction: column;
+              gap: 10px;
+              padding: 14px 4px 14px 14px;
+            "
+          >
+            @for (n of pageNumbers(); track n) {
+              <button
+                [attr.aria-label]="i18n.t('apps.preview.page', { page: n })"
+                [attr.data-pv-thumb]="n"
+                [style.box-shadow]="n === page() ? '0 0 0 2px var(--blue)' : '0 0 0 0.5px rgba(0, 0, 0, 0.25)'"
+                (click)="page.set(n)"
+                style="padding: 0; border: 0; background: none; border-radius: 4px; cursor: var(--cur-hand)"
+                tabindex="0"
+                type="button"
+              >
+                <canvas
+                  #thumb
+                  [attr.data-pv-thumb-canvas]="n"
+                  style="display: block; width: 72px; border-radius: 3px; background: #fff"
+                ></canvas>
+              </button>
+            }
+          </div>
+          <div
+            #pdfBox
+            data-pv-pdf
+            style="
+              flex: 1;
+              min-width: 0;
+              min-height: 0;
+              overflow: auto;
+              display: grid;
+              place-items: start center;
+              padding: 18px;
+            "
+          >
+            <div style="position: relative; flex: none">
+              <canvas #pdfCanvas data-pv-canvas style="box-shadow: 0 10px 40px -12px rgba(0, 0, 0, 0.55)"></canvas>
+              @if (spans().length) {
+                <div
+                  data-pv-textlayer
+                  style="position: absolute; inset: 0; overflow: hidden; pointer-events: none; color: transparent"
+                >
+                  @for (span of spans(); track $index) {
+                    <span
+                      [style.font-size.px]="span.size"
+                      [style.height.px]="span.size"
+                      [style.left.px]="span.x"
+                      [style.top.px]="span.y"
+                      style="position: absolute; display: block; white-space: pre; font-family: sans-serif"
+                    >
+                      @for (segment of span.segments; track $index) {
+                        @if (segment.hit) {
+                          <mark style="background: rgba(255, 226, 96, 0.55); border-radius: 2px">
+                            {{ segment.text }}
+                          </mark>
+                        } @else {
+                          {{ segment.text }}
+                        }
+                      }
+                    </span>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+        <div
+          data-pv-nav
+          style="display: flex; align-items: center; justify-content: center; gap: 14px; padding: 8px 0 14px"
+        >
+          <button
+            class="tbtn"
+            [disabled]="page() <= 1"
+            [title]="i18n.t('apps.preview.previousPage')"
+            (click)="prevPage()"
+            data-pv-prev
+            tabindex="0"
+          >
+            <svg appIcon="g-chev-l"></svg>
+          </button>
+          @if (!paging()) {
+            <button
+              [attr.aria-label]="i18n.t('apps.preview.goToPageNumber', { page: page() })"
+              [title]="i18n.t('apps.preview.goToPageTitle')"
+              (click)="startPaging()"
+              data-pv-pageno
+              style="
+                font-size: 12px;
+                color: var(--txt-2);
+                background: none;
+                border: 0;
+                padding: 2px 4px;
+                border-radius: 4px;
+                cursor: var(--cur-hand);
+              "
+              tabindex="0"
+              type="button"
+            >
+              {{ page() }}
+            </button>
+            <span style="font-size: 12px; color: var(--txt-2)">
+              {{ i18n.t('apps.preview.of', { count: pageCount() }) }}
+            </span>
+          } @else {
+            <input
+              #pageInput
+              [attr.aria-label]="i18n.t('apps.preview.goToPageAria')"
+              [value]="page()"
+              (blur)="cancelPaging()"
+              (keydown.enter)="jumpPage(pageInput.value)"
+              (keydown.escape)="cancelPaging()"
+              data-pv-page-input
+              spellcheck="false"
+              style="
+                width: 44px;
+                height: 22px;
+                padding: 0 6px;
+                border-radius: 5px;
+                border: 0.5px solid var(--line-2);
+                background: var(--fill);
+                color: var(--txt);
+                font: inherit;
+                font-size: 12px;
+                text-align: center;
+              "
+            />
+            <span style="font-size: 12px; color: var(--txt-2)">
+              {{ i18n.t('apps.preview.of', { count: pageCount() }) }}
+            </span>
+          }
+          <button
+            class="tbtn"
+            [disabled]="page() >= pageCount()"
+            [title]="i18n.t('apps.preview.nextPage')"
+            (click)="nextPage()"
+            data-pv-next
+            tabindex="0"
+          >
+            <svg appIcon="g-chev-r"></svg>
+          </button>
+        </div>
+      }
+    }
+    @case ('video') {
+      <div
+        style="
+          width: min(520px, 100%);
+          aspect-ratio: 16/9;
+          border-radius: 8px;
+          background: #0c0c0e;
+          display: grid;
+          place-items: center;
+          box-shadow: 0 20px 60px -18px rgba(0, 0, 0, 0.6);
+        "
+      >
+        <button class="btn pri" style="height: 44px; width: 44px; padding: 0; border-radius: 50%">
+          <svg appIcon="g-play"></svg>
+        </button>
+      </div>
+      <div style="margin-top: 14px; font-size: 12px; color: var(--txt-2)">{{ name }} — 1920×1080 · H.264</div>
+    }
+    @case ('image') {
+      @if (viewState.kind === 'image') {
+        <img
+          [alt]="name"
+          [src]="viewState.url"
+          [style.transform]="rotation() ? 'rotate(' + rotation() + 'deg)' : null"
+          [style.zoom]="zoom() === 1 ? null : zoom()"
+          (error)="imageFailed()"
+          data-pv-image
+          style="max-height: 78%"
+        />
+        <div style="margin-top: 14px; font-size: 12px; color: var(--txt-2)">{{ name }}</div>
+      }
+    }
+    @case ('failed') {
+      @if (viewState.kind === 'failed') {
+        <div data-pv-failed style="text-align: center; color: var(--txt-2); font-size: 13px">
+          <div style="font-weight: 600; color: var(--txt); margin-bottom: 6px">
+            {{ i18n.t('error.preview.couldNotOpen', { name: name }) }}
+          </div>
+          {{ viewState.reason }}
+        </div>
+      }
+    }
+  }
+</div>

@@ -1,0 +1,225 @@
+首次 verify 的任务、测试汇总与失败区段摘录；原始命令退出码为 1。
+
+
+ NX   Running target verify for project aiao-desktop and 57 tasks it depends on:
+
+
+
+> nx run utils:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 159 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1947ms.
+
+computing gzip size...
+dist/index.js  70.62 kB │ gzip: 22.97 kB
+
+✓ built in 2.04s
+
+> nx run orbit:build  [existing outputs match the cache, left as is]
+
+> vite build && node ../../scripts/audit/package-api-docs.mjs . --members
+
+(node:63568) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 17 modules transformed.
+rendering chunks...
+
+✓ built in 2.01s
+> nx run aiao-desktop-web:prepare-vendor  [existing outputs match the cache, left as is]
+> nx run utils:typecheck
+> nx run rxdb:generate-skill
+> nx run rxdb:build  [existing outputs match the cache, left as is]
+✓ 338 modules transformed.
+✓ built in 3.34s
+> nx run rxdb-plugin-history:build  [existing outputs match the cache, left as is]
+✓ 25 modules transformed.
+✓ built in 2.28s
+> nx run rxdb-adapter-encrypted:build  [existing outputs match the cache, left as is]
+✓ 13 modules transformed.
+✓ built in 1.77s
+> nx run rxdb-client-generator:build  [existing outputs match the cache, left as is]
+✓ 24 modules transformed.
+✓ built in 2.25s
+> nx run rxdb-plugin-tree:build  [existing outputs match the cache, left as is]
+✓ 21 modules transformed.
+✓ built in 1.58s
+> nx run rxdb-plugin-sync:build  [existing outputs match the cache, left as is]
+✓ 222 modules transformed.
+✓ built in 2.68s
+> nx run rxdb-plugin-working-tree:build  [existing outputs match the cache, left as is]
+✓ 88 modules transformed.
+✓ built in 4.34s
+> nx run rxdb-devtools:build  [existing outputs match the cache, left as is]
+✓ 57 modules transformed.
+✓ built in 3.20s
+> nx run rxdb-test:build  [existing outputs match the cache, left as is]
+✓ 57 modules transformed.
+✓ built in 2.09s
+> nx run rxdb-plugin-querycache:build  [existing outputs match the cache, left as is]
+✓ 199 modules transformed.
+✓ built in 2.05s
+> nx run rxdb-adapter-sqlite-core:build  [existing outputs match the cache, left as is]
+✓ 112 modules transformed.
+✓ built in 3.98s
+> nx run rxdb-adapter-pglite:build  [existing outputs match the cache, left as is]
+✓ 79 modules transformed.
+✓ built in 4.81s
+> nx run rxdb-adapter-wa-sqlite:build  [existing outputs match the cache, left as is]
+✓ 91 modules transformed.
+✓ built in 1.94s
+> nx run rxdb-adapter-sqlite-wasm:build  [existing outputs match the cache, left as is]
+✓ 57 modules transformed.
+✓ built in 1.95s
+> nx run rxdb-adapter-electron:build  [existing outputs match the cache, left as is]
+✓ 22 modules transformed.
+✓ built in 2.13s
+> nx run rxdb-plugin-storage:build  [existing outputs match the cache, left as is]
+✓ 23 modules transformed.
+✓ built in 2.38s
+> nx run rxdb-plugin-graph:build  [existing outputs match the cache, left as is]
+✓ 26 modules transformed.
+✓ built in 2.31s
+> nx run rxdb-angular:build:production  [existing outputs match the cache, left as is]
+> nx run rxdb:typecheck
+> nx run rxdb-plugin-history:typecheck
+> nx run rxdb-test:typecheck
+> nx run rxdb-plugin-sync:typecheck
+> nx run rxdb-adapter-encrypted:typecheck
+> nx run rxdb-plugin-querycache:typecheck
+> nx run rxdb-plugin-working-tree:typecheck
+> nx run aiao-desktop-web:build:production
+> nx run rxdb-devtools:typecheck
+> nx run rxdb-client-generator:typecheck
+> nx run rxdb-plugin-tree:typecheck
+> nx run rxdb-adapter-sqlite-core:typecheck
+> nx run rxdb-adapter-wa-sqlite:typecheck
+> nx run rxdb-adapter-pglite:typecheck
+> nx run rxdb-adapter-electron:typecheck
+> nx run rxdb-adapter-sqlite-wasm:typecheck
+> nx run rxdb-angular:typecheck
+> nx run orbit:typecheck
+> nx run rxdb-plugin-storage:typecheck
+> nx run aiao-desktop-web:test
+ Test Files  92 passed (92)
+      Tests  1348 passed (1348)
+> nx run aiao-desktop-web:typecheck
+> nx run aiao-desktop-web:lint
+> nx run aiao-desktop-e2e:e2e-fixtures
+✓ fixtures  12.2s
+检查组 1 个，总耗时 12.2s（引擎 chromium，并行 3）
+> nx run aiao-desktop-e2e:e2e
+✓ a11y  35.4s
+✓ host-filesystem  41.6s
+✓ applications-upgrade  25.6s
+✓ applications-protection  38.3s
+✓ window-layout  84.9s
+✓ multi-tab-startup  19.2s
+✓ host-capabilities  34.2s
+✓ shell-interaction  29.3s
+✓ upgrade-legacy  34.2s
+✓ disk-terminal  15.6s
+✓ terminal-packages  25.2s
+✓ applications  19.7s
+✓ persistence  25.0s
+✓ app-lifecycle  18.3s
+✓ integrated-app  22.0s
+✓ upgrade-protection  27.8s
+✓ shell  13.5s
+✓ lazy-loading  20.9s
+✓ narrow-screen  14.2s
+✓ transparent-window  12.4s
+✓ external-content  5.8s
+✓ dock  64.6s
+✓ apps  40.3s
+✓ multi-tab  63.7s
+✓ game  45.7s
+检查组 25 个，总耗时 338.1s（引擎 chromium，并行 3）
+> nx run aiao-desktop-e2e:lint
+> nx run aiao-desktop-e2e:test
+ℹ tests 53
+ℹ pass 53
+ℹ fail 0
+> nx run aiao-desktop:requirements-check
+> nx run aiao-desktop:requirements-test
+ℹ tests 7
+ℹ pass 7
+ℹ fail 0
+> nx run aiao-desktop:security-test
+ℹ tests 4
+ℹ pass 4
+ℹ fail 0
+> nx run aiao-desktop:audit-secrets
+> nx run aiao-desktop:lint
+> nx run aiao-desktop:dev-test
+✖ 开发服务器启动前先检查固定端口并构建依赖包 (2.176293ms)
+ℹ tests 15
+ℹ pass 14
+ℹ fail 1
+
+✖ failing tests:
+
+test at scripts/dev/services.spec.mjs:22:1
+✖ 开发服务器启动前先检查固定端口并构建依赖包 (2.176293ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  ... Skipped lines
+  
+    [
+      '^build',
+      {
+        projects: [
+          'aiao-desktop'
+  ...
+      },
+  +   'prepare-vendor'
+    ]
+  
+      at TestContext.<anonymous> (file:///Users/jimmy/Documents/aiao-io/web-desktop/aiao-desktop/scripts/dev/services.spec.mjs:24:10)
+      at async Test.run (node:internal/test_runner/test:1409:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:974:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ '^build', { projects: [Array], target: 'dev-ports' }, 'prepare-vendor' ],
+    expected: [ '^build', { projects: [Array], target: 'dev-ports' } ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+Warning: command "node --test scripts/dev/*.spec.mjs" exited with non-zero status code
+> nx run aiao-desktop:runtime-test
+
+> node --test scripts/vivari/*.spec.mjs
+ℹ tests 7
+ℹ pass 7
+ℹ fail 0
+> nx run aiao-desktop:deploy-test
+ℹ tests 46
+ℹ pass 46
+ℹ fail 0
+
+ NX   Running target verify for project aiao-desktop and 57 tasks it depends on failed
+
+Tasks not run because their dependencies failed, --nx-bail=true, or their batch ended before reaching them:
+
+- aiao-desktop:verify
+
+Failed tasks:
+
+- aiao-desktop:dev-test
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      8m 10s
+  Cache:             21/56 hit (38%)
+  Critical path:     5m 48s (10 tasks)
+  Recoverable time:  2m 23s (29% of the run)
+
+  Recommendation: Increase parallelism to recover up to 2m 23s → https://nx.dev/docs/concepts/ci-concepts/parallelization-distribution?utm_source=nx-cli&utm_medium=cli&utm_campaign=performance-report&utm_content=parallelization.

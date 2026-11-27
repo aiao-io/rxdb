@@ -1,0 +1,6 @@
+
+> nx run aiao-desktop-web:serve-static --command=PORT=51384 node aiao-desktop/apps/web/tools/serve-static.mjs
+
+aiao-desktop-web: (node:68905) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-desktop-web: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-desktop-web: AIAO_DESKTOP_STATIC_SERVER_READY http://127.0.0.1:51384

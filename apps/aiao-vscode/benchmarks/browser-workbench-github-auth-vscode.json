@@ -1,0 +1,21 @@
+{
+  "browser": "156.0.8078.4",
+  "checks": [
+    {
+      "name": "打开应用并等待 GitHub 服务就绪",
+      "milliseconds": 927
+    },
+    {
+      "name": "登出遗留会话，从干净状态开始",
+      "milliseconds": 33
+    }
+  ],
+  "format": "aiao.browser-workbench.github-auth",
+  "generatedAt": "2026-11-03T11:04:16.095Z",
+  "host": "vscode",
+  "login": null,
+  "repository": "octocat/Hello-World",
+  "status": "skipped",
+  "url": "http://localhost:4320",
+  "version": 1
+}

@@ -1,0 +1,237 @@
+<div class="gh-modal-layer" data-nodrag>
+  <section
+    class="gh-settings-dialog gh-app-settings"
+    [attr.aria-labelledby]="idPrefix() + '-title'"
+    (keydown.escape)="dismiss($event)"
+    appFocusTrap
+    aria-modal="true"
+    data-github-app-settings
+    role="dialog"
+  >
+    <header class="gh-repository-dialog-header">
+      <h2 [id]="idPrefix() + '-title'">{{ i18n.t('apps.github.settingsTitle') }}</h2>
+    </header>
+    <div class="gh-settings-body">
+      <div
+        class="gh-settings-sidebar"
+        #tabList
+        [attr.aria-label]="i18n.t('apps.github.settingsSections')"
+        aria-orientation="vertical"
+        role="tablist"
+      >
+        @for (item of tabs; track item.id) {
+          <button
+            class="gh-preferences-tab"
+            [attr.aria-controls]="idPrefix() + '-' + item.id"
+            [attr.aria-selected]="tab() === item.id"
+            [attr.data-tab]="item.id"
+            [attr.tabindex]="tab() === item.id ? 0 : -1"
+            [id]="idPrefix() + '-' + item.id + '-tab'"
+            (click)="tab.set(item.id)"
+            (keydown)="navigateTabs($event, tabList)"
+            role="tab"
+            type="button"
+          >
+            <svg [lucideIcon]="item.icon" aria-hidden="true" size="16"></svg>
+            {{ i18n.t(item.label) }}
+          </button>
+        }
+      </div>
+      <div
+        class="gh-settings-content gh-preferences-panel"
+        [attr.aria-labelledby]="idPrefix() + '-accounts-tab'"
+        [hidden]="tab() !== 'accounts'"
+        [id]="idPrefix() + '-accounts'"
+        role="tabpanel"
+      >
+        <h3>{{ i18n.t('apps.github.githubCom') }}</h3>
+        @if (account(); as user) {
+          <div class="gh-preferences-account">
+            <div class="gh-preferences-avatar">
+              @if (user.avatarUrl) {
+                <img [src]="user.avatarUrl" alt="" crossorigin="anonymous" referrerpolicy="no-referrer" />
+              } @else {
+                <svg [lucideIcon]="UserRound" aria-hidden="true" size="17"></svg>
+              }
+            </div>
+            <div class="gh-preferences-identity">
+              <strong>{{ user.name ?? user.login }}</strong>
+              <span data-github-account>{{ '@' + user.login }}</span>
+            </div>
+            <button
+              class="gd-btn-secondary"
+              [disabled]="authBusy()"
+              (click)="signOut.emit()"
+              data-autofocus
+              tabindex="0"
+              type="button"
+            >
+              {{ i18n.t('apps.github.settingsSignOut') }}
+            </button>
+          </div>
+        } @else {
+          <p>{{ i18n.t('apps.github.signInPrompt') }}</p>
+          <div class="gh-preferences-auth-actions">
+            <button
+              class="gd-btn-secondary"
+              [disabled]="authBusy()"
+              (click)="signIn.emit()"
+              data-autofocus
+              data-github-oauth-login
+              tabindex="0"
+              type="button"
+            >
+              {{ i18n.t('apps.github.signIntoGithubCom') }}
+            </button>
+            @if (oauthPending()) {
+              <button class="gd-btn-secondary" (click)="cancelSignIn.emit()" tabindex="0" type="button">
+                {{ i18n.t('apps.github.cancelSignIn') }}
+              </button>
+            } @else {
+              <button
+                class="gd-btn-ghost"
+                [attr.aria-expanded]="tokenForm()"
+                [disabled]="authBusy()"
+                (click)="tokenForm.update(open => !open)"
+                tabindex="0"
+                type="button"
+              >
+                {{ i18n.t('apps.github.useAToken') }}
+              </button>
+            }
+          </div>
+          @if (oauthPending()) {
+            <p class="gh-preferences-status" role="status">{{ i18n.t('apps.github.waitingForGithubAuthorization') }}</p>
+          }
+          @if (tokenForm() && !oauthPending()) {
+            <form class="gh-preferences-token" (submit)="submitToken($event, token)">
+              <label [for]="idPrefix() + '-pat'">{{ i18n.t('apps.github.personalAccessToken') }}</label>
+              <input
+                #token
+                [disabled]="authBusy()"
+                [id]="idPrefix() + '-pat'"
+                autocomplete="off"
+                required
+                type="password"
+              />
+              <button class="gd-btn-secondary" [disabled]="authBusy()" tabindex="0" type="submit">
+                {{ i18n.t('apps.github.signIn') }}
+              </button>
+            </form>
+          }
+        }
+        @if (authError(); as failure) {
+          <p class="gh-preferences-error" role="alert">{{ failure }}</p>
+        }
+
+        <h3>{{ i18n.t('apps.github.githubEnterprise') }}</h3>
+        <p>{{ i18n.t('apps.github.githubEnterpriseUnsupported') }}</p>
+        <button class="gd-btn-secondary" disabled type="button">
+          {{ i18n.t('apps.github.signIntoGithubEnterprise') }}
+        </button>
+      </div>
+      <div
+        class="gh-settings-content gh-preferences-panel"
+        [attr.aria-labelledby]="idPrefix() + '-appearance-tab'"
+        [hidden]="tab() !== 'appearance'"
+        [id]="idPrefix() + '-appearance'"
+        role="tabpanel"
+      >
+        <fieldset>
+          <legend>{{ i18n.t('apps.github.theme') }}</legend>
+          <div class="gh-preferences-themes">
+            @for (theme of themes; track theme) {
+              <label class="gh-preferences-theme" [class.gh-preferences-theme-selected]="theme === appearance().theme">
+                <span class="gh-preferences-swatch" [attr.data-preview]="theme" aria-hidden="true"></span>
+                <span class="gh-preferences-theme-caption">
+                  <input
+                    [checked]="theme === appearance().theme"
+                    [name]="idPrefix() + '-theme'"
+                    (change)="update('theme', theme)"
+                    type="radio"
+                  />
+                  {{ themeLabel(theme) }}
+                </span>
+              </label>
+            }
+          </div>
+        </fieldset>
+
+        <h3>{{ i18n.t('apps.github.formatting') }}</h3>
+        <div class="gh-preferences-formats">
+          <label>
+            {{ i18n.t('apps.github.dateFormat') }}
+            <select #dateFormat (change)="changeSelect('dateFormat', dateFormat)">
+              @for (format of dateFormats; track format.value) {
+                <option [selected]="format.value === appearance().dateFormat" [value]="format.value">
+                  {{ format.label }}
+                </option>
+              }
+            </select>
+          </label>
+          <label>
+            {{ i18n.t('apps.github.timeFormat') }}
+            <select #timeFormat (change)="changeSelect('timeFormat', timeFormat)">
+              @for (format of timeFormats; track format.value) {
+                <option [selected]="format.value === appearance().timeFormat" [value]="format.value">
+                  {{ format.label }}
+                </option>
+              }
+            </select>
+          </label>
+          <label>
+            {{ i18n.t('apps.github.numberFormat') }}
+            <select #numberFormat (change)="changeSelect('numberFormat', numberFormat)">
+              @for (format of numberFormats; track format.value) {
+                <option [selected]="format.value === appearance().numberFormat" [value]="format.value">
+                  {{ format.label }}
+                </option>
+              }
+            </select>
+          </label>
+        </div>
+        <label class="gh-preferences-check">
+          <input
+            #dates
+            [checked]="appearance().absoluteDates"
+            (change)="update('absoluteDates', dates.checked)"
+            type="checkbox"
+          />
+          {{ i18n.t('apps.github.preferAbsoluteDates') }}
+        </label>
+
+        <h3>{{ i18n.t('apps.github.miscellaneous') }}</h3>
+        <label class="gh-preferences-size">
+          {{ i18n.t('apps.github.diffTabSize') }}
+          <select #tabSize (change)="changeSelect('tabSize', tabSize)">
+            @for (size of tabSizes; track size) {
+              <option [selected]="size === appearance().tabSize" [value]="size">
+                {{ size === 4 ? i18n.t('apps.github.tabSizeDefault', { size }) : size }}
+              </option>
+            }
+          </select>
+        </label>
+        <label class="gh-preferences-check">
+          <input
+            #worktree
+            [checked]="appearance().alwaysShowWorktree"
+            (change)="update('alwaysShowWorktree', worktree.checked)"
+            type="checkbox"
+          />
+          {{ i18n.t('apps.github.alwaysShowWorktreeList') }}
+        </label>
+      </div>
+    </div>
+    @if (saveError(); as failure) {
+      <p class="gh-preferences-error gh-preferences-save-error" role="alert">{{ failure }}</p>
+    }
+    <footer class="gh-settings-footer">
+      <button class="gd-btn-secondary" [disabled]="saving()" (click)="dismissed.emit()" tabindex="0" type="button">
+        {{ i18n.t('apps.github.cancel') }}
+      </button>
+      <button class="gd-btn-primary" [disabled]="saving()" (click)="save.emit()" tabindex="0" type="button">
+        {{ i18n.t('apps.github.save') }}
+      </button>
+    </footer>
+  </section>
+</div>

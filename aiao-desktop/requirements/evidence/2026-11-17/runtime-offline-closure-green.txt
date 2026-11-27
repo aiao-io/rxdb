@@ -1,0 +1,37 @@
+
+ NX   Running targets lint, requirements-check for 2 projects:
+
+- aiao-desktop-e2e
+- aiao-desktop
+
+
+
+> nx run aiao-desktop-e2e:lint
+
+> eslint . --max-warnings=0
+
+(node:46608) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+> nx run aiao-desktop:lint
+
+> eslint .
+
+(node:46638) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+> nx run aiao-desktop:requirements-check
+
+> node scripts/check-requirements.mjs
+
+✅ Aiao Desktop requirements passed（28/29 已交付）
+
+
+
+ NX   Successfully ran targets lint, requirements-check for 2 projects
+
+
+  Run duration:      3.5s
+  Cache:             0/3 hit (0%)
+  Critical path:     1.5s (1 task)
+  Recoverable time:  1.9s (56% of the run)

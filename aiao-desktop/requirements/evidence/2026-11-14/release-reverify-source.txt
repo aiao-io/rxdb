@@ -1,0 +1,59 @@
+
+import {createHash} from 'node:crypto';
+import {readFile,writeFile} from 'node:fs/promises';
+import {setDefaultResultOrder} from 'node:dns';
+import {createRequire} from 'node:module';
+import path from 'node:path';
+import {pathToFileURL} from 'node:url';
+const root=process.env.AIAO_RELEASE_WORKSPACE;
+const base=path.join(root,'aiao-desktop/requirements/evidence/2026-11-14');
+const dist=path.join(root,'dist/aiao-desktop/apps/web/browser');
+const hash=body=>createHash('sha256').update(body).digest('hex');
+setDefaultResultOrder('ipv6first');
+const {deployConfig}=await import(pathToFileURL(path.join(root,'aiao-desktop/scripts/deploy/config.mjs')));
+const {checkDist}=await import(pathToFileURL(path.join(root,'aiao-desktop/scripts/deploy/dist-check.mjs')));
+const {checkLive}=await import(pathToFileURL(path.join(root,'aiao-desktop/scripts/deploy/live-check.mjs')));
+const require=createRequire(path.join(root,'aiao-desktop/apps/e2e/package.json'));
+const {chromium}=await import(pathToFileURL(require.resolve('playwright')));
+const tasks=[
+ ['file-reconciliation',async()=>{
+ const local=await checkDist({distDir:dist,requiredHeaders:deployConfig.requiredHeaders});
+ if(local.problems.length)throw new Error(local.problems.join('\n'));
+ const report={format:'aiao-desktop.release-reconciliation',version:1,startedAt:new Date().toISOString(),deploymentId:'b093f8b2-9bc7-492c-9a8b-1928f8397ada',baseUrl:'https://b093f8b2.aiao-desktop.pages.dev',method:{readOnly:true,uploaded:false,dnsResultOrder:'ipv6first',concurrency:3,timeoutMs:30000,retries:3},artifactIndexSha256:hash(await readFile(path.join(dist,'index.html')))};
+ Object.assign(report,await checkLive({distDir:dist,files:local.files,baseUrl:report.baseUrl,requiredHeaders:deployConfig.requiredHeaders,concurrency:3,timeoutMs:30000,retries:3}));
+ report.completedAt=new Date().toISOString();report.passed=report.checked===95&&report.failures.length===0;
+ await writeFile(path.join(base,'release-reconciliation.json'),JSON.stringify(report,null,2)+'\n');
+ return report;
+ }],
+ ['chrome-entry-provenance',async()=>{
+ const local=await readFile(path.join(dist,'index.html'),'utf8');
+ const report={format:'aiao-desktop.chrome-entry-provenance',version:1,measuredAt:new Date().toISOString(),method:'Fresh temporary Chrome profile, headless, service workers blocked; raw navigation body, no DOM serialization',environment:{channel:'chrome'},entries:[],pageErrors:[]};
+ const browser=await chromium.launch({channel:'chrome',headless:true});
+ report.environment.browser=browser.version();
+ try{
+ const context=await browser.newContext({viewport:{width:1440,height:900},serviceWorkers:'block'});
+ const allowed=['https://desktop.aiao.io','https://aiao-desktop.pages.dev'];
+ await context.route(url=>!allowed.includes(url.origin),route=>route.abort());
+ for(const origin of allowed){
+ const page=await context.newPage();page.on('pageerror',e=>report.pageErrors.push(e.message));
+ const response=await page.goto(origin+'/?boot=0',{timeout:45000});
+ const body=await response.body();const text=body.toString('utf8');
+ await page.locator('.win[data-app="finder"]').waitFor({timeout:30000});
+ let prefix=0;while(prefix<local.length&&prefix<text.length&&local[prefix]===text[prefix])prefix++;
+ let suffix=0;while(suffix<local.length-prefix&&suffix<text.length-prefix&&local.at(-suffix-1)===text.at(-suffix-1))suffix++;
+ const removed=local.slice(prefix,local.length-suffix);const added=text.slice(prefix,text.length-suffix);
+ const scripts=html=>[...html.matchAll(/<script\b([^>]*)>/gi)].map(m=>({src:m[1].match(/\bsrc=["']([^"']+)/i)?.[1]??null,type:m[1].match(/\btype=["']([^"']+)/i)?.[1]??null}));
+ const extraScriptSources=scripts(text).map(s=>s.src).filter(src=>src&&!scripts(local).some(s=>s.src===src));
+ const headers=await response.allHeaders();
+ report.entries.push({origin,status:response.status(),bytes:body.length,indexSha256:hash(body),artifactIndexSha256:hash(Buffer.from(local)),sameAsArtifact:text===local,commonPrefixChars:prefix,commonSuffixChars:suffix,removedLocalCharacters:removed.length,addedCharacters:added.length,addedFragmentSha256:hash(Buffer.from(added)),extraScriptSources,localScripts:scripts(local),responseScripts:scripts(text),finderVisible:await page.locator('.win[data-app="finder"]').isVisible(),crossOriginIsolated:await page.evaluate(()=>crossOriginIsolated),headers:Object.fromEntries(['content-type','content-encoding','cross-origin-opener-policy','cross-origin-embedder-policy'].map(k=>[k,headers[k]??null]))});
+ await page.close();
+ }
+ }finally{await browser.close();}
+ report.passed=report.entries.length===2&&report.pageErrors.length===0&&report.entries.every(e=>e.status===200&&e.finderVisible&&e.crossOriginIsolated);
+ await writeFile(path.join(base,'release-chrome-entry-provenance.json'),JSON.stringify(report,null,2)+'\n');
+ return report;
+ }]
+];
+const results=await Promise.allSettled(tasks.map(async([name,fn])=>({name,result:await fn()})));
+for(let i=0;i<results.length;i++){const r=results[i];console.log(JSON.stringify(r.status==='fulfilled'?r.value:{name:tasks[i][0],error:String(r.reason)},null,2));}
+if(results.some(r=>r.status==='rejected'||r.value.result.passed!==true))process.exitCode=1;

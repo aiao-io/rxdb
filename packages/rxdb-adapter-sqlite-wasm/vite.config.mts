@@ -11,9 +11,10 @@ export default defineConfig(() => ({
   cacheDir: '../../node_modules/.vite/packages/rxdb-adapter-sqlite-wasm',
   resolve: {
     alias: {
+      // 共享套件与适配器使用同一份构建，避免 Comlink 端口登记表被源码和产物各建一份。
       '@aiao/rxdb-adapter-sqlite-core/testing': path.resolve(
         import.meta.dirname,
-        '../rxdb-adapter-sqlite-core/src/testing.ts'
+        '../rxdb-adapter-sqlite-core/dist/testing.js'
       )
     }
   },

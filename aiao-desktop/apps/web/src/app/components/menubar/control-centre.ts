@@ -1,0 +1,224 @@
+import { useI18n } from '@aiao/rxdb-i18n-angular';
+import { Component, ErrorHandler, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { filter } from 'rxjs';
+
+import { Preferences } from '../../data/preferences';
+import { AppNotifications } from '../../services/app-notifications';
+import { SystemState } from '../../services/system-state';
+import { ThemeService } from '../../services/theme';
+import { Icon } from '../../shared/icon';
+import { Slider } from '../../shared/slider';
+
+/** 隔空投送状态的持久化键（偏好表）：`contacts`（仅限联系人）/ `on`（所有人）/ `off`。 */
+const AIRDROP_KEY = 'airdrop:mode';
+
+type AirDropMode = 'contacts' | 'on' | 'off';
+
+const isAirDropMode = (value: unknown): value is AirDropMode =>
+  value === 'contacts' || value === 'on' || value === 'off';
+
+/**
+ * 控制中心：Wi‑Fi、蓝牙、深色模式开关与亮度、音量滑块。AirDrop、Focus（专注模式）、Stage Manager
+ * 与前三者同一行。AirDrop 与 Focus 是真实持久化：AirDrop 存偏好表键 `airdrop:mode`，Focus 由通知中心服务
+ * 存 `focus:dnd`（开启时新通知静音横幅、通知中心显示「专注模式开启」）；Stage Manager 是本会话的展示开关（演示）。
+ * 无障碍（ADESK-US-108）：面板是 `dialog`；每个开关是原生按钮（`role="switch"`、`aria-checked`，副标题作描述），
+ * 滑块能用方向键调节。
+ */
+@Component({
+  selector: 'app-control-centre',
+  imports: [Icon, Slider],
+  host: {
+    class: 'panel cc',
+    role: 'dialog',
+    '[attr.aria-label]': "i18n.t('shell.controlCentre.name')",
+    style: 'min-width: 0; width: 302px; padding: 12px'
+  },
+  template: `
+    <div class="cc-grid">
+      <div class="cc-tile" style="grid-column: span 2">
+        <button
+          class="cc-row"
+          [attr.aria-checked]="system.wifi()"
+          [attr.aria-label]="i18n.t('shell.controlCentre.wifi')"
+          (click)="system.wifi.set(!system.wifi())"
+          aria-describedby="cc-wifi-sub"
+          data-t="wifi"
+          role="switch"
+          tabindex="0"
+          type="button"
+        >
+          <i class="cc-b" [class.on]="system.wifi()"><svg appIcon="g-wifi" style="width: 15px; height: 15px"></svg></i>
+          <div>
+            <b aria-hidden="true">{{ i18n.t('shell.controlCentre.wifiLabel') }}</b><span id="cc-wifi-sub">{{
+              system.wifi() ? system.wifiName() : i18n.t('shell.controlCentre.off')
+            }}</span>
+          </div>
+        </button>
+        <button
+          class="cc-row"
+          [attr.aria-checked]="system.bluetooth()"
+          [attr.aria-label]="i18n.t('shell.controlCentre.bluetooth')"
+          (click)="system.bluetooth.set(!system.bluetooth())"
+          aria-describedby="cc-bt-sub"
+          data-t="bt"
+          role="switch"
+          tabindex="0"
+          type="button"
+        >
+          <i class="cc-b" [class.on]="system.bluetooth()"
+            ><svg appIcon="g-bt" style="width: 15px; height: 15px"></svg
+          ></i>
+          <div>
+            <b aria-hidden="true">{{ i18n.t('shell.controlCentre.bluetooth') }}</b><span id="cc-bt-sub">{{
+              system.bluetooth() ? i18n.t('shell.controlCentre.on') : i18n.t('shell.controlCentre.off')
+            }}</span>
+          </div>
+        </button>
+        <button
+          class="cc-row"
+          [attr.aria-checked]="airdrop() !== 'off'"
+          [attr.aria-label]="i18n.t('shell.controlCentre.airdrop')"
+          (click)="cycleAirdrop()"
+          aria-describedby="cc-ad-sub"
+          data-t="ad"
+          role="switch"
+          tabindex="0"
+          type="button"
+        >
+          <i class="cc-b" [class.on]="airdrop() !== 'off'"
+            ><svg appIcon="g-airdrop" style="width: 15px; height: 15px"></svg
+          ></i>
+          <div>
+            <b aria-hidden="true">{{ i18n.t('shell.controlCentre.airdrop') }}</b><span id="cc-ad-sub">{{
+              airdrop() === 'contacts' ? i18n.t('shell.controlCentre.contactsOnly')
+              : airdrop() === 'on' ? i18n.t('shell.controlCentre.on')
+              : i18n.t('shell.controlCentre.off')
+            }}</span>
+          </div>
+        </button>
+      </div>
+      <div class="cc-tile" style="grid-column: span 2">
+        <button
+          class="cc-row"
+          [attr.aria-checked]="focus()"
+          [attr.aria-label]="i18n.t('shell.controlCentre.focus')"
+          (click)="appNotes.setFocusMode(!focus())"
+          aria-describedby="cc-focus-sub"
+          data-t="focus"
+          role="switch"
+          tabindex="0"
+          type="button"
+        >
+          <i class="cc-b" [class.on]="focus()"><svg appIcon="g-moon" style="width: 15px; height: 15px"></svg></i>
+          <div>
+            <b aria-hidden="true">{{ i18n.t('shell.controlCentre.focus') }}</b><span id="cc-focus-sub">{{
+              focus() ? i18n.t('shell.controlCentre.on') : i18n.t('shell.controlCentre.off')
+            }}</span>
+          </div>
+        </button>
+      </div>
+      <div class="cc-tile" style="grid-column: span 1">
+        <button
+          class="cc-row"
+          [attr.aria-checked]="system.theme() === 'dark'"
+          [attr.aria-label]="i18n.t('shell.controlCentre.darkMode')"
+          (click)="theme.toggle()"
+          aria-describedby="cc-dark-sub"
+          data-t="dark"
+          role="switch"
+          tabindex="0"
+          type="button"
+        >
+          <i class="cc-b" [class.on]="system.theme() === 'dark'"
+            ><svg appIcon="g-moon" style="width: 15px; height: 15px"></svg
+          ></i>
+          <div>
+            <b aria-hidden="true">{{ i18n.t('shell.controlCentre.darkMode') }}</b><span id="cc-dark-sub">{{
+              system.theme() === 'dark' ? i18n.t('shell.controlCentre.on') : i18n.t('shell.controlCentre.off')
+            }}</span>
+          </div>
+        </button>
+      </div>
+      <div class="cc-tile" style="grid-column: span 1">
+        <button
+          class="cc-row"
+          [attr.aria-checked]="stage()"
+          [attr.aria-label]="i18n.t('shell.controlCentre.stageManager')"
+          (click)="stage.set(!stage())"
+          aria-describedby="cc-stage-sub"
+          data-t="stage"
+          role="switch"
+          tabindex="0"
+          type="button"
+        >
+          <i class="cc-b" [class.on]="stage()"><svg appIcon="g-grid" style="width: 15px; height: 15px"></svg></i>
+          <div>
+            <b aria-hidden="true">{{ i18n.t('shell.controlCentre.stageMgr') }}</b><span id="cc-stage-sub">{{
+              (stage() ? i18n.t('shell.controlCentre.on') : i18n.t('shell.controlCentre.off')) + ' · 演示'
+            }}</span>
+          </div>
+        </button>
+      </div>
+      <div class="cc-tile" style="grid-column: span 2">
+        <div class="cc-slab">
+          <b aria-hidden="true">{{ i18n.t('shell.controlCentre.display') }}</b><app-slider
+            [label]="i18n.t('shell.controlCentre.display')"
+            [value]="system.brightness()"
+            (valueChange)="system.setBrightness($event)"
+            data-slider="bri"
+          />
+        </div>
+      </div>
+      <div class="cc-tile" style="grid-column: span 2">
+        <div class="cc-slab">
+          <b aria-hidden="true">{{ i18n.t('shell.controlCentre.sound') }}</b><app-slider
+            [label]="i18n.t('shell.controlCentre.sound')"
+            [value]="system.volume()"
+            (valueChange)="system.setVolume($event)"
+            data-slider="snd"
+          />
+        </div>
+      </div>
+    </div>
+  `
+})
+export class ControlCentre {
+  private readonly preferences = inject(Preferences);
+  private readonly errors = inject(ErrorHandler);
+  protected readonly system = inject(SystemState);
+  protected readonly theme = inject(ThemeService);
+  protected readonly appNotes = inject(AppNotifications);
+  protected readonly i18n = useI18n();
+  /** 隔空投送初始显示「仅限联系人」，点一次关，再点显示「On」；状态持久化，重开面板不重置。 */
+  protected readonly airdrop = signal<AirDropMode>(this.preferences.get(AIRDROP_KEY, isAirDropMode) ?? 'contacts');
+  /** 专注模式（勿扰）与通知中心共享同一状态（偏好键 `focus:dnd`）。 */
+  protected readonly focus = this.appNotes.focusMode;
+  /** Stage Manager 是本会话的展示开关：不持久化，副标题注明「演示」。 */
+  protected readonly stage = signal(false);
+
+  constructor() {
+    /* 库读完之前面板先开了：读到的还是默认值，就绪后补读一次。 */
+    this.preferences.ready.then(
+      () => this.adoptAirdrop(),
+      () => undefined
+    );
+    this.preferences.external$
+      .pipe(
+        filter(keys => keys.includes(AIRDROP_KEY)),
+        takeUntilDestroyed()
+      )
+      .subscribe(() => this.adoptAirdrop());
+  }
+
+  protected cycleAirdrop(): void {
+    const next = this.airdrop() === 'off' ? 'on' : 'off';
+    this.airdrop.set(next);
+    this.preferences.set(AIRDROP_KEY, next).catch((error: unknown) => this.errors.handleError(error));
+  }
+
+  private adoptAirdrop(): void {
+    const saved = this.preferences.get(AIRDROP_KEY, isAirDropMode);
+    if (saved) this.airdrop.set(saved);
+  }
+}

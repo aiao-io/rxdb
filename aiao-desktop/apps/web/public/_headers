@@ -1,0 +1,23 @@
+# Cloudflare Pages 响应头（生产托管必需，D-05、D-16）：
+# 终端用 Vivari 在页面里运行 Node，要求页面处于 crossOriginIsolated，全站必须返回 COOP 与 COEP。
+# X-Frame-Options 禁止其他站点把桌面嵌进 iframe（点击劫持：抹掉磁盘、GitHub 登录）；同源嵌入（几猫3A大作）不受影响。
+# 这里不加全站的 Content-Security-Policy：Pages 会把同名响应头拼起来，下面 oauth 返回页自带的 CSP 会变成两条策略的拼接值。
+# serve-static 与冒烟里托管桌面的静态服务器返回同一套响应头；nx serve 的 development 配置只带 COOP 与 COEP（IDE 内置预览用 iframe 打开 localhost）。
+# 发布前后的校验：pnpm nx run aiao-desktop:deploy（scripts/deploy/）。
+/*
+  Cross-Origin-Opener-Policy: same-origin
+  Cross-Origin-Embedder-Policy: require-corp
+  X-Frame-Options: SAMEORIGIN
+
+/github-oauth-return.html
+  Cache-Control: no-store
+  Referrer-Policy: no-referrer
+  Content-Security-Policy: default-src 'none'; script-src 'self'; base-uri 'none'; frame-ancestors 'none'
+
+/ngsw.json
+  Cache-Control: no-cache
+/ngsw-worker.js
+  Cache-Control: no-cache
+/manifest.webmanifest
+  Content-Type: application/manifest+json
+  Cache-Control: no-cache

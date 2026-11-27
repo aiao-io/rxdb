@@ -397,7 +397,11 @@ export class QueryTask<T extends EntityType, RT = unknown> {
   };
 
   #next_from_runner = (result: RT, startedAtVersion: number): void => {
-    if (startedAtVersion !== this.#local_result_version) return;
+    if (startedAtVersion !== this.#local_result_version) {
+      // 增量合并不能替代被丢弃的整查：只有 SQL 能补回的行仍可能缺失。
+      this.refresh();
+      return;
+    }
     this.#next(result, this.autoCache);
   };
 

@@ -1,0 +1,263 @@
+<div class="wb">
+  <div class="sbar" [style.display]="sidebar() ? null : 'none'" data-drag style="width: 196px">
+    <div style="display: flex; align-items: center; height: 38px; padding: 0 10px 0 12px">
+      @if (sidebar()) {
+        <app-traffic-lights />
+      }
+      <div style="flex: 1"></div>
+      <button
+        class="tbtn"
+        [attr.aria-label]="i18n.t('apps.notes.newFolder')"
+        [disabled]="busy() || win.closePending()"
+        [title]="i18n.t('apps.notes.newFolder')"
+        (click)="newFolder()"
+        data-new-folder
+        data-nodrag
+        tabindex="0"
+      >
+        <svg appIcon="g-plus"></svg>
+      </button>
+      <button
+        class="tbtn"
+        [attr.aria-label]="i18n.t('apps.notes.toggleFolders')"
+        [title]="i18n.t('apps.notes.hideFolders')"
+        (click)="toggleSidebar()"
+        data-nodrag
+        data-sbtoggle
+        tabindex="0"
+      >
+        <svg appIcon="g-sidebar"></svg>
+      </button>
+    </div>
+    <div class="grp">
+      <div class="gh">{{ i18n.t('apps.notes.onThisBrowser') }}</div>
+      @for (item of folders(); track item.name) {
+        <button
+          class="si"
+          [attr.aria-pressed]="folder() === item.name"
+          [attr.data-folder]="item.name"
+          [class.on]="folder() === item.name"
+          [disabled]="busy() || win.closePending()"
+          (click)="pickFolder(item.name)"
+          style="width: 100%; text-align: left; border: 0"
+          tabindex="0"
+          type="button"
+        >
+          <svg class="ico" [appIcon]="item.icon"></svg>
+          <span class="nm">{{ item.name }}</span>
+          <span class="tail">{{ item.count }}</span>
+        </button>
+      }
+    </div>
+  </div>
+  <div class="nt">
+    <div class="nt-list">
+      <div class="nt-search" data-drag style="display: flex; gap: 8px; align-items: center; padding-top: 9px">
+        @if (!sidebar()) {
+          <app-traffic-lights />
+        }
+        <div class="sfield" data-nodrag style="flex: 1">
+          <span><svg appIcon="g-search"></svg></span>
+          <input
+            [attr.aria-label]="i18n.t('apps.notes.searchNotes')"
+            [disabled]="busy() || win.closePending()"
+            [placeholder]="i18n.t('apps.notes.search')"
+            [value]="query()"
+            (input)="search($event)"
+            data-q
+          />
+        </div>
+        <button
+          class="tbtn"
+          [attr.aria-label]="i18n.t('apps.notes.newNote')"
+          [disabled]="busy() || win.closePending()"
+          [title]="i18n.t('apps.notes.newNote')"
+          (click)="create()"
+          data-new2
+          data-nodrag
+          tabindex="0"
+        >
+          <svg appIcon="g-compose"></svg>
+        </button>
+      </div>
+      <div class="nt-items scroll" data-items>
+        @for (row of rows(); track row.id) {
+          <button
+            class="nt-i"
+            [attr.aria-pressed]="row.id === selected()"
+            [attr.data-id]="row.id"
+            [class.on]="row.id === selected()"
+            [disabled]="busy() || win.closePending()"
+            (click)="pick(row.id)"
+            (contextmenu)="menu($event, row.id)"
+            (keydown)="rowKey($event, row.id)"
+            style="width: 100%; text-align: left; border: 0"
+            tabindex="0"
+            type="button"
+          >
+            <b>{{ row.title }}</b>
+            <div class="mt">
+              <span>{{ row.when }}</span>
+              <span class="sn">{{ row.snippet }}</span>
+            </div>
+          </button>
+        } @empty {
+          <div style="padding: 22px; text-align: center; color: var(--txt-3); font-size: 12.5px">
+            {{ i18n.t('apps.notes.noNotes') }}
+          </div>
+        }
+      </div>
+    </div>
+    <div class="nt-ed">
+      <div class="nt-fmt" data-drag>
+        <div style="flex: 1"></div>
+        <button
+          class="tbtn"
+          [attr.aria-label]="current()?.pinned ? i18n.t('apps.notes.unpinNote') : i18n.t('apps.notes.pinNote')"
+          [attr.aria-pressed]="current()?.pinned ?? false"
+          [disabled]="busy() || win.closePending() || !editor.value()"
+          [title]="current()?.pinned ? i18n.t('apps.notes.unpinNote') : i18n.t('apps.notes.pinNote')"
+          (click)="togglePin()"
+          data-nodrag
+          data-pin
+        >
+          {{ current()?.pinned ? '📌' : i18n.t('apps.notes.pin') }}
+        </button>
+        @for (item of textFormats; track item.command) {
+          <button
+            class="tbtn"
+            [attr.aria-label]="i18n.t(item.title)"
+            [attr.aria-pressed]="active().includes(item.command)"
+            [attr.data-f]="item.command"
+            [class.on]="active().includes(item.command)"
+            [disabled]="busy() || win.closePending() || !editor.value()"
+            [title]="i18n.t(item.title)"
+            (click)="format(item.command)"
+            data-nodrag
+            tabindex="0"
+          >
+            <svg [appIcon]="item.icon"></svg>
+          </button>
+        }
+        <div class="sep"></div>
+        <button
+          class="tbtn"
+          [attr.aria-label]="i18n.t('apps.notes.bulletedList')"
+          [attr.aria-pressed]="active().includes('insertUnorderedList')"
+          [class.on]="active().includes('insertUnorderedList')"
+          [disabled]="busy() || win.closePending() || !editor.value()"
+          [title]="i18n.t('apps.notes.bulletedList')"
+          (click)="format('insertUnorderedList')"
+          data-f="insertUnorderedList"
+          data-nodrag
+          tabindex="0"
+        >
+          <svg appIcon="g-bullets"></svg>
+        </button>
+        <button
+          class="tbtn"
+          [attr.aria-label]="i18n.t('apps.notes.checklist')"
+          [disabled]="busy() || win.closePending() || !editor.value()"
+          [title]="i18n.t('apps.notes.checklist')"
+          (click)="checklist()"
+          data-check
+          data-nodrag
+          tabindex="0"
+        >
+          <svg appIcon="g-checklist"></svg>
+        </button>
+        <button
+          class="tbtn"
+          [attr.aria-label]="i18n.t('apps.notes.table')"
+          [disabled]="busy() || win.closePending() || !editor.value()"
+          [title]="i18n.t('apps.notes.table')"
+          (click)="table()"
+          data-nodrag
+          data-table
+          tabindex="0"
+        >
+          <svg appIcon="g-table"></svg>
+        </button>
+        <div class="sep"></div>
+        <button
+          class="tbtn"
+          [attr.aria-label]="i18n.t('apps.notes.newNote')"
+          [disabled]="busy() || win.closePending()"
+          [title]="i18n.t('apps.notes.newNoteTooltip')"
+          (click)="create()"
+          data-new
+          data-nodrag
+          tabindex="0"
+        >
+          <svg appIcon="g-plus"></svg>
+        </button>
+        <div style="flex: 1"></div>
+      </div>
+      <div style="padding: 6px 14px; background: var(--card); color: var(--txt)">
+        <div aria-live="polite" role="status" style="font-size: 12px">
+          {{
+            busy() || editor.saving() ? i18n.t('apps.notes.saving')
+            : editor.dirty() ? i18n.t('apps.notes.unsavedChanges')
+            : i18n.t('apps.notes.saved')
+          }}
+        </div>
+        @if (folder() === trashFolder && current()) {
+          <div style="margin-top: 6px">
+            <button class="btn" [disabled]="busy() || win.closePending()" (click)="recover()" tabindex="0">
+              {{ i18n.t('apps.notes.recoverNote') }}
+            </button>
+          </div>
+        }
+        @if (failure(); as problem) {
+          <p role="alert" style="margin: 6px 0; overflow-wrap: anywhere">{{ problem }}</p>
+        }
+        @if (editor.dirty() || failure()) {
+          <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px">
+            <button
+              class="btn"
+              [disabled]="busy() || editor.saving() || win.closePending() || !editor.value()"
+              (click)="retry()"
+              tabindex="0"
+            >
+              {{ i18n.t('apps.notes.retrySave') }}
+            </button>
+            <button
+              class="btn"
+              [disabled]="busy() || editor.saving() || win.closePending() || !editor.value()"
+              (click)="saveCopy()"
+              tabindex="0"
+            >
+              {{ i18n.t('apps.notes.saveACopy') }}
+            </button>
+            <button
+              class="btn"
+              [disabled]="busy() || editor.saving() || win.closePending() || !editor.dirty()"
+              (click)="discardChanges()"
+              tabindex="0"
+            >
+              {{ i18n.t('apps.notes.discardChanges') }}
+            </button>
+          </div>
+        }
+      </div>
+      <div
+        class="nt-doc selectable"
+        #doc
+        [attr.aria-label]="i18n.t('apps.notes.noteContent')"
+        [attr.aria-readonly]="busy() || win.closePending() || !editor.value()"
+        [attr.contenteditable]="!busy() && !win.closePending() && editor.value() ? 'true' : 'false'"
+        (click)="docClick($event)"
+        (focus)="focused()"
+        (input)="saveSoon()"
+        (keydown)="docKey($event)"
+        (keyup)="syncFormats()"
+        (mouseup)="syncFormats()"
+        aria-multiline="true"
+        data-doc
+        role="textbox"
+        spellcheck="false"
+        tabindex="0"
+      ></div>
+    </div>
+  </div>
+</div>

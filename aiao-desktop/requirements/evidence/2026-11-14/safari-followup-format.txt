@@ -1,0 +1,3 @@
+aiao-desktop/requirements/capability-matrix.md
+aiao-desktop/requirements/evidence/2026-11-14/closeout-summary.json
+aiao-desktop/requirements/evidence/2026-11-14/safari-product-followup.json

@@ -10,7 +10,8 @@ import type {
   DesktopMethod,
   DesktopOpenedFile,
   DesktopSavedFile,
-  DesktopWindowState
+  DesktopWindowState,
+  DesktopWorkspaceRequest
 } from '../desktop.js';
 import {
   DESKTOP_APPEARANCE_VALUES,
@@ -20,6 +21,7 @@ import {
   DESKTOP_LIMITS,
   DESKTOP_METHOD_CAPABILITIES,
   DESKTOP_PROP,
+  DESKTOP_WORKSPACE_OPERATIONS,
   DesktopError,
   desktopProps,
   getDesktop,
@@ -28,6 +30,7 @@ import {
 } from '../desktop.js';
 import { OrbitError } from '../errors.js';
 import type { OrbitClient, OrbitInstance, OrbitRequestHandler, OrbitState, OrbitValue } from '../types.js';
+import { WORKSPACE_MAX } from '../workspace-transfer.js';
 
 afterEach(() => {
   vi.useRealTimers();
@@ -150,6 +153,13 @@ function fakeHost() {
     interactions.push(interaction);
     return record(name, result)(args);
   };
+  /** 工作区能力同样把计时控制另存：调用记录里只留业务参数。 */
+  const workspaceInteractions: (DesktopInteraction | undefined)[] = [];
+  const workspaceSnapshot: OrbitValue = { projectId: 'p1', revision: 1, files: [] };
+  const recordWorkspace = (request: DesktopWorkspaceRequest, interaction?: DesktopInteraction) => {
+    workspaceInteractions.push(interaction);
+    return record('workspace.call', workspaceSnapshot)(request);
+  };
   const host: DesktopHost = {
     window: {
       getState: record('window.getState', windowState),
@@ -186,9 +196,19 @@ function fakeHost() {
     filesystem: {
       open: recordFile('filesystem.open', opened),
       save: recordFile('filesystem.save', saved)
-    }
+    },
+    workspace: { call: recordWorkspace }
   };
-  return { host, calls, control, interactions, stateListeners, commandListeners, appearanceListeners };
+  return {
+    host,
+    calls,
+    control,
+    interactions,
+    workspaceInteractions,
+    stateListeners,
+    commandListeners,
+    appearanceListeners
+  };
 }
 
 /** 第一批能力：窗口、菜单、应用、外观。多数用例只关心它们。 */
@@ -226,7 +246,8 @@ describe('能力契约的协议常量', () => {
       'clipboard:read',
       'clipboard:write',
       'filesystem:read',
-      'filesystem:write'
+      'filesystem:write',
+      'workspace'
     ]);
   });
 
@@ -293,14 +314,18 @@ describe('能力契约的协议常量', () => {
         entriesPerApp: 20
       },
       clipboard: { textLength: 262_144 },
-      filesystem: { bytes: 524_288, acceptEntries: 16, nameLength: 255 }
+      filesystem: { bytes: 524_288, acceptEntries: 16, nameLength: 255 },
+      workspace: { requestTimeoutMs: 60_000, callTimeoutMs: 65_000 }
     });
   });
 
   it('常量之间自洽：宿主先超时、应用侧再兜底；文件内容编码后仍在消息上限内', () => {
-    const { requestTimeoutMs, callTimeoutMs, filesystem } = DESKTOP_LIMITS;
+    const { requestTimeoutMs, callTimeoutMs, filesystem, workspace } = DESKTOP_LIMITS;
     expect(callTimeoutMs).toBeGreaterThan(requestTimeoutMs);
     expect(callTimeoutMs).toBeLessThanOrEqual(120_000);
+    /* 工作区操作（拉取、提交）比普通请求慢得多，时限自成一组；规则相同：宿主的 TIMEOUT 先到，应用侧不超过 RPC 上限。 */
+    expect(workspace.callTimeoutMs).toBeGreaterThan(workspace.requestTimeoutMs);
+    expect(workspace.callTimeoutMs).toBeLessThanOrEqual(120_000);
     const messageLimit = 1024 * 1024;
     expect(Math.ceil((filesystem.bytes * 4) / 3)).toBeLessThan(messageLimit - 4096);
   });
@@ -628,7 +653,8 @@ describe('serveDesktop 与 getDesktop：统一信封', () => {
         'desktop.clipboard.readText',
         'desktop.clipboard.writeText',
         'desktop.filesystem.open',
-        'desktop.filesystem.save'
+        'desktop.filesystem.save',
+        'desktop.workspace.call'
       ].sort()
     );
   });
@@ -701,8 +727,13 @@ describe('默认拒绝：清单没声明的能力一律 CAPABILITY_DENIED', () =
     ['clipboard.readText', null],
     ['clipboard.writeText', 'x'],
     ['filesystem.open', {}],
-    ['filesystem.save', { suggestedName: 'a.txt', bytes: 'aGk=' }]
+    ['filesystem.save', { suggestedName: 'a.txt', bytes: 'aGk=' }],
+    ['workspace.call', { id: 'call-1', offset: 0, part: '{"projectId":"p1","operation":"open"}', last: true }]
   ];
+
+  it('默认拒绝矩阵覆盖登记表里的每一个方法：新增方法漏登记会让这里失败', () => {
+    expect(everyMethod.map(([method]) => method).sort()).toEqual(Object.keys(DESKTOP_METHOD_CAPABILITIES).sort());
+  });
 
   it('什么都没声明：每个方法都被拒绝，宿主函数一个也不会被调用，每次拒绝都通知桌面', async () => {
     const { client, calls, onError } = setup([]);
@@ -1534,5 +1565,413 @@ describe('超时只计宿主处理请求的时间', () => {
     expect(calls).toEqual([]);
     expect(emitted).toEqual([]);
     expect(onError).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('Git 工作区（workspace.call）：分片传输、时限与取消', () => {
+  /** 与 workspace-transfer 的分片上限一致：一个 UTF-16 码元在外层 JSON 里最多 6 字节。 */
+  const PART = 96 * 1024;
+  const flush = () => new Promise<void>(resolve => setTimeout(resolve, 0));
+  const status: DesktopWorkspaceRequest = { projectId: 'p1', operation: 'status' };
+  const commit: DesktopWorkspaceRequest = { projectId: 'p1', operation: 'commit', message: '提交' };
+  /** 超过一片的保存请求：40 万个 base64 字符，宿主按 5 片收齐。 */
+  const bigSave: DesktopWorkspaceRequest = {
+    projectId: 'p1',
+    operation: 'save',
+    expectedRevision: 1,
+    files: [{ path: 'big.bin', base64: 'QUJD'.repeat(100_000) }]
+  };
+  const snapshot = { projectId: 'p1', revision: 1, files: [] };
+  /** 只读操作，其余的都会改变工作区或仓库。 */
+  const reads: DesktopWorkspaceRequest[] = [
+    { projectId: 'p1', operation: 'open' },
+    status,
+    { projectId: 'p1', operation: 'history' },
+    { projectId: 'p1', operation: 'readDiff', path: 'a.txt', kind: 'working' }
+  ];
+  const writes: DesktopWorkspaceRequest[] = [
+    { projectId: 'p1', operation: 'save', expectedRevision: 1, files: [] },
+    { projectId: 'p1', operation: 'remove', path: 'a.txt' },
+    { projectId: 'p1', operation: 'rename', path: 'a.txt', destination: 'b.txt' },
+    { projectId: 'p1', operation: 'move', path: 'a.txt', destination: 'dir/a.txt' },
+    { projectId: 'p1', operation: 'stage', paths: ['a.txt'] },
+    { projectId: 'p1', operation: 'unstage', paths: ['a.txt'] },
+    { projectId: 'p1', operation: 'discardWorking', path: 'a.txt' },
+    commit,
+    { projectId: 'p1', operation: 'pull' },
+    { projectId: 'p1', operation: 'restore', oid: 'abc123' }
+  ];
+  /** 宿主 RPC 处理函数收到的请求信封（线上形态）；整个请求一片发完。 */
+  const single = (request: unknown, id = 'call-1'): OrbitValue => ({
+    instanceId: 'w1#1',
+    args: { id, offset: 0, part: JSON.stringify(request), last: true }
+  });
+  const never = () => new Promise<never>(() => undefined);
+  const outcome = <T>(pending: Promise<T>) =>
+    pending.then(
+      () => 'fulfilled',
+      (reason: unknown) => reason
+    );
+
+  it('登记表里的操作分成只读与有副作用两类，测试表没有遗漏', () => {
+    const operations = [...reads, ...writes].map(request => request.operation).sort();
+    expect(operations).toEqual([...DESKTOP_WORKSPACE_OPERATIONS].sort());
+  });
+
+  it('请求经分片到宿主：宿主拿到校验后的请求与取消信号，应用侧兜底时限取 workspace.callTimeoutMs', async () => {
+    const { desktop, client, calls, workspaceInteractions } = setup(EVERYTHING);
+    const request = vi.spyOn(client, 'request');
+    expect(await desktop.workspace.call(status)).toEqual(snapshot);
+    expect(calls).toEqual([['workspace.call', status]]);
+    expect(workspaceInteractions[0]?.signal).toBeInstanceOf(AbortSignal);
+    expect(request).toHaveBeenCalledWith('desktop.workspace.call', expect.objectContaining({ instanceId: 'w1#1' }), {
+      timeout: DESKTOP_LIMITS.workspace.callTimeoutMs
+    });
+  });
+
+  it('超过一片的请求与响应各自分片传输，宿主只执行一次且拿到完整请求', async () => {
+    const { desktop, host, calls } = setup(EVERYTHING);
+    const large = '回包 💾 '.repeat(60_000);
+    vi.spyOn(host.workspace!, 'call').mockResolvedValueOnce(large);
+    expect(await desktop.workspace.call(bigSave)).toBe(large);
+    expect(host.workspace!.call).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(host.workspace!.call).mock.calls[0]?.[0]).toEqual(bigSave);
+    expect(calls).toEqual([]);
+  });
+
+  it('同一连接上两处各自 getDesktop 再并发调用：共用一个发送队列，都成功，宿主按调用顺序串行执行', async () => {
+    const { desktop, client, host } = setup(EVERYTHING);
+    const other = getDesktop(client)!;
+    const order: string[] = [];
+    vi.spyOn(host.workspace!, 'call').mockImplementation(async request => {
+      order.push(`${request.operation}:开始`);
+      await flush();
+      order.push(`${request.operation}:结束`);
+      return request.operation;
+    });
+    const results = await Promise.allSettled([desktop.workspace.call(bigSave), other.workspace.call(status)]);
+    expect(results.map(result => result.status)).toEqual(['fulfilled', 'fulfilled']);
+    expect(results.map(result => (result.status === 'fulfilled' ? result.value : undefined))).toEqual([
+      'save',
+      'status'
+    ]);
+    expect(order).toEqual(['save:开始', 'save:结束', 'status:开始', 'status:结束']);
+  });
+
+  it('未声明 workspace 能力：CAPABILITY_DENIED，宿主不会被调用；实例 ID 不符是 WINDOW_CLOSED', async () => {
+    const denied = setup(['window']);
+    await expect(denied.desktop.workspace.call(status)).rejects.toMatchObject({ code: 'CAPABILITY_DENIED' });
+    const { handlers, calls, onError } = setup(EVERYTHING);
+    const stale = await handlers.get('desktop.workspace.call')!(
+      { instanceId: 'w1#0', args: { id: 'a', offset: 0, part: JSON.stringify(status), last: true } },
+      new AbortController().signal
+    );
+    expect(stale).toMatchObject({ ok: false, code: 'WINDOW_CLOSED' });
+    expect(onError).toHaveBeenCalledWith(expect.objectContaining({ code: 'WINDOW_CLOSED' }), 'workspace.call');
+    expect([...denied.calls, ...calls]).toEqual([]);
+  });
+
+  it('宿主没有提供 workspace：CAPABILITY_DENIED，已收齐的请求不会丢进黑洞', async () => {
+    const link = connect(desktopProps(EVERYTHING));
+    const { host } = fakeHost();
+    serveDesktop(link.instance, { ...host, workspace: undefined }, { capabilities: EVERYTHING });
+    const desktop = getDesktop(link.client)!;
+    await expect(desktop.workspace.call(status)).rejects.toMatchObject({ code: 'CAPABILITY_DENIED' });
+    await expect(desktop.workspace.call(bigSave)).rejects.toMatchObject({ code: 'CAPABILITY_DENIED' });
+    /* 拒绝先于参数校验：不合法的请求也不泄露校验细节。 */
+    await expect(desktop.workspace.call({ operation: 'format' } as never)).rejects.toMatchObject({
+      code: 'CAPABILITY_DENIED'
+    });
+  });
+
+  it('宿主校验请求内容：未知操作与多余字段是 INVALID_ARGUMENT，宿主不会被调用', async () => {
+    const { desktop, calls } = setup(EVERYTHING);
+    const bad = [
+      { projectId: 'p1', operation: 'format' },
+      { projectId: 'p1', operation: 'status', extra: 1 },
+      { operation: 'status' },
+      null,
+      '文本'
+    ];
+    for (const request of bad)
+      await expect(desktop.workspace.call(request as never)).rejects.toMatchObject({
+        name: 'DesktopError',
+        code: 'INVALID_ARGUMENT'
+      });
+    expect(calls).toEqual([]);
+  });
+
+  it('请求大到超过传输上限：应用侧直接以 INVALID_ARGUMENT 失败，什么也不发', async () => {
+    const { desktop, client, calls } = setup(EVERYTHING);
+    const request = vi.spyOn(client, 'request');
+    const oversize = { ...status, note: 'x'.repeat(WORKSPACE_MAX) } as unknown as DesktopWorkspaceRequest;
+    await expect(desktop.workspace.call(oversize)).rejects.toMatchObject({
+      name: 'DesktopError',
+      code: 'INVALID_ARGUMENT'
+    });
+    expect(request).not.toHaveBeenCalled();
+    expect(calls).toEqual([]);
+    expect(await desktop.workspace.call(status)).toEqual(snapshot);
+  });
+
+  describe('宿主处理时限', () => {
+    it.each(reads)('只读操作 $operation 超时：TIMEOUT，晚到的结果被忽略，之后的调用不被卡死', async request => {
+      vi.useFakeTimers();
+      const { desktop, host, onError } = setup(EVERYTHING);
+      const late = Promise.withResolvers<OrbitValue>();
+      vi.spyOn(host.workspace!, 'call').mockReturnValueOnce(late.promise);
+      const result = outcome(desktop.workspace.call(request));
+      await vi.advanceTimersByTimeAsync(DESKTOP_LIMITS.workspace.requestTimeoutMs - 1);
+      expect(onError).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(await result).toMatchObject({ name: 'DesktopError', code: 'TIMEOUT' });
+      expect(onError).toHaveBeenCalledWith(expect.objectContaining({ code: 'TIMEOUT' }), 'workspace.call');
+      late.resolve({ stale: true });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(await desktop.workspace.call(status)).toEqual(snapshot);
+    });
+
+    it.each(writes)('有副作用的操作 $operation 超时：结果未知（RESULT_UNKNOWN），之后的调用不被卡死', async request => {
+      vi.useFakeTimers();
+      const { desktop, host, onError } = setup(EVERYTHING);
+      vi.spyOn(host.workspace!, 'call').mockReturnValueOnce(never());
+      const result = outcome(desktop.workspace.call(request));
+      await vi.advanceTimersByTimeAsync(DESKTOP_LIMITS.workspace.requestTimeoutMs);
+      expect(await result).toMatchObject({ name: 'DesktopError', code: 'RESULT_UNKNOWN' });
+      expect(onError).toHaveBeenCalledWith(expect.objectContaining({ code: 'RESULT_UNKNOWN' }), 'workspace.call');
+      expect(await desktop.workspace.call(status)).toEqual(snapshot);
+    });
+
+    it('宿主自己抛出的 TIMEOUT 同样按操作分类：只读是 TIMEOUT，有副作用是 RESULT_UNKNOWN', async () => {
+      const { desktop, host } = setup(EVERYTHING);
+      vi.spyOn(host.workspace!, 'call').mockRejectedValue(new DesktopError('TIMEOUT', '宿主自己等不及了'));
+      await expect(desktop.workspace.call(status)).rejects.toMatchObject({ code: 'TIMEOUT' });
+      await expect(desktop.workspace.call(commit)).rejects.toMatchObject({ code: 'RESULT_UNKNOWN' });
+    });
+
+    it('宿主按信号中止操作：超时后信号已终止，晚到的拒绝不影响后续调用', async () => {
+      vi.useFakeTimers();
+      const { desktop, host } = setup(EVERYTHING);
+      let observed: AbortSignal | undefined;
+      vi.spyOn(host.workspace!, 'call').mockImplementationOnce(
+        (_request, interaction) =>
+          new Promise((_resolve, reject) => {
+            observed = interaction?.signal;
+            observed?.addEventListener('abort', () => reject(new Error('已中止')), { once: true });
+          })
+      );
+      const result = outcome(desktop.workspace.call(commit));
+      await vi.advanceTimersByTimeAsync(DESKTOP_LIMITS.workspace.requestTimeoutMs);
+      expect(await result).toMatchObject({ code: 'RESULT_UNKNOWN' });
+      expect(observed?.aborted).toBe(true);
+      expect(await desktop.workspace.call(status)).toEqual(snapshot);
+    });
+
+    it('用户等待（waitForUser）期间不计时：与其他需要用户操作的宿主调用一致', async () => {
+      vi.useFakeTimers();
+      const { desktop, host } = setup(EVERYTHING);
+      const user = Promise.withResolvers<void>();
+      vi.spyOn(host.workspace!, 'call').mockImplementationOnce(async (_request, interaction) => {
+        await interaction!.waitForUser(user.promise);
+        return 'done';
+      });
+      const result = desktop.workspace.call(commit);
+      await vi.advanceTimersByTimeAsync(10 * DESKTOP_LIMITS.workspace.requestTimeoutMs);
+      user.resolve();
+      expect(await result).toBe('done');
+    });
+  });
+
+  describe('取消与销毁', () => {
+    it('宿主操作挂起、应用取消这次 RPC：接收方立即释放，之后的新传输不再被「正忙」卡死', async () => {
+      const { handlers, host } = setup(EVERYTHING);
+      const handler = handlers.get('desktop.workspace.call')!;
+      vi.spyOn(host.workspace!, 'call').mockImplementationOnce(never);
+      const rpc = new AbortController();
+      const first = handler(single(commit, 'a'), rpc.signal);
+      await flush();
+      rpc.abort();
+      /* 取消消息与下一个请求是两条消息、两个任务：取消的处理在前，接收方在下一个请求到达之前已经空闲。 */
+      await flush();
+      expect(await handler(single(status, 'b'), new AbortController().signal)).toMatchObject({ ok: true });
+      /* 被取消的那次 RPC 本身也以结果未知结束（应答会被 RPC 层丢弃，这里直接调处理函数才看得到）。 */
+      expect(await first).toMatchObject({ ok: false, resultUnknown: true });
+    });
+
+    it('RPC 在宿主开始执行之前就已取消：不调用宿主，也不留下会话', async () => {
+      const { handlers, calls } = setup(EVERYTHING);
+      const handler = handlers.get('desktop.workspace.call')!;
+      const rpc = new AbortController();
+      rpc.abort();
+      expect(await handler(single(commit, 'a'), rpc.signal)).toMatchObject({ ok: false, code: 'WINDOW_CLOSED' });
+      expect(calls).toEqual([]);
+      expect(await handler(single(status, 'b'), new AbortController().signal)).toMatchObject({ ok: true });
+    });
+
+    it('宿主还在执行时再来任何分片都是 BUSY：同一窗口同一时刻只执行一个工作区操作', async () => {
+      const { handlers, host, onError } = setup(EVERYTHING);
+      const handler = handlers.get('desktop.workspace.call')!;
+      vi.spyOn(host.workspace!, 'call').mockImplementationOnce(never);
+      const rpc = new AbortController();
+      const first = handler(single(commit, 'a'), rpc.signal);
+      await flush();
+      expect(await handler(single(status, 'b'), new AbortController().signal)).toMatchObject({
+        ok: false,
+        code: 'BUSY'
+      });
+      expect(
+        await handler({ instanceId: 'w1#1', args: { id: 'a', offset: 0 } }, new AbortController().signal)
+      ).toMatchObject({ ok: false, code: 'BUSY' });
+      expect(onError).toHaveBeenCalledWith(expect.objectContaining({ code: 'BUSY' }), 'workspace.call');
+      rpc.abort();
+      await first;
+    });
+
+    it('传输中途服务解绑：后续分片 WINDOW_CLOSED，宿主不会被调用', async () => {
+      const { handlers, server, calls } = setup(EVERYTHING);
+      const handler = handlers.get('desktop.workspace.call')!;
+      const text = JSON.stringify(bigSave);
+      const chunk = (offset: number, last: boolean): OrbitValue => ({
+        instanceId: 'w1#1',
+        args: { id: 'a', offset, part: text.slice(offset, offset + PART), last }
+      });
+      expect(await handler(chunk(0, false), new AbortController().signal)).toEqual({ ok: true, value: null });
+      server.dispose();
+      expect(await handler(chunk(PART, false), new AbortController().signal)).toMatchObject({
+        ok: false,
+        code: 'WINDOW_CLOSED'
+      });
+      expect(calls).toEqual([]);
+    });
+
+    it.each([
+      ['只读操作', status, 'WINDOW_CLOSED', undefined],
+      ['有副作用的操作', commit, 'WINDOW_CLOSED', true]
+    ] as const)('宿主执行中服务解绑（%s）：立即结束，不等宿主操作返回', async (_name, request, code, unknown) => {
+      const { handlers, host, server } = setup(EVERYTHING);
+      const handler = handlers.get('desktop.workspace.call')!;
+      vi.spyOn(host.workspace!, 'call').mockImplementationOnce(never);
+      const reply = handler(single(request), new AbortController().signal);
+      await flush();
+      server.dispose();
+      const settled = await Promise.race([reply, flush().then(() => 'pending')]);
+      expect(settled).toMatchObject({ ok: false, code, ...(unknown ? { resultUnknown: true } : {}) });
+    });
+
+    it('传输中途连接断开（应用侧）：上传分片失败是 WINDOW_CLOSED，执行之后断开才是结果未知', async () => {
+      for (const [failAt, code] of [
+        [2, 'WINDOW_CLOSED'],
+        [5, 'RESULT_UNKNOWN']
+      ] as const) {
+        const { desktop, client } = setup(EVERYTHING);
+        const send = client.request.bind(client);
+        let count = 0;
+        vi.spyOn(client, 'request').mockImplementation(async (method, payload, options) => {
+          if (++count === failAt) throw new OrbitError('DESTROYED', '实例或连接已销毁');
+          return send(method, payload, options);
+        });
+        await expect(desktop.workspace.call(bigSave)).rejects.toMatchObject({ name: 'DesktopError', code });
+      }
+    });
+  });
+
+  describe('应用侧收不到应答', () => {
+    it('单片请求：只读是 TIMEOUT / WINDOW_CLOSED，有副作用的操作结果未知', async () => {
+      const { desktop, failNext } = setup(EVERYTHING);
+      failNext(new OrbitError('TIMEOUT', '请求超时'));
+      await expect(desktop.workspace.call(status)).rejects.toMatchObject({ code: 'TIMEOUT' });
+      failNext(new OrbitError('DESTROYED', '实例或连接已销毁'));
+      await expect(desktop.workspace.call(status)).rejects.toMatchObject({ code: 'WINDOW_CLOSED' });
+      failNext(new OrbitError('TIMEOUT', '请求超时'));
+      await expect(desktop.workspace.call(commit)).rejects.toMatchObject({ code: 'RESULT_UNKNOWN' });
+      failNext(new OrbitError('DESTROYED', '实例或连接已销毁'));
+      await expect(desktop.workspace.call(commit)).rejects.toMatchObject({ code: 'RESULT_UNKNOWN' });
+    });
+
+    it('多片请求：宿主还没开始执行（上传分片）失败是 TIMEOUT，最后一片起丢了应答才是结果未知', async () => {
+      for (const [failAt, code] of [
+        [1, 'TIMEOUT'],
+        [4, 'TIMEOUT'],
+        [5, 'RESULT_UNKNOWN']
+      ] as const) {
+        const { desktop, client } = setup(EVERYTHING);
+        const send = client.request.bind(client);
+        let count = 0;
+        vi.spyOn(client, 'request').mockImplementation(async (method, payload, options) => {
+          if (++count === failAt) throw new OrbitError('TIMEOUT', '请求超时');
+          return send(method, payload, options);
+        });
+        await expect(desktop.workspace.call(bigSave)).rejects.toMatchObject({ name: 'DesktopError', code });
+      }
+    });
+
+    it('取回响应分片时丢了应答：宿主已经执行完，应用不知道结果——有副作用的操作是结果未知', async () => {
+      for (const [request, code] of [
+        [status, 'TIMEOUT'],
+        [commit, 'RESULT_UNKNOWN']
+      ] as const) {
+        const { desktop, client, host } = setup(EVERYTHING);
+        vi.spyOn(host.workspace!, 'call').mockResolvedValueOnce('x'.repeat(150_000));
+        const send = client.request.bind(client);
+        let count = 0;
+        vi.spyOn(client, 'request').mockImplementation(async (method, payload, options) => {
+          if (++count === 2) throw new OrbitError('TIMEOUT', '请求超时');
+          return send(method, payload, options);
+        });
+        await expect(desktop.workspace.call(request)).rejects.toMatchObject({ code });
+      }
+    });
+  });
+
+  describe('错误形状', () => {
+    it('传输层的拒绝带稳定错误码：帧不合法是 INVALID_ARGUMENT；宿主函数不会被调用', async () => {
+      const { handlers, calls, onError } = setup(EVERYTHING);
+      const handler = handlers.get('desktop.workspace.call')!;
+      const frames: unknown[] = [
+        null,
+        'x',
+        {},
+        { id: '', offset: 0, part: 'null', last: true },
+        { id: 'x'.repeat(65), offset: 0, part: 'null', last: true },
+        { id: 'a', offset: 0, part: '', last: true },
+        { id: 'a', offset: 0, part: 'null', last: 'yes' },
+        { id: 'a', offset: 0, part: 'x'.repeat(PART + 1), last: false },
+        { id: 'a', offset: 4, part: 'null', last: true },
+        { id: 'a', offset: 0 }
+      ];
+      for (const args of frames)
+        expect(await handler({ instanceId: 'w1#1', args } as OrbitValue, new AbortController().signal)).toMatchObject({
+          ok: false,
+          code: 'INVALID_ARGUMENT'
+        });
+      expect(calls).toEqual([]);
+      expect(onError).toHaveBeenCalledTimes(frames.length);
+    });
+
+    it('宿主操作抛 DesktopError：稳定错误码原样回到应用；程序错误按处理失败回给应用，消息保留', async () => {
+      const { desktop, host } = setup(EVERYTHING);
+      vi.spyOn(host.workspace!, 'call').mockRejectedValueOnce(new DesktopError('HANDLE_INVALID', '凭证已失效'));
+      await expect(desktop.workspace.call(status)).rejects.toMatchObject({
+        name: 'DesktopError',
+        code: 'HANDLE_INVALID',
+        message: '凭证已失效'
+      });
+      vi.spyOn(host.workspace!, 'call').mockRejectedValueOnce(new Error('Expected revision 7, current revision is 8'));
+      await expect(desktop.workspace.call(commit)).rejects.toMatchObject({
+        name: 'OrbitError',
+        code: 'HANDLER_ERROR',
+        message: 'Expected revision 7, current revision is 8'
+      });
+      expect(await desktop.workspace.call(status)).toEqual(snapshot);
+    });
+
+    it('宿主没有结果时返回 null，而不是传输超限；宿主返回无法编码的值是程序错误，不卡死后续调用', async () => {
+      const { desktop, host } = setup(EVERYTHING);
+      vi.spyOn(host.workspace!, 'call').mockReturnValueOnce(undefined as never);
+      expect(await desktop.workspace.call({ projectId: 'p1', operation: 'remove', path: 'a.txt' })).toBeNull();
+      vi.spyOn(host.workspace!, 'call').mockResolvedValueOnce('x'.repeat(41 * 1024 * 1024));
+      await expect(desktop.workspace.call(status)).rejects.toMatchObject({ code: 'HANDLER_ERROR' });
+      expect(await desktop.workspace.call(status)).toEqual(snapshot);
+    });
   });
 });

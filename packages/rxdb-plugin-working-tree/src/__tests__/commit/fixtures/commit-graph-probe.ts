@@ -20,8 +20,9 @@
  */
 
 import type { EntityManager, EntityType, IRepository, RuleGroup, TransactionExecutor } from '@aiao/rxdb';
-import { getEntityMetadata, RxDBBranch, WorktreeTableSet } from '@aiao/rxdb';
+import { getEntityColumnName, getEntityMetadata, quoteSqlIdentifier, RxDBBranch, WorktreeTableSet } from '@aiao/rxdb';
 import { vi } from 'vitest';
+import { CommitChangeSet } from '../../../commit/commit-change-set.entity.js';
 import { fakeTableRef } from '../../fixtures/fake-table-ref.js';
 
 interface ProbeRule {
@@ -185,7 +186,7 @@ export interface CommitGraphProbeOptions {
    * 每条 `executor.query()` 发出之后的旁路钩子，拿得到语句与各表当前的行，交回这条语句读到的行。
    *
    * @remarks
-   * 替身**不执行 SQL**，这一点不变：钩子不是解释器的入口，而是让**布景**为它认得的那一条
+   * 替身**不执行 SQL 写入**：钩子不是解释器的入口，而是让**布景**为它认得的那一条
    * 语句补上行的变化、并替它答出结果。谁需要哪条语句留下痕迹，谁自己在自己的布景里写，
    * 替身照旧什么都不懂——没挂钩子、或钩子不认得这一条时，交回去的仍是空结果集。
    *
@@ -199,6 +200,45 @@ export interface CommitGraphProbeOptions {
   /** 本事务落在哪一套业务表上；默认主表集。给影子表集的布景模拟挂在可写检出位上的实例（US-314 B1.4） */
   readonly tableSet?: WorktreeTableSet;
 }
+
+/** 只为完整性校验的投影读取提供行；真实 SQL 的跨后端语义仍由一致性套件验证。 */
+const readIntegrityProjection = (
+  sql: string,
+  rowsOf: (EntityClass: EntityType) => object[],
+  finds: ProbeFindCall[]
+): unknown[][] | undefined => {
+  const marker = ` FROM ${fakeTableRef(CommitChangeSet)} WHERE `;
+  const markerIndex = sql.indexOf(marker);
+  if (!sql.startsWith('SELECT ') || markerIndex < 0) return undefined;
+  const metadata = getEntityMetadata(CommitChangeSet);
+  const columns = new Map<string, string>();
+  for (const field of [...metadata.propertyMap.keys(), ...metadata.foreignKeyNames]) {
+    const column = getEntityColumnName(metadata, field);
+    if (column) columns.set(quoteSqlIdentifier(column), field);
+  }
+  const fields = sql
+    .slice('SELECT '.length, markerIndex)
+    .split(', ')
+    .map(column => {
+      const field = columns.get(column);
+      if (!field) throw new Error(`commit-graph-probe: unsupported integrity column '${column}'`);
+      return field;
+    });
+  const where = sql.slice(markerIndex + marker.length);
+  const prefix = `${quoteSqlIdentifier(getEntityColumnName(metadata, 'commitId')!)} IN (`;
+  if (!where.startsWith(prefix) || !where.endsWith(')')) {
+    throw new Error(`commit-graph-probe: unsupported integrity predicate '${where}'`);
+  }
+  const values = where.slice(prefix.length, -1);
+  const ids = Array.from(values.matchAll(/'((?:''|[^'])*)'/g), match => match[1].replace(/''/g, "'"));
+  finds.push({
+    entity: metadata.name,
+    where: { combinator: 'and', rules: [{ field: 'commitId', operator: 'in', value: ids }] }
+  });
+  return rowsOf(CommitChangeSet)
+    .filter(row => ids.includes((row as Record<string, unknown>)['commitId'] as string))
+    .map(row => fields.map(field => (row as Record<string, unknown>)[field]));
+};
 
 /**
  * 造一个按实体名分表的 {@link TransactionExecutor} 替身。
@@ -227,7 +267,8 @@ export function createCommitGraphProbe(options: CommitGraphProbeOptions = {}): C
     query: vi.fn(async (sql: string) => {
       trace.push('query');
       statements.push(sql);
-      return { ...rawQueryResult, rows: options.onQuery?.(sql, tableOf) ?? [], columns: [] };
+      const provided = options.onQuery?.(sql, tableOf);
+      return { ...rawQueryResult, rows: readIntegrityProjection(sql, tableOf, finds) ?? provided ?? [], columns: [] };
     }),
     tableRef: fakeTableRef,
     mutations: vi.fn(async () => {

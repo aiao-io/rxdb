@@ -14,6 +14,8 @@ import {
   trackDragRegions
 } from './window-codec.js';
 import type { OrbitDragRegion, OrbitWindowFrame, OrbitWindowPlatform } from './window.js';
+import type { WorkspaceSender } from './workspace-transfer.js';
+import { workspaceReceiver, workspaceSender, WorkspaceTransferError } from './workspace-transfer.js';
 
 /*
  * 桌面能力协议（ADESK-US-206「能力契约」）：应用经 Orbit 请求宿主的 window / menu / app / appearance，
@@ -29,6 +31,9 @@ import type { OrbitDragRegion, OrbitWindowFrame, OrbitWindowPlatform } from './w
 /** 启动属性里放桌面能力信息（清单授予的能力）的键；没有它说明宿主不提供桌面能力。 */
 export const DESKTOP_PROP = 'orbit.desktop';
 
+/** 桌面传给 Aiao Code 的当前工作区标识；只传不透明的 projectId。 */
+export const DESKTOP_WORKSPACE_PROJECT_ID_PROP = 'aiao-desktop.workspace-project-id';
+
 /**
  * 能力名取值全集，清单 `capabilities` 逐项声明，默认拒绝。读写分开授权的能力用 `:read` / `:write` 区分；
  * `appearance` 只读，写入另外声明 `appearance:write`；`clipboard` 与 `filesystem` 同理读写分开。
@@ -43,7 +48,8 @@ export const DESKTOP_CAPABILITIES = [
   'clipboard:read',
   'clipboard:write',
   'filesystem:read',
-  'filesystem:write'
+  'filesystem:write',
+  'workspace'
 ] as const;
 
 /** 能力名。 */
@@ -106,6 +112,8 @@ export const DESKTOP_ERROR_PRESENTATION: Readonly<Record<DesktopErrorCode, Deskt
  *   `entriesPerApp` 是通知中心里每个应用最多保留几条（超出的旧条目被挤掉）；
  * - `clipboard.textLength`：剪贴板文本的字符数；
  * - `filesystem`：`bytes` 是一次打开或保存的文件内容字节数，`acceptEntries` 是 `accept` 的条数，`nameLength` 是文件名字符数；
+ * - `workspace`：Git 工作区操作（拉取、提交等）比普通请求慢得多，时限自成一组，规则相同——`requestTimeoutMs` 是宿主处理一次工作区操作的时限，
+ *   `callTimeoutMs` 是应用侧对每个分片应答的兜底时限，比宿主多留 5 秒，让宿主自己的结果（`TIMEOUT`，有副作用的操作是 `RESULT_UNKNOWN`）先到达；
  * - 文件内容经 base64 放进 JSON 消息，`filesystem.bytes` 编码后仍在 Orbit 的 1 MiB 消息上限之内。
  */
 export const DESKTOP_LIMITS = {
@@ -133,7 +141,8 @@ export const DESKTOP_LIMITS = {
     entriesPerApp: 20
   },
   clipboard: { textLength: 262_144 },
-  filesystem: { bytes: 524_288, acceptEntries: 16, nameLength: 255 }
+  filesystem: { bytes: 524_288, acceptEntries: 16, nameLength: 255 },
+  workspace: { requestTimeoutMs: 60_000, callTimeoutMs: 65_000 }
 } as const;
 
 /** `appearance.set` 与 `appearance.get` 只接受 / 返回的登记取值集合。 */
@@ -364,9 +373,68 @@ export interface DesktopSavedFile {
   readonly handle: string;
 }
 
+/** 宿主侧 Git 工作区请求。工作区只暴露受控 RPC，不暴露 OPFS 句柄或宿主内部服务。 */
+export const DESKTOP_WORKSPACE_OPERATIONS = [
+  'open',
+  'save',
+  'remove',
+  'rename',
+  'move',
+  'status',
+  'stage',
+  'unstage',
+  'readDiff',
+  'discardWorking',
+  'commit',
+  'pull',
+  'history',
+  'restore'
+] as const;
+
+/** 工作区请求的操作名；`open`、`status`、`history`、`readDiff` 只读，其余都会改变工作区或仓库。 */
+export type DesktopWorkspaceOperation = (typeof DESKTOP_WORKSPACE_OPERATIONS)[number];
+
+/** 已编码的文件内容和仓库内的相对路径。 */
+export interface DesktopWorkspaceFile {
+  readonly path: string;
+  readonly base64: string;
+}
+
+/** 工作区请求只能指向宿主为当前窗口选定的项目。保存采用乐观版本检查。 */
+export type DesktopWorkspaceRequest = { readonly projectId: string } & (
+  | { readonly operation: 'open' | 'status' | 'history' | 'pull' }
+  | {
+      readonly operation: 'save';
+      readonly files: readonly DesktopWorkspaceFile[];
+      readonly expectedRevision: number;
+      readonly removedPaths?: readonly string[];
+    }
+  | { readonly operation: 'remove' | 'discardWorking'; readonly path: string }
+  | { readonly operation: 'rename' | 'move'; readonly path: string; readonly destination: string }
+  | { readonly operation: 'stage' | 'unstage'; readonly paths: readonly string[] }
+  | { readonly operation: 'readDiff'; readonly path: string; readonly kind: 'working' | 'staged' }
+  | { readonly operation: 'commit'; readonly message: string }
+  | { readonly operation: 'restore'; readonly oid: string }
+);
+
+/** 宿主实现的 Git 工作区能力。 */
+export interface DesktopWorkspaceHost {
+  /**
+   * 执行一个已校验的工作区请求，返回 JSON 值（没有结果时返回 `null`）。同一窗口同一时刻只会有一个工作区操作在执行。
+   *
+   * 宿主处理时限是 `DESKTOP_LIMITS.workspace.requestTimeoutMs`，只计宿主处理的时间（`interaction.waitForUser` 的等待不计入）。
+   * 超时、应用取消或服务解绑时 `interaction.signal` 终止，宿主应据此中止仍在进行的操作；Orbit 不等宿主操作真的停下就释放传输会话，
+   * 应用随即收到结果：只读操作是 `TIMEOUT` / `WINDOW_CLOSED`，有副作用的操作是 `RESULT_UNKNOWN`（宿主可以像
+   * `filesystem.save` 一样用 `interaction.prepareSave` 标出不可撤销的写入点：标出之前取消保证没有写入）。
+   * 直接调用（内置应用）时 `interaction` 可以省略。
+   */
+  call(request: DesktopWorkspaceRequest, interaction?: DesktopInteraction): DesktopAwaitable<OrbitValue>;
+}
+
 /**
  * 宿主处理一个需要用户操作的请求时拿到的计时控制：宿主等用户（面板里选文件、确认覆盖）的那一段包进
  * {@link DesktopInteraction.waitForUser}，`serveDesktop` 暂停宿主处理时限的计时，用户操作完再接着算剩下的时间。
+ * Git 工作区操作（{@link DesktopWorkspaceHost.call}）拿到同一份控制：`signal` 贯穿超时与取消，`prepareSave` 标出不可撤销的写入点。
  */
 export interface DesktopInteraction {
   /** Orbit 在请求超时、取消或服务解绑时终止此信号，宿主可据此关闭面板。 */
@@ -410,6 +478,8 @@ export interface DesktopHost {
   readonly clipboard: DesktopClipboardHost;
   /** 文件。 */
   readonly filesystem: DesktopFilesystemHost;
+  /** Git 工作区。 */
+  readonly workspace?: DesktopWorkspaceHost;
 }
 
 /** 应用侧的 window 能力。 */
@@ -486,6 +556,17 @@ export interface DesktopFilesystemClient {
   save(request: DesktopSaveRequest): Promise<DesktopSavedFile>;
 }
 
+/** 应用侧的 Git 工作区能力。 */
+export interface DesktopWorkspaceClient {
+  /**
+   * 向宿主发出一个工作区请求，返回宿主的 JSON 结果。请求与结果超过一片时自动分片传输；同一连接上的调用串行执行。
+   * 失败时抛 {@link DesktopError}（稳定错误码）：宿主在 `DESKTOP_LIMITS.workspace.requestTimeoutMs` 内没处理完是 `TIMEOUT`，
+   * 同一窗口已有操作在执行是 `BUSY`，请求不合法是 `INVALID_ARGUMENT`，窗口关闭是 `WINDOW_CLOSED`；
+   * 有副作用的操作在超时或断连时不能确认是否已经生效，是 `RESULT_UNKNOWN`——应用应先读 `status` 核对再决定是否重试。
+   */
+  call(request: DesktopWorkspaceRequest): Promise<OrbitValue>;
+}
+
 /** 应用拿到的桌面能力。所有能力都在，但未在清单里声明的能力调用时稳定返回 `CAPABILITY_DENIED`。 */
 export interface OrbitDesktop {
   /** 清单授予这个应用的能力。 */
@@ -504,6 +585,8 @@ export interface OrbitDesktop {
   readonly clipboard: DesktopClipboardClient;
   /** 文件。 */
   readonly filesystem: DesktopFilesystemClient;
+  /** Git 工作区。 */
+  readonly workspace: DesktopWorkspaceClient;
 }
 
 /** 每个方法的参数。键是方法名（线上请求名是 `desktop.<方法名>`）。 */
@@ -546,6 +629,8 @@ export interface DesktopArguments {
   'filesystem.open': DesktopOpenOptions;
   /** 保存文件。 */
   'filesystem.save': DesktopSaveRequest;
+  /** 调用桌面 Git 工作区。 */
+  'workspace.call': DesktopWorkspaceRequest;
 }
 
 /** 每个方法成功时的结果；没有结果的方法是 `null`。 */
@@ -588,6 +673,8 @@ export interface DesktopResults {
   'filesystem.open': DesktopOpenedFile;
   /** 保存的文件。 */
   'filesystem.save': DesktopSavedFile;
+  /** 工作区返回的 JSON 值。 */
+  'workspace.call': OrbitValue;
 }
 
 /** 能力方法名。 */
@@ -784,7 +871,7 @@ function readNull(value: unknown): null {
   return null;
 }
 
-const BASE64 = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/;
+const BASE64 = /^[A-Za-z0-9+/]*={0,2}$/;
 const ICON_ID = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
 const ICON_IMAGE = /^data:image\/(?:png|jpeg|gif|webp);base64,([A-Za-z0-9+/]+={0,2})$/;
 const FILE_VERSION = /^\d{1,16}:\d{1,12}$/;
@@ -797,15 +884,17 @@ const CONTROL_EXCEPT_WHITESPACE = /(?![\n\t])\p{Cc}/u;
 /** base64 编码后的最大字符数（解码后不超过 `bytes` 字节）。 */
 const encodedLength = (bytes: number): number => Math.ceil(bytes / 3) * 4;
 
-function decodeBase64(text: string, what: string): Uint8Array {
-  if (!BASE64.test(text)) throw bad(`${what}必须是 base64 文本`);
+/** 将协议中的 base64 文本还原为文件字节。 */
+export function decodeBase64(text: string, what = 'bytes'): Uint8Array<ArrayBuffer> {
+  if (text.length % 4 !== 0 || !BASE64.test(text)) throw bad(`${what}必须是 base64 文本`);
   const binary = atob(text);
   const bytes = new Uint8Array(binary.length);
   for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
   return bytes;
 }
 
-function encodeBase64(bytes: Uint8Array): string {
+/** 将文件字节编码为可经 JSON 传输的文本。 */
+export function encodeBase64(bytes: Uint8Array): string {
   let binary = '';
   for (let start = 0; start < bytes.length; start += 0x8000)
     binary += String.fromCharCode(...bytes.subarray(start, start + 0x8000));
@@ -887,6 +976,100 @@ function readAccept(value: unknown): string[] {
       throw bad('accept 的每一项必须是扩展名（.md）或 MIME 类型（text/*、image/png）');
     return entry;
   });
+}
+
+const WORKSPACE_FILE_BYTES = 2 * 1024 * 1024;
+
+function workspacePath(value: unknown): string {
+  const path = readText(value, 240, 'path');
+  if (
+    path.includes('\\') ||
+    path.split('/').some(part => !part || part === '.' || part === '..' || part.toLowerCase() === '.git')
+  )
+    throw bad('工作区路径必须位于当前仓库的工作目录内');
+  return path;
+}
+
+function workspacePaths(value: unknown): string[] {
+  if (!Array.isArray(value) || value.length > 2000) throw bad('工作区路径列表无效');
+  return value.map(workspacePath);
+}
+
+function workspaceFile(value: unknown): DesktopWorkspaceFile {
+  if (!isRecord(value)) throw bad('无效的工作区文件');
+  onlyKeys(value, ['path', 'base64'], '工作区文件');
+  const base64 = value['base64'];
+  if (
+    typeof base64 !== 'string' ||
+    base64.length > encodedLength(WORKSPACE_FILE_BYTES) ||
+    base64.length % 4 !== 0 ||
+    !BASE64.test(base64)
+  )
+    throw bad('工作区文件的大小或编码无效');
+  return { path: workspacePath(value['path']), base64 };
+}
+
+function readWorkspaceRequest(value: unknown): DesktopWorkspaceRequest {
+  if (!isRecord(value)) throw bad('工作区请求必须是对象');
+  const operation = oneOf(value['operation'], DESKTOP_WORKSPACE_OPERATIONS, '工作区操作');
+  const projectId = readText(value['projectId'], 64, 'projectId');
+  const keys = (...extra: string[]) => onlyKeys(value, ['operation', 'projectId', ...extra], '工作区请求');
+  switch (operation) {
+    case 'open':
+    case 'status':
+    case 'pull':
+    case 'history':
+      keys();
+      return { projectId, operation };
+    case 'remove':
+    case 'discardWorking':
+      keys('path');
+      return { projectId, operation, path: workspacePath(value['path']) };
+    case 'move':
+    case 'rename':
+      keys('path', 'destination');
+      return {
+        projectId,
+        operation,
+        path: workspacePath(value['path']),
+        destination: workspacePath(value['destination'])
+      };
+    case 'stage':
+    case 'unstage':
+      keys('paths');
+      return { projectId, operation, paths: workspacePaths(value['paths']) };
+    case 'readDiff':
+      keys('path', 'kind');
+      return {
+        projectId,
+        operation,
+        path: workspacePath(value['path']),
+        kind: oneOf(value['kind'], ['working', 'staged'] as const, '差异类型')
+      };
+    case 'commit':
+      keys('message');
+      return { projectId, operation, message: readBody(value['message'], 4096) };
+    case 'restore':
+      keys('oid');
+      return { projectId, operation, oid: readText(value['oid'], 64, 'oid') };
+    case 'save': {
+      keys('files', 'expectedRevision', 'removedPaths');
+      const revision = value['expectedRevision'];
+      if (typeof revision !== 'number' || !Number.isSafeInteger(revision) || revision < 1)
+        throw bad('保存必须带工作区版本');
+      if (!Array.isArray(value['files']) || value['files'].length > 2000) throw bad('无效的工作区文件列表');
+      const files = value['files'].map(workspaceFile);
+      if (files.reduce((bytes, file) => bytes + file.base64.length * 0.75, 0) > 20 * 1024 * 1024 + 2 * files.length)
+        throw bad('保存内容超过工作区上限');
+      return {
+        projectId,
+        operation,
+        files,
+        expectedRevision: revision,
+        ...(value['removedPaths'] === undefined ? {} : { removedPaths: workspacePaths(value['removedPaths']) })
+      };
+    }
+  }
 }
 
 function readOpenOptions(value: unknown): DesktopOpenOptions {
@@ -1143,6 +1326,15 @@ const METHODS: { readonly [M in DesktopMethod]: MethodSpec<M> } = {
     },
     run: (host, request, interaction) => host.filesystem.save(request, interaction),
     read: readSavedFile
+  },
+  'workspace.call': {
+    capability: 'workspace',
+    parse: readWorkspaceRequest,
+    run: (host, request, interaction) => {
+      if (!host.workspace) return Promise.reject(denied('workspace'));
+      return host.workspace.call(request, interaction);
+    },
+    read: value => copyValue(value)
   }
 };
 
@@ -1226,14 +1418,31 @@ function readFrame(payload: OrbitValue): Frame {
   return { ...frame, requestId: payload['requestId'] };
 }
 
+/** 一次宿主调用的时限规则。 */
+interface Budget {
+  /** 宿主处理时限（毫秒），只计宿主处理的时间。 */
+  readonly limitMs: number;
+  /**
+   * 调用可能改变宿主状态（写文件、改仓库）时，超时、取消或宿主自己抛出 `TIMEOUT` 之后「结果未知」的说明；只读调用省略。
+   * 宿主用 `interaction.prepareSave` 标出提交边界之前，取消保证尚未写入，不算结果未知。
+   */
+  readonly uncertain?: string;
+}
+
+/** 除工作区以外的方法：宿主处理时限一样，只有 `filesystem.save` 会写入。 */
+function budgetOf(method: DesktopMethod): Budget {
+  const limitMs = DESKTOP_LIMITS.requestTimeoutMs;
+  return method === 'filesystem.save' ? { limitMs, uncertain: UNKNOWN_SAVE } : { limitMs };
+}
+
 /**
  * 在宿主处理时限内运行一次宿主调用，**只计宿主处理的时间**：宿主等用户操作（面板里选文件、确认覆盖）的那一段包进
  * `interaction.waitForUser`，计时暂停，用户操作完再接着算剩下的时间——所以用户在面板里停留多久都不会让请求超时，
- * 超时或取消时终止宿主信号；保存越过提交边界后则不能保证尚未写入。
+ * 超时或取消时终止宿主信号并立即结束，不等宿主操作返回；写入类调用越过提交边界后则不能保证尚未写入（见 {@link Budget}）。
  */
 async function withBudget<T>(
   run: (interaction: DesktopInteraction) => DesktopAwaitable<T>,
-  method: DesktopMethod,
+  budget: Budget,
   cancelled: AbortSignal
 ): Promise<T> {
   if (cancelled.aborted) throw closed();
@@ -1243,10 +1452,12 @@ async function withBudget<T>(
   let savePhase: 'untracked' | 'preparing' | 'writing' = 'untracked';
   const interrupt = () => {
     const cause = deadline.signal.aborted ? new DesktopError('TIMEOUT', '宿主处理请求超时') : closed();
-    stopped.reject(method === 'filesystem.save' && savePhase !== 'preparing' ? unknownSave(cause) : cause);
+    stopped.reject(
+      budget.uncertain !== undefined && savePhase !== 'preparing' ? unknownResult(cause, budget.uncertain) : cause
+    );
   };
   signal.addEventListener('abort', interrupt, { once: true });
-  let remaining: number = DESKTOP_LIMITS.requestTimeoutMs;
+  let remaining: number = budget.limitMs;
   let startedAt = Date.now();
   let waits = 0;
   const arm = () => setTimeout(() => deadline.abort(), Math.max(0, remaining));
@@ -1285,12 +1496,12 @@ async function withBudget<T>(
     return await Promise.race([stopped.promise, work]);
   } catch (error) {
     if (
-      method === 'filesystem.save' &&
+      budget.uncertain !== undefined &&
       error instanceof DesktopError &&
       error.code === 'TIMEOUT' &&
       !deadline.signal.aborted
     )
-      throw unknownSave(error);
+      throw unknownResult(error, budget.uncertain);
     throw error;
   } finally {
     clearTimeout(timer);
@@ -1298,8 +1509,29 @@ async function withBudget<T>(
   }
 }
 
+const UNKNOWN_SAVE = '无法确认保存结果，请核对文件后再重试';
+const UNKNOWN_WORKSPACE = '无法确认工作区操作的结果，请先读取工作区状态核对，再决定是否重试';
+
+/** 超时或断连时不能确认写入有没有发生：稳定错误码 `RESULT_UNKNOWN`，原因留在 `cause`。 */
+function unknownResult(cause: unknown, message: string): DesktopError {
+  return new DesktopError('RESULT_UNKNOWN', message, { cause });
+}
+
 function unknownSave(cause: unknown): DesktopError {
-  return new DesktopError('RESULT_UNKNOWN', '无法确认保存结果，请核对文件后再重试', { cause });
+  return unknownResult(cause, UNKNOWN_SAVE);
+}
+
+/** 只读的工作区操作；其余的都会改变工作区或仓库，超时或断连时结果未知。 */
+const WORKSPACE_READS = [
+  'open',
+  'status',
+  'history',
+  'readDiff'
+] as const satisfies readonly DesktopWorkspaceOperation[];
+
+/** 工作区操作会不会改变工作区或仓库。请求里不认识的操作名保守地当作会：宿主随后会拒绝它，这里只决定出错时怎么报。 */
+function changesWorkspace(operation: unknown): boolean {
+  return !(WORKSPACE_READS as readonly unknown[]).includes(operation);
 }
 
 /** 宿主的结果上线前的样子：先按规格编码（字节数组变 base64），再走一遍 JSON 复制，线上只有普通的 JSON 值。 */
@@ -1317,6 +1549,10 @@ function packResult<M extends DesktopMethod>(spec: MethodSpec<M>, value: Desktop
  * 需要用户在桌面面板里操作的请求（`filesystem.open`、不带凭证的 `filesystem.save`）带一个 `requestId`：前面这些检查通过后
  * 宿主立刻应答「已受理」，宿主调用在后台跑，结果（成功、稳定错误码，或宿主自己的程序错误）用 `desktop.request.settled`
  * 事件送达。实例销毁或失败之后迟到的结果不再送出。
+ *
+ * Git 工作区请求（`workspace.call`）按分片传输，宿主每个实例只保留一份有界的传输会话：宿主调用在
+ * `DESKTOP_LIMITS.workspace.requestTimeoutMs` 内处理，超时、应用取消或解绑时终止 `interaction.signal` 并立即释放会话
+ * （只读操作结束为 `TIMEOUT`，有副作用的操作结束为 `RESULT_UNKNOWN`）；同一窗口一次只执行一个，执行期间再来的分片是 `BUSY`。
  * 实例销毁或失败时自动解绑，也可以手动 `dispose()`。
  */
 export function serveDesktop(instance: OrbitInstance, host: DesktopHost, options: DesktopServeOptions): DesktopServer {
@@ -1361,7 +1597,7 @@ export function serveDesktop(instance: OrbitInstance, host: DesktopHost, options
       if (connectedInstance()) instance.emit(EVENTS.settled, { requestId, ...(result as OrbitObject) });
     };
     /* 宿主返回了没法编码的结果（程序错误）也要走到完成事件：否则应用永远等不到结果。 */
-    void withBudget(interaction => spec.run(host, args, interaction), method, signal)
+    void withBudget(interaction => spec.run(host, args, interaction), budgetOf(method), signal)
       .then(value => packResult(spec, value))
       .then(value => settle({ envelope: wire({ ok: true, value }) }))
       .catch((error: unknown) =>
@@ -1375,6 +1611,26 @@ export function serveDesktop(instance: OrbitInstance, host: DesktopHost, options
     return wire({ ok: true, value: null });
   };
 
+  /**
+   * 工作区请求收齐后在宿主时限内执行：只读操作超时是 `TIMEOUT`，有副作用的操作超时、取消或解绑是 `RESULT_UNKNOWN`；
+   * 时限到、RPC 取消或服务解绑时终止宿主信号并立即结束，接收方随之释放会话。
+   */
+  const runWorkspace = async (value: unknown, signal: AbortSignal): Promise<OrbitValue> => {
+    /* 宿主没有提供工作区时先拒绝，与其他能力一样拒绝先于参数校验，不泄露校验细节。 */
+    if (!host.workspace) throw denied('workspace');
+    const request = parseDesktopArguments('workspace.call', value);
+    const limitMs = DESKTOP_LIMITS.workspace.requestTimeoutMs;
+    const budget: Budget =
+      changesWorkspace(request.operation) ? { limitMs, uncertain: UNKNOWN_WORKSPACE } : { limitMs };
+    const result = await withBudget(
+      interaction => METHODS['workspace.call'].run(host, request, interaction),
+      budget,
+      signal
+    );
+    return result ?? null;
+  };
+  const receiveWorkspace = workspaceReceiver(runWorkspace, lifetime.signal);
+
   const handle = async <M extends DesktopMethod>(
     method: M,
     payload: OrbitValue,
@@ -1386,13 +1642,15 @@ export function serveDesktop(instance: OrbitInstance, host: DesktopHost, options
       if (frame.instanceId !== instance.snapshot.instanceId) throw closed();
       const spec = METHODS[method];
       if (!granted.has(spec.capability)) throw denied(spec.capability);
-      const args = parseDesktopArguments(method, frame.args);
       const signal = AbortSignal.any([rpc, lifetime.signal]);
+      if (method === 'workspace.call') return wire({ ok: true, value: await receiveWorkspace(frame.args, signal) });
+      const args = parseDesktopArguments(method, frame.args);
       if (spec.interactive?.(args)) return begin(method, spec, args, frame.requestId, signal);
       if (frame.requestId !== undefined) throw bad('这个请求不需要 requestId');
-      const value = await withBudget(interaction => spec.run(host, args, interaction), method, signal);
+      const value = await withBudget(interaction => spec.run(host, args, interaction), budgetOf(method), signal);
       return wire({ ok: true, value: packResult(spec, value) });
     } catch (error) {
+      if (error instanceof WorkspaceTransferError) return fail(method, transferFailure(error));
       if (error instanceof DesktopError) return fail(method, error);
       throw error;
     }
@@ -1432,23 +1690,45 @@ function unpack(value: unknown, method: DesktopMethod): OrbitValue {
   throw error;
 }
 
-/** 把 Orbit RPC 层的失败归到稳定错误码：超时、连接已销毁（窗口已关闭）、载荷不合法；其余照原样抛出。 */
-function translate(error: unknown, method: DesktopMethod): unknown {
+/**
+ * 把 Orbit RPC 层的失败归到稳定错误码：超时、连接已销毁（窗口已关闭）、载荷不合法；其余照原样抛出。
+ * `uncertain` 不为空时丢了应答就不能确认宿主有没有写入：超时、断连与取消是 `RESULT_UNKNOWN`。
+ */
+function translate(error: unknown, uncertain: string | undefined): unknown {
   if (!(error instanceof OrbitError)) return error;
-  if (method === 'filesystem.save' && ['TIMEOUT', 'DESTROYED', 'ABORTED'].includes(error.code))
-    return unknownSave(error);
+  if (uncertain !== undefined && ['TIMEOUT', 'DESTROYED', 'ABORTED'].includes(error.code))
+    return unknownResult(error, uncertain);
   if (error.code === 'TIMEOUT') return new DesktopError('TIMEOUT', error.message, { cause: error });
   if (error.code === 'DESTROYED') return new DesktopError('WINDOW_CLOSED', error.message, { cause: error });
   if (error.code === 'INVALID_PAYLOAD') return new DesktopError('INVALID_ARGUMENT', error.message, { cause: error });
   return error;
 }
 
-async function requestDesktop(client: OrbitClient, method: DesktopMethod, payload: OrbitObject): Promise<OrbitValue> {
+/** 一次请求在应用侧的投递规则：等应答的兜底时限，以及丢了应答时写入结果是否算未知（见 {@link translate}）。 */
+interface Delivery {
+  readonly timeoutMs: number;
+  readonly uncertain?: string;
+}
+
+/** 传输层的拒绝转成同名的稳定错误码。 */
+function transferFailure(error: WorkspaceTransferError): DesktopError {
+  return new DesktopError(error.code, error.message, { cause: error });
+}
+
+async function requestDesktop(
+  client: OrbitClient,
+  method: DesktopMethod,
+  payload: OrbitObject,
+  delivery: Delivery = {
+    timeoutMs: DESKTOP_LIMITS.callTimeoutMs,
+    ...(method === 'filesystem.save' ? { uncertain: UNKNOWN_SAVE } : {})
+  }
+): Promise<OrbitValue> {
   let reply: OrbitValue;
   try {
-    reply = await client.request(`${WIRE_PREFIX}${method}`, payload, { timeout: DESKTOP_LIMITS.callTimeoutMs });
+    reply = await client.request(`${WIRE_PREFIX}${method}`, payload, { timeout: delivery.timeoutMs });
   } catch (error) {
-    throw translate(error, method);
+    throw translate(error, delivery.uncertain);
   }
   return unpack(reply, method);
 }
@@ -1473,6 +1753,39 @@ interface InteractiveRequests {
 }
 
 const connections = new WeakMap<OrbitClient, InteractiveRequests>();
+/** 工作区的发送队列按连接共用：同一客户端上各处各自 `getDesktop` 得到的 `workspace` 也串行，不会冲掉宿主的传输会话。 */
+const workspaceQueues = new WeakMap<OrbitClient, WorkspaceSender>();
+
+function workspaceQueue(client: OrbitClient): WorkspaceSender {
+  const existing = workspaceQueues.get(client);
+  if (existing) return existing;
+  const queue = workspaceSender();
+  workspaceQueues.set(client, queue);
+  return queue;
+}
+
+/**
+ * 经共用的发送队列发出一个工作区请求。每个分片的应答用 `workspace.callTimeoutMs` 兜底（比宿主时限多几秒，宿主的结果先到）；
+ * 有副作用的操作从最后一个上传分片起（宿主可能已经开始执行）丢了应答，结果就是未知，此前的上传分片失败则宿主什么也没做。
+ */
+async function callWorkspace(client: OrbitClient, request: DesktopWorkspaceRequest): Promise<OrbitValue> {
+  const writes = changesWorkspace(isRecord(request) ? request['operation'] : undefined);
+  try {
+    return await workspaceQueue(client)(request, (frame, phase) =>
+      requestDesktop(
+        client,
+        'workspace.call',
+        { instanceId: client.context.instanceId, args: frame },
+        {
+          timeoutMs: DESKTOP_LIMITS.workspace.callTimeoutMs,
+          ...(writes && phase !== 'upload' ? { uncertain: UNKNOWN_WORKSPACE } : {})
+        }
+      )
+    );
+  } catch (error) {
+    throw error instanceof WorkspaceTransferError ? transferFailure(error) : error;
+  }
+}
 
 function interactiveRequests(client: OrbitClient): InteractiveRequests {
   const existing = connections.get(client);
@@ -1518,6 +1831,9 @@ function interactiveRequests(client: OrbitClient): InteractiveRequests {
  * 需要用户在桌面面板里操作的调用（`filesystem.open`、不带凭证的 `filesystem.save`）先等宿主应答「已受理」
  * （这一步有 `callTimeoutMs` 的时限），再等宿主用完成事件送达最终结果——用户在面板里停留的时间没有时限；
  * 断连时读请求以 `WINDOW_CLOSED` 结束；无法确认写入结果时保存以 `RESULT_UNKNOWN` 结束。
+ *
+ * `workspace.call` 的请求与结果按分片传输（见 {@link DesktopWorkspaceClient.call}）：同一个 `OrbitClient` 上各处各自
+ * `getDesktop` 得到的 `workspace` 共用一个发送队列，串行传输与执行，不会互相冲掉宿主的传输会话。
  */
 export function getDesktop(client: OrbitClient): OrbitDesktop | undefined {
   const initial = client.context.props[DESKTOP_PROP];
@@ -1576,6 +1892,9 @@ export function getDesktop(client: OrbitClient): OrbitDesktop | undefined {
     filesystem: {
       open: (options = {}) => call('filesystem.open', options),
       save: request => call('filesystem.save', request)
+    },
+    workspace: {
+      call: request => callWorkspace(client, request)
     }
   };
 }

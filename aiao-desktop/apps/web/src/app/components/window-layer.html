@@ -1,0 +1,11 @@
+<div id="layer-win">
+  @for (win of wm.windows(); track win.id) {
+    <app-window-frame [win]="win" />
+  }
+  <!-- 打开 / 保存面板：第一次有应用请求文件时才下载它的组件；同一时刻只渲染最上面的一个，换一个就重建。 -->
+  @defer (when panels.current() !== null) {
+    @for (panel of panelStack(); track panel) {
+      <app-file-panel [panel]="panel" />
+    }
+  }
+</div>

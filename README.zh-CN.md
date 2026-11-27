@@ -144,7 +144,7 @@ await new Todo({ title: '读完 README' }).save();
 ## 架构一览
 
 ```text
-rxdb/
+aiao/
 ├── apps/             # 三框架演示、后台模板、看板、P2P、桌面与小程序应用及 E2E
 ├── packages/         # 核心引擎、适配器、框架绑定、UI 与插件公共包
 ├── modules/          # 内部共享模块、领域示例与跨框架 E2E 契约

@@ -1,0 +1,75 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-17T17:32:13.561Z",
+  "source": {
+    "sha": "19a839ff0fa19e8bbe5ea78014464f9c11dcd626",
+    "changes": "M  src/groups/calendar-drafts.mjs\nA  src/groups/contacts.mjs\nMM src/groups/index.mjs\nM  ../web/src/app/apps/calendar/calendar.html\nA  ../web/src/app/apps/contacts/contacts-model.spec.ts\nA  ../web/src/app/apps/contacts/contacts-model.ts\nM  ../web/src/app/apps/contacts/contacts.ts\n M ../web/src/app/apps/notes/notes.html\n M ../web/src/app/apps/notes/notes.ts\n M ../web/src/app/apps/reminders/reminders-data.ts\n M ../web/src/app/apps/reminders/reminders-model.spec.ts\n M ../web/src/app/apps/reminders/reminders-model.ts\n M ../web/src/app/apps/reminders/reminders.entities.ts\n M ../web/src/app/apps/reminders/reminders.html\n M ../web/src/app/apps/reminders/reminders.ts\n M ../web/src/app/data/schema-fingerprint.snapshot.json\n M ../web/src/app/data/schema-version.spec.ts\n M ../web/src/app/data/schema-version.ts\nMM ../../requirements/README.md\nMM ../../requirements/epics/ADESK-EPIC-002.md\nMM ../../requirements/evidence/2026-11-17/README.md\nA  ../../requirements/evidence/2026-11-17/aiao-calendar-drafts-green.json\nA  ../../requirements/evidence/2026-11-17/aiao-calendar-failure.png\nA  ../../requirements/evidence/2026-11-17/aiao-calendar-final.json\nA  ../../requirements/evidence/2026-11-17/aiao-contacts-green.json\nA  ../../requirements/evidence/2026-11-17/calendar-unit-green.txt\nM  ../../requirements/plans/2026-11-17-autonomous-completion.md\nMM ../../requirements/plans/2026-11-17-builtin-workflows.md\nMM ../../requirements/roadmap.md\nMM ../../requirements/status-overview.md\nA  ../../requirements/stories/desktop/ADESK-US-119-calendar-drafts.md\nA  ../../requirements/stories/desktop/ADESK-US-120-contacts-workflow.md\nMM ../../requirements/verification-report.md\n?? src/groups/notes-actions.mjs\n?? src/groups/reminder-filters.mjs\n?? ../../requirements/evidence/2026-11-17/aiao-notes-actions-green.json\n?? ../../requirements/stories/desktop/ADESK-US-121-notes-pin.md"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "158.0.8127.18",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "2134765c115331f7d35696bd33bd9a7e10f60d570ef854f08403ab07c793d712"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 3,
+    "groups": [
+      "reminder-filters"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 5.887165209,
+  "outcomes": [
+    {
+      "group": "reminder-filters",
+      "result": {
+        "reminderFilters": {
+          "todayCount": true,
+          "scheduledCount": true,
+          "allCount": true,
+          "completedCount": true,
+          "flaggedCount": true,
+          "unflagPersists": true,
+          "flagPersists": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 5.834012917
+    }
+  ],
+  "checks": {
+    "reminderFilters": {
+      "todayCount": true,
+      "scheduledCount": true,
+      "allCount": true,
+      "completedCount": true,
+      "flaggedCount": true,
+      "unflagPersists": true,
+      "flagPersists": true
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [],
+    "stale": []
+  },
+  "passed": true,
+  "clean": true
+}

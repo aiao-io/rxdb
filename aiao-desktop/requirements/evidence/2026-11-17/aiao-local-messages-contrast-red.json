@@ -1,0 +1,88 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-17T11:27:45.538Z",
+  "source": {
+    "sha": "45495d161e848086e912fef7d2a54fb9f01a806b",
+    "changes": "M src/groups/index.mjs\n M ../web/src/app/apps/messages/messages-data.ts\n M ../web/src/app/apps/messages/messages.html\n?? src/groups/local-messages.mjs"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "158.0.8127.18",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "b0bca0c722e5d0a0d2aa7a44495dea6e3d302dbefdb847a46418ed972f66dcef"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 3,
+    "groups": [
+      "local-messages"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 6.234094583,
+  "outcomes": [
+    {
+      "group": "local-messages",
+      "result": {},
+      "problems": [
+        "检查组异常：\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThanOrEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: >= \u001b[32m4.5\u001b[39m\nReceived:    \u001b[31m3.9326088509606953\u001b[39m（groups/local-messages.mjs:85）"
+      ],
+      "failedKeys": [],
+      "missingKeys": [
+        "localMessages.localScopeAndDetails",
+        "localMessages.readableSelectionAndBubbles",
+        "localMessages.draftsStayWithConversation",
+        "localMessages.failedWriteKeepsDraft",
+        "localMessages.unsavedCloseAndRestartBlocked",
+        "localMessages.retryCreatesOneMessage",
+        "localMessages.pendingSaveBlocksClose",
+        "localMessages.noSyntheticReply",
+        "localMessages.createFailureAndRecovery",
+        "localMessages.missingConversationKeepsDraft",
+        "localMessages.explicitDiscard",
+        "localMessages.beforeUnloadGuard",
+        "localMessages.persistenceAndKeyboard",
+        "localMessages.noViolations"
+      ],
+      "extraKeys": [],
+      "crashed": "\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThanOrEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: >= \u001b[32m4.5\u001b[39m\nReceived:    \u001b[31m3.9326088509606953\u001b[39m（groups/local-messages.mjs:85）",
+      "pageErrors": [],
+      "seconds": 6.187102458
+    }
+  ],
+  "checks": {},
+  "limitations": {
+    "known": [],
+    "unexpected": [
+      "[local-messages] 检查项未通过或缺失：localMessages.localScopeAndDetails",
+      "[local-messages] 检查项未通过或缺失：localMessages.readableSelectionAndBubbles",
+      "[local-messages] 检查项未通过或缺失：localMessages.draftsStayWithConversation",
+      "[local-messages] 检查项未通过或缺失：localMessages.failedWriteKeepsDraft",
+      "[local-messages] 检查项未通过或缺失：localMessages.unsavedCloseAndRestartBlocked",
+      "[local-messages] 检查项未通过或缺失：localMessages.retryCreatesOneMessage",
+      "[local-messages] 检查项未通过或缺失：localMessages.pendingSaveBlocksClose",
+      "[local-messages] 检查项未通过或缺失：localMessages.noSyntheticReply",
+      "[local-messages] 检查项未通过或缺失：localMessages.createFailureAndRecovery",
+      "[local-messages] 检查项未通过或缺失：localMessages.missingConversationKeepsDraft",
+      "[local-messages] 检查项未通过或缺失：localMessages.explicitDiscard",
+      "[local-messages] 检查项未通过或缺失：localMessages.beforeUnloadGuard",
+      "[local-messages] 检查项未通过或缺失：localMessages.persistenceAndKeyboard",
+      "[local-messages] 检查项未通过或缺失：localMessages.noViolations",
+      "[local-messages] 检查组异常：\u001b[2mexpect(\u001b[22m\u001b[31mreceived\u001b[39m\u001b[2m).\u001b[22mtoBeGreaterThanOrEqual\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m\n\nExpected: >= \u001b[32m4.5\u001b[39m\nReceived:    \u001b[31m3.9326088509606953\u001b[39m（groups/local-messages.mjs:85）"
+    ],
+    "stale": []
+  },
+  "passed": false,
+  "clean": false
+}

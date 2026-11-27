@@ -76,8 +76,9 @@ app-header,
 }
 
 /* Mobile sidebar overlay
-   absolute 锚定 #layout-main，
-   遮罩只覆盖应用内容。 */
+   absolute 锚定 #layout-main（移动端 position:relative 的应用区）而不是视口：
+   Orbit嵌入（website）里 fixed inset-0 会盖到宿主导航栏上、遮罩也从视口顶起算。 */
+
 .sidebar-overlay {
   position: absolute;
   top: 0;
@@ -106,7 +107,8 @@ app-header,
 
   /* 只作用于应用壳的侧栏（#layout-main 的直接子级）：页面内容里的 aside
      （历史侧栏、working-tree 面板等）不受这条移动端覆盖影响。
-     抽屉相对 #layout-main 定位，不覆盖应用标题栏。 */
+     absolute 锚定 #layout-main 应用区而不是视口：Orbit嵌入里 fixed top:0 会被宿主导航栏压住 */
+
   #layout-main > aside {
     position: absolute !important;
     top: 0;

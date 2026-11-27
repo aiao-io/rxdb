@@ -1,0 +1,7 @@
+Command: pnpm nx run aiao-desktop-e2e:e2e --args='--group=apps --report=<absolute-evidence-path>/app-search-enter-red.json' --output-style=static
+Exit code: 1
+The input event and Enter keydown are dispatched in the same browser task before the next render.
+启动台快速搜索失败：{"input":{"query":"FaceTime","focused":true,"entries":[{"id":"finder","name":"Finder"},{"id":"safari","name":"Safari"},{"id":"mail","name":"Mail"},{"id":"messages","name":"Messages"},{"id":"maps","name":"Maps"},{"id":"photos","name":"Photos"},{"id":"facetime","name":"FaceTime"},{"id":"calendar","name":"Calendar"},{"id":"contacts","name":"Contacts"},{"id":"reminders","name":"Reminders"},{"id":"notes","name":"Notes"},{"id":"freeform","name":"Freeform"},{"id":"voice","name":"Voice Memos"},{"id":"appstore","name":"App Store"},{"id":"podcasts","name":"Podcasts"},{"id":"music","name":"Music"},{"id":"tv","name":"TV"},{"id":"books","name":"Books"},{"id":"saltline","name":"几猫3A大作"},{"id":"stocks","name":"Stocks"},{"id":"weather","name":"Weather"},{"id":"clock","name":"Clock"},{"id":"terminal","name":"Terminal"},{"id":"vscode","name":"Aiao Code"},{"id":"activity","name":"Activity Monitor"},{"id":"diskutil","name":"Disk Utility"},{"id":"fontbook","name":"Font Book"},{"id":"calculator","name":"Calculator"}]},"windows":["finder"]}
+{"everyAppOpens":true,"unopened":[],"searchEnterUsesCurrentQuery":false}
+  [apps] 检查项未通过或缺失：searchEnterUsesCurrentQuery
+Failed tasks:

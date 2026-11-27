@@ -1,0 +1,625 @@
+import { describe, expect, it, vi } from 'vitest';
+
+import { FakeDesktopData, enforceDesktopFileIndex } from '../testing/fake-desktop-data';
+import { DesktopFile } from './desktop-file.entity';
+import { DiskError } from './disk-store';
+import { BLOB_DIR, RxdbDiskStore } from './rxdb-disk-store';
+
+interface FileRow {
+  id?: string;
+  name: string;
+  type: 'file' | 'folder';
+  parentId?: string | null;
+  size: number;
+  mimeType: string | null;
+  contentId: string | null;
+  modifiedAt: Date;
+}
+
+const text = (value: string): Uint8Array => new TextEncoder().encode(value);
+const decode = (value: Uint8Array): string => new TextDecoder().decode(value);
+
+function setup(fixedNow?: number) {
+  const data = new FakeDesktopData();
+  const files = data.table<FileRow>(DesktopFile);
+  let clock = 1000;
+  /** 库的 data_version：别的连接提交过写入就变；测试里用 `foreignCommit()` 模拟。 */
+  let version = 1;
+  const newStore = () =>
+    new RxdbDiskStore({
+      repository: () => data.repository(DesktopFile) as never,
+      instantiate: fields => data.instantiate(DesktopFile, fields) as never,
+      storage: () => data.storage as never,
+      contentReleased: async () => undefined,
+      now: () => fixedNow ?? clock++,
+      dataVersion: async () => version
+    });
+  const store = newStore();
+  return {
+    store,
+    files,
+    storage: data.storage,
+    /** 同一个库上的另一个标签页：它有自己的内存索引，共用文件行与文件体。 */
+    otherTab: newStore,
+    /** 别的标签页提交了写入：库的 data_version 变了。 */
+    foreignCommit: () => void version++
+  };
+}
+
+const names = async (store: RxdbDiskStore, dir: string[]): Promise<string[]> =>
+  (await store.list(dir)).map(entry => entry.name).sort();
+
+describe('RxdbDiskStore 写入与读取', () => {
+  it('写文件时补齐父目录，文件体交给 storage 插件，元数据落在文件行上', async () => {
+    const { store, files, storage } = setup();
+    await store.write(['Users', 'me', 'note.txt'], text('hello'));
+
+    expect(await names(store, [])).toEqual(['Users']);
+    expect(await store.list(['Users', 'me'])).toMatchObject([{ name: 'note.txt', kind: 'file' }]);
+    expect(decode(await store.read(['Users', 'me', 'note.txt']))).toBe('hello');
+    expect(await store.info(['Users', 'me', 'note.txt'])).toEqual({ size: 5, modified: 1002 });
+
+    const row = files.rows.find(item => item.name === 'note.txt');
+    expect(row).toMatchObject({ type: 'file', size: 5, mimeType: 'text/plain' });
+    expect(storage.upload).toHaveBeenCalledTimes(1);
+    expect(storage.upload.mock.calls[0][1]).toEqual({ path: BLOB_DIR });
+    expect(storage.blobs.size).toBe(1);
+  });
+
+  it('覆盖写入替换内容和修改时间，旧文件体被释放', async () => {
+    const { store, storage } = setup();
+    await store.write(['a.md'], text('v1'));
+    const firstModified = (await store.info(['a.md'])).modified;
+    await store.write(['a.md'], text('version two'));
+
+    expect(decode(await store.read(['a.md']))).toBe('version two');
+    expect((await store.info(['a.md'])).modified).toBeGreaterThan(firstModified);
+    expect(storage.blobs.size).toBe(1);
+    expect(await names(store, [])).toEqual(['a.md']);
+  });
+
+  it('覆盖写入后留下的是新文件体：RxDB 的 update 就地改实体，不能把刚上传的新文件体当成旧的删掉', async () => {
+    const { store, files, storage } = setup();
+    await store.write(['a.md'], text('v1'));
+    const oldBlob = files.rows.find(item => item.name === 'a.md')?.contentId;
+    await store.write(['a.md'], text('version two'));
+
+    const row = files.rows.find(item => item.name === 'a.md');
+    expect(row?.contentId).not.toBe(oldBlob);
+    expect(storage.blobs.has(row?.contentId ?? '')).toBe(true);
+    expect(storage.blobs.has(oldBlob ?? '')).toBe(false);
+    expect(decode(await store.read(['a.md']))).toBe('version two');
+  });
+
+  it('没有文件体的文件行（空文件）读出来是空字节', async () => {
+    const { store, files } = setup();
+    files.seed([
+      { name: 'empty', type: 'file', parentId: null, size: 0, mimeType: null, contentId: null, modifiedAt: new Date(5) }
+    ]);
+    expect(await store.read(['empty'])).toEqual(new Uint8Array(0));
+    expect(await store.info(['empty'])).toEqual({ size: 0, modified: 5 });
+  });
+
+  it('写入失败时撤回刚上传的文件体，不留孤儿，也不改动原有内容', async () => {
+    const { store, files, storage } = setup();
+    await store.write(['a.txt'], text('keep'));
+    const before = storage.blobs.size;
+    vi.spyOn(files, 'update').mockRejectedValueOnce(new Error('db error'));
+
+    await expect(store.write(['a.txt'], text('lost'))).rejects.toThrow('db error');
+    expect(storage.blobs.size).toBe(before);
+    expect(decode(await store.read(['a.txt']))).toBe('keep');
+
+    vi.spyOn(files, 'create').mockRejectedValueOnce(new Error('insert failed'));
+    await expect(store.write(['b.txt'], text('new'))).rejects.toThrow('insert failed');
+    expect(storage.blobs.size).toBe(before);
+    expect(await store.kindOf(['b.txt'])).toBeNull();
+  });
+
+  it('文件夹和文件的冲突：不能把文件写到文件夹上，也不能把文件当目录用', async () => {
+    const { store } = setup();
+    await store.mkdir(['Docs']);
+    await store.write(['a.txt'], text('a'));
+
+    await expect(store.write(['Docs'], text('x'))).rejects.toMatchObject({ code: 'EISDIR' });
+    await expect(store.write(['a.txt', 'inner.txt'], text('x'))).rejects.toMatchObject({ code: 'ENOTDIR' });
+    await expect(store.mkdir(['a.txt', 'sub'])).rejects.toMatchObject({ code: 'ENOTDIR' });
+  });
+
+  it('卷根本身不能当文件写', async () => {
+    const { store } = setup();
+    await expect(store.write([], text('x'))).rejects.toMatchObject({
+      code: 'EACCES',
+      message: 'Macintosh HD itself cannot be changed'
+    });
+  });
+
+  it('读不存在的文件报 ENOENT，读目录报 EISDIR', async () => {
+    const { store } = setup();
+    await store.mkdir(['Docs']);
+    await expect(store.read(['ghost'])).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(store.info(['ghost'])).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(store.read(['Docs'])).rejects.toMatchObject({ code: 'EISDIR' });
+    await expect(store.info(['Docs'])).rejects.toBeInstanceOf(DiskError);
+  });
+});
+
+describe('RxdbDiskStore 目录', () => {
+  it('kindOf：卷根是目录，不存在的路径为 null', async () => {
+    const { store } = setup();
+    await store.write(['Docs', 'a.txt'], text('a'));
+    expect(await store.kindOf([])).toBe('directory');
+    expect(await store.kindOf(['Docs'])).toBe('directory');
+    expect(await store.kindOf(['Docs', 'a.txt'])).toBe('file');
+    expect(await store.kindOf(['Docs', 'ghost'])).toBeNull();
+  });
+
+  it('mkdir 递归创建，重复创建什么也不改', async () => {
+    const { store, files } = setup();
+    await store.mkdir(['A', 'B', 'C']);
+    await store.mkdir(['A', 'B', 'C']);
+    await store.mkdir([]);
+    expect(files.rows.filter(row => row.type === 'folder')).toHaveLength(3);
+    expect(await names(store, ['A', 'B'])).toEqual(['C']);
+  });
+
+  it('list 目录不存在报 ENOENT，列一个文件报 ENOTDIR', async () => {
+    const { store } = setup();
+    await store.write(['a.txt'], text('a'));
+    await expect(store.list(['ghost'])).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(store.list(['a.txt'])).rejects.toMatchObject({ code: 'ENOTDIR' });
+  });
+
+  it('remove 递归删除整棵子树，释放所有文件体；路径不存在时什么也不做', async () => {
+    const { store, storage } = setup();
+    await store.write(['Docs', 'a.txt'], text('a'));
+    await store.write(['Docs', 'deep', 'b.txt'], text('b'));
+    await store.write(['keep.txt'], text('k'));
+    expect(storage.blobs.size).toBe(3);
+
+    await store.remove(['Docs']);
+    await store.remove(['ghost']);
+    expect(await names(store, [])).toEqual(['keep.txt']);
+    expect(await store.kindOf(['Docs', 'a.txt'])).toBeNull();
+    expect(storage.blobs.size).toBe(1);
+  });
+});
+
+describe('RxdbDiskStore 移动与改名', () => {
+  it('改名保留内容与修改时间，文件体不动', async () => {
+    const { store, storage } = setup();
+    await store.write(['a.txt'], text('a'));
+    const modified = (await store.info(['a.txt'])).modified;
+    const uploads = storage.upload.mock.calls.length;
+
+    await store.move(['a.txt'], ['b.txt']);
+    expect(await names(store, [])).toEqual(['b.txt']);
+    expect(await store.info(['b.txt'])).toEqual({ size: 1, modified });
+    expect(storage.upload.mock.calls.length).toBe(uploads);
+  });
+
+  it('移动整个目录：子项跟着走；目标的父目录不存在时补建', async () => {
+    const { store } = setup();
+    await store.write(['Docs', 'a.txt'], text('a'));
+    await store.write(['Docs', 'deep', 'b.txt'], text('b'));
+
+    await store.move(['Docs'], ['Archive', '2026', 'Docs']);
+    expect(await store.kindOf(['Docs'])).toBeNull();
+    expect(decode(await store.read(['Archive', '2026', 'Docs', 'deep', 'b.txt']))).toBe('b');
+    expect(await names(store, ['Archive', '2026', 'Docs'])).toEqual(['a.txt', 'deep']);
+  });
+
+  it('目标已存在报 EEXIST，源不存在报 ENOENT，不能把目录移进它自己', async () => {
+    const { store } = setup();
+    await store.write(['a.txt'], text('a'));
+    await store.write(['b.txt'], text('b'));
+    await store.mkdir(['Docs', 'sub']);
+
+    await expect(store.move(['a.txt'], ['b.txt'])).rejects.toMatchObject({ code: 'EEXIST' });
+    await expect(store.move(['ghost'], ['x'])).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(store.move(['Docs'], ['Docs', 'sub', 'Docs'])).rejects.toMatchObject({
+      code: 'EACCES',
+      message: '“Docs” can’t be moved into itself.'
+    });
+    expect(await names(store, [])).toEqual(['Docs', 'a.txt', 'b.txt']);
+  });
+});
+
+describe('RxdbDiskStore 覆盖已有文件（保存已打开的文件）', () => {
+  it('replace 替换内容与修改时间，释放旧文件体，行 id 不变', async () => {
+    const { store, files, storage } = setup();
+    await store.write(['a.txt'], text('v1'));
+    const id = files.rows.find(row => row.name === 'a.txt')?.id;
+    const modified = (await store.info(['a.txt'])).modified;
+
+    await store.replace(['a.txt'], text('version two'));
+    expect(decode(await store.read(['a.txt']))).toBe('version two');
+    expect((await store.info(['a.txt'])).modified).toBeGreaterThan(modified);
+    expect(files.rows.filter(row => row.name === 'a.txt').map(row => row.id)).toEqual([id]);
+    expect(storage.blobs.size).toBe(1);
+  });
+
+  it('文件不存在时抛 ENOENT，不创建文件、不补建父目录、不上传文件体', async () => {
+    const { store, files, storage } = setup();
+    await store.mkdir(['Docs']);
+    const rows = files.rows.length;
+
+    await expect(store.replace(['Docs', 'ghost.txt'], text('x'))).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(store.replace(['Gone', 'deep', 'ghost.txt'], text('x'))).rejects.toMatchObject({ code: 'ENOENT' });
+    expect(files.rows).toHaveLength(rows);
+    expect(storage.upload).not.toHaveBeenCalled();
+    expect(await store.kindOf(['Gone'])).toBeNull();
+  });
+
+  it('目标是文件夹抛 EISDIR，卷根抛 EACCES；失败时不动任何东西', async () => {
+    const { store, storage } = setup();
+    await store.mkdir(['Docs']);
+
+    await expect(store.replace(['Docs'], text('x'))).rejects.toMatchObject({ code: 'EISDIR' });
+    await expect(store.replace([], text('x'))).rejects.toMatchObject({ code: 'EACCES' });
+    expect(storage.upload).not.toHaveBeenCalled();
+  });
+
+  it('写入失败时撤回刚上传的文件体，原有内容不变', async () => {
+    const { store, files, storage } = setup();
+    await store.write(['a.txt'], text('keep'));
+    const before = storage.blobs.size;
+    vi.spyOn(files, 'update').mockRejectedValueOnce(new Error('db error'));
+
+    await expect(store.replace(['a.txt'], text('lost'))).rejects.toThrow('db error');
+    expect(storage.blobs.size).toBe(before);
+    expect(decode(await store.read(['a.txt']))).toBe('keep');
+  });
+});
+
+describe('RxdbDiskStore 多标签页（索引随别的标签页的写入失效）', () => {
+  it('refresh：data_version 没变，索引原样保留；变了就丢掉索引，别的标签页新建的文件才看得见', async () => {
+    const { store, otherTab, files, foreignCommit } = setup();
+    await store.write(['a.txt'], text('a'));
+    await store.refresh();
+    await store.list([]);
+    await otherTab().write(['from-other-tab.txt'], text('x'));
+    const reads = files.find.mock.calls.length;
+
+    await store.refresh();
+    expect(await names(store, [])).toEqual(['a.txt']);
+    expect(files.find).toHaveBeenCalledTimes(reads);
+
+    foreignCommit();
+    await store.refresh();
+    expect(await names(store, [])).toEqual(['a.txt', 'from-other-tab.txt']);
+    expect(files.find).toHaveBeenCalledTimes(reads + 1);
+  });
+
+  it('markStale（收到别的标签页的广播）：下一次 refresh 重读索引，哪怕 data_version 没变', async () => {
+    const { store, otherTab, files } = setup();
+    await store.write(['a.txt'], text('a'));
+    await store.refresh();
+    await store.list([]);
+    await otherTab().write(['from-other-tab.txt'], text('x'));
+    const reads = files.find.mock.calls.length;
+
+    store.markStale();
+    expect(await names(store, [])).toEqual(['a.txt']);
+    expect(files.find).toHaveBeenCalledTimes(reads);
+    await store.refresh();
+    expect(await names(store, [])).toEqual(['a.txt', 'from-other-tab.txt']);
+    expect(files.find).toHaveBeenCalledTimes(reads + 1);
+
+    await store.refresh();
+    await store.list([]);
+    expect(files.find).toHaveBeenCalledTimes(reads + 1);
+  });
+
+  it('另一个标签页新建的文件：refresh 之后能读、能覆盖、能移动', async () => {
+    const { store, otherTab, foreignCommit } = setup();
+    await store.mkdir(['Desktop']);
+    await store.refresh();
+    await store.list([]);
+    await otherTab().write(['Desktop', 'x.txt'], text('orig'));
+    foreignCommit();
+
+    await store.refresh();
+    expect(decode(await store.read(['Desktop', 'x.txt']))).toBe('orig');
+    await store.replace(['Desktop', 'x.txt'], text('edited'));
+    await store.move(['Desktop', 'x.txt'], ['Desktop', 'y.txt']);
+    expect(decode(await otherTab().read(['Desktop', 'y.txt']))).toBe('edited');
+  });
+
+  it('目标被别的标签页删掉：refresh 之后 replace 抛 ENOENT，不在原路径悄悄新建，也不留孤儿文件体', async () => {
+    const { store, otherTab, storage, foreignCommit } = setup();
+    await store.write(['Desktop', 'x.txt'], text('orig'));
+    await store.refresh();
+    const other = otherTab();
+    await other.remove(['Desktop', 'x.txt']);
+    foreignCommit();
+
+    await store.refresh();
+    await expect(store.replace(['Desktop', 'x.txt'], text('late'))).rejects.toMatchObject({ code: 'ENOENT' });
+    expect(await store.kindOf(['Desktop', 'x.txt'])).toBeNull();
+    expect(storage.blobs.size).toBe(0);
+  });
+
+  it('目标被别的标签页改名：refresh 之后旧路径 ENOENT，新路径里的内容原样保留', async () => {
+    const { store, otherTab, foreignCommit } = setup();
+    await store.write(['Desktop', 'x.txt'], text('orig'));
+    await store.refresh();
+    await otherTab().move(['Desktop', 'x.txt'], ['Desktop', 'y.txt']);
+    foreignCommit();
+
+    await store.refresh();
+    await expect(store.replace(['Desktop', 'x.txt'], text('late'))).rejects.toMatchObject({ code: 'ENOENT' });
+    expect(decode(await store.read(['Desktop', 'y.txt']))).toBe('orig');
+    expect(await names(store, ['Desktop'])).toEqual(['y.txt']);
+  });
+
+  it('两个标签页先后覆盖同一个文件：后提交的生效，旧文件体各被释放一次', async () => {
+    const { store, otherTab, storage, foreignCommit } = setup();
+    const other = otherTab();
+    await store.write(['a.txt'], text('v0'));
+    await store.refresh();
+    await other.refresh();
+
+    await store.replace(['a.txt'], text('from-A'));
+    foreignCommit();
+    await other.refresh();
+    await other.replace(['a.txt'], text('from-B'));
+    foreignCommit();
+    await store.refresh();
+
+    expect(decode(await store.read(['a.txt']))).toBe('from-B');
+    expect(decode(await other.read(['a.txt']))).toBe('from-B');
+    expect(storage.blobs.size).toBe(1);
+  });
+
+  it('revision 只在写库时递增：读、no-op 删除、重复 mkdir 都不算', async () => {
+    const { store } = setup();
+    expect(store.revision).toBe(0);
+    await store.mkdir(['Docs']);
+    const afterMkdir = store.revision;
+    expect(afterMkdir).toBeGreaterThan(0);
+
+    await store.mkdir(['Docs']);
+    await store.list([]);
+    await store.remove(['ghost']);
+    expect(store.revision).toBe(afterMkdir);
+
+    await store.write(['Docs', 'a.txt'], text('a'));
+    const afterWrite = store.revision;
+    expect(afterWrite).toBeGreaterThan(afterMkdir);
+    await store.replace(['Docs', 'a.txt'], text('b'));
+    await store.move(['Docs', 'a.txt'], ['Docs', 'b.txt']);
+    await store.remove(['Docs', 'b.txt']);
+    expect(store.revision).toBe(afterWrite + 3);
+  });
+});
+
+describe('RxdbDiskStore 内存索引', () => {
+  it('第一次用到时整表读一次，之后都走索引', async () => {
+    const { store, files } = setup();
+    await store.write(['a.txt'], text('a'));
+    await store.write(['b.txt'], text('b'));
+    await store.list([]);
+    expect(files.find).toHaveBeenCalledTimes(1);
+  });
+
+  it('invalidate 之后重新读库：外部对文件行的改动才看得见', async () => {
+    const { store, files } = setup();
+    await store.write(['a.txt'], text('a'));
+    files.seed([
+      {
+        name: 'outside',
+        type: 'file',
+        parentId: null,
+        size: 0,
+        mimeType: null,
+        contentId: null,
+        modifiedAt: new Date(1)
+      }
+    ]);
+    expect(await names(store, [])).toEqual(['a.txt']);
+
+    store.invalidate();
+    expect(await names(store, [])).toEqual(['a.txt', 'outside']);
+    expect(files.find).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('RxdbDiskStore 大小写变体（库的唯一索引不区分大小写）', () => {
+  /** 与生产一致：替身表装上 `desktop_file_parent_name`，撞了名就抛 SQLite 的约束错误。 */
+  function setupIndexed() {
+    const context = setup();
+    enforceDesktopFileIndex(context.files);
+    return context;
+  }
+
+  const taken = (existing: string) => ({
+    code: 'EEXIST',
+    message: expect.stringContaining(`“${existing}”`)
+  });
+
+  it('新建一个只在大小写上和同级已有名字不同的文件：抛 EEXIST 并说清是哪个名字，不上传文件体、不建行，已有文件原样', async () => {
+    const { store, files, storage } = setupIndexed();
+    await store.write(['Docs', 'Report.txt'], text('original'));
+    const uploads = storage.upload.mock.calls.length;
+    const rows = files.rows.length;
+
+    const failure = await store.write(['Docs', 'report.txt'], text('new')).then(
+      () => null,
+      (error: unknown) => error
+    );
+    expect(failure).toBeInstanceOf(DiskError);
+    expect(failure).toMatchObject(taken('Report.txt'));
+    expect(String(failure)).not.toContain('UNIQUE');
+    expect(storage.upload.mock.calls.length).toBe(uploads);
+    expect(files.rows).toHaveLength(rows);
+    expect(decode(await store.read(['Docs', 'Report.txt']))).toBe('original');
+    expect(await names(store, ['Docs'])).toEqual(['Report.txt']);
+  });
+
+  it('同名（大小写一致）的文件照常覆盖', async () => {
+    const { store } = setupIndexed();
+    await store.write(['Docs', 'Report.txt'], text('v1'));
+    await store.write(['Docs', 'Report.txt'], text('v2'));
+    expect(decode(await store.read(['Docs', 'Report.txt']))).toBe('v2');
+  });
+
+  it('路径查找保持精确：换一种大小写就是另一条路径，读、列、覆盖都当作不存在', async () => {
+    const { store } = setupIndexed();
+    await store.write(['Docs', 'Report.txt'], text('original'));
+
+    expect(await store.kindOf(['Docs', 'report.txt'])).toBeNull();
+    expect(await store.kindOf(['docs'])).toBeNull();
+    await expect(store.read(['Docs', 'report.txt'])).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(store.info(['Docs', 'report.txt'])).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(store.replace(['Docs', 'report.txt'], text('x'))).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(store.list(['docs'])).rejects.toMatchObject({ code: 'ENOENT' });
+    expect(decode(await store.read(['Docs', 'Report.txt']))).toBe('original');
+  });
+
+  it('mkdir 与逐级补建目录：同级有只差大小写的目录或文件就抛 EEXIST，什么也不建', async () => {
+    const { store, files } = setupIndexed();
+    await store.write(['Docs', 'a.txt'], text('a'));
+    await store.write(['Notes'], text('a file'));
+    const rows = files.rows.length;
+
+    await expect(store.mkdir(['docs'])).rejects.toMatchObject(taken('Docs'));
+    await expect(store.mkdir(['notes'])).rejects.toMatchObject(taken('Notes'));
+    await expect(store.write(['docs', 'b.txt'], text('b'))).rejects.toMatchObject(taken('Docs'));
+    await expect(store.write(['DOCS', 'Sub', 'x.txt'], text('b'))).rejects.toMatchObject(taken('Docs'));
+    await expect(store.move(['Notes'], ['docs', 'Notes'])).rejects.toMatchObject(taken('Docs'));
+    expect(files.rows).toHaveLength(rows);
+    expect(await names(store, [])).toEqual(['Docs', 'Notes']);
+    await store.mkdir(['Docs']);
+    expect(files.rows).toHaveLength(rows);
+  });
+
+  it('移动或改名成只差大小写的另一个节点的名字：EEXIST，源节点不动；换到别的目录同理', async () => {
+    const { store } = setupIndexed();
+    await store.write(['Docs', 'Report.txt'], text('report'));
+    await store.write(['Docs', 'notes.txt'], text('notes'));
+    await store.write(['Other', 'x.txt'], text('x'));
+
+    await expect(store.move(['Docs', 'notes.txt'], ['Docs', 'REPORT.TXT'])).rejects.toMatchObject(taken('Report.txt'));
+    await expect(store.move(['Other', 'x.txt'], ['Docs', 'report.txt'])).rejects.toMatchObject(taken('Report.txt'));
+    expect(await names(store, ['Docs'])).toEqual(['Report.txt', 'notes.txt']);
+    expect(await names(store, ['Other'])).toEqual(['x.txt']);
+    expect(decode(await store.read(['Docs', 'notes.txt']))).toBe('notes');
+  });
+
+  it('纯大小写改名（同一个节点）可以：行 id、内容与修改时间不变，不撞自己的索引；目录的子项跟着走', async () => {
+    const { store, files } = setupIndexed();
+    await store.write(['Docs', 'Report.txt'], text('report'));
+    const id = files.rows.find(row => row.name === 'Report.txt')?.id;
+    const modified = (await store.info(['Docs', 'Report.txt'])).modified;
+
+    await store.move(['Docs', 'Report.txt'], ['Docs', 'report.txt']);
+    expect(await names(store, ['Docs'])).toEqual(['report.txt']);
+    expect(await store.kindOf(['Docs', 'Report.txt'])).toBeNull();
+    expect(await store.info(['Docs', 'report.txt'])).toEqual({ size: 6, modified });
+    expect(files.rows.filter(row => row.name === 'report.txt').map(row => row.id)).toEqual([id]);
+
+    await store.move(['Docs'], ['docs']);
+    expect(await names(store, [])).toEqual(['docs']);
+    expect(decode(await store.read(['docs', 'report.txt']))).toBe('report');
+    await expect(store.write(['docs', 'REPORT.txt'], text('x'))).rejects.toMatchObject(taken('report.txt'));
+    expect(await names(store, ['docs'])).toEqual(['report.txt']);
+  });
+
+  it('别的标签页新建的变体：refresh 之后同样被拦下，而不是等撞上库的唯一索引', async () => {
+    const { store, otherTab, files, foreignCommit } = setupIndexed();
+    await store.mkdir(['Docs']);
+    await store.refresh();
+    await store.list([]);
+    await otherTab().write(['Docs', 'Report.txt'], text('from the other tab'));
+    foreignCommit();
+
+    await store.refresh();
+    const rows = files.rows.length;
+    await expect(store.write(['Docs', 'report.txt'], text('mine'))).rejects.toMatchObject(taken('Report.txt'));
+    expect(files.rows).toHaveLength(rows);
+  });
+
+  it('库里本来就并存的、折叠规则不同的名字（É 与 é）互不混淆：各自可读、可覆盖', async () => {
+    const { store, files } = setupIndexed();
+    const seed = (name: string) => ({
+      name,
+      type: 'file' as const,
+      parentId: null,
+      size: 1,
+      mimeType: null,
+      contentId: null,
+      modifiedAt: new Date(1)
+    });
+    files.seed([seed('É.txt'), seed('é.txt')]);
+
+    expect(await names(store, [])).toHaveLength(2);
+    await store.write(['é.txt'], text('lower'));
+    await store.write(['É.txt'], text('upper'));
+    expect(decode(await store.read(['é.txt']))).toBe('lower');
+    expect(decode(await store.read(['É.txt']))).toBe('upper');
+  });
+
+  it('撞了名的操作失败之后存储照常使用：索引没有被弄脏', async () => {
+    const { store } = setupIndexed();
+    await store.write(['Docs', 'Report.txt'], text('original'));
+    await expect(store.write(['Docs', 'report.txt'], text('new'))).rejects.toMatchObject({ code: 'EEXIST' });
+    await expect(store.move(['Docs', 'Report.txt'], ['Docs', 'Report.txt'])).rejects.toMatchObject({ code: 'EEXIST' });
+
+    await store.write(['Docs', 'other.txt'], text('o'));
+    await store.move(['Docs', 'other.txt'], ['Docs', 'renamed.txt']);
+    await store.remove(['Docs', 'Report.txt']);
+    await store.write(['Docs', 'report.txt'], text('now free'));
+    expect(await names(store, ['Docs'])).toEqual(['renamed.txt', 'report.txt']);
+  });
+});
+
+describe('文件版本单调递增', () => {
+  it('同一毫秒等长写入也改变版本，旧编辑器能够检测冲突', async () => {
+    const { store } = setup(1000);
+    await store.write(['same.txt'], text('one'));
+    const first = await store.info(['same.txt']);
+    await store.replace(['same.txt'], text('two'));
+    const second = await store.info(['same.txt']);
+    expect(second.size).toBe(first.size);
+    expect(second.modified).toBeGreaterThan(first.modified);
+  });
+
+  it('本机时钟回退不重复已有版本', async () => {
+    const { store, files } = setup(1000);
+    await store.write(['same.txt'], text('one'));
+    const row = files.rows.find(item => item.name === 'same.txt');
+    if (!row) throw new Error('missing file');
+    row.modifiedAt = new Date(5000);
+    await store.replace(['same.txt'], text('two'));
+    expect((await store.info(['same.txt'])).modified).toBe(5001);
+  });
+});
+
+describe('废纸篓原位置持久化', () => {
+  const origin = ['Users', 'stevejobs', 'Desktop', 'folder'];
+  const trash = ['Users', 'stevejobs', '.Trash'];
+
+  it('移动和原位置在同一行更新；刷新存储实例仍能读到，改名保留，移出清除', async () => {
+    const { store, otherTab } = setup();
+    await store.write([...origin, 'note.txt'], text('keep'));
+    await store.move(origin, [...trash, 'folder']);
+    const reopened = otherTab();
+    expect((await reopened.list(trash))[0]).toMatchObject({ originalPath: origin });
+    await reopened.move([...trash, 'folder'], [...trash, 'renamed']);
+    expect((await reopened.list(trash))[0]).toMatchObject({ originalPath: origin });
+    await reopened.move([...trash, 'renamed'], origin);
+    expect((await reopened.list(origin.slice(0, -1)))[0]).not.toHaveProperty('originalPath');
+    expect(decode(await reopened.read([...origin, 'note.txt']))).toBe('keep');
+  });
+
+  it('移动失败不留下原位置记录，也不丢源节点', async () => {
+    const { store, files } = setup();
+    await store.mkdir(origin);
+    await store.mkdir(trash);
+    vi.spyOn(files, 'update').mockRejectedValueOnce(new Error('write failed'));
+    await expect(store.move(origin, [...trash, 'folder'])).rejects.toThrow('write failed');
+    expect(await store.kindOf(origin)).toBe('directory');
+    expect(await store.list(trash)).toEqual([]);
+  });
+});

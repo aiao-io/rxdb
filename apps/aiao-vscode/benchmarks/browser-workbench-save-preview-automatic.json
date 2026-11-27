@@ -1,0 +1,57 @@
+{
+  "browser": "156.0.8078.4",
+  "compilerWorkersCreated": 2,
+  "compilerWorkersCreatedDuringSamples": 0,
+  "format": "aiao.workbench.save-preview-timing",
+  "label": "automatic",
+  "samples": [
+    {
+      "index": 0,
+      "cold": false,
+      "saveMs": 34.325292000000445,
+      "saveToVisibleMs": 701.2008750000005,
+      "compilerWorkersCreated": 0
+    },
+    {
+      "index": 1,
+      "cold": false,
+      "saveMs": 84.03608299999996,
+      "saveToVisibleMs": 557.2519999999995,
+      "compilerWorkersCreated": 0
+    },
+    {
+      "index": 2,
+      "cold": false,
+      "saveMs": 82.42183399999976,
+      "saveToVisibleMs": 551.3237499999996,
+      "compilerWorkersCreated": 0
+    },
+    {
+      "index": 3,
+      "cold": false,
+      "saveMs": 85.75383300000067,
+      "saveToVisibleMs": 553.1891249999999,
+      "compilerWorkersCreated": 0
+    },
+    {
+      "index": 4,
+      "cold": false,
+      "saveMs": 83.0104169999995,
+      "saveToVisibleMs": 553.2116249999999,
+      "compilerWorkersCreated": 0
+    },
+    {
+      "index": 5,
+      "cold": false,
+      "saveMs": 84.40487500000017,
+      "saveToVisibleMs": 547.3632910000015,
+      "compilerWorkersCreated": 0
+    }
+  ],
+  "scenario": "Real React host: initial project preview awaited, edit TSX, CtrlS only, wait saved receipt and new iframe heading visible. All samples warm; includes configured 100ms debounce and Playwright observation overhead.",
+  "version": 1,
+  "warmMaxMs": 557.2519999999995,
+  "warmMedianMs": 553.1891249999999,
+  "warmMinMs": 547.3632910000015,
+  "warmupCompilerWorkers": 2
+}

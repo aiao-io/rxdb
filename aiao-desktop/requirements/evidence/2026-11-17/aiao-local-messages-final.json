@@ -1,0 +1,582 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-17T11:35:32.351Z",
+  "source": {
+    "sha": "45495d161e848086e912fef7d2a54fb9f01a806b",
+    "changes": "M src/groups/index.mjs\n M ../web/src/app/apps/messages/messages-data.ts\n M ../web/src/app/apps/messages/messages.html\n M ../web/src/styles.scss\n?? src/groups/local-messages.mjs"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "158.0.8127.18",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "0096121ac2727518d96b59c2f8f0f80119fc813ae1f9a390ee591dccb324702d"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 3,
+    "groups": [
+      "local-messages",
+      "note-drafts",
+      "reminder-drafts",
+      "shell-interaction",
+      "apps",
+      "a11y"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 80.39523329199999,
+  "outcomes": [
+    {
+      "group": "local-messages",
+      "result": {
+        "localMessages": {
+          "localScopeAndDetails": true,
+          "readableSelectionAndBubbles": true,
+          "draftsStayWithConversation": true,
+          "beforeUnloadGuard": true,
+          "failedWriteKeepsDraft": true,
+          "noViolations": [
+            {
+              "id": "label-content-name-mismatch",
+              "impact": "serious",
+              "tags": [
+                "cat.semantics",
+                "wcag21a",
+                "wcag253",
+                "EN-301-549",
+                "EN-9.2.5.3",
+                "RGAAv4",
+                "RGAA-6.1.5"
+              ],
+              "description": "Ensure that elements labelled through their content must have their visible text as part of their accessible name",
+              "help": "Elements must have their visible text as part of their accessible name",
+              "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/label-content-name-mismatch?application=playwright",
+              "nodes": [
+                {
+                  "any": [
+                    {
+                      "id": "label-content-name-mismatch",
+                      "data": null,
+                      "relatedNodes": [],
+                      "impact": "serious",
+                      "message": "Text inside the element is not included in the accessible name"
+                    }
+                  ],
+                  "all": [],
+                  "none": [],
+                  "impact": "serious",
+                  "html": "<button data-cdetails=\"\" tabindex=\"0\" type=\"button\" class=\"who\" style=\"border: 0; background: transparent; text-align: left;\" aria-label=\"Kate details\">",
+                  "target": [
+                    ".who"
+                  ],
+                  "failureSummary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+                }
+              ]
+            }
+          ],
+          "unsavedCloseAndRestartBlocked": true,
+          "retryCreatesOneMessage": true,
+          "noSyntheticReply": true,
+          "pendingSaveBlocksClose": true,
+          "persistenceAndKeyboard": true,
+          "createFailureAndRecovery": true,
+          "missingConversationKeepsDraft": true,
+          "explicitDiscard": true
+        }
+      },
+      "problems": [
+        "检查项未通过：localMessages.noViolations = [{\"id\":\"label-content-name-mismatch\",\"impact\":\"serious\",\"tags\":[\"cat.semantics\",\"wcag21a\",\"wcag253\",\"EN-301-549\",\"EN-9.2.5.3\",\"RGAAv4\",\"RGAA-6.1.5\"],\"description\":\"Ensure that elements labelled through their content must have their visible text as part of their accessible name\",\"help\":\"Elements must have their visible text as part of their accessible name\",\"helpUrl\":\"https://dequeuniversity.com/rules/axe/4.14/label-content-name-mismatch?application=playwright\",\"nodes\":[{\"any\":[{\"id\":\"label-content-name-mismatch\",\"data\":null,\"relatedNodes\":[],\"impact\":\"serious\",\"message\":\"Text inside the element is not included in the accessible name\"}],\"all\":[],\"none\":[],\"impact\":\"serious\",\"html\":\"<button data-cdetails=\\\"\\\" tabindex=\\\"0\\\" type=\\\"button\\\" class=\\\"who\\\" style=\\\"border: 0; background: transparent; text-align: left;\\\" aria-label=\\\"Kate details\\\">\",\"target\":[\".who\"],\"failureSummary\":\"Fix any of the following:\\n  Text inside the element is not included in the accessible name\"}]}]"
+      ],
+      "failedKeys": [
+        "localMessages.noViolations"
+      ],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 22.336518541999997
+    },
+    {
+      "group": "note-drafts",
+      "result": {
+        "noteDrafts": {
+          "failedWriteKeepsContent": true,
+          "beforeUnloadGuard": true,
+          "failedNavigationAndClose": true,
+          "noViolations": [],
+          "keyboardRecovery": true,
+          "retryAndPersistence": true,
+          "pendingWriteSavesNewestBeforeClose": true,
+          "createFailureAndRecovery": true,
+          "deleteFailureAndRecovery": true,
+          "crossWindowConflict": true,
+          "copyFailureAndRecovery": true,
+          "deletedNoteAndDiscard": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 28.34275775
+    },
+    {
+      "group": "reminder-drafts",
+      "result": {
+        "reminderDrafts": {
+          "beforeUnloadGuard": true,
+          "failedDraftPreserved": true,
+          "failedCloseAndRestartKeepDraft": true,
+          "noViolations": [],
+          "retryCreatesOneRecord": true,
+          "pendingWriteBlocksClose": true,
+          "savedToggleFailureAndRecovery": true,
+          "explicitDiscardIsScoped": true,
+          "keyboardAndPersistence": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 17.847318166
+    },
+    {
+      "group": "shell-interaction",
+      "result": {
+        "shellInteraction": {
+          "boot": {
+            "screenAppears": true,
+            "progressAdvances": true,
+            "endsAtLoginScreen": true,
+            "loginEntersDesktop": true,
+            "queryParameterSkips": true,
+            "hashSkips": true
+          },
+          "lock": {
+            "shows": true,
+            "coversDesktop": true,
+            "unlockRestores": true
+          },
+          "sleep": {
+            "shows": true,
+            "wakes": true,
+            "desktopIntact": true
+          },
+          "statusPanels": {
+            "clockOpensNotifications": true,
+            "wifiMatchesState": true,
+            "outsideClickCloses": true,
+            "batteryMatchesState": true
+          },
+          "controlCentre": {
+            "opens": true,
+            "wifiToggleReflected": true,
+            "darkModeApplies": true,
+            "settingsSurviveReload": true
+          },
+          "dragResizeZoom": {
+            "titleBarMoves": true,
+            "cornerResizes": true,
+            "greenButtonZooms": true,
+            "greenButtonRestores": true,
+            "keepOnScreen": true
+          },
+          "focusCycle": {
+            "windowsOverlap": true,
+            "clickRaisesWindow": true,
+            "stackFollowsClicks": true,
+            "cycleRaisesBottom": true
+          }
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 31.747853042
+    },
+    {
+      "group": "apps",
+      "result": {
+        "everyAppOpens": true,
+        "unopened": [],
+        "searchEnterUsesCurrentQuery": true
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 34.144225875
+    },
+    {
+      "group": "a11y",
+      "result": {
+        "a11y": {
+          "tabPath": {
+            "startsInMenubar": [],
+            "menubarOrder": [],
+            "windowBetweenMenubarAndDock": [],
+            "dockOrder": [],
+            "desktopAfterDock": [],
+            "regionsInVisibleOrder": [],
+            "noInvisibleStops": [],
+            "doesNotTrap": [],
+            "shiftTabReverses": [],
+            "focusRingOnlyForKeyboard": [],
+            "enterAndSpaceActivate": []
+          },
+          "overlays": {
+            "launchpadOpensByEnter": [],
+            "launchpadTabStaysInside": [],
+            "launchpadSpaceLaunches": [],
+            "launchpadEscapeRestoresFocus": [],
+            "spotlightOpensByEnter": [],
+            "spotlightComboboxState": [],
+            "spotlightTabStaysInside": [],
+            "spotlightEscapeRestoresFocus": [],
+            "spotlightEnterOpensApp": [],
+            "panelOpensBySpace": [],
+            "panelTabStaysInside": [],
+            "panelSwitchToggles": [],
+            "panelEscapeRestoresFocus": []
+          },
+          "menus": {
+            "menubarRoles": [],
+            "arrowKeysMoveBetweenTitles": [],
+            "expandKeys": [],
+            "arrowsMoveInsideMenu": [],
+            "typeaheadJumps": [],
+            "leftRightSwitchMenus": [],
+            "escapeRestoresFocus": [],
+            "tabClosesMenu": [],
+            "checkedItemRole": [],
+            "keyboardOnlyFlow": {
+              "opensFinder": [],
+              "opensGoMenu": [],
+              "changesDirectory": [],
+              "closesWindow": []
+            }
+          },
+          "windows": {
+            "dialogsNamedByTitle": [],
+            "backgroundHidden": [],
+            "menubarShowsFrontApp": [],
+            "openMovesFocusIn": [],
+            "cycleSwitchesFocusAndFront": [],
+            "minimizeHandsFocusToNext": [],
+            "restoreFromDockByKeyboard": [],
+            "closeHandsFocusOver": [],
+            "lastCloseFocusesDockIcon": [],
+            "tabIntoBackgroundRaises": []
+          },
+          "finder": {
+            "listboxRoles": [],
+            "arrowKeysMoveSelection": [],
+            "enterOpensFolderKeepsFocus": [],
+            "backspaceGoesUp": [],
+            "commandUpGoesUp": [],
+            "listViewArrows": [],
+            "columnViewArrows": []
+          },
+          "tree": {
+            "finderWindow": [],
+            "dock": [],
+            "dockRunningState": [],
+            "menuItems": [],
+            "launchpad": [],
+            "spotlight": [],
+            "updatesWhenWindowsOpenAndClose": [],
+            "everyControlNamed": [],
+            "decorativeSvgHidden": []
+          },
+          "axe": {
+            "noViolations": []
+          },
+          "safari": {
+            "browserLinkNamed": [],
+            "keyboardOpen": [],
+            "actionsAccessible": []
+          },
+          "fileOperations": {
+            "namedDialogs": [],
+            "keyboardAndFocus": [],
+            "noViolations": []
+          },
+          "activity": {
+            "keyboardControls": true,
+            "noViolations": []
+          },
+          "resources": {
+            "keyboardControls": true,
+            "noViolations": []
+          }
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 53.751434667
+    }
+  ],
+  "checks": {
+    "localMessages": {
+      "localScopeAndDetails": true,
+      "readableSelectionAndBubbles": true,
+      "draftsStayWithConversation": true,
+      "beforeUnloadGuard": true,
+      "failedWriteKeepsDraft": true,
+      "noViolations": [
+        {
+          "id": "label-content-name-mismatch",
+          "impact": "serious",
+          "tags": [
+            "cat.semantics",
+            "wcag21a",
+            "wcag253",
+            "EN-301-549",
+            "EN-9.2.5.3",
+            "RGAAv4",
+            "RGAA-6.1.5"
+          ],
+          "description": "Ensure that elements labelled through their content must have their visible text as part of their accessible name",
+          "help": "Elements must have their visible text as part of their accessible name",
+          "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/label-content-name-mismatch?application=playwright",
+          "nodes": [
+            {
+              "any": [
+                {
+                  "id": "label-content-name-mismatch",
+                  "data": null,
+                  "relatedNodes": [],
+                  "impact": "serious",
+                  "message": "Text inside the element is not included in the accessible name"
+                }
+              ],
+              "all": [],
+              "none": [],
+              "impact": "serious",
+              "html": "<button data-cdetails=\"\" tabindex=\"0\" type=\"button\" class=\"who\" style=\"border: 0; background: transparent; text-align: left;\" aria-label=\"Kate details\">",
+              "target": [
+                ".who"
+              ],
+              "failureSummary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+            }
+          ]
+        }
+      ],
+      "unsavedCloseAndRestartBlocked": true,
+      "retryCreatesOneMessage": true,
+      "noSyntheticReply": true,
+      "pendingSaveBlocksClose": true,
+      "persistenceAndKeyboard": true,
+      "createFailureAndRecovery": true,
+      "missingConversationKeepsDraft": true,
+      "explicitDiscard": true
+    },
+    "noteDrafts": {
+      "failedWriteKeepsContent": true,
+      "beforeUnloadGuard": true,
+      "failedNavigationAndClose": true,
+      "noViolations": [],
+      "keyboardRecovery": true,
+      "retryAndPersistence": true,
+      "pendingWriteSavesNewestBeforeClose": true,
+      "createFailureAndRecovery": true,
+      "deleteFailureAndRecovery": true,
+      "crossWindowConflict": true,
+      "copyFailureAndRecovery": true,
+      "deletedNoteAndDiscard": true
+    },
+    "reminderDrafts": {
+      "beforeUnloadGuard": true,
+      "failedDraftPreserved": true,
+      "failedCloseAndRestartKeepDraft": true,
+      "noViolations": [],
+      "retryCreatesOneRecord": true,
+      "pendingWriteBlocksClose": true,
+      "savedToggleFailureAndRecovery": true,
+      "explicitDiscardIsScoped": true,
+      "keyboardAndPersistence": true
+    },
+    "shellInteraction": {
+      "boot": {
+        "screenAppears": true,
+        "progressAdvances": true,
+        "endsAtLoginScreen": true,
+        "loginEntersDesktop": true,
+        "queryParameterSkips": true,
+        "hashSkips": true
+      },
+      "lock": {
+        "shows": true,
+        "coversDesktop": true,
+        "unlockRestores": true
+      },
+      "sleep": {
+        "shows": true,
+        "wakes": true,
+        "desktopIntact": true
+      },
+      "statusPanels": {
+        "clockOpensNotifications": true,
+        "wifiMatchesState": true,
+        "outsideClickCloses": true,
+        "batteryMatchesState": true
+      },
+      "controlCentre": {
+        "opens": true,
+        "wifiToggleReflected": true,
+        "darkModeApplies": true,
+        "settingsSurviveReload": true
+      },
+      "dragResizeZoom": {
+        "titleBarMoves": true,
+        "cornerResizes": true,
+        "greenButtonZooms": true,
+        "greenButtonRestores": true,
+        "keepOnScreen": true
+      },
+      "focusCycle": {
+        "windowsOverlap": true,
+        "clickRaisesWindow": true,
+        "stackFollowsClicks": true,
+        "cycleRaisesBottom": true
+      }
+    },
+    "everyAppOpens": true,
+    "unopened": [],
+    "searchEnterUsesCurrentQuery": true,
+    "a11y": {
+      "tabPath": {
+        "startsInMenubar": [],
+        "menubarOrder": [],
+        "windowBetweenMenubarAndDock": [],
+        "dockOrder": [],
+        "desktopAfterDock": [],
+        "regionsInVisibleOrder": [],
+        "noInvisibleStops": [],
+        "doesNotTrap": [],
+        "shiftTabReverses": [],
+        "focusRingOnlyForKeyboard": [],
+        "enterAndSpaceActivate": []
+      },
+      "overlays": {
+        "launchpadOpensByEnter": [],
+        "launchpadTabStaysInside": [],
+        "launchpadSpaceLaunches": [],
+        "launchpadEscapeRestoresFocus": [],
+        "spotlightOpensByEnter": [],
+        "spotlightComboboxState": [],
+        "spotlightTabStaysInside": [],
+        "spotlightEscapeRestoresFocus": [],
+        "spotlightEnterOpensApp": [],
+        "panelOpensBySpace": [],
+        "panelTabStaysInside": [],
+        "panelSwitchToggles": [],
+        "panelEscapeRestoresFocus": []
+      },
+      "menus": {
+        "menubarRoles": [],
+        "arrowKeysMoveBetweenTitles": [],
+        "expandKeys": [],
+        "arrowsMoveInsideMenu": [],
+        "typeaheadJumps": [],
+        "leftRightSwitchMenus": [],
+        "escapeRestoresFocus": [],
+        "tabClosesMenu": [],
+        "checkedItemRole": [],
+        "keyboardOnlyFlow": {
+          "opensFinder": [],
+          "opensGoMenu": [],
+          "changesDirectory": [],
+          "closesWindow": []
+        }
+      },
+      "windows": {
+        "dialogsNamedByTitle": [],
+        "backgroundHidden": [],
+        "menubarShowsFrontApp": [],
+        "openMovesFocusIn": [],
+        "cycleSwitchesFocusAndFront": [],
+        "minimizeHandsFocusToNext": [],
+        "restoreFromDockByKeyboard": [],
+        "closeHandsFocusOver": [],
+        "lastCloseFocusesDockIcon": [],
+        "tabIntoBackgroundRaises": []
+      },
+      "finder": {
+        "listboxRoles": [],
+        "arrowKeysMoveSelection": [],
+        "enterOpensFolderKeepsFocus": [],
+        "backspaceGoesUp": [],
+        "commandUpGoesUp": [],
+        "listViewArrows": [],
+        "columnViewArrows": []
+      },
+      "tree": {
+        "finderWindow": [],
+        "dock": [],
+        "dockRunningState": [],
+        "menuItems": [],
+        "launchpad": [],
+        "spotlight": [],
+        "updatesWhenWindowsOpenAndClose": [],
+        "everyControlNamed": [],
+        "decorativeSvgHidden": []
+      },
+      "axe": {
+        "noViolations": []
+      },
+      "safari": {
+        "browserLinkNamed": [],
+        "keyboardOpen": [],
+        "actionsAccessible": []
+      },
+      "fileOperations": {
+        "namedDialogs": [],
+        "keyboardAndFocus": [],
+        "noViolations": []
+      },
+      "activity": {
+        "keyboardControls": true,
+        "noViolations": []
+      },
+      "resources": {
+        "keyboardControls": true,
+        "noViolations": []
+      }
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [
+      "[local-messages] 检查项未通过或缺失：localMessages.noViolations"
+    ],
+    "stale": []
+  },
+  "passed": false,
+  "clean": false
+}

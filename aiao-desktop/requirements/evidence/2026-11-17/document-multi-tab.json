@@ -1,0 +1,121 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-16T17:10:39.022Z",
+  "source": {
+    "sha": "2a3e4618369c325d2ea3d2fef8b95cbba697677f",
+    "changes": "M src/groups/index.mjs\n M src/groups/multi-tab.mjs\n M src/harness/helpers.mjs\n M ../web/src/app/apps/textedit/textedit.ts\n M ../web/src/app/disk/rxdb-disk-store.spec.ts\n M ../web/src/app/disk/rxdb-disk-store.ts\n M ../web/src/app/services/desktop-window.ts\n M ../web/src/app/services/session.spec.ts\n M ../web/src/app/services/session.ts\n M ../web/src/app/services/window-manager.spec.ts\n M ../web/src/app/services/window-manager.ts\n M ../web/src/app/testing/stubs.ts\n M ../web/vitest.config.mts\n M ../../requirements/README.md\n M ../../requirements/capability-matrix.md\n M ../../requirements/epics/ADESK-EPIC-002.md\n M ../../requirements/future-requirements.md\n M ../../requirements/roadmap.md\n M ../../requirements/status-overview.md\n M ../../requirements/stories/desktop/ADESK-US-105-multi-tab-sync.md\n?? src/groups/document-workflow.mjs\n?? ../web/src/app/apps/textedit/text-document.spec.ts\n?? ../web/src/app/apps/textedit/text-document.ts\n?? ../../requirements/plans/2026-11-17-autonomous-completion.md\n?? ../../requirements/stories/desktop/ADESK-US-109-document-workflow.md"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "158.0.8127.18",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "12bee8a8dcf498371c0cd945cea61e07f9a48512a76826f56d87c3ea8e2a1ea7"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 3,
+    "groups": [
+      "multi-tab"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 58.260480584,
+  "outcomes": [
+    {
+      "group": "multi-tab",
+      "result": {
+        "multiTab": {
+          "folderAppearsInFinder": true,
+          "folderAppearsOnDesktop": true,
+          "threePagesConverge": true,
+          "appearanceSyncs": true,
+          "appearanceSurvivesReload": true,
+          "savedFileReadableInOtherTab": true,
+          "openWindowFollowsOtherTabSave": true,
+          "lastWriteWinsWithoutPrompt": true,
+          "concurrentDraftsStaySafe": true,
+          "sameFileConvergesAfterExplicitReload": true,
+          "sameFileSavesStaySafe": true,
+          "sameFileConsistentAfterReload": true,
+          "bothTerminalsStart": true,
+          "terminalFileReachesOtherTab": true,
+          "terminalFileOpensInOtherTab": true,
+          "closingOneTerminalKeepsOther": true,
+          "terminalRestartsAfterReload": true,
+          "terminalFilesInDatabase": true,
+          "terminalsWriteSameFile": true,
+          "tabsConvergeAfterFailedSaves": true,
+          "saveFailsAfterTrash": true,
+          "saveFailsAfterRename": true,
+          "saveFailsAfterErase": true,
+          "failedSaveKeepsWindowContent": true,
+          "failedSaveCreatesNothing": true,
+          "databaseIntactAfterFailedSaves": true,
+          "noteAppearsInOtherTab": true,
+          "backgroundTabConverges": true,
+          "dockPinSyncs": true,
+          "dockRunStateStaysLocal": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 58.220593584
+    }
+  ],
+  "checks": {
+    "multiTab": {
+      "folderAppearsInFinder": true,
+      "folderAppearsOnDesktop": true,
+      "threePagesConverge": true,
+      "appearanceSyncs": true,
+      "appearanceSurvivesReload": true,
+      "savedFileReadableInOtherTab": true,
+      "openWindowFollowsOtherTabSave": true,
+      "lastWriteWinsWithoutPrompt": true,
+      "concurrentDraftsStaySafe": true,
+      "sameFileConvergesAfterExplicitReload": true,
+      "sameFileSavesStaySafe": true,
+      "sameFileConsistentAfterReload": true,
+      "bothTerminalsStart": true,
+      "terminalFileReachesOtherTab": true,
+      "terminalFileOpensInOtherTab": true,
+      "closingOneTerminalKeepsOther": true,
+      "terminalRestartsAfterReload": true,
+      "terminalFilesInDatabase": true,
+      "terminalsWriteSameFile": true,
+      "tabsConvergeAfterFailedSaves": true,
+      "saveFailsAfterTrash": true,
+      "saveFailsAfterRename": true,
+      "saveFailsAfterErase": true,
+      "failedSaveKeepsWindowContent": true,
+      "failedSaveCreatesNothing": true,
+      "databaseIntactAfterFailedSaves": true,
+      "noteAppearsInOtherTab": true,
+      "backgroundTabConverges": true,
+      "dockPinSyncs": true,
+      "dockRunStateStaysLocal": true
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [],
+    "stale": []
+  },
+  "passed": true,
+  "clean": true
+}

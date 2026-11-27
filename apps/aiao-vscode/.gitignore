@@ -1,0 +1,14 @@
+node_modules/
+dist/
+coverage/
+tmp/
+.env
+.env.local
+.env.*.local
+
+# 自托管工作台资产（编译器 / Git WASM、Worker、Codicons 等）由 assets 目标生成
+public/browser-workbench-assets/
+
+# verify 脚本的临时产物
+.offline-fixture/
+benchmarks/*.png

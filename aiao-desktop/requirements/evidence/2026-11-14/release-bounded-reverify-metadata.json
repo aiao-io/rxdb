@@ -1,0 +1,12 @@
+{
+  "command": "NX_NO_CLOUD=true pnpm nx exec --projects=aiao-desktop -- node /var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/aiao-release-bounded-xt3e5W/verify.mjs",
+  "completedAt": "2026-11-14T11:22:45.736Z",
+  "exitCode": 1,
+  "format": "aiao-desktop.release-bounded-reverify",
+  "log": "release-bounded-reverify.txt",
+  "readOnly": true,
+  "source": "release-bounded-reverify-source.txt",
+  "startedAt": "2026-11-14T11:21:11.156Z",
+  "uploaded": false,
+  "version": 1
+}

@@ -1,0 +1,81 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-25T12:18:21.055Z",
+  "source": {
+    "sha": "e5d83a1d5f0afc7209c1037a2677425c0d6d4b1f",
+    "changes": "M src/groups/settings-workflow.mjs\n D ../web/src/app/apps/settings/account-menu.ts\n M ../web/src/app/apps/settings/settings-data.spec.ts\n M ../web/src/app/apps/settings/settings-data.ts\n M ../web/src/app/apps/settings/settings.html\n M ../web/src/app/apps/settings/settings.ts\n M ../../requirements/capability-matrix.md\n M ../../requirements/stories/desktop/ADESK-US-131-settings-sign-out-data-reset.md\n?? ../web/src/app/apps/settings/panes/account-pane.ts"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "159.0.8154.6",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/aiao/aiao-worktree-desktop/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "5f0f3cff3e657282170f4b949ac508c85e8c074288bc4f44255d1ab0b7b2c128"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 1,
+    "groups": [
+      "settings-workflow"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 9.25703025,
+  "outcomes": [
+    {
+      "group": "settings-workflow",
+      "result": {
+        "settingsWorkflow": {
+          "initialSections": true,
+          "searchesBySection": true,
+          "emptySearch": true,
+          "clearsSearch": true,
+          "sectionFollowsSelection": true,
+          "accountMenu": true,
+          "accountMenuKeyboard": true,
+          "signOutConfirmCancel": true,
+          "muteSwitchMutesSystem": true,
+          "signOutErasesAndReloads": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 9.213454
+    }
+  ],
+  "checks": {
+    "settingsWorkflow": {
+      "initialSections": true,
+      "searchesBySection": true,
+      "emptySearch": true,
+      "clearsSearch": true,
+      "sectionFollowsSelection": true,
+      "accountMenu": true,
+      "accountMenuKeyboard": true,
+      "signOutConfirmCancel": true,
+      "muteSwitchMutesSystem": true,
+      "signOutErasesAndReloads": true
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [],
+    "stale": []
+  },
+  "passed": true,
+  "clean": true
+}

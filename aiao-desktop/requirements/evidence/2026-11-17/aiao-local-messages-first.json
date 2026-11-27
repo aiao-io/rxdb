@@ -1,0 +1,169 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-17T11:18:49.179Z",
+  "source": {
+    "sha": "45495d161e848086e912fef7d2a54fb9f01a806b",
+    "changes": "M src/groups/index.mjs\n M ../web/src/app/apps/messages/messages-data.ts\n M ../web/src/app/apps/messages/messages.html\n?? src/groups/local-messages.mjs"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "158.0.8127.18",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "b0bca0c722e5d0a0d2aa7a44495dea6e3d302dbefdb847a46418ed972f66dcef"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 3,
+    "groups": [
+      "local-messages"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 14.223591375,
+  "outcomes": [
+    {
+      "group": "local-messages",
+      "result": {
+        "localMessages": {
+          "localScopeAndDetails": true,
+          "draftsStayWithConversation": true,
+          "beforeUnloadGuard": true,
+          "failedWriteKeepsDraft": true,
+          "noViolations": [
+            {
+              "id": "label-content-name-mismatch",
+              "impact": "serious",
+              "tags": [
+                "cat.semantics",
+                "wcag21a",
+                "wcag253",
+                "EN-301-549",
+                "EN-9.2.5.3",
+                "RGAAv4",
+                "RGAA-6.1.5"
+              ],
+              "description": "Ensure that elements labelled through their content must have their visible text as part of their accessible name",
+              "help": "Elements must have their visible text as part of their accessible name",
+              "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/label-content-name-mismatch?application=playwright",
+              "nodes": [
+                {
+                  "any": [
+                    {
+                      "id": "label-content-name-mismatch",
+                      "data": null,
+                      "relatedNodes": [],
+                      "impact": "serious",
+                      "message": "Text inside the element is not included in the accessible name"
+                    }
+                  ],
+                  "all": [],
+                  "none": [],
+                  "impact": "serious",
+                  "html": "<button aria-label=\"Conversation details\" data-cdetails=\"\" tabindex=\"0\" type=\"button\" class=\"who\" style=\"border: 0; background: transparent; text-align: left;\">",
+                  "target": [
+                    ".who"
+                  ],
+                  "failureSummary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+                }
+              ]
+            }
+          ],
+          "unsavedCloseAndRestartBlocked": true,
+          "retryCreatesOneMessage": true,
+          "pendingSaveBlocksClose": true,
+          "noSyntheticReply": true,
+          "persistenceAndKeyboard": true,
+          "createFailureAndRecovery": true,
+          "missingConversationKeepsDraft": true,
+          "explicitDiscard": true
+        }
+      },
+      "problems": [
+        "检查项未通过：localMessages.noViolations = [{\"id\":\"label-content-name-mismatch\",\"impact\":\"serious\",\"tags\":[\"cat.semantics\",\"wcag21a\",\"wcag253\",\"EN-301-549\",\"EN-9.2.5.3\",\"RGAAv4\",\"RGAA-6.1.5\"],\"description\":\"Ensure that elements labelled through their content must have their visible text as part of their accessible name\",\"help\":\"Elements must have their visible text as part of their accessible name\",\"helpUrl\":\"https://dequeuniversity.com/rules/axe/4.14/label-content-name-mismatch?application=playwright\",\"nodes\":[{\"any\":[{\"id\":\"label-content-name-mismatch\",\"data\":null,\"relatedNodes\":[],\"impact\":\"serious\",\"message\":\"Text inside the element is not included in the accessible name\"}],\"all\":[],\"none\":[],\"impact\":\"serious\",\"html\":\"<button aria-label=\\\"Conversation details\\\" data-cdetails=\\\"\\\" tabindex=\\\"0\\\" type=\\\"button\\\" class=\\\"who\\\" style=\\\"border: 0; background: transparent; text-align: left;\\\">\",\"target\":[\".who\"],\"failureSummary\":\"Fix any of the following:\\n  Text inside the element is not included in the accessible name\"}]}]"
+      ],
+      "failedKeys": [
+        "localMessages.noViolations"
+      ],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 14.173122209
+    }
+  ],
+  "checks": {
+    "localMessages": {
+      "localScopeAndDetails": true,
+      "draftsStayWithConversation": true,
+      "beforeUnloadGuard": true,
+      "failedWriteKeepsDraft": true,
+      "noViolations": [
+        {
+          "id": "label-content-name-mismatch",
+          "impact": "serious",
+          "tags": [
+            "cat.semantics",
+            "wcag21a",
+            "wcag253",
+            "EN-301-549",
+            "EN-9.2.5.3",
+            "RGAAv4",
+            "RGAA-6.1.5"
+          ],
+          "description": "Ensure that elements labelled through their content must have their visible text as part of their accessible name",
+          "help": "Elements must have their visible text as part of their accessible name",
+          "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/label-content-name-mismatch?application=playwright",
+          "nodes": [
+            {
+              "any": [
+                {
+                  "id": "label-content-name-mismatch",
+                  "data": null,
+                  "relatedNodes": [],
+                  "impact": "serious",
+                  "message": "Text inside the element is not included in the accessible name"
+                }
+              ],
+              "all": [],
+              "none": [],
+              "impact": "serious",
+              "html": "<button aria-label=\"Conversation details\" data-cdetails=\"\" tabindex=\"0\" type=\"button\" class=\"who\" style=\"border: 0; background: transparent; text-align: left;\">",
+              "target": [
+                ".who"
+              ],
+              "failureSummary": "Fix any of the following:\n  Text inside the element is not included in the accessible name"
+            }
+          ]
+        }
+      ],
+      "unsavedCloseAndRestartBlocked": true,
+      "retryCreatesOneMessage": true,
+      "pendingSaveBlocksClose": true,
+      "noSyntheticReply": true,
+      "persistenceAndKeyboard": true,
+      "createFailureAndRecovery": true,
+      "missingConversationKeepsDraft": true,
+      "explicitDiscard": true
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [
+      "[local-messages] 检查项未通过或缺失：localMessages.noViolations"
+    ],
+    "stale": []
+  },
+  "passed": false,
+  "clean": false
+}

@@ -121,7 +121,13 @@ export interface OrbitInstance {
 
 /** 运行内核配置。 */
 export interface OrbitOptions {
-  /** 允许的应用来源；省略时只允许宿主同源地址。 */
+  /**
+   * 允许的应用来源，必须是精确的 HTTP(S) 来源；省略时只允许宿主同源地址。
+   *
+   * 同源入口等于受信代码，不是隔离边界：应用 iframe 的 sandbox 同时含 `allow-scripts` 与 `allow-same-origin`，
+   * 同源应用可以自己摘掉 sandbox，直接访问宿主文档与同源存储。要隔离不受信的应用，必须让它跑在不同的来源上，
+   * 并且只把那个来源逐个列在这里。
+   */
   allowedOrigins?: readonly string[];
   /** 显式接收状态观察者和事件处理器抛出的错误。 */
   onError?: (error: unknown) => void;
@@ -153,6 +159,12 @@ export interface OrbitClientContext {
   readonly props: OrbitProps;
   /** 宿主是否显示该窗口。 */
   readonly visible: boolean;
+  /**
+   * 嵌入本应用的宿主页面的来源，取自握手 `init` 消息的 `event.origin`：它由浏览器给出，不是宿主自报的值
+   * （宿主在 `context` 里写同名字段、或在 `props` 里声明自己的来源都不会改变它）。
+   * 需要按「是谁嵌入了我」做授权决定时读它，并用 {@link OrbitClientOptions.acceptHostOrigin} 在握手时挡住不受信的宿主。
+   */
+  readonly hostOrigin: string;
 }
 
 /** 子应用连接参数。 */
@@ -163,6 +175,16 @@ export interface OrbitClientOptions {
   timeout?: number;
   /** 主动取消握手及连接。 */
   signal?: AbortSignal;
+  /**
+   * 宿主来源准入，与宿主侧的 {@link OrbitOptions.allowedOrigins} 对称：只有来源（浏览器给出的 `event.origin`）通过判定的
+   * 父窗口才能完成握手；其余来源发来的 `init` 与不兼容通知一律忽略（与宿主忽略外来 hello 一致），最终按 `timeout` 超时。
+   *
+   * 握手令牌取自应用自己的地址参数，嵌入方自己就能指定，不是秘密：不设准入时，任何站点嵌入本应用都能完成握手、扮演宿主。
+   * 应用只接受特定桌面嵌入时应当设置它；省略时不限制来源（独立的演示与测试页面保持原有行为）。
+   * 需要「任意端口的 localhost」这类规则，所以是判定函数而不是来源列表。判定函数自己抛错是程序错误：握手以该错误失败，
+   * 不当作「来源不被接受」静默等到超时。
+   */
+  acceptHostOrigin?: (origin: string) => boolean;
 }
 
 /** 框架无关的子应用接口，普通独立运行时无需建立连接。 */

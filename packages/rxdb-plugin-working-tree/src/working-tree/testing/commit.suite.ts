@@ -57,7 +57,14 @@ import type {
   RxDB,
   TransactionExecutor
 } from '@aiao/rxdb';
-import { branchMaterializationPageFingerprint, getEntityMetadata, RxDBBranch, RxDBChange, uuid } from '@aiao/rxdb';
+import {
+  branchMaterializationPageFingerprint,
+  getEntityMetadata,
+  getEntityStatus,
+  RxDBBranch,
+  RxDBChange,
+  uuid
+} from '@aiao/rxdb';
 import type { CommitChangeUnitContent } from '../../commit/change-unit.js';
 import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
 import { CommitChangeSet } from '../../commit/commit-change-set.entity.js';
@@ -1492,6 +1499,27 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
     });
 
     describe('§2.5 损坏守卫（三入口同一份）', () => {
+      it('完整性校验不回填历史实体缓存', async () => {
+        const branchId = await readActiveBranchId(database);
+        const commit = expectCommitted(
+          await commitOnce(database, { branchId, operationId: uuid(), message: '历史内容只读', units: [buildUnit()] })
+        );
+        const [entry] = await withTransaction(database, executor =>
+          executor.getRepository(CommitChangeSet).find({
+            where: { combinator: 'and', rules: [{ field: 'commitId', operator: '=', value: commit.id }] }
+          })
+        );
+        if (!entry) throw new Error('刚写下的历史内容读不回来');
+        let notifications = 0;
+        const subscription = getEntityStatus(entry).patches$.subscribe(() => notifications++);
+        try {
+          await withTransaction(database, executor => assertCommitGraphIntact(executor, branchId));
+          expect(notifications).toBe(0);
+        } finally {
+          subscription.unsubscribe();
+        }
+      });
+
       for (const entryPoint of CORRUPTION_ENTRY_POINTS) {
         it(`${entryPoint.name}：健康分支放行`, async () => {
           const branchId = await readActiveBranchId(database);

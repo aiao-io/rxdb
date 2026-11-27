@@ -1,0 +1,109 @@
+<div
+  id="dockwrap"
+  [class.dock-left]="system.dockPosition() === 'left'"
+  [class.dock-right]="system.dockPosition() === 'right'"
+  [class.dragging]="drag.active()"
+  [class.has-minis]="hasMinis()"
+  [class.no-indicators]="!system.dockShowIndicators()"
+>
+  <div
+    class="nosel"
+    id="dock"
+    #dock
+    [attr.aria-label]="i18n.t('shell.dock.name')"
+    [attr.data-drop-slot]="drag.dropSlot()"
+    [class.autohidden]="autoHidden()"
+    [class.dock-vertical]="system.dockPosition() !== 'bottom'"
+    [class.dragging]="drag.active()"
+    (contextmenu)="glassMenu($event)"
+    (dragover)="glassFile($event)"
+    (drop)="glassFile($event)"
+    (pointerenter)="hover($event)"
+    (pointerleave)="leave()"
+    (pointermove)="hover($event)"
+    role="toolbar"
+  >
+    @for (slot of slots(); track slot.key) {
+      @if (slot.app; as app) {
+        <div
+          class="di"
+          #slotEl
+          [attr.aria-describedby]="running().has(app.id) ? 'dock-running' : null"
+          [attr.aria-label]="labelOf(slot)"
+          [attr.data-app]="slot.windowId === undefined ? app.id : null"
+          [attr.data-key]="slot.key"
+          [attr.data-win]="slot.windowId"
+          [class.drop-target]="app.id === 'trash' && dockState.trashDropActive()"
+          [class.file-target]="fileDropApp() === app.id && slot.windowId === undefined"
+          [class.lifted]="drag.lifted() === app.id"
+          [class.run]="running().has(app.id)"
+          [class.temp]="slot.temporary"
+          [class.win]="slot.windowId !== undefined"
+          (click)="activateSlot(slot)"
+          (contextmenu)="iconMenu($event, app.id)"
+          (dragleave)="fileLeave($event)"
+          (dragover)="fileOver($event, slot)"
+          (drop)="fileDrop($event, slot)"
+          (keydown.enter)="activateSlot(slot)"
+          (keydown.space)="activateByKey($event, slot)"
+          (keydown)="iconKey($event, slot)"
+          (pointerdown)="press($event, slot)"
+          role="button"
+          tabindex="0"
+        >
+          <div class="art">
+            <svg [appIcon]="app.id === 'trash' && fs.trashFull() ? 'app-trash-full' : app.icon"></svg>
+            @if (app.id === 'calendar' && slot.windowId === undefined) {
+              <span class="calendar-date" [attr.data-date]="calendarDate()" aria-hidden="true"></span>
+            }
+          </div>
+          @if (slot.windowId !== undefined) {
+            <span class="win-title">{{ slot.title }}</span>
+          }
+          <span class="dot" aria-hidden="true"></span>
+          <span class="hit" aria-hidden="true"></span>
+        </div>
+      } @else {
+        <div
+          class="divider"
+          #slotEl
+          [attr.aria-orientation]="system.dockPosition() === 'bottom' ? 'vertical' : 'horizontal'"
+          [attr.data-key]="slot.key"
+          role="separator"
+        ></div>
+      }
+    }
+    <div id="docktip" #tip aria-hidden="true"></div>
+  </div>
+  <span id="dock-running" hidden>{{ i18n.t('shell.dock.running') }}</span>
+  @if (drag.state(); as dragging) {
+    <div
+      class="dock-ghost"
+      [class.removing]="dragging.removing"
+      [style.left.px]="dragging.x"
+      [style.top.px]="dragging.y"
+      aria-hidden="true"
+    >
+      <svg [appIcon]="iconOf(dragging.appId)"></svg>
+      @if (dragging.removing) {
+        <span class="ghost-tag">{{ i18n.t('shell.dock.remove') }}</span>
+      }
+    </div>
+  }
+</div>
+@if (system.dockAutoHide()) {
+  <div
+    id="dock-edge"
+    [class.bottom]="system.dockPosition() === 'bottom'"
+    [class.left]="system.dockPosition() === 'left'"
+    [class.right]="system.dockPosition() === 'right'"
+    (pointerenter)="revealDock()"
+    (pointerleave)="scheduleHide()"
+    aria-hidden="true"
+  ></div>
+}
+@defer (when emptyTrashPrompt()) {
+  @if (emptyTrashPrompt()) {
+    <app-empty-trash-dialog (finished)="finishEmptyTrash($event)" />
+  }
+}

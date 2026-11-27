@@ -1,0 +1,831 @@
+2026-11-14 Asia/Shanghai，Apple M1 Max / Darwin 27.2.0 / Node 26.12.0 / pnpm 12.16.1
+执行时0ccab7cf + workspace，依赖任务的缓存输出保留其原始时间。
+命令：pnpm nx run-many -t test --projects=aiao-desktop-web --parallel=1 --coverage --coverage.reporter=json --coverage.reporter=json-summary --coverage.reporter=lcovonly --output-style=static
+
+
+ NX   Running target test for project aiao-desktop-web and 21 tasks it depends on:
+
+- aiao-desktop-web
+
+With additional flags:
+  --coverage=[true,[object Object],[object Object],[object Object]]
+
+
+
+> nx run utils:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:58243) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 159 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1420ms.
+
+computing gzip size...
+dist/index.js  70.62 kB │ gzip: 22.97 kB
+
+✓ built in 1.51s
+
+> nx run orbit:build  [existing outputs match the cache, left as is]
+
+> vite build && node ../../scripts/audit/package-api-docs.mjs . --members
+
+(node:58246) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 17 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1029ms.
+
+computing gzip size...
+dist/vue.js                     0.20 kB │ gzip: 0.17 kB
+dist/binding-BHf5tKlR.js        0.22 kB │ gzip: 0.16 kB
+dist/angular.js                 0.24 kB │ gzip: 0.19 kB
+dist/react.js                   0.24 kB │ gzip: 0.19 kB
+dist/window.js                  1.69 kB │ gzip: 0.73 kB
+dist/payload-PuWzqEr2.js        2.16 kB │ gzip: 1.17 kB
+dist/window-codec-lC1C5B3-.js   2.96 kB │ gzip: 1.43 kB
+dist/client.js                  5.06 kB │ gzip: 1.93 kB
+dist/rpc-DflhNanH.js            5.79 kB │ gzip: 2.09 kB
+dist/index.js                   9.73 kB │ gzip: 3.69 kB
+dist/desktop.js                21.76 kB │ gzip: 7.41 kB
+
+✓ built in 1.06s
+Public API documentation passed: orbit
+(node:58316) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+> nx run rxdb:generate-skill
+
+> node ../../scripts/audit/generate-skill.mjs
+
+✅ SKILL.md 已生成：packages/rxdb/skills/aiao-rxdb/SKILL.md（7922 字节 ≤ 8192）
+
+> nx run rxdb:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:58361) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 338 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 3206ms.
+
+computing gzip size...
+dist/testing.js                  1.66 kB │ gzip:  0.88 kB
+dist/QueryManager-8j1OG6at.js   60.73 kB │ gzip: 16.80 kB
+dist/index.js                  231.25 kB │ gzip: 68.61 kB
+
+✓ built in 3.36s
+
+> nx run rxdb-plugin-history:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:58488) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 25 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1999ms.
+
+computing gzip size...
+dist/index.js  57.11 kB │ gzip: 15.41 kB
+
+✓ built in 2.04s
+
+> nx run rxdb-adapter-encrypted:build  [existing outputs match the cache, left as is]
+
+> vite build && node ../../scripts/audit/package-api-docs.mjs .
+
+(node:58530) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 13 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1488ms.
+
+computing gzip size...
+dist/testing.js   1.54 kB │ gzip: 0.70 kB
+dist/index.js    25.14 kB │ gzip: 7.31 kB
+
+✓ built in 1.53s
+Public API documentation passed: rxdb-adapter-encrypted
+(node:58567) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+> nx run rxdb-client-generator:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:58543) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 24 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 2173ms.
+
+computing gzip size...
+dist/index.js                          0.31 kB │ gzip:  0.19 kB
+dist/vite.js                           1.91 kB │ gzip:  0.93 kB
+dist/cli.js                            2.84 kB │ gzip:  1.25 kB
+dist/testing.js                        4.82 kB │ gzip:  1.83 kB
+dist/build-client-lib-D8pJzzuO.js     19.48 kB │ gzip:  6.69 kB
+dist/RxDBClientGenerator-BU4uS4-h.js  51.97 kB │ gzip: 13.83 kB
+
+✓ built in 2.23s
+
+> nx run rxdb-plugin-tree:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:58630) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 21 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1182ms.
+
+computing gzip size...
+dist/constants-hmRlLxvd.js   0.92 kB │ gzip: 0.48 kB
+dist/generator.js            3.73 kB │ gzip: 1.38 kB
+dist/index.js               17.69 kB │ gzip: 5.05 kB
+
+✓ built in 1.22s
+
+> nx run rxdb-plugin-sync:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:58609) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 222 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1398ms.
+
+computing gzip size...
+dist/index.js  105.65 kB │ gzip: 27.77 kB
+
+✓ built in 1.45s
+
+> nx run rxdb-plugin-working-tree:build  [existing outputs match the cache, left as is]
+
+> vite build && node ../../scripts/audit/package-api-docs.mjs . --members
+
+(node:58619) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 88 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 2047ms.
+
+computing gzip size...
+dist/index.js                         2.75 kB │ gzip:  1.10 kB
+dist/working-tree/testing/index.js  115.43 kB │ gzip: 29.86 kB
+dist/src-DvCd21Ft.js                142.52 kB │ gzip: 41.25 kB
+
+✓ built in 2.12s
+Public API documentation passed: rxdb-plugin-working-tree
+(node:58703) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+> nx run rxdb-devtools:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:58764) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 57 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1487ms.
+
+computing gzip size...
+dist/testing-providers.js            0.07 kB │ gzip:  0.08 kB
+dist/fake-providers-B-LlUCM8.js      6.22 kB │ gzip:  2.06 kB
+dist/snapshot-Cemq7GWK.js           12.36 kB │ gzip:  4.29 kB
+dist/negotiation-panel-Fu6ZRTSm.js  31.59 kB │ gzip:  8.34 kB
+dist/testing.js                     43.30 kB │ gzip: 10.02 kB
+dist/index.js                       55.03 kB │ gzip: 16.38 kB
+
+✓ built in 1.53s
+
+> nx run rxdb-test:build  [existing outputs match the cache, left as is]
+
+> vite build && node scripts/verify-public-contract.mjs && tsc --build tsconfig.publish.json
+
+(node:58692) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 57 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1532ms.
+
+computing gzip size...
+dist/chunks/generate-test-db-name-C23VG_er.js   0.20 kB │ gzip: 0.18 kB │ map:   0.50 kB
+dist/chunks/decorate-DsqXQ0nF.js                0.49 kB │ gzip: 0.32 kB
+dist/tree-unique/index.js                       5.07 kB │ gzip: 1.54 kB │ map:  14.07 kB
+dist/transaction/index.js                       6.81 kB │ gzip: 2.69 kB │ map:  23.42 kB
+dist/query-cache-contract/index.js              7.94 kB │ gzip: 2.86 kB │ map:  23.91 kB
+dist/check-constraint/index.js                 19.90 kB │ gzip: 4.63 kB │ map:  52.51 kB
+dist/index.js                                  27.60 kB │ gzip: 9.47 kB │ map:  97.74 kB
+dist/sortable/index.js                         29.78 kB │ gzip: 8.23 kB │ map:  86.25 kB
+dist/encrypted/index.js                        37.58 kB │ gzip: 9.00 kB │ map: 121.55 kB
+
+✓ built in 1.59s
+(node:58781) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✅ Generated 2 client(s) from ./rxdb.config.ts
+(node:58849) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Public contract OK: 117 exports across 9 entries
+
+> nx run rxdb-plugin-querycache:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:58683) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 199 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1097ms.
+
+computing gzip size...
+dist/index.js  39.98 kB │ gzip: 10.78 kB
+
+✓ built in 1.14s
+
+> nx run rxdb-adapter-sqlite-core:build  [existing outputs match the cache, left as is]
+
+> node ../../node_modules/vite/bin/vite.js build
+
+(node:58930) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 112 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1931ms.
+
+computing gzip size...
+dist/sqlite-backend.interface-Im_ETXg8.js    0.23 kB │ gzip:  0.18 kB
+dist/index.js                                5.35 kB │ gzip:  2.30 kB
+dist/desktop-host-protocol-CYOIEUaV.js      10.61 kB │ gzip:  3.69 kB
+dist/desktop-host.js                        14.33 kB │ gzip:  5.01 kB
+dist/src-On3fEwYM.js                       173.62 kB │ gzip: 51.95 kB
+dist/testing.js                            449.88 kB │ gzip: 83.82 kB
+
+✓ built in 2.10s
+
+> nx run rxdb-adapter-pglite:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:58932) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+[EVAL] Use of direct `eval` function is strongly discouraged as it poses security risks and may cause issues with minification.
+ - Use of direct `eval` here. in ../../node_modules/.pnpm/@electric-sql+pglite@0.5.12/node_modules/@electric-sql/pglite/dist/index.js at 13586296..13586300
+  │ 
+  │ Help: Consider using indirect eval. For more information, check the documentation: https://rolldown.rs/guide/troubleshooting#avoiding-direct-eval
+
+[EVAL] Use of direct `eval` function is strongly discouraged as it poses security risks and may cause issues with minification.
+ - Use of direct `eval` here. in ../../node_modules/.pnpm/@electric-sql+pglite@0.5.12/node_modules/@electric-sql/pglite/dist/index.js at 13586774..13586778
+  │ 
+  │ Help: Consider using indirect eval. For more information, check the documentation: https://rolldown.rs/guide/troubleshooting#avoiding-direct-eval
+
+[EVAL] Use of direct `eval` function is strongly discouraged as it poses security risks and may cause issues with minification.
+ - Use of direct `eval` here. in ../../node_modules/.pnpm/@electric-sql+pglite@0.5.12/node_modules/@electric-sql/pglite/dist/chunk-YWK3W5RG.js at 553282..553286
+  │ 
+  │ Help: Consider using indirect eval. For more information, check the documentation: https://rolldown.rs/guide/troubleshooting#avoiding-direct-eval
+
+[EVAL] Use of direct `eval` function is strongly discouraged as it poses security risks and may cause issues with minification.
+ - Use of direct `eval` here. in ../../node_modules/.pnpm/@electric-sql+pglite@0.5.12/node_modules/@electric-sql/pglite/dist/chunk-YWK3W5RG.js at 553760..553764
+  │ 
+  │ Help: Consider using indirect eval. For more information, check the documentation: https://rolldown.rs/guide/troubleshooting#avoiding-direct-eval
+
+✓ 79 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1852ms.
+
+computing gzip size...
+dist/assets/pglite.browser.worker-DBps7OlR.js  51,143.59 kB
+dist/__vite-browser-external-q4xEsQeL.js            0.16 kB │ gzip:  0.16 kB
+dist/fts/index.js                                   0.29 kB │ gzip:  0.22 kB
+dist/rolldown-runtime-CYdcPHCu.js                   0.77 kB │ gzip:  0.44 kB
+dist/testing.js                                     3.09 kB │ gzip:  1.60 kB
+dist/fts-BVURWK0P.js                                3.51 kB │ gzip:  1.55 kB
+dist/table-name-resolver-BteE0_aj.js               11.81 kB │ gzip:  4.00 kB
+dist/execute_switch_actions-BeQhJsyb.js            23.44 kB │ gzip:  8.10 kB
+dist/index.js                                     165.05 kB │ gzip: 48.92 kB
+
+✓ built in 3.66s
+
+> nx run rxdb-adapter-wa-sqlite:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:58994) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 91 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1224ms.
+
+computing gzip size...
+dist/client.js                           0.07 kB │ gzip:   0.08 kB
+dist/index.js                            0.69 kB │ gzip:   0.36 kB
+dist/WaSqliteClientBase-CIWHKHk7.js     11.16 kB │ gzip:   3.98 kB
+dist/RxDBAdapterSqlite-bE4_Iegg.js      11.78 kB │ gzip:   3.91 kB
+dist/testing.js                      1,743.54 kB │ gzip: 626.48 kB
+
+✓ built in 1.34s
+
+> nx run rxdb-adapter-electron:build  [existing outputs match the cache, left as is]
+
+> vite build && node ../../scripts/audit/package-api-docs.mjs .
+
+(node:59061) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 22 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1206ms.
+
+computing gzip size...
+dist/index.js                           2.51 kB │ gzip: 0.95 kB
+dist/pglite-host-data-dir-BIN3E0dL.js   3.04 kB │ gzip: 1.31 kB
+dist/pglite.js                         16.28 kB │ gzip: 5.19 kB
+dist/pglite-host.js                    20.84 kB │ gzip: 6.13 kB
+dist/host.js                           22.64 kB │ gzip: 7.39 kB
+
+✓ built in 1.23s
+Public API documentation passed: rxdb-adapter-electron
+(node:59144) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+> nx run rxdb-adapter-sqlite-wasm:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:59041) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 57 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1003ms.
+
+computing gzip size...
+dist/vfs-storage-loaders-DFY64Xzi.js      0.55 kB │ gzip:     0.23 kB
+dist/index.js                             0.58 kB │ gzip:     0.31 kB
+dist/RxDBAdapterSqlite-Ces1mYKg.js       13.96 kB │ gzip:     5.04 kB
+dist/testing.js                       3,401.73 kB │ gzip: 1,316.15 kB
+
+✓ built in 1.18s
+
+> nx run rxdb-plugin-graph:build  [existing outputs match the cache, left as is]
+
+> vite build
+
+(node:59077) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 26 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1206ms.
+
+computing gzip size...
+dist/constants-DsVGjN8V.js   0.28 kB │ gzip: 0.21 kB
+dist/utils-C_4MU0uN.js       0.94 kB │ gzip: 0.52 kB
+dist/index.js                6.15 kB │ gzip: 2.24 kB
+dist/generator.js            7.55 kB │ gzip: 2.19 kB
+dist/sqlite.js              16.17 kB │ gzip: 5.61 kB
+
+✓ built in 1.24s
+
+> nx run rxdb-plugin-storage:build  [existing outputs match the cache, left as is]
+
+> vite build && node ../../scripts/audit/package-api-docs.mjs . --members
+
+(node:59159) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+vite v8.3.6 building client environment for production...
+transforming...
+✓ 23 modules transformed.
+rendering chunks...
+
+[unplugin:dts] Start generate declaration files...
+[unplugin:dts] Declaration files built in 1296ms.
+
+computing gzip size...
+dist/devtools-desktop-snapshot.js     1.18 kB │ gzip: 0.63 kB
+dist/physical-name-Cow6oiQY.js        1.43 kB │ gzip: 0.79 kB
+dist/paths-B9AMi5cD.js                1.47 kB │ gzip: 0.64 kB
+dist/errors-CRfARWPS.js               1.96 kB │ gzip: 0.64 kB
+dist/index.js                         2.02 kB │ gzip: 0.93 kB
+dist/devtools-desktop-filesystem.js   3.25 kB │ gzip: 1.27 kB
+dist/desktop.js                       9.72 kB │ gzip: 3.07 kB
+dist/testing.js                      11.61 kB │ gzip: 3.86 kB
+dist/storage.service-D8VJKoml.js     31.48 kB │ gzip: 8.66 kB
+
+✓ built in 1.33s
+Public API documentation passed: rxdb-plugin-storage
+(node:59210) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+> nx run rxdb-angular:build:production  [existing outputs match the cache, left as is]
+
+(node:59145) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+Building Angular Package
+[debug] Found primary entry point: @aiao/rxdb-angular
+[debug] Initializing tsconfig for @aiao/rxdb-angular
+[debug] Analysing sources for @aiao/rxdb-angular
+
+------------------------------------------------------------------------------
+Building entry point '@aiao/rxdb-angular'
+------------------------------------------------------------------------------
+- Compiling with Angular sources in partial compilation mode.
+✔ Compiling with Angular sources in partial compilation mode.
+- Writing FESM and DTS bundles
+✔ Writing FESM and DTS bundles
+- Copying assets
+✔ Copying assets
+- Writing package manifest
+[debug] Writing package.json
+[debug] Dependency tslib is allowed in 'dependencies'
+ℹ Removing devDependencies section in package.json.
+✔ Writing package manifest
+✔ Built @aiao/rxdb-angular
+
+------------------------------------------------------------------------------
+Built Angular Package
+- from: /Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/packages/rxdb-angular
+- to:   /Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/packages/rxdb-angular
+------------------------------------------------------------------------------
+
+Build at: 2026-11-14T00:37:11.199Z - Time: 795ms
+
+
+> nx run aiao-desktop-web:test --coverage --coverage.reporter=json --coverage.reporter=json-summary --coverage.reporter=lcovonly
+
+> vitest --coverage --coverage.reporter=json --coverage.reporter=json-summary --coverage.reporter=lcovonly
+
+(node:6298) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+ RUN  v4.1.11 /Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/aiao-desktop/apps/web
+      Coverage enabled with v8
+
+(node:6315) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6317) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6310) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6312) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6313) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6318) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6311) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6314) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6316) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/vm/shell-patch.spec.ts (5 tests) 252ms
+(node:6404) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/services/wallpaper.spec.ts (13 tests) 81ms
+ ✓ |aiao-desktop-web| src/app/services/window-manager.spec.ts (63 tests) 129ms
+(node:6406) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/shared/external-content.spec.ts (9 tests) 135ms
+(node:6407) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6408) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/services/app-launcher.spec.ts (6 tests) 18ms
+ ✓ |aiao-desktop-web| src/app/shared/image-url.spec.ts (4 tests) 894ms
+     ✓ 跨过分块边界的大数组往返一致（没有丢字节、没有溢出调用栈）  888ms
+ ✓ |aiao-desktop-web| src/app/services/file-panels.spec.ts (8 tests) 17ms
+(node:6409) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6432) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6433) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/services/application-catalog.spec.ts (21 tests) 47ms
+(node:6434) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/disk/rxdb-disk-store.spec.ts (28 tests) 16ms
+(node:6442) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/services/desktop-items.spec.ts (18 tests) 48ms
+ ✓ |aiao-desktop-web| src/app/services/file-opener.spec.ts (14 tests) 45ms
+ ✓ |aiao-desktop-web| src/app/services/dock-layout.spec.ts (27 tests) 143ms
+ ✓ |aiao-desktop-web| src/app/services/calendar-store.spec.ts (16 tests) 92ms
+(node:6483) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6482) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6485) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6484) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/vm/virtual-machine.spec.ts (29 tests) 78ms
+ ✓ |aiao-desktop-web| src/app/data/desktop-data.spec.ts (49 tests) 568ms
+ ✓ |aiao-desktop-web| src/app/services/app-context.spec.ts (65 tests) 74ms
+(node:6493) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6494) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6495) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/services/application-runtime.spec.ts (21 tests) 62ms
+ ✓ |aiao-desktop-web| src/app/services/window-layout.spec.ts (47 tests) 458ms
+(node:6496) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6497) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/disk/disk-seed.spec.ts (7 tests) 96ms
+ ✓ |aiao-desktop-web| src/app/disk/application-projection.spec.ts (39 tests) 95ms
+ ✓ |aiao-desktop-web| src/app/services/theme.spec.ts (14 tests) 24ms
+(node:6499) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6498) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/services/window-manager-restore.spec.ts (24 tests) 134ms
+(node:6500) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6501) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/services/app-notifications.spec.ts (9 tests) 27ms
+(node:6524) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/data/schema-fingerprint.spec.ts (9 tests) 85ms
+ ✓ |aiao-desktop-web| src/app/services/remote-app-session.spec.ts (30 tests) 77ms
+(node:6525) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6526) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/data/preferences.spec.ts (20 tests) 116ms
+(node:6527) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/services/system-settings.spec.ts (17 tests) 152ms
+ ✓ |aiao-desktop-web| src/app/data/live-query.spec.ts (8 tests) 93ms
+ ✓ |aiao-desktop-web| src/app/services/weather-store.spec.ts (14 tests) 141ms
+ ✓ |aiao-desktop-web| src/app/services/popover.spec.ts (13 tests) 176ms
+(node:6529) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6548) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/services/dock-drag.spec.ts (28 tests) 77ms
+(node:6547) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/data/data-problem.spec.ts (6 tests) 8ms
+(node:6549) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/disk/formats/plist.spec.ts (9 tests) 4ms
+(node:6551) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/vm/coreutils.spec.ts (30 tests) 33ms
+ ✓ |aiao-desktop-web| src/app/shared/idle.spec.ts (2 tests) 38ms
+(node:6552) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6553) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/services/overlays.spec.ts (9 tests) 115ms
+(node:6555) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6556) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/data/desktop-database.spec.ts (10 tests) 153ms
+(node:6585) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/data/tab-sync.spec.ts (20 tests) 25ms
+(node:6587) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/data/lock-retry.spec.ts (8 tests) 15ms
+ ✓ |aiao-desktop-web| src/app/disk/disk-store.spec.ts (4 tests) 3ms
+(node:6591) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/services/desktop-apps.spec.ts (18 tests) 45ms
+ ✓ |aiao-desktop-web| src/app/apps/maps/maps-places.spec.ts (4 tests) 2ms
+ ✓ |aiao-desktop-web| src/app/services/file-system.spec.ts (59 tests) 3668ms
+     ✓ 别的标签页的 disk 通知让索引失效，不必等下一次对库  345ms
+(node:6592) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6593) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6595) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6594) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/services/clock.spec.ts (2 tests) 58ms
+(node:6596) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/vm/disk-vm-sync.spec.ts (12 tests) 14ms
+(node:6597) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/services/window-layout-model.spec.ts (65 tests) 10ms
+ ✓ |aiao-desktop-web| src/app/apps/freeform/freeform-ink.spec.ts (7 tests) 7ms
+ ✓ |aiao-desktop-web| src/app/disk/disk-tree.spec.ts (8 tests) 22ms
+(node:6598) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/services/desktop-window.spec.ts (11 tests) 21ms
+(node:6600) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/services/app-files.spec.ts (14 tests) 18ms
+(node:6599) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6601) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/disk/formats/pdf.spec.ts (6 tests) 23ms
+ ✓ |aiao-desktop-web| src/app/testing/fake-desktop-data.spec.ts (4 tests) 38ms
+(node:6602) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6603) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/apps/finder/finder-keys.spec.ts (14 tests) 4ms
+(node:6604) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6605) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/disk/disk-volume.spec.ts (5 tests) 13ms
+(node:6606) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/services/desktop-menus.spec.ts (20 tests) 62ms
+ ✓ |aiao-desktop-web| src/app/services/focus-order.spec.ts (19 tests) 6ms
+ ✓ |aiao-desktop-web| src/app/disk/disk-path.spec.ts (4 tests) 3ms
+(node:6607) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/apps/saltline/saltline.spec.ts (4 tests) 6ms
+(node:6608) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6609) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6610) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6611) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/apps/contacts/contacts-data.spec.ts (4 tests) 6ms
+ ✓ |aiao-desktop-web| src/app/disk/memory-disk-store.spec.ts (7 tests) 12ms
+(node:6613) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/disk/disk-kinds.spec.ts (8 tests) 87ms
+ ✓ |aiao-desktop-web| src/app/services/system-state.spec.ts (3 tests) 35ms
+(node:6612) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/data/schema-guard.spec.ts (6 tests) 7ms
+ ✓ |aiao-desktop-web| src/app/services/toast.spec.ts (3 tests) 88ms
+ ✓ |aiao-desktop-web| src/app/apps/music/music-model.spec.ts (5 tests) 5ms
+ ✓ |aiao-desktop-web| src/app/services/dock-state.spec.ts (4 tests) 53ms
+(node:6614) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6615) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6617) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6618) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6616) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/services/desktop-apps-restore.spec.ts (6 tests) 9ms
+ ✓ |aiao-desktop-web| src/app/data/schema-version.spec.ts (19 tests) 6ms
+(node:6619) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/services/orbit-host.spec.ts (4 tests) 14ms
+(node:6645) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/disk/formats/wav.spec.ts (2 tests) 24ms
+ ✓ |aiao-desktop-web| src/app/services/aria.spec.ts (13 tests) 8ms
+(node:6647) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6648) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/disk/protected-store.spec.ts (13 tests) 7ms
+(node:6650) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/services/menu.spec.ts (2 tests) 3ms
+ ✓ |aiao-desktop-web| src/app/services/dock-layout-model.spec.ts (52 tests) 10ms
+(node:6649) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/apps/web-app/web-app-drag.spec.ts (2 tests) 4ms
+(node:6651) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6652) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/apps/notes/notes-model.spec.ts (13 tests) 7ms
+ ✓ |aiao-desktop-web| src/app/services/calendar-records.spec.ts (15 tests) 13ms
+(node:6653) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/services/session.spec.ts (8 tests) 108ms
+ ✓ |aiao-desktop-web| src/app/services/browser-clipboard.spec.ts (5 tests) 5ms
+(node:6654) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/shared/menu-list.spec.ts (5 tests) 9ms
+ ✓ |aiao-desktop-web| src/app/vm/vm-fs.spec.ts (6 tests) 6ms
+(node:6655) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6656) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/apps/mail/mail-model.spec.ts (8 tests) 3ms
+(node:6659) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6657) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6658) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6660) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/apps/messages/messages-model.spec.ts (4 tests) 7ms
+(node:6661) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ |aiao-desktop-web| src/app/components/file-panel-model.spec.ts (16 tests) 6ms
+ ✓ |aiao-desktop-web| src/app/apps/reminders/reminders-model.spec.ts (11 tests) 6ms
+ ✓ |aiao-desktop-web| src/app/disk/formats/stubs.spec.ts (5 tests) 6ms
+ ✓ |aiao-desktop-web| src/app/apps/web-app/web-app-failure.spec.ts (2 tests) 3ms
+ ✓ |aiao-desktop-web| src/app/apps/facetime/facetime-log.spec.ts (18 tests) 5ms
+ ✓ |aiao-desktop-web| src/app/data/schema-inspector.spec.ts (9 tests) 5ms
+ ✓ |aiao-desktop-web| src/app/data/seeds.spec.ts (5 tests) 4ms
+ ✓ |aiao-desktop-web| src/app/data/schema-probe.spec.ts (6 tests) 3ms
+
+ Test Files  91 passed (91)
+      Tests  1338 passed (1338)
+   Start at  09:18:25
+   Duration  12.17s (transform 26.92s, setup 0ms, import 63.22s, tests 9.44s, environment 6ms)
+
+
+
+
+ NX   Successfully ran target test for project aiao-desktop-web and 21 tasks it depends on
+
+Nx read the output from the cache instead of running the command for 20 out of 22 tasks.
+
+View logs and investigate cache misses at https://nx.app/runs/nFYofB401o
+
+  Run duration:      13.3s
+  Cache:             20/22 hit (91%)
+  Critical path:     12.9s (10 tasks)
+  Recoverable time:  3ms (0% of the run)

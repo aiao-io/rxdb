@@ -1,0 +1,277 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-17T10:15:22.978Z",
+  "source": {
+    "sha": "2a3e4618369c325d2ea3d2fef8b95cbba697677f",
+    "changes": "M  ../../AGENTS.md\nM  project.json\nA  src/fixtures/approved-catalog.mjs\nA  src/fixtures/approved-catalog.spec.mjs\nA  src/fixtures/native-chrome.mjs\nM  src/fixtures/sqlite-shell.mjs\nM  src/groups/a11y.mjs\nA  src/groups/aiao-code-files.mjs\nA  src/groups/approved-catalog.mjs\nA  src/groups/backup-storage.mjs\nA  src/groups/content-actions.mjs\nA  src/groups/document-workflow.mjs\nA  src/groups/file-management.mjs\nM  src/groups/game.mjs\nM  src/groups/host-capabilities.mjs\nM  src/groups/host-filesystem.mjs\nM  src/groups/index.mjs\nM  src/groups/lazy-loading.mjs\nM  src/groups/multi-tab.mjs\nA  src/groups/offline-resources.mjs\nM  src/groups/pwa.mjs\nAM src/groups/reminder-drafts.mjs\nA  src/groups/runtime-activity.mjs\nA  src/groups/storage-faults.mjs\nM  src/groups/upgrade-legacy.mjs\nM  src/groups/upgrade-previous.mjs\nM  src/harness/capabilities.mjs\nM  src/harness/capabilities.spec.mjs\nM  src/harness/database.mjs\nM  src/harness/database.spec.mjs\nA  src/harness/game-lifecycle.mjs\nM  src/harness/helpers.mjs\nM  src/harness/host-calls.mjs\nM  src/harness/standin.mjs\nM  src/verify-saltline.mjs\nM  ../web/ngsw-config.json\nA  ../web/public/approved-apps.json\nM  ../web/public/saltline.html\nA  ../web/public/wallpapers/forest-thumb.jpg\nA  ../web/public/wallpapers/forest.jpg\nA  ../web/public/wallpapers/night-thumb.jpg\nA  ../web/public/wallpapers/night.jpg\nA  ../web/public/wallpapers/ridges-thumb.jpg\nA  ../web/public/wallpapers/ridges.jpg\nA  ../web/public/wallpapers/sources.json\nA  ../web/public/wallpapers/summit-thumb.jpg\nA  ../web/public/wallpapers/summit.jpg\nA  ../web/public/wallpapers/tahoe-thumb.jpg\nA  ../web/public/wallpapers/tahoe.jpg\nA  ../web/public/wallpapers/valley-thumb.jpg\nA  ../web/public/wallpapers/valley.jpg\nM  ../web/src/app/app.config.ts\nD  ../web/src/app/apps/activity-monitor/activity-data.ts\nM  ../web/src/app/apps/activity-monitor/activity-monitor.html\nM  ../web/src/app/apps/activity-monitor/activity-monitor.ts\nM  ../web/src/app/apps/app-manifests.ts\nA  ../web/src/app/apps/app-store/app-store.html\nA  ../web/src/app/apps/app-store/app-store.scss\nA  ../web/src/app/apps/app-store/app-store.ts\nA  ../web/src/app/apps/disk-utility/backup-panel.ts\nM  ../web/src/app/apps/disk-utility/disk-panels.ts\nM  ../web/src/app/apps/disk-utility/disk-utility.html\nM  ../web/src/app/apps/disk-utility/disk-utility.ts\nA  ../web/src/app/apps/finder/file-operation-dialog.ts\nM  ../web/src/app/apps/finder/finder.html\nM  ../web/src/app/apps/finder/finder.ts\nM  ../web/src/app/apps/mail/mail.html\nM  ../web/src/app/apps/mail/mail.ts\nA  ../web/src/app/apps/maps/maps-search.spec.ts\nA  ../web/src/app/apps/maps/maps-search.ts\nM  ../web/src/app/apps/maps/maps.html\nM  ../web/src/app/apps/maps/maps.ts\nM  ../web/src/app/apps/photos/photos.html\nM  ../web/src/app/apps/photos/photos.ts\nM  ../web/src/app/apps/preview/preview.html\nM  ../web/src/app/apps/preview/preview.ts\nM  ../web/src/app/apps/registry.ts\nAM ../web/src/app/apps/reminders/reminder-drafts.spec.ts\nAM ../web/src/app/apps/reminders/reminder-drafts.ts\nM  ../web/src/app/apps/reminders/reminders.html\nMM ../web/src/app/apps/reminders/reminders.ts\nA  ../web/src/app/apps/saltline/saltline-lifecycle.spec.ts\nM  ../web/src/app/apps/saltline/saltline.ts\nM  ../web/src/app/apps/settings/panes/wallpaper-pane.ts\nA  ../web/src/app/apps/textedit/text-document.spec.ts\nA  ../web/src/app/apps/textedit/text-document.ts\nM  ../web/src/app/apps/textedit/textedit.ts\nM  ../web/src/app/apps/weather/weather.html\nM  ../web/src/app/apps/weather/weather.ts\nM  ../web/src/app/apps/web-app/web-app.html\nM  ../web/src/app/apps/web-app/web-app.scss\nM  ../web/src/app/apps/web-app/web-app.ts\nM  ../web/src/app/components/data-problem.html\nM  ../web/src/app/components/desktop-shell.html\nM  ../web/src/app/components/desktop-shell.ts\nM  ../web/src/app/components/dock.ts\nM  ../web/src/app/components/menubar/force-quit-panel.ts\nM  ../web/src/app/components/overlay-layer.html\nM  ../web/src/app/components/overlay-layer.ts\nM  ../web/src/app/components/overlays/launchpad.ts\nM  ../web/src/app/components/overlays/spotlight.ts\nA  ../web/src/app/components/weather-status.ts\nM  ../web/src/app/components/widgets/widgets.ts\nA  ../web/src/app/data/approved-catalog-config.spec.ts\nA  ../web/src/app/data/approved-catalog-config.ts\nA  ../web/src/app/data/approved-catalog.spec.ts\nA  ../web/src/app/data/approved-catalog.ts\nA  ../web/src/app/data/desktop-backup-archive.spec.ts\nA  ../web/src/app/data/desktop-backup-archive.ts\nA  ../web/src/app/data/desktop-data-location.spec.ts\nA  ../web/src/app/data/desktop-data-location.ts\nM  ../web/src/app/data/desktop-data.spec.ts\nM  ../web/src/app/data/desktop-data.ts\nM  ../web/src/app/data/desktop-database.spec.ts\nM  ../web/src/app/data/desktop-database.ts\nA  ../web/src/app/data/desktop-erase.spec.ts\nA  ../web/src/app/data/desktop-erase.ts\nA  ../web/src/app/data/desktop-location-guard.spec.ts\nA  ../web/src/app/data/desktop-location-guard.ts\nA  ../web/src/app/data/desktop-restore-client.spec.ts\nA  ../web/src/app/data/desktop-restore-client.ts\nA  ../web/src/app/data/desktop-restore.spec.ts\nA  ../web/src/app/data/desktop-restore.ts\nA  ../web/src/app/data/desktop-restore.worker.ts\nA  ../web/src/app/data/desktop-storage-audit.spec.ts\nA  ../web/src/app/data/desktop-storage-audit.ts\nA  ../web/src/app/data/desktop-storage-io.spec.ts\nA  ../web/src/app/data/desktop-storage-io.ts\nM  ../web/src/app/data/schema-fingerprint.snapshot.json\nM  ../web/src/app/data/schema-version.spec.ts\nM  ../web/src/app/data/schema-version.ts\nA  ../web/src/app/disk/application-journal.spec.ts\nA  ../web/src/app/disk/application-journal.ts\nM  ../web/src/app/disk/application-projection.ts\nM  ../web/src/app/disk/desktop-file.entity.ts\nA  ../web/src/app/disk/disk-batch.spec.ts\nA  ../web/src/app/disk/disk-batch.ts\nM  ../web/src/app/disk/disk-path.ts\nM  ../web/src/app/disk/disk-store.ts\nA  ../web/src/app/disk/file-operations.spec.ts\nA  ../web/src/app/disk/file-operations.ts\nM  ../web/src/app/disk/memory-disk-store.ts\nM  ../web/src/app/disk/rxdb-disk-store.spec.ts\nM  ../web/src/app/disk/rxdb-disk-store.ts\nM  ../web/src/app/pages/desktop-page.ts\nM  ../web/src/app/services/app-context.ts\nA  ../web/src/app/services/app-installation-flow.spec.ts\nA  ../web/src/app/services/app-installation-flow.ts\nM  ../web/src/app/services/application-catalog.ts\nA  ../web/src/app/services/application-registry.spec.ts\nA  ../web/src/app/services/application-registry.ts\nA  ../web/src/app/services/application-transitions.spec.ts\nA  ../web/src/app/services/application-transitions.ts\nA  ../web/src/app/services/content-actions.spec.ts\nA  ../web/src/app/services/content-actions.ts\nM  ../web/src/app/services/desktop-apps.spec.ts\nM  ../web/src/app/services/desktop-apps.ts\nA  ../web/src/app/services/desktop-backup.spec.ts\nA  ../web/src/app/services/desktop-backup.ts\nM  ../web/src/app/services/desktop-menus.ts\nM  ../web/src/app/services/desktop-window.ts\nM  ../web/src/app/services/dock-layout.spec.ts\nM  ../web/src/app/services/dock-layout.ts\nM  ../web/src/app/services/file-opener.spec.ts\nM  ../web/src/app/services/file-opener.ts\nM  ../web/src/app/services/file-system.spec.ts\nM  ../web/src/app/services/file-system.ts\nA  ../web/src/app/services/installed-applications.spec.ts\nA  ../web/src/app/services/installed-applications.ts\nM  ../web/src/app/services/orbit-host.spec.ts\nM  ../web/src/app/services/orbit-host.ts\nA  ../web/src/app/services/print-document.spec.ts\nA  ../web/src/app/services/print-document.ts\nA  ../web/src/app/services/runtime-activity.spec.ts\nA  ../web/src/app/services/runtime-activity.ts\nM  ../web/src/app/services/session.spec.ts\nM  ../web/src/app/services/session.ts\nM  ../web/src/app/services/wallpaper.spec.ts\nM  ../web/src/app/services/wallpaper.ts\nA  ../web/src/app/services/weather-forecast.ts\nM  ../web/src/app/services/weather-store.spec.ts\nM  ../web/src/app/services/weather-store.ts\nM  ../web/src/app/services/window-layout.ts\nM  ../web/src/app/services/window-manager.spec.ts\nM  ../web/src/app/services/window-manager.ts\nM  ../web/src/app/shared/external-content.spec.ts\nM  ../web/src/app/shared/external-content.ts\nM  ../web/src/app/shared/menu-list.ts\nM  ../web/src/app/testing/angular.ts\nM  ../web/src/app/testing/fake-desktop-data.ts\nM  ../web/src/app/testing/stubs.ts\nM  ../web/src/app/vm/virtual-machine.ts\nM  ../web/vitest.config.mts\nM  ../../project.json\nM  ../../requirements/README.md\nM  ../../requirements/capability-matrix.md\nM  ../../requirements/decisions.md\nM  ../../requirements/epics/ADESK-EPIC-002.md\nM  ../../requirements/epics/ADESK-EPIC-003.md\nA  ../../requirements/evidence/2026-11-17/README.md\nA  ../../requirements/evidence/2026-11-17/aiao-code-copy-browser-final.json\nA  ../../requirements/evidence/2026-11-17/aiao-code-copy-browser-first.json\nA  ../../requirements/evidence/2026-11-17/aiao-code-copy-browser-fourth.json\nA  ../../requirements/evidence/2026-11-17/aiao-code-copy-browser-third.json\nA  ../../requirements/evidence/2026-11-17/aiao-code-copy-build.json\nA  ../../requirements/evidence/2026-11-17/aiao-code-copy-coverage-summary.json\nA  ../../requirements/evidence/2026-11-17/aiao-code-copy-enabled-ui.png\nA  ../../requirements/evidence/2026-11-17/aiao-code-copy-regression.json\nA  ../../requirements/evidence/2026-11-17/aiao-code-copy-ui.png\nA  ../../requirements/evidence/2026-11-17/aiao-content-actions-browser-final.json\nA  ../../requirements/evidence/2026-11-17/aiao-content-actions-browser-first.json\nA  ../../requirements/evidence/2026-11-17/aiao-content-actions-browser-second.json\nA  ../../requirements/evidence/2026-11-17/aiao-content-actions-browser-third.json\nA  ../../requirements/evidence/2026-11-17/aiao-content-actions-coverage.json\nA  ../../requirements/evidence/2026-11-17/aiao-content-actions-error.png\nA  ../../requirements/evidence/2026-11-17/aiao-content-actions-menu.png\nA  ../../requirements/evidence/2026-11-17/backup-adapter-green.txt\nA  ../../requirements/evidence/2026-11-17/backup-adapter-serial-green.txt\nA  ../../requirements/evidence/2026-11-17/backup-batch-green.txt\nA  ../../requirements/evidence/2026-11-17/backup-checks-green.txt\nA  ../../requirements/evidence/2026-11-17/backup-disk-state-red.txt\nA  ../../requirements/evidence/2026-11-17/backup-erase-red.txt\nA  ../../requirements/evidence/2026-11-17/backup-erase-startup-red.txt\nA  ../../requirements/evidence/2026-11-17/backup-faults-before-reopen-wait.json\nA  ../../requirements/evidence/2026-11-17/backup-faults-before-reopen-wait.txt\nA  ../../requirements/evidence/2026-11-17/backup-final-gates-before-adapter-serial.txt\nA  ../../requirements/evidence/2026-11-17/backup-finder-rerun-green.txt\nA  ../../requirements/evidence/2026-11-17/backup-finder-rerun.json\nA  ../../requirements/evidence/2026-11-17/backup-related-before-finder-rerun.json\nA  ../../requirements/evidence/2026-11-17/backup-related-before-finder-rerun.txt\nA  ../../requirements/evidence/2026-11-17/backup-storage-green.txt\nA  ../../requirements/evidence/2026-11-17/backup-storage.json\nA  ../../requirements/evidence/2026-11-17/catalog-before-alert-wait.txt\nA  ../../requirements/evidence/2026-11-17/catalog-before-host-focus.txt\nA  ../../requirements/evidence/2026-11-17/catalog-close-confirm.png\nA  ../../requirements/evidence/2026-11-17/catalog-close-red.txt\nA  ../../requirements/evidence/2026-11-17/catalog-closure-requirements-green.txt\nA  ../../requirements/evidence/2026-11-17/catalog-dock-red.txt\nA  ../../requirements/evidence/2026-11-17/catalog-flow-red.txt\nA  ../../requirements/evidence/2026-11-17/catalog-gates-green.txt\nA  ../../requirements/evidence/2026-11-17/catalog-journal-red.txt\nA  ../../requirements/evidence/2026-11-17/catalog-lifecycle-green.txt\nA  ../../requirements/evidence/2026-11-17/catalog-lifecycle.json\nA  ../../requirements/evidence/2026-11-17/catalog-origin-red.txt\nA  ../../requirements/evidence/2026-11-17/catalog-regression-green.txt\nA  ../../requirements/evidence/2026-11-17/catalog-regression.json\nA  ../../requirements/evidence/2026-11-17/catalog-snapshot-red.txt\nA  ../../requirements/evidence/2026-11-17/catalog-ui.png\nA  ../../requirements/evidence/2026-11-17/document-checks-green.txt\nA  ../../requirements/evidence/2026-11-17/document-close-red.txt\nA  ../../requirements/evidence/2026-11-17/document-edge-red.txt\nA  ../../requirements/evidence/2026-11-17/document-multi-tab-green.txt\nA  ../../requirements/evidence/2026-11-17/document-multi-tab.json\nA  ../../requirements/evidence/2026-11-17/document-regression-before-concurrency-update.json\nA  ../../requirements/evidence/2026-11-17/document-session-red.txt\nA  ../../requirements/evidence/2026-11-17/document-unit-green.txt\nA  ../../requirements/evidence/2026-11-17/document-version-red.txt\nA  ../../requirements/evidence/2026-11-17/document-workflow-green.txt\nA  ../../requirements/evidence/2026-11-17/document-workflow.json\nA  ../../requirements/evidence/2026-11-17/finder-a11y-and-before-navigation-wait.json\nA  ../../requirements/evidence/2026-11-17/finder-before-fixture-fix.json\nA  ../../requirements/evidence/2026-11-17/finder-checks-green.txt\nA  ../../requirements/evidence/2026-11-17/finder-import-limit-red.txt\nA  ../../requirements/evidence/2026-11-17/finder-legacy-and-before-dialog-fix.json\nA  ../../requirements/evidence/2026-11-17/finder-migration-red.txt\nA  ../../requirements/evidence/2026-11-17/finder-open-with-red.txt\nA  ../../requirements/evidence/2026-11-17/finder-operations-red.txt\nA  ../../requirements/evidence/2026-11-17/finder-previous-artifact.json\nA  ../../requirements/evidence/2026-11-17/finder-previous-schema-green.txt\nA  ../../requirements/evidence/2026-11-17/finder-previous-schema.json\nA  ../../requirements/evidence/2026-11-17/finder-related-green.txt\nA  ../../requirements/evidence/2026-11-17/finder-related.json\nA  ../../requirements/evidence/2026-11-17/finder-service-red.txt\nA  ../../requirements/evidence/2026-11-17/finder-workflow-green.txt\nA  ../../requirements/evidence/2026-11-17/finder-workflow.json\nA  ../../requirements/evidence/2026-11-17/offline-before-cold-map.json\nA  ../../requirements/evidence/2026-11-17/offline-before-cold-map.txt\nA  ../../requirements/evidence/2026-11-17/offline-before-focus-wait.json\nA  ../../requirements/evidence/2026-11-17/offline-before-focus-wait.txt\nA  ../../requirements/evidence/2026-11-17/offline-before-member-order.txt\nA  ../../requirements/evidence/2026-11-17/offline-first-green.json\nA  ../../requirements/evidence/2026-11-17/offline-first-green.txt\nA  ../../requirements/evidence/2026-11-17/offline-gates-green.txt\nA  ../../requirements/evidence/2026-11-17/offline-regression-before-widget-expectations.json\nA  ../../requirements/evidence/2026-11-17/offline-regression-before-widget-expectations.txt\nA  ../../requirements/evidence/2026-11-17/offline-resources-green.json\nA  ../../requirements/evidence/2026-11-17/offline-resources-green.txt\nA  ../../requirements/evidence/2026-11-17/offline-resources-red.txt\nA  ../../requirements/evidence/2026-11-17/offline-resources-unit-green.txt\nA  ../../requirements/evidence/2026-11-17/offline-weather-green.txt\nA  ../../requirements/evidence/2026-11-17/offline-weather-red.txt\nA  ../../requirements/evidence/2026-11-17/runtime-activity-ui.png\nA  ../../requirements/evidence/2026-11-17/runtime-before-show-fix.txt\nA  ../../requirements/evidence/2026-11-17/runtime-before-software-input.txt\nA  ../../requirements/evidence/2026-11-17/runtime-browser-green.txt\nA  ../../requirements/evidence/2026-11-17/runtime-browser.json\nA  ../../requirements/evidence/2026-11-17/runtime-game-before-pause-observer.json\nA  ../../requirements/evidence/2026-11-17/runtime-game-before-pause-observer.txt\nA  ../../requirements/evidence/2026-11-17/runtime-game-ui.png\nA  ../../requirements/evidence/2026-11-17/runtime-gates-green.txt\nA  ../../requirements/evidence/2026-11-17/runtime-gpu-before-native.json\nA  ../../requirements/evidence/2026-11-17/runtime-gpu-before-native.txt\nA  ../../requirements/evidence/2026-11-17/runtime-gpu-before-visibility.txt\nA  ../../requirements/evidence/2026-11-17/runtime-gpu-loginwindow.json\nA  ../../requirements/evidence/2026-11-17/runtime-gpu-loginwindow.txt\nA  ../../requirements/evidence/2026-11-17/runtime-offline-closure-green.txt\nA  ../../requirements/evidence/2026-11-17/runtime-red.txt\nA  ../../requirements/evidence/2026-11-17/runtime-regression-before-game-wait.json\nA  ../../requirements/evidence/2026-11-17/runtime-regression-before-game-wait.txt\nA  ../../requirements/evidence/2026-11-17/runtime-unit-green.txt\nA  ../../requirements/evidence/2026-11-17/wallpaper-contact.png\nA  ../../requirements/evidence/2026-11-17/wallpapers-offline-ui.png\nA  ../../requirements/evidence/2026-11-17/weather-axe-missed-contrast.json\nA  ../../requirements/evidence/2026-11-17/weather-axe-missed-contrast.txt\nA  ../../requirements/evidence/2026-11-17/weather-contrast-red.json\nA  ../../requirements/evidence/2026-11-17/weather-contrast-red.txt\nA  ../../requirements/evidence/2026-11-17/weather-stale-ui.png\nM  ../../requirements/future-requirements.md\nA  ../../requirements/plans/2026-11-17-approved-app-catalog.md\nA  ../../requirements/plans/2026-11-17-autonomous-completion.md\nA  ../../requirements/plans/2026-11-17-backup-storage.md\nA  ../../requirements/plans/2026-11-17-builtin-workflows.md\nA  ../../requirements/plans/2026-11-17-remaining-work.md\nA  ../../requirements/plans/2026-11-17-runtime-capabilities.md\nM  ../../requirements/roadmap.md\nM  ../../requirements/status-overview.md\nA  ../../requirements/stories/application/ADESK-US-207-approved-app-catalog.md\nA  ../../requirements/stories/application/ADESK-US-208-aiao-code-file-copy.md\nM  ../../requirements/stories/desktop/ADESK-US-103-saltline-game.md\nM  ../../requirements/stories/desktop/ADESK-US-105-multi-tab-sync.md\nM  ../../requirements/stories/desktop/ADESK-US-106-database-upgrade-path.md\nA  ../../requirements/stories/desktop/ADESK-US-109-document-workflow.md\nA  ../../requirements/stories/desktop/ADESK-US-110-file-management.md\nA  ../../requirements/stories/desktop/ADESK-US-111-backup-and-storage-health.md\nA  ../../requirements/stories/desktop/ADESK-US-112-runtime-activity.md\nA  ../../requirements/stories/desktop/ADESK-US-113-offline-resources.md\nA  ../../requirements/stories/desktop/ADESK-US-114-content-actions.md\nA  ../../requirements/stories/desktop/ADESK-US-115-reminder-drafts.md\nM  ../../requirements/verification-report.md"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "158.0.8127.18",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "ba7f39a8731de65ca0a816ecfdf7157c95ce6ec2387cf04a76236ae3a31c4f2f"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 3,
+    "groups": [
+      "reminder-drafts",
+      "document-workflow",
+      "shell-interaction",
+      "apps",
+      "persistence"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 51.956119750000006,
+  "outcomes": [
+    {
+      "group": "reminder-drafts",
+      "result": {
+        "reminderDrafts": {
+          "beforeUnloadGuard": true,
+          "failedDraftPreserved": true,
+          "failedCloseAndRestartKeepDraft": true,
+          "noViolations": [],
+          "retryCreatesOneRecord": true,
+          "pendingWriteBlocksClose": true,
+          "savedToggleFailureAndRecovery": true,
+          "explicitDiscardIsScoped": true,
+          "keyboardAndPersistence": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 14.868596917
+    },
+    {
+      "group": "document-workflow",
+      "result": {
+        "documentWorkflow": {
+          "savedDocumentDoesNotBlockUnload": true,
+          "newDocumentSaved": true,
+          "savedPathRestored": true,
+          "reopenedBytesMatch": true,
+          "saveAsKeepsOriginal": true,
+          "beforeUnloadProtectsDraft": true,
+          "restartCancellationKeepsSession": true,
+          "keyboardDialogFocus": true,
+          "cancelCloseKeepsDraft": true,
+          "discardCloses": true,
+          "cancelSaveKeepsDraft": true,
+          "saveOnClose": true,
+          "concurrentConflict": true,
+          "conflictCanSaveCopy": true,
+          "quitCancellationIsAtomic": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 15.148585749999999
+    },
+    {
+      "group": "shell-interaction",
+      "result": {
+        "shellInteraction": {
+          "boot": {
+            "screenAppears": true,
+            "progressAdvances": true,
+            "endsAtLoginScreen": true,
+            "loginEntersDesktop": true,
+            "queryParameterSkips": true,
+            "hashSkips": true
+          },
+          "lock": {
+            "shows": true,
+            "coversDesktop": true,
+            "unlockRestores": true
+          },
+          "sleep": {
+            "shows": true,
+            "wakes": true,
+            "desktopIntact": true
+          },
+          "statusPanels": {
+            "clockOpensNotifications": true,
+            "wifiMatchesState": true,
+            "outsideClickCloses": true,
+            "batteryMatchesState": true
+          },
+          "controlCentre": {
+            "opens": true,
+            "wifiToggleReflected": true,
+            "darkModeApplies": true,
+            "settingsSurviveReload": true
+          },
+          "dragResizeZoom": {
+            "titleBarMoves": true,
+            "cornerResizes": true,
+            "greenButtonZooms": true,
+            "greenButtonRestores": true,
+            "keepOnScreen": true
+          },
+          "focusCycle": {
+            "windowsOverlap": true,
+            "clickRaisesWindow": true,
+            "stackFollowsClicks": true,
+            "cycleRaisesBottom": true
+          }
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 29.124450500000002
+    },
+    {
+      "group": "apps",
+      "result": {
+        "everyAppOpens": true,
+        "unopened": [],
+        "searchEnterUsesCurrentQuery": true
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 36.741098707999996
+    },
+    {
+      "group": "persistence",
+      "result": {
+        "persistence": {
+          "fileSurvivesReload": true,
+          "folderSurvivesReload": true,
+          "settingsSurviveReload": true,
+          "noteSurvivesReload": true,
+          "reminderSurvivesReload": true,
+          "eraseRestoresDisk": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 22.13615625
+    }
+  ],
+  "checks": {
+    "reminderDrafts": {
+      "beforeUnloadGuard": true,
+      "failedDraftPreserved": true,
+      "failedCloseAndRestartKeepDraft": true,
+      "noViolations": [],
+      "retryCreatesOneRecord": true,
+      "pendingWriteBlocksClose": true,
+      "savedToggleFailureAndRecovery": true,
+      "explicitDiscardIsScoped": true,
+      "keyboardAndPersistence": true
+    },
+    "documentWorkflow": {
+      "savedDocumentDoesNotBlockUnload": true,
+      "newDocumentSaved": true,
+      "savedPathRestored": true,
+      "reopenedBytesMatch": true,
+      "saveAsKeepsOriginal": true,
+      "beforeUnloadProtectsDraft": true,
+      "restartCancellationKeepsSession": true,
+      "keyboardDialogFocus": true,
+      "cancelCloseKeepsDraft": true,
+      "discardCloses": true,
+      "cancelSaveKeepsDraft": true,
+      "saveOnClose": true,
+      "concurrentConflict": true,
+      "conflictCanSaveCopy": true,
+      "quitCancellationIsAtomic": true
+    },
+    "shellInteraction": {
+      "boot": {
+        "screenAppears": true,
+        "progressAdvances": true,
+        "endsAtLoginScreen": true,
+        "loginEntersDesktop": true,
+        "queryParameterSkips": true,
+        "hashSkips": true
+      },
+      "lock": {
+        "shows": true,
+        "coversDesktop": true,
+        "unlockRestores": true
+      },
+      "sleep": {
+        "shows": true,
+        "wakes": true,
+        "desktopIntact": true
+      },
+      "statusPanels": {
+        "clockOpensNotifications": true,
+        "wifiMatchesState": true,
+        "outsideClickCloses": true,
+        "batteryMatchesState": true
+      },
+      "controlCentre": {
+        "opens": true,
+        "wifiToggleReflected": true,
+        "darkModeApplies": true,
+        "settingsSurviveReload": true
+      },
+      "dragResizeZoom": {
+        "titleBarMoves": true,
+        "cornerResizes": true,
+        "greenButtonZooms": true,
+        "greenButtonRestores": true,
+        "keepOnScreen": true
+      },
+      "focusCycle": {
+        "windowsOverlap": true,
+        "clickRaisesWindow": true,
+        "stackFollowsClicks": true,
+        "cycleRaisesBottom": true
+      }
+    },
+    "everyAppOpens": true,
+    "unopened": [],
+    "searchEnterUsesCurrentQuery": true,
+    "persistence": {
+      "fileSurvivesReload": true,
+      "folderSurvivesReload": true,
+      "settingsSurviveReload": true,
+      "noteSurvivesReload": true,
+      "reminderSurvivesReload": true,
+      "eraseRestoresDisk": true
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [],
+    "stale": []
+  },
+  "passed": true,
+  "clean": true
+}

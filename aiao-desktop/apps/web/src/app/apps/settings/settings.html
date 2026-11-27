@@ -1,0 +1,121 @@
+<div class="wb">
+  <div class="st">
+    <div class="st-side" data-drag>
+      <div style="display: flex; align-items: center; height: 38px; padding: 0 12px"><app-traffic-lights /></div>
+      <div class="top">
+        <div class="sfield" data-nodrag>
+          <span><svg appIcon="g-search"></svg></span>
+          <input
+            #search
+            [attr.aria-label]="i18n.t('settings.search.label')"
+            [placeholder]="i18n.t('settings.search.placeholder')"
+            [value]="query()"
+            (input)="query.set(search.value)"
+            data-stq
+          />
+        </div>
+      </div>
+      <div class="st-scroll">
+        <div
+          class="st-row"
+          [attr.aria-label]="i18n.t('settings.section.account')"
+          (click)="select('account')"
+          (keydown.enter)="select('account')"
+          data-account
+          role="button"
+          style="height: 44px; margin-bottom: 8px"
+          tabindex="-1"
+        >
+          <img
+            class="bg"
+            [ngSrc]="avatar"
+            alt=""
+            height="34"
+            style="width: 34px; height: 34px; border-radius: 50%; object-fit: cover"
+            width="34"
+          />
+          <span style="display: flex; flex-direction: column">
+            <b style="font-size: 13px; font-weight: 600">{{ system.user }}</b>
+            <span style="font-size: 11px; color: var(--txt-2)">{{ i18n.t('settings.section.account') }}</span>
+          </span>
+        </div>
+        @for (group of visibleGroups(); track $index) {
+          @if ($index > 0) {
+            <div class="msep" style="margin: 8px 8px"></div>
+          }
+          @for (item of group; track item.id) {
+            <div
+              class="st-row"
+              [attr.data-sec]="item.id"
+              [class.on]="section().id === item.id"
+              (click)="select(item.id)"
+              (keydown.enter)="select(item.id)"
+              tabindex="-1"
+            >
+              <span class="bg" [style.background]="item.bg"><svg [appIcon]="item.icon"></svg></span>
+              <span>{{ i18n.t(item.name) }}</span>
+            </div>
+          }
+        }
+        @if (!visibleGroups().length) {
+          <div data-settings-empty style="padding: 12px 10px; color: var(--txt-2); font-size: 12px">
+            {{ i18n.t('settings.empty') }}
+          </div>
+        }
+      </div>
+    </div>
+    <div class="st-main scroll">
+      <div class="st-head" data-drag>
+        <h2 data-sttitle>{{ i18n.t(section().name) }}</h2>
+      </div>
+      <div class="st-body" data-stbody>
+        @for (render of renders(); track render.id) {
+          @switch (section().id) {
+            @case ('account') {
+              <app-account-pane />
+            }
+            @case ('wifi') {
+              <app-wifi-pane (rerender)="refresh()" />
+            }
+            @case ('bluetooth') {
+              <app-bluetooth-pane />
+            }
+            @case ('network') {
+              <app-network-pane />
+            }
+            @case ('general') {
+              <app-general-pane />
+            }
+            @case ('language-region') {
+              <app-language-region-pane />
+            }
+            @case ('appearance') {
+              <app-appearance-pane (rerender)="refresh()" />
+            }
+            @case ('wallpaper') {
+              <app-wallpaper-pane />
+            }
+            @case ('dock') {
+              <app-dock-pane />
+            }
+            @case ('displays') {
+              <app-displays-pane />
+            }
+            @case ('sound') {
+              <app-sound-pane />
+            }
+            @case ('battery') {
+              <app-battery-pane />
+            }
+            @case ('notifications') {
+              <app-notifications-pane />
+            }
+            @case ('privacy') {
+              <app-privacy-pane />
+            }
+          }
+        }
+      </div>
+    </div>
+  </div>
+</div>

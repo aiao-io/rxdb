@@ -1,0 +1,282 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-17T04:52:19.333Z",
+  "source": {
+    "sha": "2a3e4618369c325d2ea3d2fef8b95cbba697677f",
+    "changes": "M src/fixtures/sqlite-shell.mjs\n M src/groups/a11y.mjs\n M src/groups/game.mjs\n M src/groups/index.mjs\n M src/groups/multi-tab.mjs\n M src/groups/pwa.mjs\n M src/groups/upgrade-legacy.mjs\n M src/groups/upgrade-previous.mjs\n M src/harness/database.mjs\n M src/harness/database.spec.mjs\n M src/harness/helpers.mjs\n M src/harness/host-calls.mjs\n M src/harness/standin.mjs\n M src/verify-saltline.mjs\n M ../web/ngsw-config.json\n M ../web/public/saltline.html\n M ../web/src/app/app.config.ts\n D ../web/src/app/apps/activity-monitor/activity-data.ts\n M ../web/src/app/apps/activity-monitor/activity-monitor.html\n M ../web/src/app/apps/activity-monitor/activity-monitor.ts\n M ../web/src/app/apps/disk-utility/disk-panels.ts\n M ../web/src/app/apps/disk-utility/disk-utility.html\n M ../web/src/app/apps/disk-utility/disk-utility.ts\n M ../web/src/app/apps/finder/finder.html\n M ../web/src/app/apps/finder/finder.ts\n M ../web/src/app/apps/maps/maps.html\n M ../web/src/app/apps/maps/maps.ts\n M ../web/src/app/apps/registry.ts\n M ../web/src/app/apps/saltline/saltline.ts\n M ../web/src/app/apps/settings/panes/wallpaper-pane.ts\n M ../web/src/app/apps/textedit/textedit.ts\n M ../web/src/app/apps/weather/weather.html\n M ../web/src/app/apps/weather/weather.ts\n M ../web/src/app/apps/web-app/web-app.html\n M ../web/src/app/apps/web-app/web-app.scss\n M ../web/src/app/apps/web-app/web-app.ts\n M ../web/src/app/components/data-problem.html\n M ../web/src/app/components/desktop-shell.html\n M ../web/src/app/components/desktop-shell.ts\n M ../web/src/app/components/dock.ts\n M ../web/src/app/components/menubar/force-quit-panel.ts\n M ../web/src/app/components/overlay-layer.html\n M ../web/src/app/components/overlay-layer.ts\n M ../web/src/app/components/overlays/launchpad.ts\n M ../web/src/app/components/overlays/spotlight.ts\n M ../web/src/app/components/widgets/widgets.ts\n M ../web/src/app/data/desktop-data.spec.ts\n M ../web/src/app/data/desktop-data.ts\n M ../web/src/app/data/desktop-database.spec.ts\n M ../web/src/app/data/desktop-database.ts\n M ../web/src/app/data/schema-fingerprint.snapshot.json\n M ../web/src/app/data/schema-version.spec.ts\n M ../web/src/app/data/schema-version.ts\n M ../web/src/app/disk/application-projection.ts\n M ../web/src/app/disk/desktop-file.entity.ts\n M ../web/src/app/disk/disk-path.ts\n M ../web/src/app/disk/disk-store.ts\n M ../web/src/app/disk/memory-disk-store.ts\n M ../web/src/app/disk/rxdb-disk-store.spec.ts\n M ../web/src/app/disk/rxdb-disk-store.ts\n M ../web/src/app/pages/desktop-page.ts\n M ../web/src/app/services/app-context.ts\n M ../web/src/app/services/application-catalog.ts\n M ../web/src/app/services/desktop-apps.spec.ts\n M ../web/src/app/services/desktop-apps.ts\n M ../web/src/app/services/desktop-menus.ts\n M ../web/src/app/services/desktop-window.ts\n M ../web/src/app/services/dock-layout.spec.ts\n M ../web/src/app/services/dock-layout.ts\n M ../web/src/app/services/file-opener.spec.ts\n M ../web/src/app/services/file-opener.ts\n M ../web/src/app/services/file-system.spec.ts\n M ../web/src/app/services/file-system.ts\n M ../web/src/app/services/orbit-host.spec.ts\n M ../web/src/app/services/orbit-host.ts\n M ../web/src/app/services/session.spec.ts\n M ../web/src/app/services/session.ts\n M ../web/src/app/services/wallpaper.spec.ts\n M ../web/src/app/services/wallpaper.ts\n M ../web/src/app/services/weather-store.spec.ts\n M ../web/src/app/services/weather-store.ts\n M ../web/src/app/services/window-layout.ts\n M ../web/src/app/services/window-manager.spec.ts\n M ../web/src/app/services/window-manager.ts\n M ../web/src/app/shared/external-content.spec.ts\n M ../web/src/app/shared/external-content.ts\n M ../web/src/app/testing/angular.ts\n M ../web/src/app/testing/fake-desktop-data.ts\n M ../web/src/app/testing/stubs.ts\n M ../web/src/app/vm/virtual-machine.ts\n M ../web/vitest.config.mts\n M ../../requirements/README.md\n M ../../requirements/capability-matrix.md\n M ../../requirements/decisions.md\n M ../../requirements/epics/ADESK-EPIC-002.md\n M ../../requirements/epics/ADESK-EPIC-003.md\n M ../../requirements/future-requirements.md\n M ../../requirements/roadmap.md\n M ../../requirements/status-overview.md\n M ../../requirements/stories/desktop/ADESK-US-105-multi-tab-sync.md\n M ../../requirements/stories/desktop/ADESK-US-106-database-upgrade-path.md\n M ../../requirements/verification-report.md\n?? src/fixtures/approved-catalog.mjs\n?? src/fixtures/approved-catalog.spec.mjs\n?? src/fixtures/native-chrome.mjs\n?? src/groups/approved-catalog.mjs\n?? src/groups/backup-storage.mjs\n?? src/groups/document-workflow.mjs\n?? src/groups/file-management.mjs\n?? src/groups/offline-resources.mjs\n?? src/groups/runtime-activity.mjs\n?? src/groups/storage-faults.mjs\n?? src/harness/game-lifecycle.mjs\n?? ../web/public/approved-apps.json\n?? ../web/public/wallpapers/\n?? ../web/src/app/apps/app-store/\n?? ../web/src/app/apps/disk-utility/backup-panel.ts\n?? ../web/src/app/apps/finder/file-operation-dialog.ts\n?? ../web/src/app/apps/maps/maps-search.spec.ts\n?? ../web/src/app/apps/maps/maps-search.ts\n?? ../web/src/app/apps/saltline/saltline-lifecycle.spec.ts\n?? ../web/src/app/apps/textedit/text-document.spec.ts\n?? ../web/src/app/apps/textedit/text-document.ts\n?? ../web/src/app/components/weather-status.ts\n?? ../web/src/app/data/approved-catalog-config.spec.ts\n?? ../web/src/app/data/approved-catalog-config.ts\n?? ../web/src/app/data/approved-catalog.spec.ts\n?? ../web/src/app/data/approved-catalog.ts\n?? ../web/src/app/data/desktop-backup-archive.spec.ts\n?? ../web/src/app/data/desktop-backup-archive.ts\n?? ../web/src/app/data/desktop-data-location.spec.ts\n?? ../web/src/app/data/desktop-data-location.ts\n?? ../web/src/app/data/desktop-erase.spec.ts\n?? ../web/src/app/data/desktop-erase.ts\n?? ../web/src/app/data/desktop-location-guard.spec.ts\n?? ../web/src/app/data/desktop-location-guard.ts\n?? ../web/src/app/data/desktop-restore-client.spec.ts\n?? ../web/src/app/data/desktop-restore-client.ts\n?? ../web/src/app/data/desktop-restore.spec.ts\n?? ../web/src/app/data/desktop-restore.ts\n?? ../web/src/app/data/desktop-restore.worker.ts\n?? ../web/src/app/data/desktop-storage-audit.spec.ts\n?? ../web/src/app/data/desktop-storage-audit.ts\n?? ../web/src/app/data/desktop-storage-io.spec.ts\n?? ../web/src/app/data/desktop-storage-io.ts\n?? ../web/src/app/disk/application-journal.spec.ts\n?? ../web/src/app/disk/application-journal.ts\n?? ../web/src/app/disk/disk-batch.spec.ts\n?? ../web/src/app/disk/disk-batch.ts\n?? ../web/src/app/disk/file-operations.spec.ts\n?? ../web/src/app/disk/file-operations.ts\n?? ../web/src/app/services/app-installation-flow.spec.ts\n?? ../web/src/app/services/app-installation-flow.ts\n?? ../web/src/app/services/application-registry.spec.ts\n?? ../web/src/app/services/application-registry.ts\n?? ../web/src/app/services/application-transitions.spec.ts\n?? ../web/src/app/services/application-transitions.ts\n?? ../web/src/app/services/desktop-backup.spec.ts\n?? ../web/src/app/services/desktop-backup.ts\n?? ../web/src/app/services/installed-applications.spec.ts\n?? ../web/src/app/services/installed-applications.ts\n?? ../web/src/app/services/runtime-activity.spec.ts\n?? ../web/src/app/services/runtime-activity.ts\n?? ../web/src/app/services/weather-forecast.ts\n?? ../../requirements/evidence/2026-11-17/\n?? ../../requirements/plans/2026-11-17-approved-app-catalog.md\n?? ../../requirements/plans/2026-11-17-autonomous-completion.md\n?? ../../requirements/plans/2026-11-17-backup-storage.md\n?? ../../requirements/plans/2026-11-17-remaining-work.md\n?? ../../requirements/plans/2026-11-17-runtime-capabilities.md\n?? ../../requirements/stories/application/ADESK-US-207-approved-app-catalog.md\n?? ../../requirements/stories/desktop/ADESK-US-109-document-workflow.md\n?? ../../requirements/stories/desktop/ADESK-US-110-file-management.md\n?? ../../requirements/stories/desktop/ADESK-US-111-backup-and-storage-health.md\n?? ../../requirements/stories/desktop/ADESK-US-112-runtime-activity.md\n?? ../../requirements/stories/desktop/ADESK-US-113-offline-resources.md"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "158.0.8127.18",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "698649a0a14f62986e3e3866838f1288caa8e1eaeb3a71119fd15a7479d26daa"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 3,
+    "groups": [
+      "offline-resources",
+      "game",
+      "pwa"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 123.623761458,
+  "outcomes": [
+    {
+      "group": "offline-resources",
+      "result": {
+        "offlineResources": {
+          "noInventedWeather": true,
+          "requestStateAndTimes": true,
+          "staleReadingsPreserved": true,
+          "weatherRecovers": true,
+          "mapRetry": true,
+          "searchRetryAndEmpty": true,
+          "keyboardControls": true,
+          "noViolations": [
+            {
+              "id": "scrollable-region-focusable",
+              "impact": "serious",
+              "tags": [
+                "cat.keyboard",
+                "wcag2a",
+                "wcag211",
+                "wcag213",
+                "TTv5",
+                "TT4.a",
+                "EN-301-549",
+                "EN-9.2.1.1",
+                "EN-9.2.1.3",
+                "RGAAv4",
+                "RGAA-7.3.2"
+              ],
+              "description": "Ensure elements that have scrollable content are accessible by keyboard in Safari",
+              "help": "Scrollable region must have keyboard access",
+              "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/scrollable-region-focusable?application=playwright",
+              "nodes": [
+                {
+                  "any": [
+                    {
+                      "id": "focusable-content",
+                      "data": null,
+                      "relatedNodes": [],
+                      "impact": "serious",
+                      "message": "Element should have focusable content"
+                    },
+                    {
+                      "id": "focusable-element",
+                      "data": null,
+                      "relatedNodes": [],
+                      "impact": "serious",
+                      "message": "Element should be focusable"
+                    }
+                  ],
+                  "all": [],
+                  "none": [],
+                  "impact": "serious",
+                  "html": "<div style=\"flex: 1 1 0%; min-height: 0px; overflow: auto; color: rgb(255, 255, 255); padding: 22px 20px 26px; background: linear-gradient(175deg, rgb(23, 94, 149), rgb(21, 75, 120) 55%, rgb(17, 57, 88));\">",
+                  "target": [
+                    ".wx-app > div"
+                  ],
+                  "failureSummary": "Fix any of the following:\n  Element should have focusable content\n  Element should be focusable"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "problems": [
+        "检查项未通过：offlineResources.noViolations = [{\"id\":\"scrollable-region-focusable\",\"impact\":\"serious\",\"tags\":[\"cat.keyboard\",\"wcag2a\",\"wcag211\",\"wcag213\",\"TTv5\",\"TT4.a\",\"EN-301-549\",\"EN-9.2.1.1\",\"EN-9.2.1.3\",\"RGAAv4\",\"RGAA-7.3.2\"],\"description\":\"Ensure elements that have scrollable content are accessible by keyboard in Safari\",\"help\":\"Scrollable region must have keyboard access\",\"helpUrl\":\"https://dequeuniversity.com/rules/axe/4.14/scrollable-region-focusable?application=playwright\",\"nodes\":[{\"any\":[{\"id\":\"focusable-content\",\"data\":null,\"relatedNodes\":[],\"impact\":\"serious\",\"message\":\"Element should have focusable content\"},{\"id\":\"focusable-element\",\"data\":null,\"relatedNodes\":[],\"impact\":\"serious\",\"message\":\"Element should be focusable\"}],\"all\":[],\"none\":[],\"impact\":\"serious\",\"html\":\"<div style=\\\"flex: 1 1 0%; min-height: 0px; overflow: auto; color: rgb(255, 255, 255); padding: 22px 20px 26px; background: linear-gradient(175deg, rgb(23, 94, 149), rgb(21, 75, 120) 55%, rgb(17, 57, 88));\\\">\",\"target\":[\".wx-app > div\"],\"failureSummary\":\"Fix any of the following:\\n  Element should have focusable content\\n  Element should be focusable\"}]}]"
+      ],
+      "failedKeys": [
+        "offlineResources.noViolations"
+      ],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 11.027049541999999
+    },
+    {
+      "group": "game",
+      "result": {
+        "game": {
+          "launchpadOpens": true,
+          "titleBar": true,
+          "sameOriginFrame": true,
+          "fullscreenAllowed": true,
+          "keyboardOnOpen": true,
+          "shieldWhenBehind": true,
+          "clickActivates": true,
+          "inputReachesGame": true,
+          "resizeTracksPointer": true,
+          "closeRemovesFrame": true,
+          "reopensFresh": true,
+          "spotlightLists": true,
+          "realGameBoots": true,
+          "minimizedLoopStops": true,
+          "restoreKeepsGame": true,
+          "lockedLoopStops": true,
+          "sleepLoopStops": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 108.089762959
+    },
+    {
+      "group": "pwa",
+      "result": {},
+      "problems": [
+        "检查组异常：Expected values to be strictly equal:\n\n0 !== 6\n（groups/pwa.mjs:152）"
+      ],
+      "failedKeys": [],
+      "missingKeys": [
+        "pwa.manifest",
+        "pwa.installable",
+        "pwa.workerControlsDesktop",
+        "pwa.desktopPrecached",
+        "pwa.wallpapersPrecached",
+        "pwa.wallpapersOffline",
+        "pwa.noWallpaperNetwork",
+        "pwa.largeResourcesLazy",
+        "pwa.lazyResourceOffline",
+        "pwa.offlineReload",
+        "pwa.offlineFirstAppLaunch",
+        "pwa.offlineDataIntact",
+        "pwa.offlineIsolation",
+        "pwa.onlineRecovery",
+        "pwa.updateWaitsForReload",
+        "pwa.updatedAfterReload",
+        "pwa.dataSurvivesUpdate"
+      ],
+      "extraKeys": [],
+      "crashed": "Expected values to be strictly equal:\n\n0 !== 6\n（groups/pwa.mjs:152）",
+      "pageErrors": [],
+      "seconds": 15.479798875
+    }
+  ],
+  "checks": {
+    "offlineResources": {
+      "noInventedWeather": true,
+      "requestStateAndTimes": true,
+      "staleReadingsPreserved": true,
+      "weatherRecovers": true,
+      "mapRetry": true,
+      "searchRetryAndEmpty": true,
+      "keyboardControls": true,
+      "noViolations": [
+        {
+          "id": "scrollable-region-focusable",
+          "impact": "serious",
+          "tags": [
+            "cat.keyboard",
+            "wcag2a",
+            "wcag211",
+            "wcag213",
+            "TTv5",
+            "TT4.a",
+            "EN-301-549",
+            "EN-9.2.1.1",
+            "EN-9.2.1.3",
+            "RGAAv4",
+            "RGAA-7.3.2"
+          ],
+          "description": "Ensure elements that have scrollable content are accessible by keyboard in Safari",
+          "help": "Scrollable region must have keyboard access",
+          "helpUrl": "https://dequeuniversity.com/rules/axe/4.14/scrollable-region-focusable?application=playwright",
+          "nodes": [
+            {
+              "any": [
+                {
+                  "id": "focusable-content",
+                  "data": null,
+                  "relatedNodes": [],
+                  "impact": "serious",
+                  "message": "Element should have focusable content"
+                },
+                {
+                  "id": "focusable-element",
+                  "data": null,
+                  "relatedNodes": [],
+                  "impact": "serious",
+                  "message": "Element should be focusable"
+                }
+              ],
+              "all": [],
+              "none": [],
+              "impact": "serious",
+              "html": "<div style=\"flex: 1 1 0%; min-height: 0px; overflow: auto; color: rgb(255, 255, 255); padding: 22px 20px 26px; background: linear-gradient(175deg, rgb(23, 94, 149), rgb(21, 75, 120) 55%, rgb(17, 57, 88));\">",
+              "target": [
+                ".wx-app > div"
+              ],
+              "failureSummary": "Fix any of the following:\n  Element should have focusable content\n  Element should be focusable"
+            }
+          ]
+        }
+      ]
+    },
+    "game": {
+      "launchpadOpens": true,
+      "titleBar": true,
+      "sameOriginFrame": true,
+      "fullscreenAllowed": true,
+      "keyboardOnOpen": true,
+      "shieldWhenBehind": true,
+      "clickActivates": true,
+      "inputReachesGame": true,
+      "resizeTracksPointer": true,
+      "closeRemovesFrame": true,
+      "reopensFresh": true,
+      "spotlightLists": true,
+      "realGameBoots": true,
+      "minimizedLoopStops": true,
+      "restoreKeepsGame": true,
+      "lockedLoopStops": true,
+      "sleepLoopStops": true
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [
+      "[offline-resources] 检查项未通过或缺失：offlineResources.noViolations",
+      "[pwa] 检查项未通过或缺失：pwa.manifest",
+      "[pwa] 检查项未通过或缺失：pwa.installable",
+      "[pwa] 检查项未通过或缺失：pwa.workerControlsDesktop",
+      "[pwa] 检查项未通过或缺失：pwa.desktopPrecached",
+      "[pwa] 检查项未通过或缺失：pwa.wallpapersPrecached",
+      "[pwa] 检查项未通过或缺失：pwa.wallpapersOffline",
+      "[pwa] 检查项未通过或缺失：pwa.noWallpaperNetwork",
+      "[pwa] 检查项未通过或缺失：pwa.largeResourcesLazy",
+      "[pwa] 检查项未通过或缺失：pwa.lazyResourceOffline",
+      "[pwa] 检查项未通过或缺失：pwa.offlineReload",
+      "[pwa] 检查项未通过或缺失：pwa.offlineFirstAppLaunch",
+      "[pwa] 检查项未通过或缺失：pwa.offlineDataIntact",
+      "[pwa] 检查项未通过或缺失：pwa.offlineIsolation",
+      "[pwa] 检查项未通过或缺失：pwa.onlineRecovery",
+      "[pwa] 检查项未通过或缺失：pwa.updateWaitsForReload",
+      "[pwa] 检查项未通过或缺失：pwa.updatedAfterReload",
+      "[pwa] 检查项未通过或缺失：pwa.dataSurvivesUpdate",
+      "[pwa] 检查组异常：Expected values to be strictly equal:\n\n0 !== 6\n（groups/pwa.mjs:152）"
+    ],
+    "stale": []
+  },
+  "passed": false,
+  "clean": false
+}

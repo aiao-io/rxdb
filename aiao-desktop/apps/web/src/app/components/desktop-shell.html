@@ -1,0 +1,103 @@
+<div id="stage" [class.fullscreen]="fullscreen()">
+  <app-wallpaper></app-wallpaper>
+  <app-menubar [attr.inert]="behind() ? '' : null"></app-menubar>
+  <app-window-layer [attr.inert]="behind() ? '' : null"></app-window-layer>
+  <app-dock [attr.inert]="behind() ? '' : null"></app-dock>
+  <app-desktop-surface [attr.inert]="behind() ? '' : null"></app-desktop-surface>
+  <app-overlay-layer [attr.inert]="behind() ? '' : null"></app-overlay-layer>
+  @defer (when session.locked()) {
+    <app-lock-screen></app-lock-screen>
+  } @placeholder {
+    @if (session.locked()) {
+      <div class="session-cover" aria-hidden="true"></div>
+    }
+  }
+  @defer (when session.boot() !== null) {
+    <app-boot-screen></app-boot-screen>
+  } @placeholder {
+    @if (session.boot() !== null) {
+      <div class="session-cover" aria-hidden="true"></div>
+    }
+  }
+  @defer (when problem() !== null) {
+    <app-data-problem></app-data-problem>
+  }
+  @if (replaced()) {
+    <aside
+      data-data-replaced
+      role="alert"
+      style="
+        position: fixed;
+        top: 40px;
+        right: 16px;
+        z-index: 9000;
+        max-width: 340px;
+        background: var(--win);
+        color: var(--txt);
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        box-shadow: 0 4px 24px #0004;
+      "
+    >
+      <b>{{ i18n.t('shell.desktop.dataRestored') }}</b>
+      <p>{{ i18n.t('shell.desktop.dataRestoredBody') }}</p>
+      <button class="btn" (click)="reloadRestored()">{{ i18n.t('shell.desktop.reloadRestored') }}</button>
+    </aside>
+  }
+  <div id="toast" [class.on]="toast.visible()" aria-atomic="true" aria-live="polite" role="status">
+    {{ toast.message() }}
+  </div>
+</div>
+@if (session.sleep() !== 'awake') {
+  <div id="sleeper" [class.wake]="session.sleep() === 'waking'" aria-hidden="true"></div>
+}
+@if (session.confirm(); as request) {
+  <!-- 重启 / 关机的确认对话框：macOS 风格，Esc 或 Cancel 取消，确认后走 tearDown。样式内联，不进全局样式表。 -->
+  <div
+    [attr.aria-label]="prompt(request).title"
+    (keydown)="confirmKey($event)"
+    appFocusTrap
+    aria-modal="true"
+    role="alertdialog"
+    style="
+      position: fixed;
+      inset: 0;
+      z-index: 9997;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.35);
+      -webkit-backdrop-filter: blur(16px);
+      backdrop-filter: blur(16px);
+    "
+  >
+    <div
+      style="
+        width: min(420px, calc(100vw - 48px));
+        background: var(--win);
+        color: var(--txt);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        box-shadow: 0 8px 40px #0005;
+        padding: 20px;
+      "
+    >
+      <h2 style="margin: 0 0 6px; font-size: 15px; font-weight: 700">{{ prompt(request).title }}</h2>
+      <p style="margin: 0 0 18px; font-size: 13px; opacity: 0.72">{{ prompt(request).message }}</p>
+      <div style="display: flex; gap: 10px; justify-content: flex-end">
+        <button class="btn" (click)="session.resolveConfirm(false)" data-autofocus type="button">
+          {{ i18n.t('shell.dataProblem.cancel') }}
+        </button>
+        <button
+          class="btn"
+          (click)="session.resolveConfirm(true)"
+          style="background: #0a5ffe; border-color: #0a5ffe; color: #fff"
+          type="button"
+        >
+          {{ prompt(request).action }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

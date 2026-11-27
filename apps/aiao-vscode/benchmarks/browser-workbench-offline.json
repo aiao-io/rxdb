@@ -1,0 +1,6 @@
+{
+  "browser": "156.0.8078.4",
+  "consoleErrors": [],
+  "offlineReload": true,
+  "templates": ["vanilla", "react", "vue", "angular"]
+}

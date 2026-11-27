@@ -34,8 +34,8 @@ import { RxDBError } from '@aiao/rxdb';
 import type { CommitChangeUnitContent } from './change-unit.js';
 import { computeCommitContentFingerprint } from './change-unit.js';
 import { CommitBranchRef } from './commit-branch-ref.entity.js';
-import { CommitChangeSet } from './commit-change-set.entity.js';
 import { CommitErrorCode } from './commit-error-codes.js';
+import { readCommitIntegrityRows, type CommitIntegrityRow } from './commit-integrity-rows.js';
 import type { Commit } from './commit.entity.js';
 import { loadCommitsByIds, nextFrontier, readCommitBranchRef } from './list-commits.js';
 
@@ -45,7 +45,7 @@ export type CommitGraphCorruptionReason =
   | 'branch_marked_corrupted'
   /** 可达父链指向一个读不回来的 commit */
   | 'missing_commit'
-  /** 按落库内容重算的指纹与 `contentFingerprint` 对不上 */
+  /** 按落库内容重算的指纹与 `contentFingerprint` 对不上，或落库的 JSON 内容解析不了 */
   | 'fingerprint_mismatch'
   /** `changeSetCount` 与实际 ChangeSet 行数对不上 */
   | 'change_set_count_mismatch';
@@ -82,7 +82,7 @@ export class CommitGraphCorruptedError extends RxDBError {
 }
 
 /** 把一行 ChangeSet 还原成进摘要的那九列。 */
-const toUnitContent = (row: CommitChangeSet): CommitChangeUnitContent => ({
+const toUnitContent = (row: CommitIntegrityRow): CommitChangeUnitContent => ({
   unitId: row.unitId,
   transactionId: row.transactionId,
   namespace: row.namespace,
@@ -97,7 +97,7 @@ const toUnitContent = (row: CommitChangeSet): CommitChangeUnitContent => ({
 /**
  * 本层 ChangeSet 的分组；键集合恒等于本层的 commit id 集合。
  */
-type LevelChangeSets = ReadonlyMap<string, CommitChangeSet[]>;
+type LevelChangeSets = ReadonlyMap<string, CommitIntegrityRow[]>;
 
 /**
  * 取整层的 ChangeSet，按 `commitId` 分回各自的桶。
@@ -120,10 +120,11 @@ const loadLevelChangeSets = async (
   executor: TransactionExecutor,
   level: readonly Commit[]
 ): Promise<LevelChangeSets> => {
-  const grouped = new Map<string, CommitChangeSet[]>(level.map(commit => [commit.id, []]));
-  const rows = await executor.getRepository(CommitChangeSet).find({
-    where: { combinator: 'and', rules: [{ field: 'commitId', operator: 'in', value: level.map(commit => commit.id) }] }
-  });
+  const grouped = new Map<string, CommitIntegrityRow[]>(level.map(commit => [commit.id, []]));
+  const rows = await readCommitIntegrityRows(
+    executor,
+    level.map(commit => commit.id)
+  );
   for (const row of rows) bucketOf(grouped, row.commitId).push(row);
   return grouped;
 };
@@ -141,7 +142,7 @@ const loadLevelChangeSets = async (
  * 批量查带回了本层之外的行——那时「多出来的行进了谁的桶」决定了一个健康的 commit
  * 会不会被判成损坏，安静地丢掉它等于让一条写错的 where 继续伪装成正确的。
  */
-const bucketOf = (grouped: LevelChangeSets, commitId: string): CommitChangeSet[] => {
+const bucketOf = (grouped: LevelChangeSets, commitId: string): CommitIntegrityRow[] => {
   const bucket = grouped.get(commitId);
   if (!bucket) {
     throw new RxDBError(`Level change-set grouping has no bucket for commit '${commitId}'.`);
@@ -155,7 +156,7 @@ const bucketOf = (grouped: LevelChangeSets, commitId: string): CommitChangeSet[]
  * @param branchId - 发起校验的分支，只用于组装错误
  * @param commit - 待校验的节点
  * @param changeSets - 该 commit 的 ChangeSet 行，来自 {@link loadLevelChangeSets}
- * @throws {@link CommitGraphCorruptedError} 指纹或 ChangeSet 行数对不上时
+ * @throws {@link CommitGraphCorruptedError} 指纹或 ChangeSet 行数对不上、或落库内容解析不了时
  *
  * @remarks
  * **两项检查的顺序不可换，而且是行数在前。** 摘要把 `u${units.length}:` 也折了进去
@@ -166,10 +167,19 @@ const bucketOf = (grouped: LevelChangeSets, commitId: string): CommitChangeSet[]
  * 一个单元），「内容被改过」要去查谁改的值。行数排前面，是因为它是**更窄**的那个判据：
  * 它成立时指纹必然也不成立，反之不然，于是它一成立就是确定的成因。
  *
+ * JSON 文本解析不了的行（{@link CommitIntegrityRow.unreadable}）同样报 `fingerprint_mismatch`：
+ * 落库内容已被改写，连原值都还原不出来，指纹不可能对得上。它排在行数之后，理由同上。
+ *
  * `sequence` 升序排在 JS 侧做，不依赖后端返回顺序：摘要按 `sequence` 发放的顺序合成，
  * 顺序错了，一个完全健康的 commit 会被判成损坏。批量查回来的整层行更是没有任何顺序可言。
  */
-const assertCommitIntact = (branchId: string, commit: Commit, changeSets: readonly CommitChangeSet[]): void => {
+const assertCommitIntact = (branchId: string, commit: Commit, changeSets: readonly CommitIntegrityRow[]): void => {
+  if (changeSets.length !== commit.changeSetCount) {
+    throw new CommitGraphCorruptedError(branchId, commit.id, 'change_set_count_mismatch');
+  }
+  if (changeSets.some(row => row.unreadable)) {
+    throw new CommitGraphCorruptedError(branchId, commit.id, 'fingerprint_mismatch');
+  }
   const units = [...changeSets].sort((left, right) => left.sequence - right.sequence).map(toUnitContent);
   const fingerprint = computeCommitContentFingerprint({
     kind: commit.kind,
@@ -178,9 +188,6 @@ const assertCommitIntact = (branchId: string, commit: Commit, changeSets: readon
     author: commit.author,
     units
   });
-  if (changeSets.length !== commit.changeSetCount) {
-    throw new CommitGraphCorruptedError(branchId, commit.id, 'change_set_count_mismatch');
-  }
   if (fingerprint !== commit.contentFingerprint) {
     throw new CommitGraphCorruptedError(branchId, commit.id, 'fingerprint_mismatch');
   }

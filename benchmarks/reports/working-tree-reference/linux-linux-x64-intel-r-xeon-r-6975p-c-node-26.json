@@ -1,0 +1,16 @@
+{
+  "commit": "8ea31cf8a9aa6224422528fb74c2d1bc2f88ad0b",
+  "frozenAbsolute": {
+    "commit": 440.4045589999587
+  },
+  "medianRatios": {
+    "status": 2.1143708603454163,
+    "diff": 2.04611927787475,
+    "restore": 9.492615810534579,
+    "commit": 12.345628495413095
+  },
+  "ratioProfile": "Linux linux x64 / Intel(R) Xeon(R) 6975P-C / node 26",
+  "regeneratedBecause": "8ea31cf8 已在 EPYC 7763 画像上过相对门禁（status 2.056 / diff 1.978 / restore 9.391 / commit 13.755 全 PASS），为 CI 的 Xeon 6975P-C 画像冻结",
+  "runnerProfileHash": "3c1cff3a9b700ebd470c2d57fb0889a10fd26c852eab4753f902acc8fa5a9dd9",
+  "runs": 10
+}

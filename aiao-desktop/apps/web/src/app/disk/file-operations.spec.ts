@@ -1,0 +1,413 @@
+import { describe, expect, it, vi } from 'vitest';
+
+import type { DiskBatchRecord } from './disk-batch';
+import { DESKTOP, TRASH, type DiskPath } from './disk-path';
+import {
+  MAX_IMPORT_BYTES,
+  OPERATION_UNDO_LIMIT,
+  OperationHistory,
+  copyEntryToPath,
+  copyEntryTo as copyToWithJournal,
+  duplicateEntry as duplicateWithJournal,
+  importFiles as importWithJournal,
+  moveEntryTo,
+  renameEntry,
+  renameWithConflict,
+  restoreEntry,
+  validateImportSize,
+  validateName,
+  type FileCommand,
+  type ImportedFile
+} from './file-operations';
+import { MemoryDiskStore } from './memory-disk-store';
+
+const journal = () => {
+  let value: DiskBatchRecord | null = null;
+  return {
+    read: async () => value,
+    write: async (record: DiskBatchRecord) => {
+      value = record;
+    },
+    clear: async () => {
+      value = null;
+    }
+  };
+};
+const duplicateEntry = (store: MemoryDiskStore, path: DiskPath) => duplicateWithJournal(store, path, journal());
+const copyEntryTo = (store: MemoryDiskStore, from: DiskPath, dir: DiskPath) =>
+  copyToWithJournal(store, from, dir, journal());
+const importFiles = (store: MemoryDiskStore, path: DiskPath, files: readonly ImportedFile[]) =>
+  importWithJournal(store, path, files, journal());
+
+const bytes = (value: string): Uint8Array => new TextEncoder().encode(value);
+const note = [...DESKTOP, 'note.txt'];
+
+const setup = async () => {
+  const store = new MemoryDiskStore();
+  await store.write(note, bytes('original'));
+  return store;
+};
+
+describe('Finder 文件操作', () => {
+  it('批量导入在读取文件前校验总大小，边界可用，超限和无效大小拒绝', () => {
+    expect(() => validateImportSize([0, MAX_IMPORT_BYTES])).not.toThrow();
+    for (const sizes of [[MAX_IMPORT_BYTES, 1], [-1], [Number.NaN], [Number.POSITIVE_INFINITY]])
+      expect(() => validateImportSize(sizes)).toThrow();
+  });
+
+  it('拒绝空名称、路径分隔符、控制字符和相对路径，允许中文与 emoji', () => {
+    for (const name of ['', ' ', '.', '..', 'a/b', 'a\\b', 'a\0b', 'a\nb']) expect(() => validateName(name)).toThrow();
+    expect(validateName(' 文档 🌏.txt ')).toBe(' 文档 🌏.txt ');
+  });
+
+  it('改名保持正文，同名不写入，目标存在时不覆盖', async () => {
+    const store = await setup();
+    await expect(renameEntry(store, note, 'note.txt')).resolves.toEqual(note);
+    const renamed = await renameEntry(store, note, '新名.txt');
+    expect(await store.read(renamed)).toEqual(bytes('original'));
+    expect(await store.kindOf(note)).toBeNull();
+    await store.write(note, bytes('other'));
+    await expect(renameEntry(store, renamed, 'note.txt')).rejects.toMatchObject({ code: 'EEXIST' });
+    expect(await store.read(renamed)).toEqual(bytes('original'));
+    expect(await store.read(note)).toEqual(bytes('other'));
+  });
+
+  it('复制嵌套目录、二进制、空文件和空目录，连续复制自动取不同名称', async () => {
+    const store = await setup();
+    const dir = [...DESKTOP, 'project'];
+    await store.write([...dir, 'sub', 'bytes.bin'], new Uint8Array([0, 255, 128]));
+    await store.write([...dir, 'empty'], new Uint8Array());
+    await store.mkdir([...dir, 'blank']);
+    const copy = await duplicateEntry(store, dir);
+    const second = await duplicateEntry(store, dir);
+    expect(copy).toEqual([...DESKTOP, 'project copy']);
+    expect(second).toEqual([...DESKTOP, 'project copy 2']);
+    expect(await store.read([...copy, 'sub', 'bytes.bin'])).toEqual(new Uint8Array([0, 255, 128]));
+    expect(await store.read([...copy, 'empty'])).toHaveLength(0);
+    expect(await store.list([...copy, 'blank'])).toEqual([]);
+    await store.write([...copy, 'empty'], bytes('changed'));
+    expect(await store.read([...dir, 'empty'])).toHaveLength(0);
+    expect(await duplicateEntry(store, note)).toEqual([...DESKTOP, 'note copy.txt']);
+  });
+
+  it('复制和移动文件夹到目标目录时保留内容、处理重名并拒绝进入自身', async () => {
+    const store = await setup();
+    const source = [...DESKTOP, 'folder'];
+    const target = [...DESKTOP, 'target'];
+    await store.write([...source, 'child.txt'], bytes('child'));
+    await store.mkdir(target);
+
+    const copy = await copyEntryTo(store, source, target);
+    expect(copy).toEqual([...target, 'folder']);
+    expect(await store.read([...copy, 'child.txt'])).toEqual(bytes('child'));
+    const moved = await moveEntryTo(store, note, target);
+    expect(moved).toEqual([...target, 'note.txt']);
+    expect(await store.kindOf(note)).toBeNull();
+    await expect(copyEntryTo(store, source, source)).rejects.toMatchObject({ code: 'EACCES' });
+    await expect(moveEntryTo(store, source, source)).rejects.toMatchObject({ code: 'EACCES' });
+  });
+
+  it('复制写入失败撤回不完整目标，源文件保持不变', async () => {
+    const store = await setup();
+    await store.mkdir([...DESKTOP, 'tree']);
+    await store.write([...DESKTOP, 'tree', 'a'], bytes('a'));
+    await store.write([...DESKTOP, 'tree', 'b'], bytes('b'));
+    vi.spyOn(store, 'write')
+      .mockImplementationOnce(async () => undefined)
+      .mockRejectedValueOnce(new Error('quota'));
+    await expect(duplicateEntry(store, [...DESKTOP, 'tree'])).rejects.toThrow('quota');
+    expect(await store.kindOf([...DESKTOP, 'tree copy'])).toBeNull();
+    expect(await store.read([...DESKTOP, 'tree', 'b'])).toEqual(bytes('b'));
+  });
+
+  it('导入不覆盖同名文件，并保留零字节文件与二进制', async () => {
+    const store = await setup();
+    const imported = await importFiles(store, DESKTOP, [
+      { name: 'note.txt', data: bytes('import') },
+      { name: 'note.txt', data: new Uint8Array() },
+      { name: 'image.bin', data: new Uint8Array([0, 255]) }
+    ]);
+    expect(imported.map(path => path.at(-1))).toEqual(['note 2.txt', 'note 3.txt', 'image.bin']);
+    expect(await store.read(note)).toEqual(bytes('original'));
+    expect(await store.read(imported[1])).toHaveLength(0);
+    expect(await store.read(imported[2])).toEqual(new Uint8Array([0, 255]));
+  });
+
+  it('导入前验证整批名称和父目录，失败不留下前半批文件', async () => {
+    const store = await setup();
+    await expect(
+      importFiles(store, DESKTOP, [
+        { name: 'ok', data: bytes('a') },
+        { name: '../bad', data: bytes('b') }
+      ])
+    ).rejects.toThrow();
+    expect(await store.kindOf([...DESKTOP, 'ok'])).toBeNull();
+    await expect(importFiles(store, ['missing'], [{ name: 'ok', data: bytes('a') }])).rejects.toMatchObject({
+      code: 'ENOENT'
+    });
+    vi.spyOn(store, 'write')
+      .mockImplementationOnce(async () => undefined)
+      .mockRejectedValueOnce(new Error('full'));
+    await expect(
+      importFiles(store, DESKTOP, [
+        { name: 'a', data: bytes('a') },
+        { name: 'b', data: bytes('b') }
+      ])
+    ).rejects.toThrow('full');
+    expect(await store.kindOf([...DESKTOP, 'a'])).toBeNull();
+    expect(await store.read(note)).toEqual(bytes('original'));
+  });
+
+  it('废纸篓原位置随改名保留；恢复时自动处理同名，正文不覆盖', async () => {
+    const store = await setup();
+    const trashed = [...TRASH, 'note.txt'];
+    await store.move(note, trashed);
+    const renamed = await renameEntry(store, trashed, 'renamed.txt');
+    await store.write(note, bytes('new'));
+    const restored = await restoreEntry(store, renamed);
+    expect(restored).toEqual([...DESKTOP, 'note 2.txt']);
+    expect(await store.read(restored)).toEqual(bytes('original'));
+    expect(await store.read(note)).toEqual(bytes('new'));
+    expect((await store.list(DESKTOP)).find(item => item.name === 'note 2.txt')?.originalPath).toBeUndefined();
+  });
+
+  it('原目录失效保留废纸篓条目，允许用户明确选择现存目录', async () => {
+    const store = await setup();
+    const original = [...DESKTOP, 'parent', 'file.txt'];
+    await store.write(original, bytes('keep'));
+    const trashed = [...TRASH, 'file.txt'];
+    await store.move(original, trashed);
+    await store.remove([...DESKTOP, 'parent']);
+    await expect(restoreEntry(store, trashed)).rejects.toMatchObject({ code: 'ENOENT' });
+    expect(await store.read(trashed)).toEqual(bytes('keep'));
+    expect(await restoreEntry(store, trashed, DESKTOP)).toEqual([...DESKTOP, 'file.txt']);
+  });
+
+  it('旧废纸篓没有原位置时要求明确目录，拒绝恢复到废纸篓', async () => {
+    const store = await setup();
+    const old = [...TRASH, 'old.txt'];
+    await store.write(old, bytes('old'));
+    await expect(restoreEntry(store, old)).rejects.toThrow('original location');
+    await expect(restoreEntry(store, old, TRASH)).rejects.toMatchObject({ code: 'EACCES' });
+    expect(await restoreEntry(store, old, DESKTOP)).toEqual([...DESKTOP, 'old.txt']);
+    await expect(restoreEntry(store, note)).rejects.toMatchObject({ code: 'EACCES' });
+    await expect(duplicateEntry(store, [...DESKTOP, 'missing'])).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+});
+
+describe('Finder 文件操作：只差大小写的名字算同名（与库的唯一索引同口径）', () => {
+  it('导入：和已有文件只差大小写的追加序号，不覆盖；同一批里只差大小写的各取不同名字，保留各自的大小写', async () => {
+    const store = await setup();
+    const imported = await importFiles(store, DESKTOP, [
+      { name: 'NOTE.TXT', data: bytes('upper') },
+      { name: 'Report.txt', data: bytes('one') },
+      { name: 'report.txt', data: bytes('two') }
+    ]);
+    expect(imported.map(path => path.at(-1))).toEqual(['NOTE 2.TXT', 'Report.txt', 'report 2.txt']);
+    expect(await store.read(note)).toEqual(bytes('original'));
+    expect(await store.read(imported[0])).toEqual(bytes('upper'));
+    expect(await store.read(imported[2])).toEqual(bytes('two'));
+  });
+
+  it('复制、移动到目录、副本与恢复：目标位置有只差大小写的名字就追加序号', async () => {
+    const store = await setup();
+    const target = [...DESKTOP, 'target'];
+    await store.write([...target, 'Note.TXT'], bytes('in target'));
+
+    expect(await copyEntryTo(store, note, target)).toEqual([...target, 'note 2.txt']);
+    expect(await moveEntryTo(store, note, target)).toEqual([...target, 'note 3.txt']);
+
+    await store.write([...DESKTOP, 'Photo copy.PNG'], bytes('x'));
+    await store.write([...DESKTOP, 'photo.png'], bytes('y'));
+    expect(await duplicateEntry(store, [...DESKTOP, 'photo.png'])).toEqual([...DESKTOP, 'photo copy 2.png']);
+
+    await store.write([...DESKTOP, 'Back.txt'], bytes('present'));
+    await store.write([...TRASH, 'back.txt'], bytes('trashed'));
+    const restored = await restoreEntry(store, [...TRASH, 'back.txt'], DESKTOP);
+    expect(restored).toEqual([...DESKTOP, 'back 2.txt']);
+    expect(await store.read([...DESKTOP, 'Back.txt'])).toEqual(bytes('present'));
+  });
+
+  it('改名：改成同级另一个节点只差大小写的名字抛 EEXIST，两个文件都不动；纯大小写改名可以', async () => {
+    const store = await setup();
+    const report = [...DESKTOP, 'Report.txt'];
+    await store.write(report, bytes('report'));
+
+    await expect(renameEntry(store, note, 'REPORT.txt')).rejects.toMatchObject({ code: 'EEXIST' });
+    expect(await store.read(note)).toEqual(bytes('original'));
+    expect(await store.read(report)).toEqual(bytes('report'));
+
+    await expect(renameEntry(store, report, 'report.txt')).resolves.toEqual([...DESKTOP, 'report.txt']);
+    expect(await store.kindOf(report)).toBeNull();
+    expect(await store.read([...DESKTOP, 'report.txt'])).toEqual(bytes('report'));
+  });
+});
+
+describe('Finder 改名冲突（renameWithConflict）', () => {
+  it('reject 撞名抛 EEXIST 两个都不动；keepBoth 追加序号；replace 覆盖目标', async () => {
+    const store = await setup();
+    // 库的唯一索引不区分大小写：note.txt 与 Note.TXT 不能同时存在，撞名场景改用能并存的 plan.txt。
+    const other = [...DESKTOP, 'plan.txt'];
+    await store.write(other, bytes('other'));
+
+    await expect(renameWithConflict(store, note, 'plan.txt', 'reject')).rejects.toMatchObject({ code: 'EEXIST' });
+    expect(await store.read(note)).toEqual(bytes('original'));
+    expect(await store.read(other)).toEqual(bytes('other'));
+
+    const kept = await renameWithConflict(store, note, 'plan.txt', 'keepBoth');
+    expect(kept).toEqual([...DESKTOP, 'plan 2.txt']);
+    expect(await store.read(kept)).toEqual(bytes('original'));
+    expect(await store.read(other)).toEqual(bytes('other'));
+
+    const replaced = await renameWithConflict(store, kept, 'plan.txt', 'replace');
+    expect(replaced).toEqual(other);
+    expect(await store.read(other)).toEqual(bytes('original'));
+    expect(await store.kindOf(kept)).toBeNull();
+  });
+
+  it('replace 覆盖目录；改成自己只差大小写的名字不算撞名；缺条目与非法名照旧拒绝', async () => {
+    const store = await setup();
+    await store.write([...DESKTOP, 'Report.txt'], bytes('case'));
+    expect(await renameWithConflict(store, [...DESKTOP, 'Report.txt'], 'report.txt', 'reject')).toEqual([
+      ...DESKTOP,
+      'report.txt'
+    ]);
+
+    const fresh = new MemoryDiskStore();
+    await fresh.write(note, bytes('original'));
+    await fresh.mkdir([...DESKTOP, 'report.txt']);
+    await fresh.write([...DESKTOP, 'report.txt', 'child'], bytes('child'));
+    const renamed = await renameWithConflict(fresh, note, 'report.txt', 'replace');
+    expect(renamed).toEqual([...DESKTOP, 'report.txt']);
+    expect(await fresh.read(renamed)).toEqual(bytes('original'));
+    expect(await fresh.kindOf([...DESKTOP, 'report.txt', 'child'])).toBeNull();
+
+    await expect(renameWithConflict(fresh, [...DESKTOP, 'missing'], 'x', 'reject')).rejects.toMatchObject({
+      code: 'ENOENT'
+    });
+    await expect(renameWithConflict(fresh, [...DESKTOP, 'report.txt'], 'bad/name', 'reject')).rejects.toMatchObject({
+      code: 'EACCES'
+    });
+  });
+});
+
+describe('copyEntryToPath（精确路径复制）', () => {
+  it('深复制到指定路径；目标已存在抛 EEXIST、源不存在抛 ENOENT', async () => {
+    const store = await setup();
+    await store.mkdir([...DESKTOP, 'tree']);
+    await store.write([...DESKTOP, 'tree', 'a'], bytes('a'));
+    const to = [...DESKTOP, 'exact-copy'];
+    await copyEntryToPath(store, [...DESKTOP, 'tree'], to);
+    expect(await store.read([...to, 'a'])).toEqual(bytes('a'));
+
+    await store.write([...DESKTOP, 'taken'], bytes('taken'));
+    await expect(copyEntryToPath(store, [...DESKTOP, 'tree'], [...DESKTOP, 'taken'])).rejects.toMatchObject({
+      code: 'EEXIST'
+    });
+    await expect(copyEntryToPath(store, [...DESKTOP, 'ghost'], [...DESKTOP, 'free'])).rejects.toMatchObject({
+      code: 'ENOENT'
+    });
+    expect(await store.kindOf([...DESKTOP, 'free'])).toBeNull();
+  });
+});
+
+describe('OperationHistory（撤销/重做栈）', () => {
+  const history = (limit?: number): OperationHistory => new OperationHistory(limit ?? 3);
+
+  const step = (kind: FileCommand['kind'], label: string, actions: string[]): FileCommand => ({
+    kind,
+    label,
+    paths: [],
+    undo: async () => {
+      actions.push(`undo:${label}`);
+      return [];
+    },
+    redo: async () => {
+      actions.push(`redo:${label}`);
+      return [];
+    }
+  });
+
+  it('压入新命令清空重做栈；undo/redo 按 LIFO 来回，label 取栈顶', async () => {
+    const store = new MemoryDiskStore();
+    const actions: string[] = [];
+    const stack = history();
+    stack.push(step('rename', 'Rename', actions));
+    stack.push(step('newFolder', 'New Folder', actions));
+    expect(stack.label()).toBe('New Folder');
+
+    await stack.undo(store);
+    expect(actions).toEqual(['undo:New Folder']);
+    expect(stack.canUndo).toBe(true);
+    expect(stack.canRedo).toBe(true);
+    expect(stack.label()).toBe('Rename');
+
+    await stack.redo(store);
+    expect(actions.at(-1)).toBe('redo:New Folder');
+    stack.push(step('move', 'Move', actions));
+    expect(stack.canRedo).toBe(false);
+    expect(stack.label()).toBe('Move');
+  });
+
+  it('栈最多保留 limit 条，超过后最早的丢弃', async () => {
+    const store = new MemoryDiskStore();
+    const actions: string[] = [];
+    const stack = history();
+    for (let index = 1; index <= 5; index++) stack.push(step('rename', `Rename ${index}`, actions));
+    await stack.undo(store);
+    expect(stack.label()).toBe('Rename 4');
+    await stack.undo(store);
+    expect(stack.label()).toBe('Rename 3');
+    await stack.undo(store);
+    expect(stack.label()).toBeNull();
+    expect(stack.canUndo).toBe(false);
+  });
+
+  it('反向动作失败命令保留、错误抛出', async () => {
+    const store = new MemoryDiskStore();
+    const stack = history();
+    stack.push({
+      kind: 'rename',
+      label: 'Rename',
+      paths: [],
+      undo: async () => {
+        throw new Error('busy');
+      },
+      redo: async () => []
+    });
+    await expect(stack.undo(store)).rejects.toThrow('busy');
+    expect(stack.canUndo).toBe(true);
+    expect(stack.label()).toBe('Rename');
+  });
+
+  it('mostRecentTrash 找最近的废纸篓命令；removeTrash/remove/clear 清理', async () => {
+    const store = new MemoryDiskStore();
+    const actions: string[] = [];
+    const stack = history();
+    const first = step('trash', 'Move to Trash', actions);
+    stack.push(first);
+    stack.push(step('rename', 'Rename', actions));
+    const last = step('trash', 'Move to Trash', actions);
+    stack.push(last);
+    expect(stack.mostRecentTrash()).toBe(last);
+    expect(stack.hasTrash()).toBe(true);
+
+    stack.remove(last);
+    expect(stack.mostRecentTrash()).toBe(first);
+    stack.removeTrash();
+    expect(stack.hasTrash()).toBe(false);
+    expect(stack.canUndo).toBe(true);
+
+    stack.clear();
+    expect(stack.canUndo).toBe(false);
+    expect(stack.canRedo).toBe(false);
+
+    await stack.undo(store);
+    expect(actions).toEqual([]);
+  });
+
+  it('默认上限与旧废纸篓撤销一致（50）', () => {
+    expect(OPERATION_UNDO_LIMIT).toBe(50);
+    expect(new OperationHistory().label()).toBeNull();
+  });
+});

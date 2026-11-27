@@ -1,0 +1,111 @@
+<div class="wb">
+  <div class="sbar" data-drag style="width: 230px">
+    <div style="display: flex; align-items: center; height: 38px; padding: 0 12px"><app-traffic-lights /></div>
+    <div class="grp">
+      <div class="gh">{{ i18n.t('apps.fontbook.collection') }}</div>
+      @for (entry of collections; track entry.id) {
+        <button
+          class="si"
+          [attr.aria-current]="collection() === entry.id ? 'page' : null"
+          [attr.data-fcol]="entry.id"
+          [class.on]="collection() === entry.id"
+          (click)="setCollection(entry.id)"
+          type="button"
+        >
+          <svg
+            class="ico"
+            [appIcon]="
+              entry.id === 'all' ? 'g-title'
+              : entry.id === 'favourites' ? 'g-star'
+              : 'g-tag'
+            "
+          ></svg>
+          <span class="nm">{{ i18n.t(entry.nameKey) }}</span>
+          <span class="tail">{{ collectionCounts()[entry.id] }}</span>
+        </button>
+      }
+    </div>
+    <div class="grp">
+      <div class="gh">{{ i18n.t('apps.fontbook.family') }}</div>
+      @for (font of visibleFonts(); track font.name; let i = $index) {
+        <div
+          class="si"
+          [attr.data-fi]="i"
+          [class.on]="font.name === current()?.name"
+          [style.opacity]="isDisabled(font.name) ? 0.45 : null"
+          (click)="selectFont(font.name)"
+          (keydown.enter)="selectFont(font.name)"
+          tabindex="0"
+        >
+          <span class="nm" [style.font-family]="font.stack">{{ font.name }}</span>
+          @if (isDisabled(font.name)) {
+            <span class="tail" style="color: var(--txt-3)">{{ i18n.t('apps.fontbook.off') }}</span>
+          }
+        </div>
+      }
+      @if (!visibleFonts().length) {
+        <div data-font-empty style="padding: 12px 10px; color: var(--txt-2); font-size: 12px">
+          {{ i18n.t('apps.fontbook.noMatches') }}
+        </div>
+      }
+    </div>
+  </div>
+  <div class="wmain">
+    <div class="tbar" data-drag style="height: 52px">
+      <div class="fx-title" data-fname>{{ current()?.name }}</div>
+      <div style="flex: 1"></div>
+      <app-slider
+        [(value)]="previewFraction"
+        [label]="i18n.t('apps.fontbook.previewSize')"
+        style="width: 110px"
+      ></app-slider>
+      <div class="sfield" data-nodrag style="width: 150px">
+        <span><svg appIcon="g-search"></svg></span>
+        <input
+          #search
+          [attr.aria-label]="i18n.t('apps.fontbook.searchFonts')"
+          [placeholder]="i18n.t('apps.fontbook.search')"
+          [value]="query()"
+          (input)="query.set(search.value)"
+        />
+      </div>
+    </div>
+    <div class="scroll" data-fbody style="flex: 1; padding: 26px 30px">
+      @if (current(); as active) {
+        <div
+          [style.font-family]="active.stack"
+          [style.font-size.px]="previewPx()"
+          style="line-height: 1.1; letter-spacing: -0.03em"
+        >
+          Aa Bb Cc
+        </div>
+        <div style="font-size: 12px; color: var(--txt-2); margin: 6px 0 22px">
+          {{ active.styles }}
+          @if (isDisabled(active.name)) {
+            <span style="color: var(--txt-3)">· {{ i18n.t('apps.fontbook.off') }}</span>
+          }
+        </div>
+        <button
+          class="btn"
+          [attr.aria-label]="disabledLabel(active.name)"
+          [attr.aria-pressed]="isDisabled(active.name)"
+          [attr.data-fenable]="active.name"
+          (click)="toggleFont(active.name)"
+          tabindex="0"
+          type="button"
+        >
+          {{ isDisabled(active.name) ? i18n.t('apps.fontbook.enable') : i18n.t('apps.fontbook.disable') }}
+        </button>
+        @for (size of sampleSizes(); track $index) {
+          <div
+            [style.font-family]="active.stack"
+            [style.font-size.px]="size"
+            style="line-height: 1.35; margin: 12px 0 9px; letter-spacing: -0.01em"
+          >
+            The quick brown fox jumps over the lazy dog. 0123456789
+          </div>
+        }
+      }
+    </div>
+  </div>
+</div>

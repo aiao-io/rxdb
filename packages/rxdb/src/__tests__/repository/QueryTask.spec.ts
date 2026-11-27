@@ -8,7 +8,7 @@
  * - 运行器抛错只终结这一轮，不终结整个任务
  */
 
-import { of, Subject, throwError, type Observer } from 'rxjs';
+import { of, Subject, throwError, type Observable, type Observer } from 'rxjs';
 import { describe, expect, it, vi } from 'vitest';
 import type { EntityType } from '../../entity/entity.interface.js';
 import { SyncType } from '../../entity/metadata-options.interface.js';
@@ -160,8 +160,14 @@ describe('QueryTask - 实体依赖计数', () => {
 const getFingerprint = (result: TestEntity[]) => result.map(entity => entity.id);
 
 describe('QueryTask', () => {
-  it('应忽略早于本地增量结果的运行器旧结果', () => {
-    const runner$ = new Subject<TestEntity[]>();
+  it('增量合并期间丢弃旧快照后，应重查取得只能由 SQL 补回的实体', () => {
+    const initial = { id: 'existing', name: 'Existing Entity' } as TestEntity;
+    const discovered = { id: 'discovered', name: 'SQL Entity' } as TestEntity;
+    const added = { id: 'added', name: 'Incremental Entity' } as TestEntity;
+    const stale$ = new Subject<TestEntity[]>();
+    const fresh$ = new Subject<TestEntity[]>();
+    const runner = vi.fn<() => Observable<TestEntity[]>>(() => fresh$);
+    runner.mockReturnValueOnce(of([initial])).mockReturnValueOnce(stale$);
     const results: TestEntity[][] = [];
     const observer: Observer<TestEntity[]> = {
       next: value => results.push(value),
@@ -179,7 +185,7 @@ describe('QueryTask', () => {
           }
         }
       },
-      runner: () => runner$,
+      runner,
       getFingerprint,
       entityType: TestEntity,
       rxdb: {
@@ -196,10 +202,15 @@ describe('QueryTask', () => {
     task.observerCount = 1;
     task.run();
 
-    task.next([{ id: 'new-1', name: 'New Entity' } as TestEntity]);
-    runner$.next([]);
+    task.refresh();
+    task.next([initial, added]);
+    stale$.next([initial, discovered]);
+    expect(results).toEqual([[initial], [initial, added]]);
 
-    expect(results).toEqual([[{ id: 'new-1', name: 'New Entity' }]]);
+    fresh$.next([initial, discovered, added]);
+    expect(results).toEqual([[initial], [initial, added], [initial, discovered, added]]);
+    expect(runner).toHaveBeenCalledTimes(3);
+    task.clean();
   });
 });
 

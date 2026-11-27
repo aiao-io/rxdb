@@ -1,0 +1,114 @@
+<div class="fp-scrim" [trapInitialFocus]="false" appFocusTrap data-file-panel-scrim>
+  <section
+    class="fp"
+    [attr.aria-describedby]="uid + '-sub'"
+    [attr.aria-label]="label()"
+    [attr.data-mode]="request().mode"
+    [attr.data-owner]="request().app.id"
+    aria-modal="true"
+    data-file-panel
+    role="dialog"
+  >
+    <header class="fp-head">
+      <svg class="fp-app" [appIcon]="request().app.icon"></svg>
+      <div>
+        <h2 class="fp-title" data-fp-title>{{ heading() }}</h2>
+        <p class="fp-sub" [id]="uid + '-sub'" data-fp-subtitle>{{ subtitle() }}</p>
+      </div>
+    </header>
+    @if (isSave()) {
+      <label class="fp-name">
+        <span>{{ i18n.t('shell.filePanel.saveAs') }}</span>
+        <input
+          #field
+          [maxLength]="request().nameLength"
+          [value]="name()"
+          (input)="rename(field.value)"
+          (keydown.enter)="confirm(); $event.preventDefault()"
+          autocomplete="off"
+          data-fp-name
+          spellcheck="false"
+          type="text"
+        />
+      </label>
+    }
+    <div class="fp-where">
+      <button
+        class="btn"
+        [attr.aria-label]="i18n.t('shell.filePanel.enclosingFolder')"
+        [disabled]="dir().length === 0"
+        (click)="up()"
+        data-fp-up
+        tabindex="0"
+        type="button"
+      >
+        {{ i18n.t('shell.filePanel.up') }}
+      </button>
+      <span class="fp-path" data-fp-path>{{ where() }}</span>
+    </div>
+    <div
+      class="fp-list"
+      #list
+      [attr.aria-activedescendant]="activeId()"
+      [attr.aria-label]="i18n.t('shell.filePanel.files')"
+      (click)="pick($event)"
+      (dblclick)="pickAndOpen($event)"
+      (keydown)="listKey($event)"
+      data-fp-list
+      role="listbox"
+      tabindex="0"
+    >
+      @for (entry of entries(); track entry.name; let index = $index) {
+        <div
+          class="fp-row"
+          [attr.aria-disabled]="entry.disabled ? 'true' : null"
+          [attr.aria-selected]="entry.name === activeName()"
+          [attr.data-kind]="entry.folder ? 'folder' : 'file'"
+          [attr.data-name]="entry.name"
+          [class.dis]="entry.disabled"
+          [class.sel]="entry.name === activeName()"
+          [id]="rowId(index)"
+          data-fp-entry
+          role="option"
+        >
+          <svg [appIcon]="entry.node.icon"></svg>
+          <span class="nm">{{ entry.name }}</span>
+          @if (entry.reason) {
+            <span class="why" data-fp-reason>{{ entry.reason }}</span>
+          } @else {
+            <span class="sz">{{ entry.folder ? '' : entry.node.size }}</span>
+          }
+        </div>
+      } @empty {
+        <p class="fp-empty" data-fp-empty>{{ i18n.t('shell.filePanel.empty') }}</p>
+      }
+    </div>
+    @if (request().accept.length > 0) {
+      <p class="fp-note" data-fp-filter>
+        {{ i18n.t('shell.filePanel.showing', { types: request().accept.join(', ') }) }}
+      </p>
+    }
+    @if (problem(); as text) {
+      <p class="fp-note bad" data-fp-problem role="alert">{{ text }}</p>
+    }
+    @if (phase() === 'replace') {
+      <div
+        class="fp-replace"
+        [attr.aria-label]="i18n.t('shell.filePanel.replaceFile')"
+        data-fp-replace
+        role="alertdialog"
+      >
+        <b>{{ i18n.t('shell.filePanel.fileExists', { name: target() }) }}</b>
+        <span>{{ i18n.t('shell.filePanel.replaceBody') }}</span>
+      </div>
+    }
+    <footer class="fp-foot">
+      <button class="btn" #cancelButton (click)="dismiss()" data-fp-cancel tabindex="0" type="button">
+        {{ i18n.t('shell.dataProblem.cancel') }}
+      </button>
+      <button class="btn pri" [disabled]="!canConfirm()" (click)="confirm()" data-fp-confirm tabindex="0" type="button">
+        {{ confirmLabel() }}
+      </button>
+    </footer>
+  </section>
+</div>

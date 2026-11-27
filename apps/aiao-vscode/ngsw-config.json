@@ -1,0 +1,53 @@
+{
+  "$schema": "../../node_modules/@angular/service-worker/config/schema.json",
+  "assetGroups": [
+    {
+      "name": "app",
+      "installMode": "prefetch",
+      "resources": {
+        "files": ["/favicon.ico", "/index.html", "/manifest.webmanifest", "/*.css", "/*.js"]
+      }
+    },
+    {
+      "name": "vscode-extensions",
+      "installMode": "lazy",
+      "updateMode": "lazy",
+      "resources": {
+        "files": ["/browser-workbench-assets/extension-host/**", "/browser-workbench-assets/extensions/**"]
+      }
+    },
+    {
+      "name": "assets",
+      "installMode": "lazy",
+      "updateMode": "prefetch",
+      "resources": {
+        "files": ["/**/*.(svg|cur|jpg|jpeg|png|apng|webp|avif|gif|otf|ttf|woff|woff2)"]
+      }
+    },
+    {
+      "name": "wasm",
+      "installMode": "lazy",
+      "updateMode": "prefetch",
+      "resources": {
+        "files": ["/**/*.wasm", "/**/*.data"]
+      }
+    },
+    {
+      "name": "browser-workbench",
+      "installMode": "prefetch",
+      "resources": {
+        "files": ["/browser-workbench-assets/**"]
+      }
+    }
+  ],
+  "index": "/index.html",
+  "navigationUrls": [
+    "/**",
+    "!/**/*.*",
+    "!/**/*__*",
+    "!/**/*__*/**",
+    "!/redirect",
+    "!/api/**",
+    "!/browser-workbench-assets/**"
+  ]
+}

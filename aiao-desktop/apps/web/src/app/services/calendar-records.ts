@@ -1,0 +1,140 @@
+import type { CalendarEvent, CalendarEventDraft, CalendarList } from './calendar-store';
+
+/** 事件在库里的字段（实体 `CalendarEventRow` 满足它，测试里用普通对象）。 */
+export interface EventFields {
+  /** `YYYY-MM-DD`，月份按日常习惯从 1 起；字符串的顺序就是日期的顺序。 */
+  readonly day: string;
+  readonly title: string;
+  /** 午夜起的开始分钟数；`null` 表示全天。 */
+  readonly startMinutes: number | null;
+  readonly durationMinutes: number;
+  /** 所属日历的 `key`（`home`、`work`…）。 */
+  readonly calendar: string;
+  readonly location: string;
+  readonly notes: string;
+}
+
+/** 库里的一行事件。 */
+export interface EventRecord extends EventFields {
+  readonly id: string;
+}
+
+/** 库里的一行日历。 */
+export interface ListRecord {
+  readonly key: string;
+  readonly name: string;
+  readonly color: string;
+  readonly visible: boolean;
+}
+
+type Mutable<T> = { -readonly [K in keyof T]: T[K] };
+
+const pad2 = (value: number): string => String(value).padStart(2, '0');
+
+const DAY_KEY = /^(-?\d{4,})-(\d{2})-(\d{2})$/;
+
+/** 界面里的事件日期 `[年, 月(0 起), 日]` 转成库里的 `YYYY-MM-DD`。 */
+export function dayKey(date: CalendarEvent['d']): string {
+  const [year, month, day] = date;
+  const digits = String(Math.abs(year)).padStart(4, '0');
+  return `${year < 0 ? '-' : ''}${digits}-${pad2(month + 1)}-${pad2(day)}`;
+}
+
+/** 库里的 `YYYY-MM-DD` 转回界面里的 `[年, 月(0 起), 日]`；格式不对就抛错，不猜。 */
+export function dayOf(key: string): CalendarEvent['d'] {
+  const match = DAY_KEY.exec(key);
+  if (!match) throw new Error(`Invalid calendar day: ${key}`);
+  return [Number(match[1]), Number(match[2]) - 1, Number(match[3])];
+}
+
+/** 库里的事件行转成界面用的事件。 */
+export const eventOf = (row: EventRecord): CalendarEvent => ({
+  id: row.id,
+  d: dayOf(row.day),
+  t: row.title,
+  s: row.startMinutes,
+  dur: row.durationMinutes,
+  cal: row.calendar,
+  loc: row.location,
+  notes: row.notes
+});
+
+/** 界面里的事件草稿转成库里的字段。 */
+export const fieldsOf = (draft: CalendarEventDraft): EventFields => ({
+  day: dayKey(draft.d),
+  title: draft.t,
+  startMinutes: draft.s,
+  durationMinutes: draft.dur,
+  calendar: draft.cal,
+  location: draft.loc,
+  notes: draft.notes
+});
+
+/** 界面里的部分改动转成库里的字段补丁；没提到的字段不动（`s: null` 是改成全天，不算没提到）。 */
+export function patchOf(patch: Partial<CalendarEventDraft>): Partial<EventFields> {
+  const fields: Partial<Mutable<EventFields>> = {};
+  if (patch.d !== undefined) fields.day = dayKey(patch.d);
+  if (patch.t !== undefined) fields.title = patch.t;
+  if (patch.s !== undefined) fields.startMinutes = patch.s;
+  if (patch.dur !== undefined) fields.durationMinutes = patch.dur;
+  if (patch.cal !== undefined) fields.calendar = patch.cal;
+  if (patch.loc !== undefined) fields.location = patch.loc;
+  if (patch.notes !== undefined) fields.notes = patch.notes;
+  return fields;
+}
+
+/** 库里的日历行转成界面用的日历：`id` 就是稳定的 `key`。 */
+export const listOf = (row: ListRecord): CalendarList => ({
+  id: row.key,
+  name: row.name,
+  c: row.color,
+  on: row.visible
+});
+
+/**
+ * 日历文案的翻译入口：{@link CalendarStore} 构造时绑定当前 i18n 运行时（读 locale 信号，语言切换时
+ * 界面里的 computed 随模板重算；错误消息在抛出时定格）；未绑定时（单测没有 i18n provider）回退英文原文，
+ * 行为与改动前一致。
+ */
+let calendarTranslate: ((key: string, english: string) => string) | undefined;
+
+/** 绑定翻译入口；返回解除绑定的函数（只在绑定仍是自己时解除）。 */
+export function bindCalendarMessages(t: (key: string, english: string) => string): () => void {
+  calendarTranslate = t;
+  return () => {
+    if (calendarTranslate === t) calendarTranslate = undefined;
+  };
+}
+
+/** 按当前绑定解析日历文案；未绑定时回退英文原文。 */
+export const calendarMessage = (key: string, english: string): string => calendarTranslate?.(key, english) ?? english;
+
+/** 并发或删除造成的编辑冲突，只显示用户可理解的原因。 */
+export class CalendarChangeError extends Error {
+  constructor(kind: 'conflict' | 'missing' | 'calendar') {
+    const messages = {
+      conflict: calendarMessage(
+        'error.calendar.conflict',
+        'This event changed in another window. Save a copy or discard your changes before reopening it.'
+      ),
+      missing: calendarMessage(
+        'error.calendar.missing',
+        'This event is no longer available. Save a copy to keep your changes.'
+      ),
+      calendar: calendarMessage(
+        'error.calendar.calendar',
+        'This calendar is no longer available. Choose another calendar before saving.'
+      )
+    };
+    super(messages[kind]);
+  }
+}
+
+export const sameCalendarEvent = (a: CalendarEventDraft, b: CalendarEventDraft): boolean =>
+  a.d.join() === b.d.join() &&
+  a.t === b.t &&
+  a.s === b.s &&
+  a.dur === b.dur &&
+  a.cal === b.cal &&
+  a.loc === b.loc &&
+  a.notes === b.notes;

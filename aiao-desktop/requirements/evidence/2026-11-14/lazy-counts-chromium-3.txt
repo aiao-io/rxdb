@@ -1,0 +1,18 @@
+
+> nx run aiao-desktop-e2e:e2e --args=--group=lazy-loading --parallel=1 --report=/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/aiao-desktop/requirements/evidence/2026-11-14/lazy-counts-chromium-3.json
+
+aiao-desktop-e2e: (node:47013) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+aiao-desktop-e2e: (Use `node --trace-warnings ...` to show where the warning was created)
+aiao-desktop-e2e: ✓ lazy-loading  15.5s
+aiao-desktop-e2e: 检查组 1 个，总耗时 15.5s（引擎 chromium，并行 1）
+aiao-desktop-e2e: {"lazyLoading":{"everyAppIsItsOwnChunk":true,"startupLoadsOnlyShellScripts":true,"startupSkipsAppEntries":true,"startupWritesNoAppSeeds":true,"oneAppLoadsOnlyItsChunk":true,"oneAppWritesNoSeeds":true,"firstReadSeedsItsDomain":true,"widgetsShowSeededData":true,"widgetsOnExistingLibrary":true,"widgetsLoadNoAppChunks":true,"remoteEntryOnlyWhenOpened":true,"remoteEntryNotReloadedByMinimize":true,"bundledHtmlOnlyWhenOpened":true,"bundledHtmlFreshOnReopen":true}}
+
+
+
+ NX   Successfully ran target e2e for project aiao-desktop-e2e
+
+
+  Run duration:      16.0s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     15.9s (1 task)
+  Recoverable time:  <1ms

@@ -1,0 +1,33 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "implicitDependencies": ["aiao-vscode"],
+  "name": "aiao-vscode-e2e",
+  "projectType": "application",
+  "sourceRoot": "apps/aiao-vscode-e2e/src",
+  "tags": ["product:vscode", "type:e2e"],
+  "targets": {
+    "e2e": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["aiao-vscode:build"],
+      "options": {
+        "command": "pnpm exec playwright test -c apps/aiao-vscode-e2e/workbench.config.ts",
+        "cwd": "."
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/aiao-vscode-e2e",
+        "command": "tsc -p tsconfig.json --noEmit"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/aiao-vscode-e2e",
+        "command": "eslint . --max-warnings=0"
+      }
+    }
+  }
+}

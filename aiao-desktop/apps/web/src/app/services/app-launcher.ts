@@ -1,0 +1,62 @@
+import { Service, inject } from '@angular/core';
+
+import { DesktopAppId } from './desktop-apps';
+import type { DesktopWindow } from './desktop-window';
+import { DockState } from './dock-state';
+import { Overlays } from './overlays';
+import { WindowManager } from './window-manager';
+
+/** 从 Dock、启动台或聚焦搜索激活一个应用：已开则调到前台，否则弹跳并打开。 */
+@Service({ autoProvided: false })
+export class AppLauncher {
+  private readonly wm = inject(WindowManager);
+  private readonly dock = inject(DockState);
+  private readonly overlays = inject(Overlays);
+
+  activate(appId: DesktopAppId): void {
+    if (appId === 'launchpad') {
+      this.overlays.toggleLaunchpad();
+      return;
+    }
+    if (appId === 'trash') {
+      this.openTrash();
+      return;
+    }
+    /* 隐藏的应用从 Dock 再次打开时整组恢复（macOS 的 Show All Windows 语义）。 */
+    this.wm.unhideApp(appId);
+    const existing = this.wm.byApp(appId).filter(win => appId !== 'finder' || !this.isTrashWindow(win));
+    if (!existing.length) {
+      this.dock.bounce(appId);
+      this.wm.open(appId);
+      return;
+    }
+    const minimized = existing.find(win => win.minimized());
+    if (minimized) {
+      this.wm.unminimize(minimized.id);
+      return;
+    }
+    const front = existing[existing.length - 1].id;
+    this.wm.focus(front);
+    /* 刷新后延后装载的窗口（终端、游戏）：从 Dock 等入口再次打开就是要用它，此刻装载。 */
+    this.wm.activate(front);
+  }
+
+  private openTrash(): void {
+    const existing = this.wm.byApp('finder').find(win => this.isTrashWindow(win));
+    if (!existing) {
+      /* 废纸篓是系统入口：只开 Trash，不把其他被隐藏的 Finder 窗口一起还原出来。 */
+      this.wm.open('finder', { path: ['Trash'], keepHidden: true });
+      return;
+    }
+    if (existing.minimized()) {
+      this.wm.unminimize(existing.id, { keepHidden: true });
+      return;
+    }
+    this.wm.focus(existing.id);
+    this.wm.activate(existing.id);
+  }
+
+  private isTrashWindow(win: DesktopWindow): boolean {
+    return (win.restoreOptions()?.path ?? win.options.path)?.[0] === 'Trash';
+  }
+}

@@ -1,0 +1,39 @@
+<div class="tb plain" data-drag>
+  <div class="title" data-window-title>{{ win.title() === win.app.name ? appName(win.app) : win.title() }}</div>
+  <div class="tbz"><app-traffic-lights /></div>
+  <div class="grow"></div>
+  <div class="tbz"></div>
+</div>
+@switch (win.state()) {
+  @case ('failed') {
+    <div class="ws" data-window-failure role="alert">
+      <svg class="ws-icon" [appIcon]="win.app.icon"></svg>
+      <h2>{{ i18n.t('shell.window.cannotOpen', { name: appName(win.app) }) }}</h2>
+      <p data-window-failure-reason>{{ win.failure() }}</p>
+      <button class="btn pri" (click)="retry()" data-window-retry type="button">
+        {{ i18n.t('shell.window.tryAgain') }}
+      </button>
+    </div>
+  }
+  @case ('registered') {
+    <button
+      class="ws ws-idle"
+      [attr.aria-describedby]="'ws-hint-' + win.id"
+      [attr.aria-label]="i18n.t('shell.window.start', { name: appName(win.app) })"
+      (click)="start()"
+      data-window-idle
+      type="button"
+    >
+      <svg class="ws-icon" [appIcon]="win.app.icon"></svg>
+      <span class="ws-title">{{ i18n.t('shell.window.notRunning', { name: appName(win.app) }) }}</span>
+      <span class="ws-hint" [id]="'ws-hint-' + win.id">{{ i18n.t('shell.window.firstStartHint') }}</span>
+    </button>
+  }
+  @default {
+    <div class="ws" data-window-loading role="status">
+      <svg class="ws-icon" [appIcon]="win.app.icon"></svg>
+      <div class="ws-spinner"></div>
+      <p>{{ i18n.t('shell.window.opening', { name: appName(win.app) }) }}</p>
+    </div>
+  }
+}

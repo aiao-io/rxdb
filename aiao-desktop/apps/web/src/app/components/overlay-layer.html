@@ -1,0 +1,33 @@
+<div id="layer-overlay">
+  @defer (when overlays.launchpad() !== 'closed') {
+    @if (overlays.launchpad() !== 'closed') {
+      <app-launchpad [appFocusTrap]="overlays.launchpad() === 'open'" [trapInitialFocus]="false" />
+    }
+  }
+  @defer (when overlays.spotlight() !== 'closed') {
+    @if (overlays.spotlight() !== 'closed') {
+      <app-spotlight [appFocusTrap]="overlays.spotlight() === 'open'" [trapInitialFocus]="false" />
+    }
+  }
+  @defer (when overlays.notifications() !== 'closed') {
+    @if (overlays.notifications() !== 'closed') {
+      <app-notification-centre [appFocusTrap]="overlays.notifications() === 'open'" />
+    }
+  }
+  @defer (when overlays.mission() !== 'closed') {
+    @if (overlays.mission() !== 'closed') {
+      <app-mission-control [appFocusTrap]="overlays.mission() === 'open'" [trapInitialFocus]="false" />
+    }
+  }
+  <!-- [BANNER] 常驻的通知横幅栈（组件由 impl:overlays-b 提供，selector 固定 app-notification-banner-stack）。 -->
+  <app-notification-banner-stack></app-notification-banner-stack>
+</div>
+<div id="layer-menu">
+  <div id="menu-shield" [class.on]="popover.isOpen()" (contextmenu)="shield($event)" (mousedown)="shield($event)"></div>
+  @defer (when popover.isOpen()) {
+    @for (entry of popover.entries(); track entry.id) {
+      <app-popover-entry [entry]="entry" />
+    }
+  }
+</div>
+<div id="dimmer" [style.opacity]="dim()" aria-hidden="true"></div>

@@ -1,0 +1,54 @@
+{
+  "allRequirementsComplete": false,
+  "artifactIndexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
+  "authority": {
+    "type": "explicit user instruction",
+    "text": "只验收 chrome 就够了",
+    "decision": "D-19"
+  },
+  "automatedBrowserEngine": "chromium",
+  "changedStory": {
+    "id": "ADESK-US-005",
+    "currentAcceptanceAllPassed": true,
+    "status": "In Review",
+    "waitingForDependency": "ADESK-US-008"
+  },
+  "chromeHardwareEvidenceNote": "The hardware report identifies channel chrome and its original build. The game asset digest matches the current shipped game; its older index digest is not represented as a new whole-site run.",
+  "chromeHardwareReport": "saltline-gpu-final-3.json",
+  "format": "aiao-desktop.chrome-only-scope",
+  "historicalOrOptionalEngines": ["firefox", "webkit", "native Safari"],
+  "historyPreserved": true,
+  "pendingAcceptanceCount": 5,
+  "productSourceChanged": false,
+  "recordedAt": "2026-11-14T09:17:39.339Z",
+  "remaining": [
+    {
+      "id": "ADESK-US-206",
+      "acceptance": [7]
+    },
+    {
+      "id": "ADESK-US-107",
+      "acceptance": [8]
+    },
+    {
+      "id": "ADESK-US-108",
+      "acceptance": [6]
+    },
+    {
+      "id": "ADESK-US-004",
+      "acceptance": [2]
+    },
+    {
+      "id": "ADESK-US-008",
+      "acceptance": [10]
+    }
+  ],
+  "requiredBrowser": "desktop Google Chrome",
+  "requiredBrowserReports": ["chromium-browser-support-verify-2.json", "chromium-browser-support-verify.json"],
+  "storyCounts": {
+    "Done": 12,
+    "In Review": 10
+  },
+  "unfinishedSafariChecksMarkedPassed": false,
+  "version": 1
+}

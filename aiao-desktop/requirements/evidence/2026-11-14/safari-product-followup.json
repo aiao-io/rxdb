@@ -1,0 +1,119 @@
+{
+  "artifactIndexSha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
+  "checks": {
+    "terminalShellPromptObserved": true,
+    "terminalEchoOutputObserved": true,
+    "terminalCreatedDesktopFile": true,
+    "terminalCatReadsSavedContent": true,
+    "textEditOpensTerminalFile": true,
+    "browserReloadRestoresTerminalFileWindow": true,
+    "browserReloadKeepsTerminalFileContent": true,
+    "gameLaunchpadEntryOpensSameOriginDocument": true,
+    "gameTitleControlsObserved": true,
+    "gameStartRemovesTitleControls": true,
+    "game3dSceneAndTaskHudObserved": true,
+    "gamePauseMenuObserved": true,
+    "gameResumeRemovesPauseControls": true
+  },
+  "cleanup": {
+    "acceptanceServerPid": 55482,
+    "acceptanceServerPort": 51384,
+    "acceptanceServerStopSignal": "SIGINT",
+    "acceptanceServerExitCode": 130,
+    "acceptancePortReleased": true,
+    "existing4411ServerPidRetained": 78793,
+    "browserCleanupAfterUserChangePerformed": false,
+    "acceptanceOriginDataRetained": true
+  },
+  "format": "aiao-desktop.native-safari-followup",
+  "game": {
+    "entry": "Launchpad → 几猫3A大作",
+    "documentUrlObserved": "http://127.0.0.1:51384/saltline.html",
+    "titleControlsObserved": ["开始行动", "设置", "项目介绍", "操作说明"],
+    "renderingObserved": ["container yard", "rifle", "task objective", "compass", "ammo HUD"],
+    "pauseControlsObserved": ["已暂停", "继续游戏", "设置", "操作说明", "重新开始任务"],
+    "pauseInputNote": "CUA sent native Escape during the session; the pause menu was observed later. This is not physical keyboard evidence or a measured input latency.",
+    "pointerCaptureMessageObserved": "鼠标捕获不可用：移动鼠标调整视角，停在屏幕边缘持续转向；点击开火；方向键或 IJKL 也可转向",
+    "pointerLockVerified": false,
+    "pointerLockCauseEstablished": false,
+    "completeInputPathVerified": false,
+    "fpsMeasured": false,
+    "nativeInspectorConsole": {
+      "openedAfterGameStart": true,
+      "errorObservedAtInspection": false,
+      "fullLifecycleErrorCapture": false,
+      "bootLogsObservedMs": {
+        "render": 4389,
+        "level": 9033,
+        "backdrop": 841,
+        "ground": 8096,
+        "fx": 682,
+        "audio": 590,
+        "enemies": 243
+      },
+      "note": "Observed boot logs and a renderer material assignment log; an absence of visible errors here is not a full-lifecycle error assertion."
+    }
+  },
+  "interruption": {
+    "reason": "CUA reported that the user changed Safari; a fresh observation showed Start Page.",
+    "furtherGuiActionsStopped": true,
+    "followupStateQueryResultObserved": false
+  },
+  "method": {
+    "browser": "native Safari macOS application",
+    "browserVersion": "27.2",
+    "browserBuild": "22625.2.8.11.9",
+    "versionSource": "/Applications/Safari.app/Contents/Info.plist",
+    "window": "new independent normal browser window",
+    "origin": "http://127.0.0.1:51384",
+    "originNote": "Reused the dedicated acceptance origin from the previous record, not an unrelated user origin.",
+    "navigation": "/?boot=0",
+    "driver": "CUA native accessibility actions, native input and screenshot observation",
+    "pageJavaScriptQuery": {
+      "attempted": true,
+      "purpose": "read-only game readiness, errors, pointer lock and state",
+      "returnedResultObserved": false,
+      "usedAsAcceptanceEvidence": false,
+      "note": "typeText lost punctuation; paste and Return produced no observed result before the application state changed. No state values are inferred from the requested expression."
+    },
+    "simulatedUserGestureEnabled": false,
+    "acceptedPermissions": false,
+    "systemSettingsChanged": false,
+    "loggedIn": false
+  },
+  "notProven": [
+    "game pointer lock",
+    "complete game input path",
+    "all page errors over the complete flow",
+    "remaining Safari core paths",
+    "physical keyboard",
+    "VoiceOver"
+  ],
+  "previousEvidence": "safari-product-entry.json",
+  "recordedAt": "2026-11-14T08:03:45+00:00",
+  "safariProductAcceptanceComplete": false,
+  "sourceHead": "13d8a872b992a0b68070cac3e49c72c68fb47840",
+  "terminal": {
+    "file": "~/Desktop/safari-native-terminal.txt",
+    "scope": "only the dedicated acceptance origin",
+    "observedContent": "SAFARI_TERMINAL_20261114\n",
+    "writeCommand": "echo SAFARI_TERMINAL_20261114 > ~/Desktop/safari-native-terminal.txt",
+    "readCommand": "cat ~/Desktop/safari-native-terminal.txt",
+    "observedReadback": "SAFARI_TERMINAL_20261114",
+    "textEditAccessibleContentBeforeReload": "SAFARI_TERMINAL_20261114\n",
+    "textEditAccessibleContentAfterReload": "SAFARI_TERMINAL_20261114\n",
+    "probeInput": "echo SAFARI_READY",
+    "probeOutputObserved": "SAFARI_READY",
+    "initialInputVariation": "The typeText attempt displayed SAFARIREADY without the underscore; subsequent paste displayed SAFARI_READY exactly.",
+    "failedAttempt": {
+      "command": "printf 'SAFARI_TERMINAL_20261114\\n' > ~/Desktop/safari-native-terminal.txt && cat ~/Desktop/safari-native-terminal.txt",
+      "attemptsObserved": 2,
+      "output": "sh: printf: not found",
+      "emptyFileOpenedBeforeEcho": true,
+      "countedAsSuccessfulWrite": false
+    },
+    "intermediateObservation": "Initial blank terminal screenshots did not show the prompt or command output. A later observation showed the prompt and the queued command output. No VM readiness timing or root cause is claimed."
+  },
+  "version": 1,
+  "workspaceDirty": true
+}

@@ -1,0 +1,99 @@
+{
+  "ac": 6,
+  "acceptanceStatus": "not executed",
+  "allRequirementsComplete": false,
+  "counts": {
+    "Done": 21,
+    "In Review": 1,
+    "total": 22
+  },
+  "decision": "defer actual VoiceOver acceptance to a future session",
+  "format": "aiao-desktop.acceptance-deferral",
+  "localDate": "2026-11-15",
+  "passed": false,
+  "recordedAt": "2026-11-14T23:45:07.687Z",
+  "resumeChecklist": "../../../apps/e2e/VOICEOVER.md",
+  "resumeRequires": [
+    "Record environment and initial VoiceOver/navigation settings again",
+    "Capture actual announcements for V01-V14",
+    "Restore settings and test state after verification"
+  ],
+  "source": "direct user instruction in this conversation",
+  "story": "ADESK-US-108",
+  "storyStatus": "In Review",
+  "systemVoiceover": {
+    "initialActualState": "not confirmed",
+    "toggledDuringThisManualAcceptance": false
+  },
+  "temporaryKeyboardProbe": {
+    "url": "http://127.0.0.1:50925/?boot=0",
+    "shutdownRequested": true,
+    "shutdownConfirmed": true,
+    "endedAt": "2026-11-14T23:45:07.828Z",
+    "endReason": "operator control completed",
+    "staticServerConnection": "ECONNREFUSED",
+    "verification": "Probe shutdown closes its isolated Chrome before closing the static server; the server now refuses connections."
+  },
+  "timeZone": "Asia/Shanghai",
+  "userInstruction": "VoiceOver 跳过 未来再说",
+  "version": 1,
+  "voiceoverSteps": [
+    {
+      "id": "V01",
+      "status": "not executed"
+    },
+    {
+      "id": "V02",
+      "status": "not executed"
+    },
+    {
+      "id": "V03",
+      "status": "not executed"
+    },
+    {
+      "id": "V04",
+      "status": "not executed"
+    },
+    {
+      "id": "V05",
+      "status": "not executed"
+    },
+    {
+      "id": "V06",
+      "status": "not executed"
+    },
+    {
+      "id": "V07",
+      "status": "not executed"
+    },
+    {
+      "id": "V08",
+      "status": "not executed"
+    },
+    {
+      "id": "V09",
+      "status": "not executed"
+    },
+    {
+      "id": "V10",
+      "status": "not executed"
+    },
+    {
+      "id": "V11",
+      "status": "not executed"
+    },
+    {
+      "id": "V12",
+      "status": "not executed"
+    },
+    {
+      "id": "V13",
+      "status": "not executed"
+    },
+    {
+      "id": "V14",
+      "status": "not executed"
+    }
+  ],
+  "waived": false
+}

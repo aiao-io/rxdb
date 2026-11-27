@@ -1,0 +1,49 @@
+
+> nx run aiao-desktop:dev-test
+
+> node --test scripts/dev/*.spec.mjs
+
+(node:15473) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:15474) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 固定端口被占用时直接失败，不换端口，也不停止占用者 (6.23659ms)
+(node:15475) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 导航页列出服务入口、常用命令与文档，并标明当前检出位 (3.344791ms)
+✔ 检出位与分支名按 HTML 转义后再写入页面 (1.420362ms)
+✔ 导航服务返回页面与服务状态，不缓存、不带来源 (18.027431ms)
+开发导航渲染失败：导航模板引用了未知的占位符：X
+✔ 每次请求重新渲染导航页，模板出错时返回 500 并写明原因 (3.339571ms)
+✔ 导航服务拒绝其他 Host、其他方法与未知路径 (3.983754ms)
+✔ 探测服务：带齐跨源隔离响应头才算隔离，连不上或超时算未运行 (220.162871ms)
+(node:15476) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 用系统浏览器打开一次开发导航 (1.567927ms)
+✔ 无界面环境可以关掉自动打开 (0.154921ms)
+✔ 打不开浏览器时报错，不换别的方式重试 (0.502002ms)
+✔ 不认识的系统明确报错 (0.192204ms)
+(node:15477) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ 开发服务器、正式构建预览与开发导航的端口和固定入口一致 (4.093532ms)
+✔ 开发服务器启动前先检查固定端口、构建依赖包并准备包管理器资源 (1.222298ms)
+✔ 正式构建预览是常驻服务：就绪不等于任务结束 (0.556624ms)
+✔ 三个入口互不冲突，导航与预览只监听本机回环地址 (0.235612ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 370.574803
+
+
+
+ NX   Successfully ran target dev-test for project aiao-desktop
+
+
+  Run duration:      1.2s
+  Cache:             0/1 hit (0%)
+  Critical path:     445ms (1 task)
+  Recoverable time:  <1ms

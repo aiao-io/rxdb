@@ -1,0 +1,90 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-17T14:30:12.340Z",
+  "source": {
+    "sha": "ef822a0403bdb32492f01df484baaf0571e20f95",
+    "changes": "M src/groups/index.mjs\n M ../web/src/app/apps/mail/mail-composer.ts\n M ../web/src/app/apps/mail/mail-model.spec.ts\n M ../web/src/app/apps/mail/mail-model.ts\n M ../web/src/app/apps/mail/mail.html\n M ../web/src/app/apps/mail/mail.ts\n M ../web/src/app/apps/photos/photos.ts\n M ../web/src/app/apps/preview/preview.ts\n M ../web/src/styles.scss\n M ../web/vitest.config.mts\n M ../../requirements/README.md\n M ../../requirements/epics/ADESK-EPIC-002.md\n M ../../requirements/evidence/2026-11-17/README.md\n M ../../requirements/roadmap.md\n M ../../requirements/status-overview.md\n?? src/groups/local-mail.mjs\n?? ../web/src/app/apps/mail/mail-draft.spec.ts\n?? ../web/src/app/apps/mail/mail-draft.ts\n?? ../../requirements/stories/desktop/ADESK-US-118-local-mail-drafts.md"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "158.0.8127.18",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/Documents/GitHub/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "047048e4aebba45c2b82c9581cb77e713ba7175c4330f3b258a6f1f8e8ccf5fc"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 3,
+    "groups": [
+      "local-mail"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 36.443825042,
+  "outcomes": [
+    {
+      "group": "local-mail",
+      "result": {},
+      "problems": [
+        "检查组异常：\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveValue\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  getByRole('dialog', { name: 'Local mail draft', exact: true }).getByRole('textbox', { name: 'Message', exact: true })\nExpected: \u001b[32m\"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Sydney_%28AU%29%2C_Coast%2C_Australian_Fur_Seals_--_2019_--_3489.jpg/\u001b[7m128\u001b[27m0px-Sydney_%28AU%29%2C_Coast%2C_Australian_Fur_Seals_--_2019_--_3489.jpg\"\u001b[39m\nReceived: \u001b[31m\"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Sydney_%28AU%29%2C_Coast%2C_Australian_Fur_Seals_--_2019_--_3489.jpg/\u001b[7m50\u001b[27m0px-Sydney_%28AU%29%2C_Coast%2C_Australian_Fur_Seals_--_2019_--_3489.jpg\"\u001b[39m\nTimeout:  15000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveValue\" getByRole('dialog', { name: 'Local mail draft', exact: true }).getByRole('textbox', { name: 'Message', exact: true }) with timeout 15000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('dialog', { name: 'Local mail draft', exact: true }).getByRole('textbox', { name: 'Message', exact: true })\u001b[22m\n\u001b[2m    32 × locator resolved to <textarea rows=\"7\" data-body=\"\" aria-label=\"Message\"></textarea>\u001b[22m\n\u001b[2m       - unexpected value \"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Sydney_%28AU%29%2C_Coast%2C_Australian_Fur_Seals_--_2019_--_3489.jpg/500px-Sydney_%28AU%29%2C_Coast%2C_Australian_Fur_Seals_--_2019_--_3489.jpg\"\u001b[22m\n（groups/local-mail.mjs:233）"
+      ],
+      "failedKeys": [],
+      "missingKeys": [
+        "localMail.localScope",
+        "localMail.failedSaveKeepsFields",
+        "localMail.hiddenAndReplacedPanelKeepsDraft",
+        "localMail.closeAndRestartKeepDraft",
+        "localMail.retrySavesOneLocalDraft",
+        "localMail.pendingSaveBlocksClose",
+        "localMail.persistedDraftEditable",
+        "localMail.searchAndFlagFailure",
+        "localMail.conflictAndCopyRecovery",
+        "localMail.deletedDraftRetained",
+        "localMail.replyAndForwardContent",
+        "localMail.sharedContentDrafts",
+        "localMail.beforeUnloadGuard",
+        "localMail.keyboardRecovery",
+        "localMail.noViolations"
+      ],
+      "extraKeys": [],
+      "crashed": "\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveValue\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  getByRole('dialog', { name: 'Local mail draft', exact: true }).getByRole('textbox', { name: 'Message', exact: true })\nExpected: \u001b[32m\"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Sydney_%28AU%29%2C_Coast%2C_Australian_Fur_Seals_--_2019_--_3489.jpg/\u001b[7m128\u001b[27m0px-Sydney_%28AU%29%2C_Coast%2C_Australian_Fur_Seals_--_2019_--_3489.jpg\"\u001b[39m\nReceived: \u001b[31m\"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Sydney_%28AU%29%2C_Coast%2C_Australian_Fur_Seals_--_2019_--_3489.jpg/\u001b[7m50\u001b[27m0px-Sydney_%28AU%29%2C_Coast%2C_Australian_Fur_Seals_--_2019_--_3489.jpg\"\u001b[39m\nTimeout:  15000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveValue\" getByRole('dialog', { name: 'Local mail draft', exact: true }).getByRole('textbox', { name: 'Message', exact: true }) with timeout 15000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('dialog', { name: 'Local mail draft', exact: true }).getByRole('textbox', { name: 'Message', exact: true })\u001b[22m\n\u001b[2m    32 × locator resolved to <textarea rows=\"7\" data-body=\"\" aria-label=\"Message\"></textarea>\u001b[22m\n\u001b[2m       - unexpected value \"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Sydney_%28AU%29%2C_Coast%2C_Australian_Fur_Seals_--_2019_--_3489.jpg/500px-Sydney_%28AU%29%2C_Coast%2C_Australian_Fur_Seals_--_2019_--_3489.jpg\"\u001b[22m\n（groups/local-mail.mjs:233）",
+      "pageErrors": [],
+      "seconds": 36.38566825
+    }
+  ],
+  "checks": {},
+  "limitations": {
+    "known": [],
+    "unexpected": [
+      "[local-mail] 检查项未通过或缺失：localMail.localScope",
+      "[local-mail] 检查项未通过或缺失：localMail.failedSaveKeepsFields",
+      "[local-mail] 检查项未通过或缺失：localMail.hiddenAndReplacedPanelKeepsDraft",
+      "[local-mail] 检查项未通过或缺失：localMail.closeAndRestartKeepDraft",
+      "[local-mail] 检查项未通过或缺失：localMail.retrySavesOneLocalDraft",
+      "[local-mail] 检查项未通过或缺失：localMail.pendingSaveBlocksClose",
+      "[local-mail] 检查项未通过或缺失：localMail.persistedDraftEditable",
+      "[local-mail] 检查项未通过或缺失：localMail.searchAndFlagFailure",
+      "[local-mail] 检查项未通过或缺失：localMail.conflictAndCopyRecovery",
+      "[local-mail] 检查项未通过或缺失：localMail.deletedDraftRetained",
+      "[local-mail] 检查项未通过或缺失：localMail.replyAndForwardContent",
+      "[local-mail] 检查项未通过或缺失：localMail.sharedContentDrafts",
+      "[local-mail] 检查项未通过或缺失：localMail.beforeUnloadGuard",
+      "[local-mail] 检查项未通过或缺失：localMail.keyboardRecovery",
+      "[local-mail] 检查项未通过或缺失：localMail.noViolations",
+      "[local-mail] 检查组异常：\u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoHaveValue\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator:  getByRole('dialog', { name: 'Local mail draft', exact: true }).getByRole('textbox', { name: 'Message', exact: true })\nExpected: \u001b[32m\"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Sydney_%28AU%29%2C_Coast%2C_Australian_Fur_Seals_--_2019_--_3489.jpg/\u001b[7m128\u001b[27m0px-Sydney_%28AU%29%2C_Coast%2C_Australian_Fur_Seals_--_2019_--_3489.jpg\"\u001b[39m\nReceived: \u001b[31m\"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Sydney_%28AU%29%2C_Coast%2C_Australian_Fur_Seals_--_2019_--_3489.jpg/\u001b[7m50\u001b[27m0px-Sydney_%28AU%29%2C_Coast%2C_Australian_Fur_Seals_--_2019_--_3489.jpg\"\u001b[39m\nTimeout:  15000ms\n\nCall log:\n\u001b[2m  - Expect \"toHaveValue\" getByRole('dialog', { name: 'Local mail draft', exact: true }).getByRole('textbox', { name: 'Message', exact: true }) with timeout 15000ms\u001b[22m\n\u001b[2m  - waiting for getByRole('dialog', { name: 'Local mail draft', exact: true }).getByRole('textbox', { name: 'Message', exact: true })\u001b[22m\n\u001b[2m    32 × locator resolved to <textarea rows=\"7\" data-body=\"\" aria-label=\"Message\"></textarea>\u001b[22m\n\u001b[2m       - unexpected value \"https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Sydney_%28AU%29%2C_Coast%2C_Australian_Fur_Seals_--_2019_--_3489.jpg/500px-Sydney_%28AU%29%2C_Coast%2C_Australian_Fur_Seals_--_2019_--_3489.jpg\"\u001b[22m\n（groups/local-mail.mjs:233）"
+    ],
+    "stale": []
+  },
+  "passed": false,
+  "clean": false
+}

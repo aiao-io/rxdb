@@ -1,0 +1,75 @@
+{
+  "format": "aiao-desktop.smoke",
+  "version": 1,
+  "measuredAt": "2026-11-21T02:32:38.411Z",
+  "source": {
+    "sha": "fccbc72865dd490add2ac50c54751c4df612c89b",
+    "changes": "M  src/groups/file-management.mjs\nM  src/groups/local-messages.mjs"
+  },
+  "environment": {
+    "os": "darwin",
+    "release": "27.2.0",
+    "arch": "arm64",
+    "cpu": "Apple M1 Max",
+    "node": "v26.12.0",
+    "browser": "159.0.8154.6",
+    "engine": "chromium",
+    "headless": true
+  },
+  "artifact": {
+    "root": "/Users/jimmy/.codex/worktrees/pr202-merge-checks/rxdb-012-web-desktop-product/dist/aiao-desktop/apps/web/browser",
+    "indexSha256": "fb5e817852ca72deb79029fecbb73a2c241f72694629788cd9b8f730c52eddaa"
+  },
+  "method": {
+    "previousBuild": null,
+    "parallel": 1,
+    "groups": [
+      "browser-session-restore"
+    ],
+    "isolatedOrigins": true,
+    "integratedArtifactTransport": "loopback-http",
+    "interceptedExternalRequests": true
+  },
+  "seconds": 47.22878004100001,
+  "outcomes": [
+    {
+      "group": "browser-session-restore",
+      "result": {
+        "sessionRestore": {
+          "browserProcessRestartRestoresWindows": true,
+          "persistentChromiumProfile": true,
+          "corruptSnapshotStartsFresh": true,
+          "recentActiveTabWins": true,
+          "activeTabDoesNotDuplicateResume": true,
+          "explicitCloseNotRestored": true,
+          "failedWindowDoesNotBlock": true
+        }
+      },
+      "problems": [],
+      "failedKeys": [],
+      "missingKeys": [],
+      "extraKeys": [],
+      "crashed": null,
+      "pageErrors": [],
+      "seconds": 47.177699959
+    }
+  ],
+  "checks": {
+    "sessionRestore": {
+      "browserProcessRestartRestoresWindows": true,
+      "persistentChromiumProfile": true,
+      "corruptSnapshotStartsFresh": true,
+      "recentActiveTabWins": true,
+      "activeTabDoesNotDuplicateResume": true,
+      "explicitCloseNotRestored": true,
+      "failedWindowDoesNotBlock": true
+    }
+  },
+  "limitations": {
+    "known": [],
+    "unexpected": [],
+    "stale": []
+  },
+  "passed": true,
+  "clean": true
+}

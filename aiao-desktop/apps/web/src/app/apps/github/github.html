@@ -1,0 +1,1669 @@
+<div
+  class="gd-workspace gh-app"
+  [attr.data-github-theme]="appTheme()"
+  [class.has-repository]="activeRecord()"
+  [style.--gh-diff-tab-size]="diffTabSize()"
+  [style.--gh-repository-width]="asideWidth() + 'px'"
+  [style.--gh-worktree-width]="(showWorktree() ? worktreeWidth() : 0) + 'px'"
+  (aiaoRepositoryDrop)="droppedDiskFolder($event)"
+  (dragover)="foldersOver($event)"
+  (drop)="dropFolders($event)"
+  data-github-app
+>
+  <h1 class="sr-only">{{ i18n.t('apps.github.title') }}</h1>
+
+  <div class="gh-titlebar" [inert]="repositoryModalOpen()" data-drag>
+    <div class="gh-titlebar-controls">
+      <app-traffic-lights />
+    </div>
+  </div>
+
+  <div
+    class="gd-toolbar gh-toolbar"
+    [attr.aria-label]="i18n.t('apps.github.toolbar')"
+    [inert]="repositoryModalOpen()"
+    data-drag
+    role="toolbar"
+  >
+    <div class="gd-toolbar-section gh-repository-section" [style.width.px]="asideWidth()">
+      <button
+        class="gd-toolbar-select gh-repository-trigger"
+        [attr.aria-expanded]="repositoryMenuOpen() && !localRepositoryOpen()"
+        (click)="toggleRepositoryMenu()"
+        aria-haspopup="menu"
+        data-github-repository-menu
+        type="button"
+      >
+        <svg [lucideIcon]="Monitor" aria-hidden="true" size="16"></svg>
+        <span class="gh-toolbar-copy">
+          <small>{{ i18n.t('apps.github.currentRepository') }}</small>
+          <strong data-github-repository-name>{{ activeRecord()?.name ?? i18n.t('apps.github.repositories') }}</strong>
+        </span>
+        <svg class="gh-toolbar-chevron" [lucideIcon]="ChevronDown" aria-hidden="true" size="12"></svg>
+      </button>
+
+      @if (repositoryMenuOpen() && !localRepositoryOpen()) {
+        <div
+          class="gh-menu-overlay"
+          [attr.aria-label]="i18n.t('apps.github.closeRepositoryMenu')"
+          (click)="closeRepositoryMenu()"
+          (keydown.escape)="closeRepositoryMenu()"
+          data-nodrag
+          role="button"
+          tabindex="0"
+        ></div>
+        @if (repositoryPanel() === 'list') {
+          <div
+            class="gd-menu gh-repository-menu"
+            [attr.aria-label]="i18n.t('apps.github.repositoryList')"
+            data-github-repository-menu-popup
+            role="dialog"
+          >
+            <div class="gh-foldout-filter">
+              <label class="gh-menu-search">
+                <svg [lucideIcon]="Search" aria-hidden="true" size="13"></svg>
+                <input
+                  #repositoryFilterInput
+                  [attr.aria-label]="i18n.t('apps.github.filterRepositories')"
+                  [placeholder]="i18n.t('apps.github.filter')"
+                  [value]="repositoryFilter()"
+                  (input)="setValue('repositoryFilter', $event)"
+                  type="search"
+                />
+              </label>
+              <button
+                class="gd-btn-secondary"
+                [attr.aria-expanded]="addRepositoryMenuOpen()"
+                (click)="addRepositoryMenuOpen.set(!addRepositoryMenuOpen())"
+                aria-haspopup="menu"
+                type="button"
+              >
+                {{ i18n.t('apps.github.add') }}
+                <svg [lucideIcon]="ChevronDown" aria-hidden="true" size="12"></svg>
+              </button>
+              @if (addRepositoryMenuOpen()) {
+                <div
+                  class="gh-add-repository-menu"
+                  [attr.aria-label]="i18n.t('apps.github.addRepositoryMenu')"
+                  role="menu"
+                >
+                  <button class="gd-menu-row" (click)="openRepositoryMenu('clone')" role="menuitem" type="button">
+                    {{ i18n.t('apps.github.cloneRepository') }}
+                  </button>
+                  <button class="gd-menu-row" (click)="openRepositoryMenu('new')" role="menuitem" type="button">
+                    {{ i18n.t('apps.github.createNewRepository') }}
+                  </button>
+                  <button class="gd-menu-row" (click)="openRepositoryMenu('local')" role="menuitem" type="button">
+                    {{ i18n.t('apps.github.addExistingRepository') }}
+                  </button>
+                </div>
+              }
+            </div>
+            <div class="gh-repository-records">
+              @for (group of repositoryGroups(); track group.label) {
+                <div class="gd-menu-header">{{ group.label }}</div>
+                @for (record of group.records; track record.projectId) {
+                  <button
+                    class="gd-menu-row gh-repository-menu-row"
+                    [attr.aria-current]="activeRecord()?.projectId === record.projectId"
+                    [attr.data-project-id]="record.projectId"
+                    [class.gh-repository-menu-row-selected]="activeRecord()?.projectId === record.projectId"
+                    (click)="openStored(record)"
+                    type="button"
+                  >
+                    <svg [lucideIcon]="Monitor" aria-hidden="true" size="16"></svg>
+                    <span class="gh-foldout-name">{{ record.name }}</span>
+                  </button>
+                }
+              } @empty {
+                <p class="gh-menu-empty">
+                  {{
+                    repositoryFilter() ?
+                      i18n.t('apps.github.noMatchingRepositories')
+                    : i18n.t('apps.github.noRepositoriesYet')
+                  }}
+                </p>
+              }
+            </div>
+          </div>
+        } @else {
+          <section
+            class="gd-menu gh-repository-dialog"
+            aria-labelledby="gh-repository-dialog-title"
+            data-github-repository-dialog
+            role="dialog"
+          >
+            <header class="gh-repository-dialog-header">
+              <h2 id="gh-repository-dialog-title">
+                {{
+                  repositoryPanel() === 'new' ?
+                    i18n.t('apps.github.createNewRepositoryTitle')
+                  : i18n.t('apps.github.cloneRepositoryTitle')
+                }}
+              </h2>
+              <button
+                class="gd-btn-ghost"
+                [attr.aria-label]="i18n.t('apps.github.closeRepositoryDialog')"
+                (click)="closeRepositoryMenu()"
+                type="button"
+              >
+                ×
+              </button>
+            </header>
+            @if (repositoryPanel() === 'clone') {
+              @if (searchResults().length) {
+                <div class="gd-menu-divider"></div>
+                <div class="gd-menu-header">{{ i18n.t('apps.github.searchResults') }}</div>
+                @for (result of searchResults(); track result.fullName) {
+                  <button
+                    class="gd-menu-row gh-repository-menu-row"
+                    [attr.data-github-search-result]="result.fullName"
+                    (click)="selectRemoteRepository(result)"
+                    role="menuitem"
+                    type="button"
+                  >
+                    <img alt="" data-github-system-icon src="icons/desktop/app-github.png" />
+                    <span class="min-w-0 flex-1 truncate text-left">
+                      <strong>{{ result.fullName }}</strong>
+                      <small>
+                        {{
+                          i18n.t(result.isPrivate ? 'apps.github.repositoryPrivate' : 'apps.github.repositoryPublic')
+                        }}
+                        · ★ {{ result.stars }}
+                      </small>
+                    </span>
+                  </button>
+                }
+              }
+
+              <section class="gh-menu-section" [attr.aria-label]="i18n.t('apps.github.remoteRepositoryActions')">
+                <div class="gh-menu-form-row">
+                  <input
+                    [attr.aria-label]="i18n.t('apps.github.searchGithubRepositories')"
+                    [placeholder]="i18n.t('apps.github.searchRepositories')"
+                    [value]="searchValue()"
+                    (input)="setValue('search', $event)"
+                    (keydown.enter)="searchRemoteRepositories()"
+                    data-github-search
+                    type="search"
+                  />
+                  <button
+                    [attr.aria-label]="i18n.t('apps.github.searchRepositories')"
+                    (click)="searchRemoteRepositories()"
+                    data-github-search-submit
+                    type="button"
+                  >
+                    {{ i18n.t('apps.github.search') }}
+                  </button>
+                </div>
+                <input
+                  #repositoryInput
+                  [attr.aria-label]="i18n.t('apps.github.githubRepository')"
+                  [placeholder]="i18n.t('apps.github.ownerRepoOrUrl')"
+                  [value]="repoValue()"
+                  (input)="setValue('repo', $event)"
+                  (keydown.enter)="openRemoteRepository()"
+                  data-github-repository
+                  type="search"
+                />
+                <div class="gh-menu-form-row">
+                  <input
+                    [attr.aria-label]="i18n.t('apps.github.githubBranch')"
+                    [placeholder]="i18n.t('apps.github.branch')"
+                    [value]="branchValue()"
+                    (input)="setValue('branch', $event)"
+                    data-github-branch
+                    type="text"
+                  />
+                  @if (remoteBranches().length) {
+                    <select
+                      [attr.aria-label]="i18n.t('apps.github.githubRemoteBranch')"
+                      [value]="branchValue()"
+                      (change)="selectRemoteBranch($event)"
+                      data-github-remote-branch
+                    >
+                      @for (branch of remoteBranches(); track branch.name) {
+                        <option [selected]="currentBranch() === branch.name" [value]="branch.name">
+                          {{ branch.name }}
+                        </option>
+                      }
+                    </select>
+                  }
+                </div>
+                <div class="gh-menu-actions">
+                  <button [disabled]="busy()" (click)="loadRemoteBranches()" data-github-load-branches type="button">
+                    {{ i18n.t('apps.github.loadBranches') }}
+                  </button>
+                  <button [disabled]="busy()" (click)="openRemoteRepository()" data-github-open-remote type="button">
+                    {{ i18n.t('apps.github.openRemote') }}
+                  </button>
+                </div>
+              </section>
+
+              <section
+                class="gh-menu-section gh-menu-auth"
+                [attr.aria-label]="i18n.t('apps.github.githubAuthentication')"
+              >
+                <div class="gh-menu-section-title">{{ i18n.t('apps.github.githubAccount') }}</div>
+                @if (session(); as account) {
+                  <div class="gh-account-row">
+                    <span class="gh-account" data-github-account>{{ account.login }}</span>
+                    <button class="gd-btn-secondary" [disabled]="authBusy()" (click)="logout()" type="button">
+                      {{ i18n.t('apps.github.signOut') }}
+                    </button>
+                  </div>
+                } @else {
+                  <div class="gh-menu-form-row">
+                    <input
+                      [attr.aria-label]="i18n.t('apps.github.githubPersonalAccessToken')"
+                      [placeholder]="i18n.t('apps.github.personalAccessToken')"
+                      [value]="patValue()"
+                      (input)="setValue('pat', $event)"
+                      data-github-pat
+                      type="password"
+                    />
+                    <button
+                      class="gd-btn-secondary"
+                      [disabled]="authBusy()"
+                      (click)="loginWithPat()"
+                      data-github-pat-login
+                      type="button"
+                    >
+                      {{ i18n.t('apps.github.signIn') }}
+                    </button>
+                  </div>
+                  <button
+                    class="gd-btn-primary"
+                    [disabled]="authBusy()"
+                    (click)="loginWithOAuth()"
+                    data-github-oauth-login
+                    type="button"
+                  >
+                    {{ i18n.t('apps.github.continueWithGithub') }}
+                  </button>
+                  @if (oauthAttempt()) {
+                    <button class="gd-btn-secondary" (click)="cancelOAuth()" tabindex="0" type="button">
+                      {{ i18n.t('apps.github.cancelSignIn') }}
+                    </button>
+                  }
+                }
+                @if (authError(); as failure) {
+                  <p class="gh-preferences-error" data-github-error role="alert">{{ failure }}</p>
+                }
+              </section>
+            } @else {
+              <section class="gh-menu-section">
+                <div class="gh-menu-form-row">
+                  <input
+                    #newRepositoryInput
+                    [attr.aria-label]="i18n.t('apps.github.newRepositoryName')"
+                    [placeholder]="i18n.t('apps.github.namePlaceholder')"
+                    [value]="newRepoValue()"
+                    (input)="setValue('newRepo', $event)"
+                    (keydown.enter)="createRepository()"
+                    data-github-new-repository
+                    type="text"
+                  />
+                  <button [disabled]="busy()" (click)="createRepository()" data-github-create type="button">
+                    {{ i18n.t('apps.github.create') }}
+                  </button>
+                </div>
+              </section>
+            }
+          </section>
+        }
+      }
+    </div>
+
+    <button
+      class="gd-toolbar-handle gh-toolbar-handle"
+      [attr.aria-label]="i18n.t('apps.github.resizeRepositoryToolbar')"
+      (pointerdown)="startToolbarResize($event, 'repository')"
+      data-github-toolbar-resizer="repository"
+      role="separator"
+      type="button"
+    ></button>
+
+    <div class="gd-toolbar-section gh-worktree-section" [hidden]="!showWorktree()" [style.width.px]="worktreeWidth()">
+      <button
+        class="gd-toolbar-select gh-worktree-trigger"
+        [attr.aria-expanded]="worktreeMenuOpen()"
+        [attr.aria-label]="i18n.t('apps.github.currentWorktree')"
+        (click)="toggleWorktreeMenu()"
+        aria-haspopup="menu"
+        data-github-worktree-menu
+        type="button"
+      >
+        <svg [lucideIcon]="Folder" size="17"></svg>
+        <span class="gh-toolbar-copy">
+          <small>{{ i18n.t('apps.github.currentWorktree') }}</small>
+          <strong>{{ currentWorktree() }}</strong>
+        </span>
+        <svg class="gh-toolbar-chevron" [lucideIcon]="ChevronDown" aria-hidden="true" size="12"></svg>
+      </button>
+
+      @if (worktreeMenuOpen()) {
+        <div
+          class="gh-menu-overlay"
+          [attr.aria-label]="i18n.t('apps.github.closeWorktreeMenu')"
+          (click)="closeWorktreeMenu()"
+          (keydown.escape)="closeWorktreeMenu()"
+          data-nodrag
+          role="button"
+          tabindex="0"
+        ></div>
+        <div
+          class="gd-menu gh-worktree-menu"
+          [attr.aria-label]="i18n.t('apps.github.worktreeList')"
+          data-github-worktree-menu-popup
+          role="menu"
+        >
+          <div class="gh-foldout-filter">
+            <label class="gh-menu-search">
+              <svg [lucideIcon]="Search" aria-hidden="true" size="13"></svg>
+              <input
+                #worktreeFilterInput
+                [attr.aria-label]="i18n.t('apps.github.filterWorktrees')"
+                [placeholder]="i18n.t('apps.github.filter')"
+                [value]="worktreeFilter()"
+                (input)="setValue('worktreeFilter', $event)"
+                type="search"
+              />
+            </label>
+          </div>
+          <div class="gd-menu-header">{{ i18n.t('apps.github.mainWorktree') }}</div>
+          @if (
+            !worktreeFilter().trim() || currentWorktree().toLowerCase().includes(worktreeFilter().trim().toLowerCase())
+          ) {
+            <button
+              class="gd-menu-row gh-worktree-row"
+              (click)="closeWorktreeMenu()"
+              aria-current="true"
+              role="menuitem"
+              type="button"
+            >
+              <svg [lucideIcon]="Folder" size="16"></svg>
+              <span class="gh-foldout-name">{{ currentWorktree() }}</span>
+              <span class="gh-worktree-branch">{{ currentBranch() }}</span>
+            </button>
+          } @else {
+            <div class="gh-menu-empty">{{ i18n.t('apps.github.noWorktreesFound') }}</div>
+          }
+        </div>
+      }
+    </div>
+
+    <button
+      class="gd-toolbar-handle gh-toolbar-handle"
+      [attr.aria-label]="i18n.t('apps.github.resizeWorktreeToolbar')"
+      [hidden]="!showWorktree()"
+      (pointerdown)="startToolbarResize($event, 'worktree')"
+      data-github-toolbar-resizer="worktree"
+      role="separator"
+      type="button"
+    ></button>
+
+    <div class="gd-toolbar-section gh-branch-section" [style.width.px]="branchWidth()">
+      <button
+        class="gd-toolbar-select gh-branch-trigger"
+        [attr.aria-expanded]="branchMenuOpen()"
+        (click)="toggleBranchMenu()"
+        aria-haspopup="dialog"
+        data-github-branch-menu
+        type="button"
+      >
+        <svg [lucideIcon]="GitBranch" size="17"></svg>
+        <span class="gh-toolbar-copy">
+          <small>{{ i18n.t('apps.github.currentBranch') }}</small>
+          <strong>{{ currentBranch() }}</strong>
+        </span>
+        <svg class="gh-toolbar-chevron" [lucideIcon]="ChevronDown" aria-hidden="true" size="12"></svg>
+      </button>
+
+      <select
+        class="gh-legacy-branch-select"
+        [attr.aria-label]="i18n.t('apps.github.currentBranch')"
+        [value]="currentBranch()"
+        (change)="checkoutFromEvent($event)"
+        data-github-branch-select
+        tabindex="-1"
+      >
+        @for (branch of branches(); track branch.name) {
+          <option [selected]="currentBranch() === branch.name" [value]="branch.name">{{ branch.name }}</option>
+        }
+      </select>
+
+      @if (branchMenuOpen()) {
+        <div
+          class="gh-menu-overlay"
+          [attr.aria-label]="i18n.t('apps.github.closeBranchMenu')"
+          (click)="closeBranchMenu()"
+          (keydown.escape)="closeBranchMenu()"
+          data-nodrag
+          role="button"
+          tabindex="0"
+        ></div>
+        <div
+          class="gd-menu gh-branch-menu"
+          [attr.aria-label]="i18n.t('apps.github.branchList')"
+          data-github-branch-menu-popup
+          role="dialog"
+        >
+          <div class="gh-foldout-filter">
+            <label class="gh-menu-search">
+              <svg [lucideIcon]="Search" size="13"></svg>
+              <input
+                #branchFilterInput
+                [attr.aria-label]="i18n.t('apps.github.filterBranches')"
+                [placeholder]="i18n.t('apps.github.filter')"
+                [value]="branchFilter()"
+                (input)="setValue('branchFilter', $event)"
+                type="search"
+              />
+            </label>
+            <button
+              class="gd-btn-secondary"
+              [disabled]="!status()?.head || busy()"
+              (click)="createBranchOpen.set(!createBranchOpen())"
+              type="button"
+            >
+              {{ i18n.t('apps.github.newBranchButton') }}
+            </button>
+          </div>
+          @if (createBranchOpen()) {
+            <section class="gh-menu-section" [attr.aria-label]="i18n.t('apps.github.createBranchSection')">
+              <div class="gh-menu-form-row">
+                <input
+                  #newBranchInput
+                  [attr.aria-label]="i18n.t('apps.github.newBranchName')"
+                  [placeholder]="i18n.t('apps.github.namePlaceholder')"
+                  [value]="newBranchValue()"
+                  (input)="setValue('newBranch', $event)"
+                  (keydown.enter)="createBranch()"
+                  data-github-new-branch
+                  type="text"
+                />
+                <button [disabled]="busy()" (click)="createBranch()" data-github-create-branch type="button">
+                  {{ i18n.t('apps.github.create') }}
+                </button>
+              </div>
+            </section>
+          }
+          <div class="gd-menu-header">{{ i18n.t('apps.github.allBranches') }}</div>
+          <div class="gh-branch-list">
+            @for (branch of filteredBranches(); track branch.name) {
+              <div class="gh-branch-row">
+                <button
+                  class="gd-menu-row"
+                  [attr.aria-current]="branch.current ? 'true' : null"
+                  [class.gh-branch-row-current]="branch.current"
+                  (click)="checkout(branch.name)"
+                  (contextmenu)="openContextMenu($event, { kind: 'branch', name: branch.name })"
+                  (keydown.shift.f10)="openContextMenu($event, { kind: 'branch', name: branch.name })"
+                  type="button"
+                >
+                  <svg [lucideIcon]="branch.current ? Check : GitBranch" size="14"></svg>
+                  <span class="gh-foldout-name">{{ branch.name }}</span>
+                </button>
+              </div>
+            } @empty {
+              <div class="gh-menu-empty">{{ i18n.t('apps.github.noMatchingBranches') }}</div>
+            }
+          </div>
+        </div>
+      }
+    </div>
+
+    <button
+      class="gd-toolbar-handle gh-toolbar-handle"
+      [attr.aria-label]="i18n.t('apps.github.resizeBranchToolbar')"
+      (pointerdown)="startToolbarResize($event, 'branch')"
+      data-github-toolbar-resizer="branch"
+      role="separator"
+      type="button"
+    ></button>
+
+    <div class="gh-toolbar-section gh-sync-section">
+      <button
+        class="gd-toolbar-refresh gh-sync-button"
+        [attr.aria-label]="syncTitle()"
+        [attr.data-github-sync-action]="syncAction()"
+        [disabled]="busy() || !activeRecord() || !status() || syncAction() === 'detached'"
+        (click)="runSyncAction()"
+        type="button"
+      >
+        <svg
+          class="gh-sync-icon"
+          [class.gh-sync-spinning]="syncing() !== null"
+          [lucideIcon]="syncIcon()"
+          aria-hidden="true"
+          size="16"
+        ></svg>
+        <span class="gh-toolbar-copy">
+          <small>{{ syncTitle() }}</small>
+          <strong>{{ syncSubtitle() }}</strong>
+        </span>
+      </button>
+      @if (syncHasOptions()) {
+        <button
+          class="gd-toolbar-select gh-sync-options"
+          [attr.aria-expanded]="syncMenuOpen()"
+          [attr.aria-label]="i18n.t('apps.github.syncOptions')"
+          [disabled]="busy()"
+          (click)="openSyncMenu($event)"
+          (keydown.arrowdown)="openSyncMenu($event)"
+          aria-haspopup="menu"
+          data-github-sync-options
+          type="button"
+        >
+          <svg class="gh-toolbar-chevron" [lucideIcon]="ChevronDown" aria-hidden="true" size="12"></svg>
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (activeRecord(); as record) {
+    <div
+      class="gh-workspace"
+      [attr.aria-label]="i18n.t('apps.github.repositoryWorkspace')"
+      [inert]="repositoryModalOpen()"
+      [style.--gh-aside-width]="asideWidth() + 'px'"
+    >
+      <aside class="gd-sidebar gh-sidebar" [attr.aria-label]="i18n.t('apps.github.repositoryChangesAndHistory')">
+        <div class="gd-tabs gh-tabs" [attr.aria-label]="i18n.t('apps.github.repositoryViews')" role="tablist">
+          <button
+            class="gd-tab"
+            [attr.aria-selected]="tab() === 'changes'"
+            [class.gd-tab-active]="tab() === 'changes'"
+            (click)="setTab('changes')"
+            data-github-tab="changes"
+            role="tab"
+            type="button"
+          >
+            {{ i18n.t('apps.github.changes') }}
+          </button>
+          <button
+            class="gd-tab"
+            [attr.aria-selected]="tab() === 'history'"
+            [class.gd-tab-active]="tab() === 'history'"
+            (click)="setTab('history')"
+            data-github-tab="history"
+            role="tab"
+            type="button"
+          >
+            {{ i18n.t('apps.github.history') }}
+          </button>
+        </div>
+
+        @if (tab() === 'changes') {
+          <section class="gh-changes-panel" [attr.aria-label]="i18n.t('apps.github.changes')">
+            <div class="gh-filter-bar">
+              <div class="gh-filter-combo">
+                <button
+                  class="gh-filter-kind-button"
+                  [attr.aria-expanded]="changeKindOpen()"
+                  [attr.aria-label]="i18n.t('apps.github.filterOptions')"
+                  (click)="toggleChangeKind()"
+                  aria-haspopup="dialog"
+                  type="button"
+                >
+                  <svg [lucideIcon]="Filter" size="13"></svg>
+                  <span class="sr-only">{{ i18n.t('apps.github.filterOptions') }}</span>
+                  @if (changeKind() !== 'all') {
+                    <span class="gh-filter-active-dot" [attr.aria-label]="i18n.t('apps.github.filterActive')"></span>
+                  }
+                  <svg [lucideIcon]="ChevronDown" size="11"></svg>
+                </button>
+                @if (changeKindOpen()) {
+                  <div
+                    class="gh-filter-overlay"
+                    [attr.aria-label]="i18n.t('apps.github.closeChangeFilter')"
+                    (click)="closeChangeKind()"
+                    (keydown.escape)="closeChangeKind()"
+                    role="button"
+                    tabindex="0"
+                  ></div>
+                  <div
+                    class="gd-menu gh-change-kind-menu"
+                    [attr.aria-label]="i18n.t('apps.github.changeType')"
+                    role="dialog"
+                  >
+                    @for (kind of changeKinds; track kind) {
+                      <button
+                        class="gd-menu-row"
+                        [class.gh-change-kind-selected]="changeKind() === kind"
+                        (click)="setChangeKind(kind)"
+                        type="button"
+                      >
+                        <span>
+                          {{ changeKindLabel(kind) }}
+                        </span>
+                        @if (changeKind() === kind) {
+                          <svg class="gh-menu-check-icon" [lucideIcon]="Check" size="13"></svg>
+                        }
+                      </button>
+                    }
+                  </div>
+                }
+                <label class="gh-change-search">
+                  <svg [lucideIcon]="Search" size="13"></svg>
+                  <input
+                    #changeFilterInput
+                    [attr.aria-label]="i18n.t('apps.github.filterChanges')"
+                    [placeholder]="i18n.t('apps.github.filter')"
+                    [value]="changeFilter()"
+                    (input)="setValue('changeFilter', $event)"
+                    type="search"
+                  />
+                </label>
+              </div>
+            </div>
+            <div class="gh-list-header">
+              <label class="gh-check-all">
+                <input [checked]="true" disabled type="checkbox" />
+                <span>{{ i18n.t('apps.github.changedFiles', { count: numberText(filteredEntries().length) }) }}</span>
+              </label>
+            </div>
+            <div class="gh-file-list" [attr.aria-label]="i18n.t('apps.github.workingFiles')">
+              @for (file of visibleFiles(); track file.path) {
+                @let entry = statusEntryForPath(file.path);
+                <div
+                  class="gd-row gh-file-row"
+                  [class.gd-row-selected]="selectedPath() === file.path"
+                  (contextmenu)="openContextMenu($event, { kind: 'file', path: file.path })"
+                >
+                  @if (entry) {
+                    <input
+                      class="gh-file-checkbox"
+                      [attr.aria-label]="
+                        isStaged(entry) ? i18n.t('apps.github.unstageFile') : i18n.t('apps.github.stageFile')
+                      "
+                      [checked]="isStaged(entry)"
+                      [disabled]="busy()"
+                      (change)="toggleStage(entry)"
+                      (click)="$event.stopPropagation()"
+                      type="checkbox"
+                    />
+                  } @else {
+                    <span class="gh-file-checkbox-placeholder" aria-hidden="true"></span>
+                  }
+                  <button
+                    class="gh-file-select"
+                    [attr.data-file-path]="file.path"
+                    [class.selected]="selectedPath() === file.path"
+                    (click)="selectFile(file.path, entry)"
+                    type="button"
+                  >
+                    <span
+                      class="gh-file-status"
+                      [class.gh-file-status-added]="entry && changeKindFor(entry) === 'added'"
+                      [class.gh-file-status-deleted]="entry && changeKindFor(entry) === 'deleted'"
+                    >
+                      {{ statusLabelForPath(file.path) }}
+                    </span>
+                    <span class="gh-file-name">{{ file.path }}</span>
+                  </button>
+                </div>
+              } @empty {
+                @if (!cleanRepository()) {
+                  <div class="gh-empty-list">{{ i18n.t('apps.github.repositoryEmpty') }}</div>
+                }
+              }
+            </div>
+          </section>
+
+          <section class="gd-commit-header gh-commit-box" [attr.aria-label]="i18n.t('apps.github.commitChanges')">
+            <div class="gh-commit-fields">
+              <div class="gh-commit-summary">
+                <img class="gh-commit-avatar" [src]="session()?.avatarUrl ?? 'profile/steve-jobs.jpg'" alt="" />
+                <input
+                  #commitMessageInput
+                  [attr.aria-label]="i18n.t('apps.github.commitSummary')"
+                  [disabled]="busy()"
+                  [placeholder]="i18n.t('apps.github.summaryRequired')"
+                  [value]="commitValue()"
+                  (change)="setValue('commit', $event)"
+                  (input)="setValue('commit', $event)"
+                  data-github-commit-message
+                  type="text"
+                />
+              </div>
+              <div class="gh-commit-description">
+                <textarea
+                  [attr.aria-label]="i18n.t('apps.github.commitDescription')"
+                  [disabled]="busy()"
+                  [placeholder]="i18n.t('apps.github.description')"
+                  [value]="commitDescription()"
+                  (input)="setValue('commitDescription', $event)"
+                  rows="3"
+                ></textarea>
+                <div class="gh-commit-tools">
+                  <button
+                    class="gd-btn-ghost"
+                    [attr.aria-label]="i18n.t('apps.github.addCoAuthors')"
+                    [title]="i18n.t('apps.github.addCoAuthors')"
+                    type="button"
+                  >
+                    <svg [lucideIcon]="UserPlus" size="16"></svg>
+                  </button>
+                  <button
+                    class="gd-btn-ghost gh-copilot-button"
+                    [attr.aria-label]="i18n.t('apps.github.generateCommitMessageWithCopilot')"
+                    [title]="i18n.t('apps.github.generateCommitMessageWithCopilot')"
+                    disabled
+                    type="button"
+                  >
+                    <svg [lucideIcon]="UsersRound" size="16"></svg>
+                    <span class="gh-new-badge">{{ i18n.t('apps.github.newBadge') }}</span>
+                  </button>
+                  <button
+                    class="gd-btn-ghost"
+                    [attr.aria-label]="i18n.t('apps.github.configureCommitOptions')"
+                    [title]="i18n.t('apps.github.configureCommitOptions')"
+                    type="button"
+                  >
+                    <svg [lucideIcon]="Settings2" size="16"></svg>
+                  </button>
+                  @if (record.owner) {
+                    <button
+                      class="gd-btn-ghost gh-sync-action"
+                      [disabled]="busy()"
+                      (click)="pull()"
+                      data-github-pull
+                      type="button"
+                    >
+                      {{ i18n.t('apps.github.pull') }}
+                    </button>
+                    <button
+                      class="gd-btn-ghost gh-sync-action"
+                      [disabled]="busy() || hasChanges()"
+                      (click)="push()"
+                      data-github-push
+                      type="button"
+                    >
+                      {{ i18n.t('apps.github.push') }}
+                    </button>
+                  }
+                </div>
+              </div>
+            </div>
+            <button
+              class="gd-btn-primary gh-commit-button"
+              [disabled]="busy() || !commitReady()"
+              (click)="commit()"
+              data-github-commit
+              type="button"
+            >
+              {{ i18n.t('apps.github.commitTo', { branch: currentBranch() }) }}
+            </button>
+          </section>
+        } @else {
+          <section class="gh-history" [attr.aria-label]="i18n.t('apps.github.commitHistory')">
+            <div class="gh-history-compare">
+              <svg [lucideIcon]="GitBranch" aria-hidden="true" size="13"></svg>
+              <select
+                [attr.aria-label]="i18n.t('apps.github.selectBranchToCompare')"
+                [disabled]="!compareBranches().length"
+                [value]="compareBranch() ?? ''"
+                (change)="chooseCompareBranch($event)"
+              >
+                <option [selected]="!compareBranch()" value="">
+                  {{
+                    compareBranches().length ?
+                      i18n.t('apps.github.selectBranchToCompareEllipsis')
+                    : i18n.t('apps.github.noBranchesToCompare')
+                  }}
+                </option>
+                @for (branch of compareBranches(); track branch.name) {
+                  <option [selected]="compareBranch() === branch.name" [value]="branch.name">{{ branch.name }}</option>
+                }
+              </select>
+              @if (compareBranch()) {
+                <button
+                  class="gd-btn-ghost"
+                  [attr.aria-label]="i18n.t('apps.github.clearBranchComparison')"
+                  (click)="stopComparing()"
+                  type="button"
+                >
+                  ×
+                </button>
+              }
+            </div>
+            @if (comparison(); as result) {
+              <div class="gh-compare-directions" [attr.aria-label]="i18n.t('apps.github.comparisonDirection')">
+                <button
+                  [attr.aria-pressed]="compareDirection() === 'ahead'"
+                  (click)="showCompareDirection('ahead')"
+                  type="button"
+                >
+                  {{ i18n.t('apps.github.ahead') }}
+                  <span>{{ numberText(result.ahead) }}</span>
+                </button>
+                <button
+                  [attr.aria-pressed]="compareDirection() === 'behind'"
+                  (click)="showCompareDirection('behind')"
+                  type="button"
+                >
+                  {{ i18n.t('apps.github.behind') }}
+                  <span>{{ numberText(result.behind) }}</span>
+                </button>
+              </div>
+            }
+            <div class="gh-history-list" [attr.aria-label]="i18n.t('apps.github.commits')">
+              @for (commit of visibleHistory(); track commit.oid) {
+                <article class="gh-commit-row" [class.gh-commit-row-selected]="selectedCommit()?.oid === commit.oid">
+                  <button
+                    class="gh-history-select"
+                    [attr.aria-current]="selectedCommit()?.oid === commit.oid"
+                    (click)="selectCommit(commit.oid)"
+                    (contextmenu)="openCommitMenu($event, commit.oid)"
+                    (keydown.shift.f10)="openCommitMenu($event, commit.oid)"
+                    aria-haspopup="menu"
+                    tabindex="0"
+                    type="button"
+                  >
+                    <strong>{{ commit.message || i18n.t('apps.github.emptyCommitMessage') }}</strong>
+                    <span class="gh-commit-byline">
+                      <span class="gh-history-avatar" aria-hidden="true">{{ commit.author.charAt(0) }}</span>
+                      <span>
+                        {{ commit.author || i18n.t('apps.github.unknownAuthor')
+                        }}{{ commit.authoredAt !== null ? ' · ' + commitTime(commit.authoredAt) : '' }}
+                      </span>
+                    </span>
+                  </button>
+                </article>
+              } @empty {
+                <p class="gh-muted">
+                  {{
+                    comparison() ? i18n.t('apps.github.noCommitsInThisDirection')
+                    : compareBranch() ? i18n.t('apps.github.comparingBranches')
+                    : i18n.t('apps.github.noCommitsYet')
+                  }}
+                </p>
+              }
+            </div>
+          </section>
+        }
+      </aside>
+
+      <button
+        class="gd-resizer gh-resizer"
+        [attr.aria-label]="i18n.t('apps.github.resizeSidebar')"
+        [attr.aria-valuemax]="560"
+        [attr.aria-valuemin]="240"
+        [attr.aria-valuenow]="asideWidth()"
+        (keydown)="handleAsideResizeKey($event)"
+        (pointerdown)="startAsideResize($event)"
+        aria-orientation="vertical"
+        role="separator"
+        type="button"
+      ></button>
+
+      <main class="gh-main" aria-live="polite">
+        @if (tab() === 'changes') {
+          @if (cleanRepository()) {
+            <section
+              class="gh-no-changes"
+              [attr.aria-label]="i18n.t('apps.github.noLocalChanges')"
+              data-github-no-changes
+            >
+              <div class="gh-no-changes-content">
+                <header class="gh-no-changes-header">
+                  <div>
+                    <h2>{{ i18n.t('apps.github.noLocalChanges') }}</h2>
+                    <p>
+                      {{ i18n.t('apps.github.noUncommittedChanges') }}
+                    </p>
+                  </div>
+                  <img class="gh-paper-stack" alt="" src="github/paper-stack.svg" />
+                </header>
+                <div class="gh-suggested-actions">
+                  <article class="gh-suggested-action">
+                    <div class="gh-suggested-copy">
+                      <h3>{{ i18n.t('apps.github.openRepositoryInExternalEditor') }}</h3>
+                      <p>
+                        {{ i18n.t('apps.github.selectYourEditorIn') }}
+                        <button class="gh-inline-link" type="button">{{ i18n.t('apps.github.settings') }}</button>
+                      </p>
+                    </div>
+                    <button
+                      class="gd-btn-secondary"
+                      [disabled]="busy()"
+                      (click)="openRepositoryInEditor()"
+                      type="button"
+                    >
+                      {{ i18n.t('apps.github.openInAiaoCode') }}
+                    </button>
+                  </article>
+                  <article class="gh-suggested-action">
+                    <div class="gh-suggested-copy">
+                      <h3>{{ i18n.t('apps.github.viewRepositoryFilesInFinder') }}</h3>
+                      <p>
+                        {{ i18n.t('apps.github.repositoryMenuOr') }}
+                        <kbd>⌘ ⇧ F</kbd>
+                      </p>
+                    </div>
+                    <button
+                      class="gd-btn-secondary"
+                      [disabled]="busy()"
+                      (click)="showRepositoryInFinder()"
+                      type="button"
+                    >
+                      {{ i18n.t('apps.github.showInFinder') }}
+                    </button>
+                  </article>
+                  <article class="gh-suggested-action">
+                    <div class="gh-suggested-copy">
+                      <h3>{{ i18n.t('apps.github.openRepositoryPageOnGithub') }}</h3>
+                      <p>
+                        {{ i18n.t('apps.github.repositoryMenuOr') }}
+                        <kbd>⌘ ⇧ G</kbd>
+                      </p>
+                    </div>
+                    <button
+                      class="gd-btn-secondary"
+                      [disabled]="busy()"
+                      (click)="openExternal('repository')"
+                      type="button"
+                    >
+                      {{ i18n.t('apps.github.viewOnGithub') }}
+                    </button>
+                  </article>
+                </div>
+              </div>
+            </section>
+          } @else {
+            <section class="gh-editor" [attr.aria-label]="i18n.t('apps.github.fileChanges')">
+              @if (diff(); as currentDiff) {
+                <section
+                  class="gd-history-layout gh-diff"
+                  [attr.aria-label]="i18n.t('apps.github.diff')"
+                  data-github-diff
+                >
+                  <div class="gh-editor-head">
+                    <div>
+                      <strong>{{ currentDiff.path }}</strong>
+                      <span>
+                        {{
+                          i18n.t(currentDiff.kind === 'staged' ? 'apps.github.diffStaged' : 'apps.github.diffWorking')
+                        }}
+                      </span>
+                    </div>
+                    <button
+                      class="gd-btn-ghost"
+                      [attr.aria-label]="i18n.t('apps.github.closeDiff')"
+                      (click)="closeDiff()"
+                      type="button"
+                    >
+                      {{ i18n.t('apps.github.close') }}
+                    </button>
+                  </div>
+                  @if (currentDiff.base.binary || currentDiff.modified.binary) {
+                    <div class="gh-binary">
+                      {{
+                        i18n.t('apps.github.binaryByteCounts', {
+                          before: numberText(currentDiff.base.byteLength),
+                          after: numberText(currentDiff.modified.byteLength)
+                        })
+                      }}
+                    </div>
+                  } @else {
+                    <div class="gh-diff-lines" [attr.aria-label]="i18n.t('apps.github.fileDiff')">
+                      <div class="gh-diff-column-head">
+                        <span>{{ i18n.t('apps.github.previous') }}</span>
+                        <span>{{ i18n.t('apps.github.workingTree') }}</span>
+                      </div>
+                      @for (hunk of diffHunks(); track $index) {
+                        <div class="gh-diff-hunk">{{ hunk.label }}</div>
+                        @for (line of hunk.lines; track $index) {
+                          <div class="gh-diff-line" [class.gh-diff-line-same]="line.same">
+                            <div
+                              class="gh-diff-side gh-diff-side-old"
+                              [class.gh-diff-side-delete]="!line.same && line.oldText !== null"
+                            >
+                              <span class="gh-diff-number">{{ line.oldNumber ?? '' }}</span>
+                              <span class="gh-diff-sign">
+                                {{
+                                  line.same ? ' '
+                                  : line.oldText === null ? ' '
+                                  : '−'
+                                }}
+                              </span>
+                              <code>{{ line.oldText ?? '' }}</code>
+                            </div>
+                            <div
+                              class="gh-diff-side gh-diff-side-new"
+                              [class.gh-diff-side-add]="!line.same && line.newText !== null"
+                            >
+                              <span class="gh-diff-number">{{ line.newNumber ?? '' }}</span>
+                              <span class="gh-diff-sign">
+                                {{
+                                  line.same ? ' '
+                                  : line.newText === null ? ' '
+                                  : '+'
+                                }}
+                              </span>
+                              <code>{{ line.newText ?? '' }}</code>
+                            </div>
+                          </div>
+                        }
+                      } @empty {
+                        <div class="gh-empty-editor">{{ i18n.t('apps.github.noTextChanges') }}</div>
+                      }
+                    </div>
+                  }
+                </section>
+              } @else if (selectedFile(); as file) {
+                <section class="gh-editor-pane" [attr.aria-label]="i18n.t('apps.github.fileEditor')">
+                  <div class="gh-editor-head">
+                    <div>
+                      <strong>{{ file.path }}</strong>
+                      <span>{{ i18n.t('apps.github.bytes', { count: numberText(file.bytes.length) }) }}</span>
+                    </div>
+                    <div class="gh-editor-actions">
+                      <button
+                        class="gd-btn-primary"
+                        [disabled]="busy() || !editorDirty()"
+                        (click)="saveFile()"
+                        data-github-save
+                        type="button"
+                      >
+                        {{ i18n.t('apps.github.save') }}
+                      </button>
+                      <button
+                        class="gd-btn-ghost gh-row-danger"
+                        [disabled]="busy()"
+                        (click)="removeSelectedFile()"
+                        data-github-delete
+                        type="button"
+                      >
+                        {{ i18n.t('apps.github.delete') }}
+                      </button>
+                    </div>
+                  </div>
+                  @if (selectedText() !== null) {
+                    <textarea
+                      [attr.aria-label]="i18n.t('apps.github.fileContents')"
+                      [disabled]="busy()"
+                      [value]="editorValue()"
+                      (input)="setEditor($event)"
+                      data-github-editor
+                      spellcheck="false"
+                    ></textarea>
+                  } @else {
+                    <div class="gh-binary">{{ i18n.t('apps.github.binaryEditingDisabled') }}</div>
+                  }
+                </section>
+              } @else {
+                <div class="gh-empty-editor">{{ i18n.t('apps.github.selectChangedFile') }}</div>
+              }
+            </section>
+          }
+        } @else {
+          @if (selectedCommit(); as commit) {
+            <section class="gh-history-detail" [attr.aria-label]="i18n.t('apps.github.commitDetails')">
+              <header class="gh-detail-header">
+                <div class="gh-detail-heading">
+                  <h2>{{ commit.message || i18n.t('apps.github.emptyCommitMessage') }}</h2>
+                  @if (commit.description) {
+                    <button
+                      class="gd-btn-ghost gh-detail-expander"
+                      [attr.aria-expanded]="historyDetailsExpanded()"
+                      [attr.aria-label]="
+                        historyDetailsExpanded() ?
+                          i18n.t('apps.github.collapseCommitDetails')
+                        : i18n.t('apps.github.expandCommitDetails')
+                      "
+                      (click)="toggleHistoryDetails()"
+                      type="button"
+                    >
+                      <svg [lucideIcon]="ChevronsUpDown" aria-hidden="true" size="14"></svg>
+                    </button>
+                  }
+                </div>
+                @if (commit.description) {
+                  <div class="gh-commit-body" [class.expanded]="historyDetailsExpanded()">{{ commit.description }}</div>
+                }
+                <div class="gh-commit-meta">
+                  <span class="gh-history-avatar" aria-hidden="true">{{ commit.author.charAt(0) }}</span>
+                  <span>{{ commit.author || i18n.t('apps.github.unknownAuthor') }}</span>
+                  <svg class="gh-commit-ref-icon" [lucideIcon]="GitCommitHorizontal" aria-hidden="true" size="15"></svg>
+                  <code [title]="commit.oid" data-github-commit-sha>{{ shortOid(commit.oid) }}</code>
+                  <button
+                    class="gd-btn-ghost gh-copy-sha"
+                    [attr.aria-label]="i18n.t('apps.github.copyTheFullSha')"
+                    [title]="i18n.t('apps.github.copyTheFullSha')"
+                    (click)="copyValue(commit.oid)"
+                    type="button"
+                  >
+                    <svg [lucideIcon]="Copy" size="12"></svg>
+                  </button>
+                  @if (historyStats().additions || historyStats().deletions) {
+                    <span class="gh-commit-stats">
+                      <span>+{{ numberText(historyStats().additions) }}</span>
+                      <span>−{{ numberText(historyStats().deletions) }}</span>
+                    </span>
+                  }
+                </div>
+              </header>
+              <div class="gh-history-content">
+                <section class="gh-history-files" [attr.aria-label]="i18n.t('apps.github.commitFiles')">
+                  <div class="gh-history-files-header">
+                    {{
+                      historyChanges().length === 1 ?
+                        i18n.t('apps.github.changedFile', { count: numberText(historyChanges().length) })
+                      : i18n.t('apps.github.changedFiles', { count: numberText(historyChanges().length) })
+                    }}
+                  </div>
+                  <div class="gh-history-file-list">
+                    @for (change of historyChanges(); track change.path) {
+                      <button
+                        class="gh-history-file-row"
+                        [attr.data-history-file-path]="change.path"
+                        [class.gh-history-file-row-selected]="selectedHistoryPath() === change.path"
+                        (click)="selectHistoryFile(change)"
+                        type="button"
+                      >
+                        <span class="gh-history-file-name" [title]="change.path">{{ change.path }}</span>
+                        <span
+                          class="gh-history-file-status"
+                          [attr.aria-label]="commitChangeDescription(change)"
+                          [attr.data-status]="change.status"
+                          role="img"
+                        >
+                          <svg [lucideIcon]="historyStatusIcons[change.status]" aria-hidden="true" size="14"></svg>
+                        </span>
+                      </button>
+                    } @empty {
+                      <div class="gh-empty-editor">{{ i18n.t('apps.github.noFilesInCommit') }}</div>
+                    }
+                  </div>
+                </section>
+                <section
+                  class="gh-history-diff"
+                  [attr.aria-label]="i18n.t('apps.github.commitDiff')"
+                  data-github-history-diff
+                >
+                  @if (historyDiff(); as currentHistoryDiff) {
+                    <div class="gh-editor-head gh-history-diff-head">
+                      <div>
+                        <strong>{{ currentHistoryDiff.path }}</strong>
+                      </div>
+                      <div class="gh-history-diff-actions">
+                        <button
+                          class="gd-btn-ghost"
+                          [attr.aria-expanded]="historyDiffSettingsOpen()"
+                          [attr.aria-label]="i18n.t('apps.github.diffSettings')"
+                          [title]="i18n.t('apps.github.diffSettings')"
+                          (click)="toggleHistoryDiffSettings()"
+                          type="button"
+                        >
+                          <svg [lucideIcon]="Settings" aria-hidden="true" size="16"></svg>
+                          <svg [lucideIcon]="ChevronDown" aria-hidden="true" size="11"></svg>
+                        </button>
+                        <span
+                          class="gh-history-file-status"
+                          [attr.data-status]="currentHistoryDiff.status"
+                          aria-hidden="true"
+                        >
+                          <svg [lucideIcon]="historyStatusIcons[currentHistoryDiff.status]" size="14"></svg>
+                        </span>
+                        @if (historyDiffSettingsOpen()) {
+                          <div
+                            class="gh-diff-settings"
+                            [attr.aria-label]="i18n.t('apps.github.diffSettings')"
+                            role="dialog"
+                          >
+                            <button
+                              [attr.aria-pressed]="!sideBySideHistory()"
+                              (click)="setHistoryDiffLayout(false)"
+                              type="button"
+                            >
+                              {{ i18n.t('apps.github.unifiedDiff') }}
+                            </button>
+                            <button
+                              [attr.aria-pressed]="sideBySideHistory()"
+                              (click)="setHistoryDiffLayout(true)"
+                              type="button"
+                            >
+                              {{ i18n.t('apps.github.splitDiff') }}
+                            </button>
+                            <label>
+                              <input
+                                [checked]="ignoreHistoryWhitespace()"
+                                (change)="ignoreHistoryWhitespace.set(!ignoreHistoryWhitespace())"
+                                type="checkbox"
+                              />
+                              <span>{{ i18n.t('apps.github.hideWhitespaceChanges') }}</span>
+                            </label>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                    @if (currentHistoryDiff.base.binary || currentHistoryDiff.modified.binary) {
+                      <div class="gh-binary">
+                        {{
+                          i18n.t('apps.github.binaryByteCounts', {
+                            before: numberText(currentHistoryDiff.base.byteLength),
+                            after: numberText(currentHistoryDiff.modified.byteLength)
+                          })
+                        }}
+                      </div>
+                    } @else {
+                      <div class="gh-diff-lines" [attr.aria-label]="i18n.t('apps.github.commitFileDiff')">
+                        @for (hunk of historyDiffHunks(); track $index) {
+                          <div class="gh-diff-hunk">{{ hunk.label }}</div>
+                          @for (line of hunk.lines; track $index) {
+                            @if (sideBySideHistory()) {
+                              <div class="gh-diff-line" [class.gh-diff-line-same]="line.same" data-history-split>
+                                <div
+                                  class="gh-diff-side"
+                                  [class.gh-diff-side-delete]="!line.same && line.oldText !== null"
+                                >
+                                  <span class="gh-diff-number">{{ line.oldNumber ?? '' }}</span>
+                                  <span class="gh-diff-sign">{{ !line.same && line.oldText !== null ? '−' : '' }}</span>
+                                  @if (line.oldHighlight; as mark) {
+                                    <code>
+                                      {{ mark.prefix }}
+                                      <mark>{{ mark.change }}</mark>
+                                      {{ mark.suffix }}
+                                    </code>
+                                  } @else {
+                                    <code>{{ line.oldText ?? '' }}</code>
+                                  }
+                                </div>
+                                <div
+                                  class="gh-diff-side"
+                                  [class.gh-diff-side-add]="!line.same && line.newText !== null"
+                                >
+                                  <span class="gh-diff-number">{{ line.newNumber ?? '' }}</span>
+                                  <span class="gh-diff-sign">{{ !line.same && line.newText !== null ? '+' : '' }}</span>
+                                  @if (line.newHighlight; as mark) {
+                                    <code>
+                                      {{ mark.prefix }}
+                                      <mark>{{ mark.change }}</mark>
+                                      {{ mark.suffix }}
+                                    </code>
+                                  } @else {
+                                    <code>{{ line.newText ?? '' }}</code>
+                                  }
+                                </div>
+                              </div>
+                            } @else {
+                              <div
+                                class="gh-diff-side gh-diff-unified"
+                                [class.gh-diff-side-add]="!line.same && line.newText !== null"
+                                [class.gh-diff-side-delete]="!line.same && line.oldText !== null"
+                                data-history-unified
+                              >
+                                <span class="gh-diff-number">{{ line.oldNumber ?? '' }}</span>
+                                <span class="gh-diff-number">{{ line.newNumber ?? '' }}</span>
+                                <span class="gh-diff-sign">
+                                  {{
+                                    line.same ? ''
+                                    : line.oldText !== null ? '−'
+                                    : '+'
+                                  }}
+                                </span>
+                                @if (line.newHighlight ?? line.oldHighlight; as mark) {
+                                  <code>
+                                    {{ mark.prefix }}
+                                    <mark>{{ mark.change }}</mark>
+                                    {{ mark.suffix }}
+                                  </code>
+                                } @else {
+                                  <code>{{ line.newText ?? line.oldText }}</code>
+                                }
+                              </div>
+                            }
+                          }
+                        } @empty {
+                          <div class="gh-empty-editor">{{ i18n.t('apps.github.noTextChanges') }}</div>
+                        }
+                      </div>
+                    }
+                  } @else {
+                    <div class="gh-empty-editor">{{ i18n.t('apps.github.selectChangedFile') }}</div>
+                  }
+                </section>
+              </div>
+            </section>
+          } @else {
+            <section class="gh-history-detail" [attr.aria-label]="i18n.t('apps.github.commitDetails')">
+              <div class="gh-empty-editor">{{ i18n.t('apps.github.noCommitsYet') }}</div>
+            </section>
+          }
+        }
+      </main>
+    </div>
+  } @else {
+    <div class="gh-empty" [inert]="repositoryModalOpen()" data-github-empty>
+      <div class="gh-mark"><img alt="" data-github-system-icon src="icons/desktop/app-github.png" /></div>
+      <h2>{{ i18n.t('apps.github.githubWorkbench') }}</h2>
+      <p>{{ i18n.t('apps.github.emptyWorkbenchMessage') }}</p>
+      <button class="gd-btn-primary" (click)="toggleRepositoryMenu()" type="button">
+        {{ i18n.t('apps.github.chooseARepository') }}
+      </button>
+    </div>
+  }
+
+  @if (contextMenu(); as menu) {
+    <div
+      class="gh-context-backdrop"
+      [attr.aria-label]="i18n.t('apps.github.closeContextMenu')"
+      (click)="closeContextMenu()"
+      (keydown.escape)="closeContextMenu()"
+      role="button"
+      tabindex="0"
+    ></div>
+    <div class="gd-menu gh-context-menu" [style.left.px]="menu.x" [style.top.px]="menu.y" role="menu">
+      @if (menu.kind === 'file') {
+        @let entry = statusEntryForPath(menu.path);
+        <button class="gd-menu-row" (click)="contextSelectFile(menu.path)" data-github-open-file type="button">
+          <svg [lucideIcon]="FileDiff" size="14"></svg>
+          {{ i18n.t('apps.github.openPath', { path: menu.path }) }}
+        </button>
+        @if (entry) {
+          <button class="gd-menu-row" (click)="contextShowDiff(menu.path)" type="button">
+            <svg [lucideIcon]="FileDiff" size="14"></svg>
+            {{ i18n.t('apps.github.showDiff') }}
+          </button>
+          <button
+            class="gd-menu-row"
+            [disabled]="busy()"
+            (click)="entry && isStaged(entry) ? contextUnstage(menu.path) : contextStage(menu.path)"
+            type="button"
+          >
+            {{ isStaged(entry) ? i18n.t('apps.github.unstageFile') : i18n.t('apps.github.stageFile') }}
+          </button>
+          @if (entry.worktree !== ' ') {
+            <button
+              class="gd-menu-row gh-row-danger"
+              [disabled]="busy()"
+              (click)="contextDiscard(menu.path)"
+              type="button"
+            >
+              <svg [lucideIcon]="Trash2" size="14"></svg>
+              {{ i18n.t('apps.github.discardChanges') }}
+            </button>
+          }
+        }
+        <div class="gd-menu-divider"></div>
+        <button class="gd-menu-row" (click)="copyValue(menu.path)" type="button">
+          <svg [lucideIcon]="Copy" size="14"></svg>
+          {{ i18n.t('apps.github.copyPath') }}
+        </button>
+      } @else {
+        <button class="gd-menu-row" (click)="copyValue(menu.name)" type="button">
+          <svg [lucideIcon]="Copy" size="14"></svg>
+          {{ i18n.t('apps.github.copyBranchName') }}
+        </button>
+        <button
+          class="gd-menu-row gh-row-danger"
+          [disabled]="busy() || menu.name === currentBranch()"
+          (click)="deleteBranch(menu.name)"
+          type="button"
+        >
+          <svg [lucideIcon]="Trash2" size="14"></svg>
+          {{ i18n.t('apps.github.deleteBranch') }}
+        </button>
+      }
+    </div>
+  }
+
+  @if (!repositoryModalOpen() && canDiscardBranch()) {
+    <div class="gh-conflict" role="alert">
+      <span>{{ i18n.t('apps.github.uncommittedChangesPreventSwitching') }}</span>
+      <button class="gd-btn-secondary" (click)="checkout(pendingBranch() ?? currentBranch(), true)" type="button">
+        {{ i18n.t('apps.github.discardAndSwitch') }}
+      </button>
+    </div>
+  }
+  @if (!repositoryModalOpen() && error(); as failure) {
+    <div class="gh-error" data-github-error role="alert">{{ failure }}</div>
+  }
+  @if (notice(); as message) {
+    <div class="gh-notice" data-github-notice role="status">{{ message }}</div>
+  }
+  @if (settingsDraft(); as draft) {
+    <app-github-settings
+      [account]="session()"
+      [appearance]="draft"
+      [authBusy]="authBusy()"
+      [authError]="authError()"
+      [idPrefix]="settingsId"
+      [oauthPending]="oauthAttempt() !== null"
+      [saveError]="settingsError()"
+      [saving]="settingsSaving()"
+      (appearanceChange)="settingsDraft.set($event)"
+      (cancelSignIn)="cancelOAuth()"
+      (dismissed)="cancelSettings()"
+      (save)="saveSettings()"
+      (signIn)="loginWithOAuth()"
+      (signInWithToken)="loginWithPat($event)"
+      (signOut)="logout()"
+    />
+  }
+  @if (repositorySettings(); as settings) {
+    <div class="gh-modal-layer" data-nodrag>
+      <section
+        class="gh-settings-dialog"
+        [attr.aria-labelledby]="repositorySettingsTitleId"
+        (keydown.escape)="cancelRepositorySettings($event)"
+        appFocusTrap
+        aria-modal="true"
+        role="dialog"
+      >
+        <header class="gh-repository-dialog-header">
+          <h2 [id]="repositorySettingsTitleId">{{ i18n.t('apps.github.repositorySettingsTitle') }}</h2>
+        </header>
+        <form (submit)="saveRepositorySettings($event)">
+          <div class="gh-settings-body">
+            <div class="gh-settings-sidebar">
+              <div class="gh-settings-section">
+                <svg [lucideIcon]="Server" aria-hidden="true" size="16"></svg>
+                {{ i18n.t('apps.github.remote') }}
+              </div>
+            </div>
+            <div class="gh-menu-section gh-settings-content">
+              <label [for]="remoteUrlId">{{ i18n.t('apps.github.primaryRemoteUrl') }}</label>
+              <input
+                #remoteInput
+                [attr.aria-describedby]="error() ? remoteErrorId : null"
+                [id]="remoteUrlId"
+                [placeholder]="i18n.t('apps.github.remoteUrl')"
+                [readOnly]="busy()"
+                [value]="remoteDraft() ?? ''"
+                (input)="setRemoteDraft(remoteInput.value)"
+                autocomplete="off"
+                data-autofocus
+                spellcheck="false"
+                type="text"
+              />
+              @if (settings.origin) {
+                <button
+                  class="gd-btn-secondary gh-settings-remove"
+                  [disabled]="busy() || remoteDraft() === null"
+                  (click)="setRemoteDraft(null); remoteInput.focus()"
+                  tabindex="0"
+                  type="button"
+                >
+                  {{ i18n.t('apps.github.removeOrigin') }}
+                </button>
+              }
+              @if (error(); as failure) {
+                <p class="gh-local-repository-error" [id]="remoteErrorId" role="alert">{{ failure }}</p>
+              }
+            </div>
+          </div>
+          <footer class="gh-settings-footer">
+            <button
+              class="gd-btn-secondary"
+              [disabled]="busy()"
+              (click)="cancelRepositorySettings()"
+              tabindex="0"
+              type="button"
+            >
+              {{ i18n.t('apps.github.cancel') }}
+            </button>
+            <button
+              class="gd-btn-primary"
+              [disabled]="busy() || remoteDraft()?.trim() === ''"
+              tabindex="0"
+              type="submit"
+            >
+              {{ i18n.t('apps.github.save') }}
+            </button>
+          </footer>
+        </form>
+      </section>
+    </div>
+  }
+  @if (localRepositoryOpen()) {
+    <div class="gh-modal-layer" data-nodrag>
+      <section
+        class="gh-local-repository-dialog"
+        [attr.aria-labelledby]="localRepositoryTitleId"
+        (keydown.escape)="cancelLocalRepository($event)"
+        appFocusTrap
+        aria-modal="true"
+        data-github-repository-dialog
+        role="dialog"
+      >
+        <header class="gh-repository-dialog-header">
+          <h2 [id]="localRepositoryTitleId">{{ i18n.t('apps.github.addLocalRepositoryTitle') }}</h2>
+        </header>
+        <form (submit)="addLocalRepository($event)">
+          <div class="gh-menu-section">
+            <label [for]="localRepositoryPathId">{{ i18n.t('apps.github.localPath') }}</label>
+            <div class="gh-local-path-row">
+              <input
+                #localPath
+                [attr.aria-describedby]="error() ? localRepositoryErrorId : null"
+                [attr.aria-invalid]="error() ? 'true' : null"
+                [id]="localRepositoryPathId"
+                [readOnly]="localSystemFolder() !== null || busy()"
+                [value]="localSystemFolder()?.name ?? localRepositoryPath()"
+                (input)="setLocalRepositoryPath(localPath.value)"
+                data-autofocus
+                placeholder="~/Documents/project"
+                type="text"
+              />
+              <button
+                class="gd-btn-secondary"
+                [disabled]="busy()"
+                (click)="openLocalRepositoryPicker()"
+                data-github-add-local
+                tabindex="0"
+                type="button"
+              >
+                {{ i18n.t('apps.github.choose') }}
+              </button>
+              <input
+                #localRepositoryInput
+                [attr.aria-label]="i18n.t('apps.github.chooseLocalRepositoryDirectory')"
+                [disabled]="busy()"
+                (change)="selectLocalDirectory($event)"
+                data-github-add-local-input
+                hidden
+                type="file"
+                webkitdirectory
+              />
+            </div>
+            @if (localSystemFolder(); as folder) {
+              <p class="gh-local-import-destination">
+                {{ i18n.t('apps.github.importTo') }}
+                <code>~/Documents/GitHub/{{ folder.name }}</code>
+              </p>
+              <button
+                class="gd-btn-ghost gh-local-path-action"
+                [disabled]="busy()"
+                (click)="clearLocalSystemFolder(); localPath.focus()"
+                tabindex="0"
+                type="button"
+              >
+                {{ i18n.t('apps.github.useMacintoshHdFolder') }}
+              </button>
+            }
+            @if (error(); as failure) {
+              <p class="gh-local-repository-error" [id]="localRepositoryErrorId" data-github-error role="alert">
+                {{ failure }}
+              </p>
+              @if (canInitializeLocalRepository()) {
+                <button
+                  class="gd-btn-secondary gh-local-path-action"
+                  [disabled]="busy()"
+                  (click)="addLocalRepository(undefined, true)"
+                  tabindex="0"
+                  type="button"
+                >
+                  {{ i18n.t('apps.github.createRepositoryHere') }}
+                </button>
+              }
+            }
+          </div>
+          <footer class="gh-local-footer">
+            <button
+              class="gd-btn-secondary"
+              [disabled]="busy()"
+              (click)="cancelLocalRepository()"
+              tabindex="0"
+              type="button"
+            >
+              {{ i18n.t('apps.github.cancel') }}
+            </button>
+            <button
+              class="gd-btn-primary"
+              [disabled]="busy() || (!localSystemFolder() && !localRepositoryPath().trim())"
+              tabindex="0"
+              type="submit"
+            >
+              {{ busy() ? i18n.t('apps.github.adding') : i18n.t('apps.github.addRepository') }}
+            </button>
+          </footer>
+        </form>
+
+        @if (!localSystemFolder()) {
+          <section
+            class="gh-menu-section gh-local-options"
+            [attr.aria-label]="i18n.t('apps.github.localRepositoryActions')"
+          >
+            <div class="gh-local-archive-actions">
+              <button
+                class="gd-btn-secondary"
+                [disabled]="busy()"
+                (click)="archiveInput.click()"
+                tabindex="0"
+                type="button"
+              >
+                {{ i18n.t('apps.github.importArchive') }}
+              </button>
+              <input
+                #archiveInput
+                [attr.aria-label]="i18n.t('apps.github.importRepositoryArchive')"
+                [disabled]="busy()"
+                (change)="importRepository($event)"
+                accept=".zip,application/zip"
+                data-github-import
+                hidden
+                type="file"
+              />
+              @if (activeRecord()) {
+                <button
+                  class="gd-btn-secondary"
+                  [disabled]="busy()"
+                  (click)="exportRepository()"
+                  data-github-export
+                  tabindex="0"
+                  type="button"
+                >
+                  {{ i18n.t('apps.github.exportRepository') }}
+                </button>
+              }
+            </div>
+          </section>
+        }
+      </section>
+    </div>
+  }
+</div>

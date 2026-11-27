@@ -74,6 +74,54 @@
       "name": "dev-rxdb-angular-attach",
       "url": "http://localhost:4200",
       "port": 4200
+    },
+    {
+      "name": "aiao-desktop-web",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "cd /Users/jimmy/Documents/aiao/aiao-worktree-desktop && export PATH=/Users/jimmy/.nvm/versions/node/v26.12.0/bin:$PATH NX_WORKSPACE_ROOT_PATH=/Users/jimmy/Documents/aiao/aiao-worktree-desktop NX_DAEMON=false && exec /Users/jimmy/.nvm/versions/node/v26.12.0/bin/node /Users/jimmy/Documents/aiao/aiao-worktree-desktop/node_modules/.pnpm/nx@24.0.6_@swc-node+register@1.12.1_@swc+core@1.16.22_@swc+helpers@0.5.24__@swc+types@0_805248041899659877480fd108a2cbe2/node_modules/nx/dist/bin/nx.js serve aiao-desktop-web"
+      ],
+      "port": 4410
+    },
+    {
+      "name": "aiao-desktop-dist-4414",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "scripts/e2e-static-server.mjs",
+        "--root",
+        "dist/aiao-desktop/apps/web/browser",
+        "--port",
+        "4414"
+      ],
+      "port": 4414
+    },
+    {
+      "name": "aiao-desktop-4411-attach",
+      "url": "http://localhost:4411",
+      "port": 4411
+    },
+    {
+      "name": "aiao-vscode-dev",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "pnpm nx serve aiao-vscode"
+      ],
+      "port": 4320
+    },
+    {
+      "name": "aiao-vscode-static",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "scripts/e2e-static-server.mjs",
+        "--root",
+        "apps/aiao-vscode/dist/browser",
+        "--port",
+        "4325",
+        "--coop-coep"
+      ],
+      "port": 4325
     }
   ],
   "version": "0.0.1"

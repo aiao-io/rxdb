@@ -1,0 +1,8 @@
+# Cloudflare Pages 改写规则（生产托管必需）：
+# Pages 默认把 .html 308 到无扩展名地址（/a/index.html → /a/，/a/b.html → /a/b）。工作台的 iframe
+# 直接导航自托管资产里的 .html（Markdown 扩展宿主、VS Code webview 的 index / fake 页），Service Worker
+# 接管导航时不跟随这类重定向，Markdown 预览会变成错误页，或被回退成整个工作台。
+# 200 改写让这些地址原样返回文件；规则按顺序匹配，index.html 必须在前。
+# 校验：pnpm nx run aiao-vscode:verify-pages-routing
+/browser-workbench-assets/*/index.html /browser-workbench-assets/:splat/ 200
+/browser-workbench-assets/*.html /browser-workbench-assets/:splat 200

@@ -1,0 +1,17 @@
+
+> nx run aiao-desktop-e2e:lint
+
+> eslint . --max-warnings=0
+
+(node:47850) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+
+ NX   Successfully ran target lint for project aiao-desktop-e2e
+
+
+  Run duration:      1.6s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     1.5s (1 task)
+  Recoverable time:  <1ms

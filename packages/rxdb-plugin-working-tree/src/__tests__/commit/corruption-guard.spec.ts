@@ -203,6 +203,23 @@ describe('沿完整可达父链遍历（FR-051）', () => {
     });
   });
 
+  it.each(['patch', 'inversePatch'] as const)(
+    '落库的 %s JSON 文本解析不了时报 `fingerprint_mismatch`，不放出裸 SyntaxError',
+    async field => {
+      const scene = createChainScene();
+      // SQLite 把 JSON 列存成文本：部分写、驱逐或外部改写之后，读回来的是一段解析不了的字符串。
+      // 损坏闩只认 `CommitGraphCorruptedError`，裸 SyntaxError 会让分支永远落不下 corrupted_read_only。
+      const rows = scene.probe.rowsOf(CommitChangeSet) as Record<string, unknown>[];
+      const victim = rows.find(row => row['commitId'] === 'mid');
+      if (!victim) throw new Error('mid 没有 ChangeSet 行');
+      victim[field] = '{';
+
+      const failure = assertCommitGraphIntact(scene.probe.executor, 'main');
+      await expect(failure).rejects.toBeInstanceOf(CommitGraphCorruptedError);
+      await expect(failure).rejects.toMatchObject({ commitId: 'mid', reason: 'fingerprint_mismatch' });
+    }
+  );
+
   it('父链指向不存在的 commit 即损坏', async () => {
     const scene = createScene();
     scene.addCommit('head', ['gone']);
@@ -312,7 +329,9 @@ describe('校验只读，落标记是另一件事（FR-051、R10）', () => {
 
     // 守卫跑在调用方的写事务里，而调用方命中损坏后一定回滚：
     // 标记写在这里会跟着一起消失，用户于是永远拿不到一个持久的诊断。
-    expect(scene.probe.statements).toEqual([]);
+    expect(scene.probe.statements.every(sql => /^SELECT\b/i.test(sql))).toBe(true);
+    expect(scene.probe.executor.removeMany).not.toHaveBeenCalled();
+    expect(scene.probe.executor.mutations).not.toHaveBeenCalled();
     expect(scene.probe.saved).toEqual([]);
     expect({ status: scene.refOf('main').status, corruptedAt: scene.refOf('main').corruptedAt }).toEqual({
       status: 'ok',

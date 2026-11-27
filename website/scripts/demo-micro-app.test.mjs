@@ -82,7 +82,9 @@ test('demo host consumes the in-repository runtime and explicit theme protocol',
   const manifest = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
   assert.match(source, /@aiao\/orbit/);
   assert.equal(manifest.dependencies['@aiao/orbit'], 'workspace:*');
-  assert.doesNotMatch(source, /rewriteShadowCss|cssLoader/);
+  assert.equal(manifest.dependencies['wujie-react'], undefined);
+  assert.doesNotMatch(source, /rewriteShadowCss|cssLoader|WujieReact/);
+
   assert.match(source, /runtime\.bus/);
   assert.match(source, /emitHostTheme/);
 });

@@ -1,0 +1,80 @@
+{
+  "entries": [
+    {
+      "name": "pages-root",
+      "url": "https://aiao-desktop.pages.dev/",
+      "status": 200,
+      "bytes": 1450,
+      "sha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
+      "sameAsArtifact": true,
+      "firstDifference": 1450,
+      "difference": " type=\"module\"></script></body>\n</html>\n",
+      "headers": {
+        "etag": null,
+        "cf-cache-status": null,
+        "cache-control": "public, max-age=0, must-revalidate",
+        "content-encoding": "br",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      }
+    },
+    {
+      "name": "pages-boot",
+      "url": "https://aiao-desktop.pages.dev/?boot=0",
+      "status": 200,
+      "bytes": 1450,
+      "sha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
+      "sameAsArtifact": true,
+      "firstDifference": 1450,
+      "difference": " type=\"module\"></script></body>\n</html>\n",
+      "headers": {
+        "etag": null,
+        "cf-cache-status": null,
+        "cache-control": "public, max-age=0, must-revalidate",
+        "content-encoding": "br",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      }
+    },
+    {
+      "name": "custom-root",
+      "url": "https://desktop.aiao.io/",
+      "status": 200,
+      "bytes": 1450,
+      "sha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
+      "sameAsArtifact": true,
+      "firstDifference": 1450,
+      "difference": " type=\"module\"></script></body>\n</html>\n",
+      "headers": {
+        "etag": null,
+        "cf-cache-status": "DYNAMIC",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "content-encoding": "br",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      }
+    },
+    {
+      "name": "custom-boot",
+      "url": "https://desktop.aiao.io/?boot=0",
+      "status": 200,
+      "bytes": 1450,
+      "sha256": "2f142ced7f1617a3463d1c008c5e0f8b5836934b8d4bf16b5df2248fa6ec873c",
+      "sameAsArtifact": true,
+      "firstDifference": 1450,
+      "difference": " type=\"module\"></script></body>\n</html>\n",
+      "headers": {
+        "etag": null,
+        "cf-cache-status": "DYNAMIC",
+        "cache-control": "public, max-age=0, must-revalidate",
+        "content-encoding": "br",
+        "cross-origin-opener-policy": "same-origin",
+        "cross-origin-embedder-policy": "require-corp"
+      }
+    }
+  ],
+  "format": "aiao-desktop.release-entry-variants",
+  "measuredAt": "2026-11-14T09:41:58.766Z",
+  "method": "Node fetch, IPv6-first, no-store; root and ?boot=0 compared byte-for-byte to local artifact",
+  "version": 1
+}

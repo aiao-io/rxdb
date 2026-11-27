@@ -1,0 +1,484 @@
+import type { DesktopAppManifests } from '../services/desktop-apps';
+
+/** 预装应用的共有字段：随构建发布、出现在 Applications、默认不固定在 Dock、固定后可以移除。 */
+const preinstalled = {
+  installScope: 'preinstalled',
+  showInApplications: true,
+  defaultPinned: false,
+  dockRemovable: true
+} as const;
+
+/** 默认固定在 Dock 的位置（顺序升序，间隔留给以后插入）；`removable: false` 的固定项用户移不掉。 */
+const pinned = (dockOrder: number, dockRemovable = true) =>
+  ({ defaultPinned: true, dockOrder, dockRemovable }) as const;
+
+const shelf = { kind: 'builtin', w: 900, h: 600, minW: 520, minH: 340, ...preinstalled } as const;
+
+/**
+ * 应用清单（D-10、D-17）：唯一的应用描述来源。系统入口、内置应用与集成应用都在这里，纯数据、不依赖 Angular，
+ * 单测直接校验它；内置应用的组件在 `registry.ts` 里按 id 绑定。Applications、启动台、聚焦搜索、Dock 与菜单栏都
+ * 从它派生，没有第二份手工维护的应用列表。顺序即原注册顺序。
+ *
+ * - `bundleId`：稳定的包标识，写进 `.app` 包的 Info.plist，应用改名后不变；
+ * - `showInApplications`：是否在 /Applications 里有一个 `.app` 包（Finder 在系统目录里，不算）；
+ * - `defaultPinned` / `dockOrder` / `dockRemovable`：首次使用时的默认 Dock 与固定后能否移除；
+ * - `restore`：恢复窗口时应用内容的装载方式，默认 `eager`；终端仅在前台自动装载，游戏等用户启动。
+ */
+export const DESKTOP_APP_MANIFESTS = {
+  finder: {
+    id: 'finder',
+    name: 'Finder',
+    nameKey: 'apps.finder.name',
+    icon: 'app-finder',
+    kind: 'builtin',
+    bundleId: 'io.aiao.desktop.finder',
+    ...preinstalled,
+    showInApplications: false,
+    ...pinned(10, false),
+    w: 940,
+    h: 600,
+    minW: 560,
+    minH: 340,
+    single: false
+  },
+  terminal: {
+    id: 'terminal',
+    name: 'Terminal',
+    nameKey: 'apps.terminal.name',
+    icon: 'app-terminal',
+    kind: 'builtin',
+    bundleId: 'io.aiao.desktop.terminal',
+    ...preinstalled,
+    ...pinned(110),
+    restore: 'foreground',
+    w: 760,
+    h: 470,
+    minW: 420,
+    minH: 220,
+    single: false
+  },
+  vscode: {
+    id: 'vscode',
+    name: 'Aiao Code',
+    nameKey: 'apps.vscode.name',
+    icon: 'app-aiao-code',
+    kind: 'web',
+    bundleId: 'io.aiao.desktop.aiao-code',
+    ...preinstalled,
+    ...pinned(120),
+    w: 1180,
+    h: 740,
+    minW: 720,
+    minH: 440,
+    /* 文件读写只经过桌面面板授权，用于 US-208 显式复制；不开放目录或后台同步。 */
+    capabilities: ['window', 'clipboard:read', 'clipboard:write', 'filesystem:read', 'filesystem:write', 'workspace'],
+    web: {
+      url: 'https://vscode.aiao.io/',
+      version: 'online',
+      allow: ['cross-origin-isolated', 'clipboard-read', 'clipboard-write'],
+      readyTimeout: 60_000,
+      frame: 'transparent'
+    }
+  },
+  github: {
+    id: 'github',
+    name: 'GitHub Desktop',
+    nameKey: 'apps.github.name',
+    icon: 'app-github',
+    kind: 'builtin',
+    bundleId: 'io.aiao.desktop.github',
+    ...preinstalled,
+    ...pinned(125),
+    w: 1120,
+    h: 720,
+    minW: 760,
+    minH: 480,
+    single: false
+  },
+  calculator: {
+    id: 'calculator',
+    name: 'Calculator',
+    nameKey: 'apps.calculator.name',
+    icon: 'app-calculator',
+    kind: 'builtin',
+    bundleId: 'io.aiao.desktop.calculator',
+    ...preinstalled,
+    ...pinned(130),
+    w: 254,
+    h: 366,
+    minW: 232,
+    minH: 320
+  },
+  about: {
+    id: 'about',
+    name: 'Finder',
+    nameKey: 'apps.about.name',
+    icon: 'app-finder',
+    kind: 'builtin',
+    bundleId: 'io.aiao.desktop.about',
+    ...preinstalled,
+    showInApplications: false,
+    w: 400,
+    h: 468,
+    minW: 400,
+    minH: 468
+  },
+  textedit: {
+    id: 'textedit',
+    name: 'TextEdit',
+    nameKey: 'apps.textedit.name',
+    icon: 'app-textedit',
+    kind: 'builtin',
+    bundleId: 'io.aiao.desktop.textedit',
+    ...preinstalled,
+    w: 620,
+    h: 520,
+    minW: 340,
+    minH: 240,
+    single: false
+  },
+  preview: {
+    id: 'preview',
+    name: 'Preview',
+    nameKey: 'apps.preview.name',
+    icon: 'app-preview',
+    kind: 'builtin',
+    bundleId: 'io.aiao.desktop.preview',
+    ...preinstalled,
+    w: 640,
+    h: 560,
+    minW: 360,
+    minH: 300,
+    single: false
+  },
+  notes: {
+    id: 'notes',
+    name: 'Notes',
+    nameKey: 'apps.notes.name',
+    icon: 'app-notes',
+    kind: 'builtin',
+    bundleId: 'io.aiao.desktop.notes',
+    ...preinstalled,
+    ...pinned(80),
+    w: 940,
+    h: 600,
+    minW: 580,
+    minH: 340
+  },
+  calendar: {
+    id: 'calendar',
+    name: 'Calendar',
+    nameKey: 'apps.calendar.name',
+    icon: 'app-calendar',
+    kind: 'builtin',
+    bundleId: 'io.aiao.desktop.calendar',
+    ...preinstalled,
+    ...pinned(90),
+    w: 880,
+    h: 600,
+    minW: 560,
+    minH: 380
+  },
+  safari: {
+    id: 'safari',
+    name: 'Safari',
+    nameKey: 'apps.safari.name',
+    icon: 'app-safari',
+    kind: 'builtin',
+    bundleId: 'io.aiao.desktop.safari',
+    ...preinstalled,
+    ...pinned(30),
+    w: 1020,
+    h: 660,
+    minW: 520,
+    minH: 360,
+    single: false
+  },
+  music: {
+    id: 'music',
+    name: 'Music',
+    nameKey: 'apps.music.name',
+    icon: 'app-music',
+    kind: 'builtin',
+    bundleId: 'io.aiao.desktop.music',
+    ...preinstalled,
+    ...pinned(100),
+    w: 1000,
+    h: 640,
+    minW: 620,
+    minH: 400
+  },
+  settings: {
+    id: 'settings',
+    name: 'System Settings',
+    nameKey: 'apps.settings.name',
+    icon: 'app-settings',
+    kind: 'builtin',
+    bundleId: 'io.aiao.desktop.system-settings',
+    ...preinstalled,
+    ...pinned(140),
+    w: 800,
+    h: 600,
+    minW: 620,
+    minH: 420
+  },
+  mail: {
+    id: 'mail',
+    name: 'Mail',
+    nameKey: 'apps.mail.name',
+    icon: 'app-mail',
+    kind: 'builtin',
+    bundleId: 'io.aiao.desktop.mail',
+    ...preinstalled,
+    ...pinned(40),
+    w: 1020,
+    h: 640,
+    minW: 620,
+    minH: 380
+  },
+  messages: {
+    id: 'messages',
+    name: 'Messages',
+    nameKey: 'apps.messages.name',
+    icon: 'app-messages',
+    kind: 'builtin',
+    bundleId: 'io.aiao.desktop.messages',
+    ...preinstalled,
+    ...pinned(50),
+    w: 900,
+    h: 600,
+    minW: 560,
+    minH: 360
+  },
+  maps: {
+    id: 'maps',
+    name: 'Maps',
+    nameKey: 'apps.maps.name',
+    icon: 'app-maps',
+    kind: 'builtin',
+    bundleId: 'io.aiao.desktop.maps',
+    ...preinstalled,
+    ...pinned(60),
+    w: 940,
+    h: 620,
+    minW: 480,
+    minH: 320
+  },
+  photos: {
+    id: 'photos',
+    name: 'Photos',
+    nameKey: 'apps.photos.name',
+    icon: 'app-photos',
+    kind: 'builtin',
+    bundleId: 'io.aiao.desktop.photos',
+    ...preinstalled,
+    ...pinned(70),
+    w: 1060,
+    h: 700,
+    minW: 640,
+    minH: 420
+  },
+  reminders: {
+    id: 'reminders',
+    name: 'Reminders',
+    nameKey: 'apps.reminders.name',
+    icon: 'app-reminders',
+    kind: 'builtin',
+    bundleId: 'io.aiao.desktop.reminders',
+    ...preinstalled,
+    w: 760,
+    h: 540,
+    minW: 480,
+    minH: 320
+  },
+  weather: {
+    id: 'weather',
+    name: 'Weather',
+    nameKey: 'apps.weather.name',
+    icon: 'app-weather',
+    kind: 'builtin',
+    bundleId: 'io.aiao.desktop.weather',
+    ...preinstalled,
+    w: 460,
+    h: 620,
+    minW: 340,
+    minH: 420
+  },
+  stocks: {
+    id: 'stocks',
+    name: 'Stocks',
+    nameKey: 'apps.stocks.name',
+    icon: 'app-stocks',
+    kind: 'builtin',
+    bundleId: 'io.aiao.desktop.stocks',
+    ...preinstalled,
+    w: 800,
+    h: 560,
+    minW: 480,
+    minH: 340
+  },
+  clock: {
+    id: 'clock',
+    name: 'Clock',
+    nameKey: 'apps.clock.name',
+    icon: 'app-clock',
+    kind: 'builtin',
+    bundleId: 'io.aiao.desktop.clock',
+    ...preinstalled,
+    w: 520,
+    h: 420,
+    minW: 360,
+    minH: 300
+  },
+  contacts: {
+    id: 'contacts',
+    name: 'Contacts',
+    nameKey: 'apps.contacts.name',
+    icon: 'app-contacts',
+    kind: 'builtin',
+    bundleId: 'io.aiao.desktop.contacts',
+    ...preinstalled,
+    w: 760,
+    h: 540,
+    minW: 480,
+    minH: 320
+  },
+  freeform: {
+    id: 'freeform',
+    name: 'Freeform',
+    nameKey: 'apps.freeform.name',
+    icon: 'app-freeform',
+    kind: 'builtin',
+    bundleId: 'io.aiao.desktop.freeform',
+    ...preinstalled,
+    w: 860,
+    h: 600,
+    minW: 480,
+    minH: 320
+  },
+  podcasts: {
+    id: 'podcasts',
+    name: 'Podcasts',
+    nameKey: 'apps.podcasts.name',
+    icon: 'app-podcasts',
+    bundleId: 'io.aiao.desktop.podcasts',
+    ...shelf
+  },
+  tv: { id: 'tv', name: 'TV', nameKey: 'apps.tv.name', icon: 'app-tv', bundleId: 'io.aiao.desktop.tv', ...shelf },
+  books: {
+    id: 'books',
+    name: 'Books',
+    nameKey: 'apps.books.name',
+    icon: 'app-books',
+    bundleId: 'io.aiao.desktop.books',
+    ...shelf
+  },
+  appstore: {
+    id: 'appstore',
+    name: 'App Store',
+    nameKey: 'apps.appstore.name',
+    icon: 'app-appstore',
+    bundleId: 'io.aiao.desktop.app-store',
+    ...shelf
+  },
+  facetime: {
+    id: 'facetime',
+    name: 'FaceTime',
+    nameKey: 'apps.facetime.name',
+    icon: 'app-facetime',
+    kind: 'builtin',
+    bundleId: 'io.aiao.desktop.facetime',
+    ...preinstalled,
+    w: 780,
+    h: 560,
+    minW: 440,
+    minH: 320
+  },
+  activity: {
+    id: 'activity',
+    name: 'Activity Monitor',
+    nameKey: 'apps.activity.name',
+    icon: 'app-activity',
+    kind: 'builtin',
+    bundleId: 'io.aiao.desktop.activity-monitor',
+    ...preinstalled,
+    w: 860,
+    h: 560,
+    minW: 560,
+    minH: 340
+  },
+  diskutil: {
+    id: 'diskutil',
+    name: 'Disk Utility',
+    nameKey: 'apps.diskutil.name',
+    icon: 'app-diskutil',
+    kind: 'builtin',
+    bundleId: 'io.aiao.desktop.disk-utility',
+    ...preinstalled,
+    w: 800,
+    h: 520,
+    minW: 560,
+    minH: 340
+  },
+  fontbook: {
+    id: 'fontbook',
+    name: 'Font Book',
+    nameKey: 'apps.fontbook.name',
+    icon: 'app-fontbook',
+    kind: 'builtin',
+    bundleId: 'io.aiao.desktop.font-book',
+    ...preinstalled,
+    w: 820,
+    h: 560,
+    minW: 540,
+    minH: 340
+  },
+  voice: {
+    id: 'voice',
+    name: 'Voice Memos',
+    nameKey: 'apps.voice.name',
+    icon: 'app-voice',
+    kind: 'builtin',
+    bundleId: 'io.aiao.desktop.voice-memos',
+    ...preinstalled,
+    w: 720,
+    h: 500,
+    minW: 460,
+    minH: 320
+  },
+  saltline: {
+    id: 'saltline',
+    name: '几猫3A大作',
+    nameKey: 'apps.saltline.name',
+    icon: 'app-saltline',
+    kind: 'builtin',
+    runtime: 'bundled-html',
+    entry: 'saltline.html',
+    bundleId: 'io.aiao.desktop.saltline',
+    ...preinstalled,
+    restore: 'deferred',
+    w: 1120,
+    h: 700,
+    minW: 640,
+    minH: 400
+  },
+  launchpad: {
+    id: 'launchpad',
+    name: 'Launchpad',
+    nameKey: 'apps.launchpad.name',
+    icon: 'app-launchpad',
+    kind: 'system',
+    showInApplications: false,
+    ...pinned(20, false)
+  },
+  trash: {
+    id: 'trash',
+    name: 'Trash',
+    nameKey: 'apps.trash.name',
+    icon: 'app-trash',
+    kind: 'system',
+    showInApplications: false,
+    dockZone: 'trailing',
+    ...pinned(10, false)
+  }
+} as const satisfies DesktopAppManifests;

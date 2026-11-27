@@ -57,7 +57,7 @@ INVEST 检查清单:
    三个 demo 的 `setup_rxdb_sqlite-wasm.ts` 只有两条分支：OPFS + dedicated Worker、IDB + SharedWorker，正是
    [US-201](../adapter/US-201-sqlite-adapter.md) 的「OPFS VFS (优先) → IDB VFS + SharedWorker (降级)」；Angular e2e 走 8200 端口强制 IDB，
    即 SharedWorker 分支，demo 自己的 adapter 实例在导出、导入两端都被拒。被拒的是传输，不是库：
-   - [`buildStorageOptions()`](../../../packages/rxdb-adapter-sqlite-wasm/src/sqlite-load.utils.ts) 的 idb 档恒为
+   - [`buildStorageOptions()`](../../../packages/rxdb-adapter-sqlite-wasm/src/vfs-storage-loaders.ts) 的 idb 档恒为
      ``useIdbStorage(`${dbName}.sqlite`, { lockPolicy, lockTimeout })``（`IDBBatchAtomicVFS`），与连接跑在主线程还是
      SharedWorker 无关（demo 的 SharedWorker 入口就是 `new SqliteClient()` 经 comlink 暴露）。同库名、`vfs: 'idb'`、不设 worker
      的主线程连接打开的是同一份 IndexedDB 库（读源码确认，未实跑），而主线程 idb 正是 US-217 交付并测过的组合。
