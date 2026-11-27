@@ -55,9 +55,10 @@ const grantIssue = (grant: unknown, index: number): string | null => {
     return `grants[${index}] 必须是 { scope, permissions } 对象，实际为 ${JSON.stringify(grant)}`;
   const unknownKeys = Object.keys(grant).filter(key => key !== 'scope' && key !== 'permissions');
   if (unknownKeys.length > 0) return `grants[${index}] 不接受键 ${unknownKeys.join('、')}：只有 scope / permissions`;
-  if (!isText(grant.scope)) return `grants[${index}].scope 必须是非空字符串，实际为 ${JSON.stringify(grant.scope)}`;
-  if (!isTextList(grant.permissions)) {
-    return `grants[${index}].permissions 必须是非空字符串数组，实际为 ${JSON.stringify(grant.permissions)}`;
+  if (!isText(grant['scope']))
+    return `grants[${index}].scope 必须是非空字符串，实际为 ${JSON.stringify(grant['scope'])}`;
+  if (!isTextList(grant['permissions'])) {
+    return `grants[${index}].permissions 必须是非空字符串数组，实际为 ${JSON.stringify(grant['permissions'])}`;
   }
   return null;
 };
