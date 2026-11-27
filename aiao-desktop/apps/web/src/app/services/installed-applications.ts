@@ -77,7 +77,9 @@ export class InstalledApplications {
   private readonly registry = inject(ApplicationRegistry);
   private readonly config = inject(APPROVED_CATALOG_CONFIG);
   private readonly i18nRuntime = inject(I18N, { optional: true }) ?? undefined;
-  /** 用户可见错误消息的翻译：未注入 i18n 运行时（单测）时回退英文原文。 */
+  /** 面向用户的文案：注入 i18n 时按当前语言显示，否则回退英文原文。bind 成字段，作为回调传出时 `this` 不丢。 */
+  private readonly t = ((key: string, english: string, params?: Record<string, unknown>): string =>
+    this.i18nRuntime?.t(key, params) ?? english).bind(this);
   private readonly catalogValue = signal<ApprovedCatalog>({ releases: [], problems: [] });
   private readonly stateValue = signal<Installations>({ version: 1, apps: [] });
   private readonly failureValue = signal('');
@@ -226,8 +228,4 @@ export class InstalledApplications {
       );
     return approveCatalog(new TextEncoder().encode(saved.contents), saved.digest);
   }
-
-  /** 面向用户的文案：注入 i18n 时按当前语言显示，否则回退英文原文。bind 成字段，作为回调传出时 `this` 不丢。 */
-  private readonly t = ((key: string, english: string, params?: Record<string, unknown>): string =>
-    this.i18nRuntime?.t(key, params) ?? english).bind(this);
 }
