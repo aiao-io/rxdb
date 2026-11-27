@@ -756,6 +756,126 @@ describe('SyncManager 对协作模块的编排契约', () => {
  * 会和远端交换数据、或替同步收拾本地副本的入口，在实例挂在可写检出位上时一进门就拒绝：
  * 不进 syncing 守卫、不碰下游实现、不动 undo 边界。只读的状态查询不在此列。
  */
+// 评审 #5：拉取在事务外读游标、事务里写回。两个入口交错时，先发出、后落库的那一批把行写回旧的样子，
+// 游标却已被另一次推到前面，中间那几条变更再也不会重拉
+describe('同步入口一次只跑一个（评审 #5）', () => {
+  const deferred = <T>() => {
+    let resolve!: (value: T) => void;
+    let reject!: (reason: unknown) => void;
+    const promise = new Promise<T>((onResolve, onReject) => {
+      resolve = onResolve;
+      reject = onReject;
+    });
+    return { promise, resolve, reject };
+  };
+  const flush = () => new Promise(resolve => setTimeout(resolve, 0));
+
+  it('后来的入口等前一个结束才开始：第一次拉取落库之前，第二次拉取与推送都不开始', async () => {
+    const { manager } = createHarness();
+    const first = deferred<ReturnType<typeof createPullResult>>();
+    doubles.delegates.pull.mockReturnValueOnce(first.promise).mockResolvedValueOnce(createPullResult(0));
+    doubles.delegates.push.mockResolvedValue(createPushResult(0));
+
+    const pulling = manager.pull();
+    const pullingAgain = manager.pull();
+    const pushing = manager.push();
+    await flush();
+
+    expect(doubles.delegates.pull).toHaveBeenCalledTimes(1);
+    expect(doubles.delegates.push).not.toHaveBeenCalled();
+
+    first.resolve(createPullResult(2));
+    await expect(pulling).resolves.toMatchObject({ pulled: 2 });
+    await expect(pullingAgain).resolves.toMatchObject({ pulled: 0 });
+    await expect(pushing).resolves.toMatchObject({ pushed: 0 });
+    expect(doubles.delegates.pull).toHaveBeenCalledTimes(2);
+    expect(doubles.delegates.push).toHaveBeenCalledTimes(1);
+  });
+
+  it('前一个失败也放行下一个：失败不堵住队列', async () => {
+    const { manager } = createHarness();
+    doubles.delegates.pull.mockRejectedValueOnce(new Error('remote down'));
+    doubles.delegates.pullRepository.mockResolvedValue({
+      ...createPullResult(1),
+      repository: { namespace: 'public', entity: 'Todo' }
+    });
+
+    const failing = manager.pull();
+    const next = manager.pullRepository('public', 'Todo');
+
+    await expect(failing).rejects.toThrow('remote down');
+    await expect(next).resolves.toMatchObject({ pulled: 1 });
+  });
+
+  it('排队的有改绑、清理与分支同步：改绑在拉取落库之后才清游标', async () => {
+    const { manager } = createHarness();
+    const pulling = deferred<ReturnType<typeof createPullResult>>();
+    doubles.delegates.pull.mockReturnValue(pulling.promise);
+    doubles.remoteBackend.rebind.mockResolvedValue({ backendId: 'backend-new', previousBackendIds: [], rebound: 0 });
+    doubles.delegates.cleanupExpired.mockResolvedValue({ removed: 0, removedIds: [] });
+    doubles.delegates.syncBranches.mockResolvedValue({ created: 0, updated: 0 });
+
+    const pull = manager.pull();
+    const rebind = manager.rebindRemoteBackend();
+    const cleanup = manager.cleanupExpired('public', 'Todo');
+    const branches = manager.syncBranches();
+    await flush();
+
+    expect(doubles.remoteBackend.rebind).not.toHaveBeenCalled();
+    expect(doubles.delegates.cleanupExpired).not.toHaveBeenCalled();
+    expect(doubles.delegates.syncBranches).not.toHaveBeenCalled();
+
+    pulling.resolve(createPullResult(0));
+    await Promise.all([pull, rebind, cleanup, branches]);
+    expect(doubles.remoteBackend.rebind).toHaveBeenCalledOnce();
+    expect(doubles.delegates.cleanupExpired).toHaveBeenCalledOnce();
+    expect(doubles.delegates.syncBranches).toHaveBeenCalledOnce();
+  });
+
+  it('入口内部逐仓库走 bulkSyncInSession，不再排队：排队就是等自己', async () => {
+    const { manager } = createHarness();
+    doubles.delegates.bulkSync.mockResolvedValue({ succeeded: 0, failed: 0, results: [], durationMs: 0 });
+    doubles.delegates.push.mockImplementation(async (inner: unknown) => {
+      await (inner as SyncManager).bulkSyncInSession({ operation: 'push' });
+      return createPushResult(0);
+    });
+
+    await expect(manager.push()).resolves.toMatchObject({ pushed: 0 });
+    expect(doubles.delegates.bulkSync).toHaveBeenCalledOnce();
+  });
+
+  it('公开的 bulkSync 同样排队', async () => {
+    const { manager } = createHarness();
+    const pulling = deferred<ReturnType<typeof createPullResult>>();
+    doubles.delegates.pull.mockReturnValue(pulling.promise);
+    doubles.delegates.bulkSync.mockResolvedValue({ succeeded: 0, failed: 0, results: [], durationMs: 0 });
+
+    const pull = manager.pull();
+    const bulk = manager.bulkSync({ operation: 'pull' });
+    await flush();
+    expect(doubles.delegates.bulkSync).not.toHaveBeenCalled();
+
+    pulling.resolve(createPullResult(0));
+    await Promise.all([pull, bulk]);
+    expect(doubles.delegates.bulkSync).toHaveBeenCalledOnce();
+  });
+
+  it('只读的状态查询不排队：拉取还在跑时照常返回', async () => {
+    const { manager } = createHarness();
+    const pulling = deferred<ReturnType<typeof createPullResult>>();
+    doubles.delegates.pull.mockReturnValue(pulling.promise);
+    doubles.delegates.getRepositorySyncStatus.mockResolvedValue({ namespace: 'public', entity: 'Todo' });
+    doubles.delegates.checkRepositoryUpdates.mockResolvedValue({ hasUpdates: false });
+
+    const pull = manager.pull();
+    await expect(manager.getRepositorySyncStatus('public', 'Todo')).resolves.toMatchObject({ entity: 'Todo' });
+    await expect(manager.checkRepositoryUpdates('public', 'Todo')).resolves.toMatchObject({ hasUpdates: false });
+
+    pulling.resolve(createPullResult(0));
+    await pull;
+  });
+});
+
 describe('远端身份', () => {
   type Delegate = keyof typeof doubles.delegates;
   const EXCHANGES: ReadonlyArray<{

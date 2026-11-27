@@ -138,6 +138,17 @@ class LocalOnlyNote extends EntityBase {
   text!: string;
 }
 
+/** 生成的多对多中间表的替身：两端是 User 与 Post（US-316） */
+@Entity({ name: 'PostUserJunction', properties: [] })
+class PostUserJunction extends EntityBase {}
+
+const junctionSchemaManager = {
+  generatedEntities: [PostUserJunction],
+  isJunctionEntity: (EntityType: unknown) => EntityType === PostUserJunction,
+  junctionEndpointsOf: (EntityType: unknown) =>
+    EntityType === PostUserJunction ? [getEntityMetadata(Post), getEntityMetadata(User)] : undefined
+};
+
 /** 三个实体都跟随全局 full sync，因此都可推送 */
 const PUSHABLE_ENTITIES: EntityType[] = [User, Post, Tag];
 
@@ -147,6 +158,8 @@ const createHarness = (
     connected?: boolean;
     entities?: EntityType[];
     firstConnectedAt?: Date;
+    /** 换掉默认的「没有多对多」：多仓库作用域按它找中间表（US-316） */
+    schemaManager?: unknown;
   } = {}
 ): Harness => {
   const connected$ = new BehaviorSubject(options.connected ?? false);
@@ -195,7 +208,11 @@ const createHarness = (
     worktreeTableSet$: of(WorktreeTableSet.MAIN),
     entityManager: { getRepository },
     // 多仓库作用域（US-316）按两端找中间表：这组实体之间没有多对多
-    schemaManager: { generatedEntities: [], isJunctionEntity: () => false, junctionEndpointsOf: () => undefined },
+    schemaManager: options.schemaManager ?? {
+      generatedEntities: [],
+      isJunctionEntity: () => false,
+      junctionEndpointsOf: () => undefined
+    },
     firstConnectedAt: options.firstConnectedAt,
     localAdapter$: of(localAdapter),
     removeEventListener,
@@ -242,6 +259,57 @@ afterEach(() => {
 });
 
 describe('历史流、作用域与撤销重做执行', () => {
+  // 评审 #12：清单与计数同一口径（`buildPendingPushWhere`），端到端由 pglite 包的真库用例守，这里守本包自己的那一半
+  describe('pushableHistories$（US-317）', () => {
+    const collect = (harness: Harness) => {
+      const emitted: HistoryItem[][] = [];
+      const subscription = harness.historyManager.pushableHistories$.subscribe(items => emitted.push(items));
+      return { emitted, subscription };
+    };
+
+    it('按待推条件查当前分支上没撤销、没推上去的变更，一个事务一项、最新在前', async () => {
+      const harness = createHarness({ connected: true });
+      const transactionId = 'tx-pushable' as UUID;
+      harness.changeFind.mockReturnValue(
+        of([createChange(4, { transactionId }), createChange(3, { transactionId, entity: 'Post' }), createChange(2)])
+      );
+
+      const { emitted, subscription } = collect(harness);
+      await vi.waitFor(() => expect(emitted.at(-1)).toHaveLength(2));
+
+      expect(emitted.at(-1)!.map(item => item.changes.map(change => change.id))).toEqual([[4, 3], [2]]);
+      const query = asQuery(harness.changeFind.mock.calls[0][0]);
+      expect(getRule(query, 'branchId')?.value).toBe('main');
+      expect(getRule(query, 'revertChangeId')).toMatchObject({ operator: '=', value: null });
+      expect(getRule(query, 'remoteId')).toMatchObject({ operator: '=', value: null });
+      expect(query.orderBy).toEqual([{ field: 'id', sort: 'desc' }]);
+      subscription.unsubscribe();
+    });
+
+    it('同步结算之后重查一遍清单：推上去的那几项随之消失', async () => {
+      const harness = createHarness({ connected: true });
+      harness.changeFind.mockReturnValue(of([createChange(2), createChange(1)]));
+      const { emitted, subscription } = collect(harness);
+      await vi.waitFor(() => expect(emitted.at(-1)).toHaveLength(2));
+
+      harness.changeFind.mockReturnValue(of([createChange(2)]));
+      harness.repositorySyncComplete();
+
+      await vi.waitFor(() => expect(emitted.at(-1)).toHaveLength(1));
+      expect(emitted.at(-1)!.map(item => item.changeId)).toEqual([2]);
+      subscription.unsubscribe();
+    });
+
+    it('没连上时清单为空，不查变更表', async () => {
+      const harness = createHarness({ connected: false });
+      const { emitted, subscription } = collect(harness);
+
+      await vi.waitFor(() => expect(emitted).toEqual([[]]));
+      expect(harness.changeFind).not.toHaveBeenCalled();
+      subscription.unsubscribe();
+    });
+  });
+
   describe('history streams', () => {
     it('emits histories, counts and repository-aware undo histories', async () => {
       const changes = [
@@ -391,6 +459,26 @@ describe('历史流、作用域与撤销重做执行', () => {
       expect(() => harness.historyManager.history([])).toThrow(RxDBError);
 
       subscription.unsubscribe();
+    });
+
+    // 评审 #12：作用域走真实的 `#repositoriesScope` 路径——中间表由 schemaManager 的生成实体与两端给出
+    it('多仓库作用域按 schemaManager 找出两端都列出的中间表，一并算进作用域；只列一端时不算', async () => {
+      findAllMock.mockReturnValue(
+        of([
+          createChange(4, { entity: 'PostUserJunction' }),
+          createChange(3, { entity: 'Post' }),
+          createChange(2, { entity: 'Tag' }),
+          createChange(1)
+        ])
+      );
+      const harness = createHarness({ firstConnectedAt, schemaManager: junctionSchemaManager });
+
+      const both = firstValueFrom(harness.historyManager.history([User, Post]).histories$);
+      const userOnly = firstValueFrom(harness.historyManager.history([User]).histories$);
+      harness.connected$.next(true);
+
+      expect((await both).map(history => history.changeId)).toEqual([4, 3, 1]);
+      expect((await userOnly).map(history => history.changeId)).toEqual([1]);
     });
 
     it('keeps a cached scope until its final subscription is released', () => {

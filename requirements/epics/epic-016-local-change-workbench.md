@@ -104,6 +104,7 @@ US-233 与 US-318 是今天就踩得到的缺陷（推完一刷新徽标冒出�
 - [US-231 dev-rxdb-supabase 三页交互统一：撤销、重做与操作历史同一位置、作用域写在控件上](../stories/adapter/US-231-supabase-unified-undo-history.md) (Medium) — A Todo 与商品登记、页面骨架统一 → B 订单接入（前置 US-316、US-318）
 - [US-232 dev-rxdb-supabase 商品「模拟服务端变更」收进右侧抽屉：主界面先看本机数据，需要时再打开](../stories/adapter/US-232-supabase-catalog-server-drawer.md) (Medium)
 - [US-233 Supabase 待拉数与能拉的对不上：刷新后把自己推的算进去，分区按变更号差计](../stories/adapter/US-233-supabase-pullable-count-accuracy.md) (High)
+- [US-235 dev-rxdb-supabase 订单页一个窗口就能测：页面上写明怎么测，远端数据看得见，没推的行标出来](../stories/adapter/US-235-supabase-orders-testability.md) (Medium)
 - [US-316 撤销/重做的多仓库作用域：几个实体合起来撤，跨它们的事务整条撤](../stories/collaboration/US-316-multi-repository-history-scope.md) (Medium)
 - [US-317 待推送清单：与待推数同一口径的历史项流](../stories/collaboration/US-317-pushable-histories.md) (Medium)
 - [US-318 本地外键级联删除与源删除记进同一个事务：一次撤销整组恢复，互相引用的也撤得回来](../stories/collaboration/US-318-cascade-delete-one-transaction.md) (High)

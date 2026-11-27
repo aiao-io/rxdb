@@ -42,13 +42,16 @@ psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 --single-transaction \
 
 平台默认的判定：未分区实体看调用者角色对业务表有没有 `UPDATE` 权限；分区实体只认调用者自己的 `user:<auth.uid()>` 区，公开区与其他区默认谁都看不到历史。按租户、按团队等方式授权的部署，用 `CREATE OR REPLACE` 覆盖 `public.rxdb_caller_can_edit(p_namespace text, p_entity text, p_row jsonb)`，口径与业务表的 UPDATE 策略一致，示例见<a href="/docs/adapters/supabase#按自己的权限模型判定">按自己的权限模型判定</a>。
 
-步骤 1 里的 04 每次执行都会把 `rxdb_caller_can_edit` 恢复成平台默认。所以每次执行完步骤 1，都要重新加载自己的覆盖，再执行一次生产权限脚本：
+步骤 1 里的 04 每次执行都会把 `rxdb_caller_can_edit` 恢复成平台默认，02 同样会把 `rxdb_caller_buckets()` 恢复成平台默认（只有 `public` 与 `user:<auth.uid()>`）。所以每次执行完步骤 1，都要重新加载自己的这两个覆盖，再执行一次生产权限脚本：
 
 ```bash
 psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 --single-transaction \
+  -f path/to/your-caller-buckets.sql \
   -f path/to/your-caller-can-edit.sql \
   -f docker/sql/production/rxdb-change-grants.sql
 ```
+
+`rxdb_caller_buckets()` 的覆盖影响面更大：同步拉取、业务表 RLS 与实时频道都按它放行。覆盖装回之前，客户端把租户区当成已撤销，清掉本机这些区的数据，装回之后再整块重拉，期间没有报错。按租户授权的部署最好把这两个覆盖直接放进步骤 1 的同一个事务、生产权限脚本之前，不留这段窗口。
 
 覆盖加载之前，历史照常记录，读取按平台默认判定：分区实体只有调用者自己的 `user:<auth.uid()>` 区读得到，其余成员读到零条；未分区实体对有表级 `UPDATE` 权限的身份全部开放。业务表用 RLS 按行限制编辑（例如只能改自己创建的行）的，默认判定比 RLS 宽，要先加载覆盖再开放读取入口：这类表的正文本来就在对已登录身份可读的未分区日志里，历史多出来的是操作者与来源。
 

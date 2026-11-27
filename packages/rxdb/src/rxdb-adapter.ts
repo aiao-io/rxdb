@@ -1071,9 +1071,8 @@ export abstract class RxDBAdapterRemoteBase extends RxDBAdapterBase {
    * @param actions - 压缩后的变更操作集合（从本地 push 来的）
    * @param branchId - 分支 ID（用于在远程变更记录中设置 branchId）
    * @param changes - 完整的原始变更记录（可选，用于保留完整的变更历史）
-   * @returns 创建的远程 RxDBChange 的最大 ID（用于更新 lastPullRemoteChangeId）
-   *
    * @param options - 可选项：先写空、再补写的外键（只发给声明了 {@link supportsDeferredForeignKeys} 的实现）
+   * @returns 创建的远程 RxDBChange 的最大 ID（用于更新 lastPullRemoteChangeId）
    *
    * @remarks
    * 提供 `changes` 时，实现必须以客户端 ID 和本地 change ID 作为幂等键。相同批次重试时不得重复执行

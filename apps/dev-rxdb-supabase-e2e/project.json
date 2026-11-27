@@ -15,7 +15,7 @@
       "options": {
         "cwd": "apps/dev-rxdb-supabase-e2e",
         "commands": [
-          "REMOTE_E2E=true NX_DAEMON=false pnpm exec playwright test src/remote-sync.spec.ts src/catalog-sync.spec.ts src/catalog-local-writes.spec.ts src/orders-sync.spec.ts src/workbench.spec.ts",
+          "REMOTE_E2E=true NX_DAEMON=false pnpm exec playwright test src/remote-sync.spec.ts src/catalog-sync.spec.ts src/catalog-local-writes.spec.ts src/catalog-member-permissions.spec.ts src/orders-sync.spec.ts src/workbench.spec.ts",
           "REMOTE_E2E=true REMOTE_E2E_COUNTS=true NX_DAEMON=false pnpm exec playwright test src/sync-counts.spec.ts --workers=1"
         ],
         "parallel": false

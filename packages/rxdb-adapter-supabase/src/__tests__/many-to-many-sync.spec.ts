@@ -220,7 +220,13 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('Supabase 多对多关联的推�
       .save();
     for (const [index, id] of itemIds.entries()) {
       await em
-        .instantiate(ShopOrderItem, { id: id as never, productName: `us228-${runId}-${index}`, quantity: 1, price: 1, orderId })
+        .instantiate(ShopOrderItem, {
+          id: id as never,
+          productName: `us228-${runId}-${index}`,
+          quantity: 1,
+          price: 1,
+          orderId
+        })
         .save();
     }
     for (const [index, id] of categoryIds.entries()) {

@@ -25,8 +25,8 @@ import { groupByBucket } from './catalog-view';
  * @remarks
  * 能读哪些区由服务端裁决（`rxdb_caller_buckets()` 与 RLS），同步规则只在能读的区里挑行。
  * 同步下来的数据离线可用；成员关系、可见范围或规则变了，下一次拉取按区补快照或整块清理。
- * 所在租户的商品可以在本机改；撤销、重做与整机的拉取、推送在顶栏（页面登记，epic-016），
- * 推送之前能撤销、重做，推送之后就成了大家看到的结果。
+ * 有 edit 的租户的商品可以在本机改（US-234：员工所在租户的商品只读，标着「员工只读」，也没有「历史」）；
+ * 撤销、重做与整机的拉取、推送在顶栏（页面登记，epic-016），推送之前能撤销、重做，推送之后就成了大家看到的结果。
  */
 @Component({
   selector: 'app-catalog-synced-panel',
@@ -68,7 +68,11 @@ import { groupByBucket } from './catalog-view';
             <h3 class="text-base-content/70 text-sm font-semibold">{{ group.label }} · {{ group.items.length }}</h3>
             <ul class="divide-base-200 divide-y">
               @for (item of group.items; track item.id) {
-                <li class="flex flex-wrap items-center justify-between gap-2 py-1" data-testid="synced-item">
+                <li
+                  class="flex flex-wrap items-center justify-between gap-2 py-1"
+                  [attr.data-tenant-id]="item.tenantId"
+                  data-testid="synced-item"
+                >
                   <span class="flex items-center gap-2">
                     <span class="badge badge-ghost badge-sm">{{ item.category }}</span>
                     <span>{{ item.name }}</span>
@@ -77,9 +81,13 @@ import { groupByBucket } from './catalog-view';
                     <span class="text-base-content/70 text-sm">
                       ¥{{ item.price }} · 成本 {{ item.cost === null ? '无权读取' : '¥' + item.cost }}
                     </span>
+                    @if (writes.readonlyReason(item); as reason) {
+                      <span class="badge badge-ghost badge-sm" data-testid="synced-item-readonly">{{ reason }}</span>
+                    }
                     <button
                       class="btn btn-xs"
                       [disabled]="!writes.canEdit(item) || writes.$busy()"
+                      [title]="writes.readonlyReason(item) ?? ''"
                       (click)="edit(item)"
                       type="button"
                     >
@@ -88,6 +96,7 @@ import { groupByBucket } from './catalog-view';
                     <button
                       class="btn btn-xs w-20"
                       [disabled]="!writes.canEdit(item) || writes.$busy()"
+                      [title]="writes.readonlyReason(item) ?? ''"
                       (click)="writes.setVisibility(item, item.visibility === 'public' ? 'tenant' : 'public')"
                       type="button"
                     >
@@ -96,6 +105,7 @@ import { groupByBucket } from './catalog-view';
                     <button
                       class="btn btn-xs btn-error btn-outline"
                       [disabled]="!writes.canEdit(item) || writes.$busy()"
+                      [title]="writes.readonlyReason(item) ?? ''"
                       (click)="writes.remove(item)"
                       type="button"
                     >
@@ -118,7 +128,7 @@ import { groupByBucket } from './catalog-view';
             <span class="fieldset-legend">在本机新建商品</span>
             <input
               class="input input-sm"
-              [disabled]="!writes.$canWrite()"
+              [disabled]="!writes.$canCreate()"
               [ngModel]="draftName()"
               (ngModelChange)="draftName.set($event)"
               name="name"
@@ -128,7 +138,7 @@ import { groupByBucket } from './catalog-view';
           </label>
           <select
             class="select select-sm w-24"
-            [disabled]="!writes.$canWrite()"
+            [disabled]="!writes.$canCreate()"
             [ngModel]="draftCategory()"
             (ngModelChange)="draftCategory.set($event)"
             aria-label="新商品分类"
@@ -140,19 +150,19 @@ import { groupByBucket } from './catalog-view';
           </select>
           <select
             class="select select-sm w-32"
-            [disabled]="!writes.$canWrite()"
+            [disabled]="!writes.$canCreate()"
             [ngModel]="draftTenantId()"
             (ngModelChange)="draftTenantId.set($event)"
             aria-label="新商品所属租户"
             name="tenant"
           >
-            @for (tenantId of remote.$myTenantIds(); track tenantId) {
+            @for (tenantId of remote.$editableTenantIds(); track tenantId) {
               <option [value]="tenantId">{{ remote.tenantName(tenantId) }}</option>
             }
           </select>
           <select
             class="select select-sm w-28"
-            [disabled]="!writes.$canWrite()"
+            [disabled]="!writes.$canCreate()"
             [ngModel]="draftVisibility()"
             (ngModelChange)="draftVisibility.set($event)"
             aria-label="新商品可见范围"
@@ -163,7 +173,7 @@ import { groupByBucket } from './catalog-view';
           </select>
           <button
             class="btn btn-sm btn-primary"
-            [disabled]="!writes.$canWrite() || writes.$busy() || !draftName().trim()"
+            [disabled]="!writes.$canCreate() || writes.$busy() || !draftName().trim()"
             type="submit"
           >
             新建
@@ -197,11 +207,14 @@ export class CatalogSyncedPanel {
   readonly draftTenantId = signal('');
   readonly draftVisibility = signal<CatalogItem['visibility']>('public');
 
-  /** 写入口的说明：访客只读，不在租户里没有可改的商品 */
+  /** 写入口的说明：访客只读，不在租户里没有可改的商品，员工只读 */
   readonly $writeHint = computed(() => {
     if (!this.session.signedIn) return '访客只读：登录成员才能在本机改商品。';
-    if (!this.writes.$canWrite()) return '还不在任何租户里：加入租户之后可以在本机改这个租户的商品。';
-    return '所在租户的商品可以在本机新建、编辑、删除：推送之前可以撤销、重做，点顶栏的「推送」才写到远端，推送之后就不能再撤销。';
+    if (this.remote.$myTenantIds().length === 0) return '还不在任何租户里：加入租户之后可以在本机改这个租户的商品。';
+    if (!this.writes.$canCreate()) {
+      return '员工只读：所在租户的商品能同步、浏览，不能新建、编辑、删除；请这个租户的管理员在「模拟服务端变更」的「成员与权限」里把你设为管理员。';
+    }
+    return '你是管理员的租户，商品可以在本机新建、编辑、删除（标着「员工只读」的只能看）：推送之前可以撤销、重做，点顶栏的「推送」才写到远端，推送之后就不能再撤销。';
   });
 
   readonly items = useFindAll(CatalogItem, {
@@ -214,22 +227,27 @@ export class CatalogSyncedPanel {
   readonly $groups = computed(() => groupByBucket(this.items.value(), this.remote.$tenants()));
 
   constructor() {
-    // 所在的租户变了：新建表单默认落在第一个租户
+    // 能改的租户变了：新建表单默认落在第一个能改的租户
     effect(() => {
-      const tenantIds = this.remote.$myTenantIds();
+      const tenantIds = this.remote.$editableTenantIds();
       const current = untracked(this.draftTenantId);
       this.draftTenantId.set(tenantIds.includes(current) ? current : (tenantIds[0] ?? ''));
     });
   }
 
+  /** 打开编辑框；上一次操作的失败原因不带进框里（与服务端面板同口径） */
   edit(item: CatalogItem): void {
+    this.writes.dismissError();
     this.editorRef().open(item);
   }
 
-  /** 存进本机，成功才关上编辑框；失败时框不关，原因显示在框里 */
+  /** 存进本机，成功才关上编辑框；失败时框不关，原因显示在框里（包括编辑期间这件商品已被同步移出本机） */
   async saveEdit({ id, changes }: CatalogItemEdit): Promise<void> {
     const item = this.items.value().find(candidate => candidate.id === id);
-    if (!item) return;
+    if (!item) {
+      this.writes.reportItemGone();
+      return;
+    }
     await this.writes.update(item, changes);
     if (!this.writes.$error()) this.editorRef().close();
   }

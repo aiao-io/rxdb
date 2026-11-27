@@ -4,7 +4,7 @@
  * @remarks
  * 商品（`catalog_items`）按授权分区同步：公开商品在 `public` 区，租户内部商品在 `tenant:<租户>` 区。
  * 成员在本地改商品、推送经 `rxdb_mutations`：服务端按写后的行算区、分区日志不带正文、换区时旧区记移除，
- * 写不写得进去由 `catalog-demo.sql` 的成员策略按 `tenantId` 裁决。
+ * 写不写得进去由 `catalog-demo.sql` 的写策略按成员在该租户的权限裁决：本文件的成员都有 `edit`（US-234）。
  *
  * 每轮用带 runId 的租户、分类与用户：租户、成员关系与种子行经 service_role 直写，结束时按 id 清理，
  * 不碰演示租户（星河零售、极光百货）与其他用例的数据。
@@ -23,6 +23,8 @@ import { asyncWasmPath } from './wa-sqlite-wasm.js';
 
 const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
 const SUPABASE_KEY = import.meta.env['VITE_SUPABASE_KEY'] || '';
+/** 能改本租户商品的成员权限（US-234：自助加入只有 read） */
+const EDITOR = ['read', 'edit'];
 
 interface SeedRow {
   id: string;
@@ -161,7 +163,7 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('分区实体的本地写入（U
     expect(tenantError, 'demo_tenants 缺失：先用 nx run rxdb-adapter-supabase:test-env 初始化测试栈').toBeNull();
     const { error: memberError } = await service
       .from('demo_tenant_members')
-      .insert({ user_id: alice, tenant_id: tenant });
+      .insert({ user_id: alice, tenant_id: tenant, permissions: EDITOR });
     expect(memberError).toBeNull();
   });
 
@@ -302,7 +304,7 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('分区实体的本地写入（U
     const outsider = crypto.randomUUID();
     const { error: joinError } = await service
       .from('demo_tenant_members')
-      .insert({ user_id: outsider, tenant_id: tenant });
+      .insert({ user_id: outsider, tenant_id: tenant, permissions: EDITOR });
     expect(joinError).toBeNull();
     const [kept] = await seed(row('kicked', 'tenant'));
     const { rxdb, local } = await open(client(outsider));

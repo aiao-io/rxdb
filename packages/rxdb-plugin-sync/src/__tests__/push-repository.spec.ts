@@ -1937,10 +1937,10 @@ describe('pushRepository 上报被拒', () => {
 describe('推送按外键依赖排序（US-037）', () => {
   const wirePush = (harness: ReturnType<typeof createHarness>): ReturnType<typeof createHarness> => {
     const vm = harness.vm as unknown as {
-      bulkSync: (options?: BulkSyncOptions) => Promise<BulkSyncResult>;
+      bulkSyncInSession: (options?: BulkSyncOptions) => Promise<BulkSyncResult>;
       rxdb: { syncManager: SyncManager };
     };
-    vm.bulkSync = options => bulkSync(harness.vm.rxdb, options);
+    vm.bulkSyncInSession = options => bulkSync(harness.vm.rxdb, options);
     vm.rxdb.syncManager = harness.vm;
     return harness;
   };
@@ -2309,10 +2309,10 @@ class LockChild extends EntityBase {}
 describe('外键成环的推送（US-038）', () => {
   const wire = (harness: ReturnType<typeof createHarness>): ReturnType<typeof createHarness> => {
     const vm = harness.vm as unknown as {
-      bulkSync: (options?: BulkSyncOptions) => Promise<BulkSyncResult>;
+      bulkSyncInSession: (options?: BulkSyncOptions) => Promise<BulkSyncResult>;
       rxdb: { syncManager: SyncManager };
     };
-    vm.bulkSync = options => bulkSync(harness.vm.rxdb, options);
+    vm.bulkSyncInSession = options => bulkSync(harness.vm.rxdb, options);
     vm.rxdb.syncManager = harness.vm;
     return harness;
   };

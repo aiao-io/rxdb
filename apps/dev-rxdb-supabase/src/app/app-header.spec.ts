@@ -107,10 +107,24 @@ describe('AppHeader', () => {
     expect(holders.every(holder => holder.closest('.sr-only') !== null)).toBe(true);
   });
 
-  it('本地模式没有身份：不显示切换菜单', () => {
-    const { select } = renderHeader({ description: undefined, currentChoice: null });
+  it('本地模式显示同步不可用的原因和远端启动命令', () => {
+    const { select, byTestId } = renderHeader({ description: undefined, currentChoice: null });
+    const notice = byTestId('local-mode-notice');
 
     expect(select).toBeNull();
+    expect(notice?.querySelector('summary')?.textContent?.trim()).toBe('本地模式');
+    expect(notice?.textContent).toContain('推送、拉取和身份切换需要连接 Supabase');
+    expect(notice?.querySelector('code')?.textContent).toBe('pnpm nx dev dev-rxdb-supabase');
+  });
+
+  it('远端访客有切换菜单，不显示本地模式提示', () => {
+    const { select, byTestId } = renderHeader({
+      description: { title: '访客', detail: '未登录' },
+      currentChoice: 'visitor'
+    });
+
+    expect(select?.value).toBe('visitor');
+    expect(byTestId('local-mode-notice')).toBeNull();
   });
 
   // 安全提示不在每个页面顶部占一整行，收成顶栏上的一个图标

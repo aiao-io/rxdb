@@ -44,11 +44,16 @@ async function settle(fixture: ComponentFixture<unknown>): Promise<void> {
   fixture.detectChanges();
 }
 
-async function renderPanel(options: { signedIn: boolean; tenants: string[] }) {
+/**
+ * @param options.tenants - 所在的租户
+ * @param options.editable - 其中有 edit 的租户；缺省与所在的租户相同（都是管理员）
+ */
+async function renderPanel(options: { signedIn: boolean; tenants: string[]; editable?: string[] }) {
   const rxdb = { entityManager: { instantiate: vi.fn() } };
   const own = listedItem('item-own', 'xinghe', '星河 X1 蓝牙耳机');
   const other = listedItem('item-other', 'jiguang', '极光便携充电宝');
-  angularMocks.useFindAll.mockReturnValue({ value: signal([own, other]) });
+  const items = signal([own, other]);
+  angularMocks.useFindAll.mockReturnValue({ value: items });
   TestBed.configureTestingModule({
     imports: [CatalogSyncedPanel],
     providers: [
@@ -63,6 +68,7 @@ async function renderPanel(options: { signedIn: boolean; tenants: string[] }) {
             { id: 'jiguang', name: '极光百货' }
           ]),
           $myTenantIds: signal(options.tenants),
+          $editableTenantIds: signal(options.editable ?? options.tenants),
           tenantName: (tenantId: string) => tenantId
         }
       }
@@ -86,7 +92,7 @@ async function renderPanel(options: { signedIn: boolean; tenants: string[] }) {
     target!.click();
     await settle(fixture);
   };
-  return { fixture, root, row, button, byTestId, click, own };
+  return { fixture, root, row, button, byTestId, click, own, other, items };
 }
 
 describe('CatalogSyncedPanel：本机写入入口（US-034）', () => {
@@ -128,6 +134,35 @@ describe('CatalogSyncedPanel：本机写入入口（US-034）', () => {
     ]);
   });
 
+  // US-234 AC#12：Alice 是星河零售的管理员，加入极光百货当员工
+  it('员工所在租户的商品：写入口不可点，标着「员工只读」，没有「历史」；管理员所在租户的商品照常能改', async () => {
+    const { row, button } = await renderPanel({ signedIn: true, tenants: ['jiguang', 'xinghe'], editable: ['xinghe'] });
+    const staffRow = row('极光便携充电宝');
+
+    expect(['编辑', '收回为内部', '删除'].map(name => button(staffRow, name)?.disabled)).toEqual([true, true, true]);
+    expect(button(staffRow, '编辑')?.title).toBe('员工只读');
+    expect(staffRow.querySelector('[data-testid="synced-item-readonly"]')?.textContent?.trim()).toBe('员工只读');
+    expect(button(staffRow, '历史')).toBeNull();
+    expect(button(row('星河 X1 蓝牙耳机'), '编辑')?.disabled).toBe(false);
+    expect(button(row('星河 X1 蓝牙耳机'), '历史')).not.toBeNull();
+    expect(row('星河 X1 蓝牙耳机').querySelector('[data-testid="synced-item-readonly"]')).toBeNull();
+  });
+
+  it('新建表单的租户下拉只列有 edit 的租户', async () => {
+    const { byTestId } = await renderPanel({ signedIn: true, tenants: ['jiguang', 'xinghe'], editable: ['xinghe'] });
+    const tenant = byTestId('catalog-create-form').querySelector<HTMLSelectElement>('select[name="tenant"]')!;
+
+    expect([...tenant.options].map(option => option.value)).toEqual(['xinghe']);
+    expect(tenant.disabled).toBe(false);
+  });
+
+  it('只当员工：说明员工只读，新建不可用', async () => {
+    const { byTestId, button } = await renderPanel({ signedIn: true, tenants: ['jiguang'], editable: [] });
+
+    expect(byTestId('catalog-write-hint').textContent).toContain('员工只读');
+    expect(button(byTestId('catalog-create-form'), '新建')?.disabled).toBe(true);
+  });
+
   it('US-229 变更历史的入口只给能编辑这件商品的成员：访客与别的租户的成员都看不到', async () => {
     const member = await renderPanel({ signedIn: true, tenants: ['xinghe'] });
     expect(member.button(member.row('星河 X1 蓝牙耳机'), '历史')).not.toBeNull();
@@ -162,5 +197,43 @@ describe('CatalogSyncedPanel：本机写入入口（US-034）', () => {
     expect(own.save).toHaveBeenCalledTimes(1);
     expect(own.name).toBe('星河 X1 Pro');
     expect(dialog.open).toBe(false);
+  });
+
+  it('编辑期间这件商品被同步移出了本机：保存不写本机，框不关，原因显示在框里', async () => {
+    const { fixture, row, button, click, root, own, other, items } = await renderPanel({
+      signedIn: true,
+      tenants: ['xinghe']
+    });
+
+    await click(button(row('星河 X1 蓝牙耳机'), '编辑'));
+    const dialog = root.querySelector('app-catalog-item-editor dialog') as HTMLDialogElement;
+    items.set([other]);
+    await settle(fixture);
+    await click(button(dialog, '保存'));
+
+    expect(own.save).not.toHaveBeenCalled();
+    expect(dialog.open).toBe(true);
+    expect(dialog.querySelector('[role="alert"]')?.textContent).toContain('已经不在本机');
+  });
+
+  // 与服务端面板同口径：上一次操作的失败原因不带进下一次打开的编辑框
+  it('取消之后再打开编辑框：上一次没保存的原因不再显示', async () => {
+    const { fixture, row, button, click, root, own, other, items } = await renderPanel({
+      signedIn: true,
+      tenants: ['xinghe']
+    });
+    await click(button(row('星河 X1 蓝牙耳机'), '编辑'));
+    const dialog = root.querySelector('app-catalog-item-editor dialog') as HTMLDialogElement;
+    items.set([other]);
+    await settle(fixture);
+    await click(button(dialog, '保存'));
+    await click(button(dialog, '取消'));
+
+    items.set([own, other]);
+    await settle(fixture);
+    await click(button(row('星河 X1 蓝牙耳机'), '编辑'));
+
+    expect(dialog.open).toBe(true);
+    expect(dialog.querySelector('[role="alert"]')).toBeNull();
   });
 });

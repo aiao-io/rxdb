@@ -2,6 +2,9 @@
 
 ### ⚠️ Breaking Changes
 
+- **rxdb / rxdb-adapter-supabase:** Remote 事件（`ENTITY_REMOTE_CREATE` / `ENTITY_REMOTE_UPDATE` / `ENTITY_REMOTE_REMOVE`）的 `data` 不再保证是整行。Supabase 的变更通知不带行内容（US-225），`data` 只有 `{ id }`（此前是 `{ id, ...patch }`）；核心的三个载荷类型随之把 `data` 改为 `Readonly<Partial<InstanceType<T>>>`。读过 `data` 里其他字段的代码改成按 `id` 自己拉取，拉取以订阅者自己的身份读。→ [supabase-sync-access](https://rxdb.aiao.io/docs/migration/supabase-sync-access)
+- **rxdb-plugin-sync:** `pushRepository()` 的 `includeRelated`（默认 `true`）改为推目标所在的整个连通分量：它引用的父仓、引用它的子仓，以及沿外键连得到的其余仓库，此前只带目标与引用它的子仓。只推子仓时父仓的新行会先推上去，外键不再在远端报错。`push({ repositoryFilter })` 与 `bulkSync({ operation: 'push', repositories })` 点名仓库时同样带上连通分量，带进来的仓库在 `bulkSync` 的 `results` 里各占一条、排在点名的仓库之后。只想推目标本身的传 `includeRelated: false`。
+
 - **rxdb / rxdb-adapter-sqlite-core / -pglite:** 系统表结构升至 9，`RxDBSync` 新增可空的 `remoteBackendId`：拉取游标所属的远端身份。旧库连接时自动补列，旧行为空、首次同步时绑定；升级后旧客户端会拒绝打开该库，需一起升级。
 - **rxdb:** `RxDBAdapterRemoteBase` 新增抽象方法 `backendId()`：远端身份，远端重建或变更日志清空并重新计数之后必须换新值。自定义远端适配器须实现；不支持变更日志同步的直接抛不支持错误，`RxDBAdapterHttp` 抛 `HttpChangelogUnsupportedError`。→ [supabase-remote-backend](https://rxdb.aiao.io/docs/migration/supabase-remote-backend)（RV-01a1c69f412774fdb9f96a5ea8b44419）
 - **rxdb-adapter-supabase:** 参考 SQL 新增远端身份：单行表 `rxdb_backend`、读取函数 `rxdb_backend_id()`，以及 `TRUNCATE rxdb_change` 时换新值的触发器 `rxdb_change_rotate_backend_id`；生产权限脚本收回客户端对 `rxdb_backend` 的写权限。已有部署先建表，再重跑新版 `docker/sql/02-rxdb-sync-functions.sql` 与 `docker/sql/production/rxdb-change-grants.sql`，最后升级客户端；新客户端连旧版 SQL 时，同步入口报 `Could not find the function public.rxdb_backend_id`。→ [supabase-remote-backend](https://rxdb.aiao.io/docs/migration/supabase-remote-backend)（RV-01a1c69f412774fdb9f96a5ea8b44419）
@@ -73,6 +76,12 @@
 - **rxdb-adapter-http:** 实验性 `changeFeed` 新增诊断回调 `onOpen`（新导出 `HttpChangeFeedOpenHook` / `HttpChangeFeedOpenReport`）：每次接通（首次连接与每一次重连）报一次，排在该次接通的全量失效之后；与 `onUnavailable` 同一口径，同步调用、抛错丢弃、不影响通道。两者合起来才答得了「此刻通没通」，`changeFeedEnabled` 仍只是启停意图。
 
 ### 🩹 Fixes
+
+- **rxdb-plugin-sync:** 按区同步清理本地行时（分区被撤销、换了同步规则或换了远端，以及拉取途中行离开分区），本地别的行还经 `RESTRICT` / `NO ACTION` 外键引用着要删的行，此前整个事务回滚：撤销的分区每轮都清不掉，已撤销授权的数据一直留在本机，同一实体仍有授权的分区这一轮也全都拉不了。现在只删没被引用的行，被引用的行留在本机，原因记为新导出的 `RxDBBucketCleanupBlockedError` 进拉取结果的 `failures`，别的行与别的分区照常同步；撤销或换了规则的作用域连同进度行留着，之后每次拉取再清，引用它们的行没了就删掉。
+- **rxdb-plugin-sync:** `SyncManager` 的同步入口一次只跑一个，后来的排队等前一个结束（成功或失败）：`pull` / `push` / `sync`、`pullRepository` / `pushRepository` / `syncRepository`、`bulkSync`、`syncBranches`、`cleanupExpired`、`rebindRemoteBackend`。此前两次拉取交错时，先发出、后落库的那一批会把行写回旧的样子，游标却已被另一次推到前面，中间那几条变更再也不会重拉。只读的状态查询、检查更新与待拉数重算不排队。
+- **rxdb-plugin-sync:** 实时订阅成串恢复时（Supabase 是统一频道加每个分区一个），重算待拉数合成「正在数的这一遍」加「收尾一遍」，不再每个频道整库重数一次。
+- **rxdb-adapter-supabase:** `getBucketSnapshotPoint()` 只收 JSON 数字，空应答报 `SupabaseDataError`，不再当成水位 0 而把「远端有变更」显示成「已同步」。会话中途分区变了（被加进或移出租户），下一次读 `rxdb_caller_buckets()` 时按新分区重建实时频道，不用等断线重连。
+- **rxdb:** 声明了 `identity` 的实例，本地库的身份认领残缺（竞争行在、绑定行不在）或身份绑定写不进去时，与身份对不上一样把适配器名从读路径撤回，连接失败之后的查询不再读到身份不明的库。
 
 - **rxdb-adapter-supabase:** `mutations()` 的修改改走普通 UPDATE，修复 owner 型与共享编辑型 RLS 下被 INSERT 策略误拒的问题；批量直写仍按序列化整实体更新，不引入逐列脏追踪，`createdBy` 保持不变。`mutations()` 返回服务器实际写入的行，供调用方读取 `updatedAt` 等字段；推送保留原计数模式。本次不改变普通单实体 `save()` 的 PostgREST UPDATE 路径，也不将批量 RPC 返回值自动合并到 `save()` 的原实体。被拒与目标已删除分别报 `42501` / `RX001`，直写失败整批回滚（US-223）
 - **rxdb-adapter-supabase:** 推送父行删除时，触发器捕获实际级联删除，RPC 在源日志之后统一写入完整隐式 DELETE，所有客户端（包括推送端）均可拉取；同批 INSERT / UPDATE 子行后删除父行，拉取不再因日志顺序把子行复活。显式删除保留原映射并去重（与实际删除按 id 列类型的等值关系配对、按分区根表归并：uuid 大小写、`numeric` 的 `1` 与 `1.00`、分区表都只记一条），最终回执按实际删除结果修正，最后一条显式 DELETE 的快照取实际删除的 `OLD`。日志沿用触发器模式现有的读取边界，业务表 RLS 不提供日志的逐行授权隔离（US-224）

@@ -335,6 +335,7 @@ const sidebars: SidebarsConfig = {
         'migration/supabase-remote-backend',
         'migration/supabase-sync-access',
         'migration/supabase-change-history',
+        'migration/supabase-member-permissions',
         'migration/many-to-many-junction-id',
         'migration/supabase-fk-cycle-push',
         'migration/supabase-push-receipts',

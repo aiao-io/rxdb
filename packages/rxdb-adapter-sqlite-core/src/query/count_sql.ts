@@ -28,7 +28,7 @@ const build_group_by = (metadata: EntityMetadata, groupBy: readonly string[]): s
  * 生成 count 查询
  *
  * @remarks
- * 给了 `groupBy` 时数的是分组个数：子查询先筛行、分组，外层再数组。
+ * 给了 `groupBy` 时数的是分组个数：子查询先筛行、分组，外层再数有几组。
  */
 export const count_sql = (
   adapter: RxDBAdapterSqliteBase,

@@ -159,6 +159,8 @@ USING (rxdb_bucket = ANY((SELECT public.rxdb_caller_buckets())::text[]));
 
 `SECURITY DEFINER` 成员函数的所有者需要能够读取成员表。不要把成员表直接授给客户端角色，也不要在函数里使用可被客户端角色覆盖的 `search_path`。成员关系发生变化而业务表没有写入时，下一轮同步会按新的 caller buckets 加入或退出整个租户区。
 
+重新执行 `02-rxdb-sync-functions.sql` 会把 `rxdb_caller_buckets()` 恢复成平台默认（只有 `public` 与 `user:<auth.uid()>`），升级命令里都有这一步。覆盖装回之前，同步拉取、业务表 RLS 与实时频道都只认默认的两个区：客户端把租户区当成已撤销，清掉本机这些区的数据，覆盖装回之后再整块重拉，期间没有任何报错。所以升级时把自己的覆盖放进同一个事务，排在生产权限脚本之前执行。
+
 ### 在授权区内使用实体 filter
 
 `remote.filter()` 仍然使用 `SyncType.Filter` 的 `RuleGroup`。Supabase 适配器先按 caller buckets 拉取，再在每个已授权区内执行快照和增量 filter。客户端把 filter 改宽，不能扩大 `rxdb_caller_buckets()` 的授权范围。
@@ -196,7 +198,90 @@ export class Document extends EntityBase {}
 - 推送成功之后撤销历史清空，已推送的修改不能再撤销；拉取到远端改写了本地数据之后同样清空。没推送的修改照样待推。
 - 与远端的修改冲突时沿用拉取的冲突解决（默认按编辑时刻 LWW）。
 
-实体写权限是静态元数据，分不出身份。不该写的身份（例如只读公开数据的 anon）由应用禁用写入口；就算在本机写了也推不上去：anon 不能调用推送。
+实体写权限是静态元数据，分不出身份。不该写的身份（例如只读公开数据的 anon）由应用禁用写入口；就算在本机写了也推不上去：anon 不能调用推送。同一个租户里分管理员与员工见[配置成员权限](#配置成员权限)。
+
+### 配置成员权限
+
+caller buckets 只决定能读哪些区。同一个租户里要分出管理员与员工（员工能同步、浏览本租户的全部数据，但不能增删改，也看不到远端变更历史），在写侧按成员权限裁决（US-234）。权限只由服务端 RLS 裁决，客户端读到的授权只用来决定界面上的写入口给不给。
+
+`rxdb_caller_grants()` 说明调用者在各作用域上有哪些权限，一个作用域一行：
+
+| 列            | 类型     | 含义                                                 |
+| ------------- | -------- | ---------------------------------------------------- |
+| `scope`       | `text`   | 作用域键，如 `user:<auth.uid()>`、`tenant:<租户 id>` |
+| `permissions` | `text[]` | 调用者在这个作用域上的权限，如 `{read,edit,manage}`  |
+
+平台默认（`04-rxdb-utils-functions.sql`）：anon 零行；登录用户只有自己的 `user:<auth.uid()>`，权限 `read`、`edit`，与历史判定的平台默认 `rxdb_caller_can_edit_default`「分区实体只认调用者自己的 user 区」同口径。权限名归部署方，参考实现用 epic-015 的六项：`read`（查看）、`edit`（增删改）、`comment`、`review`、`merge`、`manage`（调整成员权限）；管理员是 `read + edit + manage`，员工是 `read`。
+
+`rxdb_caller_scopes(p_permission)` 返回调用者带有某项权限的全部作用域键，按键排序。写策略与历史判定都经它读 `rxdb_caller_grants()`，和客户端读到的是同一份结果。两个函数都授给 `anon` 与 `authenticated`，anon 得到空结果。
+
+按自己的成员表覆盖 `rxdb_caller_grants()`（签名与返回列不变），与[配置 caller buckets](#配置-caller-buckets) 同一模式。接着上面的 `app.tenant_members`：
+
+```sql
+ALTER TABLE app.tenant_members
+  ADD COLUMN permissions text[] NOT NULL DEFAULT ARRAY['read']::text[]
+  CHECK (
+    permissions <@ ARRAY['read', 'edit', 'comment', 'review', 'merge', 'manage']::text[]
+    AND 'read' = ANY(permissions)
+  );
+
+CREATE OR REPLACE FUNCTION public.rxdb_caller_grants()
+RETURNS TABLE (scope text, permissions text[])
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+  SELECT 'user:' || auth.uid()::text, ARRAY['read', 'edit']::text[]
+  WHERE auth.uid() IS NOT NULL
+  UNION ALL
+  SELECT 'tenant:' || member.tenant_id::text, member.permissions
+  FROM app.tenant_members AS member
+  WHERE member.user_id = auth.uid()
+  ORDER BY 1
+$$;
+```
+
+成员表不授给客户端，覆盖用 `SECURITY DEFINER` 读它，并且只按 `auth.uid()` 取调用者自己的行。写策略与历史判定写成同一个条件，业务表的三条写策略都判 `edit`：
+
+```sql
+CREATE POLICY documents_insert ON public.documents
+  FOR INSERT TO authenticated
+  WITH CHECK (('tenant:' || tenant_id::text) = ANY((SELECT public.rxdb_caller_scopes('edit'))::text[]));
+
+CREATE POLICY documents_update ON public.documents
+  FOR UPDATE TO authenticated
+  USING (('tenant:' || tenant_id::text) = ANY((SELECT public.rxdb_caller_scopes('edit'))::text[]))
+  WITH CHECK (('tenant:' || tenant_id::text) = ANY((SELECT public.rxdb_caller_scopes('edit'))::text[]));
+
+CREATE POLICY documents_delete ON public.documents
+  FOR DELETE TO authenticated
+  USING (('tenant:' || tenant_id::text) = ANY((SELECT public.rxdb_caller_scopes('edit'))::text[]));
+
+CREATE OR REPLACE FUNCTION public.rxdb_caller_can_edit(p_namespace text, p_entity text, p_row jsonb)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $$
+  SELECT CASE
+    WHEN p_namespace = 'public' AND p_entity = 'Document' THEN
+      ('tenant:' || (p_row->>'tenant_id')) = ANY(public.rxdb_caller_scopes('edit'))
+    ELSE public.rxdb_caller_can_edit_default(p_namespace, p_entity, p_row)
+  END
+$$;
+```
+
+和 caller buckets 一样，`(SELECT …)::text[]` 让成员权限每条语句只求值一次，不按行重复查成员表。读策略不变：员工仍是成员，`rxdb_caller_buckets()` 照样给他租户区，本租户的数据照常同步。
+
+几条要点：
+
+- **防自我提权**：客户端不能写权限列。演示那样允许自助加入的，成员表的 `INSERT` 只按列授予作用域列（`GRANT INSERT (tenant_id) ON … TO authenticated`），不授予 `UPDATE`：PostgreSQL 的 INSERT 列权限只检查语句里写到的列，自助加入只写作用域列，权限取缺省的 `read`。改权限只经 `SECURITY DEFINER` 的 RPC，函数里校验调用者在该作用域有 `manage`，并拒绝撤掉最后一个有 `manage` 的成员；参考实现是 `apps/dev-rxdb-supabase/supabase/catalog-demo.sql` 的 `demo_set_member_permissions`（先锁租户行，两个管理员同时互相降权也不会一个都不剩）。
+- **权限放在成员表，不放 JWT**：权限按作用域算，塞进令牌的 `app_metadata` 不自然；令牌里的角色要等刷新才生效，成员表改了下一次请求就生效。
+- **员工的列可见范围**：列权限按数据库角色授予，员工与管理员都是 `authenticated`，分不出人。员工读得到本租户行的全部列（演示里的成本价也一样）；按人隐藏列要改走视图或 RPC。
+- **降权后推送被拒**：降权之前在本机改下、还没推送的修改，推送时 UPDATE 改到零行而行还在，报 `42501`，回执为被拒，本机按远端对齐，见[被拒的推送](../plugins/rxdb-plugin-sync/README.md#被拒的推送)。客户端在连接时、每次拉取与改了成员关系之后读一次 `rpc('rxdb_caller_grants')`，两次读之间界面上可能还是旧权限，以推送时服务端的裁决为准。撤销、重做不按权限禁用：员工本来写不出修改，撤掉降权之前的修改正好让本机回到远端的样子。
+- **升级之后重新加载覆盖**：重新执行 `04-rxdb-utils-functions.sql` 会把 `rxdb_caller_grants()` 与 `rxdb_caller_can_edit` 都恢复成平台默认。覆盖装回之前，按 `rxdb_caller_scopes('edit')` 写的策略只认调用者自己的 user 区，租户里的写入全部被拒（不会放宽）。把覆盖放进升级的同一个事务、生产权限脚本之前，见[装上成员权限](#装上成员权限)。
 
 ### 规则之外的公开数据：在线浏览
 
@@ -414,6 +499,7 @@ interface SupabaseAdapterOptions extends IRxDBAdapterOptions {
 - 没登录时不订阅：令牌是 anon key、不是 JWT（如 `sb_publishable_` 开头的新式 key）或干脆没有时，`connect()` 只打一条 `console.info` 提示（访客是正式支持的身份，不算配置错误）、不发起订阅，也就不会反复重试；supabase-js 订阅后补报的 `INITIAL_SESSION` 不算身份变化，不会再建一遍。拉取与推送按每次请求的令牌鉴权，登录后立即可用；实时通知要在登录后再调一次 `rxdb.connect('supabase')` 开启。
 - 认不出调用者时也不订阅：令牌声称是已登录角色（如 `authenticated`）却没有 `sub`，多见于自行签发的令牌。适配器不知道该按谁的分区订阅，打一条警告后跳过；`callerIdentity()` 对这样的令牌同样拒绝回答，声明了 `identity` 的实例因此不会与远端交换数据。
 - 换了账号按新身份重建频道：用会话登录的客户端听 auth 事件；用 `accessToken` 回调的客户端没有 auth 事件，适配器在下一次同步问调用者身份、或再调 `rxdb.connect('supabase')` 时发现令牌换了主人，随即重建。
+- 同一个身份的分区变了（被加进或移出租户）也重建频道：同步每次按区拉取与统计待拉数都会读 `rxdb_caller_buckets()`，读到的分区与订阅时不同，就按新分区重新订阅，新分区的通知不必等断线重连，被撤销分区的频道随之退订。订阅时分区没读出来、只订了旧日志频道的，下一次读成功时同样补上。
 - 库里没有 `realtime.send`（没有 Realtime 服务的部署）时通知触发器什么都不发，推送与业务写照常提交。
 - 派发的 Remote 事件 `data` 只有 `id`，不是整行。同步插件只用它累计可拉取条数（按当前分支过滤），活查询不监听远端事件。
 - 当订阅状态变成 `CHANNEL_ERROR`、`TIMED_OUT` 或 `CLOSED` 时，适配器会自动以指数退避重连。成功重新订阅后，退避计数清零，并按各仓库的水位线重算一次可拉取条数。
@@ -741,7 +827,7 @@ anon 调用、远端没有这个 RPC 或返回的不是历史数组时抛 `Supab
 
 ### 按自己的权限模型判定
 
-平台默认的 `rxdb_caller_can_edit_default`：未分区实体看调用者角色对业务表有没有 `UPDATE` 权限；分区实体只认调用者自己的 `user:<auth.uid()>` 区，公开区与其他区默认谁都看不到。权限模型不同的部署方用 `CREATE OR REPLACE` 覆盖 `rxdb_caller_can_edit`（签名不变），与[配置 caller buckets](#配置-caller-buckets) 同一模式；只改自己关心的实体，其余交回默认。dev-rxdb-supabase 的商品按租户成员资格开放，与 `catalog_items_member_*` 策略同口径：
+平台默认的 `rxdb_caller_can_edit_default`：未分区实体看调用者角色对业务表有没有 `UPDATE` 权限；分区实体只认调用者自己的 `user:<auth.uid()>` 区，公开区与其他区默认谁都看不到。权限模型不同的部署方用 `CREATE OR REPLACE` 覆盖 `rxdb_caller_can_edit`（签名不变），与[配置 caller buckets](#配置-caller-buckets) 同一模式；只改自己关心的实体，其余交回默认。dev-rxdb-supabase 的商品只对所属租户里有 `edit` 的成员开放（员工看不到），与 `catalog_items_member_*` 写策略同口径，都经 `rxdb_caller_scopes` 读成员权限（见[配置成员权限](#配置成员权限)）：
 
 ```sql
 CREATE OR REPLACE FUNCTION public.rxdb_caller_can_edit(p_namespace text, p_entity text, p_row jsonb)
@@ -753,12 +839,7 @@ SET search_path = pg_catalog, pg_temp
 AS $$
     SELECT CASE
         WHEN p_namespace = 'public' AND p_entity = 'CatalogItem' THEN
-            auth.uid() IS NOT NULL AND EXISTS (
-                SELECT 1
-                FROM public.demo_tenant_members AS member
-                WHERE member.user_id = auth.uid()
-                  AND member.tenant_id = p_row->>'tenantId'
-            )
+            ('tenant:' || (p_row->>'tenantId')) = ANY(public.rxdb_caller_scopes('edit'))
         ELSE public.rxdb_caller_can_edit_default(p_namespace, p_entity, p_row)
     END
 $$;
@@ -768,7 +849,7 @@ REVOKE ALL ON FUNCTION public.rxdb_caller_can_edit(text, text, jsonb) FROM PUBLI
 
 未分区实体的默认只看表级权限。业务表用 RLS 按行限制编辑（例如只能改自己创建的行）时，默认判定比 RLS 宽：有表级 `UPDATE` 权限的已登录身份读得到这张表全部行的历史。正文本来就在对已登录身份可读的未分区日志里，多出来的是操作者与来源；这样的表也要覆盖判定，与 UPDATE 策略同口径。
 
-`p_row` 是记录时的整行，判定只能用它和调用者的身份，不能假设这一行现在还在业务表里。判定函数只在读取 RPC 里以属主身份调用，覆盖之后同样收回客户端角色的执行权，免得它成了探测别人权限的通道。重新执行 `04-rxdb-utils-functions.sql` 会把它恢复成平台默认：升级之后先重新加载自己的覆盖，再执行生产权限脚本。
+`p_row` 是记录时的整行，判定只能用它和调用者的身份，不能假设这一行现在还在业务表里。判定函数只在读取 RPC 里以属主身份调用，覆盖之后同样收回客户端角色的执行权，免得它成了探测别人权限的通道。重新执行 `04-rxdb-utils-functions.sql` 会把它恢复成平台默认：升级之后先重新加载自己的覆盖，再执行生产权限脚本。`02-rxdb-sync-functions.sql` 对 `rxdb_caller_buckets()` 同理，见[配置 caller buckets](#配置-caller-buckets)。
 
 ### 保留期限
 
@@ -797,11 +878,15 @@ REVOKE ALL ON FUNCTION public.rxdb_caller_can_edit(text, text, jsonb) FROM PUBLI
 
 ### 装上远端变更历史
 
-已有部署在同一个事务里按增量脚本 → 02 → 04 → 生产权限脚本执行一次（与[从旧版本升级](#从旧版本升级)同一条命令），再重新加载自己的 `rxdb_caller_can_edit` 覆盖并再执行一次生产权限脚本。客户端无需升级就能继续同步，读历史要升级到带 `getEntityHistory` 的适配器。升级之前的写入没有历史。完整步骤见[迁移说明](../migration/supabase-change-history.md)。
+已有部署在同一个事务里按增量脚本 → 02 → 04 → 生产权限脚本执行一次（与[从旧版本升级](#从旧版本升级)同一条命令），再重新加载自己的 `rxdb_caller_can_edit` 覆盖并再执行一次生产权限脚本。02 会把 `rxdb_caller_buckets()` 恢复成平台默认，覆盖过它的部署把自己的覆盖放进同一个事务、生产权限脚本之前，见[配置 caller buckets](#配置-caller-buckets)。客户端无需升级就能继续同步，读历史要升级到带 `getEntityHistory` 的适配器。升级之前的写入没有历史。完整步骤见[迁移说明](../migration/supabase-change-history.md)。
 
 ### 装上外键成环的推送
 
 已有部署在同一个事务里执行新版 `docker/sql/04-rxdb-utils-functions.sql` 与生产权限脚本：`psql --single-transaction -f docker/sql/04-rxdb-utils-functions.sql -f docker/sql/production/rxdb-change-grants.sql`。新版 04 删掉旧的六参数 `rxdb_mutations`、换成带 `p_deferred_columns` 的七参数版本，权限脚本按新签名重新授权。04 会把 `rxdb_caller_can_edit` 恢复成平台默认，覆盖过它的部署要重新加载自己的覆盖，再执行一次生产权限脚本。旧客户端不传这个参数，照常推送。环上的表要给行的创建者开 UPDATE 策略。完整步骤见[迁移说明](../migration/supabase-fk-cycle-push.md)。
+
+### 装上成员权限
+
+已有部署在同一个事务里执行新版 `docker/sql/04-rxdb-utils-functions.sql`、自己的覆盖与生产权限脚本：04 装上 `rxdb_caller_grants()` 与 `rxdb_caller_scopes()`，同时把 `rxdb_caller_can_edit` 恢复成平台默认，覆盖要在生产权限脚本之前重新加载。只装平台默认、不覆盖时，每个登录用户只在自己的 user 区上有 `read + edit`，现有的写策略与同步都不受影响。要按成员权限分管理员与员工，先覆盖 `rxdb_caller_grants()`，再把写策略与历史判定改判 `edit`（[配置成员权限](#配置成员权限)），三者放进同一个事务。客户端无需升级。完整步骤见[迁移说明](../migration/supabase-member-permissions.md)。
 
 ### 日志同步只对已登录身份开放
 
@@ -824,6 +909,7 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f docker/sql/production/rxdb-change-gra
 | 远端身份 `rxdb_backend`                                                        | 只读                                | 只读                                                              |
 | 远端变更历史 `rxdb_change_history` 与序列                                      | 无权限                              | 无权限（只经 `rxdb_entity_history` 读取）                         |
 | `rxdb_entity_history`                                                          | 不能调用                            | 可以调用；只返回当前能编辑的行的历史，按列权限脱敏                |
+| 成员权限 `rxdb_caller_grants`、`rxdb_caller_scopes`                            | 可以调用，结果为空                  | 可以调用；只返回调用者自己的授权                                  |
 
 `anon` 仍可按业务表自己的 GRANT 与 RLS 直接读取公开业务行，也可以调用按区快照与按区变更 RPC。写入、通用日志拉取、分支登记和存在性探针仍然收回。推送之所以连同存在性探针一起收回：推送对「被 RLS 拒绝」与「已不存在」分别报 `42501` / `RX001`，本身就能判断某个 id 是否存在。
 
@@ -863,7 +949,7 @@ main 推送的分区取写完之后业务表那一行的 `rxdb_bucket`。这次�
 
 #### 从旧版本升级
 
-在同一个事务里（`psql --single-transaction`）依次执行增量脚本 `production/rxdb-sync-access-upgrade.sql`（建所有者表、把日志表移出 Realtime 发布）、`02-rxdb-sync-functions.sql`（所有者校验、通知触发器）、`04-rxdb-utils-functions.sql`（推送时校验分支所有者），最后执行生产权限脚本；然后升级客户端。不要为此重跑整份 01：它的整库授权会放宽业务表的权限。任一步失败整批回滚，库停在升级前的状态。旧客户端订阅的是日志表的 `postgres_changes`，升级 SQL 之后收不到实时通知；把实体改成分区实体之前，拉取与推送不受影响（之后旧客户端会拉到不带正文的分区日志，先升级全部客户端）。依赖 anon key 同步的应用要先接入登录（或匿名登录）再升级。按区实体还要部署生成列、caller buckets 和对应 RLS。完整命令与旧分支补登见[迁移说明](../migration/supabase-sync-access.md)。
+在同一个事务里（`psql --single-transaction`）依次执行增量脚本 `production/rxdb-sync-access-upgrade.sql`（建所有者表、把日志表移出 Realtime 发布）、`02-rxdb-sync-functions.sql`（所有者校验、通知触发器）、`04-rxdb-utils-functions.sql`（推送时校验分支所有者），最后执行生产权限脚本；然后升级客户端。不要为此重跑整份 01：它的整库授权会放宽业务表的权限。任一步失败整批回滚，库停在升级前的状态。02 与 04 会把 `rxdb_caller_buckets()` 与 `rxdb_caller_can_edit` 恢复成平台默认，覆盖过它们的部署在同一个事务里、生产权限脚本之前重新加载自己的覆盖。旧客户端订阅的是日志表的 `postgres_changes`，升级 SQL 之后收不到实时通知；把实体改成分区实体之前，拉取与推送不受影响（之后旧客户端会拉到不带正文的分区日志，先升级全部客户端）。依赖 anon key 同步的应用要先接入登录（或匿名登录）再升级。按区实体还要部署生成列、caller buckets 和对应 RLS。完整命令与旧分支补登见[迁移说明](../migration/supabase-sync-access.md)。
 
 收紧后，日志只剩两条写入路径：
 

@@ -581,6 +581,65 @@ describe('supabase review regressions', () => {
     );
   });
 
+  it('getBucketSnapshotPoint 按实体、分区与分支问远端，水位原样交回', async () => {
+    const rpc = vi.fn(async () => ({ data: 7, error: null, status: 200 }));
+    const adapter = createAdapter({ rpc }, {}, [Todo]);
+
+    await expect(adapter.getBucketSnapshotPoint('public', 'Todo', 'tenant:a', ['main', 'feature'])).resolves.toBe(7);
+
+    expect(rpc).toHaveBeenCalledWith('rxdb_bucket_snapshot_point', {
+      p_namespace: 'public',
+      p_entity: 'Todo',
+      p_bucket: 'tenant:a',
+      p_branch_ids: ['main', 'feature']
+    });
+  });
+
+  it('getBucketSnapshotPoint 分区还没有日志时水位是 0，不传分支则 p_branch_ids 为 null', async () => {
+    const rpc = vi.fn(async () => ({ data: 0, error: null, status: 200 }));
+    const adapter = createAdapter({ rpc }, {}, [Todo]);
+
+    await expect(adapter.getBucketSnapshotPoint('public', 'Todo', 'public')).resolves.toBe(0);
+
+    expect(rpc).toHaveBeenCalledWith('rxdb_bucket_snapshot_point', {
+      p_namespace: 'public',
+      p_entity: 'Todo',
+      p_bucket: 'public',
+      p_branch_ids: null
+    });
+  });
+
+  // 参考 SQL 声明 `RETURNS integer`，PostgREST 一定交回 JSON 数字，只有非负安全整数才是水位。
+  // 其余形状都是服务端契约被破坏：`Number(null)` 与 `Number('')` 都是 0，当成水位会把「远端有变更」显示成「已同步」
+  it.each([
+    ['null', null],
+    ['空串', ''],
+    ['数字字符串', '7'],
+    ['undefined', undefined],
+    ['布尔值', false],
+    ['空数组', []],
+    ['NaN', Number.NaN],
+    ['负数', -1],
+    ['小数', 1.5],
+    ['超出安全整数范围的数', Number.MAX_SAFE_INTEGER + 1]
+  ])('getBucketSnapshotPoint 应答是 %s 时报数据错误，不当成水位', async (_label, data) => {
+    const rpc = vi.fn(async () => ({ data, error: null, status: 200 }));
+    const adapter = createAdapter({ rpc }, {}, [Todo]);
+
+    await expect(adapter.getBucketSnapshotPoint('public', 'Todo', 'public', ['main'])).rejects.toThrow(
+      new SupabaseDataError('Failed to read bucket snapshot point: invalid response data')
+    );
+  });
+
+  it('getBucketSnapshotPoint reports query errors', async () => {
+    const rpc = vi.fn(async () => ({ data: null, error: { message: 'bucket is not authorized' }, status: 403 }));
+    const adapter = createAdapter({ rpc }, {}, [Todo]);
+
+    await expect(adapter.getBucketSnapshotPoint('public', 'Todo', 'tenant:a', ['main'])).rejects.toThrow(
+      new SupabaseDataError('Failed to read bucket snapshot point: bucket is not authorized')
+    );
+  });
+
   it('getChangeCount preserves the cursor when count data has no latest row', async () => {
     const query = resolvedRecordingQuery({ data: [], count: 2, error: null });
     const from = vi.fn(() => query.proxy);
@@ -1674,6 +1733,217 @@ describe('supabase review regressions', () => {
     expect(topics.slice(6)).toEqual(bucketTopics('user-a'));
 
     await adapter.disconnect();
+  });
+
+  // 变更通知的频道按调用者的分区订阅，分区却会在会话中途变（管理员把成员加进或移出租户）。
+  // 同步每次分区拉取与待拉数统计都会问一遍 getCallerBuckets()，适配器在那里对账：
+  // 与订阅时的分区集合对不上就重建频道，新分区的提示不必等断线重连。
+  //
+  // 重建走实时队列，`disconnect()` 与它排在同一条队列里：用例用它当栅栏，返回时排在前面的重建（若有）已经跑完，
+  // 不靠轮询，也能断言「没有重建」。
+  describe('调用者的分区在会话中途变了：频道集跟着重建（US-033）', () => {
+    interface BucketsResponse {
+      data: unknown;
+      error: { message: string } | null;
+      status: number;
+    }
+
+    const granted = (...buckets: string[]): BucketsResponse => ({ data: buckets, error: null, status: 200 });
+    const unavailable: BucketsResponse = { data: null, error: { message: 'rpc unavailable' }, status: 503 };
+    const malformed: BucketsResponse = { data: ['public', 42], error: null, status: 200 };
+    const bucketTopics = (...buckets: string[]) => [
+      RXDB_CHANGES_TOPIC,
+      ...buckets.map(bucket => `${RXDB_CHANGES_TOPIC}:bucket:${bucket}`)
+    ];
+
+    /** 桩客户端：按建立顺序记下每个频道，caller buckets 的应答由用例随时改 */
+    function createBucketRealtime(initial: BucketsResponse, realtime = createRealtimeAuth()) {
+      let response = initial;
+      const created: Array<{ topic: string; instance: Record<string, unknown> }> = [];
+      const channel = vi.fn((topic: string) => {
+        const instance: Record<string, unknown> = { seq: created.length };
+        instance['on'] = vi.fn(() => instance);
+        instance['subscribe'] = vi.fn((callback: (status: string) => void) => {
+          callback('SUBSCRIBED');
+          return instance;
+        });
+        created.push({ topic, instance });
+        return instance;
+      });
+      const removeChannel = vi.fn<(channel: unknown) => Promise<void>>(async () => undefined);
+      const rpc = vi.fn(async (name: string) =>
+        name === 'rxdb_caller_buckets' ? response : { data: null, error: null, status: 200 }
+      );
+      return {
+        adapter: createAdapter({ channel, realtime, removeChannel, rpc }, { rlsCheck: false }, [Todo]),
+        /** 建过的频道，按建立顺序 */
+        created,
+        removeChannel,
+        respond: (next: BucketsResponse) => {
+          response = next;
+        },
+        /** 到目前为止问过几次 caller buckets */
+        bucketQueries: () => rpc.mock.calls.filter(([name]) => name === 'rxdb_caller_buckets').length,
+        /** 已拆掉的频道，按拆的顺序 */
+        removed: () => removeChannel.mock.calls.map(([removed]) => removed),
+        topicsFrom: (start: number) => created.slice(start).map(item => item.topic),
+        instances: () => created.map(item => item.instance)
+      };
+    }
+
+    it('新增了分区：getCallerBuckets 读到差异就重建频道，旧频道全部拆掉，也不会反复重建', async () => {
+      const bucketed = createBucketRealtime(granted('public', 'user:test-user'));
+      const { adapter } = bucketed;
+
+      await adapter.connect();
+      expect(bucketed.topicsFrom(0)).toEqual(bucketTopics('public', 'user:test-user'));
+
+      // 管理员把用户加进租户 t1
+      bucketed.respond(granted('public', 'user:test-user', 'tenant:t1'));
+      // 对账不改调用方拿到的东西
+      await expect(adapter.getCallerBuckets()).resolves.toEqual(['public', 'user:test-user', 'tenant:t1']);
+      await adapter.disconnect();
+
+      expect(bucketed.topicsFrom(3)).toEqual(bucketTopics('public', 'user:test-user', 'tenant:t1'));
+      // 先拆旧的三个（重建），再拆重建出的四个（disconnect）：建过的每个频道恰好拆一次
+      expect(bucketed.removed()).toEqual(bucketed.instances());
+      // 连上、这次调用、重建里各问一次：重建里那次问分区不会再引发重建
+      expect(bucketed.bucketQueries()).toBe(3);
+    });
+
+    it('撤销了分区：getCallerBuckets 读到差异就重建频道，被撤销分区的频道不再订阅', async () => {
+      const bucketed = createBucketRealtime(granted('public', 'user:test-user', 'tenant:t1'));
+      const { adapter } = bucketed;
+
+      await adapter.connect();
+      expect(bucketed.topicsFrom(0)).toEqual(bucketTopics('public', 'user:test-user', 'tenant:t1'));
+
+      bucketed.respond(granted('public', 'user:test-user'));
+      await adapter.getCallerBuckets();
+      await adapter.disconnect();
+
+      expect(bucketed.topicsFrom(4)).toEqual(bucketTopics('public', 'user:test-user'));
+      expect(bucketed.removed()).toEqual(bucketed.instances());
+    });
+
+    it('分区集合没变（只是顺序不同、有重复）：getCallerBuckets 不重建频道', async () => {
+      const bucketed = createBucketRealtime(granted('public', 'user:test-user'));
+      const { adapter } = bucketed;
+
+      await adapter.connect();
+      bucketed.respond(granted('user:test-user', 'public', 'public'));
+      await expect(adapter.getCallerBuckets()).resolves.toEqual(['user:test-user', 'public', 'public']);
+      await adapter.disconnect();
+
+      expect(bucketed.topicsFrom(0)).toEqual(bucketTopics('public', 'user:test-user'));
+      expect(bucketed.removed()).toEqual(bucketed.instances());
+    });
+
+    it('连上时分区查询失败、只订阅了旧日志频道：之后一次成功的 getCallerBuckets 补建分区频道', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const bucketed = createBucketRealtime(unavailable);
+      const { adapter } = bucketed;
+
+      await adapter.connect();
+      expect(bucketed.topicsFrom(0)).toEqual(bucketTopics());
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('Failed to resolve caller buckets'));
+
+      bucketed.respond(granted('public', 'user:test-user'));
+      await adapter.getCallerBuckets();
+      await adapter.disconnect();
+
+      expect(bucketed.topicsFrom(1)).toEqual(bucketTopics('public', 'user:test-user'));
+      expect(bucketed.removed()).toEqual(bucketed.instances());
+    });
+
+    // 同步对每个仓库各问一次，它们读到的是同一份新分区：排队的重建到点时发现已经对上了，就不再重复
+    it('同一次变化被并发的 getCallerBuckets 一起观察到：只重建一次', async () => {
+      const bucketed = createBucketRealtime(granted('public', 'user:test-user'));
+      const { adapter } = bucketed;
+
+      await adapter.connect();
+      bucketed.respond(granted('public', 'user:test-user', 'tenant:t1'));
+      await Promise.all([adapter.getCallerBuckets(), adapter.getCallerBuckets(), adapter.getCallerBuckets()]);
+      await adapter.disconnect();
+
+      expect(bucketed.created).toHaveLength(7);
+      expect(bucketed.topicsFrom(3)).toEqual(bucketTopics('public', 'user:test-user', 'tenant:t1'));
+      expect(bucketed.removed()).toEqual(bucketed.instances());
+      // 连上 1 次、三个并发调用各 1 次、重建里 1 次；排队的另两次重建没有再问
+      expect(bucketed.bucketQueries()).toBe(5);
+    });
+
+    // 订阅恢复后适配器会请求重算待拉数，执行者（同步插件）重数时又要问 getCallerBuckets()：
+    // 那时订阅集合已经是新的，必须对得上，否则重建引发重算、重算引发重建，没完没了
+    it('重建后订阅恢复触发的待拉数重算再问 getCallerBuckets：对得上，不再重建', async () => {
+      const bucketed = createBucketRealtime(granted('public', 'user:test-user'));
+      const { adapter } = bucketed;
+      const recounts: Promise<string[]>[] = [];
+      adapter.rxdb.syncState.bindPullableRefresh(() => {
+        // 回归成「重建与重算互相触发」会在微任务里没完没了，把页面卡死：远超预期就不再重算，让断言报出来
+        if (recounts.length < 20) recounts.push(adapter.getCallerBuckets());
+      });
+
+      await adapter.connect();
+      // 三个频道各报一次 SUBSCRIBED
+      await vi.waitFor(() => expect(recounts).toHaveLength(3));
+
+      bucketed.respond(granted('public', 'user:test-user', 'tenant:t1'));
+      await adapter.getCallerBuckets();
+      // 重建出的四个频道各报一次 SUBSCRIBED
+      await vi.waitFor(() => expect(recounts).toHaveLength(7));
+      await Promise.all(recounts);
+      await adapter.disconnect();
+
+      expect(bucketed.created).toHaveLength(7);
+      expect(bucketed.removed()).toEqual(bucketed.instances());
+    });
+
+    it('已断开：getCallerBuckets 不借机重新订阅', async () => {
+      const bucketed = createBucketRealtime(granted('public', 'user:test-user'));
+      const { adapter } = bucketed;
+
+      await adapter.connect();
+      await adapter.disconnect();
+      expect(bucketed.created).toHaveLength(3);
+
+      bucketed.respond(granted('public', 'user:test-user', 'tenant:t1'));
+      await adapter.getCallerBuckets();
+      await adapter.disconnect();
+
+      expect(bucketed.created).toHaveLength(3);
+      expect(bucketed.removed()).toEqual(bucketed.instances());
+    });
+
+    it('访客没有订阅：getCallerBuckets 不借机订阅，登录后仍要重新 connect()', async () => {
+      vi.spyOn(console, 'info').mockImplementation(() => undefined);
+      const realtime = createRealtimeAuth(testJwt({ role: 'anon' }));
+      const bucketed = createBucketRealtime(granted('public'), realtime);
+      const { adapter } = bucketed;
+
+      await adapter.connect();
+      realtime.accessTokenValue = AUTHENTICATED_TOKEN;
+      await adapter.getCallerBuckets();
+      await adapter.disconnect();
+
+      expect(bucketed.created).toHaveLength(0);
+    });
+
+    it.each([
+      ['查询失败', unavailable],
+      ['应答形状不对', malformed]
+    ])('%s：getCallerBuckets 照常抛错，频道保持原样', async (_label, failure) => {
+      const bucketed = createBucketRealtime(granted('public', 'user:test-user'));
+      const { adapter } = bucketed;
+
+      await adapter.connect();
+      bucketed.respond(failure);
+      await expect(adapter.getCallerBuckets()).rejects.toBeInstanceOf(SupabaseDataError);
+      await adapter.disconnect();
+
+      expect(bucketed.created).toHaveLength(3);
+      expect(bucketed.removed()).toEqual(bucketed.instances());
+    });
   });
 
   it('reconnects realtime subscription with exponential backoff', async () => {

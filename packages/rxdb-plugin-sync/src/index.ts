@@ -37,6 +37,8 @@ export type { CheckRepositoryUpdatesResult } from './check-repository-updates.js
 export type { CleanupExpiredOptions, CleanupExpiredResult } from './cleanup-expired.js';
 // `SyncManager.getRepositoryDependencyGraph()` 的返回值，连同图上的外键与环（US-038）。图的构建函数是内部实现。
 export type { DependencyCycle, DependencyForeignKey, DependencyGraph } from './dependency-graph.js';
+// 分区清理时还被本地别的行经外键引用、暂时留在本机的行，进拉取结果的 `failures`（US-033）。
+export { RxDBBucketCleanupBlockedError } from './bucket-cleanup-blocked-error.js';
 // 外键成环的仓库推拉不了时进 `failures` 的错误（US-038）。
 export { RxDBForeignKeyCycleError, type RxDBForeignKeyCycleReason } from './foreign-key-cycle-error.js';
 // `SyncManager.getAllRepositorySyncStatus()` 的可选过滤器。

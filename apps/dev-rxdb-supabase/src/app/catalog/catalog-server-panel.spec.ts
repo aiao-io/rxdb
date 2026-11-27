@@ -1,8 +1,10 @@
-import { signal } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
+import { FormsModule } from '@angular/forms';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DemoSession } from '../demo-session';
 import { Toasts } from '../toasts';
+import { CatalogItemEditor } from './catalog-item-editor';
 import type { CatalogRemoteItem } from './catalog-remote';
 import { CatalogRemoteState } from './catalog-remote-state';
 import { CatalogServerPanel } from './catalog-server-panel';
@@ -18,6 +20,10 @@ const remote = vi.hoisted(() => ({
 }));
 
 vi.mock('./catalog-remote', () => remote);
+
+// 成员与权限有自己的单测（catalog-members-panel.spec.ts），这里只验它摆在成员关系之后
+@Component({ selector: 'app-catalog-members-panel', template: '' })
+class MembersPanelStub {}
 
 const client = {};
 const item: CatalogRemoteItem = {
@@ -40,7 +46,17 @@ async function settle(fixture: ComponentFixture<unknown>): Promise<void> {
   fixture.detectChanges();
 }
 
-async function renderPanel() {
+const TENANTS = [
+  { id: 'jiguang', name: '极光百货' },
+  { id: 'xinghe', name: '星河零售' }
+];
+
+/**
+ * @param options.tenants - 所在的租户
+ * @param options.editable - 其中有 edit 的租户；缺省与所在的租户相同（都是管理员）
+ */
+async function renderPanel(options: { tenants?: string[]; editable?: string[] } = {}) {
+  const tenants = options.tenants ?? ['xinghe'];
   TestBed.configureTestingModule({
     imports: [CatalogServerPanel],
     providers: [
@@ -48,13 +64,17 @@ async function renderPanel() {
       {
         provide: CatalogRemoteState,
         useValue: {
-          $tenants: signal([{ id: 'xinghe', name: '星河零售' }]),
-          $myTenantIds: signal(['xinghe']),
-          tenantName: (tenantId: string) => (tenantId === 'xinghe' ? '星河零售' : tenantId),
+          $tenants: signal(TENANTS),
+          $myTenantIds: signal(tenants),
+          $editableTenantIds: signal(options.editable ?? tenants),
+          tenantName: (tenantId: string) => TENANTS.find(tenant => tenant.id === tenantId)?.name ?? tenantId,
           refresh: vi.fn()
         }
       }
     ]
+  });
+  TestBed.overrideComponent(CatalogServerPanel, {
+    set: { imports: [FormsModule, CatalogItemEditor, MembersPanelStub] }
   });
   const fixture = TestBed.createComponent(CatalogServerPanel);
   await settle(fixture);
@@ -74,6 +94,36 @@ async function renderPanel() {
   };
   return { fixture, root, row, dialog, button, priceInput, click };
 }
+
+describe('CatalogServerPanel：成员权限（US-234）', () => {
+  beforeEach(() => {
+    for (const fn of Object.values(remote)) fn.mockReset();
+    remote.fetchTenantItems.mockResolvedValue([item]);
+  });
+
+  it('只列出有 edit 的租户的商品，新增表单也只列这些租户；成员与权限摆在成员关系之后', async () => {
+    const { root } = await renderPanel({ tenants: ['jiguang', 'xinghe'], editable: ['xinghe'] });
+
+    expect(remote.fetchTenantItems).toHaveBeenLastCalledWith(client, ['xinghe']);
+    const tenant = root.querySelector<HTMLSelectElement>('select[name="tenant"]')!;
+    expect([...tenant.options].map(option => option.value)).toEqual(['xinghe']);
+    expect(root.querySelector('app-catalog-members-panel')).not.toBeNull();
+  });
+
+  it('只当员工：不列商品，说明员工只读、请管理员在成员与权限里调整', async () => {
+    const { root } = await renderPanel({ tenants: ['jiguang'], editable: [] });
+
+    expect(root.querySelector('[data-testid="server-item"]')).toBeNull();
+    expect(root.querySelector('[data-testid="server-panel-staff"]')?.textContent).toContain('员工只读');
+    expect(root.querySelector('select[name="tenant"]')).toBeNull();
+  });
+
+  it('加入租户的说明写明加入之后是员工', async () => {
+    const { root } = await renderPanel({ tenants: [] });
+
+    expect(root.querySelector('[data-testid="server-membership-hint"]')?.textContent).toContain('加入之后是员工');
+  });
+});
 
 describe('CatalogServerPanel：编辑商品', () => {
   beforeEach(() => {

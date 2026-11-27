@@ -102,12 +102,13 @@ export async function push(page: Page): Promise<Locator> {
  *
  * @param page - 页面
  * @param view - 哪个面板
+ * @param timeout - 等面板出现的时限；缺省用 expect 的配置。刚切完身份、还在加载本地库的页面要放宽
  * @returns 右侧面板
  */
-export async function openSidePanel(page: Page, view: SidePanelView): Promise<Locator> {
+export async function openSidePanel(page: Page, view: SidePanelView, timeout?: number): Promise<Locator> {
   const panel = page.locator(`[data-testid="side-panel"][data-view="${view}"]`);
   if ((await panel.count()) === 0) await page.getByTestId(PANEL_TOGGLES[view]).click();
-  await expect(panel).toBeVisible();
+  await expect(panel).toBeVisible({ timeout });
   return panel;
 }
 

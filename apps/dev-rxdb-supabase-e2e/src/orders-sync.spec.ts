@@ -1,6 +1,6 @@
-import { expect, test, type Browser, type Page } from '@playwright/test';
+import { expect, test, type Browser, type Locator, type Page } from '@playwright/test';
 import { switchIdentity } from './support/identity';
-import { errorToasts, openSidePanel, pull, push } from './support/workbench';
+import { errorToasts, openSidePanel, pull, push, toast } from './support/workbench';
 
 const isRemoteE2E = process.env['REMOTE_E2E'] === 'true';
 
@@ -11,7 +11,9 @@ const isRemoteE2E = process.env['REMOTE_E2E'] === 'true';
  * 已登录身份共享全部订单（`supabase/orders-demo.sql`）。本轮的客户、单号、商品名、分类名与证件号带唯一后缀，结束时删掉
  * 本轮的客户（订单、订单项、关联行与证件随之级联删除）和分类；不依赖库里已有的数据，也不动别人的行。
  *
- * 推拉、撤销与重做都在顶栏（epic-016），被拒的推送列在同步中心里。
+ * 推拉、撤销与重做都在顶栏（epic-016），被拒的推送列在同步中心里。页面按关系嵌套着画（US-235）：订单在它的客户卡片里，
+ * 订单项在订单下面，所以「订单挂在哪位客户下」就是外键对得上的证据。US-235 的用例只开一个窗口：远端什么样看「远端数据」面板，
+ * 「别人」的修改由面板直接写远端来模拟。
  */
 if (isRemoteE2E) {
   test.describe('Orders relational sync', () => {
@@ -41,6 +43,9 @@ if (isRemoteE2E) {
     const undoOrder = `e2e-${runId}-SO4`;
     const undoItem = `e2e-${runId}-键盘`;
     const undoCategory = `e2e-${runId}-外设`;
+    // US-235 单窗口用例：示例数据与「别人」新建的一组由页面起名，跑起来才知道，记下来给 afterAll 清理
+    const seededOrder = `e2e-${runId}-SO5`;
+    const generatedCustomers: string[] = [];
 
     /** 打开订单页；`mutations` 记下这个页面发出的每个推送请求（`rxdb_mutations`） */
     async function openOrders(browser: Browser, mutations: string[] = []): Promise<Page> {
@@ -64,12 +69,32 @@ if (isRemoteE2E) {
       await expect(page.getByTestId('sync-center-rejections')).toHaveCount(0);
     }
 
+    /** 客户那一行：名字、证件与删除按钮，不含他的订单 */
     function customerRow(page: Page, name: string) {
       return page.getByTestId('customer').filter({ hasText: name });
     }
 
-    function orderRow(page: Page, number: string) {
-      return page.locator(`[data-testid="order"][data-order-number="${number}"]`);
+    /** 客户的整张卡片：他的证件、订单与订单项都在里面 */
+    function customerCard(page: Page, name: string) {
+      return page
+        .getByTestId('customer-card')
+        .filter({ has: page.getByTestId('customer-name').getByText(name, { exact: true }) });
+    }
+
+    function orderRow(scope: Page | Locator, number: string) {
+      return scope.locator(`[data-testid="order"][data-order-number="${number}"]`);
+    }
+
+    /** 打开页头的「远端数据」：直接读远端的表，开着推拉也能点 */
+    async function openRemote(page: Page): Promise<Locator> {
+      const panel = page.locator('[data-testid="side-panel"][data-view="server"]');
+      if ((await panel.count()) === 0) await page.getByTestId('orders-remote-toggle').click();
+      await expect(panel.getByTestId('orders-remote-panel')).toBeVisible();
+      return panel;
+    }
+
+    function remoteCustomer(panel: Locator, name: string) {
+      return panel.getByTestId('remote-customer').filter({ hasText: name });
     }
 
     async function createCustomer(page: Page, name: string): Promise<void> {
@@ -88,12 +113,12 @@ if (isRemoteE2E) {
       await expect(customerRow(page, name).getByTestId('customer-id-card')).toHaveText(`证件：${code}`);
     }
 
+    /** 在这位客户的卡片里新建订单：订单建在他下面 */
     async function createOrder(page: Page, customerName: string, number: string): Promise<void> {
-      const form = page.getByTestId('orders-order-form');
-      await form.getByLabel('订单的客户').selectOption({ label: customerName });
+      const form = customerCard(page, customerName).getByTestId('orders-order-form');
       await form.getByPlaceholder('单号').fill(number);
       await form.getByRole('button', { name: '新建订单' }).click();
-      await expect(orderRow(page, number)).toBeVisible();
+      await expect(orderRow(customerCard(page, customerName), number)).toBeVisible();
     }
 
     async function addItem(page: Page, number: string, productName: string, quantity: number, price: number) {
@@ -155,7 +180,9 @@ if (isRemoteE2E) {
       await pull(page);
       const removed =
         (await removeRows(
-          [customer, categoryCustomer, cardCustomer, undoCustomer].map(name => customerRow(page, name)),
+          [customer, categoryCustomer, cardCustomer, undoCustomer, ...generatedCustomers].map(name =>
+            customerRow(page, name)
+          ),
           '删除客户'
         )) +
         (await removeRows(
@@ -182,11 +209,11 @@ if (isRemoteE2E) {
       await expectNoRejections(alice);
       await expect(alice.getByTestId('sync-pushable-count')).toHaveCount(0);
 
-      // AC#2：Bob 拉到同一位客户、同一张订单与两条订单项，外键对得上（订单项挂在订单下、订单显示客户名）
+      // AC#2：Bob 拉到同一位客户、同一张订单与两条订单项，外键对得上（订单在这位客户的卡片里、订单项挂在订单下）
       await pull(bob);
       await expect(customerRow(bob, customer)).toBeVisible();
-      const bobOrder = orderRow(bob, orderNumber);
-      await expect(bobOrder.getByTestId('order-customer')).toHaveText(`客户：${customer}`);
+      const bobOrder = orderRow(customerCard(bob, customer), orderNumber);
+      await expect(bobOrder).toBeVisible();
       await expect(bobOrder.getByTestId('order-item')).toHaveCount(2);
       await expect(bobOrder.getByTestId('order-total')).toHaveText('¥25');
 
@@ -324,8 +351,7 @@ if (isRemoteE2E) {
       await expect(orderRow(alice, undoOrder)).toHaveCount(0);
       await undo.click();
       await expect(customerRow(alice, undoCustomer).getByTestId('customer-id-card')).toHaveText(`证件：${undoCode}`);
-      await expect(orderRow(alice, undoOrder).getByTestId('order-customer')).toHaveText(`客户：${undoCustomer}`);
-      await expect(orderRow(alice, undoOrder).getByTestId('order-item')).toHaveCount(1);
+      await expect(orderRow(customerCard(alice, undoCustomer), undoOrder).getByTestId('order-item')).toHaveCount(1);
       await expect(itemCategories(alice, undoItem)).toContainText(undoCategory);
       await expect(workbenchError).toHaveCount(0);
 
@@ -339,6 +365,74 @@ if (isRemoteE2E) {
       await expect(orderRow(bob, undoOrder)).toHaveCount(0);
       await expect(bob.getByTestId('order-item').filter({ hasText: undoItem })).toHaveCount(0);
       await expect(categoryRow(bob, undoCategory)).toBeVisible();
+    });
+
+    test('US-235 一个窗口测完：示例数据推上去在远端数据里看得到；远端删了客户再给他下单被外键拒绝；模拟别人新建的一组拉下来挂在对的客户下', async ({
+      browser
+    }) => {
+      test.slow();
+      const alice = await openAs(browser, 'alice', 'Alice');
+      await expect(alice.getByTestId('orders-guide')).toBeVisible();
+
+      // 推送：生成示例数据，客户、证件、订单与两条订单项一次写进本机，每行标「未推送」；远端数据里还没有
+      await alice.getByTestId('orders-seed').click();
+      const fresh = alice.getByTestId('customer-card').filter({ has: alice.getByTestId('unpushed') });
+      await expect(fresh).toHaveCount(1);
+      await expect(fresh.getByTestId('unpushed')).toHaveCount(5);
+      const seeded = (await fresh.getByTestId('customer-name').textContent())?.trim() ?? '';
+      expect(seeded).toMatch(/^示例客户 [0-9A-F]{4}$/u);
+      generatedCustomers.push(seeded);
+      const seededCard = customerCard(alice, seeded);
+      const remote = await openRemote(alice);
+      await expect(remote.getByTestId('orders-remote-counts')).toBeVisible();
+      await expect(remoteCustomer(remote, seeded)).toHaveCount(0);
+
+      // 推上去 5 条、一条不被拒：「未推送」消失，远端数据（每轮推拉后自动重读）里是同样的一组，证件对得上
+      await expect(await push(alice)).toHaveText('推送完成：推上去 5 条。推送前的修改不能再撤销');
+      await expectNoRejections(alice);
+      await expect(seededCard.getByTestId('unpushed')).toHaveCount(0);
+      const remoteSeeded = remoteCustomer(remote, seeded);
+      await expect(remoteSeeded.getByTestId('remote-customer-id-card')).toHaveText(
+        (await seededCard.getByTestId('customer-id-card').textContent())?.trim() ?? ''
+      );
+      await expect(remoteSeeded.getByTestId('remote-order-item')).toHaveCount(2);
+      await expect(remoteSeeded.getByTestId('remote-missing')).toHaveCount(0);
+
+      // 外键被拒：在远端删掉这位客户（模拟别人删了他），本机不拉取就给他下单并推送
+      await remoteSeeded.getByRole('button', { name: '在远端删除客户' }).click();
+      await expect(remoteSeeded).toHaveCount(0);
+      await expect(customerRow(alice, seeded)).toBeVisible();
+      await createOrder(alice, seeded, seededOrder);
+      await expect(await push(alice)).toContainText('被拒 1 条');
+      await expect(alice.getByTestId('orders-dependency-notices')).toContainText(`它的客户「${seeded}」已不在远端`);
+      await expect(orderRow(alice, seededOrder)).toHaveCount(0);
+      await pull(alice);
+      await expect(customerRow(alice, seeded)).toHaveCount(0);
+
+      // 拉取：模拟别人新建一组，远端标「本机没有」；拉取之后本机出现，订单在这位客户下、订单项在订单下，没有「未推送」
+      await remote.getByRole('button', { name: '模拟别人新建一组' }).click();
+      const created = toast(alice, '已在远端新建');
+      await expect(created).toBeVisible();
+      const group = /「(.+?)」/u.exec((await created.textContent()) ?? '')?.[1] ?? '';
+      expect(group).toMatch(/^远端客户 [0-9A-F]{4}$/u);
+      generatedCustomers.push(group);
+      const remoteGroup = remoteCustomer(remote, group);
+      await expect(remoteGroup.getByTestId('remote-missing')).toHaveCount(4);
+      await pull(alice);
+      await expect(remoteGroup.getByTestId('remote-missing')).toHaveCount(0);
+      const groupCard = customerCard(alice, group);
+      await expect(groupCard.getByTestId('customer-id-card')).toHaveText(`证件：ID-${group.slice(-4)}`);
+      await expect(groupCard.getByTestId('order')).toHaveCount(1);
+      await expect(groupCard.getByTestId('order-item')).toHaveCount(2);
+      await expect(groupCard.getByTestId('unpushed')).toHaveCount(0);
+
+      // 在远端删掉这张订单再拉取：本机的订单与订单项一起消失，客户还在
+      await remoteGroup.getByRole('button', { name: '在远端删除订单' }).click();
+      await expect(remoteGroup.getByTestId('remote-order')).toHaveCount(0);
+      await pull(alice);
+      await expect(groupCard.getByTestId('order')).toHaveCount(0);
+      await expect(customerRow(alice, group)).toBeVisible();
+      await expect(errorToasts(alice)).toHaveCount(0);
     });
 
     test('AC#5 访客：客户、订单与订单项只存本机，不算待推送；整机拉取不动它们，不发推送请求', async ({ browser }) => {

@@ -153,7 +153,7 @@ export async function checkRepositoryUpdates(
           { field: 'branchId', operator: '=', value: branchId }
         ]
       }
-    } as never);
+    });
     const getCallerBuckets = scopedRemote.getCallerBuckets.bind(scopedRemote);
     const getBucketSnapshotPoint = scopedRemote.getBucketSnapshotPoint.bind(scopedRemote);
     const getBucketChangeCount = scopedRemote.getBucketChangeCount.bind(scopedRemote);

@@ -18,11 +18,12 @@ import {
   type RxDBAdapterRemoteBase
 } from '@aiao/rxdb';
 import { getAncestorBranchIds } from './branch-utils.js';
+import type { RxDBBucketCleanupBlockedError } from './bucket-cleanup-blocked-error.js';
 import {
   entityIdentityKey,
   findBucketRows,
-  findRowsWithoutMappings,
   localIdCandidates,
+  planRowCleanup,
   removeBucketScope,
   scopedEntityKey,
   type BucketScope
@@ -57,7 +58,21 @@ interface BucketPullResult {
   conflictsResolved: number;
   historyInvalidated: boolean;
   hasMore: boolean;
+  /** 离开分区、却还被本地别的行引用而留下的行，每批一条 */
+  blocked: RxDBBucketCleanupBlockedError[];
 }
+
+/** 清理不再拉取的作用域要用的上下文 */
+interface RetiredScopeContext {
+  readonly localAdapter: RxDBAdapterLocalBase;
+  readonly entities: readonly EntityType[];
+  readonly EntityType: EntityType;
+  readonly repoSync: RxDBSync;
+  readonly repository: { namespace: string; entity: string };
+  readonly branchId: string;
+}
+
+type PullFailure = PullRepositoryResult['failures'][number];
 
 export async function pullBucketedRepositoryIfSupported(
   sm: SyncManager,
@@ -128,20 +143,21 @@ async function pullBucketedRepository(
   let conflictsResolved = 0;
   let historyInvalidated = false;
   let hasMore = false;
-  const failures: { repository: { namespace: string; entity: string }; error: Error }[] = [];
+  const failures: PullFailure[] = [];
   const completedBuckets = new Set<string>();
   const conflictResolver = options.conflictResolver ?? new LWWConflictResolver();
+  const retired: RetiredScopeContext = {
+    localAdapter,
+    entities: sm.rxdb.config.entities,
+    EntityType,
+    repoSync,
+    repository: { namespace, entity },
+    branchId
+  };
 
-  for (const progress of existingProgress) {
-    if (!buckets.includes(progress.bucket)) {
-      await removeBucketScope(
-        localAdapter,
-        EntityType,
-        repoSync,
-        { namespace, entity, branchId, bucket: progress.bucket, filterFingerprint: progress.filterFingerprint },
-        progress
-      );
-    }
+  // 撤销的分区逐个清：一个作用域清不干净只记它的失败，不挡仍有授权的分区
+  for (const progress of existingProgress.filter(progress => !buckets.includes(progress.bucket))) {
+    await removeRetiredScope(retired, progress, failures);
   }
 
   for (const bucket of buckets) {
@@ -165,6 +181,7 @@ async function pullBucketedRepository(
       conflictsResolved += result.conflictsResolved;
       historyInvalidated ||= result.historyInvalidated;
       hasMore ||= result.hasMore;
+      failures.push(...result.blocked.map(error => ({ repository: { namespace, entity }, error })));
       completedBuckets.add(bucket);
     } catch (error) {
       hasMore = true;
@@ -179,13 +196,7 @@ async function pullBucketedRepository(
     for (const progress of existingProgress) {
       if (progress.bucket === '' || progress.filterFingerprint === fingerprint) continue;
       if (!buckets.includes(progress.bucket)) continue;
-      await removeBucketScope(
-        localAdapter,
-        EntityType,
-        repoSync,
-        { namespace, entity, branchId, bucket: progress.bucket, filterFingerprint: progress.filterFingerprint },
-        progress
-      );
+      await removeRetiredScope(retired, progress, failures);
     }
   }
 
@@ -213,6 +224,41 @@ async function pullBucketedRepository(
   };
 }
 
+/**
+ * 清掉一个不再拉取的作用域（分区被撤销，或换了同步规则）
+ *
+ * @remarks
+ * 还被本地别的行引用的行留下，连同作用域的进度行：下一次拉取再清。留下的原因与清理时的其他错误都只记进
+ * `failures`，不往外抛——这一步排在拉取之前，抛出去会让同一实体仍有授权的分区这一轮全都拉不了。
+ */
+async function removeRetiredScope(
+  context: RetiredScopeContext,
+  progress: RxDBSyncBucketProgress,
+  failures: PullFailure[]
+): Promise<void> {
+  const { namespace, entity } = context.repository;
+  const scope: BucketScope = {
+    namespace,
+    entity,
+    branchId: context.branchId,
+    bucket: progress.bucket,
+    filterFingerprint: progress.filterFingerprint
+  };
+  try {
+    const blocked = await removeBucketScope(
+      context.localAdapter,
+      context.entities,
+      context.EntityType,
+      context.repoSync,
+      scope,
+      progress
+    );
+    if (blocked) failures.push({ repository: context.repository, error: blocked });
+  } catch (error) {
+    failures.push({ repository: context.repository, error: error instanceof Error ? error : new Error(String(error)) });
+  }
+}
+
 async function pullBucketScope(
   sm: SyncManager,
   remoteAdapter: BucketedRemoteAdapter,
@@ -233,9 +279,13 @@ async function pullBucketScope(
   let conflictsResolved = 0;
   let historyInvalidated = false;
   let hasMore: boolean;
+  const blocked: RxDBBucketCleanupBlockedError[] = [];
+  const entities = sm.rxdb.config.entities;
 
   if (progress && progress.remoteBackendId !== sm.remoteBackendId) {
-    await removeBucketScope(localAdapter, EntityType, repoSync, scope, progress);
+    // 旧远端同步来的行还被引用着就不能从头拉：进度行留着，这个分区这一轮记为失败，下一轮再清
+    const retained = await removeBucketScope(localAdapter, entities, EntityType, repoSync, scope, progress);
+    if (retained) throw retained;
     progress = undefined;
   }
 
@@ -304,14 +354,15 @@ async function pullBucketScope(
       applied += result.applied;
       conflictsResolved += result.conflictsResolved;
       historyInvalidated ||= result.applied > 0;
+      if (result.blocked) blocked.push(result.blocked);
       progress = result.progress;
       // 与增量同口径：没要 fetchAll 就只拉这一页、以 hasMore 告知。进度已随这一页落库，下一次从这页最后一个 id 接着拉
       if (!snapshotComplete && !options.fetchAll) {
-        return { pulled, compacted, applied, conflictsResolved, historyInvalidated, hasMore: true };
+        return { pulled, compacted, applied, conflictsResolved, historyInvalidated, hasMore: true, blocked };
       }
     } catch (error) {
       if (error instanceof RemoteBackendMismatchError) {
-        await removeBucketScope(localAdapter, EntityType, repoSync, scope, progress);
+        await removeBucketScope(localAdapter, entities, EntityType, repoSync, scope, progress);
       }
       throw error;
     }
@@ -348,17 +399,18 @@ async function pullBucketScope(
       compacted += result.compacted;
       conflictsResolved += result.conflictsResolved;
       historyInvalidated ||= result.applied > 0;
+      if (result.blocked) blocked.push(result.blocked);
       progress = result.progress;
       cursor = progress.cursor;
     } while (hasMore && options.fetchAll);
   } catch (error) {
     if (error instanceof RemoteBackendMismatchError) {
-      await removeBucketScope(localAdapter, EntityType, repoSync, scope, progress);
+      await removeBucketScope(localAdapter, entities, EntityType, repoSync, scope, progress);
     }
     throw error;
   }
 
-  return { pulled, compacted, applied, conflictsResolved, historyInvalidated, hasMore };
+  return { pulled, compacted, applied, conflictsResolved, historyInvalidated, hasMore, blocked };
 }
 
 async function pullScopedAncestorChanges(
@@ -391,7 +443,12 @@ async function applyScopedSnapshot(
   snapshotComplete: boolean,
   filter: RuleGroup | undefined,
   conflictResolver: NonNullable<PullRepositoryOptions['conflictResolver']>
-): Promise<{ progress: RxDBSyncBucketProgress; applied: number; conflictsResolved: number }> {
+): Promise<{
+  progress: RxDBSyncBucketProgress;
+  applied: number;
+  conflictsResolved: number;
+  blocked: RxDBBucketCleanupBlockedError | undefined;
+}> {
   const changes = rows.map(row => snapshotRowToChange(scope, row, progress.snapshotPoint));
   const lastRow = changes.at(-1);
   return applyScopedBatch(
@@ -428,6 +485,7 @@ async function applyScopedChanges(
   applied: number;
   compacted: number;
   conflictsResolved: number;
+  blocked: RxDBBucketCleanupBlockedError | undefined;
 }> {
   return applyScopedBatch(
     sm,
@@ -471,7 +529,6 @@ async function applyScopedBatch(
     const changeRepository = executor.getRepository(RxDBChange);
     const progressRepository = executor.getRepository(RxDBSyncBucketProgress);
     const rowRepository = executor.getRepository(RxDBSyncBucketRow);
-    const entityRepository = executor.getRepository(EntityType);
 
     const pending = await queryPendingLocalChanges(
       changeRepository,
@@ -485,7 +542,7 @@ async function applyScopedBatch(
       change => change.type !== 'DELETE' || !pending.has(getRxDBChangeKey(change))
     );
     // 一个分区的 DELETE 只说明行离开了这个分区：只删映射，本地行删不删由下面的
-    // findRowsWithoutMappings 按全部分区的映射与待推变更决定。直接删会把刚换进另一个已授权分区的行一起删掉
+    // planRowCleanup 按全部分区的映射、待推变更与本地引用决定。直接删会把刚换进另一个已授权分区的行一起删掉
     const upserts = safeChanges.filter(change => change.type !== 'DELETE');
     const actions = compactChanges(upserts, createEmptyActions());
     const actionEntries = createConflictActionEntries(upserts, actions);
@@ -499,19 +556,17 @@ async function applyScopedBatch(
       localClientId: sm.rxdb.context.clientId
     });
 
-    const latestByEntityId = latestChangesByEntityId(safeChanges);
-    const rowsToRemove = new Set<string>();
+    // 离开这个作用域的行与它们在这里的映射（没有映射的为 undefined）：先定下删哪些、留哪些，再动映射
+    const leaving = new Map<string, RxDBSyncBucketRow | undefined>();
     const snapshotRunId = progress.snapshotRunId;
-    for (const [entityId, change] of latestByEntityId) {
+    for (const [entityId, change] of latestChangesByEntityId(safeChanges)) {
       const rowId = rowIdentity(scope, entityId);
+      const row = await findBucketRow(rowRepository, rowId);
       if (change.type === 'DELETE') {
-        const row = await findBucketRow(rowRepository, rowId);
-        if (row) await rowRepository.remove(row);
-        rowsToRemove.add(entityId);
+        leaving.set(entityId, row);
         continue;
       }
 
-      const row = await findBucketRow(rowRepository, rowId);
       if (row) {
         if (state.isSnapshot) await rowRepository.update(row, { snapshotRunId });
       } else {
@@ -531,21 +586,22 @@ async function applyScopedBatch(
 
     if (state.cleanupStaleSnapshotRows) {
       const stale = await findBucketRows(rowRepository, scope);
-      for (const row of stale.filter(row => row.snapshotRunId !== snapshotRunId)) {
-        await rowRepository.remove(row);
-        rowsToRemove.add(row.entityId);
-      }
+      for (const row of stale.filter(row => row.snapshotRunId !== snapshotRunId)) leaving.set(row.entityId, row);
     }
 
-    const cleanupIds = await findRowsWithoutMappings(
-      rowRepository,
-      entityRepository,
-      changeRepository,
+    // 还被本地别的行引用的行留在本机、映射也留着，等这个分区下一次整体清理；其余照常删
+    const cleanup = await planRowCleanup(
+      executor,
+      sm.rxdb.config.entities,
+      EntityType,
       scope,
-      rowsToRemove,
+      leaving.keys(),
       repoSync.lastPushedChangeId
     );
-    for (const entityId of cleanupIds) {
+    for (const [entityId, row] of leaving) {
+      if (row && !cleanup.retained.has(entityId)) await rowRepository.remove(row);
+    }
+    for (const entityId of cleanup.deletable) {
       const key = scopedEntityKey(scope, entityId);
       resolved.applyActions.inserts.delete(key);
       resolved.applyActions.updates.delete(key);
@@ -586,7 +642,8 @@ async function applyScopedBatch(
       progress: nextProgress,
       applied,
       compacted: Math.max(0, safeChanges.length - actionCount),
-      conflictsResolved: resolved.conflictsResolved
+      conflictsResolved: resolved.conflictsResolved,
+      blocked: cleanup.blocked
     };
   });
 }
@@ -639,7 +696,7 @@ async function findProgress(
   return (
     await repository.find({
       where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: progressId(scope) }] }
-    } as never)
+    })
   )[0];
 }
 
@@ -659,7 +716,7 @@ async function findRepositoryProgress(
       ]
     },
     orderBy: [{ field: 'id', sort: 'asc' }]
-  } as never);
+  });
 }
 
 async function findBucketRow(
@@ -669,7 +726,7 @@ async function findBucketRow(
   return (
     await repository.find({
       where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: rowId }] }
-    } as never)
+    })
   )[0];
 }
 

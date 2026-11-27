@@ -90,6 +90,10 @@
         "kind": "type"
       },
       {
+        "name": "RxDBBucketCleanupBlockedError",
+        "kind": "both"
+      },
+      {
         "name": "RxDBForeignKeyCycleError",
         "kind": "both"
       },

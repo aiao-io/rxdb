@@ -89,7 +89,10 @@ describe('RxDBAdapterSupabase 的延迟外键（US-038）', () => {
 
     await adapter.mergeChanges(compactChanges([userChange, cardChange]), 'main', [userChange, cardChange], {});
     await adapter.mergeChanges(compactChanges([userChange, cardChange]), 'main', [userChange, cardChange]);
-    const feature = [{ ...userChange, branchId: 'feature' }, { ...cardChange, branchId: 'feature' }];
+    const feature = [
+      { ...userChange, branchId: 'feature' },
+      { ...cardChange, branchId: 'feature' }
+    ];
     await adapter.mergeChanges(compactChanges(feature), 'feature', feature, deferred);
 
     for (const [, params] of rpc.mock.calls) expect(params).not.toHaveProperty('p_deferred_columns');
@@ -101,12 +104,18 @@ describe('RxDBAdapterSupabase 的延迟外键（US-038）', () => {
       data: null,
       error: {
         code: 'PGRST202',
-        message: 'Could not find the function public.rxdb_mutations(p_changes, p_deferred_columns, ...) in the schema cache'
+        message:
+          'Could not find the function public.rxdb_mutations(p_changes, p_deferred_columns, ...) in the schema cache'
       },
       status: 404
     });
 
-    const pushing = adapter.mergeChanges(compactChanges([userChange, cardChange]), 'main', [userChange, cardChange], deferred);
+    const pushing = adapter.mergeChanges(
+      compactChanges([userChange, cardChange]),
+      'main',
+      [userChange, cardChange],
+      deferred
+    );
 
     await expect(pushing).rejects.toBeInstanceOf(SupabaseConfigError);
     await expect(pushing).rejects.toThrow('supabase-fk-cycle-push');

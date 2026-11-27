@@ -77,6 +77,7 @@ CASES=(
   production-grants-idempotent
   sync-access-upgrade
   change-history
+  caller-grants
   deferred-cycle
   deferred-columns-validation
   # 最后把全部用例放进同一个事务再跑一遍（SQL 文件不给 test_case 时的默认模式）：

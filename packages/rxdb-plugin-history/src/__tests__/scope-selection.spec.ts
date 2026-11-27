@@ -154,7 +154,10 @@ describe('scope-selection', () => {
     });
 
     it('applies a transaction that spans the listed repositories as a whole', () => {
-      const spanning = createTransaction(createChange(2), createChange(1, { entity: 'Post', entityId: 'post-1' as UUID }));
+      const spanning = createTransaction(
+        createChange(2),
+        createChange(1, { entity: 'Post', entityId: 'post-1' as UUID })
+      );
 
       expect(selectScopedHistories([spanning], USER_AND_POST, 1)).toEqual({ crossScope: [], selected: [spanning] });
     });
@@ -189,7 +192,10 @@ describe('scope-selection', () => {
     });
 
     it('leaves out a junction with only one end listed', () => {
-      expect(repositoriesScopeOf([ORDER_ITEM], junctions)).toEqual({ type: 'repositories', repositories: [ORDER_ITEM] });
+      expect(repositoriesScopeOf([ORDER_ITEM], junctions)).toEqual({
+        type: 'repositories',
+        repositories: [ORDER_ITEM]
+      });
     });
 
     it('rejects an empty list instead of widening to the database scope', () => {

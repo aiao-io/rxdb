@@ -67,7 +67,9 @@ export function repositoriesScopeOf(
   junctions: readonly JunctionEndpoints[]
 ): HistoryScope {
   if (listed.length === 0) {
-    throw new RxDBError('history([]) needs at least one entity; call history() without arguments for the database scope');
+    throw new RxDBError(
+      'history([]) needs at least one entity; call history() without arguments for the database scope'
+    );
   }
   const covered = (repository: RepositoryIdentifier) => listed.some(item => isSameRepository(item, repository));
   const followers = junctions

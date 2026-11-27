@@ -318,6 +318,33 @@ describe('既有库：换了身份', () => {
   });
 });
 
+// 评审 #7：竞争行在、绑定行不在，正常路径写不出（两行同一个事务写下），只有手工改库才出现。
+// 库属于谁说不清，与身份对不上同样处理：连接失败，读路径也撤回
+describe('既有库：身份认领残缺', () => {
+  it('竞争行在、绑定行不在：拒绝连接，不补写绑定，仓储读不到库里的行', async () => {
+    const adapter = new MemoryLocalAdapter(['0001-init', RXDB_IDENTITY_CLAIM_NAME]);
+    const database = open(adapter, identityOf(USER_B), [IdentityProbe]);
+
+    await expect(database.connect(adapter.name)).rejects.toThrow('identity claim is incomplete');
+
+    const find = firstValueFrom(
+      database.entityManager.getRepository(IdentityProbe).find({ where: { combinator: 'and', rules: [] } })
+    ).then(
+      rows => ({ rows }),
+      (error: unknown) => ({ error })
+    );
+    const outcome = await Promise.race([
+      find,
+      new Promise<'still-waiting'>(resolve => setTimeout(() => resolve('still-waiting'), 100))
+    ]);
+
+    expect(outcome).not.toHaveProperty('rows');
+    expect(adapter.probeFinds).toBe(0);
+    expect(adapter.appended).toEqual([]);
+    expect(database.localAdapterIfConnected).toBeUndefined();
+  });
+});
+
 describe('本功能之前建的库：没有绑定', () => {
   it('第一次带身份打开：就地绑定，之后以别的身份打开被拒', async () => {
     const adapter = new MemoryLocalAdapter(['0001-init']);

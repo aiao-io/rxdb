@@ -4,6 +4,7 @@ import { DemoSession } from '../demo-session';
 import { getErrorMessage } from '../error-message';
 import { Toasts } from '../toasts';
 import { CatalogItemEditor, type CatalogItemEdit } from './catalog-item-editor';
+import { CatalogMembersPanel } from './catalog-members-panel';
 import {
   createItem,
   deleteItem,
@@ -18,18 +19,19 @@ import { CatalogRemoteState } from './catalog-remote-state';
 import { CATALOG_CATEGORIES } from './catalog-sync-rule';
 
 /**
- * 模拟服务端那边的变化：成员关系，商品的编辑、可见范围、删除与新增。
+ * 模拟服务端那边的变化：成员关系与成员权限，商品的编辑、可见范围、删除与新增。
  *
  * @remarks
- * 这里直接以当前身份写远端业务表（RLS：只能改所在租户的商品），写入经同步触发器记进对应区的日志；
+ * 这里直接以当前身份写远端业务表（RLS：只能改有 edit 的租户的商品，US-234），写入经同步触发器记进对应区的日志；
  * 本机的同步数据不会因此马上变，要点顶栏的「拉取」，或到别的身份的窗口里拉取，才看得到效果。
- * 自助加入、退出租户只为演示方便，模拟的是「管理员调整了你的成员关系」。
+ * 自助加入、退出租户只为演示方便，模拟的是「管理员调整了你的成员关系」；加入之后是员工，
+ * 由这个租户的管理员在「成员与权限」里设为管理员。员工所在租户的商品不在这里列，写了也会被 RLS 拒绝。
  *
  * 渲染在商品页提供的右侧面板里（US-232）：面板标题就是「模拟服务端变更」，这里不再套卡片和标题。
  */
 @Component({
   selector: 'app-catalog-server-panel',
-  imports: [FormsModule, CatalogItemEditor],
+  imports: [FormsModule, CatalogItemEditor, CatalogMembersPanel],
   template: `
     <section class="flex flex-col gap-4" data-testid="catalog-server-panel">
       @if (!session.signedIn) {
@@ -38,7 +40,7 @@ import { CATALOG_CATEGORIES } from './catalog-sync-rule';
         </p>
       } @else {
         <p class="text-base-content/60 text-sm">
-          以当前身份直接写远端（按 RLS 只能改所在租户的商品）。本机数据不会马上变：点顶栏的「拉取」，
+          以当前身份直接写远端（按 RLS 只能改你是管理员的租户的商品）。本机数据不会马上变：点顶栏的「拉取」，
           或到别的身份的窗口里拉取，看分区同步怎么收到写入与移除。这个面板开着也能拉取。
         </p>
 
@@ -57,10 +59,14 @@ import { CATALOG_CATEGORIES } from './catalog-sync-rule';
               }
             }
           </div>
-          <p class="label whitespace-normal">
+          <p class="label whitespace-normal" data-testid="server-membership-hint">
+            加入之后是员工：能同步、浏览这个租户的全部商品，不能改；Alice、Bob
+            第一次登录时加入各自的租户，由服务端授予管理员。
             成员关系变了、业务行一行没改：下次同步时，加入的租户补快照，退出的租户整块从本机删掉。
           </p>
         </fieldset>
+
+        <app-catalog-members-panel />
 
         @if ($error(); as error) {
           <div class="alert alert-error" role="alert">{{ error }}</div>
@@ -68,6 +74,10 @@ import { CATALOG_CATEGORIES } from './catalog-sync-rule';
 
         @if (remote.$myTenantIds().length === 0) {
           <p class="text-base-content/60 text-sm">还不在任何租户里：加入一个租户后可以管理它的商品。</p>
+        } @else if (remote.$editableTenantIds().length === 0) {
+          <p class="text-base-content/60 text-sm" data-testid="server-panel-staff">
+            员工只读：你在所在的租户里都是员工，改不了商品；请这个租户的管理员在上面的「成员与权限」里把你设为管理员。
+          </p>
         } @else {
           <ul class="divide-base-200 divide-y">
             @for (item of $items(); track item.id) {
@@ -133,7 +143,7 @@ import { CATALOG_CATEGORIES } from './catalog-sync-rule';
               aria-label="所属租户"
               name="tenant"
             >
-              @for (tenantId of remote.$myTenantIds(); track tenantId) {
+              @for (tenantId of remote.$editableTenantIds(); track tenantId) {
                 <option [value]="tenantId">{{ remote.tenantName(tenantId) }}</option>
               }
             </select>
@@ -179,9 +189,9 @@ export class CatalogServerPanel {
   readonly draftVisibility = signal<CatalogRemoteItem['visibility']>('public');
 
   constructor() {
-    // 所在的租户变了：重新列出可以管理的商品，新增表单默认落在第一个租户
+    // 能改的租户变了：重新列出可以管理的商品，新增表单默认落在第一个能改的租户
     effect(() => {
-      const tenantIds = this.remote.$myTenantIds();
+      const tenantIds = this.remote.$editableTenantIds();
       const current = untracked(this.draftTenantId);
       this.draftTenantId.set(tenantIds.includes(current) ? current : (tenantIds[0] ?? ''));
       void this.#loadItems(tenantIds);
@@ -213,7 +223,7 @@ export class CatalogServerPanel {
     return this.#run(`「${changes.name}」已修改`, async client => {
       await updateItem(client, id, changes);
       this.editorRef().close();
-      await this.#loadItems(this.remote.$myTenantIds());
+      await this.#loadItems(this.remote.$editableTenantIds());
     });
   }
 
@@ -221,14 +231,14 @@ export class CatalogServerPanel {
     const next = item.visibility === 'public' ? 'tenant' : 'public';
     return this.#run(`「${item.name}」已${next === 'public' ? '公开' : '收回为租户内部'}`, async client => {
       await setItemVisibility(client, item.id, next);
-      await this.#loadItems(this.remote.$myTenantIds());
+      await this.#loadItems(this.remote.$editableTenantIds());
     });
   }
 
   remove(item: CatalogRemoteItem): Promise<void> {
     return this.#run(`「${item.name}」已删除`, async client => {
       await deleteItem(client, item.id);
-      await this.#loadItems(this.remote.$myTenantIds());
+      await this.#loadItems(this.remote.$editableTenantIds());
     });
   }
 
@@ -244,7 +254,7 @@ export class CatalogServerPanel {
         tenantId: this.draftTenantId()
       });
       this.draftName.set('');
-      await this.#loadItems(this.remote.$myTenantIds());
+      await this.#loadItems(this.remote.$editableTenantIds());
     });
   }
 

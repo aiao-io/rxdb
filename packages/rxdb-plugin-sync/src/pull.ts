@@ -298,7 +298,7 @@ async function pullWithBulkSync(sm: SyncManager, options: PullOptions): Promise<
     pull: { limit: options.limit, fetchAll: options.fetchAll, conflictResolver: options.conflictResolver }
   };
 
-  const bulkResult = await sm.bulkSync(bulkOptions);
+  const bulkResult = await sm.bulkSyncInSession(bulkOptions);
 
   const aggregated: PullResult = {
     pulled: 0,

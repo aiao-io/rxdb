@@ -42,7 +42,7 @@ import { ToastOutlet } from './toast-outlet';
   styles: [],
   host: {
     '[class.left-menu-pinned]': 'app.$sidebarPinned()',
-    // 顶栏有内容（远端模式的身份、页面登记的按钮）就占自己的一行；只剩菜单按钮时悬浮，不挡页面内容
+    // 远端身份或页面登记的按钮出现时，顶栏独占一行。本地首页的顶栏悬浮在页面上
     '[class.header-floating]': 'app.$headerFloating() && !session.description && !workbench.current()'
   }
 })

@@ -32,6 +32,15 @@
 - `pnpm nx run rxdb-adapter-supabase:typecheck --skip-nx-cache --output-style=static` 最终通过。
 - 执行期间曾打印 Node 22 不满足仓库 Node 26 要求的 preinstall 警告，但类型检查任务完成。
 
+## 处置记录（2026-11-27）
+
+状态：**未处置**。owner 决定合入 `main` 之前另做服务端改造，收紧统一频道。
+
+分支 tip 上的现状：
+
+- 分区实体（业务表带 `rxdb_bucket`）的通知只发到 `rxdb:changes:bucket:<bucket>`。`realtime.messages` 上的接收策略 `rxdb_changes_receive`（`docker/sql/production/rxdb-change-grants.sql`）要求频道里的 bucket 属于 `rxdb_caller_buckets()`。SQL 回归 `rxdb_sql_regression.test_realtime_notifications` 断言登录用户只收到 `public` 区与自己分区的通知。
+- 统一频道 `rxdb:changes` 仍对全部 `authenticated` 开放，承载未分区旧日志的元数据。这些日志的整行正文本来就经 `rxdb_change` 的 RLS 对全部 `authenticated` 可读（适配器文档「适用边界」），频道没有扩大读取面；但 P1 要的是服务端按租户、实体或用户隔离，这一条还没有做。
+
 ## 结论
 
 该 PR 存在一个 P1 级跨租户 Realtime 元数据泄露问题，修复服务端频道授权后再合入。

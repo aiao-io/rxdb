@@ -11,6 +11,7 @@ import { PageWorkbench } from '../page-workbench';
 import { RemoteSyncState } from '../remote-sync-state';
 import { RightPanel } from '../side-panel';
 import { CatalogLocalWrites } from './catalog-local-writes';
+import type { CallerGrant } from './catalog-remote';
 import { CatalogRemoteState } from './catalog-remote-state';
 import CatalogPage from './catalog.page';
 
@@ -24,7 +25,12 @@ class BrowsePanelStub {}
 @Component({ selector: 'app-catalog-server-panel', template: '' })
 class ServerPanelStub {}
 
-function renderCatalog(options: { blockedReason?: string | null } = {}) {
+const TENANTS = [
+  { id: 'jiguang', name: '极光百货' },
+  { id: 'xinghe', name: '星河零售' }
+];
+
+function renderCatalog(options: { blockedReason?: string | null; signedIn?: boolean; grants?: CallerGrant[] } = {}) {
   const history = {
     type: 'repository',
     histories$: of([]),
@@ -45,8 +51,9 @@ function renderCatalog(options: { blockedReason?: string | null } = {}) {
       {
         provide: DemoSession,
         useValue: {
-          prepared: { databaseName: 'dev-rxdb-supabase-visitor' },
-          description: { title: '访客', detail: '未登录' }
+          prepared: { databaseName: 'dev-rxdb-supabase-visitor', identity: { subject: 'user-alice' } },
+          description: { title: '访客', detail: '未登录' },
+          signedIn: options.signedIn ?? false
         }
       }
     ]
@@ -57,7 +64,14 @@ function renderCatalog(options: { blockedReason?: string | null } = {}) {
       providers: [
         {
           provide: CatalogRemoteState,
-          useValue: { $callerBuckets: signal(['public']), $tenants: signal([]), $error: signal(null), refresh: vi.fn() }
+          useValue: {
+            $callerBuckets: signal(['public']),
+            $tenants: signal(TENANTS),
+            $grants: signal(options.grants ?? []),
+            $error: signal(null),
+            refresh: vi.fn(),
+            tenantName: (tenantId: string) => TENANTS.find(tenant => tenant.id === tenantId)?.name ?? tenantId
+          }
         },
         { provide: CatalogLocalWrites, useValue: { $blockedReason: signal(options.blockedReason ?? null) } }
       ]
@@ -87,6 +101,39 @@ describe('CatalogPage', () => {
     expect(page.querySelector('app-catalog-server-panel')).toBeNull();
     expect(page.querySelector('[data-testid="catalog-operations"]')).toBeNull();
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
+  });
+
+  // US-234 AC#11、#12：角色来自 rxdb_caller_grants()，按租户列出
+  it('身份与权限：按租户列出当前身份的角色，两个预设以外的组合原样列出权限；登录身份显示用户 id', () => {
+    const { page } = renderCatalog({
+      signedIn: true,
+      grants: [
+        { scope: 'tenant:jiguang', permissions: ['read'] },
+        { scope: 'tenant:xinghe', permissions: ['read', 'edit', 'manage'] },
+        { scope: 'user:user-alice', permissions: ['read', 'edit'] }
+      ]
+    });
+    const roles = [...page.querySelectorAll('[data-testid="catalog-role"]')].map(role => role.textContent?.trim());
+
+    expect(roles).toEqual(['极光百货 · 员工', '星河零售 · 管理员']);
+    expect(page.querySelector('[data-testid="catalog-user-id"]')?.textContent).toBe('user-alice');
+    TestBed.resetTestingModule();
+
+    const custom = renderCatalog({
+      signedIn: true,
+      grants: [{ scope: 'tenant:xinghe', permissions: ['read', 'edit'] }]
+    });
+    expect(custom.page.querySelector('[data-testid="catalog-role"]')?.textContent?.trim()).toBe(
+      '星河零售 · read、edit'
+    );
+  });
+
+  it('访客没有成员权限，也没有用户 id', () => {
+    const { page } = renderCatalog();
+
+    expect(page.querySelectorAll('[data-testid="catalog-role"]')).toHaveLength(0);
+    expect(page.querySelector('[data-testid="catalog-roles"]')?.textContent).toContain('访客没有成员权限');
+    expect(page.querySelector('[data-testid="catalog-user-id"]')).toBeNull();
   });
 
   it('页头的开关在右侧面板打开模拟服务端变更；再点一下收起', () => {

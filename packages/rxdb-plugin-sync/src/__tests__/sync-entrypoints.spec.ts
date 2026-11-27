@@ -75,8 +75,9 @@ function createHarness(adapter?: string, entities: unknown[] = []) {
     config: { entities, sync: { remote: { adapter } } },
     dispatchEvent
   } as unknown as RxDB;
+  // pull / push 已经排在同步队列里，逐仓库走不排队的那一个（排队就是等自己）
   const bulkSync = vi.fn();
-  const vm = { rxdb, bulkSync } as unknown as SyncManager;
+  const vm = { rxdb, bulkSyncInSession: bulkSync } as unknown as SyncManager;
   return { bulkSync, dispatchEvent, vm };
 }
 

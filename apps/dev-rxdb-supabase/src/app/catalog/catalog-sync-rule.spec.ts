@@ -1,5 +1,5 @@
 import { isEntityMatchWhere } from '@aiao/rxdb';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   CATALOG_CATEGORIES,
   catalogSyncRule,
@@ -36,6 +36,10 @@ describe('catalogSyncRule', () => {
 });
 
 describe('FollowedCategories', () => {
+  const storageKey = 'dev-rxdb-supabase:catalog-followed:db';
+
+  afterEach(() => vi.restoreAllMocks());
+
   it('第一次打开：默认关注的分类', () => {
     const followed = new FollowedCategories(new MemoryStorage(), 'db-anon');
 
@@ -52,9 +56,41 @@ describe('FollowedCategories', () => {
 
   it('按分类表的顺序保存，去掉不认识的分类', () => {
     const storage = new MemoryStorage();
-    storage.setItem('dev-rxdb-supabase:catalog-followed:db', JSON.stringify(['图书', '已下线', '数码', '图书']));
+    storage.setItem(storageKey, JSON.stringify(['图书', '已下线', '数码', '图书']));
 
     expect(new FollowedCategories(storage, 'db').value()).toEqual(['数码', '图书']);
+  });
+
+  it('存的不是合法 JSON（被改坏了）：当作没存过，回到默认关注，警告一次并点名存储键', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const storage = new MemoryStorage();
+    storage.setItem(storageKey, '["数码",');
+
+    const followed = new FollowedCategories(storage, 'db');
+
+    expect(followed.value()).toEqual(DEFAULT_FOLLOWED_CATEGORIES);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn.mock.calls[0]?.[0]).toContain(storageKey);
+  });
+
+  it('坏值被下一次关注的改动覆盖：之后读回来是好的，不再警告', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const storage = new MemoryStorage();
+    storage.setItem(storageKey, 'not json');
+    new FollowedCategories(storage, 'db').toggle('家居');
+    warn.mockClear();
+
+    expect(new FollowedCategories(storage, 'db').value()).toEqual(['数码', '家居']);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('合法的 JSON 但形状不对：照旧按没有关注任何分类处理，不算坏值、不警告', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const storage = new MemoryStorage();
+    storage.setItem(storageKey, JSON.stringify({ 数码: true }));
+
+    expect(new FollowedCategories(storage, 'db').value()).toEqual([]);
+    expect(warn).not.toHaveBeenCalled();
   });
 
   it('取消关注最后一个分类：公开商品一个都不同步', () => {

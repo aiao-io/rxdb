@@ -4,6 +4,7 @@ import {
   LucideArrowDown as ArrowDown,
   LucideArrowUp as ArrowUp,
   LucideArrowUpDown as ArrowUpDown,
+  LucideChevronDown as ChevronDown,
   LucideHistory as History,
   LucideDynamicIcon,
   LucideMenu as Menu,
@@ -114,7 +115,7 @@ import { SyncCommands } from './sync-commands';
       }
     </div>
 
-    <div class="flex items-center gap-2">
+    <div class="ms-auto flex items-center gap-2">
       @if (workbench.current(); as page) {
         @if (page.pull || page.push) {
           <div
@@ -212,6 +213,22 @@ import { SyncCommands } from './sync-commands';
             <option [selected]="choice.key === session.currentChoice" [value]="choice.key">{{ choice.label }}</option>
           }
         </select>
+      } @else {
+        <details class="dropdown dropdown-end pointer-events-auto" data-testid="local-mode-notice">
+          <summary class="btn btn-sm btn-ghost">
+            本地模式
+            <svg [lucideIcon]="ChevronDown" aria-hidden="true" size="14"></svg>
+          </summary>
+          <div
+            class="dropdown-content bg-base-100 border-base-300 rounded-box mt-2 w-[min(22rem,calc(100vw-2rem))] border p-3 text-sm shadow-xl"
+          >
+            <p>推送、拉取和身份切换需要连接 Supabase。</p>
+            <p class="mt-2">停止当前服务后，运行以下命令启动远端模式。</p>
+            <code class="bg-base-200 mt-1 block rounded px-2 py-1 text-xs select-all"
+              >pnpm nx dev dev-rxdb-supabase</code
+            >
+          </div>
+        </details>
       }
     </div>
   </div>`,
@@ -234,6 +251,7 @@ export class AppHeader {
   readonly ArrowDown = ArrowDown;
   readonly ArrowUp = ArrowUp;
   readonly ArrowUpDown = ArrowUpDown;
+  readonly ChevronDown = ChevronDown;
 
   /** 现在点不了：有不可用的原因，或正在执行 */
   unavailable(action: WorkbenchAction): boolean {

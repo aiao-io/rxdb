@@ -4,6 +4,7 @@ import { RxDB } from '../../RxDB.js';
 import { EntityBase } from '../../entity/entity-base.js';
 import { Entity } from '../../entity/entity.decorator.js';
 import type { EntityData, EntityType } from '../../entity/entity.interface.js';
+import { junctionEntityId } from '../../entity/many-to-many-entity.js';
 import {
   type EntityRelationManyToManyMetadata,
   type EntityRelationOneToManyMetadata,
@@ -11,7 +12,6 @@ import {
   RelationKind,
   SyncType
 } from '../../entity/metadata-options.interface.js';
-import { junctionEntityId } from '../../entity/many-to-many-entity.js';
 import { EntityRelationCache } from '../../entity/relation-cache.js';
 import type { IRxDBAdapter } from '../../rxdb-adapter.js';
 import { getEntityMetadata, getEntityStatus } from '../../rxdb-utils.js';
@@ -365,6 +365,31 @@ describe('EntityRelationCache', () => {
     tagCache.add(mappedRelation, owner);
 
     expect(findTargetJunction(tagCache.get(mappedRelation), ownerRelation, owner.id, tag.id)).toBe(loaded);
+  });
+
+  // 分支深度评审 #1：一端解绑、保存之前从另一端重新关联同一对。复用的中间表要是还留在解绑那一端的待删集合里，
+  // 保存时就被删掉，又因为没有改动不会重新写入：关联静默丢失
+  it('一端解绑之后从另一端重新关联同一对：复用的中间表不再留在任何一端的待删集合里', () => {
+    const owner = new RelationCacheOwner();
+    const tag = new RelationCacheTag();
+    const ownerRelation = requireManyToManyRelation(RelationCacheOwner, 'tags');
+    const mappedRelation = requireManyToManyRelation(RelationCacheTag, 'owners');
+    const ownerStatus = getEntityStatus(owner);
+    const tagStatus = getEntityStatus(tag);
+    ownerStatus.addRelationEntity(ownerRelation, tag);
+    const junction = findTargetJunction(ownerStatus.getRelationCache(ownerRelation), ownerRelation, owner.id, tag.id);
+    getEntityStatus(junction).local = true;
+    ownerStatus.removeRelationEntity(ownerRelation, tag);
+    expect(ownerStatus.getNeedRemoveEntities()).toEqual([junction]);
+
+    tagStatus.addRelationEntity(mappedRelation, owner);
+
+    expect(findTargetJunction(tagStatus.getRelationCache(mappedRelation), ownerRelation, owner.id, tag.id)).toBe(
+      junction
+    );
+    expect(ownerStatus.getRelationCache(ownerRelation)).toEqual(new Set([tag, junction]));
+    expect(ownerStatus.getNeedRemoveEntities()).toEqual([]);
+    expect(tagStatus.getNeedRemoveEntities()).toEqual([]);
   });
 
   it('removes the related entity without marking mismatched junctions as removable', () => {

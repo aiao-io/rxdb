@@ -22,10 +22,15 @@
 被拒的推送在同步中心里（`openSidePanel(page, 'sync')`），商品页的「模拟服务端变更」要先经页头开关打开（`openSidePanel(page, 'server')`），
 操作历史在左侧一栏（`openHistory(page)`，宽屏默认开着）。
 
+商品的写入按成员权限裁决（US-234）：自助加入的匿名用户只是员工。要写商品的用例先调 `src/support/members.ts` 的
+`promoteToAdmin(browser, page)`：另开一个浏览器上下文登录这个租户的管理员（星河零售是 Alice，极光百货是 Bob），
+在「成员与权限」里按用户 id（`catalog-user-id`）把他设为管理员，成员再拉取一次，授权随之重读。
+Alice、Bob 自己的权限一律不改；`catalog-member-permissions.spec.ts` 里 Alice 加入极光百货的用例结束时退出，回到初始状态。
+
 `e2e-remote` 分两轮跑：
 
-1. `remote-sync`、`catalog-sync`、`catalog-local-writes`、`orders-sync`、`workbench` 并行跑。它们只断自己建的行，
-   行名带唯一后缀，结束时删掉；
+1. `remote-sync`、`catalog-sync`、`catalog-local-writes`、`catalog-member-permissions`、`orders-sync`、`workbench` 并行跑。
+   它们只断自己建的行，行名带唯一后缀，结束时删掉；
 2. `sync-counts.spec.ts` 单独一轮、`--workers=1` 串行（`REMOTE_E2E_COUNTS=true`）：它断顶栏 ↓N 的绝对数
    （刷新之后自己推上去的不算、分区按真实条数，US-233），栈上有别人在写数字就不准，与其它用例一起跑时整组跳过。
    共用栈上手动演示也会打乱这一轮，跑之前别在演示里写。

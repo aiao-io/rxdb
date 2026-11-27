@@ -123,7 +123,8 @@ test('深层页面同包 ../ 相对链接绝对化', () => {
 });
 
 test('绝对化包内和跨包链接并保留标题锚点', () => {
-  const content = '见 [构造函数](RxDBError.md#constructor) 与 [合并变更](../../rxdb-plugin-sync/functions/push.md#returns)。';
+  const content =
+    '见 [构造函数](RxDBError.md#constructor) 与 [合并变更](../../rxdb-plugin-sync/functions/push.md#returns)。';
 
   assert.equal(
     rewriteRelativeApiLinks(content, 'rxdb/classes/RxDBIdentityMismatchError.md'),

@@ -5626,7 +5626,8 @@ BEGIN
     'sync-access-upgrade: only partition-log SELECT may remain on rxdb_change; old write privileges must be revoked'
   );
 
-  -- 非触发器的 rxdb_ 函数里，anon 只能执行连接函数、分区只读 RPC 及其调用者权限辅助函数；rxdb_test_ 是 03 的测试夹具
+  -- 非触发器的 rxdb_ 函数里，anon 只能执行连接函数、分区只读 RPC 及其调用者权限辅助函数（含成员权限 US-234）；
+  -- rxdb_test_ 是 03 的测试夹具
   SELECT pg_catalog.array_agg(p.oid::regprocedure::text ORDER BY p.oid::regprocedure::text)
   INTO v_open_to_anon
   FROM pg_catalog.pg_proc AS p
@@ -5639,6 +5640,8 @@ BEGIN
       'public.rxdb_backend_id()'::regprocedure,
       'public.rxdb_check_rls(jsonb)'::regprocedure,
       'public.rxdb_caller_buckets()'::regprocedure,
+      'public.rxdb_caller_grants()'::regprocedure,
+      'public.rxdb_caller_scopes(text)'::regprocedure,
       'public.rxdb_entity_sync_info(text, text)'::regprocedure,
       'public.rxdb_bucket_snapshot_point(text, text, text, text[])'::regprocedure,
       'public.rxdb_pull_bucket_changes(integer, integer, text, text, text, text, jsonb)'::regprocedure,
@@ -5698,6 +5701,49 @@ BEGIN
         AND bucket = 'public'
     ),
     'sync-access-upgrade: re-running the upgrade must keep the change log of bucketed entities'
+  );
+END;
+$$;
+
+-- US-234 AC#1：平台默认的成员权限。栈上加载过演示的覆盖，用例在保存点里重新执行 04 与生产权限脚本恢复默认，
+-- 跑完回滚到保存点，不影响别的用例
+CREATE FUNCTION rxdb_sql_regression.test_caller_grants_default()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  user_a uuid := '00000000-0000-4000-8000-0000000000a1';
+BEGIN
+  PERFORM pg_catalog.set_config('request.jwt.claims', '{"role":"anon"}', true);
+  PERFORM rxdb_sql_regression.assert_true(
+    NOT EXISTS (SELECT 1 FROM public.rxdb_caller_grants())
+      AND public.rxdb_caller_scopes('read') = ARRAY[]::text[],
+    'caller-grants: anon must have no grants by default'
+  );
+
+  PERFORM pg_catalog.set_config(
+    'request.jwt.claims', pg_catalog.format('{"sub":"%s","role":"authenticated"}', user_a), true
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    (SELECT pg_catalog.jsonb_agg(pg_catalog.to_jsonb(caller)) FROM public.rxdb_caller_grants() AS caller)
+      = pg_catalog.jsonb_build_array(
+        pg_catalog.jsonb_build_object('scope', 'user:' || user_a::text, 'permissions', ARRAY['read', 'edit'])
+      ),
+    'caller-grants: a signed-in user must only get read + edit on the own user scope by default'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    public.rxdb_caller_scopes('edit') = ARRAY['user:' || user_a::text]
+      AND public.rxdb_caller_scopes('manage') = ARRAY[]::text[],
+    'caller-grants: rxdb_caller_scopes must list exactly the scopes that carry the permission'
+  );
+
+  PERFORM rxdb_sql_regression.assert_true(
+    pg_catalog.has_function_privilege('anon', 'public.rxdb_caller_grants()', 'EXECUTE')
+      AND pg_catalog.has_function_privilege('authenticated', 'public.rxdb_caller_grants()', 'EXECUTE')
+      AND pg_catalog.has_function_privilege('anon', 'public.rxdb_caller_scopes(text)', 'EXECUTE')
+      AND pg_catalog.has_function_privilege('authenticated', 'public.rxdb_caller_scopes(text)', 'EXECUTE'),
+    'caller-grants: anon and authenticated must be able to read their own grants'
   );
 END;
 $$;
@@ -5884,6 +5930,16 @@ SELECT rxdb_sql_regression.test_production_grants_idempotent()
 WHERE :'test_case' IN ('all', 'production-grants-idempotent');
 SELECT rxdb_sql_regression.assert_change_history_grants('change-history')
 WHERE :'test_case' IN ('all', 'change-history');
+\endif
+
+-- US-234 AC#1：只装平台 SQL 时的成员权限。04 与生产权限脚本在保存点里重新执行，把演示的覆盖换回平台默认
+SELECT :'test_case' IN ('all', 'caller-grants') AS run_caller_grants \gset
+\if :run_caller_grants
+SAVEPOINT caller_grants_default;
+\i :utils_functions_file
+\i :production_grants_file
+SELECT rxdb_sql_regression.test_caller_grants_default();
+ROLLBACK TO SAVEPOINT caller_grants_default;
 \endif
 
 -- US-225 AC#18：生产库从旧版本升级。按迁移指南第 2 步的顺序执行参考 SQL，随外层 ROLLBACK 撤销。

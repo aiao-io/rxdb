@@ -369,20 +369,20 @@ Repository 拿不到同事务的原子边界，也覆盖不了同步与撤销路
 
 | #   | 文件（基名）                | 符号                             | 写原语                            | 行   | 意图          | 产生工作树单元 |
 | --- | --------------------------- | -------------------------------- | --------------------------------- | ---- | ------------- | -------------- |
-| 1   | `VersionManager.ts`         | `switchBranch`                   | `adapter.switchBranch`            | 331  | 分支物化      | **不产生**     |
+| 1   | `VersionManager.ts`         | `switchBranch`                   | `adapter.switchBranch`            | 376  | 分支物化      | **不产生**     |
 | 2   | `restore-entity.ts`         | `restore_entity`                 | `executor.mergeChanges(…, false)` | 94   | 实体恢复      | **必须产生**   |
-| 3   | `HistoryManager.ts`         | `invalidateRedoStack`            | `adapter.switchBranch`            | 661  | redo 失效标记 | **不产生**     |
+| 3   | `HistoryManager.ts`         | `invalidateRedoStack`            | `adapter.switchBranch`            | 726  | redo 失效标记 | **不产生**     |
 | 4   | `undo-redo-apply.ts`        | `applyUndoRedoHistories`         | `adapter.switchBranch`            | 262  | 撤销 / 重做   | **必须产生**   |
 | 5   | `merge-branch.ts`           | `merge_branch`（逐条分支）       | `executor.mergeChanges(…, false)` | 239  | 逐条合并      | **必须产生**   |
 | 6   | `merge-branch.ts`           | `merge_branch`（压缩分支）       | `executor.mergeChanges(…, false)` | 280  | 压缩合并      | **必须产生**   |
-| 7   | `pull-batch.ts`             | `pullBatchOnce`                  | `executor.mergeChanges(…, true)`  | 349  | `remote_sync` | **必须产生**   |
-| 8   | `pull-repository.ts`        | `pullSingleRepository`           | `executor.mergeChanges(…, true)`  | 683  | `remote_sync` | **必须产生**   |
+| 7   | `pull-batch.ts`             | `pullBatchOnce`                  | `executor.mergeChanges(…, true)`  | 407  | `remote_sync` | **必须产生**   |
+| 8   | `pull-repository.ts`        | `pullSingleRepository`           | `executor.mergeChanges(…, true)`  | 808  | `remote_sync` | **必须产生**   |
 | 9   | `cleanup-expired.ts`        | `cleanupExpired`                 | `executor.mergeChanges(…, true)`  | 208  | `remote_sync` | **必须产生**   |
 | 10  | `materialize-branch.ts`     | `switchWithMaterialization`      | `adapter.switchBranch`            | 313  | 分支物化      | **不产生**     |
 | 11  | `materialize-branch.ts`     | `applyMaterializedActions`       | `executor.mergeChanges(…, true)`  | 360  | 分支物化      | **不产生**     |
-| 12  | `push-repository.ts`        | `alignRejectedEntities`          | `executor.mergeChanges(…, true)`  | 1392 | `remote_sync` | **必须产生**   |
-| 13  | `bucketed-pull.ts`          | `applyScopedBatch`               | `executor.mergeChanges(…, true)`  | 534  | `remote_sync` | **必须产生**   |
-| 14  | `bucketed-scope-cleanup.ts` | `removeBucketScopeInTransaction` | `executor.mergeChanges(…, true)`  | 67   | `remote_sync` | **必须产生**   |
+| 12  | `push-repository.ts`        | `alignRejectedEntities`          | `executor.mergeChanges(…, true)`  | 1713 | `remote_sync` | **必须产生**   |
+| 13  | `bucketed-pull.ts`          | `applyScopedBatch`               | `executor.mergeChanges(…, true)`  | 614  | `remote_sync` | **必须产生**   |
+| 14  | `bucketed-scope-cleanup.ts` | `removeBucketScopeInTransaction` | `executor.mergeChanges(…, true)`  | 87   | `remote_sync` | **必须产生**   |
 
 同一文件里语义不同的两个策略分支（#5 / #6）各占一行，合并成一行会让其中一条策略失去登记；同理
 `pull-batch.ts`、`pull-repository.ts`、`bucketed-pull.ts` 与 `bucketed-scope-cleanup.ts` 是不同文件里的独立调用点，不得合并成一行。

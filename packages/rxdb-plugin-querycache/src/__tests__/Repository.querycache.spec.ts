@@ -630,7 +630,6 @@ describe('US-035：声明了身份的实例，QueryCache 读写远端前先核�
   it('身份是每次请求时问的，不缓存：第一次放行、会话换主人之后下一次就被拦下', async () => {
     let reported = USER_A;
     const { remote } = withCallerIdentity(() => reported);
-    const ctx = setup({ identity, remoteAdapter: remote });
     // 记忆窗口关掉，保证第二次读一定要再碰远端
     const noMemo = setup({ identity, remoteAdapter: remote, EntityType: CachedNoMemoEntity });
 
@@ -641,7 +640,6 @@ describe('US-035：声明了身份的实例，QueryCache 读写远端前先核�
       RxDBIdentityMismatchError
     );
     expect(remote.fetchMetadata).toHaveBeenCalledTimes(1);
-    expect(ctx.localAdapter).toBeDefined();
   });
 
   // 读引擎的同步记忆按适配器实例判断「有没有换」：适配器流每次发射都重建主仓储，

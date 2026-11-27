@@ -321,7 +321,8 @@ export async function rebindRemoteBackend(sm: SyncManager): Promise<RebindRemote
         bucket: progress.bucket,
         filterFingerprint: progress.filterFingerprint
       };
-      await removeBucketScopeInTransaction(executor, EntityType, repoSync, scope, progress);
+      // 还被本地别的行引用的行留下，连同这个作用域的旧进度行：之后的拉取认出它属于旧远端，再清一次
+      await removeBucketScopeInTransaction(executor, sm.rxdb.config.entities, EntityType, repoSync, scope, progress);
     }
     return { backendId, previousBackendIds, rebound: records.length };
   });

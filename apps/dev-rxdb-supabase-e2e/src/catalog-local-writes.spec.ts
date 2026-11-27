@@ -1,4 +1,5 @@
 import { expect, test, type Browser, type Page } from '@playwright/test';
+import { promoteToAdmin } from './support/members';
 import { openSidePanel, pull, push, toast } from './support/workbench';
 
 const isRemoteE2E = process.env['REMOTE_E2E'] === 'true';
@@ -8,6 +9,7 @@ const isRemoteE2E = process.env['REMOTE_E2E'] === 'true';
  * 远端变更历史（US-229）：推送之后能看到每次修改的前后值与操作者，入口只给能编辑的成员。
  *
  * 成员用匿名用户：每个浏览器上下文都是一个新的匿名用户，自助加入星河零售，不动预置账号 Alice、Bob 的成员关系。
+ * 自助加入只是员工（US-234）：要写商品，先由星河零售的管理员 Alice 在另一个浏览器上下文里把他设为管理员。
  * 本轮新建的商品名带唯一后缀，结束时经「模拟服务端变更」删掉；演示数据里的其他商品只读不改。
  *
  * 撤销、重做、拉取与推送都在顶栏（epic-016）：撤销、重做只作用于商品，推拉是整机的。
@@ -72,12 +74,16 @@ if (isRemoteE2E) {
     });
 
     test('成员在本机新建、改售价、撤销、重做之后推送：服务端收到改后的值，推送之后不能再撤销', async ({ browser }) => {
+      // 另开一个浏览器上下文登录管理员给成员授权（US-234），与 orders-sync 的多身份用例一样放宽超时
+      test.slow();
       const name = `e2e-${runId}-本机新建`;
       const member = await openCatalog(browser);
       await member.getByLabel('切换身份').selectOption('anonymous');
       await expect(member.getByTestId('identity-title')).toHaveText('匿名用户', { timeout: 60_000 });
       await openSidePanel(member, 'server');
       await member.getByRole('button', { name: '加入星河零售' }).click();
+      await expect(toast(member, '已加入星河零售')).toBeVisible({ timeout: 30_000 });
+      await promoteToAdmin(browser, member);
       await expect(member.getByTestId('catalog-write-hint')).toContainText('推送之前可以撤销', { timeout: 30_000 });
 
       try {

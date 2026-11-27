@@ -958,6 +958,8 @@ export class HistoryManager {
     // 与计数同一个仓库、同一个条件（见 `updatePushableCount`），只是取行而不是数
     const changeRepository = this.rxdb.entityManager.getRepository(RxDBChange);
     const changes = await firstValueFrom(changeRepository.find({ where, orderBy: [{ field: 'id', sort: 'desc' }] }));
+    // 计数按 transactionId 分组，这里只合并相邻的同事务行：两边一致的前提是同一事务的行 id 连号。
+    // 本地写入一次一个事务、自增 id，一个事务的变更一次写完，倒序读出来同一事务的行必然挨在一起
     return convertChangesToHistories(changes);
   }
 

@@ -36,7 +36,7 @@ owner 明确了目标：不同用户同步到自己有权限的数据是关键�
 
 ### 同步协议
 
-- **分区日志单独成表。** `rxdb_change` 与它的授权保持 [US-225](../stories/adapter/US-225-supabase-sync-protocol-access-baseline.md) 的状态，分区实体的变更只进分区日志。
+- **分区日志与旧日志同表、按区隔离。** 分区实体的变更照样记进 `rxdb_change`，带上 `bucket` 列；读取与实时频道按 `rxdb_caller_buckets()` 放行，未分区的旧日志保持 [US-225](../stories/adapter/US-225-supabase-sync-protocol-access-baseline.md) 的授权。试验时定的是单独成表，实现改成了加列，以 [US-033](../stories/core/US-033-identity-scoped-read-sync.md) 与参考 SQL 为准。
 - **变更历史与同步日志分开。** 同步日志（含分区日志）不带正文的规则不变；完整前后快照、操作者与来源只进独立的历史表，覆盖所有登记同步的表，只对当前能编辑该行的成员经受控 RPC 按列权限开放（[US-229](../stories/adapter/US-229-supabase-change-history.md)）。
 - **一行换区时旧区只记移除。** 换租户、公开改私有时，旧区的成员只收到「移除」，新区收到一条写入。
 - **公开数据也走分区同步，按实体同步规则只取一部分。** 登录用户与 anon 都能订阅公开区，但只同步实体规则选中的行（例如关注的分类、近期的、收藏的），这部分离线可用；不做公开数据的全量下载。

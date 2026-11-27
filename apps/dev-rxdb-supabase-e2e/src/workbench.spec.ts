@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { switchIdentity } from './support/identity';
+import { promoteToAdmin } from './support/members';
 import {
   boundsOf,
   errorToasts,
@@ -8,7 +9,8 @@ import {
   openHistory,
   openSidePanel,
   pull,
-  push
+  push,
+  toast
 } from './support/workbench';
 
 const isRemoteE2E = process.env['REMOTE_E2E'] === 'true';
@@ -183,14 +185,20 @@ if (isRemoteE2E) {
     });
 
     test('US-231 AC#2、#4 / US-230 AC#11、#20：撤销只撤本页；输入框里的 ⌘/Ctrl+Z 只撤文字；同步中心按实体列出待推', async ({
-      page
+      page,
+      browser
     }) => {
+      // 另开一个浏览器上下文登录管理员给成员授权（US-234），与 orders-sync 的多身份用例一样放宽超时
+      test.slow();
       const item = `e2e-${runId}-本页撤销的商品`;
       const customer = `e2e-${runId}-本页撤销的客户`;
       const todo = `e2e-${runId}-本页撤销的Todo`;
       await openAsAnonymous(page, '/catalog', 'catalog-identity');
       await openSidePanel(page, 'server');
       await page.getByRole('button', { name: '加入星河零售' }).click();
+      await expect(toast(page, '已加入星河零售')).toBeVisible({ timeout: 30_000 });
+      // 自助加入只是员工（US-234）：由星河零售的管理员 Alice 设为管理员才能写商品
+      await promoteToAdmin(browser, page);
       await expect(page.getByTestId('catalog-write-hint')).toContainText('推送之前可以撤销', { timeout: 30_000 });
 
       // 商品页本机新建一件内部商品，订单页新建一位客户

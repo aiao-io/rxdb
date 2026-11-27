@@ -33,7 +33,7 @@ let nextHistoryId = 0;
 @Component({
   selector: 'app-catalog-item-history',
   template: `
-    <dialog class="modal" #dialog (close)="reset()" [attr.aria-labelledby]="titleId">
+    <dialog class="modal" #dialog [attr.aria-labelledby]="titleId" (close)="reset()">
       @if ($item(); as item) {
         <div class="modal-box flex flex-col gap-3">
           <h3 class="text-lg font-bold" [id]="titleId">变更历史 · {{ item.name }}</h3>

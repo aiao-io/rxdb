@@ -59,6 +59,18 @@ psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 --single-transaction \
 - 04 让推送在写非 main 日志前校验分支所有者；
 - 生产权限脚本收回 anon 的协议入口与客户端对分支表的直写，并在 `realtime.messages` 上建接收策略。它必须最后执行。
 
+整批重复执行时注意：02 会把 `rxdb_caller_buckets()` 恢复成平台默认（只有 `public` 与 `user:<auth.uid()>`），04 会把 `rxdb_caller_can_edit` 恢复成平台默认。按租户授权的部署覆盖过前者（见<a href="/docs/adapters/supabase#配置-caller-buckets">配置 caller buckets</a>），覆盖装回之前客户端会把租户区当成已撤销、清掉本机这些区的数据，事后再整块重拉，期间没有报错。把自己的覆盖放进同一个事务、生产权限脚本之前执行，就没有这段窗口：
+
+```bash
+psql "$DATABASE_URL" -X -v ON_ERROR_STOP=1 --single-transaction \
+  -f docker/sql/production/rxdb-sync-access-upgrade.sql \
+  -f docker/sql/02-rxdb-sync-functions.sql \
+  -f docker/sql/04-rxdb-utils-functions.sql \
+  -f path/to/your-caller-buckets.sql \
+  -f path/to/your-caller-can-edit.sql \
+  -f docker/sql/production/rxdb-change-grants.sql
+```
+
 四份文件只改 RxDB 自己的表、函数、触发器与通知策略，业务表的权限保持原样。不要重跑整份 `01-rxdb-system-tables.sql`：它末尾给开发与测试库用的 `GRANT ALL ON ALL TABLES IN SCHEMA public` 会把 public 下业务表的权限一并放宽给 `anon` / `authenticated`，生产权限脚本只收回 RxDB 自己的对象，放宽的业务表权限不会被收回。
 
 `ON_ERROR_STOP` 只让 psql 遇错停下，不会撤销此前已经提交的语句，所以要加 `--single-transaction`。使用 Supabase SQL Editor 时，把 `BEGIN;`、四份文件的完整内容和 `COMMIT;` 放在**同一次执行**中，不要分开提交。

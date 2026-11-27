@@ -1,11 +1,15 @@
-import type { SyncRejection } from '@aiao/rxdb';
+import { junctionEntityId, type SyncRejection } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import {
+  attachmentId,
   describeDependencyRejections,
+  groupBy,
   idCardOf,
-  itemsByOrder,
   orderTotal,
-  parseOrderItemDraft
+  orderTreeDraft,
+  orderTreeRows,
+  parseOrderItemDraft,
+  pendingRows
 } from './orders-interactions';
 
 function rejection(overrides: Partial<SyncRejection>): SyncRejection {
@@ -36,19 +40,88 @@ describe('orderTotal', () => {
   });
 });
 
-describe('itemsByOrder', () => {
-  it('订单项按所属订单分组，组内保持原顺序', () => {
+describe('groupBy', () => {
+  it('按父行分组（订单项按订单、订单按客户），组内保持原顺序', () => {
     const items = [
       { id: 'a', orderId: 'o1' },
       { id: 'b', orderId: 'o2' },
       { id: 'c', orderId: 'o1' }
     ];
 
-    const grouped = itemsByOrder(items);
+    const grouped = groupBy(items, item => item.orderId);
 
     expect(grouped.get('o1')?.map(item => item.id)).toEqual(['a', 'c']);
     expect(grouped.get('o2')?.map(item => item.id)).toEqual(['b']);
     expect(grouped.get('o3')).toBeUndefined();
+  });
+});
+
+describe('pendingRows', () => {
+  const change = (entityId: string, type: 'INSERT' | 'UPDATE' | 'DELETE') => ({ entityId, type });
+
+  it('待推送清单落到行上：新建的算新建，只改过的算修改', () => {
+    const pending = pendingRows([
+      { changes: [change('customer-1', 'INSERT'), change('card-1', 'INSERT')] },
+      { changes: [change('order-1', 'UPDATE')] }
+    ]);
+
+    expect(Object.fromEntries(pending)).toEqual({ 'customer-1': 'INSERT', 'card-1': 'INSERT', 'order-1': 'UPDATE' });
+  });
+
+  it('新建之后又改过的仍算新建；删掉的行本机已经没有，不在里面', () => {
+    // 清单最新在前：先建后改，改的那一项排在前面
+    const pending = pendingRows([
+      { changes: [change('customer-1', 'UPDATE')] },
+      { changes: [change('customer-1', 'INSERT')] },
+      { changes: [change('order-1', 'DELETE')] }
+    ]);
+
+    expect(Object.fromEntries(pending)).toEqual({ 'customer-1': 'INSERT' });
+  });
+});
+
+describe('attachmentId', () => {
+  it('订单项挂分类的关联行 id 与 RxDB 派生的一致：中间表、两端外键名同 supabase/orders-demo.sql', () => {
+    const itemId = '0190f3a2-0000-7000-8000-000000000001';
+    const categoryId = '0190f3a2-0000-7000-8000-000000000002';
+
+    expect(attachmentId(itemId, categoryId)).toBe(
+      junctionEntityId({ namespace: 'public', name: 'DemoCategory_DemoOrderItem' }, [
+        { foreignKey: 'orderItemsId', id: itemId, uuid: true },
+        { foreignKey: 'categoriesId', id: categoryId, uuid: true }
+      ])
+    );
+    expect(attachmentId(itemId.toUpperCase(), categoryId)).toBe(attachmentId(itemId, categoryId));
+    expect(attachmentId(categoryId, itemId)).not.toBe(attachmentId(itemId, categoryId));
+  });
+});
+
+describe('orderTreeDraft / orderTreeRows', () => {
+  it('一组示例：带证件的客户、一张订单与两条订单项，名字带同一个后缀', () => {
+    expect(orderTreeDraft('示例客户', '7F3A')).toEqual({
+      customerName: '示例客户 7F3A',
+      idCardCode: 'ID-7F3A',
+      orderNumber: 'SO-7F3A',
+      items: [
+        { productName: '耳机', quantity: 2, price: 99 },
+        { productName: '手环', quantity: 1, price: 199 }
+      ]
+    });
+  });
+
+  it('先定下各行的 id：客户与证件互相引用，订单指向客户，订单项指向订单', () => {
+    let next = 0;
+    const rows = orderTreeRows(orderTreeDraft('示例客户', '7F3A'), () => `id-${++next}`);
+
+    expect(rows).toEqual({
+      customer: { id: 'id-1', name: '示例客户 7F3A', idCardId: 'id-2' },
+      idCard: { id: 'id-2', code: 'ID-7F3A', ownerId: 'id-1' },
+      order: { id: 'id-3', number: 'SO-7F3A', customerId: 'id-1' },
+      items: [
+        { id: 'id-4', productName: '耳机', quantity: 2, price: 99, orderId: 'id-3' },
+        { id: 'id-5', productName: '手环', quantity: 1, price: 199, orderId: 'id-3' }
+      ]
+    });
   });
 });
 

@@ -26,7 +26,9 @@ import { generateDbName } from './test-utils.js';
 @Entity({
   name: 'Us318Parent',
   properties: [{ name: 'name', type: PropertyType.string }],
-  relations: [{ name: 'children', kind: RelationKind.ONE_TO_MANY, mappedEntity: 'Us318Child', mappedProperty: 'parent' }]
+  relations: [
+    { name: 'children', kind: RelationKind.ONE_TO_MANY, mappedEntity: 'Us318Child', mappedProperty: 'parent' }
+  ]
 })
 class Us318Parent extends EntityBase {
   static [ENTITY_STATIC_TYPES]: { idType: UUID };

@@ -1759,6 +1759,40 @@ END;
 $$;
 
 -- ============================================
+-- 调用者在各作用域上的成员权限（US-234）
+-- ============================================
+-- 一个作用域一行：作用域键（如 user:<id>、tenant:<租户 id>）与调用者在它上面的权限。权限名归部署方，
+-- 参考实现用 epic-015 的六项（read 对应查看，edit 对应增删改）。平台默认与 rxdb_caller_can_edit_default 同口径：
+-- anon 没有任何作用域，登录用户只在自己的 user:<auth.uid()> 上有 read + edit。
+-- 部署方按自己的成员表 CREATE OR REPLACE 覆盖（签名与返回列不变），与 rxdb_caller_buckets() 同一模式。
+-- 重新执行本文件会把它恢复成平台默认，升级之后要重新加载自己的覆盖。
+-- 客户端读它拿到自己的授权；写策略与历史判定经 rxdb_caller_scopes 读同一份结果，三处同口径
+CREATE OR REPLACE FUNCTION public.rxdb_caller_grants()
+RETURNS TABLE (scope text, permissions text[])
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $$
+  SELECT 'user:' || auth.uid()::text, ARRAY['read', 'edit']::text[]
+  WHERE auth.uid() IS NOT NULL
+$$;
+
+-- 调用者带有某项权限的全部作用域键，按键排序。RLS 里写成 `= ANY((SELECT public.rxdb_caller_scopes('edit'))::text[])`：
+-- 外层的 (SELECT …) 让它每条语句只求值一次，不按行重复查成员表
+CREATE OR REPLACE FUNCTION public.rxdb_caller_scopes(p_permission text)
+RETURNS text[]
+LANGUAGE sql
+STABLE
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $$
+  SELECT COALESCE(pg_catalog.array_agg(caller.scope ORDER BY caller.scope), ARRAY[]::text[])
+  FROM public.rxdb_caller_grants() AS caller
+  WHERE p_permission = ANY(caller.permissions)
+$$;
+
+-- ============================================
 -- 远端变更历史的读取（US-229）
 -- ============================================
 -- 历史表只经本节的 rxdb_entity_history 读取：只返回调用者**当前**能编辑的行的历史，四个正文字段逐列按
@@ -1952,6 +1986,9 @@ GRANT EXECUTE ON FUNCTION public.rxdb_entity_history(text, text, text, bigint, i
 REVOKE ALL ON FUNCTION public.rxdb_caller_can_edit(text, text, jsonb) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.rxdb_caller_can_edit_default(text, text, jsonb) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.rxdb_jsonb_pick(jsonb, text[]) FROM PUBLIC, anon, authenticated;
+-- 成员权限（US-234）：调用者读自己的授权，anon 得到空结果；RLS 以调用者身份求值，也要有执行权
+GRANT EXECUTE ON FUNCTION public.rxdb_caller_grants() TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_caller_scopes(text) TO anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.rxdb_server_version()
 RETURNS text

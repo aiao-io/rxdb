@@ -80,6 +80,26 @@ describe('rxDBPluginSync 装配', () => {
     await rxdb.disconnectAll();
   });
 
+  // 评审 #3：统一频道与每个分区频道各报一次 SUBSCRIBED，连接、重连、换身份时请求成串到来。
+  // 每个请求都整库重数一遍，就是 (频道数 × 仓库数 × 分区数) 个 RPC 的突发
+  it('一串重算请求合成正在数的这一遍加收尾一遍：数的途中来的请求不各自重数', async () => {
+    const rxdb = await createDB([rxDBPluginHistory, rxDBPluginSync]);
+    let finishFirst!: (count: number) => void;
+    refreshPullableCount.mockImplementationOnce(() => new Promise<number>(resolve => (finishFirst = resolve)));
+
+    for (let channel = 0; channel < 4; channel++) rxdb.syncState.requestPullableRefresh();
+    expect(refreshPullableCount).toHaveBeenCalledOnce();
+
+    finishFirst(0);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    // 收尾那一遍覆盖了数的途中才订阅上的频道
+    expect(refreshPullableCount).toHaveBeenCalledTimes(2);
+
+    rxdb.syncState.requestPullableRefresh();
+    expect(refreshPullableCount).toHaveBeenCalledTimes(3);
+    await rxdb.disconnectAll();
+  });
+
   // 跳板约定「回调不得抛出」。重算失败只说明这一次读数没刷新，下一次实时恢复还会再请求；
   // 让它冒出去会炸在适配器的订阅恢复路径上，那条路径没有调用方接得住。
   it('重算失败只告警，不把错误抛回跳板', async () => {

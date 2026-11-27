@@ -85,7 +85,6 @@ import {
   getRxDBIdentityKey,
   identityClaimName,
   identityWatermarkName,
-  RxDBIdentityMismatchError,
   type CallerIdentityReporter,
   type RxDBIdentity
 } from './system/identity-binding.js';
@@ -1242,7 +1241,7 @@ export class RxDB {
           assertClaimedCapabilities(state.claimedNames, new Set(this.#system_contributions.keys()));
           // 身份守卫与能力守卫同一个位置、同一个理由：它回答「这个库该不该由这个身份打开」，
           // 而之后的迁移与建表都已经在写了。对不上就在这里拒绝，库里一行都不动
-          identityBound = await this.#refuseOnIdentityMismatch(adapterName, () =>
+          identityBound = await this.#refuseOnIdentityFailure(adapterName, () =>
             assertIdentityBinding(state.claimedNames, identityKey)
           );
           const bootstrapComplete = state.bootstrapFingerprints.has(bootstrapFingerprint);
@@ -1308,7 +1307,7 @@ export class RxDB {
         }
         if (existed && identityKey !== undefined && !identityBound) {
           // 本功能之前建的库没有绑定：第一次带身份打开时就地绑给这个身份
-          await this.#refuseOnIdentityMismatch(adapterName, () =>
+          await this.#refuseOnIdentityFailure(adapterName, () =>
             this.#recordIdentityBinding(localAdapter, identityKey)
           );
         }
@@ -2380,21 +2379,24 @@ export class RxDB {
   }
 
   /**
-   * 身份对不上时，除了让 `connect()` 失败，还要把这个适配器的名字从仓储的读路径上撤回。
+   * 身份核对没通过时，除了让 `connect()` 失败，还要把这个适配器的名字从仓储的读路径上撤回。
    *
    * @param adapterName - 正在连接的适配器名
-   * @param step - 可能抛 {@link RxDBIdentityMismatchError} 的那一步
+   * @param step - 核对或写下身份绑定的那一步
    *
    * @remarks
    * 仓储按名字经 `localAdapter$` 解析适配器，而名字在 `init()` 里就已经发布了，并不看「已连接」。
    * 只让 `connect()` 抛错，应用没停手的话后续查询照样读得到库里上一个身份的行。撤回之后读会像「还没连上」
    * 一样一直等待；与断连时是同一个动作，成功的 `connect()` 会把名字发布回来。
+   *
+   * 不只身份对不上（`RxDBIdentityMismatchError`）才撤回：认领残缺（竞争行在、绑定行不在，只有手工改库
+   * 才写得出）、绑定写不进去，都是声明了身份却没能核实这个库属于谁，与对不上同样不能放行读。
    */
-  async #refuseOnIdentityMismatch<R>(adapterName: string, step: () => R | Promise<R>): Promise<R> {
+  async #refuseOnIdentityFailure<R>(adapterName: string, step: () => R | Promise<R>): Promise<R> {
     try {
       return await step();
     } catch (error) {
-      if (error instanceof RxDBIdentityMismatchError) this.#retract_adapter_name(adapterName);
+      this.#retract_adapter_name(adapterName);
       throw error;
     }
   }

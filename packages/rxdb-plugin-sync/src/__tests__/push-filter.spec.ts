@@ -14,7 +14,7 @@ describe('push', () => {
     const mockBulkSync = vi.fn().mockResolvedValue({ results: [] });
     const mockVm = {
       rxdb: mockRxDB,
-      bulkSync: mockBulkSync,
+      bulkSyncInSession: mockBulkSync,
       getCurrentBranch: vi.fn().mockResolvedValue({ id: 'main', activated: true }),
       historyManager: {
         syncing: vi.fn(fn => fn()),
@@ -44,7 +44,7 @@ describe('push', () => {
     const mockBulkSync = vi.fn().mockResolvedValue({ results: [] });
     const mockVm = {
       rxdb: mockRxDB,
-      bulkSync: mockBulkSync,
+      bulkSyncInSession: mockBulkSync,
       getCurrentBranch: vi.fn().mockResolvedValue({ id: 'main', activated: true }),
       historyManager: {
         syncing: vi.fn(fn => fn()),
@@ -79,7 +79,7 @@ describe('push', () => {
     const mockBulkSync = vi.fn().mockResolvedValue({ results: [] });
     const mockVm = {
       rxdb: mockRxDB,
-      bulkSync: mockBulkSync,
+      bulkSyncInSession: mockBulkSync,
       getCurrentBranch: vi.fn().mockResolvedValue({ id: 'main', activated: true }),
       historyManager: {
         syncing: vi.fn(fn => fn()),

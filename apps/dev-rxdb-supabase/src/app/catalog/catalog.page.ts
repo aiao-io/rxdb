@@ -1,7 +1,7 @@
 import { RxDB } from '@aiao/rxdb';
 import { CatalogItem } from '@aiao/rxdb-test/entities';
 import { CdkPortal } from '@angular/cdk/portal';
-import { ChangeDetectionStrategy, Component, effect, inject, OnInit, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, OnInit, viewChild } from '@angular/core';
 import { LucideDynamicIcon, LucideServerCog as ServerCog } from '@lucide/angular';
 import { DemoSession } from '../demo-session';
 import { historyActions } from '../history-actions';
@@ -11,6 +11,7 @@ import { RightPanel } from '../side-panel';
 import { SyncCommands } from '../sync-commands';
 import { CatalogBrowsePanel } from './catalog-browse-panel';
 import { CatalogLocalWrites } from './catalog-local-writes';
+import { roleLabel, tenantGrants } from './catalog-permissions';
 import { CatalogRemoteState } from './catalog-remote-state';
 import { CatalogServerPanel } from './catalog-server-panel';
 import { CatalogSyncedPanel } from './catalog-synced-panel';
@@ -24,6 +25,7 @@ import { bucketLabel } from './catalog-view';
  * - US-035：每个身份一个本地库，切换身份就是打开另一个库
  * - US-036：规则之外的公开数据在线浏览，不落进同步子集
  * - US-034：所在租户的商品在本机增删改，推送之前可以撤销、重做
+ * - US-234：同一个租户分管理员（能改）与员工（只读），角色按租户列在「身份与权限」里
  *
  * 主界面单栏，先看本机同步的数据（US-232）：「模拟服务端变更」是辅助工具，从页头的开关在右侧面板打开。
  * 宽屏上面板不挡页面，开着它也能点顶栏的「拉取」、看本机商品怎么变；窄屏是盖住页面、带遮罩的抽屉。
@@ -75,9 +77,27 @@ import { bucketLabel } from './catalog-view';
                 <dd data-testid="catalog-identity">
                   {{ session.description?.title }} · {{ session.description?.detail }}
                 </dd>
+                @if (session.signedIn) {
+                  <dt class="text-base-content/60">用户 id</dt>
+                  <dd class="min-w-0 break-all">
+                    <code data-testid="catalog-user-id">{{ session.prepared.identity.subject }}</code>
+                  </dd>
+                }
                 <dt class="text-base-content/60">本地库</dt>
                 <dd>
                   <code data-testid="catalog-database">{{ session.prepared.databaseName }}</code>
+                </dd>
+                <dt class="text-base-content/60">租户角色</dt>
+                <dd class="flex flex-wrap gap-1" data-testid="catalog-roles">
+                  @for (grant of $tenantGrants(); track grant.tenantId) {
+                    <span class="badge badge-outline badge-sm" data-testid="catalog-role">
+                      {{ remote.tenantName(grant.tenantId) }} · {{ roleLabel(grant.permissions) }}
+                    </span>
+                  } @empty {
+                    <span class="text-base-content/60">
+                      {{ session.signedIn ? '不在任何租户里' : '访客没有成员权限' }}
+                    </span>
+                  }
                 </dd>
                 <dt class="text-base-content/60">能读的区</dt>
                 <dd class="flex flex-wrap gap-1" data-testid="catalog-buckets">
@@ -89,6 +109,11 @@ import { bucketLabel } from './catalog-view';
               <p class="text-base-content/60 text-xs">
                 能读的区由服务端 <code>rxdb_caller_buckets()</code> 与 RLS
                 裁决，客户端改不了；同步规则只在这些区里挑行。
+              </p>
+              <p class="text-base-content/60 text-xs">
+                角色来自服务端
+                <code>rxdb_caller_grants()</code>：管理员能改本租户的商品、调整成员权限，员工只能同步与浏览。
+                商品的写策略与远端变更历史按同一份成员权限裁决，这里只决定写入口给不给，能不能写以推送时服务端的裁决为准。
               </p>
               @if (remote.$error(); as error) {
                 <div class="alert alert-error" role="alert">{{ error }}</div>
@@ -115,6 +140,9 @@ export default class CatalogPage implements OnInit {
   readonly panel = inject(RightPanel);
   readonly serverPortal = viewChild(CdkPortal);
   readonly ServerCog = ServerCog;
+  readonly roleLabel = roleLabel;
+  /** 当前身份所在的租户与角色（US-234） */
+  readonly $tenantGrants = computed(() => tenantGrants(this.remote.$grants()));
 
   constructor() {
     const writes = inject(CatalogLocalWrites);

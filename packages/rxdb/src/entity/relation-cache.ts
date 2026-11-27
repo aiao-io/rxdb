@@ -203,30 +203,22 @@ export class EntityRelationCache {
       // 尝试复用关联实体的 Junction（避免创建重复的连接记录）
       const mappedMetadata = getEntityMetadata(entity.constructor as EntityType);
       const mappedRelation = mappedMetadata.relations.find(r => r.name === relation.mappedProperty);
+      const relatedStatus = getEntityStatus(entity);
+      const relationCache = mappedRelation && relatedStatus.getRelationCache(mappedRelation as EntityRelationMetadata);
 
-      let relationCache: Set<InstanceType<EntityType>> | undefined;
-      let junctionEntity: InstanceType<EntityType> | undefined;
-
-      if (mappedRelation) {
-        relationCache = getEntityStatus(entity).getRelationCache(mappedRelation as EntityRelationMetadata);
-        junctionEntity = findInSet(relationCache, isTargetJunction);
-      }
-
-      if (!junctionEntity) {
-        junctionEntity = findInSet(this.#remove_junction_set, isTargetJunction);
-      }
-
-      if (junctionEntity && this.#remove_junction_set.has(junctionEntity)) {
-        this.#remove_junction_set.delete(junctionEntity);
-      }
+      // 两端缓存里的，或两端解绑之后还没保存、待删的同一对：接着用这个实例
+      const found =
+        (relationCache && findInSet(relationCache, isTargetJunction)) ??
+        findInSet(this.#remove_junction_set, isTargetJunction) ??
+        relatedStatus.getNeedRemoveEntities().find(isTargetJunction);
+      if (found) this.#keepJunction(found, relatedStatus);
 
       // 如果未找到或已标记删除：复用同一对的活实例，没有就按派生 id 新建（US-228）
-      if (!junctionEntity || getEntityStatus(junctionEntity).removed) {
-        if (junctionEntity) {
-          this.#remove_junction_set.delete(junctionEntity);
-        }
-        junctionEntity = this.#junction_for(JunctionEntityType, foreignKeyA, entity, foreignKeyB, target);
-      }
+      const junctionEntity =
+        found && !getEntityStatus(found).removed ?
+          found
+        : this.#junction_for(JunctionEntityType, foreignKeyA, entity, foreignKeyB, target);
+      this.#keepJunction(junctionEntity, relatedStatus);
 
       // 双向更新缓存：this → entity 和 entity → this
       cache.add(entity);
@@ -412,6 +404,21 @@ export class EntityRelationCache {
    */
   forgetRemovedJunctions(junctions: Iterable<InstanceType<EntityType>>): void {
     for (const junction of junctions) this.#remove_junction_set.delete(junction);
+  }
+
+  /**
+   * 重新关联的这一对：中间表不再在任何一端待删。
+   *
+   * @param junction - 这一对的中间表实例
+   * @param relatedStatus - 另一端实体的状态
+   *
+   * @remarks
+   * 解绑把中间表放进**解绑那一端**的待删集合；从另一端重新关联时复用的是同一个实例（派生 id 相同，身份缓存里还是它）。
+   * 只从本端的集合里拿掉，它就还挂在另一端：保存时被删掉，又因为没有改动不会重新写入，关联静默丢失。
+   */
+  #keepJunction(junction: InstanceType<EntityType>, relatedStatus: ReturnType<typeof getEntityStatus>): void {
+    this.#remove_junction_set.delete(junction);
+    relatedStatus.forgetRemovedJunctions([junction]);
   }
 
   /**

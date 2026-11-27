@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { switchIdentity } from './support/identity';
+import { promoteToAdmin } from './support/members';
 import { navigate, openSidePanel, pull, push, toast } from './support/workbench';
 
 /**
@@ -74,13 +75,20 @@ if (runsAlone) {
       await push(page);
     }
 
-    test('AC#14、#15：自己推上去的不算待拉；别人改了一件租户商品，刷新后 ↓ 正好是 1，拉取后归零', async ({ page }) => {
+    test('AC#14、#15：自己推上去的不算待拉；别人改了一件租户商品，刷新后 ↓ 正好是 1，拉取后归零', async ({
+      page,
+      browser
+    }) => {
+      // 另开一个浏览器上下文登录管理员给成员授权（US-234），与 orders-sync 的多身份用例一样放宽超时
+      test.slow();
       const serverItem = `e2e-${runId}-服务端商品`;
       const localItem = `e2e-${runId}-本机商品`;
       const customer = `e2e-${runId}-计数客户`;
       await openAsAnonymous(page, '/catalog', 'catalog-identity');
       await openSidePanel(page, 'server');
       await serverAction(page, () => page.getByRole('button', { name: '加入星河零售' }).click(), '已加入星河零售');
+      // 自助加入只是员工（US-234）：由 Alice 设为管理员才能写商品；成员关系不进同步日志，不影响 ↓ 的计数
+      await promoteToAdmin(browser, page);
 
       try {
         // 服务端新增一件租户商品，拉到本机：此后 ↓ 归零，水位线在最新

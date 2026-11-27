@@ -410,6 +410,20 @@ describe('MANY_TO_MANY 关系测试', () => {
       expect(await idsOf(category, orderItem)).toEqual([]);
     });
 
+    // 分支深度评审 #1：复用同一对的中间表时，它还挂在解绑那一端的待删集合里，保存把关联行删掉、不再写回
+    it('一端解绑、保存之前从另一端重新关联：两端保存之后这一对仍在，只有一行', async () => {
+      const { category, orderItem } = await newPair('US-228 跨端重新关联');
+      await orderItem.categories$.add(category);
+      await orderItem.save();
+
+      await orderItem.categories$.remove(category);
+      await category.orderItems$.add(orderItem);
+      await orderItem.save();
+      await category.save();
+
+      expect(await idsOf(category, orderItem)).toEqual([derivedId(category, orderItem)]);
+    });
+
     it('AC#3 这一对已在本地库里、没有加载进内存：再关联并保存不报主键冲突，仍只有一行', async () => {
       const { category, orderItem } = await newPair('US-228 已在库里');
       const Junction = junctionOf() as unknown as new (data: object) => EntityBase;

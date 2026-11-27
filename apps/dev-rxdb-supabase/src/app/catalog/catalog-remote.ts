@@ -64,13 +64,70 @@ export async function fetchCallerBuckets(client: CatalogRemoteClient): Promise<s
   return unwrap<string[]>(await client.rpc('rxdb_caller_buckets'));
 }
 
-/** 当前登录身份所在的租户（RLS 只放行自己的成员行）。 */
-export async function fetchMyTenantIds(client: CatalogRemoteClient): Promise<string[]> {
-  const rows = unwrap<{ tenant_id: string }[]>(await client.from('demo_tenant_members').select('tenant_id'));
-  return rows.map(row => row.tenant_id).sort();
+/** 当前身份在一个作用域上的成员权限：服务端 `rxdb_caller_grants()` 的一行（US-234）。 */
+export interface CallerGrant {
+  /** 作用域键：`user:<用户 id>` 或 `tenant:<租户 id>` */
+  readonly scope: string;
+  /** 在这个作用域上的权限，如 `['read', 'edit', 'manage']` */
+  readonly permissions: readonly string[];
 }
 
-/** 加入租户（演示用的自助成员关系，模拟管理员把你加进去）。 */
+/**
+ * 当前身份在各作用域上的成员权限。
+ *
+ * @remarks
+ * 商品的写策略与远端变更历史按同一份成员权限裁决（`catalog-demo.sql`）；界面用它决定写入口给不给，
+ * 能不能写以推送时服务端的裁决为准。访客得到空数组。
+ */
+export async function fetchCallerGrants(client: CatalogRemoteClient): Promise<CallerGrant[]> {
+  return unwrap<CallerGrant[]>(await client.rpc('rxdb_caller_grants'));
+}
+
+/** 租户里的一个成员：只有这个租户的管理员列得出来（`demo_tenant_member_list`）。 */
+export interface TenantMember {
+  readonly userId: string;
+  /** 账号的邮箱；匿名用户没有 */
+  readonly email: string | null;
+  readonly permissions: readonly string[];
+}
+
+/** 一个租户的全部成员与权限；调用者不是这个租户的管理员时服务端拒绝（42501）。 */
+export async function fetchTenantMembers(client: CatalogRemoteClient, tenantId: string): Promise<TenantMember[]> {
+  const rows = unwrap<{ user_id: string; email: string | null; permissions: string[] }[]>(
+    await client.rpc('demo_tenant_member_list', { p_tenant_id: tenantId })
+  );
+  return rows.map(row => ({ userId: row.user_id, email: row.email, permissions: row.permissions }));
+}
+
+/**
+ * 调整一个成员的权限。
+ *
+ * @remarks
+ * 只经服务端的 `demo_set_member_permissions`：调用者要有这个租户的 manage，最后一个管理员撤不掉，
+ * 权限只能取六项且必须含 read。成员表不授 UPDATE，客户端改不了自己的成员行。
+ */
+export async function setMemberPermissions(
+  client: CatalogRemoteClient,
+  tenantId: string,
+  userId: string,
+  permissions: readonly string[]
+): Promise<void> {
+  check(
+    await client.rpc('demo_set_member_permissions', {
+      p_tenant_id: tenantId,
+      p_user_id: userId,
+      p_permissions: [...permissions]
+    })
+  );
+}
+
+/**
+ * 加入租户（演示用的自助成员关系，模拟管理员把你加进去）。
+ *
+ * @remarks
+ * 只写 `tenant_id`：成员表的 INSERT 只按这一列授权，加入之后是员工（只有 read）。
+ * 演示账号加入为它登记的租户时，服务端授予管理员（Alice 管星河零售，Bob 管极光百货）。
+ */
 export async function joinTenant(client: CatalogRemoteClient, tenantId: string): Promise<void> {
   check(await client.from('demo_tenant_members').insert({ tenant_id: tenantId }));
 }

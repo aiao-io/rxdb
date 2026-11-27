@@ -124,6 +124,18 @@ export function canReceiveChangeNotifications(token: string | null | undefined):
   return role !== undefined && role !== 'anon';
 }
 
+/**
+ * 读到的分区与订阅时的分区是不是同一个集合（US-033）。
+ *
+ * @param subscribed - 订阅频道时记下的分区集合
+ * @param buckets - 刚读到的分区，可以有重复
+ * @returns 去重之后元素相同为 `true`；顺序与重复不算差异
+ */
+export function isSameBucketSet(subscribed: ReadonlySet<string>, buckets: readonly string[]): boolean {
+  const next = new Set(buckets);
+  return next.size === subscribed.size && [...next].every(bucket => subscribed.has(bucket));
+}
+
 const SNAPSHOT_FILTER_OPERATORS = new Set([
   '=',
   '!=',

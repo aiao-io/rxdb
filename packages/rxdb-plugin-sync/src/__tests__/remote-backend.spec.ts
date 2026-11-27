@@ -193,6 +193,8 @@ describe('远端身份', () => {
       const transaction = vi.fn(async (callback: (value: unknown) => Promise<unknown>) => callback(executor));
       const sm = {
         rxdb: {
+          // 没有实体引用 Todo：清理不被外键挡住
+          config: { entities: [] },
           entityManager: { instantiate: vi.fn(() => Object.create(RxDBSync.prototype)) },
           schemaManager: { getEntityType: vi.fn(() => entityType) },
           syncState: { reportSuccess: vi.fn(), snapshot: { lastError: null } },

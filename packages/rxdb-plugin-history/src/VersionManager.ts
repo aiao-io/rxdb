@@ -120,6 +120,10 @@ export class VersionManager {
    * 与会话内的 `history().histories$` 不同：上次打开时没推的修改也在这里，只存本地（没有推送资格）的实体不在这里。
    * 只在有人订阅时查询。
    *
+   * 每次重查都是全量、不分页：清单长度要等于待推数，截断就对不上。代价随待推积压增长——离线攒了大量修改时，
+   * 每次写入之后都要把全部待推变更连同 `patch` / `inversePatch` 读一遍。只在真要展示清单时订阅，只要数字用
+   * {@link VersionManager.pushableCount$}。
+   *
    * @example
    * ```ts
    * rxdb.versionManager.pushableHistories$.subscribe(items => {

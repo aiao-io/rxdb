@@ -55,7 +55,7 @@ app-header {
   }
 }
 
-// 顶栏只剩菜单按钮时悬浮在页面上：透明、不挡点击，只有按钮可点
+// 本地首页的顶栏悬浮在页面上，空白处不挡点击
 .header-floating {
   #layout-container {
     @apply relative;

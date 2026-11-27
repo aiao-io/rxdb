@@ -2,7 +2,8 @@
  * @fileoverview 远端变更历史（US-229 AC#8、#9、#11、#12）—— 真实 Supabase 栈与 demo 的可见性判定
  *
  * @remarks
- * 商品的历史只对它所属租户的成员开放（`catalog-demo.sql` 覆盖的 `rxdb_caller_can_edit`），按每条历史记录时的行判定。
+ * 商品的历史只对它所属租户里有 `edit` 的成员开放（`catalog-demo.sql` 覆盖的 `rxdb_caller_can_edit`，US-234），
+ * 按每条历史记录时的行判定。
  * 写入点、列脱敏与授权由 SQL 回归 `change-history` 逐条断言；这里走适配器的 `getEntityHistory`，在真栈上复验可见性。
  *
  * 每轮自建两个租户与三个用户：租户、成员关系与种子行经 service_role 直写，结束时按 id 清理，不碰演示租户。
@@ -22,6 +23,8 @@ import { asyncWasmPath } from './wa-sqlite-wasm.js';
 
 const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
 const SUPABASE_KEY = import.meta.env['VITE_SUPABASE_KEY'] || '';
+/** 能改本租户商品的成员权限（US-234：员工只有 read，读不到历史） */
+const EDITOR = ['read', 'edit'];
 
 describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('远端变更历史（US-229）', () => {
   const runId = crypto.randomUUID().replaceAll('-', '').slice(0, 12);
@@ -55,7 +58,11 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('远端变更历史（US-229）'
       syncOverrides: [
         {
           entity: CatalogItem,
-          sync: { type: SyncType.Filter, local: { adapter: 'wa-sqlite' }, remote: { adapter: 'supabase', filter: rule } }
+          sync: {
+            type: SyncType.Filter,
+            local: { adapter: 'wa-sqlite' },
+            remote: { adapter: 'supabase', filter: rule }
+          }
         }
       ]
     });
@@ -88,8 +95,8 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('远端变更历史（US-229）'
     ]);
     expect(tenantError, 'demo_tenants 缺失：先用 nx run rxdb-adapter-supabase:test-env 初始化测试栈').toBeNull();
     const { error: memberError } = await service.from('demo_tenant_members').insert([
-      { user_id: alice, tenant_id: tenantA },
-      { user_id: bob, tenant_id: tenantB }
+      { user_id: alice, tenant_id: tenantA, permissions: EDITOR },
+      { user_id: bob, tenant_id: tenantB, permissions: EDITOR }
     ]);
     expect(memberError).toBeNull();
   });
@@ -102,7 +109,10 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('远端变更历史（US-229）'
     expect(logError).toBeNull();
     const { error: historyError } = await service.from('rxdb_change_history').delete().eq('entityId', itemId);
     expect(historyError).toBeNull();
-    const { error: memberError } = await service.from('demo_tenant_members').delete().in('tenant_id', [tenantA, tenantB]);
+    const { error: memberError } = await service
+      .from('demo_tenant_members')
+      .delete()
+      .in('tenant_id', [tenantA, tenantB]);
     expect(memberError).toBeNull();
     const { error: tenantError } = await service.from('demo_tenants').delete().in('id', [tenantA, tenantB]);
     expect(tenantError).toBeNull();

@@ -39,6 +39,7 @@ export function catalogSyncRule(followed: readonly string[]): RuleGroup {
  *
  * @remarks
  * 同步规则在每轮拉取时求值，读的就是这里的当前值；界面改了关注，下一次同步生效。
+ * 存着的值读不出来（不是合法 JSON）时当作没存过，回到默认关注并警告，详见构造函数。
  */
 export class FollowedCategories {
   readonly #storage: KeyValueStorage;
@@ -51,12 +52,16 @@ export class FollowedCategories {
   /**
    * @param storage - 持久化载体（生产传 `localStorage`）
    * @param databaseName - 本地库名：按身份算出，一个身份一份规则
+   *
+   * @remarks
+   * 存的不是合法 JSON（被手工改坏，或被别的版本写成了别的东西）按没存过处理：关注的分类只是个演示偏好，
+   * 坏值不该让远端模式整个起不来。坏值留在原处，警告点名存储键，下一次关注或取消关注时被覆盖。
+   * 合法 JSON 但形状不对的值，照旧由 `normalize` 归一。
    */
   constructor(storage: KeyValueStorage, databaseName: string) {
     this.#storage = storage;
     this.#key = `${STORAGE_KEY_PREFIX}${databaseName}`;
-    const stored = storage.getItem(this.#key);
-    this.#value.set(stored === null ? DEFAULT_FOLLOWED_CATEGORIES : normalize(JSON.parse(stored) as unknown));
+    this.#value.set(readStored(storage, this.#key));
   }
 
   /** 关注或取消关注一个分类，并保存 */
@@ -67,6 +72,19 @@ export class FollowedCategories {
     this.#value.set(normalized);
     this.#storage.setItem(this.#key, JSON.stringify(normalized));
   }
+}
+
+function readStored(storage: KeyValueStorage, key: string): readonly string[] {
+  const stored = storage.getItem(key);
+  if (stored === null) return DEFAULT_FOLLOWED_CATEGORIES;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(stored);
+  } catch {
+    console.warn(`浏览器里存的 ${key} 不是合法的 JSON，已当作没存过，改用默认关注的分类`);
+    return DEFAULT_FOLLOWED_CATEGORIES;
+  }
+  return normalize(parsed);
 }
 
 function normalize(value: unknown): readonly string[] {

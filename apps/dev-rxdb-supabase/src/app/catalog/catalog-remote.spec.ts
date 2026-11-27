@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { fetchTenantItems, updateItem, type CatalogRemoteClient } from './catalog-remote';
+import {
+  fetchCallerGrants,
+  fetchTenantItems,
+  fetchTenantMembers,
+  setMemberPermissions,
+  updateItem,
+  type CatalogRemoteClient
+} from './catalog-remote';
 
 type Call = readonly [method: string, args: readonly unknown[]];
 
-/** PostgREST 查询替身：链上每一步都记下来并返回自己，`await` 拿到给定的结果 */
+/** PostgREST 查询替身：链上每一步都记下来并返回自己，`await` 拿到给定的结果；`rpc` 同样记下并直接给结果 */
 function fakeClient(result: { data: unknown; error: { message: string } | null }) {
   const calls: Call[] = [];
   const builder = Object.assign(Promise.resolve(result), {} as Record<string, (...args: unknown[]) => unknown>);
@@ -17,10 +24,62 @@ function fakeClient(result: { data: unknown; error: { message: string } | null }
     from: (table: string) => {
       calls.push(['from', [table]]);
       return builder;
+    },
+    rpc: (...args: unknown[]) => {
+      calls.push(['rpc', args]);
+      return Promise.resolve(result);
     }
   };
   return { client: client as unknown as CatalogRemoteClient, calls };
 }
+
+describe('成员权限（US-234）', () => {
+  it('当前身份的授权来自 rxdb_caller_grants()，一个作用域一行', async () => {
+    const grants = [{ scope: 'tenant:xinghe', permissions: ['read'] }];
+    const { client, calls } = fakeClient({ data: grants, error: null });
+
+    expect(await fetchCallerGrants(client)).toEqual(grants);
+    expect(calls).toEqual([['rpc', ['rxdb_caller_grants']]]);
+  });
+
+  it('成员列表经 demo_tenant_member_list 读，匿名用户没有邮箱', async () => {
+    const { client, calls } = fakeClient({
+      data: [
+        { user_id: 'u-bob', email: 'bob@example.com', permissions: ['read', 'edit', 'manage'], createdAt: '' },
+        { user_id: 'u-anon', email: null, permissions: ['read'], createdAt: '' }
+      ],
+      error: null
+    });
+
+    expect(await fetchTenantMembers(client, 'jiguang')).toEqual([
+      { userId: 'u-bob', email: 'bob@example.com', permissions: ['read', 'edit', 'manage'] },
+      { userId: 'u-anon', email: null, permissions: ['read'] }
+    ]);
+    expect(calls).toEqual([['rpc', ['demo_tenant_member_list', { p_tenant_id: 'jiguang' }]]]);
+  });
+
+  it('改权限只经 demo_set_member_permissions；服务端拒绝（不是管理员、最后一个管理员）原样报出', async () => {
+    const accepted = fakeClient({ data: null, error: null });
+    await setMemberPermissions(accepted.client, 'jiguang', 'u-anon', ['read', 'edit', 'manage']);
+    expect(accepted.calls).toEqual([
+      [
+        'rpc',
+        [
+          'demo_set_member_permissions',
+          { p_tenant_id: 'jiguang', p_user_id: 'u-anon', p_permissions: ['read', 'edit', 'manage'] }
+        ]
+      ]
+    ]);
+
+    const rejected = fakeClient({
+      data: null,
+      error: { message: '不能撤掉最后一个管理员：租户 jiguang 至少要留一个管理员' }
+    });
+    await expect(setMemberPermissions(rejected.client, 'jiguang', 'u-bob', ['read'])).rejects.toThrow(
+      '不能撤掉最后一个管理员'
+    );
+  });
+});
 
 const changes = { name: '星河 X1 蓝牙耳机（新款）', category: '数码', price: 279, cost: 110 };
 

@@ -2,8 +2,10 @@ import {
   Entity,
   EntityBase,
   getRxDBChangeKey,
+  getRxDBEntityIdentityKey,
   parseRxDBChangeKey,
   PropertyType,
+  RelationKind,
   RxDBChange,
   RxDBSync,
   WorktreeTableSet,
@@ -13,6 +15,7 @@ import {
   type SwitchVersionActions
 } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
+import { RxDBBucketCleanupBlockedError } from '../bucket-cleanup-blocked-error.js';
 import { pullBucketedRepositoryIfSupported } from '../bucketed-pull.js';
 import { RemoteBackendMismatchError } from '../remote-backend.js';
 import { RxDBSyncBucketProgress, RxDBSyncBucketRow } from '../scoped-sync.entity.js';
@@ -28,6 +31,19 @@ import type { SyncManager } from '../SyncManager.js';
 class BucketPullItem extends EntityBase {
   value!: string;
   active!: boolean;
+}
+
+/** 引用分区实体的本地行：非空多对一，默认 `ON DELETE RESTRICT`，被引用的行删不掉 */
+@Entity({
+  name: 'BucketPullChild',
+  properties: [{ name: 'note', type: PropertyType.string }],
+  relations: [
+    { name: 'item', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'BucketPullItem', mappedProperty: 'children' }
+  ]
+})
+class BucketPullChild extends EntityBase {
+  note!: string;
+  itemId!: string;
 }
 
 interface QueryRule {
@@ -64,6 +80,8 @@ interface BucketHarness {
   progress: RxDBSyncBucketProgress[];
   mappings: RxDBSyncBucketRow[];
   entities: Record<string, unknown>[];
+  /** 引用分区行的本地行（{@link BucketPullChild}） */
+  children: Record<string, unknown>[];
   changes: RxDBChange[];
   localAdapter: {
     executor: { tableSet: WorktreeTableSet };
@@ -131,12 +149,14 @@ const createHarness = (options: HarnessOptions): BucketHarness => {
   const mappings: RxDBSyncBucketRow[] = [];
   const changes = [...(options.localChanges ?? [])];
   const entities = [...(options.entities ?? [])];
+  const children: Record<string, unknown>[] = [];
   const allRows = (EntityType: unknown): unknown[] => {
     if (EntityType === RxDBSyncBucketProgress) return progress;
     if (EntityType === RxDBSyncBucketRow) return mappings;
     if (EntityType === RxDBChange) return changes;
     if (EntityType === RxDBSync) return [repoSync];
     if (EntityType === BucketPullItem) return entities;
+    if (EntityType === BucketPullChild) return children;
     throw new Error('Unexpected repository request');
   };
 
@@ -198,6 +218,10 @@ const createHarness = (options: HarnessOptions): BucketHarness => {
       const [, , entityId] = parseRxDBChangeKey(key);
       const index = entities.findIndex(entity => identityKey(entity['id']) === identityKey(entityId));
       if (operation === 'delete') {
+        // 与真实本地库一致：被 RESTRICT 外键引用的行删不掉，整个事务失败
+        if (children.some(child => identityKey(child['itemId']) === identityKey(entityId))) {
+          throw new Error('FOREIGN KEY constraint failed');
+        }
         if (index >= 0) entities.splice(index, 1);
         return;
       }
@@ -249,6 +273,7 @@ const createHarness = (options: HarnessOptions): BucketHarness => {
 
   const sm = {
     rxdb: {
+      config: { entities: [BucketPullItem, BucketPullChild] },
       context: { clientId: 'client-test' },
       entityManager: {
         instantiate: (EntityType: EntityType) => Object.create(EntityType.prototype) as InstanceType<EntityType>
@@ -260,7 +285,7 @@ const createHarness = (options: HarnessOptions): BucketHarness => {
     verifyRemoteBackend: vi.fn(async () => undefined)
   } as unknown as SyncManager;
 
-  return { sm, adapter, repoSync, progress, mappings, entities, changes, localAdapter };
+  return { sm, adapter, repoSync, progress, mappings, entities, children, changes, localAdapter };
 };
 
 const matchesFilter = (row: Record<string, unknown>, filter: RuleGroup): boolean => {
@@ -630,5 +655,91 @@ describe('bucketed pull', () => {
     expect(harness.entities).toEqual([]);
     expect(harness.mappings).toEqual([]);
     expect(harness.progress).toEqual([]);
+  });
+
+  // 评审 M1：多对一非空外键默认 ON DELETE RESTRICT，删被引用的行会让整个清理事务失败
+  describe('清理时还被本地别的行引用的行（M1）', () => {
+    it('撤销的分区：没被引用的照删，被引用的连同映射与进度行留着、记一条失败；引用没了下一次拉取删掉', async () => {
+      const harness = createHarness({
+        buckets: ['public', 'tenant:1'],
+        snapshotRows: { public: [row('p')], 'tenant:1': [row('t1'), row('t2')] },
+        changes: {},
+        snapshotPoint: 1
+      });
+      await pull(harness);
+      harness.children.push({ id: 'c1', note: 'order line', itemId: 't1' });
+
+      harness.adapter.getCallerBuckets.mockResolvedValue(['public']);
+      const revoked = await pull(harness);
+
+      expect(revoked?.failures.map(failure => failure.error)).toEqual([expect.any(RxDBBucketCleanupBlockedError)]);
+      expect(revoked?.failures[0].error).toMatchObject({
+        bucket: 'tenant:1',
+        entityIds: ['t1'],
+        referencedBy: [{ namespace: 'public', entity: 'BucketPullChild' }]
+      });
+      expect(harness.entities.map(item => item['id']).sort()).toEqual(['p', 't1']);
+      expect(harness.mappings.filter(item => item.bucket === 'tenant:1').map(item => item.entityId)).toEqual([
+        getRxDBEntityIdentityKey('t1')
+      ]);
+      expect(harness.progress.map(item => item.bucket).sort()).toEqual(['public', 'tenant:1']);
+
+      harness.children.length = 0;
+      const retried = await pull(harness);
+
+      expect(retried?.failures).toEqual([]);
+      expect(harness.entities.map(item => item['id'])).toEqual(['p']);
+      expect(harness.mappings.map(item => item.bucket)).toEqual(['public']);
+      expect(harness.progress.map(item => item.bucket)).toEqual(['public']);
+    });
+
+    it('拉取途中离开分区的行还被引用：留在本机、映射留着，同一批的其余变更照常落库，游标照常推进', async () => {
+      const harness = createHarness({
+        buckets: ['public'],
+        snapshotRows: { public: [row('a'), row('b')] },
+        changes: {
+          public: [
+            createChange(2, 'a', 'DELETE', null, null, null),
+            createChange(3, 'b', 'UPDATE', { value: 'updated' }, row('b'), row('b'))
+          ]
+        },
+        snapshotPoint: 1
+      });
+      harness.children.push({ id: 'c1', note: 'order line', itemId: 'a' });
+
+      const result = await pull(harness, undefined, 10);
+
+      expect(result?.failures.map(failure => failure.error)).toEqual([expect.any(RxDBBucketCleanupBlockedError)]);
+      expect(harness.entities.map(item => item['id']).sort()).toEqual(['a', 'b']);
+      expect(harness.entities.find(item => item['id'] === 'b')?.['value']).toBe('updated');
+      expect(harness.mappings.map(item => item.entityId).sort()).toEqual(
+        ['a', 'b'].map(getRxDBEntityIdentityKey).sort()
+      );
+      expect(harness.progress[0]).toMatchObject({ cursor: 3, snapshotComplete: true });
+    });
+
+    it('撤销分区的清理出错只记这一条失败，不挡同一实体仍有授权的分区', async () => {
+      const harness = createHarness({
+        buckets: ['public', 'tenant:1'],
+        snapshotRows: { public: [row('p')], 'tenant:1': [row('t1')] },
+        changes: {},
+        snapshotPoint: 1
+      });
+      await pull(harness);
+      const executor = harness.localAdapter.executor as unknown as {
+        getRepository(EntityType: unknown): { find: ReturnType<typeof vi.fn> };
+      };
+      executor.getRepository(BucketPullChild).find.mockRejectedValueOnce(new Error('disk I/O error'));
+      harness.adapter.pullBucketChanges.mockImplementation(async (sinceId: number) =>
+        [createChange(2, 'p', 'UPDATE', { value: 'updated' }, row('p'), row('p'))].filter(change => change.id > sinceId)
+      );
+
+      harness.adapter.getCallerBuckets.mockResolvedValue(['public']);
+      const result = await pull(harness);
+
+      expect(result?.failures.map(failure => failure.error.message)).toEqual(['disk I/O error']);
+      expect(harness.entities.find(item => item['id'] === 'p')?.['value']).toBe('updated');
+      expect(harness.progress.map(item => item.bucket).sort()).toEqual(['public', 'tenant:1']);
+    });
   });
 });

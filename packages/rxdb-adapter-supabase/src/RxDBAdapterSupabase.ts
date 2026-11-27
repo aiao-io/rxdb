@@ -66,6 +66,7 @@ import {
   getUnsupportedProperty,
   identityOfAccessToken,
   isRetryableSupabaseWriteError,
+  isSameBucketSet,
   REALTIME_RECONNECT_BASE_DELAY_MS,
   REALTIME_RECONNECT_MAX_DELAY_MS,
   REALTIME_RECONNECTABLE_STATUSES,
@@ -132,6 +133,14 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
   #realtimeQueue: Promise<void> = Promise.resolve();
   #realtimeGeneration = 0;
   #realtimeIdentityKey: string | null = null;
+  /**
+   * 现有频道订阅时的分区集合；那次查询失败（只订阅了旧日志频道）时为空集
+   *
+   * @remarks
+   * 只在有频道时才有意义，由 `#createRealtimeChannels()` 先记下、再交出频道，与 `#channels` 同步更新。
+   * `getCallerBuckets()` 拿读到的分区与它对账，见 `#followRealtimeBuckets()`。
+   */
+  #subscribedBuckets: ReadonlySet<string> = new Set();
   #authStateSubscription: { unsubscribe: () => void } | null = null;
   #rlsCheckDone = false;
   #databaseVersion: string | null = null;
@@ -480,6 +489,15 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
    *
    * @returns `rxdb_caller_buckets()` 的结果：anon 默认 `['public']`，登录用户默认再加 `user:<id>`，应用可扩展租户区
    * @throws {SupabaseDataError} 远端返回的不是非空字符串数组
+   *
+   * @remarks
+   * 变更通知的频道按分区订阅，分区却会在会话中途变（管理员把成员加进或移出租户）。已在订阅时，
+   * 读到的分区与订阅时的集合（不计顺序与重复）对不上，就排进实时队列按新分区重建频道：新分区的提示
+   * 不必等断线重连，被撤销分区的频道也随之退订。同步插件每次分区拉取与待拉数统计都会调用本方法，
+   * 成员变动在下一次同步里就被跟上。
+   *
+   * 重建是排队后台进行的，不改变本方法的返回值，也不会让它失败；查询失败或应答形状不对时照常抛出，频道保持原样。
+   * 没有订阅（未登录、尚未 `connect()`、已 `disconnect()`）时不动：订阅只由 `connect()` 发起。
    */
   async getCallerBuckets(): Promise<string[]> {
     const { data, error, status } = await this.#client.rpc('rxdb_caller_buckets');
@@ -487,6 +505,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     if (!Array.isArray(data) || !data.every(bucket => typeof bucket === 'string' && bucket.length > 0)) {
       throw new SupabaseDataError('Failed to resolve caller buckets: invalid response data');
     }
+    this.#followRealtimeBuckets(data);
     return data;
   }
 
@@ -566,10 +585,13 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
    * @param bucket - 调用者可读的分区
    * @param branchIds - 只算这些分支（通常是当前分支及其祖先）；不传时算全部分支
    * @returns 最大日志 id，没有日志时为 0
-   * @throws {SupabaseDataError} 分区不属于调用者（`42501`）或返回值不是非负整数
+   * @throws {SupabaseDataError} 分区不属于调用者（`42501`），或返回值不是非负安全整数的 JSON 数字
    *
    * @remarks
    * 拉取只拉给定分支的日志，水位必须同口径：把别的分支算进来，游标就永远追不上它。
+   *
+   * 参考 SQL 声明 `RETURNS integer`，PostgREST 一定交回 JSON 数字，所以只收数字，不先转成数字再校验：
+   * `Number(null)` 与 `Number('')` 都是 0，空应答会被当成水位 0，把「远端有变更」显示成「已同步」。
    */
   async getBucketSnapshotPoint(
     namespace: string,
@@ -584,11 +606,10 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       p_branch_ids: branchIds ?? null
     });
     assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to read bucket snapshot point');
-    const point = typeof data === 'number' ? data : Number(data);
-    if (!Number.isSafeInteger(point) || point < 0) {
+    if (typeof data !== 'number' || !Number.isSafeInteger(data) || data < 0) {
       throw new SupabaseDataError('Failed to read bucket snapshot point: invalid response data');
     }
-    return point;
+    return data;
   }
 
   /**
@@ -1295,8 +1316,14 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
    * （anon 的令牌），私有频道一律拒绝。不传参时用客户端的 `accessToken` 回调或当前会话的令牌；
    * 没有会话时 supabase-js 交出的就是 apikey 本身。
    *
-   * caller buckets 查询失败时只保留未分区旧日志频道。这样不会越权，拉取仍以 RPC 为准，后续重连会再次尝试
-   * 获取分区频道。令牌不属于已登录身份时不订阅，返回 `null`。
+   * caller buckets 查询失败时只保留未分区旧日志频道，订阅集合记为空。这样不会越权，拉取仍以 RPC 为准；
+   * 之后任何一次成功的 {@link RxDBAdapterSupabase.getCallerBuckets}（同步每次分区拉取与待拉数统计都会调）
+   * 发现读到的分区与空集对不上，会排队重建来补上分区频道，重连时也会再试一次。
+   * 令牌不属于已登录身份时不订阅，返回 `null`。
+   *
+   * 订阅时的分区集合记在 `#subscribedBuckets`，供 `getCallerBuckets()` 对账。本方法自己问分区时
+   * `#channels` 一定是空的（`connect()`、轮换、重连都先清空频道再调用本方法），那一次问分区不会触发对账，
+   * 重建不会递归；改动这几处调用顺序时要守住这一点。
    *
    * @returns 订阅中的频道；未登录时为 `null`
    */
@@ -1321,16 +1348,18 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     }
 
     const topics = [RXDB_CHANGES_TOPIC];
+    let buckets: string[] = [];
     try {
-      const buckets = await this.getCallerBuckets();
+      buckets = await this.getCallerBuckets();
       topics.push(...buckets.map(rxdbChangesTopicForBucket));
     } catch (error) {
       // 频道通知只是拉取提示，权限与正文始终由拉取 RPC 决定；收不到分区通知要让人看得见
       const message = error instanceof Error ? error.message : String(error);
       console.warn(
-        `[RxDB Supabase] Failed to resolve caller buckets; bucket change notifications stay off until the next realtime reconnect: ${message}.`
+        `[RxDB Supabase] Failed to resolve caller buckets; bucket change notifications stay off until a later caller bucket lookup succeeds or the realtime channels reconnect: ${message}.`
       );
     }
+    this.#subscribedBuckets = new Set(buckets);
 
     const generation = this.#realtimeGeneration;
     return [...new Set(topics)].map(topic => {
@@ -1487,6 +1516,37 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     void this.#enqueueRealtime(() => this.#rotateRealtimeChannels()).catch(error => {
       console.error('[RxDB Supabase] Realtime identity rotation failed:', error);
     });
+  }
+
+  /**
+   * 调用者的分区与频道订阅时的不同，就按新分区重建频道。没有订阅时不动
+   *
+   * @param buckets - 刚从 `rxdb_caller_buckets()` 读到、已校验的分区
+   *
+   * @remarks
+   * 与 {@link RxDBAdapterSupabase.getCallerBuckets} 配套，只排队、不等待，重建走与身份轮换同一条串行队列。
+   * 排队前与轮到执行时各判一次：同步对每个仓库各问一次分区，它们读到的是同一份新分区，
+   * 排在最前的那次重建已经按它订阅过了，后面的到点发现对上了就不再重复。
+   */
+  #followRealtimeBuckets(buckets: readonly string[]): void {
+    if (!this.#realtimeBucketsChanged(buckets)) return;
+    void this.#enqueueRealtime(async () => {
+      if (this.#realtimeBucketsChanged(buckets)) await this.#rotateRealtimeChannels();
+    }).catch(error => {
+      console.error('[RxDB Supabase] Realtime bucket rotation failed:', error);
+    });
+  }
+
+  /**
+   * 频道还在订阅，且订阅时的分区集合与 `buckets` 对不上
+   *
+   * @remarks
+   * 没有频道（未登录、尚未 `connect()`）或已断开时不算变了：订阅只由 `connect()` 发起，拉取不该借机重新订阅。
+   * 建频道时自己问分区那一次，`#channels` 一定是空的（见 `#createRealtimeChannels()`），所以同样不算，不会递归重建。
+   */
+  #realtimeBucketsChanged(buckets: readonly string[]): boolean {
+    if (this.#channels.length === 0 || this.#realtimeState === 'closed') return false;
+    return !isSameBucketSet(this.#subscribedBuckets, buckets);
   }
 
   /**

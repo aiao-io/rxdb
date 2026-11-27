@@ -7,8 +7,8 @@
  * 上次打开时没推的修改在清单里（本次会话的 `histories$` 里没有它们）。
  */
 import {
-  ENTITY_STATIC_TYPES,
   Entity,
+  ENTITY_STATIC_TYPES,
   EntityBase,
   type HistoryItem,
   PropertyType,

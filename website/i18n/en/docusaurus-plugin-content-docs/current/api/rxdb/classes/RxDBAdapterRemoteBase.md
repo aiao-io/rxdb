@@ -340,11 +340,11 @@ Implementation strategy (Supabase):
 
 #### Parameters
 
-| Parameter   | Type                                                            | Description                                                                              |
-| ----------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `actions`   | [`SwitchVersionActions`](../interfaces/SwitchVersionActions.md) | The compacted change operation set (pushed from the local side)                          |
-| `branchId?` | `string`                                                        | Branch ID (used to set branchId in remote change records)                                |
-| `changes?`  | [`IRxDBChange`](../interfaces/IRxDBChange.md)[]                 | The complete raw change records (optional, used to preserve the complete change history) |
+| Parameter   | Type                                                               | Description                                                                                                                                        |
+| ----------- | ------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `actions`   | [`SwitchVersionActions`](../interfaces/SwitchVersionActions.md)    | The compacted change operation set (pushed from the local side)                                                                                    |
+| `branchId?` | `string`                                                           | Branch ID (used to set branchId in remote change records)                                                                                          |
+| `changes?`  | [`IRxDBChange`](../interfaces/IRxDBChange.md)[]                    | The complete raw change records (optional, used to preserve the complete change history)                                                           |
 | `options?`  | [`RemoteMergeOptions`](/api/rxdb/interfaces/RemoteMergeOptions.md) | Foreign keys to fill in after writing null values within the same request. Requires [`supportsDeferredForeignKeys`](#supportsdeferredforeignkeys). |
 
 #### Returns

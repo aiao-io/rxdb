@@ -529,7 +529,7 @@ const build_count_group_by = (metadata: EntityMetadata, groupBy: readonly string
     .join(', ');
 
 /**
- * 给了分组列时数的是分组个数：子查询先筛行、分组，外层再数组；JOIN 展开的行落在同一组里，不用去重
+ * 给了分组列时数的是分组个数：子查询先筛行、分组，外层再数有几组；JOIN 展开的行落在同一组里，不用去重
  */
 const generate_count_sql_helper = (options: GenerateSqlOptions & { groupBy?: string }): string => {
   let from = `${options.tableName} AS ${MAIN_TABLE_ALIAS}`;

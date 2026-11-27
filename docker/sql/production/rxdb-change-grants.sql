@@ -12,6 +12,7 @@
 --      分支表、远端身份表与日志表一样开着 RLS、只有读取策略，客户端即便重新拿到写权限也写不进去。
 --   4. 实时变更通知：未分区旧日志使用私有频道 rxdb:changes，分区日志使用带 bucket 的私有频道；旧日志只对 authenticated 开放，分区频道按 rxdb_caller_buckets() 开放接收，客户端不能往里发消息。
 --   5. 远端变更历史 rxdb_change_history（US-229）：客户端不能直接读写，只经 rxdb_entity_history（authenticated）读取。
+--   6. 成员权限 rxdb_caller_grants / rxdb_caller_scopes（US-234）：anon 与 authenticated 都能读自己的授权（anon 为空）。
 -- 适用边界: 带 rxdb_bucket 的日志按 rxdb_caller_buckets() 做 RLS，未分区旧日志仍对 authenticated 可读。
 --       anon 默认只能读取 public 区。应用通过 SECURITY DEFINER 的 rxdb_caller_buckets() 扩展租户授权，
 --       见 requirements/epics/epic-015-identity-scoped-sync.md。
@@ -115,6 +116,8 @@ BEGIN
   FOREACH v_function IN ARRAY ARRAY[
     'public.rxdb_pull_changes(integer, integer, text, text, text, jsonb)',
     'public.rxdb_caller_buckets()',
+    'public.rxdb_caller_grants()',
+    'public.rxdb_caller_scopes(text)',
     'public.rxdb_entity_sync_info(text, text)',
     'public.rxdb_bucket_snapshot_point(text, text, text, text[])',
     'public.rxdb_pull_bucket_changes(integer, integer, text, text, text, text, jsonb)',
@@ -151,6 +154,9 @@ END $$;
 
 -- 分区只读协议同时服务 anon 的公开区与 authenticated 的授权区。
 GRANT EXECUTE ON FUNCTION public.rxdb_caller_buckets() TO anon, authenticated;
+-- 成员权限（US-234）：调用者读自己在各作用域上的权限，anon 得到空结果；业务表 RLS 以调用者身份调 rxdb_caller_scopes
+GRANT EXECUTE ON FUNCTION public.rxdb_caller_grants() TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_caller_scopes(text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_entity_sync_info(text, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_bucket_snapshot_point(text, text, text, text[]) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_pull_bucket_changes(integer, integer, text, text, text, text, jsonb) TO anon, authenticated;

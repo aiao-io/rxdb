@@ -1,5 +1,6 @@
 import { expect, test, type Browser, type Locator, type Page } from '@playwright/test';
 import { switchIdentity as switchTo } from './support/identity';
+import { promoteToAdmin } from './support/members';
 import { expectNoHorizontalScroll, openSidePanel, pull, toast } from './support/workbench';
 
 const isRemoteE2E = process.env['REMOTE_E2E'] === 'true';
@@ -8,6 +9,7 @@ const isRemoteE2E = process.env['REMOTE_E2E'] === 'true';
  * 商品目录：按身份授权的同步（epic-015：US-033 / US-035 / US-036），经页面走一遍。
  *
  * 成员用匿名用户：每个浏览器上下文都是一个新的匿名用户，自助加入星河零售，不动预置账号 Alice、Bob 的成员关系。
+ * 自助加入只是员工（US-234）：要写商品，先由星河零售的管理员 Alice 在另一个浏览器上下文里把他设为管理员。
  * 本轮的商品名带唯一后缀，结束时删掉；演示数据里的其他商品只读不改。
  *
  * 拉取经顶栏（US-230）；「模拟服务端变更」不在主界面，用到它的步骤先经页头的开关在右侧打开（US-232）。
@@ -34,15 +36,16 @@ if (isRemoteE2E) {
     }
 
     /**
-     * 匿名登录、加入星河零售，打开「模拟服务端变更」：之后的服务端操作都在这个面板里做
+     * 匿名登录、加入星河零售并由 Alice 设为管理员，打开「模拟服务端变更」：之后的服务端操作都在这个面板里做
      *
      * @remarks
      * 切换身份会重新加载页面，面板随之收起，所以登录之后才打开。宽屏上面板占右侧一栏，开着它照样能点顶栏的「拉取」。
      */
-    async function joinAsMember(page: Page): Promise<void> {
+    async function joinAsMember(browser: Browser, page: Page): Promise<void> {
       await switchIdentity(page, 'anonymous', '匿名用户');
       await openSidePanel(page, 'server');
       await serverAction(page, () => page.getByRole('button', { name: '加入星河零售' }).click(), '已加入星河零售');
+      await promoteToAdmin(browser, page);
     }
 
     /** 本机某个区里的一件商品；列表随本地库响应式刷新，断言一律用会重试的定位器 */
@@ -125,9 +128,11 @@ if (isRemoteE2E) {
     test('访客只同步公开区里规则选中的行，成员同步所在租户；可见范围与成员关系变了，下次同步补齐或清理', async ({
       browser
     }) => {
+      // 另开一个浏览器上下文登录管理员给成员授权（US-234），与 orders-sync 的多身份用例一样放宽超时
+      test.slow();
       // 成员：匿名用户加入星河零售，新增公开的数码、家居商品各一件与一件内部的数码商品
       const member = await openCatalog(browser, undefined);
-      await joinAsMember(member);
+      await joinAsMember(browser, member);
       await expect(member.getByTestId('catalog-buckets')).toContainText('租户 · 星河零售');
 
       try {
@@ -210,6 +215,8 @@ if (isRemoteE2E) {
         );
         await pull(member);
         await expect(syncedItem(member, 'tenant:xinghe', internalDigital)).toBeVisible();
+        // 重新加入又只是员工（US-234）：再设一次管理员，收尾才删得掉本轮的商品
+        await promoteToAdmin(browser, member);
       } finally {
         for (const name of [publicDigital, publicHome, internalDigital]) {
           await deleteIfCreated(member, name);
@@ -218,10 +225,12 @@ if (isRemoteE2E) {
     });
 
     test('编辑商品：改名改价，下次同步收到修改；改到访客没关注的分类，访客那边按规则移除', async ({ browser }) => {
+      // 另开一个浏览器上下文登录管理员给成员授权（US-234），与 orders-sync 的多身份用例一样放宽超时
+      test.slow();
       const before = `e2e-${runId}-编辑前`;
       const after = `e2e-${runId}-编辑后`;
       const member = await openCatalog(browser, undefined);
-      await joinAsMember(member);
+      await joinAsMember(browser, member);
 
       try {
         await addItem(member, before, '数码', 'public');

@@ -91,9 +91,9 @@ const generateEntityInsertsSql = async <T extends EntityType>(
   const conflictClauses: Record<InsertConflictMode, string> = {
     error: '',
     update:
-      updateColumns.length === 0 ? ignoreClause : (
-        ` ON CONFLICT (${quoteIdentifier(primaryColumn)}) DO UPDATE SET ${assignments}`
-      ),
+      updateColumns.length === 0 ?
+        ignoreClause
+      : ` ON CONFLICT (${quoteIdentifier(primaryColumn)}) DO UPDATE SET ${assignments}`,
     ignore: ignoreClause
   };
 

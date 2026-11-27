@@ -1,11 +1,11 @@
 ---
 id: US-234
 title: Supabase 租户内成员权限：管理员能改、员工只能看，dev-rxdb-supabase 完整演示
-status: Backlog
+status: In Progress
 priority: High
 epic: epic-015-identity-scoped-sync
 created: 2026-11-26
-updated: 2026-11-26
+updated: 2026-11-27
 tags: [adapter, supabase, permission, rls, demo]
 ---
 
@@ -54,7 +54,7 @@ INVEST 检查清单:
 
    直接给这张表加一列权限，任何人都能插一行带 `edit` 的成员关系，把自己升成管理员。
 
-4. **前端只判成员资格。** [`CatalogLocalWrites.canEdit()`](../../../apps/dev-rxdb-supabase/src/app/catalog/catalog-local-writes.ts) 是 `this.$canWrite() && this.#remote.$myTenantIds().includes(item.tenantId)`，`$myTenantIds` 来自 [`fetchMyTenantIds()`](../../../apps/dev-rxdb-supabase/src/app/catalog/catalog-remote.ts) 读出的 `tenant_id`；「历史」按钮也挂在 `canEdit` 上。
+4. **前端只判成员资格。** 立项时 [`CatalogLocalWrites.canEdit()`](../../../apps/dev-rxdb-supabase/src/app/catalog/catalog-local-writes.ts) 是 `this.$canWrite() && this.#remote.$myTenantIds().includes(item.tenantId)`，所在的租户直接读 `demo_tenant_members` 的 `tenant_id`；「历史」按钮也挂在 `canEdit` 上。
 5. **引擎分不出身份。** 实体的 [`EntityOperationPermission`](../../../packages/rxdb/src/entity/entity-options.interface.ts) 只有 `'both' | 'system'`（US-027），是静态元数据，[US-034](../core/US-034-bucketed-entity-local-writes.md) 的技术笔记写明了这一点。
 6. **被拒的处理已经有了。** 推送路径上 UPDATE 改到零行而行还在时报 42501，`04-rxdb-utils-functions.sql` 里 `rxdb_batch_update` 的注释写明「行仍存在 → 42501（reason=denied）」；DELETE 少删时用 [`rxdb_existing_ids`](../../../docker/sql/04-rxdb-utils-functions.sql) 探针区分被拒与已不存在。回执经 [US-218](US-218-supabase-rls-push-integrity.md) 落到本机对齐与「被拒的推送」，README 里「退出星河零售后再推送」走的就是这条路径。
 7. **成员权限的取值有先例。** epic-015 说的「六项权限」定义在 admin-template 分支的协作模型里（`git show origin/admin-template:rxdb-admin-template/packages/collaboration/src/model.ts`）：
@@ -84,7 +84,7 @@ INVEST 检查清单:
 - **员工只读**：员工所在租户的商品，新建、编辑、删除、公开 / 收回都不可点，不可用原因是「员工只读」；没有「历史」按钮。新建表单的租户下拉只列出有 `edit` 的租户。
 - **撤销、重做与推送不按角色禁用**：员工本来写不出商品修改；降权之前留下的未推送修改，降权之后仍能撤销，也能推送（推送时被拒）。
 - **成员与权限**：抽屉里的成员关系一节增加「成员与权限」。调用者有 `manage` 的租户列出全部成员，每人一个「管理员 / 员工」切换；其余租户只显示自己的角色。自助加入、退出照旧，加入后是员工。
-- **授权刷新**：连接时、每次拉取、本页自己改了成员关系之后，各读一次 `rxdb_caller_grants()`。两次读之间界面可能还是旧权限，以推送时的服务端裁决为准。
+- **授权刷新**：连接时、每轮推拉之后（拉到的可能是别人调整过的成员关系，推送被拒多半是权限变了）、本页自己改了成员关系之后，各读一次 `rxdb_caller_grants()`。两次读之间界面可能还是旧权限，以推送时的服务端裁决为准。
 
 ### 阶段 B：演示接入引擎声明
 
@@ -113,22 +113,22 @@ INVEST 检查清单:
 
 | #   | 前置条件                                                              | 操作                                                                                   | 预期结果                                                                                                                                                                                         | 状态 |
 | --- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
-| 1   | 栈只加载 01～04 与生产权限脚本，不加载演示 SQL                        | anon、登录用户各调 `rxdb_caller_grants()`                                              | anon 为空；登录用户只有自己的 `user:<id>`，权限 `read + edit`                                                                                                                                    | ⬜   |
-| 2   | 加载演示 SQL；Bob 是极光百货的管理员；新的匿名用户 X 自助加入极光百货 | X、Bob 各调 `rxdb_caller_grants()`                                                     | X 在 `tenant:jiguang` 上只有 `read`；Bob 有 `read + edit + manage`                                                                                                                               | ⬜   |
-| 3   | 同上                                                                  | X 与 Bob 经 REST 各新建、修改、删除极光百货的商品（公开与内部各一件）                  | X 的新建报 42501，修改、删除零行，远端不变；Bob 全部成功                                                                                                                                         | ⬜   |
-| 4   | X 在本机改了一件极光百货的商品                                        | 推送                                                                                   | 该实体回执为被拒（42501）；本机按远端对齐，「被拒的推送」列出它；远端行、同步日志与远端变更历史都不变                                                                                            | ⬜   |
-| 5   | X                                                                     | 同步拉取并直接查询极光百货的公开与内部商品                                             | 都读得到，含成本价，与管理员看到的相同；访客仍读不到成本价                                                                                                                                       | ⬜   |
-| 6   | 同上                                                                  | X、Bob 各读一件极光百货商品的远端变更历史（`rxdb_entity_history`）                     | X 零条且不报错；Bob 读得到                                                                                                                                                                       | ⬜   |
-| 7   | X                                                                     | 经 REST 插入带权限的成员行、修改自己的成员行；调改权限的 RPC 给自己加 `edit`           | 全部被拒；X 的权限仍是 `read`                                                                                                                                                                    | ⬜   |
-| 8   | Bob 是极光百货唯一的管理员                                            | Bob 把 X 升为管理员；X 把 Bob 降为员工；X 再把自己降为员工                             | 前两步成功；第三步被拒，报错说明不能撤掉最后一个管理员                                                                                                                                           | ⬜   |
-| 9   | Bob                                                                   | 经改权限的 RPC 给 X 写入六项以外的权限，或不含 `read` 的权限                           | 被拒，X 的权限不变                                                                                                                                                                               | ⬜   |
-| 10  | `website/docs`                                                        | 阅读 Supabase 适配器文档                                                               | 有「配置成员权限」一节：`rxdb_caller_grants()` 的契约与平台默认；写策略与历史可见性同口径的写法；成员表的列权限；权限为什么不放 JWT；员工的列可见范围；降权后推送被拒；升级之后要重新加载覆盖    | ⬜   |
-| 11  | Bob 登录，打开商品页                                                  | 看「身份与权限」与本机同步的商品                                                       | 写着「极光百货 · 管理员」；极光百货的商品可新建、编辑、删除、公开 / 收回，有「历史」                                                                                                             | ⬜   |
-| 12  | Alice（星河零售管理员）在抽屉里加入极光百货并拉取                     | 看商品页                                                                               | 列出「星河零售 · 管理员」「极光百货 · 员工」；极光百货的内部商品同步进本机、成本价可见；星河零售的商品照常可改；极光百货的商品写入口不可点，原因「员工只读」，没有「历史」；新建表单只列星河零售 | ⬜   |
-| 13  | 同上                                                                  | 看顶栏的编辑组与同步组                                                                 | 撤销、重做、推送不显示「员工只读」，按各自的次数与状态可用                                                                                                                                       | ⬜   |
-| 14  | X 自助加入极光百货；Bob 在抽屉的「成员与权限」里看到 X                | Bob 把 X 升为管理员，X 拉取；Bob 再把 X 降为员工，X 拉取                               | 第一次拉取后 X 的写入口与「历史」出现；第二次拉取后又变回只读；X 的「成员与权限」里没有改权限的按钮                                                                                              | ⬜   |
-| 15  | X 是管理员时在本机改了一件极光百货的商品，未推送；Bob 把 X 降为员工   | X 推送                                                                                 | 「被拒的推送」列出这件商品，本机对齐远端；之后极光百货商品的写入口变灰                                                                                                                           | ⬜   |
-| 16  | 按 README 起好本地栈                                                  | 跑商品相关的远端 e2e（catalog-sync、catalog-local-writes 与新的成员权限用例）          | 场景一条不少，访客、Alice、Bob 原有场景照常通过；README 写明管理员与员工的试法                                                                                                                   | ⬜   |
+| 1   | 栈只加载 01～04 与生产权限脚本，不加载演示 SQL                        | anon、登录用户各调 `rxdb_caller_grants()`                                              | anon 为空；登录用户只有自己的 `user:<id>`，权限 `read + edit`                                                                                                                                    | ✅   |
+| 2   | 加载演示 SQL；Bob 是极光百货的管理员；新的匿名用户 X 自助加入极光百货 | X、Bob 各调 `rxdb_caller_grants()`                                                     | X 在 `tenant:jiguang` 上只有 `read`；Bob 有 `read + edit + manage`                                                                                                                               | ✅   |
+| 3   | 同上                                                                  | X 与 Bob 经 REST 各新建、修改、删除极光百货的商品（公开与内部各一件）                  | X 的新建报 42501，修改、删除零行，远端不变；Bob 全部成功                                                                                                                                         | ✅   |
+| 4   | X 在本机改了一件极光百货的商品                                        | 推送                                                                                   | 该实体回执为被拒（42501）；本机按远端对齐，「被拒的推送」列出它；远端行、同步日志与远端变更历史都不变                                                                                            | ✅   |
+| 5   | X                                                                     | 同步拉取并直接查询极光百货的公开与内部商品                                             | 都读得到，含成本价，与管理员看到的相同；访客仍读不到成本价                                                                                                                                       | ✅   |
+| 6   | 同上                                                                  | X、Bob 各读一件极光百货商品的远端变更历史（`rxdb_entity_history`）                     | X 零条且不报错；Bob 读得到                                                                                                                                                                       | ✅   |
+| 7   | X                                                                     | 经 REST 插入带权限的成员行、修改自己的成员行；调改权限的 RPC 给自己加 `edit`           | 全部被拒；X 的权限仍是 `read`                                                                                                                                                                    | ✅   |
+| 8   | Bob 是极光百货唯一的管理员                                            | Bob 把 X 升为管理员；X 把 Bob 降为员工；X 再把自己降为员工                             | 前两步成功；第三步被拒，报错说明不能撤掉最后一个管理员                                                                                                                                           | ✅   |
+| 9   | Bob                                                                   | 经改权限的 RPC 给 X 写入六项以外的权限，或不含 `read` 的权限                           | 被拒，X 的权限不变                                                                                                                                                                               | ✅   |
+| 10  | `website/docs`                                                        | 阅读 Supabase 适配器文档                                                               | 有「配置成员权限」一节：`rxdb_caller_grants()` 的契约与平台默认；写策略与历史可见性同口径的写法；成员表的列权限；权限为什么不放 JWT；员工的列可见范围；降权后推送被拒；升级之后要重新加载覆盖    | ✅   |
+| 11  | Bob 登录，打开商品页                                                  | 看「身份与权限」与本机同步的商品                                                       | 写着「极光百货 · 管理员」；极光百货的商品可新建、编辑、删除、公开 / 收回，有「历史」                                                                                                             | ✅   |
+| 12  | Alice（星河零售管理员）在抽屉里加入极光百货并拉取                     | 看商品页                                                                               | 列出「星河零售 · 管理员」「极光百货 · 员工」；极光百货的内部商品同步进本机、成本价可见；星河零售的商品照常可改；极光百货的商品写入口不可点，原因「员工只读」，没有「历史」；新建表单只列星河零售 | ✅   |
+| 13  | 同上                                                                  | 看顶栏的编辑组与同步组                                                                 | 撤销、重做、推送不显示「员工只读」，按各自的次数与状态可用                                                                                                                                       | ✅   |
+| 14  | X 自助加入极光百货；Bob 在抽屉的「成员与权限」里看到 X                | Bob 把 X 升为管理员，X 拉取；Bob 再把 X 降为员工，X 拉取                               | 第一次拉取后 X 的写入口与「历史」出现；第二次拉取后又变回只读；X 的「成员与权限」里没有改权限的按钮                                                                                              | ✅   |
+| 15  | X 是管理员时在本机改了一件极光百货的商品，未推送；Bob 把 X 降为员工   | X 推送                                                                                 | 「被拒的推送」列出这件商品，本机对齐远端；之后极光百货商品的写入口变灰                                                                                                                           | ✅   |
+| 16  | 按 README 起好本地栈                                                  | 跑商品相关的远端 e2e（catalog-sync、catalog-local-writes 与新的成员权限用例）          | 场景一条不少，访客、Alice、Bob 原有场景照常通过；README 写明管理员与员工的试法                                                                                                                   | ✅   |
 | 17  | `CatalogItem` 声明作用域与所需权限                                    | 跑 Supabase 适配器的真栈用例与演示的单测、远端 e2e                                     | 不回归                                                                                                                                                                                           | ⬜   |
 | 18  | X 是员工                                                              | 经公开写入口（实体 `save()` / `remove()`）在本机写极光百货的商品                       | 当场 `PermissionDeniedError`，待推数不变；商品页的可写判断出自引擎的按行能力，演示里不再有自己的判定                                                                                             | ⬜   |
 | 19  | X 是管理员，同步过一次后断网重开商品页                                | 在本机改极光百货的商品；断网期间 Bob 把 X 降为员工，X 重新联网后推送、拉取，再在本机改 | 断网时沿用上次的授权快照放行；推送被拒、本机对齐；拉取后授权快照刷新，之后的本机写当场被拒                                                                                                       | ⬜   |
@@ -146,7 +146,7 @@ INVEST 检查清单:
 
 | 阶段 | 交付                                                                                                                             | 直接前置                                                                                          | AC     | 状态 |
 | ---- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ------ | ---- |
-| A    | 服务端成员权限与演示：参考 SQL、真栈用例、文档；商品页的身份与权限、员工只读、成员与权限面板、降权后推送被拒；远端 e2e 与 README | US-033（Done）、US-034、US-229、US-218（Done）；演示部分还要 US-230 阶段 A、US-231 阶段 A、US-232 | 1～16  | ⬜   |
+| A    | 服务端成员权限与演示：参考 SQL、真栈用例、文档；商品页的身份与权限、员工只读、成员与权限面板、降权后推送被拒；远端 e2e 与 README | US-033（Done）、US-034、US-229、US-218（Done）；演示部分还要 US-230 阶段 A、US-231 阶段 A、US-232 | 1～16  | ✅   |
 | B    | 演示接入引擎声明：`CatalogItem` 声明作用域，商品页改读引擎的按行能力与授权快照，员工本机写当场被拒，离线沿用授权快照             | A；US-029 阶段 C                                                                                  | 17～20 | ⬜   |
 
 一阶段一 PR，先写红测试；服务端用例不用 mock 的 `SupabaseDataError` 代替真实 RLS。
@@ -163,18 +163,19 @@ INVEST 检查清单:
 
 ## 实现文件
 
-| 阶段 | 文件                                                           | 改动                                                                   |
-| ---- | -------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| A    | `docker/sql/04-rxdb-utils-functions.sql`                       | `rxdb_caller_grants()` 平台默认                                        |
-| A    | `docker/sql/production/rxdb-change-grants.sql`                 | 执行权                                                                 |
-| A    | `apps/dev-rxdb-supabase/supabase/catalog-demo.sql`             | 成员权限列、覆盖、写策略、历史可见性、成员管理 RPC、列权限、初始管理员 |
-| A    | `packages/rxdb-adapter-supabase/src/__tests__/`                | 真栈用例                                                               |
-| A    | `website/docs/adapters/supabase.md`、`website/docs/migration/` | 「配置成员权限」一节与升级说明                                         |
-| A    | `apps/dev-rxdb-supabase/src/app/catalog/`                      | 读授权、按行可写判定、身份与权限、成员与权限面板                       |
-| A    | `apps/dev-rxdb-supabase-e2e/src/`                              | 成员权限远端 e2e，原有商品用例的锚点                                   |
-| A    | `apps/dev-rxdb-supabase/README.md`                             | 管理员与员工的试法                                                     |
-| B    | `packages/rxdb-test/entities/CatalogItem.ts`                   | 作用域与所需权限声明                                                   |
-| B    | `apps/dev-rxdb-supabase/src/app/catalog/`                      | 改读引擎能力，删掉应用层判定                                           |
+| 阶段 | 文件                                                                                         | 改动                                                                                                                                   |
+| ---- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| A    | `docker/sql/04-rxdb-utils-functions.sql`                                                     | `rxdb_caller_grants()` 平台默认；`rxdb_caller_scopes(p_permission)` 列出带某项权限的作用域，写策略与历史判定经它读同一份授权           |
+| A    | `docker/sql/production/rxdb-change-grants.sql`                                               | 两个函数的执行权（`anon`、`authenticated`）                                                                                            |
+| A    | `apps/dev-rxdb-supabase/supabase/catalog-demo.sql`                                           | 成员权限列与 CHECK、初始管理员登记与触发器、`rxdb_caller_grants()` 覆盖、写策略与历史可见性判 `edit`、列权限、成员列表与改权限两个 RPC |
+| A    | `packages/rxdb-adapter-supabase/src/__tests__/tenant-member-permissions.spec.ts`             | 真栈用例（AC#2～9）；`catalog-local-writes.spec.ts`、`change-history.spec.ts` 的成员补上 `edit`                                        |
+| A    | `packages/rxdb-adapter-supabase/src/__tests__/supabase-sql-security-regressions.sql`         | SQL 回归 `caller-grants`（AC#1：保存点里重新执行 04 与生产权限脚本，验平台默认与执行权）                                               |
+| A    | `website/docs/adapters/supabase.md`、`website/docs/migration/supabase-member-permissions.md` | 「配置成员权限」「装上成员权限」两节与升级说明                                                                                         |
+| A    | `apps/dev-rxdb-supabase/src/app/catalog/`                                                    | `catalog-permissions.ts` 预设与换算、读授权（每轮推拉后重读）、按行可写判定、身份与权限、`catalog-members-panel.ts` 成员与权限         |
+| A    | `apps/dev-rxdb-supabase-e2e/src/catalog-member-permissions.spec.ts`、`support/members.ts`    | 成员权限远端 e2e（AC#11～15）；原有商品用例的成员加入后由管理员设为管理员                                                              |
+| A    | `apps/dev-rxdb-supabase/README.md`、`apps/dev-rxdb-supabase-e2e/README.md`                   | 管理员与员工的试法；e2e 里怎么给成员授权                                                                                               |
+| B    | `packages/rxdb-test/entities/CatalogItem.ts`                                                 | 作用域与所需权限声明                                                                                                                   |
+| B    | `apps/dev-rxdb-supabase/src/app/catalog/`                                                    | 改读引擎能力，删掉应用层判定                                                                                                           |
 
 ## References
 
