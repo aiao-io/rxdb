@@ -45,11 +45,11 @@ overrides:
   # 恢复/清理链路依赖 `Module.FS.filesystems.IDBFS` 直接失效（40+ 用例崩溃）。钉在 0.5.12，
   # 升 0.5.16+ 前先让适配器适配新的 FS 生命周期。
   '@electric-sql/pglite': 0.5.12
-  '@angular/cdk': 22.3.0
-  '@angular/common': 22.3.0
-  '@angular/core': 22.3.0
-  '@angular/forms': 22.3.0
-  '@angular/platform-browser': 22.3.0
+  '@angular/cdk': 22.2.6
+  '@angular/common': 22.2.4
+  '@angular/core': 22.2.4
+  '@angular/forms': 22.2.4
+  '@angular/platform-browser': 22.2.4
   '@codemirror/language': ^6.13.1
   '@codemirror/state': ^6.7.6
   '@codemirror/view': ^6.43.14
@@ -100,7 +100,7 @@ overrides:
   tinypool@1: 2.2.0
   typescript: 6.0.3
   undici@7: ^7.29.1
-  vitest: 5.1.2
+  vitest: 4.1.11
   vue: ^3.5.43
   yaml@1: ^1.10.3
 patchedDependencies:

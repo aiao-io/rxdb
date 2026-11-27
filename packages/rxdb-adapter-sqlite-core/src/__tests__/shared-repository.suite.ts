@@ -44,7 +44,7 @@ class RepoUnloggedNoteRef extends EntityBase {
 
 /** SqliteRepository 测试：仓库层 CRUD、查询与变更事件。 */
 export function sqliteRepositorySuite(factory: AdapterFactory) {
-  describe(`SqliteRepository [${factory.name}]`, { concurrent: false }, () => {
+  describe.sequential(`SqliteRepository [${factory.name}]`, () => {
     let adapter: RxDBAdapterSqliteBase;
 
     afterEach(() => vi.restoreAllMocks());
@@ -174,7 +174,7 @@ export function sqliteRepositorySuite(factory: AdapterFactory) {
 
   // 核心在事务栈非空时把非事务事件排进本事务的队列，提交才派、回滚丢弃；本适配器在 BEGIN 之前、COMMIT 成功或失败之后
   // 各派一次事务事件，删行路径在事务里派的删除通知因此随事务走。这组用例钉住这条行为（INC-002：PGlite 曾在提交前就派了）。
-  describe(`无日志实体的删除通知随事务提交（INC-002） [${factory.name}]`, { concurrent: false }, () => {
+  describe.sequential(`无日志实体的删除通知随事务提交（INC-002） [${factory.name}]`, () => {
     let adapter: RxDBAdapterSqliteBase;
     let removedIds: string[] = [];
     const onRemoved = (event: EntityLocalRemovedEvent): void => {

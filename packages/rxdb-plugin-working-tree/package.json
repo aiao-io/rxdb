@@ -63,7 +63,7 @@
   },
   "peerDependencies": {
     "@aiao/rxdb": "workspace:^",
-    "vitest": "5.1.2"
+    "vitest": "4.1.11"
   },
   "peerDependenciesMeta": {
     "vitest": {
@@ -71,6 +71,6 @@
     }
   },
   "devDependencies": {
-    "vitest": "5.1.2"
+    "vitest": "4.1.11"
   }
 }

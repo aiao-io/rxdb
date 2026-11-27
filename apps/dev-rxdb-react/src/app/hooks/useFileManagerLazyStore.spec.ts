@@ -175,6 +175,7 @@ describe('useFileManagerLazyStore', () => {
   let rxdb: RxDB;
 
   beforeEach(() => {
+    window.localStorage.clear();
     table = new FakeFileTable();
     table.install();
     rxdb = table.entityManager();
