@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -18,14 +18,13 @@ const SRC_ROOT = fileURLToPath(new URL('..', import.meta.url));
 const usedKeys = (): Set<string> => {
   const keys = new Set<string>();
   const walk = (dir: string): void => {
-    for (const name of readdirSync(dir)) {
-      const path = join(dir, name);
-      if (statSync(path).isDirectory()) {
-        if (!name.startsWith('.')) walk(path);
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (!entry.name.startsWith('.') && entry.name !== 'i18n') walk(path);
         continue;
       }
-      if (!/\.(ts|html)$/.test(name) || name.endsWith('.spec.ts')) continue;
-      if (path.includes('/i18n/')) continue;
+      if (!entry.isFile() || !/\.(ts|html)$/.test(entry.name) || entry.name.endsWith('.spec.ts')) continue;
       const content = readFileSync(path, 'utf8');
       // 前缀允许 i18n.t / this.t，排除 set( / split( 等子串误匹配。
       const re = /(?:^|[^A-Za-z0-9_])t\('((?:[^'\\]|\\.)*)'/g;
