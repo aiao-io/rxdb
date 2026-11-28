@@ -17,7 +17,6 @@ type Loader = {
     variant: 'jspi';
     user: string;
     email: string;
-    baseUrl: string;
     moduleOverrides: { print(value: unknown): void; printErr(value: unknown): void };
   }): Promise<OpfsGit>;
 };
@@ -47,13 +46,12 @@ const changedFile = '# Browser Git + OPFS\n\nWorker 重启后仍然存在。\n';
 
 async function load(): Promise<OpfsGit> {
   if (git) return git;
-  const loaderPath = '/git-demo/vendor/lg2_opfs_auto.js';
+  const loaderPath = import.meta.env.BASE_URL + 'git-demo/vendor/lg2_opfs_auto.js';
   const loader = (await import(/* @vite-ignore */ loaderPath)) as Loader;
   git = await loader.loadOpfsGit({
     variant: 'jspi',
     user: 'Browser Git Demo',
     email: 'browser-git-demo@example.invalid',
-    baseUrl: new URL('/git-demo/vendor/', self.location.origin).href,
     moduleOverrides: {
       print: value => stdout.push(String(value)),
       printErr: value => stderr.push(String(value))
