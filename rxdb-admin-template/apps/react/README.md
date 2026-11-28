@@ -34,16 +34,16 @@ Dashboard 的页面、懒加载路由、菜单、页签、面包屑、命令面�
 
 ## 定制入口
 
-| 要改什么                                               | 入口                                                                                                        | 约束                                                                                                                                       |
-| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| 页面标题、描述、品牌、数据库名、偏好前缀、可见命名空间 | [app.config.json](app.config.json)                                                                          | 现有应用的数据库名和存储前缀承载用户数据，变更须另定迁移方案                                                                               |
-| 样例实体与注册列表                                     | [asset-entities.ts](src/app/entities/asset-entities.ts) 的 `ENTITIES`                                       | 替换关联实体时同步检查关系与 `searchable` 字段；全新业务使用新的数据库名                                                                   |
-| 可见实体与实体查找                                     | [entity-registry.ts](src/app/entities/entity-registry.ts) 的 `visibleEntityEntries` / `findWorkbenchEntity` | 同一份元数据驱动导航与实体页                                                                                                               |
-| 自定义页面与路由                                       | [router.tsx](src/app/router.tsx) 的 `routes`                                                                | 页面置于 `src/app/pages/`，沿用懒加载入口                                                                                                  |
-| 菜单及样例图标                                         | [workbench-menu.tsx](src/app/shell/workbench-menu.tsx) 的 `buildWorkbenchMenu`                              | 实体列表仍从注册表派生                                                                                                                     |
-| 偏好扩展、主题与旧键迁移                               | [workbench-shell.ts](src/app/shell/workbench-shell.ts) 的 `workbenchShell` / `readLegacyPreferences`        | 主题列表与 [styles.css](src/styles.css) 中 daisyUI 主题保持一致                                                                            |
-| 本地数据库与插件                                       | [setup_rxdb.ts](src/app/rxdb/setup_rxdb.ts)                                                                 | 当前使用 sqlite-wasm 主线程 + IndexedDB，搜索和备份依赖此组合                                                                              |
-| 本机匿名身份                                           | [setup_rxdb.ts](src/app/rxdb/setup_rxdb.ts) 的 `ANONYMOUS_LOCAL_USER_ID`                                    | 只标记本机工作台的数据归属，值保持 `'userId'` 以兼容已有本机库；团队协作的云端身份来自 `/collaboration` 的真实会话，接入真实身份时不得复用 |
+| 要改什么                                               | 入口                                                                                                        | 约束                                                                                                                                      |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| 页面标题、描述、品牌、数据库名、偏好前缀、可见命名空间 | [app.config.json](app.config.json)                                                                          | 现有应用的数据库名和存储前缀承载用户数据，变更须另定迁移方案                                                                              |
+| 样例实体与注册列表                                     | [asset-entities.ts](src/app/entities/asset-entities.ts) 的 `ENTITIES`                                       | 替换关联实体时同步检查关系与 `searchable` 字段；全新业务使用新的数据库名                                                                  |
+| 可见实体与实体查找                                     | [entity-registry.ts](src/app/entities/entity-registry.ts) 的 `visibleEntityEntries` / `findWorkbenchEntity` | 同一份元数据驱动导航与实体页                                                                                                              |
+| 自定义页面与路由                                       | [router.tsx](src/app/router.tsx) 的 `routes`                                                                | 页面置于 `src/app/pages/`，沿用懒加载入口                                                                                                 |
+| 菜单及样例图标                                         | [workbench-menu.tsx](src/app/shell/workbench-menu.tsx) 的 `buildWorkbenchMenu`                              | 实体列表仍从注册表派生                                                                                                                    |
+| 偏好扩展、主题与旧键迁移                               | [workbench-shell.ts](src/app/shell/workbench-shell.ts) 的 `workbenchShell` / `readLegacyPreferences`        | 主题列表与 [styles.css](src/styles.css) 中 daisyUI 主题保持一致                                                                           |
+| 本地数据库与插件                                       | [setup_rxdb.ts](src/app/rxdb/setup_rxdb.ts)                                                                 | 当前使用 sqlite-wasm 主线程 + IndexedDB，搜索和备份依赖此组合                                                                             |
+| 本机匿名身份                                           | [setup_rxdb.ts](src/app/rxdb/setup_rxdb.ts) 的 `ANONYMOUS_LOCAL_USER_ID`                                    | 审计字段的取值，保持 `'userId'`；库按账号分开（ADMIN-US-222）；团队协作的云端身份来自 `/collaboration` 的真实会话，接入真实身份时不得复用 |
 
 实体替换的新业务前置和 Dashboard 页面扩展验收分别见 [ADMIN-US-101](../../requirements/stories/domain/ADMIN-US-101-replace-sample-domain.md) 和 [ADMIN-US-102](../../requirements/stories/domain/ADMIN-US-102-custom-pages-navigation.md)。不能仅替换 `ENTITIES` 就宣称整个应用已经摆脱资产样例。
 
@@ -61,6 +61,6 @@ Dashboard 的页面、懒加载路由、菜单、页签、面包屑、命令面�
 
 ## 能力边界
 
-这是单人、本地优先的 Web 应用。本机工作台的 `userId` 是匿名本地上下文 `ANONYMOUS_LOCAL_USER_ID`，不代表真实账号，团队协作页使用 [ADMIN-US-201](../../requirements/stories/collaboration/ADMIN-US-201-supabase-email-otp-session.md) 的真实会话身份；锁屏属于本机交互；账号认证、服务端授权、多用户隔离和跨设备协作需要独立设计与验收。公共包继续遵守 Angular / React / Vue API 对称要求，本需求目录以 React 为孵化源，Angular / React / Vue 三端使用共享浏览器契约分别验收。
+这是单人、本地优先的 Web 应用。本机工作台每个登录账号一个本机库（ADMIN-US-222），审计字段的 `userId` 仍是 `ANONYMOUS_LOCAL_USER_ID`，不代表真实账号，团队协作页使用 [ADMIN-US-201](../../requirements/stories/collaboration/ADMIN-US-201-supabase-email-otp-session.md) 的真实会话身份；锁屏属于本机交互；账号认证、服务端授权、多用户隔离和跨设备协作需要独立设计与验收。公共包继续遵守 Angular / React / Vue API 对称要求，本需求目录以 React 为孵化源，Angular / React / Vue 三端使用共享浏览器契约分别验收。
 
 平台后台能力由根 [epic-010](../../../requirements/epics/epic-010-model-driven-admin-framework.md) 管理；应用产品范围、定制体验与验收在本应用独立管理。

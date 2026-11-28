@@ -20,7 +20,7 @@ pnpm nx run rxdb-admin-template-vue:build
 pnpm nx run rxdb-admin-template-vue-e2e:e2e --workers=2
 ```
 
-开发地址为 `http://127.0.0.1:4208`。默认数据库为 `admin-workbench-vue`，偏好前缀为 `aiao.workbench.vue`，三端数据互不覆盖。恢复备份必须先进入首页的「从备份恢复」，不能先打开实体列表或搜索页初始化目标库；清理失败后可继续重试。
+开发地址为 `http://127.0.0.1:4208`。默认数据库的基础名为 `admin-workbench-vue`，实际库名按登录账号的身份派生（每个账号一个本机库，ADMIN-US-222），偏好前缀为 `aiao.workbench.vue`，三端数据互不覆盖。恢复备份必须先进入首页的「从备份恢复」，不能先打开实体列表或搜索页初始化目标库；清理失败后可继续重试。
 
 Dashboard 的页面、懒加载路由、菜单、页签、面包屑、命令面板与搜索分页偏好扩展步骤见 [三端页面扩展指南](../../requirements/plans/custom-pages-navigation.md)。
 
@@ -37,7 +37,7 @@ Dashboard 的页面、懒加载路由、菜单、页签、面包屑、命令面�
 | 本机匿名身份 `ANONYMOUS_LOCAL_USER_ID`             | [setup_rxdb.ts](src/app/rxdb/setup_rxdb.ts)                 |
 | 备份恢复互斥、错误与清理状态                       | [backup-controller.ts](src/app/backup/backup-controller.ts) |
 
-`ANONYMOUS_LOCAL_USER_ID` 只标记本机工作台的数据归属，值保持 `'userId'` 以兼容已有本机库；团队协作的云端身份来自 `/collaboration` 的真实会话，接入真实身份时不得复用。修改已有应用的数据库名和偏好前缀需要数据迁移方案。替换样例实体时同步检查关系、可搜索字段及中英文目录；主题清单与 `src/styles.css` 保持一致。
+`ANONYMOUS_LOCAL_USER_ID` 是本机工作台审计字段的取值，保持 `'userId'`；库已按账号分开，归属由库本身的身份表达（ADMIN-US-222）；团队协作的云端身份来自 `/collaboration` 的真实会话，接入真实身份时不得复用。修改已有应用的数据库名和偏好前缀需要数据迁移方案。替换样例实体时同步检查关系、可搜索字段及中英文目录；主题清单与 `src/styles.css` 保持一致。
 
 数据库沿用 sqlite-wasm 主线程 + IndexedDB，满足浏览器备份恢复和 FTS5 搜索。外壳在连接数据库之前初始化，导航计数只在数据库连接后挂载，保留空库恢复入口。
 

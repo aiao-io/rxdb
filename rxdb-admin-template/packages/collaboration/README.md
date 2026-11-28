@@ -1,6 +1,6 @@
 # 产品协作包
 
-`@rxdb-admin-template/collaboration` 是三个工作台复用的产品私有包，不发布到 npm。React、Angular、Vue 都在 `/collaboration` 懒加载同一套任务、讨论与审核交互；原匿名资产工作台、数据库名称与连接前恢复入口保持独立。
+`@rxdb-admin-template/collaboration` 是三个工作台复用的产品私有包，不发布到 npm。React、Angular、Vue 都在 `/collaboration` 懒加载同一套任务、讨论与审核交互；资产工作台（每个账号一个本机库，ADMIN-US-222）与连接前恢复入口保持独立。
 
 ## 运行方式
 
@@ -190,7 +190,7 @@ NX_NO_CLOUD=true pnpm nx run admin-collaboration:serve-api
 
 团队任务的草稿落在平台 working-tree 上（ADMIN-US-221）：编辑、保存、提交、放弃、恢复、另存与跨设备续作都用平台的 API，协作包只负责与服务端交换提交和界面状态。代码在 `src/client/team-database.ts`（团队库的打开与约定）、`team-tasks.ts`（本机动作）、`task-ledger.ts`（本机任务账本）与 `task-view.ts`（任务状态与动作）。
 
-- **团队库**：应用经 `mountCollaboration` 的 `createTeamDatabase` 提供工厂，按「用户 × 团队 × 应用」返回一个尚未初始化的 RxDB（应用实体的克隆、与匿名工作台相同的 sqlite-wasm `vfs: 'idb'`、history 插件、`context.userId` 是真实用户、`SyncType.None`），库名用 `teamDatabaseName(前缀, 作用域)`：前缀加作用域的 80 位散列。不把三项原样拼进库名，是因为 sqlite-wasm 的 IndexedDB 文件系统路径上限 64 字节（`mxPathname`，回滚日志文件名 `<库名>@0_1.sqlite.db-journal` 要放得下，库名至多 41 个字符），而且带冒号的库名会被当成 URL 协议。协作包在连接前装上 working-tree 插件并 `enableIfEmpty()`（`enable()` 是库级、不可逆的开关，所以团队库与匿名工作台分库）；第一次打开任务时打开团队库，切换团队、退出、锁定时先卸载编辑界面再关库，库里的数据保留。
+- **团队库**：应用经 `mountCollaboration` 的 `createTeamDatabase` 提供工厂，按「用户 × 团队 × 应用」与本机库身份返回一个尚未初始化的 RxDB（应用实体的克隆、与匿名工作台相同的 sqlite-wasm `vfs: 'idb'`、history 插件、`context.userId` 是真实用户、`SyncType.None`、`identity` 原样设成交给它的身份）。身份由协作包从全局会话取（`AuthSession.databaseIdentity()`：Supabase 项目 URL 的 origin 加账号 id，与 `rxdb-adapter-supabase` 的 `callerIdentity()` 同一口径），库按它绑定，换了账号就打不开别人的团队库（ADMIN-US-222、平台 US-035）；会话已经不是作用域里的用户时按会话失效处理。库名用 `teamDatabaseName(前缀, 作用域)`：前缀加作用域的 80 位散列。不把三项原样拼进库名，是因为 sqlite-wasm 的 IndexedDB 文件系统路径上限 64 字节（`mxPathname`，回滚日志文件名 `<库名>@0_1.sqlite.db-journal` 要放得下，库名至多 41 个字符），而且带冒号的库名会被当成 URL 协议。协作包在连接前装上 working-tree 插件并 `enableIfEmpty()`（`enable()` 是库级、不可逆的开关，所以团队库与匿名工作台分库）；第一次打开任务时打开团队库，切换团队、退出、锁定时先卸载编辑界面再关库，库里的数据保留。
 - **分支**：`main` 是共享分支的镜像，只经 `importCommits()` 推进，用户不在上面编辑；每个任务是一条分支（`task/<任务>/<随机后缀>`），从任务的共同起点（`main` 上的共享提交）`createBranchFromCommit()` 建出，再导入任务在服务端已有的提交——第二台设备上的提交 ID、父链与作者因此与服务端一致（ADMIN-US-206 AC#2），工作树是干净的，导入的提交不会被记成拉取者的提交。打开任务就是切到它的分支；同一个团队库同一时刻只编辑一个任务。
 - **下发**：`CollaborationReader.exchange()` 一页一页读（`known` 是本机当前头，`more` 时把这一页的头加进去接着读），每一页原样交给 `importCommits()`；第一次导入从服务端的根开始，换掉本机启用时写下的基线。
 - **状态**：未保存是表单里还没点「保存」的输入，属于应用的编辑界面；已保存未提交是工作树里的条目（`status().entryCount`）；已提交未同步是远端头之后的本机提交；三者都没有即已同步。任务视图把后三种分开显示，并列出共同起点之后的本机提交（ID、作者、第一父、是否已同步）。团队库的每次本地写入都会触发一次任务状态重读（工作树没有变更流）。

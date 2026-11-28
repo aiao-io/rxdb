@@ -1,5 +1,8 @@
 import type { RxDB } from '../RxDB.js';
 import { getEntityMetadata } from '../rxdb-utils.js';
+import { RxDBError } from '../RxDBError.js';
+import { assertIdentityBinding, getRxDBIdentityKey, RxDBIdentityMismatchError } from '../system/identity-binding.js';
+import { RxDBBackupError } from './backup-error.js';
 import { computeRxDBConstraintFingerprint, computeRxDBSchemaFingerprint } from './schema-fingerprint.js';
 
 /**
@@ -43,3 +46,35 @@ export const getRxDBBackupSchemaFingerprint = (rxdb: RxDB): string =>
  */
 export const getRxDBBackupConstraintFingerprint = (rxdb: RxDB): string =>
   computeRxDBConstraintFingerprint(rxdb.config.entities);
+
+/**
+ * 恢复之前核对归档里的库绑定的身份（US-040）：库绑定了别的身份就拒绝，一个身份的备份不能恢复进另一个身份的库。
+ *
+ * @param rxdb - 恢复目标的实例
+ * @param migrationNames - 恢复出来的库里 `rxdb_migration` 全表的 `name` 列，顺序无关
+ * @throws {@link RxDBBackupError} `incompatible_archive`（`details.field` 为 `identity`）：库里绑定的是别的身份；
+ *   `corrupt_archive`（同一字段）：库里的首次绑定没有完成
+ *
+ * @remarks
+ * 目标没有声明 `identity`、库没有绑定、或绑定的正是目标的身份时放行；没有绑定的库由第一次连接就地绑定到目标的身份
+ * （US-035）。判定与打开库时用的是同一个原语，两处口径不会分叉。各 adapter 在恢复事务提交之前调用，拒绝时整笔回滚。
+ */
+export const assertRxDBRestoreIdentity = (rxdb: RxDB, migrationNames: readonly string[]): void => {
+  const { identity } = rxdb.config;
+  if (identity === undefined) return;
+  try {
+    assertIdentityBinding(migrationNames, getRxDBIdentityKey(identity));
+  } catch (error) {
+    if (error instanceof RxDBIdentityMismatchError)
+      throw new RxDBBackupError('incompatible_archive', 'Backup archive belongs to another identity', {
+        details: { field: 'identity' },
+        cause: error
+      });
+    if (error instanceof RxDBError)
+      throw new RxDBBackupError('corrupt_archive', 'Backup archive has an incomplete identity claim', {
+        details: { field: 'identity' },
+        cause: error
+      });
+    throw error;
+  }
+};

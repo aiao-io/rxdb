@@ -280,6 +280,24 @@ export const readSqliteSystemVersionState = async (
 };
 
 /**
+ * 读库里迁移表的全部行名：恢复时交给核心核对身份绑定（US-040）。迁移表只有几行。
+ *
+ * @param executor - 客户端
+ * @param otherwise - 读失败时的分类
+ * @returns `rxdb_migration."name"` 全列
+ */
+export const readSqliteMigrationNames = async (
+  executor: SqliteBackupExecutor,
+  otherwise: SqliteBackupSqlFailure
+): Promise<string[]> => {
+  const migrationTable = quote_sql_identifier(
+    get_table_name_by_metadata(getEntityMetadata(RxDBMigration), WorktreeTableSet.MAIN)
+  );
+  const rows = await selectSqliteRows(executor, `SELECT "name" FROM ${migrationTable}`, undefined, otherwise);
+  return rows.map(row => sqliteTextValue(row[0], 'migration name'));
+};
+
+/**
  * 目标侧的兼容性期望。
  *
  * @param rxdb - 目标实例（会被 `init()`，但不会连接）

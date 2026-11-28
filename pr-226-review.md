@@ -44,3 +44,13 @@
 ## 结论
 
 该 PR 存在一个 P1 级跨租户 Realtime 元数据泄露问题，修复服务端频道授权后再合入。
+
+## 处置记录（2026-11-28）
+
+状态：**Accepted**。维护者 2026-11-28 决定接受这项风险，不再要求先收紧统一频道。#226 已以 `798df2891` 合入 `main`，上面结论里的「修复服务端频道授权后再合入」不再适用。依据（快照 `0b8486cdd`）：
+
+- 统一频道只承载未分区日志：广播触发器 `rxdb_change_broadcast` 把 `bucket IS NULL` 的日志发到 `rxdb:changes`，其余发到带 bucket 的频道（`docker/sql/02-rxdb-sync-functions.sql:341`）。
+- 这些日志本来就对全部 `authenticated` 整行可读：`rxdb_change_read_by_bucket` 放行 `auth.role() = 'authenticated' AND bucket IS NULL`（`docker/sql/production/rxdb-change-grants.sql:53`、`:61`），`rxdb_strip_bucket_change_payload` 只清空分区日志的 `patch` / `inversePatch` / `beforeData` / `afterData`（`docker/sql/02-rxdb-sync-functions.sql:248`）。频道里的 `namespace`、`entity`、`entityId`、`type`、`branchId`、`clientId`、`createdAt` 都在这些行里，频道没有扩大可读面，只是把轮询换成了推送。
+- 租户隔离靠分区：需要隔离的实体启用 `rxdb_bucket`，日志读取与频道接收都按 `rxdb_caller_buckets()` 授权。这条边界已写进适配器文档 `website/docs/adapters/supabase.md` 的「适用边界」。
+
+再评估条件：收紧未分区日志的读取（`rxdb_change_read_by_bucket` 不再对全部 `authenticated` 放行 `bucket IS NULL`）时，统一频道必须一起收紧，否则它会成为真正的泄露面。

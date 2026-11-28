@@ -1,4 +1,4 @@
-import { cloneEntityClasses, RxDB, SyncType, type RxDBIdentity } from '@aiao/rxdb';
+import { cloneEntityClasses, RxDB, RxDBIdentityMismatchError, SyncType, type RxDBIdentity } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -102,6 +102,29 @@ describe('打开团队库：连接前装上 working-tree，空库上启用提交
       expect(bob.rxdb.config.dbName).not.toBe(alice.rxdb.config.dbName);
       expect(await bob.tree.status()).toMatchObject({ entryCount: 0 });
       await bob.close();
+
+      const again = await openTeamDatabase(create, scope, identity);
+      opened.push(again);
+      expect(await again.tree.status()).toMatchObject({ entryCount: 1 });
+    } finally {
+      for (const database of opened.splice(0)) await database.close();
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+  it('以别的身份打开已绑定的团队库：连接报身份不匹配，库里的草稿原样保留（ADMIN-US-222，平台 US-035）', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'team-identity-'));
+    try {
+      const create = pgliteTeamFactory(assetEntities, directory);
+      const alice = await openTeamDatabase(create, scope, identity);
+      await alice.writeRecords({ [crypto.randomUUID()]: { entity: 'AssetCategory', fields: { name: '电脑' } } }, [
+        'AssetCategory'
+      ]);
+      await alice.close();
+
+      // 篡改：库名与落盘位置仍是 A 的，身份换成另一个账号（绕过 openTeamDatabase 的约定检查，直接连）
+      const forged = create(scope, { ...identity, subject: crypto.randomUUID() });
+      await expect(forged.connect('pglite')).rejects.toBeInstanceOf(RxDBIdentityMismatchError);
+      await forged.destroy();
 
       const again = await openTeamDatabase(create, scope, identity);
       opened.push(again);

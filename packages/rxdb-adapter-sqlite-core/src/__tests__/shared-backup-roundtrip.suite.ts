@@ -5,7 +5,7 @@
  * 同步类型为 None 的本地库没有远端可推拉；「适用的同步操作」在这里落到同步所依赖的本地状态：
  * `rxdb_change` 历史逐行一致、恢复本身不追加历史、恢复后的新写入接着原序列记账。
  */
-import { RXDB_BACKUP_FORMAT } from '@aiao/rxdb';
+import { RXDB_BACKUP_FORMAT, RxDBIdentityMismatchError, type RxDBIdentity } from '@aiao/rxdb';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { SqliteBackupEngineObjects, SqliteBackupHarness } from '../testing.js';
@@ -207,6 +207,50 @@ export const backupRoundtripSuite = (harness: SqliteBackupHarness): void => {
       const restored = await restoreInto(target, chunkedSource(out.bytes(), 4093).stream);
       expect(restored.sha256).toBe(result.sha256);
       expect(await readNotes(await target.connect(), target.entities)).toEqual(SEEDED_NOTES);
+    });
+
+    describe('identity binding (US-040)', () => {
+      const alice: RxDBIdentity = { scope: 'https://backup.test', subject: 'alice' };
+      const bob: RxDBIdentity = { scope: 'https://backup.test', subject: 'bob' };
+
+      /** 以给定身份（不给即不声明身份）打开并播种一个源库，返回它的归档字节。 */
+      const backupAs = async (identity?: RxDBIdentity): Promise<Uint8Array> => {
+        const source = createBackupRxDB(harness, uniqueDbName('backup-identity-src'), PLAIN_ENTITIES, scratch, identity);
+        opened.push(source);
+        const adapter = await source.connect();
+        await seedNotes(source.entities);
+        const out = collectingSink();
+        await adapter.backup(out.sink);
+        return out.bytes();
+      };
+
+      /** 以给定身份在一个新的持久化目标上恢复并连接。 */
+      const restoreAs = async (archive: Uint8Array, identity?: RxDBIdentity) => {
+        const dbName = uniqueDbName('backup-identity-dst');
+        const target = createBackupRxDB(harness, dbName, PLAIN_ENTITIES, 'persistent', identity);
+        opened.push(target);
+        await restoreInto(target, chunkedSource(archive).stream);
+        return { target, dbName, adapter: await target.connect() };
+      };
+
+      it('restores an archive bound to the same identity', async () => {
+        const { target, adapter } = await restoreAs(await backupAs(alice), alice);
+        expect(await readNotes(adapter, target.entities)).toEqual(SEEDED_NOTES);
+      });
+
+      it('restores an unbound archive into an identity target, which binds to that identity on first connect', async () => {
+        const { target, dbName, adapter } = await restoreAs(await backupAs(), bob);
+        expect(await readNotes(adapter, target.entities)).toEqual(SEEDED_NOTES);
+        await target.close();
+        const stranger = createBackupRxDB(harness, dbName, PLAIN_ENTITIES, 'persistent', alice);
+        opened.push(stranger);
+        await expect(stranger.connect()).rejects.toBeInstanceOf(RxDBIdentityMismatchError);
+      });
+
+      it('restores a bound archive into a target that declares no identity', async () => {
+        const { target, adapter } = await restoreAs(await backupAs(alice));
+        expect(await readNotes(adapter, target.entities)).toEqual(SEEDED_NOTES);
+      });
     });
   });
 };

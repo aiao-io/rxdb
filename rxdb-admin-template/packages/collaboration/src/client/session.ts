@@ -86,24 +86,6 @@ export class AuthSession extends EventTarget {
   }
 
   /**
-   * 本机库的身份（ADMIN-US-222）：按它命名并绑定本机工作台库与团队库，换了账号就是另一个库。
-   *
-   * @returns `scope` 是 Supabase 项目 URL 的 origin，与 `rxdb-adapter-supabase` 的 `callerIdentity()` 同一口径；
-   *   `subject` 是账号 id。没有身份（从没登录过、已退出、会话失效）时为 null
-   *
-   * @remarks
-   * {@link AuthSession.initialize} 完成之前，取本机记下的最近一次确认的身份与公开配置：应用要在首屏之前同步建库，
-   * 这时还没有联网确认。登录门禁随后按会话重新确认，确认出别的账号时应用重新载入页面、换到那个账号的库。
-   * 初始化完成之后只认当前确认的身份。
-   */
-  databaseIdentity(): RxDBIdentity | null {
-    const user = this.config ? this.user : this.readGrant()?.user;
-    const config = this.config ?? this.readConfig();
-    if (!user || !config) return null;
-    return { scope: new URL(config.supabaseUrl.trim()).origin, subject: user.id };
-  }
-
-  /**
    * @param base 协作 HTTP 接口的路径前缀（公开配置从 `${base}/config` 读取）。
    * @param loadConfig 读取公开配置；默认经协作命令入口读取。
    */
@@ -120,6 +102,24 @@ export class AuthSession extends EventTarget {
     this.channel.onmessage = event => {
       if (event.data?.type === 'logout' && event.data.userId === this.user?.id) this.signOut();
     };
+  }
+
+  /**
+   * 本机库的身份（ADMIN-US-222）：按它命名并绑定本机工作台库与团队库，换了账号就是另一个库。
+   *
+   * @returns `scope` 是 Supabase 项目 URL 的 origin，与 `rxdb-adapter-supabase` 的 `callerIdentity()` 同一口径；
+   *   `subject` 是账号 id。没有身份（从没登录过、已退出、会话失效）时为 null
+   *
+   * @remarks
+   * {@link AuthSession.initialize} 完成之前，取本机记下的最近一次确认的身份与公开配置：应用要在首屏之前同步建库，
+   * 这时还没有联网确认。登录门禁随后按会话重新确认，确认出别的账号时应用重新载入页面、换到那个账号的库。
+   * 初始化完成之后只认当前确认的身份。
+   */
+  databaseIdentity(): RxDBIdentity | null {
+    const user = this.config ? this.user : this.readGrant()?.user;
+    const config = this.config ?? this.readConfig();
+    if (!user || !config) return null;
+    return { scope: new URL(config.supabaseUrl.trim()).origin, subject: user.id };
   }
 
   /** 设置登录提示与语气（不派发事件，调用方随后 `changed()`）；传空串即清除。 */

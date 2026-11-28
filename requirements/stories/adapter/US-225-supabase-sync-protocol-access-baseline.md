@@ -62,7 +62,7 @@ INVEST 检查清单:
 - **anon 退出日志同步协议**（生产授权脚本）：收回 anon 对 `rxdb_change`、`rxdb_branch` 的读取；收回 anon 与 `PUBLIC` 对日志协议 RPC 的执行权，包括拉取、推送（`rxdb_mutations` 及其内部函数）、分支登记和存在性探针。保留连接时调用的 `rxdb_server_version`、`rxdb_backend_id`、`rxdb_check_rls`；anon 仍可按业务表自己的 GRANT 与 RLS 直接读写。
 - **非 main 分支按所有者写入**：新表 `rxdb_branch_owner` 记录每个非 main 分支的所有者（`auth.uid()`）。第一个登记或推送该分支的已登录用户认领它，之后只有所有者能登记、改写或往它推送日志；收回客户端对 `rxdb_branch` 的直写。已有日志或登记、却没有所有者的旧分支拒绝写入，文档给出补登所有者的 SQL。
 - **实时通知不带行内容**：`rxdb_change` 移出 `supabase_realtime` 发布，改由日志插入触发器经 `realtime.send` 按 bucket 向私有频道发元数据（`namespace`、`entity`、`entityId`、`type`、`branchId`、`clientId`、`createdAt`、`bucket`），不含 `patch` / `inversePatch` / `beforeData` / `afterData`；未分区旧日志使用统一频道，分区日志使用带 bucket 的频道，旧日志只对 authenticated 开放，分区频道按 caller buckets 开放。适配器订阅当前身份有权加入的频道，派发的远端事件只带 `id`。
-- **测试与 demo 改用已登录身份**：适配器真栈测试以测试栈的 JWT 密钥签发 authenticated 令牌；`dev-rxdb-supabase` 没有会话时匿名登录（Supabase 匿名用户的数据库角色是 authenticated）。
+- **测试与 demo 改用已登录身份**：适配器真栈测试以测试栈的 JWT 密钥签发 authenticated 令牌；`dev-rxdb-supabase` 用匿名登录取得已登录身份（Supabase 匿名用户的数据库角色是 authenticated）。epic-015 起首次打开是访客，匿名登录改为在 Todo 页手动点（见 AC#14）。
 - **生产库升级**：增量脚本 `production/rxdb-sync-access-upgrade.sql` 只补 01 本次新增的系统对象，与 02、04、生产权限脚本在同一个事务里执行，不重跑 01，业务表的权限保持原样。旧分支补登覆盖只有日志、从未登记的祖先分支。
 - **文档**：`website/docs/adapters/supabase.md` 写明生产权限模型与适用边界；`website/docs/migration/supabase-sync-access.md` 给出升级命令与旧分支补登。
 
@@ -142,7 +142,7 @@ INVEST 检查清单:
 - `docker/sql/production/rxdb-sync-access-upgrade.sql` — 生产库升级的增量脚本
 - `packages/rxdb-adapter-supabase/src/` — 订阅私有频道、处理不带内容的通知
 - `packages/rxdb-adapter-supabase/src/__tests__/` — SQL 回归用例（含升级与旧分支补登）、升级原子性检查、以 authenticated 身份运行的真栈测试
-- `apps/dev-rxdb-supabase/` — 无会话时匿名登录
+- `apps/dev-rxdb-supabase/` — 匿名登录（epic-015 起首次打开是访客，Todo 页手动匿名登录）
 - `website/docs/adapters/supabase.md` — 生产权限模型与适用边界
 - `website/docs/migration/supabase-sync-access.md` — 升级命令与旧分支补登
 

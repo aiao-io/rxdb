@@ -2,6 +2,7 @@
  * 三端 app e2e 的模拟认证服务：全站都要登录，而这套 e2e 跑在不带协作后端的生产构建上，这里只提供登录需要的几个接口——
  * 协作命令入口的公开配置（`/collaboration-api/config`）与 Supabase Auth（GoTrue）的验证码登录、确认账号、刷新与退出，
  * 以及返回空列表的只读投影（`/rest/v1/*`，团队协作页里「可访问的团队」读到空）。验证码固定为 {@link code}。
+ * 任何邮箱都能登录：默认账号是 {@link account}，别的邮箱按邮箱派生一个固定的账号（换号、按账号隔离本机库的用例用，ADMIN-US-222）。
  *
  * - React / Vue：vite preview 把 `/collaboration-api` 代理到这里（`ADMIN_API_URL`）。
  * - Angular：静态文件服务没法代理，传 `--static <产物目录>` 让本服务同时托管产物（找不到的页面回落到 index.html）。
@@ -9,14 +10,26 @@
  * 只用于 e2e，不进任何构建产物；生产代码里没有任何跳过登录的开关。
  * 用法：node e2e-auth-server.mjs --port <端口> [--static <目录>]
  */
+import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import path from 'node:path';
 
-/** 测试账号与它的固定验证码。 */
+/** 默认测试账号与所有账号共用的固定验证码。 */
 export const account = { id: '8d4f4c3e-5f0e-4c7e-9a62-6e2d7c1b9e01', email: 'e2e@admin-template.test' };
 export const code = '000000';
+
+/**
+ * 邮箱对应的账号：默认邮箱是 {@link account}；别的邮箱的 id 由邮箱的 SHA-256 排成一个版本 4 的 UUID（版本位与变体位按规范填），
+ * 同一邮箱永远是同一个账号。
+ */
+export function accountOf(email) {
+  if (!email || email === account.email) return account;
+  const hex = createHash('sha256').update(email).digest('hex');
+  const id = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-4${hex.slice(13, 16)}-8${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+  return { id, email };
+}
 
 const types = {
   '.html': 'text/html; charset=utf-8',
@@ -39,17 +52,32 @@ const cors = {
 const base64url = value => Buffer.from(JSON.stringify(value)).toString('base64url');
 
 /** 一枚形似 GoTrue 签发的访问令牌（不验签，只给 supabase-js 读到期时间与主体）。 */
-function token(expiresAt) {
-  const claims = { sub: account.id, email: account.email, role: 'authenticated', aud: 'authenticated', exp: expiresAt };
+function token(who, expiresAt) {
+  const claims = { sub: who.id, email: who.email, role: 'authenticated', aud: 'authenticated', exp: expiresAt };
   return `${base64url({ alg: 'HS256', typ: 'JWT' })}.${base64url(claims)}.e2e`;
 }
-function user() {
+/** 访问令牌（`Authorization: Bearer …`）里的账号；没有或读不出时是默认账号。 */
+function accountOfAccessToken(header) {
+  const payload = header?.startsWith('Bearer ') ? header.slice('Bearer '.length).split('.')[1] : undefined;
+  if (!payload) return account;
+  try {
+    return accountOf(JSON.parse(Buffer.from(payload, 'base64url').toString('utf8')).email);
+  } catch {
+    return account;
+  }
+}
+/** 刷新令牌（`refresh-<到期时刻>-<邮箱的 base64url>`）里的账号；旧格式没有邮箱时是默认账号。 */
+function accountOfRefreshToken(value) {
+  const encoded = typeof value === 'string' ? value.split('-').slice(2).join('-') : '';
+  return encoded ? accountOf(Buffer.from(encoded, 'base64url').toString('utf8')) : account;
+}
+function user(who) {
   const now = new Date().toISOString();
   return {
-    id: account.id,
+    id: who.id,
     aud: 'authenticated',
     role: 'authenticated',
-    email: account.email,
+    email: who.email,
     email_confirmed_at: now,
     confirmed_at: now,
     last_sign_in_at: now,
@@ -61,15 +89,15 @@ function user() {
   };
 }
 /** 一份会话：一小时后到期。 */
-function session() {
+function session(who) {
   const expiresAt = Math.floor(Date.now() / 1000) + 3600;
   return {
-    access_token: token(expiresAt),
+    access_token: token(who, expiresAt),
     token_type: 'bearer',
     expires_in: 3600,
     expires_at: expiresAt,
-    refresh_token: `refresh-${expiresAt}`,
-    user: user()
+    refresh_token: `refresh-${expiresAt}-${Buffer.from(who.email).toString('base64url')}`,
+    user: user(who)
   };
 }
 function send(response, status, body) {
@@ -95,13 +123,17 @@ export function handler(directory) {
       return send(response, 200, { supabaseUrl: url.origin, supabaseKey: 'e2e-anon-key' });
     if (url.pathname === '/auth/v1/otp') return send(response, 200, {});
     if (url.pathname === '/auth/v1/verify') {
-      const { token: given } = await body(request);
+      const { token: given, email } = await body(request);
       if (given !== code)
         return send(response, 403, { code: 403, error_code: 'otp_expired', msg: 'Token has expired or is invalid' });
-      return send(response, 200, session());
+      return send(response, 200, session(accountOf(email)));
     }
-    if (url.pathname === '/auth/v1/token') return send(response, 200, session());
-    if (url.pathname === '/auth/v1/user') return send(response, 200, user());
+    if (url.pathname === '/auth/v1/token') {
+      const { refresh_token: refresh } = await body(request);
+      return send(response, 200, session(accountOfRefreshToken(refresh)));
+    }
+    if (url.pathname === '/auth/v1/user')
+      return send(response, 200, user(accountOfAccessToken(request.headers.authorization)));
     if (url.pathname === '/auth/v1/logout') return send(response, 204);
     if (url.pathname.startsWith('/rest/v1/')) return send(response, 200, []);
     if (!directory || request.method !== 'GET') return send(response, 404, { message: 'not found' });
