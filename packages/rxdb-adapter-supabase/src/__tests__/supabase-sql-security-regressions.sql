@@ -5369,6 +5369,7 @@ DECLARE
   user_a constant uuid := '00000000-0000-4000-8000-0000000000a1';
   user_b constant uuid := '00000000-0000-4000-8000-0000000000b2';
   v_history record;
+  v_visible record;
   v_result jsonb;
   v_count integer;
   v_rejected boolean := false;
@@ -5523,17 +5524,44 @@ BEGIN
     rxdb_sql_regression.history_visible('HistoryOwnedRow', 'hist-a') = ARRAY['INSERT:trigger', 'UPDATE:trigger'],
     'change-history: history recorded before the move must stay with the previous owner'
   );
+  -- 前后两侧都能编辑的修改：四个正文字段齐全
+  SELECT visible.* INTO v_visible
+  FROM public.rxdb_entity_history('rxdb_sql_regression', 'HistoryOwnedRow', 'hist-a') AS visible
+  WHERE visible.type = 'UPDATE';
+  PERFORM rxdb_sql_regression.assert_true(
+    v_visible.patch = '{"value":"v2"}'::jsonb AND v_visible."inversePatch" = '{"value":"v1"}'::jsonb
+      AND v_visible."beforeData"->>'value' = 'v1' AND v_visible."afterData"->>'value' = 'v2',
+    pg_catalog.format('change-history: an update the caller can edit on both sides must keep every body, got %s',
+      pg_catalog.to_jsonb(v_visible))
+  );
   PERFORM rxdb_sql_regression.history_caller(user_b);
   PERFORM rxdb_sql_regression.assert_true(
     rxdb_sql_regression.history_visible('HistoryOwnedRow', 'hist-a') = ARRAY['UPDATE:trigger'],
     'change-history: the move itself must be visible to the new owner only'
   );
+  -- 换区那一次的前像与逆补丁是 A 的旧行：B 只拿到改动后的一侧
+  SELECT visible.* INTO v_visible
+  FROM public.rxdb_entity_history('rxdb_sql_regression', 'HistoryOwnedRow', 'hist-a') AS visible;
+  PERFORM rxdb_sql_regression.assert_true(
+    v_visible."beforeData" IS NULL AND v_visible."inversePatch" IS NULL
+      AND v_visible."afterData"->>'value' = 'v3' AND v_visible."afterData"->>'owner_id' = user_b::text
+      AND v_visible.patch->>'value' = 'v3' AND v_visible.patch->>'owner_id' = user_b::text,
+    pg_catalog.format('change-history: the new owner must not read the previous owner''s side of a move, got %s',
+      pg_catalog.to_jsonb(v_visible))
+  );
 
-  -- AC#12 删掉之后按删除前的行判定：B 仍读得到换区之后的全部历史
+  -- AC#12 删掉之后按删除前的行判定：B 仍读得到换区之后的全部历史，删除那一条带着删除前的行
   DELETE FROM rxdb_sql_regression.history_owned_rows WHERE id = 'hist-a';
   PERFORM rxdb_sql_regression.assert_true(
     rxdb_sql_regression.history_visible('HistoryOwnedRow', 'hist-a') = ARRAY['UPDATE:trigger', 'DELETE:trigger'],
     'change-history: a deleted row must keep its history, judged by the row before deletion'
+  );
+  SELECT visible.* INTO v_visible
+  FROM public.rxdb_entity_history('rxdb_sql_regression', 'HistoryOwnedRow', 'hist-a') AS visible
+  WHERE visible.type = 'DELETE';
+  PERFORM rxdb_sql_regression.assert_true(
+    v_visible."beforeData"->>'value' = 'v3' AND v_visible."afterData" IS NULL,
+    pg_catalog.format('change-history: a delete must keep the row before deletion, got %s', pg_catalog.to_jsonb(v_visible))
   );
 
   -- 平台默认：公开区谁都不能编辑，所有者也读不到它在公开区时的历史

@@ -85,6 +85,13 @@
 
 ### 🩹 Fixes
 
+- **rxdb-adapter-supabase:** 远端变更历史里，一行换了租户（或换了所有者）的那一条记在新租户，新租户的成员读到的 `beforeData` 与 `inversePatch` 却是旧租户的旧行。`rxdb_entity_history` 现在对修改的前像另判一次，调用者不能编辑改动前的行时这两个字段为 `null`，只交回改动后的一侧。已有部署按升级命令重跑新版 `docker/sql/04-rxdb-utils-functions.sql`，之后照常重新加载自己的 `rxdb_caller_can_edit` 覆盖与生产权限脚本。
+- **rxdb:** 两次 `rxdb.grants.refresh()` 交错、先开始的那次晚到时，内存里的快照拦住了它，本地库里的那一行却被它改写，离线重开读回旧权限。新鲜度比较改在落库的事务里做：库里那一行更新时不改写，内存采用库里那一份。取得时间在本实例里严格递增，同一毫秒里开始的两次也分得出先后；内容不变的刷新照样推进取得时间（`snapshot$` 仍只在内容变化时发出）。
+- **rxdb-plugin-sync:** 分区拉取中途失败（快照或增量的后一页报错）时，之前已经落库的页没有计入结果；清理撤销的分区删掉的本地行也没有计入。`historyInvalidated` 因此报 `false`，撤销边界不推进，用户还能撤销到同步之前。现在两者都计入 `applied` / `historyInvalidated`，失败照常记进 `failures`。
+- **rxdb-plugin-sync:** 换了同步规则、以 `fetchAll: false` 分页补新规则的快照时，只拉完一页就退役了旧规则的作用域：仍然匹配、只是还没轮到的行从本机删掉，续拉之后才回来，断网时一直缺着。现在一个分区按新规则的快照落库拉完，才退役它按旧规则同步的作用域。
+- **rxdb:** 多对多关联行 id（`junctionEntityId`）把主键原样拼进 `…|<外键>=<主键>`，字符串主键里带 `|<外键>=` 时两对不同的数据算出同一个 id，第二对插入中间表时被当成已经在库里，静默合并成一对。主键里的 `%`、`|` 现在先转义成 `%25`、`%7C`，uuid 与数字主键的 id 不变；服务端自己写文本主键的关联行时按同一规则转义，见 [many-to-many-junction-id](https://rxdb.aiao.io/docs/migration/many-to-many-junction-id)（US-228 引入）。
+- **rxdb-plugin-sync:** 远端日志删掉了本库推上去的变更之后，单仓的 `checkRepositoryUpdates` 拿总数减本库推上去的 id 个数，把别的客户端的变更抵掉、报「已全部同步」，与按远端实际存在的 id 排除的批量统计对不上。远端能一次数完（`countPendingChanges`）时单仓也经它数（US-236 引入）。
+- **Supabase demo:** 唯一的管理员能直接退出租户，之后这个租户就没人能再调整成员权限。退出改走 `demo_leave_tenant`，与改权限同一把租户锁、同一个「至少留一个管理员」；成员表不再授 `DELETE`。
 - **rxdb-adapter-supabase:** 拉变更日志（`pullChanges`、`pullChangesBatch`、`pullBucketChanges`）要的条数超过 PostgREST 的 `max-rows`（默认 1000）时，服务端把超出的行静默砍掉，适配器照样交回 1000 条：同步插件按「条数够不够上限」判断有没有下一页，就当成已经拉完。批量拉取默认就会撞上（一次要「每个仓库的上限 × 仓库数」条），远端未分区日志一过 1000 行，新客户端第一次拉取就漏掉后面的变更，待拉数在拉取之后又冒出来。现在三条路径都按 id 游标翻页，交回按 id 升序的至多 `limit` 条。
 - **rxdb:** 库级 `SyncType.QueryCache` 时，多对多中间表的 `create()`（关联两端时自动发生）转进批量写，QueryCache 批次又逐条回调 `create()`，无限递归到栈溢出（`RangeError`）。QueryCache 批次的新建改为直接走仓库。
 - **rxdb-plugin-sync:** 外键成环时拉取的续拉补齐加了 16 页上限。被引用的行远端一直拉不到（被行级安全挡住、在别的分支上）时，此前会把被引用仓库此后的整段远端历史拉进内存、每拉一页都重算一遍整轮，最后照样撞外键；现在到上限就如实以外键失败。续拉的起点也不再展开成 `Math.max` 的参数，这一轮里被引用仓库的变更再多也不栈溢出。

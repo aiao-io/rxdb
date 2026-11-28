@@ -664,6 +664,31 @@ describe('SyncManager 对协作模块的编排契约', () => {
       expect(history.clearUndoHistory).toHaveBeenCalledTimes(expected);
     });
 
+    // 评审 F3：按区拉取不抛，分区失败结构化进 `failures`，失败之前已提交的改写由结果里的 `historyInvalidated` 交回
+    it.each([
+      ['失败之前已提交了改写', true, 1],
+      ['失败之前一条都没改', false, 0]
+    ])('pullRepository 以结果交回分区失败且%s时清空 %d 次 undo 历史', async (_label, historyInvalidated, expected) => {
+      const { manager, history } = createHarness();
+      const withFailures = {
+        repository: { namespace: 'public', entity: 'Todo' },
+        pulled: 2,
+        compacted: 0,
+        applied: historyInvalidated ? 1 : 0,
+        hasMore: true,
+        conflictsResolved: 0,
+        conflictsDeferred: 0,
+        persistedProgress: true,
+        historyInvalidated,
+        failures: [{ repository: { namespace: 'public', entity: 'Todo' }, error: new Error('page 2 failed') }]
+      };
+      doubles.delegates.pullRepository.mockResolvedValue(withFailures);
+
+      await expect(manager.pullRepository('public', 'Todo')).resolves.toBe(withFailures);
+
+      expect(history.clearUndoHistory).toHaveBeenCalledTimes(expected);
+    });
+
     // RXD-068：失败仓库在失败前可能已经提交了部分进度，它藏在 `item.error.result` 里。
     // 只看 `item.result` 会漏掉这部分 —— 远端数据已落库，用户却仍能 undo 回同步前状态，
     // 重新制造本地/远端分叉。

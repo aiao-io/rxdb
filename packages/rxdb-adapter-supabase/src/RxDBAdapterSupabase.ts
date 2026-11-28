@@ -601,6 +601,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
    * 历史与同步日志分开存放：同步日志按区开放读取、分区日志不带正文；历史记每次生效的业务写入的完整前后快照、
    * 操作者与来源，只经服务端的 `rxdb_entity_history` 读取。能不能看由服务端的 `rxdb_caller_can_edit` 按每条历史
    * 记录时的行判定：一行换了租户之后，改动前的历史只对旧租户的成员可见；行删掉之后，它的历史照样按删除前的行开放。
+   * 修改的前像另判一次：换租户那一条记在新租户，调用者不能编辑改动前的行时 `beforeData` 与 `inversePatch` 为 `null`。
    *
    * @example
    * ```ts

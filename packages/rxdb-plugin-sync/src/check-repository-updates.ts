@@ -22,7 +22,12 @@ import { getAncestorBranchIds } from './branch-utils.js';
 import { resolveConfiguredFilter } from './pull-repository.js';
 import { assertRemoteBackend } from './remote-backend.js';
 import { RxDBSyncBucketProgress } from './scoped-sync.entity.js';
-import { filterFingerprint, scopedStatusAdapterOf } from './scoped-sync.js';
+import {
+  filterFingerprint,
+  type PendingChangeProbe,
+  pendingCountAdapterOf,
+  scopedStatusAdapterOf
+} from './scoped-sync.js';
 // `RepositoryIdentifier` 此前在 4 个文件里各写了一份同形状定义，
 // 统一收敛到 `VersionManager.interface.ts`（那份才是 `index.ts` 真正导出的）。
 export type { RepositoryIdentifier };
@@ -229,10 +234,13 @@ export async function checkRepositoryUpdates(
       remoteAdapter.getChangeCount(sinceId, [`${namespace}:${metadata.name}`], ancestorBranchId)
     )
   );
-  // 条数跨分支相加；`latestChangeId` 是同一个远端序列上的最大值，取 max 而非相加。
-  // 本库推上去的每个远端 id 都在游标之后的日志里，减掉它们就是别人的修改；
-  // 只有远端日志删掉了本库推上去的行才会减成负数，那几条也不再待拉，按 0 算
-  const count = Math.max(0, perBranch.reduce((sum, item) => sum + item.count, 0) - ownIds.length);
+  // `latestChangeId` 是同一个远端序列上的最大值，取 max 而非相加。条数与一次数完同一个口径（US-236 AC#3）
+  const count = await countLogOthers(
+    remoteAdapter,
+    { namespace, entity: metadata.name, bucket: null, afterId: sinceId, excludeIds: ownIds },
+    branchIds,
+    perBranch
+  );
   const latestChangeId = perBranch.reduce((max, item) => (item.latestChangeId > max ? item.latestChangeId : max), 0);
   // 4. 构造返回结果
   return {
@@ -242,6 +250,35 @@ export async function checkRepositoryUpdates(
     pendingCount: count,
     hasUpdates: count > 0
   };
+}
+
+/**
+ * 未分区日志里游标之后、不是本库推上去的条数：单仓与一次数完（`pending-counts.ts`）共用
+ *
+ * @param remote - 远端适配器
+ * @param probe - 探针：游标与本库推上去的远端 id
+ * @param branchIds - 只数这些分支（当前分支及其祖先），与拉取同口径
+ * @param perBranch - 逐分支数出的、游标之后的总条数
+ * @returns 别人的变更条数
+ *
+ * @remarks
+ * 远端能一次数完（`PendingChangeCountAdapter`）时交给它：它按远端实际存在的 id 排除，远端日志删掉了
+ * 本库推上去的行也数得准。否则只能拿总数减去本库推上去的 id 个数，日志删掉了其中几条时会少数，减成负数按 0 算。
+ *
+ * @internal
+ */
+export async function countLogOthers(
+  remote: object,
+  probe: PendingChangeProbe,
+  branchIds: readonly string[],
+  perBranch: readonly { readonly count: number }[]
+): Promise<number> {
+  const batch = pendingCountAdapterOf(remote);
+  if (batch) {
+    const [count] = await batch.countPendingChanges([probe], branchIds);
+    return count;
+  }
+  return Math.max(0, perBranch.reduce((sum, item) => sum + item.count, 0) - probe.excludeIds.length);
 }
 
 /** 按 id 问远端时每批最多带多少个：id 列表写在请求地址里，太长会被网关拒掉 */

@@ -113,9 +113,15 @@ export async function joinTenant(client: CatalogRemoteClient, tenantId: string):
   check(await client.from('demo_tenant_members').insert({ tenant_id: tenantId }));
 }
 
-/** 退出租户。 */
+/**
+ * 退出租户。
+ *
+ * @remarks
+ * 只经服务端的 `demo_leave_tenant`：成员表不授 DELETE，最后一个管理员不能退出（与改权限同一个不变量），
+ * 被拒时报错原样抛出。
+ */
 export async function leaveTenant(client: CatalogRemoteClient, tenantId: string): Promise<void> {
-  check(await client.from('demo_tenant_members').delete().eq('tenant_id', tenantId));
+  check(await client.rpc('demo_leave_tenant', { p_tenant_id: tenantId }));
 }
 
 /** 所在租户的商品（公开的与内部的），直接查业务表，按 RLS 只拿到能读的行。 */

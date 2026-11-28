@@ -18,6 +18,7 @@ export interface SupabaseRlsCheckTable {
  *
  * @remarks
  * 只读得到调用者**当前**能编辑的行的历史（按每条历史记录时的行判定），四个正文字段只含调用者有列权限的列。
+ * 修改的前像另判一次：调用者不能编辑改动前的行时（如换了租户），`beforeData` 与 `inversePatch` 为 `null`。
  */
 export interface SupabaseEntityHistoryItem {
   /** 历史记录 id，按写入顺序递增；翻页时作为 {@link SupabaseEntityHistoryOptions.afterId} 传回 */
@@ -44,10 +45,10 @@ export interface SupabaseEntityHistoryItem {
   /** 这次写入改了什么 */
   patch: Record<string, unknown> | null;
 
-  /** 撤回这次写入要改回什么 */
+  /** 撤回这次写入要改回什么；调用者不能编辑改动前的行时为 `null` */
   inversePatch: Record<string, unknown> | null;
 
-  /** 写入之前的整行；新增为 `null` */
+  /** 写入之前的整行；新增，或调用者不能编辑改动前的行时为 `null` */
   beforeData: Record<string, unknown> | null;
 
   /** 写入之后的整行；删除为 `null` */

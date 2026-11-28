@@ -37,7 +37,7 @@ US-228 之前，多对多关联推不上 Supabase：连接实体带 `id` 与时�
    );
    ```
 
-   外键按属性名排序拼接，uuid 是小写（`uuid::text` 本就是小写）。不改的话，客户端再关联同一对时撞主键（`23505`），这类错误不可归类，那一批推送整批失败。
+   外键按属性名排序拼接，uuid 是小写（`uuid::text` 本就是小写）。两端是文本主键的中间表，每个值先转义：`replace(replace("categoriesId", '%', '%25'), '|', '%7C')`，与客户端的 `junctionEntityId` 同一规则；uuid 与数字不含 `%`、`|`，不用转义。不改的话，客户端再关联同一对时撞主键（`23505`），这类错误不可归类，那一批推送整批失败。
 
 3. **登记同步**：`SELECT public.rxdb_enable_sync_for_table('Category_OrderItem', 'shop', 'Category_OrderItem');`。登记之后再改 `id` 会记成一条换了行 id 的修改，所以第 2 步放在前面。
 

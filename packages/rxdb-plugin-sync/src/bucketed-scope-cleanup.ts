@@ -26,6 +26,14 @@ export interface BucketScope {
   filterFingerprint: string;
 }
 
+/** 清掉一个作用域的结果 */
+export interface BucketScopeRemoval {
+  /** 从本机删掉的业务行数：事务提交了，本地数据就真的改了，撤销边界要跟着作废 */
+  readonly removed: number;
+  /** 还被本地别的行引用、这次删不掉的行；全部清掉时为 `undefined` */
+  readonly blocked: RxDBBucketCleanupBlockedError | undefined;
+}
+
 export async function removeBucketScope(
   localAdapter: RxDBAdapterLocalBase,
   entities: readonly EntityType[],
@@ -33,7 +41,7 @@ export async function removeBucketScope(
   repoSync: RxDBSync,
   scope: BucketScope,
   progress: RxDBSyncBucketProgress
-): Promise<RxDBBucketCleanupBlockedError | undefined> {
+): Promise<BucketScopeRemoval> {
   return localAdapter.transaction(executor =>
     removeBucketScopeInTransaction(executor, entities, EntityType, repoSync, scope, progress)
   );
@@ -48,11 +56,11 @@ export async function removeBucketScope(
  * @param repoSync - 仓库的同步记录：推送水位决定哪些本地变更还没推
  * @param scope - 要删的作用域
  * @param progress - 它的进度行
- * @returns 还被本地别的行引用、这次删不掉的行；全部清掉时为 `undefined`
+ * @returns 删掉了几行本地业务行，以及还被本地别的行引用、这次删不掉的行
  *
  * @remarks
  * 删不掉的行连同它们在这个作用域的映射与进度行一起留着：进度行还在，下一次拉取会再清一次，
- * 引用它们的行没了就删得掉（见 {@link RxDBBucketCleanupBlockedError}）。
+ * 引用它们的行没了就删得掉（见 {@link RxDBBucketCleanupBlockedError}）。有行留下不代表这一事务一行都没删。
  */
 export async function removeBucketScopeInTransaction(
   executor: TransactionExecutor,
@@ -61,7 +69,7 @@ export async function removeBucketScopeInTransaction(
   repoSync: RxDBSync,
   scope: BucketScope,
   progress: RxDBSyncBucketProgress
-): Promise<RxDBBucketCleanupBlockedError | undefined> {
+): Promise<BucketScopeRemoval> {
   // 要删业务行：同步跑到一半换挂到可写检出位时，本事务落在那套表上就一行都不动（US-314 B1.4）
   assertSyncOnMainCheckout(executor.tableSet, 'removeBucketScope');
   const rowRepository = executor.getRepository(RxDBSyncBucketRow);
@@ -91,9 +99,8 @@ export async function removeBucketScopeInTransaction(
     });
     await executor.mergeChanges(actions, undefined, true);
   }
-  if (plan.blocked) return plan.blocked;
-  await executor.getRepository(RxDBSyncBucketProgress).remove(progress);
-  return undefined;
+  if (!plan.blocked) await executor.getRepository(RxDBSyncBucketProgress).remove(progress);
+  return { removed: plan.deletable.length, blocked: plan.blocked };
 }
 
 /** 一次清理要删、要留的本地行 */

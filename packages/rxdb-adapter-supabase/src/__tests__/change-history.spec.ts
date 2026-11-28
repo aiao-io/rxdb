@@ -33,6 +33,8 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('远端变更历史（US-229）'
   const alice = crypto.randomUUID();
   const bob = crypto.randomUUID();
   const carol = crypto.randomUUID();
+  /** 两个租户都能编辑 */
+  const dave = crypto.randomUUID();
   const itemId = crypto.randomUUID();
   const service = getSupabaseServiceRoleClient();
   const databases: RxDB[] = [];
@@ -96,7 +98,9 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('远端变更历史（US-229）'
     expect(tenantError, 'demo_tenants 缺失：先用 nx run rxdb-adapter-supabase:test-env 初始化测试栈').toBeNull();
     const { error: memberError } = await service.from('demo_tenant_members').insert([
       { user_id: alice, tenant_id: tenantA, permissions: EDITOR },
-      { user_id: bob, tenant_id: tenantB, permissions: EDITOR }
+      { user_id: bob, tenant_id: tenantB, permissions: EDITOR },
+      { user_id: dave, tenant_id: tenantA, permissions: EDITOR },
+      { user_id: dave, tenant_id: tenantB, permissions: EDITOR }
     ]);
     expect(memberError).toBeNull();
   });
@@ -178,11 +182,30 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('远端变更历史（US-229）'
       `trigger:UPDATE:${tenantA}`
     ]);
     expect(await visible(newMember.adapter)).toEqual([`trigger:UPDATE:${tenantB}`]);
+    // 换租户那一条记在新租户：它的前像与逆补丁是旧租户的内容，只给也能编辑旧租户的成员
+    const [moved] = await newMember.adapter.getEntityHistory(CatalogItem, itemId);
+    expect(moved).toMatchObject({
+      beforeData: null,
+      inversePatch: null,
+      patch: { tenantId: tenantB },
+      afterData: { tenantId: tenantB, price: 120 }
+    });
+    const bothSides = await open(client(dave));
+    const fullHistory = await bothSides.adapter.getEntityHistory(CatalogItem, itemId);
+    expect(fullHistory).toHaveLength(4);
+    expect(fullHistory.at(-1)).toMatchObject({
+      beforeData: { tenantId: tenantA, price: 120 },
+      inversePatch: { tenantId: tenantA },
+      patch: { tenantId: tenantB },
+      afterData: { tenantId: tenantB }
+    });
 
     const { error: deleteError } = await newMember.adapter.client.from('catalog_items').delete().eq('id', itemId);
     expect(deleteError).toBeNull();
 
     expect(await visible(newMember.adapter)).toEqual([`trigger:UPDATE:${tenantB}`, `trigger:DELETE:${tenantB}`]);
+    const [, deleted] = await newMember.adapter.getEntityHistory(CatalogItem, itemId);
+    expect(deleted).toMatchObject({ beforeData: { tenantId: tenantB, price: 120 }, afterData: null });
     expect(await visible(member.adapter)).toHaveLength(3);
   });
 });

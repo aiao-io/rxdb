@@ -6,7 +6,8 @@
 --   2. caller buckets：平台默认的 public 与 user:<uid> 之外，按成员关系补 tenant:<租户 id>
 --   3. 成员权限（US-234）：rxdb_caller_grants() 按成员行补 tenant:<租户 id>；管理员 = read + edit + manage，员工 = read。
 --      商品的写策略、远端变更历史的可见性都经 rxdb_caller_scopes 读它，三处同口径
---   4. 成员管理：自助加入只拿到 read，演示账号加入自己的默认租户时由服务端授予管理员；改权限只经 RPC
+--   4. 成员管理：自助加入只拿到 read，演示账号加入自己的默认租户时由服务端授予管理员；改权限与退出只经 RPC，
+--      两者守同一个「至少留一个管理员」
 --   5. 演示数据：两个租户、四个分类的公开商品与内部商品
 -- 由 docker/init-db.sh 与 CI 的 .github/actions/supabase 在 01～04 之后、生产权限脚本之前加载；幂等，
 -- 重复执行不覆盖已经改过的演示数据（成员权限也一样；要恢复初始商品见文末的 demo_catalog_reset）。
@@ -109,15 +110,14 @@ CREATE POLICY demo_tenant_members_read_own ON public.demo_tenant_members
 DROP POLICY IF EXISTS demo_tenant_members_join ON public.demo_tenant_members;
 CREATE POLICY demo_tenant_members_join ON public.demo_tenant_members
   FOR INSERT TO authenticated WITH CHECK (user_id = (SELECT auth.uid()));
+-- 退出不开放直接删行：唯一的管理员删掉自己的成员行，租户就没人能再调整成员权限了。退出只经下文的
+-- demo_leave_tenant，与改权限同一把租户锁、同一个「至少留一个管理员」
 DROP POLICY IF EXISTS demo_tenant_members_leave ON public.demo_tenant_members;
-CREATE POLICY demo_tenant_members_leave ON public.demo_tenant_members
-  FOR DELETE TO authenticated USING (user_id = (SELECT auth.uid()));
 -- 防自我提权：INSERT 只按列授予 tenant_id，不授予 UPDATE。自助加入写不到权限列，拿到的永远是缺省的 read；
 -- 改权限只经下文的 demo_set_member_permissions
 REVOKE ALL ON public.demo_tenant_members FROM anon, authenticated;
 GRANT SELECT ON public.demo_tenant_members TO anon, authenticated;
 GRANT INSERT (tenant_id) ON public.demo_tenant_members TO authenticated;
-GRANT DELETE ON public.demo_tenant_members TO authenticated;
 
 -- 调用者能读的区：public、自己的 user 区，加上所在租户的区。员工照样读得到本租户的区，没有成员行的身份与平台默认完全一致
 CREATE OR REPLACE FUNCTION public.rxdb_caller_buckets()
@@ -174,7 +174,8 @@ CREATE POLICY catalog_items_member_delete ON public.catalog_items
 
 -- 远端变更历史的可见性（US-229）：商品的历史只对它所属租户里有 edit 的成员开放，与上面三条写策略同一口径
 -- （按 tenantId，不看可见范围：公开商品的修改照样只给本租户能编辑的成员看）。员工看不到。其他实体交回平台默认。
--- 历史按每条记录时的行判定，商品换了租户之后，改动前的历史只对旧租户的成员可见
+-- 历史按每条记录时的行判定，商品换了租户之后，改动前的历史只对旧租户的成员可见；换租户那一条的前像
+-- 也按旧租户判（rxdb_entity_history 分开判两侧），新租户的成员只拿到改动后的一侧
 CREATE OR REPLACE FUNCTION public.rxdb_caller_can_edit(p_namespace text, p_entity text, p_row jsonb)
 RETURNS boolean
 LANGUAGE sql
@@ -191,23 +192,44 @@ $$;
 
 REVOKE ALL ON FUNCTION public.rxdb_caller_can_edit(text, text, jsonb) FROM PUBLIC, anon, authenticated;
 
+-- 租户至少留一个管理员（US-234）：p_user_id 失去 manage 之后（降权或退出），租户里还要有别的管理员。
+-- 改权限与退出共用；调用方先锁租户行，同一租户的这两种操作排队执行，同时互相降权、同时退出都不会一个都不剩
+CREATE OR REPLACE FUNCTION public.demo_assert_keeps_manager(p_tenant_id varchar, p_user_id uuid)
+RETURNS void
+LANGUAGE plpgsql
+STABLE
+SET search_path = pg_catalog, pg_temp
+AS $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM public.demo_tenant_members AS member
+    WHERE member.tenant_id = p_tenant_id AND member.user_id = p_user_id AND 'manage' = ANY(member.permissions)
+  ) AND NOT EXISTS (
+    SELECT 1
+    FROM public.demo_tenant_members AS other
+    WHERE other.tenant_id = p_tenant_id AND other.user_id <> p_user_id AND 'manage' = ANY(other.permissions)
+  ) THEN
+    RAISE EXCEPTION '不能撤掉或退出最后一个管理员：租户 % 至少要留一个管理员', p_tenant_id USING ERRCODE = 'check_violation';
+  END IF;
+END;
+$$;
+
 -- 改一个成员的权限（US-234）：调用者要在该租户有 manage；权限只能取六项、必须含 read（成员表的 CHECK 兜着）；
--- 不能撤掉最后一个管理员的 manage。先锁租户行：同一租户的改权限排队执行，两个管理员互相降权不会一个都不剩
+-- 不能撤掉最后一个管理员的 manage。先锁租户行：同一租户的改权限与退出排队执行
 CREATE OR REPLACE FUNCTION public.demo_set_member_permissions(p_tenant_id varchar, p_user_id uuid, p_permissions text[])
 RETURNS void
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = pg_catalog, pg_temp
 AS $$
-DECLARE
-  v_current text[];
 BEGIN
   PERFORM 1 FROM public.demo_tenants AS tenant WHERE tenant.id = p_tenant_id FOR UPDATE;
   IF NOT (('tenant:' || p_tenant_id) = ANY(public.rxdb_caller_scopes('manage'))) THEN
     RAISE EXCEPTION '只有租户 % 的管理员才能调整成员权限', p_tenant_id USING ERRCODE = 'insufficient_privilege';
   END IF;
 
-  SELECT member.permissions INTO v_current
+  PERFORM 1
   FROM public.demo_tenant_members AS member
   WHERE member.tenant_id = p_tenant_id AND member.user_id = p_user_id
   FOR UPDATE;
@@ -215,17 +237,32 @@ BEGIN
     RAISE EXCEPTION '用户 % 不是租户 % 的成员', p_user_id, p_tenant_id USING ERRCODE = 'no_data_found';
   END IF;
 
-  IF 'manage' = ANY(v_current) AND NOT ('manage' = ANY(p_permissions)) AND NOT EXISTS (
-    SELECT 1
-    FROM public.demo_tenant_members AS other
-    WHERE other.tenant_id = p_tenant_id AND other.user_id <> p_user_id AND 'manage' = ANY(other.permissions)
-  ) THEN
-    RAISE EXCEPTION '不能撤掉最后一个管理员：租户 % 至少要留一个管理员', p_tenant_id USING ERRCODE = 'check_violation';
+  IF NOT ('manage' = ANY(p_permissions)) THEN
+    PERFORM public.demo_assert_keeps_manager(p_tenant_id, p_user_id);
   END IF;
 
   UPDATE public.demo_tenant_members AS member
   SET permissions = p_permissions
   WHERE member.tenant_id = p_tenant_id AND member.user_id = p_user_id;
+END;
+$$;
+
+-- 退出租户（US-234）：删掉调用者自己的成员行。与改权限同一把租户锁、同一个不变量：最后一个管理员不能退出，
+-- 先把别人升为管理员再退。不是成员时什么都不做
+CREATE OR REPLACE FUNCTION public.demo_leave_tenant(p_tenant_id varchar)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+BEGIN
+  IF auth.uid() IS NULL THEN
+    RAISE EXCEPTION '退出租户要先登录' USING ERRCODE = 'insufficient_privilege';
+  END IF;
+  PERFORM 1 FROM public.demo_tenants AS tenant WHERE tenant.id = p_tenant_id FOR UPDATE;
+  PERFORM public.demo_assert_keeps_manager(p_tenant_id, auth.uid());
+  DELETE FROM public.demo_tenant_members AS member
+  WHERE member.tenant_id = p_tenant_id AND member.user_id = auth.uid();
 END;
 $$;
 
@@ -251,9 +288,12 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION public.demo_grant_initial_admin() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.demo_assert_keeps_manager(varchar, uuid) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.demo_set_member_permissions(varchar, uuid, text[]) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.demo_leave_tenant(varchar) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.demo_tenant_member_list(varchar) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.demo_set_member_permissions(varchar, uuid, text[]) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.demo_leave_tenant(varchar) TO authenticated;
 GRANT EXECUTE ON FUNCTION public.demo_tenant_member_list(varchar) TO authenticated;
 
 -- 演示数据：id 固定，重复执行只补缺的行，不覆盖演示过程中的修改

@@ -2,7 +2,7 @@
  * @fileoverview 本实例的授权快照（US-029）：状态、两种来源（应用设入 / 远端报告）、落库与读回。
  */
 
-import { BehaviorSubject, firstValueFrom, type Observable } from 'rxjs';
+import { BehaviorSubject, distinctUntilChanged, firstValueFrom, type Observable } from 'rxjs';
 import { getEntityAccessScope } from '../entity/entity-permissions.js';
 import { isNetworkError } from '../repository/network-error.js';
 import type { FindOptions } from '../repository/query-options.interface.js';
@@ -57,6 +57,13 @@ const snapshotOfRow = (row: RxDBGrantState): RxDBGrantSnapshot => {
   return RxDBGrantSnapshot.known(row.grants as readonly RxDBGrant[], row.source, new Date(row.updatedAt));
 };
 
+/** 取得时间的毫秒数；未取到为 0，比任何已取到的都早 */
+const takenAt = (snapshot: RxDBGrantSnapshot): number => snapshot.updatedAt?.getTime() ?? 0;
+
+/** `candidate` 比 `current` 旧：`current` 已取到，而 `candidate` 没取到或取得时间更早 */
+const isOlder = (candidate: RxDBGrantSnapshot, current: RxDBGrantSnapshot): boolean =>
+  current.status === 'known' && (candidate.status !== 'known' || takenAt(candidate) < takenAt(current));
+
 /**
  * 本实例的授权快照：调用者在各作用域上有哪些成员权限
  *
@@ -70,7 +77,11 @@ const snapshotOfRow = (row: RxDBGrantState): RxDBGrantSnapshot => {
  *   快照不跨库；离线关库重开，`connect()` 读回上次的快照，照样按它判定。远端在本地库之前连上时，那一次只发布、
  *   不落库，下一次刷新再落库。
  * - **离线**：远端连接时连不上远端，沿用上次的快照；远端没部署授权函数这类配置错误让连接失败。
- * - **事件**：{@link RxDBGrants.snapshot$} 只在内容变化时发出，同样的授权再设入一次不发。
+ * - **先后**：每次设入或刷新在开始时取一个取得时间，本实例里严格递增，且晚于已采用的快照；交错的两次按它定先后，
+ *   晚到的旧结果内存与本地库都不采用。比较在落库的事务里做：共享同一个本地库的另一个实例刚写下更新的一行时，
+ *   不改写它，内存采用库里那一份。
+ * - **事件**：{@link RxDBGrants.snapshot$} 只在内容变化时发出，同样的授权再设入一次不发；
+ *   {@link RxDBGrants.snapshot} 的取得时间照样推进。
  * - **多标签页**：快照是每个实例自己的，一个标签页设入不会推到别的标签页；各标签页各自设入或刷新。
  *
  * 判定只是快速失败，不是安全边界：远端刚发生的降权，本机在下一次刷新之前感知不到，那期间的写由远端在推送时拒绝。
@@ -86,12 +97,18 @@ const snapshotOfRow = (row: RxDBGrantState): RxDBGrantSnapshot => {
  * ```
  */
 export class RxDBGrants {
+  /** 最近采用的快照：内容不变的更新一份也换进来，取得时间才推进得了 */
   readonly #snapshot$ = new BehaviorSubject<RxDBGrantSnapshot>(RxDBGrantSnapshot.UNKNOWN);
 
   readonly #rxdb: RxDB;
 
+  /** 上一次发出的取得时间（毫秒） */
+  #lastTakenAt = 0;
+
   /** 当前快照：订阅时先交出当前值，之后只在内容变化时发出 */
-  readonly snapshot$: Observable<RxDBGrantSnapshot> = this.#snapshot$.asObservable();
+  readonly snapshot$: Observable<RxDBGrantSnapshot> = this.#snapshot$.pipe(
+    distinctUntilChanged((previous, next) => previous.equals(next))
+  );
 
   /** 当前快照，同步读取 */
   get snapshot(): RxDBGrantSnapshot {
@@ -114,11 +131,11 @@ export class RxDBGrants {
    *
    * @remarks
    * 写库失败时快照不变，错误原样抛出：快照与本地库里的那一行不能分叉，否则关库重开会回到另一份授权。
-   * 在 `connect()` 之后调用。
+   * 交错的两次设入后开始的那次胜出（见类说明的「先后」）。在 `connect()` 之后调用。
    */
   async set(grants: readonly RxDBGrant[]): Promise<void> {
     if (this.#rxdb.readOnly) throw new RxDBReadOnlyError('grants.set');
-    const updatedAt = new Date();
+    const updatedAt = this.#takeTime();
     const snapshot = RxDBGrantSnapshot.known(grants, 'app', updatedAt);
     if (this.#rxdb.config.sync.local?.adapter === undefined) {
       throw new RxDBError('授权快照要存进本地库，本实例没有配置本地适配器（sync.local.adapter）');
@@ -130,8 +147,10 @@ export class RxDBGrants {
       );
     }
     const adapter = await firstValueFrom(this.#rxdb.localAdapter$);
-    await adapter.transaction(executor => this.#write(executor, { source: 'app', grants: snapshot.grants, updatedAt }));
-    this.#publish(snapshot);
+    const adopted = await adapter.transaction(executor =>
+      this.#persist(executor, snapshot, { source: 'app', grants: snapshot.grants, updatedAt })
+    );
+    this.#adopt(adopted);
   }
 
   /**
@@ -149,7 +168,7 @@ export class RxDBGrants {
       executor => executor.getRepository(RxDBGrantState).find(STATE_BY_ID),
       false
     );
-    this.#publishIfNotOlder(row === undefined ? RxDBGrantSnapshot.UNKNOWN : snapshotOfRow(row));
+    this.#adopt(row === undefined ? RxDBGrantSnapshot.UNKNOWN : snapshotOfRow(row));
   }
 
   /**
@@ -187,24 +206,28 @@ export class RxDBGrants {
     }
   }
 
-  /** 内容变了才发：同样的授权再设入一次，判定与界面都不该被打扰 */
-  #publish(snapshot: RxDBGrantSnapshot): void {
-    if (!snapshot.equals(this.snapshot)) this.#snapshot$.next(snapshot);
-  }
-
   /**
-   * 不比内存里的旧才发布：内存里还没有，或这一份的取得时间不早于内存里的
+   * 采用不比内存里旧的一份：内存里还没有，或这一份的取得时间不早于内存里的
    *
    * @remarks
    * 两处会送来过时的快照：远端先于本地库连上时，那一次的远端快照只发布、还没落库，随后打开本地库读回的是更早的一份；
    * 两次刷新交错时，先开始（取得时间更早）的那次可能晚到。两处都不能拿更早的结果盖掉更新的。
+   * 内容不变的一份也换进来：取得时间推进了，夹在中间、晚到的旧结果才比得出来是旧的；事件由 {@link RxDBGrants.snapshot$} 按内容去重。
    */
-  #publishIfNotOlder(candidate: RxDBGrantSnapshot): void {
-    const current = this.snapshot;
-    const notOlder =
-      current.status === 'unknown' ||
-      (candidate.status === 'known' && Number(candidate.updatedAt) >= Number(current.updatedAt));
-    if (notOlder) this.#publish(candidate);
+  #adopt(candidate: RxDBGrantSnapshot): void {
+    if (!isOlder(candidate, this.snapshot)) this.#snapshot$.next(candidate);
+  }
+
+  /**
+   * 取一个取得时间：本实例里严格递增，且晚于已采用的快照
+   *
+   * @remarks
+   * 墙上时钟在同一毫秒里分不出先后，两次刷新就打平了；已采用的快照可能来自共享本地库的另一个实例，
+   * 它之后才开始的设入或刷新只会更新，不能因为本机时钟慢一点就被当成旧的。
+   */
+  #takeTime(): Date {
+    this.#lastTakenAt = Math.max(Date.now(), this.#lastTakenAt + 1, takenAt(this.snapshot) + 1);
+    return new Date(this.#lastTakenAt);
   }
 
   /** 有实体声明了作用域：只有这时才需要授权快照，远端才值得问 */
@@ -227,33 +250,51 @@ export class RxDBGrants {
    *
    * @remarks
    * 不等本地库连上：远端可能先连、甚至与本地并行连接，等待本地会让远端的 `connect()` 卡在一条还没开始的连接上。
-   * 取得时间记在问远端之前，交错的两次刷新按它比先后（见 `#publishIfNotOlder`）。
+   * 取得时间取在问远端之前，交错的两次刷新按它比先后（见 `#takeTime`）。
    */
   async #refreshFrom(remote: CallerGrantsReporter): Promise<void> {
     await this.#rxdb.assertCallerIdentity(remote);
-    const updatedAt = new Date();
+    const updatedAt = this.#takeTime();
     const snapshot = RxDBGrantSnapshot.known(await remote.callerGrants(), 'remote', updatedAt);
     const local = this.#rxdb.localAdapterIfConnected;
-    if (local) {
-      await local.transaction(executor =>
-        this.#write(executor, { source: 'remote', grants: snapshot.grants, updatedAt })
-      );
-    }
-    this.#publishIfNotOlder(snapshot);
+    const adopted =
+      local ?
+        await local.transaction(executor =>
+          this.#persist(executor, snapshot, { source: 'remote', grants: snapshot.grants, updatedAt })
+        )
+      : snapshot;
+    this.#adopt(adopted);
   }
 
-  /** 在调用方的事务里写那一行：有就改写，没有就新建 */
-  async #write(executor: TransactionExecutor, fields: GrantStateFields): Promise<void> {
+  /**
+   * 在调用方的事务里落库，返回这次事务采用的那一份
+   *
+   * @param executor - 所在事务
+   * @param snapshot - 要落库的快照
+   * @param fields - 它的三列
+   * @returns 库里那一行比它新时不改写，返回库里那一份；否则改写（没有就新建），返回它
+   *
+   * @remarks
+   * 比较放在事务里：共享同一个本地库的另一个实例可能刚写下更新的一行，事务之前比内存挡不住它。
+   */
+  async #persist(
+    executor: TransactionExecutor,
+    snapshot: RxDBGrantSnapshot,
+    fields: GrantStateFields
+  ): Promise<RxDBGrantSnapshot> {
     const repository = executor.getRepository(RxDBGrantState);
     const [existing] = await repository.find(STATE_BY_ID);
-    if (existing) {
-      await repository.update(existing, fields);
-      return;
+    if (existing === undefined) {
+      const row = Object.assign(this.#rxdb.entityManager.instantiate(RxDBGrantState), {
+        id: RXDB_GRANT_STATE_ID,
+        ...fields
+      });
+      await repository.create(row);
+      return snapshot;
     }
-    const row = Object.assign(this.#rxdb.entityManager.instantiate(RxDBGrantState), {
-      id: RXDB_GRANT_STATE_ID,
-      ...fields
-    });
-    await repository.create(row);
+    const stored = snapshotOfRow(existing);
+    if (isOlder(snapshot, stored)) return stored;
+    await repository.update(existing, fields);
+    return snapshot;
   }
 }

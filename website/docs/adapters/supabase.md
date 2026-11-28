@@ -277,7 +277,7 @@ $$;
 
 几条要点：
 
-- **防自我提权**：客户端不能写权限列。演示那样允许自助加入的，成员表的 `INSERT` 只按列授予作用域列（`GRANT INSERT (tenant_id) ON … TO authenticated`），不授予 `UPDATE`：PostgreSQL 的 INSERT 列权限只检查语句里写到的列，自助加入只写作用域列，权限取缺省的 `read`。改权限只经 `SECURITY DEFINER` 的 RPC，函数里校验调用者在该作用域有 `manage`，并拒绝撤掉最后一个有 `manage` 的成员；参考实现是 `apps/dev-rxdb-supabase/supabase/catalog-demo.sql` 的 `demo_set_member_permissions`（先锁租户行，两个管理员同时互相降权也不会一个都不剩）。
+- **防自我提权**：客户端不能写权限列。演示那样允许自助加入的，成员表的 `INSERT` 只按列授予作用域列（`GRANT INSERT (tenant_id) ON … TO authenticated`），不授予 `UPDATE`：PostgreSQL 的 INSERT 列权限只检查语句里写到的列，自助加入只写作用域列，权限取缺省的 `read`。改权限只经 `SECURITY DEFINER` 的 RPC，函数里校验调用者在该作用域有 `manage`，并拒绝撤掉最后一个有 `manage` 的成员；参考实现是 `apps/dev-rxdb-supabase/supabase/catalog-demo.sql` 的 `demo_set_member_permissions`（先锁租户行，两个管理员同时互相降权也不会一个都不剩）。允许成员自己退出的，退出同样只经 `SECURITY DEFINER` 的 RPC、守同一个不变量（演示的 `demo_leave_tenant`），成员表不授 `DELETE`：唯一的管理员直接删掉自己的成员行，作用域就没人能再管成员了。
 - **权限放在成员表，不放 JWT**：权限按作用域算，塞进令牌的 `app_metadata` 不自然；令牌里的角色要等刷新才生效，成员表改了下一次请求就生效。
 - **员工的列可见范围**：列权限按数据库角色授予，员工与管理员都是 `authenticated`，分不出人。员工读得到本租户行的全部列（演示里的成本价也一样）；按人隐藏列要改走视图或 RPC。
 - **降权后推送被拒**：降权之前在本机改下、还没推送的修改，推送时 UPDATE 改到零行而行还在，报 `42501`，回执为被拒，本机按远端对齐，见[被拒的推送](../plugins/rxdb-plugin-sync/README.md#被拒的推送)。客户端在连接时、每次拉取与改了成员关系之后读一次 `rpc('rxdb_caller_grants')`，两次读之间界面上可能还是旧权限，以推送时服务端的裁决为准。撤销、重做不按权限禁用：员工本来写不出修改，撤掉降权之前的修改正好让本机回到远端的样子。
@@ -820,7 +820,7 @@ VALUES (
 );
 ```
 
-外键按属性名排序拼接，uuid 写成小写（`uuid::text` 本就是小写）；`uuid_generate_v5` 来自 Supabase 默认装在 `extensions` schema 的 `uuid-ossp`。不带 `id` 直写时取 `gen_random_uuid()`，只适合客户端不会再关联的那些对。已有的随机 id 关联行怎么处理见[迁移说明](../migration/many-to-many-junction-id.md)。
+外键按属性名排序拼接，uuid 写成小写（`uuid::text` 本就是小写）；`uuid_generate_v5` 来自 Supabase 默认装在 `extensions` schema 的 `uuid-ossp`。两端是文本主键时，每个值先转义 `%` 与 `|`，与客户端同一规则：`replace(replace("categoriesId", '%', '%25'), '|', '%7C')`；uuid 与数字不含这两个字符，上面的写法照用。不带 `id` 直写时取 `gen_random_uuid()`，只适合客户端不会再关联的那些对。已有的随机 id 关联行怎么处理见[迁移说明](../migration/many-to-many-junction-id.md)。
 
 ## 远端变更历史
 
@@ -846,6 +846,7 @@ VALUES (
 
 - 只返回调用者**当前**能编辑的行的历史，由 `rxdb_caller_can_edit` 判定；判否的条目不返回，也不报错。
 - 判定用每条历史记录时的行（`afterData`，删除取 `beforeData`）。一行从租户 1 改到租户 2 之后，改动前的历史只对租户 1 的成员可见，改动后的只对租户 2 的成员可见；行删掉之后，它的历史照样按删除前的行开放。
+- 一条修改的前像另判一次：换租户的那一条记在租户 2，它的 `beforeData` 与 `inversePatch` 是租户 1 的旧行。调用者不能编辑改动前的行时，这两个字段为 `null`，只交回改动后的一侧（`afterData` 与 `patch`）；两个租户都能编辑的成员两侧都看得到。
 - 四个正文字段逐列按调用者角色的列 `SELECT` 权限脱敏：没有列权限的列在哪个正文字段里都不出现。
 - 按 `id` 升序（即写入顺序）分页，一页 1～1000 条，默认 100 条。
 

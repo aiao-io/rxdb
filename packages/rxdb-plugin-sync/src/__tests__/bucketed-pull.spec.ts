@@ -19,6 +19,7 @@ import { RxDBBucketCleanupBlockedError } from '../bucket-cleanup-blocked-error.j
 import { pullBucketedRepositoryIfSupported } from '../bucketed-pull.js';
 import { RemoteBackendMismatchError } from '../remote-backend.js';
 import { RxDBSyncBucketProgress, RxDBSyncBucketRow } from '../scoped-sync.entity.js';
+import { filterFingerprint } from '../scoped-sync.js';
 import type { SyncManager } from '../SyncManager.js';
 
 @Entity({
@@ -771,6 +772,189 @@ describe('bucketed pull', () => {
       expect(result?.failures.map(failure => failure.error.message)).toEqual(['disk I/O error']);
       expect(harness.entities.find(item => item['id'] === 'p')?.['value']).toBe('updated');
       expect(harness.progress.map(item => item.bucket).sort()).toEqual(['public', 'tenant:1']);
+    });
+  });
+
+  /** 快照替身：按条件筛、按 id 翻页，与参考 SQL 同语义 */
+  const snapshotOf =
+    (rows: Record<string, unknown>[]) =>
+    async (
+      _namespace: string,
+      _entity: string,
+      _bucket: string,
+      filter: RuleGroup | undefined,
+      afterId: string | null,
+      limit: number
+    ) =>
+      snapshotPage(filter ? rows.filter(item => matchesFilter(item, filter)) : rows, afterId, limit);
+
+  /** 两行都满足的另一条规则：换了规则指纹，范围不变 */
+  const anyValue: RuleGroup = { combinator: 'and', rules: [{ field: 'value', operator: '!=', value: 'none' }] };
+
+  // 评审 F3：撤销边界只认已提交的改写，分区路径中途失败、清理退出的分区时都要如实交回
+  describe('已提交的改写如实交回（撤销边界）', () => {
+    it('快照第二页失败：第一页已经落库，照样计入 applied、作废撤销边界，失败原样记下', async () => {
+      const harness = createHarness({
+        buckets: ['public'],
+        snapshotRows: { public: [row('one'), row('two')] },
+        changes: {},
+        snapshotPoint: 1
+      });
+      const failure = new Error('network down');
+      harness.adapter.pullBucketSnapshot
+        .mockImplementationOnce(snapshotOf([row('one'), row('two')]))
+        .mockRejectedValueOnce(failure);
+
+      const result = await pull(harness, undefined, 1);
+
+      expect(result).toMatchObject({ pulled: 1, applied: 1, historyInvalidated: true, hasMore: true });
+      expect(result?.failures.map(item => item.error)).toEqual([failure]);
+      expect(harness.entities.map(item => item['id'])).toEqual(['one']);
+    });
+
+    it('增量第二页失败：快照与第一页增量已经落库，照样计入', async () => {
+      const second = createChange(2, 'one', 'UPDATE', { value: 'v2' }, row('one'), row('one'));
+      const harness = createHarness({
+        buckets: ['public'],
+        snapshotRows: { public: [row('one')] },
+        changes: {},
+        snapshotPoint: 1
+      });
+      const failure = new Error('network down');
+      harness.adapter.pullBucketChanges.mockResolvedValueOnce([second]).mockRejectedValueOnce(failure);
+
+      const result = await pull(harness, undefined, 1);
+
+      expect(result).toMatchObject({ applied: 2, historyInvalidated: true, hasMore: true });
+      expect(result?.failures.map(item => item.error)).toEqual([failure]);
+      expect(harness.entities).toEqual([{ ...row('one'), value: 'v2' }]);
+      expect(harness.progress[0]).toMatchObject({ cursor: 2, snapshotComplete: true });
+    });
+
+    it('撤销一个已同步的分区：删掉的本地行算作改写，作废撤销边界', async () => {
+      const harness = createHarness({
+        buckets: ['public', 'tenant:1'],
+        snapshotRows: { public: [row('p')], 'tenant:1': [row('t1')] },
+        changes: {},
+        snapshotPoint: 1
+      });
+      await pull(harness);
+
+      harness.adapter.getCallerBuckets.mockResolvedValue(['public']);
+      const revoked = await pull(harness);
+
+      expect(revoked).toMatchObject({ applied: 1, historyInvalidated: true, failures: [] });
+      expect(harness.entities.map(item => item['id'])).toEqual(['p']);
+    });
+
+    it('撤销的分区只清掉一部分：删掉的照样算，被引用留下的记一条失败', async () => {
+      const harness = createHarness({
+        buckets: ['public', 'tenant:1'],
+        snapshotRows: { public: [row('p')], 'tenant:1': [row('t1'), row('t2')] },
+        changes: {},
+        snapshotPoint: 1
+      });
+      await pull(harness);
+      harness.children.push({ id: 'c1', note: 'order line', itemId: 't1' });
+
+      harness.adapter.getCallerBuckets.mockResolvedValue(['public']);
+      const revoked = await pull(harness);
+
+      expect(revoked).toMatchObject({ applied: 1, historyInvalidated: true });
+      expect(revoked?.failures.map(item => item.error)).toEqual([expect.any(RxDBBucketCleanupBlockedError)]);
+      expect(harness.entities.map(item => item['id']).sort()).toEqual(['p', 't1']);
+    });
+  });
+
+  // 评审 F4：「这一页拉完了」不等于「新规则的范围已经覆盖旧规则」，旧指纹按每个分区持久化的快照完成状态退役
+  describe('换了同步规则：新规则的快照拉完才退役旧规则的作用域', () => {
+    it('分页补新快照：只拉了一页时旧范围里仍匹配的行一行不少，拉完才退役旧规则', async () => {
+      const harness = createHarness({
+        buckets: ['public'],
+        snapshotRows: { public: [row('one'), row('two')] },
+        changes: {},
+        snapshotPoint: 1
+      });
+      await pull(harness, activeFilter, 10);
+
+      const first = await pull(harness, anyValue, 1, false);
+
+      expect(first).toMatchObject({ hasMore: true });
+      expect(harness.entities.map(item => item['id']).sort()).toEqual(['one', 'two']);
+      expect(harness.progress.map(item => item.filterFingerprint)).toContain(filterFingerprint(activeFilter));
+
+      await pull(harness, anyValue, 1, false);
+      const last = await pull(harness, anyValue, 1, false);
+
+      expect(last).toMatchObject({ hasMore: false });
+      expect(harness.entities.map(item => item['id']).sort()).toEqual(['one', 'two']);
+      expect(harness.progress.map(item => item.filterFingerprint)).toEqual([filterFingerprint(anyValue)]);
+    });
+
+    it('多个分区完成进度不同：拉完新快照的分区先退役旧规则，没拉完的旧规则留着', async () => {
+      const harness = createHarness({
+        buckets: ['public', 'tenant:1'],
+        snapshotRows: { public: [row('p')], 'tenant:1': [row('t1'), row('t2')] },
+        changes: {},
+        snapshotPoint: 1
+      });
+      await pull(harness, activeFilter, 10);
+      const oldFingerprint = filterFingerprint(activeFilter);
+      const oldScopes = () =>
+        harness.progress.filter(item => item.filterFingerprint === oldFingerprint).map(item => item.bucket);
+
+      await pull(harness, anyValue, 1, false);
+      expect(oldScopes().sort()).toEqual(['public', 'tenant:1']);
+      expect(harness.entities.map(item => item['id']).sort()).toEqual(['p', 't1', 't2']);
+
+      await pull(harness, anyValue, 1, false);
+      expect(oldScopes()).toEqual(['tenant:1']);
+      expect(harness.entities.map(item => item['id']).sort()).toEqual(['p', 't1', 't2']);
+
+      await pull(harness, anyValue, 1, false);
+      expect(oldScopes()).toEqual([]);
+      expect(harness.entities.map(item => item['id']).sort()).toEqual(['p', 't1', 't2']);
+    });
+
+    it('新规则确实排除了旧行：新快照拉完之后才删掉它', async () => {
+      const harness = createHarness({
+        buckets: ['public'],
+        snapshotRows: { public: [row('active', true), row('inactive', false)] },
+        changes: {},
+        snapshotPoint: 1
+      });
+      await pull(harness, undefined, 10);
+
+      await pull(harness, activeFilter, 1, false);
+      expect(harness.entities.map(item => item['id']).sort()).toEqual(['active', 'inactive']);
+
+      await pull(harness, activeFilter, 1, false);
+      expect(harness.entities.map(item => item['id'])).toEqual(['active']);
+    });
+
+    it('补新快照中途失败：那一轮不退役旧规则，下一次接着拉完再退役', async () => {
+      const harness = createHarness({
+        buckets: ['public'],
+        snapshotRows: { public: [row('one'), row('two')] },
+        changes: {},
+        snapshotPoint: 1
+      });
+      await pull(harness, activeFilter, 10);
+      harness.adapter.pullBucketSnapshot
+        .mockImplementationOnce(snapshotOf([row('one'), row('two')]))
+        .mockRejectedValueOnce(new Error('offline'));
+
+      const interrupted = await pull(harness, anyValue, 1);
+
+      expect(interrupted?.failures).toHaveLength(1);
+      expect(harness.entities.map(item => item['id']).sort()).toEqual(['one', 'two']);
+      expect(harness.progress.map(item => item.filterFingerprint)).toContain(filterFingerprint(activeFilter));
+
+      const resumed = await pull(harness, anyValue, 1);
+
+      expect(resumed?.failures).toEqual([]);
+      expect(harness.entities.map(item => item['id']).sort()).toEqual(['one', 'two']);
+      expect(harness.progress.map(item => item.filterFingerprint)).toEqual([filterFingerprint(anyValue)]);
     });
   });
 });

@@ -423,4 +423,27 @@ describe('countPendingByRepository（US-236）', () => {
     expect(round.remote.getChangeCount).toHaveBeenCalledTimes(10);
     expect(peak).toBe(4);
   });
+
+  // 评审 F6：远端日志删掉了本库推上去的一条、只剩别人的一条。盲减本库推上去的 id 个数会抵掉别人的那一条，
+  // 单仓报「已全部同步」而一次数完报 1；两个入口都要按远端实际存在的 id 排除
+  it('远端日志删掉了本库推上去的那条：单仓与一次数完都数出别人的那一条', async () => {
+    const trimmed: Scenario = {
+      ...MIXED,
+      entities: [Todo],
+      records: [syncRecord('PendingTodo', 10)],
+      own: [{ namespace: 'public', entity: 'PendingTodo', branchId: 'main', remoteId: 12 }],
+      log: [row(11, 'PendingTodo')]
+    };
+    const round = createRound(trimmed, 'batch');
+
+    const counts = await countPendingByRepository(round.rxdb, round.metadatas);
+    const single = await checkRepositoryUpdates(round.rxdb, 'public', 'PendingTodo');
+
+    expect(counts.get('public:PendingTodo')).toBe(1);
+    expect(single).toMatchObject({ pendingCount: 1, hasUpdates: true, remoteLatestChangeId: 11 });
+    expect(round.remote.countPendingChanges).toHaveBeenLastCalledWith(
+      [{ namespace: 'public', entity: 'PendingTodo', bucket: null, afterId: 10, excludeIds: [12] }],
+      ['main']
+    );
+  });
 });

@@ -120,6 +120,11 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('租户内成员权限（US-234�
     return (await grantsOf(client(user))).find(grant => grant.scope === `tenant:${tenant}`)?.permissions;
   }
 
+  /** 退出本轮租户：成员表不授 DELETE，退出只经 RPC（与改权限同一把租户锁、同一个「至少留一个管理员」） */
+  function leave(remote: SupabaseClient) {
+    return remote.rpc('demo_leave_tenant', { p_tenant_id: tenant });
+  }
+
   function setPermissions(caller: string, target: string, permissions: string[]) {
     return client(caller).rpc('demo_set_member_permissions', {
       p_tenant_id: tenant,
@@ -265,8 +270,7 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('租户内成员权限（US-234�
     const grants = await grantsOf(account);
     expect(grants).toContainEqual({ scope: `tenant:${otherTenant}`, permissions: ADMIN });
     expect(grants).toContainEqual({ scope: `tenant:${tenant}`, permissions: STAFF });
-    const { error: leaveError } = await account.from('demo_tenant_members').delete().eq('tenant_id', tenant);
-    expect(leaveError).toBeNull();
+    expect((await leave(account)).error).toBeNull();
   });
 
   it('AC#3：员工与非成员经 REST 新建本租户商品报 42501，修改、删除零行、远端不变；anon 没有写权限；管理员全部成功', async () => {
@@ -393,8 +397,7 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('租户内成员权限（US-234�
     expect(joinError).toBeNull();
     // 用完退出：后面的用例按「本租户只有管理员与员工 X」断言成员列表
     onTestFinished(async () => {
-      const { error } = await client(promoted).from('demo_tenant_members').delete().eq('tenant_id', tenant);
-      expect(error).toBeNull();
+      expect((await leave(client(promoted))).error).toBeNull();
     });
     expect((await setPermissions(admin, promoted, ADMIN)).error).toBeNull();
     const [kept] = await seed(row('offline-demoted', 'tenant'));
@@ -488,5 +491,18 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('租户内成员权限（US-234�
 
     expect(error?.message).toContain('最后一个管理员');
     expect(await tenantPermissions(staff)).toEqual(ADMIN);
+  });
+
+  // 评审 F7：退出与改权限守同一个不变量。接着上一条：X 是唯一的管理员，Bob 已是员工
+  it('AC#8：最后一个管理员也不能退出租户，员工照常退出；成员表不能直接删行', async () => {
+    const direct = await client(staff).from('demo_tenant_members').delete().eq('tenant_id', tenant);
+    expect(direct.error?.code).toBe('42501');
+
+    const { error } = await leave(client(staff));
+
+    expect(error?.message).toContain('最后一个管理员');
+    expect(await tenantPermissions(staff)).toEqual(ADMIN);
+    expect((await leave(client(admin))).error).toBeNull();
+    expect(await tenantPermissions(admin)).toBeUndefined();
   });
 });

@@ -40,6 +40,9 @@ const SOURCE_LABELS: Readonly<Record<SupabaseEntityHistoryItem['source'], string
 
 const VISIBILITY_LABELS: Readonly<Record<string, string>> = { public: '公开', tenant: '仅租户内部' };
 
+/** 改动前的值调用者看不到：服务端只交回修改后的一侧（这件商品是从别的租户换进来的） */
+const HIDDEN_BEFORE = '（看不到）';
+
 function display(field: string, value: unknown): string {
   if (value === undefined || value === null) return '—';
   if (field === 'visibility') return VISIBILITY_LABELS[String(value)] ?? String(value);
@@ -51,10 +54,21 @@ function display(field: string, value: unknown): string {
  *
  * @param entry - 读取 RPC 交回的一条历史
  * @returns 按商品字段顺序排列的变化；值相同的字段不列
+ *
+ * @remarks
+ * 修改的前像不归调用者时（`beforeData` 为 `null`），改了哪些字段看 `patch`，改之前一律显示看不到。
  */
 export function historyChanges(entry: SupabaseEntityHistoryItem): HistoryFieldChange[] {
-  const before = entry.beforeData ?? {};
   const after = entry.afterData ?? {};
+  if (entry.type === 'UPDATE' && entry.beforeData === null) {
+    const patch = entry.patch ?? {};
+    return FIELD_LABELS.filter(([field]) => field in patch).map(([field, label]) => ({
+      label,
+      before: HIDDEN_BEFORE,
+      after: display(field, after[field])
+    }));
+  }
+  const before = entry.beforeData ?? {};
   return FIELD_LABELS.flatMap(([field, label]) => {
     const previous = display(field, before[field]);
     const next = display(field, after[field]);

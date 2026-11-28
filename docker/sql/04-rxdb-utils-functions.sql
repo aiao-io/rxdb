@@ -1810,6 +1810,8 @@ $$;
 -- 历史表只经本节的 rxdb_entity_history 读取：只返回调用者**当前**能编辑的行的历史，四个正文字段逐列按
 -- 调用者的列权限脱敏。可见性按每条历史记录时的行判定（afterData，删除取 beforeData），所以一行换了租户之后，
 -- 改动前的历史只对旧租户的成员可见；行删掉之后，它的历史照样按删除前的行开放。
+-- 一条修改的两侧分开判：换租户那一条记在新租户，调用者不能编辑改动前的行时，前像 beforeData 与逆补丁
+-- inversePatch 是旧租户的内容，交回 NULL，只留改动后的一侧（afterData 与 patch）。
 
 -- 平台默认的编辑权限判定：未分区实体看调用者角色对业务表有没有 UPDATE 权限；分区实体只认调用者自己的
 -- user:<auth.uid()> 区，公开区与别人的区默认谁都不能编辑。调用者角色取 JWT 的 role，取不到（没有会话的直连）一律判否
@@ -1875,8 +1877,9 @@ $$;
  * rxdb_entity_history - 读一行的远端变更历史（US-229）
  *
  * SECURITY DEFINER：客户端对 rxdb_change_history 没有任何权限。每条历史按记录时的行交给
- * rxdb_caller_can_edit 判定调用者当前能否编辑，判否的不返回；正文按调用者角色的列权限逐列脱敏，
- * 业务表已经不在时一条都不返回。按 id 升序（即写入顺序）分页。
+ * rxdb_caller_can_edit 判定调用者当前能否编辑，判否的不返回；修改的前像再判一次，判否时
+ * beforeData 与 inversePatch 为 NULL。正文按调用者角色的列权限逐列脱敏，业务表已经不在时一条都不返回。
+ * 按 id 升序（即写入顺序）分页。
  *
  * @param p_namespace 实体命名空间（业务表所在的 schema）
  * @param p_entity 实体名（rxdb_enable_sync_for_table 登记的名字）
@@ -1952,8 +1955,8 @@ BEGIN
     history.bucket::text,
     history.type::text,
     public.rxdb_jsonb_pick(history.patch, v_columns),
-    public.rxdb_jsonb_pick(history."inversePatch", v_columns),
-    public.rxdb_jsonb_pick(history."beforeData", v_columns),
+    CASE WHEN before_side.visible THEN public.rxdb_jsonb_pick(history."inversePatch", v_columns) END,
+    CASE WHEN before_side.visible THEN public.rxdb_jsonb_pick(history."beforeData", v_columns) END,
     public.rxdb_jsonb_pick(history."afterData", v_columns),
     history.actor,
     history.role::text,
@@ -1963,6 +1966,11 @@ BEGIN
     history."branchId"::text,
     history."createdAt"
   FROM public.rxdb_change_history AS history
+  -- 前像另判：删除按前像开放，前像就是判定的那一行；修改只在调用者也能编辑改动前的行时交出前像与逆补丁
+  CROSS JOIN LATERAL (
+    SELECT history."afterData" IS NULL
+      OR public.rxdb_caller_can_edit(history.namespace, history.entity, history."beforeData") IS TRUE AS visible
+  ) AS before_side
   WHERE history.namespace = p_namespace
     AND history.entity = p_entity
     AND history."entityId" = p_entity_id

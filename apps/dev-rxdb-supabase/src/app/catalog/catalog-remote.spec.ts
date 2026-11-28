@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   fetchTenantItems,
   fetchTenantMembers,
+  leaveTenant,
   setMemberPermissions,
   updateItem,
   type CatalogRemoteClient
@@ -69,6 +70,18 @@ describe('成员权限（US-234）', () => {
     await expect(setMemberPermissions(rejected.client, 'jiguang', 'u-bob', ['read'])).rejects.toThrow(
       '不能撤掉最后一个管理员'
     );
+  });
+
+  it('退出租户只经 demo_leave_tenant，不直接删成员行；最后一个管理员被拒时原样报出', async () => {
+    const accepted = fakeClient({ data: null, error: null });
+    await leaveTenant(accepted.client, 'jiguang');
+    expect(accepted.calls).toEqual([['rpc', ['demo_leave_tenant', { p_tenant_id: 'jiguang' }]]]);
+
+    const rejected = fakeClient({
+      data: null,
+      error: { message: '不能撤掉或退出最后一个管理员：租户 jiguang 至少要留一个管理员' }
+    });
+    await expect(leaveTenant(rejected.client, 'jiguang')).rejects.toThrow('最后一个管理员');
   });
 });
 

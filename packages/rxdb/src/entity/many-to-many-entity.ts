@@ -56,13 +56,16 @@ export interface JunctionEndpointKey {
  *
  * @param junction - 中间表实体的命名空间与名字
  * @param endpoints - 两端的外键与主键，顺序无关
- * @returns uuid v5：名字是 `rxdb-junction:v1:<namespace>.<中间表名>|<外键>=<主键>|<外键>=<主键>`，外键按属性名排序
+ * @returns uuid v5：名字是 `rxdb-junction:v1:<namespace>.<中间表名>|<外键>=<主键>|<外键>=<主键>`，外键按属性名排序，
+ *   主键里的 `%` 与 `|` 先转义成 `%25`、`%7C`
  * @throws {RxDBError} 任一端没有主键，或两端的外键同名
  *
  * @remarks
  * 同一对数据不管从哪一端关联、在哪个客户端关联、取消之后重新关联，都得到同一个 id：
  * 两个客户端并发关联同一对只落成远端的一行，推送不会撞成对唯一约束。
  * uuid 主键转小写：PGlite 按 `uuid` 存、SQLite 按区分大小写的 TEXT 存，大小写不同的同一个 uuid 不能算成两对。
+ * 主键转义：分隔符原样出现在字符串主键里时，`('a|orderItemsId=b', 'c')` 与 `('a', 'b|orderItemsId=c')` 拼出同一段名字；
+ * 转义之后名字里的 `|` 只剩分隔符，不同的两对不会撞上。不含这两个字符的主键（uuid、数字）名字逐字不变。
  * 服务端自己写关联行时用同一个公式（Postgres：`extensions.uuid_generate_v5(命名空间, 名字)`），见 Supabase 适配器文档。
  *
  * @example
@@ -90,7 +93,7 @@ export function junctionEntityId(
   ) as UUID;
 }
 
-/** 一端主键参与派生的文本：uuid 转小写，数字与 bigint 取十进制文本 */
+/** 一端主键参与派生的文本：uuid 转小写，数字与 bigint 取十进制文本；`%` 与 `|` 转义，名字里的 `|` 只剩分隔符 */
 function endpointIdText(junction: JunctionName, endpoint: JunctionEndpointKey): string {
   const { id } = endpoint as { id: RxDBEntityId | null | undefined };
   if (id === null || id === undefined || id === '') {
@@ -98,8 +101,8 @@ function endpointIdText(junction: JunctionName, endpoint: JunctionEndpointKey): 
       `中间表 ${junction.namespace}.${junction.name} 的 ${endpoint.foreignKey} 一端没有主键：先给两端实体定好 id 再关联`
     );
   }
-  const text = String(id);
-  return endpoint.uuid ? text.toLowerCase() : text;
+  const text = endpoint.uuid ? String(id).toLowerCase() : String(id);
+  return text.replaceAll('%', '%25').replaceAll('|', '%7C');
 }
 
 /**

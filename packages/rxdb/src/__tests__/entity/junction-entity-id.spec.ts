@@ -76,6 +76,31 @@ describe('junctionEntityId（US-228）', () => {
     );
   });
 
+  // 评审 F5：主键原样拼进名字时，`|<外键>=` 出现在主键里就分不清两端的边界，两对不同的数据算出同一个 id。
+  // 下面的黄金向量由 Postgres `extensions.uuid_generate_v5` 按文档里带 `replace` 的服务端公式算出
+  describe('主键里带分隔符', () => {
+    const pair = (category: string, orderItem: string) =>
+      junctionEntityId(SHOP_JUNCTION, [
+        { foreignKey: 'categoriesId', id: category, uuid: false },
+        { foreignKey: 'orderItemsId', id: orderItem, uuid: false }
+      ]);
+
+    it('两对不同的端点拼出同一段文本时也得到两个 id：主键里的 % 与 | 先转义', () => {
+      expect(pair('a|orderItemsId=b', 'c')).toBe('a89682a8-7fb6-563a-9113-0fcd45dc9a19');
+      expect(pair('a', 'b|orderItemsId=c')).toBe('18deedb3-5844-52fb-a96a-12df7ad377e6');
+      expect(pair('100%', 'c')).toBe('e0f6fc7b-f066-5c54-a348-a9f37f5eafdd');
+    });
+
+    it('转义本身不撞：字面的 %7C、%25 与原字符是不同的主键', () => {
+      expect(pair('a%7C', 'c')).not.toBe(pair('a|', 'c'));
+      expect(pair('a%25', 'c')).not.toBe(pair('a%', 'c'));
+    });
+
+    it('不含 % 与 | 的主键名字逐字不变：已经落库的关联行不用迁移', () => {
+      expect(pair('a', 'c')).toBe('febd125d-756f-50ef-967e-53064e5c320b');
+    });
+  });
+
   it('缺任一端的 id、或两端外键同名时直接抛错，不拿残缺的名字去算', () => {
     const [category] = ends(CATEGORY, ORDER_ITEM);
     for (const id of [undefined, null, '']) {

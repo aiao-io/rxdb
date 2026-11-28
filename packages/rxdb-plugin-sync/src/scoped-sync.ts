@@ -184,6 +184,17 @@ export function scopedStatusAdapterOf(adapter: object): ScopedStatusAdapter | un
 }
 
 /**
+ * 远端能一次数完待拉数时的那一面（US-236）
+ *
+ * @param adapter - 远端适配器
+ * @returns 实现了 {@link PendingChangeCountAdapter} 时是它自己，否则 `undefined`
+ */
+export function pendingCountAdapterOf(adapter: object): PendingChangeCountAdapter | undefined {
+  const candidate = adapter as Partial<PendingChangeCountAdapter>;
+  return typeof candidate.countPendingChanges === 'function' ? (candidate as PendingChangeCountAdapter) : undefined;
+}
+
+/**
  * 问齐一批实体在远端的登记信息（US-236）
  *
  * @param adapter - 支持按区同步的远端适配器
@@ -226,9 +237,13 @@ export interface PendingChangeProbe {
  * 一次数清多个仓库待拉数的远端适配器（US-236），可选能力
  *
  * @remarks
- * 实现了它，同步状态统计一轮只问一次远端；没实现时逐个探针用 `getChangeCount` 与
- * {@link ScopedSyncAdapter.getBucketChangeCount} 数，有并发上限。两条路的口径相同：游标之后、给定分支上、
+ * 实现了它，同步状态统计一轮只问一次远端，单仓的 `checkRepositoryUpdates` 也经它数未分区日志；没实现时逐个探针用
+ * `getChangeCount` 与 {@link ScopedSyncAdapter.getBucketChangeCount} 数，有并发上限。口径相同：游标之后、给定分支上、
  * 不是本库推上去的变更；分区此刻已不属于调用者时数出 0。
+ *
+ * 只有它与 `getBucketChangeCount` 能按远端实际存在的 id 排除本库推上去的变更。没实现时未分区日志只能拿总数减去
+ * 本库推上去的 id 个数：远端日志删掉了其中几条（运维裁剪、重新登记时的清理）就会少数、把别人的变更抵掉。
+ * 日志会被裁剪的远端应当实现它。
  */
 export interface PendingChangeCountAdapter {
   /**

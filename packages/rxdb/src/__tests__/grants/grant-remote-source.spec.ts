@@ -5,7 +5,8 @@
  *    没有声明作用域的实体时远端一次都不问；
  * 2. `refresh()`：先核对身份再问远端；本地已连上就写进本地库，没连上只发布；
  * 3. 远端连接时刷新一次：连不上远端（离线）沿用上次的快照，远端缺函数等配置错误让连接失败；
- * 4. 本地读回不拿旧行盖掉更新的远端快照。
+ * 4. 本地读回不拿旧行盖掉更新的远端快照；
+ * 5. 交错的刷新：后开始的那次胜出，内存与本地库里的那一行都不被先开始、晚到的那次盖掉（同一毫秒、内容相同也一样）。
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -42,6 +43,9 @@ const REMOTE_GRANTS: RxDBGrant[] = [
   { scope: 'tenant:a', permissions: ['read', 'edit'] },
   { scope: 'tenant:b', permissions: ['read'] }
 ];
+
+/** 降权之后：tenant:a 只剩 read */
+const READ_ONLY: RxDBGrant[] = [{ scope: 'tenant:a', permissions: ['read'] }];
 
 type RemoteMock = MockLocalAdapter & {
   callerGrants?: ReturnType<typeof vi.fn<() => Promise<readonly RxDBGrant[]>>>;
@@ -278,5 +282,120 @@ describe('本地读回不盖掉更新的远端快照', () => {
     await rxdb.grants.load(local);
 
     expect(rxdb.grants.snapshot).toBe(fresh);
+  });
+});
+
+/** 让替身仓库记住写下的那一行：读回与改写都落在返回的数组上，像真的本地库一样 */
+const persistent = (local: MockLocalAdapter, rows: RxDBGrantState[] = []): RxDBGrantState[] => {
+  const state = local.stubEntityRepository(RxDBGrantState, rows);
+  vi.mocked(state.create).mockImplementation(async row => {
+    rows.push(row as RxDBGrantState);
+    return row;
+  });
+  vi.mocked(state.update).mockImplementation(async (row, fields) => Object.assign(row, fields));
+  return rows;
+};
+
+/** 第一次问远端挂起、第二次立即交回 `second`；返回放行第一次的函数 */
+const interleave = (remote: RemoteMock, second: readonly RxDBGrant[]) => {
+  let releaseFirst!: (grants: readonly RxDBGrant[]) => void;
+  remote.callerGrants
+    ?.mockImplementationOnce(() => new Promise(resolve => (releaseFirst = resolve)))
+    .mockImplementationOnce(async () => second);
+  return (grants: readonly RxDBGrant[]) => releaseFirst(grants);
+};
+
+describe('交错的刷新：后开始的那次胜出', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('先开始的那次晚到：本地库里那一行也不被它改写，离线重开读回的是后一次', async () => {
+    const { rxdb, local, remote } = setup();
+    const rows = persistent(local);
+    await rxdb.connect('sqlite');
+    const releaseFirst = interleave(remote, READ_ONLY);
+
+    const first = rxdb.grants.refresh();
+    await vi.waitFor(() => expect(remote.callerGrants).toHaveBeenCalledTimes(1));
+    await rxdb.grants.refresh();
+    releaseFirst(REMOTE_GRANTS);
+    await first;
+
+    expect(rxdb.grants.snapshot.has('tenant:a', 'edit')).toBe(false);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].grants).toEqual(READ_ONLY);
+    const reopened = setup();
+    reopened.local.stubEntityRepository(RxDBGrantState, rows);
+    await reopened.rxdb.grants.load(reopened.local);
+    expect(reopened.rxdb.grants.snapshot.has('tenant:a', 'read')).toBe(true);
+    expect(reopened.rxdb.grants.snapshot.has('tenant:a', 'edit')).toBe(false);
+  });
+
+  it('两次刷新开始于同一毫秒：照样按开始的先后，不拿墙上时钟打平', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-28T00:00:00.000Z'));
+    const { rxdb, local, remote } = setup();
+    const rows = persistent(local);
+    await rxdb.connect('sqlite');
+    const releaseFirst = interleave(remote, READ_ONLY);
+
+    const first = rxdb.grants.refresh();
+    await vi.waitFor(() => expect(remote.callerGrants).toHaveBeenCalledTimes(1));
+    await rxdb.grants.refresh();
+    releaseFirst(REMOTE_GRANTS);
+    await first;
+
+    expect(rxdb.grants.snapshot.has('tenant:a', 'edit')).toBe(false);
+    expect(rows[0].grants).toEqual(READ_ONLY);
+  });
+
+  it('后一次的内容与当前相同：照样记下它更新，夹在中间、晚到的旧结果不被采用', async () => {
+    const { rxdb, remote } = setup();
+    remote.callerGrants?.mockResolvedValueOnce(READ_ONLY);
+    await rxdb.grants.refresh();
+    const releaseFirst = interleave(remote, READ_ONLY);
+
+    const first = rxdb.grants.refresh();
+    await vi.waitFor(() => expect(remote.callerGrants).toHaveBeenCalledTimes(2));
+    await rxdb.grants.refresh();
+    releaseFirst(REMOTE_GRANTS);
+    await first;
+
+    expect(rxdb.grants.snapshot.has('tenant:a', 'edit')).toBe(false);
+  });
+
+  it('内容不变的刷新推进取得时间，但不发快照事件', async () => {
+    const { rxdb } = setup();
+    await rxdb.grants.refresh();
+    const before = rxdb.grants.snapshot;
+    const events: RxDBGrantSnapshot[] = [];
+    const subscription = rxdb.grants.snapshot$.subscribe(snapshot => events.push(snapshot));
+
+    await rxdb.grants.refresh();
+    subscription.unsubscribe();
+
+    expect(rxdb.grants.snapshot.equals(before)).toBe(true);
+    expect(Number(rxdb.grants.snapshot.updatedAt)).toBeGreaterThan(Number(before.updatedAt));
+    expect(events).toEqual([before]);
+  });
+
+  it('共享本地库的另一个实例刚写下更新的一行：不改写它，内存采用库里那一份', async () => {
+    const { rxdb, local } = setup();
+    const newer = Object.assign(rxdb.entityManager.instantiate(RxDBGrantState), {
+      id: RXDB_GRANT_STATE_ID,
+      source: 'remote',
+      grants: READ_ONLY,
+      updatedAt: new Date(Date.now() + 60_000)
+    });
+    const rows = persistent(local, [newer]);
+    await rxdb.connect('sqlite');
+
+    await rxdb.grants.refresh();
+
+    expect(rows).toEqual([newer]);
+    expect(rows[0].grants).toEqual(READ_ONLY);
+    expect(rxdb.grants.snapshot.has('tenant:a', 'read')).toBe(true);
+    expect(rxdb.grants.snapshot.has('tenant:a', 'edit')).toBe(false);
   });
 });

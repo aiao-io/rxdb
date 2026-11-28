@@ -48,6 +48,17 @@ describe('catalog-history-view', () => {
     ]);
   });
 
+  it('换进本租户的那一次修改看不到改动前的行：只列改了的字段，改之前显示看不到', () => {
+    const moved = entry({
+      patch: { tenantId: 'xinghe', updatedAt: '2026-11-26T09:00:00Z' },
+      inversePatch: null,
+      beforeData: null,
+      afterData: { name: '耳机', price: 199, visibility: 'tenant', tenantId: 'xinghe' }
+    });
+
+    expect(historyChanges(moved)).toEqual([{ label: '所属租户', before: '（看不到）', after: 'xinghe' }]);
+  });
+
   it('自己改的显示「我」，别人改的显示用户 id 前缀，服务端直写显示 service_role；种类与来源一起说', () => {
     expect(describeHistoryEntry(entry({}), ME)).toMatchObject({ id: 1, who: '我', what: '修改 · 本机推送' });
     expect(

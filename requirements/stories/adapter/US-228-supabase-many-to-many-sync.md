@@ -136,7 +136,7 @@ INVEST 检查清单:
 
 ## 技术笔记
 
-- **id 公式**：`uuid` v5（`@aiao/rxdb` 已依赖 `uuid@^14`，纯 JS、同步）。名字是 `rxdb-junction:v1:<namespace>.<中间表名>|<键1>=<值1>|<键2>=<值2>`，键按属性名排序；命名空间是固定的协议常量，永不改变。端点主键是 uuid 时值统一转小写（PGlite 存 `uuid`，SQLite 存 TEXT 且区分大小写）。缺任一端 id 直接抛错。
+- **id 公式**：`uuid` v5（`@aiao/rxdb` 已依赖 `uuid@^14`，纯 JS、同步）。名字是 `rxdb-junction:v1:<namespace>.<中间表名>|<键1>=<值1>|<键2>=<值2>`，键按属性名排序；命名空间是固定的协议常量，永不改变。端点主键是 uuid 时值统一转小写（PGlite 存 `uuid`，SQLite 存 TEXT 且区分大小写）。值里的 `%`、`|` 先转义成 `%25`、`%7C`，否则字符串主键里带 `|<键>=` 时两对不同的数据拼出同一段名字（评审 F5）；不含这两个字符的值（uuid、数字）名字逐字不变。缺任一端 id 直接抛错。
 - **自关联多对多**：两个外键名不同，id 天然区分方向。
 - **已关联未加载**：中间表创建走现有的 upsert 路径（sqlite-core `generate_entity_insert_sql` 的 `useReplace`、PGlite 的 upsert），重复关联退化为一次更新。
 - **同步类型跟随两端**：`createEntitySyncResolver` 加可选的第三个参数 `junctionEndpointsOf`；`SchemaManager` 在生成中间表时记下两端（`junctionEndpointsOf` / `isJunctionEntity`）。中间表取「第一个不可同步的一端」的配置，端点按排序后的顺序取。
