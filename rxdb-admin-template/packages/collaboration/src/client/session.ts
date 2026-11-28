@@ -1,3 +1,4 @@
+import type { RxDBIdentity } from '@aiao/rxdb';
 import type { Session, SupabaseClient } from '@supabase/supabase-js';
 import { CollaborationError, demand, type Identity } from '../model.js';
 import { CollaborationApi } from './api.js';
@@ -60,6 +61,8 @@ interface Grant {
  */
 export class AuthSession extends EventTarget {
   private started?: Promise<void>;
+  /** 本次 {@link AuthSession.initialize} 用的公开配置；初始化完成之后才有。 */
+  private config?: AuthConfig;
   private epoch = 0;
   private unsubscribe?: () => void;
   private readonly channel = new BroadcastChannel('admin-collaboration-session');
@@ -80,6 +83,24 @@ export class AuthSession extends EventTarget {
   /** 是否已登录（有确认过的身份）。 */
   get signedIn(): boolean {
     return this.user !== null;
+  }
+
+  /**
+   * 本机库的身份（ADMIN-US-222）：按它命名并绑定本机工作台库与团队库，换了账号就是另一个库。
+   *
+   * @returns `scope` 是 Supabase 项目 URL 的 origin，与 `rxdb-adapter-supabase` 的 `callerIdentity()` 同一口径；
+   *   `subject` 是账号 id。没有身份（从没登录过、已退出、会话失效）时为 null
+   *
+   * @remarks
+   * {@link AuthSession.initialize} 完成之前，取本机记下的最近一次确认的身份与公开配置：应用要在首屏之前同步建库，
+   * 这时还没有联网确认。登录门禁随后按会话重新确认，确认出别的账号时应用重新载入页面、换到那个账号的库。
+   * 初始化完成之后只认当前确认的身份。
+   */
+  databaseIdentity(): RxDBIdentity | null {
+    const user = this.config ? this.user : this.readGrant()?.user;
+    const config = this.config ?? this.readConfig();
+    if (!user || !config) return null;
+    return { scope: new URL(config.supabaseUrl.trim()).origin, subject: user.id };
   }
 
   /**
@@ -195,17 +216,33 @@ export class AuthSession extends EventTarget {
     return `admin-collaboration-grant:${this.base}`;
   }
 
+  private configKey(): string {
+    return `admin-collaboration-config:${this.base}`;
+  }
+
+  /** 本机记下的缓存授权：最近一次联网确认的身份与它的到期时刻；没有时为 null。 */
+  private readGrant(): Grant | null {
+    const cached = localStorage.getItem(this.grantKey());
+    return cached ? (JSON.parse(cached) as Grant) : null;
+  }
+
+  /** 本机缓存的公开配置：最近一次联网读到的；没有时为 null。 */
+  private readConfig(): AuthConfig | null {
+    const cached = localStorage.getItem(this.configKey());
+    return cached ? (JSON.parse(cached) as AuthConfig) : null;
+  }
+
   private async start(): Promise<void> {
-    const configKey = `admin-collaboration-config:${this.base}`;
     let config: AuthConfig;
     if (navigator.onLine) {
       config = await this.loadConfig();
-      localStorage.setItem(configKey, JSON.stringify(config));
+      localStorage.setItem(this.configKey(), JSON.stringify(config));
     } else {
-      const cached = localStorage.getItem(configKey);
+      const cached = this.readConfig();
       demand(cached, 'offline', '首次使用需要联网登录');
-      config = JSON.parse(cached) as AuthConfig;
+      config = cached;
     }
+    this.config = config;
     const { createClient } = await import('@supabase/supabase-js');
     this.auth = createClient(config.supabaseUrl, config.supabaseKey, {
       auth: {
@@ -240,8 +277,7 @@ export class AuthSession extends EventTarget {
    * @param userId supabase-js 离线恢复出的本机会话所属的账号；冷启动时不传。
    */
   private restoreGrant(userId?: string): void {
-    const cached = localStorage.getItem(this.grantKey());
-    const grant = cached ? (JSON.parse(cached) as Grant) : null;
+    const grant = this.readGrant();
     this.online = false;
     if (grant && grant.expiresAt > Date.now() && (userId === undefined || grant.user.id === userId)) {
       this.user = grant.user;

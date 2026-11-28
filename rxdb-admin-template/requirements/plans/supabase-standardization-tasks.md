@@ -10,7 +10,7 @@
 
 - **连接层**（会话、身份与按身份分库、授权快照与三端按权限显隐）：适配器与平台核心已经覆盖大半——复用应用传入的客户端（`SupabaseAdapterOptions.client`）、`callerIdentity()`（US-035）、`callerGrants()` → `rxdb.grants` → `deriveRowCapabilities` 与三端 `EntityList`（US-029，六项权限就是 Admin 的定义）。缺的三块已在平台立项：会话层 US-237、整库一个作用域 US-039、只接身份与授权 US-238。Admin 改用之后，协作包不再维护平行实现。
 - **数据层**（团队共享数据仅经 PR 合并）：适配器的日志同步加 RLS 直写满足不了 D-06 与协作契约 C02～C06。日志同步按行传最终状态，不保留提交 ID、父链与原作者，拉取方把变化落成自己的本地写入；直写模式下有 `edit` 就能改共享数据，与「管理员也不能直写」冲突。平台 epic-015 也把「改写 Admin 的 PR 链路、对团队数据双写」列为非目标。Admin 独有的这部分登记为平台 epic-017（价值待证），平台交付之前协作包保持现状。
-- **本次合并有一处回归**：三端 app e2e 各有 1 条失败，根因在平台 US-318 的删除判据，见第 3 节。
+- **本次合并有一处回归**：三端 app e2e 各有 1 条失败，根因在平台 US-318 的删除判据，已在平台修复，见第 3 节。
 
 ## 2. 对照：Admin 需求 × 平台标准做法
 
@@ -37,10 +37,7 @@
 | 三端 app e2e                    | `pnpm nx run-many -t e2e -p rxdb-admin-template-react-e2e rxdb-admin-template-angular-e2e rxdb-admin-template-vue-e2e --parallel=1`                                | 每端 1 条失败，其余通过                   |
 | 协作 e2e 与 PostgreSQL 集成用例 | 需要本地 Supabase 栈（`pnpm nx dev rxdb-admin-template`），本次未跑                                                                                                | —                                         |
 
-**回归**：`apps/react-e2e/src/dashboard.spec.ts`「最近活动按增删改时间倒序展示五条，刷新后保留」。删除一个资产分类之后，第一条活动应是「删除资产分类」，实际是 `TRANSACTION`「批量变更 1 条记录」。原因：US-318 让 `EntityManager.remove()` 对 `schemaManager.isReferenced()` 为真的实体一律改走带事务号的批量写；`AssetCategory` 被 `Asset` 以 `RESTRICT` 外键引用，根本不会级联，删一行也成了「一条变更的事务」；三端 `dashboard-model.ts` 与 `dashboard-activity-query.ts` 见到事务号就按批量变更显示。US-318 的范围只承诺「会级联（`CASCADE`）或置空（`SET NULL`）子记录时」记成一个事务，判据比故事范围宽。修法二选一（已登记在根 roadmap「零散收尾项」第 8 条），待 owner 定：
-
-1. 平台把判据收窄为「有 `CASCADE` / `SET NULL` 子关系」，与 US-318 的范围一致，Admin 不用改。**推荐。**
-2. Admin Dashboard 把只有一条变更的事务按原类型显示（三端各改一份 `dashboard-model.ts` 与 `dashboard-activity-query.ts`）。
+**回归**：`apps/react-e2e/src/dashboard.spec.ts`「最近活动按增删改时间倒序展示五条，刷新后保留」。删除一个资产分类之后，第一条活动应是「删除资产分类」，实际是 `TRANSACTION`「批量变更 1 条记录」。原因：US-318 让 `EntityManager.remove()` 对 `schemaManager.isReferenced()` 为真的实体一律改走带事务号的批量写；`AssetCategory` 被 `Asset` 以 `RESTRICT` 外键引用，根本不会级联，删一行也成了「一条变更的事务」；三端 `dashboard-model.ts` 与 `dashboard-activity-query.ts` 见到事务号就按批量变更显示。US-318 的范围只承诺「会级联（`CASCADE`）或置空（`SET NULL`）子记录时」记成一个事务，判据比故事范围宽。**已修（2026-11-28，owner 选平台）**：判据换成 `SchemaManager.cascadesOnDelete()`——有指向它的外键带 `CASCADE`、`SET NULL` 或 `SET DEFAULT` 时才开事务，关系外键按解析后的 `onDelete`、实体级外键（`foreignKeys`）按声明的 `onDelete` 判，首版漏算的实体级外键一并补上。先写的红测试：核心 `SchemaManager.spec.ts`、SQLite 共享级联套件与 PGlite 的 US-318 用例里「只被 RESTRICT 外键引用的删除不记事务号」。复验：三端 app e2e 全部通过；`rxdb`、`rxdb-plugin-history`、`rxdb-adapter-pglite` 与 US-318 证据里的六个 SQLite 包回归通过；`dev-rxdb-angular` 构建通过。US-318 的范围与技术笔记已同步。
 
 这条不属于 ADMIN-US-102 的三条 AC（页面、导航与偏好），影响的是能力矩阵里「真实数据 Dashboard 与最近活动」的本地验证。
 
@@ -65,22 +62,22 @@ epic-017 三条都价值待证：具名使用方只有 Admin，而它已有可�
 
 ## 5. Admin 实施顺序
 
-| 步   | 内容                                    | 前置                                    | 说明                                                                            |
-| ---- | --------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------------- |
-| 0    | 修合并回归（第 3 节）                   | owner 选修法                            | 三端 app e2e 转绿                                                               |
-| 1    | ADMIN-US-222 本机库按账号隔离           | 平台 US-035（已交付）、待决策第 2、3 条 | 建议在 ADMIN-US-217 正式上线前完成：上线之后再改库名，就要给真实设备写迁移      |
-| 2    | ADMIN-US-223 全局会话改用平台会话层     | 平台 US-237                             | 平台交付后做；部署后的三端协作验收（ADMIN-US-217 AC#5）最好排在它之后，免得重跑 |
-| 3    | ADMIN-US-224 团队库标准授权与按权限显隐 | 平台 US-039、US-238，ADMIN-US-222       | —                                                                               |
-| 后续 | 协作服务端迁到平台的仅经 PR 能力        | epic-017 解锁并交付                     | 迁移之前协作包保持现状                                                          |
+| 步   | 内容                                    | 前置                              | 说明                                                                            |
+| ---- | --------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------- |
+| 0    | 修合并回归（第 3 节）                   | —                                 | ✅ 2026-11-28 已修（平台收窄判据），三端 app e2e 全部通过                       |
+| 1    | ADMIN-US-222 本机库按账号隔离           | 平台 US-035（已交付）             | 建议在 ADMIN-US-217 正式上线前完成：上线之后再改库名，就要给真实设备写迁移      |
+| 2    | ADMIN-US-223 全局会话改用平台会话层     | 平台 US-237                       | 平台交付后做；部署后的三端协作验收（ADMIN-US-217 AC#5）最好排在它之后，免得重跑 |
+| 3    | ADMIN-US-224 团队库标准授权与按权限显隐 | 平台 US-039、US-238，ADMIN-US-222 | —                                                                               |
+| 后续 | 协作服务端迁到平台的仅经 PR 能力        | epic-017 解锁并交付               | 迁移之前协作包保持现状                                                          |
 
 ADMIN-US-217 / 220 的部署与真实邮箱证据不依赖以上各步，可以并行。
 
-## 6. 待决策
+## 6. 决策记录
 
-1. 合并回归修在平台还是 Admin（第 3 节，推荐平台）。
-2. 旧的设备共用工作台库怎么处理（ADMIN-US-222「待决策」第 1 条，推荐 A：不归任何账号，提供一次预览后导入）。
-3. 工作台审计身份是否改为真实用户 id（ADMIN-US-222「待决策」第 2 条）。
-4. epic-017 的服务端形态（TypeScript 引擎还是 PL/pgSQL RPC）：只在解锁时需要。
+1. 合并回归修在平台（2026-11-28 owner 定）：已修，见第 3 节。
+2. 旧的设备共用工作台库直接弃用（2026-11-28 owner 定，见 ADMIN-US-222「已定的决策」）。
+3. 工作台审计身份仍写 `'userId'`（2026-11-28，沿用 D-10 第 4 条的口径）。
+4. 待定：epic-017 的服务端形态（TypeScript 引擎还是 PL/pgSQL RPC），只在解锁时需要。
 
 ## 7. 风险
 

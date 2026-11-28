@@ -238,7 +238,6 @@ epic-006 两份评审报告（`next-0912` 与 `review` 分支复核）收口时�
 5. `@aiao/rxdb-model@0.0.26` 坏产物的处置与 GitHub Release 正文同步，见 [发布计划](release-plan.md#开项版本漂移)。
 6. sqlite-wasm 的 idb VFS 路径上限：`mxPathname` 为 64，库名连同 `@0_1.sqlite.db-journal` 后缀超过约 63 字节时 `sqlite3_open_v2` 报不透明的失败（实测 62 字节通过、65 字节失败）；库名里出现 `x:` 还会被 `new URL(name, 'file://')` 当成协议。复现：浏览器里用 45 字符的 `dbName` 配 `{ vfs: 'idb' }` 连接。至少应在连接时给出明确报错；Admin 团队库已用散列库名规避（ADMIN-US-221）。
 7. working-tree 的分支清理与读取成本：`removeBranch` 不能删除当前分支与有子分支的分支，另存、快进之后的旧任务分支会一直留在库里；`listCommits` / `exportCommits` 每次都读完整的第一父链，状态读取的成本随历史增长，缺按范围读取的选项（US-319 已登记有合并时同类成本）。待出现长期使用的真实团队库后评估。
-8. US-318 的删除入口判据比故事范围宽：[`EntityManager.remove()`](../packages/rxdb/src/entity/entity-manager.ts) 对 `schemaManager.isReferenced()` 为真的实体一律改走带事务号的批量写，而 [US-318](stories/collaboration/US-318-cascade-delete-one-transaction.md) 的范围只承诺「会级联（`CASCADE`）或置空（`SET NULL`）子记录时」记成一个事务。只被 `RESTRICT` 外键引用的实体（Admin 的资产分类）删一行也成了「一条变更的事务」，Admin Dashboard 见到事务号就显示「批量变更 1 条记录」，三端 `rxdb-admin-template/apps/react-e2e/src/dashboard.spec.ts` 的「最近活动按增删改时间倒序展示五条」因此失败。修法二选一，待 owner 定：判据收窄为「有 `CASCADE` / `SET NULL` 子关系」（与 US-318 的范围一致），或 Admin Dashboard 把只有一条变更的事务按原类型显示。
 
 US-603 已有独立故事，不在这里另建一份待办。
 

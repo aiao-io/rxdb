@@ -13,7 +13,7 @@ import { installRealtime } from '../server/realtime-fixture.js';
 import { CollaborationRepository } from '../server/repository.js';
 import { TaskLedger, type Context } from './task-ledger.js';
 import { openTeamDatabase } from './team-database.js';
-import { assetEntities, pgliteTeamFactory } from './team-entities.testing.js';
+import { assetEntities, pgliteTeamFactory, teamIdentity } from './team-entities.testing.js';
 import { TeamTasks, type ExchangeDownload } from './team-tasks.js';
 import { memoryStorage } from './team.testing.js';
 
@@ -106,7 +106,7 @@ afterEach(async () => {
 /** 一台设备：自己的账本与团队库。 */
 async function device() {
   const factory = pgliteTeamFactory(assetEntities);
-  const tasks = new TeamTasks(new TaskLedger(memoryStorage()), scope => openTeamDatabase(factory, scope));
+  const tasks = new TeamTasks(new TaskLedger(memoryStorage()), scope => openTeamDatabase(factory, scope, teamIdentity(scope)));
   devices.push(tasks);
   await tasks.login(admin.id);
   return tasks;

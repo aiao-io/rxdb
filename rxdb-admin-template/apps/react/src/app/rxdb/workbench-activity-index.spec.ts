@@ -5,8 +5,11 @@ import { expect, it, vi } from 'vitest';
 import { createWorkbenchDatabase } from './setup_rxdb';
 import { workbenchActivityIndex } from './workbench-activity-index';
 
+/** 一个登录账号的本机库身份：没有身份时工作台是不注册适配器的占位实例（ADMIN-US-222）。 */
+const identity = { scope: 'https://project.supabase.co', subject: '0191b2c4-7f3a-7c1e-9d4b-2a6f8e1c5b30' };
+
 it('连接后才安装日志覆盖索引，重复安装保留现有数据', async () => {
-  const db = createWorkbenchDatabase();
+  const db = createWorkbenchDatabase(undefined, identity);
   const sqlite = new DatabaseSync(':memory:');
   sqlite.exec(`CREATE TABLE "rxdb$rxdb_change" (id INTEGER PRIMARY KEY, branchId TEXT, namespace TEXT,
     transactionId TEXT, createdAt TEXT, entity TEXT);

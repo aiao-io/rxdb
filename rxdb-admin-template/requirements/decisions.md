@@ -89,6 +89,6 @@
 1. **连接层走平台。** 会话（登录、恢复、离线身份、跨标签页、换号）、身份与按身份分库、授权快照与三端按权限显隐，一律用平台能力：适配器复用会话层的同一个客户端（`SupabaseAdapterOptions.client`），身份核对用 `callerIdentity()`（平台 US-035），授权走 `rxdb_caller_grants()` → `rxdb.grants`（平台 US-029）。平台已有的直接改用；平台缺的三块已在根 requirements 立项——会话层 [US-237](../../requirements/stories/adapter/US-237-supabase-session-layer.md)、整库一个作用域 [US-039](../../requirements/stories/core/US-039-instance-access-scope.md)、只接身份与授权 [US-238](../../requirements/stories/adapter/US-238-supabase-adapter-identity-grants-only.md)，交付后改用。改用之后协作包不保留平行实现与回退分支。Admin 是这些能力的第一个三端业务验收，故事归 [ADMIN-EPIC-005](epics/ADMIN-EPIC-005.md)。
 2. **数据层不变。** 团队共享数据仍仅经 PR 合并（D-06、协作契约 C06），不改用适配器的日志同步与直写，也不对同一份团队数据开日志同步双写，与平台 [epic-015](../../requirements/epics/epic-015-identity-scoped-sync.md) 的非目标一致：日志同步不保留提交身份，直写模式下有 `edit` 就能改共享数据，与「任何客户端都不能直写共享数据」冲突。
 3. **独有场景登记为平台候选。** 提交图的服务端交换、仅经 PR 写入、成员邀请与协作实时登记为平台 [epic-017](../../requirements/epics/epic-017-pr-only-team-data.md)（价值待证，等第二个使用方）。平台交付之前，协作包的服务端、命令入口、读取投影与实时频道保持现状；迁移另立 Admin 故事。
-4. **D-10 第 4 条由 ADMIN-US-222 承接。** 本机工作台库与团队库都按身份命名并绑定；交付后 D-03 的默认数据库名 `admin-workbench` 改作按身份派生库名的基础名，旧的设备共用库怎么处理由 owner 在该故事里定。
+4. **D-10 第 4 条由 ADMIN-US-222 承接。** 本机工作台库与团队库都按身份命名并绑定；交付后 D-03 的默认数据库名 `admin-workbench` 改作按身份派生库名的基础名。2026-11-28 owner 定：旧的设备共用库直接弃用（不打开、不迁移、不删除），工作台审计身份仍写 `'userId'`。
 
 评估、对照、本次合并的影响与实施顺序见 [Supabase 接入标准化计划](plans/supabase-standardization-tasks.md)。

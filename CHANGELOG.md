@@ -91,6 +91,7 @@
 - **rxdb-model / -angular / -react / -vue:** 实体列表的撤销 / 重做按钮因子分支分叉点停用时，`title` 说明是哪条分支继承了下一步；文案在 `describeHistoryBarrier()`（US-315）
 - **rxdb-react:** 新增 `useHasRxDBProvider()`（`makeRxDBProvider()` 返回的每一套也带一份）：只回答组件树里有没有同一套 context 的 Provider，与数据库是否就绪、是否创建失败无关；配合 `useRxDBOptional()` 区分「没有 Provider」与「有 Provider 但还在解析」。只加在 React 端：Vue 已有 `injectRxDBRef(true)`，Angular 注入时库已就绪（RV-084）
 - **rxdb-adapter-http:** 实验性 `changeFeed` 新增诊断回调 `onOpen`（新导出 `HttpChangeFeedOpenHook` / `HttpChangeFeedOpenReport`）：每次接通（首次连接与每一次重连）报一次，排在该次接通的全量失效之后；与 `onUnavailable` 同一口径，同步调用、抛错丢弃、不影响通道。两者合起来才答得了「此刻通没通」，`changeFeedEnabled` 仍只是启停意图。
+- **rxdb:** 删除会让本地外键级联删除、置空或置默认子记录的行时（有指向它的外键带 `CASCADE`、`SET NULL` 或 `SET DEFAULT`，关系外键与实体级 `foreignKeys` 都算），源删除与级联写入记进同一个带事务号的事务（US-318）：撤销一次整组恢复，重做一次整组删掉。只被 `RESTRICT` / `NO ACTION` 外键引用的实体照常单条删除、不记事务号，按事务号分组的历史与活动不会把一次删除当成批量变更。
 
 ### 🩹 Fixes
 

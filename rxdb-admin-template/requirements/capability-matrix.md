@@ -39,5 +39,3 @@
 | 独立仓库启动模板                 | [长期目标](future-requirements.md)                                                                                                                                                                 | 当前不实施、不声明已支持                                                                                                                                                                                       |
 
 当前不应把 `packages/rxdb-adapter-supabase`、`packages/rxdb-plugin-working-tree`、`packages/rxdb-plugin-sync` 或交互原型的存在写成 Admin 应用协作闭环已完成；它们只能作为对应故事的底层能力或设计参考。连接层（会话、身份、授权快照）改走平台能力见 [D-11](decisions.md#d-11supabase-接入走平台标准层)；共享数据的协作闭环仍以产品协议验收。
-
-2026-11-28 合并 `origin/main`（#226）之后，「真实数据 Dashboard 与最近活动」的三端 e2e 各有 1 条失败（平台 US-318 的删除判据把只被 `RESTRICT` 外键引用的单行删除也记成事务），修复之前这一行的本地验证不成立，见 [Supabase 接入标准化计划](plans/supabase-standardization-tasks.md)。

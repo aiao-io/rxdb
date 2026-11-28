@@ -9,7 +9,8 @@ import {
   RxDB,
   SyncType,
   type EntityMetadataResolver,
-  type EntityType
+  type EntityType,
+  type RxDBIdentity
 } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
@@ -199,17 +200,24 @@ export function manifestOf(entities: readonly EntityType[], schemaVersion = 1): 
   );
 }
 
+/** 单测里团队库的身份：后端标识固定，主体是作用域里的用户（与生产里会话给出的口径相同，ADMIN-US-222）。 */
+export function teamIdentity(scope: TeamScope): RxDBIdentity {
+  return { scope: 'https://team.test', subject: scope.userId };
+}
+
 /**
- * Node 里的团队库工厂（PGlite）：与三端应用的工厂同一份约定——尚未初始化、库名按作用域、`context.userId` 是真实用户、
- * 实体是克隆、`SyncType.None`、装 history 插件，working-tree 由协作包装。sqlite-wasm 只在浏览器里跑，落库形态的差异由 e2e 覆盖。
+ * Node 里的团队库工厂（PGlite）：与三端应用的工厂同一份约定——尚未初始化、库名按作用域、按给定的身份绑定、
+ * `context.userId` 是真实用户、实体是克隆、`SyncType.None`、装 history 插件，working-tree 由协作包装。
+ * sqlite-wasm 只在浏览器里跑，落库形态的差异由 e2e 覆盖。
  * @param directory 给出时库落在这个目录下（同一作用域重开读到同一份数据，模拟浏览器刷新），否则是内存库。
  */
 export function pgliteTeamFactory(entities: readonly EntityType[], directory?: string) {
   const prefix = `test-${Math.random().toString(36).slice(2)}`;
-  return (scope: TeamScope): RxDB => {
+  return (scope: TeamScope, identity: RxDBIdentity): RxDB => {
     const dbName = teamDatabaseName(prefix, scope);
     const database = new RxDB({
       dbName,
+      identity,
       context: { userId: scope.userId },
       entities: cloneEntityClasses([...entities]),
       sync: { local: { adapter: 'pglite' }, type: SyncType.None }

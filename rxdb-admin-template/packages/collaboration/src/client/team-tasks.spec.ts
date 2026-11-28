@@ -10,7 +10,7 @@ import { MemoryWorkspace } from '../server/memory.testing.js';
 import { importOrder } from './import-anonymous.js';
 import { TaskLedger, type Context } from './task-ledger.js';
 import { openTeamDatabase } from './team-database.js';
-import { assetEntities, manifestOf, pgliteTeamFactory, planningEntities } from './team-entities.testing.js';
+import { assetEntities, manifestOf, pgliteTeamFactory, planningEntities, teamIdentity } from './team-entities.testing.js';
 import { memoryCommand, memoryDownload } from './team-server.testing.js';
 import { TeamTasks } from './team-tasks.js';
 import { memoryStorage } from './team.testing.js';
@@ -38,7 +38,7 @@ async function workspace(schema: SchemaManifest = assetSchema, appId = 'assets')
 /** 一台设备：自己的账本与团队库（PGlite 内存库），以 admin 登录。 */
 async function device(entities: readonly EntityType[] = assetEntities, storage = memoryStorage(), directory?: string) {
   const factory = pgliteTeamFactory(entities, directory);
-  const tasks = new TeamTasks(new TaskLedger(storage), scope => openTeamDatabase(factory, scope));
+  const tasks = new TeamTasks(new TaskLedger(storage), scope => openTeamDatabase(factory, scope, teamIdentity(scope)));
   opened.push(tasks);
   await tasks.login(admin.id);
   return tasks;

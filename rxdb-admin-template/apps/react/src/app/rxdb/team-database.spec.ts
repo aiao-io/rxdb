@@ -1,4 +1,4 @@
-import { getEntityMetadata, SyncType, type RxDB } from '@aiao/rxdb';
+import { getEntityMetadata, SyncType, type RxDB, type RxDBIdentity } from '@aiao/rxdb';
 import { teamDatabaseName, type TeamScope } from '@rxdb-admin-template/collaboration';
 import { firstValueFrom } from 'rxjs';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -9,12 +9,14 @@ import { createTeamDatabase } from './team-database';
 
 /** 一个团队任务场景的作用域：用户是 UUID，团队与应用是不含冒号的短标识。 */
 const scope: TeamScope = { userId: '0191b2c4-7f3a-7c1e-9d4b-2a6f8e1c5b30', teamId: 'team-north', appId: 'assets' };
+/** 协作包交给工厂的身份：后端取自全局会话，主体是作用域里的用户（ADMIN-US-222）。 */
+const identityOf = (given: TeamScope): RxDBIdentity => ({ scope: 'https://project.supabase.co', subject: given.userId });
 
 const opened: RxDB[] = [];
 
 /** 创建团队库并登记，用例结束统一销毁。 */
 function create(given: TeamScope = scope): RxDB {
-  const database = createTeamDatabase(given);
+  const database = createTeamDatabase(given, identityOf(given));
   opened.push(database);
   return database;
 }
@@ -45,6 +47,10 @@ describe('团队库工厂', () => {
     const database = create();
     expect(database.config.context?.userId).toBe(scope.userId);
     expect(database.context.userId).toBe(scope.userId);
+  });
+
+  it('库按协作包交给它的身份绑定：换了账号就打不开别人的团队库（ADMIN-US-222）', () => {
+    expect(create().config.identity).toEqual(identityOf(scope));
   });
 
   it('实体是业务实体的克隆：类不同、元数据的名称与命名空间一一相同，每次调用各克隆一份', () => {
@@ -88,7 +94,7 @@ describe('团队库工厂', () => {
 
   it('适配器与匿名工作台完全相同：主线程 + IndexedDB，取得适配器不会提前连接空库', async () => {
     const team = create();
-    const workbench = createWorkbenchDatabase();
+    const workbench = createWorkbenchDatabase(appConfig, identityOf(scope));
     try {
       const [teamAdapter, workbenchAdapter] = await Promise.all([
         team.getAdapter('sqlite-wasm'),

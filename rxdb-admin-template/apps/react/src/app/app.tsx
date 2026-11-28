@@ -55,16 +55,18 @@ function AppLayout() {
     [rxdb, navigate, t, locale]
   );
 
-  // 退出账号或会话失效：带着当前地址回到登录页
+  // 退出账号或会话失效：带着当前地址回到登录页。会话换成了另一个账号（别的页面登录了别人）：本页的工作台库还是原账号的，
+  // 重新载入，换到那个账号自己的库（ADMIN-US-222）
   useEffect(() => {
     const session = authSession();
     const follow = () => {
       if (!session.user)
         void navigate(loginUrl(`${window.location.pathname}${window.location.search}${window.location.hash}`));
+      else if (session.user.id !== rxdb.config.identity?.subject) window.location.reload();
     };
     session.addEventListener('identity', follow);
     return () => session.removeEventListener('identity', follow);
-  }, [navigate]);
+  }, [navigate, rxdb]);
 
   return (
     <AdminLayout

@@ -218,3 +218,39 @@ describe('全局登录会话', () => {
     authSession('/another-test').dispose();
   });
 });
+
+describe('本机库的身份（ADMIN-US-222）', () => {
+  it('确认身份之后：后端是 Supabase 项目 URL 的 origin，主体是账号 id；退出之后没有身份', async () => {
+    authClient('bob');
+    const { session } = create();
+    await session.initialize();
+    expect(session.databaseIdentity()).toEqual({ scope: 'http://auth.test', subject: 'bob' });
+    session.signOut();
+    expect(session.databaseIdentity()).toBeNull();
+  });
+  it('初始化之前取本机记下的最近一次确认的身份与公开配置：应用在首屏之前就能按身份建库，不访问网络', async () => {
+    authClient('alice');
+    await create().session.initialize();
+    const fresh = create();
+    expect(fresh.session.databaseIdentity()).toEqual({ scope: 'http://auth.test', subject: 'alice' });
+    expect(fresh.config).not.toHaveBeenCalled();
+  });
+  it('从没登录过（本机没有记下的身份或配置）时没有身份', () => {
+    expect(create().session.databaseIdentity()).toBeNull();
+  });
+  it('后端标识与 rxdb-adapter-supabase 的 callerIdentity() 同一口径：只取 URL 的 origin，路径与尾斜杠不算', async () => {
+    authClient('alice');
+    const config = vi.fn(async () => ({ supabaseUrl: 'https://project.supabase.co/rest/v1/', supabaseKey: 'public' }));
+    const { session } = create('/test', config);
+    await session.initialize();
+    expect(session.databaseIdentity()?.scope).toBe('https://project.supabase.co');
+  });
+  it('初始化确认出另一个账号时，按确认出的账号给出', async () => {
+    authClient('alice');
+    await create().session.initialize();
+    authClient('carol');
+    const next = create();
+    await next.session.initialize();
+    expect(next.session.databaseIdentity()?.subject).toBe('carol');
+  });
+});

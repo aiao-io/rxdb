@@ -1,4 +1,5 @@
-import type { Notice, Records, SchemaManifest } from '../model.js';
+import type { RxDBIdentity } from '@aiao/rxdb';
+import { demand, type Notice, type Records, type SchemaManifest } from '../model.js';
 import { adminView } from './admin-view.js';
 import { canManage, pageHeader, viewTabs, type CollaborationView, type HeaderActions } from './chrome.js';
 import { CollaborationController, type WorkspaceEntry } from './controller.js';
@@ -14,7 +15,7 @@ import { PullRequestView } from './pr-view.js';
 import { authSession, type AuthSession } from './session.js';
 import type { TaskEntry } from './task-ledger.js';
 import { taskView, type TaskPrActions } from './task-view.js';
-import { openTeamDatabase, type TeamDatabaseFactory } from './team-database.js';
+import { openTeamDatabase, type TeamDatabaseFactory, type TeamScope } from './team-database.js';
 import type { RenderTeamEditor } from './team-editor.js';
 import { openInvitationDialog, teamPicker, type TeamPickerActions } from './team-picker.js';
 import { tx, useTranslation, type Translate } from './translate.js';
@@ -59,6 +60,16 @@ interface Regions {
 }
 
 /**
+ * 团队库的身份（ADMIN-US-222）：后端标识取自全局会话，主体是作用域里的用户。
+ * 会话已经不是这个用户（另一个页面换了账号）时按会话失效处理，不替别人打开库。
+ */
+function teamDatabaseIdentity(session: AuthSession, scope: TeamScope): RxDBIdentity {
+  const identity = session.databaseIdentity();
+  demand(identity?.subject === scope.userId, 'unauthenticated', '会话已失效，请重新登录');
+  return identity;
+}
+
+/**
  * 三端共享的协作界面，所有用户内容均通过文本节点渲染。
  *
  * @remarks
@@ -82,7 +93,7 @@ export function mountCollaboration(host: HTMLElement, options: CollaborationOpti
   const session = options.session ?? authSession(apiBase);
   const controller = new CollaborationController(
     apiBase,
-    scope => openTeamDatabase(options.createTeamDatabase, scope),
+    scope => openTeamDatabase(options.createTeamDatabase, scope, teamDatabaseIdentity(session, scope)),
     undefined,
     session
   );

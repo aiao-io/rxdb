@@ -117,13 +117,16 @@ export class App {
   );
   constructor() {
     bindWorkbenchNavigator(url => void this.router.navigateByUrl(url));
-    // 退出账号或会话失效：带着当前地址回到登录页
+    // 退出账号或会话失效：带着当前地址回到登录页。会话换成了另一个账号（别的页面登录了别人）：本页的工作台库还是原账号的，
+    // 重新载入，换到那个账号自己的库（ADMIN-US-222）。登录页自己会在登录之后整页跳转，这里不插手
     const session = authSession();
     const follow = () => {
-      if (!session.user && !this.router.url.startsWith('/login'))
+      if (this.router.url.startsWith('/login')) return;
+      if (!session.user)
         void this.router.navigateByUrl(
           loginUrl(`${window.location.pathname}${window.location.search}${window.location.hash}`)
         );
+      else if (session.user.id !== this.db.config.identity?.subject) window.location.reload();
     };
     session.addEventListener('identity', follow);
     inject(DestroyRef).onDestroy(() => session.removeEventListener('identity', follow));

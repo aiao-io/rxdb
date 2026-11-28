@@ -5,7 +5,8 @@ import {
   getEntityMetadata,
   SyncType,
   type EntityType,
-  type RxDB
+  type RxDB,
+  type RxDBIdentity
 } from '@aiao/rxdb';
 import type { VersionManager } from '@aiao/rxdb-plugin-history';
 import {
@@ -42,9 +43,13 @@ export interface TeamScope {
 /**
  * 应用提供的团队库工厂（ADMIN-US-221）：按作用域返回一个**尚未初始化**（没有调用过 `init()` / `connect()`）的 RxDB。
  *
+ * @param scope - 用户 × 团队 × 应用
+ * @param identity - 本机库的身份（ADMIN-US-222）：后端标识取自全局会话，主体就是 `scope.userId`
+ *
  * @remarks
  * 约定（三端应用的实现逐条相同）：
  * - 库名用 {@link teamDatabaseName}，前缀由应用给出（例如它的本机库名），作用域的三项经散列进库名；
+ * - `identity` 原样交给 `RxDBOptions.identity`：库记下它属于谁，换了身份就打不开（平台 US-035）；
  * - `context.userId` 是 `scope.userId`：团队任务里新建、修改记录的审计字段与提交的作者都是这个真实用户；
  * - 实体是应用业务实体经 `cloneEntityClasses()` 克隆出的新类：同一个实体类不能注册到两个 RxDB 实例，匿名工作台已注册了原类，
  *   每次调用都要克隆一份新的（切换团队时旧库关闭、新库打开）；
@@ -55,7 +60,7 @@ export interface TeamScope {
  * working-tree 插件由协作包在连接前装上并启用（{@link openTeamDatabase}），工厂不要装，也不要调用 `init()`：
  * 带系统贡献的插件必须在 `init()` 之前登记，而 `enable()` 是库级、不可逆的开关，因此团队库与匿名工作台分库。
  */
-export type TeamDatabaseFactory = (scope: TeamScope) => RxDB;
+export type TeamDatabaseFactory = (scope: TeamScope, identity: RxDBIdentity) => RxDB;
 
 /**
  * 团队库名的长度上限。sqlite-wasm 的 IndexedDB 文件系统（wa-sqlite 的 `FacadeVFS`）的 `mxPathname` 是 64：
@@ -176,12 +181,21 @@ export interface TeamDatabase {
 
 /**
  * 打开团队库：调用应用的工厂，在连接前装上 working-tree 插件，连接本地适配器，空库上启用提交能力（`enableIfEmpty()`）。
- * 工厂返回的库不合约定（已初始化、`context.userId` 不是当前用户、库级同步不是 `SyncType.None`、没装 history 插件）、
- * 或库里已有不在任何提交里的内容（`not_empty`）时抛出 `configuration`，并关闭已打开的连接。
+ * 身份的主体不是作用域里的用户时不调用工厂；工厂返回的库不合约定（已初始化、没按交给它的身份绑定、`context.userId` 不是当前用户、
+ * 库级同步不是 `SyncType.None`、没装 history 插件）、或库里已有不在任何提交里的内容（`not_empty`）时抛出 `configuration`，
+ * 并关闭已打开的连接。库里绑定的是别的身份时，连接按平台 US-035 报身份不匹配，本地数据不动。
+ * @param identity 本机库的身份（ADMIN-US-222），主体必须是 `scope.userId`。
  */
-export async function openTeamDatabase(factory: TeamDatabaseFactory, scope: TeamScope): Promise<TeamDatabase> {
-  const rxdb = factory(scope);
+export async function openTeamDatabase(
+  factory: TeamDatabaseFactory,
+  scope: TeamScope,
+  identity: RxDBIdentity
+): Promise<TeamDatabase> {
+  demand(identity.subject === scope.userId, 'configuration', '团队库配置不正确');
+  const rxdb = factory(scope, identity);
   demand(!rxdb.initialized, 'configuration', '团队库配置不正确');
+  const bound = rxdb.config.identity;
+  demand(bound?.scope === identity.scope && bound.subject === identity.subject, 'configuration', '团队库配置不正确');
   demand(rxdb.config.context?.userId === scope.userId, 'configuration', '团队库配置不正确');
   demand(rxdb.config.sync.type === SyncType.None, 'configuration', '团队库配置不正确');
   const adapter = rxdb.config.sync.local?.adapter;

@@ -497,6 +497,19 @@ export function cascadeMutationSuite(factory: AdapterFactory) {
           const [restored] = await byId(Product, product.id);
           expect(restored.categoryId).toBe(category.id);
         });
+
+        it('删除只被 RESTRICT 外键引用、没有子记录的记录：照常单条删除，不记事务号', async () => {
+          // OrderItem.order 是不可空多对一，默认 RESTRICT：删订单不会改写任何引用它的行，不需要事务
+          const order = new Order();
+          order.orderNumber = 'US-318 order';
+          await order.save();
+
+          await order.remove();
+
+          const deletes = (await changesOf([order.id])).filter(change => change.type === 'DELETE');
+          expect(deletes).toHaveLength(1);
+          expect(deletes[0].transactionId).toBeNull();
+        });
       });
 
       describe('验证生成的 SQL 包含级联配置', () => {

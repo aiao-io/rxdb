@@ -1,20 +1,25 @@
-import { cloneEntityClasses, RxDB, SyncType } from '@aiao/rxdb';
+import { cloneEntityClasses, RxDB, SyncType, type RxDBIdentity } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { openTeamDatabase, teamDatabaseName, type TeamDatabase, type TeamScope } from './team-database.js';
-import { assetEntities, pgliteTeamFactory } from './team-entities.testing.js';
+import { assetEntities, pgliteTeamFactory, teamIdentity } from './team-entities.testing.js';
 
 const scope: TeamScope = { userId: crypto.randomUUID(), teamId: 'team', appId: 'assets' };
+const identity = teamIdentity(scope);
 const opened: TeamDatabase[] = [];
 afterEach(async () => {
   for (const database of opened.splice(0)) await database.close();
 });
 /** 不合约定的工厂：在合约定的基础上改一处。 */
-function factory(change: { init?: boolean; userId?: string; synced?: boolean; history?: boolean }) {
-  return (given: TeamScope) => {
+function factory(change: { init?: boolean; userId?: string; synced?: boolean; history?: boolean; identity?: false }) {
+  return (given: TeamScope, bound: RxDBIdentity) => {
     const database = new RxDB({
       dbName: teamDatabaseName(`bad${Math.random().toString(36).slice(2, 8)}`, given),
+      ...(change.identity === false ? {} : { identity: bound }),
       context: { userId: change.userId ?? given.userId },
       entities: cloneEntityClasses([...assetEntities]),
       sync:
@@ -65,33 +70,67 @@ describe('团队库的库名：用户 × 团队 × 应用', () => {
 
 describe('打开团队库：连接前装上 working-tree，空库上启用提交能力', () => {
   it('工厂交回未初始化的库：打开之后提交能力已启用、当前分支是镜像共享分支的 main，工作树干净', async () => {
-    const database = await openTeamDatabase(pgliteTeamFactory(assetEntities), scope);
+    const database = await openTeamDatabase(pgliteTeamFactory(assetEntities), scope, identity);
     opened.push(database);
     expect(database.scope).toEqual(scope);
     expect(await database.rxdb.workingTree.isEnabled()).toBe(true);
     expect(await database.currentBranch()).toBe('main');
     expect(await database.tree.status()).toMatchObject({ branchId: 'main', entryCount: 0 });
     expect(database.rxdb.config.context?.userId).toBe(scope.userId);
+    expect(database.rxdb.config.identity).toEqual(identity);
+  });
+  it('身份的主体不是作用域里的用户时不打开，工厂都不调用（ADMIN-US-222）', async () => {
+    const create = vi.fn(pgliteTeamFactory(assetEntities));
+    await expect(
+      openTeamDatabase(create, scope, { ...identity, subject: crypto.randomUUID() })
+    ).rejects.toMatchObject({ code: 'configuration', message: '团队库配置不正确' });
+    expect(create).not.toHaveBeenCalled();
+  });
+  it('每个账号一个团队库：A 写下的草稿，B 打开同一团队读不到；A 重新打开时草稿还在（ADMIN-US-222）', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'team-identity-'));
+    try {
+      const create = pgliteTeamFactory(assetEntities, directory);
+      const other: TeamScope = { ...scope, userId: crypto.randomUUID() };
+      const alice = await openTeamDatabase(create, scope, identity);
+      await alice.writeRecords({ [crypto.randomUUID()]: { entity: 'AssetCategory', fields: { name: '电脑' } } }, [
+        'AssetCategory'
+      ]);
+      expect(await alice.tree.status()).toMatchObject({ entryCount: 1 });
+      await alice.close();
+
+      const bob = await openTeamDatabase(create, other, teamIdentity(other));
+      expect(bob.rxdb.config.dbName).not.toBe(alice.rxdb.config.dbName);
+      expect(await bob.tree.status()).toMatchObject({ entryCount: 0 });
+      await bob.close();
+
+      const again = await openTeamDatabase(create, scope, identity);
+      opened.push(again);
+      expect(await again.tree.status()).toMatchObject({ entryCount: 1 });
+    } finally {
+      for (const database of opened.splice(0)) await database.close();
+      await rm(directory, { recursive: true, force: true });
+    }
   });
   it.each([
     ['已经初始化过（working-tree 来不及在 init() 之前登记）', { init: true }],
     ['context.userId 不是当前用户', { userId: 'someone-else' }],
     ['库级同步不是 SyncType.None（导入拒绝写走通用同步的实体）', { synced: true }],
-    ['没装 history 插件（切分支与从提交建分支要用它）', { history: false }]
+    ['没装 history 插件（切分支与从提交建分支要用它）', { history: false }],
+    ['没按交给它的身份绑定库（ADMIN-US-222）', { identity: false as const }]
   ])('不合约定的工厂一律拒绝：%s', async (_label, change) => {
-    await expect(openTeamDatabase(factory(change), scope)).rejects.toMatchObject({
+    await expect(openTeamDatabase(factory(change), scope, identity)).rejects.toMatchObject({
       code: 'configuration',
       message: '团队库配置不正确'
     });
   });
   it('拒绝时关闭已经建立的连接', async () => {
     const destroy = vi.spyOn(RxDB.prototype, 'destroy');
-    await expect(openTeamDatabase(factory({ history: false }), scope)).rejects.toMatchObject({ code: 'configuration' });
+    await expect(openTeamDatabase(factory({ history: false }), scope, identity)).rejects.toMatchObject({ code: 'configuration' });
     expect(destroy).toHaveBeenCalledTimes(1);
     destroy.mockRestore();
   });
   it('按记录写入当前分支：保留记录标识、按给定的实体顺序写，写入经捕获进入工作树并通知订阅者；退订之后不再通知', async () => {
-    const database = await openTeamDatabase(pgliteTeamFactory(assetEntities), scope);
+    const database = await openTeamDatabase(pgliteTeamFactory(assetEntities), scope, identity);
     opened.push(database);
     const written = vi.fn();
     const unsubscribe = database.onWrite(written);

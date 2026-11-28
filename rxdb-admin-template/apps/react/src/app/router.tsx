@@ -55,7 +55,10 @@ export const routes: RouteObject[] = [
         path: 'search',
         lazy: lazyRoute(() => import('./pages/search-page')),
         errorElement: <SearchLoadError />,
-        loader: async (): Promise<null> => {
+        loader: async (args): Promise<null> => {
+          // 路由的各级 loader 并行执行：先等登录门禁放行，未登录时这里不碰库。没有登录身份时的工作台是不注册适配器的
+          // 占位实例，连它会当场报错（ADMIN-US-222）
+          await requireLogin(args);
           // search 插件声明 inject: ['adapter:local']，渲染期同步调用 db.search()
           // 需要本地适配器先连上（深链直进时连接尚未建立会抛 plugin is not installed）
           const db = setup_rxdb();

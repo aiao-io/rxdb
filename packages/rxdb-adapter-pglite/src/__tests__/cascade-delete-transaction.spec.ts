@@ -86,6 +86,36 @@ class Us318Product extends EntityBase {
   declare categoryId: UUID | null;
 }
 
+/** 只被 RESTRICT 外键引用：`Us318Book.shelf` 是不可空多对一（默认 RESTRICT），删书架不会改写引用它的行 */
+@Entity({
+  name: 'Us318Shelf',
+  properties: [{ name: 'name', type: PropertyType.string }],
+  relations: [{ name: 'books', kind: RelationKind.ONE_TO_MANY, mappedEntity: 'Us318Book', mappedProperty: 'shelf' }]
+})
+class Us318Shelf extends EntityBase {
+  static [ENTITY_STATIC_TYPES]: { idType: UUID };
+  declare name: string;
+}
+
+@Entity({
+  name: 'Us318Book',
+  properties: [{ name: 'title', type: PropertyType.string }],
+  relations: [
+    {
+      name: 'shelf',
+      kind: RelationKind.MANY_TO_ONE,
+      mappedEntity: 'Us318Shelf',
+      mappedProperty: 'books',
+      nullable: false
+    }
+  ]
+})
+class Us318Book extends EntityBase {
+  static [ENTITY_STATIC_TYPES]: { idType: UUID };
+  declare title: string;
+  declare shelfId: UUID;
+}
+
 describe('级联写入与源删除记成一个事务（US-318）', () => {
   let rxdb: RxDB;
   let adapter: RxDBAdapterPGlite;
@@ -94,7 +124,7 @@ describe('级联写入与源删除记成一个事务（US-318）', () => {
     rxdb = new RxDB({
       dbName: generateDbName(),
       context: { userId: 'us318' },
-      entities: [Us318Parent, Us318Child, Us318Category, Us318Product],
+      entities: [Us318Parent, Us318Child, Us318Category, Us318Product, Us318Shelf, Us318Book],
       sync: { local: { adapter: 'pglite' }, type: SyncType.None }
     });
     rxdb.use(rxDBPluginHistory);
@@ -165,5 +195,16 @@ describe('级联写入与源删除记成一个事务（US-318）', () => {
     expect(await byId(Us318Category, category.id)).toHaveLength(1);
     const [restored] = await byId(Us318Product, product.id);
     expect(restored.categoryId).toBe(category.id);
+  });
+
+  it('删除只被 RESTRICT 外键引用、没有子记录的记录：照常单条删除，不记事务号', async () => {
+    const shelf = new Us318Shelf({ name: 'shelf' });
+    await shelf.save();
+
+    await shelf.remove();
+
+    const deletes = (await changesOf([shelf.id])).filter(change => change.type === 'DELETE');
+    expect(deletes).toHaveLength(1);
+    expect(deletes[0].transactionId).toBeNull();
   });
 });

@@ -42,8 +42,7 @@
 
 方向见 [D-11](decisions.md#d-11supabase-接入走平台标准层)，评估、对照与本次合并的影响见 [Supabase 接入标准化计划](plans/supabase-standardization-tasks.md)，统一归属 [ADMIN-EPIC-005](epics/ADMIN-EPIC-005.md)。结论：会话、身份、按身份分库与授权快照走平台标准（`rxdb-adapter-supabase` 与 RxDB 核心），Admin 是这些能力的第一个三端业务验收；团队共享数据仍仅经 PR 合并，不改用日志同步与直写。
 
-0. 先修合并回归：合并 `origin/main`（#226）之后，三端 Dashboard「最近活动」e2e 各有 1 条失败，根因是平台 US-318 的删除判据比故事范围宽；修法待 owner 选，推荐收窄平台判据（计划第 3 节）。
-1. [ADMIN-US-222](stories/collaboration/ADMIN-US-222-identity-bound-local-databases.md) 本机库按账号隔离：平台前置 US-035 已交付，可以开工；旧的设备共用库怎么处理先由 owner 定。建议在 ADMIN-US-217 正式上线前完成，免得给真实设备写迁移。
+1. [ADMIN-US-222](stories/collaboration/ADMIN-US-222-identity-bound-local-databases.md) 本机库按账号隔离：平台前置 US-035 已交付，可以开工；旧的设备共用库由 owner 定为直接弃用。建议在 ADMIN-US-217 正式上线前完成，免得给真实设备写迁移。
 2. [ADMIN-US-223](stories/collaboration/ADMIN-US-223-platform-supabase-session.md) 全局会话改用平台会话层：等平台 US-237（根 roadmap 批次 13）。
 3. [ADMIN-US-224](stories/collaboration/ADMIN-US-224-team-database-standard-grants.md) 团队库接入标准适配器、按权限显隐：等平台 US-039 与 US-238（根 roadmap 批次 13）。
 
