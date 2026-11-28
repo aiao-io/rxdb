@@ -57,7 +57,7 @@ overrides:
   '@jimp/core>phin': ^3.7.1
   '@jimp/jpeg>jpeg-js': ^0.4.4
   miniprogram-automator>debug: ^4.4.3
-  '@lucide/angular': 1.77.0
+  '@lucide/angular': 1.82.0
   '@tarojs/helper>esbuild': ^0.25.12
   '@tarojs/plugin-doctor>glob': ^10.5.0
   '@tarojs/plugin-framework-react>vite': 6.4.4
@@ -105,7 +105,7 @@ overrides:
   yaml@1: ^1.10.3
 patchedDependencies:
   '@easyops-cn/docusaurus-search-local@0.55.3': patches/@easyops-cn__docusaurus-search-local@0.55.3.patch
-  '@tarojs/vite-runner@4.3.2': patches/@tarojs__vite-runner@4.3.2.patch
+  '@tarojs/vite-runner@4.3.3': patches/@tarojs__vite-runner@4.3.3.patch
   typescript@6.0.3: patches/typescript@6.0.3.patch
 peerDependencyRules:
   allowedVersions:

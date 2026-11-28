@@ -5,13 +5,6 @@ export default [
   ...baseConfig,
   ...reactFlatConfig,
   {
-    settings: {
-      react: {
-        version: '19.2'
-      }
-    }
-  },
-  {
     files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx'],
     rules: {}
   },

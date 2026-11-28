@@ -28,7 +28,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.5",
     "@tailwindcss/vite": "^4.3.5",
-    "daisyui": "^5.8.1",
+    "daisyui": "^5.8.3",
     "tailwindcss": "^4.3.5"
   }
 }
